@@ -156,10 +156,14 @@ export function group(out, name) {
 export const hasGroup = (out, name) => groupCandidates(out, name).length > 0;
 
 /**
- * Whether the bar renders the group at all, segmented switch or not. The
- * companion `hasGroup` asks about the group's SHAPE, so on its own it also
- * answers false for a control that is still on screen and has merely stopped
- * being a segmented switch; an absence case asks both.
+ * Whether the bar renders the group at all, segmented switch or not.
+ *
+ * This is NOT an independent second reading beside `hasGroup`: both read the
+ * same `data-group` marking, and this one is strictly the broader of the two —
+ * `hasGroup` additionally requires the marked element to enclose a segmented
+ * switch, so `hasGroup(out, n)` true implies `mentions(out, n)` true. An
+ * absence case therefore asserts this one alone; asserting both states the same
+ * fact twice, and a case that pairs them is a vacuous half waiting to happen.
  *
  * @param {string} out
  * @param {string} name

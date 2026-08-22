@@ -231,14 +231,19 @@ const SDM_RATE_TOOLTIP = "SDM output target rate.";
 // reason says is the owner's (store/liverateauto.test.js is where the store's
 // own sentence lives); that a reason is there and has displaced the prose is
 // the behavior (docs/testing.md rule 9).
+// Read against BOTH columns' prose, not just the field's own: a title that is
+// merely "not this column's sentence" is also satisfied by the neighbor's
+// sentence, which is a defect rather than a reason.
 /**
  * @param {string} title
- * @param {string} own
  * @returns {[boolean, string]}
  */
-const standsInFor = (title, own) => [
-  title !== "" && title !== own,
-  `hover title reads ${JSON.stringify(title)}, catalog prose is ${JSON.stringify(own)}`,
+const standsInFor = (title) => [
+  title !== "" && title !== PCM_RATE_TOOLTIP && title !== SDM_RATE_TOOLTIP,
+  `hover title reads ${JSON.stringify(title)}, catalog prose is ${JSON.stringify([
+    PCM_RATE_TOOLTIP,
+    SDM_RATE_TOOLTIP,
+  ])}`,
 ];
 
 /** @param {{ state: string, name: string, file: Record<string, string> }} mode */
@@ -294,12 +299,18 @@ function rateCard(out) {
 
 test("test_the_grayed_pcm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
   await inOutputMode(AUTO);
-  assert.ok(...standsInFor(hoverTitle(page(), "pcm_rate"), PCM_RATE_TOOLTIP));
+  assert.ok(...standsInFor(hoverTitle(page(), "pcm_rate")));
 });
 
 test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
+  // One output mode grays both columns, so the reason they carry is one reason:
+  // read against the PCM column's title as well as against the prose, so that a
+  // title which is merely "not a catalog sentence" cannot answer for it.
   await inOutputMode(AUTO);
-  assert.ok(...standsInFor(hoverTitle(page(), "sdm_rate"), SDM_RATE_TOOLTIP));
+  const out = page();
+  const sdm = hoverTitle(out, "sdm_rate");
+  const seen = { stands: standsInFor(sdm)[0], shared: sdm === hoverTitle(out, "pcm_rate") };
+  assert.deepEqual(seen, { stands: true, shared: true });
 });
 
 test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hover", async () => {

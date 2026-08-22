@@ -278,6 +278,11 @@ def test_a_save_payload_without_a_presets_key_names_no_targets() -> None:
 # --- 18. a snapshot the writer cannot ground itself in -------------------------
 
 
+# `no-root` is raised in conf/xmledit.py, not in conf/matrixconf.py: the writer
+# grounds itself in the snapshot's <hqplayerd> root through that helper, which
+# refuses a document that has none. Matrixconf's own `matrix-absent` code has no
+# case here on purpose — its raise is unreachable, the caller having run
+# `ensure_element` first.
 def test_a_snapshot_without_the_hqplayerd_root_is_refused() -> None:
     unrooted = b'<?xml version="1.0"?><other/>'
     assert refusal_code(lambda: matrixconf.write_profile(unrooted, json.dumps(save_payload()))) == "no-root"

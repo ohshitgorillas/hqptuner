@@ -173,9 +173,14 @@ test("test_an_empty_preset_store_offers_one_option_that_is_no_preset", async () 
   // In the PICKER, not merely somewhere on the card: the line has to be what the
   // dropdown offers, or a card that printed it as a paragraph beside an empty
   // select would pass while the control said nothing. WHAT that one option says
-  // is the owner's wording (rule 9).
+  // is the owner's wording (rule 9), so the "is no preset" half is read off the
+  // option's VALUE: a preset option carries the preset it selects, and this one
+  // carries nothing — SSR emits an empty value as a bare `value`. Counting the
+  // options alone leaves that half unchecked.
   await resetPage({ presets: [] });
-  assert.equal(options(card(page(), LIVE_MODE)).length, 1);
+  const only = options(card(page(), LIVE_MODE));
+  const seen = { count: only.length, selects: only.map((o) => (/\svalue="([^"]*)"/.exec(o.tag) || ["", ""])[1]) };
+  assert.deepEqual(seen, { count: 1, selects: [""] });
 });
 
 test("test_a_stocked_picker_opens_on_something_that_is_no_preset", async () => {

@@ -168,10 +168,6 @@ function card(out, want) {
  */
 const row = (out, key) => enclosing(out, labeled(out, key)).html;
 
-// Whether a fragment encloses the volume hint, whatever cause it names.
-/** @param {string} frag */
-const hasHint = (frag) => elements(frag).some((el) => attr(el, "data-hint") !== undefined);
-
 // The cause the hint names, or null when the fragment carries no hint.
 /**
  * @param {string} frag
@@ -262,8 +258,12 @@ test("test_a_disabled_volume_control_grays_the_dial", async () => {
 });
 
 test("test_the_disabled_region_encloses_the_reason_hint", async () => {
+  // The cause is read, not merely counted: the running config the fixture hands
+  // the page sets `direct_sdm="1"`, so `direct-sdm` is the reason the hint has
+  // to name. Asking only whether SOME hint sits in the region leaves the LIVE
+  // page's reading of that flag pinned nowhere.
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.ok(hasHint(disabledRegion(card(page(), LIVE_PLAYBACK))));
+  assert.equal(cause(disabledRegion(card(page(), LIVE_PLAYBACK))), "direct-sdm");
 });
 
 test("test_the_disabled_region_leaves_out_the_adaptive_volume_control", async () => {

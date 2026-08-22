@@ -151,8 +151,18 @@ test("test_plain_rows_render_no_badge", async () => {
 // What the badge REPORTS is numbers; the sentence carrying them is the owner's.
 
 test("test_an_installed_block_badges_its_sixteen_rows", async () => {
-  await reset(block());
-  assert.ok(badge().includes("16"));
+  // Read against the block's OWN row list rather than against "some digits in
+  // the sentence" — the badge also carries an angle, a head size and a center
+  // character, all numbers. Two plain rows sit beside the block here, so a badge
+  // counting the whole pipeline set would name 18 and fail both halves.
+  const rows = block();
+  await reset([...rows, ...pair()]);
+  const numbers = [...badge().matchAll(/\d+/g)].map((m) => m[0]);
+  const seen = {
+    block: numbers.includes(String(rows.length)),
+    whole: numbers.includes(String(rows.length + pair().length)),
+  };
+  assert.deepEqual(seen, { block: true, whole: false });
 });
 
 test("test_the_badge_reports_the_speaker_angle", async () => {

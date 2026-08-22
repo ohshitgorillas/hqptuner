@@ -284,27 +284,53 @@ test("test_shown_notes_explain_each_physical_control", async () => {
 });
 
 // --- conflict blockers -------------------------------------------------------------
-// Each blocker's own sentence is the owner's; what the cases pin is that the
-// condition raises a blocker at all (docs/testing.md rule 9).
+// Each blocker's own sentence is the owner's; WHICH conflict is being reported is
+// the key it is built under (lib/binaural-setup.js), which the note carries in
+// `data-blockers`, space-joined the way `data-backends` is (docs/testing.md rule
+// 9). Reading the key tells the two conditions apart — asking only whether a
+// blocker note exists made the two cases below one case written twice.
+
+const BAUER_RUNNING = "crossfeed_enabled";
+const LINEAR_PHASE = "matrix_iir2fir";
+
+// The blockers the card is reporting, in sorted order so a case states a set
+// rather than a render order. [] when it reports none.
+/** @returns {string[]} */
+const blockers = () => {
+  const hit = /\sdata-blockers="([^"]*)"/.exec(card());
+  return hit
+    ? hit[1]
+        .split(" ")
+        .filter((key) => key !== "")
+        .sort()
+    : [];
+};
 
 test("test_a_running_bauer_crossfeed_blocks_the_install", async () => {
   await reset({ mode: "structural", enabled: true });
-  assert.ok(card().includes("xfs-blocked"));
+  assert.deepEqual(blockers(), [BAUER_RUNNING]);
 });
 
 test("test_linear_phase_conversion_blocks_the_install", async () => {
   await reset({ mode: "structural", iir2fir: "2" });
-  assert.ok(card().includes("xfs-blocked"));
+  assert.deepEqual(blockers(), [LINEAR_PHASE]);
+});
+
+// Both conditions at once: the note reports the pair, not whichever it noticed
+// first — the case that separates a list from a single verdict.
+test("test_both_conflicts_at_once_are_reported_together", async () => {
+  await reset({ mode: "structural", enabled: true, iir2fir: "2" });
+  assert.deepEqual(blockers(), [BAUER_RUNNING, LINEAR_PHASE].sort());
 });
 
 test("test_a_clean_config_shows_no_blocker_note", async () => {
   await reset({ mode: "structural" });
-  assert.equal(card().includes("xfs-blocked"), false);
+  assert.deepEqual(blockers(), []);
 });
 
 test("test_an_installed_block_shows_no_blocker_note", async () => {
   await reset({ rows: structural(), mode: "structural", enabled: true });
-  assert.equal(card().includes("xfs-blocked"), false);
+  assert.deepEqual(blockers(), []);
 });
 
 // --- the card-level gate stack ------------------------------------------------------
@@ -431,8 +457,12 @@ test("test_the_bauer_view_renders_exactly_one_gate", async () => {
 });
 
 test("test_the_bauer_view_renders_exactly_one_engage_button", async () => {
+  // Counted as BUTTONS carrying the "1" wire value, not as occurrences of the
+  // string: any other control that gained that value — a combobox option row,
+  // a narrow bar label — would otherwise be counted as an engage button.
   await reset({ mode: "bauer" });
-  assert.equal(card().split('data-v="1"').length - 1, 1);
+  const engage = buttons(card()).filter((b) => /\sdata-v="1"/.test(b.slice(0, b.indexOf(">"))));
+  assert.equal(engage.length, 1);
 });
 
 test("test_the_bauer_preset_row_keeps_its_preset_dropdown", async () => {

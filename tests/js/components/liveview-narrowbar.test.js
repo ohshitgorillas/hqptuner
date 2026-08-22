@@ -84,21 +84,22 @@ async function openLivePage({ srcFormat = "pcm" } = {}) {
 
 // The heading a group prints is the owner's; the id its element carries is
 // contract (docs/testing.md rule 9), so the group lookups below use the id.
-const SOURCE_FORMAT = "Source format";
 const SOURCE_FORMAT_GROUP = "source-format";
 
 test("test_the_live_page_offers_the_1x_sources_group", async () => {
   assert.equal(hasGroup(await openLivePage(), "1x-sources"), true);
 });
 
-// Both readings together: the group's shape AND its wording. Either alone would
-// also answer no for a control that is still on screen and has merely stopped
-// being a segmented switch.
+// One reading, and the broader of the two: `mentions` asks whether ANY element
+// of the page carries the group's id, segmented switch or not, so it also
+// answers no for a control still on screen that has merely stopped being a
+// segmented switch. `hasGroup` is the narrower question and its answer is
+// implied by this one, so asserting both would be asserting the same thing
+// twice. The 1x-sources case above is what keeps a page that rendered nothing
+// at all from passing this for free.
 
 test("test_the_live_page_offers_no_source_format_group", async () => {
-  const out = await openLivePage();
-  const seen = { group: hasGroup(out, SOURCE_FORMAT_GROUP), wording: mentions(out, SOURCE_FORMAT) };
-  assert.deepEqual(seen, { group: false, wording: false });
+  assert.equal(mentions(await openLivePage(), SOURCE_FORMAT_GROUP), false);
 });
 
 // The group's absence and the Reset button's are separate promises: a page that

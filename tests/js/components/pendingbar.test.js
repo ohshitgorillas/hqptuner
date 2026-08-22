@@ -141,6 +141,14 @@ const countSpan = (out) => (/<span class="count">([^<]*)<\/span>/.exec(out) || [
 /** @param {string} out */
 const stagedCount = (out) => Number((countSpan(out).match(/\d+/) || ["NaN"])[0]);
 
+// The machine identity of the verdict the note is rendering: `data-outcome`
+// carries the apply verdict's own `code`, which is what lets a reader tell
+// WHICH outcome is on screen without reading the sentence announcing it (the
+// sentence being owner copy — docs/testing.md rule 9). Undefined when the bar
+// renders no note at all, which fails an equality rather than passing as "".
+/** @param {string} out */
+const noteOutcome = (out) => (/<span class="note[^"]*"[^<>]*\sdata-outcome="([^"]*)"/.exec(out) || [])[1];
+
 /** @param {string} out */
 const noteClasses = (out) =>
   [...out.matchAll(/class="([^"]*)"/g)]
@@ -193,6 +201,42 @@ test("test_a_failed_apply_shows_its_text", async () => {
   await reset();
   lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
   assert.ok(bar().includes("Failed: filter"));
+});
+
+// --- status line: which outcome is on screen --------------------------------
+//
+// `ok`/`err` says only whether the apply worked; `data-outcome` says WHICH
+// verdict produced the note, and it is the only observable that does — the
+// sentence beside it is copy. So the wiring from the verdict the store
+// published to the attribute the bar renders is pinned per code, on the real
+// codes store/actions.js publishes (tests/js/store/store.test.js): a bar
+// rendering one constant, or the `ok` flag, or nothing at all, fails here while
+// every class assertion above stays green.
+/** @type {[boolean, string][]} */
+const VERDICTS = [
+  [true, "switched"],
+  [false, "live-failed"],
+  [false, "persist-refused"],
+  [false, "endpoint-missing"],
+];
+
+for (const [succeeded, code] of VERDICTS) {
+  test(`test_a_concluded_apply_marks_the_note_with_its_${code.replace(/-/g, "_")}_verdict`, async () => {
+    await reset();
+    lastApply.value = { ok: succeeded, code, text: "Whatever the copy says" };
+    assert.equal(noteOutcome(bar()), code);
+  });
+}
+
+// Two failures wearing the same `err` class are told apart only by the outcome:
+// this is the case a bar that hardcoded one failure code would pass every other
+// assertion of, and fail here.
+test("test_two_failing_applies_are_marked_with_different_outcomes", async () => {
+  await reset();
+  lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
+  const first = noteOutcome(bar());
+  lastApply.value = { ok: false, code: "persist-error", text: "Failed: config" };
+  assert.notEqual(first, noteOutcome(bar()));
 });
 
 test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {

@@ -197,17 +197,33 @@ test("test_the_gain_ceiling_is_labeled", async () => {
 
 // --- graying -----------------------------------------------------------------
 
+// The reason the CARD itself carries, read off the section carrying the card's
+// own id rather than off the render as a whole: any control inside that gained
+// a tooltip of its own would otherwise answer for the card's. Undefined when the
+// card offers none — SSR emits an empty reason as a bare `title`.
+/** @param {string} out */
+const reason = (out) => {
+  const tag = /<section[^>]*\sdata-card="volume-range"[^>]*>/.exec(out);
+  if (!tag) throw new Error("no volume-range card in the rendered output");
+  return attr(tag[0], "title");
+};
+
 // WHICH sentence the tooltip carries is the owner's; that a grayed card carries
-// one at all, and an ungrayed one does not, is the behavior (rule 9).
+// one at all, and that the reason follows the state that grayed it, is the
+// behavior (rule 9). The second half compares two renders against each other, so
+// no wording is pinned: a card handing out one reason whatever the cause fails.
 test("test_direct_sdm_carries_a_reason_on_the_card", async () => {
   await reset({ ...DEFAULTS, direct_sdm: "1" });
-  assert.ok(bar().includes('title="'));
+  const direct = reason(bar());
+  await reset({ ...DEFAULTS, fixed_volume_enabled: "1" });
+  const seen = { given: direct !== undefined && direct !== "", follows: direct !== reason(bar()) };
+  assert.deepEqual(seen, { given: true, follows: true });
 });
 
 test("test_an_ungrayed_card_carries_no_reason", async () => {
   // an empty reason renders as a bare `title` — the card offers no tooltip text
   await reset(DEFAULTS);
-  assert.equal(bar().includes('title="'), false);
+  assert.equal(reason(bar()), undefined);
 });
 
 test("test_direct_sdm_marks_the_track_disabled", async () => {

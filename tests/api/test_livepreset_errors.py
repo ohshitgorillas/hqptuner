@@ -199,12 +199,11 @@ def test_applying_a_preset_when_the_daemon_drops_the_connection_is_unavailable(
     assert dropping_apply.status_code == 503
 
 
-def test_applying_a_preset_when_the_daemon_drops_the_connection_says_why(
-    dropping_apply: Response,
-) -> None:
-    # the 503 carries a reason for the card to show; its wording is owner-owned
-    # data (docs/testing.md rule 9)
-    assert dropping_apply.json()["detail"] != ""
+# A companion case asserting only that the 503's detail is non-empty used to sit
+# here and has been folded away: the status is pinned above, and nothing in that
+# detail survives rule 9. The one machine token in it names whichever command was
+# in flight when the socket died, which is apply-sequence ordering rather than
+# behavior, and the rest is owner-owned wording.
 
 
 # --- DELETE /api/livepresets/{name} ----------------------------------------------

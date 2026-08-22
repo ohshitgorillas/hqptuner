@@ -136,8 +136,25 @@ test("test_a_missing_required_argument_is_reported", () => {
   assert.ok(editor("iir:type=peak;g=0;q=1").includes("mtx-issues"));
 });
 
+// The issue line's own text, or "" when the editor raises none. No wording is
+// pinned: the case below compares one render's line against another's, so what
+// each issue actually says stays the owner's (docs/testing.md rule 9).
+/** @param {string} out */
+const issueLine = (out) => (/<div class="mtx-issues">([^<]*)</.exec(out) || ["", ""])[1];
+
 test("test_multiple_issues_share_one_line", () => {
-  assert.equal((editor("delay:x=1").match(/mtx-issues/g) || []).length, 1);
+  // `delay:x=1` raises two: an argument the kind does not take, and a required
+  // one it lacks. Each is reachable alone, so the combined line is read against
+  // both singles — counting the elements alone would stay green for an editor
+  // that dropped one of the two issues on the floor.
+  const many = editor("delay:x=1");
+  const seen = {
+    lines: (many.match(/mtx-issues/g) || []).length,
+    carries: [issueLine(editor("delay:t=1;x=1")), issueLine(editor("delay"))].filter((one) =>
+      issueLine(many).includes(one),
+    ).length,
+  };
+  assert.deepEqual(seen, { lines: 1, carries: 2 });
 });
 
 test("test_the_spec_line_shows_the_stage_raw_string", () => {

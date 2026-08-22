@@ -121,10 +121,16 @@ export function enclosing(fragment, el) {
   return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
-// Every element a schema key renders as. A field's wrapper carries
-// `data-k="<key>"` (components/Field.js), and the key is the wire identifier the
-// daemon's form is keyed by — contract, unlike the words announcing it — so a
-// control is found by its key and never by its wording (docs/testing.md rule 9).
+// Every element a control key renders as. A field's wrapper carries
+// `data-k="<key>"` (components/Field.js). For a control backed by the daemon's
+// form that key IS the wire identifier the form is keyed by, but not every
+// `data-k` is one: the two description preferences render `showDescriptions` and
+// `keepOptionDescriptions` (client-side prefs, `store/prefs.js`, with no schema
+// key at all), and the LIVE view's wrappers carry catalog keys such as
+// `pcm_filter_nx` (`store/live/derive.js`). What holds for all three is that the
+// value is a machine identifier the owner does not reword — contract, unlike the
+// words announcing it — so a control is found by its key and never by its
+// wording (docs/testing.md rule 9).
 /**
  * @param {string} fragment
  * @param {string} name

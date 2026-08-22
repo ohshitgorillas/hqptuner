@@ -34,7 +34,6 @@ import {
   DSD64,
   DSD512,
   DSD1024,
-  PCM_1X,
   PCM_4X,
   PCM_8X,
   MODULATOR,
@@ -61,8 +60,13 @@ const PCM = "shaper-fit-pcm";
 // 352800 the 8x tier's 44.1k member.
 const FLOORS = { sdm: { [MODULATOR]: 40960000 }, pcm: { [DITHER]: 352800 } };
 // The second pair's: 6144000 is the DSD128 tier, 705600 the 16x tier's 44.1k
-// member.
-const FLOORS_2 = { sdm: { [OTHER_MODULATOR]: 6144000 }, pcm: { [DITHER]: 705600 } };
+// member. Both floors are stated beside the first pair's, so the two shapers
+// disagree about the SAME rate and a reading that took the wrong shaper's floor
+// reaches the wrong verdict rather than the same one.
+const FLOORS_2 = {
+  sdm: { [MODULATOR]: 40960000, [OTHER_MODULATOR]: 6144000 },
+  pcm: { [DITHER]: 705600 },
+};
 
 // Both families conflicting at once: SDM sits at DSD512 under a 40.96 MHz floor,
 // PCM at 4x under an 8x floor.
@@ -77,13 +81,15 @@ test("test_a_modulator_above_the_sdm_rate_raises_one_sdm_alert", async () => {
   assert.deepEqual(kinds(), [SDM]);
 });
 
-test("test_a_second_modulator_at_a_second_floor_and_rate_raises_it_too", async () => {
+test("test_a_second_modulator_is_read_against_its_own_floor", async () => {
   // ASDM5 is the OTHER member of the engine's modulator list, selected by the
-  // list index `State` reports; its 6.144 MHz floor is the DSD128 tier, and the
-  // engine is one tier below it. Nothing here is shared with the case above, so
-  // a store that read one modulator's floor for every modulator fails.
-  await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: FLOORS_2, shaper: SELECTS.OTHER });
-  assert.deepEqual(kinds(), [SDM]);
+  // list index `State` reports. At DSD512 its 6.144 MHz floor is MET, while the
+  // 40.96 MHz floor of the modulator the case above uses would not be — so a
+  // store reading one modulator's floor for every modulator raises a row here
+  // and fails. Asserting "an alert appears" at a rate under BOTH floors would
+  // not have told the two readings apart.
+  await reset({ chain: "sdm", mode: "2", sdmRate: DSD512, floors: FLOORS_2, shaper: SELECTS.OTHER });
+  assert.deepEqual(alerts(), []);
 });
 
 test("test_a_modulator_conflict_is_critical", async () => {
@@ -98,10 +104,12 @@ test("test_a_ditherer_above_the_pcm_rate_raises_one_pcm_alert", async () => {
   assert.deepEqual(kinds(), [PCM]);
 });
 
-test("test_a_ditherer_at_a_second_floor_and_rate_raises_it_too", async () => {
-  // The same ditherer, a floor three tiers higher and the base rate: neither
-  // side of the comparison is the pair the case above states.
-  await reset({ chain: "pcm", mode: "1", pcmRate: PCM_1X, floors: FLOORS_2 });
+test("test_a_ditherer_is_read_against_the_floor_it_carries", async () => {
+  // The same ditherer at 8x — a rate that CLEARS the 352.8 kHz floor of the case
+  // above and falls under the 705.6 kHz floor stated here. A store comparing
+  // against a fixed floor rather than the one the ditherer carries reaches the
+  // opposite verdict and fails.
+  await reset({ chain: "pcm", mode: "1", pcmRate: PCM_8X, floors: FLOORS_2 });
   assert.deepEqual(kinds(), [PCM]);
 });
 

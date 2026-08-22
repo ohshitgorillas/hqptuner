@@ -30,6 +30,7 @@ import { plottedRows } from "../../../hqptuner/static/components/matrix/Plot.js"
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 import { section } from "../support/tabform.js";
+import { attr, classes, elements } from "../support/markup.js";
 
 /** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
 
@@ -74,20 +75,24 @@ const tab = () =>
 /** @param {string} out */
 const pipelinesCard = (out) => section(out, "pipelines");
 
-// The card's own checkbox — the mirror switch. Found by being the card's
-// checkbox rather than by the words beside it (docs/testing.md rule 9): the
-// wording is the owner's to change, the control is not. Null when the card or
-// the input is missing, so that "no control" can never be read as "control
-// unchecked"; more than one raises, since then this lookup no longer names one
-// control and a case would silently measure whichever came first.
+// The mirror switch, found by the class its own row carries,
+// `mtx-import-mirror` — a CSS class is a machine identifier, the words beside
+// the box are the owner's (docs/testing.md rule 9). "The card's only checkbox"
+// would name no control at all: the card is free to grow another one, and a
+// case would then measure whichever came first. Null when the row or the input
+// is missing, so that "no control" can never be read as "control unchecked";
+// more than one input in that row raises, since then this lookup has stopped
+// naming a single control.
 /**
  * @param {string} out
  * @returns {string | null}
  */
 function mirrorBox(out) {
-  const boxes = pipelinesCard(out).match(/<input\b[^>]*type="checkbox"[^>]*>/g) || [];
-  if (boxes.length > 1) throw new Error(`the Pipelines card carries ${boxes.length} checkboxes, not one`);
-  return boxes[0] ?? null;
+  const row = elements(pipelinesCard(out)).find((el) => classes(el).includes("mtx-import-mirror"));
+  if (!row) return null;
+  const boxes = elements(row.html).filter((el) => el.name === "input" && attr(el, "type") === "checkbox");
+  if (boxes.length > 1) throw new Error(`the mirror row carries ${boxes.length} checkboxes, not one`);
+  return boxes[0]?.html ?? null;
 }
 
 // SSR emits a checked box as a bare `checked` attribute and omits it entirely

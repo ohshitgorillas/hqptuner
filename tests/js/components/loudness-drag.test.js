@@ -137,9 +137,19 @@ test("test_a_drag_in_progress_keeps_the_polled_volume_out_of_the_caption", async
 
 test("test_a_drag_to_zero_decibels_captions_zero_rather_than_the_polled_volume", async () => {
   // 0 dB is the trap: falsy, so a caption picking its source with `||` reads the
-  // polled level instead of the top of the knob's travel
+  // polled level instead of the top of the knob's travel. Substring-matching the
+  // sentence cannot catch that — "0.0 dB" is a substring of "-20.0 dB" — so the
+  // reading is differential, like the curve cases below: the caption while the
+  // knob is held at 0 is the caption the engine reporting 0 would have drawn,
+  // and is NOT the one it draws at the polled level. The `||` bug renders the
+  // polled caption, which fails both halves.
+  await reset({ level: "0", drag: null });
+  const asEngineReported = caption();
+  await reset({ level: POLLED, drag: null });
+  const atPolledLevel = caption();
   await reset({ level: POLLED, drag: 0 });
-  assert.ok(caption().includes("0.0 dB"));
+  const seen = { atZero: caption() === asEngineReported, atPolled: caption() === atPolledLevel };
+  assert.deepEqual(seen, { atZero: true, atPolled: false });
 });
 
 test("test_a_released_drag_returns_the_caption_to_the_polled_volume", async () => {

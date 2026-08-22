@@ -2,34 +2,38 @@
 // shows when HQPlayer's matrix engine is switched out of the signal path, so
 // that everything authored on the tab is inert.
 //
-// The note is one of two sentences, forked on whether the card's own feature is
-// engaged:
+// The note is one of two KINDS, forked on whether the card's own feature is
+// engaged, and each kind names itself in `data-note`
+// (components/matrix/BypassNote.js):
 //
-//     A: Matrix engine is bypassed. These settings have no effect.
-//     B: Matrix engine is bypassed. Engage it to use this feature.
+//     matrix-bypass-settings: the feature is engaged, so its settings are inert
+//     matrix-bypass-engage:   the feature is off, so the note points at the switch
 //
 // A card whose feature is switched off still has grayed controls on screen, so it
-// still gets an explanation — sentence B, which points at the engine rather than
-// claiming settings the user is not using are inert.
+// still gets an explanation — the engage note, which points at the engine rather
+// than claiming settings the user is not using are inert.
 //
 // A card only says its settings have no effect when those settings are actually
-// engaged: a user who has a feature switched off reads B instead of A.
+// engaged: a user who has a feature switched off gets the engage note instead.
 //
 // The Pipelines card has no feature switch of its own — its contents ARE the
-// matrix pipeline rows — so a bypassed engine always puts sentence A on it, rows
-// or no rows, and it never says B. The Crossfeed card in its Structural view says
-// A when a structural block is installed in the effective rows (structural
-// crossfeed is sixteen compiled pipeline rows) and B when none is. The Headphone
-// Auto EQ card says neither sentence, ever.
+// matrix pipeline rows — so a bypassed engine always puts the settings note on
+// it, rows or no rows, and it never carries the engage one. The Crossfeed card in
+// its Structural view takes the settings note when a structural block is
+// installed in the effective rows (structural crossfeed is sixteen compiled
+// pipeline rows) and the engage note when none is. The Headphone Auto EQ card
+// takes neither, ever.
 //
 // The Matrix response card takes a note of its own, worded for a picture rather
-// than for controls:
+// than for controls — `matrix-bypass-custom`, the override kind — and takes it
+// CONDITIONALLY: a plot with nothing drawn on it has nothing to call unapplied,
+// so a bare passthrough pipeline set stays silent even while the engine is
+// bypassed.
 //
-//     Matrix engine is bypassed. The changes below are not applied.
-//
-// and takes it CONDITIONALLY: a plot with nothing drawn on it has no "below" to
-// be unapplied, so a bare passthrough pipeline set stays silent even while the
-// engine is bypassed.
+// WHAT any of the three says is owner copy and is named nowhere in this file. The
+// two control sentences share an opening clause, so a classifier running one
+// `includes()` per sentence reported "both" for the shorter of the two the moment
+// the owner trimmed the other — a copy edit turning a suite red (rule 9).
 //
 // One exclusion, with a negative case rather than a silence: the Speakers card.
 // HQPlayer's `<speakers>` element carries its own `enabled` attribute independent
@@ -53,11 +57,11 @@
 // staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing
 // is stubbed and no module private is touched.
 //
-// The note's PLACEMENT is not asserted: which element carries it and which class
-// it wears are free to change, so the cases ask only whether the text is present
-// in the card's rendered output. Every card lookup goes through `noteIn`, which
-// answers a STRING rather than a boolean when the card was not rendered at all —
-// so a negative case cannot pass by looking at nothing.
+// The note's PLACEMENT is not asserted: which element carries the marking and
+// which class it wears are free to change, so the cases ask only which kinds the
+// card's rendered output carries. Every card lookup goes through `notesIn`, which
+// answers a STRING rather than a list when the card was not rendered at all — so
+// a negative case cannot pass by looking at nothing.
 //
 // One reading taken where the spec left room, reported in the hand-back: "no
 // pipeline row control renders disabled" is asserted as *the bypass changes
@@ -91,15 +95,16 @@ import { plottedRows, previewEq } from "../../../hqptuner/static/components/matr
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 import { section } from "../support/tabform.js";
-import { MATRIX_BYPASS_REASON } from "../../../hqptuner/static/store/schema.js";
 
-// Sentence A is the store's own exported reason, compared against the export
-// rather than a copy of its wording (docs/testing.md rule 9). The other two
-// sentences have no export of their own yet, so they stay literals here — the
-// only copy this file still names.
-const NOTE = MATRIX_BYPASS_REASON;
-const ENGAGE_NOTE = "Matrix engine is bypassed. Engage it to use this feature.";
-const PLOT_NOTE = "Matrix engine is bypassed. The changes below are not applied.";
+// The three notes by the kind each one carries, `data-note` — the identity the
+// component derives from its inputs, not from the sentence it produced
+// (components/matrix/BypassNote.js). No sentence of the three is named anywhere
+// in this file: the two control notes share an opening clause, so shortening one
+// of them — an ordinary copy edit — used to reclassify every card showing the
+// other (docs/testing.md rule 9).
+const SETTINGS = "matrix-bypass-settings";
+const ENGAGE = "matrix-bypass-engage";
+const CUSTOM = "matrix-bypass-custom";
 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
 /** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
@@ -202,77 +207,36 @@ const decode = (out) =>
 const tab = () => decode(render(html`<${MatrixTab} />`));
 const speakerCard = () => decode(render(html`<${SpeakersCard} />`));
 
-// One card's rendered output, picked by the heading it carries. Cards are
-// `<section class="card ...">` with the title in the head above the body
-// (tests/js/components/common.test.js), so a split on the section start yields
-// one fragment per card and the head is whatever precedes its body.
-/** @param {string} out */
-const cardsOf = (out) => out.split('<section class="card').slice(1);
-/** @param {string} frag */
-const headOf = (frag) => {
-  const at = frag.indexOf('<div class="card-body"');
-  return at < 0 ? frag : frag.slice(0, at);
-};
-/**
- * @param {string} out
- * @param {RegExp} re
- */
-const cardTitled = (out, re) => cardsOf(out).find((frag) => re.test(headOf(frag))) || "";
-
-// Whether a card carries a given sentence — or a sentence saying the card was
-// never rendered, which equals neither true nor false and so fails either way
-// round.
+// Every bypass note a card renders, by kind and in render order — the whole list
+// rather than one question at a time, so a single assertion pins the note that
+// belongs there AND the absence of the two that do not. A card showing two notes,
+// or the wrong one, answers a different list and fails.
+//
+// Only notes of this feature are collected: `data-note` marks explanatory notes
+// across the app (`narrow-intro`, `poll-quick`, …), and a card is free to carry
+// one of those without carrying a bypass note.
+//
+// A card that was never rendered answers a STRING, which no expected list can
+// equal — so a "this card says nothing" case cannot pass by looking at nothing.
 /**
  * @param {string} frag
- * @param {string} text
- * @returns {boolean | string}
+ * @returns {string[] | string}
  */
-const says = (frag, text) => (frag === "" ? "that card was not rendered at all" : frag.includes(text));
-
-// Which of the two sentences a card SHOWS — named rather than asked about one at
-// a time, so a single assertion pins the presence of the sentence that belongs
-// there AND the absence of the one that does not. An implementation that shows
-// both, or that shows A where B belongs, answers something other than the
-// expected name and fails.
-//
-// Text nodes only. Sentence A also appears under a bypassed matrix as the hover
-// TITLE of every grayed post-process control (a separate behavior, pinned in
-// matrix-postprocess-gating.test.js), and an attribute value is not something the
-// user reads off the card. Every tag is replaced by a separator rather than
-// deleted, so neighboring text nodes cannot fuse into a sentence that was never
-// shown; which element carries the note stays outside the contract.
-//
-// The tag pattern assumes no attribute value contains a raw ">": SSR escapes only
-// "&", "<" and '"', so an attribute carrying ">" would end a "tag" early and leak
-// the rest of its value into the shown text. The failure direction is safe — a
-// grayed control's title="...These settings have no effect." leaking in turns a
-// sentence-B case into "both", which is a RED, never a false green.
-/** @param {string} frag */
-const shownText = (frag) => frag.replace(/<[^<>]*>/g, " ");
-/**
- * @param {string} frag
- * @returns {"A" | "B" | "both" | "neither" | string}
- */
-const sentenceIn = (frag) => {
+const notesIn = (frag) => {
   if (frag === "") return "that card was not rendered at all";
-  const shown = shownText(frag);
-  const a = shown.includes(NOTE);
-  const b = shown.includes(ENGAGE_NOTE);
-  if (a && b) return "both";
-  return a ? "A" : b ? "B" : "neither";
+  return [...frag.matchAll(/\sdata-note="([^"]*)"/g)]
+    .map((m) => m[1])
+    .filter((kind) => kind.startsWith("matrix-bypass-"));
 };
-/** @param {string} frag */
-const plotNoteIn = (frag) => says(frag, PLOT_NOTE);
 
-// Cards by the id their section carries (docs/testing.md rule 9). The crossfeed
-// card is the exception: it carries no id, so it is still picked out by the word
-// in its head — the one wording-based selector left in this file.
+// Cards by the id their section carries (docs/testing.md rule 9). No card in
+// this file is picked out by a word any more.
 /** @param {string} out */
 const pipelinesCard = (out) => section(out, "pipelines");
 /** @param {string} out */
 const autoEqCard = (out) => section(out, "headphone-auto-eq");
 /** @param {string} out */
-const crossfeedCard = (out) => cardTitled(out, /Crossfeed/i);
+const crossfeedCard = (out) => section(out, "crossfeed");
 /** @param {string} out */
 const responseCard = (out) => section(out, "matrix-response");
 
@@ -295,7 +259,7 @@ const rowControlStates = (out) =>
 
 test("test_a_bypassed_matrix_engine_tells_the_pipelines_card_its_settings_are_inert", async () => {
   await reset({ on: "0" });
-  assert.equal(sentenceIn(pipelinesCard(tab())), "A");
+  assert.deepEqual(notesIn(pipelinesCard(tab())), [SETTINGS]);
 });
 
 // The Pipelines card has no feature switch of its own, so there is no "switched
@@ -303,12 +267,12 @@ test("test_a_bypassed_matrix_engine_tells_the_pipelines_card_its_settings_are_in
 // editor whose contents the engine will not run.
 test("test_a_bypassed_matrix_engine_tells_the_pipelines_card_its_settings_are_inert_with_no_rows", async () => {
   await reset({ on: "0", rows: [] });
-  assert.equal(sentenceIn(pipelinesCard(tab())), "A");
+  assert.deepEqual(notesIn(pipelinesCard(tab())), [SETTINGS]);
 });
 
 test("test_an_engaged_matrix_engine_leaves_the_pipelines_card_without_the_note", async () => {
   await reset({ on: "1" });
-  assert.equal(sentenceIn(pipelinesCard(tab())), "neither");
+  assert.deepEqual(notesIn(pipelinesCard(tab())), []);
 });
 
 // The note follows the EFFECTIVE value — what the user has staged over the
@@ -316,13 +280,13 @@ test("test_an_engaged_matrix_engine_leaves_the_pipelines_card_without_the_note",
 test("test_the_note_clears_when_the_effective_matrix_gate_is_staged_on", async () => {
   await reset({ on: "0" });
   await edit("matrix_enabled", "1");
-  assert.equal(sentenceIn(pipelinesCard(tab())), "neither");
+  assert.deepEqual(notesIn(pipelinesCard(tab())), []);
 });
 
 test("test_the_note_appears_when_the_effective_matrix_gate_is_staged_off", async () => {
   await reset({ on: "1" });
   await edit("matrix_enabled", "0");
-  assert.equal(sentenceIn(pipelinesCard(tab())), "A");
+  assert.deepEqual(notesIn(pipelinesCard(tab())), [SETTINGS]);
 });
 
 // ============================================================================
@@ -359,7 +323,7 @@ test("test_a_bypassed_matrix_engine_leaves_row_control_disabled_states_unchanged
 // silence.
 test("test_a_bypassed_matrix_engine_leaves_the_headphone_auto_eq_card_without_either_sentence", async () => {
   await reset({ on: "0" });
-  assert.equal(sentenceIn(autoEqCard(tab())), "neither");
+  assert.deepEqual(notesIn(autoEqCard(tab())), []);
 });
 
 // ============================================================================
@@ -373,7 +337,7 @@ test("test_a_bypassed_matrix_engine_leaves_the_headphone_auto_eq_card_without_ei
 
 test("test_a_bypassed_matrix_engine_tells_the_structural_crossfeed_view_its_settings_are_inert", async () => {
   await reset({ on: "0", rows: STRUCTURAL(), view: "structural" });
-  assert.equal(sentenceIn(crossfeedCard(tab())), "A");
+  assert.deepEqual(notesIn(crossfeedCard(tab())), [SETTINGS]);
 });
 
 // A bare stereo passthrough pair carries no structural block, so the structural
@@ -381,19 +345,19 @@ test("test_a_bypassed_matrix_engine_tells_the_structural_crossfeed_view_its_sett
 // settings have no effect.
 test("test_a_bypassed_matrix_engine_asks_an_uninstalled_structural_crossfeed_view_to_engage_it", async () => {
   await reset({ on: "0", rows: BARE, view: "structural" });
-  assert.equal(sentenceIn(crossfeedCard(tab())), "B");
+  assert.deepEqual(notesIn(crossfeedCard(tab())), [ENGAGE]);
 });
 
 test("test_an_engaged_matrix_engine_leaves_the_structural_crossfeed_view_without_either_sentence", async () => {
   await reset({ on: "1", rows: STRUCTURAL(), view: "structural" });
-  assert.equal(sentenceIn(crossfeedCard(tab())), "neither");
+  assert.deepEqual(notesIn(crossfeedCard(tab())), []);
 });
 
 // And with the engine engaged and no block installed, still nothing: an engaged
 // engine silences both sentences whatever the feature switch says.
 test("test_an_engaged_matrix_engine_leaves_an_uninstalled_structural_crossfeed_view_without_either_sentence", async () => {
   await reset({ on: "1", rows: BARE, view: "structural" });
-  assert.equal(sentenceIn(crossfeedCard(tab())), "neither");
+  assert.deepEqual(notesIn(crossfeedCard(tab())), []);
 });
 
 // ============================================================================
@@ -406,28 +370,25 @@ test("test_an_engaged_matrix_engine_leaves_an_uninstalled_structural_crossfeed_v
 
 test("test_a_bypassed_matrix_engine_tells_the_response_card_its_curve_is_not_applied", async () => {
   await reset({ on: "0", rows: ROWS });
-  assert.equal(plotNoteIn(responseCard(tab())), true);
+  assert.deepEqual(notesIn(responseCard(tab())), [CUSTOM]);
 });
 
 // The conditional, and the case that carries the feature: nothing drawn means
 // nothing to call unapplied, bypassed engine or not.
 test("test_a_bypassed_matrix_engine_says_nothing_on_a_response_card_with_nothing_drawn", async () => {
   await reset({ on: "0", rows: BARE });
-  assert.equal(plotNoteIn(responseCard(tab())), false);
+  assert.deepEqual(notesIn(responseCard(tab())), []);
 });
 
 test("test_an_engaged_matrix_engine_leaves_the_response_card_without_a_note", async () => {
   await reset({ on: "1", rows: ROWS });
-  assert.equal(plotNoteIn(responseCard(tab())), false);
+  assert.deepEqual(notesIn(responseCard(tab())), []);
 });
 
-// The response card's sentence stays its own: it never falls back to either
-// control wording, which would tell the user their settings have no effect — or
-// ask them to engage a feature — while pointing at a picture.
-test("test_the_response_card_uses_neither_control_wording", async () => {
-  await reset({ on: "0", rows: ROWS });
-  assert.equal(sentenceIn(responseCard(tab())), "neither");
-});
+// The case that stood here asked separately that the response card falls back to
+// neither control note. `notesIn` answers the card's WHOLE note list, so the case
+// above already states it: `[CUSTOM]` is not `[SETTINGS]` and not `[ENGAGE]`.
+// Kept as two assertions it would have been the same assertion twice.
 
 // ============================================================================
 // the card that is NOT about the matrix engine
@@ -436,14 +397,11 @@ test("test_the_response_card_uses_neither_control_wording", async () => {
 // `enabled` attribute (hqplayerd-readme.txt §1.9). They keep working while the
 // matrix engine is bypassed, so claiming otherwise would be a lie on screen.
 
-test("test_a_bypassed_matrix_engine_leaves_the_speakers_card_without_either_sentence", async () => {
+test("test_a_bypassed_matrix_engine_leaves_the_speakers_card_without_any_bypass_note", async () => {
   await reset({ on: "0", mode: "speakers" });
-  assert.equal(sentenceIn(speakerCard()), "neither");
+  assert.deepEqual(notesIn(speakerCard()), []);
 });
 
-// The card carries NOTHING about the engine, so the response card's own wording is
-// excluded too — the two control sentences above are not the whole of it.
-test("test_a_bypassed_matrix_engine_leaves_the_speakers_card_without_the_plot_note", async () => {
-  await reset({ on: "0", mode: "speakers" });
-  assert.equal(plotNoteIn(speakerCard()), false);
-});
+// A second case stood here for the response card's own note. `notesIn` collects
+// every bypass kind, the custom one included, so the empty list above covers all
+// three and the second case was the same assertion written twice.

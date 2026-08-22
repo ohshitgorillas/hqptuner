@@ -5,24 +5,25 @@
 // the signal path runs no post-process plugin at all. Bauer crossfeed, DAC
 // correction and loudness are exactly those plugins, so while the matrix is
 // bypassed every control that configures one is inert: HQPTuner grays it, and
-// the three cards carry the note
+// the three cards carry a bypass note.
 //
-//     Matrix engine is bypassed. These settings have no effect.
+// The CARD-LEVEL note forks on the card's own feature switch, and each fork
+// names itself in `data-note` (components/matrix/BypassNote.js):
 //
-// The CARD-LEVEL note forks on the card's own feature switch. A user who has
-// crossfeed, DAC correction or loudness switched off is not told that settings
-// they are not using have no effect — their card reads the other sentence
-// instead, which explains the grayed controls by pointing at the engine:
+//     matrix-bypass-settings: the feature is engaged, so its settings are inert
+//     matrix-bypass-engage:   the feature is off, so the note points at the switch
 //
-//     A: Matrix engine is bypassed. These settings have no effect.
-//     B: Matrix engine is bypassed. Engage it to use this feature.
+// A user who has crossfeed, DAC correction or loudness switched off is not told
+// that settings they are not using have no effect — their card takes the engage
+// note instead, which explains the grayed controls by pointing at the engine.
+// WHAT either one says is owner copy and is named nowhere in the card cases.
 //
 // The graying below is a different thing and is NOT conditional on the feature
-// switch — a bypassed matrix disables every post-process control and puts
-// sentence A on every hover title, own gate shut or not.
+// switch — a bypassed matrix disables every post-process control and puts the
+// store's exported bypass reason on every hover title, own gate shut or not.
 //
-// That card-level note is the ONLY place the sentence appears as visible text:
-// no field repeats it in a ".field-gray-reason" caption. The sub-controls
+// That card-level note is the ONLY place the reason appears as visible text: no
+// field repeats it in a ".field-gray-reason" caption. The sub-controls
 // (quietGray) carry it as their hover title instead, where it outranks any
 // own-gate reason when both gates are shut.
 //
@@ -103,11 +104,18 @@ import { MATRIX_BYPASS_REASON } from "../../../hqptuner/static/store/schema.js";
 const CORRECTION_CARD = "dac-correction";
 const LOUDNESS_CARD = "loudness";
 
-// Sentence A is the store's own exported reason, compared against the export
-// rather than a copy of its wording. Sentence B has no export of its own yet,
-// so it stays a literal here — the one copy pin left in this file.
+// The hover-title reason is the store's own exported string, compared against
+// the export rather than a copy of its wording.
 const NOTE = MATRIX_BYPASS_REASON;
-const ENGAGE_NOTE = "Matrix engine is bypassed. Engage it to use this feature.";
+
+// The card-level note by the kind it carries, `data-note` — the identity the
+// component derives from its inputs rather than from the sentence it produced
+// (components/matrix/BypassNote.js). Neither sentence is named in this file's
+// card cases: the two share an opening clause, so a classifier probing one
+// `includes()` per sentence reported "both" for the shorter of them as soon as
+// the owner trimmed the other (docs/testing.md rule 9).
+const SETTINGS = "matrix-bypass-settings";
+const ENGAGE = "matrix-bypass-engage";
 
 // --- the controls under test ---------------------------------------------------
 // Each schema key with the /matrix form field behind it. The three feature gates
@@ -330,44 +338,35 @@ const reasonOf = (key) => grayReason(field(key));
 /** @param {string | null | undefined} reason */
 const namesMatrix = (reason) => /matrix/i.test(String(reason ?? ""));
 
-// Which of the two sentences a card SHOWS — named rather than asked about one at
-// a time, so a single assertion pins the presence of the sentence that belongs
-// there AND the absence of the one that does not. An implementation that shows
-// both, or that shows A where B belongs, answers something other than the
-// expected name and fails.
+// Every bypass note a card carries, by kind and in render order — the whole list
+// rather than one question at a time, so a single assertion pins the note that
+// belongs there AND the absence of the one that does not. A card showing both, or
+// showing the settings note where the engage note belongs, answers a different
+// list and fails.
 //
-// Text nodes only. Sentence A also appears under a bypassed matrix as the hover
-// TITLE of every grayed sub-control — the separate, unchanged behavior the cases
-// above pin — and an attribute value is not something the user reads off the
-// card. Every tag is replaced by a separator rather than deleted, so neighboring
-// text nodes cannot fuse into a sentence that was never shown; which element
-// carries the note stays outside the contract.
+// Only this feature's kinds are collected: `data-note` marks explanatory notes
+// across the app, and a card may carry one of those without carrying a bypass
+// note. Reading the marking also puts the grayed sub-controls' hover titles out
+// of reach — they carry the reason as an attribute value, which is a separate
+// behavior the cases above pin and never something a card SHOWS.
 //
-// The tag pattern assumes no attribute value contains a raw ">": SSR escapes only
-// "&", "<" and '"', so an attribute carrying ">" would end a "tag" early and leak
-// the rest of its value into the shown text. The failure direction is safe — a
-// grayed control's title="...These settings have no effect." leaking in turns a
-// sentence-B case into "both", which is a RED, never a false green.
-/** @param {string} frag */
-const shownText = (frag) => frag.replace(/<[^<>]*>/g, " ");
+// A card that was never rendered answers a STRING, which no expected list can
+// equal — so a negative case cannot pass by looking at nothing.
 /**
  * @param {string} frag
- * @returns {"A" | "B" | "both" | "neither" | string}
+ * @returns {string[] | string}
  */
-const sentenceIn = (frag) => {
+const notesIn = (frag) => {
   if (frag === "") return "that card was not rendered at all";
-  const shown = shownText(frag);
-  const a = shown.includes(NOTE);
-  const b = shown.includes(ENGAGE_NOTE);
-  if (a && b) return "both";
-  return a ? "A" : b ? "B" : "neither";
+  return [...frag.matchAll(/\sdata-note="([^"]*)"/g)]
+    .map((m) => m[1])
+    .filter((kind) => kind.startsWith("matrix-bypass-"));
 };
 
 // The Crossfeed card is rendered on its own, so there is no head to pick it out
-// by — an empty render is the "never rendered" case, and answers the same
-// non-name sentence so a negative case cannot pass by looking at nothing.
-/** @returns {string} */
-const crossfeedSentence = () => sentenceIn(crossfeed().trim());
+// by — an empty render is the "never rendered" case and answers that string.
+/** @returns {string[] | string} */
+const crossfeedNotes = () => notesIn(crossfeed().trim());
 
 /** @param {string} out */
 const buttonsOf = (out) =>
@@ -573,17 +572,17 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view"
 
 test("test_a_bypassed_matrix_tells_an_engaged_bauer_crossfeed_view_its_settings_are_inert", async () => {
   await reset({ matrix: "0", crossfeed: "1", view: "bauer" });
-  assert.equal(crossfeedSentence(), "A");
+  assert.deepEqual(crossfeedNotes(), [SETTINGS]);
 });
 
 test("test_a_bypassed_matrix_tells_an_engaged_dac_correction_card_its_settings_are_inert", async () => {
   await reset({ matrix: "0", correction: "1" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "A");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), [SETTINGS]);
 });
 
 test("test_a_bypassed_matrix_tells_an_engaged_loudness_card_its_settings_are_inert", async () => {
   await reset({ matrix: "0", loudness: "1" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "A");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), [SETTINGS]);
 });
 
 // The other fork: a feature the user has switched off has no settings in the
@@ -592,49 +591,49 @@ test("test_a_bypassed_matrix_tells_an_engaged_loudness_card_its_settings_are_ine
 
 test("test_a_bypassed_matrix_asks_a_bypassed_bauer_crossfeed_view_to_engage_it", async () => {
   await reset({ matrix: "0", crossfeed: "0", view: "bauer" });
-  assert.equal(crossfeedSentence(), "B");
+  assert.deepEqual(crossfeedNotes(), [ENGAGE]);
 });
 
 test("test_a_bypassed_matrix_asks_a_bypassed_dac_correction_card_to_engage_it", async () => {
   await reset({ matrix: "0", correction: "0" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "B");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), [ENGAGE]);
 });
 
 test("test_a_bypassed_matrix_asks_a_bypassed_loudness_card_to_engage_it", async () => {
   await reset({ matrix: "0", loudness: "0" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "B");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), [ENGAGE]);
 });
 
 // An engaged engine silences BOTH sentences, whatever the feature switches say.
 
 test("test_an_engaged_matrix_leaves_the_bauer_crossfeed_view_without_either_sentence", async () => {
   await reset({ matrix: "1", crossfeed: "1", view: "bauer" });
-  assert.equal(crossfeedSentence(), "neither");
+  assert.deepEqual(crossfeedNotes(), []);
 });
 
 test("test_an_engaged_matrix_leaves_the_dac_correction_card_without_either_sentence", async () => {
   await reset({ matrix: "1", correction: "1" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "neither");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), []);
 });
 
 test("test_an_engaged_matrix_leaves_the_loudness_card_without_either_sentence", async () => {
   await reset({ matrix: "1", loudness: "1" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "neither");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), []);
 });
 
 test("test_an_engaged_matrix_leaves_a_bypassed_bauer_crossfeed_view_without_either_sentence", async () => {
   await reset({ matrix: "1", crossfeed: "0", view: "bauer" });
-  assert.equal(crossfeedSentence(), "neither");
+  assert.deepEqual(crossfeedNotes(), []);
 });
 
 test("test_an_engaged_matrix_leaves_a_bypassed_dac_correction_card_without_either_sentence", async () => {
   await reset({ matrix: "1", correction: "0" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "neither");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), []);
 });
 
 test("test_an_engaged_matrix_leaves_a_bypassed_loudness_card_without_either_sentence", async () => {
   await reset({ matrix: "1", loudness: "0" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "neither");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), []);
 });
 
 // ============================================================================
@@ -644,28 +643,28 @@ test("test_an_engaged_matrix_leaves_a_bypassed_loudness_card_without_either_sent
 // feature on under a bypassed engine swaps its note from B to A, switching it off
 // swaps it back.
 
-test("test_staging_dac_correction_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
+test("test_staging_dac_correction_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_kind", async () => {
   await reset({ matrix: "0", correction: "0" });
   await edit(CORRECTION_GATE, "1");
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "A");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), [SETTINGS]);
 });
 
-test("test_staging_dac_correction_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
+test("test_staging_dac_correction_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_kind", async () => {
   await reset({ matrix: "0", correction: "1" });
   await edit(CORRECTION_GATE, "0");
-  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "B");
+  assert.deepEqual(notesIn(cardTitled(outputTab(), CORRECTION_CARD)), [ENGAGE]);
 });
 
-test("test_staging_loudness_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
+test("test_staging_loudness_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_kind", async () => {
   await reset({ matrix: "0", loudness: "0" });
   await edit(LOUDNESS_GATE, "1");
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "A");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), [SETTINGS]);
 });
 
-test("test_staging_loudness_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
+test("test_staging_loudness_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_kind", async () => {
   await reset({ matrix: "0", loudness: "1" });
   await edit(LOUDNESS_GATE, "0");
-  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "B");
+  assert.deepEqual(notesIn(cardTitled(volumeTab(), LOUDNESS_CARD)), [ENGAGE]);
 });
 
 // The matrix table staying editable under a bypass (pipeline rows, "+ Add

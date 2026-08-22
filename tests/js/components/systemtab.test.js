@@ -26,7 +26,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions, quickSystemUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields, section } from "../support/tabform.js";
-import { classes, elements, enclosing, hasAttr, hasLabel, labeled } from "../support/markup.js";
+import { attr, classes, elements, enclosing, hasAttr, hasLabel, labeled, text } from "../support/markup.js";
 
 // The quick-updates preference is a module-level signal and outlives a case
 // (docs/testing.md, harness facts), so the cases that write it are put back to
@@ -63,9 +63,14 @@ test("the card shows the reported engine version", () => {
 
 test("an empty release renders no empty row of its own", () => {
   // A row rendered for a release the daemon never reported reads as a blank
-  // value beside a caption; nothing on this card renders empty.
+  // value beside a caption; nothing on this card renders empty. Anchored on a
+  // positive reading in the same render: without `any`, a card that stopped
+  // rendering a definition list at all — or rendered nothing — would satisfy
+  // the absence for free.
   health.value = { info: { engine: "6.0.4" }, release: "", license: null };
-  assert.equal(/<dd>\s*<\/dd>/.test(render(html`<${System} />`)), false);
+  const values = elements(render(html`<${System} />`)).filter((el) => el.name === "dd");
+  const seen = { any: values.length > 0, blank: values.filter((el) => text(el) === "").length };
+  assert.deepEqual(seen, { any: true, blank: 0 });
 });
 
 test("an empty release still leaves the engine version on the card", () => {
@@ -112,8 +117,11 @@ function quickTickbox(out) {
 }
 
 test("the engine health card keeps its quick updates tickbox on the tab", () => {
+  // Read through the tickbox itself, not through the string "poll-quick": the
+  // opt-in's own note carries `data-note="poll-quick"`, so a substring reading
+  // of the whole render stays green for a card whose tickbox has vanished.
   health.value = { info: {}, license: null };
-  assert.ok(render(html`<${System} />`).includes("poll-quick"));
+  assert.equal(attr(quickTickbox(render(html`<${System} />`)), "type"), "checkbox");
 });
 
 // The opt-in explains what the faster cadence costs, in a note of its own. That
