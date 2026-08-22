@@ -21,6 +21,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { options } from "preact";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
@@ -29,9 +30,10 @@ import { config, matrixConfig, metadata, engineState, enums } from "../../../hqp
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
-import { stagingWire } from "../support/wire.js";
+import { stagingWire, quiesce } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
-import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";
+import { SUBHEADS, subsection, subheadsIn, vnodeText } from "../support/chainsubsections.js";
+import { labeled } from "../support/markup.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -39,9 +41,12 @@ import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js
 
 // `mode` is the output mode as the running config file reports it — the baseline
 // an appliesLive control reads (store/resolve.js fileValue).
-/** @param {{ cfg?: Record<string, FieldSpec>, mode?: string }} [opts] */
+/**
+ * @param {{ cfg?: Record<string, FieldSpec>, mode?: string }} [opts]
+ * @returns {Promise<import("../support/wire.js").StagingWire>}
+ */
 async function reset({ cfg = {}, mode = "auto" } = {}) {
-  stagingWire();
+  const w = stagingWire();
   engineState.value = {};
   enums.value = null;
   metadata.value = null;
@@ -51,6 +56,7 @@ async function reset({ cfg = {}, mode = "auto" } = {}) {
   matrixConfig.value = { fields: [] };
   config.value = { fields: formFields(cfg), file: { mode }, active: "", profiles: null };
   await discardAll();
+  return w;
 }
 
 const tab = () => render(html`<${Output} />`);
@@ -233,7 +239,106 @@ test("test_dsd_source_handling_for_sdm_output_carries_the_sdm_integrator_control
 test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Direct SDM</label>"));
+  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>DSD Playback</label>"));
+});
+
+// --- the DSD Playback segment ---------------------------------------------------
+// `direct_sdm` (hqplayerd-readme.txt §1.2) renders in the SDM chain's DSD half as
+// a two-option segment, not the checkbox it once was. The daemon's /config form
+// hands the value over as a real boolean; the staged-edit domain stays the
+// checkbox era's strings "1"/"0". The Direct-SDM edit warning flow is
+// directsdmwarn.test.js's subject, not this one's.
+
+// The control the "DSD Playback" label announces: from the label's close to the
+// next label of the subsection (or its end), whatever wrapper the field uses.
+/**
+ * @param {boolean} value
+ * @returns {Promise<string>}
+ */
+async function dsdPlaybackControl(value) {
+  await reset({ cfg: { ...CHAINS, direct_sdm: value } });
+  nSrcFormat.value = "both";
+  const frag = subsection(section(tab(), SDM), FROM_DSD);
+  const label = labeled(frag, "DSD Playback");
+  const from = label.start + label.html.length;
+  const next = frag.indexOf("<label", from);
+  return next < 0 ? frag.slice(from) : frag.slice(from, next);
+}
+
+/** @param {string} s */
+const segLabels = (s) =>
+  [...s.matchAll(/<button[^>]*class="seg[^"]*"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+/** @param {string} s */
+const activeSeg = (s) => {
+  const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(s);
+  return m ? m[1].trim() : null;
+};
+
+// There is no DOM here and preact-render-to-string never fires a handler, so an
+// option is chosen the way conversioncards-dsd.test.js presses a subhead: the
+// vnodes are collected through preact's own `options.vnode` hook — the
+// renderer's public seam — and the onClick the option button carries, the very
+// function a browser would call, is invoked. The option is found by the words a
+// reader sees, and finding more than one is a broken fixture, not a case.
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+/** @param {string} name */
+function chooseSegOption(name) {
+  /** @type {VNode[]} */
+  const seen = [];
+  const previous = options.vnode;
+  options.vnode = (/** @type {VNode} */ vnode) => {
+    seen.push(vnode);
+    if (previous) previous(vnode);
+  };
+  try {
+    render(html`<${Output} />`);
+  } finally {
+    options.vnode = previous;
+  }
+  const hits = seen.filter(
+    (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && vnodeText(v).trim() === name,
+  );
+  if (hits.length !== 1) throw new Error(`expected one "${name}" option, found ${hits.length}`);
+  /** @type {(event: object) => void} */ (hits[0].props.onClick)({
+    preventDefault() {},
+    stopPropagation() {},
+  });
+}
+
+test("test_dsd_playback_renders_as_a_segment", async () => {
+  assert.ok((await dsdPlaybackControl(false)).includes('<span class="segment">'));
+});
+
+test("test_dsd_playback_is_no_longer_a_checkbox", async () => {
+  assert.equal((await dsdPlaybackControl(false)).includes('type="checkbox"'), false);
+});
+
+test("test_dsd_playback_offers_processed_then_direct", async () => {
+  assert.deepEqual(segLabels(await dsdPlaybackControl(false)), ["Processed", "Direct"]);
+});
+
+test("test_a_false_direct_sdm_selects_processed", async () => {
+  assert.equal(activeSeg(await dsdPlaybackControl(false)), "Processed");
+});
+
+test("test_a_true_direct_sdm_selects_direct", async () => {
+  assert.equal(activeSeg(await dsdPlaybackControl(true)), "Direct");
+});
+
+test("test_choosing_direct_stages_the_string_one", async () => {
+  const w = await reset({ cfg: { ...CHAINS, direct_sdm: false } });
+  nSrcFormat.value = "both";
+  chooseSegOption("Direct");
+  await quiesce(w);
+  assert.equal(w.staged.http.direct_sdm, "1");
+});
+
+test("test_choosing_processed_stages_the_string_zero", async () => {
+  const w = await reset({ cfg: { ...CHAINS, direct_sdm: true } });
+  nSrcFormat.value = "both";
+  chooseSegOption("Processed");
+  await quiesce(w);
+  assert.equal(w.staged.http.direct_sdm, "0");
 });
 
 // --- FFT filter length --------------------------------------------------------

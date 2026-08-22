@@ -59,7 +59,7 @@ const SDM = "SDM Chain";
 /** @type {Record<string, string>} */
 const MARK = {
   [PCM]: "<label>Noise filter<",
-  [SDM]: "<label>Direct SDM</label>",
+  [SDM]: "<label>DSD Playback</label>",
 };
 
 // The daemon's /config form fields the chain cards render, each with its own
