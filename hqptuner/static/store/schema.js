@@ -242,6 +242,12 @@ const SOURCE_GAIN = [
   { value: "0", label: "0 dB" },
   { value: "1", label: "+6 dB" },
 ];
+// direct_sdm as a path choice: "Direct" is DirectSDM on (all processing
+// bypassed on the DSD→SDM path), "Processed" is the normal chain.
+const DSD_PLAYBACK = [
+  { value: "0", label: "Processed" },
+  { value: "1", label: "Direct" },
+];
 // Fixed mode segment — order PCM / SDM (DSD) / Auto, stable http `mode` values.
 const MODES = [
   { value: "pcm", label: "PCM" },
@@ -658,9 +664,11 @@ export const schema = {
   // Resampling-tab card as a "Sources" subsection, with a mode-mismatch note
   // shown there instead (ResamplingTab.js).
   direct_sdm: {
-    label: "Direct SDM",
+    label: "DSD Playback",
+    bool: true,
     group: "dsp",
-    widget: "checkbox",
+    widget: "segment",
+    options: DSD_PLAYBACK,
     lane: "http",
     field: "direct_sdm",
   },
