@@ -202,12 +202,14 @@ const RATE_RULE_LABELS = {
   "odd-rates": "Uncommon rates",
 };
 
+// Which rate-change rules are engaged, as their own codes, in the order the
+// button names them. Not exported, unlike the other summaries: the rate rules
+// each render their code as `data-v` on their own popover row, so a reader
+// already has a better handle on this facet's state than a call would give it.
 /**
- * Which rate-change rules are engaged, as their own codes, in the order the
- * button names them.
  * @returns {string[]}
  */
-export function rateSummary() {
+function rateSummary() {
   const rules = [];
   if (effHideLimited.value) rules.push("hide-limited");
   if (nDownsafeOnly.value) rules.push("downsafe");
