@@ -437,8 +437,8 @@ test("test_a_dsd_source_into_a_pcm_output_shows_the_noise_filter", () => {
   assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { noiseFilter: "2" } }), "Noise filter"), "brickwall");
 });
 
-test("test_a_dsd_source_into_a_pcm_output_shows_the_sdm_to_pcm_conversion", () => {
-  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }), "SDM → PCM"), "poly-short-lp");
+test("test_a_dsd_source_into_a_pcm_output_shows_the_decimation_filter", () => {
+  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }), "Decimation filter"), "poly-short-lp");
 });
 
 test("test_a_dsd_source_into_a_pcm_output_still_shows_the_resampling_filter", () => {
@@ -450,7 +450,7 @@ test("test_a_dsd_source_into_a_pcm_output_labels_the_shaper_chip_dither", () => 
 });
 
 test("test_the_dsd_to_pcm_chain_runs_decode_then_resample", () => {
-  const expected = ["Source", "Noise filter", "SDM → PCM", "Filter", "Dither", "Output"];
+  const expected = ["Source", "Noise filter", "Decimation filter", "Filter", "Dither", "Output"];
   assert.deepEqual(labels(panel(DSD_TO_PCM)).map(decode), expected);
 });
 
