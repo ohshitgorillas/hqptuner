@@ -1,9 +1,9 @@
 /* The combobox pop's hover tip (components/controls/Combobox.js TipPop): the
    card that sits beside the highlighted row carrying the option's raw engine
-   name, its prose and its facets. Split out of combobox.css, which owns the
-   trigger, the pop and its rows; the tip is a surface of its own, placed
-   outside the pop and painted over it. Loaded straight after combobox.css so
-   the two keep their old cascade order. */
+   name, its prose and its facets. combobox.css owns the trigger, the pop and
+   its rows; the tip is a surface of its own, placed outside the pop and
+   painted over it. This file loads straight after combobox.css, and must, so
+   the two resolve in that cascade order. */
 .dd-tip {
   z-index: 41;
   background: var(--surface-raised);
