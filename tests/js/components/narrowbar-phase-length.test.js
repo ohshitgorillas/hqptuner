@@ -248,15 +248,17 @@ test("test_the_phase_summary_with_every_row_picked_counts_the_three_named_phases
 });
 
 /**
- * The summary a facet's own toggle puts on screen: its caption, less the
- * disclosure triangle every dropdown button in the app carries (pinned as
- * shared chrome in tests/js/components/common.test.js). Removing a glyph cannot
- * turn one summary into another, so the reading stays exact.
+ * The summary a facet's own toggle puts on screen: its caption, whole. The
+ * disclosure mark every dropdown button in the app carries is a shape CSS draws
+ * in an empty element of its own (pinned as shared chrome in
+ * tests/js/components/common.test.js and
+ * tests/js/components/caret-shape.test.js), so it contributes no text to strip
+ * and the reading is exact.
  *
  * @param {string} block
  * @returns {string}
  */
-const facetButtonSummary = (block) => buttonCaptions(block)[0].replace("▾", "").trim();
+const facetButtonSummary = (block) => buttonCaptions(block)[0].trim();
 
 // The anchor under the table above. Every other case reads the summary, which is
 // only worth anything if the button the user reads is what the module answers —

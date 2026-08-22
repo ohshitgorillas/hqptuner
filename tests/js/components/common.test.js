@@ -89,12 +89,25 @@ test("test_a_manual_close_wins_over_an_open_app_state", () => {
   assert.ok(disclosure(true, false).includes('<section class="card closed">'));
 });
 
-test("test_an_open_collapsible_points_its_triangle_down", () => {
-  assert.ok(disclosure(true).includes('<span class="tri">▾</span>'));
+// The disclosure mark is a shape CSS draws, so its element is EMPTY and the
+// direction it points rides in the class list — open unmarked, closed carrying
+// `closed`. The class is what now carries the meaning the glyph used to, so the
+// class is what these cases read; the emptiness is asserted alongside it,
+// because a mark that kept a character would still be a text glyph.
+test("test_an_open_collapsible_marks_its_triangle_open", () => {
+  assert.ok(disclosure(true).includes('<span class="tri"></span>'));
 });
 
-test("test_a_closed_collapsible_points_its_triangle_right", () => {
-  assert.ok(disclosure(false).includes('<span class="tri">▸</span>'));
+test("test_a_closed_collapsible_marks_its_triangle_closed", () => {
+  assert.ok(disclosure(false).includes('<span class="tri closed"></span>'));
+});
+
+// A card handed no handle is not a disclosure and has nothing to point at, so
+// it carries no mark at all. Says the same thing whichever way the shape is
+// drawn, and it is what catches a mark emitted unconditionally and hidden by
+// CSS in the closed state.
+test("test_a_card_with_no_collapse_handle_carries_no_triangle", () => {
+  assert.equal(/class="[^"]*\btri\b/.test(render(html`<${Card} title="General">${KID}<//>`)), false);
 });
 
 test("test_a_collapsible_names_itself_in_its_head", () => {

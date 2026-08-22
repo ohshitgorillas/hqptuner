@@ -41,9 +41,10 @@ test("about hqptuner prose stays unrendered until the subsection is opened", () 
 });
 
 // DELETED: "about hqptuner head offers a closed disclosure triangle by default",
-// which read the ▸ glyph out of the render. The glyph is presentation the owner
-// may change at will and no state stands behind it; that the subsection starts
-// closed is what the case above pins.
+// which read the disclosure mark out of the render. The mark is presentation the
+// owner may change at will — it is a shape CSS draws, in an element of its own —
+// and no state stands behind it; that the subsection starts closed is what the
+// case above pins.
 
 // The two version readings are DATA, not copy: the daemon reports its installed
 // release and its DSP engine build as separate numbers, and each has to reach
