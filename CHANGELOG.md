@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The two-stage oversampling note appears on the SDM filter dropdowns only.** Fifteen filters run their oversampling in two stages, with a minimum 16x intermediate rate, when they feed a sigma-delta modulator. That sentence now renders under the SDM 1x and Nx filter selectors, where it applies, and no longer under the PCM pair, where it does not.
+
 - **Filter descriptions read as fluent English.** The Pure sinc, Analog-style, Conventional, Interpolation and Polyphase sinc blurbs gain articles, resolve comma splices and give dangling predicates a subject. Phase compounds are unhyphenated throughout and "HiRes" now reads "hi-res", matching the leaf labels. No technical claim changes.
 
 - **The two high attenuation pure sinc leaves read "Long with high attenuation".** The `sinc-Lh` and `sinc-long-h` rows drop the earlier "Long length, high attenuation" phrasing in both the leaf label and the flattened Standard name.

@@ -596,7 +596,9 @@ export const schema = {
     compact: "lg",
     narrow: "1x",
     favKind: "filters",
-    desc: "filter",
+    // sdm_filter, not filter: the same filter is offered in both chains at once
+    // and part of its manual prose is true only of the SDM one (store/prose.js).
+    desc: "sdm_filter",
     plainNames: "filters",
   },
   sdm_filter_nx: {
@@ -612,7 +614,7 @@ export const schema = {
     compact: "lg",
     narrow: "nx",
     favKind: "filters",
-    desc: "filter",
+    desc: "sdm_filter",
     plainNames: "filters",
   },
   sdm_modulator: {
