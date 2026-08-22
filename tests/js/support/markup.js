@@ -98,37 +98,6 @@ export const text = (el) =>
  */
 export const hasAttr = (el, name) => new RegExp(`(^|\\s)${name}(\\s|=|$)`).test(el.attrs);
 
-// A control a card head may carry beside its title. Whole subtrees, so the
-// label inside one never reaches the title.
-const CONTROL_TAGS = new Set(["a", "button", "input", "select", "textarea"]);
-
-// The disclosure triangle a collapsible head carries before its title, by the
-// class it wears. Removed as a whole element, so a title that legitimately opens
-// with a digit or a symbol keeps it.
-const TRIANGLE = "tri";
-
-/**
- * A card head's title: the head's own words, with the disclosure triangle a
- * collapsible head carries stripped and any control the head carries beside the
- * title removed. The title is the contract; the triangle and the controls are
- * the card's own business. Removal is by whole element, never by trimming the
- * title's own text, so a head titled "LIVE MODE PRO" still reads as "LIVE MODE
- * PRO" and a renamed head still reads as its new name.
- *
- * @param {MarkupElement} el
- * @returns {string}
- */
-export const headTitle = (el) => {
-  const bare = elements(el.html)
-    .filter(
-      (e) =>
-        (CONTROL_TAGS.has(e.name) || classes(e).includes(TRIANGLE)) &&
-        !(e.start === 0 && e.html.length === el.html.length),
-    )
-    .reduce((markup, e) => markup.replace(e.html, " "), el.html);
-  return text({ ...el, html: bare });
-};
-
 /**
  * @param {MarkupElement} a
  * @param {MarkupElement} b

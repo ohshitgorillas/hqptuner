@@ -65,7 +65,7 @@ export const renderBar = (props = {}) => render(html`<${NarrowBar} ...${props} /
  * @param {string} s
  * @returns {string}
  */
-export const decode = (s) =>
+const decode = (s) =>
   s
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
@@ -188,15 +188,3 @@ export const switchesIn = (region) =>
   elements(region.html)
     .filter(isSegment)
     .sort((a, b) => a.start - b.start);
-
-/**
- * The wording on each segment of a group's switch, in order.
- *
- * @param {MarkupElement} region
- * @returns {string[]}
- */
-export function segmentLabels(region) {
-  const [strip] = switchesIn(region);
-  if (!strip) throw new Error("no segmented switch in this group");
-  return [...strip.html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => decode(m[1].trim()));
-}
