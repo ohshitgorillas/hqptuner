@@ -22,7 +22,14 @@ class StaticMetadata:
         self._shapers_db: dict[str, Any] = json.loads((data_dir / "shapers.json").read_text())
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
         self._plain_names: dict[str, Any] = {}
-        for key, stem in (("filters", "filter"), ("dithers", "dither"), ("modulators", "modulator")):
+        overlays = (
+            ("filters", "filter"),
+            ("dithers", "dither"),
+            ("modulators", "modulator"),
+            ("sdm_conversion", "sdm-conversion"),
+            ("sdm_integrator", "sdm-integrator"),
+        )
+        for key, stem in overlays:
             doc = json.loads((data_dir / f"{stem}-plain-names.json").read_text())
             self._plain_names[key] = {
                 "entries": doc[key],

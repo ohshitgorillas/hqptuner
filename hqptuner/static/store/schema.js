@@ -674,8 +674,8 @@ export const schema = {
     field: "dsd_6db",
   },
   sdm_integrator: {
-    label: "Integrator",
-    sublabel: "Sigma-delta remodulation",
+    label: "Reconstruction filter",
+    sublabel: "Integrator",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -683,10 +683,14 @@ export const schema = {
     optionsFrom: "config",
     compact: "sm",
     desc: "config",
+    // Grouped overlay, and it keeps every manual sentence: the leaves name the
+    // structure, the sentences say what it costs in bandwidth, and neither
+    // stands in for the other.
+    plainNames: "sdm_integrator",
   },
   sdm_conversion: {
-    label: "SDM → SDM",
-    sublabel: "Rate change algorithm",
+    label: "Source bandwidth",
+    sublabel: "SDM → SDM conversion",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -694,6 +698,11 @@ export const schema = {
     optionsFrom: "config",
     compact: "sm",
     desc: "config",
+    // Flat overlay — three options group into nothing — and `plainQuiet`,
+    // because the Simplified rows are the manual's option wording verbatim and
+    // the per-option sentence under them would repeat it (components/binder.js).
+    plainNames: "sdm_conversion",
+    plainQuiet: true,
   },
   noise_filter: {
     label: "Noise filter",

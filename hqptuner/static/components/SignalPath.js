@@ -182,8 +182,8 @@ function conversionStages(st, md) {
   const sdmOut = outputIsSdm(st);
   if (dsdIn && sdmOut) {
     return [
-      { label: "Integrator", value: configLabel("sdm_integrator") },
-      { label: "SDM → SDM", value: configLabel("sdm_conversion") },
+      { label: "Reconstruction filter", value: configLabel("sdm_integrator") },
+      { label: "Source bandwidth", value: configLabel("sdm_conversion") },
     ];
   }
   if (dsdIn) {
