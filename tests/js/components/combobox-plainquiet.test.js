@@ -7,19 +7,19 @@
 // options exactly as it always did.
 //
 // A dropdown whose entry carries `plainNames` but NOT `plainQuiet` is pinned
-// alongside, on the same fixture shape, so the flag is shown to be what
-// silences the prose rather than the Simplified pref: that entry renders its
-// family headers with their `families` blurbs, its per-option manual prose and
-// the raw engine name all at once.
+// alongside, on the same fixture shape and under the same Simplified pref, so
+// the flag is shown to be what silences the prose rather than the pref: that
+// entry renders its family headers with their `families` blurbs, its per-option
+// tip prose, its per-selection description and the raw engine name, all at once.
 //
 // Subjects are the two SDM-source controls: `sdm_conversion` (flat overlay,
 // quiet) and `sdm_integrator` (grouped overlay, not quiet). Raw option labels
-// are the daemon's own enumeration for those selects
-// (tests/support/fixtures/config-form-6.0.4.html); prose and plain-names
-// wording are invented test data, the shipped wording being owner-owned
-// (docs/testing.md rule 9). Both controls take their per-option prose from the
-// settings.json `options` map keyed by config VALUE, the way the integrator
-// already does (tests/js/components/fielddesc.test.js).
+// and their VALUES are the daemon's own enumeration for those selects
+// (tests/support/fixtures/config-form-6.0.4.html:142-156); prose, plain-names
+// wording and blurbs are invented test data, the shipped wording being
+// owner-owned (docs/testing.md rule 9). Both controls take their per-option
+// prose from the settings.json `options` map keyed by config VALUE, the way the
+// integrator already does (tests/js/components/fielddesc.test.js).
 //
 // The TIP is pinned through the public resolver, tipsFor(entry, meta), rather
 // than through markup: the tip mounts only while the pop is open with a
@@ -48,18 +48,35 @@ const BINDER = new URL("../../../hqptuner/static/components/binder.js", import.m
 // --- fixtures -----------------------------------------------------------------
 
 const CONVERSION_PROSE = "Crossfeed conversion prose.";
-const INTEGRATOR_PROSE = "Slow integrator.";
-const IIR_BLURB = "Recursive integrators";
+// The control's own settings.json tooltip — what the manual says about the
+// CONTROL rather than about one option. Named, never retyped in an assertion:
+// the shipped string is owner-owned copy (docs/testing.md rule 9), and what is
+// pinned is that this field's tooltip is what the control hovers.
+const CONVERSION_TOOLTIP = "Conversion prose.";
+const INTEGRATOR_PROSE = "Second order FIR prose.";
+const IIR_FAMILY = "IIR";
+const IIR_BLURB = "Recursive reconstruction";
 
+// The engine serves XFi as value "2" and FIR2 as value "5" (the config form
+// above), so the option prose maps key those values.
 const CONVERSION_META = {
   label: "SDM-SDM conversion",
-  tooltip: "Conversion prose.",
+  tooltip: CONVERSION_TOOLTIP,
   options: { 0: "Wide conversion prose.", 1: "Narrow conversion prose.", 2: CONVERSION_PROSE },
+};
+
+const INTEGRATOR_META = {
+  label: "Reconstruction filter",
+  tooltip: "Reconstruction prose.",
+  options: { 0: "First order prose.", 5: INTEGRATOR_PROSE },
 };
 
 const META_QUIET = {
   ...META,
-  settings: { ...META.settings, dsp: { ...META.settings.dsp, sdm_conversion: CONVERSION_META } },
+  settings: {
+    ...META.settings,
+    dsp: { ...META.settings.dsp, sdm_conversion: CONVERSION_META, sdm_integrator: INTEGRATOR_META },
+  },
   plain_names: {
     filters: { entries: {}, families: {}, variants: {} },
     dithers: { entries: {}, families: {}, variants: {} },
@@ -77,11 +94,11 @@ const META_QUIET = {
     // Grouped, with a blurb for the family the IIR options sit in.
     sdm_integrator: {
       entries: {
-        IIR: { family: "IIR", variant: null, leaf: "First order", short: "IIR 1" },
-        IIR2: { family: "IIR", variant: null, leaf: "Second order", short: "IIR 2" },
-        FIR2: { family: "FIR", variant: null, leaf: "Second FIR", short: "FIR 2" },
+        IIR: { family: IIR_FAMILY, variant: null, leaf: "First order", short: "One pole" },
+        IIR2: { family: IIR_FAMILY, variant: null, leaf: "Second order", short: "Two pole" },
+        FIR2: { family: "FIR", variant: null, leaf: "Second FIR", short: "Two tap" },
       },
-      families: { IIR: IIR_BLURB },
+      families: { [IIR_FAMILY]: IIR_BLURB },
       variants: {},
     },
   },
@@ -96,7 +113,7 @@ const CONVERSION_OPTIONS = [
 const INTEGRATOR_OPTIONS = [
   { value: "0", label: "IIR" },
   { value: "3", label: "IIR2" },
-  { value: "1", label: "FIR2" },
+  { value: "5", label: "FIR2" },
 ];
 
 /**
@@ -115,15 +132,14 @@ async function quietField({ plain = true } = {}) {
 }
 
 /**
- * The integrator field with the FIR2 option selected, under the settings entry
- * whose option prose keys value "1" — the not-quiet subject.
+ * The integrator field with FIR2 selected — the not-quiet subject.
  *
  * @param {{ plain?: boolean }} [state]
  * @returns {Promise<string>}
  */
 async function loudField({ plain = true } = {}) {
   await reset({
-    fields: [{ name: "integrator", value: "1", options: INTEGRATOR_OPTIONS }],
+    fields: [{ name: "integrator", value: "5", options: INTEGRATOR_OPTIONS }],
     meta: META_QUIET,
   });
   plainNames.value = plain;
@@ -135,17 +151,25 @@ async function loudField({ plain = true } = {}) {
  * pref. Throws (not asserts) when the entry yields no resolver, so the one
  * assertion stays at the call site.
  *
- * @param {{ plain?: boolean }} [state]
+ * @param {{ entry: object, meta: object, option: { value: string, label: string }, plain?: boolean }} spec
  * @returns {Promise<{ name: string, text: string }>}
  */
-async function conversionTip({ plain = true } = {}) {
+async function tipContent({ entry, meta, option, plain = true }) {
   const { tipsFor } = await import(`${BINDER}`);
   await reset({ meta: META_QUIET });
   plainNames.value = plain;
-  const tip = tipsFor(schema.sdm_conversion, CONVERSION_META);
-  if (!tip) throw new Error("expected a tip resolver for the SDM-SDM conversion entry");
-  return tip({ value: "2", label: "XFi" });
+  const tip = tipsFor(/** @type {Parameters<typeof tipsFor>[0]} */ (entry), meta);
+  if (!tip) throw new Error("expected a tip resolver for this entry");
+  return tip(option);
 }
+
+/** @param {{ plain?: boolean }} [state] */
+const conversionTip = ({ plain = true } = {}) =>
+  tipContent({ entry: schema.sdm_conversion, meta: CONVERSION_META, option: { value: "2", label: "XFi" }, plain });
+
+/** @param {{ plain?: boolean }} [state] */
+const integratorTip = ({ plain = true } = {}) =>
+  tipContent({ entry: schema.sdm_integrator, meta: INTEGRATOR_META, option: { value: "5", label: "FIR2" }, plain });
 
 // --- markup readers -----------------------------------------------------------
 
@@ -166,15 +190,34 @@ function oneByClass(fragment, cls) {
 /**
  * The per-selection description a reader sees under the closed control: the
  * text of the `.field-desc` line with the raw-name element removed whole, that
- * being a separate surface (tests/js/components/plaindesc-truename.test.js).
+ * being a separate surface (tests/js/components/plaindesc-truename.test.js). A
+ * field that renders no description line at all describes its selection with
+ * nothing, which is the same answer as an empty one — the CONTAINER is not the
+ * contract.
  *
  * @param {string} out
  * @returns {string}
  */
 function descriptionText(out) {
-  const desc = oneByClass(out, "field-desc");
+  const desc = elements(out).find((el) => classes(el).includes("field-desc"));
+  if (!desc) return "";
   const name = elements(desc.html).find((el) => classes(el).includes("field-desc-name"));
   return text({ ...desc, html: name ? desc.html.replace(name.html, " ") : desc.html });
+}
+
+/**
+ * The smallest element whose text contains `needle` — how the header of a
+ * family group is found, by the family KEY the overlay data carries rather than
+ * by the wording the header renders it as, which is owner-owned copy.
+ *
+ * @param {string} out
+ * @param {string} needle
+ * @returns {MarkupElement}
+ */
+function smallestContaining(out, needle) {
+  const hits = elements(out).filter((el) => text(el).includes(needle));
+  if (hits.length === 0) throw new Error(`nothing rendered contains "${needle}"`);
+  return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
 /**
@@ -224,18 +267,22 @@ test("test_standard_a_quiet_entry_describes_its_selection", async () => {
 // --- the hover title is the control's own tooltip in both styles ----------------
 
 test("test_simplified_a_quiet_entry_hovers_its_settings_tooltip", async () => {
-  assert.equal(titleOf(await quietField()), "Conversion prose.");
+  assert.equal(titleOf(await quietField()), CONVERSION_TOOLTIP);
 });
 
 test("test_standard_a_quiet_entry_hovers_its_settings_tooltip", async () => {
-  assert.equal(titleOf(await quietField({ plain: false })), "Conversion prose.");
+  assert.equal(titleOf(await quietField({ plain: false })), CONVERSION_TOOLTIP);
 });
 
-// --- a plain-names entry that is NOT quiet keeps all three surfaces -------------
+// --- a plain-names entry that is NOT quiet keeps all four surfaces --------------
 
 test("test_simplified_a_not_quiet_entry_renders_its_family_blurb_after_the_family_header", async () => {
   const out = await loudField();
-  assert.equal(readingExactly(out, "IIR family").start < readingExactly(out, IIR_BLURB).start, true);
+  assert.equal(smallestContaining(out, IIR_FAMILY).start < readingExactly(out, IIR_BLURB).start, true);
+});
+
+test("test_simplified_a_not_quiet_entrys_option_tip_carries_its_prose", async () => {
+  assert.equal((await integratorTip()).text, INTEGRATOR_PROSE);
 });
 
 test("test_simplified_a_not_quiet_entry_still_describes_its_selection", async () => {
