@@ -334,7 +334,7 @@ function StructuralMode({ rows }) {
     </div>
     ${
       blockers.length && !rec
-        ? html`<div class="field-note xfs-blocked">
+        ? html`<div class="field-note xfs-blocked" data-blockers=${blockers.map((b) => b.key).join(" ")}>
             Turning this on will also ${blockers.map((b) => b.reason).join(" ")} These land as staged changes you can
             review before applying.
           </div>`
@@ -448,7 +448,7 @@ export function CrossfeedCard() {
   const open = cardOpen.value;
 
   return html`
-    <section class="card">
+    <section class="card" data-card="crossfeed">
       <button type="button" class="card-head" onClick=${() => (cardOpen.value = !open)}>
         ${Tri(open)} Crossfeed
       </button>

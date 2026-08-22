@@ -280,7 +280,7 @@ export function SpeakersCard() {
     if (speakers.value === null) loadSpeakers();
   }, []);
   return html`
-    <section class="card">
+    <section class="card" data-card="speakers">
       <div class="card-head">
         Speakers ${speakersStale.value ? html`<span class="mtx-count">stale</span>` : null}
       </div>

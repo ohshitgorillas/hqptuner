@@ -62,11 +62,16 @@ const MATRIX_BYPASS_ENGAGE = "Matrix engine is bypassed. Engage it to use this f
 export function BypassNote({ on, text, advisory }) {
   if (truthy(effective("matrix_enabled"))) return null;
   const said = text || (on ? MATRIX_BYPASS_REASON : MATRIX_BYPASS_ENGAGE);
+  // Which of the three notes this is, named from the inputs rather than from the
+  // sentence they produced. A reader that told them apart by matching their text
+  // would misread the moment one sentence became a substring of another, and the
+  // two standing ones already share an opening clause.
+  const kind = text ? "matrix-bypass-custom" : on ? "matrix-bypass-settings" : "matrix-bypass-engage";
   // The engage sentence is advisory in the same voice as a schema `adviseWhen`
   // note — it names the state the feature needs, it does not report settings
   // being ignored — so it takes the muted italic caption rather than amber. The
   // Pipelines card takes that tone too (`advisory`): it has no switch of its
   // own, so its note is the same "engage the engine" advice in other words.
   const cls = advisory || said === MATRIX_BYPASS_ENGAGE ? "mtx-bypass-advice" : "mtx-bypass-note";
-  return html`<div class=${cls}>${said}</div>`;
+  return html`<div class=${cls} data-note=${kind}>${said}</div>`;
 }
