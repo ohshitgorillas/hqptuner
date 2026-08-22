@@ -6,7 +6,9 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox.
+- **The selected option carries an accent mark in the dropdown list.** An open dropdown draws a small triangle in the gutter beside the option currently in force, which is what the long Simplified lists need to be scannable. The selected row no longer sets itself apart by weight alone, which read as a group header among them.
+
+- **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox, and the control carries "Direct SDM" as its sublabel so HQPlayer's own name stays findable.
 
 - **Simplified names for the DSD source PCM chain.** The Noise filter and the renamed Decimation filter (SDM to PCM conversion) group into plain-English families under the Simplified option style, and options the manual recommends carry an accent check with a "✓ = recommended" legend.
 

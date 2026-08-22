@@ -32,8 +32,8 @@ import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/stat
 import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire, quiesce } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
-import { SUBHEADS, subsection, subheadsIn, vnodeText } from "../support/chainsubsections.js";
-import { classes, elements, labeled, text } from "../support/markup.js";
+import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";
+import { attr, classes, elements, keyed } from "../support/markup.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -100,7 +100,7 @@ test("test_the_narrowing_bar_stands_on_the_output_tab", async () => {
 // the card's whole <label> sequence, in order.
 
 /** @param {string} frag */
-const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+const keysOf = (frag) => [...frag.matchAll(/data-k="([^"]*)"/g)].map((m) => m[1]);
 const PREP = { junk_filter: "0", pre_before_meter: false };
 
 test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", async () => {
@@ -112,10 +112,7 @@ test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", asyn
 
 test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
-  assert.deepEqual(labelsOf(cardTitled(tab(), "Pre-process")), [
-    "High-frequency filter",
-    "Pre-process before metering",
-  ]);
+  assert.deepEqual(keysOf(cardTitled(tab(), "Pre-process")), ["junk_filter", "pre_before_meter"]);
 });
 
 // --- which card opens ---------------------------------------------------------
@@ -196,7 +193,7 @@ test("test_the_pcm_chain_carries_the_pcm_nx_filter", async () => {
 
 test("test_the_pcm_chain_ends_in_the_dither", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), PCM), FROM_PCM).includes("<label>Dither<"));
+  assert.ok(subsection(section(tab(), PCM), FROM_PCM).includes('data-k="pcm_dither"'));
 });
 
 test("test_the_sdm_chain_carries_the_sdm_1x_filter", async () => {
@@ -211,7 +208,7 @@ test("test_the_sdm_chain_carries_the_sdm_nx_filter", async () => {
 
 test("test_the_sdm_chain_ends_in_the_modulator", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), SDM), FROM_PCM).includes("<label>Sigma-delta modulator<"));
+  assert.ok(subsection(section(tab(), SDM), FROM_PCM).includes('data-k="sdm_modulator"'));
 });
 
 // The DSD half of each chain is disclosed by the narrow bar's source-format
@@ -221,13 +218,13 @@ test("test_the_sdm_chain_ends_in_the_modulator", async () => {
 test("test_dsd_source_handling_for_pcm_output_carries_the_noise_filter", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Noise filter<"));
+  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes('data-k="noise_filter"'));
 });
 
 test("test_dsd_source_handling_for_pcm_output_carries_the_decimation_filter", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Decimation filter<"));
+  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes('data-k="pcm_conversion"'));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_the_sdm_integrator_control", async () => {
@@ -239,7 +236,7 @@ test("test_dsd_source_handling_for_sdm_output_carries_the_sdm_integrator_control
 test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>DSD Playback</label>"));
+  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes('data-k="direct_sdm"'));
 });
 
 // --- the DSD Playback segment ---------------------------------------------------
@@ -249,8 +246,9 @@ test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
 // checkbox era's strings "1"/"0". The Direct-SDM edit warning flow is
 // directsdmwarn.test.js's subject, not this one's.
 
-// The control the "DSD Playback" label announces: from the label's close to the
-// next label of the subsection (or its end), whatever wrapper the field uses.
+// The `direct_sdm` field's own markup, whole: the field element the schema key
+// renders as, found by the key the daemon's form is keyed by rather than by the
+// words announcing it, so a rewording of the label changes nothing here.
 /**
  * @param {boolean} value
  * @returns {Promise<string>}
@@ -258,11 +256,7 @@ test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
 async function dsdPlaybackControl(value) {
   await reset({ cfg: { ...CHAINS, direct_sdm: value } });
   nSrcFormat.value = "both";
-  const frag = subsection(section(tab(), SDM), FROM_DSD);
-  const label = labeled(frag, "DSD Playback");
-  const from = label.start + label.html.length;
-  const next = frag.indexOf("<label", from);
-  return next < 0 ? frag.slice(from) : frag.slice(from, next);
+  return keyed(subsection(section(tab(), SDM), FROM_DSD), "direct_sdm").html;
 }
 
 // The strip's option buttons, matched on whole class TOKENS — "seg" the token,
@@ -270,23 +264,24 @@ async function dsdPlaybackControl(value) {
 // (an extra token, a reorder) changes nothing here.
 /** @param {string} s */
 const segButtons = (s) => elements(s).filter((el) => el.name === "button" && classes(el).includes("seg"));
+// An option is named by the wire value it carries in `data-v`
+// (components/controls/index.js), never by the words beside it.
 /** @param {string} s */
-const segLabels = (s) => segButtons(s).map((el) => text(el));
+const segValues = (s) => segButtons(s).map((el) => attr(el, "data-v"));
 /** @param {string} s */
 const activeSeg = (s) => {
   const hit = segButtons(s).find((el) => classes(el).includes("active"));
-  return hit === undefined ? null : text(hit);
+  return hit === undefined ? null : attr(hit, "data-v");
 };
 
 // There is no DOM here and preact-render-to-string never fires a handler, so an
 // option is chosen the way conversioncards-dsd.test.js presses a subhead: the
 // vnodes are collected through preact's own `options.vnode` hook — the
 // renderer's public seam — and the onClick the option button carries, the very
-// function a browser would call, is invoked. The option is found by the words a
-// reader sees, and finding more than one is a broken fixture, not a case.
+// function a browser would call, is invoked.
 /** @typedef {import("../support/wheel.js").VNode} VNode */
-/** @param {string} name */
-function chooseSegOption(name) {
+/** @returns {VNode[]} */
+function builtVnodes() {
   /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
@@ -299,10 +294,35 @@ function chooseSegOption(name) {
   } finally {
     options.vnode = previous;
   }
-  const hits = seen.filter(
-    (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && vnodeText(v).trim() === name,
+  return seen;
+}
+
+/**
+ * Press the option carrying wire value `value` on the field keyed `key`.
+ *
+ * Both handles are contract: the field wears its schema key in `data-k`
+ * (components/Field.js), the option its own value in `data-v`
+ * (components/controls/index.js). Preact builds a field's widget before it
+ * moves to the next field, so a field's options are the ones built after its
+ * own `data-k` vnode and before the next field's — the renderer's depth-first
+ * order, not ours. Anything but exactly one match is a broken fixture, not a
+ * case.
+ *
+ * @param {string} key
+ * @param {string} value
+ */
+function chooseSegOption(key, value) {
+  const seen = builtVnodes();
+  /** @param {VNode} v */
+  const fieldKey = (v) => (v && v.props ? v.props["data-k"] : undefined);
+  const at = seen.findIndex((v) => fieldKey(v) === key);
+  if (at < 0) throw new Error(`no field keyed "${key}" was rendered`);
+  const after = seen.findIndex((v, i) => i > at && typeof fieldKey(v) === "string");
+  const own = seen.slice(at, after < 0 ? seen.length : after);
+  const hits = own.filter(
+    (v) => v.type === "button" && v.props && typeof v.props.onClick === "function" && v.props["data-v"] === value,
   );
-  if (hits.length !== 1) throw new Error(`expected one "${name}" option, found ${hits.length}`);
+  if (hits.length !== 1) throw new Error(`expected one option valued "${value}" on ${key}, found ${hits.length}`);
   /** @type {(event: object) => void} */ (hits[0].props.onClick)({
     preventDefault() {},
     stopPropagation() {},
@@ -317,16 +337,16 @@ test("test_dsd_playback_is_no_longer_a_checkbox", async () => {
   assert.equal((await dsdPlaybackControl(false)).includes('type="checkbox"'), false);
 });
 
-test("test_dsd_playback_offers_processed_then_direct", async () => {
-  assert.deepEqual(segLabels(await dsdPlaybackControl(false)), ["Processed", "Direct"]);
+test("test_dsd_playback_offers_direct_sdm_off_then_on", async () => {
+  assert.deepEqual(segValues(await dsdPlaybackControl(false)), ["0", "1"]);
 });
 
-test("test_a_false_direct_sdm_selects_processed", async () => {
-  assert.equal(activeSeg(await dsdPlaybackControl(false)), "Processed");
+test("test_a_false_direct_sdm_activates_the_off_option", async () => {
+  assert.equal(activeSeg(await dsdPlaybackControl(false)), "0");
 });
 
-test("test_a_true_direct_sdm_selects_direct", async () => {
-  assert.equal(activeSeg(await dsdPlaybackControl(true)), "Direct");
+test("test_a_true_direct_sdm_activates_the_on_option", async () => {
+  assert.equal(activeSeg(await dsdPlaybackControl(true)), "1");
 });
 
 // Enabling direct_sdm is guarded: from any other volume state the click raises
@@ -339,7 +359,7 @@ test("test_choosing_direct_stages_the_string_one", async () => {
     cfg: { ...CHAINS, direct_sdm: false, fixed_volume_enabled: true, fixed_volume: "-3" },
   });
   nSrcFormat.value = "both";
-  chooseSegOption("Direct");
+  chooseSegOption("direct_sdm", "1");
   await quiesce(w);
   assert.equal(w.staged.http.direct_sdm, "1");
 });
@@ -347,7 +367,7 @@ test("test_choosing_direct_stages_the_string_one", async () => {
 test("test_choosing_processed_stages_the_string_zero", async () => {
   const w = await reset({ cfg: { ...CHAINS, direct_sdm: true } });
   nSrcFormat.value = "both";
-  chooseSegOption("Processed");
+  chooseSegOption("direct_sdm", "0");
   await quiesce(w);
   assert.equal(w.staged.http.direct_sdm, "0");
 });
@@ -392,5 +412,5 @@ test("test_a_familiar_enum_id_with_a_non_fft_label_leaves_the_card_closed", asyn
 
 test("test_the_filter_length_card_carries_the_fft_size_control", async () => {
   await reset({ cfg: { ...CHAINS, filter1x: { value: "7", options: FFT_LIST } } });
-  assert.ok(section(tab(), LENGTH).includes("<label>FFT filter length</label>"));
+  assert.ok(section(tab(), LENGTH).includes('data-k="fft_size"'));
 });

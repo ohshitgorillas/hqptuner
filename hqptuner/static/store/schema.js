@@ -319,7 +319,7 @@ export const schema = {
     label: "High-frequency filter",
     // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
     // still findable from a label that says what the control does
-    sublabel: "(Playback filter)",
+    sublabel: "Playback filter",
     group: "output",
     widget: "dropdown",
     lane: "live",
@@ -665,6 +665,9 @@ export const schema = {
   // shown there instead (ResamplingTab.js).
   direct_sdm: {
     label: "DSD Playback",
+    // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
+    // still findable from a label that says what the control does
+    sublabel: "Direct SDM",
     bool: true,
     group: "dsp",
     widget: "segment",
@@ -1098,7 +1101,7 @@ export const schema = {
   // file (fileTruth), since the form's bool cannot tell −3 from −6.
   optimal_iso: {
     label: "Auto headroom",
-    sublabel: "(Optimal ISO)",
+    sublabel: "Optimal ISO",
     group: "volume",
     widget: "segment",
     lane: "http",

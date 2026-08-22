@@ -35,6 +35,9 @@ const s = (v) => (v == null ? "" : String(v));
 // event is a write to the engine — re-picking the running output mode would
 // re-enumerate and drop the engine's rate pin (store/live/write.js) for a selection the
 // user did not alter.
+// Each button carries its option's value in `data-v` — the wire value, contract,
+// unlike the label beside it, which is copy the owner may reword. Nothing may
+// select an option by the words it reads (docs/testing.md rule 9).
 /**
  * Renders an option list as a row of buttons, the one matching `value` marked
  * active.
@@ -48,6 +51,7 @@ export function Segment({ value, options, disabled, onChange }) {
           <button
             type="button"
             class=${s(o.value) === s(value) ? "seg active" : "seg"}
+            data-v=${s(o.value)}
             disabled=${disabled || !!o.disabled}
             title=${o.reason || undefined}
             onClick=${() => s(o.value) !== s(value) && onChange(o.value)}

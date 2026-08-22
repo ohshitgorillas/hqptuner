@@ -11,9 +11,10 @@
 // facet) over a faked wire on the real REST paths. Nothing is stubbed.
 //
 // A subsection is read as OPEN when the controls of that chain's DSD half are on
-// screen — the noise filter for PCM output, direct SDM for SDM output, both of
-// them pinned as that subsection's contents by conversioncards.test.js. That is
-// what "the body renders only when open" means to a reader.
+// screen — `noise_filter` for PCM output, `direct_sdm` for SDM output, both of
+// them pinned as that subsection's contents by conversioncards.test.js. Each is
+// found by its schema key, never by its label. That is what "the body renders
+// only when open" means to a reader.
 //
 // There is no exported collapse API and there is no DOM here, so a subsection is
 // toggled the way a caller toggles one: by invoking the onClick its subhead
@@ -46,7 +47,7 @@ import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/stat
 import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields, section } from "../support/tabform.js";
-import { SUBHEADS, subsection, subheadButtons, vnodeText } from "../support/chainsubsections.js";
+import { SUBHEADS, subsection, subheadButtons } from "../support/chainsubsections.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 
@@ -54,12 +55,13 @@ const [FROM_PCM, FROM_DSD] = SUBHEADS;
 const PCM = "PCM Chain";
 const SDM = "SDM Chain";
 
-// One control from each chain's DSD half, as that half renders it, keyed by the
-// title in the card's head.
+// One control from each chain's DSD half, by the schema key its field carries
+// in `data-k` (components/Field.js) — the wire key, not the label announcing it
+// — keyed by the title in the card's head.
 /** @type {Record<string, string>} */
 const MARK = {
-  [PCM]: "<label>Noise filter<",
-  [SDM]: "<label>DSD Playback</label>",
+  [PCM]: 'data-k="noise_filter"',
+  [SDM]: 'data-k="direct_sdm"',
 };
 
 // The daemon's /config form fields the chain cards render, each with its own
@@ -100,7 +102,8 @@ const tab = () => renderTab().out;
 const dsdOpen = (out, card) => subsection(section(out, card), FROM_DSD).includes(MARK[card]);
 
 /**
- * The two DSD subheads a reader can press, in the order they were built.
+ * The two DSD subheads a reader can press, in the order they were built. Found
+ * by the `data-sources` the subhead carries, never by the words it reads.
  *
  * @returns {((event: object) => void)[]}
  */
@@ -111,7 +114,7 @@ function dsdToggles() {
       v.type === "button" &&
       v.props &&
       typeof v.props.onClick === "function" &&
-      vnodeText(v).trim().endsWith(FROM_DSD),
+      v.props["data-sources"] === FROM_DSD,
   );
   if (heads.length !== 2) throw new Error(`expected two "${FROM_DSD}" toggles, found ${heads.length}`);
   return heads.map((v) => /** @type {(event: object) => void} */ (v.props.onClick));

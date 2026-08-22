@@ -1,25 +1,33 @@
 // Readers for the SOURCE-type subsections a chain card is split into, shared by
 // the conversion-card suites.
 //
-// Which element carries a subhead is a disclosure decision, not a behavior: the
-// DSD half is a collapsible, so its subhead is a button, while the PCM half's is
-// not. Everything here therefore finds a subhead by the words a reader sees and
-// walks back to whatever tag opens it.
+// Both subheads carry `data-sources` — "pcm" or "dsd" (components/tabs/
+// ConversionCards.js) — and that attribute is what identifies a subsection here.
+// The heading's own wording is copy the owner may reword at will, so nothing
+// below selects on it (docs/testing.md rule 9).
+//
+// Which ELEMENT carries a subhead stays unnamed: the DSD half is a collapsible,
+// so its subhead is a button, while the PCM half's is a plain heading.
+// Everything here therefore matches the attribute and takes whatever tag carries
+// it.
 
-import { elements, text } from "./markup.js";
+import { elements } from "./markup.js";
 import { cardHeadAt, cardTitled } from "./tabform.js";
 
-/** The two source-type subheads a chain card carries. */
-export const SUBHEADS = ["PCM Sources", "DSD Sources"];
+/** The two source-type subheads a chain card carries, by `data-sources`. */
+export const SUBHEADS = ["pcm", "dsd"];
+
+/** @param {string} sources */
+const marker = (sources) => `data-sources="${sources}"`;
 
 /**
  * Where a subhead's own element starts inside a card fragment, or -1.
  *
  * @param {string} chunk
- * @param {string} name
+ * @param {string} sources
  */
-const subheadAt = (chunk, name) => {
-  const at = chunk.indexOf(name);
+const subheadAt = (chunk, sources) => {
+  const at = chunk.indexOf(marker(sources));
   return at < 0 ? -1 : chunk.lastIndexOf("<", at);
 };
 
@@ -29,36 +37,31 @@ const subheadAt = (chunk, name) => {
  * such subhead at all.
  *
  * @param {string} chunk
- * @param {string} name
+ * @param {string} sources
  * @returns {string}
  */
-export const subsection = (chunk, name) => {
-  const at = subheadAt(chunk, name);
+export const subsection = (chunk, sources) => {
+  const at = subheadAt(chunk, sources);
   if (at < 0) return "";
   const later = SUBHEADS.map((n) => subheadAt(chunk, n)).filter((i) => i > at);
   return later.length === 0 ? chunk.slice(at) : chunk.slice(at, Math.min(...later));
 };
 
 /**
- * The elements of one card that ARE a subhead reading `name`: their wording ends
- * in it — a collapsible's subhead carries a disclosure triangle ahead of the
- * words — and they carry no other subhead, which is what tells a subhead from
- * the region that merely ends with one.
+ * The elements of one card that ARE the subhead for `sources`: the ones carrying
+ * that `data-sources` value, whatever tag they turned out to be.
  *
  * @param {string} out
  * @param {string} card
- * @param {string} name
+ * @param {string} sources
  * @returns {import("./markup.js").MarkupElement[]}
  */
-export function subheadsIn(out, card, name) {
+export function subheadsIn(out, card, sources) {
   const start = cardHeadAt(out, card);
   if (start < 0) throw new Error(`no card titled "${card}" in the rendered tab`);
   const end = start + cardTitled(out, card).length;
-  const others = SUBHEADS.filter((n) => n !== name);
-  return elements(out).filter(
-    (el) =>
-      el.start >= start && el.start < end && text(el).endsWith(name) && others.every((n) => !text(el).includes(n)),
-  );
+  const want = new RegExp(`(^|\\s)${marker(sources)}`);
+  return elements(out).filter((el) => el.start >= start && el.start < end && want.test(el.attrs));
 }
 
 /**
@@ -67,21 +70,8 @@ export function subheadsIn(out, card, name) {
  *
  * @param {string} out
  * @param {string} card
- * @param {string} name
+ * @param {string} sources
  * @returns {import("./markup.js").MarkupElement[]}
  */
-export const subheadButtons = (out, card, name) => subheadsIn(out, card, name).filter((el) => el.name === "button");
-
-/**
- * What a reader sees inside a vnode: its children, flattened.
- *
- * @param {unknown} node
- * @returns {string}
- */
-export function vnodeText(node) {
-  if (node === null || node === undefined || typeof node === "boolean") return "";
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(vnodeText).join("");
-  const props = /** @type {import("./wheel.js").VNode} */ (node).props;
-  return vnodeText(props && props.children);
-}
+export const subheadButtons = (out, card, sources) =>
+  subheadsIn(out, card, sources).filter((el) => el.name === "button");

@@ -39,7 +39,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
-import { classes, elements } from "../support/markup.js";
+import { attr, classes, elements } from "../support/markup.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 
 /** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
@@ -131,17 +131,30 @@ test("test_the_mode_switch_leads_the_tab", async () => {
 
 test("test_the_rate_box_carries_the_pcm_family_rate", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(tab().includes("<label>PCM</label>"));
+  assert.ok(tab().includes('data-k="pcm_rate"'));
 });
 
 test("test_the_rate_box_carries_the_sdm_family_rate", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(tab().includes("<label>SDM</label>"));
+  assert.ok(tab().includes('data-k="sdm_rate"'));
 });
+
+// The option a segment marks active, found by the wire value it carries in
+// `data-v` (components/controls/index.js) rather than by the words on it.
+/**
+ * @param {string} out
+ * @param {string} value
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function segOption(out, value) {
+  const hits = elements(out).filter((el) => el.name === "button" && attr(el, "data-v") === value);
+  if (hits.length !== 1) throw new Error(`expected one option valued "${value}", found ${hits.length}`);
+  return hits[0];
+}
 
 test("test_the_selected_backend_reads_back_on_its_segment", async () => {
   await reset({ cfg: { backend: "combo", ...PRESENT } });
-  assert.ok(tab().includes('<button type="button" class="seg active">Combo</button>'));
+  assert.ok(classes(segOption(tab(), "combo")).includes("active"));
 });
 
 // --- backend disclosures ------------------------------------------------------

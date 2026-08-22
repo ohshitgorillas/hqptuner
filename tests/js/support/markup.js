@@ -66,6 +66,17 @@ export function elements(out) {
 export const classes = (el) => ((/class="([^"]*)"/.exec(el.attrs) || [])[1] || "").split(/\s+/);
 
 /**
+ * One attribute's value, or undefined when the element does not carry it. The
+ * wire-valued attributes (`data-k`, `data-v`) are contract, unlike the words
+ * beside them, so this is how a control and an option are identified.
+ *
+ * @param {MarkupElement} el
+ * @param {string} name
+ * @returns {string | undefined}
+ */
+export const attr = (el, name) => (new RegExp(`(^|\\s)${name}="([^"]*)"`).exec(el.attrs) || [])[2];
+
+/**
  * What a reader sees inside an element: markup stripped, whitespace collapsed.
  *
  * @param {MarkupElement} el
@@ -168,6 +179,23 @@ export function labeled(fragment, name) {
  * @returns {boolean}
  */
 export const hasLabel = (fragment, name) => labels(fragment, name).length > 0;
+
+/**
+ * The field a schema key renders as. Every field carries `data-k="<key>"`
+ * (components/Field.js), and the key is the wire identifier the daemon's form
+ * is keyed by — contract, unlike the label announcing it — so a control is
+ * found by its key and never by its wording (docs/testing.md rule 9).
+ *
+ * @param {string} fragment
+ * @param {string} key
+ * @returns {MarkupElement}
+ */
+export function keyed(fragment, key) {
+  const want = new RegExp(`(^|\\s)data-k="${key}"`);
+  const [hit] = elements(fragment).filter((el) => want.test(el.attrs));
+  if (!hit) throw new Error(`no field keyed "${key}" in the fragment`);
+  return hit;
+}
 
 /**
  * The outermost element inside a fragment carrying the disabled marker.

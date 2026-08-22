@@ -65,6 +65,10 @@ effect(() => {
   sdmDsdOverride.value = null;
 });
 
+// Both subheads carry `data-sources` — "pcm" or "dsd". The heading's own wording
+// is copy the owner may reword, so the attribute is what identifies a subsection
+// (docs/testing.md rule 9); nothing may select one by the words it reads.
+//
 // A subhead that is its own toggle, the way a collapsible card's head is. Not a
 // Card: a card nested in a card body is the wrong frame for a subsection, and
 // .subhead already carries the type this heading wants.
@@ -74,7 +78,7 @@ effect(() => {
  */
 function DsdSection({ collapse, children }) {
   return html`
-    <button type="button" class="subhead" onClick=${collapse.onToggle}>
+    <button type="button" class="subhead" data-sources="dsd" onClick=${collapse.onToggle}>
       <span class="tri">${collapse.open ? "▾" : "▸"}</span> DSD Sources
     </button>
     ${collapse.open ? children : null}
@@ -120,7 +124,7 @@ export const PreProcessCard = () =>
 export const PcmChainCard = () =>
   html`<${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
     ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
-    <div class="subhead">PCM Sources</div>
+    <div class="subhead" data-sources="pcm">PCM Sources</div>
     <${ChainPack}>
       <${Field} k="pcm_filter_1x" />
       <${Field} k="pcm_filter_nx" />
@@ -139,7 +143,7 @@ export const PcmChainCard = () =>
 export const SdmChainCard = () =>
   html`<${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
     ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
-    <div class="subhead">PCM Sources</div>
+    <div class="subhead" data-sources="pcm">PCM Sources</div>
     <${ChainPack}>
       <${Field} k="sdm_filter_1x" />
       <${Field} k="sdm_filter_nx" />
