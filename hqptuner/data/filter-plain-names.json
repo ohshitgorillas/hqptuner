@@ -4,13 +4,13 @@
     "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
     "Conventional": "Common, efficient filter types found in most DACs",
     "Polyphase sinc": "The most variety and flexibility",
-    "Interpolation": "Direct interpolation maintains the original samples",
+    "Interpolation": "Generates new samples along a curve rather than by filtering",
     "Pure sinc": "Brute force linear phase filters",
     "Misc": "Miscellaneous filters"
   },
   "variants": {
     "Conventional|Classic oversampling": "Cheap, short, low-load filters",
-    "Conventional|Minimum ringing": "Less ringing and better response/suppression than Polynomial",
+    "Conventional|Minimum ringing": "Minimizes ringing at the cost of response and suppression",
     "Conventional|Brickwall": "A steeper cut with pre-ringing on strong transients; adjustable length",
     "Polyphase sinc|Base": "The family's base form",
     "Polyphase sinc|Extended frequency response": "Keeps response wide while fully cutting off at the limit",
@@ -25,7 +25,7 @@
     "Pure sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients",
     "Pure sinc|Rate-flexible": "Capable of any rate change at the cost of a higher processing load",
     "Interpolation|Closed form": "An approximation-free solution to defining the inter-sample curve",
-    "Interpolation|Polynomial": "Almost no ringing, but weak suppression of ultrasonic content"
+    "Interpolation|Polynomial": "Slow roll-off and weak ultrasonic suppression"
   },
   "filters": {
     "IIR2": {
