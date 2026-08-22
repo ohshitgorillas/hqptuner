@@ -100,8 +100,27 @@ test("test_an_entry_without_rec_adds_no_rec_key_to_its_option", async () => {
   assert.equal("rec" in byLabel(await decorated(), "sac"), false);
 });
 
+// Built fresh here rather than through the module-level OPTIONS, which earlier
+// cases already pushed through the pref-ON path: an implementation mutating its
+// input objects in place would otherwise deep-equal its own mutation.
 test("test_pref_off_returns_the_input_options_untouched", async () => {
-  assert.deepEqual(await decorated({ plain: false }), OPTIONS);
+  await reset({ meta: META_REC });
+  plainNames.value = false;
+  assert.deepEqual(
+    plainnames.decorateOptions(
+      [
+        { value: "0", label: "standard" },
+        { value: "7", label: "sac" },
+        { value: "11", label: "wec2" },
+      ],
+      "noise_filter",
+    ),
+    [
+      { value: "0", label: "standard" },
+      { value: "7", label: "sac" },
+      { value: "11", label: "wec2" },
+    ],
+  );
 });
 
 // --- the schema rows ------------------------------------------------------------

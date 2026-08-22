@@ -62,16 +62,31 @@ const LEGEND = "✓ = recommended";
 /**
  * The noise-filter field rendered against the overlay.
  *
- * @param {{ plain?: boolean, options?: { value: string, label: string }[] }} [state]
+ * @param {{ plain?: boolean, options?: { value: string, label: string }[], value?: string }} [state]
  * @returns {Promise<string>}
  */
-async function noiseField({ plain = true, options = ALL_OPTIONS } = {}) {
+async function noiseField({ plain = true, options = ALL_OPTIONS, value = options[0].value } = {}) {
   await reset({
-    fields: [{ name: "noise_filter", value: options[0].value, options }],
+    fields: [{ name: "noise_filter", value, options }],
     meta: META_REC,
   });
   plainNames.value = plain;
   return field("noise_filter");
+}
+
+/**
+ * Text a user reads off the closed combobox button (the dd-box element's own
+ * content, tags stripped) — same contract combobox-plainnames.test.js pins the
+ * closed control with. Throws when there is no closed button, so an absence
+ * fails loudly instead of comparing against nothing.
+ *
+ * @param {string} out
+ * @returns {string}
+ */
+function boxText(out) {
+  const box = elements(out).find((el) => classes(el).includes("dd-box"));
+  if (!box) throw new Error("no closed combobox button in the rendered output");
+  return text(box);
 }
 
 /**
@@ -96,6 +111,12 @@ test("test_a_rec_flagged_row_renders_a_check_glyph_labelled_recommended", async 
 
 test("test_a_row_without_the_flag_renders_no_recommended_glyph", async () => {
   assert.equal(/aria-label="Recommended"/.test(rowIncluding(await noiseField(), "Sac leaf").html), false);
+});
+
+// --- the closed control ---------------------------------------------------------
+
+test("test_pref_on_the_closed_control_shows_the_selections_short", async () => {
+  assert.equal(boxText(await noiseField({ value: "11" })), "Wec Two");
 });
 
 // --- the footer legend ----------------------------------------------------------
