@@ -22,6 +22,14 @@ Running engine = sole authority for enumeration names/IDs/ordering; static `data
 
 Every piece of user-facing text — labels, popover prose, hints, tooltips, captions, button summaries, error copy — ships only with the owner's explicit approval, verbatim. Agent-drafted copy is a proposal until the owner signs it off; owner-drafted copy is the spec, character for character, and gets no additions, trims, appended clarifications, or "improvements". Factual errors in owner copy are flagged in discussion and the corrected wording approved before it ships. Em dashes are forbidden in user-facing text, enforced by gate. Rewording during a bug fix or refactor is still a copy change and still requires approval.
 
+### Gate exemptions are owner-approved (hard rule)
+
+A gate says no. The fix is the code, not the gate. Every exemption — an `EXEMPT`/`PRECOMMIT_EXEMPT` entry, a CSS `*-exempt:`/`history-ok:` pragma, an inline `# noqa` / `# type: ignore` / `eslint-disable`, a `per-file-ignores` or vulture `ignore_names` addition, a loosened import-linter contract, a raised threshold, a path added to a skip list, or a deviation from `docs/testing.md` — ships only with the owner's explicit approval of that specific site, granted before it is written. Proposing one names the gate, the site, why the code cannot satisfy the gate, and what the exemption costs. An exemption written first and mentioned at hand-back is a defect whether or not it would have been approved.
+
+Widening an existing exemption is a new exemption and needs its own approval; so does one written by a subagent. Removal needs no approval — delete freely and say so in the report.
+
+One standing exception: a `BUDGET` entry in `scripts/gates/check_package_budget.py`. Raise it for a feature without asking, never for a refactor. Name the entry and the delta in the report.
+
 ## Agent conduct (project deltas)
 
 - **Do work in order user gave it.** Stated sequence part of instruction, not suggestion to optimize around.
