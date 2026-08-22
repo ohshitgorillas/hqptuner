@@ -11,12 +11,12 @@
 // subsection in BOTH cards at once — which is the whole reason it is a narrow-bar
 // facet rather than a second copy of the subhead button.
 import { signal, computed, effect } from "@preact/signals";
-import { html } from "../../lib/dom.js";
+import { html, Tri } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { ChainPack } from "../ChainPack.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { Card, Tri, collapseFrom } from "../common.js";
+import { Card, collapseFrom } from "../common.js";
 import { nSrcFormat } from "../../store/narrow/state.js";
 
 // DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
