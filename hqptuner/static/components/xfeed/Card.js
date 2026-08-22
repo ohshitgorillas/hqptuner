@@ -20,6 +20,7 @@
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../../lib/dom.js";
 import { Field } from "../Field.js";
+import { Tri } from "../common.js";
 import { effective, effectivePipelines, isDirty } from "../../store/resolve.js";
 import { edit } from "../../store/actions.js";
 import { notesVisible } from "../../store/prefs.js";
@@ -341,7 +342,7 @@ function StructuralMode({ rows }) {
         : null
     }
     <button type="button" class="card-head" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
-      <span class="tri">${structPlotOpen.value ? "▾" : "▸"}</span> Crossfeed response
+      ${Tri(structPlotOpen.value)} Crossfeed response
       ${
         structPlotOpen.value
           ? html`<span class="xfs-legend">
@@ -415,7 +416,7 @@ function BauerMode() {
           <${Field} k="crossfeed_level" />
         </div>
         <button type="button" class="card-head" onClick=${() => (plotOpen.value = !open)}>
-          <span class="tri">${open ? "▾" : "▸"}</span> Response plot
+          ${Tri(open)} Response plot
         </button>
         ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
       </div>
@@ -425,7 +426,7 @@ function BauerMode() {
         title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect."
         onClick=${() => (compOpen.value = !compOpen.value)}
       >
-        <span class="tri">${compOpen.value ? "▾" : "▸"}</span> Crossfeed compensation
+        ${Tri(compOpen.value)} Crossfeed compensation
       </button>
       ${
         compOpen.value
@@ -450,7 +451,7 @@ export function CrossfeedCard() {
   return html`
     <section class="card">
       <button type="button" class="card-head" onClick=${() => (cardOpen.value = !open)}>
-        <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed
+        ${Tri(open)} Crossfeed
       </button>
       ${issueNote.value ? html`<div class="mtx-issues">${issueNote.value}</div>` : null}
       ${

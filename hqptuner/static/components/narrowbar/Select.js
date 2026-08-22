@@ -41,7 +41,7 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
   return html`
     <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
-        ${label} <span class="multi-caret">▾</span>
+        ${label}<span class="multi-caret"></span>
       </button>
       ${
         open.value
@@ -91,7 +91,7 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
   return html`
     <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
-        ${label} <span class="multi-caret">▾</span>
+        ${label}<span class="multi-caret"></span>
       </button>
       ${
         open.value

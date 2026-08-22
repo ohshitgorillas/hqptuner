@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Every triangle mark sits level with the text beside it.** The disclosure triangles on card heads and dropdown group headers, the caret on a closed dropdown and the mark on a selected option are drawn as shapes rather than text characters, so each centers on its row instead of hanging low.
+
 - **Two noise filter options are named for what they do.** The Averaging family's second weighted option drops the SACD framing for the manual's own non-ringing linear phase, and the Dedicated family's lower corner frequency option no longer claims a flat noise floor, which the manual calls almost flat.
 
 - **The Decimation filter families read accurately in Simplified.** The Conventional blurb no longer claims most DACs do this conversion internally, and the family holding the no-decimation option is now named Bypass, captioned with what it does, and lists its option as No decimation.
