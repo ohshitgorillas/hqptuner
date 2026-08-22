@@ -205,10 +205,25 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-grp .dd-opt {
   padding-left: calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
 }
+/* Per-row Recommended check (Simplified plain-names dropdowns): the manual's
+   Recommended flag as a mark beside the name. Part of the name like the
+   apodizing circle — a read, never a control — and accent by owner's spec. */
+.dd-rec {
+  flex: none;
+  margin-left: var(--sp-1);
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+/* The legend explaining the check, the pop's last row whenever a check is on
+   screen: a caption read (typography rides the t-caption class), never
+   selectable, never highlighted. */
+.dd-legend {
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--muted);
+}
 /* Apodizing badge (filter dropdowns): circled A for full, ½ for half, on a
-   row or hoisted onto a uniform group's header. Accent by owner's spec — the
-   one marker in this pop that borrows the accent for something other than a
-   staged edit. */
+   row or hoisted onto a uniform group's header. Accent by owner's spec, like
+   the tier box and the Recommended check. */
 .dd-apod {
   display: inline-flex;
   flex: none;

@@ -28,6 +28,8 @@ class StaticMetadata:
             ("modulators", "modulator"),
             ("sdm_conversion", "sdm-conversion"),
             ("sdm_integrator", "sdm-integrator"),
+            ("noise_filter", "noise-filter"),
+            ("pcm_conversion", "pcm-conversion"),
         )
         for key, stem in overlays:
             doc = json.loads((data_dir / f"{stem}-plain-names.json").read_text())

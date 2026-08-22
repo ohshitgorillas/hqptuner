@@ -1,0 +1,95 @@
+{
+  "_scope": "The GET /config form's pcm_conversion select (14 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family vocabulary follows the main filter overlay (Conventional, Polyphase sinc, Pure sinc); `none` sits alone in a blurbless No decimation family. A fourth field, `short`, is the closed-dropdown title: family and leaf composed with ` · `, except `none`, whose family alone reads better closed (same license as the dither overlay's none entry). Leaf labels unique within their family; short titles unique across the list. `rec: true` marks the option the manual flags Recommended; entries without the flag carry no key.",
+  "families": {
+    "Conventional": "Simple, efficient conversion filters, similar to what most DACs do internally",
+    "Polyphase sinc": "The most variety and flexibility",
+    "Pure sinc": "Brute force linear phase filters"
+  },
+  "pcm_conversion": {
+    "traditional": {
+      "family": "Conventional",
+      "variant": null,
+      "leaf": "Recursive",
+      "short": "Conventional · Recursive"
+    },
+    "single-steep": {
+      "family": "Conventional",
+      "variant": null,
+      "leaf": "Steep",
+      "short": "Conventional · Steep"
+    },
+    "single-short": {
+      "family": "Conventional",
+      "variant": null,
+      "leaf": "Balanced",
+      "short": "Conventional · Balanced"
+    },
+    "poly-lp": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Linear phase",
+      "short": "Polyphase sinc · Linear phase"
+    },
+    "poly-mp": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Minimum phase",
+      "short": "Polyphase sinc · Minimum phase"
+    },
+    "poly-short-lp": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Short linear phase",
+      "short": "Polyphase sinc · Short linear phase",
+      "rec": true
+    },
+    "poly-short-mp": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Short minimum phase",
+      "short": "Polyphase sinc · Short minimum phase"
+    },
+    "poly-xtr": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Extreme roll-off and attenuation",
+      "short": "Polyphase sinc · Extreme roll-off and attenuation"
+    },
+    "poly-xtr-short": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Extreme roll-off and attenuation, short",
+      "short": "Polyphase sinc · Extreme roll-off and attenuation, short"
+    },
+    "poly-ext2": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Extended frequency response 2",
+      "short": "Polyphase sinc · Extended frequency response 2"
+    },
+    "poly-gauss-long": {
+      "family": "Polyphase sinc",
+      "variant": null,
+      "leaf": "Gaussian, long",
+      "short": "Polyphase sinc · Gaussian, long"
+    },
+    "sinc-M": {
+      "family": "Pure sinc",
+      "variant": null,
+      "leaf": "Constant length",
+      "short": "Pure sinc · Constant length"
+    },
+    "sinc-S": {
+      "family": "Pure sinc",
+      "variant": null,
+      "leaf": "Short",
+      "short": "Pure sinc · Short"
+    },
+    "none": {
+      "family": "No decimation",
+      "variant": null,
+      "leaf": "None",
+      "short": "No decimation"
+    }
+  }
+}

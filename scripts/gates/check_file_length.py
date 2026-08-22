@@ -51,6 +51,7 @@ ALLOWANCE: dict[str, int] = {
     # of lanes/http cost this file one import line. Owed a split, not a number.
     "hqptuner/core/manager.py": 480,
     "hqptuner/static/components/xfeed/Card.js": 483,
+    "hqptuner/static/css/controls/combobox.css": 412,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,
     "scripts/eqlab/search.js": 442,

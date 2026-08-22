@@ -1,0 +1,94 @@
+{
+  "_scope": "The GET /config form's noise_filter select (13 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family is the filter's design lineage, leaf is the rest. A fourth field, `short`, is the closed-dropdown title: family and leaf composed with ` · `. Leaf labels unique within their family; short titles unique across the list. `rec: true` marks the options the manual flags Recommended; entries without the flag carry no key.",
+  "families": {
+    "Dedicated": "Filters designed specifically for DSD noise, matched to how the source was made",
+    "Averaging": "Averaging stages that turn the bitstream into PCM directly, filtering as a side effect",
+    "Roll-off ladder": "General filters ordered by strength: slow keeps bandwidth and noise, brickwall cuts both"
+  },
+  "noise_filter": {
+    "standard": {
+      "family": "Dedicated",
+      "variant": null,
+      "leaf": "Base",
+      "short": "Dedicated · Base",
+      "rec": true
+    },
+    "low": {
+      "family": "Dedicated",
+      "variant": null,
+      "leaf": "Flat noise floor",
+      "short": "Dedicated · Flat noise floor",
+      "rec": true
+    },
+    "high-order": {
+      "family": "Dedicated",
+      "variant": null,
+      "leaf": "Modern sources",
+      "short": "Dedicated · Modern sources",
+      "rec": true
+    },
+    "sac": {
+      "family": "Averaging",
+      "variant": null,
+      "leaf": "Sliding",
+      "short": "Averaging · Sliding"
+    },
+    "wec": {
+      "family": "Averaging",
+      "variant": null,
+      "leaf": "Weighted",
+      "short": "Averaging · Weighted"
+    },
+    "wec2": {
+      "family": "Averaging",
+      "variant": null,
+      "leaf": "SACD match",
+      "short": "Averaging · SACD match",
+      "rec": true
+    },
+    "slow-lp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Slow linear phase",
+      "short": "Roll-off ladder · Slow linear phase"
+    },
+    "slow-mp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Slow minimum phase",
+      "short": "Roll-off ladder · Slow minimum phase"
+    },
+    "medium": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Medium",
+      "short": "Roll-off ladder · Medium",
+      "rec": true
+    },
+    "medium-high": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Medium, no conversion",
+      "short": "Roll-off ladder · Medium, no conversion",
+      "rec": true
+    },
+    "fast-lp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Fast linear phase",
+      "short": "Roll-off ladder · Fast linear phase"
+    },
+    "fast-mp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Fast minimum phase",
+      "short": "Roll-off ladder · Fast minimum phase"
+    },
+    "brickwall": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Brickwall",
+      "short": "Roll-off ladder · Brickwall"
+    }
+  }
+}
