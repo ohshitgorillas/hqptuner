@@ -59,6 +59,34 @@
 .field.field-nolabel > * {
   grid-column: 1;
 }
+/* Prose under a DROPDOWN starts on the dropdown's text edge, not its border
+   edge. The column-2 blocks (.field-desc / .field-note / gray reason / rescan
+   cost / favorites error, all placed in narrowing.css) sit at the control's
+   left border, which puts a sentence about the selection a glyph's width left
+   of the selection it describes. The step is the trigger's own left inset —
+   1px border plus the --sp-2 padding that both the native select and the
+   combobox .dd-box spend — so the caption's first character lands under the
+   closed control's first. Margin, never padding: box-sizing is border-box
+   page-wide (tokens.css), so padding would come out of the --measure clamp
+   those blocks carry instead of shifting them. Child combinator: the gray
+   reason that rides inline in a .control flex is not one of these.
+   Matched on the control the row actually holds, not on the widget class:
+   `field-dropdown` comes from Field.js alone, so keying on it missed the LIVE
+   page (which builds its rows as a bare `field`, live/View.js) and the rows
+   assembled by their own components rather than through Field — the matrix
+   profile picker and the live preset picker among them. */
+.field:has(> .control > select) > .field-desc,
+.field:has(> .control > .dd-box) > .field-desc,
+.field:has(> .control > select) > .field-note,
+.field:has(> .control > .dd-box) > .field-note,
+.field:has(> .control > select) > .field-rescan-cost,
+.field:has(> .control > .dd-box) > .field-rescan-cost,
+.field:has(> .control > select) > .field-gray-reason,
+.field:has(> .control > .dd-box) > .field-gray-reason,
+.field:has(> .control > select) > .field-error,
+.field:has(> .control > .dd-box) > .field-error {
+  margin-left: calc(var(--sp-2) + 1px); /* token-exempt: the 1px is the control's border width, not a step on the spacing scale */
+}
 .field > label {
   color: var(--fg);
   font-size: var(--fs-body);
