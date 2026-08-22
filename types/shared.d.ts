@@ -151,9 +151,15 @@ interface SchemaField {
   // A DISCRIMINATOR, not a flag: "pcm" | "sdm", handed to grayShapersByRate() as
   // its `kind` argument (schema.js:526,565 -> Field.js:159).
   rateGray?: string;
-  // A DISCRIMINATOR, not a flag: "filters" | "dithers" | "modulators", handed to
-  // store/plainnames.js decorateOptions()/plainClosedLabel() as its `kind` argument.
+  // A DISCRIMINATOR, not a flag: "filters" | "dithers" | "modulators" |
+  // "sdm_conversion" | "sdm_integrator", handed to store/plainnames.js
+  // decorateOptions()/plainClosedLabel() as its `kind` argument.
   plainNames?: string;
+  // Silences the per-option manual prose while the Option style pref is
+  // Simplified, on a control whose Simplified rows already carry that wording
+  // (components/binder.js quietDesc). The raw engine name and the control's own
+  // tooltip are not affected.
+  plainQuiet?: boolean;
 
   // numeric widgets
   def?: string | number | boolean;

@@ -6,7 +6,7 @@
 import { html } from "../lib/dom.js";
 import { optionDescription, selectionDescription, selectedLabel } from "../store/prose.js";
 import { plainTrueName } from "../store/plainnames.js";
-import { collapsedGroups, toggleCollapsedGroup } from "../store/prefs.js";
+import { collapsedGroups, toggleCollapsedGroup, plainNames } from "../store/prefs.js";
 import { filterFacets } from "../store/narrow/facets.js";
 import {
   isFavorite,
@@ -57,6 +57,14 @@ const WIDGETS = {
 // <select>: macOS never surfaces option tooltips, so per-option prose needs
 // rows the page owns. Every other dropdown keeps the native control.
 const tipped = (/** @type {FieldEntry} */ entry) => entry.desc && entry.widget === "dropdown";
+
+// `plainQuiet`: on a control whose Simplified rows ARE the manual's own option
+// wording, the manual sentence beside the row and under the closed control says
+// the row again. It goes quiet while the pref is Simplified, and comes back in
+// full in Standard, where the row is a bare engine name and the sentence is the
+// only prose there is. The raw engine name stays on both surfaces either way,
+// and the control's overall tooltip is unaffected — it rides the hover title.
+const quietDesc = (/** @type {FieldEntry} */ entry) => !!entry.plainQuiet && plainNames.value;
 /** Picks the widget component a schema entry renders through: Combobox for a desc-carrying dropdown, else the entry's `widget` kind. */
 export const widgetFor = (/** @type {FieldEntry} */ entry) =>
   tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
@@ -74,7 +82,7 @@ export const tipsFor = (entry, meta) =>
         // The raw engine name heads the tip only where Simplified display has
         // replaced it in the row (store/plainnames.js plainTrueName).
         name: entry.plainNames ? plainTrueName(entry.plainNames, o.label) : "",
-        text: optionDescription(entry, o, meta),
+        text: quietDesc(entry) ? "" : optionDescription(entry, o, meta),
         // Both chains, so both desc values: the facets describe the filter, not
         // the chain it was reached through (store/prose.js on the split).
         ...(entry.desc === "filter" || entry.desc === "sdm_filter"
@@ -185,6 +193,6 @@ export function DescBlock({ entry, value, options, meta }) {
   const name = entry.plainNames ? plainTrueName(entry.plainNames, selectedLabel(options, value)) : "";
   return html`<div class="field-desc">
     ${name ? html`<div class="field-desc-name">${name}</div>` : null}
-    ${selectionDescription(entry, value, options, meta)}
+    ${quietDesc(entry) ? null : selectionDescription(entry, value, options, meta)}
   </div>`;
 }
