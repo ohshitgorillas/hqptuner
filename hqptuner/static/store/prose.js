@@ -32,13 +32,14 @@ import { notesVisible } from "./prefs.js";
  *   names it rather than describing a record narrower than the one served.
  * @property {string} [description]
  * @property {string} [notes]
+ * @property {boolean} [sdm_two_stage] oversampling runs in two stages for SDM output
  * @property {number | null} [min_rate_hz]
  * @property {string} [min_rate_label]
  *
  * @typedef {object} Metadata
  *   The static overlay bundle /api/metadata serves.
  * @property {{ filters?: Record<string, OverlayEntry>, aliases?: Record<string, string>,
- *   two_stage_note?: string }} [filters]
+ *   two_stage_note?: string, sdm_two_stage_note?: string }} [filters]
  * @property {{ sdm_modulators?: Record<string, OverlayEntry>,
  *   pcm_dithers?: Record<string, OverlayEntry> }} [shapers]
  * @property {Record<string, Record<string, ControlProse>>} [settings]
@@ -121,16 +122,26 @@ const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filt
 
 // A two-stage filter reads as its base prose plus the shared two-stage note, which
 // describes the variant rather than the filter and so comes last.
+//
+// Two unrelated notes both say "two stage" and both can appear on one string.
+// `two_stage_note` belongs to the '-2s' NAME variant, so it is keyed by the
+// filter. `sdm_two_stage_note` describes what the engine does with this filter
+// when it feeds the SDM chain, so it is keyed by the CHAIN the control sits on:
+// the same filter is offered in both chains at once (four persistent dropdowns,
+// store/schema.js), and the sentence is only true of the SDM pair. It reads as
+// part of the filter's own description and so sits directly after it.
 /**
  * @param {string} name
  * @param {Metadata} md
+ * @param {boolean} sdm whether the control sits on the SDM chain
  * @returns {string}
  */
-function filterDescription(name, md) {
+function filterDescription(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
   if (!entry) return "";
-  return joinProse(entry.description, entry.notes, twoStage ? f.two_stage_note : "");
+  const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
+  return joinProse(entry.description, sdmNote, entry.notes, twoStage ? f.two_stage_note : "");
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
@@ -148,8 +159,10 @@ function shaperDescription(kind, name, md) {
 }
 
 // Inline manual description for the current selection.
-//   desc = filter|dither|modulator -> name-keyed prose from the metadata overlay
-//     (filters.json / shapers.json), joined by the selected option's label.
+//   desc = filter|sdm_filter|dither|modulator -> name-keyed prose from the
+//     metadata overlay (filters.json / shapers.json), joined by the selected
+//     option's label. filter vs sdm_filter names the chain the control sits on,
+//     the way dither vs modulator names the shaper database.
 //   desc = config -> per-value prose from this control's settings.json `options`
 //     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
 //     conversion — enums whose meaning is per-value, not per-control).
@@ -169,7 +182,8 @@ export function selectionDescription(entry, value, options, meta) {
   const name = selectedLabel(options, value);
   if (!name) return "";
   const md = metadata.value || {};
-  if (entry.desc === "filter") return filterDescription(name, md);
+  if (entry.desc === "filter" || entry.desc === "sdm_filter")
+    return filterDescription(name, md, entry.desc === "sdm_filter");
   return shaperDescription(entry.desc, name, md);
 }
 
@@ -189,6 +203,7 @@ export function optionDescription(entry, option, meta) {
   if (entry.desc === "config") return (meta && meta.options && meta.options[String(option.value)]) || "";
   if (!option.label) return "";
   const md = metadata.value || {};
-  if (entry.desc === "filter") return filterDescription(option.label, md);
+  if (entry.desc === "filter" || entry.desc === "sdm_filter")
+    return filterDescription(option.label, md, entry.desc === "sdm_filter");
   return shaperDescription(entry.desc, option.label, md);
 }

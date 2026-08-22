@@ -75,7 +75,7 @@ Tabs are **Output · Volume · Resampling · DSP · System** (registry: `static/
 
 Shipped as JSON, extracted from HQPlayer manual, joined against live enumerations **by name** (§2):
 
-- `data/filters.json` — prose, genre, notes, plus facet fallback (§2). Join rules documented in file's own `_join_rules` field: exact name → aliases → `-2s` suffix strip with two-stage note appended → render engine name bare.
+- `data/filters.json` — prose, genre, notes, plus facet fallback (§2). Join rules documented in file's own `_join_rules` field: exact name → aliases → `-2s` suffix strip with two-stage note appended → render engine name bare. Prose is also **chain-dependent**: an entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only on the SDM chain. Both filter chains render at once (four persistent dropdowns), so the chain is the control's own `desc` — `filter` vs `sdm_filter` in `store/schema.js` — never the live output mode, which says nothing about which dropdown is being read. Unrelated to `two_stage_note`, which is keyed by the `-2s` name.
 - `data/shapers.json` — dither/modulator prose, order, type, and minimum/optimal rate constraints that drive §5's modulator graying and both families' conflict alerts. Sole source for those constraints.
 - `data/settings.json` — per-control tooltip prose, with `source` field citing manual §, readme §, or `hqptuner` for UI-native text.
 

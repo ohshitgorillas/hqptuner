@@ -75,7 +75,11 @@ export const tipsFor = (entry, meta) =>
         // replaced it in the row (store/plainnames.js plainTrueName).
         name: entry.plainNames ? plainTrueName(entry.plainNames, o.label) : "",
         text: optionDescription(entry, o, meta),
-        ...(entry.desc === "filter" ? filterTipFacets(o.label) : { rows: [], chips: [] }),
+        // Both chains, so both desc values: the facets describe the filter, not
+        // the chain it was reached through (store/prose.js on the split).
+        ...(entry.desc === "filter" || entry.desc === "sdm_filter"
+          ? filterTipFacets(o.label)
+          : { rows: [], chips: [] }),
       })
     : undefined;
 /**

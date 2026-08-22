@@ -1,12 +1,13 @@
 {
   "_comment": "Static filter metadata overlay — prose, genre, and notes only. Keys are engine-reported names (join by name at runtime; engine enumerations are sole authority for names/IDs/order — architecture §2). Structural facets are NOT stored here: quality/focus/ratio ship live in FiltersItem descriptions, apodizing in arg bit 0, phase is the name token (-lp/-mp/-ip) where present, else a manual-derived phase key on the entry; filters the taxonomy does not fit carry none. Genre comes from the manual's own genre column (not editorial).",
-  "_join_rules": "1) Exact name match. 2) On miss, apply aliases. 3) On miss with a '-2s' suffix, strip the suffix, join the base entry, and append two_stage_note to the description. 4) Still no match → render engine name without description (architecture §2).",
+  "_join_rules": "1) Exact name match. 2) On miss, apply aliases. 3) On miss with a '-2s' suffix, strip the suffix, join the base entry, and append two_stage_note to the description. 4) Still no match → render engine name without description (architecture §2). 5) An entry flagged sdm_two_stage gets sdm_two_stage_note inserted after its description, but only where the joining control sits on the SDM chain (store/schema.js desc 'sdm_filter'); the PCM chain omits it. Unrelated to two_stage_note, which is keyed by the '-2s' name and comes last.",
   "_source": "hqplayer6desktop-manual.pdf §4.6",
   "aliases": {
     "poly-sinc-shrt-lp": "poly-sinc-short-lp",
     "poly-sinc-shrt-mp": "poly-sinc-short-mp"
   },
   "two_stage_note": "Two stage oversampling: first stage rate conversion is performed by at least a factor of 8 using the selected algorithm, then further converted to the final rate using an algorithm optimized for content already processed to at least 8x rate. This lowers overall CPU load while preserving the same conversion quality. Especially useful for highest output rates.",
+  "sdm_two_stage_note": "Processing is two stages with a minimum 16x intermediate rate.",
   "guidance": {
     "1x_vs_nx": "Filter selection for 1x rates covers source sampling rates below 50 kHz (base rates); Nx covers everything above.",
     "apodizing": "An apodizing filter should be used at least when the Apod counter increments higher than 10 during any single track. 'Only suitable for highest technical quality source materials' means material where the Apod counter stays below 10 for the entire track.",
@@ -223,7 +224,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A linear phase polyphase sinc filter with sharp roll-off and high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A linear phase polyphase sinc filter with sharp roll-off and high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure.",
+      "sdm_two_stage": true
     },
     "poly-sinc-ext2-short": {
       "genre": ["pop"],
@@ -233,7 +235,8 @@
       "ratio": "integer",
       "upsample_only": true,
       "phase": "linear",
-      "description": "A linear phase polyphase sinc filter with slow roll-off and high stop-band attenuation for extended frequency response. Optimal frequency response and harmonic structure. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A linear phase polyphase sinc filter with slow roll-off and high stop-band attenuation for extended frequency response. Optimal frequency response and harmonic structure.",
+      "sdm_two_stage": true
     },
     "poly-sinc-ext2-medium": {
       "genre": ["any"],
@@ -242,7 +245,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A linear phase polyphase sinc filter with fast roll-off and high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A linear phase polyphase sinc filter with fast roll-off and high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure.",
+      "sdm_two_stage": true
     },
     "poly-sinc-ext2-long": {
       "genre": ["any"],
@@ -251,7 +255,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A linear phase polyphase sinc filter with very fast roll-off and very high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A linear phase polyphase sinc filter with very fast roll-off and very high stop-band attenuation for extended frequency response, while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure.",
+      "sdm_two_stage": true
     },
     "poly-sinc-ext2-xla": {
       "genre": ["classical"],
@@ -260,7 +265,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A very steep, 8 times longer version of poly-sinc-ext2-long. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A very steep, 8 times longer version of poly-sinc-ext2-long.",
+      "sdm_two_stage": true
     },
     "poly-sinc-ext2-xl": {
       "genre": ["classical"],
@@ -269,7 +275,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A very steep, 8 times longer, non-apodizing version of poly-sinc-ext2-long. For SDM outputs, processing is two stages with a minimum 16x intermediate rate.",
+      "description": "A very steep, 8 times longer, non-apodizing version of poly-sinc-ext2-long.",
+      "sdm_two_stage": true,
       "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-ext2-hires-lp": {
@@ -356,7 +363,8 @@
       "ratio": "integer",
       "upsample_only": true,
       "phase": "linear",
-      "description": "A short Gaussian polyphase sinc filter. Optimal time-frequency response. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A short Gaussian polyphase sinc filter. Optimal time-frequency response.",
+      "sdm_two_stage": true
     },
     "poly-sinc-gauss-medium": {
       "genre": ["any"],
@@ -365,7 +373,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A Gaussian polyphase sinc filter. Optimal time-frequency response. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A Gaussian polyphase sinc filter. Optimal time-frequency response.",
+      "sdm_two_stage": true
     },
     "poly-sinc-gauss-long": {
       "genre": ["any"],
@@ -374,7 +383,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "A long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response.",
+      "sdm_two_stage": true
     },
     "poly-sinc-gauss-xla": {
       "genre": ["classical", "jazz"],
@@ -383,7 +393,8 @@
       "apodizing": "full",
       "ratio": "any",
       "phase": "linear",
-      "description": "An apodizing extra long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "An apodizing extra long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response.",
+      "sdm_two_stage": true
     },
     "poly-sinc-gauss-xl": {
       "genre": ["classical", "jazz"],
@@ -392,7 +403,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "An extra long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "An extra long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response.",
+      "sdm_two_stage": true
     },
     "poly-sinc-gauss-hires-lp": {
       "genre": ["any"],
@@ -628,7 +640,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A short average attenuation sinc filter with an adaptive number of taps. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A short average attenuation sinc filter with an adaptive number of taps.",
+      "sdm_two_stage": true
     },
     "sinc-medium": {
       "genre": ["classical", "jazz"],
@@ -637,7 +650,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "An average attenuation sinc filter with an adaptive number of taps. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "An average attenuation sinc filter with an adaptive number of taps.",
+      "sdm_two_stage": true
     },
     "sinc-long": {
       "genre": ["classical"],
@@ -646,7 +660,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A long average attenuation sinc filter with an adaptive number of taps. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A long average attenuation sinc filter with an adaptive number of taps.",
+      "sdm_two_stage": true
     },
     "sinc-long-h": {
       "genre": ["classical", "jazz"],
@@ -655,7 +670,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A long high attenuation sinc filter with an adaptive number of taps. For SDM outputs, processing is two stages with a minimum 16x intermediate rate."
+      "description": "A long high attenuation sinc filter with an adaptive number of taps.",
+      "sdm_two_stage": true
     }
   }
 }
