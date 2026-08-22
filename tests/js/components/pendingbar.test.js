@@ -179,25 +179,25 @@ test("test_a_staged_edit_is_counted", async () => {
 
 test("test_a_successful_apply_carries_the_ok_class", async () => {
   await reset();
-  lastApply.value = { ok: true, text: "Applied 1 change" };
+  lastApply.value = { ok: true, code: "applied", text: "Applied 1 change" };
   assert.ok(bar().includes('class="note ok"'));
 });
 
 test("test_a_failed_apply_carries_the_error_class", async () => {
   await reset();
-  lastApply.value = { ok: false, text: "Failed: filter" };
+  lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
   assert.ok(bar().includes('class="note err"'));
 });
 
 test("test_a_failed_apply_shows_its_text", async () => {
   await reset();
-  lastApply.value = { ok: false, text: "Failed: filter" };
+  lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
   assert.ok(bar().includes("Failed: filter"));
 });
 
 test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {
   await reset();
-  lastApply.value = { ok: true, text: "Applied 1 change" };
+  lastApply.value = { ok: true, code: "applied", text: "Applied 1 change" };
   await stageOne();
   assert.equal(noteClasses(bar()).includes("ok"), false);
 });
@@ -209,14 +209,22 @@ test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {
 test("test_a_failed_apply_is_explained_while_its_changes_stay_staged", async () => {
   await reset();
   await stageOne();
-  lastApply.value = { ok: false, text: "Config not applied (unconverged): volume_max" };
+  lastApply.value = {
+    ok: false,
+    code: "persist-refused",
+    text: "Config not applied (unconverged): volume_max",
+  };
   assert.equal(bar().includes("Config not applied (unconverged): volume_max"), true);
 });
 
 test("test_a_failed_apply_still_shows_what_is_pending", async () => {
   await reset();
   await stageOne();
-  lastApply.value = { ok: false, text: "Config not applied (unconverged): volume_max" };
+  lastApply.value = {
+    ok: false,
+    code: "persist-refused",
+    text: "Config not applied (unconverged): volume_max",
+  };
   assert.equal(stagedCount(bar()), 1);
 });
 
@@ -266,13 +274,13 @@ test("test_an_apply_in_flight_marks_the_status_note_busy", async () => {
 
 test("test_a_successful_apply_does_not_leave_the_status_note_busy", async () => {
   await reset();
-  lastApply.value = { ok: true, text: "Applied 1 change" };
+  lastApply.value = { ok: true, code: "applied", text: "Applied 1 change" };
   assert.equal(noteClasses(bar()).includes("busy"), false);
 });
 
 test("test_a_failed_apply_does_not_leave_the_status_note_busy", async () => {
   await reset();
-  lastApply.value = { ok: false, text: "Failed: filter" };
+  lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
   assert.equal(noteClasses(bar()).includes("busy"), false);
 });
 

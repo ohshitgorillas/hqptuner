@@ -246,28 +246,43 @@ test("test_a_standalone_save_posts_the_preset_name", async () => {
 // The verdict's own fields, never the sentence built from them
 // (docs/testing.md rule 9).
 
+/**
+ * The verdict the last lane recorded. `lastApply.value` is nullable by design,
+ * so that a verdict field that does not exist stops type-checking clean;
+ * reading a field off it needs narrowing, and a case whose lane recorded
+ * nothing has lost its own premise rather than its assertion. Refusing here
+ * keeps that separate from the one assertion each case is allowed.
+ *
+ * @param {typeof lastApply} signal
+ * @returns {NonNullable<typeof lastApply.value>}
+ */
+function verdict(signal) {
+  if (signal.value === null) throw new Error("expected an apply verdict, none was recorded");
+  return signal.value;
+}
+
 test("test_a_successful_standalone_save_is_reported_as_saved", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.code, "saved");
+  assert.equal(verdict(lastApply).code, "saved");
 });
 
 test("test_a_successful_standalone_save_is_ok", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.ok, true);
+  assert.equal(verdict(lastApply).ok, true);
 });
 
 test("test_a_standalone_save_the_server_refused_is_reported_as_failed", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: false, error: "disk" }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.save, "failed");
+  assert.equal(verdict(lastApply).save, "failed");
 });
 
 test("test_a_failed_standalone_save_is_not_ok", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: false, error: "disk" }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.ok, false);
+  assert.equal(verdict(lastApply).ok, false);
 });
 
 test("test_a_standalone_save_refreshes_the_active_preset", async () => {
@@ -289,7 +304,7 @@ test("test_a_rejected_save_request_rethrows_to_the_caller", async () => {
 test("test_a_rejected_save_request_leaves_a_lane_failure_verdict", async () => {
   await reset({ routes: { "POST /api/profile/save": bad(503, "boom") } });
   await savePresetOnly("P").catch(() => {});
-  assert.equal(lastApply.value.code, "lane-failed");
+  assert.equal(verdict(lastApply).code, "lane-failed");
 });
 
 test("test_the_save_lane_releases_the_applying_flag", async () => {

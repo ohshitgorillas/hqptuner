@@ -195,25 +195,29 @@ function widgetTag(out, key) {
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 
 // --- a desc-bearing chain control renders the custom combobox -----------------
+// The LIVE view keys its chain fields per chain, so the Nx filter is reached as
+// `pcm_filter_nx` or `sdm_filter_nx` (store/live/derive.js). These three read
+// the PCM column: `active_chain` is "pcm" in STATE, so that is the chain the
+// engine has loaded and the one whose options come off the live enumeration.
 
 test("test_a_live_filter_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(page(), "filter_nx"), 'role="combobox"'), null);
+  assert.notEqual(openTag(row(page(), "pcm_filter_nx"), 'role="combobox"'), null);
 });
 
 test("test_a_live_filter_controls_combobox_carries_the_dd_box_class", async () => {
   await reset();
-  assert.ok(/class="[^"]*\bdd-box\b[^"]*"/.test(row(page(), "filter_nx")));
+  assert.ok(/class="[^"]*\bdd-box\b[^"]*"/.test(row(page(), "pcm_filter_nx")));
 });
 
 test("test_a_live_filter_controls_row_carries_no_native_select", async () => {
   await reset();
-  assert.equal(/<select\b/.test(row(page(), "filter_nx")), false);
+  assert.equal(/<select\b/.test(row(page(), "pcm_filter_nx")), false);
 });
 
 test("test_a_live_modulator_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(card(page(), "live-sdm-chain"), "shaper"), 'role="combobox"'), null);
+  assert.notEqual(openTag(row(card(page(), "live-sdm-chain"), "sdm_modulator"), 'role="combobox"'), null);
 });
 
 // --- a dropdown with no desc keeps its native select --------------------------

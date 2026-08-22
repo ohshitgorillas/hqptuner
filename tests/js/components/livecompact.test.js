@@ -13,11 +13,10 @@
 //
 // The anchors are machine identities (docs/testing.md rule 9) — a card by the
 // `data-card` it carries, a control by its schema key — and the question asked
-// is of the field root that control is
-// rendered in: which `compact*` class tokens does the single element enclosing
-// this label carry? That is the element the CSS sizes, so a class parked on a
-// shared row or card wrapper sizes nothing and is caught by the case that asks
-// for none.
+// is of the field root that control is rendered in: which `compact*` class
+// tokens does the element carrying its `data-k` carry? That is the element the
+// CSS sizes, so a class parked on a shared row or card wrapper sizes nothing and
+// is caught by the case that asks for none.
 //
 // The engine runs `[source]`, so both chain cards render open and every chain
 // control is on the page at once (livechain.test.js pins that collapse rule).
@@ -46,7 +45,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../support/chainenums.js";
-import { classes, enclosing, labeled } from "../support/markup.js";
+import { classes, labeled } from "../support/markup.js";
 import { section } from "../support/tabform.js";
 
 const PROSE = { label: "", tooltip: "prose." };
@@ -135,16 +134,15 @@ function card(out, want) {
 const isCompact = (/** @type {string} */ c) => c === "compact" || c.startsWith("compact-");
 
 // The `compact*` class tokens carried by the field root a control is rendered
-// in — the single smallest element enclosing its label — sorted so the answer
-// does not depend on the order a class list is assembled in.
+// in — the element carrying its `data-k` — sorted so the answer does not depend
+// on the order a class list is assembled in.
 /**
  * @param {string} fragment
  * @param {string} key
  * @returns {string[]}
  */
 function compactOf(fragment, key) {
-  const root = enclosing(fragment, labeled(fragment, key));
-  return [...new Set(classes(root).filter(isCompact))].sort();
+  return [...new Set(classes(labeled(fragment, key)).filter(isCompact))].sort();
 }
 
 const LG = ["compact", "compact-lg"];
@@ -155,19 +153,22 @@ const SM = ["compact", "compact-sm"];
 // A chain filter's option labels are the longest on the page and vary most in
 // length, so these are the columns the jitter shows on.
 
+// Each chain keys its own fields, so the key already names the card it lives in
+// (store/live/derive.js): the shaper row is `pcm_dither` on the PCM side and
+// `sdm_modulator` on the SDM side, and there is no unprefixed `filter_1x`,
+// `filter_nx` or `shaper` in the rendered markup.
 /** @type {[string, string, string[]][]} */
 const CHAIN = [
-  ["live-pcm-chain", "filter_1x", LG],
-  ["live-pcm-chain", "filter_nx", LG],
-  ["live-sdm-chain", "filter_1x", LG],
-  ["live-sdm-chain", "filter_nx", LG],
-  ["live-pcm-chain", "shaper", SM],
-  ["live-sdm-chain", "shaper", MD],
+  ["live-pcm-chain", "pcm_filter_1x", LG],
+  ["live-pcm-chain", "pcm_filter_nx", LG],
+  ["live-sdm-chain", "sdm_filter_1x", LG],
+  ["live-sdm-chain", "sdm_filter_nx", LG],
+  ["live-pcm-chain", "pcm_dither", SM],
+  ["live-sdm-chain", "sdm_modulator", MD],
 ];
 
 for (const [id, key, want] of CHAIN) {
-  const name = `${id}_${key}`.replace(/-/g, "_");
-  test(`test_the_${name}_field_carries_its_schemas_compact_size`, async () => {
+  test(`test_the_${key}_field_carries_its_schemas_compact_size`, async () => {
     await reset();
     assert.deepEqual(compactOf(card(page(), id), key), want);
   });

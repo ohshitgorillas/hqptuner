@@ -37,16 +37,40 @@ export const formFields = (spec) =>
  */
 const cardTag = (out, card) => new RegExp(`<section([^<>]*\\sdata-card="${card}"[^<>]*)>`).exec(out);
 
-// One disclosure's fragment, keyed by its card id. Cards carry no nested
-// <section>, so the first close after the opening tag is the card's own. Empty
-// string when the tab renders no such card.
+// Where the card opened at `at` closes: the end of the `</section>` that brings
+// the depth back to zero. A card MAY carry a nested <section>, so the first
+// close after the opening tag is not necessarily the card's own — taking it
+// hands back a fragment with an unclosed element in it, and every reader that
+// scans the fragment then dies on the imbalance rather than on the assertion.
+// -1 when the depth never closes.
+/**
+ * @param {string} out
+ * @param {number} at
+ * @returns {number}
+ */
+const closeOf = (out, at) => {
+  const tag = /<section(?=[\s/>])|<\/section>/g;
+  tag.lastIndex = at;
+  let depth = 0;
+  let m;
+  while ((m = tag.exec(out)) !== null) {
+    depth += m[0][1] === "/" ? -1 : 1;
+    if (depth === 0) return m.index + m[0].length;
+  }
+  return -1;
+};
+
+// One disclosure's fragment, opening tag to its own balanced close. Empty
+// string when the tab renders no such card, and empty string rather than a
+// truncated fragment when the card never closes.
 /**
  * @param {string} out
  * @param {string} card
  */
 export const section = (out, card) => {
   const at = cardHeadAt(out, card);
-  return at < 0 ? "" : out.slice(at, out.indexOf("</section>", at));
+  const end = at < 0 ? -1 : closeOf(out, at);
+  return end < 0 ? "" : out.slice(at, end);
 };
 
 // That disclosure's state — "open" or "closed" — off the section's own class.

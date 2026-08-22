@@ -83,7 +83,7 @@ test("test_a_rescan_that_could_not_put_the_live_settings_back_says_so_in_the_sta
 
 test("test_a_rescan_with_nothing_to_warn_about_leaves_the_status_line_alone", async () => {
   await reset();
-  lastApply.value = { ok: true, text: EARLIER };
+  lastApply.value = { ok: true, code: "applied", text: EARLIER };
   // the whole render, not a substring: a rescan that appended a second status
   // line beside the old one would still contain the old one
   const before = bar();

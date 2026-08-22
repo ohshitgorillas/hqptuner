@@ -13,7 +13,7 @@ by the sentence it renders (docs/testing.md rule 9: error text is owner-owned
 data). ``refusal_code`` below is the one place the exception is caught, so a
 refusal raised as anything other than a ``GroundingError`` still fails the case.
 
-The field-name prefixes are read off the module's public constants. The profile
+The field-name prefix is read off the module's public constant. The profile
 name-length ceiling is *not* exported as a constant, so ``NAME_MAX`` below
 restates the contract value; if that ceiling ever moves, this constant moves
 with it.
@@ -32,7 +32,6 @@ from hqptuner.conf import matrixconf
 from hqptuner.conf.xmledit import GroundingError
 
 PIPE = matrixconf.MATRIX_PIPELINES
-SAVE = matrixconf.MATRIX_PROFILE_SAVE
 
 #: The profile-name ceiling. See the module docstring: no public constant.
 NAME_MAX = 128

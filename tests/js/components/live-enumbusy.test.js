@@ -247,14 +247,14 @@ const SDM_CARD = "live-sdm-chain";
 for (const field of REENUM) {
   test(`test_a_${field}_write_in_flight_grays_the_controls_that_read_an_enumeration`, async () => {
     await reset({ busy: field });
-    assert.equal(grayed(card(page(), PCM_CARD), "shaper"), true);
+    assert.equal(grayed(card(page(), PCM_CARD), "pcm_dither"), true);
   });
 }
 
 for (const field of PLAIN) {
   test(`test_a_${field}_write_in_flight_grays_no_control_that_reads_an_enumeration`, async () => {
     await reset({ busy: field });
-    assert.equal(grayed(card(page(), PCM_CARD), "shaper"), false);
+    assert.equal(grayed(card(page(), PCM_CARD), "pcm_dither"), false);
   });
 }
 
@@ -262,31 +262,41 @@ for (const field of PLAIN) {
 // Both directions of `active_chain`, in `[source]` so both cards render open.
 // The field in flight is `rate`, which belongs to neither card.
 
-// Both chain cards carry the same three keys; which card they are read from is
-// what tells the loaded chain from the dormant one.
-const CONTROLS = ["filter_1x", "filter_nx", "shaper"];
+// Each chain card carries its OWN three keys, so the key names the chain as well
+// as the control (store/live/derive.js): the shaper row is `pcm_dither` on the
+// PCM side and `sdm_modulator` on the SDM side, and nothing renders an
+// unprefixed `filter_1x`, `filter_nx` or `shaper`. The three sit in the same
+// order in each list, so index `i` is the same control on either chain and the
+// dormant case reads its own chain's key rather than the loaded chain's.
+/** @type {Record<string, string[]>} */
+const CONTROLS = {
+  pcm: ["pcm_filter_1x", "pcm_filter_nx", "pcm_dither"],
+  sdm: ["sdm_filter_1x", "sdm_filter_nx", "sdm_modulator"],
+};
 /** @type {Record<string, string>} */
 const CARD = { pcm: PCM_CARD, sdm: SDM_CARD };
 /** @param {string} chain */
 const other = (chain) => (chain === "pcm" ? "sdm" : "pcm");
 
 for (const chain of ["pcm", "sdm"]) {
-  for (const key of CONTROLS) {
-    test(`test_the_loaded_${chain}_${key}_grays_out_during_a_re_enumerating_write`, async () => {
+  for (const [i, key] of CONTROLS[chain].entries()) {
+    const dormant = CONTROLS[other(chain)][i];
+
+    test(`test_the_loaded_${key}_grays_out_during_a_re_enumerating_write`, async () => {
       await reset({ auto: true, chain, busy: "rate" });
       assert.equal(grayed(card(page(), CARD[chain]), key), true);
     });
 
-    test(`test_the_loaded_${chain}_${key}_is_not_grayed_with_no_write_in_flight`, async () => {
+    test(`test_the_loaded_${key}_is_not_grayed_with_no_write_in_flight`, async () => {
       await reset({ auto: true, chain });
       assert.equal(grayed(card(page(), CARD[chain]), key), false);
     });
 
     // The dormant chain's options come from the running configuration, which no
     // re-enumeration touches, and its edits are held until that chain loads.
-    test(`test_the_dormant_${other(chain)}_${key}_stays_live_during_a_re_enumerating_write`, async () => {
+    test(`test_the_dormant_${dormant}_stays_live_during_a_re_enumerating_write`, async () => {
       await reset({ auto: true, chain, busy: "rate" });
-      assert.equal(grayed(card(page(), CARD[other(chain)]), key), false);
+      assert.equal(grayed(card(page(), CARD[other(chain)]), dormant), false);
     });
   }
 }
@@ -346,7 +356,7 @@ test("test_the_output_mode_switch_grays_while_it_is_itself_being_written", async
 
 test("test_a_plain_write_leaves_the_loaded_chains_filter_live", async () => {
   await reset({ busy: "junk_filter" });
-  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "pcm_filter_nx"), false);
 });
 
 test("test_a_plain_write_leaves_the_pcm_rate_column_live", async () => {
@@ -369,13 +379,13 @@ test("test_a_plain_write_grays_the_control_it_is_writing", async () => {
 test("test_nothing_is_left_grayed_once_a_re_enumerating_write_succeeds", async () => {
   await reset({ routes: liveRoutes() });
   await writeLive("filter", "40");
-  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "pcm_filter_nx"), false);
 });
 
 test("test_nothing_is_left_grayed_once_a_re_enumerating_write_is_refused", async () => {
   await reset({ routes: liveRoutes({ status: 503 }) });
   await writeLive("filter", "40");
-  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "pcm_filter_nx"), false);
 });
 
 // --- the window says nothing ---------------------------------------------------
