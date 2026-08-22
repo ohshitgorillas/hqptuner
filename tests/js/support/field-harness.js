@@ -79,18 +79,31 @@ export const META = {
       "sinc-S": { description: "A short sinc.", notes: "Not recommended." },
       "sinc-V": { description: "", notes: "Only note." },
       "sinc-W": { notes: "Bare note." },
+      // Entries whose oversampling runs in two stages when the output is SDM
+      // carry the optional `sdm_two_stage` boolean (hqptuner/data/filters.json).
+      // Two shapes of flagged record: description alone, and description +
+      // notes — the latter also reachable through a `-2s` label, which is how
+      // the SDM-chain sentence and the `-2s` variant sentence land on one
+      // string.
+      "sdm-A": { description: "A flagged sinc.", sdm_two_stage: true },
+      "sdm-B": { description: "A flagged short sinc.", notes: "Flagged caveat.", sdm_two_stage: true },
     },
     aliases: { "poly-sinc-xtr-mp": "xtr-mp" },
     two_stage_note: "Two stage oversampling.",
+    sdm_two_stage_note: "Two stage for SDM.",
   },
   shapers: {
     pcm_dithers: {
       TPDF: { description: "Triangular dither." },
+      // The SDM two-stage flag is a filters.json key; a shaper record carrying
+      // one is not a filter and the note it keys is not the dither's to show.
+      TPDFX: { description: "Flagged dither.", sdm_two_stage: true },
       NS9: { min_rate_hz: 352800 },
       NS1: { description: "First noise shaper.", notes: "Produces ultrasonic noise." },
     },
     sdm_modulators: {
       ASDM7: { description: "Seventh order modulator." },
+      ASDM9X: { description: "Flagged modulator.", sdm_two_stage: true },
       // A modulator the constraint file gives a rate FLOOR: below it the engine
       // produces no output at all, so the option row grays. The value sits
       // between the DSD512 and DSD1024 tiers, as the file's own floors do — the
