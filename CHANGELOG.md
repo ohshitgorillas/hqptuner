@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The SDM chain descriptions read as fluent English.** The sigma-delta modulator, Dither, Reconstruction filter, Source bandwidth, Noise filter and Decimation filter prose gains articles, resolves comma splices and gives its bare value fragments a verb. Compound modifiers are hyphenated, rate floors read with a proper ≥ sign, and the manual's pointer to its own option list is dropped. No technical claim changes.
+
 - **The caret on a dropdown is drawn larger.** The triangle at the right edge of a filter or modulator dropdown was rendering at text size, which left it a speck beside the label. It now grows within the same row height.
 
 - **Explanation text under a dropdown starts on the dropdown's text edge.** The description, note and gray reason below a dropdown indent to line up with the wording inside the closed control instead of with its left border.

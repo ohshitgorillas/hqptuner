@@ -155,7 +155,7 @@
     },
     "sdm_modulator": {
       "label": "Sigma-delta modulator",
-      "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal. Options unsuitable for the selected output rate are grayed with the reason.",
+      "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element, while seventh order modulators have the potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones, while ASDM* modulators are adaptive in various ways based on the source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
       "source": "manual §4.4/§4.5"
     },
     "matrix_enabled": {
@@ -299,22 +299,22 @@
     },
     "sdm_integrator": {
       "label": "Integrator",
-      "tooltip": "There are three types of delta-sigma integrators available for different SDM → SDM remodulation schemes. These affect mostly frequency and phase response at highest frequencies. Stated frequencies apply for DSD64 source rate, these frequencies scale as function of source sampling rate.",
+      "tooltip": "Three types of delta-sigma integrators are available for different SDM → SDM remodulation schemes. These affect mostly the frequency and phase response at the highest frequencies. The stated frequencies apply for the DSD64 source rate, and these frequencies scale as a function of the source sampling rate.",
       "options": {
-        "0": "Normal IIR type integrator structure. 50 kHz audio bandwidth re DSD64.",
-        "3": "IIR type integrator structure designed to minimize residual noise. 25 kHz audio bandwidth re DSD64.",
-        "4": "High order IIR type integrator structure. 30 kHz audio bandwidth re DSD64.",
-        "1": "Weighted FIR type integrator structure.",
-        "5": "Weighted FIR type integrator structure. 50 kHz audio bandwidth re DSD64.",
-        "6": "FIR type integrator structure with band-limiting. 24 kHz audio bandwidth re DSD64 with complete cut by 45 kHz.",
-        "7": "FIR type integrator structure with brickwall band-limiting. 21.5 kHz audio bandwidth re DSD64 with complete cut by 30 kHz.",
-        "2": "Cascade comb type integrator structure."
+        "0": "A normal IIR-type integrator structure. Audio bandwidth is 50 kHz re: DSD64.",
+        "3": "An IIR-type integrator structure designed to minimize residual noise. Audio bandwidth is 25 kHz re: DSD64.",
+        "4": "A high-order IIR-type integrator structure. Audio bandwidth is 30 kHz re: DSD64.",
+        "1": "A weighted FIR-type integrator structure.",
+        "5": "A weighted FIR-type integrator structure. Audio bandwidth is 50 kHz re: DSD64.",
+        "6": "An FIR-type integrator structure with band-limiting. Audio bandwidth is 24 kHz re: DSD64, with a complete cut by 45 kHz.",
+        "7": "An FIR-type integrator structure with brickwall band-limiting. Audio bandwidth is 21.5 kHz re: DSD64, with a complete cut by 30 kHz.",
+        "2": "A cascade comb-type integrator structure."
       },
       "source": "manual §4.5"
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
-      "tooltip": "There are different options for SDM → SDM rate conversions. These affect frequency aperture that is assumed to contain useful signal in addition to increasing noise shaping noise. For example piano doesn't contain high frequency harmonics and for such case \"narrow\" is suitable, while close miked percussions usually contain high level high frequency content and there \"wide\" may be more suitable. While \"XFi\" is suitable for all cases. Default is \"XFi\".",
+      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain the useful signal in addition to increasing the noise-shaping noise. For example, a piano doesn't contain high-frequency harmonics, and for such a case \"narrow\" is suitable, while close-miked percussions usually contain high-level, high-frequency content, and there \"wide\" may be more suitable, whereas \"XFi\" is suitable for all cases. The default is \"XFi\".",
       "options": {
         "0": "Wide bandwidth signal.",
         "1": "Narrow bandwidth signal.",
@@ -324,42 +324,42 @@
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce amount of ultrasonic noise present in the source data. Standard filtering leaves low level of ultrasonic noise. Some loudspeakers with tweeters of low power handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit bandwidth available for the audio content. When processing output rate of DSD source (assuming DSD64) is 88.2/96 kHz PCM, use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When processing output rate of DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
+      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data. Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also, some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. Therefore, more aggressive noise filters can be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
       "options": {
-        "0": "Standard noise filter will be applied. Recommended.",
-        "1": "Similar to standard, but has lower corner frequency and results in almost flat noise profile in ultrasonic range. Recommended.",
-        "10": "High order noise filter designed for material created with high order modulators. Recommended.",
-        "7": "Sliding average converter.",
-        "8": "Weighted element converter.",
-        "11": "Weighted element converter. Optimized to closely match DSD/SACD specification. Non-ringing linear-phase. Recommended.",
-        "2": "Slow roll-off linear-phase filter.",
-        "3": "Slow roll-off minimum-phase filter.",
-        "12": "Medium roll-off linear-phase filter designed to be as gentle as possible while passing minimal amount of out-of-band noise. Recommended.",
-        "6": "Medium roll-off high rate linear-phase filter designed to be as gentle as possible while passing minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion. Recommended.",
-        "4": "Fast roll-off linear-phase filter.",
-        "5": "Fast roll-off minimum-phase filter.",
-        "13": "Brickwall filter that doesn't pass any out-of-band noise. Very steep linear phase filter. Cut-off at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512 and 400 kHz for DSD1024."
+        "0": "The standard noise filter will be applied. Recommended.",
+        "1": "Similar to standard, but has a lower corner frequency and results in an almost flat noise profile in the ultrasonic range. Recommended.",
+        "10": "A high-order noise filter designed for material created with high-order modulators. Recommended.",
+        "7": "A sliding average converter.",
+        "8": "A weighted element converter.",
+        "11": "A weighted element converter. Optimized to closely match the DSD/SACD specification. Non-ringing linear phase. Recommended.",
+        "2": "A slow roll-off linear phase filter.",
+        "3": "A slow roll-off minimum phase filter.",
+        "12": "A medium roll-off linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Recommended.",
+        "6": "A medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion. Recommended.",
+        "4": "A fast roll-off linear phase filter.",
+        "5": "A fast roll-off minimum phase filter.",
+        "13": "A brickwall filter that doesn't pass any out-of-band noise. A very steep linear phase filter. Cut-off is at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512, and 400 kHz for DSD1024."
       },
       "source": "manual §4.4, readme §1.2 (pdm_filt)"
     },
     "pdm_conversion": {
       "label": "SDM → PCM conversion",
-      "tooltip": "These settings control DSD to PCM conversion algorithms. Type of SDM → PCM conversion can be selected from the following conversion types.",
+      "tooltip": "These settings control the DSD to PCM conversion algorithms.",
       "options": {
-        "0": "Traditional recursive conversion algorithm. Minimizes amount of ringing by using slow roll-off filters.",
-        "1": "Single-pass conversion algorithm with steep roll-off.",
-        "2": "Single-pass conversion algorithm with normal roll-off. Optimized tradeoff between ringing and wide frequency response.",
-        "3": "Linear-phase single-pass conversion algorithm.",
-        "4": "Minimum-phase single-pass conversion algorithm.",
-        "5": "Linear-phase slow roll-off single-pass conversion algorithm. Recommended.",
-        "6": "Minimum-phase slow roll-off single-pass conversion algorithm.",
-        "7": "Linear-phase extreme roll-off and attenuation single-pass conversion algorithm.",
-        "11": "Linear-phase extreme roll-off and attenuation single-pass conversion algorithm.",
-        "8": "Linear-phase extended frequency response sharp roll-off and high attenuation single-pass conversion algorithm.",
-        "9": "Linear-phase million-tap sharp roll-off and high attenuation single pass conversion algorithm.",
-        "10": "Linear-phase adaptive length sharp roll-off and high attenuation single pass conversion algorithm.",
-        "12": "Linear-phase Gaussian extremely high attenuation single-pass conversion algorithm. Optimal time-frequency response.",
-        "254": "No decimation, intermediate output rate is equal to source DSD rate."
+        "0": "A traditional recursive conversion algorithm. It minimizes the amount of ringing by using slow roll-off filters.",
+        "1": "A single-pass conversion algorithm with steep roll-off.",
+        "2": "A single-pass conversion algorithm with normal roll-off. An optimized tradeoff between ringing and wide frequency response.",
+        "3": "A linear phase single-pass conversion algorithm.",
+        "4": "A minimum phase single-pass conversion algorithm.",
+        "5": "A linear phase slow roll-off single-pass conversion algorithm. Recommended.",
+        "6": "A minimum phase slow roll-off single-pass conversion algorithm.",
+        "7": "A linear phase extreme roll-off and attenuation single-pass conversion algorithm.",
+        "11": "A linear phase extreme roll-off and attenuation single-pass conversion algorithm.",
+        "8": "A linear phase, extended frequency response, sharp roll-off and high attenuation single-pass conversion algorithm.",
+        "9": "A linear phase, million-tap, sharp roll-off and high attenuation single-pass conversion algorithm.",
+        "10": "A linear phase, adaptive-length, sharp roll-off and high attenuation single-pass conversion algorithm.",
+        "12": "A linear phase, Gaussian, extremely high attenuation single-pass conversion algorithm. Optimal time-frequency response.",
+        "254": "No decimation; the intermediate output rate is equal to the source DSD rate."
       },
       "source": "manual §4.4, readme §1.2 (pdm_conv). Value 10 is the daemon's 'sinc-S'; its tap count is disputed upstream (manual §4.4 says 65536, readme §1.2 says 4096 × ratio — the latter is the wording for the same-named resampling filter in manual §4.6), so no figure is quoted."
     }
