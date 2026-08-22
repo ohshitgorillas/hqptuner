@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **Filter descriptions read as fluent English.** The Pure sinc, Analog-style, Conventional and Interpolation blurbs gain articles, resolve comma splices and give dangling predicates a subject. No technical claim changes.
+- **Filter descriptions read as fluent English.** The Pure sinc, Analog-style, Conventional, Interpolation and Polyphase sinc blurbs gain articles, resolve comma splices and give dangling predicates a subject. Phase compounds are unhyphenated throughout and "HiRes" now reads "hi-res", matching the leaf labels. No technical claim changes.
 
 - **The two high attenuation pure sinc leaves read "Long with high attenuation".** The `sinc-Lh` and `sinc-long-h` rows drop the earlier "Long length, high attenuation" phrasing in both the leaf label and the flattened Standard name.
 

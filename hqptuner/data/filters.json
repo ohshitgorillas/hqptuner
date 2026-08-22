@@ -23,10 +23,10 @@
       },
       "phase": {
         "tradeoff": "Where the filter's ringing energy sits in time. Linear phase places it symmetrically around a transient, so energy arrives before the attack (pre-ringing); minimum phase moves all of it after the attack at the cost of frequency-dependent group delay; intermediate phase splits the difference with small pre-ringing and longer post-ringing.",
-        "mechanism": "Manual §4.6: minimum-phase variants have 'no pre-ringing, but somewhat long post-ringing'; linear-phase variants have symmetric pre- and post-ringing; intermediate-phase variants have 'small pre-ringing and longer post-ringing'. Phase is encoded in the filter name (-lp/-ip/-mp).",
+        "mechanism": "Manual §4.6: minimum phase variants have 'no pre-ringing, but somewhat long post-ringing'; linear phase variants have symmetric pre- and post-ringing; intermediate phase variants have 'small pre-ringing and longer post-ringing'. Phase is encoded in the filter name (-lp/-ip/-mp).",
         "symptoms_pointing_minimum": ["pre-echo or a soft leading edge on strong transients, studio multi-track material"],
-        "symptoms_pointing_linear": ["spatial impression on material recorded in a real acoustic environment — the manual's 'space' focus spans linear-, intermediate- and minimum-phase variants"],
-        "contested": "No published discrimination test of minimum- versus linear-phase resampling exists (PHASE.md §10); adjacent group-delay audibility thresholds suggest small effects. State the mechanism, never a guaranteed audible difference."
+        "symptoms_pointing_linear": ["spatial impression on material recorded in a real acoustic environment — the manual's 'space' focus spans linear, intermediate and minimum phase variants"],
+        "contested": "No published discrimination test of minimum versus linear phase resampling exists (PHASE.md §10); adjacent group-delay audibility thresholds suggest small effects. State the mechanism, never a guaranteed audible difference."
       },
       "apodizing": {
         "tradeoff": "Whether the filter also cleans up ringing already baked into the source by its original ADC or mastering decimation filter. Non-apodizing filters pass those artifacts through; the manual marks the half-band variants (poly-sinc-hb, -hb-xs, -hb-s, -hb-m, -hb-l, poly-sinc-gauss-halfband, -halfband-s) and poly-sinc-ext2-xl as 'only suitable for highest technical quality source materials'.",
@@ -107,7 +107,7 @@
       "focus": ["space"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Linear phase polyphase sinc filter. Very high quality linear phase resampling filter, can perform most of the typical conversion ratios. Good phase response, but has some amount of pre-ringing. See \"FIR\" for further details."
+      "description": "A linear phase polyphase sinc filter. A very high quality linear phase resampling filter that can perform most of the typical conversion ratios. Good phase response, but with some amount of pre-ringing. See \"FIR\" for further details."
     },
     "poly-sinc-mp": {
       "genre": ["jazz"],
@@ -115,7 +115,7 @@
       "focus": ["transients"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Minimum phase polyphase sinc filter, otherwise similar to poly-sinc. Altered phase response, but no pre-ringing. See minphaseFIR for further details."
+      "description": "A minimum phase polyphase sinc filter, otherwise similar to poly-sinc. Altered phase response, but no pre-ringing. See minphaseFIR for further details."
     },
     "poly-sinc-short-lp": {
       "genre": ["jazz", "electronic"],
@@ -123,7 +123,7 @@
       "focus": ["space", "transients"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Otherwise similar to poly-sinc, but shorter pre- and post-ringing at the expense of filtering quality (not as sharp roll-off)."
+      "description": "Otherwise similar to poly-sinc, but with shorter pre- and post-ringing at the expense of filtering quality (not as sharp a roll-off)."
     },
     "poly-sinc-short-mp": {
       "genre": ["pop"],
@@ -131,7 +131,7 @@
       "focus": ["transients"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Minimum phase variant of poly-sinc-shrt. Otherwise similar to poly-sinc-mp, but shorter post-ringing. Most optimal transient reproduction."
+      "description": "A minimum phase variant of poly-sinc-shrt. Otherwise similar to poly-sinc-mp, but with shorter post-ringing. Most optimal transient reproduction."
     },
     "poly-sinc-long-lp": {
       "genre": ["classical"],
@@ -139,7 +139,7 @@
       "focus": ["space"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Otherwise similar to poly-sinc, but longer pre- and post-ringing with improved filtering quality (faster roll-off)."
+      "description": "Otherwise similar to poly-sinc, but with longer pre- and post-ringing and improved filtering quality (faster roll-off)."
     },
     "poly-sinc-long-ip": {
       "genre": ["jazz", "electronic"],
@@ -147,7 +147,7 @@
       "focus": ["space", "transients"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Intermediate phase version of poly-sinc-long, with small pre-ringing and longer post-ringing, with improved filtering quality (faster roll-off)."
+      "description": "An intermediate phase version of poly-sinc-long, with small pre-ringing and longer post-ringing, and with improved filtering quality (faster roll-off)."
     },
     "poly-sinc-long-mp": {
       "genre": ["pop"],
@@ -155,7 +155,7 @@
       "focus": ["transients"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Minimum phase variant of poly-sinc-long. Otherwise similar to poly-sinc-mp, but longer post-ringing with improved filtering quality (faster roll-off)."
+      "description": "A minimum phase variant of poly-sinc-long. Otherwise similar to poly-sinc-mp, but with longer post-ringing and improved filtering quality (faster roll-off)."
     },
     "poly-sinc-hb": {
       "genre": ["any"],
@@ -164,8 +164,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Linear-phase polyphase half-band filter with steep roll-off and high attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A linear phase polyphase half-band filter with steep roll-off and high attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-hb-xs": {
       "genre": ["pop"],
@@ -174,8 +174,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Extremely short linear-phase polyphase half-band filter with slow roll-off and low attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "An extremely short linear phase polyphase half-band filter with slow roll-off and low attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-hb-s": {
       "genre": ["pop"],
@@ -184,8 +184,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Short linear-phase polyphase half-band filter with slow roll-off and average attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A short linear phase polyphase half-band filter with slow roll-off and average attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-hb-m": {
       "genre": ["any"],
@@ -194,8 +194,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Medium linear-phase polyphase half-band filter with average roll-off and medium attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A medium linear phase polyphase half-band filter with average roll-off and medium attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-hb-l": {
       "genre": ["classical", "jazz"],
@@ -204,8 +204,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Long linear-phase polyphase half-band filter with fast roll-off and high attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A long linear phase polyphase half-band filter with fast roll-off and high attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-ext": {
       "genre": [],
@@ -214,7 +214,7 @@
       "apodizing": "half",
       "ratio": "integer",
       "phase": "linear",
-      "description": "Linear phase polyphase sinc filter with sharper roll-off and somewhat lower stop-band attenuation, while being roughly equal in length to poly-sinc."
+      "description": "A linear phase polyphase sinc filter with sharper roll-off and somewhat lower stop-band attenuation, while being roughly equal in length to poly-sinc."
     },
     "poly-sinc-ext2": {
       "genre": ["any"],
@@ -270,7 +270,7 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Very steep 8-times-longer non-apodizing version of poly-sinc-ext2-long. For SDM outputs, processing is two stages with minimum 16x intermediate rate.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-ext2-hires-lp": {
       "genre": ["any"],
@@ -278,7 +278,7 @@
       "focus": ["timbre"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Linear-phase polyphase sinc filter for HiRes content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "A linear phase polyphase sinc filter for hi-res content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-ext2-hires-ip": {
       "genre": ["any"],
@@ -286,7 +286,7 @@
       "focus": ["timbre"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Intermediate-phase polyphase sinc filter for HiRes content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "An intermediate phase polyphase sinc filter for hi-res content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-ext2-hires-mp": {
       "genre": ["any"],
@@ -294,7 +294,7 @@
       "focus": ["timbre"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Minimum-phase polyphase sinc filter for HiRes content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "A minimum phase polyphase sinc filter for hi-res content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-mqa/mp3-lp": {
       "genre": ["classical", "jazz"],
@@ -304,7 +304,7 @@
       "ratio_pcm": "integer",
       "ratio_sdm": "any",
       "upsample_only": true,
-      "description": "Linear phase polyphase sinc filter optimized for playing back MQA or MP3 encoded content in order to clean up high frequency noise added by the MQA or MP3 encoding. Also suitable for upsampling PCM sources of 88.2 kHz or higher sampling rate, especially for hires PCM recordings of 176.4 kHz or higher sampling rate. Very short ringing. Early slow roll-off."
+      "description": "A linear phase polyphase sinc filter optimized for playing back MQA- or MP3-encoded content in order to clean up the high frequency noise added by the MQA or MP3 encoding. Also suitable for upsampling PCM sources of 88.2 kHz or higher sampling rate, especially for hires PCM recordings of 176.4 kHz or higher sampling rate. Very short ringing. Early slow roll-off."
     },
     "poly-sinc-mqa/mp3-mp": {
       "genre": ["pop"],
@@ -314,7 +314,7 @@
       "ratio_pcm": "integer",
       "ratio_sdm": "any",
       "upsample_only": true,
-      "description": "Minimum phase variant of poly-sinc-mqa."
+      "description": "A minimum phase variant of poly-sinc-mqa."
     },
     "poly-sinc-xtr-lp": {
       "genre": ["classical"],
@@ -322,7 +322,7 @@
       "focus": ["timbre"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Linear phase polyphase sinc filter with extreme roll-off and attenuation."
+      "description": "A linear phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-mp": {
       "genre": ["jazz"],
@@ -330,7 +330,7 @@
       "focus": ["timbre"],
       "apodizing": "half",
       "ratio": "any",
-      "description": "Minimum phase polyphase sinc filter with extreme roll-off and attenuation."
+      "description": "A minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-short-lp": {
       "genre": ["electronic", "jazz", "pop"],
@@ -338,7 +338,7 @@
       "focus": ["timbre", "transients"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Short linear phase polyphase sinc filter with extreme roll-off and attenuation."
+      "description": "A short linear phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-short-mp": {
       "genre": ["pop"],
@@ -346,7 +346,7 @@
       "focus": ["timbre", "transients"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Short minimum phase polyphase sinc filter with extreme roll-off and attenuation."
+      "description": "A short minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-gauss-short": {
       "genre": ["electronic", "jazz", "pop"],
@@ -400,7 +400,7 @@
       "focus": ["transients", "timbre", "space"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Linear-phase Gaussian filter for HiRes content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "A linear phase Gaussian filter for hi-res content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-gauss-hires-ip": {
       "genre": ["any"],
@@ -408,7 +408,7 @@
       "focus": ["transients", "timbre", "space"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Intermediate-phase Gaussian filter for HiRes content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "An intermediate phase Gaussian filter for hi-res content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-gauss-hires-mp": {
       "genre": ["any"],
@@ -416,7 +416,7 @@
       "focus": ["transients", "timbre", "space"],
       "apodizing": "full",
       "ratio": "any",
-      "description": "Minimum-phase Gaussian filter for HiRes content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
+      "description": "A minimum phase Gaussian filter for hi-res content with extremely high attenuation. Optimal time-frequency response. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-gauss-halfband": {
       "genre": ["any"],
@@ -425,8 +425,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Linear-phase halfband Gaussian filter. Slightly leaky around Nyquist, but extremely high attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A linear phase halfband Gaussian filter. Slightly leaky around Nyquist, but with extremely high attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-gauss-halfband-s": {
       "genre": ["any"],
@@ -435,8 +435,8 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "Short linear-phase halfband Gaussian filter. Leaky around Nyquist, but high attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "description": "A short linear phase halfband Gaussian filter. Leaky around Nyquist, but with high attenuation.",
+      "notes": "Only suitable for the highest technical quality source materials."
     },
     "ASRC": {
       "genre": [],
@@ -474,7 +474,7 @@
       "apodizing": "none",
       "ratio": "integer",
       "upsample_only": true,
-      "description": "A minimum ringing FIR. It uses a special algorithm to create a linear-phase filter that minimizes ringing while providing better frequency response and attenuation than polynomial interpolators. Performance and ringing between polynomial and poly-sinc-short."
+      "description": "A minimum ringing FIR. It uses a special algorithm to create a linear phase filter that minimizes ringing while providing better frequency response and attenuation than polynomial interpolators. Performance and ringing between polynomial and poly-sinc-short."
     },
     "minringFIR-mp": {
       "genre": [],
