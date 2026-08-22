@@ -26,9 +26,10 @@ export function AlertStrip() {
   return html`
     <div class="alert-strip">
       ${alerts.map(
-        (/** @type {{ sev: string, text: string }} */ a) => html`<span class="alert alert-${a.sev}">⚠ ${a.text}</span>`,
+        (/** @type {import("../store/health.js").Alert} */ a) =>
+          html`<span class="alert alert-${a.sev}" data-alert=${a.kind}>⚠ ${a.text}</span>`,
       )}
-      ${advice && html`<span class="alert alert-advice">♪ ${advice.reason}</span>`}
+      ${advice && html`<span class="alert alert-advice" data-alert="junk-advice">♪ ${advice.reason}</span>`}
     </div>
   `;
 }

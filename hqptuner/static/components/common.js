@@ -87,14 +87,17 @@ function cardHead({ title, collapse, open, headCls }) {
 // the Output hero row. A head pinned to the left edge of a card that wide reads
 // as a caption on whatever happens to sit under its left edge rather than as
 // the name of the row beneath it.
+// `id` names the card independently of its title, and renders as `data-card`.
+// The title is copy — the owner may reword it at any time — so it is the wrong
+// thing for anything but a reader to address the card by.
 /**
  * The card frame: a titled `<section class="card">` around its body content,
  * collapsible when `collapse` is passed.
- * @param {{ title: Renderable, subtitle?: Renderable, collapse?: CollapseHandle, center?: boolean,
+ * @param {{ id: string, title: Renderable, subtitle?: Renderable, collapse?: CollapseHandle, center?: boolean,
  *   cardClass?: string, bodyClass?: string, headClass?: string, hint?: string,
  *   children?: Renderable }} props
  */
-export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
+export function Card({ id, title, subtitle, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
   const open = !collapse || collapse.open;
   const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");
   const sub = subtitle ? html`<span class="card-sub t-caption">${subtitle}</span>` : null;
@@ -103,7 +106,7 @@ export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, 
   // class-exempt: "open" is the DOM's record of collapse state — the tab tests read it back.
   const cls = ["card", cardClass, collapse ? (open ? "open" : "closed") : null].filter(Boolean).join(" ");
   return html`
-    <section class=${cls} title=${hint}>
+    <section class=${cls} data-card=${id} title=${hint}>
       ${head}
       ${open ? html`<div class=${bodyClass ? `card-body ${bodyClass}` : "card-body"}>${sub}${children}</div>` : null}
     </section>

@@ -23,7 +23,7 @@ export function TabBar() {
     <nav class="tab-nav">
       ${TABS.map(
         ([id, label]) => html`
-          <button class="${active.value === id ? "active" : ""}${dirtyTabs.value.has(id) ? " has-changes" : ""}" onClick=${() => (active.value = id)}>${label}</button>
+          <button data-testid=${`tab-${id}`} class="${active.value === id ? "active" : ""}${dirtyTabs.value.has(id) ? " has-changes" : ""}" onClick=${() => (active.value = id)}>${label}</button>
         `,
       )}
     </nav>

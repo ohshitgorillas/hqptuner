@@ -66,7 +66,7 @@ function ResetButton() {
 // Global rendering preference, not a narrowing facet — it rides in this card
 // because the switch columns are where the chain-wide toggles live.
 function OptionStyleGroup() {
-  return html`<${SwitchGroup} title="Option style" desc=${OPTION_STYLE_TIP}>
+  return html`<${SwitchGroup} id="option-style" title="Option style" desc=${OPTION_STYLE_TIP}>
     <${Segment}
       value=${plainNames.value ? "simplified" : "standard"}
       options=${OPTION_STYLE_SEGS}
@@ -96,13 +96,14 @@ export function NarrowBar({ srcFormat = true, collapse }) {
   }, []);
   return html`
     <${Card}
+      id="narrow-filters"
       title=${html`Narrow filters${engaged ? html`<${ResetButton} />` : null}`}
       cardClass="narrow-card"
       collapse=${collapse}
     >
       ${
         notesVisible.value
-          ? html`<div class="t-caption">
+          ? html`<div class="t-caption" data-note="narrow-intro">
               Reduce the number of filters in the dropdowns below by selecting which features you're looking for.
               Dropdown counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing
               data are sourced directly from the HQPlayer manual.
@@ -114,7 +115,7 @@ export function NarrowBar({ srcFormat = true, collapse }) {
       </div>
       <div class="narrow-switchcols">
         <div class="narrow-groupstack">
-          <${SwitchGroup} title="Apodizing filters" desc=${apodTip()}>
+          <${SwitchGroup} id="apodizing-filters" title="Apodizing filters" desc=${apodTip()}>
             <${StageSeg} stage="1x" sig=${nApod1x} options=${APOD_SEGS} />
             <${StageSeg} stage="nx" sig=${nApodNx} options=${APOD_SEGS} />
           <//>
@@ -122,12 +123,12 @@ export function NarrowBar({ srcFormat = true, collapse }) {
         </div>
         <span class="col-rule"></span>
         <div class="narrow-groupstack">
-          <${SwitchGroup} title="1x sources" desc=${LOSSY_TIP}>
+          <${SwitchGroup} id="1x-sources" title="1x sources" desc=${LOSSY_TIP}>
             <${StageSeg} stage="1x" sig=${nLossy1x} options=${LOSSY_SEGS} showStage=${false} />
           <//>
           ${
             srcFormat
-              ? html`<${SwitchGroup} title="Source format" desc=${SRC_FORMAT_TIP}>
+              ? html`<${SwitchGroup} id="source-format" title="Source format" desc=${SRC_FORMAT_TIP}>
                   <${Segment}
                     value=${nSrcFormat.value}
                     options=${SRC_FORMAT_SEGS}

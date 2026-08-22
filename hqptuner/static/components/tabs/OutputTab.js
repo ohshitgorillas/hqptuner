@@ -50,20 +50,27 @@ function deviceMissing(key) {
 
 // Warn when the active backend has no real output device selected — a loaded
 // preset referenced an endpoint that isn't present. Combo runs both backends.
+//
+// `data-backends` carries the backends the alert is about as their wire values,
+// so which one tripped is readable without parsing the sentence for its
+// display names.
 function DeviceAlert() {
   const b = backend();
+  /** @type {[string, string][]} wire value, display name */
   const bad = [];
-  if (["alsa", "combo"].includes(b) && deviceMissing("alsa_device")) bad.push("ALSA");
-  if (["network", "combo"].includes(b) && deviceMissing("net_device")) bad.push("Network");
+  if (["alsa", "combo"].includes(b) && deviceMissing("alsa_device")) bad.push(["alsa", "ALSA"]);
+  if (["network", "combo"].includes(b) && deviceMissing("net_device")) bad.push(["network", "Network"]);
   if (!bad.length) return null;
-  return html`<div class="device-alert">
-    ⚠ No output device for the ${bad.join(" and ")} backend — the loaded preset's endpoint isn't present. Power the
+  const names = bad.map(([, n]) => n).join(" and ");
+  return html`<div class="device-alert" data-backends=${bad.map(([v]) => v).join(" ")}>
+    ⚠ No output device for the ${names} backend — the loaded preset's endpoint isn't present. Power the
     device on, then Rescan devices.
   </div>`;
 }
 
 // The two backend sections, each revealing itself when its backend is selected.
-const AlsaCard = () => html`<${Card} title="ALSA Backend" collapse=${collapseFrom(alsaOpen, alsaOverride)}>
+const AlsaCard =
+  () => html`<${Card} id="alsa-backend" title="ALSA Backend" collapse=${collapseFrom(alsaOpen, alsaOverride)}>
   <div class="pack">
     <${Field} k="alsa_device" />
     <${Field} k="alsa_offset" />
@@ -74,7 +81,8 @@ const AlsaCard = () => html`<${Card} title="ALSA Backend" collapse=${collapseFro
   </div>
 <//>`;
 
-const NetCard = () => html`<${Card} title="Network Backend" collapse=${collapseFrom(netOpen, netOverride)}>
+const NetCard =
+  () => html`<${Card} id="network-backend" title="Network Backend" collapse=${collapseFrom(netOpen, netOverride)}>
   <div class="pack">
     <${Field} k="net_device" />
     <${Field} k="net_bits" />
@@ -92,13 +100,13 @@ export const Output = () => {
   return html`<${Section}>
     <${DeviceAlert} />
     <div class="top-row">
-      <${Card} title="Backend" center=${true} cardClass="seg-box">
+      <${Card} id="backend" title="Backend" center=${true} cardClass="seg-box">
         <${Field} k="backend" />
       <//>
-      <${Card} title="Mode" center=${true} cardClass="seg-box">
+      <${Card} id="mode" title="Mode" center=${true} cardClass="seg-box">
         <${Field} k="output_mode" />
       <//>
-      <${Card} title="Rate" center=${true}>
+      <${Card} id="rate" title="Rate" center=${true}>
         <div class="rate-stack">
           <${Field} k="pcm_rate" />
           <${Field} k="sdm_rate" />
@@ -111,6 +119,7 @@ export const Output = () => {
     <${SdmChainCard} />
     <${FilterLengthCard} />
     <${Card}
+      id="dac-correction"
       title="DAC correction"
       subtitle=${noteFor("dac_correction_enabled")}
       collapse=${{ open: dacOpen.value, onToggle: () => (dacOpen.value = !dacOpen.value) }}

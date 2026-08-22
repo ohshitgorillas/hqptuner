@@ -31,8 +31,9 @@ import { hz } from "../lib/units.js";
  *   is an XML attribute, so it arrives as text or not at all.
  * @typedef {{ samplerate?: string, bits?: string, sdm?: string }} Metadata
  *   The `<metadata>` child's attributes this bar reads — same wire rule.
- * @typedef {{ label: string, value?: string, hero?: boolean }} PathStage
- *   One chip on the bar. `hero` marks the output chip, which glows on playback.
+ * @typedef {{ stage: string, label: string, value?: string, hero?: boolean }} PathStage
+ *   One chip on the bar. `stage` is the stage's own code, stable across any
+ *   relabelling. `hero` marks the output chip, which glows on playback.
  */
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
@@ -57,14 +58,14 @@ function fmtRate(rate) {
 const DASH = "—";
 
 /** @param {PathStage} props */
-function Chip({ label, value, hero }) {
+function Chip({ stage, label, value, hero }) {
   const shown = value || DASH;
   // joined rather than interpolated in place: an inline ternary for each state
   // leaves the empty slots behind as stray spaces in the attribute, and the
   // chip's class list is asserted verbatim.
   const cls = ["chip", hero ? "chip-hero" : "", shown === DASH ? "chip-dash" : ""].filter(Boolean).join(" ");
   return html`
-    <span class=${cls}>
+    <span class=${cls} data-stage=${stage}>
       <span class="chip-label">${label}</span>
       <span class="chip-val">${shown}</span>
     </span>
@@ -127,9 +128,9 @@ function outputLabel(st) {
  * @returns {PathStage | null}
  */
 function postProcessStage(cf, loud) {
-  if (cf && loud) return { label: "DSP", value: "On" };
-  if (cf) return { label: "Crossfeed", value: "On" };
-  if (loud) return { label: "Loudness", value: "On" };
+  if (cf && loud) return { stage: "dsp", label: "DSP", value: "On" };
+  if (cf) return { stage: "crossfeed", label: "Crossfeed", value: "On" };
+  if (loud) return { stage: "loudness", label: "Loudness", value: "On" };
   return null;
 }
 
@@ -182,21 +183,21 @@ function conversionStages(st, md) {
   const sdmOut = outputIsSdm(st);
   if (dsdIn && sdmOut) {
     return [
-      { label: "Reconstruction filter", value: configLabel("sdm_integrator") },
-      { label: "Source bandwidth", value: configLabel("sdm_conversion") },
+      { stage: "sdm-integrator", label: "Reconstruction filter", value: configLabel("sdm_integrator") },
+      { stage: "sdm-conversion", label: "Source bandwidth", value: configLabel("sdm_conversion") },
     ];
   }
   if (dsdIn) {
     return [
-      { label: "Noise filter", value: configLabel("noise_filter") },
-      { label: "Decimation filter", value: configLabel("pcm_conversion") },
-      { label: "Filter", value: st.active_filter },
-      { label: "Dither", value: st.active_shaper },
+      { stage: "noise-filter", label: "Noise filter", value: configLabel("noise_filter") },
+      { stage: "pcm-conversion", label: "Decimation filter", value: configLabel("pcm_conversion") },
+      { stage: "filter", label: "Filter", value: st.active_filter },
+      { stage: "shaper", label: "Dither", value: st.active_shaper },
     ];
   }
   return [
-    { label: "Filter", value: st.active_filter },
-    { label: sdmOut ? "Modulator" : "Dither", value: st.active_shaper },
+    { stage: "filter", label: "Filter", value: st.active_filter },
+    { stage: "shaper", label: sdmOut ? "Modulator" : "Dither", value: st.active_shaper },
   ];
 }
 
@@ -210,20 +211,21 @@ function conversionStages(st, md) {
  * @returns {PathStage[]}
  */
 function chainStages(st, md, playing) {
-  const source = { label: "Source", value: playing ? sourceLabel(md) : "—" };
-  const output = { label: "Output", value: playing ? outputLabel(st) : "—", hero: true };
+  const source = { stage: "source", label: "Source", value: playing ? sourceLabel(md) : "—" };
+  const output = { stage: "output", label: "Output", value: playing ? outputLabel(st) : "—", hero: true };
   // A bit-perfect pass-through has nothing between source and DAC, so the bar
   // must stop advertising a matrix, a crossfeed or a correction that the daemon
   // is not running (manual §5 excepts only speaker distance processing, which
   // this bar has never shown).
-  if (directPassThrough(st, md)) return [source, { label: "Direct SDM", value: "Bit-perfect" }, output];
+  if (directPassThrough(st, md))
+    return [source, { stage: "direct-sdm", label: "Direct SDM", value: "Bit-perfect" }, output];
   /** @type {PathStage[]} */
   const stages = [source];
   // A stage indicator, never a profile readout: profile names run long enough to
   // overrun the chip, so the chip states only that a matrix is in the path.
   const matrixOn = on(runningValue("matrix_enabled"));
   if (matrixOn) {
-    stages.push({ label: "Matrix", value: "On" });
+    stages.push({ stage: "matrix", label: "Matrix", value: "On" });
   }
   // `<post_process>` nests inside `<matrix>` (readme §1.11.2), so a bypassed
   // engine runs neither plugin however their own enables read — a config the
@@ -244,7 +246,7 @@ function chainStages(st, md, playing) {
     : null;
   if (post) stages.push(post);
   stages.push(...conversionStages(st, md));
-  if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
+  if (st.correction === "1") stages.push({ stage: "correction", label: "Correction", value: "On" });
   stages.push(output);
   return stages;
 }
@@ -263,7 +265,7 @@ export function SignalPath() {
   const nodes = [];
   chainStages(st, md, playing).forEach((stage, i) => {
     if (i) nodes.push(html`<span class="link"></span>`);
-    nodes.push(html`<${Chip} label=${stage.label} value=${stage.value} hero=${stage.hero} />`);
+    nodes.push(html`<${Chip} stage=${stage.stage} label=${stage.label} value=${stage.value} hero=${stage.hero} />`);
   });
 
   return html`<div class="signal-path ${playing ? "live" : "idle"}">${nodes}</div>`;

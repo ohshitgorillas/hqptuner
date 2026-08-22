@@ -20,6 +20,7 @@ edits an archive needs them and ``presetconf`` already builds on this module.
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import re
 import zipfile
@@ -164,7 +165,30 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
     return named if named in roots else None
 
 
-def archive_summary(zip_bytes: bytes) -> str:
+@dataclasses.dataclass(frozen=True)
+class ArchiveSummary:
+    """What a ``/backup`` archive turned out to hold, and the sentence that says so.
+
+    The sentence reaches a log line and a user-facing ``GroundingError``, so it
+    is rewordable; the fields are not. A caller deciding anything reads
+    ``readable`` and ``members``, and only formatting reads ``str()``.
+    """
+
+    size: int
+    readable: bool
+    members: tuple[str, ...] = ()
+
+    def __str__(self) -> str:
+        """Render the summary as the log line and error message read it."""
+        if not self.readable:
+            return f"{self.size} bytes, not a readable zip"
+        shown = ", ".join(self.members[:_MEMBERS_SHOWN]) + (
+            f", … (+{len(self.members) - _MEMBERS_SHOWN} more)" if len(self.members) > _MEMBERS_SHOWN else ""
+        )
+        return f"{self.size} bytes, {len(self.members)} members: {shown}"
+
+
+def archive_summary(zip_bytes: bytes) -> ArchiveSummary:
     """Summarize what a ``/backup`` archive actually contains, for the log line when we refuse it.
 
     Two very different faults present identically as "no working
@@ -177,12 +201,9 @@ def archive_summary(zip_bytes: bytes) -> str:
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             names = z.namelist()
-    except (zipfile.BadZipFile, OSError) as exc:
-        return f"{len(zip_bytes)} bytes, not a readable zip ({exc})"
-    shown = ", ".join(names[:_MEMBERS_SHOWN]) + (
-        f", … (+{len(names) - _MEMBERS_SHOWN} more)" if len(names) > _MEMBERS_SHOWN else ""
-    )
-    return f"{len(zip_bytes)} bytes, {len(names)} members: {shown}"
+    except (zipfile.BadZipFile, OSError):
+        return ArchiveSummary(size=len(zip_bytes), readable=False)
+    return ArchiveSummary(size=len(zip_bytes), readable=True, members=tuple(names))
 
 
 def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | None:

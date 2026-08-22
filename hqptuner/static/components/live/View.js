@@ -154,7 +154,11 @@ function LiveField({ control, widget }) {
   const badge = control.badge;
   const { fav, onFav } = favFor(entry) || {};
   return html`
-    <div class="field ${widthClasses(entry)}" title=${hoverTitle(entry, meta, control.reason || "")}>
+    <div
+      class="field ${widthClasses(entry)}"
+      data-k=${control.key}
+      title=${hoverTitle(entry, meta, control.reason || "")}
+    >
       <${LiveLabel} entry=${entry} meta=${meta} badge=${badge} />
       <div class="control">
         <${W}
@@ -240,10 +244,10 @@ function ChainCards() {
   return html`
     <div class="live-chain-group">
       <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
-      <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+      <${Card} id="live-pcm-chain" title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
         <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
       <//>
-      <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+      <${Card} id="live-sdm-chain" title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
         <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
       <//>
     </div>
@@ -260,10 +264,10 @@ function HeroRow() {
   const { mode, pcmRate, sdmRate } = liveModel.value;
   return html`
     <div class="top-row">
-      <${Card} title="Mode" center=${true} cardClass="seg-box">
+      <${Card} id="live-output-mode" title="Mode" center=${true} cardClass="seg-box">
         <${LiveField} control=${mode} widget=${Segment} />
       <//>
-      <${Card} title="Rate" center=${true}>
+      <${Card} id="live-rate" title="Rate" center=${true}>
         <div class="rate-stack">
           <${LiveField} control=${pcmRate} />
           <${LiveField} control=${sdmRate} />
@@ -284,7 +288,7 @@ function HeroRow() {
 function PlaybackCard() {
   const { junk, adaptive } = liveModel.value;
   return html`
-    <${Card} title="Playback" collapse=${cardCollapse("playback", livePlaybackOpen)}>
+    <${Card} id="live-playback" title="Playback" collapse=${cardCollapse("playback", livePlaybackOpen)}>
       <div class="playback-cols">
         <div class="pack">
           <${LiveField} control=${adaptive} widget=${Checkbox} />
@@ -303,7 +307,7 @@ function PlaybackCard() {
 // updates" checkbox here — LIVE polls at 1 s unconditionally (store/ui.js).
 function HealthCard() {
   return html`
-    <${Card} title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
+    <${Card} id="live-engine-health" title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
       <${EngineHealth} showQuick=${false} />
     <//>
   `;

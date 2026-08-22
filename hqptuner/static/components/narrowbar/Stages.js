@@ -105,12 +105,13 @@ export function StageSeg({ stage, sig, options, showStage = true }) {
  * Renders one function group: its title beside the stage rows passed as
  * children, with `desc` as a caption under them in the same column when feature
  * descriptions are shown, and as the group's hover title when they are hidden.
- * @param {{ title: string, desc?: string, children?: unknown }} props
+ * `id` is the group's stable DOM handle, rendered as `data-group`.
+ * @param {{ id: string, title: string, desc?: string, children?: unknown }} props
  */
-export function SwitchGroup({ title, desc, children }) {
+export function SwitchGroup({ id, title, desc, children }) {
   const show = desc && notesVisible.value;
   return html`
-    <div class="narrow-group" title=${show ? "" : desc || ""}>
+    <div class="narrow-group" data-group=${id} title=${show ? "" : desc || ""}>
       <span class="t-label narrow-group-title">${title}</span>
       <div class="narrow-group-body">
         ${children}

@@ -105,6 +105,7 @@ function OptionRow({ o, i, apod, row }) {
     <div
       class=${open && i === hl ? "dd-opt hl" : "dd-opt"}
       role="option"
+      data-v=${o.value}
       id=${`${id}-${i}`}
       aria-selected=${i === selIdx}
       aria-disabled=${o.disabled ? "true" : undefined}

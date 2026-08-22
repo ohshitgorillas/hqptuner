@@ -299,7 +299,12 @@ export async function deletePreset(name) {
 
 // apply lifecycle, shared so the pill and the pending bar both reflect it
 export const applying = signal(false);
-export const lastApply = signal(null); // {ok, text} of the most recent apply
+// Typed rather than left to inference: `signal(null)` alone infers `any`, which
+// lets a caller read a field name that does not exist and type-check clean.
+// Structural rather than `Signal<…>`: the vendored @preact/signals typings
+// export no `Signal` name, and `.value` is the whole of what callers touch.
+/** @type {{ value: import("./apply-summary.js").Verdict | null }} */
+export const lastApply = signal(null);
 
 // Both write lanes share a lifecycle: hold `applying` for the duration so the
 // pill and the pending bar can show it, and report a thrown failure as a
@@ -316,7 +321,7 @@ async function applyLane(run, what) {
   try {
     return await run();
   } catch (e) {
-    lastApply.value = { ok: false, text: `${what} failed: ${errText(e)}` };
+    lastApply.value = { ok: false, code: "lane-failed", text: `${what} failed: ${errText(e)}` };
     throw e;
   } finally {
     applying.value = false;
@@ -370,8 +375,8 @@ export async function savePresetOnly(name) {
   return applyLane(async () => {
     const r = await api.profile("save", name);
     lastApply.value = r.ok
-      ? { ok: true, text: `Saved to "${r.name}"` }
-      : { ok: false, text: `Save to "${r.name}" failed: ${r.error}` };
+      ? { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" }
+      : { ok: false, code: "saved", text: `Save to "${r.name}" failed: ${r.error}`, preset: r.name, save: "failed" };
     await refreshConfig();
     return r;
   }, "Save");

@@ -70,7 +70,7 @@ const About = () => {
     </dl>
     ${
       engineMismatch.value
-        ? html`<p class="field-note">
+        ? html`<p class="field-note" data-note="unverified-daemon">
           HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports
           ${engineMismatch.value}. Nothing is disabled for it — but if something misbehaves, that difference is worth
           putting in the report.
@@ -87,7 +87,7 @@ const About = () => {
 // renders checked, since the master forces those descriptions visible; the
 // stored pref is untouched.
 const DescriptionPrefs = () => html`
-  <div class="field">
+  <div class="field" data-k="showDescriptions">
     <label>Setting descriptions</label>
     <div class="control">
       <${Checkbox}
@@ -97,7 +97,7 @@ const DescriptionPrefs = () => html`
     </div>
     <div class="field-note">Show the description from the manual under each setting. Disabling this converts those descriptions to hover tips.</div>
   </div>
-  <div class="field">
+  <div class="field" data-k="keepOptionDescriptions">
     <label>Option descriptions</label>
     <div class="control">
       <${Checkbox}
@@ -153,7 +153,7 @@ const aboutOverride = signal(null);
 const appVersion = computed(() => (health.value && health.value.app_version) || "");
 
 const AboutHqptuner = () => html`
-  <${Card} title="About HQPTuner" collapse=${collapseFrom(aboutAuto, aboutOverride)}>
+  <${Card} id="about-hqptuner" title="About HQPTuner" collapse=${collapseFrom(aboutAuto, aboutOverride)}>
     <div class="abt-prose">
       <p>
         HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer Embedded.
@@ -180,7 +180,7 @@ const AboutHqptuner = () => html`
 // Logging card — full width at the bottom of the tab. The two log-config options
 // sit side by side at the top; the live tail view (checkbox-gated) sits below.
 const LoggingCard = () =>
-  html`<${Card} title="Logging" subtitle=${noteFor("log_enabled")}>
+  html`<${Card} id="logging" title="Logging" subtitle=${noteFor("log_enabled")}>
     <div class="log-opts">
       <${Field} k="log_enabled" />
       <${Field} k="log_file" />
@@ -192,11 +192,11 @@ const LoggingCard = () =>
 export const System = () =>
   html`<${Section}>
     <div class="card-grid">
-      <${Card} title="About">
+      <${Card} id="about" title="About">
         <${About} />
         <${BackupRestoreRow} />
       <//>
-      <${Card} title="HQPTuner">
+      <${Card} id="hqptuner" title="HQPTuner">
         <!-- single column, no .pack: a half-width card's track is ~558px, and the
              12rem label + control of these rows overflows the ~267px half-track a
              two-up pack would give them (CLAUDE.md: the column is the cap). -->
@@ -204,17 +204,17 @@ export const System = () =>
         <${AccentPicker} />
       <//>
     </div>
-    <${Card} title="Engine health">
+    <${Card} id="engine-health" title="Engine health">
       <${EngineHealth} />
     <//>
-    <${Card} title="Timing">
+    <${Card} id="timing" title="Timing">
       <div class="pack">
         <${Field} k="idle_time" />
         <${Field} k="quick_pause" />
         <${Field} k="short_buffer" />
       </div>
     <//>
-    <${Card} title="UPnP">
+    <${Card} id="upnp" title="UPnP">
       <${Field} k="upnp_freewheel" />
     <//>
     <${HardwareCard} />

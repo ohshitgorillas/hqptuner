@@ -10,8 +10,22 @@
 // lanes each collapse many field edits into a single POST, so counting reports
 // ("2 staged" -> "Applied 1 change") undercounts the real changes.
 /**
- * @typedef {{ ok: boolean, text: string }} Verdict
- *   What the apply pill and the pending bar render.
+ * @typedef {object} Verdict
+ *   What the apply pill and the pending bar render. `text` is the sentence the
+ *   reader gets and is the owner's to reword; `code` names WHICH outcome this
+ *   is, and the fields beside it carry the parts the sentence interpolates. An
+ *   apply has two axes — what the apply itself did, and how its preset save went
+ *   — so `save` rides alongside `code` rather than replacing it.
+ * @property {boolean} ok
+ * @property {string} code
+ * @property {string} text
+ * @property {string[]} [settings] live setters that were refused (live-failed)
+ * @property {string[]} [fields] fields that did not converge (persist-refused)
+ * @property {string} [reason] why the persistent lane declined (persist-refused)
+ * @property {string} [endpoint] the output endpoint that was absent (endpoint-missing)
+ * @property {string} [preset] the preset switched to, or saved into
+ * @property {number} [changes] staged edits the apply carried
+ * @property {string} [save] "ok" | "failed" | "warned", absent when nothing was saved
  *
  * @typedef {object} LiveResult
  *   One live setter's outcome (writer.py, readback-verified).
@@ -49,7 +63,13 @@
  * @property {SaveResult} [saved]
  */
 
-const failure = (/** @type {string} */ text) => ({ ok: false, text });
+/**
+ * @param {string} code
+ * @param {string} text
+ * @param {Partial<Verdict>} [data] the parts the sentence interpolates
+ * @returns {Verdict}
+ */
+const failure = (code, text, data) => ({ ok: false, code, text, ...data });
 
 // A live setter that didn't take. Reported first and alone — a rejected setting
 // is the most actionable thing the report can carry.
@@ -60,7 +80,8 @@ const failure = (/** @type {string} */ text) => ({ ok: false, text });
 function liveFailure(report) {
   const fails = (report.live || []).filter((x) => !x.ok);
   if (!fails.length) return null;
-  return failure(`Failed: ${fails.map((f) => f.setting).join(", ")}`);
+  const settings = fails.map((f) => f.setting);
+  return failure("live-failed", `Failed: ${settings.join(", ")}`, { settings });
 }
 
 // The persistent lane declined. A missing output endpoint is named rather than
@@ -73,14 +94,18 @@ function liveFailure(report) {
 function persistentFailure(p) {
   if (!p || p.applied) return null;
   const nd = p.unfixable && p.unfixable.net_device;
-  if (nd) return failure(`Endpoint "${nd.want}" not present — config not applied`);
-  if (p.error) return failure(`Config not applied: ${p.error}`);
+  if (nd)
+    return failure("endpoint-missing", `Endpoint "${nd.want}" not present — config not applied`, {
+      endpoint: nd.want,
+    });
+  if (p.error) return failure("persist-error", `Config not applied: ${p.error}`);
   // Name the fields that didn't converge. "unconverged" alone is undebuggable —
   // it says a setting the daemon kept refusing exists, but not which one, and
   // the user is the only one who can see their own config.
   const fields = Object.keys(p.diff || {});
   const which = fields.length ? `: ${fields.join(", ")}` : "";
-  return failure(`Config not applied (${p.reason || "unconfirmed"})${which}`);
+  const reason = p.reason || "unconfirmed";
+  return failure("persist-refused", `Config not applied (${reason})${which}`, { reason, fields });
 }
 
 // How a switch target names itself in the report. The empty name is the picker's
@@ -92,12 +117,18 @@ const switchName = (/** @type {SwitchResult} */ sw) => (sw.name ? `"${sw.name}"`
 /**
  * @param {SwitchResult | undefined} sw absent when the apply switched no preset
  * @param {number} count
- * @returns {string}
+ * @returns {Verdict}
  */
-function successText(sw, count) {
+function success(sw, count) {
   const changes = count ? `${count} change${count === 1 ? "" : "s"}` : "";
-  if (!sw) return `Applied ${changes || "no changes"}`;
-  return `Switched to ${switchName(sw)}${changes ? ` + ${changes}` : ""}`;
+  if (!sw) return { ok: true, code: "applied", text: `Applied ${changes || "no changes"}`, changes: count };
+  return {
+    ok: true,
+    code: "switched",
+    text: `Switched to ${switchName(sw)}${changes ? ` + ${changes}` : ""}`,
+    preset: sw.name,
+    changes: count,
+  };
 }
 
 // The save lane's outcome, appended to what the apply itself did. A WARNED save
@@ -105,15 +136,27 @@ function successText(sw, count) {
 // behind, so it reads as a success carrying the caveat rather than a failure —
 // reporting it as failed is what sent a user hunting for a preset already there.
 /**
- * @param {string} base
+ * @param {Verdict} base what the apply itself did
  * @param {SaveResult} [saved] absent when the apply saved no preset
  * @returns {Verdict}
  */
 function savedSummary(base, saved) {
-  if (!saved) return { ok: true, text: base };
-  if (!saved.ok) return failure(`${base} — save to "${saved.name}" failed: ${saved.error}`);
+  if (!saved) return base;
+  const { code, text } = base;
+  if (!saved.ok)
+    return failure(code, `${text} — save to "${saved.name}" failed: ${saved.error}`, {
+      ...base,
+      ok: false,
+      save: "failed",
+      preset: saved.name,
+    });
   const caveat = saved.warning ? ` — ${saved.warning}` : "";
-  return { ok: true, text: `${base} · saved to "${saved.name}"${caveat}` };
+  return {
+    ...base,
+    text: `${text} · saved to "${saved.name}"${caveat}`,
+    save: saved.warning ? "warned" : "ok",
+    preset: saved.name,
+  };
 }
 
 /**
@@ -127,9 +170,11 @@ export function summarize(report, count) {
   const sw = report.switched;
   const failed =
     liveFailure(report) ||
-    (sw && !sw.active ? failure(`Switch to ${switchName(sw)} did not take`) : null) ||
+    (sw && !sw.active
+      ? failure("switch-failed", `Switch to ${switchName(sw)} did not take`, { preset: sw.name })
+      : null) ||
     persistentFailure(report.persistent);
   if (failed) return failed;
 
-  return savedSummary(successText(sw, count), report.saved);
+  return savedSummary(success(sw, count), report.saved);
 }

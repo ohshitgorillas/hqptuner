@@ -56,7 +56,7 @@ export function MatrixProfileCard() {
   // the user's own words from ours.
   const described = descriptionFor(active);
   return html`
-    <${Card} title="Matrix profile" collapse=${cardCollapse("matrix", liveMatrixOpen)}>
+    <${Card} id="matrix-profile" title="Matrix profile" collapse=${cardCollapse("matrix", liveMatrixOpen)}>
       <div class="field">
         <label>Profile</label>
         <div class="control">

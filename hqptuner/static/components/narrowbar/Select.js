@@ -49,7 +49,7 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
               ${count ? html`<${CountHead} />` : null}
               ${items.map(
                 ([v, l]) => html`
-                  <label>
+                  <label data-v=${v}>
                     <input
                       type="radio"
                       checked=${String(v) === String(value)}
@@ -100,7 +100,7 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
               ${items.map(([v, l]) => {
                 const inert = !!off && off(v);
                 return html`
-                  <label class=${inert ? "off" : ""}>
+                  <label class=${inert ? "off" : ""} data-v=${v}>
                     <input
                       type="checkbox"
                       checked=${sig.value.includes(v)}

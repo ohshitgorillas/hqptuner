@@ -35,7 +35,17 @@ class GroundingError(ValueError):
     pending bar) and must therefore carry no angle-bracketed token: a browser —
     or a chat client the user pastes into — eats ``<alsa>`` as markup and leaves
     the reader the half of the sentence that says nothing.
+
+    Because that text is user-facing it is also rewordable at any time, so it is
+    the wrong thing for a caller to branch on. ``code`` names which check
+    rejected the edit and is stable across any rewording; it is empty for the
+    raises that have not been given one.
     """
+
+    def __init__(self, message: str, *, code: str = "") -> None:
+        """Carry the user-facing message, and the stable code naming which check rejected the edit."""
+        super().__init__(message)
+        self.code = code
 
 
 ROOT = "hqplayerd"
@@ -212,10 +222,10 @@ def ensure_element(xml: bytes, tag_name: str) -> bytes:
     if find_element(xml, tag_name) is not None:
         return xml
     if tag_name == ROOT:
-        raise GroundingError("this snapshot has no hqplayerd root element")
+        raise GroundingError("this snapshot has no hqplayerd root element", code="no-root")
     parent = PARENT.get(tag_name)
     if parent is None:
-        raise GroundingError(f"there is no known place in the config for the {tag_name} element")
+        raise GroundingError(f"there is no known place in the config for the {tag_name} element", code="no-place")
     return _insert_child(ensure_body(xml, parent), parent, b"<" + tag_name.encode() + b"/>")
 
 

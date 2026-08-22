@@ -121,11 +121,11 @@ export function NarrowFacets() {
 // Clicking writes the explicit opposite of what the box shows — from "auto"
 // that is an override, and only overrides highlight the facet button.
 /**
- * @param {{ on: boolean, label: string, onToggle: () => void,
+ * @param {{ on: boolean, label: string, code: string, onToggle: () => void,
  *           count: import("./labels.js").NarrowOverrides }} props
  */
-function RateRule({ on, label, onToggle, count }) {
-  return html`<label>
+function RateRule({ on, label, code, onToggle, count }) {
+  return html`<label data-v=${code}>
     <input type="checkbox" checked=${on} onChange=${onToggle} />
     <span class="opt-label">${label}</span>
     <${CountChip} overrides=${count} />
@@ -144,18 +144,21 @@ function RatePop() {
       on=${effHideLimited.value}
       onToggle=${() => (nHideLimited.value = effHideLimited.value ? "off" : "on")}
       label="Hide output rate-limited filters"
+      code="hide-limited"
       count=${{ hideLimited: !effHideLimited.value }}
     />
     <${RateRule}
       on=${nDownsafeOnly.value}
       onToggle=${() => (nDownsafeOnly.value = !nDownsafeOnly.value)}
       label="Show only filters that support downsampling"
+      code="downsafe"
       count=${{ downsafeOnly: !nDownsafeOnly.value }}
     />
     <${RateRule}
       on=${nOddRateOnly.value}
       onToggle=${() => (nOddRateOnly.value = !nOddRateOnly.value)}
       label="Show only filters that support resampling uncommon source rates (e.g., 32kHz)"
+      code="odd-rates"
       count=${{ oddOnly: !nOddRateOnly.value }}
     />
     <div class="rate-note t-caption">

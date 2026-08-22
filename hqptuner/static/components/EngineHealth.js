@@ -373,7 +373,7 @@ export function EngineHealth({ showQuick = true }) {
           <label class="poll-quick inline-check">
             <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(/** @type {string} */ v) => setQuickSystemUpdates(v === "1")} />
             Quick updates
-            <span class="poll-quick-note">refresh every second while this page is open</span>
+            <span class="poll-quick-note" data-note="poll-quick">refresh every second while this page is open</span>
           </label>
         `
         : null
