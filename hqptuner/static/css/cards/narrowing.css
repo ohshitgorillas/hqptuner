@@ -115,7 +115,13 @@
 .multi {
   position: relative;
 }
+/* inline-flex, not inline: the caret is a shape with a box rather than a glyph
+   on a baseline, and a box is placed by the row that centers it. The gap
+   replaces the space character that used to sit between label and caret. */
 .multi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-2);
   background: var(--surface-raised);
   color: var(--fg);
@@ -125,8 +131,14 @@
   white-space: nowrap;
   font-size: var(--fs-body);
 }
+/* Same shape as the disclosure mark (cards.css) at the narrowbar's own scale:
+   a square box clipped to a triangle, centered by the button's flex row. */
 .multi-caret {
-  color: var(--muted);
+  flex: none;
+  width: var(--tri-sm);
+  height: var(--tri-sm);
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 /* the Favorites toggle with zero stars — nothing to narrow to */
 .multi-btn:disabled {

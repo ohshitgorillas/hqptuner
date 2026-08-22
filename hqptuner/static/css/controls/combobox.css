@@ -30,21 +30,21 @@
   font-size: var(--fs-body);
   cursor: pointer;
 }
-/* The caret is a glyph, not type: at the trigger's own --fs-body it renders as
-   a speck beside the label, because this character's ink is a fraction of its
-   em (the same reason the disclosure caret spends --fs-glyph). Scaled rather
-   than sized up, because the caret's line box is what sets the trigger's
-   height: --fs-glyph with the line-height clamped to fit takes every dropdown
-   on the page from 28px to 26px, and the transform grows the ink while the
-   box it occupies stays exactly as it was. */
+/* The caret is a shape, not a glyph: a square box clipped to a triangle, so
+   the box IS the ink and the trigger's own align-items centers it exactly. A
+   text triangle cannot be centered that way, because its ink sits below the
+   center of whatever line box holds it. Smaller than the disclosure mark: this
+   one sits beside control text, not a heading. */
 .dd-box::after {
-  content: "▾";
-  color: var(--muted);
-  display: inline-block;
-  transform: scale(1.8);
+  content: "";
+  flex: none;
+  width: var(--tri-md);
+  height: var(--tri-md);
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 .dd-box[aria-expanded="true"]::after {
-  content: "▴";
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 .dd-box:disabled {
   opacity: var(--o-disabled);
@@ -168,18 +168,19 @@ button.dd-hdr {
   text-align: left;
 }
 button.dd-hdr::before {
-  content: "▾";
-  color: var(--muted);
-  /* disclosure triangle role size, same as .card-head .tri (cards.css) */
-  font-size: var(--fs-glyph);
-  line-height: 1;
+  content: "";
+  /* disclosure mark, same shape and size as .card-head .tri (cards.css) */
+  width: var(--tri-lg);
+  height: var(--tri-lg);
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
   position: absolute;
   left: var(--sp-2);
   top: 50%;
   transform: translateY(-50%);
 }
 button.dd-hdr[aria-expanded="false"]::before {
-  content: "▸";
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 .dd-subhdr {
   top: var(--sp-5);
@@ -372,11 +373,11 @@ button.dd-hdr[aria-expanded="false"]::before {
    the same selected or not and no row reflows as the selection moves. It
    carries the row on its own: weight is not also spent on the selected row,
    which is the group headers' mark. Accent by owner's spec, like the
-   Recommended check and the apodizing badge beside it. Sits one step right of
-   the header caret's column and at a fraction of its size, so the two
-   triangles read as different marks rather than one at two depths. */
+   Recommended check and the apodizing badge beside it. It points where the
+   header caret does not, which is what separates the two marks: a header
+   discloses downward, a selected row points at its own label. */
 .dd-opt[aria-selected="true"]::before {
-  content: "▸";
+  content: "";
   position: absolute;
   /* The gutter's one mark column, shared with the headers' disclosure caret
      above: 24px does not hold two glyph columns without crowding the label,
@@ -385,11 +386,11 @@ button.dd-hdr[aria-expanded="false"]::before {
   left: var(--sp-2);
   top: 50%;
   transform: translateY(-50%);
-  line-height: 1;
-  color: var(--accent);
-  /* The glyph role, the same one the disclosure caret spends: this character's
-     ink is a fraction of its em, so a type-scale size renders it as a speck. */
-  font-size: var(--fs-glyph);
+  /* The disclosure mark's shape and size, turned to point right. */
+  width: var(--tri-lg);
+  height: var(--tri-lg);
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 .dd-opt[aria-disabled="true"] {
   opacity: var(--o-disabled);

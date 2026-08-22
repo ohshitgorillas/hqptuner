@@ -50,6 +50,14 @@ export function collapseFrom(auto, override) {
   return { open, onToggle: () => (override.value = !open) };
 }
 
+// Empty on purpose: the shape is drawn in CSS off the class, so the mark
+// carries no text and stays out of the accessibility tree.
+/**
+ * The disclosure mark a collapsible head carries, open or closed.
+ * @param {boolean} open
+ */
+export const Tri = (open) => html`<span class=${open ? "tri" : "tri closed"}></span>`;
+
 // The head bar. A collapsible card's head IS the toggle, so it renders as a
 // `<button>` carrying the open/closed triangle; every other card's head is a
 // plain `<div>`.
@@ -59,7 +67,7 @@ export function collapseFrom(auto, override) {
 function cardHead({ title, collapse, open, headCls }) {
   if (collapse) {
     return html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
-      <span class="tri">${open ? "▾" : "▸"}</span> ${title}
+      ${Tri(open)} ${title}
     </button>`;
   }
   return html`<div class=${headCls}>${title}</div>`;

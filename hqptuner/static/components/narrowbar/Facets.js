@@ -177,7 +177,7 @@ function RateFacet() {
   return html`
       <div class="multi" data-multi="rate">
         <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (rateOpen.value = !rateOpen.value)}>
-          ${rateLabel()} <span class="multi-caret">▾</span>
+          ${rateLabel()}<span class="multi-caret"></span>
         </button>
         ${rateOpen.value ? html`<${RatePop} />` : null}
       </div>

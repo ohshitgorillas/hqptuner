@@ -16,7 +16,7 @@ import { Field } from "../Field.js";
 import { ChainPack } from "../ChainPack.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { Card, collapseFrom } from "../common.js";
+import { Card, Tri, collapseFrom } from "../common.js";
 import { nSrcFormat } from "../../store/narrow/state.js";
 
 // DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
@@ -79,7 +79,7 @@ effect(() => {
 function DsdSection({ collapse, children }) {
   return html`
     <button type="button" class="subhead" data-sources="dsd" onClick=${collapse.onToggle}>
-      <span class="tri">${collapse.open ? "▾" : "▸"}</span> DSD Sources
+      ${Tri(collapse.open)} DSD Sources
     </button>
     ${collapse.open ? children : null}
   `;

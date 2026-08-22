@@ -162,6 +162,12 @@
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
+  /* Triangle marks — disclosure and dropdown carets. A size, not a font size:
+     the shape is a clip-path on a square box, so the box IS the ink and any
+     centering that centers the box centers the mark. */
+  --tri-sm: 0.28rem; /* narrowbar caret, beside --fs-body text */
+  --tri-md: 0.5rem; /* combobox trigger caret */
+  --tri-lg: 0.6rem; /* disclosure: card head, group header, selection mark */
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
   /* page gutter — the inset from --w-app to the content lane. EVERY chrome row
@@ -226,7 +232,6 @@
   --fs-title: 1.1rem; /* card-head.center — the largest heading in a card */
   --fs-brand: 1.25rem; /* the app wordmark. one use. */
   --fs-readout: 1.5rem; /* the big knob readout, the DSP mode switcher */
-  --fs-glyph: 1.9rem; /* disclosure triangles — a glyph size, not a type size */
   /* SVG text: px, because SVG user units do not follow the root rem */
   --fs-svg-sm: 9px; /* plot tick + trace labels */
   --fs-svg: 10px; /* diagram labels (angles, rooms, levels) */
