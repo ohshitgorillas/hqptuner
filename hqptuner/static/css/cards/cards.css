@@ -66,24 +66,8 @@ button.card-head {
 .card.closed > .card-head {
   color: var(--muted);
 }
-/* The disclosure mark: a clip-path triangle on a square box, so the box IS the
-   ink and the head's own centering lands it dead center. As a text glyph it
-   could not: U+25BE's ink sits 0.047em below the center of any line box that
-   holds it, so every box-centered caret in the app rendered low. Direction is
-   the class rather than a character, which also keeps the mark out of the
-   accessibility tree. */
-.card-head .tri,
-.subhead .tri {
-  flex: none;
-  width: var(--tri-lg);
-  height: var(--tri-lg);
-  background: var(--accent);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-}
-.card-head .tri.closed,
-.subhead .tri.closed {
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
+/* The head's disclosure mark is a shape, drawn in marks.css with every other
+   mark; the head's own gap and centering are all the placement it needs. */
 /* Inter-child rhythm comes from the container, for the same reason .tab-body
    carries its own gap: a sibling rule (`.card-body > .field + .field`) needs the
    PREVIOUS sibling to be a .field, so a field sitting after a .pack — Blocks /

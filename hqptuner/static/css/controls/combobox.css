@@ -30,22 +30,8 @@
   font-size: var(--fs-body);
   cursor: pointer;
 }
-/* The caret is a shape, not a glyph: a square box clipped to a triangle, so
-   the box IS the ink and the trigger's own align-items centers it exactly. A
-   text triangle cannot be centered that way, because its ink sits below the
-   center of whatever line box holds it. Smaller than the disclosure mark: this
-   one sits beside control text, not a heading. */
-.dd-box::after {
-  content: "";
-  flex: none;
-  width: var(--tri-md);
-  height: var(--tri-md);
-  background: var(--muted);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-}
-.dd-box[aria-expanded="true"]::after {
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-}
+/* The trigger's caret is a shape, drawn in marks.css off aria-expanded; the
+   trigger's own align-items is all the placement it needs. */
 .dd-box:disabled {
   opacity: var(--o-disabled);
   cursor: default;
@@ -167,20 +153,12 @@ button.dd-hdr {
   cursor: pointer;
   text-align: left;
 }
+/* Shape and direction in marks.css; the gutter it sits in is this header's. */
 button.dd-hdr::before {
-  content: "";
-  /* disclosure mark, same shape and size as .card-head .tri (cards.css) */
-  width: var(--tri-lg);
-  height: var(--tri-lg);
-  background: var(--muted);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
   position: absolute;
   left: var(--sp-2);
   top: 50%;
   transform: translateY(-50%);
-}
-button.dd-hdr[aria-expanded="false"]::before {
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 .dd-subhdr {
   top: var(--sp-5);
@@ -377,7 +355,6 @@ button.dd-hdr[aria-expanded="false"]::before {
    header caret does not, which is what separates the two marks: a header
    discloses downward, a selected row points at its own label. */
 .dd-opt[aria-selected="true"]::before {
-  content: "";
   position: absolute;
   /* The gutter's one mark column, shared with the headers' disclosure caret
      above: 24px does not hold two glyph columns without crowding the label,
@@ -386,11 +363,6 @@ button.dd-hdr[aria-expanded="false"]::before {
   left: var(--sp-2);
   top: 50%;
   transform: translateY(-50%);
-  /* The disclosure mark's shape and size, turned to point right. */
-  width: var(--tri-lg);
-  height: var(--tri-lg);
-  background: var(--accent);
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 .dd-opt[aria-disabled="true"] {
   opacity: var(--o-disabled);

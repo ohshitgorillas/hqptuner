@@ -18,9 +18,8 @@
 // the pending bar counts it, Discard undoes it, nothing reaches the daemon
 // until Apply.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../../lib/dom.js";
+import { html, wheelGuard, Tri } from "../../lib/dom.js";
 import { Field } from "../Field.js";
-import { Tri } from "../common.js";
 import { effective, effectivePipelines, isDirty } from "../../store/resolve.js";
 import { edit } from "../../store/actions.js";
 import { notesVisible } from "../../store/prefs.js";

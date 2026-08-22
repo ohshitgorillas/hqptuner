@@ -5,6 +5,15 @@ import htm from "htm";
 
 export const html = htm.bind(h);
 
+// The disclosure mark a collapsible head carries. Empty on purpose: marks.css
+// draws the triangle off the class, so the mark carries no text and stays out
+// of the accessibility tree, where the head's own state already reads.
+/**
+ * The disclosure mark, pointing down when open and right when closed.
+ * @param {boolean} open
+ */
+export const Tri = (open) => html`<span class=${open ? "tri" : "tri closed"}></span>`;
+
 // The mouse wheel never changes a control's value. The wheel is how you move
 // down the page, and a page this dense in sliders, number boxes and dropdowns
 // would otherwise hand out silent edits to anyone scrolling past one. The guard

@@ -18,7 +18,7 @@
 // component — it is a card whose head is a button, and keeping the two apart is
 // what let their surfaces drift until an open collapsible read as a darker card
 // than the card beside it.
-import { html } from "../lib/dom.js";
+import { html, Tri } from "../lib/dom.js";
 
 /**
  * @typedef {{ open: boolean, onToggle: () => void }} CollapseHandle
@@ -49,14 +49,6 @@ export function collapseFrom(auto, override) {
   const open = override.value === null ? auto.value : override.value;
   return { open, onToggle: () => (override.value = !open) };
 }
-
-// Empty on purpose: the shape is drawn in CSS off the class, so the mark
-// carries no text and stays out of the accessibility tree.
-/**
- * The disclosure mark a collapsible head carries, open or closed.
- * @param {boolean} open
- */
-export const Tri = (open) => html`<span class=${open ? "tri" : "tri closed"}></span>`;
 
 // The head bar. A collapsible card's head IS the toggle, so it renders as a
 // `<button>` carrying the open/closed triangle; every other card's head is a

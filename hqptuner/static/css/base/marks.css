@@ -1,0 +1,64 @@
+/* marks — every disclosure triangle and dropdown caret in the app, drawn in
+   one place the way typography.css draws every text role.
+
+   A mark is a square box carrying a clip-path, so the box IS the ink and any
+   rule that centers the box centers the mark. A text triangle cannot be
+   centered that way: U+25BE's ink sits 0.047em below the center of whatever
+   line box holds it, whatever the line-height, so a box-centered character
+   reads low. Carrying no character also keeps the mark out of the
+   accessibility tree, where the state it depicts is already spelled out by
+   aria-expanded, aria-selected or the card's own class.
+
+   This file owns shape, size, direction and color. PLACEMENT stays with the
+   component that owns the mark — a gutter offset means nothing away from the
+   gutter it is measured into. What a host owes its mark is centering: an
+   absolute mark takes top: 50% and a translate, and a mark sitting in flow
+   needs a flex row rather than a baseline (which is why .multi-btn and .dd-box
+   are inline-flex, and why the gap, not a space character, separates a label
+   from its caret — a whitespace-only text node between flex items is
+   dropped). */
+
+/* The mark: pointing down, disclosure size, accent. Everything below is a
+   departure from that. */
+.card-head .tri,
+.subhead .tri,
+.multi-caret,
+.dd-box::after,
+button.dd-hdr::before,
+.dd-opt[aria-selected="true"]::before {
+  content: "";
+  flex: none;
+  width: var(--tri-lg);
+  height: var(--tri-lg);
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+/* A caret sits beside control text and reports nothing: muted, and sized to
+   the text rather than to a heading. Accent on a control means staged edit and
+   nothing else. */
+.multi-caret,
+.dd-box::after,
+button.dd-hdr::before {
+  background: var(--muted);
+}
+.dd-box::after {
+  width: var(--tri-md);
+  height: var(--tri-md);
+}
+.multi-caret {
+  width: var(--tri-sm);
+  height: var(--tri-sm);
+}
+/* Pointing right: a disclosure that is closed, and the mark on the option in
+   force, which points at its own label rather than disclosing anything. */
+.card-head .tri.closed,
+.subhead .tri.closed,
+button.dd-hdr[aria-expanded="false"]::before,
+.dd-opt[aria-selected="true"]::before {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+/* Pointing up: the one mark that reverses rather than turns, because its pop
+   is open above nothing and the trigger has to say so. */
+.dd-box[aria-expanded="true"]::after {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
