@@ -5,7 +5,7 @@
 
 /**
  * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
- *   closedLabel?: string, group?: string, subgroup?: string | null,
+ *   closedLabel?: string, rec?: boolean, group?: string, subgroup?: string | null,
  *   groupBlurb?: string, subgroupBlurb?: string }} RenderOption
  *   One row as it reaches the combobox. Wider than either shared type: Field.js
  *   forwards a schema literal's SchemaOption list unchanged when the entry

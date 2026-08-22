@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Simplified names for the DSD source PCM chain.** The Noise filter and the renamed Decimation filter (SDM to PCM conversion) group into plain-English families under the Simplified option style, and options the manual recommends carry an accent check with a "✓ = recommended" legend.
+
 - **The two DSD source controls honor the Option style switch.** Integrator becomes Reconstruction filter and offers Conventional, Weighted averaging and Simple averaging families in Simplified; SDM → SDM becomes Source bandwidth and lists three readable rows with no grouping. The signal path rows follow the rename. Source bandwidth drops its per-option manual sentence in Simplified, where the row already carries that wording, and keeps it in Standard.
 
 - **The two-stage oversampling note appears on the SDM filter dropdowns only.** Fifteen filters run their oversampling in two stages, with a minimum 16x intermediate rate, when they feed a sigma-delta modulator. That sentence now renders under the SDM 1x and Nx filter selectors, where it applies, and no longer under the PCM pair, where it does not.
