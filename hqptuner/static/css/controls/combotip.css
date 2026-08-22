@@ -1,0 +1,59 @@
+/* The combobox pop's hover tip (components/controls/Combobox.js TipPop): the
+   card that sits beside the highlighted row carrying the option's raw engine
+   name, its prose and its facets. Split out of combobox.css, which owns the
+   trigger, the pop and its rows; the tip is a surface of its own, placed
+   outside the pop and painted over it. Loaded straight after combobox.css so
+   the two keep their old cascade order. */
+.dd-tip {
+  z-index: 41;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  font-size: var(--fs-label);
+  color: var(--fg);
+  box-shadow:
+    var(--edge-light),
+    var(--shadow-pop);
+  display: grid;
+  gap: var(--sp-2);
+}
+/* Raw engine name heading the tip — only rendered while Simplified display
+   hides that name from the row itself (components/binder.js tipsFor). Same
+   voice as the tip prose under it — size and color inherit from .dd-tip;
+   only the weight marks it as the card's title. */
+.dd-tip-name {
+  font-weight: var(--fw-semibold);
+}
+/* Facet block under the prose: label/value rows in the narrow bar's own terms,
+   then boolean chips. The hairline belongs to the boundary with the prose, so
+   it only paints when a description precedes the rows or chips. */
+.dd-tip-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
+}
+.dd-tip-desc + .dd-tip-rows,
+.dd-tip-desc + .dd-tip-chips {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-2);
+}
+.dd-tip-key {
+  color: var(--fg-2);
+}
+.dd-tip-val {
+  color: var(--fg);
+}
+.dd-tip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.dd-tip-chip {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--fg-2);
+}

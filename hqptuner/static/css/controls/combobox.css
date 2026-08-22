@@ -107,11 +107,19 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  /* The left padding is the marker gutter, and every option row reserves it
+     whether or not it is the selected one — the gutter is what holds the
+     selection mark in a column of its own, and a row that reserved it only
+     while selected would shift its own text as the selection moved. In the
+     grouped lists it doubles as the indent that puts a row's text on its own
+     header's text edge. */
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
   border-radius: var(--r-sm);
   font-size: var(--fs-body);
   white-space: nowrap;
   cursor: pointer;
+  /* containing block for the selection mark, which is absolute in the gutter */
+  position: relative;
 }
 /* Plain-names group containers and headers (Simplified option style): a family
    container (.dd-grp) wraps its header, bare rows and variant containers; a
@@ -210,9 +218,6 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-vgrp {
   display: grid;
   grid-template-columns: minmax(max-content, 1fr);
-}
-.dd-grp .dd-opt {
-  padding-left: calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
 }
 /* Per-row Recommended check (Simplified plain-names dropdowns): the manual's
    Recommended flag as a mark beside the name. Part of the name like the
@@ -359,63 +364,34 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-opt.hl {
   background: var(--surface-card);
 }
-.dd-opt[aria-selected="true"] {
-  font-weight: var(--fw-semibold);
+/* The selection mark: the option currently in force, called out in the gutter
+   every row reserves. Drawn as a pseudo-element off aria-selected exactly as
+   the disclosure caret is drawn off aria-expanded, so it stays out of the
+   accessibility tree — the row's own aria-selected already says this, and a
+   labelled glyph would announce it twice. Absolute, so a row's text edge is
+   the same selected or not and no row reflows as the selection moves. It
+   carries the row on its own: weight is not also spent on the selected row,
+   which is the group headers' mark. Accent by owner's spec, like the
+   Recommended check and the apodizing badge beside it. Sits one step right of
+   the header caret's column and at a fraction of its size, so the two
+   triangles read as different marks rather than one at two depths. */
+.dd-opt[aria-selected="true"]::before {
+  content: "▸";
+  position: absolute;
+  /* The gutter's one mark column, shared with the headers' disclosure caret
+     above: 24px does not hold two glyph columns without crowding the label,
+     and the two marks never appear on the same row — a header is never
+     selectable and a row never discloses. */
+  left: var(--sp-2);
+  top: 50%;
+  transform: translateY(-50%);
+  line-height: 1;
+  color: var(--accent);
+  /* The glyph role, the same one the disclosure caret spends: this character's
+     ink is a fraction of its em, so a type-scale size renders it as a speck. */
+  font-size: var(--fs-glyph);
 }
 .dd-opt[aria-disabled="true"] {
   opacity: var(--o-disabled);
   cursor: default;
-}
-.dd-tip {
-  z-index: 41;
-  background: var(--surface-raised);
-  border: 1px solid var(--surface-raised);
-  border-radius: var(--r-md);
-  padding: var(--sp-2);
-  font-size: var(--fs-label);
-  color: var(--fg);
-  box-shadow:
-    var(--edge-light),
-    var(--shadow-pop);
-  display: grid;
-  gap: var(--sp-2);
-}
-/* Raw engine name heading the tip — only rendered while Simplified display
-   hides that name from the row itself (components/binder.js tipsFor). Same
-   voice as the tip prose under it — size and color inherit from .dd-tip;
-   only the weight marks it as the card's title. */
-.dd-tip-name {
-  font-weight: var(--fw-semibold);
-}
-/* Facet block under the prose: label/value rows in the narrow bar's own terms,
-   then boolean chips. The hairline belongs to the boundary with the prose, so
-   it only paints when a description precedes the rows or chips. */
-.dd-tip-rows {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--sp-1) var(--sp-2);
-  font-size: var(--fs-caption);
-}
-.dd-tip-desc + .dd-tip-rows,
-.dd-tip-desc + .dd-tip-chips {
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-2);
-}
-.dd-tip-key {
-  color: var(--fg-2);
-}
-.dd-tip-val {
-  color: var(--fg);
-}
-.dd-tip-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
-}
-.dd-tip-chip {
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 0 var(--sp-1);
-  font-size: var(--fs-caption);
-  color: var(--fg-2);
 }

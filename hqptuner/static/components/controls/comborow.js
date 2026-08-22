@@ -42,9 +42,9 @@ const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — 
 
 const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
 // The glyphs as baked outlines, not font text: where the glyph was a <text>
-// node its position depended on which font the viewer's browser resolved, its
-// weight (a selected row is semibold) and the engine's dominant-baseline
-// mapping — different in every environment, so no anchor held everywhere.
+// node its position depended on which font the viewer's browser resolved, the
+// weight it rendered at and the engine's dominant-baseline mapping — different
+// in every environment, so no anchor held everywhere.
 // Outlines are Inter 400's own "A" and "onehalf" (fonts/inter-400.woff2,
 // extracted with fontTools), each ink bounding box centered on the circle at
 // (10,10) in viewBox units, per-glyph ink height 10 (A) and 10.75 (the
