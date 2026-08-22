@@ -218,10 +218,10 @@ test("test_dsd_source_handling_for_pcm_output_carries_the_noise_filter", async (
   assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Noise filter<"));
 });
 
-test("test_dsd_source_handling_for_pcm_output_carries_the_sdm_to_pcm_conversion", async () => {
+test("test_dsd_source_handling_for_pcm_output_carries_the_decimation_filter", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>SDM → PCM<"));
+  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Decimation filter<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_the_reconstruction_filter", async () => {
