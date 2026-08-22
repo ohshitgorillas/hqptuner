@@ -325,8 +325,15 @@ test("test_a_true_direct_sdm_selects_direct", async () => {
   assert.equal(activeSeg(await dsdPlaybackControl(true)), "Direct");
 });
 
+// Enabling direct_sdm is guarded: from any other volume state the click raises
+// the warn question (directsdmwarn.test.js's subject) and stages nothing, so
+// the immediate-staging case starts from the one baseline that needs no
+// confirmation — volume already pinned at fixed -3 dB. Disabling is never
+// guarded, so the "0" case below starts plain.
 test("test_choosing_direct_stages_the_string_one", async () => {
-  const w = await reset({ cfg: { ...CHAINS, direct_sdm: false } });
+  const w = await reset({
+    cfg: { ...CHAINS, direct_sdm: false, fixed_volume_enabled: true, fixed_volume: "-3" },
+  });
   nSrcFormat.value = "both";
   chooseSegOption("Direct");
   await quiesce(w);
