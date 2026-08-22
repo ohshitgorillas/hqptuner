@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox.
+
 - **Simplified names for the DSD source PCM chain.** The Noise filter and the renamed Decimation filter (SDM to PCM conversion) group into plain-English families under the Simplified option style, and options the manual recommends carry an accent check with a "✓ = recommended" legend.
 
 - **The two DSD source controls honor the Option style switch.** Integrator becomes Reconstruction filter and offers Conventional, Weighted averaging and Simple averaging families in Simplified; SDM → SDM becomes Source bandwidth and lists three readable rows with no grouping. The signal path rows follow the rename. Source bandwidth drops its per-option manual sentence in Simplified, where the row already carries that wording, and keeps it in Standard.
