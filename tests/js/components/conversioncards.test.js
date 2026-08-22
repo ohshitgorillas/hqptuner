@@ -33,7 +33,7 @@ import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narro
 import { stagingWire, quiesce } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 import { SUBHEADS, subsection, subheadsIn, vnodeText } from "../support/chainsubsections.js";
-import { labeled } from "../support/markup.js";
+import { classes, elements, labeled, text } from "../support/markup.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -265,13 +265,17 @@ async function dsdPlaybackControl(value) {
   return next < 0 ? frag.slice(from) : frag.slice(from, next);
 }
 
+// The strip's option buttons, matched on whole class TOKENS — "seg" the token,
+// never "seg" the substring — so a behavior-preserving change to the class list
+// (an extra token, a reorder) changes nothing here.
 /** @param {string} s */
-const segLabels = (s) =>
-  [...s.matchAll(/<button[^>]*class="seg[^"]*"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+const segButtons = (s) => elements(s).filter((el) => el.name === "button" && classes(el).includes("seg"));
+/** @param {string} s */
+const segLabels = (s) => segButtons(s).map((el) => text(el));
 /** @param {string} s */
 const activeSeg = (s) => {
-  const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(s);
-  return m ? m[1].trim() : null;
+  const hit = segButtons(s).find((el) => classes(el).includes("active"));
+  return hit === undefined ? null : text(hit);
 };
 
 // There is no DOM here and preact-render-to-string never fires a handler, so an
