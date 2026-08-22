@@ -189,7 +189,7 @@ function conversionStages(st, md) {
   if (dsdIn) {
     return [
       { label: "Noise filter", value: configLabel("noise_filter") },
-      { label: "SDM → PCM", value: configLabel("pcm_conversion") },
+      { label: "Decimation filter", value: configLabel("pcm_conversion") },
       { label: "Filter", value: st.active_filter },
       { label: "Dither", value: st.active_shaper },
     ];

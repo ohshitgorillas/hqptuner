@@ -715,10 +715,13 @@ export const schema = {
     optionsFrom: "config",
     compact: "md",
     desc: "config",
+    // Grouped overlay, keeping every manual sentence — the leaves compress the
+    // manual's wording rather than repeat it, so no `plainQuiet` here.
+    plainNames: "noise_filter",
   },
   pcm_conversion: {
-    label: "SDM → PCM",
-    sublabel: "Conversion algorithm",
+    label: "Decimation filter",
+    sublabel: "SDM → PCM conversion",
     group: "dsp",
     note: "pdm_conversion",
     widget: "dropdown",
@@ -727,6 +730,7 @@ export const schema = {
     optionsFrom: "config",
     compact: "md",
     desc: "config",
+    plainNames: "pcm_conversion",
   },
 
   // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"

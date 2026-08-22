@@ -80,6 +80,17 @@ function Apod({ kind }) {
   </span>`;
 }
 
+// The manual's Recommended flag beside a Simplified row's name — `rec` rides
+// in from the plain-names decoration and never exists in Standard mode. Inert
+// like the apodizing mark it sits beside: part of the name, not a control.
+/**
+ * @param {{ on: boolean | undefined }} props
+ */
+function Rec({ on }) {
+  if (!on) return null;
+  return html`<span class="dd-rec" role="img" aria-label="Recommended">✓</span>`;
+}
+
 // One option in the pop. `row` is the shared context the whole list draws from:
 // which index is highlighted and which is selected, the id prefix the button's
 // aria-activedescendant points at, the favorite wiring, and the two writers.
@@ -104,6 +115,7 @@ function OptionRow({ o, i, apod, row }) {
       onClick=${() => commit(o)}
     >
       ${rowText(o)}
+      <${Rec} on=${o.rec} />
       <${Apod} kind=${apod} />
       <${Tier} o=${o} row=${row} />
       ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}</span>`}

@@ -250,6 +250,14 @@ export function Combobox(props) {
     </button>
     <div class="dd-pop" role="listbox" hidden=${!open} ref=${popRef} title="">
       ${renderRows(rows, row)}
+      ${
+        // The Recommended legend rides only where a check is on screen to
+        // explain: `rec` exists only under Simplified decoration, so Standard
+        // pops never grow the footer.
+        rows.some((r) => "o" in r && r.o.rec)
+          ? html`<div class="dd-legend t-caption" role="presentation">✓ = recommended</div>`
+          : null
+      }
     </div>
     ${tip ? html`<${TipPop} tip=${tip} tipRef=${tipRef} />` : null}
   `;
