@@ -1,12 +1,12 @@
 {
-  "_scope": "The GET /config form's sdm_conversion select (3 options), in form order. Raw name -> row text and closed-dropdown title. Flat: no family, no variant, no grouping — three options do not need headers, and the renderer puts an entry without a `family` at the top level. `leaf` is the row text, taken from the manual's own option wording with the trailing period dropped; `short` is the closed title, trimmed to the part that distinguishes the option. Short titles are unique across the list.",
+  "_scope": "The GET /config form's sdm_conversion select (3 options), in form order. Raw name -> row text and closed-dropdown title. Flat: no family, no variant, no grouping — three options do not need headers, and the renderer puts an entry without a `family` at the top level. `leaf` is the row text, the manual's own name for the option; `short` is the closed title. The two differ only where the manual's name carries a qualifier the closed control has no room for. Short titles are unique across the list. The control's own feature description is not here: it is the settings.json tooltip, rendered once under the whole dropdown.",
   "sdm_conversion": {
     "wide": {
-      "leaf": "Wide bandwidth signal",
+      "leaf": "Wide",
       "short": "Wide"
     },
     "narrow": {
-      "leaf": "Narrow bandwidth signal",
+      "leaf": "Narrow",
       "short": "Narrow"
     },
     "XFi": {

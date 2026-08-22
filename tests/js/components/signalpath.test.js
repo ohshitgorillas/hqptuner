@@ -165,6 +165,14 @@ function chips(out) {
 /** @param {string} out */
 const labels = (out) => [...out.matchAll(/<span class="chip-label">([^<]*)<\/span>/g)].map((m) => m[1]);
 
+// The VALUES a panel renders, in render order — the handle a case uses when the
+// behavior is which raw engine name a stage carries rather than what the stage
+// is called. Chip labels are owner-owned copy (docs/testing.md rule 9) and the
+// chips carry no key in the DOM, so a label assertion is kept only where naming
+// the stage IS the behavior.
+/** @param {string} out */
+const values = (out) => [...out.matchAll(/<span class="chip-val">([^<]*)<\/span>/g)].map((m) => m[1]);
+
 // SSR escapes the entities in a chip label, so "SDM → PCM" arrives encoded.
 /** @param {string} s */
 const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
@@ -376,12 +384,12 @@ test("test_a_dsd_source_into_a_dsd_output_shows_no_filter_chip", () => {
   assert.equal(has(panel(DSD_TO_SDM), "Filter"), false);
 });
 
-test("test_a_dsd_source_into_a_dsd_output_shows_the_reconstruction_filter", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } }), "Reconstruction filter"), "FIR-bw");
+test("test_a_dsd_source_into_a_dsd_output_shows_the_integrators_engine_name", () => {
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } })).includes("FIR-bw"), true);
 });
 
-test("test_a_dsd_source_into_a_dsd_output_shows_the_source_bandwidth", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } }), "Source bandwidth"), "XFi");
+test("test_a_dsd_source_into_a_dsd_output_shows_the_sdm_conversions_engine_name", () => {
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } })).includes("XFi"), true);
 });
 
 test("test_the_remodulation_chain_runs_source_reconstruction_bandwidth_output", () => {
@@ -395,11 +403,11 @@ test("test_the_remodulation_chain_runs_source_reconstruction_bandwidth_output", 
 
 test("test_a_dsd_source_is_recognized_from_the_metadata_sdm_flag_alone", () => {
   const out = panel({ ...DSD_TO_SDM, metadata: { sdm: "1" } });
-  assert.equal(has(out, "Reconstruction filter"), true);
+  assert.equal(values(out).includes("IIR"), true);
 });
 
 test("test_an_unmatched_conversion_value_falls_back_to_the_raw_value", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } }), "Source bandwidth"), "9");
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } })).includes("9"), true);
 });
 
 // --- DirectSDM ---------------------------------------------------------------
