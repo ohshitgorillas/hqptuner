@@ -39,7 +39,7 @@ const pipelinesCardOpen = signal(true);
 // here are content-sized via .mtx-global, native select and Combobox alike.
 function GlobalCard() {
   return html`
-    <${Card} title="General" subtitle=${noteFor("matrix_enabled")}>
+    <${Card} id="general" title="General" subtitle=${noteFor("matrix_enabled")}>
       <${BypassNote} on=${true} advisory=${true} />
       <div class="mtx-global">
         <${Field} k="matrix_enabled" />
@@ -171,7 +171,7 @@ function HeadphoneEqCard() {
     if (open) clearLibrarySelection(); // collapsing drops selection + preview — no residue
   };
   return html`
-    <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }}>
+    <${Card} id="headphone-auto-eq" title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }}>
       <${ImportPanel} rows=${effectivePipelines.value} />
     <//>
   `;
@@ -282,6 +282,7 @@ function PipelinesCard() {
     : null;
   return html`
     <${Card}
+      id="pipelines"
       title=${html`Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>`}
       collapse=${{ open, onToggle: () => (pipelinesCardOpen.value = !open) }}
     >
@@ -358,7 +359,7 @@ export function MatrixTab() {
       <${GlobalCard} />
       <div class="card-stack">
         <${ProfileCard} />
-        <${Card} title="Channels">
+        <${Card} id="channels" title="Channels">
           <div class="mtx-global">
             <${Field} k="channels" />
           </div>

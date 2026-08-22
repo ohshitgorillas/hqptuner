@@ -71,6 +71,7 @@ function LiveSwitch() {
   return html`
     <button
       type="button"
+      data-testid="live-toggle"
       class="live-toggle ${on ? "on" : ""}"
       aria-pressed=${on}
       title=${on ? "Leave LIVE and go back to the tabs" : "Show only the settings the engine can change right now"}

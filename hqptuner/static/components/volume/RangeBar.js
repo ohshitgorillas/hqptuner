@@ -348,7 +348,7 @@ export function VolumeRangeBar() {
   const bub = active.value;
 
   return html`
-    <${Card} title="Range" cardClass=${`vr-card ${dirty ? "dirty" : ""}`} hint=${reason}>
+    <${Card} id="volume-range" title="Range" cardClass=${`vr-card ${dirty ? "dirty" : ""}`} hint=${reason}>
         <div class="vr-track ${reason ? "disabled" : ""}">
           <!-- the span the user will actually be able to reach at runtime -->
           <div class="vr-fill" style=${`left:${pct(min)}%;right:${100 - pct(max)}%`}></div>

@@ -21,7 +21,15 @@ import { compileRows } from "./binaural/compile.js";
  *   The tab's private signals, as planEqImport reads them (see the block above).
  * @typedef {{ preamp: string | null, stages: MatrixStage[], skipped: string[], addition: string }} Cut
  *   The parse result plus the serialized chain the filters became.
- * @typedef {{ rows: PipelineRow[] | null, targets: number[], note: string }} ImportPlan
+ * @typedef {object} ImportPlan
+ * @property {PipelineRow[] | null} rows the new pipeline set, null when there is nothing to do
+ * @property {number[]} targets the row indexes the EQ landed on, empty on a block path
+ * @property {string} note the user-facing sentence, which nothing but the reader depends on
+ * @property {string} route which planner ran: block | structural | rows | none
+ * @property {number} filters how many filters the text yielded
+ * @property {string | null} preamp the preamp the text carried, null when it carried none
+ * @property {string[]} skipped the lines that were not usable, in the order they were met
+ * @property {boolean} rebuilt whether a stale recognized block was rebuilt on the way in
  *   Where the filters land: the new row set (null = nothing to do), the rows the
  *   EQ went onto (empty on a block path, which owns its whole block), and the note.
  */
@@ -119,6 +127,22 @@ export function parseEqText(text) {
 // The note suffixes both paths share. `cut` below is the parse result plus the
 // serialized chain the filters became — everything both planners need.
 const skipNote = (/** @type {string[]} */ skipped) => (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
+
+// The state half of a plan — everything the note is about to put into words.
+// Spread beside `rows`, `targets` and `note` so the sentence stays the reader's
+// and nothing else has to read it back out.
+/**
+ * @param {string} route
+ * @param {Cut} cut
+ * @param {boolean} [rebuilt]
+ */
+const planFacts = (route, cut, rebuilt = false) => ({
+  route,
+  filters: cut.stages.length,
+  preamp: cut.preamp,
+  skipped: cut.skipped,
+  rebuilt,
+});
 const preampNote = (/** @type {string | null} */ preamp, /** @type {string} */ tail) =>
   preamp !== null ? `, preamp ${preamp} dB${tail}` : "";
 
@@ -142,6 +166,7 @@ function blockPlan(rows, opts, cut) {
   return {
     rows: applyEqToBlock(rows, block, fit, { addition: cut.addition, preamp: cut.preamp, replace: opts.replace }),
     targets: [],
+    ...planFacts("block", cut, !!block.stale),
     note:
       `${cut.stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
       preampNote(cut.preamp, "") +
@@ -191,6 +216,7 @@ function rowPlan(rows, target, opts, cut) {
   return {
     rows: rows.map((r, i) => (targets.has(i) ? eqRow(r, opts, cut) : r)),
     targets: [...targets],
+    ...planFacts("rows", cut),
     note:
       `${cut.stages.length} filter(s) → pipeline ${[...targets].map((i) => i + 1).join(" + ")}` +
       preampNote(cut.preamp, " → gain") +
@@ -236,6 +262,7 @@ function structuralPlan(rows, opts, cut) {
   return {
     rows: [...next, ...rows.slice(16)],
     targets: [],
+    ...planFacts("structural", cut),
     note:
       `${cut.stages.length} filter(s) → structural crossfeed block (pipelines 1–16)` +
       preampNote(cut.preamp, "") +
@@ -258,6 +285,11 @@ export function planEqImport(rows, targetIndex, opts) {
     return {
       rows: null,
       targets: [],
+      route: "none",
+      filters: 0,
+      preamp,
+      skipped,
+      rebuilt: false,
       note: `no filters found${skipped.length ? ` — ${skipped.length} line(s) skipped` : ""}`,
     };
   }

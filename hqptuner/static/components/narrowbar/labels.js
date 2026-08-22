@@ -27,7 +27,30 @@ import { GENRES, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
  *   would produce, which is what the count chips are counted against
  *   (store/narrow/state.js buildSel names the full set).
  * @typedef {{ value: (string | number)[] }} MultiSignal
+ *
+ * @typedef {object} FacetSummary
+ *   What a facet's button reports, before any of it is put into words. Every
+ *   `*Label` below is this plus a sentence: the summary is the behavior, the
+ *   sentence is copy the owner may reword at will.
+ * @property {number} count how many picks are actually narrowing
+ * @property {string | null} single the wire value of the only pick, when there is exactly one
+ * @property {string | null} mode the combine mode, named only once a second pick makes it bite
+ * @property {string[]} extra codes for clauses the count cannot carry
  */
+
+// The state half of a facet button, shared by every facet that has no clause of
+// its own beyond its count.
+/**
+ * @param {(string | number)[]} sel
+ * @param {string | null} mode
+ * @returns {FacetSummary}
+ */
+const summarize = (sel, mode) => ({
+  count: sel.length,
+  single: sel.length === 1 ? String(sel[0]) : null,
+  mode: sel.length > 1 ? mode : null,
+  extra: [],
+});
 
 /**
  * Toggles a value in a multi-select signal: adds it if absent, removes it if present.
@@ -46,14 +69,20 @@ export function toggleIn(sig, v) {
 const withMode = (/** @type {string} */ text, /** @type {string} */ mode) => `${text} · ${mode.toUpperCase()}`;
 
 /**
+ * What the focus dropdown's button reports: how many focuses narrow the list, and the mode combining them.
+ * @returns {FacetSummary}
+ */
+export const focusSummary = () => summarize(nFocus.value, nFocusMode.value);
+
+/**
  * Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses" with its mode.
  * @returns {string}
  */
 export function focusLabel() {
-  const sel = nFocus.value;
-  if (!sel.length) return "Any focus";
-  if (sel.length === 1) return String(oneLabel(FOCUS, sel[0], String(sel[0])));
-  return withMode(`${sel.length} focuses`, nFocusMode.value);
+  const s = focusSummary();
+  if (!s.count) return "Any focus";
+  if (s.single != null) return String(oneLabel(FOCUS, s.single, s.single));
+  return withMode(`${s.count} focuses`, String(s.mode));
 }
 
 // Genre's "any" tag outranks the combine mode (store/narrow/match.js): a filter
@@ -63,18 +92,27 @@ export function focusLabel() {
 // Under OR the picks still widen the list, so nothing is inert there.
 const anyGenreDominates = () => nGenreMode.value === "and" && nGenre.value.includes("any");
 
+// The inert picks are not counted: the button reports what is actually
+// narrowing, which under a dominating "any" is that pick alone.
+/**
+ * What the genre dropdown's button reports. A dominating "any" collapses to that
+ * one pick and carries the `any-dominates` code.
+ * @returns {FacetSummary}
+ */
+export function genreSummary() {
+  if (anyGenreDominates()) return { count: 1, single: "any", mode: null, extra: ["any-dominates"] };
+  return summarize(nGenre.value, nGenreMode.value);
+}
+
 /**
  * Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres" with its mode.
  * @returns {string}
  */
 export function genreLabel() {
-  const sel = nGenre.value;
-  if (!sel.length) return "Any genre";
-  // The inert picks are not counted: the button reports what is actually
-  // narrowing, which under a dominating "any" is that pick alone.
-  if (anyGenreDominates()) return String(oneLabel(GENRES, "any", "any"));
-  if (sel.length === 1) return String(oneLabel(GENRES, sel[0], String(sel[0])));
-  return withMode(`${sel.length} genres`, nGenreMode.value);
+  const s = genreSummary();
+  if (!s.count) return "Any genre";
+  if (s.single != null) return String(oneLabel(GENRES, s.single, s.single));
+  return withMode(`${s.count} genres`, String(s.mode));
 }
 
 // Summary label for a multi-select carrying no combine mode. Genre and focus
@@ -82,15 +120,15 @@ export function genreLabel() {
 // phase and length have no mode to name.
 /**
  * @param {import("./facet-data.js").FacetItems} items the facet's option table
- * @param {(string | number)[]} sel its picked values
+ * @param {FacetSummary} s its summary
  * @param {string} idle what an empty selection reads as
  * @param {string} plural the noun a count is reported in
  * @returns {string}
  */
-const countLabel = (items, sel, idle, plural) => {
-  if (!sel.length) return idle;
-  if (sel.length === 1) return String(oneLabel(items, sel[0], String(sel[0])));
-  return `${sel.length} ${plural}`;
+const countLabel = (items, s, idle, plural) => {
+  if (!s.count) return idle;
+  if (s.single != null) return String(oneLabel(items, s.single, s.single));
+  return `${s.count} ${plural}`;
 };
 
 // Phase counts NAMED phases only. "No phase" is a pick about the absence of a
@@ -104,18 +142,36 @@ const countLabel = (items, sel, idle, plural) => {
  * @returns {string}
  */
 export function phaseLabel() {
+  const s = phaseSummary();
+  const named = countLabel(PHASES, s, "Any phase", "phases");
+  if (!s.extra.includes("no-phase")) return named;
+  return s.count ? `${named} + no phase` : "No phase";
+}
+
+/**
+ * What the phase dropdown's button reports. Counts named phases only; a picked
+ * "No phase" is carried as the `no-phase` code rather than as one more phase.
+ * @returns {FacetSummary}
+ */
+export function phaseSummary() {
   const sel = nPhase.value;
   const named = sel.filter((/** @type {string | number} */ v) => v !== "");
-  if (named.length === sel.length) return countLabel(PHASES, named, "Any phase", "phases");
-  if (!named.length) return "No phase";
-  return `${countLabel(PHASES, named, "Any phase", "phases")} + no phase`;
+  const s = summarize(named, null);
+  if (named.length !== sel.length) s.extra.push("no-phase");
+  return s;
 }
+
+/**
+ * What the length dropdown's button reports: how many lengths narrow the list.
+ * @returns {FacetSummary}
+ */
+export const lengthSummary = () => summarize(nLength.value, null);
 
 /**
  * Summary label for the length dropdown's button: "Any length", the one picked length, or "N lengths".
  * @returns {string}
  */
-export const lengthLabel = () => countLabel(LENGTHS, nLength.value, "Any length", "lengths");
+export const lengthLabel = () => countLabel(LENGTHS, lengthSummary(), "Any length", "lengths");
 
 /**
  * Whether a genre row is inert under the live selection — an AND selection
@@ -133,13 +189,30 @@ export const genreRowOff = (v) => v !== "any" && anyGenreDominates();
  * explicit override highlights the button.
  */
 export function rateLabel() {
-  const parts = [];
-  if (effHideLimited.value) parts.push("No rate-limited");
-  if (nDownsafeOnly.value) parts.push("Downsampling");
-  if (nOddRateOnly.value) parts.push("Uncommon rates");
-  if (!parts.length) return "Rate change";
-  if (parts.length === 1) return parts[0];
-  return `Rate: ${parts.length} rules`;
+  const rules = rateSummary();
+  if (!rules.length) return "Rate change";
+  if (rules.length === 1) return RATE_RULE_LABELS[rules[0]];
+  return `Rate: ${rules.length} rules`;
+}
+
+/** @type {Record<string, string>} */
+const RATE_RULE_LABELS = {
+  "hide-limited": "No rate-limited",
+  downsafe: "Downsampling",
+  "odd-rates": "Uncommon rates",
+};
+
+/**
+ * Which rate-change rules are engaged, as their own codes, in the order the
+ * button names them.
+ * @returns {string[]}
+ */
+export function rateSummary() {
+  const rules = [];
+  if (effHideLimited.value) rules.push("hide-limited");
+  if (nDownsafeOnly.value) rules.push("downsafe");
+  if (nOddRateOnly.value) rules.push("odd-rates");
+  return rules;
 }
 
 /** Looks a value up in a facet's option table and returns its label, or `fallback` if no row matches. */

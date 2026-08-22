@@ -6,7 +6,14 @@ import { filterFacets } from "../../store/narrow/facets.js";
 import { GENRES, FOCUS, PHASES, LENGTHS, RATIOS } from "./facet-data.js";
 import { oneLabel } from "./labels.js";
 
-/** @typedef {import("../../store/narrow/facets.js").FilterFacet} FilterFacet */
+/**
+ * @typedef {import("../../store/narrow/facets.js").FilterFacet} FilterFacet
+ *
+ * @typedef {[string, string, string, string[]]} FacetRow
+ *   One row of a filter's hover tip: the facet's key, its heading, the labelled
+ *   value the reader sees, and the raw facet codes that value was built from.
+ *   Key and codes are the facts; heading and value are words.
+ */
 
 // oneLabel's return is as wide as its option tables (string | number | null);
 // every value this module looks up labels as a string.
@@ -42,21 +49,36 @@ function ratioValue(f) {
   return f.ratio == null ? "" : ratioLbl(f.ratio);
 }
 
-// Rows appear only for facets that hold a value, in the narrow bar's own order.
+// The same facts as `ratioValue`, before they are labelled and joined.
 /**
  * @param {FilterFacet} f
- * @returns {[string, string][]}
+ * @returns {string[]}
+ */
+function ratioCodes(f) {
+  if (f.ratioPcm != null || f.ratioSdm != null) {
+    return [f.ratioPcm, f.ratioSdm].filter((v) => v != null).map(String);
+  }
+  return f.ratio == null ? [] : [String(f.ratio)];
+}
+
+// Rows appear only for facets that hold a value, in the narrow bar's own order.
+// Each row leads with the facet's own key and ends with the raw facet codes it
+// was built from, so a reader of the tip can be asked which facets it shows and
+// what they hold without matching on either the heading or the labelled value.
+/**
+ * @param {FilterFacet} f
+ * @returns {FacetRow[]}
  */
 function facetRows(f) {
-  /** @type {[string, string][]} */
+  /** @type {FacetRow[]} */
   const rows = [];
-  if (f.quality != null) rows.push(["Quality", `${f.quality}/5`]);
-  if (f.genre.length) rows.push(["Genre", f.genre.map((g) => lbl(GENRES, g)).join(", ")]);
-  if (f.focus.length) rows.push(["Focus", f.focus.map((v) => lbl(FOCUS, v)).join(", ")]);
-  if (f.phase) rows.push(["Phase", lbl(PHASES, f.phase)]);
-  if (f.length) rows.push(["Length", lbl(LENGTHS, f.length)]);
+  if (f.quality != null) rows.push(["quality", "Quality", `${f.quality}/5`, [String(f.quality)]]);
+  if (f.genre.length) rows.push(["genre", "Genre", f.genre.map((g) => lbl(GENRES, g)).join(", "), f.genre.map(String)]);
+  if (f.focus.length) rows.push(["focus", "Focus", f.focus.map((v) => lbl(FOCUS, v)).join(", "), f.focus.map(String)]);
+  if (f.phase) rows.push(["phase", "Phase", lbl(PHASES, f.phase), [String(f.phase)]]);
+  if (f.length) rows.push(["length", "Length", lbl(LENGTHS, f.length), [String(f.length)]]);
   const ratio = ratioValue(f);
-  if (ratio) rows.push(["Ratio", ratio]);
+  if (ratio) rows.push(["ratio", "Ratio", ratio, ratioCodes(f)]);
   return rows;
 }
 
@@ -64,14 +86,15 @@ function facetRows(f) {
  * Facet rows + boolean chips for one filter's hover tip; empty when the name
  * is unknown to the facet map.
  * @param {string} name
- * @returns {{ rows: [string, string][], chips: string[] }}
+ * @returns {{ rows: FacetRow[], chips: [string, string][] }}
  */
 export function filterTipFacets(name) {
   const f = filterFacets.value[name];
   if (!f) return { rows: [], chips: [] };
+  /** @type {[string, string][]} */
   const chips = [];
-  if (f.apodizingHalf) chips.push("Half apodizing");
-  else if (f.apodizing) chips.push("Apodizing");
-  if (f.upsampleOnly) chips.push("Upsample only");
+  if (f.apodizingHalf) chips.push(["half-apodizing", "Half apodizing"]);
+  else if (f.apodizing) chips.push(["apodizing", "Apodizing"]);
+  if (f.upsampleOnly) chips.push(["upsample-only", "Upsample only"]);
   return { rows: facetRows(f), chips };
 }

@@ -74,7 +74,7 @@ async function doRescan() {
 const RESCAN_COST = "Stops the engine. All live settings except matrix profiles survive.";
 
 function RescanButton() {
-  return html`<button type="button" class="rescan-btn" disabled=${rescanning.value} onClick=${doRescan}>
+  return html`<button type="button" class="rescan-btn" data-testid="rescan" disabled=${rescanning.value} onClick=${doRescan}>
     ${rescanning.value ? "Rescanning…" : "⟳ Rescan devices"}
   </button>`;
 }

@@ -121,7 +121,7 @@ export function LiveModeCard() {
     </button>
   `;
   return html`
-    <${Card} title=${title}>
+    <${Card} id="live-mode" title=${title}>
       <div class="live-mode-cols">
         <${LivePresetPicker} />
         <span class="col-rule" aria-hidden="true"></span>

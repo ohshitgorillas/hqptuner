@@ -53,6 +53,10 @@ export const outputBufferApplies = computed(() => outputActive.value);
  *
  * @typedef {{ warn: number, crit: number }} Streak
  *   Consecutive below-threshold polls, one count per severity.
+ *
+ * @typedef {{ kind: string, sev: string, text: string }} Alert
+ *   One alert-strip row. `kind` identifies which alert this is and `sev` how bad
+ *   it is; `text` is the wording, which nothing but the reader depends on.
  */
 
 const num = (/** @type {string | number | undefined} */ v) => {
@@ -138,8 +142,12 @@ export const trackCounters = computed(() => {
   };
 });
 
-// The alert list the strip renders: [{sev: "warn"|"crit", text}]. Empty when
-// healthy or idle — the strip contributes zero chrome then.
+// The alert list the strip renders: [{kind, sev: "warn"|"crit", text}]. Empty
+// when healthy or idle — the strip contributes zero chrome then.
+//
+// `kind` names WHICH alert fired, independent of its wording; the strip renders
+// it as `data-alert`. Without it the sentence is the only thing telling two
+// alerts apart, which makes the copy load-bearing for anything reading the DOM.
 // One alert per category, or null. Order below is the order they render in.
 // Critical speed supersedes the warning rather than joining it — they describe
 // the same fault at two severities. The remedy names the DSP chain, not the
@@ -149,24 +157,32 @@ const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 /**
  * @param {Streak} s
  * @param {number} sp
- * @returns {{ sev: string, text: string } | null}
+ * @returns {Alert | null}
  */
 function speedAlert(s, sp) {
   if (s.crit >= SUSTAIN) {
-    return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}` };
+    return {
+      kind: "dsp-speed",
+      sev: "crit",
+      text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}`,
+    };
   }
   if (s.warn >= SUSTAIN)
-    return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}` };
+    return {
+      kind: "dsp-speed",
+      sev: "warn",
+      text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}`,
+    };
   return null;
 }
 
 /**
  * @param {number} clips
- * @returns {{ sev: string, text: string } | null}
+ * @returns {Alert | null}
  */
 function clipAlert(clips) {
   if (clips < CLIP_MIN) return null;
-  return { sev: "warn", text: `Clipping ×${clips} this track — reduce volume or gain.` };
+  return { kind: "clipping", sev: "warn", text: `Clipping ×${clips} this track — reduce volume or gain.` };
 }
 
 // Only worth raising when the running filter is one an apodizing swap would
@@ -174,14 +190,14 @@ function clipAlert(clips) {
 /**
  * @param {number} apod
  * @param {string} filterName
- * @returns {{ sev: string, text: string } | null}
+ * @returns {Alert | null}
  */
 function apodAlert(apod, filterName) {
   if (apod < APOD_MIN) return null;
   const f = filterFacets.value[filterName];
   if (!f || f.apodizing || f.apodizingHalf) return null;
   const text = `Apodizing events ×${apod} this track, but ${filterName} is non-apodizing — consider an apodizing filter.`;
-  return { sev: "warn", text };
+  return { kind: "apodizing", sev: "warn", text };
 }
 
 export const engineAlerts = computed(() => {

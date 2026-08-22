@@ -176,7 +176,7 @@ export function HardwareCard() {
     if (!loaded.value) load().catch((e) => (status.value = `Load failed: ${e}`));
   }, []);
   return html`
-    <${Card} title="Hardware acceleration">
+    <${Card} id="hardware-acceleration" title="Hardware acceleration">
         <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU
              pair (Multicore DSP, E-core allocation) in the right, so each column
              is one subsystem instead of splitting them by source order. -->

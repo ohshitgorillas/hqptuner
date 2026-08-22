@@ -32,7 +32,7 @@ function LoudnessCard() {
   const on = truthy(effective("loudness_enabled")) && !grayReason("loudness_enabled");
   const side = loudnessSide.value;
   return html`
-    <${Card} title="Loudness" subtitle=${noteFor("loudness_enabled")}>
+    <${Card} id="loudness" title="Loudness" subtitle=${noteFor("loudness_enabled")}>
       <div class="dsp-card">
         <${BypassNote} on=${truthy(effective("loudness_enabled"))} />
         <${Field} k="loudness_enabled" />
@@ -75,7 +75,7 @@ export const Volume = () =>
   html`<${Section}>
     <div class="card-grid">
       <${PlaybackVolume} />
-      <${Card} title="Fixed volume" cardClass="fxv-card" subtitle=${noteFor("fixed_volume_enabled")}>
+      <${Card} id="fixed-volume" title="Fixed volume" cardClass="fxv-card" subtitle=${noteFor("fixed_volume_enabled")}>
         <div class="fxv-row">
           <${Field} k="fixed_volume_enabled" />
           <${Field} k="fixed_volume" />
@@ -84,7 +84,7 @@ export const Volume = () =>
       <//>
     </div>
     <${VolumeRangeBar} />
-    <${Card} title="Adjustments">
+    <${Card} id="adjustments" title="Adjustments">
       <div class="pack">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />

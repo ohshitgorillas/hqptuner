@@ -26,7 +26,9 @@ import { db, hz } from "../../lib/units.js";
  * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {import("../../lib/xfeed.js").MsRecognition} MsRecognition
  * @typedef {import("../../store/xfeed/block.js").BauerSettings} BauerSettings
- * @typedef {{ issue?: string, eq?: string, gain?: number }} PairInfo
+ * @typedef {{ issue?: string, code?: string, eq?: string, gain?: number }} PairInfo
+ *   `issue` is the sentence the reader gets; `code` names which check rejected
+ *   the pair, so the reason is readable without matching on that sentence.
  *   Rows 1+2 read as a symmetric stereo EQ pair — either the reason they are
  *   not one, or the chain and preamp a block can be built from.
  * @typedef {{ min: number, max: number }} Bounds
@@ -59,10 +61,12 @@ function straightPair(a, b) {
  */
 function pairInfo(rows) {
   const [a, b] = rows;
-  if (!a || !b) return { issue: "needs pipelines 1+2" };
-  if (!straightPair(a, b)) return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
-  if (a.gainunit !== "dB" || b.gainunit !== "dB") return { issue: "pipeline 1+2 gains must be in dB" };
-  if (a.process !== b.process || a.gain !== b.gain) return { issue: "pipelines 1+2 are not a symmetric stereo pair" };
+  if (!a || !b) return { code: "no-pair", issue: "needs pipelines 1+2" };
+  if (!straightPair(a, b)) return { code: "not-straight", issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
+  if (a.gainunit !== "dB" || b.gainunit !== "dB")
+    return { code: "gain-unit", issue: "pipeline 1+2 gains must be in dB" };
+  if (a.process !== b.process || a.gain !== b.gain)
+    return { code: "asymmetric", issue: "pipelines 1+2 are not a symmetric stereo pair" };
   return { eq: a.process, gain: Number(a.gain) };
 }
 
@@ -204,9 +208,9 @@ export function XfeedBadge() {
  * @param {PipelineRow[]} rows
  * @param {MsRecognition | null} rec
  * @param {PairInfo | null} pair
- * @param {{ pct: number, issue: string }} state
+ * @param {{ pct: number, issue: string, issueCode: string }} state
  */
-function xfcActions(rows, rec, pair, { pct, issue }) {
+function xfcActions(rows, rec, pair, { pct, issue, issueCode }) {
   if (!rec) {
     // the two are complementary — an uninstalled block is exactly when the caller
     // has a stereo pair to read — but nothing in the signature pairs them up
@@ -217,6 +221,7 @@ function xfcActions(rows, rec, pair, { pct, issue }) {
     return html`<button
       type="button"
       class="mtx-tool mtx-primary"
+      data-issue=${issueCode}
       disabled=${!!issue}
       title=${issue || "Build the correction from pipelines 1+2 (they become 8 mid/side pipelines — see the Pipelines card)"}
       onClick=${() => stageBlock(rows, { eq, preampDb }, pct, 2)}
@@ -270,6 +275,7 @@ export function XfeedStrip() {
   const { bs, rec } = xfeedBlock(rows);
   const pair = rec ? null : pairInfo(rows);
   const issue = pair ? pair.issue || "" : "";
+  const issueCode = pair ? pair.code || "" : "";
   const pct = currentPct(rec);
   const tilt = centerTiltDb(bs.fc, bs.feed);
   if (!bs.enabled && !rec) {
@@ -308,7 +314,7 @@ export function XfeedStrip() {
       >
         crossfeed dulls the center by ${db(tilt, 1)}
       </span>
-      ${xfcActions(rows, rec, pair, { pct, issue })}
+      ${xfcActions(rows, rec, pair, { pct, issue, issueCode })}
       <span class="xfc-scale">0% off · 100% neutral · above 100% brighter than neutral</span>
       <span class="xfc-scale"
         >Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or

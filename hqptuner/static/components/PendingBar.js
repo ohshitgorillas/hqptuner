@@ -18,7 +18,7 @@ import { discardAll, applyAll, savePresetOnly, applying, lastApply, autosave, se
  * @typedef {{ live: number, restart: number }} Split
  *   How the staged edits divide by cost (store/resolve.js `split`): how many go
  *   out live over the Control API, and how many restart the daemon.
- * @typedef {{ ok: boolean, text: string }} ApplyResult
+ * @typedef {import("../store/apply-summary.js").Verdict} ApplyResult
  *   The most recent apply's outcome (store/apply-summary.js `summarize`), held
  *   until the next edit clears it.
  */
@@ -150,7 +150,9 @@ function pendingLine(n, sp, switchName) {
 }
 
 const resultLine = (/** @type {ApplyResult} */ result) =>
-  html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
+  html`<span class="note ${result.ok ? "ok" : "err"}" data-outcome=${result.code}
+    >${result.ok ? "✓" : "✗"} ${result.text}</span
+  >`;
 
 /**
  * @param {number} n
@@ -217,8 +219,8 @@ export function PendingBar() {
       <${Ask} owner=${OWNER} />
       <span class="spacer"></span>
       <${AutosaveToggle} />
-      <button onClick=${discardAll} disabled=${off.discard}>Discard</button>
-      <button class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
+      <button data-testid="discard" onClick=${discardAll} disabled=${off.discard}>Discard</button>
+      <button data-testid="apply" class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
       <button onClick=${() => onApplySave(pend)} disabled=${off.save} title=${saveTitle(target, pend)}>
         ${pend ? "Apply & Save" : "Save"}
       </button>

@@ -127,11 +127,11 @@ export function LogTail() {
   return html`
     <div class="log-tail-wrap">
       <div class="log-tail-head">
-        <label class="log-tail-toggle">
+        <label data-testid="logtail-toggle" class="log-tail-toggle">
           <${Checkbox} value=${on ? "1" : "0"} onChange=${(/** @type {string | number} */ v) => (shown.value = v === "1")} />
           Show live log tail (last ${LINES} lines)
         </label>
-        ${on && lines.value.length ? html`<button type="button" class="btn" onClick=${copy}>${label(copied)}</button>` : null}
+        ${on && lines.value.length ? html`<button type="button" class="btn" data-copy=${copied || "idle"} onClick=${copy}>${label(copied)}</button>` : null}
       </div>
       ${
         on

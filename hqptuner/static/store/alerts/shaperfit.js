@@ -33,6 +33,7 @@ import { loadedChain } from "../live/rates.js";
  * @property {string} rateKey
  * @property {string} shaperKey
  * @property {string} db
+ * @property {string} kind
  * @property {string} sev
  * @property {(name: string, rate: string, floor: string) => string} text
  */
@@ -46,6 +47,7 @@ const FAMILIES = {
     rateKey: "sdm_rate",
     shaperKey: "sdm_modulator",
     db: "sdm_modulators",
+    kind: "shaper-fit-sdm",
     sev: "crit",
     /**
      * @param {string} name
@@ -60,6 +62,7 @@ const FAMILIES = {
     rateKey: "pcm_rate",
     shaperKey: "pcm_dither",
     db: "pcm_dithers",
+    kind: "shaper-fit-pcm",
     sev: "warn",
     /**
      * @param {string} name
@@ -119,7 +122,7 @@ function shaperName(key) {
 // which includes every shaper carrying no floor at all.
 /**
  * @param {string} family
- * @returns {{ sev: string, text: string } | null}
+ * @returns {import("../health.js").Alert | null}
  */
 function conflict(family) {
   const f = FAMILIES[family];
@@ -129,7 +132,7 @@ function conflict(family) {
   if (!db || !name || !rate) return null;
   const floor = Number((db[name] || {}).min_rate_hz) || 0;
   if (!floor || rate >= floor) return null;
-  return { sev: f.sev, text: f.text(name, tierLabel(f.rates, rate), floorLabel(f.rates, floor)) };
+  return { kind: f.kind, sev: f.sev, text: f.text(name, tierLabel(f.rates, rate), floorLabel(f.rates, floor)) };
 }
 
 // Which families to judge — the ones the settings on screen will actually

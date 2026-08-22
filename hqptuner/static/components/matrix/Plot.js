@@ -192,7 +192,7 @@ export function MatrixPlot() {
       (anyPartial ? " · partial: a convolution stage has no preview — re-upload its file to plot it" : "")
     : "No pipeline processing to plot yet — load a profile or add EQ / stages above";
   return html`
-    <${Card} title="Matrix response">
+    <${Card} id="matrix-response" title="Matrix response">
         ${
           traces.length
             ? html`<${BypassNote} on=${true} text="Matrix engine is bypassed. The changes below are not applied." />`

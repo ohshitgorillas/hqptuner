@@ -86,7 +86,7 @@ export async function refreshDevices() {
   // rescan that lost the user's live settings must say so whoever asked for it.
   // Left untouched when there is nothing to warn about — the line is still
   // showing the last apply's result and the user may be reading it.
-  if (r && r.warning) lastApply.value = { ok: false, text: r.warning };
+  if (r && r.warning) lastApply.value = { ok: false, code: "rescan-warning", text: r.warning };
   return r;
 }
 

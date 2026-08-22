@@ -23,11 +23,16 @@ import { buildRows, rowOption, visibleOption } from "./comborows.js";
  *   behavior around it.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
- * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent
+ * @typedef {object} TipContent
  *   One option's hover tip: the raw engine name (non-empty only when Simplified
- *   display has replaced it in the row), the manual prose, plus label/value
- *   facet rows and boolean facet chips (both empty outside the filter
- *   dropdowns).
+ *   display has replaced it in the row), the manual prose, plus facet rows and
+ *   boolean facet chips (both empty outside the filter dropdowns). Every row and
+ *   chip leads with a code, so the tip can be read by facet rather than by the
+ *   words in it.
+ * @property {string} name
+ * @property {string} text
+ * @property {import("../narrowbar/facettip.js").FacetRow[]} rows
+ * @property {[string, string][]} chips
  * @typedef {import("./comborow.js").RowCtx} RowCtx
  */
 
@@ -148,6 +153,11 @@ function tipFor(open, tips, o) {
 // The tip beside the highlighted row: the manual prose, then the facet rows
 // and chips where the option carries them. Positioned by placeTip after paint,
 // so it renders hidden at a fixed origin.
+// One boolean facet chip. Its own binding so the chips still render on a single
+// line: a template broken across lines puts whitespace text nodes inside the row.
+const chip = (/** @type {[string, string]} */ [code, c]) =>
+  html`<span class="dd-tip-chip" data-chip=${code}>${c}</span>`;
+
 /**
  * @param {{ tip: TipContent, tipRef: ElRef }} props
  */
@@ -159,15 +169,14 @@ function TipPop({ tip, tipRef }) {
       ${
         tip.rows.length
           ? html`<div class="dd-tip-rows">
-            ${tip.rows.map(([k, v]) => html`<span class="dd-tip-key">${k}</span><span class="dd-tip-val">${v}</span>`)}
+            ${tip.rows.map(
+              ([facet, k, v]) =>
+                html`<span class="dd-tip-key" data-facet=${facet}>${k}</span><span class="dd-tip-val">${v}</span>`,
+            )}
           </div>`
           : null
       }
-      ${
-        tip.chips.length
-          ? html`<div class="dd-tip-chips">${tip.chips.map((c) => html`<span class="dd-tip-chip">${c}</span>`)}</div>`
-          : null
-      }
+      ${tip.chips.length ? html`<div class="dd-tip-chips">${tip.chips.map(chip)}</div>` : null}
     </div>
   `;
 }

@@ -24,5 +24,5 @@ export const roonIdleAlert = computed(() => {
   const meta = (engineStatus.value || {}).metadata;
   if (!meta || meta.song !== "Roon") return null;
   if (String(runningValue("idle_time") ?? "0") !== "0") return null;
-  return { sev: "warn", text: TEXT };
+  return { kind: "roon-idle", sev: "warn", text: TEXT };
 });

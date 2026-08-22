@@ -334,7 +334,7 @@ export function ProfileCard() {
   const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
   const busy = profileBusy.value;
   return html`
-    <${Card} title="Profile" bodyClass="mtx-profile">
+    <${Card} id="profile" title="Profile" bodyClass="mtx-profile">
         <div class="field">
           <label>Active</label>
           <div class="t-value">${active}</div>

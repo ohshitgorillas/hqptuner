@@ -287,29 +287,76 @@ function convLabel(file) {
   return file.split("/").pop() || file;
 }
 
+// Which quantities reach an IIR chip, in order. Frequency and gain are each
+// shown only when set, so their presence is behavior; the units and separators
+// around them are not.
+/**
+ * @param {StageArgs} args
+ * @returns {[string, string][]} each as [unit, value]
+ */
+function iirQuantities(args) {
+  /** @type {[string, string][]} */
+  const q = [];
+  if (args.f) q.push(["Hz", String(args.f)]);
+  if (args.g) q.push(["dB", String(args.g)]);
+  return q;
+}
+
 /**
  * @param {StageArgs} args
  * @returns {string}
  */
 function iirLabel(args) {
-  const bits = [args.type || "iir"];
-  if (args.f) bits.push(`${args.f} Hz`);
-  if (args.g) bits.push(`${args.g} dB`);
+  const bits = [args.type || "iir", ...iirQuantities(args).map(([unit, v]) => `${v} ${unit}`)];
   return bits.join(" · ");
 }
 
 // t wins over s wins over d; v alone carries no quantity and leaves it bare.
+// The precedence is the behavior here, so it is decided once, in the units, and
+// the sentence is assembled from the result.
+/**
+ * @param {StageArgs} args
+ * @returns {[string, string][]} the winning quantity as [unit, value], or empty
+ */
+function delayQuantities(args) {
+  if (args.t) return [["s", String(args.t)]];
+  if (args.s) return [["smp", String(args.s)]];
+  if (args.d) return [["m", String(args.d)]];
+  return [];
+}
+
 /**
  * @param {StageArgs} args
  * @returns {string}
  */
 function delayLabel(args) {
-  const v = args.t ? `${args.t} s` : args.s ? `${args.s} smp` : args.d ? `${args.d} m` : "";
-  return v ? `delay · ${v}` : "delay";
+  const [q] = delayQuantities(args);
+  return q ? `delay · ${q[1]} ${q[0]}` : "delay";
 }
 
 /** @type {Record<string, (args: StageArgs) => string>} */
 const KIND_LABEL = { iir: iirLabel, delay: delayLabel };
+
+// What the chip label is made of, before it is made. `name` is what the stage is
+// called — the IIR type, the convolution's basename, else the kind itself — and
+// `quantities` are the figures that reach the chip, each with its unit. The
+// separators and the order they are joined in are the label's business.
+/**
+ * @typedef {{ kind: string, name: string, quantities: [string, string][] }} StageParts
+ */
+
+/**
+ * The parts a stage's chip label is built from, without building it.
+ * @param {MatrixStage} stage
+ * @returns {StageParts}
+ */
+export function stageParts(stage) {
+  if (stage.kind === "conv") return { kind: "conv", name: convLabel(stageFile(stage)), quantities: [] };
+  const args = stageArgs(stage);
+  if (stage.kind === "iir") return { kind: "iir", name: String(args.type || "iir"), quantities: iirQuantities(args) };
+  if (stage.kind === "delay") return { kind: "delay", name: "delay", quantities: delayQuantities(args) };
+  return { kind: stage.kind, name: stage.kind, quantities: [] }; // riaa
+}
 
 /**
  * Chip label: the shortest string that identifies the stage at a glance.

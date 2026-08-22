@@ -113,7 +113,7 @@ const fftOverride = signal(null);
 
 /** Pre-process card: the junk filter and pre-before-meter toggles. */
 export const PreProcessCard = () =>
-  html`<${Card} title="Pre-process">
+  html`<${Card} id="pre-process" title="Pre-process">
     <div class="pack">
       <${Field} k="junk_filter" />
       <${Field} k="pre_before_meter" />
@@ -122,8 +122,8 @@ export const PreProcessCard = () =>
 
 /** PCM chain card, noting when the output mode makes it inert. */
 export const PcmChainCard = () =>
-  html`<${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
-    ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
+  html`<${Card} id="pcm-chain" title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+    ${effective("output_mode") === "sdm" ? html`<div class="section-note" data-note="mode-mismatch">Output mode is SDM. These settings have no effect.</div>` : null}
     <div class="subhead" data-sources="pcm">PCM Sources</div>
     <${ChainPack}>
       <${Field} k="pcm_filter_1x" />
@@ -141,8 +141,8 @@ export const PcmChainCard = () =>
 
 /** SDM chain card, noting when the output mode makes it inert. */
 export const SdmChainCard = () =>
-  html`<${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
-    ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
+  html`<${Card} id="sdm-chain" title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+    ${effective("output_mode") === "pcm" ? html`<div class="section-note" data-note="mode-mismatch">Output mode is PCM. These settings have no effect.</div>` : null}
     <div class="subhead" data-sources="pcm">PCM Sources</div>
     <${ChainPack}>
       <${Field} k="sdm_filter_1x" />
@@ -160,6 +160,6 @@ export const SdmChainCard = () =>
 
 /** Filter length card, open while any filter slot selects an FFT filter. */
 export const FilterLengthCard = () =>
-  html`<${Card} title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
+  html`<${Card} id="filter-length" title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
     <${Field} k="fft_size" />
   <//>`;

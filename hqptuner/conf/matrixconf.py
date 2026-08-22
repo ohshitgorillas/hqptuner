@@ -91,22 +91,22 @@ _FIRST_PRINTABLE = 0x20  # anything below is a control character the config XML 
 
 def _validate_row(row: Any) -> dict[str, str]:
     if not isinstance(row, dict):
-        raise GroundingError("matrix_pipelines: each row must be an object")
+        raise GroundingError("matrix_pipelines: each row must be an object", code="row-not-object")
     try:
         source, mixdown = int(row["source"]), int(row["mixdown"])
     except (KeyError, TypeError, ValueError) as exc:
-        raise GroundingError("matrix_pipelines: source/mixdown must be integers") from exc
+        raise GroundingError("matrix_pipelines: source/mixdown must be integers", code="row-channel-not-int") from exc
     if not (0 <= source < _MAX_CHANNELS and 0 <= mixdown < _MAX_CHANNELS):
-        raise GroundingError("matrix_pipelines: source/mixdown out of range 0..127")
+        raise GroundingError("matrix_pipelines: source/mixdown out of range 0..127", code="row-channel-range")
     gain = str(row.get("gain", "0"))
     if not _GAIN_RE.match(gain):
-        raise GroundingError(f"matrix_pipelines: bad gain {gain!r}")
+        raise GroundingError(f"matrix_pipelines: bad gain {gain!r}", code="row-bad-gain")
     unit = str(row.get("gainunit", "dB"))
     if unit not in ("dB", "Lin"):
-        raise GroundingError(f"matrix_pipelines: bad gainunit {unit!r}")
+        raise GroundingError(f"matrix_pipelines: bad gainunit {unit!r}", code="row-bad-gainunit")
     process = str(row.get("process", ""))
     if any(ord(c) < _FIRST_PRINTABLE for c in process):
-        raise GroundingError("matrix_pipelines: control characters in process string")
+        raise GroundingError("matrix_pipelines: control characters in process string", code="row-control-chars")
     return {"source": str(source), "gain": gain, "gainunit": unit, "mixdown": str(mixdown), "process": process}
 
 
@@ -117,7 +117,7 @@ def _rows_from_list(raw: Any, field: str) -> list[dict[str, str]]:
     profile can never hold a row the live table would have refused.
     """
     if not isinstance(raw, list) or not 1 <= len(raw) <= _MAX_CHANNELS:
-        raise GroundingError(f"{field}: must be a list of 1..128 rows")
+        raise GroundingError(f"{field}: must be a list of 1..128 rows", code="rows-bad-list")
     return [_validate_row(r) for r in raw]
 
 
@@ -125,7 +125,7 @@ def _validate_rows(value: str) -> list[dict[str, str]]:
     try:
         raw = json.loads(value)
     except ValueError as exc:
-        raise GroundingError(f"{MATRIX_PIPELINES}: not valid JSON: {exc}") from exc
+        raise GroundingError(f"{MATRIX_PIPELINES}: not valid JSON: {exc}", code="rows-bad-json") from exc
     return _rows_from_list(raw, MATRIX_PIPELINES)
 
 
@@ -254,14 +254,14 @@ def _validate_name(name: Any) -> str:
     again.
     """
     if not isinstance(name, str):
-        raise GroundingError("matrix profile: name must be a string")
+        raise GroundingError("matrix profile: name must be a string", code="name-not-string")
     cleaned: str = name.strip()
     if not cleaned:
-        raise GroundingError("matrix profile: name must not be empty")
+        raise GroundingError("matrix profile: name must not be empty", code="name-empty")
     if len(cleaned) > _NAME_MAX:
-        raise GroundingError(f"matrix profile: name longer than {_NAME_MAX} characters")
+        raise GroundingError(f"matrix profile: name longer than {_NAME_MAX} characters", code="name-too-long")
     if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
-        raise GroundingError("matrix profile: control characters in name")
+        raise GroundingError("matrix profile: control characters in name", code="name-control-chars")
     return cleaned
 
 
@@ -293,7 +293,7 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
     """
     m = next((c for c in re.finditer(rb"(?:\n([ \t]*))?<matrix\b", xml) if not in_comment(xml, c.end())), None)
     if m is None:  # pragma: no cover - unreachable: the caller runs ensure_element first
-        raise GroundingError("the matrix element is absent from this snapshot")
+        raise GroundingError("the matrix element is absent from this snapshot", code="matrix-absent")
     indent = m.group(1)
     return m.start(), b"" if indent is None else b"\n" + indent
 
@@ -337,7 +337,7 @@ def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:
     """
     presets = raw.get("presets", [])
     if not isinstance(presets, list) or any(not isinstance(p, str) for p in presets):
-        raise GroundingError(f"{field}: presets must be a list of preset names")
+        raise GroundingError(f"{field}: presets must be a list of preset names", code="targets-bad-list")
     return presets
 
 
@@ -345,9 +345,9 @@ def _parse_save(value: str) -> dict[str, Any]:
     try:
         raw = json.loads(value)
     except ValueError as exc:
-        raise GroundingError(f"{MATRIX_PROFILE_SAVE}: not valid JSON: {exc}") from exc
+        raise GroundingError(f"{MATRIX_PROFILE_SAVE}: not valid JSON: {exc}", code="save-bad-json") from exc
     if not isinstance(raw, dict):
-        raise GroundingError(f"{MATRIX_PROFILE_SAVE}: must be an object with name and rows")
+        raise GroundingError(f"{MATRIX_PROFILE_SAVE}: must be an object with name and rows", code="save-bad-shape")
     return raw
 
 

@@ -25,24 +25,43 @@ import { truthy, num } from "../../lib/coerce.js";
 // holding the knob, so a staged-but-unapplied disable must not change the
 // message (otherwise it falls through to "no active stream" mid-playback). When
 // the user HAS staged the disable, say the missing step is Apply.
+//
+// `code` names WHICH cause held the knob and `staged` whether the user has
+// already staged the fix; both render as attributes on the hint. The sentence is
+// the reader's, so nothing else may depend on its wording.
+/** @returns {{ code: string, staged: boolean, text: string }} */
 function disabledReason() {
   // running-on but edited-off = the user already staged the disable; the
   // missing step is Apply, so say that instead of repeating the toggle advice
   const pendingOff = (/** @type {string} */ k) => truthy(runningValue(k)) && !truthy(effective(k));
   const hint = (/** @type {boolean} */ staged) =>
     staged ? " Apply the staged change to free the volume control." : "";
-  if (truthy(runningValue("direct_sdm")))
-    return `Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.${hint(pendingOff("direct_sdm"))}`;
+  if (truthy(runningValue("direct_sdm"))) {
+    const staged = pendingOff("direct_sdm");
+    return {
+      code: "direct-sdm",
+      staged,
+      text: `Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.${hint(staged)}`,
+    };
+  }
   if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
-    return `Fixed volume in effect — turn off Fixed volume / Auto headroom to adjust live.${hint(staged)}`;
+    return {
+      code: "fixed-volume",
+      staged,
+      text: `Fixed volume in effect — turn off Fixed volume / Auto headroom to adjust live.${hint(staged)}`,
+    };
   }
   // volume min = max = 0 bypasses volume control completely (manual §4.2)
   if (Number(runningValue("volume_min")) === 0 && Number(runningValue("volume_max")) === 0) {
     const staged = !(Number(effective("volume_min")) === 0 && Number(effective("volume_max")) === 0);
-    return `Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.${hint(staged)}`;
+    return {
+      code: "zero-range",
+      staged,
+      text: `Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.${hint(staged)}`,
+    };
   }
-  return "No active stream — volume adjusts live during playback.";
+  return { code: "no-stream", staged: false, text: "No active stream — volume adjusts live during playback." };
 }
 
 // The axis a grayed dial is drawn on. While the engine holds the volume control
@@ -89,6 +108,14 @@ function knobRange() {
   // While the engine owns the control its report IS the axis the writes land on
   if (enabled) return { enabled, ...engine };
   return { enabled, ...(configRange() || engine) };
+}
+
+// The grayed-out reason, carrying its cause as `data-hint` and whether the fix
+// is already staged as `data-staged`.
+function Hint() {
+  const { code, staged, text } = disabledReason();
+  const on = staged ? "1" : "0";
+  return html`<div class="playback-hint" data-hint=${code} data-staged=${on}>Volume control disabled — ${text}</div>`;
 }
 
 // throttle: send the first move immediately, then at most once per 100 ms, with
@@ -170,7 +197,7 @@ export function PlaybackVolumeBody({ showName = false }) {
           />
           ${showName ? html`<div class="t-eyebrow">Playback volume</div>` : null}
         </div>
-      ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
+      ${enabled ? null : Hint()}
     </div>
   `;
 }
@@ -180,7 +207,7 @@ export function PlaybackVolumeBody({ showName = false }) {
 /** Renders the Volume tab's Playback volume card — the same body in a card frame of its own. */
 export function PlaybackVolume() {
   return html`
-    <${Card} title="Playback volume" cardClass="playback">
+    <${Card} id="playback-volume" title="Playback volume" cardClass="playback">
       <${PlaybackVolumeBody} />
     <//>
   `;
