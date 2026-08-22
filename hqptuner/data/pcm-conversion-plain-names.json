@@ -1,5 +1,5 @@
 {
-  "_scope": "The GET /config form's pcm_conversion select (14 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family vocabulary follows the main filter overlay (Conventional, Polyphase sinc, Pure sinc); `none` sits alone in a blurbless No decimation family. A fourth field, `short`, is the closed-dropdown title: family and leaf composed with ` · `, except `none`, whose family alone reads better closed (same license as the dither overlay's none entry). Leaf labels unique within their family; short titles unique across the list. No entry carries `rec`: the manual flags only poly-short-lp Recommended, and a lone recommended option is the default, not a recommendation among peers.",
+  "_scope": "The GET /config form's pcm_conversion select (14 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family vocabulary follows the main filter overlay (Conventional, Polyphase sinc, Pure sinc); `none` sits alone in a blurbless No decimation family. A fourth field, `short`, is the closed-dropdown title, following the filter overlay's abbreviations: Poly-sinc and Sinc for the sinc families, Xtr/Ext2/Gauss segments, the word 'phase' dropped; `none` shows its family alone (same license as the dither overlay's none entry). Leaf labels unique within their family; short titles unique across the list. No entry carries `rec`: the manual flags only poly-short-lp Recommended, and a lone recommended option is the default, not a recommendation among peers.",
   "families": {
     "Conventional": "Simple, efficient conversion filters, similar to what most DACs do internally",
     "Polyphase sinc": "The most variety and flexibility",
@@ -28,61 +28,61 @@
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Minimum phase",
-      "short": "Polyphase sinc · Minimum phase"
+      "short": "Poly-sinc · Minimum"
     },
     "poly-lp": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Linear phase",
-      "short": "Polyphase sinc · Linear phase"
+      "short": "Poly-sinc · Linear"
     },
     "poly-short-mp": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Short minimum phase",
-      "short": "Polyphase sinc · Short minimum phase"
+      "short": "Poly-sinc · Short minimum"
     },
     "poly-short-lp": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Short linear phase",
-      "short": "Polyphase sinc · Short linear phase"
+      "short": "Poly-sinc · Short linear"
     },
     "poly-xtr": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extreme roll-off and attenuation",
-      "short": "Polyphase sinc · Extreme roll-off and attenuation"
+      "short": "Poly-sinc · Xtr"
     },
     "poly-xtr-short": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extreme roll-off and attenuation, short",
-      "short": "Polyphase sinc · Extreme roll-off and attenuation, short"
+      "short": "Poly-sinc · Xtr · Short"
     },
     "poly-ext2": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extended frequency response 2",
-      "short": "Polyphase sinc · Extended frequency response 2"
+      "short": "Poly-sinc · Ext2"
     },
     "poly-gauss-long": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Gaussian, long",
-      "short": "Polyphase sinc · Gaussian, long"
+      "short": "Poly-sinc · Gauss · Long"
     },
     "sinc-M": {
       "family": "Pure sinc",
       "variant": null,
       "leaf": "Constant length",
-      "short": "Pure sinc · Constant length"
+      "short": "Sinc · Constant length"
     },
     "sinc-S": {
       "family": "Pure sinc",
       "variant": null,
       "leaf": "Short",
-      "short": "Pure sinc · Short"
+      "short": "Sinc · Short"
     },
     "none": {
       "family": "No decimation",

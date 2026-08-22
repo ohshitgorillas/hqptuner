@@ -1,5 +1,5 @@
 {
-  "_scope": "The GET /config form's noise_filter select (13 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family is the filter's design lineage, leaf is the rest. A fourth field, `short`, is the closed-dropdown title: family and leaf composed with ` · `. Leaf labels unique within their family; short titles unique across the list. `rec: true` marks the options the manual flags Recommended; entries without the flag carry no key.",
+  "_scope": "The GET /config form's noise_filter select (13 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family is the filter's design lineage, leaf is the rest. A fourth field, `short`, is the closed-dropdown title: family and leaf composed with ` · `, with the word 'phase' dropped per the filter overlay's short convention. Leaf labels unique within their family; short titles unique across the list. `rec: true` marks the options the manual flags Recommended; entries without the flag carry no key.",
   "families": {
     "Dedicated": "Filters designed specifically for DSD noise, matched to how the source was made",
     "Averaging": "Averaging stages that turn the bitstream into PCM directly, filtering as a side effect",
@@ -50,13 +50,13 @@
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Slow minimum phase",
-      "short": "Roll-off ladder · Slow minimum phase"
+      "short": "Roll-off ladder · Slow minimum"
     },
     "slow-lp": {
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Slow linear phase",
-      "short": "Roll-off ladder · Slow linear phase"
+      "short": "Roll-off ladder · Slow linear"
     },
     "medium": {
       "family": "Roll-off ladder",
@@ -76,13 +76,13 @@
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Fast minimum phase",
-      "short": "Roll-off ladder · Fast minimum phase"
+      "short": "Roll-off ladder · Fast minimum"
     },
     "fast-lp": {
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Fast linear phase",
-      "short": "Roll-off ladder · Fast linear phase"
+      "short": "Roll-off ladder · Fast linear"
     },
     "brickwall": {
       "family": "Roll-off ladder",
