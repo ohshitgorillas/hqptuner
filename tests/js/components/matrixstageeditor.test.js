@@ -150,8 +150,11 @@ test("test_multiple_issues_share_one_line", () => {
   const many = editor("delay:x=1");
   const seen = {
     lines: (many.match(/mtx-issues/g) || []).length,
-    carries: [issueLine(editor("delay:t=1;x=1")), issueLine(editor("delay"))].filter((one) =>
-      issueLine(many).includes(one),
+    // An empty single is rejected before it is counted: every string contains
+    // "", so an editor that dropped one of the two issues would otherwise still
+    // count 2 and this case would never notice.
+    carries: [issueLine(editor("delay:t=1;x=1")), issueLine(editor("delay"))].filter(
+      (one) => one !== "" && issueLine(many).includes(one),
     ).length,
   };
   assert.deepEqual(seen, { lines: 1, carries: 2 });

@@ -303,14 +303,13 @@ test("test_the_grayed_pcm_rate_field_carries_its_columns_reason_as_its_hover_tit
 });
 
 test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
-  // One output mode grays both columns, so the reason they carry is one reason:
-  // read against the PCM column's title as well as against the prose, so that a
-  // title which is merely "not a catalog sentence" cannot answer for it.
+  // A second half stood here comparing this title byte-for-byte against the PCM
+  // column's. Both are owner-owned sentences, so wording one of them differently
+  // turned it red for a copy change with no behavior in it (docs/testing.md rule
+  // 9) — and it bought nothing, since `standsInFor` already excludes both catalog
+  // sentences and the empty string.
   await inOutputMode(AUTO);
-  const out = page();
-  const sdm = hoverTitle(out, "sdm_rate");
-  const seen = { stands: standsInFor(sdm)[0], shared: sdm === hoverTitle(out, "pcm_rate") };
-  assert.deepEqual(seen, { stands: true, shared: true });
+  assert.ok(...standsInFor(hoverTitle(page(), "sdm_rate")));
 });
 
 test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hover", async () => {

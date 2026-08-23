@@ -123,11 +123,22 @@ def test_a_facet_the_pass_through_does_not_state_is_marked_on_no_row_of_its_tip(
     assert facet not in facets(page)
 
 
+@pytest.mark.parametrize("facet", ["quality", "genre", "phase", "ratio"])
+def test_a_facet_the_no_length_filter_states_is_marked_on_its_tip(page: Page, stack: Stack, facet: str) -> None:
+    """sinc-M is placed by every facet rule but length, and each of those rows is marked.
+
+    The positive half of the contrast below: without it, a tip that rendered no
+    facet rows at all for this filter would satisfy "no length row" too.
+    """
+    hover_tip(page, stack, SINC_M)
+    assert facet in facets(page)
+
+
 def test_a_filter_no_length_rule_places_is_marked_with_no_length_facet(page: Page, stack: Stack) -> None:
     """sinc-M states a tap count and no length letter, so its tip carries no length row.
 
-    The contrast that makes `data-facet="length"` mean something: this filter
-    IS marked for quality, genre, phase and ratio, and is not marked for length.
+    The contrast that makes `data-facet="length"` mean something: the case above
+    shows this filter IS marked for quality, genre, phase and ratio.
     """
     hover_tip(page, stack, SINC_M)
     assert "length" not in facets(page)

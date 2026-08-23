@@ -295,9 +295,16 @@ const LINEAR_PHASE = "matrix_iir2fir";
 
 // The blockers the card is reporting, in sorted order so a case states a set
 // rather than a render order. [] when it reports none.
-/** @returns {string[]} */
+//
+// A card that never rendered at all answers a STRING, which no expected list can
+// equal: "reports no blocker" and "drew nothing" are the same empty markup, so
+// without the sentinel a negative case below would pass by looking at nothing.
+// The card is found by the `data-card` its section carries, never by a word in it.
+/** @returns {string[] | string} */
 const blockers = () => {
-  const hit = /\sdata-blockers="([^"]*)"/.exec(card());
+  const out = card();
+  if (!/\sdata-card="crossfeed"/.test(out)) return "that card was not rendered at all";
+  const hit = /\sdata-blockers="([^"]*)"/.exec(out);
   return hit
     ? hit[1]
         .split(" ")

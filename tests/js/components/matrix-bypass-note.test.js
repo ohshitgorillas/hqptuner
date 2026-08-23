@@ -95,6 +95,7 @@ import { plottedRows, previewEq } from "../../../hqptuner/static/components/matr
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 import { section } from "../support/tabform.js";
+import { elements, attr, text } from "../support/markup.js";
 
 // The three notes by the kind each one carries, `data-note` — the identity the
 // component derives from its inputs, not from the sentence it produced
@@ -207,6 +208,11 @@ const decode = (out) =>
 const tab = () => decode(render(html`<${MatrixTab} />`));
 const speakerCard = () => decode(render(html`<${SpeakersCard} />`));
 
+// The same tab, undecoded: the markup scanner below reads attribute runs, and
+// decoding an escaped quote back into a bare one puts a quote inside an
+// attribute value where the scanner cannot see the tag end.
+const tabMarkup = () => render(html`<${MatrixTab} />`);
+
 // Every bypass note a card renders, by kind and in render order — the whole list
 // rather than one question at a time, so a single assertion pins the note that
 // belongs there AND the absence of the two that do not. A card showing two notes,
@@ -227,6 +233,20 @@ const notesIn = (frag) => {
   return [...frag.matchAll(/\sdata-note="([^"]*)"/g)]
     .map((m) => m[1])
     .filter((kind) => kind.startsWith("matrix-bypass-"));
+};
+
+// What the marked element actually shows a reader, markup stripped. The marking
+// says which note the card CHOSE; on its own it cannot say the card explained
+// itself, so a note element rendered with no children would satisfy every case
+// above while the user sees nothing. Empty string when the card does not carry
+// exactly one bypass note, so a missing or doubled note fails here too.
+/**
+ * @param {string} frag
+ * @returns {string}
+ */
+const noteText = (frag) => {
+  const marked = elements(frag).filter((el) => (attr(el, "data-note") || "").startsWith("matrix-bypass-"));
+  return marked.length === 1 ? text(marked[0]) : "";
 };
 
 // Cards by the id their section carries (docs/testing.md rule 9). No card in
@@ -260,6 +280,15 @@ const rowControlStates = (out) =>
 test("test_a_bypassed_matrix_engine_tells_the_pipelines_card_its_settings_are_inert", async () => {
   await reset({ on: "0" });
   assert.deepEqual(notesIn(pipelinesCard(tab())), [SETTINGS]);
+});
+
+// The one case that reads the note's own text — non-emptiness only. WHAT it says
+// stays the owner's (rule 9); THAT the card said anything at all is state, and no
+// other case in this file can see it.
+test("test_the_bypass_note_the_pipelines_card_shows_is_not_empty", async () => {
+  await reset({ on: "0" });
+  const shown = noteText(pipelinesCard(tabMarkup()));
+  assert.ok(shown.length > 0, `the pipelines card's bypass note reads ${JSON.stringify(shown)}`);
 });
 
 // The Pipelines card has no feature switch of its own, so there is no "switched

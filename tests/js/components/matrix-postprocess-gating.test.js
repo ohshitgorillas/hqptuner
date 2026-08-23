@@ -98,6 +98,7 @@ import { stagingWire } from "../support/wire.js";
 // One card's fragment, picked by the id its section carries (docs/testing.md
 // rule 9), so a reworded head changes nothing.
 import { cardTitled } from "../support/tabform.js";
+import { elements, attr, text } from "../support/markup.js";
 import { MATRIX_BYPASS_REASON } from "../../../hqptuner/static/store/schema.js";
 
 // The two cards this file reads notes off, by id.
@@ -368,6 +369,22 @@ const notesIn = (frag) => {
 /** @returns {string[] | string} */
 const crossfeedNotes = () => notesIn(crossfeed().trim());
 
+// What the marked element actually shows a reader, markup stripped, off the
+// UNDECODED render: the scanner reads attribute runs, and decoding an escaped
+// quote back into a bare one puts a quote inside an attribute value where the
+// scanner cannot see the tag end. The marking says which note the card CHOSE; on
+// its own it cannot say the card explained itself, so a note element rendered
+// with no children would satisfy every case above while the user sees nothing.
+// Empty string when the card does not carry exactly one bypass note, so a
+// missing or doubled note fails here too.
+/** @returns {string} */
+const crossfeedNoteText = () => {
+  const marked = elements(render(html`<${CrossfeedCard} />`)).filter((el) =>
+    (attr(el, "data-note") || "").startsWith("matrix-bypass-"),
+  );
+  return marked.length === 1 ? text(marked[0]) : "";
+};
+
 /** @param {string} out */
 const buttonsOf = (out) =>
   out
@@ -573,6 +590,15 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view"
 test("test_a_bypassed_matrix_tells_an_engaged_bauer_crossfeed_view_its_settings_are_inert", async () => {
   await reset({ matrix: "0", crossfeed: "1", view: "bauer" });
   assert.deepEqual(crossfeedNotes(), [SETTINGS]);
+});
+
+// The one case that reads the note's own text — non-emptiness only. WHAT it says
+// stays the owner's (rule 9); THAT the card said anything at all is state, and no
+// other case in this file can see it.
+test("test_the_bypass_note_the_bauer_crossfeed_view_shows_is_not_empty", async () => {
+  await reset({ matrix: "0", crossfeed: "1", view: "bauer" });
+  const shown = crossfeedNoteText();
+  assert.ok(shown.length > 0, `the crossfeed card's bypass note reads ${JSON.stringify(shown)}`);
 });
 
 test("test_a_bypassed_matrix_tells_an_engaged_dac_correction_card_its_settings_are_inert", async () => {

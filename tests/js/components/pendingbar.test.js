@@ -44,6 +44,7 @@ import { askName, askConfirm, answer, cancel, clearRefusal } from "../../../hqpt
 import { health, config, engineState, pendingPreset } from "../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { ok, staticWire } from "../support/wire.js";
+import { elements, classes, attr } from "../support/markup.js";
 
 function wire(staged = { live: {}, http: {} }) {
   staticWire(staged, (path) => {
@@ -146,8 +147,15 @@ const stagedCount = (out) => Number((countSpan(out).match(/\d+/) || ["NaN"])[0])
 // WHICH outcome is on screen without reading the sentence announcing it (the
 // sentence being owner copy — docs/testing.md rule 9). Undefined when the bar
 // renders no note at all, which fails an equality rather than passing as "".
+//
+// Read off the ELEMENT rather than out of the raw tag text: a regex requiring
+// `class=` to precede `data-outcome=` reds on a prop reorder in the component,
+// which preserves behavior entirely.
 /** @param {string} out */
-const noteOutcome = (out) => (/<span class="note[^"]*"[^<>]*\sdata-outcome="([^"]*)"/.exec(out) || [])[1];
+const noteOutcome = (out) => {
+  const note = elements(out).find((el) => classes(el).includes("note"));
+  return note && attr(note, "data-outcome");
+};
 
 /** @param {string} out */
 const noteClasses = (out) =>
@@ -217,6 +225,7 @@ const VERDICTS = [
   [true, "switched"],
   [false, "live-failed"],
   [false, "persist-refused"],
+  [false, "persist-error"],
   [false, "endpoint-missing"],
 ];
 
@@ -228,16 +237,11 @@ for (const [succeeded, code] of VERDICTS) {
   });
 }
 
-// Two failures wearing the same `err` class are told apart only by the outcome:
-// this is the case a bar that hardcoded one failure code would pass every other
-// assertion of, and fail here.
-test("test_two_failing_applies_are_marked_with_different_outcomes", async () => {
-  await reset();
-  lastApply.value = { ok: false, code: "live-failed", text: "Failed: filter" };
-  const first = noteOutcome(bar());
-  lastApply.value = { ok: false, code: "persist-error", text: "Failed: config" };
-  assert.notEqual(first, noteOutcome(bar()));
-});
+// A case stood here asserting that two failures wearing the same `err` class
+// carry DIFFERENT outcomes. The sweep above already states it and states it more
+// strongly: it pins four failure codes to four exact values, so a bar hardcoding
+// one failure code fails there. `persist-error`, which that case was the only
+// user of, is now one of the four.
 
 test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {
   await reset();
