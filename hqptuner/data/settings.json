@@ -130,7 +130,7 @@
     },
     "apodizing": {
       "label": "Apodizing",
-      "tooltip": "The need for an apodizing filter is based on detected errors that originate from the recording ADC or mastering tools. An apodizing filter should be used at least when the \"Apod\" counter increments to higher than 10 during any single track. There is no harm in using an apodizing filter for content that doesn't need one. But there is harm in using a non-apodizing filter for content that would need one.",
+      "tooltip": "The need for an apodizing filter is based on detected errors that originate from the recording ADC or mastering tools. Apodizing filters should be used at least when the \"Apod\" counter increments to higher than 10 during any single track. There is no harm in using an apodizing filter for content that doesn't need one, but there is harm in using non-apodizing filters for content that would need one.",
       "source": "manual §2.6"
     },
     "channels": {
