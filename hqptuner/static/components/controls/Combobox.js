@@ -264,7 +264,7 @@ export function Combobox(props) {
         // explain: `rec` exists only under Simplified decoration, so Standard
         // pops never grow the footer.
         rows.some((r) => "o" in r && r.o.rec)
-          ? html`<div class="dd-legend t-caption" role="presentation">✓ = recommended</div>`
+          ? html`<div class="dd-legend t-caption" role="presentation"><span class="dd-legend-check">✓</span> = recommended</div>`
           : null
       }
     </div>

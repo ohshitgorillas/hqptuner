@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **A filter dropdown is the same height as the plain dropdowns around it.** The description-carrying dropdowns stood two pixels shorter than the plain selects they sit beside; both now take one control height.
+
 - **Every triangle mark sits level with the text beside it.** The disclosure triangles on card heads and dropdown group headers, the caret on a closed dropdown and the mark on a selected option are drawn as shapes rather than text characters, so each centers on its row instead of hanging low.
 
 - **Two noise filter options are named for what they do.** The Averaging family's second weighted option drops the SACD framing for the manual's own non-ringing linear phase, and the Dedicated family's lower corner frequency option no longer claims a flat noise floor, which the manual calls almost flat.

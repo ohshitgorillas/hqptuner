@@ -311,7 +311,7 @@
       "ratio_pcm": "integer",
       "ratio_sdm": "any",
       "upsample_only": true,
-      "description": "A linear phase polyphase sinc filter optimized for playing back MQA- or MP3-encoded content in order to clean up the high frequency noise added by the MQA or MP3 encoding. Also suitable for upsampling PCM sources of 88.2 kHz or higher sampling rate, especially for hires PCM recordings of 176.4 kHz or higher sampling rate. Very short ringing. Early slow roll-off."
+      "description": "A linear phase polyphase sinc filter optimized for playing back MQA- or MP3-encoded content in order to clean up the high frequency noise added by the MQA or MP3 encoding. Also suitable for upsampling PCM sources of 88.2 kHz or higher sampling rate, especially for hi-res PCM recordings of 176.4 kHz or higher sampling rate. Very short ringing. Early slow roll-off."
     },
     "poly-sinc-mqa/mp3-mp": {
       "genre": ["pop"],
@@ -437,7 +437,7 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A linear phase halfband Gaussian filter. Slightly leaky around Nyquist, but with extremely high attenuation.",
+      "description": "A linear phase half-band Gaussian filter. Slightly leaky around Nyquist, but with extremely high attenuation.",
       "notes": "Only suitable for the highest technical quality source materials."
     },
     "poly-sinc-gauss-halfband-s": {
@@ -447,7 +447,7 @@
       "apodizing": "none",
       "ratio": "any",
       "phase": "linear",
-      "description": "A short linear phase halfband Gaussian filter. Leaky around Nyquist, but with high attenuation.",
+      "description": "A short linear phase half-band Gaussian filter. Leaky around Nyquist, but with high attenuation.",
       "notes": "Only suitable for the highest technical quality source materials."
     },
     "ASRC": {

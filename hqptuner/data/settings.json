@@ -335,7 +335,7 @@
         "2": "A slow roll-off linear phase filter.",
         "3": "A slow roll-off minimum phase filter.",
         "12": "A medium roll-off linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Recommended.",
-        "6": "A medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion. Recommended.",
+        "6": "A medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion (Decimation filter). Recommended.",
         "4": "A fast roll-off linear phase filter.",
         "5": "A fast roll-off minimum phase filter.",
         "13": "A brickwall filter that doesn't pass any out-of-band noise. A very steep linear phase filter. Cut-off is at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512, and 400 kHz for DSD1024."

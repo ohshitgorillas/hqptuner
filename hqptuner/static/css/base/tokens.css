@@ -162,6 +162,7 @@
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
+  --h-control: 2rem; /* the height a native select takes at --fs-body; anything impersonating one matches it */
   /* Triangle marks — disclosure and dropdown carets. A size, not a font size:
      the shape is a clip-path on a square box, so the box IS the ink and any
      centering that centers the box centers the mark. */

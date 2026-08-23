@@ -664,7 +664,7 @@ export const schema = {
   // Resampling-tab card as a "Sources" subsection, with a mode-mismatch note
   // shown there instead (ResamplingTab.js).
   direct_sdm: {
-    label: "DSD Playback",
+    label: "DSD playback",
     // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
     // still findable from a label that says what the control does
     sublabel: "Direct SDM",

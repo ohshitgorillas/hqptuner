@@ -67,11 +67,19 @@ function ResetButton() {
 // because the switch columns are where the chain-wide toggles live.
 function OptionStyleGroup() {
   return html`<${SwitchGroup} id="option-style" title="Option style" desc=${OPTION_STYLE_TIP}>
-    <${Segment}
-      value=${plainNames.value ? "simplified" : "standard"}
-      options=${OPTION_STYLE_SEGS}
-      onChange=${(/** @type {string} */ v) => setPlainNames(v === "simplified")}
-    />
+    <div class="narrow-stage-row">
+      ${
+        /* No stage slot: this switch has no 1x/Nx sublabel, so it takes the
+          body's own left edge — the one its description text starts on. The
+          StageSeg rows indent because they carry a label, not because the
+          column is a shared rule. */ ""
+      }
+      <${Segment}
+        value=${plainNames.value ? "simplified" : "standard"}
+        options=${OPTION_STYLE_SEGS}
+        onChange=${(/** @type {string} */ v) => setPlainNames(v === "simplified")}
+      />
+    </div>
   <//>`;
 }
 

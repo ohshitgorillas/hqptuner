@@ -110,9 +110,11 @@
 /* "1x sources" and "Source format" set different widths, so without a shared
    minimum the two switches in this column start 22px apart. Same reason
    .narrow-stage-row .t-label carries one: a column of controls shares a left
-   edge, and the title beside them is what decides it. */
+   edge, and the title beside them is what decides it. The minimum must clear
+   the widest title ("Apodizing filters", ~6.7rem) or that group's body starts
+   right of its column siblings'. */
 .narrow-groupstack .narrow-group-title {
-  min-width: 6rem;
+  min-width: 7rem;
 }
 .narrow-group {
   display: flex;

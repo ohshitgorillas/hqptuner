@@ -64,7 +64,7 @@ export const OPTION_STYLE_SEGS = [
 ];
 
 export const OPTION_STYLE_TIP =
-  "This feature reduces the mental load required to parse the filter, dither, and modulator lists by stating each selection's properties in plain English. " +
+  "This feature reduces the mental load required to parse the below signal chain options by stating each selection's properties in plain English. " +
   "Items are categorized into families, optionally into variants, and listed by their distinguishing properties.";
 
 export const SRC_FORMAT_TIP =

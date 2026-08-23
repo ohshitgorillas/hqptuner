@@ -29,6 +29,10 @@
   padding: var(--sp-1) var(--sp-2);
   font-size: var(--fs-body);
   cursor: pointer;
+  /* The trigger stands in for a native select, so it is exactly as tall as
+     one. Stated here rather than left to the content: the tallest thing in the
+     row would otherwise set it, and the caret is a mark, not a spacer. */
+  min-height: var(--h-control);
 }
 /* The trigger's caret is a shape, drawn in marks.css off aria-expanded; the
    trigger's own align-items is all the placement it needs. */
@@ -209,10 +213,19 @@ button.dd-hdr::before {
 }
 /* The legend explaining the check, the pop's last row whenever a check is on
    screen: a caption read (typography rides the t-caption class), never
-   selectable, never highlighted. */
+   selectable, never highlighted. Right-aligned by owner's spec — the check it
+   explains sits in the rows' right-hand cluster, and an edge of its own keeps
+   the legend from sinking into the option column. */
 .dd-legend {
   padding: var(--sp-1) var(--sp-2);
   color: var(--muted);
+  text-align: right;
+}
+/* The legend's own check matches the mark it explains (.dd-rec): accent,
+   semibold. */
+.dd-legend-check {
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
 }
 /* Apodizing badge (filter dropdowns): circled A for full, ½ for half, on a
    row or hoisted onto a uniform group's header. Accent by owner's spec, like
