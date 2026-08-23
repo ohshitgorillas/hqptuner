@@ -96,7 +96,7 @@
       "tooltip": "Various playback filters are provided to deal with noise, errors, and distortion, for example in bad quality or fake hi-res sources. These filters can be switched at any time during playback. To see their effect on the source, pre-process before metering can be enabled.",
       "options": {
         "0": "No filtering.",
-        "1": "20 kHz filter is useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.",
+        "1": "Useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.",
         "2": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are, for example, transfers from analog tape.",
         "3": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are, for example, transfers from analog tape.",
         "4": "Very slow roll-off filter for cleaning out, for example, excessive noise shaping from certain ADCs and DSD to PCM conversions.",

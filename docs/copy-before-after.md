@@ -224,7 +224,7 @@ This file records every user-facing description, tooltip and note string that no
 
 ### High-frequency filter, option 1
 - **Before:** 20 kHz filter is useful for cleaning up fake high-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.
-- **After:** 20 kHz filter is useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.
+- **After:** Useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.
 
 ### High-frequency filter, option 2
 - **Before:** 30 kHz filter is a slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hires recordings that are for example transfers from analog tape.
