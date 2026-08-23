@@ -43,7 +43,7 @@
     },
     "dac_bits": {
       "label": "DAC bits",
-      "tooltip": "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects. When the DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to set the actual value here. Also when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion of especially low-level signals and reduce zero-crossing distortions.",
+      "tooltip": "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects. When the DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to set the actual value here. Also, when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion of especially low-level signals and reduce zero-crossing distortions.",
       "source": "manual §4.4 (Bits), readme §1.3 (dac_bits)"
     },
     "channel_offset": {
@@ -97,9 +97,9 @@
       "options": {
         "0": "No filtering.",
         "1": "20 kHz filter is useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.",
-        "2": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
-        "3": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
-        "4": "Very slow roll-off filter for cleaning out for example excessive noise shaping from certain ADCs and DSD to PCM conversions.",
+        "2": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are, for example, transfers from analog tape.",
+        "3": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are, for example, transfers from analog tape.",
+        "4": "Very slow roll-off filter for cleaning out, for example, excessive noise shaping from certain ADCs and DSD to PCM conversions.",
         "5": "Places steep cut-off at 2x of the base rate.",
         "6": "Places steep cut-off at 4x of the base rate.",
         "7": "Places steep cut-off at 8x of the base rate."
@@ -198,7 +198,7 @@
       "options": {
         "0": "Disabled.",
         "1": "Direct conversion, retains original minimum phase response.",
-        "2": "The EQ filter is converted to a linear phase one. Note! Conversion to linear phase will introduce some amount of unnatural pre-ringing in the audio band. This is why EQ filters are typically minimum-phase. The higher the parametric filter's Q and dB values are, the more pre-ringing it will also introduce for linear-phase. So the linear phase conversion works best with rather gentle EQ setups."
+        "2": "The EQ filter is converted to linear phase. Note! Conversion to linear phase will introduce some amount of unnatural pre-ringing in the audio band. This is why EQ filters are typically minimum phase. The higher the parametric filter's Q and dB values are, the more pre-ringing it will also introduce for linear phase. Therefore, the linear phase conversion works best with rather gentle EQ setups."
       },
       "source": "manual §7, readme §1.11"
     },
@@ -314,7 +314,7 @@
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
-      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain the useful signal in addition to increasing the noise-shaping noise. For example, piano doesn't contain high frequency harmonics and for such a case \"narrow\" is suitable, while close-miked percussions usually contain high level high frequency content and there \"wide\" may be more suitable, whereas \"XFi\" is suitable for all cases. Default is \"XFi\".",
+      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain a useful signal in addition to increasing noise-shaping noise. For example, piano doesn't contain high-frequency harmonics; for such a case, \"narrow\" is suitable. Close-miked percussion usually contains high level high-frequency content so that \"wide\" may be more suitable. \"XFi\" is suitable for all cases and is the default.",
       "options": {
         "0": "Wide bandwidth signal.",
         "1": "Narrow bandwidth signal.",
@@ -324,7 +324,7 @@
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data. Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
+      "tooltip": "Different types of noise filters for PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data. Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. More aggressive noise filters can therefore be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will reduce playback quality.",
       "options": {
         "0": "Standard noise filter will be applied. Recommended.",
         "1": "Similar to standard, but has a lower corner frequency and results in an almost flat noise profile in the ultrasonic range. Recommended.",
@@ -334,8 +334,8 @@
         "11": "Weighted element converter. Optimized to closely match DSD/SACD specification. Non-ringing linear phase. Recommended.",
         "2": "Slow roll-off linear phase filter.",
         "3": "Slow roll-off minimum phase filter.",
-        "12": "Medium roll-off linear phase filter designed to be as gentle as possible while passing minimal amount of out-of-band noise. Recommended.",
-        "6": "Medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion (Decimation filter). Recommended.",
+        "12": "Medium roll-off linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Recommended.",
+        "6": "Medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Use this instead of \"medium\" when \"none\" is selected as PCM Conversion (Decimation filter). Recommended.",
         "4": "Fast roll-off linear phase filter.",
         "5": "Fast roll-off minimum phase filter.",
         "13": "Brickwall filter that doesn't pass any out-of-band noise. Very steep linear phase filter. Cut-off at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512 and 400 kHz for DSD1024."

@@ -59,7 +59,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Small amount of passband ripple is also present. Medium attenuation. IIR filter is applied in the time domain."
+      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Small amount of passband ripple is also present. Medium attenuation. The IIR filter is applied in the time domain."
     },
     "IIR2": {
       "genre": ["pop", "jazz"],
@@ -67,7 +67,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Medium attenuation. No passband ripple. IIR filter is applied in the time domain."
+      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Medium attenuation. No passband ripple. The IIR filter is applied in the time domain."
     },
     "FIR": {
       "genre": ["classical"],
