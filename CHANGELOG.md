@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Two Simplified names change on Signalyst feedback.** The Integrator control's Simplified name becomes Remodulator structure, since Reconstruction filter changed the meaning, and SDM → SDM conversion becomes Rate conversion, since Source bandwidth suggested an effect even at matching rates. The signal path rows follow.
+
 ### Fixed
 
 - **A failed preset save during apply now reports the save error.** The summary previously showed the apply's success sentence with a failure mark and dropped the error.

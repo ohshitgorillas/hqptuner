@@ -685,7 +685,7 @@ export const schema = {
     field: "dsd_6db",
   },
   sdm_integrator: {
-    label: "Reconstruction filter",
+    label: "Remodulator structure",
     sublabel: "Integrator",
     group: "dsp",
     widget: "dropdown",
@@ -700,7 +700,7 @@ export const schema = {
     plainNames: "sdm_integrator",
   },
   sdm_conversion: {
-    label: "Source bandwidth",
+    label: "Rate conversion",
     sublabel: "SDM → SDM conversion",
     group: "dsp",
     widget: "dropdown",

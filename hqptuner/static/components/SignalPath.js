@@ -183,8 +183,8 @@ function conversionStages(st, md) {
   const sdmOut = outputIsSdm(st);
   if (dsdIn && sdmOut) {
     return [
-      { stage: "sdm-integrator", label: "Reconstruction filter", value: configLabel("sdm_integrator") },
-      { stage: "sdm-conversion", label: "Source bandwidth", value: configLabel("sdm_conversion") },
+      { stage: "sdm-integrator", label: "Remodulator structure", value: configLabel("sdm_integrator") },
+      { stage: "sdm-conversion", label: "Rate conversion", value: configLabel("sdm_conversion") },
     ];
   }
   if (dsdIn) {
