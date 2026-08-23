@@ -59,7 +59,6 @@ ALLOWANCE: dict[str, int] = {
     "scripts/probes/probe_absent_plugin.py": 430,
     ".claude/hooks/change-budget.py": 426,
     "hqptuner/lanes/live/lane.py": 409,
-    "hqptuner/static/css/cards/narrowing.css": 408,
     "hqptuner/static/css/features/volume.css": 407,
     "hqptuner/static/store/actions.js": 406,
     "scripts/eqlab/chain.js": 405,
