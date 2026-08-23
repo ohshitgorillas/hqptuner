@@ -59,7 +59,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Small amount of passband ripple is also present. Medium attenuation. IIR filter is applied in time domain."
+      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Small amount of passband ripple is also present. Medium attenuation. IIR filter is applied in the time domain."
     },
     "IIR2": {
       "genre": ["pop", "jazz"],
@@ -67,7 +67,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Medium attenuation. No passband ripple. IIR filter is applied in time domain."
+      "description": "Analog-sounding filter especially suitable for recordings containing strong transients, with long post-ringing as a side effect (not usually audible due to masking). A steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing but long post-ringing. Medium attenuation. No passband ripple. IIR filter is applied in the time domain."
     },
     "FIR": {
       "genre": ["classical"],
@@ -75,7 +75,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real-world acoustic environment such as a concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in time domain. Average amount of pre- and post-ringing."
+      "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real-world acoustic environment such as a concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in the time domain. Average amount of pre- and post-ringing."
     },
     "asymFIR": {
       "genre": ["jazz"],
@@ -100,7 +100,7 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "2x",
-      "description": "Technically good steep \"brickwall\" filter, but might have some side effects (pre-ringing) on material containing strong transients. This filter is similar to FIR, but it is applied in frequency domain and is quite efficient from performance point of view while having rather long impulse response. Length of this filter can be configured separately in the FFT filter length setting."
+      "description": "Technically good steep \"brickwall\" filter, but might have some side effects (pre-ringing) on material containing strong transients. This filter is similar to FIR, but it is applied in the frequency domain and is quite efficient from a performance point of view while having a rather long impulse response. The length of this filter can be configured separately in the FFT filter length setting."
     },
     "poly-sinc-lp": {
       "genre": ["classical"],
@@ -466,7 +466,7 @@
       "apodizing": "none",
       "ratio": "integer",
       "upsample_only": true,
-      "description": "Polynomial interpolation. No apparent pre- or post-ringing. Frequency response rolls off slowly in the top octave. Poor stop-band rejection and will thus leak fairly high amount of ultrasonic distortion. These types of filters are sometimes referred to as \"non-ringing\" by some manufacturers.",
+      "description": "Polynomial interpolation. No apparent pre- or post-ringing. Frequency response rolls off slowly in the top octave. Poor stop-band rejection and will thus leak a fairly high amount of ultrasonic distortion. These types of filters are sometimes referred to as \"non-ringing\" by some manufacturers.",
       "notes": "Not recommended."
     },
     "polynomial-2": {

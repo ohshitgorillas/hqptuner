@@ -38,12 +38,12 @@
     },
     "net_device": {
       "label": "Output device",
-      "tooltip": "A list of remote audio devices is shown. This always combination of the NAA device plus the hardware device ID.",
+      "tooltip": "A list of remote audio devices is shown. This is always a combination of the NAA device plus the hardware device ID.",
       "source": "manual §4"
     },
     "dac_bits": {
       "label": "DAC bits",
-      "tooltip": "Number significant bits the DAC has, this is the dithering level; 0 auto-detects. When DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S it is important to select correct number of bits. In addition, when a DAC is connected to USB and has something else than 32-bit input resolution, it is recommended to set the actual value here. Also when a suitable noise-shaper, such as LNS15, NS9 or NS5 is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower distortion of especially low level signals and reduce zero-crossing distortions.",
+      "tooltip": "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects. When the DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to set the actual value here. Also when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion of especially low-level signals and reduce zero-crossing distortions.",
       "source": "manual §4.4 (Bits), readme §1.3 (dac_bits)"
     },
     "channel_offset": {
@@ -93,13 +93,13 @@
     },
     "junk_filter": {
       "label": "High-frequency filter",
-      "tooltip": "Various playback filters are provided to deal with noise, errors and distortion. For example in bad quality or fake hi-res source. These filters can be switched at any time during playback. To see their effect on the source, pre-process before metering can be enabled.",
+      "tooltip": "Various playback filters are provided to deal with noise, errors, and distortion, for example in bad quality or fake hi-res sources. These filters can be switched at any time during playback. To see their effect on the source, pre-process before metering can be enabled.",
       "options": {
         "0": "No filtering.",
         "1": "20 kHz filter is useful for cleaning up fake hi-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.",
-        "2": "30 kHz filter is a slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
-        "3": "40 kHz filter is a slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
-        "4": "50 kHz filter is a very slow roll-off filter for cleaning out for example excessive noise shaping from certain ADCs and DSD to PCM conversions.",
+        "2": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
+        "3": "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are for example transfers from analog tape.",
+        "4": "Very slow roll-off filter for cleaning out for example excessive noise shaping from certain ADCs and DSD to PCM conversions.",
         "5": "Places steep cut-off at 2x of the base rate.",
         "6": "Places steep cut-off at 4x of the base rate.",
         "7": "Places steep cut-off at 8x of the base rate."
@@ -130,7 +130,7 @@
     },
     "apodizing": {
       "label": "Apodizing",
-      "tooltip": "The need for an apodizing filter is based on detected errors that originate from the recording ADC or mastering tools. Apodizing filter should be used at least when \"Apod\" counter increments to higher than 10 during any single track. There is no harm in using apodizing filter for content that doesn't need one. But there is harm using non-apodizing filter for content that would need one.",
+      "tooltip": "The need for an apodizing filter is based on detected errors that originate from the recording ADC or mastering tools. An apodizing filter should be used at least when the \"Apod\" counter increments to higher than 10 during any single track. There is no harm in using an apodizing filter for content that doesn't need one. But there is harm in using a non-apodizing filter for content that would need one.",
       "source": "manual §2.6"
     },
     "channels": {
@@ -155,19 +155,19 @@
     },
     "sdm_modulator": {
       "label": "Sigma-delta modulator",
-      "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
+      "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have the potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on the source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
       "source": "manual §4.4/§4.5"
     },
     "matrix_enabled": {
       "label": "Matrix processing",
-      "tooltip": "Matrix processing offers a way to copy, route, filter and mix down channels with specified gains. Matrix processing consists of maximum 128 virtual channels – pipelines, number of active pipelines can be configured through advanced settings. Note! It is not recommended have both simple convolution engine and matrix processor active simultaneously. If convolution is needed with matrix processing, it is recommended to configure convolution here.",
+      "tooltip": "Matrix processing offers a way to copy, route, filter and mix down channels with specified gains. Matrix processing consists of a maximum of 128 virtual channels (pipelines); the number of active pipelines can be configured through advanced settings. Note! It is not recommended to have both the simple convolution engine and the matrix processor active simultaneously. If convolution is needed with matrix processing, it is recommended to configure convolution here.",
       "source": "manual §7, readme §1.11"
     },
     "matrix_engine": {
       "label": "Engine",
       "tooltip": "Convolution engine applicable to filter(s) defined in Process, can be selected from two choices.",
       "options": {
-        "0": "Overlap-save, which is alternative method.",
+        "0": "Overlap-save, which is an alternative method.",
         "1": "Overlap-add, which is the default and recommended."
       },
       "source": "manual §7, readme §1.11"
@@ -194,17 +194,17 @@
     },
     "matrix_iir2fir": {
       "label": "IIR to FIR",
-      "tooltip": "Using the IIR to FIR it is possible to choose whether parametric EQs are converted to a convolution EQ. In some cases, like GPU offloading, it may be more efficient to compute set of parametric EQs as a convolution filter instead.",
+      "tooltip": "Using IIR to FIR, it is possible to choose whether parametric EQs are converted to a convolution EQ. In some cases, like GPU offloading, it may be more efficient to compute a set of parametric EQs as a convolution filter instead.",
       "options": {
         "0": "Disabled.",
         "1": "Direct conversion, retains original minimum phase response.",
-        "2": "The EQ filter is converted to a linear phase one. Note! Conversion to linear phase will introduce some amount of unnatural pre-ringing in the audio band. This is why EQ filters are typically minimum-phase. Higher the parametric filter's Q and dB values are, more pre-ringing it will also introduce for linear-phase. So the linear phase conversion works best with rather gentle EQ setups."
+        "2": "The EQ filter is converted to a linear phase one. Note! Conversion to linear phase will introduce some amount of unnatural pre-ringing in the audio band. This is why EQ filters are typically minimum-phase. The higher the parametric filter's Q and dB values are, the more pre-ringing it will also introduce for linear-phase. So the linear phase conversion works best with rather gentle EQ setups."
       },
       "source": "manual §7, readme §1.11"
     },
     "crossfeed_enabled": {
       "label": "Bauer crossfeed",
-      "tooltip": "Bauer cross-feed is processing for headphones that is intended to make the listening experience more natural and spacious. This is very simple model, with three presets. Applied to the output mix bus, meaning output channels after the matrix processing.",
+      "tooltip": "Bauer cross-feed is processing for headphones, intended to make the listening experience more natural and spacious. This is a very simple model with three presets. Applied to the output mix bus, meaning output channels after matrix processing.",
       "source": "manual §7"
     },
     "crossfeed_preset": {
@@ -224,7 +224,7 @@
     },
     "dac_correction": {
       "label": "DAC correction",
-      "tooltip": "Correction performs corrections for the output signal of selected DAC. These corrections are specific to a DAC model and output rate. When Combo-backend is used, there may be multiple corrections available for each corresponding DAC. Applied to the output mix bus, meaning output channels after the matrix processing.",
+      "tooltip": "Correction performs corrections for the output signal of selected DAC. These corrections are specific to a DAC model and output rate. When Combo-backend is used, there may be multiple corrections available for each corresponding DAC. Applied to the output mix bus, meaning output channels after matrix processing.",
       "source": "manual §7, readme §1.11 (correction)"
     },
     "dac_correction_profile": {
@@ -234,7 +234,7 @@
     },
     "loudness_enabled": {
       "label": "Loudness",
-      "tooltip": "Loudness is a volume-adaptive loudness control with adjustable parameters. For bass and treble controls, the corner frequency, slope factor (see IIR plugin) and level can be adjusted. Lower bound is volume setting where at or below, set maximum loudness value is reached. Higher bound is volume setting where at and above, loudness value reaches 0 dB. Applied to the output mix bus, meaning output channels after the matrix processing.",
+      "tooltip": "Volume-adaptive loudness control with adjustable parameters. For bass and treble, the corner frequency, slope factor (see IIR plugin), and level can be adjusted. Lower bound is the volume setting where, at or below, the maximum loudness value is reached. Upper bound is the volume setting where, at or above, the loudness value reaches 0 dB. Applied to the output mix bus, meaning output channels after matrix processing.",
       "source": "manual §7, readme §1.11.2.1 (loudness)"
     },
     "loudness_low_level": {
@@ -249,7 +249,7 @@
     },
     "loudness_low_steep": {
       "label": "Bass steepness / Q",
-      "tooltip": "Bass adjustment slope factor. See the IIR plugin: s is factor (1 maximum steepness).",
+      "tooltip": "Bass adjustment slope factor. See the IIR plugin: s is the factor (1 = maximum steepness).",
       "source": "readme §1.11.2.1 (low_steepness)"
     },
     "loudness_low_type": {
@@ -269,7 +269,7 @@
     },
     "loudness_high_steep": {
       "label": "Treble steepness / Q",
-      "tooltip": "Treble adjustment slope factor. See the IIR plugin: s is factor (1 maximum steepness).",
+      "tooltip": "Treble adjustment slope factor. See the IIR plugin: s is the factor (1 = maximum steepness).",
       "source": "readme §1.11.2.1 (high_steepness)"
     },
     "loudness_high_type": {
@@ -279,12 +279,12 @@
     },
     "loudness_range_low": {
       "label": "Range lower bound",
-      "tooltip": "Loudness range lower bound at which maximum level is reached — volume setting where at or below, set maximum loudness value is reached.",
+      "tooltip": "The volume setting where, at or below, the maximum loudness value is reached.",
       "source": "readme §1.11.2.1 (range_low)"
     },
     "loudness_range_high": {
       "label": "Range upper bound",
-      "tooltip": "Loudness range higher bound at which minimum level is reached — volume setting where at and above, loudness value reaches 0 dB.",
+      "tooltip": "The volume setting where, at or above, the loudness value reaches 0 dB.",
       "source": "readme §1.11.2.1 (range_high)"
     },
     "direct_sdm": {
@@ -299,22 +299,22 @@
     },
     "sdm_integrator": {
       "label": "Integrator",
-      "tooltip": "Three types of delta-sigma integrators are available for different SDM → SDM remodulation schemes. These affect mostly frequency and phase response at highest frequencies. Stated frequencies apply for DSD64 source rate, and these frequencies scale as a function of source sampling rate.",
+      "tooltip": "Three types of delta-sigma integrators are available for different SDM → SDM remodulation schemes. These affect mostly the frequency and phase response at the highest frequencies. Stated frequencies apply for the DSD64 source rate, and these frequencies scale as a function of the source sampling rate.",
       "options": {
-        "0": "Normal IIR-type integrator structure. 50 kHz audio bandwidth re DSD64.",
-        "3": "IIR-type integrator structure designed to minimize residual noise. 25 kHz audio bandwidth re DSD64.",
-        "4": "High-order IIR-type integrator structure. 30 kHz audio bandwidth re DSD64.",
+        "0": "Normal IIR-type integrator structure. 50 kHz audio bandwidth re: DSD64.",
+        "3": "IIR-type integrator structure designed to minimize residual noise. 25 kHz audio bandwidth re: DSD64.",
+        "4": "High-order IIR-type integrator structure. 30 kHz audio bandwidth re: DSD64.",
         "1": "Weighted FIR-type integrator structure.",
-        "5": "Weighted FIR-type integrator structure. 50 kHz audio bandwidth re DSD64.",
-        "6": "FIR-type integrator structure with band-limiting. 24 kHz audio bandwidth re DSD64 with complete cut by 45 kHz.",
-        "7": "FIR-type integrator structure with brickwall band-limiting. 21.5 kHz audio bandwidth re DSD64 with complete cut by 30 kHz.",
+        "5": "Weighted FIR-type integrator structure. 50 kHz audio bandwidth re: DSD64.",
+        "6": "FIR-type integrator structure with band-limiting. 24 kHz audio bandwidth re: DSD64 with complete cut by 45 kHz.",
+        "7": "FIR-type integrator structure with brickwall band-limiting. 21.5 kHz audio bandwidth re: DSD64 with complete cut by 30 kHz.",
         "2": "Cascade comb-type integrator structure."
       },
       "source": "manual §4.5"
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
-      "tooltip": "Different options for SDM → SDM rate conversions. These affect frequency aperture that is assumed to contain useful signal in addition to increasing noise-shaping noise. For example, piano doesn't contain high frequency harmonics and for such case \"narrow\" is suitable, while close-miked percussions usually contain high level high frequency content and there \"wide\" may be more suitable, whereas \"XFi\" is suitable for all cases. Default is \"XFi\".",
+      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain the useful signal in addition to increasing the noise-shaping noise. For example, piano doesn't contain high frequency harmonics and for such a case \"narrow\" is suitable, while close-miked percussions usually contain high level high frequency content and there \"wide\" may be more suitable, whereas \"XFi\" is suitable for all cases. Default is \"XFi\".",
       "options": {
         "0": "Wide bandwidth signal.",
         "1": "Narrow bandwidth signal.",
@@ -324,10 +324,10 @@
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce amount of ultrasonic noise present in the source data. Standard filtering leaves low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit bandwidth available for the audio content. When processing output rate of DSD source (assuming DSD64) is 88.2/96 kHz PCM, use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When processing output rate of DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
+      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data. Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
       "options": {
         "0": "Standard noise filter will be applied. Recommended.",
-        "1": "Similar to standard, but has lower corner frequency and results in almost flat noise profile in ultrasonic range. Recommended.",
+        "1": "Similar to standard, but has a lower corner frequency and results in an almost flat noise profile in the ultrasonic range. Recommended.",
         "10": "High-order noise filter designed for material created with high-order modulators. Recommended.",
         "7": "Sliding average converter.",
         "8": "Weighted element converter.",
@@ -346,7 +346,7 @@
       "label": "SDM → PCM conversion",
       "tooltip": "These settings control DSD to PCM conversion algorithms.",
       "options": {
-        "0": "Traditional recursive conversion algorithm. Minimizes amount of ringing by using slow roll-off filters.",
+        "0": "Traditional recursive conversion algorithm. Minimizes the amount of ringing by using slow roll-off filters.",
         "1": "Single-pass conversion algorithm with steep roll-off.",
         "2": "Single-pass conversion algorithm with normal roll-off. Optimized tradeoff between ringing and wide frequency response.",
         "3": "Linear phase single-pass conversion algorithm.",
@@ -359,7 +359,7 @@
         "9": "Linear phase million-tap sharp roll-off and high attenuation single-pass conversion algorithm.",
         "10": "Linear phase adaptive length sharp roll-off and high attenuation single-pass conversion algorithm.",
         "12": "Linear phase Gaussian extremely high attenuation single-pass conversion algorithm. Optimal time-frequency response.",
-        "254": "No decimation, intermediate output rate is equal to source DSD rate."
+        "254": "No decimation; intermediate output rate is equal to the source DSD rate."
       },
       "source": "manual §4.4, readme §1.2 (pdm_conv). Value 10 is the daemon's 'sinc-S'; its tap count is disputed upstream (manual §4.4 says 65536, readme §1.2 says 4096 × ratio — the latter is the wording for the same-named resampling filter in manual §4.6), so no figure is quoted."
     }
@@ -377,7 +377,7 @@
     },
     "optimal_iso": {
       "label": "Auto headroom",
-      "tooltip": "Enables special fixed volume with optimized level setting that has enough headroom for most typical inter-sample overs. This is recommended setting when HQPlayer's digital volume control is not needed due to use of some external volume control method. The -3 dB setting puts volume at roughly -3 dB, the -6 dB setting at roughly -6 dB. -6 dB setting is good for music content where normal -3 dB doesn't provide enough headroom, such as heavily clipped content.",
+      "tooltip": "Enables a special fixed volume with an optimized level setting that has enough headroom for most typical inter-sample overs. This is a recommended setting when HQPlayer's digital volume control is not needed due to the use of some external volume control method. The -3 dB setting puts the volume at roughly -3 dB; the -6 dB setting at roughly -6 dB. The -6 dB setting is good for music content where the normal -3 dB setting doesn't provide enough headroom, such as heavily clipped content.",
       "source": "manual §4.2, readme §1.3 (volume_fixed)"
     },
     "volume_max": {

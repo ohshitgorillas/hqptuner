@@ -172,13 +172,13 @@
       "order": 5, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
-      "notes": "Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+      "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM7EC5L": {
       "order": 7, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
-      "notes": "Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+      "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM5EC8B": {
       "order": 5, "type": "hybrid-8-bit",
@@ -217,7 +217,7 @@
       "min_rate_hz": 176400, "min_rate_label": "≥ 4x (176.4/192 kHz)",
       "max_rate_hz": null,
       "description": "Ninth order noise-shaping. Very aggressive noise-shaping designed especially for 4x rates (176.4/192 kHz) and recommended for these rates.",
-      "notes": "Especially good for older 16-bit 4x-rate-capable multibit-DACs like TDA154x etc."
+      "notes": "Especially good for older 16-bit, 4x-rate-capable multibit DACs like TDA154x etc."
     },
     "LNS15": {
       "min_rate_hz": 352800, "min_rate_label": "≥ 8x (352.8/384 kHz); designed for 16x",
@@ -230,7 +230,7 @@
     },
     "TPDF": {
       "min_rate_hz": null, "max_rate_hz": null,
-      "description": "Triangular Probability Density Function. This is the industry standard simple dither mechanism. Suitable for any rate and recommended if playback rate is 44.1/48 kHz. Recommended for general purpose use."
+      "description": "Triangular Probability Density Function. This is the industry standard simple dither mechanism. Suitable for any rate and recommended if the playback rate is 44.1/48 kHz. Recommended for general purpose use."
     },
     "Gauss1": {
       "min_rate_hz": null,
@@ -240,7 +240,7 @@
     "shaped": {
       "min_rate_hz": 88200, "min_rate_label": "≥ 88.2/96 kHz",
       "max_rate_hz": null,
-      "description": "Shaped dither. Noise used in this dither has shaped frequency distribution to lower audibility of the dither noise. Suitable for playback rates ≥ 88.2/96 kHz."
+      "description": "Shaped dither. Noise used in this dither has a shaped frequency distribution to lower the audibility of the dither noise. Suitable for playback rates ≥ 88.2/96 kHz."
     }
   }
 }
