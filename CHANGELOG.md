@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The filter and signal chain descriptions return to the manual's terse register.** The fluent-English pass added leading articles and padding the originals did without; those come back out across the filter, modulator, integrator, noise filter, conversion and dither blurbs and the chain tooltips. Multiplier notation reads uniformly as 4096x style, rate comparisons read as ≥/≤, and poly-sinc-short-mp names poly-sinc-short instead of the manual's shrt shorthand. Grammar and spelling fixes stay.
+
 - **Two Simplified names change on Signalyst feedback.** The Integrator control's Simplified name becomes Remodulator structure, since Reconstruction filter changed the meaning, and SDM → SDM conversion becomes Rate conversion, since Source bandwidth suggested an effect even at matching rates. The signal path rows follow.
 
 ### Fixed
