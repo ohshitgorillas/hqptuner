@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.11.2] — 2026-08-23
+
 ### Changed
 
 - **The filter and signal chain descriptions return to the manual's terse register.** The fluent-English pass added leading articles and padding the originals did without; those come back out across the filter, modulator, integrator, noise filter, conversion and dither blurbs and the chain tooltips. Multiplier notation reads uniformly as 4096x style, rate comparisons read as ≥/≤, and poly-sinc-short-mp names poly-sinc-short instead of the manual's shrt shorthand. Grammar and spelling fixes stay.
