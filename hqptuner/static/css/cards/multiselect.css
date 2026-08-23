@@ -1,0 +1,149 @@
+/* multiselect — the multi-select dropdown widget: the button and its popover,
+   used by the narrow bar's facets.
+   Cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* An ENGAGED facet button (non-default selection) reads accent — border and a
+   faint accent wash, text stays normal (user call) — so the currently-active
+   narrowing dropdowns stand out from the untouched ones at a glance. */
+.multi-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+}
+
+/* Per-option result counts in a facet popover ("Rock  14/22"): the label takes
+   the row, the count sits right-aligned and muted. `dead` = the pick zeroes out
+   both stages, dimmed as a visible dead end before it is clicked. */
+.multi-pop label .opt-label {
+  flex: 1;
+}
+.opt-count {
+  margin-left: var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.opt-count.dead {
+  opacity: var(--o-off);
+}
+/* Column head over those counts: right-aligned to the same edge the chips end
+   on (the rows are flex with .opt-label taking the slack, so the chip column is
+   flush right), divided off the rows below it like .multi-extra is above. */
+.multi-head {
+  text-align: right;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--surface-raised);
+}
+
+/* multi-select focus dropdown (checkbox hybrid) */
+.multi {
+  position: relative;
+}
+/* inline-flex, not inline: the button holds a label and a caret, and the caret
+   is a shape with a box (marks.css) rather than a glyph on a baseline. Only a
+   row that centers its items can place it, so the display is load-bearing and
+   the gap is what separates label from caret — a whitespace-only text node
+   between two flex items is dropped, so a space character cannot. */
+.multi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--surface-raised);
+  color: var(--fg);
+  border: 1px solid var(--surface-raised);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: var(--fs-body);
+}
+/* the Favorites toggle with zero stars — nothing to narrow to */
+.multi-btn:disabled {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
+.multi-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--sp-1); /* token-exempt: absolutely positioned — this offsets the popover from its button's bottom edge, it is not space between siblings */
+  z-index: 20;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  /* both shadows in one value: the popover's own lift off the page, plus the
+     edge light every --surface-raised element carries (aesthetic.css). They
+     cannot be two rules — the later one would replace this one, not add to it. */
+  box-shadow:
+    var(--edge-light),
+    var(--shadow-pop);
+}
+.multi-pop label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--fg);
+  white-space: nowrap;
+}
+/* a row the live selection has made inert: the genre facet's other rows once
+   "any" is picked under AND, where no further pick can change the result. Its
+   checkbox is disabled, so this is the visible half of that. */
+.multi-pop label.off {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
+/* rate-change popover (Facets.js RateFacet): the three hide-rule rows plus
+   explanatory prose. Wide enough for the prose to read as short paragraphs —
+   the row chrome is nowrap, so the popover needs its own measure. Anchored to
+   the button's RIGHT edge: the rate facet closes the facet row, so a
+   left-anchored pop this wide runs off the viewport. */
+.rate-pop {
+  width: 24rem;
+  left: auto;
+  right: 0;
+}
+/* the scenario labels run long (uncommon-source-rates row): rule rows wrap
+   rather than forcing the popover wider than its measure */
+.rate-pop label {
+  white-space: normal;
+}
+/* explainer / hint prose under the rule rows: caption voice, wraps, divided
+   off the rows above it the way .multi-extra is. */
+.rate-note {
+  white-space: normal;
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--surface-raised);
+}
+
+/* orthogonal extra in a multi-select popover (genre/focus → AND/OR switch):
+   divided off the rows above it, same row chrome */
+.multi-extra {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--fg);
+  white-space: nowrap;
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--surface-raised);
+}
+/* The AND/OR combine switch closing a multi-select popover (genre, focus): the
+   segment spans the popover and splits it evenly, so the two halves read as one
+   two-way choice rather than as another option row. Scaled down off the
+   segment's own defaults to the checkbox rows' type and padding — a control this
+   wide at --fs-body-lg would outweigh the list it modifies. */
+.multi-mode .segment {
+  display: flex;
+  flex: 1;
+}
+.multi-mode .seg {
+  flex: 1;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-body);
+}
