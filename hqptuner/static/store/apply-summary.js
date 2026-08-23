@@ -148,14 +148,15 @@ function success(sw, count) {
  */
 function savedSummary(base, saved) {
   if (!saved) return base;
-  const { code, text } = base;
+  const { text } = base;
   if (!saved.ok)
-    return failure(code, `${text} — save to "${saved.name}" failed: ${saved.error}`, {
+    return {
       ...base,
       ok: false,
+      text: `${text} — save to "${saved.name}" failed: ${saved.error}`,
       save: "failed",
       preset: saved.name,
-    });
+    };
   const caveat = saved.warning ? ` — ${saved.warning}` : "";
   return {
     ...base,

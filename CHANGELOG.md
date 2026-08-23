@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **A failed preset save during apply now reports the save error.** The summary previously showed the apply's success sentence with a failure mark and dropped the error.
+
 ## [1.11.1] — 2026-08-22
 
 ### Changed
