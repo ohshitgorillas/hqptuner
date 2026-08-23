@@ -6,6 +6,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The narrowing card's switches share one left edge.** The Option style segment started left of the Apodizing filters rows above it; both now start on the same edge, with the group titles beside them holding one shared width.
+
+- **The recommended legend stands out in simplified dropdowns.** The "✓ = recommended" line right-aligns at the bottom of the list, and its check is drawn in accent to match the marks it explains, instead of sinking into the option column as muted text.
+
+- **Copy reads one way everywhere.** DSD playback drops its stray capital, half-band and hi-res spellings match their siblings, and the decimation hint names the renamed control as PCM Conversion (Decimation filter).
+
+- **The Option style hint covers every list it simplifies.** The description refers to the signal chain options below instead of naming only the filter, dither, and modulator lists.
+
 - **A filter dropdown is the same height as the plain dropdowns around it.** The description-carrying dropdowns stood two pixels shorter than the plain selects they sit beside; both now take one control height.
 
 - **Every triangle mark sits level with the text beside it.** The disclosure triangles on card heads and dropdown group headers, the caret on a closed dropdown and the mark on a selected option are drawn as shapes rather than text characters, so each centers on its row instead of hanging low.
