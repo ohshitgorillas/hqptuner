@@ -6,47 +6,19 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The narrowing card's switches share one left edge.** The Option style segment started left of the Apodizing filters rows above it; both now start on the same edge, with the group titles beside them holding one shared width.
+- **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox, and the control carries "Direct SDM" as its sublabel so HQPlayer's own name stays findable.
 
-- **The recommended legend stands out in simplified dropdowns.** The "✓ = recommended" line right-aligns at the bottom of the list, and its check is drawn in accent to match the marks it explains, instead of sinking into the option column as muted text.
+- **The DSD source controls honor the Option style switch.** In Simplified, Integrator reads Reconstruction filter, SDM → SDM reads Source bandwidth, and the Noise filter and the Decimation filter, formerly SDM to PCM conversion, group into plain-English families, with Bypass holding the no-decimation option. Options the manual recommends carry an accent check with a "✓ = recommended" legend, and the signal path rows follow the renames.
 
-- **Copy reads one way everywhere.** DSD playback drops its stray capital, half-band and hi-res spellings match their siblings, and the decimation hint names the renamed control as PCM Conversion (Decimation filter).
+- **The Simplified filter families regroup around Conventional and Interpolation.** FFT joins the Conventional family as a Brickwall variant, leaving Misc to no resampling and asynchronous rate conversion alone, and Closed form and Polynomial merge into one Interpolation family captioned "Generates new samples along a curve rather than by filtering", so the dropdowns list Analog-style, Conventional, Polyphase sinc, Interpolation, Pure sinc, then Misc.
 
-- **The Option style hint covers every list it simplifies.** The description refers to the signal chain options below instead of naming only the filter, dither, and modulator lists.
+- **The filter and SDM chain descriptions read as fluent, consistent English.** The blurbs gain articles, resolve comma splices and give bare fragments a verb; spellings like hi-res and half-band match everywhere, hints name the renamed controls, rate floors read with a proper ≥ sign, and the Option style hint covers every list it simplifies instead of naming only the filter, dither and modulator lists. No technical claim changes.
 
-- **A filter dropdown is the same height as the plain dropdowns around it.** The description-carrying dropdowns stood two pixels shorter than the plain selects they sit beside; both now take one control height.
-
-- **Every triangle mark sits level with the text beside it.** The disclosure triangles on card heads and dropdown group headers, the caret on a closed dropdown and the mark on a selected option are drawn as shapes rather than text characters, so each centers on its row instead of hanging low.
-
-- **Two noise filter options are named for what they do.** The Averaging family's second weighted option drops the SACD framing for the manual's own non-ringing linear phase, and the Dedicated family's lower corner frequency option no longer claims a flat noise floor, which the manual calls almost flat.
-
-- **The Decimation filter families read accurately in Simplified.** The Conventional blurb no longer claims most DACs do this conversion internally, and the family holding the no-decimation option is now named Bypass, captioned with what it does, and lists its option as No decimation.
-
-- **The SDM chain descriptions read as fluent English.** The sigma-delta modulator, Dither, Reconstruction filter, Source bandwidth, Noise filter and Decimation filter prose gains articles, resolves comma splices and gives its bare value fragments a verb. Compound modifiers are hyphenated, rate floors read with a proper ≥ sign, and the manual's pointer to its own option list is dropped. No technical claim changes.
-
-- **The caret on a dropdown is drawn larger.** The triangle at the right edge of a filter or modulator dropdown was rendering at text size, which left it a speck beside the label. It now grows within the same row height.
-
-- **Explanation text under a dropdown starts on the dropdown's text edge.** The description, note and gray reason below a dropdown indent to line up with the wording inside the closed control instead of with its left border.
+- **Every triangle mark is drawn as a shape and sits level with its text.** The disclosure triangles on card heads and dropdown group headers, the caret on a closed dropdown and the mark on a selected option no longer render as text characters, so each centers on its row instead of hanging low, and the caret grows to a visible size within the same row height.
 
 - **The selected option carries an accent mark in the dropdown list.** An open dropdown draws a small triangle in the gutter beside the option currently in force, which is what the long Simplified lists need to be scannable. The selected row no longer sets itself apart by weight alone, which read as a group header among them.
 
-- **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox, and the control carries "Direct SDM" as its sublabel so HQPlayer's own name stays findable.
-
-- **Simplified names for the DSD source PCM chain.** The Noise filter and the renamed Decimation filter (SDM to PCM conversion) group into plain-English families under the Simplified option style, and options the manual recommends carry an accent check with a "✓ = recommended" legend.
-
-- **The two DSD source controls honor the Option style switch.** Integrator becomes Reconstruction filter and offers Conventional, Weighted averaging and Simple averaging families in Simplified; SDM → SDM becomes Source bandwidth and lists three readable rows with no grouping. The signal path rows follow the rename. Source bandwidth drops its per-option manual sentence in Simplified, where the row already carries that wording, and keeps it in Standard.
-
-- **The two-stage oversampling note appears on the SDM filter dropdowns only.** Fifteen filters run their oversampling in two stages, with a minimum 16x intermediate rate, when they feed a sigma-delta modulator. That sentence now renders under the SDM 1x and Nx filter selectors, where it applies, and no longer under the PCM pair, where it does not.
-
-- **Filter descriptions read as fluent English.** The Pure sinc, Analog-style, Conventional, Interpolation and Polyphase sinc blurbs gain articles, resolve comma splices and give dangling predicates a subject. Phase compounds are unhyphenated throughout and "HiRes" now reads "hi-res", matching the leaf labels. No technical claim changes.
-
 - **The two high attenuation pure sinc leaves read "Long with high attenuation".** The `sinc-Lh` and `sinc-long-h` rows drop the earlier "Long length, high attenuation" phrasing in both the leaf label and the flattened Standard name.
-
-- **FFT joins the Conventional family as a Brickwall variant.** The frequency-domain filter leaves Misc, which now holds no resampling and asynchronous rate conversion alone, and the Conventional family caption and its Classic oversampling blurb are reworded.
-
-- **The Polynomial and Minimum ringing blurbs are corrected.** Polynomial now leads with its slow roll-off and weak ultrasonic suppression rather than its ringing, which the leaf labels already state, and Minimum ringing no longer claims less ringing than Polynomial.
-
-- **Closed form and Polynomial merge into one Interpolation family.** The two become variants of a single family captioned "Generates new samples along a curve rather than by filtering", so the Simplified filter dropdowns list Analog-style, Conventional, Polyphase sinc, Interpolation, Pure sinc, then Misc.
 
 ## [1.11.0] — 2026-08-21
 
