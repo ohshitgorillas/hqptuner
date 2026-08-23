@@ -24,6 +24,20 @@ import { signal } from "@preact/signals";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Section, Card, collapseFrom } from "../../../hqptuner/static/components/common.js";
+import { elements, classes, text } from "../support/markup.js";
+
+/**
+ * The disclosure mark a collapsible card's head carries. Found by its class
+ * token rather than by where it sits, so the head is free to restructure.
+ *
+ * @param {string} out
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function triangle(out) {
+  const [mark] = elements(out).filter((el) => classes(el).includes("tri"));
+  if (!mark) throw new Error("the rendering carries no disclosure mark");
+  return mark;
+}
 
 const KID = html`<p>kid</p>`;
 
@@ -92,22 +106,31 @@ test("test_a_manual_close_wins_over_an_open_app_state", () => {
 // The disclosure mark is a shape CSS draws, so its element is EMPTY and the
 // direction it points rides in the class list — open unmarked, closed carrying
 // `closed`. The class is what now carries the meaning the glyph used to, so the
-// class is what these cases read; the emptiness is asserted alongside it,
-// because a mark that kept a character would still be a text glyph.
+// class tokens are what these cases read; the emptiness is asserted alongside
+// them, because a mark that kept a character would still be a text glyph. Read
+// through tests/js/support/markup.js by element and class token, so a
+// decorative attribute added to the mark is not a failure.
 test("test_an_open_collapsible_marks_its_triangle_open", () => {
-  assert.ok(disclosure(true).includes('<span class="tri"></span>'));
+  const mark = triangle(disclosure(true));
+  assert.deepEqual([classes(mark), text(mark)], [["tri"], ""]);
 });
 
 test("test_a_closed_collapsible_marks_its_triangle_closed", () => {
-  assert.ok(disclosure(false).includes('<span class="tri closed"></span>'));
+  const mark = triangle(disclosure(false));
+  assert.deepEqual([classes(mark), text(mark)], [["tri", "closed"], ""]);
 });
 
 // A card handed no handle is not a disclosure and has nothing to point at, so
 // it carries no mark at all. Says the same thing whichever way the shape is
 // drawn, and it is what catches a mark emitted unconditionally and hidden by
-// CSS in the closed state.
+// CSS in the closed state. The token is matched whole, so a future `tri-`
+// prefixed class is not mistaken for one.
 test("test_a_card_with_no_collapse_handle_carries_no_triangle", () => {
-  assert.equal(/class="[^"]*\btri\b/.test(render(html`<${Card} title="General">${KID}<//>`)), false);
+  const plain = render(html`<${Card} title="General">${KID}<//>`);
+  assert.equal(
+    elements(plain).some((el) => classes(el).includes("tri")),
+    false,
+  );
 });
 
 test("test_a_collapsible_names_itself_in_its_head", () => {

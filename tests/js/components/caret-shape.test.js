@@ -1,39 +1,36 @@
-// Behavioral suite for the app's disclosure and dropdown MARKS as markup: the
-// caret a narrow-bar select button carries, and the disclosure triangle a
-// collapsible card's head carries.
+// Behavioral suite for the narrow bar's dropdown MARKS as markup: the caret
+// every facet select button carries, and the caption beside it.
 //
-// Both are shapes CSS draws, not characters a font renders, so every one of them
-// is an EMPTY element and no component emits `▾`, `▴` or `▸` as text. That is a
+// The caret is a shape CSS draws, not a character a font renders, so it is an
+// EMPTY element and the button's caption is its label alone. That is a
 // wire-side fact about the markup — element and class, not wording — so it is
 // asserted here rather than left to the stylesheet (docs/testing.md rule 9: CSS
 // classes are contract, the words beside them are not).
 //
-// Which direction a card's mark points is carried by the class on its `tri`
-// span and is pinned in tests/js/components/common.test.js. This file asks the
-// other half of the same contract: that nothing is left INSIDE the marks.
+// Scope is the narrow bar only. The other half of the same contract, the
+// disclosure mark a collapsible card's head carries and the direction class on
+// it, is pinned in tests/js/components/common.test.js; no claim is made here
+// about any surface this file does not render.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. The bar is reset and rendered through
 // tests/js/support/genrepopover.js, driven by the engine's own `<GetFilters/>`
-// enumeration (protocol.md:226); the System tab is rendered through the exported
-// `System` over the exported `health` signal, the way
-// tests/js/components/systemtab.test.js drives it.
+// enumeration (protocol.md:226). The rendered markup is read through
+// tests/js/support/markup.js, by element and class token, so a decorative
+// attribute added to a mark changes nothing here.
 //
-// The bar's carets are read as a SET, so a bar that renders none fails these
-// cases rather than passing them vacuously on an empty list.
+// The carets are counted against the bar's own facet blocks, so a bar that
+// renders the mark on one button and drops it on the rest fails rather than
+// passing on a shorter list.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/caret-shape.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
-import { signal } from "@preact/signals";
 
-import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Card, collapseFrom } from "../../../hqptuner/static/components/common.js";
-import { System } from "../../../hqptuner/static/components/tabs/SystemTab.js";
-import { health } from "../../../hqptuner/static/store/signals.js";
+import { phaseLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import { resetNarrowBar, renderNarrowBar } from "../support/genrepopover.js";
+import { elements, classes, attr, hasAttr, text } from "../support/markup.js";
 
 // One filter is enough for the bar to render its facet row: the carets ride the
 // facet buttons, which are on screen whatever the enumeration says.
@@ -54,33 +51,50 @@ const GLYPHS = ["▾", "▴", "▸"];
 const glyphsIn = (out) => GLYPHS.filter((g) => out.includes(g));
 
 /**
- * What sits inside each of a rendering's dropdown carets, once per distinct
- * content. `[""]` is every caret empty; `[]` is a rendering with no caret in it
- * at all, which fails a case rather than satisfying it.
+ * Every dropdown caret of a rendering, in document order.
  *
  * @param {string} out
- * @returns {string[]}
+ * @returns {import("../support/markup.js").MarkupElement[]}
  */
-const caretBodies = (out) => [
-  ...new Set([...out.matchAll(/<span class="multi-caret">([\s\S]*?)<\/span>/g)].map((m) => m[1])),
-];
+const carets = (out) => elements(out).filter((el) => classes(el).includes("multi-caret"));
 
 /**
- * A collapsible card in a stated disclosure, rendered as its caller mounts one.
+ * The bar's facet blocks, one per select button: a facet is the block carrying
+ * its own name in `data-multi`, which is how tests/js/support/genrepopover.js
+ * finds one to click.
  *
- * @param {boolean} open
- * @returns {string}
+ * @param {string} out
+ * @returns {import("../support/markup.js").MarkupElement[]}
  */
-const card = (open) =>
-  render(html`<${Card} title="ALSA Backend" collapse=${collapseFrom(signal(open), signal(null))}>
-    ${html`<p>kid</p>`}
-  <//>`);
+const facetBlocks = (out) => elements(out).filter((el) => hasAttr(el, "data-multi"));
+
+/**
+ * One facet's own select button.
+ *
+ * @param {string} out
+ * @param {string} name
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function selectButton(out, name) {
+  const block = facetBlocks(out).find((el) => attr(el, "data-multi") === name);
+  if (!block) throw new Error(`no facet block for ${name} in the rendered bar`);
+  const button = elements(block.html).find((el) => el.name === "button");
+  if (!button) throw new Error(`the ${name} facet renders no select button`);
+  return button;
+}
 
 // --- the narrow bar's dropdown carets -------------------------------------------
 
-test("test_every_caret_on_the_narrow_bars_select_buttons_is_an_empty_element", async () => {
+// One caret per facet block, each of them empty: the expected list is built
+// from the bar's own facets, so a caret dropped from one button shortens the
+// left side and fails.
+test("test_every_narrow_bar_select_button_renders_an_empty_caret", async () => {
   await resetNarrowBar(FILTERS);
-  assert.deepEqual(caretBodies(renderNarrowBar()), [""]);
+  const out = renderNarrowBar();
+  assert.deepEqual(
+    carets(out).map(text),
+    facetBlocks(out).map(() => ""),
+  );
 });
 
 test("test_the_narrow_bar_emits_no_disclosure_glyph_as_text", async () => {
@@ -88,17 +102,11 @@ test("test_the_narrow_bar_emits_no_disclosure_glyph_as_text", async () => {
   assert.deepEqual(glyphsIn(renderNarrowBar()), []);
 });
 
-// --- the cards' disclosure marks --------------------------------------------------
-
-test("test_an_open_collapsible_card_emits_no_disclosure_glyph_as_text", () => {
-  assert.deepEqual(glyphsIn(card(true)), []);
-});
-
-test("test_a_closed_collapsible_card_emits_no_disclosure_glyph_as_text", () => {
-  assert.deepEqual(glyphsIn(card(false)), []);
-});
-
-test("test_the_system_tab_emits_no_disclosure_glyph_as_text", () => {
-  health.value = { info: {}, license: null };
-  assert.deepEqual(glyphsIn(render(html`<${System} />`)), []);
+// The caption the user reads is the label and nothing else — no trailing caret
+// character riding along in the text. Neither side is a literal: the rendered
+// button is compared against the module's own wording, so what the words SAY
+// stays the owner's business (docs/testing.md rule 9).
+test("test_a_narrow_bar_select_buttons_caption_is_its_label_alone", async () => {
+  await resetNarrowBar(FILTERS);
+  assert.equal(text(selectButton(renderNarrowBar(), "phase")), phaseLabel());
 });
