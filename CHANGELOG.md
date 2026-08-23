@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.11.1] — 2026-08-22
+
 ### Changed
 
 - **The Direct SDM checkbox becomes a DSD Playback switch.** The SDM Chain card's DSD sources section now offers Processed and Direct as a two-button segment in place of the Direct SDM checkbox, and the control carries "Direct SDM" as its sublabel so HQPlayer's own name stays findable.
