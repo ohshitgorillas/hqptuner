@@ -106,3 +106,5 @@ docs/guide/
 
 # correspondence kept alongside the work it informs, never repo content
 /email*.txt
+
+docs/filter-guide.md
