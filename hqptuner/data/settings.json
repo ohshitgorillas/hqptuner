@@ -3,18 +3,13 @@
   "output": {
     "output_mode": {
       "label": "Output mode",
-      "tooltip": "Selects default output mode. When set to \"PCM\", all content is played as PCM output. When \"SDM (DSD)\" is selected, all content is played as SDM output. When \"[source]\" is selected, PCM content is played as PCM and DSD content is played as SDM. However, using \"[source]\" usually leads to sub-optimal result with either format since only very few DACs have separate true PCM (R2R) and SDM conversion sections inside. In most cases only either one of the options is optimal for the DAC.",
+      "tooltip": "Selects the output mode. When set to \"PCM\", all content is played as PCM output. When \"SDM (DSD)\" is selected, all content is played as SDM output. When \"Auto\" is selected, PCM content is played as PCM and DSD content is played as SDM. Using \"Auto\", however, usually leads to a sub-optimal result with either format since only very few DACs have separate true PCM (R2R) and SDM conversion sections inside. In most cases, only one of the options is optimal for the DAC.",
       "source": "manual §4.2"
     },
     "backend": {
       "label": "Backend",
-      "tooltip": "Specifies type of output device. ALSA uses an ALSA hardware device. Network uses a Signalyst Network Audio Adapter — for Network Audio driver type, a list of remote audio devices is shown. Combo holds a set of sub-elements of type \"alsa\" and/or type \"network\"; these form a combined output device with as many channels as sum of channels of the sub-elements, and channel mapping follows order of the sub-devices.",
+      "tooltip": "Specifies the type of output device. ALSA uses an ALSA hardware device. Network uses a Signalyst Network Audio Adapter — for the Network Audio driver type, a list of remote audio devices is shown. Combo holds a set of sub-elements of type \"alsa\" and/or type \"network\"; these form a combined output device with as many channels as the sum of the channels of the sub-elements, and channel mapping follows the order of the sub-devices.",
       "source": "readme §1.3, manual §4.3"
-    },
-    "rate": {
-      "label": "Output rate",
-      "tooltip": "Output sample rate request, or limit. This is the maximum output rate HQPlayer will use. This selection can be used to switch between supported hardware sample rates. Available choices depend on selected transport and resampling filter type. When default output mode is set to \"[source]\", or \"Adaptive output rate\" is enabled, this is only a default and upper limit for output rate, specific rate is selected by the playback engine during playback time depending on available rates and filter conversion capabilities. When default output mode is PCM, and \"Adaptive output rate\" is not enabled, the selected rate is static output rate. Note! When \"none\" is selected as resampling algorithm, output sampling rate is adjusted based on source file's sampling rate. For DSD sources, this is 1/16th of the DSD rate.",
-      "source": "manual §4.4"
     },
     "pcm_rate": {
       "label": "PCM rate",
@@ -26,14 +21,9 @@
       "tooltip": "SDM output target rate. Real value can be equal or lower when auto rate-family is used.",
       "source": "manual §2 (DSD/PDM)"
     },
-    "auto_rate_family": {
-      "label": "Auto rate family",
-      "tooltip": "When automatic rate selection is enabled, select only multiples of the source rate. Adaptive output rate makes automatic output rate selection pick sampling rates based on two different rules; disabled selects default or lower rate based on filter and DAC capabilities, while enabled selects rate that is multiple of the same base sampling rate as the source.",
-      "source": "readme §1.2 (auto_family), manual §4.2 (adaptive rate)"
-    },
     "alsa_device": {
       "label": "Output device",
-      "tooltip": "On Linux, the ALSA audio endpoint (device) lists all the available hardware audio endpoints.",
+      "tooltip": "Lists all the available ALSA hardware audio endpoints.",
       "source": "manual §4"
     },
     "net_device": {
@@ -53,17 +43,17 @@
     },
     "dop": {
       "label": "DoP",
-      "tooltip": "DSD content can be transferred to/from the audio device by packing it into suitable PCM container; select \"DSD over PCM (DoP)\" to use the DoP v1.1 standard. PCM mode does not use this setting.",
+      "tooltip": "DSD content can be transferred to/from the audio device by packing it into a suitable PCM container; select \"DSD over PCM (DoP)\" to use the DoP v1.1 standard. PCM mode does not use this setting.",
       "source": "manual §4, readme §1.3 (pack_sdm)"
     },
     "dsd_48k": {
       "label": "DSD rates",
-      "tooltip": "Allow any DSD base rate instead of being constrained to 44.1 kHz base rate (e.g. DSD128x48 = 6.144 MHz). Only meaningful for DACs that accept 48k-family DSD rates.",
+      "tooltip": "Allow any DSD base rate instead of being constrained to the 44.1 kHz base rate (e.g. DSD128x48 = 6.144 MHz). Only meaningful for DACs that accept 48k-family DSD rates.",
       "source": "readme §1.3 (any_dsd)"
     },
     "buffer_time": {
       "label": "Buffer time",
-      "tooltip": "Length of the hardware audio buffer (in milliseconds); 0 is the driver default. It is recommended to use the driver default, unless audio drop-outs are experienced. When the driver default is used, the audio driver defines length of the buffer. Values between 10 and 100 ms are most recommended. −1 selects the minimum buffer: never use it for normal playback — it can be attempted only for realtime inputs using the input backend.",
+      "tooltip": "Length of the hardware audio buffer (in milliseconds); 0 is the driver default. It is recommended to use the driver default, unless audio drop-outs are experienced. When the driver default is used, the audio driver defines the length of the buffer. Values between 10 and 100 ms are most recommended. −1 selects the minimum buffer: never use it for normal playback; it can be attempted only for realtime inputs using the input backend.",
       "source": "manual §4, readme §1.3 (period_time)"
     },
     "ipv6": {
@@ -73,22 +63,22 @@
     },
     "idle_time": {
       "label": "Idle time",
-      "tooltip": "Defines amount of time the engine is left idling after playback of current content has ended. This allows faster playback restart within the idle period.",
+      "tooltip": "Defines the amount of time the engine is left idling after playback of the current content has ended. This allows a faster playback restart within the idle period.",
       "source": "manual §4.7, readme §1.2 (idle_time)"
     },
     "upnp_freewheel": {
       "label": "UPnP freewheel",
-      "tooltip": "For UPnP controlled sources, freewheel can be enabled. This allows the entire track to be (pre-)fetched to memory at full network speed, when track size is known. This can add increased resource load spike when fetch happens. It also has memory usage implications.",
+      "tooltip": "Allows the entire track to be (pre-)fetched to memory at full network speed when the track size is known. This can cause a resource load spike when the fetch happens. It also has memory usage implications.",
       "source": "manual §4.7 (UPnP)"
     },
     "quick_pause": {
       "label": "Quick pause",
-      "tooltip": "Quick pause changes pause operation to play only basic silence pattern. In some cases this reduces delay when pressing pause. But can cause audible glitches especially when DAC is directly connected to a power amp without intermediate analog volume control.",
+      "tooltip": "Changes the pause operation to play a basic silence pattern. In some cases, this reduces the delay when pressing pause, but it can cause audible glitches, especially when the DAC is directly connected to a power amp without intermediate volume control.",
       "source": "manual §4.2, readme §1.2 (quick_pause)"
     },
     "short_buffer": {
       "label": "Short buffer",
-      "tooltip": "Set length of FIFO (normal / short / minimum) for faster control responses. This reduces amount of delay for example for volume control. But it also increases likelihood of audio drop-outs.",
+      "tooltip": "Length of the FIFO (first in, first out buffer) to adjust control responses. This reduces the amount of delay for volume control, for example, but also increases the likelihood of audio drop-outs.",
       "source": "manual §4, readme §1.2 (short_buffer)"
     },
     "junk_filter": {
@@ -110,12 +100,12 @@
   "dsp": {
     "filter_1x": {
       "label": "1x filter",
-      "tooltip": "This selection can be used to switch between resampling / oversampling filters. This selection has an impact on available hardware sampling rates. Filter/oversampling selection for \"1x\" rates covers source sampling rates below 50 kHz, so called base rates.",
+      "tooltip": "This selection can be used to switch between resampling / oversampling filters, and has an impact on the available hardware sampling rates. Filter/oversampling selection for \"1x\" rates covers source sampling rates below 50 kHz, so-called base rates.",
       "source": "manual §4.6"
     },
     "filter_nx": {
       "label": "Nx filter",
-      "tooltip": "Filter selection for \"Nx\" rates covers everything else above the 1x rates.",
+      "tooltip": "Filter selection for \"Nx\" rates covers everything above the 1x rates.",
       "source": "manual §4.6"
     },
     "filter_narrowing": {
@@ -135,17 +125,17 @@
     },
     "channels": {
       "label": "Channels",
-      "tooltip": "Number of output channels, possible choices range from \"2\" for stereo to 128 output channels, primarily for complex matrix processing cases.",
+      "tooltip": "Number of output channels; choices range from \"2\" for stereo to 128 output channels, primarily for complex matrix processing cases.",
       "source": "manual §4.2"
     },
     "pipelines": {
       "label": "DSP pipelines",
-      "tooltip": "Specify number of DSP pipelines available. This is both number of matrix pipelines, and total number of possible input or output channels. At least maximum number of source or output channels. Using suitably low value reduces resource consumption, such as RAM usage to some extent.",
+      "tooltip": "Number of DSP pipelines available. This sets the number of matrix pipelines, which is also the maximum number of input or output channels, so it must be at least the larger of the source channel count and the output channel count. Using a suitably low value reduces resource consumption, such as RAM usage, to some extent.",
       "source": "manual §4.7, readme §1.2 (pipelines)"
     },
     "fft_length": {
       "label": "FFT filter length",
-      "tooltip": "This option specifies length of the FFT filter. Default value is 512. Length affects steepness of the filter, shorter lengths result in slower (gentler) roll-off, while higher lengths result in faster (steeper) roll-off. This setting is per each 2x cascade filter, thus it is not conversion ratio dependent. Only applies when an FFT-family filter is selected.",
+      "tooltip": "Length of the FFT filter. Default value is 512. Length affects the steepness of the filter: shorter lengths result in slower (gentler) roll-off, while higher lengths result in faster (steeper) roll-off. This setting is per each 2x cascade filter, so it is not conversion ratio dependent. Only applies when an FFT-family filter is selected.",
       "source": "manual §4.7"
     },
     "pcm_dither": {
@@ -165,7 +155,7 @@
     },
     "matrix_engine": {
       "label": "Engine",
-      "tooltip": "Convolution engine applicable to filter(s) defined in Process, can be selected from two choices.",
+      "tooltip": "Convolution engine used for the filter(s) defined in Process.",
       "options": {
         "0": "Overlap-save, which is an alternative method.",
         "1": "Overlap-add, which is the default and recommended."
@@ -174,12 +164,12 @@
     },
     "matrix_expand_hf": {
       "label": "Expand HF",
-      "tooltip": "For filters using low sampling rate, frequency response of the filter can be extended beyond Nyquist frequency of the filter's sampling rate by selecting Expand HF. When choosing format for convolution filters, for most optimal case for all kinds of source material, use extended frequency response convolution filters with 352.8 kHz sampling rate. When such are used, Expand HF can be left disabled for all cases.",
+      "tooltip": "For filters using a low sampling rate, the frequency response of the filter can be extended beyond the Nyquist frequency of the filter's sampling rate by selecting Expand HF. When choosing a format for convolution filters, extended frequency response convolution filters with a 352.8 kHz sampling rate are optimal for all kinds of source material. When such filters are used, Expand HF can be left disabled.",
       "source": "manual §7, readme §1.11"
     },
     "matrix_pipelines": {
       "label": "Pipelines",
-      "tooltip": "Description of a virtual channel / processing pipeline. The \"Source Ch\" specifies the channel which is used as a source for the virtual channel. \"Gain\" is overall gain applied for the virtual channel. And \"Mix Ch\" is the logical output channel. When multiple virtual channels have the same target channel, outputs of the virtual channels are mixed together to the target output channel. \"Process\" can define external filter impulse response(s) WAV file for convolution, parametric equalizer specification in RoomEqWizard text output format, and parametric filter specifications. Gain can be applied in both dB scale or linear scale, as selected in the corresponding column. Linear scale factors can be also negative to perform phase inversion, this allows for example M/S processing. Distinct from DSP pipelines, which sets how many are available.",
+      "tooltip": "Description of a virtual channel / processing pipeline. \"Source Ch\" specifies the channel used as the source for the virtual channel. \"Gain\" is the overall gain applied to the virtual channel, and \"Mix Ch\" is the logical output channel. When multiple virtual channels have the same target channel, the outputs of the virtual channels are mixed together to the target output channel. \"Process\" can define external filter impulse response WAV file(s) for convolution, a parametric equalizer specification in RoomEqWizard text output format, and parametric filter specifications. Gain can be applied in either dB scale or linear scale, as selected in the corresponding column. Linear scale factors can also be negative to perform phase inversion; this allows, for example, M/S processing. Distinct from DSP pipelines, which sets how many are available.",
       "source": "readme §1.11.1, manual §7"
     },
     "matrix_profile_save": {
@@ -209,7 +199,7 @@
     },
     "crossfeed_preset": {
       "label": "Crossfeed preset",
-      "tooltip": "Sets one of the available presets: default parameters, Chu Moy's parameters, Jan Meier's parameters, or custom parameters according to frequency and level. When custom preset is selected, cross-feed filter frequency and level can be entered respectively.",
+      "tooltip": "Sets one of the available presets: default parameters, Chu Moy's parameters, Jan Meier's parameters, or custom parameters according to frequency and level. When the custom preset is selected, the cross-feed filter frequency and level can be entered.",
       "source": "manual §7, readme §1.11 (bauer)"
     },
     "crossfeed_frequency": {
@@ -224,7 +214,7 @@
     },
     "dac_correction": {
       "label": "DAC correction",
-      "tooltip": "Correction performs corrections for the output signal of selected DAC. These corrections are specific to a DAC model and output rate. When Combo-backend is used, there may be multiple corrections available for each corresponding DAC. Applied to the output mix bus, meaning output channels after matrix processing.",
+      "tooltip": "Performs corrections for the output signal of the selected DAC. These corrections are specific to a DAC model and output rate. When the Combo backend is used, there may be multiple corrections available, one for each sub-device's DAC. Applied to the output mix bus, meaning output channels after matrix processing.",
       "source": "manual §7, readme §1.11 (correction)"
     },
     "dac_correction_profile": {
@@ -289,12 +279,12 @@
     },
     "direct_sdm": {
       "label": "Direct SDM",
-      "tooltip": "DirectSDM setting disables all processing when source is DSD content and output format is SDM to a DSD-device or file. Note! Enabling DirectSDM will disable volume control and set PCM volume to fixed -3 dBFS value.",
+      "tooltip": "Direct playback disables all processing when the source is DSD content and the output is SDM to a DSD device or file. Note! Direct playback will disable volume control and set PCM volume to a fixed -3 dBFS value.",
       "source": "manual §4.5, readme §1.2 (direct_sdm)"
     },
     "dsd_gain_6db": {
       "label": "Source gain",
-      "tooltip": "DSDIFF or DSF file should typically have 6 dB of headroom on the signal level. By selecting \"+6 dB\", 6 decibels of gain is applied, removing this headroom from the converted signal. This way the normal playback level reaches that of normal PCM. However, this may cause overloads with some source material and may require extra attenuation using volume control.",
+      "tooltip": "DSDIFF or DSF files should typically have 6 dB of headroom on the signal level. By selecting \"+6 dB\", 6 decibels of gain is applied, removing this headroom from the converted signal. This way the normal playback level reaches that of normal PCM. However, this may cause overloads with some source material and may require extra attenuation using the volume control.",
       "source": "manual §4.4"
     },
     "sdm_integrator": {
@@ -372,7 +362,7 @@
     },
     "fixed_volume": {
       "label": "Fixed volume level",
-      "tooltip": "Fixed volume setting, in dBFS. When using any resampling, maximum recommended volume level is -3 dBFS to avoid inter-sample overloads, and in case material contains digital clipping/limiting. Note! High oversampling ratios can generate high inter-sample overs. Overloading the delta-sigma modulator in SDM mode will also cause audible noises. It is therefore recommended to keep software volume at max -3 dB setting or lower when using PCM to SDM conversion to avoid overloads, especially if the source material contains digital clipping.",
+      "tooltip": "Fixed volume in dBFS. When using any resampling, the maximum recommended volume level is -3 dBFS, to avoid inter-sample overloads and in case the material contains digital clipping/limiting. Note! High oversampling ratios can generate high inter-sample overs. Overloading the delta-sigma modulator in SDM mode will also cause audible noises. It is therefore recommended to keep the software volume at -3 dB or lower when using PCM to SDM conversion to avoid overloads, especially if the source material contains digital clipping.",
       "source": "manual §2.15/§4.2"
     },
     "optimal_iso": {
@@ -382,7 +372,7 @@
     },
     "volume_max": {
       "label": "Max volume",
-      "tooltip": "Maximum output volume setting in dB. Allows also positive values (gain). Together with the minimum this configures the adjustment range of the volume control. Setting both to the same value gives a fixed volume at that level. Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.",
+      "tooltip": "Maximum output volume setting in dB. Also allows positive values (gain). Together with the minimum, this configures the adjustment range of the volume control. Setting both to the same value gives a fixed volume at that level. Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting, either on the HQPlayer side or on the DAC side.",
       "source": "manual §4.2, readme §1.3 (volume_max)"
     },
     "volume_min": {
@@ -397,12 +387,12 @@
     },
     "gain_compensation": {
       "label": "PCM gain compensation",
-      "tooltip": "Due to nature of DSD, many DACs have different output levels for 0 dBFS PCM vs 0 dB DSD. PCM gain compensation can be used to compensate for this level difference.",
+      "tooltip": "Many DACs have different output levels for 0 dBFS PCM vs 0 dB DSD. PCM gain compensation can be used to compensate for this level difference.",
       "source": "manual §4.2"
     },
     "adaptive_volume": {
       "label": "Adaptive volume",
-      "tooltip": "Apply adaptive gain settings during playback based on metadata or library analysis data; ReplayGain 2.0 metadata is used to offset the volume. Note that in case metadata includes positive gain values, you may need to provide extra headroom using volume control setting.",
+      "tooltip": "Applies adaptive gain during playback based on metadata or library analysis data; ReplayGain 2.0 metadata is used to offset the volume. Note! If the metadata includes positive gain values, extra headroom may be needed using the volume control.",
       "source": "readme §1.3 (volume_adaptive), manual §2.9"
     },
     "playlist_album_gain": {
@@ -414,12 +404,12 @@
   "system": {
     "cuda_offload": {
       "label": "CUDA offload",
-      "tooltip": "\"CUDA offload\" can utilize nVidia GPU to partially offload the processing from CPU to GPU. CUDA offload requires nVidia GPU with minimum Compute Capability level 5.2, 2 GB of graphics RAM and latest official nVidia drivers. When CUDA offload is enabled, also Multicore DSP should be enabled, or left at automatic setting to achieve best performance. With \"convolution only\", only convolution algorithms are offloaded to GPU.",
+      "tooltip": "Utilizes an NVIDIA GPU to partially offload processing from the CPU to the GPU. CUDA offload requires an NVIDIA GPU with a minimum Compute Capability level of 5.2, 2 GB of graphics RAM, and the latest official NVIDIA drivers. When CUDA offload is enabled, Multicore DSP should also be enabled, or left at the automatic setting, to achieve the best performance. With \"convolution only\", only convolution algorithms are offloaded to the GPU.",
       "source": "manual §4.7, readme §1.2 (cuda)"
     },
     "multicore_dsp": {
       "label": "Multicore DSP",
-      "tooltip": "Multicore DSP increases parallelization of various DSP operations. With \"auto\", automatic detection and configuration is active and can utilize any number of cores. For best performance it is recommended to use the auto-detection. When disabled, processing is optimized for cases where number of cores is equal or less than number of output channels. Such as dual-core CPUs when output is stereo. When enabled, processing is optimized for modern multi-core CPUs with much higher core count than number of output channels. Since this parallelization increases processing overhead, it will increase total CPU time consumption. If there are performance problems with \"auto\" setting, it is typically useful to try this option.",
+      "tooltip": "Multicore DSP increases parallelization of various DSP operations. With \"auto\", automatic detection and configuration is active and can utilize any number of cores. For best performance, it is recommended to use the auto-detection. When disabled, processing is optimized for cases where the number of cores is equal to or less than the number of output channels, such as dual-core CPUs when output is stereo. When enabled, processing is optimized for modern multi-core CPUs with a much higher core count than the number of output channels. Since this parallelization increases processing overhead, it will increase total CPU time consumption. If there are performance problems with the \"auto\" setting, it is typically useful to try this option.",
       "source": "manual §4.7"
     },
     "ecore_allocation": {
@@ -429,7 +419,7 @@
     },
     "blocks_per_cycle": {
       "label": "Blocks per cycle",
-      "tooltip": "Number of blocks to process at once. This setting can be used to fine tune CPU/GPU load to lowest possible figure. When set to default (0) the value is auto-configured based on detected amount of CPU cache etc. Processing more blocks at once reduces overhead, especially when GPU is used. While processing fewer blocks at once helps keeping most of the data in CPU cache. Higher values are better suited for processors with large cache, such as AMD 3D-series and some Intel Xeon models, or systems with high speed RAM. While smaller values are better suited for CPUs with small cache, or systems with slower RAM.",
+      "tooltip": "Number of blocks to process at once. This setting can be used to fine tune CPU/GPU load to the lowest possible figure. When set to the default (0), the value is auto-configured based on the detected amount of CPU cache etc. Processing more blocks at once reduces overhead, especially when a GPU is used, while processing fewer blocks at once helps keep most of the data in CPU cache. Higher values are better suited for processors with a large cache, such as AMD 3D-series and some Intel Xeon models, or systems with high speed RAM, while smaller values are better suited for CPUs with a small cache, or systems with slower RAM.",
       "source": "manual §4.7, readme §1.2 (nblocks)"
     },
     "backup_restore": {
@@ -449,7 +439,7 @@
     },
     "pre_before_meter": {
       "label": "Pre-process before metering",
-      "tooltip": "When enabled, pre-processing, such as 20 kHz filter, is run before metering. This allows one to see effect of the pre-process. But it may make it harder to detect when to disable 20 kHz filter again.",
+      "tooltip": "When enabled, pre-processing, such as the 20 kHz filter, is run before metering. This allows one to see the effect of the pre-process, but it may make it harder to detect when to disable the 20 kHz filter again.",
       "source": "manual §4.7, readme §1.2"
     },
     "log_enabled": {

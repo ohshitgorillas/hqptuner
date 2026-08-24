@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Settings tooltips reworded for readability.** Thirty tooltips across the Output, DSP, Volume, and System tabs no longer carry the manual's missing articles, comma splices, and fragments; output mode copy now says Auto, and DSD playback copy follows its rename.
+
 ## [1.11.2] — 2026-08-23
 
 ### Changed
