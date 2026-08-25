@@ -9,6 +9,13 @@
 // `tipsFor(entry, meta)` (components/binder.js), the per-option resolver the
 // dropdown calls, and a row is the 4-tuple `[key, heading, value, codes]`.
 //
+// A filter's facet rows are stated the way facettip.test.js states them: the
+// engine's own `<GetFilters/>` description for quality, focus and ratio
+// (docs/protocol.md:226), the filter's NAME for phase and length, and the
+// static filters overlay for genre. Both source signals are assigned together —
+// module-level signals outlive a test, and a partial seed makes cases pass
+// alone and fail in sequence.
+//
 // Rows are addressed by their KEY, the machine identity, and never by the
 // heading beside them, which is the owner's wording (docs/testing.md rule 9).
 // The row's VALUE is asserted because it is derived data, not prose: "6th" is a
@@ -18,8 +25,7 @@
 // Readings taken where the spec left room:
 //   - the overlay carries `generation` as a NUMBER, alongside the numeric
 //     `order` / `min_rate_hz` keys it sits with, and the ordinal is built for
-//     display. If the shipped overlay stores the ordinal string instead, the
-//     value cases below say so.
+//     display.
 //   - the row's `codes` member is not pinned: the spec states the key, the
 //     heading and the value, and says nothing about what a generation row's
 //     codes are.
@@ -61,35 +67,54 @@ const UNGENERATIONED = "ASDM7";
 const UNKNOWN_MODULATOR = "made-up-modulator";
 
 // The filter and the dither the negative cases read, both planted in the
-// modulator overlay with a generation of their own.
+// modulator overlay with a generation of their own. The filter's name carries a
+// phase token (-lp) and a length token (-long).
 const FILTER = "poly-sinc-lp-long";
 const DITHER = "TPDF";
 
-const META_GEN = {
-  ...META,
-  shapers: {
-    ...META.shapers,
-    sdm_modulators: {
-      ...Object.fromEntries(GENERATIONS.map(([name, generation]) => [name, { generation }])),
-      [UNGENERATIONED]: { description: "Seventh order modulator." },
-      [FILTER]: { generation: 6 },
-      [DITHER]: { generation: 3 },
-    },
-  },
-  filters: {
-    ...META.filters,
-    filters: { ...META.filters.filters, [FILTER]: { genre: ["jazz"] } },
-  },
+/** The modulator overlay every case is served. */
+const MODULATOR_OVERLAY = {
+  ...Object.fromEntries(GENERATIONS.map(([name, generation]) => [name, { generation }])),
+  [UNGENERATIONED]: { description: "Seventh order modulator." },
+  [FILTER]: { generation: 6 },
+  [DITHER]: { generation: 3 },
 };
 
-const SHAPER_META = META_GEN.settings.dsp.shaper;
-const FILTER_META = META_GEN.settings.dsp.filter_1x;
+/**
+ * The /api/metadata payload, restated over the harness fixture with a
+ * name-keyed overlay for each of the two maps these tips read. Both are LOOSE
+ * records: a filter's facet keys (`genre` here) are overlay facts an
+ * OverlayEntry does not declare, and facettip.test.js seeds them the same way.
+ * A fresh object every call — writing the same object reference to a signal
+ * does not notify.
+ *
+ * @param {Record<string, Record<string, unknown>>} filters
+ * @param {Record<string, Record<string, unknown>>} modulators
+ */
+const metaWith = (filters, modulators) => ({
+  ...META,
+  filters: { ...META.filters, filters },
+  shapers: { ...META.shapers, sdm_modulators: modulators },
+});
+
+// The modulator cases need no filter facts; the filters overlay carries the
+// planted filter as an ordinary described entry.
+const META_GEN = metaWith(
+  { ...META.filters.filters, [FILTER]: { description: "A planted filter." } },
+  MODULATOR_OVERLAY,
+);
+
+// The filter cases add the one facet the engine's description and the filter's
+// name cannot state.
+const META_FILTER_FACETS = metaWith({ ...META.filters.filters, [FILTER]: { genre: ["jazz"] } }, MODULATOR_OVERLAY);
+
+const SHAPER_META = META.settings.dsp.shaper;
+const FILTER_META = META.settings.dsp.filter_1x;
 
 /**
- * One `<FiltersItem/>` as `<GetFilters/>` serves it (protocol.md:226) — every
- * attribute a string, `arg` the flags bitfield. The filter fixture's
- * description carries a quality, a focus and a ratio; its name carries a phase
- * token and a length token; its overlay record carries a genre.
+ * One `<FiltersItem/>` as `<GetFilters/>` serves it (docs/protocol.md:226) —
+ * every attribute a string, `arg` the flags bitfield. This description states a
+ * quality, a focus and an integer ratio.
  */
 const FILTER_ITEM = {
   index: "0",
@@ -116,7 +141,8 @@ function resolver(entry, meta) {
   return fn;
 }
 
-/** Seed every signal the tip reads, then hand back the modulator tip's rows.
+/**
+ * Seed every signal the tip reads, then hand back the modulator tip's rows.
  *
  * @param {string} label
  * @returns {Promise<[key: string, heading: string, value: string, codes: string[]][]>}
@@ -174,9 +200,15 @@ test("test_a_modulator_whose_overlay_entry_states_no_generation_carries_no_gener
 // the filter tip is unaffected
 // ============================================================================
 
-/** @returns {Promise<[key: string, heading: string, value: string, codes: string[]][]>} */
-async function filterRows(/** @type {typeof schema.pcm_filter_1x} */ entry) {
-  await reset({ meta: META_GEN });
+/**
+ * Serve the filter as the engine enumerates it AND as the overlay describes it,
+ * then hand back its tip's rows.
+ *
+ * @param {typeof schema.pcm_filter_1x} entry
+ * @returns {Promise<[key: string, heading: string, value: string, codes: string[]][]>}
+ */
+async function filterRows(entry) {
+  await reset({ meta: META_FILTER_FACETS });
   enums.value = { filters: [FILTER_ITEM] };
   return resolver(entry, FILTER_META)({ value: "0", label: FILTER }).rows;
 }
