@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.12.0] — 2026-08-25
+
 ### Added
 
 - **Modulator hover tips name the generation.** Every SDM modulator carries a Generation row in its tip, the design lineage stated in the HQPlayer manual, from 1st through 8th.
