@@ -228,6 +228,28 @@ test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
   assert.deepEqual((puts(w).at(-1) || {}).phase, ["minimum"]);
 });
 
+// The length facet's empty-string pick — the filters whose length nothing
+// states — has to survive the record in both directions, and the two halves are
+// two cases: the empty string is falsy, so a client that filters it out on the
+// way to the server and one that drops it on the way back are different
+// defects, and either alone would leave the bar quietly forgetting the pick
+// across a reload. The named pick rides along so that "kept the array" is told
+// apart from "kept nothing".
+
+test("test_a_flush_sends_a_length_selection_with_the_unspecified_pick_intact", async () => {
+  const w = await reset();
+  await hydrateNarrowing();
+  nLength.value = ["medium", ""];
+  await flushNarrowing();
+  assert.deepEqual((puts(w).at(-1) || {}).length, ["medium", ""]);
+});
+
+test("test_hydration_fills_the_length_facet_with_the_unspecified_pick_intact", async () => {
+  await reset({ facets: { ...SET, length: ["medium", ""] } });
+  await hydrateNarrowing();
+  assert.deepEqual(nLength.value, ["medium", ""]);
+});
+
 // The lossy control rides the same put BY VALUE, not merely by key: a client
 // that always sent the key at its default would keep the whole table intact
 // while the bar silently failed to survive a reload.

@@ -12,10 +12,9 @@
 // length are sets of picks too, but over a facet a filter carries exactly ONE
 // of, so an AND across two picks would be empty by construction: they carry no
 // mode and their picks always UNION, a second pick widening the list. Neither
-// taxonomy reaches every filter, and the two answer that differently: phase
-// offers the empty string as a real VALUE, so the filters it does not classify
-// can be asked for, while length offers no such pick and its unclassified
-// filters are reachable by none. Neither is the empty SELECTION, which is what
+// taxonomy reaches every filter, and both answer that the same way: each offers
+// the empty string as a real VALUE, so the filters it does not classify can be
+// asked for. Neither is the empty SELECTION, which is what
 // "not narrowed by this facet" means for both. The
 // manual's escape hatch ("any" genre) sits outside all of them and survives
 // every selection. The rate-narrowing switches — hide-2x, hide-integer,
@@ -160,12 +159,24 @@ const PHASES = [
   ["gauss-plain", "4/5 ⥮ Any"],
 ];
 
-// The length taxonomy does not reach every filter either, but it has no pick
-// for the ones it misses: `gauss-plain` carries no length and no length pick
-// can ask for it. `gauss-medium` says medium in its own name.
+// The length taxonomy does not reach every filter either: `gauss-plain` carries
+// no length, so no NAMED length pick can ask for it — only the empty-string
+// pick can. `gauss-medium` says medium in its own name.
 /** @type {FilterTuple[]} */
 const MEDIUMS = [
   ["gauss-medium", "4/5 ⥮ Any"],
+  ["gauss-plain", "4/5 ⥮ Any"],
+];
+
+// One filter per length the taxonomy names — short and medium and long say so
+// in their own names, `-xl` is the extra-long suffix — plus one whose name
+// carries no length word at all, which is what the empty-string pick asks for.
+/** @type {FilterTuple[]} */
+const ALL_LENGTHS = [
+  ["gauss-short", "4/5 ⥮ Any"],
+  ["gauss-medium", "4/5 ⥮ Any"],
+  ["gauss-long", "4/5 ⥮ Any"],
+  ["gauss-xl", "4/5 ⥮ Any"],
   ["gauss-plain", "4/5 ⥮ Any"],
 ];
 
@@ -315,6 +326,22 @@ test("test_a_filter_the_length_taxonomy_does_not_reach_is_dropped_by_a_medium_pi
   const options = reset(MEDIUMS);
   nLength.value = ["medium"];
   assert.equal(labels(options).includes("gauss-plain"), false);
+});
+
+// The empty string is a length VALUE meaning "nothing states this filter's
+// length", picked like any other value. It is not the empty SELECTION, which
+// narrows by length not at all and is pinned above.
+
+test("test_picking_the_unspecified_length_keeps_only_the_filters_no_length_word_reaches", () => {
+  const options = reset(ALL_LENGTHS);
+  nLength.value = [""];
+  assert.deepEqual(labels(options), ["gauss-plain"]);
+});
+
+test("test_the_unspecified_length_unions_with_a_picked_length_like_any_other_value", () => {
+  const options = reset(ALL_LENGTHS);
+  nLength.value = ["medium", ""];
+  assert.deepEqual(labels(options), ["gauss-medium", "gauss-plain"]);
 });
 
 test("test_a_name_that_says_medium_still_classifies_as_medium", () => {

@@ -102,6 +102,14 @@ const MINIMUM = "minimum";
 const INTERMEDIATE = "intermediate";
 const LINEAR = "linear";
 
+// The length domain: four named lengths, then the empty string — the filters
+// whose length neither their name nor their description states.
+const UNSPECIFIED = "";
+const SHORT = "short";
+const MEDIUM = "medium";
+const LONG = "long";
+const XLONG = "xlong";
+
 // --- multi-select widgets ---------------------------------------------------
 
 test("test_the_phase_facet_offers_its_values_as_checkbox_rows", async () => {
@@ -115,11 +123,10 @@ test("test_the_length_facet_offers_its_values_as_checkbox_rows", async () => {
 });
 
 // The empty selection is what "any" means, so the popover carries no clear row:
-// the row list is exactly the domain, in the order the popover offers it. The
-// phase domain's last member is the empty string — the filters the phase
-// taxonomy does not reach — captioned "No phase". It is a pick like any other
-// and is NOT a clear row: clearing is unticking everything. Length has no
-// counterpart; its unclassified filters are reachable by no pick at all.
+// the row list is exactly the domain, in the order the popover offers it. Both
+// domains end on the empty string — the filters that taxonomy does not reach.
+// It is a pick like any other and is NOT a clear row: clearing is unticking
+// everything.
 
 // The name states the order; the same assertion also carries the no-clear-row
 // half, which is what the exactness of the list says.
@@ -138,9 +145,20 @@ test("test_the_no_phase_row_renders_checked_when_it_is_the_picked_phase", async 
   assert.deepEqual(checkedRows(open("phase")), [NO_PHASE]);
 });
 
-test("test_the_length_popover_offers_exactly_the_four_lengths_and_no_clear_row", async () => {
+// The length domain: four named lengths, then the empty string — the filters
+// whose length nothing states, a pick like any other and not a clear row.
+test("test_the_length_popover_offers_short_medium_long_xlong_then_the_unspecified_pick_in_that_order", async () => {
   await reset();
-  assert.deepEqual(rowValues(open("length")), ["short", "medium", "long", "xlong"]);
+  assert.deepEqual(rowValues(open("length")), [SHORT, MEDIUM, LONG, XLONG, UNSPECIFIED]);
+});
+
+// The same falsy-value trap the phase row above is named for: a membership test
+// guarding on the value being truthy leaves the user clicking the unspecified
+// length row and watching nothing happen while the store holds it.
+test("test_the_unspecified_length_row_renders_checked_when_it_is_the_picked_length", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED];
+  assert.deepEqual(checkedRows(open("length")), [UNSPECIFIED]);
 });
 
 // --- no combine switch --------------------------------------------------------
@@ -286,8 +304,69 @@ test("test_the_length_summary_with_one_pick_reports_that_lengths_own_value", asy
 
 test("test_the_length_summary_with_two_picks_counts_two", async () => {
   await reset();
-  nLength.value = ["short", "long"];
+  nLength.value = [SHORT, LONG];
   assert.equal(lengthSummary().count, 2);
+});
+
+// Length reads the empty-string pick the way phase does: it counts NAMED
+// lengths only, and the pick for the filters nothing classifies rides in
+// `extra` as a clause instead of in the count. Its clause code is a wire
+// identifier and is pinned; the words the button says about it are not.
+
+test("test_the_length_summary_with_the_unspecified_pick_alone_counts_nothing", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED];
+  const { count, single } = lengthSummary();
+  assert.deepEqual({ count, single }, { count: 0, single: null });
+});
+
+test("test_the_length_summary_with_the_unspecified_pick_alone_raises_its_clause", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED];
+  assert.deepEqual(lengthSummary().extra, ["unspecified"]);
+});
+
+// Extra-long is not the first row, so this separates "the picked length itself"
+// from "whatever row zero carries".
+test("test_the_length_summary_with_one_named_pick_and_the_unspecified_pick_reports_the_named_pick", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED, XLONG];
+  assert.equal(lengthSummary().single, XLONG);
+});
+
+test("test_the_length_summary_with_one_named_pick_and_the_unspecified_pick_raises_the_clause", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED, XLONG];
+  assert.deepEqual(lengthSummary().extra, ["unspecified"]);
+});
+
+test("test_the_length_summary_with_two_named_picks_and_the_unspecified_pick_counts_only_the_named_two", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED, XLONG, SHORT];
+  assert.equal(lengthSummary().count, 2);
+});
+
+// Every row picked. The count still answers four, so a count taken over the
+// whole selection answers five here and fails.
+test("test_the_length_summary_with_every_row_picked_counts_the_four_named_lengths", async () => {
+  await reset();
+  nLength.value = [UNSPECIFIED, SHORT, MEDIUM, LONG, XLONG];
+  assert.equal(lengthSummary().count, 4);
+});
+
+// The other side of the clause: named picks alone raise none.
+test("test_the_length_summary_with_named_picks_only_raises_no_clause", async () => {
+  await reset();
+  nLength.value = [SHORT, XLONG];
+  assert.deepEqual(lengthSummary().extra, []);
+});
+
+// A filter carries exactly one length, so the picks always union and there is
+// no combine mode to name — not even once a second pick would make one bite.
+test("test_the_length_summary_names_no_combine_mode_with_two_picks", async () => {
+  await reset();
+  nLength.value = [SHORT, LONG];
+  assert.equal(lengthSummary().mode, null);
 });
 
 // --- a row's count previews the click it would perform ------------------------------
@@ -312,6 +391,16 @@ test("test_the_count_on_a_picked_phase_row_previews_unpicking_it", async () => {
 
 test("test_the_count_on_a_picked_length_row_previews_unpicking_it", async () => {
   await reset(LENGTHS);
-  nLength.value = ["short", "long"];
-  assert.equal(nxOf(countChip(open("length"), "short")), 1);
+  nLength.value = [SHORT, LONG];
+  assert.equal(nxOf(countChip(open("length"), SHORT)), 1);
+});
+
+// The unspecified row carries a chip like any other, and its number is what
+// picking it would leave: `gauss-plain` alone, the one filter of the fixture no
+// length word reaches. Nothing else in the fixture reads 1 — the total is 4 and
+// the live (empty) selection would answer the whole list — so a chip that
+// ignored this row's own preview cannot land here.
+test("test_the_count_on_the_unspecified_length_row_previews_picking_it", async () => {
+  await reset(LENGTHS);
+  assert.equal(nxOf(countChip(open("length"), UNSPECIFIED)), 1);
 });
