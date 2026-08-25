@@ -4,7 +4,13 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Filter narrowing can pick filters whose length is unspecified.** The Length dropdown gains an Unspecified row, so excluding one length no longer also drops every filter the taxonomy does not classify. Its button counts named lengths and reports the unspecified pick as a clause.
+
 ### Changed
+
+- **The Phase dropdown's row for unclassified filters reads Unspecified.** It was labeled No phase.
 
 - **Settings tooltips reworded for readability.** Thirty tooltips across the Output, DSP, Volume, and System tabs no longer carry the manual's missing articles, comma splices, and fragments; output mode copy now says Auto, and DSD playback copy follows its rename.
 
