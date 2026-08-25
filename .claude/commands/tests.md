@@ -16,7 +16,7 @@ The pair costs two metered actions end to end (`open` and `merge`), so there is 
 
 For a change that adds or alters observable behavior, the spec block is authored **during planning** and presented inside the plan for approval — the grounding gate already forces the reading it requires, so the spec costs nothing extra at that point and the writer can be spawned the moment approval lands. When `/tests` is invoked over code that already exists — characterization tests, retrofitting an untested module — build the spec here instead.
 
-Read whatever you need of the implementation — that is your job, not the writer's — and distil it into a **spec block**. Four parts:
+Read whatever you need of the implementation — that is your job, not the writer's — and distil it into a **spec block**. Five parts:
 
 **Behaviors.** What the code must do, in plain words, as a numbered list. One entry per observable outcome, including the failure modes and boundaries, not just the happy path. Phrase each as what a caller sees: *"asking for a preset that was never saved raises `PresetError` naming the missing preset"*, never *"the read path checks `exists()` first"*.
 
@@ -25,6 +25,8 @@ Read whatever you need of the implementation — that is your job, not the write
 **Wire and protocol facts.** The daemon behavior that bears on this, each with a reference into `docs/protocol.md`, `docs/architecture.md`, `hqplayerd-readme.txt` or the HQPlayer manual so the writer can check it. Include the documented quirks the behavior has to survive.
 
 **Applicable fixtures.** Which of `tests/conftest.py`'s fixtures and `tests/fake_*.py`'s fakes cover this, by name, with one line each on what they give.
+
+**Changelog entry.** For a user-visible change, the exact `CHANGELOG.md` line, under the heading it lands beneath, written here and approved with the rest of the plan. It is user-facing text and binds like all of it: the line that lands is the line that was approved, character for character, and rewording it while implementing is a copy change needing its own approval. Writing it here is what keeps the implementation out of it — enum ids, file paths and the order the daemon does things in are not known yet, and the entry that gets written after an hour inside the fix is the one that carries them. An internal-only change says "no entry" and one clause on why.
 
 **The spec block contains zero implementation detail.** No function bodies, no private names, no control flow, no "it loops until", no algorithm. If a behavior cannot be stated without describing how it is implemented, that is a spec smell — it usually means the behavior has no observable contract, or the contract is the implementation. **Stop and put that to the user** rather than leaking it into the spec; a test written against implementation shape is the thing this whole chain exists to prevent.
 
