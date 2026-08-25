@@ -32,8 +32,8 @@
 // tests hold the promise, drive the question, then await — never the reverse.
 //
 // The two dialog strings are owner copy (docs/testing.md rule 9): these cases
-// assert that a question is or is not there, and what did or did not stage,
-// never a word of either sentence.
+// assert that a question is or is not there, which setting it names as its
+// owner, and what did or did not stage — never a word of either sentence.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/snrguard.test.js
 
@@ -91,6 +91,13 @@ const LIVE_VOLUME = [
   { name: "direct_sdm", value: false },
 ];
 
+// The same live volume with the optimal_iso field absent from the form, for the
+// one case whose truth lives in the config file: the form's bare checkbox
+// cannot spell "2", so a case about the -6 dB level must not also carry a form
+// field claiming the feature is off.
+/** @type {FormField[]} */
+const LIVE_VOLUME_WITHOUT_OPTIMAL_ISO = LIVE_VOLUME.filter((f) => f.name !== "volume_fixed");
+
 /**
  * The same field list with one field's value replaced.
  *
@@ -100,6 +107,12 @@ const LIVE_VOLUME = [
  * @returns {FormField[]}
  */
 const patch = (fields, name, value) => fields.map((f) => (f.name === name ? { ...f, value } : f));
+
+// The volume pinned by its range alone: min and max both 0, so the control has
+// nowhere to travel. Both the baseline and the un-pinning edit on this path are
+// plain strings, which is what makes it the readable case to stage against.
+/** @type {FormField[]} */
+const ZERO_RANGE_VOLUME = patch(patch(LIVE_VOLUME, "volume_min", "0"), "volume_max", "0");
 
 // --- fixture -----------------------------------------------------------------
 
@@ -168,6 +181,19 @@ test("test_staging_the_other_flagged_modulator_with_a_live_volume_opens_a_questi
   await held;
 });
 
+// The question carries machine identity as well as owner copy, and identity is
+// the part a caller can act on: `owner` names the control the question renders
+// on, which is the key the user just edited. Here that is the modulator itself,
+// the way the Direct SDM warning renders on `direct_sdm`. Nothing below asserts
+// a word of either sentence.
+test("test_the_flagged_modulator_question_names_sdm_modulator_as_owner", async () => {
+  const w = await fixture({ modulator: PLAIN_V });
+  const { held } = await stage(w, "sdm_modulator", AHM5_V);
+  assert.equal(question.value?.owner, "sdm_modulator");
+  cancel();
+  await held;
+});
+
 test("test_confirming_the_flagged_modulator_question_stages_the_modulator", async () => {
   const w = await fixture({ modulator: PLAIN_V });
   const { held } = await stage(w, "sdm_modulator", AHM5_V);
@@ -177,13 +203,32 @@ test("test_confirming_the_flagged_modulator_question_stages_the_modulator", asyn
   assert.equal(effective("sdm_modulator"), AHM5_V);
 });
 
+// "Stages nothing" means the pending set is UNCHANGED, not emptied. Both cases
+// below stage a safe, unrelated edit FIRST — narrowing the volume range from
+// -60 to -40 leaves the volume live, so it draws no question of its own — and
+// then decline the guarded edit. One watches the guarded key, the other watches
+// the safe one: against an empty pending set a decline and a cancel that swept
+// the whole set out look identical.
 test("test_declining_the_flagged_modulator_question_keeps_the_baseline_modulator", async () => {
   const w = await fixture({ modulator: PLAIN_V });
+  const { held: pre } = await stage(w, "volume_min", "-40");
+  await pre;
   const { held } = await stage(w, "sdm_modulator", AHM5_V);
   cancel();
   await held;
   await quiesce(w);
   assert.equal(effective("sdm_modulator"), PLAIN_V);
+});
+
+test("test_declining_the_flagged_modulator_question_leaves_an_unrelated_staged_edit_alone", async () => {
+  const w = await fixture({ modulator: PLAIN_V });
+  const { held: pre } = await stage(w, "volume_min", "-40");
+  await pre;
+  const { held } = await stage(w, "sdm_modulator", AHM5_V);
+  cancel();
+  await held;
+  await quiesce(w);
+  assert.equal(effective("volume_min"), "-40");
 });
 
 // --- forward: every spelling of a pinned volume ------------------------------
@@ -195,12 +240,12 @@ const PINNED = [
   { what: "an_optimal_iso_checkbox_the_form_renders_as_a_bool", volume: patch(LIVE_VOLUME, "volume_fixed", true) },
   {
     what: "optimal_iso_at_its_minus_six_decibel_level",
-    volume: LIVE_VOLUME,
+    volume: LIVE_VOLUME_WITHOUT_OPTIMAL_ISO,
     file: { volume_fixed: "2" },
   },
   {
     what: "a_zero_to_zero_volume_range",
-    volume: patch(patch(LIVE_VOLUME, "volume_min", "0"), "volume_max", "0"),
+    volume: ZERO_RANGE_VOLUME,
   },
   { what: "direct_sdm_on", volume: patch(LIVE_VOLUME, "direct_sdm", true) },
 ];
@@ -227,6 +272,23 @@ for (const { what, volume, file } of PINNED) {
     await held;
   });
 }
+
+// --- forward: the live volume can be one the user just staged ----------------
+// Every case above reads a volume the BASELINE already had live, so a guard
+// that consulted the /config tree alone and ignored the pending set would pass
+// them all. Here the baseline volume is pinned by its range and the un-pinning
+// edit is STAGED first — question-free, because the modulator under it is not
+// flagged yet — so the volume is live only in the effective state.
+
+test("test_staging_a_flagged_modulator_over_a_staged_un_pinning_edit_opens_a_question", async () => {
+  const w = await fixture({ modulator: PLAIN_V, volume: ZERO_RANGE_VOLUME });
+  const { held: pre } = await stage(w, "volume_max", "-3");
+  await pre;
+  const { held } = await stage(w, "sdm_modulator", AHM5_V);
+  assert.notEqual(question.value, null);
+  cancel();
+  await held;
+});
 
 // --- forward: an unflagged modulator is never guarded ------------------------
 
@@ -262,7 +324,6 @@ test("test_staging_an_unflagged_modulator_with_a_live_volume_stages_immediately"
  * @type {{
  *   what: string,
  *   volume: FormField[],
- *   file?: Record<string, string>,
  *   key: string,
  *   value: string,
  * }[]}
@@ -288,21 +349,21 @@ const UNPINNING = [
   },
   {
     what: "opening_the_volume_range_at_the_bottom",
-    volume: patch(patch(LIVE_VOLUME, "volume_min", "0"), "volume_max", "0"),
+    volume: ZERO_RANGE_VOLUME,
     key: "volume_min",
     value: "-60",
   },
   {
     what: "opening_the_volume_range_at_the_top",
-    volume: patch(patch(LIVE_VOLUME, "volume_min", "0"), "volume_max", "0"),
+    volume: ZERO_RANGE_VOLUME,
     key: "volume_max",
     value: "-3",
   },
 ];
 
-for (const { what, volume, file, key, value } of UNPINNING) {
+for (const { what, volume, key, value } of UNPINNING) {
   test(`test_${what}_under_a_flagged_modulator_opens_a_question`, async () => {
-    const w = await fixture({ modulator: AHM5_V, volume, file });
+    const w = await fixture({ modulator: AHM5_V, volume });
     const { held } = await stage(w, key, value);
     assert.notEqual(question.value, null);
     cancel();
@@ -310,15 +371,44 @@ for (const { what, volume, file, key, value } of UNPINNING) {
   });
 }
 
-for (const { what, volume, file, key, value } of UNPINNING) {
+for (const { what, volume, key, value } of UNPINNING) {
   test(`test_${what}_under_an_unflagged_modulator_opens_no_question`, async () => {
-    const w = await fixture({ modulator: PLAIN_V, volume, file });
+    const w = await fixture({ modulator: PLAIN_V, volume });
     const { held } = await stage(w, key, value);
     assert.equal(question.value, null);
     cancel();
     await held;
   });
 }
+
+// `owner` names the control the question RENDERS ON, not the danger it is
+// about, so it is the key that was edited: the dialog opens on the control the
+// user just touched. On this side that is the volume control, and owning the
+// question to the modulator instead would pop the dialog on a different control
+// on a different card. Its sentence stays unasserted.
+test("test_the_un_pinning_question_names_the_edited_volume_control_as_owner", async () => {
+  const w = await fixture({ modulator: AHM5_V, volume: ZERO_RANGE_VOLUME });
+  const { held } = await stage(w, "volume_max", "-3");
+  assert.equal(question.value?.owner, "volume_max");
+  cancel();
+  await held;
+});
+
+// The mirror of the staged-un-pin case above: every reverse case so far seeds
+// the flagged modulator through the /config baseline, so a guard reading the
+// baseline alone would pass the whole loop. Here the baseline modulator is
+// unflagged and the flagged one is STAGED first — question-free, because the
+// volume is pinned while it lands — and the un-pinning edit that follows is
+// still dangerous.
+test("test_un_pinning_the_volume_under_a_staged_flagged_modulator_opens_a_question", async () => {
+  const w = await fixture({ modulator: PLAIN_V, volume: ZERO_RANGE_VOLUME });
+  const { held: pre } = await stage(w, "sdm_modulator", AHM5_V);
+  await pre;
+  const { held } = await stage(w, "volume_max", "-3");
+  assert.notEqual(question.value, null);
+  cancel();
+  await held;
+});
 
 // The confirm/decline pair rides the volume-range path, whose baseline and
 // staged value are both plain strings — so "kept its baseline" is a claim about
@@ -334,13 +424,31 @@ test("test_confirming_the_un_pinning_question_stages_the_volume_edit", async () 
   assert.equal(effective("volume_max"), "-3");
 });
 
+// Same shape as the forward decline: a safe edit is staged FIRST so the pending
+// set is not empty, since a decline and a cancel that emptied the whole set are
+// indistinguishable against an empty one. Moving to the OTHER flagged modulator
+// is safe here because the baseline volume is still pinned while it lands, and
+// it leaves the reverse guard's precondition in place.
 test("test_declining_the_un_pinning_question_keeps_the_baseline_volume", async () => {
   const w = await fixture({ modulator: AHM5_V, volume: RANGE.volume });
+  const { held: pre } = await stage(w, "sdm_modulator", AHM7_V);
+  await pre;
   const { held } = await stage(w, RANGE.key, RANGE.value);
   cancel();
   await held;
   await quiesce(w);
   assert.equal(effective("volume_max"), "0");
+});
+
+test("test_declining_the_un_pinning_question_leaves_an_unrelated_staged_edit_alone", async () => {
+  const w = await fixture({ modulator: AHM5_V, volume: RANGE.volume });
+  const { held: pre } = await stage(w, "sdm_modulator", AHM7_V);
+  await pre;
+  const { held } = await stage(w, RANGE.key, RANGE.value);
+  cancel();
+  await held;
+  await quiesce(w);
+  assert.equal(effective("sdm_modulator"), AHM7_V);
 });
 
 // --- an edit that leaves the volume pinned -----------------------------------
