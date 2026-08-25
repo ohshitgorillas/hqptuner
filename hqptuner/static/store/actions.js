@@ -5,13 +5,13 @@
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { errText } from "../lib/errtext.js";
-import { schema, atFixedMinusThree } from "./schema.js";
+import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
-import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, effective } from "./resolve.js";
+import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
-import { askWarn } from "./ask.js";
+import { guard } from "./guards.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
 // keystrokes) each POST, and an EARLIER request's response must not clobber a
@@ -130,65 +130,6 @@ function applyFixedVolumeCoupling(key, value, http) {
   const on = truthy(value);
   if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
   else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
-}
-
-// Minimum-buffer values break real setups — per Signalyst's own guidance, the
-// minimum device buffer time mostly yields packet-underflow drop-outs or no
-// output at all, and the minimum short-buffer FIFO is a realtime-processing
-// setting with system-design prerequisites. Staging one asks first; declining
-// stages nothing, so the control snaps back to its baseline.
-/**
- * The warn phrase a hazardous (key, value) pair earns, or "" for a safe one.
- *
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {string}
- */
-function bufferHazard(key, value) {
-  if (key === "short_buffer" && String(value) === "2") return "minimum short buffer";
-  if ((key === "alsa_period" || key === "net_period") && Number(value) < 0) return "minimum buffer time";
-  return "";
-}
-
-// Enabling Direct SDM makes the daemon disable the volume control and pin PCM
-// volume at a fixed −3 dBFS (manual §4.5), so warn when Direct SDM turns on
-// from any volume state other than a fixed −3 dB, by either fixed-volume mode.
-// The daemon applies the pin; direct_sdm stages alone.
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {boolean}
- */
-const forcesFixedVolume = (key, value) => key === "direct_sdm" && truthy(value) && !atFixedMinusThree(effective);
-
-// Returns a question to settle before staging, or null for a safe edit — and
-// stays synchronous so a safe edit reaches its optimistic merge in the caller's
-// own tick. An `await` on the safe path defers that merge by a microtask, which
-// is long enough for a caller that fires an edit without awaiting it (setXfMode)
-// to read the pre-edit value back out of effective().
-/**
- * The guard question a hazardous (key, value) pair earns, or null for a safe one.
- *
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {Promise<unknown> | null}
- */
-function guard(key, value) {
-  const hazard = bufferHazard(key, value);
-  if (hazard)
-    return askWarn(
-      key,
-      `It is strongly recommended NOT to use this setting (${hazard}) except under guidance from Jussi himself. ` +
-        `Otherwise, this is probably going to break your setup or fail to produce music. ` +
-        `Are you certain you actually know what you're doing?`,
-    );
-  if (forcesFixedVolume(key, value))
-    return askWarn(
-      key,
-      "Enabling this setting will force a -3dB fixed volume on the PCM chain as well. Are you sure you want to proceed?",
-      { confirm: "Yes", decline: "No" },
-    );
-  return null;
 }
 
 /**
