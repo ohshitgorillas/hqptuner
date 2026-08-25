@@ -35,6 +35,7 @@ import { notesVisible } from "./prefs.js";
  * @property {boolean} [sdm_two_stage] oversampling runs in two stages for SDM output
  * @property {number | null} [min_rate_hz]
  * @property {string} [min_rate_label]
+ * @property {number} [generation] SDM modulator only; `store/options.js` reads it
  *
  * @typedef {object} Metadata
  *   The static overlay bundle /api/metadata serves.
