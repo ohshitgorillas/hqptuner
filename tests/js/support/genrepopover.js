@@ -298,6 +298,24 @@ export function rowIsDisabled(block, label) {
 }
 
 /**
+ * The tooltip one row puts on screen, or null where it carries none. A row is a
+ * `<label>` wrapping a checkbox, and either element is a place a tooltip can
+ * legitimately hang, so both are read and whichever carries one answers; the
+ * count chip inside the row is not read, so a chip's own title cannot be
+ * mistaken for the row's.
+ *
+ * @param {string} block
+ * @param {string} label
+ * @returns {string | null}
+ */
+export function rowTitle(block, label) {
+  const row = rowByValue(block, label);
+  const title = /(^|\s)title="([^"]*)"/;
+  const hit = title.exec(row.attrs) || title.exec(inputOf(row.body));
+  return hit ? hit[2] : null;
+}
+
+/**
  * Whether one row's `<label>` element carries the inert marker.
  *
  * @param {string} block
