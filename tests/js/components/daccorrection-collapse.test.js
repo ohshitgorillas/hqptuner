@@ -43,7 +43,6 @@ import { clickCardHead } from "../support/carddisclosure.js";
 // Cards are named by the `data-card` their <section> carries — the card's own
 // machine identity, never the words in its head (docs/testing.md rule 9).
 const DAC = "dac-correction";
-const LENGTH = "filter-length";
 // The gate control of the DAC correction card, by the schema key its field
 // wears in `data-k`: the `dac_correction_enabled` two-choice segmented switch.
 const GATE = 'data-k="dac_correction_enabled"';
@@ -169,13 +168,4 @@ test("test_a_dac_correction_card_closed_by_hand_survives_an_unrelated_staged_edi
   ensure(DAC, "closed");
   await edit("gain_comp", "-0.5");
   assert.equal(stateOf(tab(), DAC), "closed");
-});
-
-test("test_closing_dac_correction_leaves_the_filter_length_cards_disclosure_alone", async () => {
-  await reset();
-  ensure(DAC, "open");
-  clickHead(DAC);
-  // Literal, not a before/after comparison read off the same helper: a Filter
-  // length card that vanished with the click would read "" on both sides.
-  assert.equal(stateOf(tab(), LENGTH), "closed");
 });

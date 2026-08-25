@@ -406,17 +406,7 @@ test("test_a_stale_resampling_tab_id_renders_the_output_tab_body", async () => {
 // then the cards that were already Output's. Each landmark is a card id, so the
 // ORDER is what this pins and a card changing its disclosure — or its wording —
 // does not move it.
-const CARD_ORDER = [
-  BACKEND,
-  "pre-process",
-  "narrow-filters",
-  "pcm-chain",
-  "sdm-chain",
-  "filter-length",
-  CORRECTION,
-  ALSA,
-  NET,
-];
+const CARD_ORDER = [BACKEND, "pre-process", "narrow-filters", "pcm-chain", "sdm-chain", CORRECTION, ALSA, NET];
 
 test("test_the_merged_cards_stand_in_order_from_the_top_row_to_the_backends", async () => {
   await reset({ cfg: FULL });

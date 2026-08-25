@@ -1,6 +1,7 @@
 // Behavioral suite for the conversion cards — Pre-process, the narrowing bar,
-// the two chain cards (each split by SOURCE type) and the FFT filter-length card
-// — as they render on the Output tab, where the Conversion-tab merge moved them.
+// and the two chain cards (each split by SOURCE type) — as they render on the
+// Output tab, where the Conversion-tab merge moved them. The FFT filter length
+// control, which stands inside a chain card, is fftlength.test.js's subject.
 // There is no Resampling/Conversion tab component any more: the cards are
 // internal composition of the exported `Output`, so every case here goes through
 // `Output`, driven by the exported store signals (`config` carrying the daemon's
@@ -65,24 +66,19 @@ const tab = () => render(html`<${Output} />`);
 // machine identity, never the words in its head (docs/testing.md rule 9).
 const PCM = "pcm-chain";
 const SDM = "sdm-chain";
-const LENGTH = "filter-length";
 const PREPROCESS = "pre-process";
 const NARROW = "narrow-filters";
 const [FROM_PCM, FROM_DSD] = SUBHEADS;
 
 // Option sets with per-field names, so a chain can be shown to carry ITS OWN
 // filter list rather than merely "a filter list". Values are the form's enum
-// ids — volatile across engine versions — so the FFT card matches on the LABEL,
-// never on the number (docs/protocol.md §4, hqplayerd-readme.txt fft_size).
+// ids — volatile across engine versions — so a chain is identified by the LABEL
+// its slot carries, never by the number.
 /**
  * @param {string} value
  * @param {string} label
  */
 const opt = (value, label) => ({ value, options: [{ value, label }] });
-const FFT_LIST = [
-  { value: "1", label: "poly-sinc-gauss-long" },
-  { value: "7", label: "sinc-L (FFT)" },
-];
 const CHAINS = {
   filter1x: opt("1", "poly-sinc-gauss-long"),
   filter: opt("2", "poly-sinc-xtr-mp"),
@@ -374,47 +370,4 @@ test("test_choosing_processed_stages_the_string_zero", async () => {
   chooseSegOption("direct_sdm", "0");
   await quiesce(w);
   assert.equal(w.staged.http.direct_sdm, "0");
-});
-
-// --- FFT filter length --------------------------------------------------------
-// Open exactly when any of the four filter slots SELECTS an option whose label
-// names FFT. The enum ids under the labels are the engine's and volatile, so an
-// id proves nothing either way — only the label does.
-
-test("test_the_filter_length_card_stays_closed_with_no_fft_filter_selected", async () => {
-  await reset({ cfg: CHAINS });
-  assert.equal(stateOf(tab(), LENGTH), "closed");
-});
-
-// Every one of the four slots can open the card on its own.
-const FFT_SLOTS = ["filter1x", "filter", "oversampling1x", "oversampling"];
-for (const slot of FFT_SLOTS) {
-  test(`test_the_filter_length_card_opens_for_an_fft_filter_on_the_${slot}_slot`, async () => {
-    await reset({ cfg: { ...CHAINS, [slot]: { value: "7", options: FFT_LIST } } });
-    assert.equal(stateOf(tab(), LENGTH), "open");
-  });
-}
-
-test("test_an_fft_filter_merely_offered_leaves_the_filter_length_card_closed", async () => {
-  await reset({ cfg: { ...CHAINS, filter1x: { value: "1", options: FFT_LIST } } });
-  assert.equal(stateOf(tab(), LENGTH), "closed");
-});
-
-test("test_an_fft_label_under_an_unfamiliar_enum_id_still_opens_the_card", async () => {
-  // The id domain is the engine's and shifts between versions; the label is the
-  // contract. The same FFT filter under a different number must still count.
-  await reset({ cfg: { ...CHAINS, filter1x: opt("42", "sinc-L (FFT)") } });
-  assert.equal(stateOf(tab(), LENGTH), "open");
-});
-
-test("test_a_familiar_enum_id_with_a_non_fft_label_leaves_the_card_closed", async () => {
-  // The mirror: the id an FFT filter USED to sit on, now carrying a plain
-  // filter's label, must not open the card — matching on the number would.
-  await reset({ cfg: { ...CHAINS, filter1x: opt("7", "poly-sinc-gauss-short") } });
-  assert.equal(stateOf(tab(), LENGTH), "closed");
-});
-
-test("test_the_filter_length_card_carries_the_fft_size_control", async () => {
-  await reset({ cfg: { ...CHAINS, filter1x: { value: "7", options: FFT_LIST } } });
-  assert.ok(section(tab(), LENGTH).includes('data-k="fft_size"'));
 });
