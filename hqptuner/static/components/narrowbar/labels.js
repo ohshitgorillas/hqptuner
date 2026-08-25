@@ -131,26 +131,26 @@ const countLabel = (items, s, idle, plural) => {
   return `${s.count} ${plural}`;
 };
 
-// Phase counts NAMED phases only. "No phase" is a pick about the absence of a
+// Phase counts NAMED phases only. "Unspecified" is a pick about the absence of a
 // classification rather than one more phase, so folding it into the count would
 // report a number of phases that includes a filter having none. It reads as its
 // own trailing clause instead, and the named half keeps the ordinary rule: one
 // named phase shows its own label, more show a count.
 /**
  * Summary label for the phase dropdown's button. Counts named phases only; a
- * picked "No phase" adds a trailing " + no phase" clause.
+ * picked "Unspecified" adds a trailing " + unspecified" clause.
  * @returns {string}
  */
 export function phaseLabel() {
   const s = phaseSummary();
   const named = countLabel(PHASES, s, "Any phase", "phases");
   if (!s.extra.includes("no-phase")) return named;
-  return s.count ? `${named} + no phase` : "No phase";
+  return s.count ? `${named} + unspecified` : "Unspecified";
 }
 
 /**
  * What the phase dropdown's button reports. Counts named phases only; a picked
- * "No phase" is carried as the `no-phase` code rather than as one more phase.
+ * "Unspecified" is carried as the `no-phase` code rather than as one more phase.
  * @returns {FacetSummary}
  */
 export function phaseSummary() {
@@ -161,17 +161,37 @@ export function phaseSummary() {
   return s;
 }
 
+// Length counts NAMED lengths only, the way phase counts named phases.
+// "Unspecified" is a pick about the absence of a classification rather than one
+// more length, so folding it into the count would report a number of lengths
+// that includes a filter having none. It reads as its own trailing clause
+// instead, and the named half keeps the ordinary rule: one named length shows
+// its own label, more show a count.
 /**
- * What the length dropdown's button reports: how many lengths narrow the list.
+ * What the length dropdown's button reports. Counts named lengths only; a
+ * picked "Unspecified" is carried as the `unspecified` code rather than as one
+ * more length.
  * @returns {FacetSummary}
  */
-export const lengthSummary = () => summarize(nLength.value, null);
+export function lengthSummary() {
+  const sel = nLength.value;
+  const named = sel.filter((/** @type {string | number} */ v) => v !== "");
+  const s = summarize(named, null);
+  if (named.length !== sel.length) s.extra.push("unspecified");
+  return s;
+}
 
 /**
- * Summary label for the length dropdown's button: "Any length", the one picked length, or "N lengths".
+ * Summary label for the length dropdown's button. Counts named lengths only; a
+ * picked "Unspecified" adds a trailing " + unspecified" clause.
  * @returns {string}
  */
-export const lengthLabel = () => countLabel(LENGTHS, lengthSummary(), "Any length", "lengths");
+export function lengthLabel() {
+  const s = lengthSummary();
+  const named = countLabel(LENGTHS, s, "Any length", "lengths");
+  if (!s.extra.includes("unspecified")) return named;
+  return s.count ? `${named} + unspecified` : "Unspecified";
+}
 
 /**
  * Whether a genre row is inert under the live selection — an AND selection

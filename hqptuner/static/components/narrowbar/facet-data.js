@@ -37,13 +37,19 @@ export const PHASES = [
   // the filters the phase taxonomy does not reach (store/narrow/facets.js `phase`) —
   // a real facet value, distinct from the empty selection the button calls
   // "Any phase", which means "not narrowed by phase at all"
-  ["", "No phase"],
+  ["", "Unspecified"],
 ];
 export const LENGTHS = [
   ["short", "Short"],
   ["medium", "Medium"],
   ["long", "Long"],
   ["xlong", "Extra long"],
+  // the filters no name token or description classifies (store/narrow/facets.js
+  // `length`) — a real facet value, distinct from the empty selection the button
+  // calls "Any length", which means "not narrowed by length at all". Picking it
+  // beside named lengths is what keeps an unclassified filter in a list narrowed
+  // to exclude one length.
+  ["", "Unspecified"],
 ];
 // Ratio-class display names — no longer a dropdown's rows (the rate-change
 // facet is three hide rules, Facets.js), but facettip.js still labels a
