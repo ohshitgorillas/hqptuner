@@ -298,21 +298,21 @@ export function rowIsDisabled(block, label) {
 }
 
 /**
- * The tooltip one row puts on screen, or null where it carries none. A row is a
- * `<label>` wrapping a checkbox, and either element is a place a tooltip can
- * legitimately hang, so both are read and whichever carries one answers; the
- * count chip inside the row is not read, so a chip's own title cannot be
- * mistaken for the row's.
+ * Whether one row puts a tooltip on screen. The wording is owner copy and never
+ * reaches a caller (docs/testing.md rule 9); what a suite may pin is that an
+ * explanation is there or is not. A row is a `<label>` wrapping a checkbox, and
+ * either element is a place a tooltip can legitimately hang, so both are read
+ * and either one carrying a title answers true; the count chip inside the row is
+ * not read, so a chip's own title cannot be mistaken for the row's.
  *
  * @param {string} block
  * @param {string} label
- * @returns {string | null}
+ * @returns {boolean}
  */
-export function rowTitle(block, label) {
+export function rowHasTitle(block, label) {
   const row = rowByValue(block, label);
-  const title = /(^|\s)title="([^"]*)"/;
-  const hit = title.exec(row.attrs) || title.exec(inputOf(row.body));
-  return hit ? hit[2] : null;
+  const title = /(^|\s)title="[^"]*"/;
+  return title.test(row.attrs) || title.test(inputOf(row.body));
 }
 
 /**

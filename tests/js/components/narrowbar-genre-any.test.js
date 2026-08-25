@@ -127,13 +127,16 @@ test("test_with_no_genre_picked_and_the_and_mode_the_classical_row_is_not_marked
   assert.equal(rowIsMarkedOff(await genrePopover([], "and"), CLASSICAL), false);
 });
 
-// --- the bar's other multi-select carries no inertness rule -----------------------
+// --- with nothing else picked no focus row goes inert -----------------------------
 
-// Read against the rows the popover actually offers: a facet that rendered
-// nothing at all would also disable nothing, so the row list is proven non-empty
-// in the same breath.
+// The bar's other multi-select over a bare reset, where no other facet has been
+// picked and so nothing can have put a focus row out of reach. Read against the
+// rows the popover actually offers: a facet that rendered nothing at all would
+// also disable nothing, so the row list is proven non-empty in the same breath.
+// Focus rows DO go inert once another facet narrows past them, which
+// tests/js/components/narrowbar-inert-rows.test.js pins.
 
-test("test_the_focus_popover_marks_none_of_the_rows_it_offers_unavailable", async () => {
+test("test_with_no_other_facet_picked_the_focus_popover_disables_none_of_the_rows_it_offers", async () => {
   await reset();
   const block = openFacet("focus");
   const offered = popoverRows(block).map((r) => r.value);

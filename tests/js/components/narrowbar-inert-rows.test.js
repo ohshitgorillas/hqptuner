@@ -33,9 +33,11 @@
 // which states what that route couples to.
 //
 // Rows are named by the WIRE VALUE their label carries in `data-v`, never by the
-// caption beside the checkbox (docs/testing.md rule 9). The tooltip is the one
-// piece of user-facing wording asserted here, verbatim, because the spec states
-// it as an exact string.
+// caption beside the checkbox (docs/testing.md rule 9). The same rule keeps the
+// tooltip's SENTENCE out of every assertion below: the wording is owner copy and
+// is reworded at will, and what the spec makes behavior is that an inert row
+// explains itself and a live one does not. So the tooltip is read as present or
+// absent and never as text.
 //
 // The genre facet's older any-dominates rule is pinned in
 // tests/js/components/narrowbar-genre-any.test.js; the only thing this file adds
@@ -61,7 +63,7 @@ import {
   countChip,
   rowIsDisabled,
   rowIsMarkedOff,
-  rowTitle,
+  rowHasTitle,
 } from "../support/genrepopover.js";
 
 /**
@@ -159,8 +161,39 @@ const ANY = "any";
 const TIMBRE = "timbre";
 const TRANSIENTS = "transients";
 
-// Owner copy, and the spec states it character for character.
-const TIP = "No filters with this property match the current selections.";
+/**
+ * The rows of one open popover that render unavailable, with the offered count
+ * carried alongside so an empty popover cannot answer "none disabled".
+ *
+ * @param {string} block
+ * @returns {{ offered: boolean, disabled: string[] }}
+ */
+const disabledIn = (block) => {
+  const offered = rows(block).map((r) => r.value);
+  return { offered: offered.length > 0, disabled: offered.filter((value) => rowIsDisabled(block, value)) };
+};
+
+/**
+ * The same, for the inert marker.
+ *
+ * @param {string} block
+ * @returns {{ offered: boolean, marked: string[] }}
+ */
+const markedIn = (block) => {
+  const offered = rows(block).map((r) => r.value);
+  return { offered: offered.length > 0, marked: offered.filter((value) => rowIsMarkedOff(block, value)) };
+};
+
+/**
+ * The same, for the tooltip.
+ *
+ * @param {string} block
+ * @returns {{ offered: boolean, titled: string[] }}
+ */
+const titledIn = (block) => {
+  const offered = rows(block).map((r) => r.value);
+  return { offered: offered.length > 0, titled: offered.filter((value) => rowHasTitle(block, value)) };
+};
 
 /**
  * The length popover over a stated fixture, with phase narrowed to the two
@@ -300,6 +333,49 @@ async function firstPaintScene() {
   return open("length");
 }
 
+/**
+ * The same, with the selection that dims rows once the dropdowns are populated:
+ * phase narrowed to the two phases and length to short, exactly the worked
+ * example. With no options in either dropdown the bar has nothing to say about
+ * which tags match, so nothing here is dim for any reason at all.
+ *
+ * @returns {Promise<string>}
+ */
+async function narrowedFirstPaintScene() {
+  await resetFirstPaint();
+  nPhase.value = [MINIMUM, INTERMEDIATE];
+  nLength.value = [SHORT];
+  return open("length");
+}
+
+/**
+ * The genre popover with the manual's "any" escape hatch picked in AND mode,
+ * where the older any-dominates rule puts every other genre row out of action.
+ *
+ * @returns {Promise<string>}
+ */
+async function anyRuleScene() {
+  await reset();
+  nGenreMode.value = "and";
+  nGenre.value = [ANY];
+  return open("genre");
+}
+
+/**
+ * A facet other than length opened over the dead end: phase is pinned to a value
+ * no fixture filter carries, so every chip in the bar reads 0/0 and the inertness
+ * rule is demonstrably firing on the tag facets (the length popover over this
+ * same selection goes wholly inert below).
+ *
+ * @param {string} facet
+ * @returns {Promise<string>}
+ */
+async function deadEndFacet(facet) {
+  await reset();
+  nPhase.value = [INTERMEDIATE];
+  return open(facet);
+}
+
 // --- a pick that changes neither list goes inert ----------------------------------
 // The medium and xlong rows union onto a selection that already holds every
 // filter they could reach, so clicking either would leave both dropdowns exactly
@@ -350,21 +426,25 @@ test("test_a_focus_row_whose_pick_would_change_neither_list_is_marked_off", asyn
 });
 
 // --- the inert row says why -------------------------------------------------------
+// An inert row explains itself. What the sentence says is owner copy and stays
+// out of the assertion (docs/testing.md rule 9); that an explanation is on screen
+// at all is the behavior, and it is what separates these rows from the ones the
+// any-dominates rule dims silently.
 
-test("test_an_inert_length_row_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await lengthScene(), MEDIUM), TIP);
+test("test_an_inert_length_row_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await lengthScene(), MEDIUM), true);
 });
 
-test("test_an_inert_phase_row_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await phaseScene(), INTERMEDIATE), TIP);
+test("test_an_inert_phase_row_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await phaseScene(), INTERMEDIATE), true);
 });
 
-test("test_an_inert_genre_row_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await genreScene(), JAZZ), TIP);
+test("test_an_inert_genre_row_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await genreScene(), JAZZ), true);
 });
 
-test("test_an_inert_focus_row_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await focusScene(), TRANSIENTS), TIP);
+test("test_an_inert_focus_row_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await focusScene(), TRANSIENTS), true);
 });
 
 // --- a picked row is never inert --------------------------------------------------
@@ -385,8 +465,28 @@ test("test_a_picked_phase_row_is_not_disabled_though_its_counts_are_unchanged", 
   assert.equal(rowIsDisabled(await phaseScene(), MINIMUM), false);
 });
 
+test("test_a_picked_phase_row_is_not_marked_off_though_its_counts_are_unchanged", async () => {
+  assert.equal(rowIsMarkedOff(await phaseScene(), MINIMUM), false);
+});
+
 test("test_a_picked_genre_row_is_not_disabled_though_its_counts_are_unchanged", async () => {
   assert.equal(rowIsDisabled(await genreScene(), CLASSICAL), false);
+});
+
+test("test_a_picked_genre_row_is_not_marked_off_though_its_counts_are_unchanged", async () => {
+  assert.equal(rowIsMarkedOff(await genreScene(), CLASSICAL), false);
+});
+
+// The same on the bar's other multi-select, whose picked row the earlier cases
+// left unread: unpicking timbre reaches nothing new either, since the one live
+// filter is the only minimum-phase one the fixture carries.
+
+test("test_a_picked_focus_row_is_not_disabled_though_its_counts_are_unchanged", async () => {
+  assert.equal(rowIsDisabled(await focusScene(), TIMBRE), false);
+});
+
+test("test_a_picked_focus_row_is_not_marked_off_though_its_counts_are_unchanged", async () => {
+  assert.equal(rowIsMarkedOff(await focusScene(), TIMBRE), false);
 });
 
 // --- a pick that changes either list stays live -----------------------------------
@@ -402,7 +502,7 @@ test("test_a_length_row_whose_pick_would_widen_the_lists_is_not_marked_off", asy
 });
 
 test("test_a_length_row_whose_pick_would_widen_the_lists_carries_no_tooltip", async () => {
-  assert.equal(rowTitle(await lengthScene(WIDE), LONG), null);
+  assert.equal(rowHasTitle(await lengthScene(WIDE), LONG), false);
 });
 
 // --- a pick that empties both lists goes inert too ---------------------------------
@@ -423,8 +523,8 @@ test("test_a_length_row_whose_pick_would_empty_both_lists_is_marked_off", async 
   assert.equal(rowIsMarkedOff(await emptyingLengthScene(), SHORT), true);
 });
 
-test("test_a_row_whose_pick_would_empty_both_lists_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await emptyingLengthScene(), SHORT), TIP);
+test("test_a_row_whose_pick_would_empty_both_lists_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await emptyingLengthScene(), SHORT), true);
 });
 
 // The same ground on a facet where the row's own tag is plainly carried under
@@ -436,6 +536,19 @@ test("test_the_emptying_genre_scene_really_reads_zero_over_zero", async () => {
 
 test("test_a_genre_row_whose_pick_would_empty_both_lists_is_disabled", async () => {
   assert.equal(rowIsDisabled(await emptyingGenreScene(), JAZZ), true);
+});
+
+// The discriminating scene of the whole file, so it gets all three halves: this
+// row's own tag IS carried under every other pick, so an implementation reading
+// only "does anything carry this tag" would leave it live, and one that dimmed it
+// without marking or explaining it would be dimming it for no visible reason.
+
+test("test_a_genre_row_whose_pick_would_empty_both_lists_is_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await emptyingGenreScene(), JAZZ), true);
+});
+
+test("test_a_genre_row_whose_pick_would_empty_both_lists_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await emptyingGenreScene(), JAZZ), true);
 });
 
 // Where the lists are ALREADY empty every row's pick leaves them empty, so the
@@ -453,8 +566,8 @@ test("test_a_row_of_an_already_empty_selection_is_marked_off", async () => {
   assert.equal(rowIsMarkedOff(await deadEndScene(), XLONG), true);
 });
 
-test("test_a_row_of_an_already_empty_selection_carries_the_no_matching_filters_tooltip", async () => {
-  assert.equal(rowTitle(await deadEndScene(), XLONG), TIP);
+test("test_a_row_of_an_already_empty_selection_carries_a_tooltip", async () => {
+  assert.equal(rowHasTitle(await deadEndScene(), XLONG), true);
 });
 
 // --- one empty list is not two ----------------------------------------------------
@@ -475,7 +588,7 @@ test("test_a_row_emptying_only_the_one_x_list_is_not_marked_off", async () => {
 });
 
 test("test_a_row_emptying_only_the_one_x_list_carries_no_tooltip", async () => {
-  assert.equal(rowTitle(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), null);
+  assert.equal(rowHasTitle(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), false);
 });
 
 test("test_a_row_emptying_only_the_nx_list_reads_two_over_zero", async () => {
@@ -488,6 +601,10 @@ test("test_a_row_emptying_only_the_nx_list_is_not_disabled", async () => {
 
 test("test_a_row_emptying_only_the_nx_list_is_not_marked_off", async () => {
   assert.equal(rowIsMarkedOff(await oneSidedScene(BASE, SHORT_ONLY), TRANSIENTS), false);
+});
+
+test("test_a_row_emptying_only_the_nx_list_carries_no_tooltip", async () => {
+  assert.equal(rowHasTitle(await oneSidedScene(BASE, SHORT_ONLY), TRANSIENTS), false);
 });
 
 // --- a picked row outranks the emptying rule too -----------------------------------
@@ -507,7 +624,7 @@ test("test_a_picked_row_is_not_marked_off_though_its_click_leaves_both_lists_emp
 });
 
 test("test_a_picked_row_whose_click_leaves_both_lists_empty_carries_no_tooltip", async () => {
-  assert.equal(rowTitle(await pickedDeadEndScene(), SHORT), null);
+  assert.equal(rowHasTitle(await pickedDeadEndScene(), SHORT), false);
 });
 
 // --- before /config arrives nothing is dim ----------------------------------------
@@ -520,16 +637,35 @@ test("test_the_first_paint_scene_really_reads_zero_over_zero", async () => {
   assert.equal(countChip(await firstPaintScene(), XLONG), "0/0");
 });
 
-test("test_no_row_is_disabled_while_the_dropdowns_hold_no_options", async () => {
-  assert.equal(rowIsDisabled(await firstPaintScene(), XLONG), false);
+// Every row the popover offers is read, not one of them, because the suspension
+// is total: while the dropdowns hold no options nothing is dim on ANY ground.
+
+test("test_no_row_the_popover_offers_is_disabled_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(disabledIn(await firstPaintScene()), { offered: true, disabled: [] });
 });
 
-test("test_no_row_is_marked_off_while_the_dropdowns_hold_no_options", async () => {
-  assert.equal(rowIsMarkedOff(await firstPaintScene(), XLONG), false);
+test("test_no_row_the_popover_offers_is_marked_off_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(markedIn(await firstPaintScene()), { offered: true, marked: [] });
 });
 
-test("test_no_row_carries_a_tooltip_while_the_dropdowns_hold_no_options", async () => {
-  assert.equal(rowTitle(await firstPaintScene(), XLONG), null);
+test("test_no_row_the_popover_offers_carries_a_tooltip_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(titledIn(await firstPaintScene()), { offered: true, titled: [] });
+});
+
+// And the suspension outranks the other grounds rather than merely not meeting
+// them: this is the worked example's own selection, under which the medium and
+// xlong rows are dim once /config has been read, and here nothing is.
+
+test("test_no_row_is_disabled_under_a_narrowing_selection_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(disabledIn(await narrowedFirstPaintScene()), { offered: true, disabled: [] });
+});
+
+test("test_no_row_is_marked_off_under_a_narrowing_selection_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(markedIn(await narrowedFirstPaintScene()), { offered: true, marked: [] });
+});
+
+test("test_no_row_carries_a_tooltip_under_a_narrowing_selection_while_the_dropdowns_hold_no_options", async () => {
+  assert.deepEqual(titledIn(await narrowedFirstPaintScene()), { offered: true, titled: [] });
 });
 
 // --- the genre facet's older rule keeps its own wording ---------------------------
@@ -538,63 +674,48 @@ test("test_no_row_carries_a_tooltip_while_the_dropdowns_hold_no_options", async 
 // without an explanation (tests/js/components/narrowbar-genre-any.test.js pins
 // the dimming itself).
 
+// The row is established as inert in this very scene first, so the absence of a
+// tooltip below is the absence on a DIMMED row rather than on a live one.
+
+test("test_a_genre_row_inert_under_the_any_rule_is_disabled", async () => {
+  assert.equal(rowIsDisabled(await anyRuleScene(), CLASSICAL), true);
+});
+
+test("test_a_genre_row_inert_under_the_any_rule_is_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await anyRuleScene(), CLASSICAL), true);
+});
+
 test("test_a_genre_row_inert_under_the_any_rule_carries_no_tooltip", async () => {
-  await reset();
-  nGenreMode.value = "and";
-  nGenre.value = [ANY];
-  assert.equal(rowTitle(open("genre"), CLASSICAL), null);
+  assert.equal(rowHasTitle(await anyRuleScene(), CLASSICAL), false);
 });
 
 // --- the facets the rule does not reach -------------------------------------------
-// Quality is a floor rather than a set of picks, and every fixture filter is
-// rated 5/5, so picking any floor the popover offers changes neither list. No
-// row of it goes dim regardless. Read against the rows the popover actually
-// offers, so a facet that rendered nothing would not pass by default.
-
-/**
- * The rows of one open popover that render unavailable, with the offered count
- * carried alongside so an empty popover cannot answer "none disabled".
- *
- * @param {string} block
- * @returns {{ offered: boolean, disabled: string[] }}
- */
-const disabledIn = (block) => {
-  const offered = rows(block).map((r) => r.value);
-  return { offered: offered.length > 0, disabled: offered.filter((value) => rowIsDisabled(block, value)) };
-};
-
-/**
- * The same, for the inert marker.
- *
- * @param {string} block
- * @returns {{ offered: boolean, marked: string[] }}
- */
-const markedIn = (block) => {
-  const offered = rows(block).map((r) => r.value);
-  return { offered: offered.length > 0, marked: offered.filter((value) => rowIsMarkedOff(block, value)) };
-};
+// Quality is a floor rather than a set of picks, and the rate popover's three
+// rules are switches over the source rate; neither is a pick over the filter
+// list, and no row of either goes dim ever.
+//
+// Both are read over the DEAD END — phase pinned to a value no fixture filter
+// carries, every chip in the bar reading 0/0 — where the rule is demonstrably
+// firing on the tag facets (the length popover over this same selection is wholly
+// inert above). Over a bare reset these cases would pass on any implementation,
+// because there the rule fires on nothing at all. Read against the rows the
+// popover actually offers, so a facet that rendered nothing would not pass by
+// default either.
 
 test("test_the_quality_popover_disables_none_of_the_floors_it_offers", async () => {
-  await reset();
-  assert.deepEqual(disabledIn(open("quality")), { offered: true, disabled: [] });
+  assert.deepEqual(disabledIn(await deadEndFacet("quality")), { offered: true, disabled: [] });
 });
 
 test("test_the_quality_popover_marks_none_of_the_floors_it_offers", async () => {
-  await reset();
-  assert.deepEqual(markedIn(open("quality")), { offered: true, marked: [] });
+  assert.deepEqual(markedIn(await deadEndFacet("quality")), { offered: true, marked: [] });
 });
 
-// The rate popover's three rules are switches over the source rate rather than
-// picks over the filter list, and none of them goes dim either.
-
 test("test_the_rate_popover_disables_none_of_the_rules_it_offers", async () => {
-  await reset();
-  assert.deepEqual(disabledIn(open("rate")), { offered: true, disabled: [] });
+  assert.deepEqual(disabledIn(await deadEndFacet("rate")), { offered: true, disabled: [] });
 });
 
 test("test_the_rate_popover_marks_none_of_the_rules_it_offers", async () => {
-  await reset();
-  assert.deepEqual(markedIn(open("rate")), { offered: true, marked: [] });
+  assert.deepEqual(markedIn(await deadEndFacet("rate")), { offered: true, marked: [] });
 });
 
 // --- the count chips keep previewing the click ------------------------------------
