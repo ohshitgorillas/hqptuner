@@ -12,8 +12,12 @@ import { schema, atFixedMinusThree, volumePinned } from "./schema.js";
 import { optionsFor } from "./options.js";
 import { truthy } from "../lib/coerce.js";
 import { metadata } from "./signals.js";
-import { effective } from "./resolve.js";
+import { effective, runningValue } from "./resolve.js";
 import { askWarn } from "./ask.js";
+
+// A warning whose two answers are a plain yes/no about a documented consequence,
+// as opposed to the buffer warnings' "are you sure you know better" (ask.js).
+const YES_NO = { confirm: "Yes", decline: "No" };
 
 // Minimum-buffer values break real setups — per Signalyst's own guidance, the
 // minimum device buffer time mostly yields packet-underflow drop-outs or no
@@ -65,15 +69,26 @@ const volumeLive = (get) => !volumePinned(get) && !truthy(get("direct_sdm"));
 // value is the /config form's enum id, so the form's own option list is what
 // turns one into the other — the same join store/alerts/shaperfit.js makes.
 /**
+ * The engine NAME of a flagged modulator, or "" when the id names an unflagged
+ * one (or the overlay has not loaded). The name is what the apply-time warning
+ * puts in front of the user, so the lookup answers the label rather than a bare
+ * boolean and the predicate below reads it as one.
+ *
+ * @param {string | number | boolean | undefined} value a `sdm_modulator` enum id
+ * @returns {string}
+ */
+function thirstyLabel(value) {
+  const db = ((metadata.value && metadata.value.shapers) || {}).sdm_modulators;
+  if (!db) return "";
+  const hit = optionsFor("config", schema.sdm_modulator.field || "").find((o) => String(o.value) === String(value));
+  return hit && (db[hit.label] || {}).needs_external_volume ? hit.label : "";
+}
+
+/**
  * @param {string | number | boolean | undefined} value a `sdm_modulator` enum id
  * @returns {boolean}
  */
-function needsExternalVolume(value) {
-  const db = ((metadata.value && metadata.value.shapers) || {}).sdm_modulators;
-  if (!db) return false;
-  const hit = optionsFor("config", schema.sdm_modulator.field || "").find((o) => String(o.value) === String(value));
-  return Boolean(hit && (db[hit.label] || {}).needs_external_volume);
-}
+const needsExternalVolume = (value) => thirstyLabel(value) !== "";
 
 // The config this edit would leave behind, for the one key it changes. Staging
 // is the point of decision, so the question has to be asked about the PENDING
@@ -117,6 +132,35 @@ const freesVolumeControl = (key, value) =>
 // own tick. An `await` on the safe path defers that merge by a microtask, which
 // is long enough for a caller that fires an edit without awaiting it (setXfMode)
 // to read the pre-edit value back out of effective().
+// A hazard the user has already said yes to, by id, while it stays continuously
+// staged. The same hazard is asked at edit time and again over the whole staged
+// configuration at apply time (below), and asking twice for one decision is a
+// nag: confirming the modulator and then being asked about the same pairing on
+// Apply is the app doubting an answer it already has. An acknowledgement is
+// dropped the moment its hazard leaves the staged picture (pruneAcknowledged),
+// so backing out and walking into it again asks afresh.
+// The two hazards that exist at BOTH gates, and so are the two an edit-time yes
+// can settle for the apply. The buffer warnings have no apply-time counterpart
+// and take no id.
+const SNR_PAIRING = "snr-pairing";
+const SDM_PIN = "sdm-pin";
+
+/** @type {Set<string>} */
+const acknowledged = new Set();
+
+/**
+ * Remember a confirmed hazard once the question it asked resolves yes.
+ *
+ * @param {string} id
+ * @param {Promise<unknown>} asked
+ * @returns {Promise<unknown>}
+ */
+const ackOn = (id, asked) =>
+  asked.then((ok) => {
+    if (ok) acknowledged.add(id);
+    return ok;
+  });
+
 /**
  * The guard question a hazardous (key, value) pair earns, or null for a safe one.
  *
@@ -134,22 +178,119 @@ export function guard(key, value) {
         `Are you certain you actually know what you're doing?`,
     );
   if (forcesFixedVolume(key, value))
-    return askWarn(
-      key,
-      "Enabling this setting will force a -3dB fixed volume on the PCM chain as well. Are you sure you want to proceed?",
-      { confirm: "Yes", decline: "No" },
+    return ackOn(
+      SDM_PIN,
+      askWarn(
+        key,
+        "Enabling this setting will force a -3dB fixed volume on the PCM chain as well. Are you sure you want to proceed?",
+        YES_NO,
+      ),
     );
   if (picksThirstyModulator(key, value))
-    return askWarn(
-      key,
-      "This modulator is best suited to systems where volume is externally controlled. Are you sure you want to proceed?",
-      { confirm: "Yes", decline: "No" },
+    return ackOn(
+      SNR_PAIRING,
+      askWarn(
+        key,
+        "This modulator is best suited to systems where volume is externally controlled. Are you sure you want to proceed?",
+        YES_NO,
+      ),
     );
   if (freesVolumeControl(key, value))
-    return askWarn(
-      key,
-      "The current modulator is best suited to systems using external volume control. Are you sure you want to proceed?",
-      { confirm: "Yes", decline: "No" },
+    return ackOn(
+      SNR_PAIRING,
+      askWarn(
+        key,
+        "The current modulator is best suited to systems using external volume control. Are you sure you want to proceed?",
+        YES_NO,
+      ),
     );
   return null;
+}
+
+// ---- apply-time guards ------------------------------------------------------
+//
+// The edit-time guards above only ever see ONE key moving against an otherwise
+// settled configuration, so every route that assembles several fields at once
+// walks straight past them: stageHttp() writes wire field names without going
+// through edit(), and previewPreset() drops a whole saved config in as the
+// baseline. Both arrive as a finished configuration with no edit to guard.
+//
+// applyAll() is the choke point every one of those routes crosses, so the same
+// hazards are asked a second time there — about the CONFIGURATION rather than
+// about an edit. A hazard earns its question only when the staged picture has it
+// and the running configuration does not: applying into a pairing that is
+// already live and unchanged must stay silent, or every Apply nags forever.
+
+// The pending bar renders apply-time questions — it is where the Apply button
+// the user just pressed lives (components/PendingBar.js OWNER).
+const APPLY_OWNER = "pending";
+
+/**
+ * @param {(key: string) => string | number | boolean | undefined} get
+ * @returns {boolean}
+ */
+const snrPairing = (get) => needsExternalVolume(get("sdm_modulator")) && volumeLive(get);
+
+/**
+ * @param {(key: string) => string | number | boolean | undefined} get
+ * @returns {boolean}
+ */
+const sdmForcesFixedVolume = (get) => truthy(get("direct_sdm")) && !atFixedMinusThree(get);
+
+/**
+ * @typedef {object} ApplyHazard
+ * @property {string} id
+ * @property {(get: (key: string) => string | number | boolean | undefined) => boolean} hit
+ * @property {(get: (key: string) => string | number | boolean | undefined) => string} message
+ */
+
+/** @type {ApplyHazard[]} */
+const APPLY_HAZARDS = [
+  {
+    id: SNR_PAIRING,
+    hit: snrPairing,
+    message: (get) =>
+      `The staged settings are suboptimal: modulator ${thirstyLabel(get("sdm_modulator"))} is recommended for ` +
+      `external volume control only, but this change enables it and internal volume control. ` +
+      `Are you sure you want to proceed?`,
+  },
+  {
+    id: SDM_PIN,
+    hit: sdmForcesFixedVolume,
+    message: () =>
+      "Applying these settings will force a -3dB fixed volume on the PCM chain. Are you sure you want to proceed?",
+  },
+];
+
+// Asked in sequence, not in parallel: ask.js holds ONE open question at a time
+// and a second call supersedes the first, so two hazards could not be opened at
+// once. The two hazards here are in fact mutually exclusive — the SNR pairing
+// needs a live volume control, which `volumeLive` defines as Direct SDM being
+// off, and the other hazard needs it on — so today the loop asks at most one
+// question. It is written as a loop rather than a pair of ifs because a third
+// hazard would otherwise have to reintroduce the sequencing by hand.
+//
+// Declining abandons the apply with the staging untouched.
+/**
+ * Settle every apply-time hazard the staged configuration newly introduces.
+ *
+ * @returns {Promise<boolean>} false when the user declined and the apply must not go out
+ */
+export async function applyGuard() {
+  pruneAcknowledged();
+  for (const h of APPLY_HAZARDS) {
+    if (!h.hit(effective) || h.hit(runningValue) || acknowledged.has(h.id)) continue;
+    if (!(await askWarn(APPLY_OWNER, h.message(effective), YES_NO))) return false;
+    acknowledged.add(h.id);
+  }
+  return true;
+}
+
+// Drop the acknowledgement of any hazard that has left the staged picture, so a
+// yes never carries over to a hazard the user walked back out of and into again.
+// Called by the write paths as they settle (store/actions.js): an edit that
+// clears the pairing forgets the yes that was about it.
+/** Forget acknowledgements whose hazard the staged configuration no longer has. */
+export function pruneAcknowledged() {
+  for (const h of APPLY_HAZARDS) if (!h.hit(effective)) acknowledged.delete(h.id);
 }
