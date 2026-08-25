@@ -63,7 +63,7 @@ BORDER_WIDGETS = {
 }
 #: widget kinds with no border of their own — the row ring is theirs, and theirs
 #: alone. Adding to this set is a claim that the control cannot cover its row.
-RING_WIDGETS = ("checkbox", "knob", "slidernum")
+RING_WIDGETS = ("checkbox", "knob", "slidernum", "steps")
 
 BORDER_ACCENT = re.compile(r"^border(?:-color)?\s*:.*var\(\s*--accent\s*\)")
 #: `inset` may sit before or after the color, so match the property and then

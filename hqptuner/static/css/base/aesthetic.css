@@ -104,7 +104,8 @@ button:focus-visible,
 }
 .field-checkbox.dirty:hover,
 .field-knob.dirty:hover,
-.field-slidernum.dirty:hover {
+.field-slidernum.dirty:hover,
+.field-steps.dirty:hover {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 button:not(:disabled):hover,

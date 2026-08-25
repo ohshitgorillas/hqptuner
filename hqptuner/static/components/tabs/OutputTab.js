@@ -1,5 +1,5 @@
 // Output tab: Mode / Backend / Rate master switches, the conversion cards
-// (pre-process, filter narrowing, the PCM/SDM chains, FFT filter length),
+// (pre-process, filter narrowing, the PCM/SDM chains),
 // DAC correction (it corrects the selected output device's signal), and the
 // two backend sections. Tuned-per-album cards sit above the set-once backend
 // plumbing.
@@ -13,7 +13,7 @@ import { optionsFor } from "../../store/options.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
-import { PreProcessCard, PcmChainCard, SdmChainCard, FilterLengthCard } from "./ConversionCards.js";
+import { PreProcessCard, PcmChainCard, SdmChainCard } from "./ConversionCards.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
 // runs both). Collapse is purely visual — every field still POSTs (the daemon
@@ -117,7 +117,6 @@ export const Output = () => {
     <${NarrowBar} />
     <${PcmChainCard} />
     <${SdmChainCard} />
-    <${FilterLengthCard} />
     <${Card}
       id="dac-correction"
       title="DAC correction"

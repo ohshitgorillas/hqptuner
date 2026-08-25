@@ -641,11 +641,15 @@ export const schema = {
 
   // --- DSP: generic processing ---
   channels: { label: "Output Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
+  // Detented slider rather than a dropdown: the eight lengths are one scale
+  // (short = gentler roll-off, long = steeper, manual §4.7), not eight names.
+  // It renders inside whichever chain card has an FFT filter selected
+  // (components/tabs/ConversionCards.js), so it has no card of its own.
   fft_size: {
     label: "FFT filter length",
     group: "dsp",
     note: "fft_length",
-    widget: "dropdown",
+    widget: "steps",
     lane: "http",
     field: "fft_size",
     optionsFrom: "config",

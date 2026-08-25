@@ -86,9 +86,15 @@ function DsdSection({ collapse, children }) {
 }
 
 // FFT filter length configures the FFT-based resampling filters only (readme
-// §1.2 fft_size), so the card follows the selection instead of sitting open
-// permanently. Any of the four filter slots can select an FFT filter, so all
-// four are checked.
+// §1.2 fft_size), so it renders only where an FFT filter is actually selected:
+// inside the chain card whose OWN slots selected one, under that card's shaper.
+// Each chain is asked about its own two slots, so Auto with FFT on both sides
+// shows the control in both cards. The daemon has one `fft_size` field, so the
+// two renders are two views of a single value and move together.
+//
+// It has no card of its own. A collapsible card holding one setting that most
+// libraries never reach spends a permanent strip of the tab on a control that is
+// shut every time it is seen.
 //
 // The stored value is the ENUM ID — these four are http-lane controls whose
 // baseline comes from the daemon's own /config form, and the form's option
@@ -96,20 +102,36 @@ function DsdSection({ collapse, children }) {
 // speaks list indices; the two domains must never be mixed, protocol.md §4.)
 // Either way the number is volatile across engine versions (architecture §2), so
 // match on the option's name and never on the number.
-const FILTER_CONTROLS = [
+/** @type {[string, string][]} schema key, form field name */
+const PCM_FILTERS = [
   ["pcm_filter_1x", "filter1x"],
   ["pcm_filter_nx", "filter"],
+];
+/** @type {[string, string][]} schema key, form field name */
+const SDM_FILTERS = [
   ["sdm_filter_1x", "oversampling1x"],
   ["sdm_filter_nx", "oversampling"],
 ];
-const fftOpen = computed(() =>
-  FILTER_CONTROLS.some(([key, field]) => {
+/**
+ * Whether any of a chain's filter slots has an FFT-family filter selected.
+ * @param {[string, string][]} slots
+ * @returns {boolean}
+ */
+const usesFft = (slots) =>
+  slots.some(([key, field]) => {
     const v = String(effective(key));
     const opt = optionsFor("config", field).find((/** @type {OptionItem} */ o) => String(o.value) === v);
     return !!opt && /\bFFT\b/i.test(opt.label);
-  }),
-);
-const fftOverride = signal(null);
+  });
+const pcmFft = computed(() => usesFft(PCM_FILTERS));
+const sdmFft = computed(() => usesFft(SDM_FILTERS));
+
+// Fourth child of the ChainPack, so it lands in the right-hand track under the
+// shaper (components/ChainPack.js splits at two) — the slack that card already
+// had. `null` when the chain has no FFT filter: toChildArray drops it, so the
+// pack is back to three children and the column is unchanged.
+/** @param {{ on: { value: boolean } }} props `on` is the chain's own FFT computed */
+const FftLength = ({ on }) => (on.value ? html`<${Field} k="fft_size" />` : null);
 
 /** Pre-process card: the junk filter and pre-before-meter toggles. */
 export const PreProcessCard = () =>
@@ -129,6 +151,7 @@ export const PcmChainCard = () =>
       <${Field} k="pcm_filter_1x" />
       <${Field} k="pcm_filter_nx" />
       <${Field} k="pcm_dither" />
+      <${FftLength} on=${pcmFft} />
     <//>
     <${DsdSection} collapse=${collapseFrom(dsdOpen, pcmDsdOverride)}>
       <${ChainPack}>
@@ -148,6 +171,7 @@ export const SdmChainCard = () =>
       <${Field} k="sdm_filter_1x" />
       <${Field} k="sdm_filter_nx" />
       <${Field} k="sdm_modulator" />
+      <${FftLength} on=${sdmFft} />
     <//>
     <${DsdSection} collapse=${collapseFrom(dsdOpen, sdmDsdOverride)}>
       <${ChainPack}>
@@ -156,10 +180,4 @@ export const SdmChainCard = () =>
         <${Field} k="direct_sdm" />
       <//>
     <//>
-  <//>`;
-
-/** Filter length card, open while any filter slot selects an FFT filter. */
-export const FilterLengthCard = () =>
-  html`<${Card} id="filter-length" title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
-    <${Field} k="fft_size" />
   <//>`;
