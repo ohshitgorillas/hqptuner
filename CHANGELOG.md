@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Limited-SNR modulators confirm before pairing with HQPlayer's volume control.** Selecting AHM5EC5L or AHM7EC5L while the volume control is live opens a confirmation, as does freeing the volume control while one of them is selected. Declining stages nothing.
+
 ## [1.11.3] — 2026-08-24
 
 ### Added

@@ -1,5 +1,5 @@
 {
-  "_comment": "Static shaper metadata overlay. Keys are engine-reported names (join by name at runtime; engine enumerations are the sole authority for names/IDs/order — architecture §2). Prose from HQPlayer Desktop 6.0.0 manual §4.4 (dither) / §4.5 (modulator); rate thresholds from manual statements. All rate constraints are manufacturer recommendations ('optimized for', 'recommended'). The UI grays sdm_modulators below their floor with reason text and never hides them; pcm_dithers gray nowhere, since a dither below its floor still produces output. Either family below its floor also raises an alert-strip row — crit for modulators, warn for dithers (architecture §5).",
+  "_comment": "Static shaper metadata overlay. Keys are engine-reported names (join by name at runtime; engine enumerations are the sole authority for names/IDs/order — architecture §2). Prose from HQPlayer Desktop 6.0.0 manual §4.4 (dither) / §4.5 (modulator); rate thresholds from manual statements. All rate constraints are manufacturer recommendations ('optimized for', 'recommended'). The UI grays sdm_modulators below their floor with reason text and never hides them; pcm_dithers gray nowhere, since a dither below its floor still produces output. Either family below its floor also raises an alert-strip row — crit for modulators, warn for dithers (architecture §5). `needs_external_volume` marks a modulator whose limited SNR assumes the volume control sits outside HQPlayer: staging it while HQPlayer's own volume control is live asks the user to confirm first, and so does un-pinning the volume while one is already selected (store/actions.js guard).",
   "_join_note": "Match engine name to key case-sensitively. If no exact match, normalize both sides (casefold, collapse spaces) before declaring a gap.",
   "_source": "hqplayer6desktop-manual.pdf §4.4/§4.5; hqplayerd v6 readme.txt §1.5/§1.6",
   "guidance": {
@@ -171,12 +171,14 @@
     "AHM5EC5L": {
       "order": 5, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "needs_external_volume": true,
       "description": "Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
       "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM7EC5L": {
       "order": 7, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "needs_external_volume": true,
       "description": "Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
       "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
