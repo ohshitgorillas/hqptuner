@@ -138,7 +138,8 @@ test("test_the_phase_popover_offers_minimum_intermediate_linear_then_no_phase_in
 // The empty string is a falsy value carrying a real meaning, so the row it
 // stands for has to render ticked from the selection like any other: a
 // membership test that guards on the value being truthy leaves the user
-// clicking "No phase" and watching nothing happen while the store holds it.
+// clicking the empty-string phase row and watching nothing happen while the
+// store holds it.
 test("test_the_no_phase_row_renders_checked_when_it_is_the_picked_phase", async () => {
   await reset();
   nPhase.value = [NO_PHASE];
@@ -153,7 +154,7 @@ test("test_the_length_popover_offers_short_medium_long_xlong_then_the_unspecifie
 });
 
 // The same falsy-value trap the phase row above is named for: a membership test
-// guarding on the value being truthy leaves the user clicking the unspecified
+// guarding on the value being truthy leaves the user clicking the empty-string
 // length row and watching nothing happen while the store holds it.
 test("test_the_unspecified_length_row_renders_checked_when_it_is_the_picked_length", async () => {
   await reset();
@@ -198,8 +199,9 @@ test("test_the_length_popover_carries_no_and_or_combine_switch", async () => {
 // `single` is the picked value's own WIRE value and `extra` carries the clause
 // codes (docs/testing.md rule 9).
 //
-// Phase counts NAMED phases only. "No phase" never adds to the count; picking it
-// raises the `no-phase` clause instead. So there is no reading of one named
+// Phase counts NAMED phases only. The empty-string pick never adds to the
+// count; picking it raises the `no-phase` clause instead. So there is no
+// reading of one named
 // phase as a count: one named phase reports itself as the single pick, clause or
 // no clause.
 
@@ -395,7 +397,7 @@ test("test_the_count_on_a_picked_length_row_previews_unpicking_it", async () => 
   assert.equal(nxOf(countChip(open("length"), SHORT)), 1);
 });
 
-// The unspecified row carries a chip like any other, and its number is what
+// The empty-string row carries a chip like any other, and its number is what
 // picking it would leave: `gauss-plain` alone, the one filter of the fixture no
 // length word reaches. Nothing else in the fixture reads 1 — the total is 4 and
 // the live (empty) selection would answer the whole list — so a chip that

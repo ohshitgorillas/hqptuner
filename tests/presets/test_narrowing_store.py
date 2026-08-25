@@ -426,12 +426,12 @@ def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path
 # narrowed" means, and the scalar an older HQPTuner stored is no longer storable
 # at all (its read-side degradation rides the WRONG_TYPE table above).
 #
-# The two domains part company on the empty STRING, deliberately. Neither
-# taxonomy reaches every filter, and only phase offers a way to ask for the ones
-# it misses: `""` is a real phase VALUE meaning "the filters the phase taxonomy
-# does not reach", so a phase list may carry it. Length has no such value —
-# tap count is a filter specification and the classifier does not guess one — so
-# `""` in a length list is a token outside the domain like any other.
+# Both domains carry the empty STRING as a real VALUE, not as a token outside
+# the domain. Neither taxonomy reaches every filter, and each offers a pick for
+# the ones it misses: `""` in a phase list means "the filters the phase taxonomy
+# does not reach", and `""` in a length list means "this filter's length is
+# unspecified". Either list may carry it; every other unknown token is still
+# refused.
 
 #: One in-domain token per list-valued facet.
 LIST_FACETS: dict[str, str] = {
@@ -448,10 +448,9 @@ def test_a_write_of_the_old_scalar_shape_is_refused_naming_the_facet(tmp_path: P
         store_at(tmp_path).write({facet: LIST_FACETS[facet]})
 
 
-# The two domains differ on the empty string, deliberately. Phase carries it as
-# a real value — the filters the phase taxonomy does not reach, which the bar
-# offers as its own pick — while length has no such pick, so an empty token in a
-# length list is a token outside the domain like any other.
+# The empty string is a pick in both domains: the phase taxonomy's "no phase"
+# and the length taxonomy's "unspecified length" are picks the bar offers, so
+# either list may carry `""` alone or beside a named token.
 
 
 def test_a_write_of_the_no_phase_token_is_stored_and_read_back(tmp_path: Path) -> None:
@@ -466,9 +465,23 @@ def test_a_write_of_the_no_phase_token_beside_a_named_phase_reads_back_whole(tmp
     assert store.read()["phase"] == ["linear", ""]
 
 
-def test_a_length_write_holding_the_empty_token_is_refused_naming_the_facet(tmp_path: Path) -> None:
+def test_a_write_of_the_unspecified_length_token_is_stored_and_read_back(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write({"length": [""]})
+    assert store.read()["length"] == [""]
+
+
+def test_a_write_of_the_unspecified_length_token_beside_a_named_length_reads_back_whole(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write({"length": ["", "medium"]})
+    assert store.read()["length"] == ["", "medium"]
+
+
+# The length domain is closed everywhere else: widening it by one real pick did
+# not open it to unknown tokens.
+def test_a_length_write_holding_an_unknown_token_is_refused_naming_the_facet(tmp_path: Path) -> None:
     with pytest.raises(NarrowingError, match="length"):
-        store_at(tmp_path).write({"length": [""]})
+        store_at(tmp_path).write({"length": ["gigantic"]})
 
 
 @pytest.mark.parametrize("facet", ["phase", "length"])
@@ -624,11 +637,10 @@ def test_a_put_carrying_a_key_that_is_not_a_facet_answers_422(nar_client: TestCl
     assert nar_client.put("/api/narrowing", json={"facets": {"wombat": "yes"}}).status_code == 422
 
 
-# The empty-string asymmetry where a client actually meets it. The frontend
-# sends the "No phase" pick as `""` inside the phase list and never sends
-# anything of the sort for length, so the route has to take the one and refuse
-# the other; a route that took both would store a length nothing can match, and
-# one that refused both would break the phase row.
+# The empty-string pick where a client actually meets it. The frontend sends
+# both the "No phase" and the unspecified-length picks as `""` inside their own
+# list, so the route has to take either; a route that refused one would break
+# that row of the bar.
 
 
 def test_a_put_of_the_no_phase_token_answers_200(nar_client: TestClient) -> None:
@@ -640,8 +652,13 @@ def test_a_put_of_the_no_phase_token_stores_it(nar_client: TestClient) -> None:
     assert nar_client.get("/api/narrowing").json()["facets"]["phase"] == [""]
 
 
-def test_a_put_of_an_empty_token_in_the_length_list_answers_422(nar_client: TestClient) -> None:
-    assert nar_client.put("/api/narrowing", json={"facets": {"length": [""]}}).status_code == 422
+def test_a_put_of_the_unspecified_length_token_answers_200(nar_client: TestClient) -> None:
+    assert nar_client.put("/api/narrowing", json={"facets": {"length": [""]}}).status_code == 200
+
+
+def test_a_put_of_the_unspecified_length_token_stores_it(nar_client: TestClient) -> None:
+    nar_client.put("/api/narrowing", json={"facets": {"length": [""]}})
+    assert nar_client.get("/api/narrowing").json()["facets"]["length"] == [""]
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
