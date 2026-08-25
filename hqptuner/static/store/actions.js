@@ -283,8 +283,9 @@ async function applyLane(run, what) {
  */
 export async function applyAll(save) {
   // The staged set gets its own hazard check here rather than only at edit()
-  // time: preset previews and the wire-name staging lane assemble a whole
-  // configuration without ever passing an edit through a guard (store/guards.js).
+  // time: a preset preview assembles a whole configuration without ever passing
+  // an edit through a guard (store/guards.js). A hazard already confirmed at the
+  // edit gate is not asked again here.
   // Declining sends nothing and keeps the staging, so Discard stays the only
   // thing that throws work away.
   if (!(await applyGuard())) return null;
