@@ -89,7 +89,7 @@ export function NarrowFacets() {
         sig=${nGenre}
         active=${!!nGenre.value.length}
         count=${genrePick}
-        off=${(/** @type {string} */ v) => genreRowOff(v) || tagRowOff(nGenre.value, v, genreSolo(v))}
+        off=${(/** @type {string} */ v) => genreRowOff(v) || tagRowOff(nGenre.value, v, genreSolo(v), genrePick(v))}
         extra=${html`<${ModeSwitch} sig=${nGenreMode} />`}
       />
       <${SingleSelect}
@@ -110,7 +110,7 @@ export function NarrowFacets() {
         sig=${nFocus}
         active=${!!nFocus.value.length}
         count=${focusPick}
-        off=${(/** @type {string} */ v) => tagRowOff(nFocus.value, v, focusSolo(v))}
+        off=${(/** @type {string} */ v) => tagRowOff(nFocus.value, v, focusSolo(v), focusPick(v))}
         extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
       />
       <${MultiSelect}
@@ -121,7 +121,7 @@ export function NarrowFacets() {
         sig=${nPhase}
         active=${!!nPhase.value.length}
         count=${phasePick}
-        off=${(/** @type {string} */ v) => tagRowOff(nPhase.value, v, phaseSolo(v))}
+        off=${(/** @type {string} */ v) => tagRowOff(nPhase.value, v, phaseSolo(v), phasePick(v))}
       />
       <${MultiSelect}
         open=${lengthOpen}
@@ -131,7 +131,7 @@ export function NarrowFacets() {
         sig=${nLength}
         active=${!!nLength.value.length}
         count=${lengthPick}
-        off=${(/** @type {string} */ v) => tagRowOff(nLength.value, v, lengthSolo(v))}
+        off=${(/** @type {string} */ v) => tagRowOff(nLength.value, v, lengthSolo(v), lengthPick(v))}
       />
       <${RateFacet} />
     </div>

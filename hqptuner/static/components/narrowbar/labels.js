@@ -295,6 +295,15 @@ export function chainCounts(overrides) {
   return { one, nx };
 }
 
+// How many options the active chain's two dropdowns hold, before any narrowing.
+// Zero means /config has not been read yet, which is a different state from a
+// selection that matches nothing.
+const chainOptions = () => {
+  const sdm = effective("output_mode") === "sdm";
+  const lists = [sdm ? "oversampling1x" : "filter1x", sdm ? "oversampling" : "filter"];
+  return lists.reduce((n, key) => n + optionsFor("config", key).length, 0);
+};
+
 const NO_MATCH_TITLE = "No filters with this property match the current selections.";
 
 // A tag row nothing can reach: counted with its OWN facet set to that tag alone
@@ -310,30 +319,35 @@ const NO_MATCH_TITLE = "No filters with this property match the current selectio
 // agnostic by design, store/narrow/match.js), and dimming that row would tell
 // the user nothing matches at the moment everything does.
 //
+// The OTHER dead row is the one whose pick empties both lists. It is a distinct
+// condition — that row's chip reads 0/0 where the first reads the full total —
+// and the same dead end for the user, so it dims the same way. Only 0/0: a pick
+// emptying one stage while the other still offers something is a real pick, and
+// 0/2 stays live.
+//
 // PICKED rows are exempt whatever their counts: unticking one is a real action,
 // and a ticked checkbox that cannot be unticked is a pick with no way out.
 //
-// A chain holding nothing is exempt too, and for the same reason from the other
-// end: dimming is guidance about which further pick is worth making, and once
-// the lists are empty the only move left is backing out of a pick already made.
-// Marking every remaining row unavailable says nothing about how to do that. It
-// also covers the bar's first paint, before /config has been read, which would
-// otherwise render wholly dim and clear a moment later.
+// A chain with NO OPTIONS AT ALL is exempt, which is the bar's first paint
+// before /config has been read. Every count is zero there, for a reason that
+// has nothing to do with the filters, and dimming would render the whole bar
+// unavailable and clear it again a moment later.
 //
 // Quality is not a tag facet and never reaches here. Its rows are ordered
 // floors, so "nothing carries it" has no reading there.
 /**
- * The tooltip a tag row with no reachable filters carries, or false where the
- * row is live.
+ * The tooltip a dead tag row carries, or false where the row is live.
  * @param {(string | number)[]} picked the facet's current selection
  * @param {string | number} v the row's own wire value
  * @param {NarrowOverrides} solo this facet narrowed to `v` alone, others as they stand
+ * @param {NarrowOverrides} pick the selection clicking the row would produce
  * @returns {string | false}
  */
-export const tagRowOff = (picked, v, solo) => {
-  if (picked.includes(v)) return false;
-  const live = chainCounts({});
-  if (live.one + live.nx === 0) return false;
-  const { one, nx } = chainCounts(solo);
-  return one + nx === 0 ? NO_MATCH_TITLE : false;
+export const tagRowOff = (picked, v, solo, pick) => {
+  if (picked.includes(v) || !chainOptions()) return false;
+  const empty = (/** @type {NarrowOverrides} */ o) => {
+    const { one, nx } = chainCounts(o);
+    return one + nx === 0;
+  };
+  return empty(solo) || empty(pick) ? NO_MATCH_TITLE : false;
 };
