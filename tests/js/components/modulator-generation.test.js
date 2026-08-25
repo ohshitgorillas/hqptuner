@@ -1,6 +1,7 @@
 // Behavioral suite for the GENERATION row a modulator option's hover tip
-// carries: one metadata row keyed `generation`, whose value reads the
-// modulator's generation as an ordinal (ASDM7ECv3 -> "6th").
+// carries: one metadata row keyed `generation`, whose heading is non-empty and
+// whose value reads the modulator's generation as an ordinal (ASDM7ECv3 -> the
+// ordinal of whatever number the overlay states for it).
 //
 // The fact is the static shaper overlay's `generation`, joined to the engine's
 // own modulator name (docs/architecture.md §2) and reaching the client through
@@ -18,9 +19,16 @@
 //
 // Rows are addressed by their KEY, the machine identity, and never by the
 // heading beside them, which is the owner's wording (docs/testing.md rule 9).
-// The row's VALUE is asserted because it is derived data, not prose: "6th" is a
-// rendering of the number 6, and the ordinal suffix is not uniform across the
-// set, so several suffix shapes are covered.
+// The heading is therefore pinned only as a non-empty string; the row's VALUE
+// is asserted because it is derived data, not prose: "6th" is a rendering of
+// the number 6. One case per ordinal suffix branch — 1st, 2nd, 3rd and one of
+// the `th` run, which 4 through 8 share.
+//
+// The join itself is pinned by the CONTRADICTING case: one modulator seeded
+// with a generation its name does not imply, whose row must read the seeded
+// number. Without it a resolver that renders an ordinal from a hardcoded
+// name-to-generation table, gated only on the overlay entry existing, passes
+// every positive case while never reading the overlay datum.
 //
 // Readings taken where the spec left room:
 //   - the overlay carries `generation` as a NUMBER, alongside the numeric
@@ -31,8 +39,9 @@
 //     codes are.
 //
 // The fixtures make the negative cases bite: the filter name and the dither
-// name each also carry a `generation` entry under `shapers.sdm_modulators`, so
-// a resolver that looks every option's label up in that overlay with no gate on
+// name each also carry a `generation` entry under `shapers.sdm_modulators`,
+// keyed through the same GENERATION constant the assertions read, so a
+// resolver that looks every option's label up in that overlay with no gate on
 // which dropdown it is decorating grows a row here and fails, rather than
 // passing on a fixture with nothing to find.
 //
@@ -48,18 +57,21 @@ import { reset, META } from "../support/field-harness.js";
 
 // --- fixtures ---------------------------------------------------------------
 
-// The real generation of each shipped modulator, and the ordinal a reader sees.
+/** The overlay key the row is keyed by, and the key the row is keyed under. */
+const GENERATION = "generation";
+
+// One shipped modulator per ordinal suffix branch, and the ordinal a reader
+// sees. 4 through 8 all take `th`, so one of them stands for the run.
 /** @type {[name: string, generation: number, ordinal: string][]} */
 const GENERATIONS = [
   ["DSD5", 1, "1st"],
   ["DSD7", 2, "2nd"],
   ["ASDM5", 3, "3rd"],
-  ["ASDM5EC", 4, "4th"],
-  ["ASDM7ECv2", 5, "5th"],
   ["ASDM7ECv3", 6, "6th"],
-  ["ASDM7EC-super", 7, "7th"],
-  ["AHM7EC8B", 8, "8th"],
 ];
+
+// The modulator the whole-row and join cases speak about.
+const MODULATOR = "ASDM7ECv3";
 
 // A modulator whose overlay record exists but states no generation, and a
 // modulator with no overlay record at all.
@@ -74,11 +86,17 @@ const DITHER = "TPDF";
 
 /** The modulator overlay every case is served. */
 const MODULATOR_OVERLAY = {
-  ...Object.fromEntries(GENERATIONS.map(([name, generation]) => [name, { generation }])),
+  ...Object.fromEntries(GENERATIONS.map(([name, generation]) => [name, { [GENERATION]: generation }])),
   [UNGENERATIONED]: { description: "Seventh order modulator." },
-  [FILTER]: { generation: 6 },
-  [DITHER]: { generation: 3 },
+  [FILTER]: { [GENERATION]: 6 },
+  [DITHER]: { [GENERATION]: 3 },
 };
+
+// The same overlay with one modulator's generation replaced by a number its
+// name does not imply.
+const CONTRADICTED = 2;
+const CONTRADICTED_ORDINAL = "2nd";
+const CONTRADICTING_OVERLAY = { ...MODULATOR_OVERLAY, [MODULATOR]: { [GENERATION]: CONTRADICTED } };
 
 /**
  * The /api/metadata payload, restated over the harness fixture with a
@@ -102,6 +120,11 @@ const metaWith = (filters, modulators) => ({
 const META_GEN = metaWith(
   { ...META.filters.filters, [FILTER]: { description: "A planted filter." } },
   MODULATOR_OVERLAY,
+);
+
+const META_CONTRADICTING = metaWith(
+  { ...META.filters.filters, [FILTER]: { description: "A planted filter." } },
+  CONTRADICTING_OVERLAY,
 );
 
 // The filter cases add the one facet the engine's description and the filter's
@@ -145,10 +168,11 @@ function resolver(entry, meta) {
  * Seed every signal the tip reads, then hand back the modulator tip's rows.
  *
  * @param {string} label
+ * @param {import("../../../hqptuner/static/store/prose.js").Metadata} [meta]
  * @returns {Promise<[key: string, heading: string, value: string, codes: string[]][]>}
  */
-async function modulatorRows(label) {
-  await reset({ meta: META_GEN });
+async function modulatorRows(label, meta = META_GEN) {
+  await reset({ meta });
   return resolver(schema.sdm_modulator, SHAPER_META)({ value: "0", label }).rows;
 }
 
@@ -168,20 +192,42 @@ const keysOf = (rows) => rows.map((r) => r[0]);
  */
 const valueOf = (rows, key) => (rows.find((r) => r[0] === key) || [])[2];
 
-const GENERATION = "generation";
+/**
+ * Whether the row keyed `key` states a non-empty heading, with the reason it
+ * does not — the heading's wording is the owner's, so only its presence and
+ * kind are pinned (docs/testing.md rule 9).
+ *
+ * @param {[key: string, heading: string, value: string, codes: string[]][]} rows
+ * @param {string} key
+ * @returns {[boolean, string]}
+ */
+function headingIsNonEmpty(rows, key) {
+  const row = rows.find((r) => r[0] === key);
+  if (!row) return [false, `no row keyed ${key}`];
+  const heading = row[1];
+  return [typeof heading === "string" && heading.trim() !== "", `heading of ${key} is ${JSON.stringify(heading)}`];
+}
 
 // ============================================================================
 // the modulator tip carries the generation row
 // ============================================================================
 
-for (const [name, , ordinal] of GENERATIONS) {
-  test(`test_the_${name.replace(/[^a-z0-9]/gi, "_")}_tip_reads_its_generation_as_the_ordinal_${ordinal}`, async () => {
+for (const [name, generation, ordinal] of GENERATIONS) {
+  test(`test_generation_${generation}_reads_${ordinal}`, async () => {
     assert.equal(valueOf(await modulatorRows(name), GENERATION), ordinal);
   });
 }
 
+test("test_a_modulator_tip_reads_the_generation_its_overlay_entry_states_rather_than_one_implied_by_its_name", async () => {
+  assert.equal(valueOf(await modulatorRows(MODULATOR, META_CONTRADICTING), GENERATION), CONTRADICTED_ORDINAL);
+});
+
+test("test_the_generation_row_states_a_non_empty_heading", async () => {
+  assert.ok(...headingIsNonEmpty(await modulatorRows(MODULATOR), GENERATION));
+});
+
 test("test_a_modulator_tip_carries_the_generation_row_and_no_other_metadata_row", async () => {
-  assert.deepEqual(keysOf(await modulatorRows("ASDM7ECv3")), [GENERATION]);
+  assert.deepEqual(keysOf(await modulatorRows(MODULATOR)), [GENERATION]);
 });
 
 // ============================================================================
