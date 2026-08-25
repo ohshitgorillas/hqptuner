@@ -13,6 +13,7 @@ import {
   lengthLabel,
   rateLabel,
   oneLabel,
+  tagRowOff,
   toggleVal,
 } from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
@@ -54,10 +55,28 @@ function ModeSwitch({ sig }) {
   </div>`;
 }
 
+// Two readings of one row, and they are different questions. `*Pick` is the
+// selection clicking it would produce, which is what its chip counts. `*Solo` is
+// that facet narrowed to this tag ALONE with every other facet untouched, which
+// is what says whether any filter carries the tag at all.
+const genrePick = (/** @type {string} */ v) => ({ genre: toggleVal(nGenre.value, v) });
+const focusPick = (/** @type {string} */ v) => ({ focus: toggleVal(nFocus.value, v) });
+const phasePick = (/** @type {string} */ v) => ({ phase: toggleVal(nPhase.value, v) });
+const lengthPick = (/** @type {string} */ v) => ({ length: toggleVal(nLength.value, v) });
+
+const genreSolo = (/** @type {string} */ v) => ({ genre: [v] });
+const focusSolo = (/** @type {string} */ v) => ({ focus: [v] });
+const phaseSolo = (/** @type {string} */ v) => ({ phase: [v] });
+const lengthSolo = (/** @type {string} */ v) => ({ length: [v] });
+
 /**
  * Renders the facet row: the genre, quality, focus, phase, length and ratio
  * dropdowns plus the favorites toggle. Each dropdown's `count` maps a candidate
- * option to the narrowing override its chip counts against.
+ * option to the narrowing override its chip counts against, and each tag
+ * facet's `off` asks that same override whether the pick would change anything.
+ *
+ * Quality carries no `off`: its rows are ordered floors rather than tags, and a
+ * floor that changes nothing usually means every filter already clears it.
  */
 export function NarrowFacets() {
   return html`
@@ -69,8 +88,8 @@ export function NarrowFacets() {
         items=${GENRES}
         sig=${nGenre}
         active=${!!nGenre.value.length}
-        count=${(/** @type {string} */ v) => ({ genre: toggleVal(nGenre.value, v) })}
-        off=${genreRowOff}
+        count=${genrePick}
+        off=${(/** @type {string} */ v) => genreRowOff(v) || tagRowOff(nGenre.value, v, genreSolo(v))}
         extra=${html`<${ModeSwitch} sig=${nGenreMode} />`}
       />
       <${SingleSelect}
@@ -90,7 +109,8 @@ export function NarrowFacets() {
         items=${FOCUS}
         sig=${nFocus}
         active=${!!nFocus.value.length}
-        count=${(/** @type {string} */ v) => ({ focus: toggleVal(nFocus.value, v) })}
+        count=${focusPick}
+        off=${(/** @type {string} */ v) => tagRowOff(nFocus.value, v, focusSolo(v))}
         extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
       />
       <${MultiSelect}
@@ -100,7 +120,8 @@ export function NarrowFacets() {
         items=${PHASES}
         sig=${nPhase}
         active=${!!nPhase.value.length}
-        count=${(/** @type {string} */ v) => ({ phase: toggleVal(nPhase.value, v) })}
+        count=${phasePick}
+        off=${(/** @type {string} */ v) => tagRowOff(nPhase.value, v, phaseSolo(v))}
       />
       <${MultiSelect}
         open=${lengthOpen}
@@ -109,7 +130,8 @@ export function NarrowFacets() {
         items=${LENGTHS}
         sig=${nLength}
         active=${!!nLength.value.length}
-        count=${(/** @type {string} */ v) => ({ length: toggleVal(nLength.value, v) })}
+        count=${lengthPick}
+        off=${(/** @type {string} */ v) => tagRowOff(nLength.value, v, lengthSolo(v))}
       />
       <${RateFacet} />
     </div>

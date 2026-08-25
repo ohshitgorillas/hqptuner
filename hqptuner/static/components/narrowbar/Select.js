@@ -78,13 +78,16 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
 //
 // `off` marks a row the current selection has made inert — a pick that cannot
 // change the result, so it is disabled and dimmed rather than left to look
-// live. The facet supplies the rule; this widget only draws it.
+// live. The facet supplies the rule; this widget only draws it. A rule that
+// returns a STRING dims the row and hands it that string as its tooltip: a row
+// can be inert for more than one reason, and only some of those reasons have
+// wording to show the user.
 /**
  * Renders a facet button and a popover of checkbox rows, each toggling its
  * value in `sig`'s array; the popover stays open across picks.
  * @param {{ open: import("./popover.js").OpenSignal, name: string, label: string,
  *           items: import("./facet-data.js").FacetItems, sig: import("./labels.js").MultiSignal,
- *           extra?: unknown, active: boolean, off?: (v: string | number) => boolean,
+ *           extra?: unknown, active: boolean, off?: (v: string | number) => boolean | string,
  *           count?: (v: string | number) => import("./labels.js").NarrowOverrides }} props
  */
 export function MultiSelect({ open, name, label, items, sig, extra, active, count, off }) {
@@ -98,9 +101,10 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
           ? html`<div class="multi-pop">
               ${count ? html`<${CountHead} />` : null}
               ${items.map(([v, l]) => {
-                const inert = !!off && off(v);
+                const reason = off ? off(v) : false;
+                const inert = !!reason;
                 return html`
-                  <label class=${inert ? "off" : ""} data-v=${v}>
+                  <label class=${inert ? "off" : ""} data-v=${v} title=${typeof reason === "string" ? reason : null}>
                     <input
                       type="checkbox"
                       checked=${sig.value.includes(v)}
