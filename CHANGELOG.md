@@ -10,6 +10,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Apply confirms hazardous settings that arrive without a per-field edit.** A previewed preset landing on a limited-SNR modulator with the volume control live, or turning Direct SDM on against a volume not fixed at -3 dB, opens the same confirmation on Apply. Declining sends nothing and keeps the staged set.
 
+### Changed
+
+- **FFT filter length moves into the chain card that uses it.** The setting no longer holds a card of its own on the Output tab. It renders under the shaper in the PCM or SDM chain whenever that chain has an FFT filter selected, as a slider stepping through the lengths the engine offers, and is absent everywhere else.
+
 ### Fixed
 
 - **Popover questions stay inside the card that asked them.** A question anchored to a control in a right-hand column no longer runs past the card edge over the page gutter, and no longer covers the Discard and Apply buttons.

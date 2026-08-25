@@ -17,6 +17,7 @@ import {
 } from "../store/narrow/favorites.js";
 import { modulatorTier } from "../store/options.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
+import { Steps } from "./controls/detents.js";
 import { Combobox } from "./controls/Combobox.js";
 import { filterTipFacets } from "./narrowbar/facettip.js";
 import { Knob } from "./Knob.js";
@@ -51,6 +52,7 @@ const WIDGETS = {
   slidernum: SliderNumber,
   radio: RadioGroup,
   knob: Knob,
+  steps: Steps,
 };
 
 // A desc-carrying dropdown renders the custom combobox instead of a native

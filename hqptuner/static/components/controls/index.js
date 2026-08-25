@@ -188,12 +188,13 @@ export function Slider({ value, min, max, step, disabled, onChange }) {
 // exact figure (a fine step over a wide range is unusable on a slider alone).
 // Optional `ticks` (values) draw reference marks.
 /**
+ * Where a value sits between two bounds, as a percentage clamped to 0..100.
  * @param {number} v
  * @param {number} lo
  * @param {number} hi
  * @returns {number}
  */
-const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) * 100);
+export const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) * 100);
 
 // Which end the fill grows from. `anchor="max"` (the default) fills leftward
 // from the right, so its length reads as the amount moved AWAY from max — right
@@ -204,11 +205,12 @@ const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v)
 // The track sets `appearance: none`, so the fill is drawn here either way — a
 // bare `accent-color` renders nothing once the native track is gone.
 /**
+ * The inline gradient painting a range track's filled portion, anchored at whichever end the value grows from.
  * @param {number} pct
  * @param {string | undefined} anchor
  * @returns {string}
  */
-const fillStyle = (pct, anchor) => {
+export const fillStyle = (pct, anchor) => {
   const [from, to] =
     anchor === "min" ? ["var(--accent)", "var(--surface-raised)"] : ["var(--surface-raised)", "var(--accent)"];
   return `background:linear-gradient(to right, ${from} 0%, ${from} ${pct}%, ${to} ${pct}%, ${to} 100%)`;
