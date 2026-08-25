@@ -25,8 +25,9 @@ import { buildRows, rowOption, visibleOption } from "./comborows.js";
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {object} TipContent
  *   One option's hover tip: the raw engine name (non-empty only when Simplified
- *   display has replaced it in the row), the manual prose, plus facet rows and
- *   boolean facet chips (both empty outside the filter dropdowns). Every row and
+ *   display has replaced it in the row), the manual prose, plus metadata rows and
+ *   boolean facet chips. Which dropdowns carry rows and chips is binder.js
+ *   tipMeta's to say; a dropdown with neither ships prose alone. Every row and
  *   chip leads with a code, so the tip can be read by facet rather than by the
  *   words in it.
  * @property {string} name

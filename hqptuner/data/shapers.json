@@ -1,5 +1,5 @@
 {
-  "_comment": "Static shaper metadata overlay. Keys are engine-reported names (join by name at runtime; engine enumerations are the sole authority for names/IDs/order — architecture §2). Prose from HQPlayer Desktop 6.0.0 manual §4.4 (dither) / §4.5 (modulator); rate thresholds from manual statements. All rate constraints are manufacturer recommendations ('optimized for', 'recommended'). The UI grays sdm_modulators below their floor with reason text and never hides them; pcm_dithers gray nowhere, since a dither below its floor still produces output. Either family below its floor also raises an alert-strip row — crit for modulators, warn for dithers (architecture §5). `needs_external_volume` marks a modulator whose limited SNR assumes the volume control sits outside HQPlayer: staging it while HQPlayer's own volume control is live asks the user to confirm first, and so does un-pinning the volume while one is already selected (store/guards.js). Apply asks again over the whole staged configuration, for the one route that assembles a configuration without a per-field edit (a previewed preset). A hazard confirmed at either gate is not asked again at the other.",
+  "_comment": "Static shaper metadata overlay. Keys are engine-reported names (join by name at runtime; engine enumerations are the sole authority for names/IDs/order — architecture §2). Prose from HQPlayer Desktop 6.0.2 manual §4.4 (dither) / §4.5 (modulator); rate thresholds from manual statements. `generation` is the modulator's Generation column in §4.5, an integer 1-8; it is the design lineage the manual states, not a quality ranking, and pcm_dithers have no such column. All rate constraints are manufacturer recommendations ('optimized for', 'recommended'). The UI grays sdm_modulators below their floor with reason text and never hides them; pcm_dithers gray nowhere, since a dither below its floor still produces output. Either family below its floor also raises an alert-strip row — crit for modulators, warn for dithers (architecture §5). `needs_external_volume` marks a modulator whose limited SNR assumes the volume control sits outside HQPlayer: staging it while HQPlayer's own volume control is live asks the user to confirm first, and so does un-pinning the volume while one is already selected (store/guards.js). Apply asks again over the whole staged configuration, for the one route that assembles a configuration without a per-field edit (a previewed preset). A hazard confirmed at either gate is not asked again at the other.",
   "_join_note": "Match engine name to key case-sensitively. If no exact match, normalize both sides (casefold, collapse spaces) before declaring a gap.",
   "_source": "hqplayer6desktop-manual.pdf §4.4/§4.5; hqplayerd v6 readme.txt §1.5/§1.6",
   "guidance": {
@@ -9,186 +9,186 @@
   },
   "sdm_modulators": {
     "DSD5": {
-      "order": 5, "type": "fixed",
+      "order": 5, "generation": 1, "type": "fixed",
       "min_rate_hz": null,
       "description": "Rate adaptive fifth order one-bit delta-sigma modulator."
     },
     "DSD5v2": {
-      "order": 5, "type": "fixed",
+      "order": 5, "generation": 2, "type": "fixed",
       "min_rate_hz": null,
       "description": "Revised fifth order one-bit delta-sigma modulator."
     },
     "DSD5v2 256+fs": {
-      "order": 5, "type": "fixed",
+      "order": 5, "generation": 2, "type": "fixed",
       "min_rate_hz": 10240000, "min_rate_label": "≥ DSD256",
       "description": "Revised fifth order one-bit delta-sigma modulator optimized for rates ≥ 10.24 MHz."
     },
     "DSD5EC": {
-      "order": 5, "type": "fixed",
+      "order": 5, "generation": 4, "type": "fixed",
       "min_rate_hz": null,
       "description": "Rate adaptive fifth order one-bit delta-sigma modulator with extended compensation."
     },
     "ASDM5": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 3, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator."
     },
     "ASDM5EC": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 4, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation."
     },
     "ASDM5ECv2": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 5, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Second generation of ASDM5EC with minor improvements."
     },
     "ASDM5ECv3": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 6, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Third generation of ASDM5EC with minor improvements."
     },
     "ASDM5EC-ul": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Ultralight version."
     },
     "ASDM5EC-light": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Light version."
     },
     "ASDM5EC-fast": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Transient and load optimized version."
     },
     "ASDM5EC-super": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Super version."
     },
     "ASDM5EC-ul 512+fs": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Ultralight version."
     },
     "ASDM5EC-light 512+fs": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Light version."
     },
     "ASDM5EC-fast 512+fs": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Transient and load optimized version."
     },
     "ASDM5EC-super 512+fs": {
-      "order": 5, "type": "adaptive",
+      "order": 5, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Super version."
     },
     "DSD7": {
-      "order": 7, "type": "fixed",
+      "order": 7, "generation": 2, "type": "fixed",
       "min_rate_hz": null,
       "description": "Seventh order one-bit delta-sigma modulator."
     },
     "DSD7 256+fs": {
-      "order": 7, "type": "fixed",
+      "order": 7, "generation": 2, "type": "fixed",
       "min_rate_hz": 10240000, "min_rate_label": "≥ DSD256",
       "description": "Seventh order one-bit delta-sigma modulator optimized for rates ≥ 10.24 MHz."
     },
     "ASDM7": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 3, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator."
     },
     "ASDM7EC": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 4, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation."
     },
     "ASDM7ECv2": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 5, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Second generation of ASDM7EC with minor improvements."
     },
     "ASDM7ECv3": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 6, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Third generation of ASDM7EC with minor improvements."
     },
     "ASDM7EC-ul": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Ultralight version."
     },
     "ASDM7EC-light": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Light version."
     },
     "ASDM7EC-fast": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Transient and load optimized version."
     },
     "ASDM7EC-super": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": null,
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Super version."
     },
     "ASDM7EC-ul 512+fs": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Ultralight version."
     },
     "ASDM7EC-light 512+fs": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Light version."
     },
     "ASDM7EC-fast 512+fs": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Transient and load optimized version."
     },
     "ASDM7EC-super 512+fs": {
-      "order": 7, "type": "adaptive",
+      "order": 7, "generation": 7, "type": "adaptive",
       "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
       "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for rates ≥ 512x. Super version."
     },
     "AMSDM7 512+fs": {
-      "order": 7, "type": "adaptive-multibit",
+      "order": 7, "generation": 3, "type": "adaptive-multibit",
       "min_rate_hz": 20480000, "min_rate_label": "≥ DSD512",
       "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator optimized for rates ≥ 20.48 MHz."
     },
     "AMSDM7EC 512+fs": {
-      "order": 7, "type": "adaptive-multibit",
+      "order": 7, "generation": 4, "type": "adaptive-multibit",
       "min_rate_hz": 20480000, "min_rate_label": "≥ DSD512",
       "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator with extended compensation for rates ≥ 20.48 MHz."
     },
     "AHM5EC5L": {
-      "order": 5, "type": "hybrid-5-level",
+      "order": 5, "generation": 7, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "needs_external_volume": true,
       "description": "Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
       "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM7EC5L": {
-      "order": 7, "type": "hybrid-5-level",
+      "order": 7, "generation": 7, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "needs_external_volume": true,
       "description": "Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.",
       "notes": "Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM5EC8B": {
-      "order": 5, "type": "hybrid-8-bit",
+      "order": 5, "generation": 8, "type": "hybrid-8-bit",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Fifth order 8-bit hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz. Bandwidth optimized to provide enough flat noise floor bandwidth for practically all hi-res content."
     },
     "AHM7EC8B": {
-      "order": 7, "type": "hybrid-8-bit",
+      "order": 7, "generation": 8, "type": "hybrid-8-bit",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Seventh order 8-bit hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz. Bandwidth optimized to provide enough flat noise floor bandwidth for practically all hi-res content."
     }
