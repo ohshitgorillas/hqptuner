@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.11.3] — 2026-08-24
+
 ### Added
 
 - **Filter narrowing can pick filters whose length is unspecified.** The Length dropdown gains an Unspecified row, so excluding one length no longer also drops every filter the taxonomy does not classify. Its button counts named lengths and reports the unspecified pick as a clause.
