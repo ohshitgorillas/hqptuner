@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Modulator hover tips name the generation.** Every SDM modulator carries a Generation row in its tip, the design lineage stated in the HQPlayer manual, from 1st through 8th.
+
 - **Limited-SNR modulators confirm before pairing with HQPlayer's volume control.** Selecting AHM5EC5L or AHM7EC5L while the volume control is live opens a confirmation, as does freeing the volume control while one of them is selected. Declining stages nothing.
 
 - **Apply confirms hazardous settings that arrive without a per-field edit.** A previewed preset landing on a limited-SNR modulator with the volume control live, or turning Direct SDM on against a volume not fixed at -3 dB, opens the same confirmation on Apply. Declining sends nothing and keeps the staged set.

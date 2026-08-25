@@ -15,7 +15,7 @@ import {
   toggleFavoriteModulator,
   favoritesError,
 } from "../store/narrow/favorites.js";
-import { modulatorTier } from "../store/options.js";
+import { modulatorTier, modulatorTipRows } from "../store/options.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Steps } from "./controls/detents.js";
 import { Combobox } from "./controls/Combobox.js";
@@ -70,10 +70,27 @@ const quietDesc = (/** @type {FieldEntry} */ entry) => !!entry.plainQuiet && pla
 /** Picks the widget component a schema entry renders through: Combobox for a desc-carrying dropdown, else the entry's `widget` kind. */
 export const widgetFor = (/** @type {FieldEntry} */ entry) =>
   tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
+// The metadata rows and chips riding one option's tip, by which desc source the
+// dropdown draws from. Filters carry the narrow bar's facet rows and chips —
+// both chains, so both desc values, because the facets describe the filter and
+// not the chain it was reached through (store/prose.js on the split). The
+// modulator dropdown carries its generation row and no chips. Every other desc
+// source ships prose alone.
+/**
+ * @param {FieldEntry} entry
+ * @param {string} label the option's raw engine name
+ * @returns {{ rows: [string, string, string, string[]][], chips: [string, string][] }}
+ */
+function tipMeta(entry, label) {
+  if (entry.desc === "filter" || entry.desc === "sdm_filter") return filterTipFacets(label);
+  if (entry.desc === "modulator") return { rows: modulatorTipRows(label), chips: [] };
+  return { rows: [], chips: [] };
+}
+
 /**
  * Builds the combobox's per-row tip resolver for a desc-carrying dropdown;
- * undefined for every native widget. Filter dropdowns carry the facet rows and
- * chips beside the prose; every other desc source ships text alone. The
+ * undefined for every native widget. What rides beside the prose is `tipMeta`'s
+ * to say. The
  * resolver asks value+label only, so it takes the bare SchemaOption shape —
  * a schema literal's rows reach the combobox unenriched.
  * @type {(entry: FieldEntry, meta: FieldMeta) => ((o: SchemaOption) => TipContent) | undefined}
@@ -85,11 +102,7 @@ export const tipsFor = (entry, meta) =>
         // replaced it in the row (store/plainnames.js plainTrueName).
         name: entry.plainNames ? plainTrueName(entry.plainNames, o.label) : "",
         text: quietDesc(entry) ? "" : optionDescription(entry, o, meta),
-        // Both chains, so both desc values: the facets describe the filter, not
-        // the chain it was reached through (store/prose.js on the split).
-        ...(entry.desc === "filter" || entry.desc === "sdm_filter"
-          ? filterTipFacets(o.label)
-          : { rows: [], chips: [] }),
+        ...tipMeta(entry, o.label),
       })
     : undefined;
 /**
