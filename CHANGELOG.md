@@ -8,19 +8,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Modulator hover tips name the generation.** Every SDM modulator carries a Generation row in its tip, the design lineage stated in the HQPlayer manual, from 1st through 8th.
 
-- **Limited-SNR modulators confirm before pairing with HQPlayer's volume control.** Selecting AHM5EC5L or AHM7EC5L while the volume control is live opens a confirmation, as does freeing the volume control while one of them is selected. Declining stages nothing.
-
-- **Apply confirms hazardous settings that arrive without a per-field edit.** A previewed preset landing on a limited-SNR modulator with the volume control live, or turning Direct SDM on against a volume not fixed at -3 dB, opens the same confirmation on Apply. Declining sends nothing and keeps the staged set.
+- **Limited-SNR modulators confirm before pairing with HQPlayer's volume control.** Selecting AHM5EC5L or AHM7EC5L while the volume control is live opens a confirmation, as does freeing the volume control while one of them is selected. A preset preview that lands on the same pairing, or on Direct SDM against a volume not fixed at -3 dB, asks on Apply instead.
 
 ### Changed
 
-- **FFT filter length moves into the chain card that uses it.** The setting no longer holds a card of its own on the Output tab. It renders under the shaper in the PCM or SDM chain whenever that chain has an FFT filter selected, as a slider stepping through the lengths the engine offers, and is absent everywhere else.
+- **FFT filter length moves into the chain card that uses it.** It leaves its own card on the Output tab and renders under the shaper in the PCM or SDM chain, as a slider stepping through the lengths the engine offers, only while that chain has an FFT filter selected.
 
 ### Fixed
 
 - **Slider tick marks line up with the values they mark.** A mark sat up to half a thumb width from its own position, worst at the ends of a range, which the PCM gain compensation slider showed at both of its marks.
-
-- **Popover questions stay inside the card that asked them.** A question anchored to a control in a right-hand column no longer runs past the card edge over the page gutter, and no longer covers the Discard and Apply buttons.
 
 ## [1.11.3] — 2026-08-24
 
