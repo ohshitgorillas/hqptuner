@@ -41,7 +41,7 @@ import {
  * A fixture filter, ratio-agnostic so that nothing but the quality floor and
  * the name's own phase or length can trim it. The rating rides in the
  * description the way the engine spells it, `"<q>/5 [focus, ...] <glyph>
- * <ratio>"`, and defaults above the quality facet's own floor of 3.
+ * <ratio>"`, and defaults above the quality facet's own floor of 0.
  *
  * @param {string} name
  * @param {number} index

@@ -1,22 +1,28 @@
-// Behavioral suite for the narrow bar's INERT choice rows: a genre, focus,
-// phase or length row whose pick would leave both the 1x and the Nx option list
-// exactly the size they already are can no longer change what the dropdowns
-// offer, so it renders as an unavailable control carrying an explanation rather
-// than as a live one.
+// Behavioral suite for the narrow bar's INERT choice rows. A genre, focus,
+// phase or length row is inert on either of two independent grounds: its pick
+// would leave both the 1x and the Nx option list exactly the size they already
+// are, so the click can no longer change what the dropdowns offer; or its pick
+// would leave both of those lists EMPTY, which is just as useless. Either way
+// the row renders as an unavailable control carrying an explanation rather than
+// as a live one.
 //
-// The case this exists for is the union facets. Phase and length union within
+// The first ground exists for the union facets. Phase and length union within
 // themselves — a filter has exactly one of each, so a second pick can only
 // widen — and a widening that reaches nothing new is a click with no effect.
 // With phase = minimum + intermediate and length = short picked over the
 // fixture below, the lists hold one short minimum-phase filter, and the medium
 // and xlong rows would add nothing to it.
 //
-// Two states that LOOK like that one are not it, and each is entered here on its
-// own. A row already picked is a row whose click UNPICKS, which is always worth
-// offering however its counts read. A row whose pick would empty both lists
-// reads 0/0 and is a legitimate dead end the user may want; where the lists are
-// already empty its counts are unchanged too, which is exactly where a rule
-// reading counts alone gets it wrong.
+// The boundary on the second ground is EITHER list, not both: a chip reading
+// "0/2" or "2/0" is a live row and only "0/0" is not, so the two one-sided
+// scenes are entered here on their own, over dropdowns holding deliberately
+// different option lists.
+//
+// Two states that LOOK inert are not, and each is entered here on its own. A row
+// already picked is a row whose click UNPICKS, which is always worth offering
+// however its counts read. And before /config has been read the two dropdowns
+// hold no options at all, so every row's counts read 0/0 for a reason that has
+// nothing to do with the filters; the bar's first paint dims nothing.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. State is driven by assigning the exported source signals
@@ -115,6 +121,31 @@ function reset(filters = BASE) {
   return resetNarrowBar(filters, { overlay: OVERLAY, fields });
 }
 
+/**
+ * The same, with the two PCM filter slots offering DIFFERENT option lists, so a
+ * pick can empty one chain's dropdown while leaving the other's populated.
+ *
+ * @param {Record<string, unknown>[]} oneFilters
+ * @param {Record<string, unknown>[]} nxFilters
+ * @returns {Promise<void>}
+ */
+function resetSplit(oneFilters, nxFilters) {
+  const opts = (/** @type {Record<string, unknown>[]} */ fs) => fs.map((f) => ({ value: f.value, label: f.name }));
+  const fields = [
+    { name: "filter1x", value: "0", options: opts(oneFilters) },
+    { name: "filter", value: "0", options: opts(nxFilters) },
+  ];
+  return resetNarrowBar(BASE, { overlay: OVERLAY, fields });
+}
+
+/**
+ * The bar as it first paints: the engine enumeration is in, /config is not, so
+ * neither dropdown holds a single option yet.
+ *
+ * @returns {Promise<void>}
+ */
+const resetFirstPaint = () => resetNarrowBar(BASE, { overlay: OVERLAY });
+
 const MINIMUM = "minimum";
 const INTERMEDIATE = "intermediate";
 const LINEAR = "linear";
@@ -197,6 +228,75 @@ async function focusScene() {
 async function deadEndScene() {
   await reset();
   nPhase.value = [INTERMEDIATE];
+  return open("length");
+}
+
+/**
+ * The same, with short already picked, so the row read back is a PICKED one
+ * whose click would still leave both lists empty.
+ *
+ * @returns {Promise<string>}
+ */
+async function pickedDeadEndScene() {
+  await reset();
+  nPhase.value = [INTERMEDIATE];
+  nLength.value = [SHORT];
+  return open("length");
+}
+
+/**
+ * The length popover over live lists, where one row's pick would empty them:
+ * both linear-phase fixture filters sit outside the short taxonomy, so the lists
+ * hold two filters now and would hold none after that click.
+ *
+ * @returns {Promise<string>}
+ */
+async function emptyingLengthScene() {
+  await reset();
+  nPhase.value = [LINEAR];
+  return open("length");
+}
+
+/**
+ * The genre popover in AND mode with one genre picked. Adding a second genre
+ * demands a filter carrying both, and no fixture filter does, so this is a row
+ * whose tag IS carried under the other facets and whose pick still empties the
+ * lists.
+ *
+ * @returns {Promise<string>}
+ */
+async function emptyingGenreScene() {
+  await reset();
+  nGenreMode.value = "and";
+  nGenre.value = [CLASSICAL];
+  return open("genre");
+}
+
+/**
+ * The focus popover where picking transients empties ONE chain's dropdown and
+ * leaves the other's holding two: the 1x slot offers the short minimum-phase
+ * filter alone, and that filter is the one transients drops.
+ *
+ * @param {Record<string, unknown>[]} oneFilters
+ * @param {Record<string, unknown>[]} nxFilters
+ * @returns {Promise<string>}
+ */
+async function oneSidedScene(oneFilters, nxFilters) {
+  await resetSplit(oneFilters, nxFilters);
+  nFocusMode.value = "or";
+  return open("focus");
+}
+
+// The short minimum-phase filter alone: the option list that transients empties.
+const SHORT_ONLY = [BASE[0]];
+
+/**
+ * The length popover at first paint, before /config has been read.
+ *
+ * @returns {Promise<string>}
+ */
+async function firstPaintScene() {
+  await resetFirstPaint();
   return open("length");
 }
 
@@ -305,26 +405,131 @@ test("test_a_length_row_whose_pick_would_widen_the_lists_carries_no_tooltip", as
   assert.equal(rowTitle(await lengthScene(WIDE), LONG), null);
 });
 
-// --- a dead end is not an inert row -----------------------------------------------
-// Both lists are already empty, so every row's pick leaves them exactly as they
-// are — unchanged counts, and a rule reading counts alone disables the lot. A
-// 0/0 pick is a real pick with a real result and stays live.
+// --- a pick that empties both lists goes inert too ---------------------------------
+// A click that leaves the user with nothing to choose from is as useless as one
+// that changes nothing, and gets the same treatment. This is the second, wholly
+// independent ground for inertness: the lists are live now and the chip reads
+// 0/0, so the row is not one nothing carries.
 
+test("test_the_emptying_length_scene_really_reads_zero_over_zero", async () => {
+  assert.equal(countChip(await emptyingLengthScene(), SHORT), "0/0");
+});
+
+test("test_a_length_row_whose_pick_would_empty_both_lists_is_disabled", async () => {
+  assert.equal(rowIsDisabled(await emptyingLengthScene(), SHORT), true);
+});
+
+test("test_a_length_row_whose_pick_would_empty_both_lists_is_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await emptyingLengthScene(), SHORT), true);
+});
+
+test("test_a_row_whose_pick_would_empty_both_lists_carries_the_no_matching_filters_tooltip", async () => {
+  assert.equal(rowTitle(await emptyingLengthScene(), SHORT), TIP);
+});
+
+// The same ground on a facet where the row's own tag is plainly carried under
+// every other pick: jazz has three filters to itself, and only the AND with the
+// picked classical empties the lists.
+test("test_the_emptying_genre_scene_really_reads_zero_over_zero", async () => {
+  assert.equal(countChip(await emptyingGenreScene(), JAZZ), "0/0");
+});
+
+test("test_a_genre_row_whose_pick_would_empty_both_lists_is_disabled", async () => {
+  assert.equal(rowIsDisabled(await emptyingGenreScene(), JAZZ), true);
+});
+
+// Where the lists are ALREADY empty every row's pick leaves them empty, so the
+// whole popover goes inert on the same ground.
 test("test_the_dead_end_scene_really_reads_zero_over_zero", async () => {
   const block = await deadEndScene();
   assert.equal(countChip(block, XLONG), "0/0");
 });
 
-test("test_a_row_whose_pick_would_empty_both_lists_is_not_disabled", async () => {
-  assert.equal(rowIsDisabled(await deadEndScene(), XLONG), false);
+test("test_a_row_of_an_already_empty_selection_is_disabled", async () => {
+  assert.equal(rowIsDisabled(await deadEndScene(), XLONG), true);
 });
 
-test("test_a_row_whose_pick_would_empty_both_lists_is_not_marked_off", async () => {
-  assert.equal(rowIsMarkedOff(await deadEndScene(), XLONG), false);
+test("test_a_row_of_an_already_empty_selection_is_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await deadEndScene(), XLONG), true);
 });
 
-test("test_a_row_whose_pick_would_empty_both_lists_carries_no_tooltip", async () => {
-  assert.equal(rowTitle(await deadEndScene(), XLONG), null);
+test("test_a_row_of_an_already_empty_selection_carries_the_no_matching_filters_tooltip", async () => {
+  assert.equal(rowTitle(await deadEndScene(), XLONG), TIP);
+});
+
+// --- one empty list is not two ----------------------------------------------------
+// The boundary the rule turns on. Handing the two PCM filter slots different
+// option lists makes the halves of the chip disagree, and a row that leaves
+// EITHER half populated is a row with something left to offer.
+
+test("test_a_row_emptying_only_the_one_x_list_reads_zero_over_two", async () => {
+  assert.equal(countChip(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), "0/2");
+});
+
+test("test_a_row_emptying_only_the_one_x_list_is_not_disabled", async () => {
+  assert.equal(rowIsDisabled(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), false);
+});
+
+test("test_a_row_emptying_only_the_one_x_list_is_not_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), false);
+});
+
+test("test_a_row_emptying_only_the_one_x_list_carries_no_tooltip", async () => {
+  assert.equal(rowTitle(await oneSidedScene(SHORT_ONLY, BASE), TRANSIENTS), null);
+});
+
+test("test_a_row_emptying_only_the_nx_list_reads_two_over_zero", async () => {
+  assert.equal(countChip(await oneSidedScene(BASE, SHORT_ONLY), TRANSIENTS), "2/0");
+});
+
+test("test_a_row_emptying_only_the_nx_list_is_not_disabled", async () => {
+  assert.equal(rowIsDisabled(await oneSidedScene(BASE, SHORT_ONLY), TRANSIENTS), false);
+});
+
+test("test_a_row_emptying_only_the_nx_list_is_not_marked_off", async () => {
+  assert.equal(rowIsMarkedOff(await oneSidedScene(BASE, SHORT_ONLY), TRANSIENTS), false);
+});
+
+// --- a picked row outranks the emptying rule too -----------------------------------
+// Unpicking short here leaves the lists as empty as they already are, and it is
+// still the click that gets the user back out of the corner.
+
+test("test_the_picked_dead_end_row_really_reads_zero_over_zero", async () => {
+  assert.equal(countChip(await pickedDeadEndScene(), SHORT), "0/0");
+});
+
+test("test_a_picked_row_is_not_disabled_though_its_click_leaves_both_lists_empty", async () => {
+  assert.equal(rowIsDisabled(await pickedDeadEndScene(), SHORT), false);
+});
+
+test("test_a_picked_row_is_not_marked_off_though_its_click_leaves_both_lists_empty", async () => {
+  assert.equal(rowIsMarkedOff(await pickedDeadEndScene(), SHORT), false);
+});
+
+test("test_a_picked_row_whose_click_leaves_both_lists_empty_carries_no_tooltip", async () => {
+  assert.equal(rowTitle(await pickedDeadEndScene(), SHORT), null);
+});
+
+// --- before /config arrives nothing is dim ----------------------------------------
+// The dropdowns hold no options at all on the bar's first paint, so every count
+// reads 0/0 for a reason that says nothing about the filters. The xlong row is
+// read because a fixture filter carries it: the older "nothing carries this"
+// rule cannot be what answers here.
+
+test("test_the_first_paint_scene_really_reads_zero_over_zero", async () => {
+  assert.equal(countChip(await firstPaintScene(), XLONG), "0/0");
+});
+
+test("test_no_row_is_disabled_while_the_dropdowns_hold_no_options", async () => {
+  assert.equal(rowIsDisabled(await firstPaintScene(), XLONG), false);
+});
+
+test("test_no_row_is_marked_off_while_the_dropdowns_hold_no_options", async () => {
+  assert.equal(rowIsMarkedOff(await firstPaintScene(), XLONG), false);
+});
+
+test("test_no_row_carries_a_tooltip_while_the_dropdowns_hold_no_options", async () => {
+  assert.equal(rowTitle(await firstPaintScene(), XLONG), null);
 });
 
 // --- the genre facet's older rule keeps its own wording ---------------------------
