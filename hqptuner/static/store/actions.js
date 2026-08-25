@@ -11,7 +11,7 @@ import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
-import { guard } from "./guards.js";
+import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
 // keystrokes) each POST, and an EARLIER request's response must not clobber a
@@ -178,12 +178,16 @@ export async function edit(key, value) {
   };
   clearLive(key);
   staged.value = await api.stage(stageBody(body));
+  // An edit that walks back out of a hazard withdraws the yes that was about it,
+  // so walking into it again asks again (store/guards.js).
+  pruneAcknowledged();
 }
 
 /** Throw away every staged edit and the previewed preset with them. */
 export async function discardAll() {
   clearPreview();
   staged.value = await api.discard();
+  pruneAcknowledged();
 }
 
 /** @public — symmetric half of previewPreset; the clearer for a previewed preset. */
@@ -274,9 +278,16 @@ async function applyLane(run, what) {
  * @param {{ name: string }} [save] preset to save into as part of the apply. An
  *   OBJECT, not a bare name: it goes out as the request body's `save`, and the
  *   backend reads `body.save.name` (api/routes/apply.py:58, models.py SaveTarget).
- * @returns {Promise<import("./apply-summary.js").ApplyReport>}
+ * @returns {Promise<import("./apply-summary.js").ApplyReport | null>} null when a
+ *   guard question was declined and nothing was sent.
  */
 export async function applyAll(save) {
+  // The staged set gets its own hazard check here rather than only at edit()
+  // time: preset previews and the wire-name staging lane assemble a whole
+  // configuration without ever passing an edit through a guard (store/guards.js).
+  // Declining sends nothing and keeps the staging, so Discard stays the only
+  // thing that throws work away.
+  if (!(await applyGuard())) return null;
   const count = stagedCount.value; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
   // that trips the daemon's empty-/backup bug and leaves Apply stuck lit.
