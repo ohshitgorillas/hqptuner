@@ -276,6 +276,16 @@ body {
   font-family: var(--font-ui);
 }
 
+/* form controls never inherit typography on their own — the UA gives them
+   Arial/system defaults, so without this every button, select and input sits
+   outside the Inter face the rest of the page loads */
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
 /* iPad Safari runs double-tap-zoom detection on every control, so a tap emits
    its click and then a second, delayed compatibility click ~350ms later. One tap
    on a collapsible card head therefore toggled it twice — open, then shut again.

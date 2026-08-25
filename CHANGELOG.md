@@ -14,6 +14,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Settings tooltips reworded for readability.** Thirty tooltips across the Output, DSP, Volume, and System tabs no longer carry the manual's missing articles, comma splices, and fragments; output mode copy now says Auto, and DSD playback copy follows its rename.
 
+### Fixed
+
+- **Buttons, dropdowns, and text fields render in the interface font.** Form controls never inherited the page's typography, so every button, select, and input sat in the browser's default font instead of the one the rest of the page loads.
+
 ## [1.11.2] — 2026-08-23
 
 ### Changed
