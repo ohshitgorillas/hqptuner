@@ -210,10 +210,15 @@ export function guard(key, value) {
 // ---- apply-time guards ------------------------------------------------------
 //
 // The edit-time guards above only ever see ONE key moving against an otherwise
-// settled configuration, so every route that assembles several fields at once
-// walks straight past them: stageHttp() writes wire field names without going
-// through edit(), and previewPreset() drops a whole saved config in as the
-// baseline. Both arrive as a finished configuration with no edit to guard.
+// settled configuration, so a route that assembles a whole configuration at once
+// walks straight past them: previewPreset() drops a saved config in as the
+// baseline, which arrives with no edit to guard.
+//
+// The other edit()-free staging route, stageHttp(), cannot reach these hazards
+// and is not why this exists: it is module-private, its one entry is
+// stagePipelines(rows, extra), and that `extra` is a saved matrix profile's
+// post-process map — matrix_pipelines and post_bauer_* — which carries neither
+// the modulator nor Direct SDM.
 //
 // applyAll() is the choke point every one of those routes crosses, so the same
 // hazards are asked a second time there — about the CONFIGURATION rather than
