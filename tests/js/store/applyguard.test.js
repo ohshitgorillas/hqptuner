@@ -118,10 +118,38 @@ const REMEMBERED_LEVEL = { fixed_volume: "-20" };
  */
 const patch = (fields, name, value) => fields.map((f) => (f.name === name ? { ...f, value } : f));
 
-// The two hazardous sets, as a preset carries them: a preset's config is keyed
-// by store key, the same keys edit() takes.
-const FLAGGED_MODULATOR_PRESET = { name: "Night", config: { sdm_modulator: AHM5_V } };
-const DIRECT_SDM_PRESET = { name: "Night", config: { direct_sdm: "1" } };
+// The two hazardous sets, as a preset carries them. GET /api/preset/{name}
+// answers in FORM-FIELD terms, not store keys — the preview resolver looks each
+// value up by the field a setting lives on — so this config is keyed the way the
+// /config form names things (`modulator`), while the store side of the same
+// setting is read back by its store key (`sdm_modulator`). The two are the same
+// string for `direct_sdm` and different for the modulator, which is exactly the
+// pair that tells a fake speaking the wrong domain from one speaking the wire.
+//
+// `expect` is that store-side reading: what `effective()` must report once the
+// preview has landed, checked by preview() below so a preset the resolver never
+// saw fails as the broken fixture it is rather than as a silent no-op.
+/**
+ * @typedef {{
+ *   name: string,
+ *   config: Record<string, string>,
+ *   expect: { key: string, value: string },
+ * }} PresetFixture
+ */
+
+/** @type {PresetFixture} */
+const FLAGGED_MODULATOR_PRESET = {
+  name: "Night",
+  config: { modulator: AHM5_V },
+  expect: { key: "sdm_modulator", value: AHM5_V },
+};
+
+/** @type {PresetFixture} */
+const DIRECT_SDM_PRESET = {
+  name: "Night",
+  config: { direct_sdm: "1" },
+  expect: { key: "direct_sdm", value: "1" },
+};
 
 // --- fixture -----------------------------------------------------------------
 
@@ -140,7 +168,7 @@ const DIRECT_SDM_PRESET = { name: "Night", config: { direct_sdm: "1" } };
  *   modulator?: string,
  *   volume?: FormField[],
  *   file?: Record<string, string>,
- *   preset?: { name: string, config: Record<string, string> },
+ *   preset?: PresetFixture,
  *   applyFails?: boolean,
  * }} [state]
  * @returns {Promise<import("../support/wire.js").StagingWire>}
@@ -265,15 +293,16 @@ async function startEdit(w, key, value) {
 // make that unreadable.
 /**
  * @param {import("../support/wire.js").StagingWire} w
- * @param {string} name
+ * @param {PresetFixture} preset
  * @returns {Promise<void>}
  */
-async function preview(w, name) {
-  await previewPreset(name);
+async function preview(w, preset) {
+  await previewPreset(preset.name);
   await quiesce(w);
   if (question.value !== null) {
-    throw new Error(`previewing ${name} opened a question of its own: the apply-time case cannot bite`);
+    throw new Error(`previewing ${preset.name} opened a question of its own: the apply-time case cannot bite`);
   }
+  require(preset.expect.key, preset.expect.value);
 }
 
 // Fire an apply without awaiting it and let the wire go quiet, so a case can look
@@ -319,7 +348,7 @@ async function applyAcknowledged(w) {
 
 test("test_applying_a_previewed_flagged_modulator_with_a_live_volume_opens_a_warn_question", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   assert.equal(question.value?.kind, "warn");
   cancel();
@@ -330,7 +359,7 @@ test("test_applying_a_previewed_flagged_modulator_with_a_live_volume_opens_a_war
 // the daemon already has the set warns about nothing.
 test("test_a_flagged_modulator_apply_sends_no_post_while_its_question_is_open", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   assert.equal(w.posts.length, 0);
   cancel();
@@ -353,7 +382,7 @@ test("test_applying_a_pairing_the_running_config_already_has_opens_no_question",
 
 test("test_applying_a_previewed_direct_sdm_against_a_volume_not_fixed_at_minus_three_opens_a_warn_question", async () => {
   const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, "Night");
+  await preview(w, DIRECT_SDM_PRESET);
   const { held } = await startApply(w);
   assert.equal(question.value?.kind, "warn");
   cancel();
@@ -362,7 +391,7 @@ test("test_applying_a_previewed_direct_sdm_against_a_volume_not_fixed_at_minus_t
 
 test("test_a_direct_sdm_apply_sends_no_post_while_its_question_is_open", async () => {
   const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, "Night");
+  await preview(w, DIRECT_SDM_PRESET);
   const { held } = await startApply(w);
   assert.equal(w.posts.length, 0);
   cancel();
@@ -388,7 +417,7 @@ test("test_applying_with_direct_sdm_already_on_and_staying_on_opens_no_question"
 // the field that happens to be dangerous, which lives on another card.
 test("test_an_apply_time_question_is_owned_by_pending", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   assert.equal(question.value?.owner, "pending");
   cancel();
@@ -397,7 +426,7 @@ test("test_an_apply_time_question_is_owned_by_pending", async () => {
 
 test("test_a_direct_sdm_apply_time_question_is_owned_by_pending", async () => {
   const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, "Night");
+  await preview(w, DIRECT_SDM_PRESET);
   const { held } = await startApply(w);
   assert.equal(question.value?.owner, "pending");
   cancel();
@@ -410,7 +439,7 @@ test("test_a_direct_sdm_apply_time_question_is_owned_by_pending", async () => {
 // asserted: the held promise is settled either way and the wire is the witness.
 test("test_declining_an_apply_time_question_sends_no_apply_post", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   cancel();
   await held.catch(() => {});
@@ -422,7 +451,7 @@ test("test_declining_an_apply_time_question_sends_no_apply_post", async () => {
 // apply again.
 test("test_declining_an_apply_time_question_leaves_the_previewed_set_intact", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   cancel();
   await held.catch(() => {});
@@ -436,7 +465,7 @@ test("test_declining_an_apply_time_question_leaves_the_previewed_set_intact", as
 test("test_declining_an_apply_time_question_leaves_an_unrelated_staged_edit_alone", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
   await stageQuietly(w, "volume_min", "-50");
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   cancel();
   await held.catch(() => {});
@@ -446,7 +475,7 @@ test("test_declining_an_apply_time_question_leaves_an_unrelated_staged_edit_alon
 
 test("test_confirming_an_apply_time_question_sends_the_apply_post", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
   answer();
   await held.catch(() => {});
@@ -505,7 +534,7 @@ test("test_discarding_after_acknowledging_a_hazard_asks_again_when_it_is_reached
 // changed, so the second press does not re-ask.
 test("test_pressing_apply_again_on_the_same_acknowledged_set_opens_no_second_question", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET, applyFails: true });
-  await preview(w, "Night");
+  await preview(w, FLAGGED_MODULATOR_PRESET);
   await applyAcknowledged(w);
   require("sdm_modulator", AHM5_V);
   const { held } = await startApply(w);
