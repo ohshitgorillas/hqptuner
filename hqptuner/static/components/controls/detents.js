@@ -18,7 +18,7 @@
 // the value that goes back on the wire is the token that came off it, never a
 // number this module rounded.
 import { html, wheelGuard, userEdit } from "../../lib/dom.js";
-import { pctOf, fillStyle } from "./index.js";
+import { pctOf, fillStyle, tickLeft } from "./index.js";
 
 /**
  * @typedef {import("../binder.js").FieldOptions} FieldOptions
@@ -78,7 +78,7 @@ export function Steps({ value, options, disabled, onChange }) {
   const send = (/** @type {string} */ v) => onChange && onChange(stepValue(v, opts));
   return html`
     <span class="slidernum">
-      <span class="range-wrap">
+      <span class="range-wrap steps-wrap">
         <input
           class="rng"
           type="range"
@@ -91,7 +91,7 @@ export function Steps({ value, options, disabled, onChange }) {
           onWheel=${wheelGuard}
           onInput=${userEdit(String(idx), (/** @type {{ target: HTMLInputElement }} */ e) => send(e.target.value))}
         />
-        ${opts.map((_, i) => html`<span class="tick" style=${`left:${pctOf(i, 0, last)}%`}></span>`)}
+        ${opts.map((_, i) => html`<span class="tick" style=${tickLeft(pctOf(i, 0, last))}></span>`)}
       </span>
       <span class="slider-val">${value}</span>
     </span>

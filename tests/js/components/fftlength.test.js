@@ -37,7 +37,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
-import { cardHeadAt, formFields, section } from "../support/tabform.js";
+import { formFields, section } from "../support/tabform.js";
 import { attr, classes, elements, keyed, text } from "../support/markup.js";
 
 /** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
@@ -64,16 +64,24 @@ const tab = () => render(html`<${Output} />`);
 
 const PCM = "pcm-chain";
 const SDM = "sdm-chain";
-// The card this change removes. Named here only so its ABSENCE can be asserted.
-const LENGTH = "filter-length";
+// The card this change removes, named only so its ABSENCE can be asserted — and
+// asserted on the raw attribute rather than through a card reader, so a card
+// resurrected as some element other than a <section> is caught too.
+/** @param {string} out */
+const carriesLengthCard = (out) => /\sdata-card="filter-length"/.test(out);
 
 // The daemon's own fft_size option list, as `GET /config` hands it over: a
 // `select` whose option values are STRINGS (docs/protocol.md:76). Five entries,
 // not the live eight — the count is the test's to state, and every expectation
 // below is derived from it.
+//
+// An option's label is a separate field from its value, and only the VALUE is
+// the token the wire carries, so the option the readout cases run through is
+// given a label that differs from it.
 const SIZES = ["128", "256", "512", "1024", "2048"];
+const LABELED = "512";
 /** @type {{ value: string, label: string }[]} */
-const OPTIONS = SIZES.map((value) => ({ value, label: value }));
+const OPTIONS = SIZES.map((value) => ({ value, label: value === LABELED ? `${value} (default)` : value }));
 const FFT_SIZE = { value: "512", options: OPTIONS };
 
 /**
@@ -122,7 +130,7 @@ const carriesFftSize = (frag) => /\sdata-k="fft_size"/.test(frag);
 // --- where the control lands --------------------------------------------------
 
 test("test_no_fft_filter_anywhere_renders_no_filter_length_card", async () => {
-  assert.equal(cardHeadAt(await outputWith({}), LENGTH), -1);
+  assert.equal(carriesLengthCard(await outputWith({})), false);
 });
 
 test("test_no_fft_filter_anywhere_renders_no_fft_size_field", async () => {
@@ -134,7 +142,8 @@ test("test_an_fft_filter_on_the_pcm_1x_slot_puts_the_control_in_the_pcm_chain", 
 });
 
 test("test_an_fft_filter_on_a_pcm_slot_leaves_the_sdm_chain_without_the_control", async () => {
-  assert.equal(carriesFftSize(section(await outputWith({ filter1x: FFT }), SDM)), false);
+  const frag = section(await outputWith({ filter1x: FFT }), SDM);
+  assert.ok(frag.length > 0 && !carriesFftSize(frag));
 });
 
 test("test_an_fft_filter_on_the_pcm_nx_slot_puts_the_control_in_the_pcm_chain", async () => {
@@ -158,7 +167,8 @@ test("test_an_fft_filter_merely_offered_places_no_control_in_either_chain", asyn
   // Selected value "1" is the plain filter; the FFT entry is in the list and
   // unchosen. Neither chain may take that for a reason to show the control.
   const out = await outputWith({ filter1x: { value: "1", options: FFT_LIST } });
-  assert.equal(carriesFftSize(section(out, PCM)) || carriesFftSize(section(out, SDM)), false);
+  const [pcm, sdm] = [section(out, PCM), section(out, SDM)];
+  assert.ok(pcm.length > 0 && sdm.length > 0 && !carriesFftSize(pcm) && !carriesFftSize(sdm));
 });
 
 // The enum id domain is the engine's and shifts between versions; the engine
@@ -171,8 +181,8 @@ test("test_an_fft_name_under_an_unfamiliar_enum_id_still_places_the_control", as
 });
 
 test("test_a_familiar_enum_id_with_a_non_fft_name_places_no_control", async () => {
-  const out = await outputWith({ filter1x: opt("7", "poly-sinc-gauss-short") });
-  assert.equal(carriesFftSize(section(out, PCM)), false);
+  const frag = section(await outputWith({ filter1x: opt("7", "poly-sinc-gauss-short") }), PCM);
+  assert.ok(frag.length > 0 && !carriesFftSize(frag));
 });
 
 // --- the detented slider ------------------------------------------------------

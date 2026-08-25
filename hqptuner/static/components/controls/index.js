@@ -216,6 +216,18 @@ export const fillStyle = (pct, anchor) => {
   return `background:linear-gradient(to right, ${from} 0%, ${from} ${pct}%, ${to} ${pct}%, ${to} 100%)`;
 };
 
+// A tick has to line up with the thumb that marks its value, and a raw
+// percentage of the track does not: a native thumb's CENTRE travels between half
+// a thumb from each end, so a mark at 0% sits half a thumb left of where the
+// thumb can reach and only the midpoint ever agrees. Inset by the same figure
+// the browser does and every detent lands under its own mark.
+/**
+ * The `left` style a tick takes to sit under the thumb position its value maps to.
+ * @param {number} pct
+ * @returns {string}
+ */
+export const tickLeft = (pct) => `left:calc(var(--thumb-size) / 2 + (100% - var(--thumb-size)) * ${pct / 100})`;
+
 // A caller with a single `onChange` gets drag-only, and deliberately does NOT
 // gain a second event at the end of a drag — that would stage every value
 // twice. Splitting means preview on drag, stage on release.
@@ -319,7 +331,7 @@ export function SliderNumber(props) {
           onChange=${split ? userEdit(track.value, (/** @type {InputEv} */ e) => commit(dec(e.target.value))) : null}
           onPointerUp=${split && log ? (/** @type {InputEv} */ e) => commit(dec(e.target.value)) : null}
         />
-        ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(enc(t), enc(lo), enc(hi))}%`}></span>`)}
+        ${(ticks || []).map((t) => html`<span class="tick" style=${tickLeft(pctOf(enc(t), enc(lo), enc(hi)))}></span>`)}
       </span>
       <${ReadBox}
         shown=${format ? format(Number(value)) : s(value)}

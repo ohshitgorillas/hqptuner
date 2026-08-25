@@ -650,6 +650,7 @@ export const schema = {
     group: "dsp",
     note: "fft_length",
     widget: "steps",
+    wide: true,
     lane: "http",
     field: "fft_size",
     optionsFrom: "config",

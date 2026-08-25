@@ -418,6 +418,16 @@ test("test_the_merged_cards_stand_in_order_from_the_top_row_to_the_backends", as
   );
 });
 
+// The FFT filter length setting stands inside a chain card now, so the card it
+// used to have is gone even in the one state that used to render it: an FFT
+// filter selected. Matched on the raw attribute rather than through a card
+// reader, so a card resurrected as some element other than a <section> is
+// caught too.
+test("test_no_filter_length_card_stands_on_the_tab_with_an_fft_filter_selected", async () => {
+  await reset({ cfg: { ...FULL, filter1x: opt("7", "sinc-L (FFT)") } });
+  assert.equal(/\sdata-card="filter-length"/.test(tab()), false);
+});
+
 test("test_a_missing_device_still_warns_above_the_top_row", async () => {
   await reset({ cfg: { ...FULL, alsa_device: alsaDev("") } });
   const out = tab();

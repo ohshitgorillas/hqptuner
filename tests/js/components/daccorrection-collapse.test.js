@@ -169,3 +169,15 @@ test("test_a_dac_correction_card_closed_by_hand_survives_an_unrelated_staged_edi
   await edit("gain_comp", "-0.5");
   assert.equal(stateOf(tab(), DAC), "closed");
 });
+
+// A click lands on the card it was aimed at and nowhere else. The neighbour is
+// the PCM chain card, which stands open in this file's `auto` mode, and the
+// state is asserted LITERALLY rather than as a before/after comparison read off
+// the same helper: a neighbour that vanished with the click would read "" on
+// both sides of such a comparison and the case would pass on a broken tab.
+test("test_closing_dac_correction_leaves_a_neighbouring_cards_disclosure_alone", async () => {
+  await reset();
+  ensure(DAC, "open");
+  clickHead(DAC);
+  assert.equal(stateOf(tab(), "pcm-chain"), "open");
+});

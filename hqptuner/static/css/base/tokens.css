@@ -163,6 +163,12 @@
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
   --h-control: 2rem; /* the height a native select takes at --fs-body; anything impersonating one matches it */
+  /* Range-thumb diameter. Lives here because it is not only the thumb's size:
+     a native thumb's CENTRE travels between --thumb-size/2 and
+     width - --thumb-size/2, so anything drawn to line up with the thumb — tick
+     marks above all — has to inset by the same figure. Two literals would drift
+     apart and put every tick beside its own detent. */
+  --thumb-size: 16px;
   /* Triangle marks — disclosure and dropdown carets. A size, not a font size:
      the shape is a clip-path on a square box, so the box IS the ink and any
      centering that centers the box centers the mark. */

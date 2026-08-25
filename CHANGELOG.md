@@ -18,6 +18,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Slider tick marks line up with the values they mark.** A mark sat up to half a thumb width from its own position, worst at the ends of a range, which the PCM gain compensation slider showed at both of its marks.
+
 - **Popover questions stay inside the card that asked them.** A question anchored to a control in a right-hand column no longer runs past the card edge over the page gutter, and no longer covers the Discard and Apply buttons.
 
 ## [1.11.3] — 2026-08-24

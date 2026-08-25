@@ -30,9 +30,13 @@
 .field.wide .range-wrap {
   max-width: none;
 }
+/* `margin: 0` is load-bearing, not tidying: a native range input carries a
+   default 2px side margin, so the track sits 2px inside the wrapper the ticks
+   are positioned against, and every tick lands up to 2px off its own detent. */
 .range-wrap input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
+  margin: 0;
   width: 100%;
   height: 6px;
   border-radius: var(--r-xs);
@@ -45,8 +49,8 @@
    Each slider varies it by setting its own --thumb-* values (see volume.css). */
 .rng,
 .vr-handle {
-  --thumb-w: 16px;
-  --thumb-h: 16px;
+  --thumb-w: var(--thumb-size);
+  --thumb-h: var(--thumb-size);
   --thumb-r: 50%;
   --thumb-bg: var(--fg);
   --thumb-border: 1px solid var(--line);
@@ -85,6 +89,27 @@
   background: var(--muted);
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+/* The stepped slider (controls/detents.js) puts its detents UNDER the track
+   rather than across it. A tick is absolutely positioned and follows the input
+   in source order, so on the track it paints over the thumb — and a control
+   whose whole point is that the thumb sits on a detent cannot have the detents
+   drawn on top of the thumb. Below the track they read as the scale they are,
+   and the thumb stays clean. */
+/* `.control` is a flex row, so the slider sizes to its content and a wide field
+   widens the cell around it without widening the track. Eight detents need the
+   room, so this one takes it. */
+.field-steps .slidernum {
+  flex: 1;
+}
+.steps-wrap {
+  padding-bottom: var(--sp-3);
+}
+.steps-wrap .tick {
+  top: auto;
+  bottom: 0;
+  height: 7px;
+  transform: translateX(-50%);
 }
 /* the box stacked over its sub-figure, so the gap between them lives here */
 .slidernum-readbox {
