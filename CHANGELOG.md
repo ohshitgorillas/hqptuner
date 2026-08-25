@@ -16,6 +16,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Narrowing rows no filter can reach are marked unavailable.** A genre, focus, phase, or length row that nothing matches under the other facets is dimmed with a tooltip, rather than showing a count that reads as matches. Picking a phase left every Medium and Extra long row reading the full total, since a further length pick widens the list instead of narrowing it.
+
 - **Buttons, dropdowns, and text fields render in the interface font.** Form controls never inherited the page's typography, so every button, select, and input sat in the browser's default font instead of the one the rest of the page loads.
 
 ## [1.11.2] — 2026-08-23

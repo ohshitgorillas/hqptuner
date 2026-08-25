@@ -271,6 +271,13 @@ export const toggleVal = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== 
  * @param {NarrowOverrides} overrides
  * @returns {{ one: number, nx: number }}
  */
+/**
+ * Counts how many filters the active chain's 1x and Nx lists would hold under
+ * `overrides` — SDM's oversampling lists when the output mode is SDM, PCM's
+ * filter lists otherwise.
+ * @param {NarrowOverrides} overrides
+ * @returns {{ one: number, nx: number }}
+ */
 export function chainCounts(overrides) {
   const sdm = effective("output_mode") === "sdm";
   const one = previewCount(
@@ -287,3 +294,46 @@ export function chainCounts(overrides) {
   );
   return { one, nx };
 }
+
+const NO_MATCH_TITLE = "No filters with this property match the current selections.";
+
+// A tag row nothing can reach: counted with its OWN facet set to that tag alone
+// and every other facet left as it stands, no filter survives. The count chips
+// cannot say this. A chip previews the click, and a pick that unions onto a
+// facet already holding one — phase, length, and genre or focus under OR — lands
+// on the list it started from, so the Medium row reads the full count while no
+// medium filter is in it.
+//
+// Contribution, NOT "the pick changes nothing". The two coincide on a union
+// facet and are opposites elsewhere: an AND-mode genre row also changes nothing
+// when EVERY surviving filter already carries the tag (genre's "any" is
+// agnostic by design, store/narrow/match.js), and dimming that row would tell
+// the user nothing matches at the moment everything does.
+//
+// PICKED rows are exempt whatever their counts: unticking one is a real action,
+// and a ticked checkbox that cannot be unticked is a pick with no way out.
+//
+// A chain holding nothing is exempt too, and for the same reason from the other
+// end: dimming is guidance about which further pick is worth making, and once
+// the lists are empty the only move left is backing out of a pick already made.
+// Marking every remaining row unavailable says nothing about how to do that. It
+// also covers the bar's first paint, before /config has been read, which would
+// otherwise render wholly dim and clear a moment later.
+//
+// Quality is not a tag facet and never reaches here. Its rows are ordered
+// floors, so "nothing carries it" has no reading there.
+/**
+ * The tooltip a tag row with no reachable filters carries, or false where the
+ * row is live.
+ * @param {(string | number)[]} picked the facet's current selection
+ * @param {string | number} v the row's own wire value
+ * @param {NarrowOverrides} solo this facet narrowed to `v` alone, others as they stand
+ * @returns {string | false}
+ */
+export const tagRowOff = (picked, v, solo) => {
+  if (picked.includes(v)) return false;
+  const live = chainCounts({});
+  if (live.one + live.nx === 0) return false;
+  const { one, nx } = chainCounts(solo);
+  return one + nx === 0 ? NO_MATCH_TITLE : false;
+};
