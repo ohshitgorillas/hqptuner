@@ -10,6 +10,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Apply confirms hazardous settings that arrive without a per-field edit.** A previewed preset landing on a limited-SNR modulator with the volume control live, or turning Direct SDM on against a volume not fixed at -3 dB, opens the same confirmation on Apply. Declining sends nothing and keeps the staged set.
 
+### Fixed
+
+- **Popover questions stay inside the card that asked them.** A question anchored to a control in a right-hand column no longer runs past the card edge over the page gutter, and no longer covers the Discard and Apply buttons.
+
 ## [1.11.3] — 2026-08-24
 
 ### Added

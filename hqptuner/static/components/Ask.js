@@ -67,11 +67,24 @@ const pinToAnchor = (pop) => {
   const anchor = pop.parentElement;
   if (!anchor) return;
   const r = anchor.getBoundingClientRect();
-  // Clamp into the viewport: an anchor row near the page edge would otherwise
-  // pin the panel partly or wholly off-screen (a control at the bottom of a
-  // tall tab opens its warn panel below the fold).
-  const left = Math.min(r.left, window.innerWidth - pop.offsetWidth - 8);
-  const top = Math.min(r.bottom, window.innerHeight - pop.offsetHeight - 8);
+  // Horizontal bound is the CARD the asking control sits in, not the viewport.
+  // The panel is 20rem (controls/ask.css) and the content column is ~1200px, so
+  // a control in a right-hand column anchors a panel that clears the card's
+  // right edge and lays itself over the page gutter and the pending bar. Pin its
+  // right edge to the card's instead, and only then let the viewport have the
+  // last word (a card wider than the viewport, below the 1100px breakpoint).
+  const card = anchor.closest(".card, .dsp-card") || document.body;
+  const b = card.getBoundingClientRect();
+  const right = Math.min(b.right, window.innerWidth - 8) - pop.offsetWidth;
+  const left = Math.max(Math.min(r.left, right), Math.min(b.left, right));
+  // Vertical stays viewport-bound rather than card-bound: a card is a horizontal
+  // frame, and a control low in a tall card would otherwise open its panel below
+  // the fold. The floor is the fixed pending bar, not the viewport edge — the bar
+  // paints over the page and a panel pinned to the bottom would cover Discard and
+  // Apply, the two buttons the answer sends the user to next.
+  const bar = document.querySelector(".pending-bar");
+  const floor = bar ? bar.getBoundingClientRect().top : window.innerHeight;
+  const top = Math.min(r.bottom, floor - pop.offsetHeight - 8);
   pop.style.left = `${Math.max(8, left)}px`;
   pop.style.top = `${Math.max(8, top)}px`;
 };
