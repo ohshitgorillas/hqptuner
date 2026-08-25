@@ -69,10 +69,16 @@ import { ok, bad, stagingWire, quiesce } from "../support/wire.js";
 // the frontend under `shapers`.
 const SHAPERS = JSON.parse(readFileSync(new URL("../../../hqptuner/data/shapers.json", import.meta.url), "utf8"));
 
-// A flagged name, and a plainly unflagged one to stand for every modulator that
-// is not flagged.
+// A flagged name, and TWO plainly unflagged ones. Two, because the flag is what
+// is supposed to select the hazard: with a single unflagged name the only thing
+// a case can do with it is leave it sitting in the baseline, and a guard that
+// warns about any staged modulator at all against a live volume would never be
+// caught at it. A second unflagged name gives an unflagged modulator somewhere
+// to travel FROM, so previewing one is a real change of modulator and not a
+// no-op the guard was always going to ignore.
 const AHM5 = "AHM5EC5L";
 const PLAIN = "DSD7";
+const PLAIN2 = "ASDM7EC-super";
 
 // The enumeration the /config form offers for `modulator`, in the form's own
 // shape: an index string per row carrying the engine's name as its label. The
@@ -81,9 +87,11 @@ const PLAIN = "DSD7";
 const MODULATORS = [
   { value: "0", label: PLAIN },
   { value: "1", label: AHM5 },
+  { value: "2", label: PLAIN2 },
 ];
 const PLAIN_V = "0";
 const AHM5_V = "1";
+const PLAIN2_V = "2";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool, an
@@ -118,6 +126,29 @@ const REMEMBERED_LEVEL = { fixed_volume: "-20" };
  */
 const patch = (fields, name, value) => fields.map((f) => (f.name === name ? { ...f, value } : f));
 
+// The two independent spellings of "the volume is ALREADY fixed at -3 dB", which
+// is where Direct SDM pins it — so turning Direct SDM on from either of these
+// costs the user nothing, and there is nothing to warn about. They are separate
+// mechanisms and each has to be covered on its own: `fixed_volume_enabled` (a
+// bool, readme §1.13) gates `fixed_volume`, the dBFS level, and BOTH have to
+// line up; `volume_fixed` (optimal_iso, readme §1.2) is gated by nothing and
+// carries the level itself, its "1" being the -3 dB setting.
+//
+// The optimal_iso spelling DROPS the `volume_fixed` form field rather than
+// setting it: the field and the file entry are two answers to one question, and
+// a field left at false would be answering it the other way.
+/** @type {FormField[]} */
+const FIXED_AT_MINUS_THREE = patch(LIVE_VOLUME, "fixed_volume_enabled", true);
+
+/** @type {Record<string, string>} */
+const MINUS_THREE_LEVEL = { fixed_volume: "-3" };
+
+/** @type {FormField[]} */
+const OPTIMAL_ISO_VOLUME = LIVE_VOLUME.filter((f) => f.name !== "volume_fixed");
+
+/** @type {Record<string, string>} */
+const OPTIMAL_ISO_MINUS_THREE = { volume_fixed: "1", fixed_volume: "-20" };
+
 // The two hazardous sets, as a preset carries them. GET /api/preset/{name}
 // answers in FORM-FIELD terms, not store keys — the preview resolver looks each
 // value up by the field a setting lives on — so this config is keyed the way the
@@ -144,6 +175,16 @@ const FLAGGED_MODULATOR_PRESET = {
   expect: { key: "sdm_modulator", value: AHM5_V },
 };
 
+// The same preview, carrying a modulator the overlay does NOT flag: same live
+// volume, same wire, same unacknowledged arrival at the apply — everything the
+// hazardous case has except the flag.
+/** @type {PresetFixture} */
+const PLAIN_MODULATOR_PRESET = {
+  name: "Night",
+  config: { modulator: PLAIN_V },
+  expect: { key: "sdm_modulator", value: PLAIN_V },
+};
+
 /** @type {PresetFixture} */
 const DIRECT_SDM_PRESET = {
   name: "Night",
@@ -152,6 +193,23 @@ const DIRECT_SDM_PRESET = {
 };
 
 // --- fixture -----------------------------------------------------------------
+
+// Throw unless the shipped overlay says about these names what the cases below
+// claim about them: the flagged one flagged, the unflagged ones not. The flag is
+// never faked, so a case that turns on the difference between them is only worth
+// reading while the data that ships still draws it.
+/** @returns {void} */
+function requireFlags() {
+  const shapers = SHAPERS.sdm_modulators || {};
+  if (shapers[AHM5]?.needs_external_volume !== true) {
+    throw new Error(`shapers.json does not flag ${AHM5} needs_external_volume: the cases below cannot bite`);
+  }
+  for (const name of [PLAIN, PLAIN2]) {
+    if (!(name in shapers) || shapers[name].needs_external_volume === true) {
+      throw new Error(`shapers.json carries no UNflagged sdm_modulators entry named ${name}: cases cannot bite`);
+    }
+  }
+}
 
 // Total reset: module-level signals outlive a test file, so a partial reset makes
 // cases pass alone and fail in sequence. `staged` is private and is cleared
@@ -180,9 +238,7 @@ async function fixture({
   preset,
   applyFails = false,
 } = {}) {
-  if (!(AHM5 in (SHAPERS.sdm_modulators || {})) || !(PLAIN in (SHAPERS.sdm_modulators || {}))) {
-    throw new Error(`shapers.json is missing ${AHM5} or ${PLAIN} under sdm_modulators: the cases below cannot bite`);
-  }
+  requireFlags();
   const w = stagingWire({
     routes: (path, opts, wire) => {
       if (path === "/api/config/apply") {
@@ -211,6 +267,15 @@ async function fixture({
   await discardAll();
   return w;
 }
+
+// The switch target each recorded apply POST carried, in arrival order: a
+// previewed preset reaches the daemon as `switch_to` on POST /api/config/apply,
+// which is how the wire names the set an apply is applying.
+/**
+ * @param {import("../support/wire.js").StagingWire} w
+ * @returns {(string | undefined)[]}
+ */
+const switchTargets = (w) => w.posts.map((p) => /** @type {{ switch_to?: string }} */ (p || {}).switch_to);
 
 // Throw unless the staged picture reads what the caller meant to put there. A
 // premise that did not take makes the case below it vacuous, which is a broken
@@ -378,6 +443,20 @@ test("test_applying_a_pairing_the_running_config_already_has_opens_no_question",
   await held.catch(() => {});
 });
 
+// The FLAG is what selects the hazard, not the fact that a modulator moved: this
+// preview stages a modulator the overlay does not flag, against the same live
+// volume, arriving at the apply just as unacknowledged as the flagged one. The
+// baseline is a different unflagged modulator, so the previewed value really is
+// a change of modulator and the guard has something to look at and dismiss.
+test("test_applying_a_previewed_unflagged_modulator_with_a_live_volume_opens_no_question", async () => {
+  const w = await fixture({ modulator: PLAIN2_V, preset: PLAIN_MODULATOR_PRESET });
+  await preview(w, PLAIN_MODULATOR_PRESET);
+  const { held } = await startApply(w);
+  assert.equal(question.value, null);
+  cancel();
+  await held.catch(() => {});
+});
+
 // --- hazard two: direct sdm against a volume not fixed at -3 dB --------------
 
 test("test_applying_a_previewed_direct_sdm_against_a_volume_not_fixed_at_minus_three_opens_a_warn_question", async () => {
@@ -410,6 +489,29 @@ test("test_applying_with_direct_sdm_already_on_and_staying_on_opens_no_question"
   await held.catch(() => {});
 });
 
+// The VOLUME is what selects this hazard, not the fact that Direct SDM newly
+// turned on: previewed the same way against a volume already sitting where
+// Direct SDM would pin it, the setting costs the user nothing. Once per
+// spelling, because the two are independent mechanisms and an implementation
+// reading one of them says nothing about the other.
+test("test_applying_a_previewed_direct_sdm_with_fixed_volume_already_at_minus_three_opens_no_question", async () => {
+  const w = await fixture({ preset: DIRECT_SDM_PRESET, volume: FIXED_AT_MINUS_THREE, file: MINUS_THREE_LEVEL });
+  await preview(w, DIRECT_SDM_PRESET);
+  const { held } = await startApply(w);
+  assert.equal(question.value, null);
+  cancel();
+  await held.catch(() => {});
+});
+
+test("test_applying_a_previewed_direct_sdm_with_optimal_iso_already_at_minus_three_opens_no_question", async () => {
+  const w = await fixture({ preset: DIRECT_SDM_PRESET, volume: OPTIMAL_ISO_VOLUME, file: OPTIMAL_ISO_MINUS_THREE });
+  await preview(w, DIRECT_SDM_PRESET);
+  const { held } = await startApply(w);
+  assert.equal(question.value, null);
+  cancel();
+  await held.catch(() => {});
+});
+
 // --- who owns the question ---------------------------------------------------
 
 // `owner` names the surface the question renders on. An apply-time question
@@ -418,15 +520,6 @@ test("test_applying_with_direct_sdm_already_on_and_staying_on_opens_no_question"
 test("test_an_apply_time_question_is_owned_by_pending", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
   await preview(w, FLAGGED_MODULATOR_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value?.owner, "pending");
-  cancel();
-  await held.catch(() => {});
-});
-
-test("test_a_direct_sdm_apply_time_question_is_owned_by_pending", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
   const { held } = await startApply(w);
   assert.equal(question.value?.owner, "pending");
   cancel();
@@ -473,14 +566,24 @@ test("test_declining_an_apply_time_question_leaves_an_unrelated_staged_edit_alon
   assert.equal(effective("volume_min"), "-50");
 });
 
+// A yes RELEASES the apply, so the claim is about which post the wire got and
+// when. "One post afterwards" would be true of a tree with no guard in it at
+// all, so the premise — nothing sent while the question stood — is checked first
+// and THROWS if it does not hold, the way every other premise in this file does;
+// the assertion is then what the released apply actually carried. A previewed
+// preset reaches the daemon as the switch target on POST /api/config/apply, so
+// that target names the set the question was asked about.
 test("test_confirming_an_apply_time_question_sends_the_apply_post", async () => {
   const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET });
   await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
+  if (w.posts.length !== 0) {
+    throw new Error(`the apply posted ${w.posts.length} time(s) before its question was answered: nothing was held`);
+  }
   answer();
   await held.catch(() => {});
   await quiesce(w);
-  assert.equal(w.posts.length, 1);
+  assert.deepEqual(switchTargets(w), [FLAGGED_MODULATOR_PRESET.name]);
 });
 
 // --- one hazard, one warning -------------------------------------------------
@@ -524,6 +627,25 @@ test("test_discarding_after_acknowledging_a_hazard_asks_again_when_it_is_reached
   await discardAll();
   await quiesce(w);
   const { held } = await startEdit(w, "sdm_modulator", AHM5_V);
+  assert.notEqual(question.value, null);
+  cancel();
+  await held.catch(() => {});
+});
+
+// The complement of the case below, on the apply path's own question: an
+// acknowledgement given at apply time lapses with the hazard it settled. The
+// apply is refused, so the staging survives to be discarded — which takes the
+// pairing out of the picture — and previewing it back is a fresh hazard that has
+// never been answered for. An acknowledgement the apply path records and never
+// clears passes the case below and fails this one.
+test("test_leaving_a_hazard_acknowledged_at_apply_time_and_reaching_it_again_asks_again", async () => {
+  const w = await fixture({ preset: FLAGGED_MODULATOR_PRESET, applyFails: true });
+  await preview(w, FLAGGED_MODULATOR_PRESET);
+  await applyAcknowledged(w);
+  await discardAll();
+  await quiesce(w);
+  await preview(w, FLAGGED_MODULATOR_PRESET);
+  const { held } = await startApply(w);
   assert.notEqual(question.value, null);
   cancel();
   await held.catch(() => {});
