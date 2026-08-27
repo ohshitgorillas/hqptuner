@@ -51,9 +51,12 @@ const EMPHASIS_2 = { id: "emphasis", default: "space", options: ["space", "trans
 /**
  * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
  *
+ * Not exported: nothing enumerates it until the tiles do. The phase that
+ * renders them exports it then, with the behavior that justifies it.
+ *
  * @type {Record<string, Preset[]>}
  */
-export const PRESETS = Object.freeze({
+const PRESETS = Object.freeze({
   playlist: [
     { id: "perfect-ten", emoji: "🥇", knobs: [] },
     { id: "lifelike", emoji: "🎻", knobs: [] },
