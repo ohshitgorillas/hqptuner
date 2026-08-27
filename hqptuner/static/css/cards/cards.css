@@ -209,6 +209,20 @@ button.card-head {
 .hw-status {
   color: var(--fg-2);
 }
+/* Outcome colouring, the same three the pending bar's notes carry. The sentence
+   is owner copy and gets reworded, so the colour rides the outcome token beside
+   it rather than anything about the words. `busy` takes no colour of its own:
+   an apply still in flight is not yet news, and it reads as the plain
+   secondary text the base rule already gives it. */
+.hw-status.ok {
+  color: var(--green);
+}
+.hw-status.warn {
+  color: var(--amber);
+}
+.hw-status.err {
+  color: var(--red);
+}
 /* hierarchical controls nested under a parent toggle. Inside a two-track .pack the
    centered column rule is already the divider, so the nesting border would read as
    a second line beside it (DAC correction) — there the indent is carried by the
