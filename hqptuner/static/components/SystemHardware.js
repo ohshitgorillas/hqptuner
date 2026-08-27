@@ -72,6 +72,30 @@ const cudaCdev = signal(DEFAULTS.cuda_cdev);
 const allPresets = signal(false);
 const status = signal(""); // "", "applying", or a result message
 const loaded = signal(false);
+
+/**
+ * @typedef {"" | "busy" | "ok" | "warn" | "err"} Outcome
+ *   What the status message IS, beside what it says. The sentence is owner copy
+ *   and gets reworded; this is the machine-readable half, and it is what decides
+ *   the message's color and whether it expires on its own.
+ */
+
+const outcome = signal(/** @type {Outcome} */ (""));
+
+// A confirmed apply is a receipt and expires; anything else carries a reason the
+// user has to act on and stays until they edit, revert, or apply again.
+const APPLIED_MS = 5000;
+
+/**
+ * Say something in the status line, or say nothing when called with two empties.
+ *
+ * @param {string} text
+ * @param {Outcome} kind
+ */
+const say = (text, kind) => {
+  status.value = text;
+  outcome.value = kind;
+};
 // What the daemon last reported, or last accepted. A setting differing from this
 // is a staged edit. The card sits outside the staged config form, so the pending
 // bar never counts it and nothing else would mark it as changed.
@@ -107,7 +131,7 @@ const dirty = () => {
  */
 const set = (sig, v) => {
   sig.value = v;
-  status.value = "";
+  say("", "");
 };
 
 function revert() {
@@ -118,7 +142,7 @@ function revert() {
   nblocks.value = was.nblocks;
   cudaDev.value = was.cuda_dev;
   cudaCdev.value = was.cuda_cdev;
-  status.value = "";
+  say("", "");
 }
 
 async function load() {
@@ -135,17 +159,26 @@ async function load() {
 }
 
 async function apply() {
-  status.value = "applying";
+  say("applying", "busy");
   try {
     const overrides = current();
     const r = await api.applyEngine({ overrides, all_presets: allPresets.value });
+    // The lane answers `submitted: false` with an `error` and no `verified` at
+    // all when the restore itself was refused. Nothing reached the daemon, so
+    // this is a failure to act on, not a submission waiting to be confirmed.
+    if (r && r.submitted === false) {
+      say(`Failed: ${r.error}`, "err");
+      return;
+    }
     const applied = Boolean(r && r.verified && r.verified.applied);
     // Only a confirmed apply re-snapshots: an unconfirmed one leaves the card
     // marked, which is the honest reading of a submission nothing verified.
     if (applied) base.value = overrides;
-    status.value = applied ? "Applied." : "Submitted — not confirmed.";
+    if (applied) say("Applied.", "ok");
+    else say("Submitted — not confirmed.", "warn");
   } catch (err) {
-    status.value = String(err).includes("409") ? "Stop playback first (daemon busy)." : `Failed: ${err}`;
+    if (String(err).includes("409")) say("Stop playback first (daemon busy).", "err");
+    else say(`Failed: ${err}`, "err");
   }
 }
 
@@ -219,8 +252,16 @@ function BlocksPerCycleField() {
 /** Renders the Hardware acceleration card — CUDA offload and devices, multicore DSP, E-cores, blocks per cycle, apply. */
 export function HardwareCard() {
   useEffect(() => {
-    if (!loaded.value) load().catch((e) => (status.value = `Load failed: ${e}`));
+    if (!loaded.value) load().catch((e) => say(`Load failed: ${e}`, "err"));
   }, []);
+  // A confirmed apply's message clears itself; every other outcome stays until
+  // the user edits, reverts, or applies again. Keyed on the outcome rather than
+  // the sentence so a re-apply that lands the same words restarts the clock.
+  useEffect(() => {
+    if (outcome.value !== "ok") return undefined;
+    const t = setTimeout(() => say("", ""), APPLIED_MS);
+    return () => clearTimeout(t);
+  }, [outcome.value]);
   return html`
     <${Card} id="hardware-acceleration" title="Hardware acceleration">
         <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU
@@ -257,7 +298,7 @@ export function HardwareCard() {
              arrives or clears never moves the controls beside it. Rendered
              whether or not it has anything to say, for the same reason. -->
         <div class="hw-apply">
-          <span class="hw-status">${status.value}</span>
+          <span class="hw-status ${outcome.value}">${status.value}</span>
           <label class="hw-all"
             ><${Checkbox} value=${allPresets.value} onChange=${(/** @type {Edit} */ v) => (allPresets.value = v === "1")} /> Apply to all
             presets</label
