@@ -55,15 +55,18 @@ function sdmBoth(/** @type {string} */ name) {
 // writing a key belonging to the other chain is the failure this catches, in
 // both directions.
 
-/** @type {[string, string[]][]} */
+/** @type {[("pcm" | "sdm" | "auto"), string[]][]} */
 const MODE_KEYS = [
   ["pcm", [PCM_1X, PCM_NX]],
   ["sdm", [SDM_1X, SDM_NX]],
   ["auto", [PCM_1X, PCM_NX, SDM_1X, SDM_NX]],
 ];
 
+/** @type {("album" | "playlist")[]} */
+const GRIDS = ["album", "playlist"];
+
 for (const [mode, keys] of MODE_KEYS) {
-  for (const grid of ["album", "playlist"]) {
+  for (const grid of GRIDS) {
     test(`test_the_${mode}_output_mode_writes_only_its_own_chain_keys_in_the_${grid}_grid`, () => {
       assert.deepEqual(Object.keys(writeSet(grid, "perfect-ten", mode)).sort(), keys);
     });
@@ -203,7 +206,7 @@ for (const [presetId, label, knobs, name] of FALLBACK_CASES) {
 // expected knob map is unambiguous. Playlist presets define no knobs, and the
 // reading taken here is that their match carries an empty knob map.
 
-/** @type {[string, string, string, string, Record<string, string>][]} */
+/** @type {[string, ("album" | "playlist"), string, ("pcm" | "sdm" | "auto"), Record<string, string>][]} */
 const MATCH_CASES = [
   ["album_perfect_ten_on_pcm", "album", "perfect-ten", "pcm", { emphasis: "space" }],
   ["album_lifelike_on_auto", "album", "lifelike", "auto", { emphasis: "transients" }],
