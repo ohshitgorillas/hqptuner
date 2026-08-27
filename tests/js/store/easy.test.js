@@ -22,10 +22,10 @@
 //     module that appended `-2s` to every SDM value would pass every other
 //     case in this file.
 //
-// Deliberately NOT asserted: the `PRESETS` export's membership, ordering and
-// emoji. That is a curated display list and its order is the owner's to change
-// (rule 9); what a preset MEANS is pinned through `writeSet`, which is the
-// observable half.
+// Deliberately NOT asserted: the preset table itself. It is private to the
+// module and not part of the public surface, so nothing about it — membership,
+// ordering, emoji, shape — is asserted anywhere in this file. What a preset
+// MEANS is pinned through `writeSet` and `matchPreset`, the observable half.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy.test.js
 
@@ -111,8 +111,20 @@ const PLAYLIST_PAIRS = [
 ];
 
 for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
-  test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_keys`, () => {
+  test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_pcm_keys`, () => {
     assert.deepEqual(writeSet("playlist", presetId, "pcm"), { [PCM_1X]: oneX, [PCM_NX]: nX });
+  });
+}
+
+// The same pair read on the SDM chain, so the distinct-filter contract is pinned
+// on the SDM keys in their own right: neither playlist preset defines a `-2s`
+// variant, so the SDM names are the plain ones, and a module that collapsed the
+// playlist pair to a single name on this chain fails here rather than passing
+// because only PCM was ever looked at.
+
+for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
+  test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_sdm_keys`, () => {
+    assert.deepEqual(writeSet("playlist", presetId, "sdm"), { [SDM_1X]: oneX, [SDM_NX]: nX });
   });
 }
 
@@ -151,21 +163,76 @@ test("test_a_non_default_knob_position_carries_into_the_two_stage_sdm_variant", 
 
 /** @type {[string, string, Record<string, string>, string][]} */
 const KNOB_CASES = [
-  ["perfect-ten", "balanced", { emphasis: "balanced" }, "poly-sinc-gauss-medium"],
-  ["perfect-ten", "transients", { emphasis: "transients" }, "poly-sinc-gauss-short"],
-  ["hires", "transients", { emphasis: "transients" }, "poly-sinc-gauss-hires-mp"],
-  ["lifelike", "balanced", { emphasis: "balanced" }, "poly-sinc-ext2-medium"],
-  ["lifelike", "transients", { emphasis: "transients" }, "poly-sinc-ext2-short"],
-  ["old-school", "space", { emphasis: "space" }, "poly-sinc-short-lp"],
-  ["purist", "transients", { emphasis: "transients" }, "poly-sinc-gauss-halfband-s"],
-  ["damage-control", "transients", { emphasis: "transients" }, "poly-sinc-xtr-short-mp"],
-  ["concert-hall", "lifelike_on", { version: "lifelike", correction: "on" }, "poly-sinc-ext2-xla"],
-  ["concert-hall", "perfect-ten_off", { version: "perfect-ten", correction: "off" }, "poly-sinc-gauss-xl"],
-  ["concert-hall", "lifelike_off", { version: "lifelike", correction: "off" }, "poly-sinc-ext2-xl"],
+  [
+    "perfect-ten",
+    "perfect_ten_with_emphasis_on_balanced_writes_the_gauss_medium_filter",
+    { emphasis: "balanced" },
+    "poly-sinc-gauss-medium",
+  ],
+  [
+    "perfect-ten",
+    "perfect_ten_with_emphasis_on_transients_writes_the_gauss_short_filter",
+    { emphasis: "transients" },
+    "poly-sinc-gauss-short",
+  ],
+  [
+    "hires",
+    "hires_with_emphasis_on_transients_writes_the_gauss_hires_mp_filter",
+    { emphasis: "transients" },
+    "poly-sinc-gauss-hires-mp",
+  ],
+  [
+    "lifelike",
+    "lifelike_with_emphasis_on_balanced_writes_the_ext2_medium_filter",
+    { emphasis: "balanced" },
+    "poly-sinc-ext2-medium",
+  ],
+  [
+    "lifelike",
+    "lifelike_with_emphasis_on_transients_writes_the_ext2_short_filter",
+    { emphasis: "transients" },
+    "poly-sinc-ext2-short",
+  ],
+  [
+    "old-school",
+    "old_school_with_emphasis_on_space_writes_the_short_lp_filter",
+    { emphasis: "space" },
+    "poly-sinc-short-lp",
+  ],
+  [
+    "purist",
+    "purist_with_emphasis_on_transients_writes_the_halfband_s_filter",
+    { emphasis: "transients" },
+    "poly-sinc-gauss-halfband-s",
+  ],
+  [
+    "damage-control",
+    "damage_control_with_emphasis_on_transients_writes_the_xtr_short_mp_filter",
+    { emphasis: "transients" },
+    "poly-sinc-xtr-short-mp",
+  ],
+  [
+    "concert-hall",
+    "concert_hall_on_the_lifelike_version_with_correction_on_writes_the_ext2_xla_filter",
+    { version: "lifelike", correction: "on" },
+    "poly-sinc-ext2-xla",
+  ],
+  [
+    "concert-hall",
+    "concert_hall_on_the_perfect_ten_version_with_correction_off_writes_the_gauss_xl_variant",
+    { version: "perfect-ten", correction: "off" },
+    "poly-sinc-gauss-xl",
+  ],
+  [
+    "concert-hall",
+    "concert_hall_on_the_lifelike_version_with_correction_off_writes_the_ext2_xl_variant",
+    { version: "lifelike", correction: "off" },
+    "poly-sinc-ext2-xl",
+  ],
 ];
 
-for (const [presetId, label, knobs, name] of KNOB_CASES) {
-  test(`test_the_album_preset_${presetId}_at_${label}_writes_its_own_filter`, () => {
+for (const [presetId, behavior, knobs, name] of KNOB_CASES) {
+  test(`test_the_album_preset_${behavior}`, () => {
     assert.deepEqual(writeSet("album", presetId, "pcm", knobs), pcmBoth(name));
   });
 }
@@ -203,8 +270,8 @@ for (const [presetId, label, knobs, name] of FALLBACK_CASES) {
 // hand-written values here would only re-state the sections above.
 //
 // Every album case passes EVERY knob the preset defines explicitly, so the
-// expected knob map is unambiguous. Playlist presets define no knobs, and the
-// reading taken here is that their match carries an empty knob map.
+// expected knob map is unambiguous. Playlist presets define no knobs, and a
+// preset that defines no knobs matches with an empty knob map (behavior 9).
 
 /** @type {[string, ("album" | "playlist"), string, ("pcm" | "sdm" | "auto"), Record<string, string>][]} */
 const MATCH_CASES = [
