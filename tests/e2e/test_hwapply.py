@@ -47,6 +47,24 @@ Policy notes (docs/testing.md):
   reads the value it is about to change rather than assuming a starting one, and
   the applying cases put the daemon fake's engine attribute back the way
   `test_shell.py` puts `control_state` back.
+
+NOT covered here, and deliberately so:
+
+- **That a `warn` or `err` message does NOT self-clear.** The only way to state
+  "this is still here later" is to wait a fixed amount of time and look, which is
+  a wall-clock wait and forbidden outright (docs/testing.md rule 7, which allows
+  a bounded poll on a condition and nothing else). There is no condition to poll
+  for the absence of a future event, and the frontend has no clock to inject
+  across the subprocess boundary. So the cases below pin that a failed apply
+  reaches the `err` outcome and that a confirmed one clears itself; the asymmetry
+  between them is unpinned. A regression that made every message self-clear would
+  pass this suite.
+- **The `warn` outcome** — submitted but not confirmed. The daemon fake can be
+  made to answer nothing after adopting a restore (`_down` / `_die`), but that
+  takes the whole 8088 lane down for a session-scoped stack that every later test
+  in the run shares, and the fake's value-level rejection is keyed on the config
+  `title`, which the hardware card does not write. Neither is a state this card
+  can be driven into without contorting the stack, so no case claims it.
 """
 
 import time
@@ -54,6 +72,7 @@ from collections.abc import Callable
 
 import pytest
 from playwright.sync_api import Locator, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from e2e.support.stack import Stack
 
@@ -62,6 +81,10 @@ from e2e.support.stack import Stack
 LOAD_MS = 30_000
 SETTLE_MS = 20_000
 APPLY_MS = 90_000
+#: Ceiling on "the confirmed message has gone again". A ceiling on a condition,
+#: NOT how long the card is expected to hold the message for: nothing here
+#: asserts, or may assert, that the lifetime is any particular length.
+CLEAR_MS = 60_000
 
 #: Gap between passes of a condition poll. Not a wait anything is expected to
 #: take — it is how often the question gets asked again.
@@ -77,6 +100,19 @@ CARD = f"section:has({APPLY})"
 #: The dirty marking, and the status line, by their own classes.
 DIRTY = "primary"
 STATUS = f"{CARD} .hw-status"
+
+#: The status line's machine-readable OUTCOME, carried as a class token beside
+#: `hw-status`. Contract, unlike the sentence the line reads (rule 9): the token
+#: is what a caller can tell apart, the wording is the owner's.
+BUSY = "busy"
+OK = "ok"
+ERR = "err"
+
+#: How many POST /restore arrivals the daemon fake refuses with 503 in the case
+#: about a refused apply. Large enough that a retrying writer runs out of tries
+#: before the fake runs out of refusals, so the apply fails for the reason the
+#: case is about rather than succeeding on a later pass.
+REFUSE_EVERYTHING = 100
 
 #: How each of the card's six settings is driven. The kind is the control the
 #: setting renders as, because a radio group, a checkbox and a number box are
@@ -264,6 +300,24 @@ def status_text(page: Page) -> str:
     return str(page.locator(STATUS).evaluate("el => el.textContent.trim()"))
 
 
+def saw_outcome(page: Page, outcome: str, timeout_ms: int = SETTLE_MS) -> bool:
+    """Whether the status line ever carries `outcome` before the ceiling passes.
+
+    A bounded poll on a condition, not a wait for a duration (docs/testing.md
+    rule 7) — but one that hands back WHAT IT SAW, because an outcome can be
+    transient: `busy` lasts as long as the round trip and `ok` clears itself, so
+    a case that waited and then read the class back would be asking about a
+    moment that has already gone. Waiting for the very thing a case asserts
+    cannot make it vacuous here: a poll that runs out returns False and the case
+    fails on its own assertion.
+    """
+    try:
+        page.wait_for_selector(f"{STATUS}.{outcome}", state="attached", timeout=timeout_ms)
+    except PlaywrightTimeout:
+        return False
+    return True
+
+
 def apply_and_wait_for_a_message(page: Page) -> None:
     """Click apply and poll until the card has SOMETHING to say about it.
 
@@ -411,6 +465,94 @@ def test_changing_a_setting_clears_the_status_message(page: Page, stack: Stack, 
     apply_and_wait_for_a_message(page)
     change_setting(page, key, kind)
     assert status_text(page) == ""
+
+
+# --- what the message says it was, and how long it lasts ----------------------
+
+
+def test_an_apply_in_flight_carries_the_busy_outcome(page: Page, stack: Stack) -> None:
+    """While the round trip is out, the status is machine-readably BUSY, not merely wordy.
+
+    The outcome is a class token beside `hw-status`, so a caller can tell an
+    apply that is still going from one that concluded without reading the
+    sentence. The daemon fake's engine attribute is put back once the apply has
+    landed, so the session-scoped stack does not carry this edit onward.
+    """
+    loaded_card(page, stack)
+    before = stack.http_state[CUDA_DEV_ATTR]
+    try:
+        want = set_number_setting(page, CUDA_DEV)
+        flush_frames(page)
+        page.locator(APPLY).click()
+        in_flight = saw_outcome(page, BUSY)
+    finally:
+        settled(lambda: stack.http_state[CUDA_DEV_ATTR] == want, timeout_ms=APPLY_MS)
+        stack.http_state[CUDA_DEV_ATTR] = before
+    assert in_flight is True
+
+
+def test_a_confirmed_apply_carries_the_ok_outcome(page: Page, stack: Stack) -> None:
+    """An apply the daemon confirmed reads OK, told apart from a warning or a failure.
+
+    Not satisfied by a card that says something cheerful on click: what is waited
+    for first is the applied value ARRIVING at the daemon, so the outcome being
+    asked about belongs to an apply that really happened.
+    """
+    loaded_card(page, stack)
+    before = stack.http_state[CUDA_DEV_ATTR]
+    try:
+        want = set_number_setting(page, CUDA_DEV)
+        flush_frames(page)
+        apply_and_wait_for_the_value_to_land(page, stack, want)
+        confirmed = saw_outcome(page, OK, timeout_ms=APPLY_MS)
+    finally:
+        stack.http_state[CUDA_DEV_ATTR] = before
+    assert confirmed is True
+
+
+def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack) -> None:
+    """A confirmed apply's message goes away on its own, with no further interaction.
+
+    Nothing is clicked, typed or navigated between the message landing and the
+    reading: the only thing that happens in between is the poll asking whether it
+    has gone yet. Not vacuous on a card that never spoke — the case above pins
+    that a confirmed apply puts an `ok` message up, and this one waits for that
+    same message before it starts asking.
+    """
+    loaded_card(page, stack)
+    before = stack.http_state[CUDA_DEV_ATTR]
+    try:
+        want = set_number_setting(page, CUDA_DEV)
+        flush_frames(page)
+        apply_and_wait_for_the_value_to_land(page, stack, want)
+        saw_outcome(page, OK, timeout_ms=APPLY_MS)
+        settled(lambda: status_text(page) == "", timeout_ms=CLEAR_MS)
+        left = status_text(page)
+    finally:
+        stack.http_state[CUDA_DEV_ATTR] = before
+    assert left == ""
+
+
+def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> None:
+    """A write the daemon refuses outright reads ERR, not merely "something happened".
+
+    The refusal is the real one the daemon does: `POST /restore` answered 503,
+    the frame `fake_http` serves for a daemon that is up but not taking a config
+    right now. Nothing is adopted, so the card is reporting a change that did not
+    land — the one reading the user has to act on.
+    """
+    loaded_card(page, stack)
+    before = stack.http_state[CUDA_DEV_ATTR]
+    stack.http_state["_restore_refusals"] = REFUSE_EVERYTHING
+    try:
+        set_number_setting(page, CUDA_DEV)
+        flush_frames(page)
+        page.locator(APPLY).click()
+        refused = saw_outcome(page, ERR, timeout_ms=APPLY_MS)
+    finally:
+        stack.http_state["_restore_refusals"] = 0
+        stack.http_state[CUDA_DEV_ATTR] = before
+    assert refused is True
 
 
 # --- neither button is ever disabled ------------------------------------------

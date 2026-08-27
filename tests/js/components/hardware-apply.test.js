@@ -48,6 +48,13 @@ const DIRTY = "primary";
 //: applied nothing is behavior.
 const STATUS = "hw-status";
 
+//: The machine-readable outcome a status message carries, as class tokens beside
+//: `hw-status`. Contract, like every other selector here. A card that has applied
+//: nothing has no outcome to report, so it carries none of them — which is what
+//: makes the outcome readable at all: a token that were always present would say
+//: nothing.
+const OUTCOMES = ["busy", "ok", "warn", "err"];
+
 // Module-level signals outlive a case (docs/testing.md, harness facts), so every
 // source this card could read is put back before each render rather than left at
 // whatever the previous file wrote.
@@ -115,4 +122,12 @@ test("the revert button is enabled on a card with nothing to revert", async () =
 test("a card that has applied nothing renders an empty status line", async () => {
   await reset();
   assert.equal(text(statusLine(card())), "");
+});
+
+test("a card that has applied nothing renders a status line carrying no outcome", async () => {
+  await reset();
+  assert.deepEqual(
+    classes(statusLine(card())).filter((token) => OUTCOMES.includes(token)),
+    [],
+  );
 });
