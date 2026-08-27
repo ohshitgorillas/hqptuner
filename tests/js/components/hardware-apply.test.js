@@ -1,0 +1,84 @@
+// Behavioral suite for the System tab's Hardware acceleration card
+// (components/SystemHardware.js), covering the CLEAN half of its apply/revert
+// contract: with nothing changed, the apply button carries no dirty marking, and
+// the card offers a revert control at all.
+//
+// Policy (docs/testing.md): public API only, one assertion per test. Every case
+// renders the exported `HardwareCard` and reads the rendered markup. Controls are
+// addressed by the `data-testid` each carries — machine identity, contract — and
+// never by the words on them (rule 9); the dirty marking is read as the `primary`
+// class token, which is contract too.
+//
+// NOT covered here, and deliberately so (docs/testing.md, "Branches that cannot
+// be reached"): everything about the card being DIRTY. The card snapshots what it
+// loaded from the daemon in `useEffect`, which `preact-render-to-string` never
+// runs, and the six settings live in module-private signals with no public
+// writer, so a rendered card here is always the unloaded, clean one. Reaching the
+// dirty state would mean exporting a private signal to serve a test, which the
+// policy forbids; those cases are in the browser suite,
+// tests/e2e/test_hwapply.py, where the load really runs and a real edit really
+// fires.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/hardware-apply.test.js
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../hqptuner/static/lib/dom.js";
+import { HardwareCard } from "../../../hqptuner/static/components/SystemHardware.js";
+import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../../hqptuner/static/store/actions.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { stagingWire } from "../support/wire.js";
+import { attr, classes, elements } from "../support/markup.js";
+
+//: The dirty marking itself — a CSS class, contract (docs/testing.md rule 9).
+const DIRTY = "primary";
+
+// Module-level signals outlive a case (docs/testing.md, harness facts), so every
+// source this card could read is put back before each render rather than left at
+// whatever the previous file wrote.
+async function reset() {
+  stagingWire();
+  engineState.value = {};
+  enums.value = null;
+  metadata.value = null;
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = true;
+  matrixConfig.value = { fields: [] };
+  config.value = { fields: [], file: {}, active: "", profiles: null };
+  await discardAll();
+}
+
+const card = () => render(html`<${HardwareCard} />`);
+
+/**
+ * The element carrying `data-testid="<id>"`, or undefined when the card renders none.
+ *
+ * @param {string} out
+ * @param {string} id
+ * @returns {import("../support/markup.js").MarkupElement | undefined}
+ */
+const marked = (out, id) => elements(out).find((el) => attr(el, "data-testid") === id);
+
+/**
+ * @param {string} out
+ * @param {string} id
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function control(out, id) {
+  const hit = marked(out, id);
+  if (!hit) throw new Error(`the card renders no control marked "${id}"`);
+  return hit;
+}
+
+test("an unchanged card leaves the apply button unmarked", async () => {
+  await reset();
+  assert.equal(classes(control(card(), "hw-apply")).includes(DIRTY), false);
+});
+
+test("the card offers a revert control", async () => {
+  await reset();
+  assert.ok(marked(card(), "hw-revert") !== undefined);
+});
