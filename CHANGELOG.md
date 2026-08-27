@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-08-26
+
 ### Added
 
 - **The Hardware acceleration card's apply button turns accent once a setting is changed, and a revert button restores the values the daemon last reported.** The button was styled like the backup links beside it, so a changed setting could sit unapplied with nothing marking that a click was owed.
