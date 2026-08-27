@@ -479,7 +479,11 @@ def state(**extra: Any) -> dict[str, Any]:
         "post_correction_enabled": False,
         "post_correction_dac0": "",
         "cuda": "1",
+        # the daemon's own defaults: -1 is automatic device selection on both GPU
+        # slots, and "default" is normal (non-offloaded) e-core allocation
         "cuda_dev": "-1",
+        "cuda_cdev": "-1",
+        "ecores": "default",
         "multicore": "1",
         "nblocks": "16",
         # 0 = off, 1 = -3 dB, 2 = -6 dB; the /config form can only render 0 vs on

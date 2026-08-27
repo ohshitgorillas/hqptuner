@@ -1,7 +1,13 @@
 // Behavioral suite for the System tab's Hardware acceleration card
 // (components/SystemHardware.js), covering the CLEAN half of its apply/revert
-// contract: with nothing changed, the apply button carries no dirty marking, and
-// the card offers a revert control at all.
+// contract: with nothing changed, the apply button carries no dirty marking,
+// NEITHER button is disabled, and the status line renders with nothing to say.
+//
+// "Neither button is ever disabled" is the card's half of the product rule that
+// user actions always proceed (CLAUDE.md), and the clean card is where it is
+// reachable under SSR: an apply disabled for want of a change, and a revert
+// disabled for want of anything to put back, would both show up here. The dirty
+// half of the same rule is in tests/e2e/test_hwapply.py.
 //
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders the exported `HardwareCard` and reads the rendered markup. Controls are
@@ -31,10 +37,16 @@ import { config, matrixConfig, metadata, engineState, enums } from "../../../hqp
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
-import { attr, classes, elements } from "../support/markup.js";
+import { attr, classes, elements, hasAttr, text } from "../support/markup.js";
 
 //: The dirty marking itself — a CSS class, contract (docs/testing.md rule 9).
 const DIRTY = "primary";
+
+//: The status line, by its own class — machine identity, like every other
+//: selector here. What it says when it has something to say is the owner's copy
+//: and is neither selected on nor asserted; that it is EMPTY on a card that has
+//: applied nothing is behavior.
+const STATUS = "hw-status";
 
 // Module-level signals outlive a case (docs/testing.md, harness facts), so every
 // source this card could read is put back before each render rather than left at
@@ -73,12 +85,34 @@ function control(out, id) {
   return hit;
 }
 
+/**
+ * The card's status line, which is rendered whether or not it has anything to say.
+ *
+ * @param {string} out
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function statusLine(out) {
+  const hit = elements(out).find((el) => classes(el).includes(STATUS));
+  if (!hit) throw new Error("the card renders no status line");
+  return hit;
+}
+
 test("an unchanged card leaves the apply button unmarked", async () => {
   await reset();
   assert.equal(classes(control(card(), "hw-apply")).includes(DIRTY), false);
 });
 
-test("the card offers a revert control", async () => {
+test("the apply button is enabled on a card with nothing changed", async () => {
   await reset();
-  assert.ok(marked(card(), "hw-revert") !== undefined);
+  assert.equal(hasAttr(control(card(), "hw-apply"), "disabled"), false);
+});
+
+test("the revert button is enabled on a card with nothing to revert", async () => {
+  await reset();
+  assert.equal(hasAttr(control(card(), "hw-revert"), "disabled"), false);
+});
+
+test("a card that has applied nothing renders an empty status line", async () => {
+  await reset();
+  assert.equal(text(statusLine(card())), "");
 });

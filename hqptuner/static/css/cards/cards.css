@@ -182,13 +182,22 @@ button.card-head {
    convention), so the button reads as "applies THIS card", not page-global.
    padding-top only: it binds the hairline to the buttons UNDER it, which is a
    space inside this row and so genuinely its own. The space ABOVE the hairline
-   is the card body's gap and is not repeated here. */
+   is the card body's gap and is not repeated here.
+
+   A grid rather than a right-aligned flex row, because the status is a fourth
+   item that comes and goes: in a flex row it displaced the controls sideways
+   every time a message arrived or cleared, and a long one (`Failed: …`) wrapped
+   the buttons onto a second line. Here the status owns track 1 and the controls
+   own fixed tracks after it, so a message grows into space that was already
+   empty and wraps within its own track instead of moving anything. The status
+   element is always rendered for that reason — an absent one would let the
+   controls auto-place a track to the left. minmax(0, …) so a long unbroken
+   message cannot push the track wider than its share. */
 .hw-apply {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--sp-3);
-  flex-wrap: wrap;
   border-top: 1px solid var(--line);
   padding-top: var(--sp-3);
 }

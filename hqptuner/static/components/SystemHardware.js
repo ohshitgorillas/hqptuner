@@ -160,10 +160,10 @@ const convOnly = () => cuda.value === "convolution";
 // unused, so it grays with its own reason rather than silently doing nothing.
 function CudaDevicesField() {
   return html`
-    <div class="field ${cudaOff() ? "off" : ""}" title=${hoverFor("cuda_devices")}>
+    <div class="field ${cudaOff() ? "off" : ""}" data-k="cuda_devices" title=${hoverFor("cuda_devices")}>
       <label>CUDA devices</label>
       <div class="control cuda-devs">
-        <span class="cuda-dev ${convOnly() ? "off" : ""}">
+        <span class="cuda-dev ${convOnly() ? "off" : ""}" data-k="cuda_dev">
           <span class="unit">DSP</span>
           <${NumberBox}
             value=${cudaDev.value}
@@ -172,7 +172,7 @@ function CudaDevicesField() {
             onChange=${(/** @type {Edit} */ v) => set(cudaDev, String(v))}
           />
         </span>
-        <span class="cuda-dev">
+        <span class="cuda-dev" data-k="cuda_cdev">
           <span class="unit">Convolution</span>
           <${NumberBox}
             value=${cudaCdev.value}
@@ -192,7 +192,7 @@ function CudaDevicesField() {
 // Automatic unless the user takes it over; taking it over seeds 8.
 function BlocksPerCycleField() {
   return html`
-    <div class="field" title=${hoverFor("blocks_per_cycle")}>
+    <div class="field" data-k="blocks_per_cycle" title=${hoverFor("blocks_per_cycle")}>
       <label>Blocks / cycle</label>
       <div class="control">
         <label class="inline-check">
@@ -227,7 +227,7 @@ export function HardwareCard() {
              pair (Multicore DSP, E-core allocation) in the right, so each column
              is one subsystem instead of splitting them by source order. -->
         <${ChainPack}>
-          <div class="field" title=${hoverFor("cuda_offload")}>
+          <div class="field" data-k="cuda_offload" title=${hoverFor("cuda_offload")}>
             <label>CUDA offload</label>
             <div class="control">
               <${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(/** @type {Edit} */ v) => set(cuda, String(v))} />
@@ -235,14 +235,14 @@ export function HardwareCard() {
             <${Note} k="cuda_offload" />
           </div>
           <${CudaDevicesField} />
-          <div class="field" title=${hoverFor("multicore_dsp")}>
+          <div class="field" data-k="multicore_dsp" title=${hoverFor("multicore_dsp")}>
             <label>Multicore DSP</label>
             <div class="control">
               <${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(/** @type {Edit} */ v) => set(multicore, String(v))} />
             </div>
             <${Note} k="multicore_dsp" />
           </div>
-          <div class="field" title=${hoverFor("ecore_allocation")}>
+          <div class="field" data-k="ecore_allocation" title=${hoverFor("ecore_allocation")}>
             <label>E-core allocation</label>
             <div class="control">
               <${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(/** @type {Edit} */ v) => set(ecores, String(v))} />
@@ -253,14 +253,17 @@ export function HardwareCard() {
         <!-- outside the chain pack: it splits after the leading pair, so
              Blocks / cycle is a plain full-width row below instead. -->
         <${BlocksPerCycleField} />
+        <!-- status first: it owns the row's flexible track, so a message that
+             arrives or clears never moves the controls beside it. Rendered
+             whether or not it has anything to say, for the same reason. -->
         <div class="hw-apply">
+          <span class="hw-status">${status.value}</span>
           <label class="hw-all"
             ><${Checkbox} value=${allPresets.value} onChange=${(/** @type {Edit} */ v) => (allPresets.value = v === "1")} /> Apply to all
             presets</label
           >
           <button type="button" class="btn ${dirty() ? "primary" : ""}" data-testid="hw-apply" onClick=${apply}>Apply hardware settings</button>
           <button type="button" class="btn" data-testid="hw-revert" onClick=${revert}>Revert hardware settings</button>
-          ${status.value ? html`<span class="hw-status">${status.value}</span>` : null}
         </div>
     <//>
   `;

@@ -60,6 +60,12 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f'volume_fixed="{st["volume_fixed"]}" cuda_dev="{st["cuda_dev"]}" '
         f'volume_max="{st["volume_max"]}" volume_min="{st["volume_min"]}" '
         f'volume_adaptive="{st["volume_adaptive"]}" '
+        # cuda_cdev (the convolution GPU, -1 = automatic) and ecores (efficiency-core
+        # allocation: default/pool/filter) are <engine> attributes in their own right,
+        # readme "Attribute: cuda_cdev" / "Attribute: ecores". A daemon serves back
+        # every attribute it holds, so a fake that dropped these two would report a
+        # correctly written setting as one that never landed.
+        f'cuda_cdev="{st["cuda_cdev"]}" ecores="{st["ecores"]}" '
         f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}">'
         # <defaults samplerate/bitrate> are the per-family RATE LIMITS, a
         # different slot from <pcm samplerate>/<sdm bitrate> above
@@ -296,6 +302,8 @@ def adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
         ("channels", "engine", "channels"),
         ("cuda", "engine", "cuda"),
         ("cuda_dev", "engine", "cuda_dev"),
+        ("cuda_cdev", "engine", "cuda_cdev"),
+        ("ecores", "engine", "ecores"),
         ("multicore", "engine", "multicore"),
         ("nblocks", "engine", "nblocks"),
         ("volume_fixed", "engine", "volume_fixed"),
