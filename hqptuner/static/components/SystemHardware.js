@@ -72,6 +72,54 @@ const cudaCdev = signal(DEFAULTS.cuda_cdev);
 const allPresets = signal(false);
 const status = signal(""); // "", "applying", or a result message
 const loaded = signal(false);
+// What the daemon last reported, or last accepted. A setting differing from this
+// is a staged edit. The card sits outside the staged config form, so the pending
+// bar never counts it and nothing else would mark it as changed.
+const base = signal({ ...DEFAULTS });
+
+/** @type {(keyof typeof DEFAULTS)[]} */
+const KEYS = ["cuda", "multicore", "ecores", "nblocks", "cuda_dev", "cuda_cdev"];
+
+/** The six settings as they stand, in the shape `base` holds and `apply` sends. */
+const current = () => ({
+  cuda: cuda.value,
+  multicore: multicore.value,
+  ecores: ecores.value,
+  nblocks: nblocks.value,
+  cuda_dev: cudaDev.value,
+  cuda_cdev: cudaCdev.value,
+});
+
+// Diffed against the snapshot rather than accumulated as an edit set, so a value
+// changed and changed back reads clean.
+const dirty = () => {
+  const now = current();
+  const was = base.value;
+  return KEYS.some((k) => now[k] !== was[k]);
+};
+
+/**
+ * Assign one setting and drop any status left from an earlier apply: "Applied."
+ * beside a field that has since changed states the opposite of what is true.
+ *
+ * @param {{ value: string }} sig the setting's signal
+ * @param {string} v
+ */
+const set = (sig, v) => {
+  sig.value = v;
+  status.value = "";
+};
+
+function revert() {
+  const was = base.value;
+  cuda.value = was.cuda;
+  multicore.value = was.multicore;
+  ecores.value = was.ecores;
+  nblocks.value = was.nblocks;
+  cudaDev.value = was.cuda_dev;
+  cudaCdev.value = was.cuda_cdev;
+  status.value = "";
+}
 
 async function load() {
   const r = await api.engine();
@@ -82,22 +130,20 @@ async function load() {
   nblocks.value = e.nblocks ?? DEFAULTS.nblocks;
   cudaDev.value = e.cuda_dev ?? DEFAULTS.cuda_dev;
   cudaCdev.value = e.cuda_cdev ?? DEFAULTS.cuda_cdev;
+  base.value = current();
   loaded.value = true;
 }
 
 async function apply() {
   status.value = "applying";
   try {
-    const overrides = {
-      cuda: cuda.value,
-      multicore: multicore.value,
-      ecores: ecores.value,
-      nblocks: nblocks.value,
-      cuda_dev: cudaDev.value,
-      cuda_cdev: cudaCdev.value,
-    };
+    const overrides = current();
     const r = await api.applyEngine({ overrides, all_presets: allPresets.value });
-    status.value = r && r.verified && r.verified.applied ? "Applied." : "Submitted — not confirmed.";
+    const applied = Boolean(r && r.verified && r.verified.applied);
+    // Only a confirmed apply re-snapshots: an unconfirmed one leaves the card
+    // marked, which is the honest reading of a submission nothing verified.
+    if (applied) base.value = overrides;
+    status.value = applied ? "Applied." : "Submitted — not confirmed.";
   } catch (err) {
     status.value = String(err).includes("409") ? "Stop playback first (daemon busy)." : `Failed: ${err}`;
   }
@@ -123,7 +169,7 @@ function CudaDevicesField() {
             value=${cudaDev.value}
             min=${-1}
             disabled=${cudaOff() || convOnly()}
-            onChange=${(/** @type {Edit} */ v) => (cudaDev.value = String(v))}
+            onChange=${(/** @type {Edit} */ v) => set(cudaDev, String(v))}
           />
         </span>
         <span class="cuda-dev">
@@ -132,7 +178,7 @@ function CudaDevicesField() {
             value=${cudaCdev.value}
             min=${-1}
             disabled=${cudaOff()}
-            onChange=${(/** @type {Edit} */ v) => (cudaCdev.value = String(v))}
+            onChange=${(/** @type {Edit} */ v) => set(cudaCdev, String(v))}
           />
         </span>
         <span class="field-hint">−1 = automatic</span>
@@ -150,7 +196,7 @@ function BlocksPerCycleField() {
       <label>Blocks / cycle</label>
       <div class="control">
         <label class="inline-check">
-          <${Checkbox} value=${manual()} onChange=${(/** @type {Edit} */ v) => (nblocks.value = v === "1" ? "8" : "0")} />
+          <${Checkbox} value=${manual()} onChange=${(/** @type {Edit} */ v) => set(nblocks, v === "1" ? "8" : "0")} />
           Set manually
         </label>
         ${
@@ -160,7 +206,7 @@ function BlocksPerCycleField() {
                 min=${1}
                 max=${16}
                 step=${1}
-                onChange=${(/** @type {Edit} */ v) => (nblocks.value = String(v))}
+                onChange=${(/** @type {Edit} */ v) => set(nblocks, String(v))}
               />`
             : html`<span class="unit">Automatic — chosen from CPU cache size</span>`
         }
@@ -184,7 +230,7 @@ export function HardwareCard() {
           <div class="field" title=${hoverFor("cuda_offload")}>
             <label>CUDA offload</label>
             <div class="control">
-              <${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(/** @type {Edit} */ v) => (cuda.value = v)} />
+              <${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(/** @type {Edit} */ v) => set(cuda, String(v))} />
             </div>
             <${Note} k="cuda_offload" />
           </div>
@@ -192,14 +238,14 @@ export function HardwareCard() {
           <div class="field" title=${hoverFor("multicore_dsp")}>
             <label>Multicore DSP</label>
             <div class="control">
-              <${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(/** @type {Edit} */ v) => (multicore.value = v)} />
+              <${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(/** @type {Edit} */ v) => set(multicore, String(v))} />
             </div>
             <${Note} k="multicore_dsp" />
           </div>
           <div class="field" title=${hoverFor("ecore_allocation")}>
             <label>E-core allocation</label>
             <div class="control">
-              <${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(/** @type {Edit} */ v) => (ecores.value = v)} />
+              <${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(/** @type {Edit} */ v) => set(ecores, String(v))} />
             </div>
             <${Note} k="ecore_allocation" />
           </div>
@@ -212,7 +258,8 @@ export function HardwareCard() {
             ><${Checkbox} value=${allPresets.value} onChange=${(/** @type {Edit} */ v) => (allPresets.value = v === "1")} /> Apply to all
             presets</label
           >
-          <button type="button" class="btn" onClick=${apply}>Apply hardware settings</button>
+          <button type="button" class="btn ${dirty() ? "primary" : ""}" data-testid="hw-apply" onClick=${apply}>Apply hardware settings</button>
+          <button type="button" class="btn" data-testid="hw-revert" onClick=${revert}>Revert hardware settings</button>
           ${status.value ? html`<span class="hw-status">${status.value}</span>` : null}
         </div>
     <//>
