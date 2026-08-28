@@ -69,9 +69,11 @@ function EasyLink() {
   </button>`;
 }
 
-// Reset now sits at the top of the card BODY rather than in the head. It keeps
-// its stopPropagation guard anyway: the guard costs nothing where nothing above
-// it is listening, and the body is inside the collapsible on LIVE.
+// Reset sits in the card BODY, sharing the intro caption's row rather than
+// taking one of its own: a row for a single button that comes and goes moves
+// every control under it up and down as the user narrows. It keeps its
+// stopPropagation guard anyway — the guard costs nothing where nothing above it
+// is listening, and the body is inside the collapsible on LIVE.
 function ResetButton() {
   return html`<button
     type="button"
@@ -83,6 +85,29 @@ function ResetButton() {
   >
     Reset
   </button>`;
+}
+
+// The card's opening row: the intro caption and Reset side by side. Either half
+// can be absent — the caption follows the manual-text pref, the button follows
+// whether anything is narrowed — and with both absent the row itself does not
+// render, so nothing spends a gap on an empty strip.
+/** @param {{ engaged: boolean }} props whether any facet is narrowing */
+function IntroRow({ engaged }) {
+  if (!engaged && !notesVisible.value) return null;
+  return html`
+    <div class="narrow-introrow">
+      ${
+        notesVisible.value
+          ? html`<div class="t-caption" data-note="narrow-intro">
+              Reduce the number of filters in the dropdowns below by selecting which features you're looking for.
+              Dropdown counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing
+              data are sourced directly from the HQPlayer manual.
+            </div>`
+          : null
+      }
+      ${engaged ? html`<${ResetButton} />` : null}
+    </div>
+  `;
 }
 
 // Global rendering preference, not a narrowing facet — it rides in this card
@@ -131,16 +156,7 @@ export function NarrowBar({ srcFormat = true, collapse }) {
       cardClass="narrow-card"
       collapse=${collapse}
     >
-      ${engaged ? html`<div class="narrow-resetrow"><${ResetButton} /></div>` : null}
-      ${
-        notesVisible.value
-          ? html`<div class="t-caption" data-note="narrow-intro">
-              Reduce the number of filters in the dropdowns below by selecting which features you're looking for.
-              Dropdown counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing
-              data are sourced directly from the HQPlayer manual.
-            </div>`
-          : null
-      }
+      <${IntroRow} engaged=${engaged} />
       <div class="narrow-controls">
         <${NarrowFacets} />
       </div>

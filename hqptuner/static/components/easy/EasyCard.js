@@ -29,12 +29,28 @@ const GRID_SEGS = [
   { value: "playlist", label: "Playlist" },
 ];
 
-/** The Easy Mode card: the simplification notice, the Album/Playlist switcher, its grid, and the way out. */
+// The way out sits in this card's head, at the same top-right corner the way in
+// occupies in the Narrow filters head. Going in and coming out are one control
+// in two states as far as the user is concerned, so they are in the same place;
+// a link at the bottom of the card is somewhere else entirely, and the card
+// grows a grid of tiles between the two in the next phase.
+function ExitLink() {
+  return html`<button
+    type="button"
+    class="easy-exit"
+    data-testid="easy-exit"
+    onClick=${() => setEasyMode(false)}
+  >
+    Back to full control
+  </button>`;
+}
+
+/** The Easy Mode card: the way out, the simplification notice, the Album/Playlist switcher and its grid. */
 export function EasyCard() {
   return html`
     <${Card}
       id="easy-mode"
-      title="Easy Mode"
+      title=${html`Easy Mode<${ExitLink} />`}
       subtitle=${html`<span data-note="easy-notice">${easyProse("notice")}</span>`}
     >
       <div class="easy-switcher">
@@ -45,9 +61,6 @@ export function EasyCard() {
         />
       </div>
       <div class="easy-grid" data-grid=${easyGrid.value}></div>
-      <button type="button" class="easy-exit" data-testid="easy-exit" onClick=${() => setEasyMode(false)}>
-        Back to full control
-      </button>
     <//>
   `;
 }

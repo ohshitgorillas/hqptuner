@@ -57,14 +57,22 @@
 .card-head .narrow-easy {
   margin-left: auto;
 }
-/* Reset sits in the body, on a row of its own above the facets: it answers a
-   question about this card's contents rather than about the card, and the head
-   has one link slot. The row of its own is what keeps it off the control rows,
-   so its appearing and disappearing never changes the facet dropdowns' widths.
-   Justified right, under the head's own link. */
-.narrow-resetrow {
+/* Reset sits in the body, sharing the intro caption's row: it answers a question
+   about this card's contents rather than about the card, and the head has one
+   link slot. Sharing a row rather than taking one is what keeps the facets from
+   moving up and down as the user narrows — the caption caps at --measure, so the
+   right of that row is slack the button costs nothing to occupy. Either half can
+   be absent (the caption follows the manual-text pref, the button follows
+   whether anything is narrowed), so the button is pushed right on its own margin
+   rather than by space-between, which would strand it left when it is alone.
+   Baseline-aligned: the caption is a paragraph and this is one line of it. */
+.narrow-introrow {
   display: flex;
-  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+.narrow-introrow .narrow-reset {
+  margin-left: auto;
 }
 .narrow-easy,
 .narrow-reset {

@@ -23,11 +23,15 @@
   gap: var(--rhythm-field);
 }
 
-/* The way out, at the bottom right — under the corner the way in occupies in the
-   Narrow filters head, so entering and leaving read as the same pair. Type and
-   color match that link: no padding, no border, accent, the head's own size. */
+/* The way out, in this card's head at the same top-right corner the way in
+   occupies in the Narrow filters head, so entering and leaving are one control
+   in one place. The head is a flex row (cards.css), so a push to the right edge
+   is all it needs. Type and color match that link: no padding, no border,
+   accent, the head's own size. */
+.card-head .easy-exit {
+  margin-left: auto;
+}
 .easy-exit {
-  align-self: flex-end;
   padding: 0;
   font-size: var(--fs-head);
   font-weight: var(--fw-semibold);
