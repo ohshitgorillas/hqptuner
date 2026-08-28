@@ -168,7 +168,7 @@ test("test_a_non_default_knob_position_carries_into_the_two_stage_sdm_variant", 
 // Read on the PCM chain, where the plain names live; neither preset defines a
 // `-2s` variant, which the "auto" control below pins separately.
 
-/** @type {[string, string, Record<string, string>, string][]} */
+/** @type {[string, string, string, string][]} */
 const CROSSED_CASES = [
   ["perfect-ten", "standard", "space", "poly-sinc-gauss-long"],
   ["perfect-ten", "standard", "transients", "poly-sinc-gauss-medium"],
