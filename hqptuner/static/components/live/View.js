@@ -260,7 +260,7 @@ function ExpertChainCards() {
 function ChainCards() {
   return html`
     <div class="live-chain-group">
-      ${easyMode.value ? html`<${EasyCard} />` : html`<${ExpertChainCards} />`}
+      ${easyMode.value ? html`<${EasyCard} lane="live" />` : html`<${ExpertChainCards} />`}
     </div>
   `;
 }

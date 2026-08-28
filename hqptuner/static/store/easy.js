@@ -51,8 +51,9 @@ const EMPHASIS_2 = { id: "emphasis", default: "space", options: ["space", "trans
 /**
  * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
  *
- * Not exported: nothing enumerates it until the tiles do. The phase that
- * renders them exports it then, with the behavior that justifies it.
+ * Reached through `presetsFor`, which is what the grid enumerates: the table
+ * itself stays private so a caller cannot hold the frozen object and index it
+ * with a grid name this module has never heard of.
  *
  * @type {Record<string, Preset[]>}
  */
@@ -157,12 +158,22 @@ function chainsFor(outputMode) {
 }
 
 /**
+ * One grid's presets, in display order — empty for a grid this module does not carry.
+ *
+ * @param {string} grid "album" | "playlist"
+ * @returns {Preset[]}
+ */
+export function presetsFor(grid) {
+  return PRESETS[grid] || [];
+}
+
+/**
  * @param {string} grid
  * @param {string} presetId
  * @returns {Preset | undefined}
  */
 function findPreset(grid, presetId) {
-  return (PRESETS[grid] || []).find((p) => p.id === presetId);
+  return presetsFor(grid).find((p) => p.id === presetId);
 }
 
 /**
@@ -195,9 +206,9 @@ function pairFor(grid, presetId, combo) {
 /**
  * The field/value pairs to stage for a preset.
  *
- * @param {"album"|"playlist"} grid
+ * @param {string} grid "album" | "playlist"
  * @param {string} presetId
- * @param {"pcm"|"sdm"|"auto"} outputMode
+ * @param {string} outputMode "pcm" | "sdm" | "auto"
  * @param {Record<string, string>} [knobs] knob id -> option id
  * @returns {Record<string, string>} schema key -> filter name
  */
@@ -251,12 +262,12 @@ function matches(want, values) {
  * the same knob positions for it to count as a match.
  *
  * @param {Record<string, string>} values schema key -> filter name
- * @param {"pcm"|"sdm"|"auto"} outputMode
+ * @param {string} outputMode "pcm" | "sdm" | "auto"
  * @returns {{grid: string, presetId: string, knobs: Record<string, string>} | null}
  */
 export function matchPreset(values, outputMode) {
   for (const grid of GRIDS) {
-    for (const preset of PRESETS[grid]) {
+    for (const preset of presetsFor(grid)) {
       for (const knobs of combos(preset)) {
         if (matches(writeSet(grid, preset.id, outputMode, knobs), values)) {
           return { grid, presetId: preset.id, knobs };

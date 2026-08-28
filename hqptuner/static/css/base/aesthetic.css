@@ -83,6 +83,7 @@ input[type="checkbox"],
 .pending-bar button,
 .plot,
 .band-strip,
+.easy-tile,
 .vr-bubble {
   box-shadow: var(--edge-light);
 }

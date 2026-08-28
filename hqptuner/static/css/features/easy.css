@@ -15,12 +15,91 @@
   justify-content: center;
 }
 
-/* The tile grid. Empty until the tiles land; what it settles now is that the
-   card holds exactly one of these and that it carries which grid it is. The
-   column template belongs with the tiles that have to fit it. */
+/* The tile grid. The column count is not written down: tiles are laid at a
+   minimum width and the row fills with however many fit, which is what keeps
+   Album (eight cells) and Playlist (three) on one rule instead of two. At the
+   container cap that is four across; under the 1100px breakpoint the tile
+   minimum outgrows the track and the grid falls to one column on its own. */
 .easy-grid {
   display: grid;
   gap: var(--rhythm-field);
+  grid-template-columns: repeat(auto-fill, minmax(var(--w-tile), 1fr));
+}
+
+/* A tile is a box on the card, not a card: eight of these sit inside one card,
+   and card markup belongs to the one card component (docs/design-system.md).
+   Raised, because it sits ON the card surface; its edge light is spent with
+   every other raised element's, in aesthetic.css. */
+.easy-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* Lit means "these are the filters currently set", and it is read off the field
+   values every render, never stored. Accent on the tile's own border, the same
+   way a control with a border of its own marks a staged edit. */
+.easy-tile[data-active="1"] {
+  border-color: var(--accent);
+}
+
+/* The picking half. It is a button because clicking it acts, and it does not
+   cover the whole tile because the knobs under it are buttons too and a button
+   inside a button is not markup a browser keeps. Chrome reset away: the tile
+   around it already draws the box. */
+.easy-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: center;
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+/* The emoji is a mark rather than text, so it takes a size and nothing else —
+   no text role, no gray. Readout is the one large step on the ladder. */
+.easy-emoji {
+  font-size: var(--fs-readout);
+}
+
+/* Title and description are centered under the mark; their size and color come
+   from the role classes the markup carries (t-head, t-caption). The caption
+   measure is wider than a tile, so the cap that matters here is the column. */
+.easy-title,
+.easy-desc,
+.easy-note {
+  max-width: 100%;
+  text-align: center;
+}
+
+/* One adjustment, its name over its segment. The segment is the app's one
+   segment at the app's one size — no per-context size rule. */
+.easy-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* The cell a user's own preset will land in. Dashed, because an outline that is
+   not yet filled is the one thing it has to say; it takes no click until the
+   save flow behind it exists. */
+.easy-add {
+  border-style: dashed;
+}
+.easy-add .easy-pick {
+  cursor: default;
 }
 
 /* The way out, in this card's head at the same top-right corner the way in
