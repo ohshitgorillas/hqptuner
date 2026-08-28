@@ -1,9 +1,8 @@
 /* easy-tips — Easy Mode's three hover tips: the one over a knob, the one over a
-   single position on a knob, and the one over the error-correction mark. Split
-   out of easy.css when that file reached the length ratchet's watch line, the
-   way combotip.css was split from combobox.css: the tips are one surface said
-   three times, and easy.css is layout. Loads straight after easy.css and owns no
-   layout of its own; the boxes these hang from are placed there.
+   single position on a knob, and the one over the error-correction mark. One
+   surface said three times, which is what holds them together and apart from
+   easy.css: that file is layout. Loads straight after it and owns no layout of
+   its own — the boxes these hang from are placed there.
 
    All three are drawn here rather than left to the browser's `title` bubble.
    That bubble's delay is the browser's to decide and its surface is the
