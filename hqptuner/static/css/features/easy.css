@@ -26,6 +26,10 @@
   display: grid;
   gap: var(--rhythm-field);
   grid-template-columns: repeat(auto-fill, minmax(var(--w-tile), 1fr));
+  /* Every tile the same height, not merely every tile in a row: rows share the
+     tallest one's height, so a grid whose presets carry one knob or two reads
+     as one set of cards rather than two ranks of different card. */
+  grid-auto-rows: 1fr;
 }
 
 /* A tile is a box on the card, not a card: eight of these sit inside one card,
@@ -85,30 +89,35 @@
    from the role classes the markup carries (t-head, t-caption). The caption
    measure is wider than a tile, so the cap that matters here is the column. */
 .easy-title,
-.easy-desc,
-.easy-note {
+.easy-desc {
   max-width: 100%;
   text-align: center;
 }
 
 /* One adjustment, its name over its segment. The segment is the app's one
-   segment at the app's one size — no per-context size rule. */
+   segment at the app's one size — no per-context size rule here; what follows
+   changes how a row DIVIDES its width, not the padding or type that rule
+   fixes. */
 .easy-knob {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-1);
+  width: 100%;
 }
 
-/* The cell a user's own preset will land in. Dashed, because an outline that is
-   not yet filled is the one thing it has to say; it takes no click until the
-   save flow behind it exists. */
-.easy-add {
-  border-style: dashed;
+/* Both positions the same width, so a knob reads as one control split in two
+   rather than two buttons that happen to sit together — 'Space' beside
+   'Transients' is otherwise half its neighbour's size. The segment stretches to
+   the tile so the division has something to divide. */
+.easy-knob .segment {
+  display: flex;
+  width: 100%;
 }
-.easy-add .easy-pick {
-  cursor: default;
+.easy-knob .seg {
+  flex: 1;
 }
+
 
 /* The way out, in this card's head at the same top-right corner the way in
    occupies in the Narrow filters head, so entering and leaving are one control

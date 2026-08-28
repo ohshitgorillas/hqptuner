@@ -43,10 +43,18 @@ const KEYS = {
 /** @type {("album"|"playlist")[]} */
 const GRIDS = ["album", "playlist"];
 
+// Emphasis is two positions everywhere it appears. It was three on the two
+// flagship presets, whose third position took a `-short` filter; those are
+// half-apodizing (data/filters.json) and every position left is full, which is
+// why the tiles that carried them no longer warn about error correction.
 /** @type {Knob} */
-const EMPHASIS_3 = { id: "emphasis", default: "space", options: ["space", "balanced", "transients"] };
+const EMPHASIS = { id: "emphasis", default: "space", options: ["space", "transients"] };
+
+// The two flagship presets carry a second knob instead of a second tile: the
+// hi-res filters are the same preset aimed at 88.2 kHz and up, not a different
+// idea, and as a knob they cross with Emphasis to fill all four combinations.
 /** @type {Knob} */
-const EMPHASIS_2 = { id: "emphasis", default: "space", options: ["space", "transients"] };
+const SOURCE = { id: "source", default: "standard", options: ["standard", "hires"] };
 
 /**
  * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
@@ -63,12 +71,8 @@ const PRESETS = Object.freeze({
     { id: "lifelike", emoji: "🎻", knobs: [] },
   ],
   album: [
-    { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS_3] },
-    { id: "hires", emoji: "✨", knobs: [EMPHASIS_2] },
-    { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS_3] },
-    { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS_2, default: "transients" }] },
-    { id: "purist", emoji: "💧", knobs: [EMPHASIS_2] },
-    { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS_2] },
+    { id: "perfect-ten", emoji: "🥇", knobs: [SOURCE, EMPHASIS] },
+    { id: "lifelike", emoji: "🎻", knobs: [SOURCE, EMPHASIS] },
     {
       id: "concert-hall",
       emoji: "🏛️",
@@ -77,6 +81,9 @@ const PRESETS = Object.freeze({
         { id: "correction", default: "on", options: ["on", "off"] },
       ],
     },
+    { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
+    { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
+    { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS] },
   ],
 });
 
@@ -93,18 +100,16 @@ const PRESETS = Object.freeze({
  */
 const ALBUM = {
   "perfect-ten": {
-    space: "poly-sinc-gauss-long",
-    balanced: "poly-sinc-gauss-medium",
-    transients: "poly-sinc-gauss-short",
-  },
-  hires: {
-    space: "poly-sinc-gauss-hires-lp",
-    transients: "poly-sinc-gauss-hires-mp",
+    "standard/space": "poly-sinc-gauss-long",
+    "standard/transients": "poly-sinc-gauss-medium",
+    "hires/space": "poly-sinc-gauss-hires-lp",
+    "hires/transients": "poly-sinc-gauss-hires-mp",
   },
   lifelike: {
-    space: "poly-sinc-ext2-long",
-    balanced: "poly-sinc-ext2-medium",
-    transients: "poly-sinc-ext2-short",
+    "standard/space": "poly-sinc-ext2-long",
+    "standard/transients": "poly-sinc-ext2-medium",
+    "hires/space": "poly-sinc-ext2-hires-lp",
+    "hires/transients": "poly-sinc-ext2-hires-mp",
   },
   "old-school": {
     space: { pcm: "poly-sinc-short-lp", sdm: "poly-sinc-short-lp-2s" },

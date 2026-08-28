@@ -1,10 +1,6 @@
 {
   "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by grid, then preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes.",
   "notice": "These presets intentionally simplify a complex topic; only a handful of HQPlayer's capabilities are accessible here. Full optimization for your system and tastes requires further experimentation. Think of Easy Mode as training wheels.",
-  "add": {
-    "title": "Save your own",
-    "description": "Turn your current filter settings into a tile."
-  },
   "playlist": {
     "perfect-ten": {
       "title": "The Perfect Ten",
@@ -18,19 +14,12 @@
   "album": {
     "perfect-ten": {
       "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached. Other presets are trade-offs. Start here.",
-      "note": "'Transients' corrects errors less aggressively than 'Balanced' or 'Space'; if it sounds harsh, try another setting.",
+      "description": "Does everything well, no strings attached. Other presets are trade-offs. Start here. Switch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
       "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "balanced": "Balanced", "transients": "Transients" }
-        }
-      }
-    },
-    "hires": {
-      "title": "The Perfect Ten: Hi-res Mode",
-      "description": "A version of The Perfect Ten optimized for rates 88.2 kHz and up. Also suitable for lossy MQAs and MP3s.",
-      "knobs": {
+        "source": {
+          "label": "Source",
+          "options": { "standard": "Standard", "hires": "Hi-Res" }
+        },
         "emphasis": {
           "label": "Emphasis",
           "options": { "space": "Space", "transients": "Transients" }
@@ -39,12 +28,15 @@
     },
     "lifelike": {
       "title": "Lifelike",
-      "description": "Puts the focus on natural, realistic timbre.",
-      "note": "'Transients' corrects errors less aggressively than 'Balanced' or 'Space'; if it sounds harsh, try another setting.",
+      "description": "Puts the focus on natural, realistic timbre. Switch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
       "knobs": {
+        "source": {
+          "label": "Source",
+          "options": { "standard": "Standard", "hires": "Hi-Res" }
+        },
         "emphasis": {
           "label": "Emphasis",
-          "options": { "space": "Space", "balanced": "Balanced", "transients": "Transients" }
+          "options": { "space": "Space", "transients": "Transients" }
         }
       }
     },
@@ -80,8 +72,7 @@
     },
     "concert-hall": {
       "title": "The Concert Hall",
-      "description": "Emphasizes the recording's space at the cost of transient performance more than other presets. For material like live classical with minimal transient content. Consumes heavy resources.",
-      "note": "Turning error correction off reduces resource consumption.",
+      "description": "Emphasizes the recording's space at the cost of transient performance more than other presets. For material like live classical with minimal transient content. Consumes heavy resources. Turning error correction off reduces resource consumption.",
       "knobs": {
         "version": {
           "label": "Version",
