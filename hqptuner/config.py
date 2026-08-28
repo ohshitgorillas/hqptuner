@@ -105,6 +105,15 @@ class Config:
             _env("MATRIX_MODE_FILE", str(Path(__file__).resolve().parent.parent / "state" / "matrixmodes.json"))
         )
     )
+    # Auto-pilot state (see presets/store/autopilot.py) — one JSON file beside the
+    # matrix modes, in the same bind-mounted state dir. Whether the high-frequency
+    # filter is being driven for the listener is a property of the install, and
+    # hqplayerd's config file has no junk-filter field to carry it in.
+    autopilot_file: Path = field(
+        default_factory=lambda: Path(
+            _env("AUTOPILOT_FILE", str(Path(__file__).resolve().parent.parent / "state" / "autopilot.json"))
+        )
+    )
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files

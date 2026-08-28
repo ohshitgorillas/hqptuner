@@ -10,7 +10,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from hqptuner.api.deps import Mgr
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
+from hqptuner.engine.junkadvisor import NO_FILTER
+from hqptuner.lanes import autopilot
 from hqptuner.lanes.live import chain, lane, routing, snapshot
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
@@ -25,6 +28,21 @@ def _store(request: Request) -> LivePresetStore:
 
 def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
     return HTTPException(status_code=409, detail=str(exc))
+
+
+def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> None:
+    """Put auto-pilot back to what this record carries, baselined on the junk filter the record just applied.
+
+    The baseline comes from the record rather than from the engine because Status is only refreshed by the poll loop
+    and still describes the filter that was engaged a moment ago; the record's own field is what the lane just wrote.
+    A record from before auto-pilot existed carries no such key and reads as off.
+    """
+    if record.get("autopilot") is not True:
+        manager.autopilot.disable()
+        return
+    items = (manager.enums or {}).get("junk_filters") or []
+    engaged = autopilot.junk_filter_name(items, (record.get("fields") or {}).get("junk_filter"))
+    manager.autopilot.enable(baseline=engaged or NO_FILTER)
 
 
 @router.get("/livepresets")
@@ -57,6 +75,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
         "chain": chain.active_chain(manager),
         "fields": {field: item["value"] for field, item in taken.items()},
         "names": {field: item["name"] for field, item in taken.items()},
+        "autopilot": manager.autopilot.enabled,
     }
     try:
         _store(request).save(name, record)
@@ -86,6 +105,7 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
         report = await lane.apply_preset(manager, record.get("fields") or {})
+        _restore_autopilot(manager, record)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

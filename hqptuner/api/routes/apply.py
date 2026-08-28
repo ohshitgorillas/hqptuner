@@ -4,6 +4,7 @@
 restarts. Both fold a clean write into a preset when auto-save is armed.
 """
 
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -15,6 +16,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import lane, routing
 from hqptuner.presets import presetlane
+from hqptuner.presets.store.autopilot import AutopilotError
 
 router = APIRouter(prefix="/api")
 
@@ -85,6 +87,13 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     unknown = sorted(set(body.fields) - set(routing.live_fields()))
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live fields: {unknown}")
+    if "junk_filter" in body.fields:
+        # Setting the high-frequency filter by hand stands auto-pilot down — it is the
+        # user taking the control back, and leaving it on would have the poll loop undo
+        # the choice they just made. Before the write, not after, so there is no window
+        # in which a poll can revert it.
+        with contextlib.suppress(AutopilotError):
+            manager.autopilot.disable()
     try:
         report = await lane.apply_now(manager, body.fields)
         autosaved = await presetlane.autosave(manager)

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from hqptuner.api.lifespan import make_lifespan
 from hqptuner.api.routes import (
     apply,
+    autopilot,
     config,
     descriptions,
     favorites,
@@ -77,5 +78,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(descriptions.router)
     app.include_router(narrowing.router)
     app.include_router(matrixmodes.router)
+    app.include_router(autopilot.router)
     mount_spa(app)
     return app

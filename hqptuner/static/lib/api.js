@@ -132,6 +132,9 @@ export const api = {
     send("/api/matrixmodes", "PUT", { name, mode }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
+  // The high-frequency filter's auto-pilot. Write only: /api/status carries the flag on
+  // every poll, because the backend switches it off by itself when the filter is set by hand.
+  setAutopilot: (/** @type {boolean} */ enabled) => send("/api/autopilot", "POST", { enabled }),
   profile: (/** @type {string} */ action, /** @type {string} */ name) =>
     send(`/api/profile/${action}`, "POST", { name }),
   preset: (/** @type {string} */ name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),

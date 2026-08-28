@@ -23,8 +23,10 @@ import httpx
 
 from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
+from hqptuner.engine.junkadvisor import NO_FILTER
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
+from hqptuner.presets.store.autopilot import AutopilotError
 from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -86,7 +88,24 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     await mgr.resync_engine_state()
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
+    _restore_autopilot(mgr, name)
     return {"name": name, "active": True}
+
+
+def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
+    """Put auto-pilot back to what this preset carries, baselined on nothing engaged.
+
+    The baseline is not read from the engine because the restore above restarted it and Status is refreshed by the
+    poll loop, not here — reading it would give the filter the previous engine had. Nothing engaged is the honest
+    stand-in: hqplayerd's config has no junk-filter field, so a config preset cannot claim to carry one either way.
+    """
+    try:
+        if mgr.autopilot.for_preset(name):
+            mgr.autopilot.enable(baseline=NO_FILTER)
+        else:
+            mgr.autopilot.disable()
+    except AutopilotError as exc:
+        log.warning("auto-pilot state not restored for preset %r: %s", name, exc)
 
 
 async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
@@ -147,6 +166,14 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         mgr.presetops.store.set_active(name)
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
+    # The high-frequency filter's auto-pilot has no home in the XML — hqplayerd's config
+    # carries no junk-filter field at all — so the preset's copy of it goes into
+    # HQPTuner's own store, keyed by the name just saved. After the store commit and
+    # best-effort for the same reason the mirror is: the save already reached disk.
+    try:
+        mgr.autopilot.set_for_preset(name, enabled=mgr.autopilot.enabled)
+    except AutopilotError as exc:
+        log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
     warning = await _mirror(mgr, name, working, backup)
     if warning is None:
         return {"name": name, "ok": True}

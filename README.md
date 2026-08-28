@@ -181,7 +181,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_HQP_CONTROL_PORT` | `4321` | Control API port |
 | `HQPTUNER_HQP_HTTP_PORT` | `8088` | hqplayerd web config port |
 | `HQPTUNER_HQP_METERING_PORT` | `4322` | hqplayerd's metering side channel, read by the junk-filter advisor. Control port + 1 on a stock daemon |
-| `HQPTUNER_METERING_ENABLED` | `1` | Whether the junk-filter advisor runs. Set to `0` and HQPTuner never connects to the metering port and never offers junk-filter advice; nothing else changes |
+| `HQPTUNER_METERING_ENABLED` | `1` | Whether the junk-filter advisor runs. Set to `0` and HQPTuner never connects to the metering port, never offers junk-filter advice, and grays the high-frequency filter's auto-pilot, which has nothing left to act on; nothing else changes |
 | `HQPTUNER_HQP_USERNAME` | `hqplayer` | Management username (Digest auth); default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_PASSWORD` | `password` | Management password; default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_HOME` | `/var/lib/hqplayer/home` | hqplayerd's data/home directory on the daemon host (uploaded convolution impulses land here) |
@@ -195,6 +195,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
 | `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | The LIVE view's saved setting combos, one JSON file |
 | `HQPTUNER_FAVORITES_FILE` | `state/favorites.json` | Starred filter names, one JSON file shared by every browser |
+| `HQPTUNER_AUTOPILOT_FILE` | `state/autopilot.json` | The high-frequency filter's auto-pilot: whether it is on, the filter it falls back to, and which config presets carry it |
 | `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
 | `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
 

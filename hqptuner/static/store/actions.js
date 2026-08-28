@@ -8,7 +8,7 @@ import { errText } from "../lib/errtext.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
-import { config, volume, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
+import { config, volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
@@ -341,6 +341,24 @@ export const autosave = computed(() => !!(config.value && config.value.autosave)
 export async function setAutosave(enabled) {
   await api.setAutosave(enabled);
   await mirror(api.config, config);
+}
+
+// The high-frequency filter's auto-pilot: with this on, the backend engages and disengages the filter from the
+// metering advisor's verdict while a track plays. Read off /api/status rather than remembered here, because the
+// backend moves it on its own — the poll loop switches it off the moment the filter is set by hand.
+export const autopilot = computed(() => !!(engineStatus.value || {}).autopilot);
+// Whether the metering reader is running at all (HQPTUNER_METERING_ENABLED). Absent on a status payload from an older
+// backend, which is read as running rather than as off: graying a control that in fact works is the worse failure.
+export const metering = computed(() => (engineStatus.value || {}).metering !== false);
+/**
+ * Turn the high-frequency filter's auto-pilot on or off, then re-read the status it is reported in.
+ *
+ * @param {boolean} enabled
+ * @returns {Promise<void>}
+ */
+export async function setAutopilot(enabled) {
+  await api.setAutopilot(enabled);
+  await mirror(api.status, engineStatus);
 }
 
 // Immediate live-volume write. Echoes the readback level into `volume` so the

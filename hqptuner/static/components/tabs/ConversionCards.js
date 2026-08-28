@@ -14,6 +14,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { html, Tri } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { ChainPack } from "../ChainPack.js";
+import { AutopilotToggle } from "../AutopilotToggle.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { Card, collapseFrom } from "../common.js";
@@ -133,11 +134,12 @@ const sdmFft = computed(() => usesFft(SDM_FILTERS));
 /** @param {{ on: { value: boolean } }} props `on` is the chain's own FFT computed */
 const FftLength = ({ on }) => (on.value ? html`<${Field} k="fft_size" />` : null);
 
-/** Pre-process card: the junk filter and pre-before-meter toggles. */
+/** Pre-process card: the junk filter, its auto-pilot, and the pre-before-meter toggle. */
 export const PreProcessCard = () =>
   html`<${Card} id="pre-process" title="Pre-process">
     <div class="pack">
       <${Field} k="junk_filter" />
+      <${AutopilotToggle} />
       <${Field} k="pre_before_meter" />
     </div>
   <//>`;

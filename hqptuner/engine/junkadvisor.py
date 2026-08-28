@@ -2,8 +2,9 @@
 
 Pure functions over a time-averaged power spectrum (``metering.py`` supplies
 it): detect the HF signatures the manual's junk-filter table addresses and name
-the filter that treats them. Advice only — nothing here writes to the engine;
-the caller surfaces the text and the user decides.
+the filter that treats them. Nothing here writes to the engine or reads its
+state — ``classify`` detects, ``treats`` says whether a given engaged filter
+covers what was detected, and the caller decides what to do with the pair.
 
 Signatures (manual p.53, "Playback filter"):
 - brick wall well below the container's Nyquist in a hi-res container →
@@ -76,7 +77,7 @@ RAMP_ABOVE_FLOOR_DB = 20.0  # a real ramp carries energy, not floor wobble
 
 
 # Wide by necessity: every argument is an independent measurement or engine fact
-# the verdict reads, five of the eight are already keyword-only, and a parameter
+# the verdict reads, three of the six are already keyword-only, and a parameter
 # object would rename them rather than reduce them.
 def classify(  # noqa: PLR0913
     levels_db: list[float],
@@ -85,31 +86,27 @@ def classify(  # noqa: PLR0913
     *,
     samplerate: int | None,
     sdm: bool,
-    junk_filter: str | None,
     min_levels_db: list[float] | None = None,
-    filter_name: str | None = None,
 ) -> dict[str, Any] | None:
-    """Return the recommendation for this aggregate, or None when there is nothing to say.
+    """Return the signature this aggregate carries, or None when there is nothing to say.
 
     ``levels_db`` is the mean power spectrum (dB, one value per bin up to ``bandwidth`` = the source Nyquist);
     ``min_levels_db`` is the windowed per-bin minimum spectrum the spur rule reads, or None while the window has not yet
-    been earned (no spur verdicts until it has); ``junk_filter`` is the engine's current junk-filter *name* and
-    ``filter_name`` the active main filter's. The verdict is spectrum-only — the metering tap sees the source, so
-    engaging a filter never changes what the detector sees — and the advice stands until the engaged settings actually
-    treat the signature.
+    been earned (no spur verdicts until it has). The verdict is spectrum-only — the metering tap sees the source, so
+    engaging a filter never changes what the detector sees — which is why detection says nothing about what the engine
+    has engaged. Whether the engaged settings already treat the signature is ``treats``, and the caller applies it:
+    the advisor's note goes quiet under treatment while auto-pilot needs the untreated signature to know what to
+    engage and what to let go of.
     """
     if not _eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
         return None
     smoothed = _median_smooth(levels_db, SMOOTH_BINS)
     floor = _percentile(smoothed, FLOOR_PERCENTILE)
-    verdict = (
+    return (
         _brick_wall(smoothed, bandwidth, floor, samplerate or 0)
         or _spurs(min_levels_db, bandwidth)
         or _ramp(smoothed, bandwidth, floor)
     )
-    if verdict is None or treats(verdict, junk_filter, filter_name):
-        return None
-    return verdict
 
 
 def _eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
@@ -117,6 +114,11 @@ def _eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: in
         return False
     return not (sdm or samplerate is None or samplerate <= MIN_RATE_HZ or bandwidth <= MIN_BANDWIDTH_HZ)
 
+
+# The engine's name for nothing engaged. Named rather than spelled out at each
+# site because auto-pilot's baseline defaults to it and has to mean the same
+# thing this module does by it.
+NO_FILTER = "none"
 
 # Fixed-corner filters by corner frequency. A corner at or below the
 # recommended one also removes the junk (it cuts everything the recommended
@@ -130,7 +132,7 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
     ``none`` (or nothing engaged) never does; a fixed corner treats when it is at or below the recommended corner; a
     rate-relative filter (2x/4x/8x) is a deliberate manual choice and is never second-guessed.
     """
-    if junk_filter in (None, "none"):
+    if junk_filter in (None, NO_FILTER):
         return False
     engaged = _CORNER_KHZ.get(junk_filter)
     if engaged is None:

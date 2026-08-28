@@ -201,15 +201,17 @@ class MeteringReader:
         """Ask the reader to shut down: the stream loop and the backoff wait both end at the next check."""
         self._stop.set()
 
-    def recommendation(self) -> dict[str, Any] | None:
-        """Return the advisor's verdict for the current track, or None.
+    def verdict(self) -> dict[str, Any] | None:
+        """Return the track's latched signature, whatever the engine currently has engaged.
 
-        Computed on demand — the status route calls this once per poll. A verdict latches for the rest of the track:
-        the signature is a property of the source, and loud music masking it from the detector later in the track does
-        not make it go away (the Ænima case — a persistent tone plainly visible on the spectrogram, drowned out of the
-        mean spectrum once the music starts). The latch clears on track change or stream loss, and goes quiet while the
-        engaged junk filter — or, for spur verdicts, a main filter from a recommended family — treats it: engaging is
-        the user acting on the advice, disengaging brings the advice back.
+        Computed on demand. A verdict latches for the rest of the track: the signature is a property of the source,
+        and loud music masking it from the detector later in the track does not make it go away (the Ænima case — a
+        persistent tone plainly visible on the spectrogram, drowned out of the mean spectrum once the music starts).
+        The latch clears on track change or stream loss.
+
+        Deliberately blind to the engaged filter, unlike ``recommendation``: auto-pilot engages what the signature
+        asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
+        filter is still earning its place.
         """
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None or agg.frames == 0:
@@ -223,15 +225,23 @@ class MeteringReader:
             agg.seconds,
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
-            junk_filter=ctx.junk_filter,
             min_levels_db=agg.window_min_db(),
-            filter_name=ctx.filter,
         )
         if fresh is not None:
             self._verdict = fresh
-        if self._verdict is None or junkadvisor.treats(self._verdict, ctx.junk_filter, ctx.filter):
-            return None
         return self._verdict
+
+    def recommendation(self) -> dict[str, Any] | None:
+        """Return the advisor's note for the current track, or None.
+
+        The latched signature, minus the case where the engine already deals with it: the note goes quiet while the
+        engaged junk filter — or, for spur verdicts, a main filter from a recommended family — treats it. Engaging is
+        the user acting on the advice, disengaging brings the advice back.
+        """
+        verdict, ctx = self.verdict(), self._context()
+        if verdict is None or ctx is None or junkadvisor.treats(verdict, ctx.junk_filter, ctx.filter):
+            return None
+        return verdict
 
     async def run(self) -> None:
         """Hold the stream only while the engine is playing, and reconnect after a backoff whenever it breaks.

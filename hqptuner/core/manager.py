@@ -31,6 +31,7 @@ from hqptuner.audit import AuditLog
 from hqptuner.conf import engineconf, presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
+from hqptuner.core import autopilotops
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import devicecaps, logtail, release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
@@ -38,6 +39,7 @@ from hqptuner.lanes import rescan, settle
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets.presetops import PresetOps
+from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:
@@ -75,6 +77,9 @@ class ConnectionManager:
         self.presetops = PresetOps(cfg, self)
         # Apply/dispatch operations (applyops).
         self.applyops = ApplyOps(self)
+        # High-frequency filter auto-pilot's state (presets/store/autopilot.py). Held
+        # here rather than on the app, because the poll loop is what acts on it.
+        self.autopilot = AutopilotStore(cfg.autopilot_file)
 
         self.reachable = False
         self.unreachable_since: float | None = time.time()
@@ -287,6 +292,7 @@ class ConnectionManager:
         # the config/matrix snapshots track reality instead of only connect-time.
         await self.refresh_http_forms()
         self.loaded_at = time.time()
+        await autopilotops.act(self)
 
     async def resync_engine_state(self) -> None:
         """Re-read the engine after something restarted it, so nothing reads the old engine's answers.

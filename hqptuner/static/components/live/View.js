@@ -37,6 +37,7 @@ import {
   DescBlock,
 } from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
+import { AutopilotToggle } from "../AutopilotToggle.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
 import { easyMode } from "../../store/easyview.js";
@@ -304,6 +305,7 @@ function PlaybackCard() {
         <div class="pack">
           <${LiveField} control=${adaptive} widget=${Checkbox} />
           <${LiveField} control=${junk} />
+          <${AutopilotToggle} />
         </div>
         <span class="col-rule" aria-hidden="true"></span>
         <${PlaybackVolumeBody} showName=${true} />

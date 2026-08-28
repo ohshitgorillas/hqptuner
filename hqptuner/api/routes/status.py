@@ -3,6 +3,7 @@
 Every route here answers from the poll loop's cached view or from files, so none of them writes to the daemon.
 """
 
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -12,6 +13,7 @@ from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
 from hqptuner.lanes.live import chain
 from hqptuner.metadata import StaticMetadata, merge_enumerations
+from hqptuner.presets.store.autopilot import AutopilotError
 
 router = APIRouter(prefix="/api")
 
@@ -60,14 +62,31 @@ def state(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/status")
 def status(manager: Mgr) -> dict[str, Any]:
-    """Return the daemon's Status frame with its track metadata and the junk-filter advisor's recommendation.
+    """Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.
 
     503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.
+    Auto-pilot rides along because it moves in the background — the poll loop can switch the filter, and a page that
+    only asked when it last wrote would show the wrong control. An unreadable auto-pilot store reads as off here and
+    says so properly on ``GET /api/autopilot``, so one damaged file cannot take the whole status page down. ``metering``
+    says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
+    against: a null recommendation cannot tell "nothing to report" from "nothing is reading".
     """
     if manager.status is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     junk = manager.metering.recommendation() if manager.metering is not None else None
-    return deps.snapshot(manager, {"status": manager.status, "metadata": manager.status_metadata, "junk": junk})
+    autopilot = False
+    with contextlib.suppress(AutopilotError):
+        autopilot = manager.autopilot.enabled
+    return deps.snapshot(
+        manager,
+        {
+            "status": manager.status,
+            "metadata": manager.status_metadata,
+            "junk": junk,
+            "autopilot": autopilot,
+            "metering": manager.metering is not None,
+        },
+    )
 
 
 @router.get("/enumerations")
