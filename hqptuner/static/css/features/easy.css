@@ -152,6 +152,7 @@
    fixes. */
 .easy-knob {
   display: flex;
+  position: relative;
   flex-direction: column;
   /* The name sits on its segment's left edge rather than over its middle. A
      centered label over a stretched segment reads as a caption for the tile,
@@ -187,6 +188,36 @@
      ladder lands. Two tokens added rather than a number, so it still moves with
      the scale. */
   padding: 0 calc(var(--sp-5) + var(--sp-2));
+}
+
+/* A knob's tip, over the knob it explains. Same surface, border and type as the
+   mark's tip, so the two read as one thing said twice.
+
+   A real element rather than a `::after` on `data-tip`, because these words are
+   the knob group's `aria-describedby` target and generated content is not in the
+   accessibility tree. Hidden by opacity rather than by `display`, which is what
+   keeps it readable to a screen reader while invisible to a pointer, and taken
+   out of flow so an invisible bubble does not push the segment down. */
+.easy-knob-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 20;
+  width: max-content;
+  max-width: 100%;
+  transform: translate(-50%, calc(var(--sp-1) * -1));
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--fg);
+  text-align: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+.easy-knob:hover .easy-knob-tip {
+  opacity: 1;
 }
 
 /* Both positions the same width, so a knob reads as one control split in two
