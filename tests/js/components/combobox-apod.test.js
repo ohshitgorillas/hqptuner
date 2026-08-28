@@ -18,7 +18,7 @@
 // overlay's `apodizing` fact ("full" | "half" | "none", data/filters.json) —
 // the fixtures serve BOTH, consistent, the way the real wire does, and the
 // Simplified entries carry the same class as their `apod` field. A badge is
-// found by the `dd-apod` class it wears, and full is told from half by the
+// found by the `apod-mark` class it wears, and full is told from half by the
 // vector path each draws — never by the accessible wording, which is the
 // owner's to reword (docs/testing.md rule 9). Rows are addressed by the
 // `data-v` wire value each carries.
@@ -183,9 +183,10 @@ const simplifiedField = () => filterField(true);
 /** @param {MarkupElement} el */
 const roleOf = (el) => (/(?:^|\s)role="([^"]*)"/.exec(el.attrs) || [])[1];
 
-// The class the apodizing badge wears. A class token is contract; the wording
-// inside the badge's accessible label is not.
-const BADGE_CLASS = "dd-apod";
+// The class the apodizing badge wears — shared with the mark Easy Mode's preset
+// tiles carry, so it is no longer named for the dropdown. A class token is
+// contract; the wording inside the badge's accessible label is not.
+const BADGE_CLASS = "apod-mark";
 
 /** @param {MarkupElement} el */
 const isBadge = (el) => classes(el).includes(BADGE_CLASS);
