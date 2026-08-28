@@ -20,6 +20,9 @@ import { Card } from "../common.js";
 import { Segment } from "../controls/index.js";
 import { easyGrid, setEasyGrid, setEasyMode } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
+import { matchPreset, presetsFor } from "../../store/easy.js";
+import { easyLane } from "../../store/easylane.js";
+import { AddTile, PresetTile } from "./Tile.js";
 
 // Album and Playlist are the two grids, and the switcher is a plain `Segment` at
 // the app's ONE segment size. The Matrix banner's size exemption is named for
@@ -45,8 +48,47 @@ function ExitLink() {
   </button>`;
 }
 
-/** The Easy Mode card: the way out, the simplification notice, the Album/Playlist switcher and its grid. */
-export function EasyCard() {
+// Where each knob stands on a tile that is NOT lit: its own default. There is no
+// third answer, because nothing remembers a position a user left on a preset
+// they then moved away from — the lit tile's positions are read back out of the
+// filter values, and every other tile shows where it would start.
+/**
+ * @param {import("../../store/easy.js").Preset} preset
+ * @returns {Record<string, string>}
+ */
+const defaults = (preset) => Object.fromEntries(preset.knobs.map((k) => [k.id, k.default]));
+
+// The grid is derived end to end: the lane says what the filters are, the preset
+// table says which preset that corresponds to, and the tiles paint that. Nothing is
+// stored and nothing is remembered, so a filter changed by hand in a chain card
+// shows up here on the same poll.
+/** @param {{ lane: string }} props */
+function Grid({ lane }) {
+  const grid = easyGrid.value;
+  const l = easyLane(lane);
+  const hit = matchPreset(l.values, l.mode);
+  return html`
+    <div class="easy-grid" data-grid=${grid}>
+      ${presetsFor(grid).map((preset) => {
+        const on = !!hit && hit.grid === grid && hit.presetId === preset.id;
+        return html`<${PresetTile}
+          grid=${grid}
+          preset=${preset}
+          lane=${lane}
+          active=${on}
+          knobs=${on ? hit.knobs : defaults(preset)}
+        />`;
+      })}
+      <${AddTile} />
+    </div>
+  `;
+}
+
+/**
+ * The Easy Mode card: the way out, the simplification notice, the Album/Playlist switcher and its grid.
+ * @param {{ lane?: string }} props which page's write lane the tiles use
+ */
+export function EasyCard({ lane = "config" }) {
   return html`
     <${Card}
       id="easy-mode"
@@ -60,7 +102,7 @@ export function EasyCard() {
           onChange=${(/** @type {string | number} */ v) => setEasyGrid(String(v))}
         />
       </div>
-      <div class="easy-grid" data-grid=${easyGrid.value}></div>
+      <${Grid} lane=${lane} />
     <//>
   `;
 }
