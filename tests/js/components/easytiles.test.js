@@ -36,10 +36,14 @@
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide, all from the spec's
 // rendered contract:
-//   * `data-preset="<presetId>"` and `data-active="0"|"1"` on each tile
-//   * `data-testid="easy-add"` on the placeholder cell, carrying no `data-preset`
-//   * `data-knob="<knobId>"` on the element wrapping a tile's knob, whose option
-//     buttons are the shared Segment's `.seg[data-v]`, the selected one `.active`
+//   * `data-preset="<presetId>"` and `data-active="0"|"1"` on each tile BOX,
+//     which carries no handler of its own
+//   * one working `button` inside that box, which is what sets the preset
+//   * `data-testid="easy-add"` on the placeholder cell, carrying no
+//     `data-preset`, holding that same inner button disabled
+//   * `data-knob="<knobId>"` on the element wrapping a tile's knob, a sibling of
+//     that button, whose option buttons are the shared Segment's `.seg[data-v]`,
+//     the selected one `.active`
 // The `data-knob` element is read as a wrapper only; nothing here asserts what
 // classes it carries.
 //
@@ -48,6 +52,14 @@
 // presses the card's links: by invoking the onClick its vnode carries, collected
 // through preact's own `options.vnode` creation hook — the renderer's public
 // seam, third-party surface.
+//
+// The tile is two nodes, not one, and it has to be: the knob options are
+// buttons, and a button inside a button is not markup a browser keeps. So the
+// box carries the identity and a button inside it carries the press. `pressTile`
+// finds the box by `data-preset` and then fires the one working button within it
+// — enabled, and not one of the knob's `.seg` options, which are its siblings.
+// It refuses to fire on anything but exactly one such button rather than
+// guessing which node a pointer would have hit.
 //
 // A knob position is pressed by its `data-v`, which is not scoped to a tile in
 // the vnode stream, so the one position this file presses is chosen at load as
@@ -515,8 +527,9 @@ function seenOf(node) {
 
 /**
  * One press on the affordance an attribute names, as a pointer would land on
- * it. Anything but a single clickable match throws rather than pressing
- * something else.
+ * it. For a control carrying its own handler — a knob's option button, the
+ * grid switcher's — the marked node IS the clickable one. Anything but a single
+ * clickable match throws rather than pressing something else.
  *
  * @param {VNode[]} seen
  * @param {string} name
@@ -526,13 +539,81 @@ function seenOf(node) {
 function press(seen, name, value) {
   const hits = seen.filter((v) => v && v.props && v.props[name] === value && typeof v.props.onClick === "function");
   if (hits.length !== 1) throw new Error(`expected one clickable ${name}="${value}", found ${hits.length}`);
-  /** @type {(event: object) => void} */ (hits[0].props.onClick)({ preventDefault() {}, stopPropagation() {} });
+  fire(hits[0]);
+}
+
+/** @param {VNode} v */
+const fire = (v) =>
+  /** @type {(event: object) => void} */ (v.props.onClick)({ preventDefault() {}, stopPropagation() {} });
+
+/**
+ * Every vnode of a subtree, the node itself included.
+ *
+ * @param {unknown} node
+ * @returns {VNode[]}
+ */
+function within(node) {
+  if (node === false || node === null || node === undefined || typeof node !== "object") return [];
+  if (Array.isArray(node)) return node.flatMap(within);
+  const vnode = /** @type {VNode} */ (node);
+  return [vnode, ...(vnode.props ? within(vnode.props.children) : [])];
+}
+
+/** Whether a vnode is one of a Segment's option buttons. */
+const isSeg = (/** @type {VNode} */ v) =>
+  String(v.props.class || v.props.className || "")
+    .split(/\s+/)
+    .includes("seg");
+
+/**
+ * A vnode subtree's own working buttons: clickable, enabled, and not one of a
+ * knob's option buttons. A disabled button is skipped because a browser never
+ * fires one, so firing it here would simulate something no pointer can do.
+ *
+ * @param {VNode[]} boxes
+ * @returns {VNode[]}
+ */
+const pickable = (boxes) =>
+  [...new Set(boxes.flatMap((box) => within(box.props.children)))].filter(
+    (v) => v.type === "button" && typeof v.props.onClick === "function" && !isSeg(v) && v.props.disabled !== true,
+  );
+
+/**
+ * Every element marked with an attribute, as vnodes.
+ *
+ * @param {VNode[]} seen
+ * @param {string} name
+ * @param {string} value
+ * @returns {VNode[]}
+ */
+function cellsMarked(seen, name, value) {
+  const hits = seen.filter((v) => v && v.props && v.props[name] === value);
+  if (hits.length === 0) throw new Error(`nothing carries ${name}="${value}"`);
+  return hits;
 }
 
 /**
- * A press on a cell that may carry no handler at all — the placeholder, whose
- * behavior is to write nothing. The cell must EXIST; whether it listens is what
- * the case is asking about.
+ * One press on a preset tile. The tile BOX carries the identity and the press
+ * is a button inside it: a knob's options are buttons too, and a button inside
+ * a button is not markup a browser keeps, so the two cannot be the same node.
+ * The knob buttons are its siblings and are excluded — pressing one is behavior
+ * 10, and `press` above does that by `data-v`.
+ *
+ * @param {VNode[]} seen
+ * @param {string} presetId
+ * @returns {void}
+ */
+function pressTile(seen, presetId) {
+  const hits = pickable(cellsMarked(seen, PRESET, presetId));
+  if (hits.length !== 1) throw new Error(`expected one working button in the "${presetId}" tile, found ${hits.length}`);
+  fire(hits[0]);
+}
+
+/**
+ * A press on a cell whose button may be disabled — the placeholder, whose
+ * behavior is to write nothing. The cell must EXIST; whether anything inside it
+ * can be pressed at all is what the case is asking about, so an enabled button
+ * found there IS fired and whatever it writes lands in the assertion.
  *
  * @param {VNode[]} seen
  * @param {string} name
@@ -540,12 +621,7 @@ function press(seen, name, value) {
  * @returns {void}
  */
 function pressWhatever(seen, name, value) {
-  const hits = seen.filter((v) => v && v.props && v.props[name] === value);
-  if (hits.length === 0) throw new Error(`nothing carries ${name}="${value}"`);
-  for (const hit of hits) {
-    const onClick = hit.props.onClick;
-    if (typeof onClick === "function") onClick({ preventDefault() {}, stopPropagation() {} });
-  }
+  for (const hit of pickable(cellsMarked(seen, name, value))) fire(hit);
 }
 
 const PRESET = "data-preset";
@@ -608,7 +684,7 @@ const MODE_FIELDS = [
 for (const [mode, fields] of MODE_FIELDS) {
   test(`test_a_tile_press_in_the_${mode}_output_mode_writes_only_that_modes_filter_fields`, async () => {
     const w = await resetTab({ mode });
-    press(seenOf(html`<${EasyCard} />`), PRESET, FIRST_ALBUM);
+    pressTile(seenOf(html`<${EasyCard} />`), FIRST_ALBUM);
     await flush(w);
     assert.deepEqual(Object.keys(w.staged.http).sort(), fields);
   });
@@ -620,14 +696,14 @@ for (const [mode, fields] of MODE_FIELDS) {
 
 test("test_an_album_tile_writes_one_filter_to_both_ends_of_the_chain", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
-  press(seenOf(html`<${EasyCard} />`), PRESET, FIRST_ALBUM);
+  pressTile(seenOf(html`<${EasyCard} />`), FIRST_ALBUM);
   await flush(w);
   assert.deepEqual(stagedNames(w), expectedNames("album", FIRST_ALBUM, "pcm"));
 });
 
 test("test_a_playlist_tile_writes_a_different_filter_to_each_end_of_the_chain", async () => {
   const w = await resetTab({ grid: "playlist", mode: "pcm" });
-  press(seenOf(html`<${EasyCard} lane="config" />`), PRESET, FIRST_PLAYLIST);
+  pressTile(seenOf(html`<${EasyCard} lane="config" />`), FIRST_PLAYLIST);
   await flush(w);
   assert.deepEqual(stagedNames(w), expectedNames("playlist", FIRST_PLAYLIST, "pcm"));
 });
@@ -639,7 +715,7 @@ test("test_a_playlist_tile_writes_a_different_filter_to_each_end_of_the_chain", 
 for (const presetId of ["old-school", "damage-control"]) {
   test(`test_pressing_${presetId}_writes_the_plain_name_on_pcm_and_the_two_stage_name_on_sdm`, async () => {
     const w = await resetTab({ grid: "album", mode: "auto" });
-    press(seenOf(html`<${EasyCard} />`), PRESET, presetId);
+    pressTile(seenOf(html`<${EasyCard} />`), presetId);
     await flush(w);
     assert.deepEqual(stagedNames(w), expectedNames("album", presetId, "auto"));
   });
@@ -672,21 +748,21 @@ test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
 
 test("test_a_tile_press_on_the_live_lane_writes_the_live_fields_by_enum_id", async () => {
   const w = await resetLive({ grid: "album" });
-  press(seenOf(html`<${EasyCard} lane="live" />`), PRESET, FIRST_ALBUM);
+  pressTile(seenOf(html`<${EasyCard} lane="live" />`), FIRST_ALBUM);
   await flush(w);
   assert.deepEqual(postedFields(w), liveExpected(FIRST_ALBUM));
 });
 
 test("test_a_tile_press_on_the_live_lane_stages_nothing", async () => {
   const w = await resetLive({ grid: "album" });
-  press(seenOf(html`<${EasyCard} lane="live" />`), PRESET, FIRST_ALBUM);
+  pressTile(seenOf(html`<${EasyCard} lane="live" />`), FIRST_ALBUM);
   await flush(w);
   assert.deepEqual(w.staged, EMPTY);
 });
 
 test("test_a_tile_press_on_the_tabs_lane_never_reaches_the_live_path", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
-  press(seenOf(html`<${EasyCard} />`), PRESET, FIRST_ALBUM);
+  pressTile(seenOf(html`<${EasyCard} />`), FIRST_ALBUM);
   await flush(w);
   assert.deepEqual(w.posts, []);
 });
