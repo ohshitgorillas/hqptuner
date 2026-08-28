@@ -56,6 +56,18 @@ async function applyPreset(lane, grid, presetId, knobs) {
   }
 }
 
+// What each mark is called for a reader who cannot see it. Constants rather
+// than copy read through `easyProse`, unlike every visible string on a tile:
+// prose arrives with the metadata and is empty until it does, which for a
+// caption means a line that appears a moment late, but for an `aria-label`
+// means an image with no name at all on first paint. The dropdown's own two
+// labels are constants for the same reason (controls/comborow.js).
+const MARK_LABEL = {
+  full: "Error Correction",
+  half: "Partial Error Correction",
+  none: "No Error Correction",
+};
+
 // Which mark a tile wears. The filters a preset writes all share one apodizing
 // class — checked across the whole table, 1x and Nx, PCM and SDM, `-2s` and
 // plain — so any one of them answers for the tile, and the PCM chain is asked
@@ -137,7 +149,7 @@ export function PresetTile({ grid, preset, lane, active, knobs }) {
       ${
         mark &&
         html`<span class="easy-apod" data-mark=${mark}>
-        <${Apod} kind=${mark} label=${easyProse("marks", mark)} />
+        <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
       </span>`
       }
     </div>
