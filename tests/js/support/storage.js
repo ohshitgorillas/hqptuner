@@ -39,6 +39,14 @@ export function dropStorage() {
   delete env.localStorage;
 }
 
+// Put a storage that was already handed out back in place — what a case that
+// swapped in the throwing storage for one act does afterwards, so the rest of
+// the file goes on reading the same map it was reading before.
+/** @param {unknown} storage */
+export function installStorage(storage) {
+  env.localStorage = storage;
+}
+
 // A storage that is PRESENT and refuses every operation — what a browser with
 // storage blocked by policy, or a full quota, hands over: the member exists and
 // throws on use. Distinct from having no localStorage at all, which `dropStorage`
