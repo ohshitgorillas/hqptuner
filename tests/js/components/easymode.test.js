@@ -210,6 +210,22 @@ const grids = (out) =>
     .map((el) => attr(el, "data-grid"));
 
 /**
+ * The switcher's own container, the card's only `easy-switcher`. The tiles'
+ * knobs are the same shared `Segment`, so a reading of "the options the
+ * switcher offers" that scanned the whole card would collect every knob
+ * position beside them; the two readers below are handed this fragment rather
+ * than the card.
+ *
+ * @param {string} out
+ * @returns {string}
+ */
+function switcher(out) {
+  const hits = elements(out).filter((el) => classes(el).includes("easy-switcher"));
+  if (hits.length !== 1) throw new Error(`expected one switcher container, found ${hits.length}`);
+  return hits[0].html;
+}
+
+/**
  * The switcher's options, by the wire value each carries in `data-v`.
  *
  * @param {string} out
@@ -389,7 +405,7 @@ for (const grid of ["album", "playlist"]) {
 
 test("test_the_switcher_offers_an_album_and_a_playlist_option", async () => {
   await resetTab({ easy: true });
-  assert.deepEqual(segValues(card()), ["album", "playlist"]);
+  assert.deepEqual(segValues(switcher(card())), ["album", "playlist"]);
 });
 
 // Exactly the current grid's option is marked, so a switcher that marked both,
@@ -398,7 +414,7 @@ test("test_the_switcher_offers_an_album_and_a_playlist_option", async () => {
 for (const grid of ["album", "playlist"]) {
   test(`test_the_switcher_marks_the_${grid}_option_active_while_that_grid_is_showing`, async () => {
     await resetTab({ easy: true, grid });
-    assert.deepEqual(activeSegs(card()), [grid]);
+    assert.deepEqual(activeSegs(switcher(card())), [grid]);
   });
 }
 
