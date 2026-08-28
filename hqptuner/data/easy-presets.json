@@ -24,7 +24,7 @@
   "playlist": {
     "perfect-ten": {
       "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design. Start here.",
+      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
@@ -56,7 +56,7 @@
   "album": {
     "perfect-ten": {
       "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design. Start here.",
+      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
       "knobs": {
         "source": {
           "label": "Source",
@@ -94,7 +94,7 @@
     },
     "purist": {
       "title": "The Purist",
-      "description": "Passes the original samples through unchanged. Only recommended for the highest technical quality source material.",
+      "description": "Passes the original samples through unchanged. Only for the highest technical quality source material.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
