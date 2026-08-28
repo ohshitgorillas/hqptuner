@@ -16,6 +16,7 @@ import { signal } from "@preact/signals";
 
 const K_MODE = "hqptuner.easyMode";
 const K_GRID = "hqptuner.easyGrid";
+const K_KNOBS = "hqptuner.easyKnobs";
 
 /**
  * @param {string} key
@@ -56,6 +57,78 @@ export const easyGrid = signal(read(K_GRID) === "playlist" ? "playlist" : "album
 export function setEasyMode(on) {
   easyMode.value = !!on;
   write(K_MODE, easyMode.value ? "1" : "0");
+}
+
+// Where each preset's knobs were left. A tile's knob positions are otherwise
+// readable only while that tile is the lit one, because they are derived from
+// the filter values every render — press a different tile and the one you left
+// matches nothing, so it has nothing to show and falls back to its defaults.
+// That loses a position the user set, which is what this remembers.
+//
+// Only DARK tiles read it. The lit tile still shows what the fields carry, so a
+// filter changed by hand in a chain card still wins over anything stored here.
+/**
+ * Parse the stored record, discarding anything that is not a map of maps of
+ * strings — a hand-edited or half-written entry leaves the store empty rather
+ * than seeding a tile with a position no knob has.
+ *
+ * @returns {Record<string, Record<string, string>>}
+ */
+function readKnobs() {
+  /** @type {Record<string, Record<string, string>>} */
+  const out = {};
+  let raw;
+  try {
+    raw = JSON.parse(read(K_KNOBS) || "");
+  } catch {
+    return out; // nothing stored, or not JSON — every tile starts at its defaults
+  }
+  if (raw === null || typeof raw !== "object") return out;
+  for (const [slot, positions] of Object.entries(raw)) {
+    if (positions === null || typeof positions !== "object") continue;
+    /** @type {Record<string, string>} */
+    const kept = {};
+    for (const [knob, at] of Object.entries(positions)) if (typeof at === "string") kept[knob] = at;
+    out[slot] = kept;
+  }
+  return out;
+}
+
+/**
+ * One preset's slot in the record. Keyed by grid AND preset, so the two grids'
+ * presets of the same name keep their own positions.
+ *
+ * @param {string} grid
+ * @param {string} presetId
+ * @returns {string}
+ */
+const slot = (grid, presetId) => `${grid}/${presetId}`;
+
+/** Where each preset's knobs were last set, by grid and preset id. */
+export const easyKnobs = signal(readKnobs());
+
+/**
+ * Remember where a preset's knobs were set, so its tile shows them again once it goes dark.
+ *
+ * @param {string} grid
+ * @param {string} presetId
+ * @param {Record<string, string>} knobs
+ * @returns {void}
+ */
+export function rememberKnobs(grid, presetId, knobs) {
+  easyKnobs.value = { ...easyKnobs.value, [slot(grid, presetId)]: { ...knobs } };
+  write(K_KNOBS, JSON.stringify(easyKnobs.value));
+}
+
+/**
+ * Where a preset's knobs were last set — empty when it has never been set.
+ *
+ * @param {string} grid
+ * @param {string} presetId
+ * @returns {Record<string, string>}
+ */
+export function knobsFor(grid, presetId) {
+  return easyKnobs.value[slot(grid, presetId)] || {};
 }
 
 // An unrecognized grid leaves the switcher where it is rather than falling back

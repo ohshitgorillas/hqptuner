@@ -4,17 +4,29 @@
   "playlist": {
     "perfect-ten": {
       "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached. Start here."
+      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design. Start here.",
+      "knobs": {
+        "emphasis": {
+          "label": "Emphasis",
+          "options": { "space": "Space", "transients": "Transients" }
+        }
+      }
     },
     "lifelike": {
       "title": "Lifelike",
-      "description": "Puts the focus on natural, realistic timbre."
+      "description": "Puts the focus on natural, realistic timbre.",
+      "knobs": {
+        "emphasis": {
+          "label": "Emphasis",
+          "options": { "space": "Space", "transients": "Transients" }
+        }
+      }
     }
   },
   "album": {
     "perfect-ten": {
       "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached. Other presets are trade-offs. Start here. Switch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
+      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design. Start here.\n\nSwitch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
       "knobs": {
         "source": {
           "label": "Source",
@@ -28,7 +40,7 @@
     },
     "lifelike": {
       "title": "Lifelike",
-      "description": "Puts the focus on natural, realistic timbre. Switch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
+      "description": "Puts the focus on natural, realistic timbre.\n\nSwitch to Hi-Res for source material 88.2 kHz and above, or lossy material like MQAs and MP3s.",
       "knobs": {
         "source": {
           "label": "Source",
@@ -42,7 +54,7 @@
     },
     "old-school": {
       "title": "Old School",
-      "description": "Excellent with classic-era analog recordings. Less aggressive error correction; if it sounds harsh, try another setting.",
+      "description": "Excellent with classic-era analog recordings.\n\nLess aggressive error correction; if it sounds harsh, try another setting.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
@@ -52,7 +64,7 @@
     },
     "purist": {
       "title": "The Purist",
-      "description": "Passes the original samples through unchanged. Consumes more resources. No error correction: only recommended for the highest technical quality source material.",
+      "description": "Passes the original samples through unchanged.\n\nConsumes more resources. No error correction: only recommended for the highest technical quality source material.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
@@ -72,7 +84,7 @@
     },
     "concert-hall": {
       "title": "The Concert Hall",
-      "description": "Emphasizes the recording's space at the cost of transient performance more than other presets. For material like live classical with minimal transient content. Consumes heavy resources. Turning error correction off reduces resource consumption.",
+      "description": "Emphasizes the recording's space at the cost of transient performance more than other presets. For material like live classical with minimal transient content.\n\nConsumes heavy resources. Turning error correction off reduces resource consumption.",
       "knobs": {
         "version": {
           "label": "Version",

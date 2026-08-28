@@ -17,11 +17,11 @@
 
 /* The tile grid. The column count is not written down: tiles are laid at a
    minimum width and the row fills with however many fit, which is what keeps
-   Album (eight cells) and Playlist (three) on one rule instead of two. The
-   minimum is the width of the widest control a tile holds — a three-position
-   segment, which the design system fixes at one size — so at the container cap
-   that is three across, and under the 1100px breakpoint the minimum outgrows
-   the track and the grid falls to one column on its own. */
+   Album (six cells) and Playlist (two) on one rule instead of two. The minimum
+   is the width of the widest control a tile holds — a segment, whose size the
+   design system fixes — so at the container cap that is three across, and under
+   the 1100px breakpoint the minimum outgrows the track and the grid falls to
+   one column on its own. */
 .easy-grid {
   display: grid;
   gap: var(--rhythm-field);
@@ -32,7 +32,7 @@
   grid-auto-rows: 1fr;
 }
 
-/* A tile is a box on the card, not a card: eight of these sit inside one card,
+/* A tile is a box on the card, not a card: six of these sit inside one card,
    and card markup belongs to the one card component (docs/design-system.md).
    Raised, because it sits ON the card surface; its edge light is spent with
    every other raised element's, in aesthetic.css. */
@@ -62,7 +62,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-1);
+  /* A line's worth between the name and the prose under it. The emoji and the
+     title sit closer than that, which is why they are a group of their own:
+     one flex parent gives one gap, so two spacings need two parents. */
+  gap: var(--sp-4);
   width: 100%;
   padding: 0;
   /* Takes the row's slack, so the knobs under it sit on the tile's bottom edge
@@ -79,6 +82,17 @@
   cursor: pointer;
 }
 
+/* The emoji and the title, as one thing: the preset's name. Grouped so the
+   space under the title can be a line while the space under the emoji stays
+   tight. */
+.easy-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+}
+
 /* The emoji is a mark rather than text, so it takes a size and nothing else —
    no text role, no gray. Readout is the one large step on the ladder. */
 .easy-emoji {
@@ -86,12 +100,24 @@
 }
 
 /* Title and description are centered under the mark; their size and color come
-   from the role classes the markup carries (t-head, t-caption). The caption
-   measure is wider than a tile, so the cap that matters here is the column. */
+   from the role classes the markup carries (t-head, t-label). The description
+   is a tile's content rather than a gloss on it, so it takes the label role's
+   size and secondary gray rather than the caption's smaller, dimmer pair; the
+   line-height a run of prose needs comes from here, since that role serves
+   single-line names and carries none. */
 .easy-title,
 .easy-desc {
   max-width: 100%;
   text-align: center;
+}
+/* A description is one block per paragraph in its copy, stacked. The blocks are
+   plain spans rather than a class of their own: they carry no styling beyond
+   the space between them, and that space is this parent's gap. */
+.easy-desc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  line-height: 1.35;
 }
 
 /* One adjustment, its name over its segment. The segment is the app's one
@@ -104,6 +130,10 @@
   align-items: center;
   gap: var(--sp-1);
   width: 100%;
+  /* Inset from the tile's own padding, so the segment stops short of the box's
+     edge instead of running the full width of it. Horizontal, so it is padding's
+     to spend; the equal split below divides whatever is left. */
+  padding: 0 var(--sp-3);
 }
 
 /* Both positions the same width, so a knob reads as one control split in two

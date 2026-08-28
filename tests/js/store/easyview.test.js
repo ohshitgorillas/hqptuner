@@ -2,7 +2,9 @@
 // says whether the Easy Mode card is showing (`easyMode` / `setEasyMode`) and
 // which of its two grids is on screen (`easyGrid` / `setEasyGrid`). Both are
 // remembered for the next visit, under `hqptuner.easyMode` and
-// `hqptuner.easyGrid`.
+// `hqptuner.easyGrid`. So is a third thing, at the foot of this file: the knob
+// positions each grid's tiles were last written at (`rememberKnobs` /
+// `knobsFor`).
 //
 // The environment is the seam (tests/js/store/liveorder.test.js settled the
 // pattern): a working fake localStorage is installed at file scope and only then
@@ -63,7 +65,11 @@ const MODE_AT_LOAD = view.easyMode.value;
  * load gets, reading whatever this session left in storage.
  *
  * @param {string} tag
- * @returns {Promise<{ easyMode: { value: boolean }, easyGrid: { value: string } }>}
+ * @returns {Promise<{
+ *   easyMode: { value: boolean },
+ *   easyGrid: { value: string },
+ *   knobsFor: (grid: string, presetId: string) => Record<string, string>,
+ * }>}
  */
 const reload = (tag) => import(`${MODULE.replace(/\.js$/, `.fresh-${tag}.js`)}`);
 
@@ -217,4 +223,70 @@ test("test_a_storage_that_refuses_reads_comes_up_with_easy_mode_off", async () =
     installStorage(storage);
   }
   assert.equal(on, false);
+});
+
+// --- the knob positions a grid's tiles were last written at ---------------------------
+//
+// The third thing this store keeps: for each grid and each preset, the knob
+// positions that preset was last written at, recorded by `rememberKnobs` and read
+// back by `knobsFor`. What USES the record is the tile — a tile that is not lit
+// shows what was recorded for it instead of its knobs' defaults — and that half is
+// tests/js/components/easytiles-knobs.test.js's. These cases are about the record
+// itself: what a preset nothing was written for reads back as, that a grid and a
+// preset each key it separately, and that it is still there next visit.
+//
+// The stored ENCODING is not pinned, for the same reason the grid's is not: how a
+// grid and a preset are spelt into one key, and where the record lives inside
+// storage, is the writer's business. Every case reads through `knobsFor`, and the
+// reload case reads through a second instance of the module the same way the two
+// above it do. The STORAGE KEY NAME is not pinned either, unlike the two above —
+// the spec this file was written from does not name one, so there is nothing to
+// pin, and a name invented here would be a guess asserted as contract.
+//
+// Preset ids are wire identifiers and are named outright. `concert-hall` and
+// `purist` are the two nothing here ever records for, which is what makes them the
+// ones the "nothing recorded" cases ask about.
+
+const RECORDED = { source: "hires", emphasis: "transients" };
+
+test("test_a_preset_nothing_was_ever_recorded_for_reads_back_as_no_positions", () => {
+  assert.deepEqual(view.knobsFor("album", "concert-hall"), {});
+});
+
+test("test_the_positions_recorded_for_a_preset_are_the_positions_it_reads_back_at", () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  assert.deepEqual(view.knobsFor("album", "lifelike"), RECORDED);
+});
+
+// Recording again is a fresh answer, not an addition to the last one: the tile
+// shows where it was written LAST, so a store that merged the two would show a
+// knob at a position no single write ever put it in.
+test("test_recording_a_preset_again_replaces_the_positions_it_reads_back_at", () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  view.rememberKnobs("album", "lifelike", { source: "standard", emphasis: "space" });
+  assert.deepEqual(view.knobsFor("album", "lifelike"), { source: "standard", emphasis: "space" });
+});
+
+// The two grids share preset ids — both lay out a `lifelike` tile — so a record
+// keyed by preset alone would hand one grid's positions to the other's tile.
+test("test_positions_recorded_on_one_grid_are_not_recorded_on_the_other", () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  assert.deepEqual(view.knobsFor("playlist", "lifelike"), {});
+});
+
+test("test_positions_recorded_for_one_preset_are_not_recorded_for_another", () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  assert.deepEqual(view.knobsFor("album", "purist"), {});
+});
+
+// The round trip, read the way the grid and the flag above are read: a SECOND
+// instance of the module, loaded against the storage this session left behind.
+test("test_the_positions_a_session_recorded_are_the_positions_a_reload_reads_back", async () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  assert.deepEqual((await reload("knobs")).knobsFor("album", "lifelike"), RECORDED);
+});
+
+test("test_a_reload_reads_back_no_positions_for_a_preset_the_session_never_recorded", async () => {
+  view.rememberKnobs("album", "lifelike", RECORDED);
+  assert.deepEqual((await reload("knobsother")).knobsFor("playlist", "purist"), {});
 });

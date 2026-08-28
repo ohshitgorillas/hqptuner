@@ -22,10 +22,13 @@
 //     module that appended `-2s` to every SDM value would pass every other
 //     case in this file.
 //
-// Deliberately NOT asserted: the preset table itself. It is private to the
-// module and not part of the public surface, so nothing about it — membership,
-// ordering, emoji, shape — is asserted anywhere in this file. What a preset
-// MEANS is pinned through `writeSet` and `matchPreset`, the observable half.
+// Deliberately NOT asserted: the preset table itself. Which presets a grid has
+// and which positions their knobs define is `presetsFor`'s to say, and the one
+// section that walks the whole table asks it rather than restating it — through
+// tests/js/support/easytable.js, a pure sweep over `presetsFor` and `writeSet`
+// with no fake and no rendering in it. Nothing here asserts that table's
+// membership, ordering, emoji or shape. What a preset MEANS is pinned through
+// `writeSet` and `matchPreset`, the observable half.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy.test.js
 
@@ -33,6 +36,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { writeSet, matchPreset } from "../../../hqptuner/static/store/easy.js";
+import { namesWritten } from "../support/easytable.js";
+
+/** The filter names the revision took out of the album table. */
+const RETIRED = ["poly-sinc-gauss-short", "poly-sinc-ext2-short"];
 
 const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
@@ -124,6 +131,46 @@ for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
 for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
   test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_sdm_keys`, () => {
     assert.deepEqual(writeSet("playlist", presetId, "sdm"), { [SDM_1X]: oneX, [SDM_NX]: nX });
+  });
+}
+
+// --- the playlist grid's emphasis knob --------------------------------------------------
+//
+// Both playlist presets carry an `emphasis` knob, and the position it stands at
+// picks WHICH distinct pair the two keys get — not one filter, the way an album
+// preset's knobs do. The owner's table, stated outright: filter names are wire
+// identifiers, and deriving them from anything would only ask the table to agree
+// with itself.
+//
+// The `space` rows are the positions the presets sit at untouched, which the
+// no-knob section above reads as the default; stating them again here is what
+// makes "the DEFAULT pair" and "the pair the `space` POSITION names" one claim
+// rather than two that happen to coincide.
+
+/** @type {[string, string, string, string][]} */
+const PLAYLIST_EMPHASIS = [
+  ["perfect-ten", "space", "poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"],
+  ["perfect-ten", "transients", "poly-sinc-gauss-medium", "poly-sinc-gauss-hires-mp"],
+  ["lifelike", "space", "poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp"],
+  ["lifelike", "transients", "poly-sinc-ext2-medium", "poly-sinc-ext2-hires-mp"],
+];
+
+for (const [presetId, emphasis, oneX, nX] of PLAYLIST_EMPHASIS) {
+  test(`test_the_playlist_preset_${presetId}_with_emphasis_on_${emphasis}_writes_${oneX}_and_${nX}`, () => {
+    assert.deepEqual(writeSet("playlist", presetId, "pcm", { emphasis }), { [PCM_1X]: oneX, [PCM_NX]: nX });
+  });
+}
+
+// The knob's other position on the SDM keys too, so the distinct pair is pinned
+// on that chain in its own right: neither playlist preset defines a `-2s`
+// variant, so the names are the plain ones.
+
+for (const [presetId, , oneX, nX] of PLAYLIST_EMPHASIS.filter(([, emphasis]) => emphasis === "transients")) {
+  test(`test_the_playlist_preset_${presetId}_on_transients_writes_its_pair_to_the_two_sdm_keys`, () => {
+    assert.deepEqual(writeSet("playlist", presetId, "sdm", { emphasis: "transients" }), {
+      [SDM_1X]: oneX,
+      [SDM_NX]: nX,
+    });
   });
 }
 
@@ -283,9 +330,11 @@ for (const [presetId, label, knobs, name] of FALLBACK_CASES) {
 // produced — the two are one contract read in both directions, and a table of
 // hand-written values here would only re-state the sections above.
 //
-// Every album case passes EVERY knob the preset defines explicitly, so the
-// expected knob map is unambiguous. Playlist presets define no knobs, and a
-// preset that defines no knobs matches with an empty knob map (behavior 9).
+// Every case passes EVERY knob its preset defines explicitly, so the expected
+// knob map is unambiguous. That now includes the playlist presets, which carry
+// an `emphasis` knob apiece: a match against a playlist pair names the position
+// that pair belongs to, which is what puts a playlist tile's knob where the
+// fields say it stands.
 
 /** @type {[string, ("album" | "playlist"), string, ("pcm" | "sdm" | "auto"), Record<string, string>][]} */
 const MATCH_CASES = [
@@ -295,8 +344,15 @@ const MATCH_CASES = [
   ["album_damage_control_on_auto", "album", "damage-control", "auto", { emphasis: "space" }],
   ["album_purist_on_sdm", "album", "purist", "sdm", { emphasis: "transients" }],
   ["album_concert_hall_on_auto", "album", "concert-hall", "auto", { version: "lifelike", correction: "off" }],
-  ["playlist_perfect_ten_on_pcm", "playlist", "perfect-ten", "pcm", {}],
-  ["playlist_lifelike_on_auto", "playlist", "lifelike", "auto", {}],
+  ["playlist_perfect_ten_on_pcm_with_emphasis_on_space", "playlist", "perfect-ten", "pcm", { emphasis: "space" }],
+  [
+    "playlist_perfect_ten_on_pcm_with_emphasis_on_transients",
+    "playlist",
+    "perfect-ten",
+    "pcm",
+    { emphasis: "transients" },
+  ],
+  ["playlist_lifelike_on_auto", "playlist", "lifelike", "auto", { emphasis: "transients" }],
 ];
 
 for (const [label, grid, presetId, mode, knobs] of MATCH_CASES) {
@@ -309,16 +365,40 @@ test("test_matchpreset_returns_null_for_values_no_preset_writes", () => {
   assert.equal(matchPreset({ [PCM_1X]: "sinc-M", [PCM_NX]: "sinc-M" }, "pcm"), null);
 });
 
-// The two filters the revision retired from the album table, read through
-// `matchPreset` rather than by walking the table: a name no preset writes is a
-// name nothing matches, so a preset still able to reach either one would answer
-// with itself here.
+// The two filters the revision retired from the album table, read twice over.
+//
+// First backwards, through `matchPreset`: a name no preset writes is a name
+// nothing matches, so a preset still able to reach either one answers with
+// itself here.
 
-for (const name of ["poly-sinc-gauss-short", "poly-sinc-ext2-short"]) {
+for (const name of RETIRED) {
   test(`test_matchpreset_names_no_preset_for_the_retired_${name}_filter`, () => {
     assert.equal(matchPreset(pcmBoth(name), "pcm"), null);
   });
 }
+
+// Then forwards, over the album table swept whole — every preset at every
+// combination of the positions its knobs define, which is the reading that
+// covers a filter reachable only from some corner of the cross. Filter names
+// are wire identifiers, so this is a fact about the table and not about any
+// word a tile shows.
+//
+// The vocabulary the sweep produces is pinned non-empty in its own right,
+// immediately below. Without that, a table that produced no names at all would
+// satisfy the case above by filtering an empty list to an empty list.
+
+const swept = () => namesWritten("album");
+
+test("test_no_album_preset_writes_a_retired_short_filter_at_any_knob_combination", () => {
+  assert.deepEqual(
+    swept().filter((name) => RETIRED.includes(name)),
+    [],
+  );
+});
+
+test("test_the_album_table_writes_a_vocabulary_of_filter_names_to_sweep", () => {
+  assert.notEqual(swept().length, 0);
+});
 
 test("test_matchpreset_returns_null_when_the_two_ends_of_one_chain_belong_to_different_presets", () => {
   assert.equal(matchPreset({ [PCM_1X]: "poly-sinc-gauss-long", [PCM_NX]: "poly-sinc-ext2-long" }, "pcm"), null);

@@ -34,12 +34,13 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { EasyCard } from "../../../hqptuner/static/components/easy/EasyCard.js";
 import { writeSet, presetsFor } from "../../../hqptuner/static/store/easy.js";
-import { easyMode, easyGrid } from "../../../hqptuner/static/store/easyview.js";
+import { easyMode, easyGrid, easyKnobs } from "../../../hqptuner/static/store/easyview.js";
 import * as signals from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../hqptuner/static/store/narrow/state.js";
+import { everyWrite } from "./easytable.js";
 import { stagingWire, quiesce, ok } from "./wire.js";
 import { elements, classes, attr, enclosing } from "./markup.js";
 import { formFields } from "./tabform.js";
@@ -47,8 +48,7 @@ import { formFields } from "./tabform.js";
 /** @typedef {import("./wheel.js").VNode} VNode */
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
-/** @typedef {{ id: string, default: string, options: string[] }} Knob */
-/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
+/** @typedef {{ id: string, emoji: string, knobs: { id: string }[] }} Preset */
 
 // --- the four filter fields -------------------------------------------------------
 //
@@ -75,52 +75,10 @@ export const SDM_FIELDS = [FIELD[SDM_1X], FIELD[SDM_NX]].sort();
 export const ALL_FIELDS = [...PCM_FIELDS, ...SDM_FIELDS].sort();
 
 // --- the filter names the curated table can write ------------------------------------
-
-/** @type {("album" | "playlist")[]} */
-const GRIDS = ["album", "playlist"];
-
-/**
- * Every combination of knob positions a preset defines, defaults included.
- *
- * @param {Knob[]} knobs
- * @returns {Record<string, string>[]}
- */
-const combos = (knobs) =>
-  knobs.reduce(
-    (/** @type {Record<string, string>[]} */ acc, knob) =>
-      acc.flatMap((one) => knob.options.map((option) => ({ ...one, [knob.id]: option }))),
-    [{}],
-  );
-
-/**
- * Every write set one grid's table can produce, every knob position included.
- *
- * @param {string} grid
- * @returns {Record<string, string>[]}
- */
-const writesFor = (grid) =>
-  presetsFor(grid).flatMap((/** @type {Preset} */ preset) =>
-    combos(preset.knobs).map((knobs) => writeSet(grid, preset.id, "auto", knobs)),
-  );
-
-/** Every write set the table can produce: both grids, every knob position. */
-const everyWrite = () => GRIDS.flatMap(writesFor);
-
-/**
- * Every distinct filter name one grid's presets can write, across all four
- * schema keys and every knob combination — the whole vocabulary that grid can
- * put in front of the daemon.
- *
- * @param {string} grid
- * @returns {string[]}
- */
-export const namesWritten = (grid) => [
-  ...new Set(
-    writesFor(grid)
-      .flatMap((set) => Object.values(set))
-      .filter(Boolean),
-  ),
-];
+//
+// The sweep of the table itself is tests/js/support/easytable.js, shared with
+// the pure store suite; what this module does with it is build a daemon form
+// and an engine enumeration offering exactly the filters that sweep names.
 
 /**
  * The distinct filter names the table writes to a set of schema keys.
@@ -282,16 +240,43 @@ export const seedPcm = (name) => ({ [PCM_1X]: name, [PCM_NX]: name });
 export const stagedPcm = (name) => ({ [FIELD[PCM_1X]]: name, [FIELD[PCM_NX]]: name });
 
 /**
- * The two PCM filter names an album preset leaves the engine running, for
- * seeding the LIVE lane's State.
+ * A distinct pair keyed by the daemon's own FORM-FIELD names — what
+ * `stagedNames` reads back after a press that wrote one name to the 1x end of
+ * the PCM chain and another to its Nx end.
+ *
+ * @param {string} oneX
+ * @param {string} nX
+ * @returns {Record<string, string>}
+ */
+export const stagedPcmPair = (oneX, nX) => ({ [FIELD[PCM_1X]]: oneX, [FIELD[PCM_NX]]: nX });
+
+/**
+ * The two PCM filter names a preset leaves the engine running, for seeding the
+ * LIVE lane's State. The grid and the knob positions default to the album grid
+ * at its defaults, which is what every case that predates the playlist knob
+ * asks for.
  *
  * @param {string} presetId
+ * @param {Record<string, string>} [knobs]
+ * @param {"album" | "playlist"} [grid]
  * @returns {{ oneX: string, nX: string }}
  */
-export function running(presetId) {
-  const set = writeSet("album", presetId, "pcm");
+export function running(presetId, knobs = {}, grid = "album") {
+  const set = writeSet(grid, presetId, "pcm", knobs);
   return { oneX: set[PCM_1X], nX: set[PCM_NX] };
 }
+
+/**
+ * A DISTINCT pair on the two ends of the PCM chain, keyed by SCHEMA key — what a
+ * playlist preset's write set looks like, stated by name rather than derived,
+ * for seeding `resetTab` from the owner's table instead of from the module's.
+ * `seedPcm` cannot express it: the two ends carry different names.
+ *
+ * @param {string} oneX
+ * @param {string} nX
+ * @returns {Record<string, string>}
+ */
+export const seedPcmPair = (oneX, nX) => ({ [PCM_1X]: oneX, [PCM_NX]: nX });
 
 /**
  * The write set a preset stands for, keyed by the daemon's form-field names.
@@ -307,24 +292,35 @@ export const expectedNames = (grid, presetId, mode, knobs = {}) =>
   Object.fromEntries(Object.entries(writeSet(grid, presetId, mode, knobs)).map(([key, name]) => [FIELD[key], name]));
 
 /**
- * What the LIVE lane must post for an album preset in PCM mode: the two PCM
- * live fields, each valued by the engine's enum id for the preset's filter.
+ * What the LIVE lane must post for a preset in PCM mode: the two PCM live
+ * fields, each valued by the engine's enum id for the preset's filter. Grid and
+ * knob positions default to the album grid at its defaults.
  *
  * @param {string} presetId
+ * @param {Record<string, string>} [knobs]
+ * @param {"album" | "playlist"} [grid]
  * @returns {Record<string, string>}
  */
-export function liveExpected(presetId) {
-  const set = writeSet("album", presetId, "pcm");
+export function liveExpected(presetId, knobs = {}, grid = "album") {
+  const set = writeSet(grid, presetId, "pcm", knobs);
   return { [FIELD[PCM_1X]]: idOf(set[PCM_1X]), [FIELD[PCM_NX]]: idOf(set[PCM_NX]) };
 }
 
 /**
- * The album grid with one tile lit, or none when handed null.
+ * One grid with one tile lit, or none when handed null. The roster comes from
+ * `presetsFor`, the public enumeration of which tiles a grid has.
  *
  * @param {string | null} presetId
+ * @param {string} [grid]
  * @returns {Record<string, string>}
  */
-export const oneLit = (presetId) => Object.fromEntries(ALBUM_IDS.map((id) => [id, id === presetId ? "1" : "0"]));
+export const oneLit = (presetId, grid = "album") =>
+  Object.fromEntries(
+    (grid === "album" ? ALBUM_IDS : presetsFor(grid).map((/** @type {Preset} */ p) => String(p.id))).map((id) => [
+      id,
+      id === presetId ? "1" : "0",
+    ]),
+  );
 
 export const EMPTY = { live: {}, http: {} };
 
@@ -368,12 +364,32 @@ export async function flush(w) {
 // Module-level signals outlive a test, so every signal either lane reads is put
 // back on every reset, not only the ones a case cares about.
 
-/** @param {string} grid */
-function common(grid) {
-  signals.metadata.value = { ...META };
+/**
+ * `easyKnobs` — the knob positions each tile was last written at — is a
+ * module-level signal like the rest, and a press made by one case is still
+ * recorded when the next one renders, so it is put back here with them. A case
+ * that wants a record to SURVIVE a reset asks for `keepKnobs`, which is how the
+ * two lanes are shown sharing one record: the reset is what switching lanes
+ * looks like from the harness, and the record is meant to cross it.
+ *
+ * `copy` is the owner copy /api/metadata carries for the tiles of one grid,
+ * keyed by preset id (`easy.<grid>.<presetId>`, the shape
+ * tests/api/test_metadata_easy.py pins). Every case that does not name it gets
+ * the bare notice the fixture has always carried, so a tile shows no prose at
+ * all; a case reading what a description RENDERS seeds its own stand-in text
+ * here and never meets what ships.
+ *
+ * @param {string} grid
+ * @param {boolean} keepKnobs
+ * @param {boolean} notes
+ * @param {Record<string, object>} copy
+ */
+function common(grid, keepKnobs, notes, copy) {
+  if (!keepKnobs) easyKnobs.value = {};
+  signals.metadata.value = { ...META, easy: { ...META.easy, [grid]: { ...copy } } };
   signals.matrixConfig.value = { fields: [] };
   signals.health.value = { reachable: true, info: {} };
-  showDescriptions.value = false;
+  showDescriptions.value = notes;
   keepOptionDescriptions.value = true;
   liveErrors.value = {};
   liveBusy.value = "";
@@ -386,12 +402,26 @@ function common(grid) {
  * The tabs lane: the daemon's form in one output mode, its four filter fields
  * parked on the names a case names and on "none" otherwise.
  *
- * @param {{ grid?: string, mode?: string, names?: Record<string, string> }} [seams]
+ * @param {{
+ *   grid?: string,
+ *   mode?: string,
+ *   names?: Record<string, string>,
+ *   keepKnobs?: boolean,
+ *   notes?: boolean,
+ *   copy?: Record<string, object>,
+ * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetTab({ grid = "album", mode = "pcm", names = {} } = {}) {
+export async function resetTab({
+  grid = "album",
+  mode = "pcm",
+  names = {},
+  keepKnobs = false,
+  notes = false,
+  copy = {},
+} = {}) {
   const w = stagingWire({ routes });
-  common(grid);
+  common(grid, keepKnobs, notes, copy);
   liveMode.value = false;
   signals.engineState.value = {};
   signals.enums.value = null;
@@ -420,12 +450,31 @@ export async function resetTab({ grid = "album", mode = "pcm", names = {} } = {}
  * chain's card is built out of that form, so a LIVE page whose /api/config has
  * not loaded has no dropdowns to show and does not render.
  *
- * @param {{ grid?: string, mode?: string, output?: string, chain?: string, oneX?: string, nX?: string }} [seams]
+ * @param {{
+ *   grid?: string,
+ *   mode?: string,
+ *   output?: string,
+ *   chain?: string,
+ *   oneX?: string,
+ *   nX?: string,
+ *   keepKnobs?: boolean,
+ * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetLive({ grid = "album", mode = "PCM", output = "pcm", chain = "pcm", oneX, nX } = {}) {
+export async function resetLive({
+  grid = "album",
+  mode = "PCM",
+  output = "pcm",
+  chain = "pcm",
+  oneX,
+  nX,
+  keepKnobs = false,
+} = {}) {
   const w = stagingWire({ routes });
-  common(grid);
+  // No copy and no descriptions preference: the LIVE lane's cases are about the
+  // wire, and what a description RENDERS is read on the tabs lane
+  // (tests/js/components/easytiles-desc.test.js).
+  common(grid, keepKnobs, false, {});
   signals.enums.value = ENUMS(mode);
   signals.engineState.value = {
     mode: "1",
@@ -510,22 +559,6 @@ export const cells = (out) => gridCells(out).length;
 export const presetIds = (out) => gridCells(out).map((el) => attr(el, "data-preset"));
 
 /**
- * The knob ids one tile renders, deduplicated, in the order it renders them.
- * Order preserved rather than sorted: which knob comes first is contract, the
- * same way the preset roster's order is — one knob picks which pair of filters
- * is in play and the next picks between them, so a tile showing them the other
- * way round reads backwards.
- *
- * @param {string} out
- * @param {string} presetId
- * @returns {string[]}
- */
-export const knobIds = (out, presetId) =>
-  [...new Set(elements(tile(out, presetId).html).map((el) => attr(el, "data-knob")))]
-    .filter((id) => id !== undefined)
-    .map(String);
-
-/**
  * Every tile the grid laid out, against the `data-active` it carries. The whole
  * map rather than the marked ids alone, so the "0" half of the contract is
  * pinned too: a card that marked every tile, marked none, or left one carrying
@@ -554,6 +587,37 @@ export function knobPositions(out, presetId, knobId) {
     .filter((el) => el.name === "button" && classes(el).includes("seg") && classes(el).includes("active"))
     .map((el) => attr(el, "data-v"));
 }
+
+/**
+ * One tile's own rendered markup — what a reading of that tile is scoped to.
+ * The description readers in tests/js/support/easydesc.js are handed this
+ * rather than the card.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {string}
+ */
+export const tileHtml = (out, presetId) => tile(out, presetId).html;
+
+/**
+ * How many buttons each tile of a grid offers a pointer, tile by tile: every
+ * `button` it renders that is not one of a knob's options. One apiece is what
+ * `pressTile` rests on — a tile offering two has no single thing "pressing the
+ * tile" could mean, and a tile offering none cannot be set at all.
+ *
+ * Read off the rendered markup rather than off the handlers the vnodes carry,
+ * so that what it counts is what a pointer meets.
+ *
+ * @param {string} out
+ * @returns {Record<string, number>}
+ */
+export const pressables = (out) =>
+  Object.fromEntries(
+    tileIds(out).map((id) => [
+      id,
+      elements(tile(out, id).html).filter((el) => el.name === "button" && !classes(el).includes("seg")).length,
+    ]),
+  );
 
 /**
  * What the tabs lane staged, read back as filter NAMES: the buffer holds enum
@@ -678,6 +742,14 @@ export function pressTile(seen, presetId) {
  * is cut by the boxes on either side. A tile carrying none of its own knob
  * options leaves an empty window and the callers below throw.
  *
+ * ONE WEAK EDGE, worth knowing before you move a knobbed preset to the end of a
+ * grid: the window closes on the NEXT tile's box, so the last tile of a grid
+ * has nothing closing it and its window runs to the end of the render stream —
+ * everything the card built after the grid falls inside it. Its ambiguity guard
+ * is therefore the loosest of the six, and a `data-v` that the card happens to
+ * render below the grid would be reachable from it. Nothing presses the last
+ * tile's knob today; a case that did would want a real closing bound here.
+ *
  * @param {VNode[]} seen
  * @param {string} presetId
  * @returns {VNode[]}
@@ -712,16 +784,3 @@ export function pressKnob(seen, presetId, optionId) {
   }
   fire(hits[0]);
 }
-
-/**
- * The presets whose tile BOX carries a click handler of its own — which is what
- * `pressTile` assumes there are none of, and what a browser cannot render once
- * the box holds buttons.
- *
- * @param {VNode[]} seen
- * @returns {string[]}
- */
-export const clickableBoxes = (seen) =>
-  seen
-    .filter((v) => v && v.props && v.props[PRESET] !== undefined && typeof v.props.onClick === "function")
-    .map((v) => String(v.props[PRESET]));

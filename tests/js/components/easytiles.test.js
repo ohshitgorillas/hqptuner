@@ -75,17 +75,17 @@ const {
   seenLive,
   cells,
   presetIds,
-  knobIds,
-  namesWritten,
   seedPcm,
+  seedPcmPair,
   stagedPcm,
+  stagedPcmPair,
   activeMap,
   knobPositions,
   stagedNames,
   postedFields,
   pressTile,
   pressKnob,
-  clickableBoxes,
+  pressables,
 } = await import("../support/easytiles.js");
 
 // ============================================================================
@@ -107,16 +107,11 @@ test("test_the_album_grid_lays_out_six_cells", async () => {
 // `presetsFor`, so they agree with whatever it says. A cell standing for no
 // preset reads as `undefined` and fails here in place.
 
+const ALBUM_ROSTER = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"];
+
 test("test_the_album_grids_six_cells_are_the_curated_presets_in_order", async () => {
   await resetTab({ grid: "album" });
-  assert.deepEqual(presetIds(tabs()), [
-    "perfect-ten",
-    "lifelike",
-    "concert-hall",
-    "purist",
-    "old-school",
-    "damage-control",
-  ]);
+  assert.deepEqual(presetIds(tabs()), ALBUM_ROSTER);
 });
 
 test("test_the_playlist_grid_lays_out_two_cells", async () => {
@@ -248,18 +243,10 @@ for (const presetId of ["old-school", "damage-control"]) {
 // ============================================================================
 // the knobs
 // ============================================================================
-
-// The two knobs the combined presets carry, in the order the tile lays them
-// out. A knob id is a wire identifier, and so is the order here: `source` picks
-// which pair of filters is in play and `emphasis` picks between them, so a tile
-// showing them the other way round reads backwards.
-
-for (const presetId of ["perfect-ten", "lifelike"]) {
-  test(`test_the_${presetId}_tile_carries_a_source_knob_and_then_an_emphasis_knob`, async () => {
-    await resetTab({ grid: "album", mode: "pcm" });
-    assert.deepEqual(knobIds(tabs(), presetId), ["source", "emphasis"]);
-  });
-}
+//
+// What a tile's knob writes when it is moved, and which position it shows.
+// `knobPositions` throws when the knob it is asked for is absent, so each of
+// these also reads as "the tile carries that knob".
 
 test("test_moving_a_tiles_knob_writes_that_preset_at_the_new_position", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
@@ -368,19 +355,135 @@ for (const [presetId, name] of FAMILIES) {
   });
 }
 
-// The filters that left Easy Mode with the revision. Not "no tile says the word
-// short" — a filter name is a wire identifier, and this asks the whole album
-// table, every preset at every knob combination, whether either name is still
-// reachable.
+// ============================================================================
+// the playlist tiles' emphasis knob
+// ============================================================================
+//
+// Both playlist tiles carry one knob, `emphasis`, standing at `space` until it
+// is moved. What its position picks is the PAIR the tile writes — a name for the
+// 1x field and a different one for the Nx field — so every case below reads the
+// two fields as a pair and a lane that wrote one name to both fails on the
+// field that should have differed.
+//
+// The owner's playlist table, stated outright the way the album families above
+// are: these names ARE the behavior under revision, and reading them back out of
+// `writeSet` would only ask the table to agree with itself. `knobPositions`
+// throws when the knob it is asked for is absent, so each position case also
+// reads as "the playlist tile carries an emphasis knob at all".
 
-const RETIRED = ["poly-sinc-gauss-short", "poly-sinc-ext2-short"];
+/** @type {[string, Record<string, string>][]} */
+const PLAYLIST_FAMILIES = [
+  [
+    "perfect-ten",
+    {
+      spaceOneX: "poly-sinc-gauss-long",
+      spaceNx: "poly-sinc-gauss-hires-lp",
+      transientsOneX: "poly-sinc-gauss-medium",
+      transientsNx: "poly-sinc-gauss-hires-mp",
+    },
+  ],
+  [
+    "lifelike",
+    {
+      spaceOneX: "poly-sinc-ext2-long",
+      spaceNx: "poly-sinc-ext2-hires-lp",
+      transientsOneX: "poly-sinc-ext2-medium",
+      transientsNx: "poly-sinc-ext2-hires-mp",
+    },
+  ],
+];
 
-test("test_no_album_preset_writes_a_retired_short_filter_at_any_knob_combination", () => {
+for (const [presetId, name] of PLAYLIST_FAMILIES) {
+  test(`test_an_untouched_playlist_${presetId}_tile_shows_its_emphasis_knob_on_space`, async () => {
+    await resetTab({ grid: "playlist", mode: "pcm" });
+    assert.deepEqual(knobPositions(tabs(), presetId, "emphasis"), ["space"]);
+  });
+
+  test(`test_an_untouched_playlist_${presetId}_tile_writes_its_space_pair`, async () => {
+    const w = await resetTab({ grid: "playlist", mode: "pcm" });
+    pressTile(seenTabs(), presetId);
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcmPair(name.spaceOneX, name.spaceNx));
+  });
+
+  test(`test_moving_the_playlist_${presetId}_tile_to_transients_writes_its_transients_pair`, async () => {
+    const w = await resetTab({ grid: "playlist", mode: "pcm" });
+    pressKnob(seenTabs(), presetId, "transients");
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcmPair(name.transientsOneX, name.transientsNx));
+  });
+
+  // And back again from the position it was moved to, so `space` is a position
+  // the knob writes from rather than only the state it starts in.
+
+  test(`test_moving_a_transients_playlist_${presetId}_tile_back_to_space_writes_its_space_pair`, async () => {
+    const w = await resetTab({
+      grid: "playlist",
+      mode: "pcm",
+      names: seedPcmPair(name.transientsOneX, name.transientsNx),
+    });
+    pressKnob(seenTabs(), presetId, "space");
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcmPair(name.spaceOneX, name.spaceNx));
+  });
+
+  // Which tile is lit, and where its knob stands, while the fields carry each
+  // pair. The pair a position names is what lights the tile AT that position: a
+  // card matching only the 1x field, or matching only the default pair, fails
+  // one of the four.
+
+  for (const position of ["space", "transients"]) {
+    const oneX = position === "space" ? name.spaceOneX : name.transientsOneX;
+    const nX = position === "space" ? name.spaceNx : name.transientsNx;
+
+    test(`test_the_${position}_pair_in_the_fields_marks_the_playlist_${presetId}_tile_active`, async () => {
+      await resetTab({ grid: "playlist", mode: "pcm", names: seedPcmPair(oneX, nX) });
+      assert.deepEqual(activeMap(tabs()), oneLit(presetId, "playlist"));
+    });
+
+    test(`test_the_${position}_pair_in_the_fields_shows_the_playlist_${presetId}_knob_on_${position}`, async () => {
+      await resetTab({ grid: "playlist", mode: "pcm", names: seedPcmPair(oneX, nX) });
+      assert.deepEqual(knobPositions(tabs(), presetId, "emphasis"), [position]);
+    });
+  }
+}
+
+// The same knob on the LIVE lane, where the pair is not a form the daemon handed
+// over but the engine's own two filter indices joined to its enumerations. One
+// preset carries these: what differs between the lanes is the wire, not the
+// table, and the tabs cases above cover both presets.
+
+const PLAYLIST_KNOB = { preset: "lifelike", position: "transients" };
+
+test("test_a_playlist_knob_press_on_the_live_lane_writes_that_positions_pair_by_enum_id", async () => {
+  const w = await resetLive({ grid: "playlist" });
+  pressKnob(seenLive(), PLAYLIST_KNOB.preset, PLAYLIST_KNOB.position);
+  await flush(w);
   assert.deepEqual(
-    namesWritten("album").filter((name) => RETIRED.includes(name)),
-    [],
+    postedFields(w),
+    liveExpected(PLAYLIST_KNOB.preset, { emphasis: PLAYLIST_KNOB.position }, "playlist"),
   );
 });
+
+test("test_the_live_lane_marks_the_playlist_tile_whose_pair_the_engines_own_filters_carry", async () => {
+  await resetLive({
+    grid: "playlist",
+    ...running(PLAYLIST_KNOB.preset, { emphasis: PLAYLIST_KNOB.position }, "playlist"),
+  });
+  assert.deepEqual(activeMap(liveCard()), oneLit(PLAYLIST_KNOB.preset, "playlist"));
+});
+
+test("test_the_live_lane_shows_a_playlist_tiles_knob_at_the_position_the_engines_filters_carry", async () => {
+  await resetLive({
+    grid: "playlist",
+    ...running(PLAYLIST_KNOB.preset, { emphasis: PLAYLIST_KNOB.position }, "playlist"),
+  });
+  assert.deepEqual(knobPositions(liveCard(), PLAYLIST_KNOB.preset, "emphasis"), [PLAYLIST_KNOB.position]);
+});
+
+// The filters that left Easy Mode with the revision are pinned in
+// tests/js/store/easy.test.js, where the table they left is the subject: that
+// case renders nothing and presses nothing.
 
 // ============================================================================
 // the two lanes are two wires
@@ -411,10 +514,12 @@ test("test_a_tile_press_on_the_tabs_lane_never_reaches_the_live_path", async () 
 // the tile box
 // ============================================================================
 //
-// The structural fact the press cases rest on, asserted rather than assumed: a
-// handler on the box is what broke this suite once already.
+// What every press case above rests on, asserted rather than assumed: a tile
+// offers a pointer exactly one thing to press. Two of them and "pressing the
+// tile" names nothing in particular; none and the tile cannot be set at all.
+// The count going wrong is what broke ten cases in this file once already.
 
-test("test_no_tile_box_carries_a_click_handler_of_its_own", async () => {
+test("test_each_album_tile_offers_exactly_one_pressable_button", async () => {
   await resetTab({ grid: "album" });
-  assert.deepEqual(clickableBoxes(seenTabs()), []);
+  assert.deepEqual(pressables(tabs()), Object.fromEntries(ALBUM_ROSTER.map((id) => [id, 1])));
 });

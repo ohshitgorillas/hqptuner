@@ -14,6 +14,7 @@
 import { html } from "../../lib/dom.js";
 import { Segment } from "../controls/index.js";
 import { easyProse } from "../../store/prose.js";
+import { rememberKnobs } from "../../store/easyview.js";
 import { writeSet } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
 
@@ -35,8 +36,29 @@ import { easyLane } from "../../store/easylane.js";
  * @returns {Promise<void>}
  */
 async function applyPreset(lane, grid, presetId, knobs) {
+  // Recorded before the write, not after: the positions are what the user asked
+  // for, and a write that resolves no filter name still leaves the tile showing
+  // where they put its knobs.
+  rememberKnobs(grid, presetId, knobs);
   const l = easyLane(lane);
   for (const [key, name] of Object.entries(writeSet(grid, presetId, l.mode, knobs))) await l.write(key, name);
+}
+
+// A description carries its own breaks: a blank line in the copy is a paragraph
+// boundary, so where a warning parts from the description it describes is an
+// edit to the text and nothing else. Splitting here rather than storing a second
+// field keeps one approved string per tile (data/easy-presets.json).
+/**
+ * One description's paragraphs, in order — one entry for copy with no break.
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+function paragraphs(text) {
+  return text
+    .split(/\n[ \t]*\n+/)
+    .map((para) => para.trim())
+    .filter(Boolean);
 }
 
 // A knob's positions are the preset's own option ids; their words come from the
@@ -65,6 +87,12 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
 // The picking half is a button and the knobs are outside it, because a button
 // inside a button is not markup a browser will keep. So the tile is the box, the
 // button is everything that means "this preset", and the knobs sit under it.
+//
+// Inside the button, the mark and the title are one group and the description is
+// the button's other child. That grouping exists so the gap between the name and
+// the prose can differ from the gap between the emoji and the name — space
+// between siblings is the parent's gap and nothing else (docs/design-system.md),
+// so two spacings mean two parents.
 /**
  * One curated preset as a tile: its mark, its words, its adjustments, and the click that sets it.
  * @param {{ grid: string, preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
@@ -73,9 +101,15 @@ export function PresetTile({ grid, preset, lane, active, knobs }) {
   return html`
     <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, grid, preset.id, knobs)}>
-        <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
-        <span class="easy-title t-head">${easyProse(grid, preset.id, "title")}</span>
-        <span class="easy-desc t-caption">${easyProse(grid, preset.id, "description")}</span>
+        <span class="easy-mark">
+          <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
+          <span class="easy-title t-head">${easyProse(grid, preset.id, "title")}</span>
+        </span>
+        <span class="easy-desc t-label"
+          >${paragraphs(easyProse(grid, preset.id, "description")).map(
+            (para, i) => html`<span data-para=${String(i)}>${para}</span>`,
+          )}</span
+        >
       </button>
       ${preset.knobs.map(
         (knob) => html`<${KnobRow} grid=${grid} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,

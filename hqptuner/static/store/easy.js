@@ -67,12 +67,12 @@ const SOURCE = { id: "source", default: "standard", options: ["standard", "hires
  */
 const PRESETS = Object.freeze({
   playlist: [
-    { id: "perfect-ten", emoji: "🥇", knobs: [] },
-    { id: "lifelike", emoji: "🎻", knobs: [] },
+    { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS] },
+    { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS] },
   ],
   album: [
-    { id: "perfect-ten", emoji: "🥇", knobs: [SOURCE, EMPHASIS] },
-    { id: "lifelike", emoji: "🎻", knobs: [SOURCE, EMPHASIS] },
+    { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS, SOURCE] },
+    { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS, SOURCE] },
     {
       id: "concert-hall",
       emoji: "🏛️",
@@ -99,17 +99,21 @@ const PRESETS = Object.freeze({
  * @type {Record<string, Record<string, ChainName>>}
  */
 const ALBUM = {
+  // A crossed preset's key names its positions in the order the preset declares
+  // its knobs, because that is the order `comboKey` joins them in. Reordering
+  // the knobs on a tile therefore means reordering these keys with them: here
+  // that is emphasis first, source second.
   "perfect-ten": {
-    "standard/space": "poly-sinc-gauss-long",
-    "standard/transients": "poly-sinc-gauss-medium",
-    "hires/space": "poly-sinc-gauss-hires-lp",
-    "hires/transients": "poly-sinc-gauss-hires-mp",
+    "space/standard": "poly-sinc-gauss-long",
+    "transients/standard": "poly-sinc-gauss-medium",
+    "space/hires": "poly-sinc-gauss-hires-lp",
+    "transients/hires": "poly-sinc-gauss-hires-mp",
   },
   lifelike: {
-    "standard/space": "poly-sinc-ext2-long",
-    "standard/transients": "poly-sinc-ext2-medium",
-    "hires/space": "poly-sinc-ext2-hires-lp",
-    "hires/transients": "poly-sinc-ext2-hires-mp",
+    "space/standard": "poly-sinc-ext2-long",
+    "transients/standard": "poly-sinc-ext2-medium",
+    "space/hires": "poly-sinc-ext2-hires-lp",
+    "transients/hires": "poly-sinc-ext2-hires-mp",
   },
   "old-school": {
     space: { pcm: "poly-sinc-short-lp", sdm: "poly-sinc-short-lp-2s" },
@@ -131,14 +135,25 @@ const ALBUM = {
   },
 };
 
+// Emphasis crosses here the same way it does in Album Mode, but onto a PAIR
+// rather than one name: Playlist Mode is for material whose rate changes track
+// to track, so the 1x and Nx fields take different filters and the knob moves
+// both at once. Space is what the mode shipped with, so a user who never touches
+// the knob sees no change.
 /**
- * Playlist Mode writes a distinct 1x/Nx pair. Neither preset has a knob.
+ * Playlist Mode writes a distinct 1x/Nx pair, per Emphasis position.
  *
  * @type {Record<string, Record<string, Pair>>}
  */
 const PLAYLIST = {
-  "perfect-ten": { "": { x1: "poly-sinc-gauss-long", nx: "poly-sinc-gauss-hires-lp" } },
-  lifelike: { "": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" } },
+  "perfect-ten": {
+    space: { x1: "poly-sinc-gauss-long", nx: "poly-sinc-gauss-hires-lp" },
+    transients: { x1: "poly-sinc-gauss-medium", nx: "poly-sinc-gauss-hires-mp" },
+  },
+  lifelike: {
+    space: { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" },
+    transients: { x1: "poly-sinc-ext2-medium", nx: "poly-sinc-ext2-hires-mp" },
+  },
 };
 
 /**

@@ -12,13 +12,14 @@
 // it is part of the card, not commentary on it. It rides the `subtitle` slot,
 // which is exactly "directly under the title, above everything else in the body".
 //
-// The grid container is empty here. The tiles that fill it are a later phase;
-// what this phase settles is that there is exactly ONE of them and it says which
-// grid it is, so the tiles have somewhere to land and something to read.
+// There is exactly ONE grid container and it says which grid it is, so a tile
+// has somewhere to land and something to read. Which page's write lane the tiles
+// use arrives as a prop, because this same card renders on the Output tab, where
+// an edit is staged, and on LIVE, where it is written straight through.
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { Segment } from "../controls/index.js";
-import { easyGrid, setEasyGrid, setEasyMode } from "../../store/easyview.js";
+import { easyGrid, knobsFor, setEasyGrid, setEasyMode } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
@@ -48,20 +49,29 @@ function ExitLink() {
   </button>`;
 }
 
-// Where each knob stands on a tile that is NOT lit: its own default. There is no
-// third answer, because nothing remembers a position a user left on a preset
-// they then moved away from — the lit tile's positions are read back out of the
-// filter values, and every other tile shows where it would start.
+// Where each knob stands on a tile that is NOT lit: where the user last put it,
+// falling back to the knob's own default. The lit tile's positions are read back
+// out of the filter values, so they exist only while it is lit — without the
+// record, pressing another tile would drop the one you left back to its defaults
+// and lose a position you set (store/easyview.js).
+//
+// Merged over the defaults rather than used raw, so a preset that later gains a
+// knob still has a position for the one nothing was recorded for.
 /**
+ * @param {string} grid
  * @param {import("../../store/easy.js").Preset} preset
  * @returns {Record<string, string>}
  */
-const defaults = (preset) => Object.fromEntries(preset.knobs.map((k) => [k.id, k.default]));
+const resting = (grid, preset) => ({
+  ...Object.fromEntries(preset.knobs.map((k) => [k.id, k.default])),
+  ...knobsFor(grid, preset.id),
+});
 
-// The grid is derived end to end: the lane says what the filters are, the preset
-// table says which preset that corresponds to, and the tiles paint that. Nothing is
-// stored and nothing is remembered, so a filter changed by hand in a chain card
-// shows up here on the same poll.
+// Which tile is lit is derived end to end: the lane says what the filters are,
+// the preset table says which preset that corresponds to, and the tiles paint
+// that. Nothing about the marking is stored, so a filter changed by hand in a
+// chain card shows up here on the same poll. The only thing remembered is where
+// a DARK tile's knobs sit, which the fields cannot say.
 /** @param {{ lane: string }} props */
 function Grid({ lane }) {
   const grid = easyGrid.value;
@@ -76,7 +86,7 @@ function Grid({ lane }) {
           preset=${preset}
           lane=${lane}
           active=${on}
-          knobs=${on ? hit.knobs : defaults(preset)}
+          knobs=${on ? hit.knobs : resting(grid, preset)}
         />`;
       })}
     </div>
