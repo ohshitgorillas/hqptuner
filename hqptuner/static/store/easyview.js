@@ -49,6 +49,21 @@ export const easyMode = signal(read(K_MODE) === "1");
 /** Which grid the Easy Mode card is showing: "album" or "playlist". */
 export const easyGrid = signal(read(K_GRID) === "playlist" ? "playlist" : "album");
 
+// The one thing in this module that is NOT remembered. Which face of the
+// controls someone prefers is a property of the person; having once read the
+// help is not, and a panel that reopened itself on every load would be a page
+// element rather than an answer to a question.
+/** Whether the help panel is open under the Easy Mode card. */
+export const easyHelp = signal(false);
+
+/**
+ * Open the help panel, or close it if it is already open.
+ * @returns {void}
+ */
+export function toggleEasyHelp() {
+  easyHelp.value = !easyHelp.value;
+}
+
 /**
  * Show or hide the Easy Mode card, and remember which for next time.
  * @param {boolean} on

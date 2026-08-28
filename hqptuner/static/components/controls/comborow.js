@@ -2,6 +2,7 @@
 // family and variant headers, the apodizing and rate-floor badges, and the
 // favorite heart. Combobox.js keeps focus, placement and commit.
 import { html } from "../../lib/dom.js";
+import { Apod } from "./apod.js";
 import { nestRows } from "./comborows.js";
 
 /**
@@ -40,45 +41,17 @@ export const s = (v) => (v == null ? "" : String(v));
  */
 const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}`;
 
+// A dropdown row is a filter, so the mark reads out in the filters' own
+// vocabulary. Easy Mode names the same mark in plain words instead, which is
+// why the label belongs to the caller and not to `Apod` (controls/apod.js).
 const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
-// The glyphs as baked outlines, not font text: where the glyph was a <text>
-// node its position depended on which font the viewer's browser resolved, the
-// weight it rendered at and the engine's dominant-baseline mapping — different
-// in every environment, so no anchor held everywhere.
-// Outlines are Inter 400's own "A" and "onehalf" (fonts/inter-400.woff2,
-// extracted with fontTools), each ink bounding box centered on the circle at
-// (10,10) in viewBox units, per-glyph ink height 10 (A) and 10.75 (the
-// fraction's digits go illegible smaller; any bigger crowds the circle).
-const APOD_PATH = {
-  full:
-    "M5.61 15.00 9.24 5.00H10.71L14.39 15.00H13.05L10.93 9.07Q10.73 8.52 10.48 7.69Q10.22 6.87 " +
-    "9.85 5.60H10.09Q9.73 6.89 9.46 7.72Q9.20 8.56 9.02 9.07L6.96 15.00ZM7.43 12.21V11.09H12.57V12.21Z",
-  half:
-    "M6.98 4.62V10.48H5.82V5.61H5.75L4.36 6.68V5.53L5.54 4.62ZM5.18 15.38 12.57 4.62H13.79L6.40 " +
-    "15.38ZM11.67 15.38V14.60L13.63 12.47Q14.02 12.06 14.23 11.75Q14.44 11.44 14.44 11.11Q14.44 " +
-    "10.77 14.17 10.58Q13.90 10.40 13.56 10.40Q13.20 10.40 12.97 10.59Q12.74 10.79 12.74 " +
-    "11.14H11.62Q11.62 10.35 12.19 9.90Q12.77 9.45 13.60 9.45Q14.48 9.45 15.02 9.93Q15.56 10.40 " +
-    "15.56 11.07Q15.56 11.34 15.44 11.63Q15.33 11.93 15.00 12.36Q14.68 12.79 14.05 13.48L13.29 " +
-    "14.33V14.40H15.64V15.38Z",
-};
 
-// The circled apodizing mark beside an option row's name. Inert: it is part
-// of the name it sits beside, not a control, so it never commits, never
-// toggles, and reads out through its label alone. Circle and glyph are one
-// SVG sharing one coordinate system, and both are pure geometry, so they
-// rasterize together whatever the page's fonts do.
 /**
- * @param {{ kind: ApodClass | undefined }} props
+ * A row's badge label, empty for a row that carries no badge.
+ * @param {ApodClass | undefined} kind
+ * @returns {string}
  */
-function Apod({ kind }) {
-  if (!kind) return null;
-  return html`<span class="dd-apod" role="img" aria-label=${APOD_LABEL[kind]}>
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <circle cx="10" cy="10" r="9.3" />
-      <path d=${APOD_PATH[kind]} />
-    </svg>
-  </span>`;
-}
+const apodLabel = (kind) => (kind ? APOD_LABEL[kind] : "");
 
 // The manual's Recommended flag beside a Simplified row's name — `rec` rides
 // in from the plain-names decoration and never exists in Standard mode. Inert
@@ -117,7 +90,7 @@ function OptionRow({ o, i, apod, row }) {
     >
       ${rowText(o)}
       <${Rec} on=${o.rec} />
-      <${Apod} kind=${apod} />
+      <${Apod} kind=${apod} label=${apodLabel(apod)} />
       <${Tier} o=${o} row=${row} />
       ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}</span>`}
       ${

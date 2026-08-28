@@ -1,6 +1,15 @@
 {
-  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by grid, then preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes.",
-  "notice": "These presets intentionally simplify a complex topic; only a handful of HQPlayer's capabilities are accessible here. Full optimization for your system and tastes requires further experimentation. Think of Easy Mode as training wheels.",
+  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by grid, then preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
+  "notice": "Easy Mode dramatically simplifies the process of filter selection. Select between Playlist (a mix of content quality and sources back-to-back) or Album modes (consistent production and quality), then pick your preset and its emphasis or version. Only a few of HQPlayer's filters are accessible here, so think of this like training wheels and don't be afraid to experiment.",
+  "help": {
+    "link": "Still confused?",
+    "body": "Choose 'Transients' for most multi-track studio recordings; these often have an artificial sense of space at best, but carry strong transient content like percussion.\n\nChoose 'Space' for live or acoustic performances where the room or venue is part of the recording.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\n'Hi-Res' modes are optimized for material with a sampling rate >=88.2 kHz, NOT any 24-bit content. These modes also work for lossy material like MQAs and MP3s.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
+  },
+  "marks": {
+    "full": "Error Correction",
+    "half": "Partial Error Correction",
+    "none": "No Error Correction"
+  },
   "playlist": {
     "perfect-ten": {
       "title": "The Perfect Ten",
@@ -54,7 +63,7 @@
     },
     "old-school": {
       "title": "Old School",
-      "description": "Excellent with classic-era analog recordings.\n\nLess aggressive error correction; if it sounds harsh, try another setting.",
+      "description": "Excellent with classic-era analog recordings.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
@@ -64,7 +73,7 @@
     },
     "purist": {
       "title": "The Purist",
-      "description": "Passes the original samples through unchanged.\n\nConsumes more resources. No error correction: only recommended for the highest technical quality source material.",
+      "description": "Passes the original samples through unchanged. Only recommended for the highest technical quality source material.",
       "knobs": {
         "emphasis": {
           "label": "Emphasis",
@@ -84,7 +93,7 @@
     },
     "concert-hall": {
       "title": "The Concert Hall",
-      "description": "Emphasizes the recording's space at the cost of transient performance more than other presets. For material like live classical with minimal transient content.\n\nConsumes heavy resources. Turning error correction off reduces resource consumption.",
+      "description": "Heavily emphasizes space at the cost of transients. For material with minimal transients like live classical.",
       "knobs": {
         "version": {
           "label": "Version",

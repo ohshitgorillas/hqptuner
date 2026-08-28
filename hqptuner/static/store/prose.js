@@ -84,6 +84,25 @@ export function easyProse(...keys) {
   return typeof node === "string" ? node : "";
 }
 
+// Easy Mode's copy carries its own breaks: a blank line in an approved string is
+// a paragraph boundary, so moving where a warning parts from the description it
+// follows is an edit to the text and nothing else. Splitting here rather than
+// storing one field per paragraph keeps one approved string per thing that
+// speaks (data/easy-presets.json), and the tiles and the help panel divide
+// theirs by the same rule.
+/**
+ * One approved string's paragraphs, in order — one entry for copy with no break.
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function paragraphs(text) {
+  return text
+    .split(/\n[ \t]*\n+/)
+    .map((para) => para.trim())
+    .filter(Boolean);
+}
+
 // A card gate's note, addressed by control key, for that card's subtitle. The
 // subtitle is the same prose a row note carries, so it follows the same pref:
 // with the manual text switched off there is no subtitle either. Returns ''

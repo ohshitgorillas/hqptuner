@@ -227,32 +227,13 @@ button.dd-hdr::before {
   color: var(--accent);
   font-weight: var(--fw-semibold);
 }
-/* Apodizing badge (filter dropdowns): circled A for full, ½ for half, on a
-   row or hoisted onto a uniform group's header. Accent by owner's spec, like
-   the tier box and the Recommended check. */
-.dd-apod {
-  display: inline-flex;
-  flex: none;
-  /* the badge anchors the row's right-hand cluster, so badges line up in a
-     column instead of trailing labels of every length */
+/* Where the apodizing mark sits in a dropdown row. The mark itself — shape,
+   size, accent — is controls/apod.css, which Easy Mode's tiles share; only its
+   placement in this row belongs here. The badge anchors the row's right-hand
+   cluster, so badges line up in a column instead of trailing labels of every
+   length. */
+.dd-opt .apod-mark {
   margin-left: auto;
-  width: calc(var(--fs-micro) * 1.5);
-  height: calc(var(--fs-micro) * 1.5);
-  color: var(--accent);
-}
-.dd-apod svg {
-  width: 100%;
-  height: 100%;
-}
-/* Stroke and glyph both take the badge's currentColor; sizes are viewBox user
-   units (the SVG scales as one picture), not the page's type scale. */
-.dd-apod circle {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.2;
-}
-.dd-apod path {
-  fill: currentColor;
 }
 /* Per-row quality stars (Simplified filter dropdowns): rating read, not a
    control — always muted, sitting in the row's right-hand cluster. The box is
@@ -307,9 +288,9 @@ button.dd-hdr::before {
 }
 /* Only the leftmost member of the cluster takes the auto margin — a second
    one would split the leftover space and blow a gap through the middle. */
-.dd-apod ~ .dd-stars,
-.dd-apod ~ .dd-tier,
-.dd-apod ~ .dd-fav,
+.apod-mark ~ .dd-stars,
+.apod-mark ~ .dd-tier,
+.apod-mark ~ .dd-fav,
 .dd-tier ~ .dd-stars,
 .dd-tier ~ .dd-fav {
   margin-left: 0;
@@ -321,11 +302,6 @@ button.dd-hdr::before {
    space past the heart. */
 .dd-stars ~ .dd-fav {
   margin-left: calc(var(--fs-label) * -1.4);
-}
-/* A badge hoisted onto a uniform group's header names the header, so it stays
-   beside the text rather than flying to the row's right edge. */
-.dd-hdr .dd-apod {
-  margin-left: 0;
 }
 /* Per-row favorite heart (filter dropdowns only). Muted until favorited or
    hovered — never the accent, which means staged edit and nothing else. */

@@ -162,6 +162,12 @@
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-tile: 22.5rem; /* Easy Mode preset tile: sized to the widest knob, a three-position segment */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
+  /* The pending bar's own height. It is fixed to the page floor and always
+     rendered, so anything else that wants the floor has to start above it.
+     Measured rather than imposed: the bar is sized by the buttons in it, and
+     giving it a height here would change a bar that works. Re-measure with
+     scripts/snap.py --measure ".pending-bar" if its contents change. */
+  --h-pending: 46px;
   --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
   --h-control: 2rem; /* the height a native select takes at --fs-body; anything impersonating one matches it */
   /* Range-thumb diameter. Lives here because it is not only the thumb's size:

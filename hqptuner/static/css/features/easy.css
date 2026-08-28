@@ -149,6 +149,84 @@
 }
 
 
+/* The error-correction mark, on the tile's bottom edge under the knobs. The
+   tile is a flex column whose picking half takes the row's slack, so this lands
+   on the floor and the marks line up across a row whatever each tile holds
+   above them. The mark itself is drawn by controls/apod.css; this is where it
+   sits. */
+.easy-apod {
+  display: inline-flex;
+}
+
+/* The subtitle holds two things now, the paragraph and the link under it, so it
+   stacks them. Left-aligned rather than centered: it is the card's opening
+   prose, and the switcher below it is the thing that is centered. */
+[data-note="easy-notice"] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+/* The way into the help panel. Same shape as the way out of Easy Mode — a
+   button that reads as a link, accent, no border and no padding — because they
+   are the same kind of thing said in the same card. It takes the subtitle's own
+   size rather than the head's; it is part of the prose it follows. */
+.easy-help-link {
+  padding: 0;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* The help panel: the page floor, the way the pending bar has it. Same surface
+   and the same hairline along its top edge, so the two read as one furniture
+   family rather than as a panel that landed on top of the page.
+
+   It starts above the pending bar rather than under it. That bar is always
+   rendered and always fixed to the floor, so covering it would put Apply behind
+   a block of guidance for anyone who staged an edit and then asked a question.
+   Capped in height and scrolling inside itself, because six paragraphs at a
+   narrow window is taller than the window. */
+.easy-help {
+  position: fixed;
+  right: 0;
+  bottom: var(--h-pending);
+  left: 0;
+  z-index: 25;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  max-height: 50vh;
+  padding: var(--sp-3);
+  overflow-y: auto;
+  background: var(--surface-card);
+  border-top: 1px solid var(--line);
+}
+
+/* One block per paragraph, stacked, taking the width the page gives them. The
+   space between paragraphs is this parent's gap, not a margin on the blocks. */
+.easy-help-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sp-2);
+  line-height: 1.35;
+}
+
+/* The way out of the panel, in its top-right corner. Muted rather than accent:
+   the accent means a staged edit and a control that means something else must
+   not borrow it. */
+.easy-help-close {
+  flex: none;
+  padding: 0 var(--sp-1);
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 /* The way out, in this card's head at the same top-right corner the way in
    occupies in the Narrow filters head, so entering and leaving are one control
    in one place. The head is a flex row (cards.css), so a push to the right edge
