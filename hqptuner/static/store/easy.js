@@ -52,9 +52,17 @@ const EMPHASIS = { id: "emphasis", default: "space", options: ["space", "transie
 
 // The two flagship presets carry a second knob instead of a second tile: the
 // hi-res filters are the same preset aimed at 88.2 kHz and up, not a different
-// idea, and as a knob they cross with Emphasis to fill all four combinations.
+// idea, and as a knob they cross with Emphasis to fill all six combinations.
+//
+// Auto is the resting position and the one to reach for. Standard and Hi-Res
+// each put one filter on both of a chain's fields, which is the right answer
+// only while the material stays on one side of 88.2 kHz; Auto puts the standard
+// filter on the 1x field and the hi-res filter on the Nx field, so the engine
+// takes whichever suits the track it is playing. The two fixed positions stay
+// because lossy material reads as low rate and wants the hi-res filter anyway,
+// which is a choice no rate can make for you.
 /** @type {Knob} */
-const SOURCE = { id: "source", default: "standard", options: ["standard", "hires"] };
+const SOURCE = { id: "source", default: "auto", options: ["auto", "standard", "hires"] };
 
 /**
  * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
@@ -69,6 +77,7 @@ const PRESETS = Object.freeze({
   playlist: [
     { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS] },
     { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS] },
+    { id: "lossy", emoji: "📻", knobs: [EMPHASIS] },
   ],
   album: [
     { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS, SOURCE] },
@@ -82,7 +91,7 @@ const PRESETS = Object.freeze({
       ],
     },
     { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
-    { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
+    { id: "old-school", emoji: "📼", knobs: [{ ...EMPHASIS, default: "transients" }] },
     { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS] },
   ],
 });
@@ -94,22 +103,34 @@ const PRESETS = Object.freeze({
 // plain name on PCM and the `-2s` name on SDM.
 
 /**
- * Album Mode writes one name to both the 1x and the Nx field of a chain.
+ * Album Mode writes one name to both the 1x and the Nx field of a chain, or the
+ * pair it names when the two fields differ.
  *
- * @type {Record<string, Record<string, ChainName>>}
+ * @type {Record<string, Record<string, ChainName | Pair>>}
  */
 const ALBUM = {
   // A crossed preset's key names its positions in the order the preset declares
   // its knobs, because that is the order `comboKey` joins them in. Reordering
   // the knobs on a tile therefore means reordering these keys with them: here
   // that is emphasis first, source second.
+  // The Auto rows are pairs, and they are the same pairs Playlist Mode writes
+  // for these two presets. That is the whole of what Auto means: let the rate
+  // pick, which is what Playlist Mode has always done. The duplication is not
+  // folded away because the two tables answer different questions — one is what
+  // a grid of album presets offers, the other what a grid of playlist presets
+  // offers — and a shared constant between them would make either table's rows
+  // unreadable without following it.
   "perfect-ten": {
+    "space/auto": { x1: "poly-sinc-gauss-long", nx: "poly-sinc-gauss-hires-lp" },
+    "transients/auto": { x1: "poly-sinc-gauss-medium", nx: "poly-sinc-gauss-hires-mp" },
     "space/standard": "poly-sinc-gauss-long",
     "transients/standard": "poly-sinc-gauss-medium",
     "space/hires": "poly-sinc-gauss-hires-lp",
     "transients/hires": "poly-sinc-gauss-hires-mp",
   },
   lifelike: {
+    "space/auto": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" },
+    "transients/auto": { x1: "poly-sinc-ext2-medium", nx: "poly-sinc-ext2-hires-mp" },
     "space/standard": "poly-sinc-ext2-long",
     "transients/standard": "poly-sinc-ext2-medium",
     "space/hires": "poly-sinc-ext2-hires-lp",
@@ -153,6 +174,14 @@ const PLAYLIST = {
   lifelike: {
     space: { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" },
     transients: { x1: "poly-sinc-ext2-medium", nx: "poly-sinc-ext2-hires-mp" },
+  },
+  // One name on both fields, unlike its two neighbours. The family has no
+  // separate base-rate member to put on the 1x field: these are hi-res filters
+  // whose own recommendation starts at 4x, and lossy material is what they are
+  // for whatever rate it arrives at.
+  lossy: {
+    space: { x1: "poly-sinc-mqa/mp3-lp", nx: "poly-sinc-mqa/mp3-lp" },
+    transients: { x1: "poly-sinc-mqa/mp3-mp", nx: "poly-sinc-mqa/mp3-mp" },
   },
 };
 
@@ -220,7 +249,12 @@ function comboKey(preset, knobs) {
 function pairFor(grid, presetId, combo) {
   if (grid !== "album") return (PLAYLIST[presetId] || {})[combo];
   const one = (ALBUM[presetId] || {})[combo];
-  return one === undefined ? undefined : { x1: one, nx: one };
+  if (one === undefined) return undefined;
+  // An album row is a pair already or a single name to put on both fields. The
+  // two are told apart by `x1` rather than by asking whether the row is an
+  // object, because a single name is itself an object whenever the chains
+  // disagree ({pcm, sdm}).
+  return typeof one === "object" && "x1" in one ? one : { x1: one, nx: one };
 }
 
 /**
@@ -281,12 +315,19 @@ function matches(want, values) {
  * null, and under "auto" both chains must correspond to the same preset and
  * the same knob positions for it to count as a match.
  *
+ * One field set can belong to two grids. Album's Auto position writes what
+ * Playlist writes, deliberately, so a caller showing one grid says which and
+ * gets that grid's reading of the same values; the tile the user is looking at
+ * lights rather than the one they are not. Preference is a tie-break only: a
+ * field set only one grid can claim matches that grid whatever is preferred.
+ *
  * @param {Record<string, string>} values schema key -> filter name
  * @param {string} outputMode "pcm" | "sdm" | "auto"
+ * @param {string} [preferGrid] the grid to read the values as, when both can
  * @returns {{grid: string, presetId: string, knobs: Record<string, string>} | null}
  */
-export function matchPreset(values, outputMode) {
-  for (const grid of GRIDS) {
+export function matchPreset(values, outputMode, preferGrid) {
+  for (const grid of [...GRIDS].sort((a, b) => Number(b === preferGrid) - Number(a === preferGrid))) {
     for (const preset of presetsFor(grid)) {
       for (const knobs of combos(preset)) {
         if (matches(writeSet(grid, preset.id, outputMode, knobs), values)) {

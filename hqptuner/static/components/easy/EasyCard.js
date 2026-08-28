@@ -83,7 +83,7 @@ const resting = (grid, preset) => ({
 function Grid({ lane }) {
   const grid = easyGrid.value;
   const l = easyLane(lane);
-  const hit = matchPreset(l.values, l.mode);
+  const hit = matchPreset(l.values, l.mode, grid);
   return html`
     <div class="easy-grid" data-grid=${grid}>
       ${presetsFor(grid).map((preset) => {

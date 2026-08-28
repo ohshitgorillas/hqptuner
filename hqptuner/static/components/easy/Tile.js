@@ -85,15 +85,31 @@ function markFor(grid, presetId, knobs) {
 // same file the titles do, keyed by knob id and option id. Moving one writes the
 // preset at the new position, so moving a knob on a tile that is not lit lights
 // it — there is no separate "select" step and nothing to select into.
+// A knob may carry a tip: one sentence about what its positions cost, for the
+// knobs where the choice is not self-evident from the two words on the segment.
+// The words are shown on hover and named as the knob's description, so the tip
+// reaches a screen reader rather than only a pointer. The id is grid, preset and
+// knob, which is unique in a grid of tiles because a preset appears once in one.
 /** @param {{ grid: string, preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string }} props */
 function KnobRow({ grid, preset, knob, knobs, lane }) {
   const options = knob.options.map((id) => ({
     value: id,
     label: easyProse(grid, preset.id, "knobs", knob.id, "options", id),
   }));
+  const tip = easyProse(grid, preset.id, "knobs", knob.id, "tip");
+  const base = `easy-knob-${grid}-${preset.id}-${knob.id}`;
   return html`
-    <div class="easy-knob" data-knob=${knob.id}>
-      <span class="t-label">${easyProse(grid, preset.id, "knobs", knob.id, "label")}</span>
+    <div
+      class="easy-knob"
+      data-knob=${knob.id}
+      role="group"
+      aria-labelledby=${`${base}-label`}
+      aria-describedby=${tip ? `${base}-tip` : undefined}
+    >
+      <span class="t-label" id=${`${base}-label`}>
+        ${easyProse(grid, preset.id, "knobs", knob.id, "label")}
+      </span>
+      ${tip && html`<span class="easy-knob-tip t-caption" id=${`${base}-tip`}>${tip}</span>`}
       <${Segment}
         value=${knobs[knob.id]}
         options=${options}
