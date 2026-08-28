@@ -1,10 +1,10 @@
 /* apod — the circled apodizing mark itself, wherever it appears: dropdown
    option rows, group headers, Easy Mode preset tiles.
 
-   Split from combobox.css when Easy Mode's tiles started wearing the same mark:
-   a tile styled by a rule named for the dropdown that first used it is how a
-   shared control ends up owned by one of its callers. Cascade order is fixed by
-   the <link> sequence in hqptuner/static/index.html — do not reorder.
+   The mark has more than one host, so it has a file of its own: a rule named
+   for one caller is how a shared control ends up owned by that caller. Cascade
+   order is fixed by the <link> sequence in hqptuner/static/index.html — do not
+   reorder.
 
    This file owns the mark's shape, size and color, the way marks.css owns the
    carets'. PLACEMENT stays with whichever component hosts it: where the mark
