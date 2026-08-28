@@ -421,7 +421,7 @@ test("test_confirming_the_un_pinning_question_stages_the_volume_edit", async () 
   answer();
   await held;
   await quiesce(w);
-  assert.equal(effective("volume_max"), "-3");
+  assert.equal(effective("volume_max"), RANGE.value);
 });
 
 // Same shape as the forward decline: a safe edit is staged FIRST so the pending

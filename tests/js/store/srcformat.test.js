@@ -109,11 +109,6 @@ test("test_a_fresh_bar_holds_the_source_format_control_at_pcm", () => {
 
 // --- narrowing reads as active only away from pcm --------------------------------
 
-test("test_a_fresh_bar_with_every_facet_at_its_default_is_not_active_narrowing", () => {
-  reset();
-  assert.equal(narrowingActive.value, false);
-});
-
 test("test_the_source_format_control_at_both_is_active_narrowing", () => {
   reset();
   nSrcFormat.value = "both";

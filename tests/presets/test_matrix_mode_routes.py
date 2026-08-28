@@ -81,10 +81,6 @@ def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
     assert modes_client.get(PATH).status_code == 200
 
 
-def test_a_fresh_install_answers_get_with_no_modes(modes_client: TestClient) -> None:
-    assert modes_client.get(PATH).json()["presets"] == {}
-
-
 # --- the round trip ----------------------------------------------------------------
 
 

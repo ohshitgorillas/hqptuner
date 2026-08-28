@@ -102,6 +102,7 @@ test("test_a_preset_swatch_sets_the_root_accent_attribute", () => {
 
 test("test_an_unknown_swatch_name_falls_back_to_the_default", () => {
   setup();
+  applyAccent("green");
   applyAccent("magenta");
   assert.equal(accent.value, "blue");
 });

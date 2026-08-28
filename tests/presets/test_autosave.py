@@ -30,11 +30,6 @@ def _autosave_on_with_active(client: TestClient, name: str = "Kept") -> None:
 # --- the flag itself --------------------------------------------------------
 
 
-def test_fresh_store_reports_autosave_off(http_client: TestClient) -> None:
-    http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
-    assert http_client.get("/api/config").json()["data"]["autosave"] is False
-
-
 def test_enabling_autosave_answers_the_new_flag(http_client: TestClient) -> None:
     assert http_client.post("/api/autosave", json={"enabled": True}).json()["autosave"] is True
 

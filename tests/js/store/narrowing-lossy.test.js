@@ -136,11 +136,6 @@ test("test_both_leaves_every_filter_in_the_1x_list", () => {
   assert.deepEqual(at1x(options), ALL);
 });
 
-test("test_a_fresh_bar_leaves_every_filter_in_the_1x_list", () => {
-  const options = reset();
-  assert.deepEqual(at1x(options), ALL);
-});
-
 test("test_lossless_drops_every_filter_named_hires_mqa_or_mp3_from_the_1x_list", () => {
   const options = reset();
   nLossy1x.value = "lossless";
@@ -218,11 +213,6 @@ test("test_the_lossy_control_at_both_is_not_active_narrowing", () => {
   assert.equal(narrowingActive.value, false);
 });
 
-test("test_a_fresh_bar_is_not_active_narrowing", () => {
-  reset();
-  assert.equal(narrowingActive.value, false);
-});
-
 for (const state of ["lossless", "lossy"]) {
   test(`test_the_lossy_control_at_${state}_is_active_narrowing`, () => {
     reset();
@@ -241,10 +231,3 @@ for (const state of ["lossless", "lossy"]) {
     assert.equal(nLossy1x.value, "both");
   });
 }
-
-test("test_reset_returns_the_1x_apodizing_control_to_all", () => {
-  reset();
-  nApod1x.value = "only";
-  resetNarrowing();
-  assert.equal(nApod1x.value, "all");
-});

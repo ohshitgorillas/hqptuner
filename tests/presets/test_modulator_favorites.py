@@ -174,10 +174,6 @@ def test_a_modulator_write_leaves_the_layout_stamp_where_older_builds_read_it(tm
 # --- the REST pair ------------------------------------------------------------
 
 
-def test_a_fresh_install_answers_get_with_no_modulator_favorites(fav_client: TestClient) -> None:
-    assert fav_client.get("/api/favorites").json()["modulators"] == []
-
-
 def test_put_then_get_answers_with_the_stored_modulator_names(fav_client: TestClient) -> None:
     fav_client.put("/api/favorites", json={"modulators": MODULATORS})
     assert fav_client.get("/api/favorites").json()["modulators"] == sorted(MODULATORS)

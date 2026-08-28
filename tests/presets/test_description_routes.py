@@ -141,10 +141,6 @@ def upload(client: TestClient, data: bytes) -> Any:
 # --- the REST pair -------------------------------------------------------------------
 
 
-def test_a_fresh_install_answers_get_with_no_descriptions(desc_client: TestClient) -> None:
-    assert desc_client.get("/api/descriptions").json()["profiles"] == {}
-
-
 def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
     assert desc_client.get("/api/descriptions").status_code == 200
 

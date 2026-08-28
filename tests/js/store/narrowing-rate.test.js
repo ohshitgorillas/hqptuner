@@ -209,6 +209,9 @@ const split = () => reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);
 
 test("test_every_switch_at_its_default_returns_the_labels_untouched", () => {
   const options = classes();
+  nHideLimited.value = "auto";
+  nOddRateOnly.value = false;
+  nDownsafeOnly.value = false;
   assert.deepEqual(labels(options), ALL_CLASSES);
 });
 

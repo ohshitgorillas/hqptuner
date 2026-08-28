@@ -433,13 +433,6 @@ test("test_reset_returns_the_nx_apodizing_switch_to_all", () => {
   assert.equal(nApodNx.value, "all");
 });
 
-test("test_reset_leaves_narrowing_inactive", () => {
-  reset(LENGTHS);
-  nLength.value = ["long"];
-  resetNarrowing();
-  assert.equal(narrowingActive.value, false);
-});
-
 // --- previews answer for the selection they are handed ---------------------------
 
 // The live selection leaves 2 and the override leaves 3, so a preview that

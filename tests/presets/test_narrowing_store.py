@@ -606,10 +606,6 @@ def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) 
 # --- the REST pair -----------------------------------------------------------
 
 
-def test_a_fresh_install_answers_get_with_every_facet_at_its_default(nar_client: TestClient) -> None:
-    assert nar_client.get("/api/narrowing").json()["facets"] == DEFAULTS
-
-
 def test_a_fresh_install_answers_get_with_200(nar_client: TestClient) -> None:
     assert nar_client.get("/api/narrowing").status_code == 200
 

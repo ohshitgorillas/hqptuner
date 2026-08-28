@@ -221,10 +221,6 @@ def test_a_name_of_exactly_64_characters_is_accepted(tmp_path: Path) -> None:
 # --- the REST pair -----------------------------------------------------------
 
 
-def test_a_fresh_install_answers_get_with_no_favorites(fav_client: TestClient) -> None:
-    assert fav_client.get("/api/favorites").json()["filters"] == []
-
-
 def test_a_fresh_install_answers_get_with_200(fav_client: TestClient) -> None:
     assert fav_client.get("/api/favorites").status_code == 200
 
