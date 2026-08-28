@@ -21,12 +21,31 @@
 // tests/js/support/easytiles.js's `pressTile` uses. Nothing of HQPTuner's is
 // stubbed.
 
+import { easyHelp } from "../../../hqptuner/static/store/easyview.js";
+
 import { elements, attr } from "./markup.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 
 const TESTID = "data-testid";
+
+/**
+ * Whether the panel is open is a module-level signal like every other one the
+ * card reads, so it outlives a case: a case that opened the panel leaves it open
+ * for the next one to find, and a toggle case then runs from the wrong end. Put
+ * back on every reset, the way tests/js/support/easytiles.js puts back
+ * `easyKnobs`.
+ *
+ * Reset HERE rather than in that harness because this is the only suite that
+ * presses the link, and a signal is per module registry: `node --test` gives
+ * each test file its own, so nothing this file opens can reach another.
+ *
+ * @returns {void}
+ */
+export function resetHelp() {
+  easyHelp.value = false;
+}
 
 /** The link in the card's subtitle that opens and closes the panel. */
 export const HELP_LINK = "easy-help";

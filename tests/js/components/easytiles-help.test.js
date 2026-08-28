@@ -41,12 +41,24 @@ import { useStorage } from "../support/storage.js";
 const store = useStorage();
 
 const { resetTab, flush, tabs, seenTabs, pressTile } = await import("../support/easytiles.js");
-const { HELP_LINK, helpPanels, helpLinks, subtitleCarriesHelpLink, introPrecedesHelpLink, pressTestId } =
+const { HELP_LINK, helpPanels, helpLinks, subtitleCarriesHelpLink, introPrecedesHelpLink, pressTestId, resetHelp } =
   await import("../support/easyhelp.js");
 
 // The tile pressed to put an edit in the staging buffer. A preset id is a wire
 // identifier.
 const ALBUM_TILE = "perfect-ten";
+
+/**
+ * The card, with every signal it reads put back — the panel's own included,
+ * which a case that opened it would otherwise leave open for the next.
+ *
+ * @returns {Promise<import("../support/wire.js").StagingWire>}
+ */
+async function reset() {
+  const w = await resetTab({ grid: "album", mode: "pcm" });
+  resetHelp();
+  return w;
+}
 
 /** One press on the help link, over a fresh render of the card. */
 const pressHelp = () => pressTestId(seenTabs(), HELP_LINK);
@@ -59,12 +71,12 @@ const stored = () => [...store.map.entries()].sort();
 // ============================================================================
 
 test("test_the_card_subtitle_offers_exactly_one_help_link", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   assert.equal(helpLinks(tabs()), 1);
 });
 
 test("test_the_help_link_stands_inside_the_cards_subtitle", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   assert.equal(subtitleCarriesHelpLink(tabs()), true);
 });
 
@@ -73,7 +85,7 @@ test("test_the_help_link_stands_inside_the_cards_subtitle", async () => {
 // screen is CSS and belongs to the visual hand-back.
 
 test("test_the_subtitle_shows_its_intro_before_the_help_link", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   assert.equal(introPrecedesHelpLink(tabs()), true);
 });
 
@@ -82,18 +94,18 @@ test("test_the_subtitle_shows_its_intro_before_the_help_link", async () => {
 // ============================================================================
 
 test("test_the_card_carries_no_help_panel_before_the_link_is_pressed", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   assert.equal(helpPanels(tabs()), 0);
 });
 
 test("test_pressing_the_help_link_puts_one_panel_in_the_document", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   pressHelp();
   assert.equal(helpPanels(tabs()), 1);
 });
 
 test("test_pressing_the_help_link_a_second_time_takes_the_panel_away", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   pressHelp();
   pressHelp();
   assert.equal(helpPanels(tabs()), 0);
@@ -109,7 +121,7 @@ test("test_pressing_the_help_link_a_second_time_takes_the_panel_away", async () 
 // which key it would have been written under is the writer's business.
 
 test("test_opening_the_help_panel_writes_nothing_to_storage", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await reset();
   const before = stored();
   pressHelp();
   assert.deepEqual(stored(), before);
@@ -120,7 +132,7 @@ test("test_opening_the_help_panel_writes_nothing_to_storage", async () => {
 // ============================================================================
 
 test("test_the_help_panel_is_still_open_with_an_edit_staged", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
+  const w = await reset();
   pressTile(seenTabs(), ALBUM_TILE);
   await flush(w);
   pressHelp();

@@ -33,7 +33,7 @@
 import { metadata } from "../../../hqptuner/static/store/signals.js";
 import { namesWritten } from "./easytable.js";
 import { tileHtml } from "./easytiles.js";
-import { elements, classes, attr } from "./markup.js";
+import { elements, classes, attr, hasAttr } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 
@@ -146,9 +146,16 @@ export function markGlyph(out, presetId) {
 }
 
 /**
- * The accessible label a tile's mark carries — on the mark itself, or on the one
- * element inside it that carries one. The WORDS are never asserted: what is read
- * is that a label is there and that the three forms do not share one.
+ * The accessible label a tile's mark carries — on the mark itself or on the one
+ * element inside it that carries the attribute. The WORDS are never asserted:
+ * what is read is that a label SAYS something and that the three forms do not
+ * share one.
+ *
+ * An EMPTY label reads as the empty string rather than as a missing attribute,
+ * because SSR emits an empty-string attribute bare (` aria-label`, never
+ * `aria-label=""` — docs/testing.md, harness facts). A mark labelled with
+ * nothing is a mark a screen reader announces as nothing, so it belongs in the
+ * assertion as a value and not in the harness as a throw.
  *
  * @param {string} out
  * @param {string} presetId
@@ -156,14 +163,10 @@ export function markGlyph(out, presetId) {
  */
 export function markLabel(out, presetId) {
   const mark = onlyMark(out, presetId);
-  const own = attr(mark, "aria-label");
-  if (own !== undefined) return own;
-  const inner = elements(mark.html)
-    .map((el) => attr(el, "aria-label"))
-    .filter((label) => label !== undefined);
-  if (inner.length !== 1)
-    throw new Error(`expected one accessible label on the "${presetId}" mark, found ${inner.length}`);
-  return String(inner[0]);
+  const carriers = elements(mark.html).filter((el) => hasAttr(el, "aria-label"));
+  if (carriers.length !== 1)
+    throw new Error(`expected one aria-label on the "${presetId}" mark, found ${carriers.length}`);
+  return attr(carriers[0], "aria-label") ?? "";
 }
 
 /**
