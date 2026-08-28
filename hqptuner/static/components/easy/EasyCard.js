@@ -22,7 +22,7 @@ import { easyGrid, setEasyGrid, setEasyMode } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
-import { AddTile, PresetTile } from "./Tile.js";
+import { PresetTile } from "./Tile.js";
 
 // Album and Playlist are the two grids, and the switcher is a plain `Segment` at
 // the app's ONE segment size. The Matrix banner's size exemption is named for
@@ -79,7 +79,6 @@ function Grid({ lane }) {
           knobs=${on ? hit.knobs : defaults(preset)}
         />`;
       })}
-      <${AddTile} />
     </div>
   `;
 }

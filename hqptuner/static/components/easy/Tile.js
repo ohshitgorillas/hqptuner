@@ -70,7 +70,6 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
  * @param {{ grid: string, preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
  */
 export function PresetTile({ grid, preset, lane, active, knobs }) {
-  const note = easyProse(grid, preset.id, "note");
   return html`
     <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, grid, preset.id, knobs)}>
@@ -81,22 +80,6 @@ export function PresetTile({ grid, preset, lane, active, knobs }) {
       ${preset.knobs.map(
         (knob) => html`<${KnobRow} grid=${grid} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
       )}
-      ${note ? html`<p class="easy-note t-caption">${note}</p>` : null}
-    </div>
-  `;
-}
-
-// The cell that becomes a user's own preset. It renders in both grids and does
-// nothing yet; the flow behind it is the next phase, and a cell that appears
-// only once that lands would move every tile beside it on the day it did.
-/** The "save your own" cell, inert until the save flow lands. */
-export function AddTile() {
-  return html`
-    <div class="easy-tile easy-add" data-testid="easy-add">
-      <button type="button" class="easy-pick" disabled>
-        <span class="easy-title t-head">${easyProse("add", "title")}</span>
-        <span class="easy-desc t-caption">${easyProse("add", "description")}</span>
-      </button>
     </div>
   `;
 }
