@@ -210,7 +210,9 @@ const grids = (out) =>
     .map((el) => attr(el, "data-grid"));
 
 /**
- * The switcher's own container, the card's only `easy-switcher`. The tiles'
+ * The switcher's own container, the card's only `data-testid="easy-switcher"`
+ * — a marking put there to be found by, rather than the styling class beside
+ * it, which the owner may restyle without changing any behavior. The tiles'
  * knobs are the same shared `Segment`, so a reading of "the options the
  * switcher offers" that scanned the whole card would collect every knob
  * position beside them; the two readers below are handed this fragment rather
@@ -220,7 +222,7 @@ const grids = (out) =>
  * @returns {string}
  */
 function switcher(out) {
-  const hits = elements(out).filter((el) => classes(el).includes("easy-switcher"));
+  const hits = elements(out).filter((el) => attr(el, "data-testid") === "easy-switcher");
   if (hits.length !== 1) throw new Error(`expected one switcher container, found ${hits.length}`);
   return hits[0].html;
 }

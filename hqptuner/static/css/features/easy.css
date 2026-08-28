@@ -17,9 +17,11 @@
 
 /* The tile grid. The column count is not written down: tiles are laid at a
    minimum width and the row fills with however many fit, which is what keeps
-   Album (eight cells) and Playlist (three) on one rule instead of two. At the
-   container cap that is four across; under the 1100px breakpoint the tile
-   minimum outgrows the track and the grid falls to one column on its own. */
+   Album (eight cells) and Playlist (three) on one rule instead of two. The
+   minimum is the width of the widest control a tile holds — a three-position
+   segment, which the design system fixes at one size — so at the container cap
+   that is three across, and under the 1100px breakpoint the minimum outgrows
+   the track and the grid falls to one column on its own. */
 .easy-grid {
   display: grid;
   gap: var(--rhythm-field);
@@ -59,6 +61,12 @@
   gap: var(--sp-1);
   width: 100%;
   padding: 0;
+  /* Takes the row's slack, so the knobs under it sit on the tile's bottom edge
+     and line up across a row whose descriptions are different lengths. The
+     alternative leaves each tile's knob wherever its own prose ended and the
+     leftover height as a blank under it, which is the blank the definition of
+     done calls unnameable. Not a spacing token, so not the gap's job. */
+  margin-bottom: auto;
   color: inherit;
   text-align: center;
   background: none;

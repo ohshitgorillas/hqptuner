@@ -95,7 +95,7 @@ export function EasyCard({ lane = "config" }) {
       title=${html`Easy Mode<${ExitLink} />`}
       subtitle=${html`<span data-note="easy-notice">${easyProse("notice")}</span>`}
     >
-      <div class="easy-switcher">
+      <div class="easy-switcher" data-testid="easy-switcher">
         <${Segment}
           value=${easyGrid.value}
           options=${GRID_SEGS}

@@ -160,7 +160,7 @@
   --w-select-md: 14rem; /* one-phrase dropdowns: "ASDM7EC-super 512+fs" */
   --w-select-lg: 18rem; /* filter-name dropdowns: "poly-sinc-gauss-halfband-s" */
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
-  --w-tile: 16rem; /* Easy Mode preset tile: holds a three-position segment under its title */
+  --w-tile: 22.5rem; /* Easy Mode preset tile: sized to the widest knob, a three-position segment */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
   --h-control: 2rem; /* the height a native select takes at --fs-body; anything impersonating one matches it */
