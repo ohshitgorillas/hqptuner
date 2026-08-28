@@ -70,7 +70,7 @@ export function knobOptions(out, presetId, knobId) {
  * @param {string} value
  * @returns {string}
  */
-export function optionTipText(out, presetId, knobId, value) {
+function optionTipText(out, presetId, knobId, value) {
   const fragment = knobHtml(out, presetId, knobId);
   const btn = elements(fragment).find(
     (el) => el.name === "button" && classes(el).includes("seg") && attr(el, "data-v") === value,

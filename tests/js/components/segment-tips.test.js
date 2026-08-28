@@ -63,13 +63,23 @@ const BARE = [
   { value: "b", label: "Bravo" },
 ];
 
+// The id the description wiring is built from, which the CALLER supplies:
+// Segment is a plain function of its props and generates nothing of its own, so
+// a tipped strip handed no `idBase` has no id to point a button at. The base
+// itself is a machine identifier, never read by a case — only that the wiring it
+// makes resolves.
+const ID_BASE = "seg-under-test";
+
 /**
- * The strip one case renders, as SSR markup.
+ * The strip one case renders, as SSR markup. `idBase` is passed only where a
+ * case is about a tip; the tipless cases below hand over none, which is what the
+ * callers that pass no tips do.
  *
  * @param {TipOption[]} options
+ * @param {string} [idBase]
  * @returns {string}
  */
-const out = (options) => render(Segment(/** @type {SegmentProps} */ ({ options, value: "a" })));
+const out = (options, idBase) => render(Segment(/** @type {SegmentProps} */ ({ options, value: "a", idBase })));
 
 /**
  * The button one option value renders as. Found by `data-v`, the wire value,
@@ -131,11 +141,11 @@ const tipText = (fragment, value) => {
 // ============================================================================
 
 test("test_an_option_given_a_tip_is_described_by_an_element_inside_the_strip", () => {
-  assert.notEqual(tip(out(MIXED), "a"), undefined);
+  assert.notEqual(tip(out(MIXED, ID_BASE), "a"), undefined);
 });
 
 test("test_an_option_given_a_tip_renders_it_with_something_in_it", () => {
-  assert.notEqual(tipText(out(MIXED), "a"), "");
+  assert.notEqual(tipText(out(MIXED, ID_BASE), "a"), "");
 });
 
 // ============================================================================
@@ -146,7 +156,7 @@ test("test_an_option_given_a_tip_renders_it_with_something_in_it", () => {
 // no tip" is only a behavior in a strip where a tip demonstrably does render.
 
 test("test_an_option_with_no_tip_names_no_description_in_a_strip_where_another_option_has_one", () => {
-  const strip = out(MIXED);
+  const strip = out(MIXED, ID_BASE);
   assert.deepEqual([tipText(strip, "a") !== "", describedBy(strip, "b")], [true, undefined]);
 });
 

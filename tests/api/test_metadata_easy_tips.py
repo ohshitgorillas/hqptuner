@@ -44,10 +44,13 @@ TIPPED = [
 UNTIPPED = "correction"
 
 
-def _tips(client: TestClient) -> dict[str, object]:
+def _easy(client: TestClient) -> dict[str, object]:
     payload = cast("dict[str, object]", client.get("/api/metadata").json())
-    easy = cast("dict[str, object]", payload["easy"])
-    return cast("dict[str, object]", easy.get("tips", {}))
+    return cast("dict[str, object]", payload["easy"])
+
+
+def _tips(client: TestClient) -> dict[str, object]:
+    return cast("dict[str, object]", _easy(client).get("tips", {}))
 
 
 def _tip(client: TestClient, knob: str, option: str) -> str:
@@ -56,7 +59,7 @@ def _tip(client: TestClient, knob: str, option: str) -> str:
 
 
 def test_the_easy_section_carries_a_tips_block(api_client: TestClient) -> None:
-    assert "tips" in cast("dict[str, object]", cast("dict[str, object]", api_client.get("/api/metadata").json())["easy"])
+    assert "tips" in _easy(api_client)
 
 
 @pytest.mark.parametrize(("knob", "option"), TIPPED)
