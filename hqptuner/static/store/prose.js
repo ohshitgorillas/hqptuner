@@ -44,6 +44,9 @@ import { notesVisible } from "./prefs.js";
  * @property {{ sdm_modulators?: Record<string, OverlayEntry>,
  *   pcm_dithers?: Record<string, OverlayEntry> }} [shapers]
  * @property {Record<string, Record<string, ControlProse>>} [settings]
+ * @property {Record<string, unknown>} [easy] Easy Mode's tile copy, a nested tree keyed by grid,
+ *   preset id and knob id (data/easy-presets.json). Deliberately not typed further: the tiles that
+ *   read the leaves arrive in a later phase, and a shape written before them would be a guess.
  */
 
 /**
@@ -57,6 +60,28 @@ import { notesVisible } from "./prefs.js";
 export function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
   return g[entry.note || key] || { label: key, tooltip: "" };
+}
+
+// Easy Mode's copy comes through the same door as every other string the UI
+// says: data/easy-presets.json rides in the same /api/metadata bundle, and the
+// cards read it from here rather than fetching the file themselves.
+/**
+ * Easy Mode's copy, addressed by its path through data/easy-presets.json —
+ * `easyProse("notice")`, `easyProse("album", "purist", "title")`. Empty when
+ * anything on the path is missing or is not a string, so a card renders without
+ * the sentence rather than with the word "undefined" where it should have been.
+ *
+ * @param {...string} keys
+ * @returns {string}
+ */
+export function easyProse(...keys) {
+  /** @type {unknown} */
+  let node = (metadata.value || {}).easy;
+  for (const key of keys) {
+    if (!node || typeof node !== "object") return "";
+    node = /** @type {Record<string, unknown>} */ (node)[key];
+  }
+  return typeof node === "string" ? node : "";
 }
 
 // A card gate's note, addressed by control key, for that card's subtitle. The

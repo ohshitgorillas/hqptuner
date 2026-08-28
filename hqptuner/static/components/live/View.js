@@ -38,6 +38,8 @@ import {
 } from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
+import { EasyCard } from "../easy/EasyCard.js";
+import { easyMode } from "../../store/easyview.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
@@ -239,17 +241,26 @@ function ChainBody({ chain, loaded, controls }) {
 
 // The narrow bar sits above the cards it narrows, as over the Output tab's filter
 // cards. Source format is dropped: it opens a DSD Sources subsection these lack.
-function ChainCards() {
+function ExpertChainCards() {
   const { chain, pcmChain, sdmChain } = liveModel.value;
   return html`
+    <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
+    <${Card} id="live-pcm-chain" title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+      <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
+    <//>
+    <${Card} id="live-sdm-chain" title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+      <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
+    <//>
+  `;
+}
+
+// Easy Mode stands in for all three, exactly as it does on the Output tab, and
+// the group wrapper stays either way: it is this block's slot in the LIVE layout
+// (./Layout.js), not decoration on the cards inside it.
+function ChainCards() {
+  return html`
     <div class="live-chain-group">
-      <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
-      <${Card} id="live-pcm-chain" title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
-        <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
-      <//>
-      <${Card} id="live-sdm-chain" title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
-        <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
-      <//>
+      ${easyMode.value ? html`<${EasyCard} />` : html`<${ExpertChainCards} />`}
     </div>
   `;
 }

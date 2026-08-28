@@ -14,13 +14,14 @@ class StaticMetadata:
     """The hand-written prose about filters, shapers and settings that the engine does not report."""
 
     def __init__(self, data_dir: Path):
-        """Load the metadata JSON — filters, shapers, settings, plain names — from ``data_dir`` and hold it in memory.
+        """Load the metadata JSON — filters, shapers, settings, plain names, Easy Mode copy — from ``data_dir``.
 
         Read once at startup: the files ship with the application and never change under a running process.
         """
         self._filters_db: dict[str, Any] = json.loads((data_dir / "filters.json").read_text())
         self._shapers_db: dict[str, Any] = json.loads((data_dir / "shapers.json").read_text())
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
+        self._easy_db: dict[str, Any] = json.loads((data_dir / "easy-presets.json").read_text())
         self._plain_names: dict[str, Any] = {}
         overlays = (
             ("filters", "filter"),
@@ -41,15 +42,18 @@ class StaticMetadata:
 
     @property
     def raw(self) -> dict[str, Any]:
-        """Return the three databases exactly as loaded, under ``filters``/``shapers``/``settings``.
+        """Return the databases exactly as loaded, under ``filters``/``shapers``/``settings``/``plain_names``/``easy``.
 
         This is what ``/api/metadata`` serves, so the frontend can look up an entry the merge did not attach.
+        Easy Mode's copy joins no enumeration at all — its tiles are curated, not engine-reported — so it reaches
+        the frontend only through here.
         """
         return {
             "filters": self._filters_db,
             "shapers": self._shapers_db,
             "settings": self._settings_db,
             "plain_names": self._plain_names,
+            "easy": self._easy_db,
         }
 
     def filter_entry(self, name: str) -> dict[str, Any] | None:

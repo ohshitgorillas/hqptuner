@@ -1,5 +1,6 @@
 {
   "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by grid, then preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes.",
+  "notice": "These presets intentionally simplify a complex topic; only a handful of HQPlayer's capabilities are accessible here. Full optimization for your system and tastes requires further experimentation. Think of Easy Mode as training wheels.",
   "playlist": {
     "perfect-ten": {
       "title": "The Perfect Ten",

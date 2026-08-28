@@ -29,6 +29,7 @@ import {
   nSrcFormat,
 } from "../../store/narrow/state.js";
 import { narrowingError } from "../../store/narrow/persist.js";
+import { setEasyMode } from "../../store/easyview.js";
 import { notesVisible, plainNames, setPlainNames } from "../../store/prefs.js";
 import { closeExcept } from "./popover.js";
 import { NarrowFacets } from "./Facets.js";
@@ -46,10 +47,31 @@ import {
   apodTip,
 } from "./Stages.js";
 
-// Reset sits in the card head, and on LIVE that head is the collapse toggle
-// (components/common.js) — so the click has to stop where it lands. Without
-// that, clearing the narrowing would also fold the card the user is narrowing
-// in.
+// The way into Easy Mode. It sits in the head, where a user who has just met a
+// wall of facets is already looking. The head holds one such link and this is
+// it: Reset answers a question about this card's contents, so it belongs with
+// the contents, and only this one is about the card as a whole.
+//
+// On LIVE the head is the collapse toggle (components/common.js), so the click
+// has to stop where it lands or entering Easy Mode would also fold the card on
+// the way out.
+function EasyLink() {
+  return html`<button
+    type="button"
+    class="narrow-easy"
+    data-testid="easy-enter"
+    onClick=${(/** @type {Event} */ e) => {
+      e.stopPropagation();
+      setEasyMode(true);
+    }}
+  >
+    Overwhelmed? Try Easy Mode.
+  </button>`;
+}
+
+// Reset now sits at the top of the card BODY rather than in the head. It keeps
+// its stopPropagation guard anyway: the guard costs nothing where nothing above
+// it is listening, and the body is inside the collapsible on LIVE.
 function ResetButton() {
   return html`<button
     type="button"
@@ -105,10 +127,11 @@ export function NarrowBar({ srcFormat = true, collapse }) {
   return html`
     <${Card}
       id="narrow-filters"
-      title=${html`Narrow filters${engaged ? html`<${ResetButton} />` : null}`}
+      title=${html`Narrow filters<${EasyLink} />`}
       cardClass="narrow-card"
       collapse=${collapse}
     >
+      ${engaged ? html`<div class="narrow-resetrow"><${ResetButton} /></div>` : null}
       ${
         notesVisible.value
           ? html`<div class="t-caption" data-note="narrow-intro">
