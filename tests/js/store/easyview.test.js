@@ -26,9 +26,13 @@
 //     under a URL node has not cached. The specifier is built rather than
 //     written literally because it names a file that is not on disk, which
 //     `tsc -p jsconfig.json` refuses as a literal (TS2307).
-//   * Both defaults are asserted: the grid starts on "album" and the flag starts
-//     DOWN. An install that has never heard of Easy Mode opens on the full
-//     controls, which are what exists today.
+//   * All three defaults are asserted: the grid starts on "album", the flag
+//     starts DOWN, and the help panel starts CLOSED. An install that has never
+//     heard of Easy Mode opens on the full controls, which are what exists
+//     today.
+//   * The help panel is the one piece of view state that is NOT remembered, so
+//     it is read twice: closed at load, and closed again through a fresh
+//     instance after a session left it open.
 //
 // Every case sets up the state it reads, whatever ran before it. The cases share
 // one storage and node runs them in declaration order, but nothing here leans on
@@ -59,6 +63,7 @@ const view = await import(MODULE);
 // on running before anything writes.
 const GRID_AT_LOAD = view.easyGrid.value;
 const MODE_AT_LOAD = view.easyMode.value;
+const HELP_AT_LOAD = view.easyHelp.value;
 
 /**
  * A second, independently loaded instance of the module — what the next page
@@ -68,6 +73,7 @@ const MODE_AT_LOAD = view.easyMode.value;
  * @returns {Promise<{
  *   easyMode: { value: boolean },
  *   easyGrid: { value: string },
+ *   easyHelp: { value: boolean },
  *   knobsFor: (grid: string, presetId: string) => Record<string, string>,
  * }>}
  */
@@ -82,6 +88,25 @@ test("test_a_browser_that_has_stored_no_grid_comes_up_on_the_album_grid", () => 
 // An install that has never heard of Easy Mode opens on the full controls.
 test("test_a_browser_that_has_stored_no_choice_comes_up_with_easy_mode_off", () => {
   assert.equal(MODE_AT_LOAD, false);
+});
+
+// The help panel is a third piece of view state, and the only one that is NOT
+// remembered. Read at load rather than after a setter, because "closed until
+// asked for" is the whole claim: a build that shipped the panel open would greet
+// every user with it, and a component-level case cannot catch that — the card's
+// own suite puts the signal down before each render, so it can only read what
+// the card does with a signal that is already false.
+test("test_a_fresh_load_comes_up_with_the_help_panel_closed", () => {
+  assert.equal(HELP_AT_LOAD, false);
+});
+
+// And it stays un-remembered: a session that left the panel open hands the next
+// load a closed one. Read through a second instance of the module the same way
+// the grid and the flag are, which is what makes it the opposite claim to theirs
+// rather than a restatement of the default above.
+test("test_a_help_panel_left_open_is_closed_again_after_a_reload", async () => {
+  view.easyHelp.value = true;
+  assert.equal((await reload("helpopen")).easyHelp.value, false);
 });
 
 // --- the setters move their signals ----------------------------------------------

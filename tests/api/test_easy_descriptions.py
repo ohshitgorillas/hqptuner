@@ -13,6 +13,9 @@ stays green. The count is the behavior because it is what a tile's height is,
 and a preset that grew a second paragraph makes its tile taller than the five
 beside it.
 
+Every tile of the Album grid is written in one paragraph, so this file states one
+number rather than a contrast between two — see the note above the cases.
+
 Static loader data, so the guard-only `api_client` (no daemon behind it) is
 enough — same as tests/api/test_metadata_easy.py.
 """
@@ -41,21 +44,21 @@ def _paragraphs(text: str) -> int:
     return len([part for part in re.split(r"\n\s*\n", text) if part.strip()])
 
 
-# --- the three tiles trimmed to a single paragraph -----------------------------
+# --- every tile of the grid is written in one paragraph -------------------------
+#
+# All five, since the "Switch to Hi-Res" sentence came out of Perfect Ten and
+# Lifelike: the grid has no two-paragraph description left in it. So this file no
+# longer holds a contrast, and nothing here can tell "one paragraph because the
+# copy says so" from "one paragraph because the payload lost the split" — the
+# split itself is a frontend behavior and is pinned over stand-in prose, in
+# tests/js/components/easytiles-desc.test.js. What these cases are for is the
+# tile heights: a description that grows a second paragraph makes its tile taller
+# than the five beside it.
 
 
-@pytest.mark.parametrize("preset", ["old-school", "purist", "concert-hall"])
+@pytest.mark.parametrize(
+    "preset",
+    ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school"],
+)
 def test_the_preset_description_is_one_paragraph(api_client: TestClient, preset: str) -> None:
     assert _paragraphs(_description(api_client, preset)) == 1
-
-
-# --- and the two that keep their second one ------------------------------------
-#
-# A guard rather than a new claim: these two are two paragraphs today and stay
-# two. What it catches is a trim applied across the grid rather than to the three
-# tiles it was meant for.
-
-
-@pytest.mark.parametrize("preset", ["perfect-ten", "lifelike"])
-def test_the_preset_description_keeps_its_two_paragraphs(api_client: TestClient, preset: str) -> None:
-    assert _paragraphs(_description(api_client, preset)) == 2

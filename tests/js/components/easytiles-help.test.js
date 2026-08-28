@@ -93,7 +93,13 @@ test("test_the_subtitle_shows_its_intro_before_the_help_link", async () => {
 // the panel comes and goes with the link
 // ============================================================================
 
-test("test_the_card_carries_no_help_panel_before_the_link_is_pressed", async () => {
+// The card draws no panel while the store says closed. That the store SAYS
+// closed on a fresh load is a fact about the store and is pinned there, off a
+// module instance nothing has written to (tests/js/store/easyview.test.js) —
+// this case cannot pin it, because the reset above puts the signal down before
+// every render.
+
+test("test_the_card_carries_no_help_panel_while_the_store_says_closed", async () => {
   await reset();
   assert.equal(helpPanels(tabs()), 0);
 });
@@ -130,11 +136,17 @@ test("test_opening_the_help_panel_writes_nothing_to_storage", async () => {
 // ============================================================================
 // with an edit staged
 // ============================================================================
+//
+// The panel is opened FIRST and the edit staged under it, which is the order a
+// user meets: a card that dropped the panel when the pending bar appeared fails
+// here. Pressing the link after staging would only show that a panel can be
+// opened while an edit is pending, which is a weaker claim and not the one the
+// spec makes.
 
-test("test_the_help_panel_is_still_open_with_an_edit_staged", async () => {
+test("test_an_open_help_panel_survives_an_edit_being_staged", async () => {
   const w = await reset();
+  pressHelp();
   pressTile(seenTabs(), ALBUM_TILE);
   await flush(w);
-  pressHelp();
   assert.equal(helpPanels(tabs()), 1);
 });

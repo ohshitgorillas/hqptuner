@@ -32,6 +32,7 @@ useStorage();
 
 const {
   ALBUM_TILE,
+  PLAYLIST_TILE,
   EMPTY,
   resetTab,
   resetLive,
@@ -56,13 +57,14 @@ const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const PCM_1X = "pcm_filter_1x";
 const NX_FIELD = "filter";
 
-// `perfect-ten`'s own filters, stated outright the way
-// tests/js/components/easytiles.test.js states them: what the album tile writes
-// to both ends of the PCM chain, and the pair the playlist tile writes at its
-// `transients` position.
+// The filters the two tiles under test write, stated outright the way
+// tests/js/components/easytiles.test.js states them: `perfect-ten`'s
+// standard-source, space-emphasis filter, which the album tile writes to both
+// ends of the PCM chain, and `lifelike`'s playlist pair — one name for each end
+// — at its `transients` position and at its `space` one.
 const ALBUM_STANDARD_SPACE = "poly-sinc-gauss-long";
-const PLAYLIST_TRANSIENTS = { oneX: "poly-sinc-gauss-medium", nX: "poly-sinc-gauss-hires-mp" };
-const PLAYLIST_SPACE_NX = "poly-sinc-gauss-hires-lp";
+const PLAYLIST_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
+const PLAYLIST_SPACE_NX = "poly-sinc-ext2-hires-lp";
 
 // Both knobs of the album tile, where an untouched press leaves them.
 const DEFAULT_KNOBS = { source: "standard", emphasis: "space" };
@@ -120,7 +122,7 @@ test("test_a_knob_move_stages_only_the_field_that_position_changes", async () =>
     mode: "pcm",
     names: seedPcmPair(PLAYLIST_TRANSIENTS.oneX, PLAYLIST_SPACE_NX),
   });
-  pressKnob(seenTabs(), ALBUM_TILE, "transients");
+  pressKnob(seenTabs(), PLAYLIST_TILE, "transients");
   await flush(w);
   assert.deepEqual(stagedNames(w), { [NX_FIELD]: PLAYLIST_TRANSIENTS.nX });
 });

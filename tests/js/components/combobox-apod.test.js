@@ -36,7 +36,7 @@ import assert from "node:assert/strict";
 
 import { reset, field, META } from "../support/field-harness.js";
 import { renderField } from "../support/vnodeseam.js";
-import { elements, classes, attr, text } from "../support/markup.js";
+import { elements, classes, attr, hasAttr, text } from "../support/markup.js";
 import { endOf, encloses, rows, rowIncluding, classTokens } from "../support/comborows.js";
 import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
@@ -343,6 +343,45 @@ test("test_the_full_and_half_badges_draw_distinct_glyphs", async () => {
 test("test_a_row_of_neither_class_carries_no_badge", async () => {
   const out = await simplifiedField();
   assert.equal(badgesIn(out, rowIncluding(out, MM_NONE)).length, 0);
+});
+
+// --- the badge still announces itself ---------------------------------------------
+//
+// The badge became a shared component when Easy Mode's tiles grew the same mark,
+// and a shared component takes its label from whoever renders it — so a
+// dropdown's own labels can go missing without a glyph, a class or a role
+// changing anywhere. What is read is that each badge says SOMETHING and that the
+// two do not say the same thing; what either one says is the owner's and is
+// asserted nowhere (docs/testing.md rule 9).
+//
+// An empty label reads as the empty string rather than as a missing attribute:
+// SSR emits an empty-string attribute bare (` aria-label`, never `aria-label=""`),
+// so a badge labelled with nothing would otherwise look like a badge carrying no
+// label at all.
+
+/** @param {MarkupElement} badge */
+function labelOf(badge) {
+  const carriers = elements(badge.html).filter((el) => hasAttr(el, "aria-label"));
+  if (carriers.length !== 1) throw new Error(`expected one aria-label on the badge, found ${carriers.length}`);
+  return attr(carriers[0], "aria-label") ?? "";
+}
+
+test("test_the_full_and_half_badges_each_carry_a_label_that_says_something", async () => {
+  const out = await simplifiedField();
+  assert.deepEqual(
+    [rowIncluding(out, U_FULL), rowIncluding(out, MH_HALF)]
+      .map((row) => labelOf(onlyBadgeIn(out, row)))
+      .map((label) => label.trim() !== ""),
+    [true, true],
+  );
+});
+
+test("test_the_full_and_half_badges_carry_different_labels", async () => {
+  const out = await simplifiedField();
+  assert.notEqual(
+    labelOf(onlyBadgeIn(out, rowIncluding(out, U_FULL))),
+    labelOf(onlyBadgeIn(out, rowIncluding(out, MH_HALF))),
+  );
 });
 
 // --- the badge is a marking, not an affordance ---------------------------------

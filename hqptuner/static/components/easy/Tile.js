@@ -20,6 +20,7 @@ import { rememberKnobs } from "../../store/easyview.js";
 import { writeSet } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
 import { filterFacets } from "../../store/narrow/facets.js";
+import { MARK_LABEL } from "./marks.js";
 
 /**
  * @typedef {import("../../store/easy.js").Preset} Preset
@@ -55,18 +56,6 @@ async function applyPreset(lane, grid, presetId, knobs) {
     await l.write(key, name);
   }
 }
-
-// What each mark is called for a reader who cannot see it. Constants rather
-// than copy read through `easyProse`, unlike every visible string on a tile:
-// prose arrives with the metadata and is empty until it does, which for a
-// caption means a line that appears a moment late, but for an `aria-label`
-// means an image with no name at all on first paint. The dropdown's own two
-// labels are constants for the same reason (controls/comborow.js).
-const MARK_LABEL = {
-  full: "Error Correction",
-  half: "Partial Error Correction",
-  none: "No Error Correction",
-};
 
 // Which mark a tile wears. The filters a preset writes all share one apodizing
 // class — checked across the whole table, 1x and Nx, PCM and SDM, `-2s` and
@@ -136,22 +125,22 @@ export function PresetTile({ grid, preset, lane, active, knobs }) {
         <span class="easy-mark">
           <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
           <span class="easy-title t-head">${easyProse(grid, preset.id, "title")}</span>
+          ${
+            mark &&
+            html`<span class="easy-apod" data-mark=${mark} data-tip=${MARK_LABEL[mark]}>
+            <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
+          </span>`
+          }
         </span>
-        <span class="easy-desc t-label"
-          >${paragraphs(easyProse(grid, preset.id, "description")).map(
+        <span class="easy-desc t-label">
+          ${paragraphs(easyProse(grid, preset.id, "description")).map(
             (para, i) => html`<span data-para=${String(i)}>${para}</span>`,
-          )}</span
-        >
+          )}
+        </span>
       </button>
       ${preset.knobs.map(
         (knob) => html`<${KnobRow} grid=${grid} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
       )}
-      ${
-        mark &&
-        html`<span class="easy-apod" data-mark=${mark}>
-        <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
-      </span>`
-      }
     </div>
   `;
 }

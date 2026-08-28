@@ -170,19 +170,44 @@ export function markLabel(out, presetId) {
 }
 
 /**
- * Whether every one of a tile's knobs closes before its mark begins — "the mark
- * is below the knobs" read as document order, which is the half of it a
- * rendering can answer. A tile carrying no knob at all throws rather than
- * answering true vacuously.
+ * Where the mark sits in a tile's reading order: after the tile's title and
+ * before its description.
+ *
+ * The title is located by the offset of the STAND-IN the calling suite seeded
+ * through /api/metadata — the suite's own invented text, never a word of what
+ * ships — and only where that text renders as visible content, so a title
+ * repeated into an attribute anchors nothing. The description is located by its
+ * first `data-para` block, the marking
+ * tests/js/components/easytiles-desc.test.js already pins. A tile showing no
+ * description throws rather than answering true with nothing on its far side.
  *
  * @param {string} out
  * @param {string} presetId
+ * @param {string} titleText
  * @returns {boolean}
  */
-export function knobsPrecedeMark(out, presetId) {
+export function markFollowsTitleAndPrecedesDescription(out, presetId, titleText) {
   const fragment = tileHtml(out, presetId);
-  const knobs = elements(fragment).filter((el) => attr(el, "data-knob") !== undefined);
-  if (knobs.length === 0) throw new Error(`the "${presetId}" tile carries no knob`);
-  const last = Math.max(...knobs.map((el) => el.start + el.html.length));
-  return onlyMark(out, presetId).start >= last;
+  const at = visibleTextAt(fragment, titleText);
+  const paragraphs = elements(fragment).filter((el) => attr(el, "data-para") !== undefined);
+  if (paragraphs.length === 0) throw new Error(`the "${presetId}" tile shows no description`);
+  const first = Math.min(...paragraphs.map((el) => el.start));
+  const mark = onlyMark(out, presetId).start;
+  return mark > at && mark < first;
+}
+
+/**
+ * Where a needle renders as VISIBLE text of a fragment — a match inside a tag's
+ * attribute run is skipped. Throws when the fragment shows no such text, the way
+ * tests/js/components/combobox-apod.test.js's reader of the same shape does.
+ *
+ * @param {string} fragment
+ * @param {string} needle
+ * @returns {number}
+ */
+function visibleTextAt(fragment, needle) {
+  for (let at = fragment.indexOf(needle); at >= 0; at = fragment.indexOf(needle, at + 1)) {
+    if (fragment.lastIndexOf(">", at) > fragment.lastIndexOf("<", at)) return at;
+  }
+  throw new Error(`"${needle}" is not visible text of the fragment`);
 }

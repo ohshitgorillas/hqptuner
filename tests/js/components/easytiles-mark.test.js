@@ -1,8 +1,8 @@
 // Behavioral suite for the ERROR-CORRECTION MARK an Easy Mode preset tile
-// carries: every tile renders one, below its knobs; the form it takes follows
-// the apodizing class of the filter that tile would write at the knob positions
-// it is SHOWING, lit or dark; and a filter whose class nothing has stated leaves
-// the tile with no mark rather than a guessed one.
+// carries: every tile renders one, between its title and its description; the
+// form it takes follows the apodizing class of the filter that tile would write
+// at the knob positions it is SHOWING, lit or dark; and a filter whose class
+// nothing has stated leaves the tile with no mark rather than a guessed one.
 //
 // The companion files are tests/js/components/easytiles.test.js (the grids, the
 // active marking and where a press routes what the table names),
@@ -16,9 +16,9 @@
 // NOTHING HERE READS COPY (docs/testing.md rule 9, and never owner copy
 // verbatim). The three forms are told apart by the vector geometry each draws
 // and by the fact that their accessible labels DIFFER — never by what any of
-// those labels says. Which form is "the full-apodizing one" is established by
-// rendering a tile whose filter is stated full and reading what it drew, so no
-// path data and no sentence is typed out anywhere in this file.
+// those labels says. WHICH form is the full-apodizing one is settled against the
+// dropdown badge's own glyph for that class (tests/js/support/apodglyph.js), so
+// no path data and no sentence is typed out anywhere in this file.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
 //   * the `apod-mark` class on the mark element — the shared class the filter
@@ -43,8 +43,16 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const { ALBUM_TILE, resetTab, running, seedPcm, tabs } = await import("../support/easytiles.js");
-const { seedFacets, uniformFacets, facetsFor, markCounts, markGlyph, markLabel, knobsPrecedeMark } =
-  await import("../support/easymark.js");
+const {
+  seedFacets,
+  uniformFacets,
+  facetsFor,
+  markCounts,
+  markGlyph,
+  markLabel,
+  markFollowsTitleAndPrecedesDescription,
+} = await import("../support/easymark.js");
+const { dropdownGlyphs } = await import("../support/apodglyph.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 
 // The album grid's roster, stated outright: a preset id is a wire identifier,
@@ -150,17 +158,64 @@ test("test_each_marks_accessible_label_says_something", async () => {
 });
 
 // ============================================================================
-// the mark sits below the knobs
+// which of the three forms is which
 // ============================================================================
 //
-// Document order, which is the half of "below" a rendering can answer; where the
-// two land on screen is CSS and belongs to the visual hand-back.
+// The cases above can tell three forms apart but not which is which: a card that
+// drew the crossed A for a full-apodizing filter and the circled A for one that
+// does no correction satisfies every one of them. Identity is borrowed from the
+// dropdown badge, which has drawn the full and half glyphs since before the
+// tiles existed and whose own cases pin that it does
+// (tests/js/components/combobox-apod.test.js) — so a tile that swapped two forms
+// fails here without any path data being typed into a test.
+//
+// The "none" form has no dropdown counterpart to be anchored against: a row of
+// neither class wears no badge at all. What pins it is the two below plus the
+// distinctness case above — matching full and half leaves the crossed A the only
+// form the third can be.
 
-test("test_a_tiles_mark_renders_after_every_one_of_its_knobs", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  seedFacets(uniformFacets("full"));
-  assert.equal(knobsPrecedeMark(tabs(), ALBUM_TILE), true);
-});
+// The two classes the dropdown draws, named by the class itself: the badge
+// reader answers under the same two names the overlay states a class by.
+/** @type {("full" | "half")[]} */
+const ANCHORED = ["full", "half"];
+
+for (const apodizing of ANCHORED) {
+  test(`test_a_${apodizing}_apodizing_tile_draws_the_same_mark_as_a_${apodizing}_apodizing_dropdown_row`, async () => {
+    const badge = await dropdownGlyphs();
+    assert.equal(await glyphOfClass(apodizing), badge[apodizing]);
+  });
+}
+
+// ============================================================================
+// where the mark sits in the tile
+// ============================================================================
+//
+// After the tile's title and before its description, on every tile of the grid —
+// document order, which is the half of a layout a rendering can answer; where
+// the three land on screen is CSS and belongs to the visual hand-back.
+//
+// The titles and descriptions are this file's own stand-ins, seeded through
+// /api/metadata's `easy.<grid>.<presetId>` shape
+// (tests/api/test_metadata_easy.py). No word of what ships reaches these cases,
+// and the title is used as a POSITION and never as a value.
+
+/** @param {string} presetId */
+const standInTitle = (presetId) => `A stand-in title for ${presetId}.`;
+
+const COPY = Object.fromEntries(
+  ALBUM_ROSTER.map((id) => [
+    id,
+    { title: standInTitle(id), description: "A stand-in description, seeded by the suite." },
+  ]),
+);
+
+for (const presetId of ALBUM_ROSTER) {
+  test(`test_the_${presetId}_mark_sits_between_its_title_and_its_description`, async () => {
+    await resetTab({ grid: "album", mode: "pcm", notes: true, copy: COPY });
+    seedFacets(uniformFacets("full"));
+    assert.equal(markFollowsTitleAndPrecedesDescription(tabs(), presetId, standInTitle(presetId)), true);
+  });
+}
 
 // ============================================================================
 // the mark follows the knob positions the tile is SHOWING

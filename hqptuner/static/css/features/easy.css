@@ -52,6 +52,32 @@
    way a control with a border of its own marks a staged edit. */
 .easy-tile[data-active="1"] {
   border-color: var(--accent);
+  /* A second accent ring INSIDE the border, so the lit edge reads at twice the
+     weight without the box changing size — a 2px border would move every tile in
+     the row by a pixel as the selection travels. The edge light aesthetic.css
+     spends on every raised element is carried along rather than replaced: this
+     file loads after it, so naming box-shadow here drops it otherwise. */
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    var(--edge-light);
+}
+
+/* The lit tile says so twice: its edge and its name. One tile in the grid is the
+   filters actually running, and an edge alone is a thin thing to carry that on a
+   wall of six boxes. So the names carry it too — the unlit ones step back to the
+   secondary gray and the lit one keeps the primary, which makes the difference a
+   step on the gray ladder the design system already fixes rather than a fourth
+   color. Size and weight still separate a stepped-back title from the
+   description under it.
+
+   Both rules name the tile as well as the title, which they need to: the role
+   class sets the primary gray, typography.css loads last, and a lone
+   `.easy-title` ties on specificity and loses on order. */
+.easy-tile .easy-title {
+  color: var(--fg-2);
+}
+.easy-tile[data-active="1"] .easy-title {
+  color: var(--fg);
 }
 
 /* The picking half. It is a button because clicking it acts, and it does not
@@ -62,10 +88,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* A line's worth between the name and the prose under it. The emoji and the
-     title sit closer than that, which is why they are a group of their own:
-     one flex parent gives one gap, so two spacings need two parents. */
-  gap: var(--sp-4);
+  /* Tight. The name group ends in the error-correction mark, and the mark sits
+     against the description it belongs with rather than across a line of space
+     from it. */
+  gap: var(--sp-1);
   width: 100%;
   padding: 0;
   /* Takes the row's slack, so the knobs under it sit on the tile's bottom edge
@@ -127,13 +153,40 @@
 .easy-knob {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* The name sits on its segment's left edge rather than over its middle. A
+     centered label over a stretched segment reads as a caption for the tile,
+     not for the control under it; on the left edge it starts where its control
+     starts, and a tile carrying two knobs shows two names on one margin. */
+  align-items: flex-start;
   gap: var(--sp-1);
   width: 100%;
   /* Inset from the tile's own padding, so the segment stops short of the box's
      edge instead of running the full width of it. Horizontal, so it is padding's
      to spend; the equal split below divides whatever is left. */
   padding: 0 var(--sp-3);
+}
+
+/* Each knob a different width, by how much room its own words need and so that
+   a tile carrying two of them reads as two controls rather than one repeated.
+   Version holds the longest label in the set, a preset's whole name, so it
+   takes the full width the tile's padding leaves and none of its own. */
+.easy-knob[data-knob="version"] {
+  /* No inset at all. Its positions are whole preset names, the longest labels in
+     the set, and anything taken off this row wraps "The Perfect Ten" onto a
+     second line and makes the segment twice the height of every other knob. */
+  padding: 0;
+}
+.easy-knob[data-knob="correction"] {
+  padding: 0 var(--sp-4);
+}
+.easy-knob[data-knob="emphasis"] {
+  padding: 0 var(--sp-5);
+}
+.easy-knob[data-knob="source"] {
+  /* One step past the end of the scale, which is where this knob's turn in the
+     ladder lands. Two tokens added rather than a number, so it still moves with
+     the scale. */
+  padding: 0 calc(var(--sp-5) + var(--sp-2));
 }
 
 /* Both positions the same width, so a knob reads as one control split in two
@@ -156,6 +209,38 @@
    sits. */
 .easy-apod {
   display: inline-flex;
+  position: relative;
+}
+
+/* The mark's hover tip. Drawn here rather than left to the browser's own `title`
+   bubble, whose delay is the browser's to decide and is close to a second: a
+   mark small enough to need explaining is one the pointer does not rest on for
+   that long. Same surface, border and type as the dropdown's tip so the two read
+   as one thing said twice.
+
+   The words come from `data-tip` rather than from this file, so the tip and the
+   mark's accessible name cannot drift apart: both are the one label the
+   component was given. */
+.easy-apod::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 20;
+  transform: translate(-50%, calc(var(--sp-1) * -1));
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--fg);
+  white-space: nowrap;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+.easy-apod:hover::after {
+  opacity: 1;
 }
 
 /* The subtitle holds two things now, the paragraph and the link under it, so it
@@ -184,35 +269,64 @@
    and the same hairline along its top edge, so the two read as one furniture
    family rather than as a panel that landed on top of the page.
 
-   It starts above the pending bar rather than under it. That bar is always
-   rendered and always fixed to the floor, so covering it would put Apply behind
-   a block of guidance for anyone who staged an edit and then asked a question.
    Capped in height and scrolling inside itself, because six paragraphs at a
    narrow window is taller than the window. */
 .easy-help {
   position: fixed;
   right: 0;
-  bottom: var(--h-pending);
+  bottom: 0;
   left: 0;
   z-index: 25;
   display: flex;
   align-items: flex-start;
   gap: var(--sp-3);
+  /* The box is the width of the prose in it, not the width of the window. A
+     panel spanning a wide screen to hold a column of centered text is mostly
+     empty surface, and the empty part still covers the page under it. Bordered
+     all round and rounded at the top, because a box that stops short of the
+     edges is an object rather than a band across the floor. */
+  max-width: var(--w-prose);
   max-height: 50vh;
+  margin-inline: auto;
   padding: var(--sp-3);
   overflow-y: auto;
   background: var(--surface-card);
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+
+/* It starts above the pending bar rather than under it, since covering that bar
+   would put Apply behind a block of guidance for anyone who staged an edit and
+   then asked a question. The bar is not always there: LIVE renders none
+   (components/App.js), and a fixed offset leaves the panel floating a bar's
+   height above an empty floor. So the offset is asked of the page rather than
+   assumed — no lane threaded through the component, and the rule tracks the
+   thing it is avoiding. */
+body:has(.pending-bar) .easy-help {
+  bottom: var(--h-pending);
 }
 
 /* One block per paragraph, stacked, taking the width the page gives them. The
-   space between paragraphs is this parent's gap, not a margin on the blocks. */
+   space between paragraphs is this parent's gap, not a margin on the blocks —
+   which is also why the blocks are spans rather than paragraph elements: a `p`
+   carries the browser's own vertical margins, and those land on top of the gap
+   and win, the same way the tile descriptions avoid them. */
 .easy-help-body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--sp-2);
   line-height: 1.35;
+}
+/* The panel names itself, centered over the paragraphs. It takes the head role
+   every other title in the app takes, which renders it uppercase. */
+.easy-help-title {
+  text-align: center;
+}
+/* A mark named mid-sentence rides the text rather than sitting on its baseline,
+   which for a circle means centered on the lowercase body of the line. */
+.easy-help-body .apod-mark {
+  vertical-align: middle;
 }
 
 /* The way out of the panel, in its top-right corner. Muted rather than accent:

@@ -162,6 +162,7 @@
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-tile: 22.5rem; /* Easy Mode preset tile: sized to the widest knob, a three-position segment */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
+  --w-prose: 44rem; /* running prose: a reading measure, not the container's width */
   /* The pending bar's own height. It is fixed to the page floor and always
      rendered, so anything else that wants the floor has to start above it.
      Measured rather than imposed: the bar is sized by the buttons in it, and
