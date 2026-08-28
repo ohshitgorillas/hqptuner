@@ -17,7 +17,8 @@ A record is::
 
     {"chain": "pcm",
      "fields": {"mode": "pcm", "filter": "40", "dither": "5", "rate": "0", ...},
-     "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...}}
+     "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...},
+     "autopilot": false}
 
 ``fields`` is what the live lane takes, output mode included — a preset that could
 not say which mode to run could not put the engine back the way it was found. The
@@ -27,6 +28,11 @@ alone. ``chain`` records which chain the snapshot was taken on, which is what th
 stored filter and shaper IDs index. ``names`` is display only:
 the enumerations are engine-built and can shift under a stored preset, so the
 card can still say what was saved even when an ID no longer resolves.
+
+``autopilot`` sits beside ``fields`` rather than in it because it is not a live-lane
+field and the lane would refuse it: the high-frequency filter's auto-pilot is
+HQPTuner's own switch, applied by the route after the lane has done its work. A
+record written before it existed carries no such key and reads as off.
 """
 
 from __future__ import annotations
@@ -43,8 +49,9 @@ if TYPE_CHECKING:
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
 # misread preset writes settings the user never chose. An unstamped file predates
-# the stamp and is adopted as schema 1 on its next write.
-_SCHEMA = 1
+# the stamp and is adopted as the current schema on its next write.
+# 2 adds the record's `autopilot` key.
+_SCHEMA = 2
 
 
 class LivePresetError(ValueError):
