@@ -247,6 +247,7 @@
   --fs-title: 1.1rem; /* card-head.center — the largest heading in a card */
   --fs-brand: 1.25rem; /* the app wordmark. one use. */
   --fs-readout: 1.5rem; /* the big knob readout, the DSP mode switcher */
+  --fs-mark: 1.65rem; /* a glyph standing in for a heading — reads smaller than type at the same size */
   /* SVG text: px, because SVG user units do not follow the root rem */
   --fs-svg-sm: 9px; /* plot tick + trace labels */
   --fs-svg: 10px; /* diagram labels (angles, rooms, levels) */

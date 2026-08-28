@@ -82,62 +82,65 @@ for (const [mode, keys] of MODE_KEYS) {
 
 // --- behaviors 2 and 5: the album grid writes one filter to both ends of a chain ------
 //
-// Each case calls with NO knobs argument, so it pins two things at once that
-// cannot be separated by an observation: the default knob positions produce the
-// preset's headline filter, and that one name lands on the chain's 1x key and
-// its Nx key alike.
+// One name landing on the chain's 1x key and its Nx key alike, preset by
+// preset. Every row NAMES every knob position it reads at, so what each case
+// pins is what that combination writes — a resting position is the owner's to
+// revisit, and moving one must not break a case whose subject is the shape of
+// the write rather than the default.
+//
+// Where the knobs rest is read once, immediately below the table, and only
+// once.
 //
 // `old-school` and `damage-control` are read here on the PCM chain, where the
 // plain name lives; their SDM `-2s` flavor is behavior 4, below.
 
-// `perfect-ten` and `lifelike` are NOT read here, and are read nowhere in this
-// file with their Source knob left out. What that knob writes at each of its
-// positions is `CROSSED_CASES` and tests/js/store/easy-source-auto.test.js;
-// which position it RESTS at is one case in that file. An untouched call on
-// either preset is the composition of those two, and composing facts already
-// pinned elsewhere only breaks when a resting position moves.
+// `perfect-ten` and `lifelike` are NOT read here. What their Source knob writes
+// at each of its positions is `CROSSED_CASES` and
+// tests/js/store/easy-source-auto.test.js; which position it RESTS at is one
+// case in that file.
 
-/** @type {[string, string][]} */
+/** @type {[string, string, Record<string, string>, string][]} */
 const ALBUM_HEADLINE_PCM = [
-  ["old-school", "poly-sinc-short-mp"],
-  ["purist", "poly-sinc-gauss-halfband"],
-  ["damage-control", "poly-sinc-xtr-short-lp"],
-  ["concert-hall", "poly-sinc-gauss-xla"],
+  ["old-school", "with_emphasis_on_transients", { emphasis: "transients" }, "poly-sinc-short-mp"],
+  ["purist", "with_emphasis_on_space", { emphasis: "space" }, "poly-sinc-gauss-halfband"],
+  ["damage-control", "with_emphasis_on_space", { emphasis: "space" }, "poly-sinc-xtr-short-lp"],
+  [
+    "concert-hall",
+    "on_the_perfect_ten_version_with_correction_on",
+    { version: "perfect-ten", correction: "on" },
+    "poly-sinc-gauss-xla",
+  ],
 ];
 
-for (const [presetId, name] of ALBUM_HEADLINE_PCM) {
-  test(`test_the_album_preset_${presetId}_writes_its_headline_filter_to_both_ends_of_the_chain`, () => {
-    assert.deepEqual(writeSet("album", presetId, "pcm"), pcmBoth(name));
+for (const [presetId, at, knobs, name] of ALBUM_HEADLINE_PCM) {
+  test(`test_the_album_preset_${presetId}_${at}_writes_${name}_to_both_ends_of_the_chain`, () => {
+    assert.deepEqual(writeSet("album", presetId, "pcm", knobs), pcmBoth(name));
   });
 }
+
+// Where the album knobs rest: a call passing no positions at all answers with
+// the filter the resting ones name. One preset carries this, because a resting
+// position belongs to the knob rather than to a preset — `purist` because it
+// carries a single knob, so nothing else can be standing in the answer.
+
+test("test_an_album_preset_called_with_no_knob_positions_writes_the_filter_its_resting_ones_name", () => {
+  assert.deepEqual(writeSet("album", "purist", "pcm"), pcmBoth("poly-sinc-gauss-halfband"));
+});
 
 // --- behavior 3: the playlist grid writes two distinct filters -------------------------
 //
-// The whole point of the playlist grid: the 1x key and the Nx key differ.
+// The whole point of the playlist grid: the 1x key and the Nx key differ. WHICH
+// pair each position names is the emphasis table below, every row of it stating
+// its position; what is read here is where the knob rests, one case, one
+// preset. A per-preset sweep with the position left out would only compose that
+// resting position with a pair the table below already pins.
 
-/** @type {[string, string, string][]} */
-const PLAYLIST_PAIRS = [
-  ["perfect-ten", "poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"],
-  ["lifelike", "poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp"],
-];
-
-for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
-  test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_pcm_keys`, () => {
-    assert.deepEqual(writeSet("playlist", presetId, "pcm"), { [PCM_1X]: oneX, [PCM_NX]: nX });
+test("test_a_playlist_preset_called_with_no_knob_position_writes_the_pair_its_resting_one_names", () => {
+  assert.deepEqual(writeSet("playlist", "perfect-ten", "pcm"), {
+    [PCM_1X]: "poly-sinc-gauss-long",
+    [PCM_NX]: "poly-sinc-gauss-hires-lp",
   });
-}
-
-// The same pair read on the SDM chain, so the distinct-filter contract is pinned
-// on the SDM keys in their own right: neither playlist preset defines a `-2s`
-// variant, so the SDM names are the plain ones, and a module that collapsed the
-// playlist pair to a single name on this chain fails here rather than passing
-// because only PCM was ever looked at.
-
-for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
-  test(`test_the_playlist_preset_${presetId}_writes_its_two_distinct_filters_to_the_two_sdm_keys`, () => {
-    assert.deepEqual(writeSet("playlist", presetId, "sdm"), { [SDM_1X]: oneX, [SDM_NX]: nX });
-  });
-}
+});
 
 // --- the playlist grid's emphasis knob --------------------------------------------------
 //
@@ -148,9 +151,9 @@ for (const [presetId, oneX, nX] of PLAYLIST_PAIRS) {
 // with itself.
 //
 // The `space` rows are the positions the presets sit at untouched, which the
-// no-knob section above reads as the default; stating them again here is what
-// makes "the DEFAULT pair" and "the pair the `space` POSITION names" one claim
-// rather than two that happen to coincide.
+// resting case above reads through a call naming no position at all; stating
+// them here is what makes "the DEFAULT pair" and "the pair the `space` POSITION
+// names" one claim rather than two that happen to coincide.
 
 /** @type {[string, string, string, string][]} */
 const PLAYLIST_EMPHASIS = [
@@ -166,13 +169,15 @@ for (const [presetId, emphasis, oneX, nX] of PLAYLIST_EMPHASIS) {
   });
 }
 
-// The knob's other position on the SDM keys too, so the distinct pair is pinned
-// on that chain in its own right: neither playlist preset defines a `-2s`
-// variant, so the names are the plain ones.
+// The same four rows on the SDM keys, so the distinct pair is pinned on that
+// chain in its own right: neither playlist preset defines a `-2s` variant, so
+// the names are the plain ones, and a module that collapsed the playlist pair to
+// a single name on this chain fails here rather than passing because only PCM
+// was ever looked at.
 
-for (const [presetId, , oneX, nX] of PLAYLIST_EMPHASIS.filter(([, emphasis]) => emphasis === "transients")) {
-  test(`test_the_playlist_preset_${presetId}_on_transients_writes_its_pair_to_the_two_sdm_keys`, () => {
-    assert.deepEqual(writeSet("playlist", presetId, "sdm", { emphasis: "transients" }), {
+for (const [presetId, emphasis, oneX, nX] of PLAYLIST_EMPHASIS) {
+  test(`test_the_playlist_preset_${presetId}_on_${emphasis}_writes_its_pair_to_the_two_sdm_keys`, () => {
+    assert.deepEqual(writeSet("playlist", presetId, "sdm", { emphasis }), {
       [SDM_1X]: oneX,
       [SDM_NX]: nX,
     });

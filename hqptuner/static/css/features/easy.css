@@ -119,10 +119,9 @@
   width: 100%;
 }
 
-/* The emoji is a mark rather than text, so it takes a size and nothing else —
-   no text role, no gray. Readout is the one large step on the ladder. */
+/* The emoji is a mark rather than text: a size, no text role, no gray. */
 .easy-emoji {
-  font-size: var(--fs-readout);
+  font-size: var(--fs-mark);
 }
 
 /* Title and description are centered under the mark; their size and color come
@@ -184,20 +183,28 @@
   padding: 0 var(--sp-5);
 }
 .easy-knob[data-knob="source"] {
-  /* One step past the end of the scale, which is where this knob's turn in the
-     ladder lands. Two tokens added rather than a number, so it still moves with
-     the scale. */
-  padding: 0 calc(var(--sp-5) + var(--sp-2));
+  /* The smallest inset of the three that take one, because this knob divides its
+     row THREE ways where the others divide it two. At a wider inset "Hi-Res"
+     wraps onto a second line and the segment stands at twice the height of the
+     Emphasis knob above it. */
+  padding: 0 var(--sp-1);
 }
 
-/* A knob's tip, over the knob it explains. Same surface, border and type as the
-   mark's tip, so the two read as one thing said twice.
+/* A knob's tip, over the knob it explains. Same surface, border, size and color
+   as the mark's tip above, so the two read as one thing said twice.
 
-   A real element rather than a `::after` on `data-tip`, because these words are
+   A real element rather than a `::after` on an attribute, because these words are
    the knob group's `aria-describedby` target and generated content is not in the
    accessibility tree. Hidden by opacity rather than by `display`, which is what
    keeps it readable to a screen reader while invisible to a pointer, and taken
-   out of flow so an invisible bubble does not push the segment down. */
+   out of flow so an invisible bubble does not push the segment down.
+
+   It carries no text role class, and must not: a tooltip is not caption prose,
+   and every one of those classes pins `opacity: 1` (typography.css) precisely so
+   that text is never dimmed by opacity. That file loads last, so a role class
+   here would tie on specificity, win on order, and leave the tip permanently
+   over the control below it. Its size and color are named here for the same
+   reason the mark's tip names them. */
 .easy-knob-tip {
   position: absolute;
   bottom: 100%;
@@ -207,6 +214,7 @@
   max-width: 100%;
   transform: translate(-50%, calc(var(--sp-1) * -1));
   padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
   color: var(--fg);
   text-align: center;
   background: var(--surface-raised);

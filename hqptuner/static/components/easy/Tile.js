@@ -109,7 +109,7 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
       <span class="t-label" id=${`${base}-label`}>
         ${easyProse(grid, preset.id, "knobs", knob.id, "label")}
       </span>
-      ${tip && html`<span class="easy-knob-tip t-caption" id=${`${base}-tip`}>${tip}</span>`}
+      ${tip && html`<span class="easy-knob-tip" id=${`${base}-tip`}>${tip}</span>`}
       <${Segment}
         value=${knobs[knob.id]}
         options=${options}

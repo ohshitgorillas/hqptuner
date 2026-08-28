@@ -26,6 +26,7 @@ import { writeSet } from "../../../hqptuner/static/store/easy.js";
 const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
 const SDM_1X = "sdm_filter_1x";
+const SDM_NX = "sdm_filter_nx";
 
 const LOSSY_SPACE = "poly-sinc-mqa/mp3-lp";
 const LOSSY_TRANSIENTS = "poly-sinc-mqa/mp3-mp";
@@ -55,8 +56,15 @@ test("test_the_lossy_preset_with_emphasis_on_transients_writes_the_same_mp_filte
 // ============================================================================
 //
 // The SDM end read in its own right: a preset reached only through the PCM keys
-// would pass every case above and still leave the SDM chain unwritten.
+// would pass every case above and still leave the SDM chain unwritten. Both ends
+// of that chain, one case apiece, the way the PCM ends are read above — a preset
+// writing only the 1x end leaves the Nx end of the SDM chain carrying whatever
+// was there before.
 
 test("test_the_lossy_preset_under_the_auto_output_mode_writes_its_filter_to_the_sdm_chain_too", () => {
   assert.equal(writeSet("playlist", "lossy", "auto", { emphasis: "space" })[SDM_1X], LOSSY_SPACE);
+});
+
+test("test_the_lossy_preset_under_the_auto_output_mode_writes_the_same_filter_to_the_sdm_nx_end", () => {
+  assert.equal(writeSet("playlist", "lossy", "auto", { emphasis: "space" })[SDM_NX], LOSSY_SPACE);
 });

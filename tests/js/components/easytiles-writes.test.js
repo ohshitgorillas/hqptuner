@@ -64,8 +64,13 @@ const NX_FIELD = "filter";
 // beside it, and so is the filter that position writes to both ends of the PCM
 // chain.
 const ONE_KNOB_TILE = "purist";
-const ONE_KNOB_POSITIONS = { emphasis: "space" };
 const ONE_KNOB_SPACE = "poly-sinc-gauss-halfband";
+
+// And the position that knob does NOT rest at, with the filter it names: what
+// the record case below seeds the fields with and presses at, so that the
+// positions it reads back differ from the ones a card recording its knobs'
+// DEFAULTS would have written.
+const ONE_KNOB_MOVED = { emphasis: "transients" };
 
 // And `lifelike`'s playlist pair — one name for each end of the chain — at its
 // `transients` position and at its `space` one. Filter names are wire
@@ -143,8 +148,8 @@ test("test_a_knob_move_stages_only_the_field_that_position_changes", async () =>
 // lose them.
 
 test("test_a_press_that_writes_nothing_still_records_the_tiles_knob_positions", async () => {
-  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_POSITIONS) });
+  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_MOVED) });
   pressTile(seenTabs(), ONE_KNOB_TILE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", ONE_KNOB_TILE), ONE_KNOB_POSITIONS);
+  assert.deepEqual(knobsFor("album", ONE_KNOB_TILE), ONE_KNOB_MOVED);
 });

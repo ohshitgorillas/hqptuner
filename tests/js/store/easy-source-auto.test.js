@@ -101,27 +101,11 @@ test("test_lifelike_on_an_auto_source_with_emphasis_on_transients_writes_the_ext
   );
 });
 
-// ============================================================================
-// the two positions that were already there are untouched
-// ============================================================================
-//
-// Both ends of the chain in one assertion apiece, because "one filter on both
-// ends" is the single claim these two positions make — the whole point of the
-// contrast with `auto` above.
-
-test("test_perfect_ten_on_a_standard_source_still_writes_one_filter_to_both_ends_of_the_chain", () => {
-  assert.deepEqual(
-    writeSet("album", "perfect-ten", "pcm", { emphasis: "space", source: "standard" }),
-    pcmBoth("poly-sinc-gauss-long"),
-  );
-});
-
-test("test_perfect_ten_on_a_hires_source_still_writes_one_filter_to_both_ends_of_the_chain", () => {
-  assert.deepEqual(
-    writeSet("album", "perfect-ten", "pcm", { emphasis: "space", source: "hires" }),
-    pcmBoth("poly-sinc-gauss-hires-lp"),
-  );
-});
+// The two positions that were already there — `standard` and `hires`, one filter
+// on both ends of the chain — are tests/js/store/easy.test.js's `CROSSED_CASES`,
+// which reads all eight combinations of the two knobs across both families. Not
+// restated here: an identical call with an identical expectation cannot fail
+// where its twin passes.
 
 // ============================================================================
 // a fresh tile rests on "auto"
@@ -167,6 +151,15 @@ test("test_the_album_answer_puts_the_source_knob_on_auto", () => {
 
 test("test_values_only_the_album_grid_can_claim_still_answer_album_under_a_playlist_preference", () => {
   assert.equal(matchPreset(pcmBoth("poly-sinc-short-lp"), "pcm", "playlist")?.grid, "album");
+});
+
+// And the mirror of it, which is the half that fails on a module answering with
+// whichever grid the caller named whenever that grid can claim anything at all:
+// `lossy` lives on the playlist grid alone, and the name it writes to both ends
+// of the chain is one no album preset writes.
+
+test("test_values_only_the_playlist_grid_can_claim_still_answer_playlist_under_an_album_preference", () => {
+  assert.equal(matchPreset(pcmBoth("poly-sinc-mqa/mp3-lp"), "pcm", "album")?.grid, "playlist");
 });
 
 test("test_matchpreset_still_returns_null_for_values_no_grid_writes_however_the_caller_leans", () => {

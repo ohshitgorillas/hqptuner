@@ -71,6 +71,15 @@ const SEEDED = { source: "standard", emphasis: "space" };
 const MOVED_SOURCE = "hires";
 const MOVED_EMPHASIS = "transients";
 
+// `lifelike`'s standard-source, transients-emphasis filter — the one name that
+// position pair writes to both ends of the chain. The two record cases below
+// seed it, so that the NEIGHBOUR position they read back out of the record is
+// one they stated rather than one they inherited from wherever `emphasis`
+// happens to rest: a resting position is the owner's to revisit, and moving it
+// must not break a case about what a press RECORDS.
+const LIFELIKE_STANDARD_TRANSIENTS = "poly-sinc-ext2-medium";
+const SEEDED_EMPHASIS = "transients";
+
 // The one-knob preset the record cases press: it carries no Source knob at all,
 // so what a press of it records cannot be disturbed by where Source comes to
 // rest. Its `emphasis` knob is stated outright at the position it is pressed at.
@@ -149,15 +158,17 @@ test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_r
 // is a claim about the record and not about a rendering. The positions a press
 // records are the positions it WROTE, which for a knob move is the moved knob
 // plus its neighbours where they stood, and for a plain tile press is the whole
-// row the press wrote. The tile-press case reads the ONE-KNOB preset: what a
-// press records is the subject, and a preset carrying no Source knob cannot
-// have that reading disturbed by where Source rests.
+// row the press wrote. The two knob-move cases seed the fields so that the
+// neighbour they read back stands at a position they NAMED. The tile-press case
+// reads the ONE-KNOB preset: what a press records is the subject, and a preset
+// carrying no Source knob cannot have that reading disturbed by where Source
+// rests.
 
 test("test_moving_a_knob_records_the_positions_that_press_wrote", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
+  const w = await resetTab({ grid: "album", mode: "pcm", names: seedPcm(LIFELIKE_STANDARD_TRANSIENTS) });
   pressKnob(seenTabs(), TWO_KNOB, MOVED_SOURCE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
+  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: SEEDED_EMPHASIS });
 });
 
 test("test_pressing_a_tile_records_the_positions_that_press_wrote", async () => {
@@ -168,10 +179,14 @@ test("test_pressing_a_tile_records_the_positions_that_press_wrote", async () => 
 });
 
 test("test_a_press_on_the_live_lane_records_the_positions_it_wrote", async () => {
-  const w = await resetLive({ grid: "album" });
+  const w = await resetLive({
+    grid: "album",
+    oneX: LIFELIKE_STANDARD_TRANSIENTS,
+    nX: LIFELIKE_STANDARD_TRANSIENTS,
+  });
   pressKnob(seenLive(), TWO_KNOB, MOVED_SOURCE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
+  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: SEEDED_EMPHASIS });
 });
 
 // ============================================================================

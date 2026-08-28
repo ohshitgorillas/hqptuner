@@ -44,8 +44,12 @@ useStorage();
 const { resetTab, tabs } = await import("../support/easytiles.js");
 const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed } = await import("../support/easyknobs.js");
 
-// The knob that carries a tip, and the knob that carries none. Preset ids and
-// knob ids are wire identifiers, stated outright.
+// The knob the seed below GIVES a tip, and the knob it gives none. Preset ids
+// and knob ids are wire identifiers, stated outright — but which shipped knobs
+// carry a tip is not read here at all, because the copy every case renders is
+// this file's own. That the SHIPPED data carries a tip on `concert-hall`'s
+// `correction` knob and none on `purist`'s `emphasis` is pinned against
+// /api/metadata, in tests/api/test_metadata_easy_lossy.py.
 const TIPPED = { preset: "concert-hall", knob: "correction" };
 const UNTIPPED = { preset: "purist", knob: "emphasis" };
 
@@ -62,15 +66,19 @@ const COPY = {
 const seeded = () => resetTab({ grid: "album", mode: "pcm", copy: COPY });
 
 // ============================================================================
-// the knob that carries a tip
+// a knob given a tip
 // ============================================================================
+//
+// Named for the wiring, not for a shipped knob: what these two read is that a
+// knob handed a tip renders it and points at it, and the tip they meet is the
+// stand-in seeded above.
 
-test("test_the_correction_knobs_description_resolves_to_an_element_inside_that_knob", async () => {
+test("test_a_knob_given_a_tip_names_a_description_resolving_to_an_element_inside_that_knob", async () => {
   await seeded();
   assert.notEqual(knobTip(tabs(), TIPPED.preset, TIPPED.knob), undefined);
 });
 
-test("test_the_correction_knobs_tip_says_something", async () => {
+test("test_a_knob_given_a_tip_renders_it_with_something_in_it", async () => {
   await seeded();
   assert.notEqual(knobTipText(tabs(), TIPPED.preset, TIPPED.knob), "");
 });
