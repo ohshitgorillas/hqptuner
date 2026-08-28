@@ -86,7 +86,6 @@ for (const [mode, keys] of MODE_KEYS) {
 /** @type {[string, string][]} */
 const ALBUM_HEADLINE_PCM = [
   ["perfect-ten", "poly-sinc-gauss-long"],
-  ["hires", "poly-sinc-gauss-hires-lp"],
   ["lifelike", "poly-sinc-ext2-long"],
   ["old-school", "poly-sinc-short-mp"],
   ["purist", "poly-sinc-gauss-halfband"],
@@ -156,43 +155,45 @@ test("test_a_non_default_knob_position_carries_into_the_two_stage_sdm_variant", 
   assert.deepEqual(writeSet("album", "old-school", "sdm", { emphasis: "space" }), sdmBoth("poly-sinc-short-lp-2s"));
 });
 
+// --- the two knobs the combined presets cross -------------------------------------------
+//
+// `perfect-ten` and `lifelike` each carry two knobs, and the pair is CROSSED:
+// `source` picks which family of filters is in play and `emphasis` picks
+// between the two that family offers, so the table is four filters per preset
+// rather than two knobs read independently. All four combinations of each are
+// stated, defaults included — the default pair is not left implicit here, since
+// a module that ignored a knob it was handed would otherwise pass by landing on
+// the headline filter the section above already reads.
+//
+// Read on the PCM chain, where the plain names live; neither preset defines a
+// `-2s` variant, which the "auto" control below pins separately.
+
+/** @type {[string, string, Record<string, string>, string][]} */
+const CROSSED_CASES = [
+  ["perfect-ten", "standard", "space", "poly-sinc-gauss-long"],
+  ["perfect-ten", "standard", "transients", "poly-sinc-gauss-medium"],
+  ["perfect-ten", "hires", "space", "poly-sinc-gauss-hires-lp"],
+  ["perfect-ten", "hires", "transients", "poly-sinc-gauss-hires-mp"],
+  ["lifelike", "standard", "space", "poly-sinc-ext2-long"],
+  ["lifelike", "standard", "transients", "poly-sinc-ext2-medium"],
+  ["lifelike", "hires", "space", "poly-sinc-ext2-hires-lp"],
+  ["lifelike", "hires", "transients", "poly-sinc-ext2-hires-mp"],
+];
+
+for (const [presetId, source, emphasis, name] of CROSSED_CASES) {
+  test(`test_the_album_preset_${presetId}_on_a_${source}_source_with_emphasis_on_${emphasis}_writes_${name}`, () => {
+    assert.deepEqual(writeSet("album", presetId, "pcm", { source, emphasis }), pcmBoth(name));
+  });
+}
+
 // --- the knob positions each preset defines ---------------------------------------------
 //
-// Every non-default position in the table, read on the PCM chain. A preset whose
-// knob moved nothing, or moved to the wrong filter, fails here by name.
+// Every non-default position the one-knob presets define, plus `concert-hall`'s
+// two, read on the PCM chain. A preset whose knob moved nothing, or moved to the
+// wrong filter, fails here by name.
 
 /** @type {[string, string, Record<string, string>, string][]} */
 const KNOB_CASES = [
-  [
-    "perfect-ten",
-    "perfect_ten_with_emphasis_on_balanced_writes_the_gauss_medium_filter",
-    { emphasis: "balanced" },
-    "poly-sinc-gauss-medium",
-  ],
-  [
-    "perfect-ten",
-    "perfect_ten_with_emphasis_on_transients_writes_the_gauss_short_filter",
-    { emphasis: "transients" },
-    "poly-sinc-gauss-short",
-  ],
-  [
-    "hires",
-    "hires_with_emphasis_on_transients_writes_the_gauss_hires_mp_filter",
-    { emphasis: "transients" },
-    "poly-sinc-gauss-hires-mp",
-  ],
-  [
-    "lifelike",
-    "lifelike_with_emphasis_on_balanced_writes_the_ext2_medium_filter",
-    { emphasis: "balanced" },
-    "poly-sinc-ext2-medium",
-  ],
-  [
-    "lifelike",
-    "lifelike_with_emphasis_on_transients_writes_the_ext2_short_filter",
-    { emphasis: "transients" },
-    "poly-sinc-ext2-short",
-  ],
   [
     "old-school",
     "old_school_with_emphasis_on_space_writes_the_short_lp_filter",
@@ -239,15 +240,28 @@ for (const [presetId, behavior, knobs, name] of KNOB_CASES) {
 
 // --- behavior 6: an undefined knob position falls back to that knob's default ------------
 //
-// `hires` has no `balanced` position and `concert-hall`'s `version` knob has no
-// `purist`, so each of these asks for a position its preset does not define. The
-// answer is the knob's default, never a synthesized filter name that the engine
-// would not enumerate.
+// `concert-hall`'s `version` knob has no `purist` and no knob anywhere defines
+// `balanced` any more, so each of these asks for a position its preset does not
+// define. The answer is the knob's default, never a synthesized filter name that
+// the engine would not enumerate — which is also what a stale caller still
+// holding a retired position gets.
 
 /** @type {[string, string, Record<string, string>, string][]} */
 const FALLBACK_CASES = [
-  ["hires", "an_emphasis_it_does_not_define", { emphasis: "balanced" }, "poly-sinc-gauss-hires-lp"],
+  ["lifelike", "the_retired_balanced_emphasis", { emphasis: "balanced" }, "poly-sinc-ext2-long"],
   ["perfect-ten", "a_nonexistent_emphasis", { emphasis: "loudness" }, "poly-sinc-gauss-long"],
+  [
+    "perfect-ten",
+    "a_nonexistent_source_beside_a_real_emphasis",
+    { source: "vinyl", emphasis: "transients" },
+    "poly-sinc-gauss-medium",
+  ],
+  [
+    "lifelike",
+    "a_real_source_beside_a_nonexistent_emphasis",
+    { source: "hires", emphasis: "loudness" },
+    "poly-sinc-ext2-hires-lp",
+  ],
   ["concert-hall", "a_nonexistent_version", { version: "purist" }, "poly-sinc-gauss-xla"],
   [
     "concert-hall",
@@ -275,8 +289,8 @@ for (const [presetId, label, knobs, name] of FALLBACK_CASES) {
 
 /** @type {[string, ("album" | "playlist"), string, ("pcm" | "sdm" | "auto"), Record<string, string>][]} */
 const MATCH_CASES = [
-  ["album_perfect_ten_on_pcm", "album", "perfect-ten", "pcm", { emphasis: "space" }],
-  ["album_lifelike_on_auto", "album", "lifelike", "auto", { emphasis: "transients" }],
+  ["album_perfect_ten_on_pcm", "album", "perfect-ten", "pcm", { source: "standard", emphasis: "space" }],
+  ["album_lifelike_on_auto", "album", "lifelike", "auto", { source: "hires", emphasis: "transients" }],
   ["album_old_school_on_sdm", "album", "old-school", "sdm", { emphasis: "transients" }],
   ["album_damage_control_on_auto", "album", "damage-control", "auto", { emphasis: "space" }],
   ["album_purist_on_sdm", "album", "purist", "sdm", { emphasis: "transients" }],
@@ -294,6 +308,17 @@ for (const [label, grid, presetId, mode, knobs] of MATCH_CASES) {
 test("test_matchpreset_returns_null_for_values_no_preset_writes", () => {
   assert.equal(matchPreset({ [PCM_1X]: "sinc-M", [PCM_NX]: "sinc-M" }, "pcm"), null);
 });
+
+// The two filters the revision retired from the album table, read through
+// `matchPreset` rather than by walking the table: a name no preset writes is a
+// name nothing matches, so a preset still able to reach either one would answer
+// with itself here.
+
+for (const name of ["poly-sinc-gauss-short", "poly-sinc-ext2-short"]) {
+  test(`test_matchpreset_names_no_preset_for_the_retired_${name}_filter`, () => {
+    assert.equal(matchPreset(pcmBoth(name), "pcm"), null);
+  });
+}
 
 test("test_matchpreset_returns_null_when_the_two_ends_of_one_chain_belong_to_different_presets", () => {
   assert.equal(matchPreset({ [PCM_1X]: "poly-sinc-gauss-long", [PCM_NX]: "poly-sinc-ext2-long" }, "pcm"), null);

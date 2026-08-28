@@ -41,7 +41,7 @@ import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../hqp
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire, quiesce, ok } from "./wire.js";
-import { elements, classes, attr, hasAttr } from "./markup.js";
+import { elements, classes, attr, enclosing } from "./markup.js";
 import { formFields } from "./tabform.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
@@ -92,13 +92,35 @@ const combos = (knobs) =>
     [{}],
   );
 
-/** Every write set the table can produce: both grids, every knob position. */
-const everyWrite = () =>
-  GRIDS.flatMap((grid) =>
-    presetsFor(grid).flatMap((/** @type {Preset} */ preset) =>
-      combos(preset.knobs).map((knobs) => writeSet(grid, preset.id, "auto", knobs)),
-    ),
+/**
+ * Every write set one grid's table can produce, every knob position included.
+ *
+ * @param {string} grid
+ * @returns {Record<string, string>[]}
+ */
+const writesFor = (grid) =>
+  presetsFor(grid).flatMap((/** @type {Preset} */ preset) =>
+    combos(preset.knobs).map((knobs) => writeSet(grid, preset.id, "auto", knobs)),
   );
+
+/** Every write set the table can produce: both grids, every knob position. */
+const everyWrite = () => GRIDS.flatMap(writesFor);
+
+/**
+ * Every distinct filter name one grid's presets can write, across all four
+ * schema keys and every knob combination — the whole vocabulary that grid can
+ * put in front of the daemon.
+ *
+ * @param {string} grid
+ * @returns {string[]}
+ */
+export const namesWritten = (grid) => [
+  ...new Set(
+    writesFor(grid)
+      .flatMap((set) => Object.values(set))
+      .filter(Boolean),
+  ),
+];
 
 /**
  * The distinct filter names the table writes to a set of schema keys.
@@ -140,13 +162,16 @@ const idOf = (name) => String(ID.get(name));
 // the table moves under it. Only the FILTER NAMES are derived (above), because
 // those are the curated half a second copy would drift from.
 //
-// `PICK` is the knob position the press cases move to. It must occur exactly
-// once across the album grid, since `data-v` is not tile-scoped in the vnode
-// stream, and it must differ from its knob's default so that pressing it is a
-// move rather than a re-statement of what the tile shows. `concert-hall`'s
-// `version` knob is the position meeting both. `pressKnob` refuses on an
-// ambiguous match, so a table growing a second `lifelike` option fails loudly
-// rather than pressing another tile's knob.
+// `PICK` is the knob position the generic press cases move to: a position that
+// differs from its knob's default, so that pressing it is a move rather than a
+// re-statement of what the tile already shows. `concert-hall`'s `version` knob
+// is one such. The per-preset cases name their own knob and option inline.
+//
+// A knob option id is NOT unique across the album grid — `emphasis` carries the
+// same two option ids on five tiles and `source` carries the same two on two —
+// so `pressKnob` takes the preset whose tile it is pressing and refuses on an
+// ambiguous match within it, rather than pressing whichever tile came first in
+// the vnode stream.
 
 export const ALBUM_TILE = "perfect-ten";
 export const PLAYLIST_TILE = "lifelike";
@@ -235,6 +260,26 @@ const META = {
  * @returns {Record<string, string>}
  */
 export const inForce = (presetId, knobs = {}) => writeSet("album", presetId, "auto", knobs);
+
+/**
+ * One filter name on both ends of the PCM chain, keyed by SCHEMA key — what an
+ * album preset's write set looks like, stated by name rather than derived, for
+ * seeding `resetTab` from the owner's table instead of from the module's.
+ *
+ * @param {string} name
+ * @returns {Record<string, string>}
+ */
+export const seedPcm = (name) => ({ [PCM_1X]: name, [PCM_NX]: name });
+
+/**
+ * The same pair keyed by the daemon's own FORM-FIELD names — what `stagedNames`
+ * reads back after a press that wrote that filter to both ends of the PCM
+ * chain.
+ *
+ * @param {string} name
+ * @returns {Record<string, string>}
+ */
+export const stagedPcm = (name) => ({ [FIELD[PCM_1X]]: name, [FIELD[PCM_NX]]: name });
 
 /**
  * The two PCM filter names an album preset leaves the engine running, for
@@ -428,19 +473,57 @@ function tile(out, presetId) {
   return outermost(hits);
 }
 
-const placeholders = (/** @type {string} */ out) =>
-  elements(out).filter((el) => attr(el, "data-testid") === "easy-add");
-
 /**
- * The composition of a grid: how many tiles it laid out, and how many
- * placeholders stand beside them.
+ * The cells of a grid: the direct children of the `[data-grid]` container, in
+ * the order it laid them out. Direct children because a grid container lays out
+ * what its own children are — an element between the container and a tile would
+ * not be a cell of it.
  *
  * @param {string} out
+ * @returns {MarkupElement[]}
  */
-export const cells = (out) => ({ tiles: tileIds(out).length, placeholder: placeholders(out).length });
+function gridCells(out) {
+  const grid = elements(out).find((el) => attr(el, "data-grid") !== undefined);
+  if (grid === undefined) throw new Error("the card laid out no [data-grid] container");
+  // Read within the container's own outer HTML, where the container itself is
+  // the element at offset 0 and a direct child is one whose smallest encloser
+  // is that element.
+  return elements(grid.html).filter((el) => el.start !== 0 && enclosing(grid.html, el).start === 0);
+}
 
-/** The `data-preset` of the placeholder cell, which should be carrying none. */
-export const placeholderPreset = (/** @type {string} */ out) => attr(placeholders(out)[0], "data-preset");
+/**
+ * How many cells a grid laid out, whatever each one turns out to be.
+ *
+ * @param {string} out
+ * @returns {number}
+ */
+export const cells = (out) => gridCells(out).length;
+
+/**
+ * The preset each cell of a grid stands for, in order. A cell carrying no
+ * `data-preset` reads as `undefined` rather than being skipped, so "every cell
+ * is a preset tile" is part of this reading and not a separate one.
+ *
+ * @param {string} out
+ * @returns {(string | undefined)[]}
+ */
+export const presetIds = (out) => gridCells(out).map((el) => attr(el, "data-preset"));
+
+/**
+ * The knob ids one tile renders, deduplicated, in the order it renders them.
+ * Order preserved rather than sorted: which knob comes first is contract, the
+ * same way the preset roster's order is — one knob picks which pair of filters
+ * is in play and the next picks between them, so a tile showing them the other
+ * way round reads backwards.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {string[]}
+ */
+export const knobIds = (out, presetId) =>
+  [...new Set(elements(tile(out, presetId).html).map((el) => attr(el, "data-knob")))]
+    .filter((id) => id !== undefined)
+    .map(String);
 
 /**
  * Every tile the grid laid out, against the `data-active` it carries. The whole
@@ -454,20 +537,6 @@ export const placeholderPreset = (/** @type {string} */ out) => attr(placeholder
  */
 export const activeMap = (out) =>
   Object.fromEntries(tileIds(out).map((id) => [id, attr(tile(out, id), "data-active")]));
-
-/**
- * The `disabled` flag of each button inside the placeholder cell. A list, so
- * "one button, and it is disabled" is a single reading: the cell is inert by a
- * mechanism the browser enforces, not by a missing handler that a refactor
- * could quietly restore without anything noticing.
- *
- * @param {string} out
- * @returns {boolean[]}
- */
-export const placeholderButtons = (out) =>
-  elements(placeholders(out)[0].html)
-    .filter((el) => el.name === "button")
-    .map((el) => hasAttr(el, "disabled"));
 
 /**
  * The positions one tile's knob marks selected, by the `data-v` each option
@@ -568,16 +637,15 @@ const isSeg = (/** @type {VNode} */ v) =>
     .includes("seg");
 
 /**
- * A vnode subtree's own working buttons: clickable, enabled, and not one of a
- * knob's option buttons. A disabled button is skipped because a browser never
- * fires one, so firing it here would simulate something no pointer can do.
+ * A vnode subtree's own working buttons: clickable, and not one of a knob's
+ * option buttons.
  *
  * @param {VNode[]} boxes
  * @returns {VNode[]}
  */
 const pickable = (boxes) =>
   [...new Set(boxes.flatMap((box) => within(box.props.children)))].filter(
-    (v) => v.type === "button" && typeof v.props.onClick === "function" && !isSeg(v) && v.props.disabled !== true,
+    (v) => v.type === "button" && typeof v.props.onClick === "function" && !isSeg(v),
   );
 
 /**
@@ -600,19 +668,48 @@ export function pressTile(seen, presetId) {
 }
 
 /**
- * One press on a knob's option, by the `data-v` it carries. That marking is not
- * tile-scoped in the vnode stream, so an ambiguous match throws rather than
- * pressing whichever tile's knob came first.
+ * The stretch of the creation stream that belongs to one tile: its box, and
+ * every vnode built after it until the next tile's box.
+ *
+ * A knob's option buttons are NOT reachable from the box's `props.children` —
+ * they are built inside the shared Segment's own render, so they enter the
+ * stream after the box rather than under it. What relates them to the tile is
+ * the order preact builds them in, one tile at a time, which is why the window
+ * is cut by the boxes on either side. A tile carrying none of its own knob
+ * options leaves an empty window and the callers below throw.
  *
  * @param {VNode[]} seen
+ * @param {string} presetId
+ * @returns {VNode[]}
+ */
+function tileWindow(seen, presetId) {
+  const built = seen.filter((v) => v && v.props);
+  const start = built.findIndex((v) => v.props[PRESET] === presetId);
+  if (start === -1) throw new Error(`nothing carries ${PRESET}="${presetId}"`);
+  const rest = built.slice(start + 1);
+  const end = rest.findIndex((v) => v.props[PRESET] !== undefined && v.props[PRESET] !== presetId);
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+/**
+ * One press on a knob's option inside one tile, by the `data-v` that option
+ * carries. Scoped to the tile because `data-v` is shared across tiles — several
+ * presets carry an `emphasis` knob and its two option ids — so an unscoped
+ * search would press whichever tile's knob came first in the vnode stream. An
+ * ambiguous match WITHIN the tile still throws.
+ *
+ * @param {VNode[]} seen
+ * @param {string} presetId
  * @param {string} optionId
  * @returns {void}
  */
-export function pressKnob(seen, optionId) {
-  const hits = seen.filter(
-    (v) => v && v.props && v.props["data-v"] === optionId && typeof v.props.onClick === "function",
+export function pressKnob(seen, presetId, optionId) {
+  const hits = tileWindow(seen, presetId).filter(
+    (v) => v.props["data-v"] === optionId && typeof v.props.onClick === "function",
   );
-  if (hits.length !== 1) throw new Error(`expected one clickable data-v="${optionId}", found ${hits.length}`);
+  if (hits.length !== 1) {
+    throw new Error(`expected one clickable data-v="${optionId}" in the "${presetId}" tile, found ${hits.length}`);
+  }
   fire(hits[0]);
 }
 

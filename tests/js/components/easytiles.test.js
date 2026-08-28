@@ -17,18 +17,16 @@
 // through POST /api/config/stage, the LIVE lane through POST /api/config/live.
 // No store function of HQPTuner's is stubbed.
 //
-// NAMES, NOT WORDS (rule 9). A tile is found by its `data-preset`, the
-// placeholder by `data-testid="easy-add"`, a knob by its `data-knob` and a knob
-// position by the `data-v` its option button carries. Every title, description,
-// note and label in the preset table is owner copy, asserted nowhere, and
-// nothing here is selected on a sentence.
+// NAMES, NOT WORDS (rule 9). A tile is found by its `data-preset`, a knob by
+// its `data-knob` and a knob position by the `data-v` its option button
+// carries. Every title, description, note and label in the preset table is
+// owner copy, asserted nowhere, and nothing here is selected on a sentence.
+// Filter names are the other thing entirely — wire identifiers, stated outright.
 //
 // THE RENDERED CONTRACT these cases rest on:
 //   * `data-preset="<presetId>"` and `data-active="0"|"1"` on each tile BOX,
 //     which carries no handler of its own
 //   * one working `button` inside that box, which is what sets the preset
-//   * `data-testid="easy-add"` on the placeholder cell, carrying no
-//     `data-preset`, holding that same inner button disabled
 //   * `data-knob="<knobId>"` on the element wrapping a tile's knob, a sibling of
 //     that button, whose option buttons are the shared Segment's `.seg[data-v]`,
 //     the selected one `.active`
@@ -36,12 +34,11 @@
 // classes it carries. The first two are asserted outright rather than assumed,
 // at the foot of this file.
 //
+// Every cell of a grid is a preset tile: the grid holds no placeholder and no
+// save-your-own affordance, so a cell count and a tile count are one number.
+//
 // The tile is two nodes, not one, and it has to be: the knob options are
-// buttons, and a button inside a button is not markup a browser keeps. The
-// placeholder is not pressed at all — its button renders `disabled`, which a
-// browser never fires, so a case pressing it would simulate something no
-// pointer can do; the `disabled` flag is asserted instead, since that is the
-// mechanism the cell's inertness rests on.
+// buttons, and a button inside a button is not markup a browser keeps.
 //
 // NOT REACHABLE FROM SSR, and left untested rather than reached for: anything a
 // tile syncs through `useEffect` or holds in a module-private signal written
@@ -77,8 +74,11 @@ const {
   seenTabs,
   seenLive,
   cells,
-  placeholderPreset,
-  placeholderButtons,
+  presetIds,
+  knobIds,
+  namesWritten,
+  seedPcm,
+  stagedPcm,
   activeMap,
   knobPositions,
   stagedNames,
@@ -92,22 +92,41 @@ const {
 // what each grid lays out
 // ============================================================================
 //
-// Composition in one reading, so a grid that dropped a tile and a grid that
-// dropped the placeholder fail differently and name which.
+// How many cells, then which. The count fails on a grid that gained or lost a
+// cell of any kind; the roster below names which preset went missing.
 
-test("test_the_album_grid_lays_out_seven_preset_tiles_beside_one_placeholder", async () => {
+test("test_the_album_grid_lays_out_six_cells", async () => {
   await resetTab({ grid: "album" });
-  assert.deepEqual(cells(tabs()), { tiles: 7, placeholder: 1 });
+  assert.equal(cells(tabs()), 6);
 });
 
-test("test_the_playlist_grid_lays_out_two_preset_tiles_beside_one_placeholder", async () => {
+// The roster itself: what each cell of the grid stands for, in order. Stated by
+// hand rather than read off `presetsFor`, because a preset id is a wire
+// identifier and this is the one case that would catch the table growing a tile
+// back — `oneLit` and the active-marking cases below derive their roster FROM
+// `presetsFor`, so they agree with whatever it says. A cell standing for no
+// preset reads as `undefined` and fails here in place.
+
+test("test_the_album_grids_six_cells_are_the_curated_presets_in_order", async () => {
+  await resetTab({ grid: "album" });
+  assert.deepEqual(presetIds(tabs()), [
+    "perfect-ten",
+    "lifelike",
+    "concert-hall",
+    "purist",
+    "old-school",
+    "damage-control",
+  ]);
+});
+
+test("test_the_playlist_grid_lays_out_two_cells", async () => {
   await resetTab({ grid: "playlist" });
-  assert.deepEqual(cells(tabs()), { tiles: 2, placeholder: 1 });
+  assert.equal(cells(tabs()), 2);
 });
 
-test("test_the_placeholder_cell_stands_for_no_preset", async () => {
-  await resetTab();
-  assert.equal(placeholderPreset(tabs()), undefined);
+test("test_the_playlist_grids_two_cells_are_both_preset_tiles", async () => {
+  await resetTab({ grid: "playlist" });
+  assert.deepEqual(presetIds(tabs()), ["perfect-ten", "lifelike"]);
 });
 
 // ============================================================================
@@ -230,9 +249,21 @@ for (const presetId of ["old-school", "damage-control"]) {
 // the knobs
 // ============================================================================
 
+// The two knobs the combined presets carry, in the order the tile lays them
+// out. A knob id is a wire identifier, and so is the order here: `source` picks
+// which pair of filters is in play and `emphasis` picks between them, so a tile
+// showing them the other way round reads backwards.
+
+for (const presetId of ["perfect-ten", "lifelike"]) {
+  test(`test_the_${presetId}_tile_carries_a_source_knob_and_then_an_emphasis_knob`, async () => {
+    await resetTab({ grid: "album", mode: "pcm" });
+    assert.deepEqual(knobIds(tabs(), presetId), ["source", "emphasis"]);
+  });
+}
+
 test("test_moving_a_tiles_knob_writes_that_preset_at_the_new_position", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
-  pressKnob(seenTabs(), PICK.option);
+  pressKnob(seenTabs(), PICK.preset, PICK.option);
   await flush(w);
   assert.deepEqual(stagedNames(w), expectedNames("album", PICK.preset, "pcm", { [PICK.knob]: PICK.option }));
 });
@@ -245,6 +276,110 @@ test("test_an_active_tiles_knob_shows_the_position_the_fields_match", async () =
 test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
   await resetTab({ grid: "album", mode: "auto" });
   assert.deepEqual(knobPositions(tabs(), PICK.preset, PICK.knob), [PICK.fallback]);
+});
+
+// ============================================================================
+// the two-knob presets, position by position
+// ============================================================================
+//
+// The owner's album table for the two presets that carry both knobs, read
+// through a press: what lands in the daemon's two PCM filter fields at each of
+// the four `source`/`emphasis` combinations. Filter NAMES stated outright here,
+// not read back out of `writeSet` the way the routing cases above do — the
+// names ARE the behavior under revision, and deriving them would only ask the
+// table to agree with itself. Every one of the eight is confirmed present in
+// the running engine's filter enumeration.
+//
+// A knob press writes the preset at the pressed position; the untouched case is
+// therefore the defaults, `source=standard` and `emphasis=space`, reached by
+// pressing the tile itself. The fourth combination is the only one needing a
+// seeded field: `hires`/`transients` is two positions away from the defaults,
+// so the tile is seeded already carrying its family's hi-res filter — which is
+// what puts its `source` knob on `hires` — and the `emphasis` knob is moved
+// from there.
+
+/** @type {[string, Record<string, string>][]} */
+const FAMILIES = [
+  [
+    "perfect-ten",
+    {
+      standardSpace: "poly-sinc-gauss-long",
+      standardTransients: "poly-sinc-gauss-medium",
+      hiresSpace: "poly-sinc-gauss-hires-lp",
+      hiresTransients: "poly-sinc-gauss-hires-mp",
+    },
+  ],
+  [
+    "lifelike",
+    {
+      standardSpace: "poly-sinc-ext2-long",
+      standardTransients: "poly-sinc-ext2-medium",
+      hiresSpace: "poly-sinc-ext2-hires-lp",
+      hiresTransients: "poly-sinc-ext2-hires-mp",
+    },
+  ],
+];
+
+for (const [presetId, name] of FAMILIES) {
+  test(`test_an_untouched_${presetId}_tile_writes_its_standard_source_filter_for_space`, async () => {
+    const w = await resetTab({ grid: "album", mode: "pcm" });
+    pressTile(seenTabs(), presetId);
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcm(name.standardSpace));
+  });
+
+  test(`test_moving_${presetId}_to_transients_writes_its_standard_source_filter_for_transients`, async () => {
+    const w = await resetTab({ grid: "album", mode: "pcm" });
+    pressKnob(seenTabs(), presetId, "transients");
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcm(name.standardTransients));
+  });
+
+  test(`test_moving_${presetId}_to_the_hires_source_writes_its_hires_filter_for_space`, async () => {
+    const w = await resetTab({ grid: "album", mode: "pcm" });
+    pressKnob(seenTabs(), presetId, "hires");
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcm(name.hiresSpace));
+  });
+
+  test(`test_moving_a_hires_${presetId}_to_transients_writes_its_hires_filter_for_transients`, async () => {
+    const w = await resetTab({ grid: "album", mode: "pcm", names: seedPcm(name.hiresSpace) });
+    pressKnob(seenTabs(), presetId, "transients");
+    await flush(w);
+    assert.deepEqual(stagedNames(w), stagedPcm(name.hiresTransients));
+  });
+
+  // The seed the case above rests on, asserted in its own right: a hi-res
+  // filter in the fields is that family's tile, at `source=hires`.
+
+  test(`test_a_hires_filter_in_the_fields_marks_the_${presetId}_tile_active`, async () => {
+    await resetTab({ grid: "album", mode: "pcm", names: seedPcm(name.hiresSpace) });
+    assert.deepEqual(activeMap(tabs()), oneLit(presetId));
+  });
+
+  test(`test_a_hires_filter_in_the_fields_shows_the_${presetId}_source_knob_on_hires`, async () => {
+    await resetTab({ grid: "album", mode: "pcm", names: seedPcm(name.hiresSpace) });
+    assert.deepEqual(knobPositions(tabs(), presetId, "source"), ["hires"]);
+  });
+
+  test(`test_an_inactive_${presetId}_tile_shows_its_source_knob_on_standard`, async () => {
+    await resetTab({ grid: "album", mode: "pcm" });
+    assert.deepEqual(knobPositions(tabs(), presetId, "source"), ["standard"]);
+  });
+}
+
+// The filters that left Easy Mode with the revision. Not "no tile says the word
+// short" — a filter name is a wire identifier, and this asks the whole album
+// table, every preset at every knob combination, whether either name is still
+// reachable.
+
+const RETIRED = ["poly-sinc-gauss-short", "poly-sinc-ext2-short"];
+
+test("test_no_album_preset_writes_a_retired_short_filter_at_any_knob_combination", () => {
+  assert.deepEqual(
+    namesWritten("album").filter((name) => RETIRED.includes(name)),
+    [],
+  );
 });
 
 // ============================================================================
@@ -273,20 +408,13 @@ test("test_a_tile_press_on_the_tabs_lane_never_reaches_the_live_path", async () 
 });
 
 // ============================================================================
-// the tile box and the placeholder
+// the tile box
 // ============================================================================
 //
-// Two structural facts the press cases rest on, asserted rather than assumed.
-// A handler on the box is what broke this suite once already, and the
-// placeholder's inertness is a `disabled` button rather than merely an absent
-// handler, which a refactor could restore with nothing else here noticing.
+// The structural fact the press cases rest on, asserted rather than assumed: a
+// handler on the box is what broke this suite once already.
 
 test("test_no_tile_box_carries_a_click_handler_of_its_own", async () => {
   await resetTab({ grid: "album" });
   assert.deepEqual(clickableBoxes(seenTabs()), []);
-});
-
-test("test_the_placeholder_cell_holds_one_button_and_it_is_disabled", async () => {
-  await resetTab({ grid: "album" });
-  assert.deepEqual(placeholderButtons(tabs()), [true]);
 });
