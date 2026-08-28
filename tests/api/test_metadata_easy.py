@@ -43,9 +43,12 @@ def test_the_metadata_payload_carries_an_easy_section(api_client: TestClient) ->
 # --- and it carries the notice the card's subtitle is drawn from ---------------
 
 
-def test_the_easy_section_carries_a_notice_that_says_something(api_client: TestClient) -> None:
-    notice = _easy(api_client).get("notice")
-    assert isinstance(notice, str) and notice.strip() != ""
+def test_the_easy_section_carries_a_notice_that_is_a_string(api_client: TestClient) -> None:
+    assert isinstance(_easy(api_client).get("notice"), str)
+
+
+def test_the_notice_says_something(api_client: TestClient) -> None:
+    assert str(_easy(api_client).get("notice", "")).strip() != ""
 
 
 # --- the notice arrives BESIDE the preset tables, not instead of them ----------

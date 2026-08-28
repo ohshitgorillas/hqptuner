@@ -28,10 +28,10 @@
 //     DOWN. An install that has never heard of Easy Mode opens on the full
 //     controls, which are what exists today.
 //
-// Cases run in declaration order and share one storage, so the two "after a
-// reload" cases are deliberately sequenced: the OFF case runs after a reload has
-// already been shown to come up ON, which is what keeps a module that persists
-// only the on-state from passing it.
+// Every case sets up the state it reads, whatever ran before it. The cases share
+// one storage and node runs them in declaration order, but nothing here leans on
+// that: the "left off" reload raises the flag itself before lowering it, so it
+// stays non-vacuous run alone or reordered.
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 //
@@ -117,15 +117,21 @@ for (const junk of ["shuffle", "", "albums", "ALBUM"]) {
   });
 }
 
-// --- the keys the choices are kept under -------------------------------------------
+// --- the key NAMES the choices are kept under ----------------------------------------
+//
+// Narrow on purpose, and narrower than they look: what a choice is worth on the
+// next visit is the round trip below, which these two say nothing about. What
+// they pin is the NAME — a key renamed drops every user's saved choice on the
+// floor, and the round trip cannot see that, because a renamed key round-trips
+// through itself perfectly.
 
-test("test_the_chosen_grid_is_written_to_the_browsers_easy_grid_key", () => {
+test("test_the_grid_is_kept_under_the_hqptuner_easy_grid_key_name", () => {
   storage.removeItem(GRID_KEY);
   view.setEasyGrid("playlist");
   assert.notEqual(storage.getItem(GRID_KEY), null);
 });
 
-test("test_the_easy_mode_flag_is_written_to_the_browsers_easy_mode_key", () => {
+test("test_the_easy_mode_flag_is_kept_under_the_hqptuner_easy_mode_key_name", () => {
   storage.removeItem(MODE_KEY);
   view.setEasyMode(true);
   assert.notEqual(storage.getItem(MODE_KEY), null);
@@ -143,7 +149,12 @@ test("test_easy_mode_left_on_is_still_on_after_a_reload", async () => {
   assert.equal((await reload("modeon")).easyMode.value, true);
 });
 
+// The flag is raised inside the case before it is lowered, so what storage holds
+// at the reload can only be the LOWERING: a module that persists the on-state and
+// leaves the off-state to the default is red here whatever order this file runs
+// in, and so is one that never clears the key.
 test("test_easy_mode_left_off_is_off_after_a_reload", async () => {
+  view.setEasyMode(true);
   view.setEasyMode(false);
   assert.equal((await reload("modeoff")).easyMode.value, false);
 });
@@ -182,13 +193,28 @@ test("test_a_storage_that_refuses_writes_leaves_the_easy_mode_flag_driving_the_s
   assert.equal(on, true);
 });
 
+// A read that throws is the load-time half, and it has two answers to give: the
+// grid the card opens on, and whether the page opens into Easy Mode at all. Each
+// gets its own instance, under its own tag.
+
 test("test_a_storage_that_refuses_reads_comes_up_on_the_album_grid", async () => {
   useThrowingStorage();
   let grid;
   try {
-    grid = (await reload("throwing")).easyGrid.value;
+    grid = (await reload("throwgrid")).easyGrid.value;
   } finally {
     installStorage(storage);
   }
   assert.equal(grid, "album");
+});
+
+test("test_a_storage_that_refuses_reads_comes_up_with_easy_mode_off", async () => {
+  useThrowingStorage();
+  let on;
+  try {
+    on = (await reload("throwmode")).easyMode.value;
+  } finally {
+    installStorage(storage);
+  }
+  assert.equal(on, false);
 });

@@ -34,11 +34,9 @@
 // public seam, third-party surface. No signal of HQPTuner's is stubbed and none
 // is reached that a caller could not reach.
 //
-// NOT COVERED HERE: pressing a switcher option. The spec states what the
-// switcher MARKS for a given grid and that `setEasyGrid` moves it, but not which
-// element the grid change hangs off, so there is no stated contract to press.
-// The store half is tests/js/store/easyview.test.js; the pointer half belongs to
-// the playwright hand-back protocol.
+// The switcher's options are pressed the same way, by their `data-v`: what the
+// switcher marks and what pressing it does are two contracts, and the marking
+// cases all pass against options wired to nothing.
 //
 // A working fake localStorage stands for the whole file: the links' handlers
 // persist through it, and this process has none at all. It is installed EMPTY
@@ -71,7 +69,7 @@ const narrow = await import("../../../hqptuner/static/store/narrow/state.js");
 const { stagingWire, staticWire } = await import("../support/wire.js");
 const { elements, classes, attr } = await import("../support/markup.js");
 const { cardHeadAt, section, formFields } = await import("../support/tabform.js");
-const { resets } = await import("../support/narrowbarview.js");
+const { resets, seen: readerSees } = await import("../support/narrowbarview.js");
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
@@ -274,24 +272,39 @@ function seenOf(node) {
 }
 
 /**
- * One press on the affordance a `data-testid` names, as a pointer would land on
- * it. Anything but a single match throws rather than pressing something else.
+ * One press on the affordance an attribute names — a `data-testid` for the two
+ * links, a `data-v` for a switcher option — as a pointer would land on it.
+ * Anything but a single match throws rather than pressing something else.
  *
  * @param {VNode[]} seen
- * @param {string} testid
+ * @param {string} name
+ * @param {string} value
  * @returns {void}
  */
-function press(seen, testid) {
-  const hits = seen.filter(
-    (v) => v && v.props && v.props["data-testid"] === testid && typeof v.props.onClick === "function",
-  );
-  if (hits.length !== 1) throw new Error(`expected one clickable "${testid}", found ${hits.length}`);
+function press(seen, name, value) {
+  const hits = seen.filter((v) => v && v.props && v.props[name] === value && typeof v.props.onClick === "function");
+  if (hits.length !== 1) throw new Error(`expected one clickable ${name}="${value}", found ${hits.length}`);
   /** @type {(event: object) => void} */ (hits[0].props.onClick)({ preventDefault() {}, stopPropagation() {} });
 }
 
+const TESTID = "data-testid";
+const VALUE = "data-v";
 const ENTER = "easy-enter";
 const EXIT = "easy-exit";
-const NOTE = 'data-note="easy-notice"';
+
+/**
+ * What a reader sees in the card's notice. Exactly one element carries the
+ * marking, so a card that grew a second one fails here rather than reading the
+ * first it finds.
+ *
+ * @param {string} out
+ * @returns {string}
+ */
+function noticeText(out) {
+  const hits = elements(out).filter((el) => attr(el, "data-note") === "easy-notice");
+  if (hits.length !== 1) throw new Error(`expected one notice element, found ${hits.length}`);
+  return readerSees(hits[0]);
+}
 
 // ============================================================================
 // which cards each page draws
@@ -327,21 +340,23 @@ test("test_the_live_page_draws_the_easy_mode_card_alone_with_the_flag_up", async
 
 test("test_the_narrow_filters_card_head_carries_the_easy_mode_link", async () => {
   await resetBar();
-  assert.ok(region(bar(), "card-head").html.includes(`data-testid="${ENTER}"`));
+  assert.ok(region(bar(), "card-head").html.includes(`${TESTID}="${ENTER}"`));
 });
 
-// The Reset button moved OUT of the head and INTO the body. Both halves in one
-// reading: a Reset left in the head fails, and so does one that went missing
-// altogether.
+// The Reset button moved OUT of the head and INTO the body. Two cases, so a
+// failure names which half moved: a Reset that went missing altogether is red on
+// the first, one left in the head is red on the second.
 
-test("test_the_reset_button_stands_in_the_card_body_and_not_in_the_head", async () => {
+test("test_the_reset_button_stands_in_the_card_body", async () => {
   await resetBar();
   narrow.nGenre.value = ["classical"];
-  const out = bar();
-  assert.deepEqual(
-    { head: resets(region(out, "card-head").html), body: resets(region(out, "card-body").html) },
-    { head: 0, body: 1 },
-  );
+  assert.equal(resets(region(bar(), "card-body").html), 1);
+});
+
+test("test_the_reset_button_no_longer_stands_in_the_card_head", async () => {
+  await resetBar();
+  narrow.nGenre.value = ["classical"];
+  assert.equal(resets(region(bar(), "card-head").html), 0);
 });
 
 // --- and it still comes and goes with the narrowing ---------------------------------
@@ -388,28 +403,47 @@ for (const grid of ["album", "playlist"]) {
 }
 
 // The notice is not a setting description: it stands whatever the descriptions
-// preference says, because it is the card's own subtitle.
+// preference says, because it is the card's own subtitle. What it must say is
+// what the metadata carries, so the seeded stand-in is read back out of it — an
+// empty element carrying the marking is not a notice shown.
 
-test("test_the_card_shows_its_notice_with_the_descriptions_preference_off", async () => {
+test("test_the_card_shows_the_notice_the_metadata_carries_with_the_descriptions_preference_off", async () => {
   await resetTab({ easy: true, notes: false });
-  assert.ok(card().includes(NOTE));
+  assert.equal(noticeText(card()), NOTICE);
 });
 
 // ============================================================================
-// the links
+// the controls
 // ============================================================================
 
 test("test_pressing_the_easy_mode_link_on_the_narrow_filters_card_raises_the_flag", async () => {
   await resetBar({ easy: false });
-  press(seenOf(html`<${NarrowBar} />`), ENTER);
+  press(seenOf(html`<${NarrowBar} />`), TESTID, ENTER);
   assert.equal(easyMode.value, true);
 });
 
 test("test_pressing_the_exit_link_in_the_easy_mode_card_lowers_the_flag", async () => {
   await resetTab({ easy: true });
-  press(seenOf(html`<${EasyCard} />`), EXIT);
+  press(seenOf(html`<${EasyCard} />`), TESTID, EXIT);
   assert.equal(easyMode.value, false);
 });
+
+// The switcher is the card's only working control this phase, and the cases
+// above ask only what it MARKS — every one of them passes against options wired
+// to nothing at all. Each option is pressed from the OTHER grid, so an option
+// that moves the grid to a fixed value rather than to its own fails one of the
+// two.
+
+for (const [grid, from] of [
+  ["playlist", "album"],
+  ["album", "playlist"],
+]) {
+  test(`test_pressing_the_${grid}_option_moves_the_card_to_the_${grid}_grid`, async () => {
+    await resetTab({ easy: true, grid: from });
+    press(seenOf(html`<${EasyCard} />`), VALUE, grid);
+    assert.equal(easyGrid.value, grid);
+  });
+}
 
 // ============================================================================
 // the notice reader
