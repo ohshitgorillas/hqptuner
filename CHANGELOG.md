@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card with an Album/Playlist switcher, on the Output tab and the LIVE page; a link inside it swaps back.
+
 ## [1.13.0] — 2026-08-26
 
 ### Added

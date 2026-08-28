@@ -50,14 +50,23 @@
   align-items: center;
   justify-content: space-between;
 }
-/* Reset lives in the card head, top right — off the control rows entirely, so
-   its appearing/disappearing never changes the facet dropdowns' widths. The
-   head is a flex row (cards.css), so a push to the right edge is all it needs.
-   It takes the head's own type and no padding: the head is a fixed height and
-   this must fit inside it. */
-.card-head .narrow-reset {
+/* The head's top-right slot now belongs to the way into Easy Mode. The head is a
+   flex row (cards.css), so a push to the right edge is all it needs, and it
+   takes the head's own type and no padding because the head is a fixed height
+   and this has to fit inside it. */
+.card-head .narrow-easy {
   margin-left: auto;
 }
+/* Reset sits in the body, on a row of its own above the facets: it answers a
+   question about this card's contents rather than about the card, and the head
+   has one link slot. The row of its own is what keeps it off the control rows,
+   so its appearing and disappearing never changes the facet dropdowns' widths.
+   Justified right, under the head's own link. */
+.narrow-resetrow {
+  display: flex;
+  justify-content: flex-end;
+}
+.narrow-easy,
 .narrow-reset {
   padding: 0;
   font-size: var(--fs-head);
