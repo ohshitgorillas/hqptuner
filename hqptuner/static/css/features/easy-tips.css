@@ -1,0 +1,86 @@
+/* easy-tips — Easy Mode's three hover tips: the one over a knob, the one over a
+   single position on a knob, and the one over the error-correction mark. Split
+   out of easy.css when that file reached the length ratchet's watch line, the
+   way combotip.css was split from combobox.css: the tips are one surface said
+   three times, and easy.css is layout. Loads straight after easy.css and owns no
+   layout of its own; the boxes these hang from are placed there.
+
+   All three are drawn here rather than left to the browser's `title` bubble.
+   That bubble's delay is the browser's to decide and its surface is the
+   platform's, and a tip that does not match the app it sits in reads as a
+   glitch.
+
+   None of them carries a text role class, and none may: a tooltip is not caption
+   prose, and every one of those classes pins `opacity: 1` (base/typography.css)
+   precisely so that text is never dimmed by opacity. That file loads last, so a
+   role class here would tie on specificity, win on order, and leave a tip
+   permanently over the control below it. Size and color are named here for that
+   reason. */
+
+/* The shared surface. Placed above whatever they explain, hidden by opacity
+   rather than by `display`: the two element tips are `aria-describedby` targets,
+   and a display-hidden node is not in the accessibility tree even when named.
+   Out of flow, so an invisible bubble does not push a control down. */
+.easy-knob-tip,
+.easy-knob .seg-tip,
+.easy-apod::after {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 20;
+  transform: translate(-50%, calc(var(--sp-1) * -1));
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--fg);
+  text-align: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+
+/* The two that carry sentences wrap inside the knob they belong to. The mark's
+   tip is three words and stays on one line, so it is sized by its text instead
+   and must not inherit a max-width from a box narrower than the words. */
+.easy-knob-tip,
+.easy-knob .seg-tip {
+  width: max-content;
+  max-width: 100%;
+}
+
+/* A position's tip hangs over the whole knob, not over the third of it that owns
+   the pointer: these are whole sentences, and a third of a knob is not enough
+   width to read one in. All the positions' tips stack in that one place and only
+   the hovered one is painted, so they never collide. Left-aligned because they
+   run to several lines, where the knob's own one-line tip is centered. */
+.easy-knob .seg-tip {
+  text-align: left;
+}
+
+/* The mark's words come from `data-tip` rather than from this file, so the tip
+   and the mark's accessible name cannot drift apart: both are the one label the
+   component was given. */
+.easy-apod::after {
+  content: attr(data-tip);
+  white-space: nowrap;
+}
+
+/* Painting, and the wait before it. A knob's tip and a position's tip both wait
+   for the pointer to settle: a position's tip answers "what does this one do?",
+   which is asked by hovering and hesitating, not by crossing a row of buttons on
+   the way somewhere else, and a knob whose label tip fired instantly while its
+   positions waited would read as a fault. The delay sits on the hover rule
+   alone, so a tip waits to appear and then leaves at once.
+
+   The mark is the exception and keeps its instant paint: a glyph small enough to
+   need explaining is one the pointer does not rest on for that long. */
+.easy-knob:hover .easy-knob-tip,
+.easy-knob .seg:hover .seg-tip {
+  opacity: 1;
+  transition-delay: var(--delay-tip);
+}
+.easy-apod:hover::after {
+  opacity: 1;
+}

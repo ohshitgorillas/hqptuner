@@ -90,11 +90,18 @@ function markFor(grid, presetId, knobs) {
 // The words are shown on hover and named as the knob's description, so the tip
 // reaches a screen reader rather than only a pointer. The id is grid, preset and
 // knob, which is unique in a grid of tiles because a preset appears once in one.
+//
+// A position may carry a tip of its own, saying what picking that one does. That
+// copy is keyed by knob and option alone, outside any preset: the same 'Space'
+// means the same thing on every tile that offers it, and a paragraph repeated
+// under eight presets is eight places to keep true. A knob whose positions have
+// no tip copy hands the segment empty strings, which render nothing.
 /** @param {{ grid: string, preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string }} props */
 function KnobRow({ grid, preset, knob, knobs, lane }) {
   const options = knob.options.map((id) => ({
     value: id,
     label: easyProse(grid, preset.id, "knobs", knob.id, "options", id),
+    tip: easyProse("tips", knob.id, id),
   }));
   const tip = easyProse(grid, preset.id, "knobs", knob.id, "tip");
   const base = `easy-knob-${grid}-${preset.id}-${knob.id}`;
@@ -113,6 +120,7 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
       <${Segment}
         value=${knobs[knob.id]}
         options=${options}
+        idBase=${base}
         onChange=${(/** @type {string | number} */ v) =>
           applyPreset(lane, grid, preset.id, { ...knobs, [knob.id]: String(v) })}
       />

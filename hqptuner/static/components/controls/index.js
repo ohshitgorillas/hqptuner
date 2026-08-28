@@ -11,12 +11,13 @@ import { truthy } from "../../lib/coerce.js";
  *   A control's rendered value, as store/resolve.js `effective()` hands it over:
  *   a staged edit is the string the control wrote, a /config baseline may be a
  *   real number or bool, and an unset control has none.
- * @typedef {SchemaOption & { disabled?: boolean, reason?: string, dirty?: boolean }} RenderOption
+ * @typedef {SchemaOption & { disabled?: boolean, reason?: string, dirty?: boolean, tip?: string }} RenderOption
  *   One row of an option list as it reaches these widgets. Wider than either
  *   shared type on purpose: Field.js hands over a schema literal's SchemaOption
  *   list unchanged when the entry carries `options`, and an OptionItem from the
  *   option stores when it carries `optionsFrom` — so disabled/reason are present
- *   on one path only. `dirty` is added by VolumeTab.js for the staged-edit dot.
+ *   on one path only. `dirty` is added by VolumeTab.js for the staged-edit dot,
+ *   and `tip` by Easy Mode's knobs for the hover tip on a single position.
  * @typedef {(v: string | number) => void} ValueSink
  *   What every widget reports an edit through. Values leave as the DOM spelled
  *   them (strings) except where the option list carried a number.
@@ -38,28 +39,48 @@ const s = (v) => (v == null ? "" : String(v));
 // Each button carries its option's value in `data-v` — the wire value, contract,
 // unlike the label beside it, which is copy the owner may reword. Nothing may
 // select an option by the words it reads (docs/testing.md rule 9).
+//
+// An option may carry a `tip`: a sentence about what picking THAT position does,
+// for a control whose two or three words cannot say it. The words render inside
+// their own button and are named as its description, so the tip reaches a screen
+// reader rather than only a pointer. The tip sits inside the button it describes
+// and is hidden from the tree there, so it does not join the button's name — a
+// node named by `aria-describedby` is read through that reference whether or not
+// it is hidden.
+//
+// The id a description needs comes from the caller as `idBase`, never from a
+// hook: this is a plain function of its props and is called as one, and a hook
+// would make it a component that can only be rendered. A caller passing tips
+// without an id base gets the words and no description. An option list carrying
+// no tips renders exactly what it always did — no element, no attribute — which
+// is what keeps the other eleven call sites unmoved.
+// Where the tip sits and how long the pointer must rest before it paints belong
+// to whoever styles the segment; nothing here places it.
 /**
  * Renders an option list as a row of buttons, the one matching `value` marked
  * active.
- * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, onChange: ValueSink }} props
+ * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, idBase?: string, onChange: ValueSink }} props
  */
-export function Segment({ value, options, disabled, onChange }) {
+export function Segment({ value, options, disabled, idBase, onChange }) {
   return html`
     <span class="segment">
-      ${(options || []).map(
-        (o) => html`
+      ${(options || []).map((o, i) => {
+        const tipId = o.tip && idBase ? `${idBase}-tip-${i}` : undefined;
+        return html`
           <button
             type="button"
             class=${s(o.value) === s(value) ? "seg active" : "seg"}
             data-v=${s(o.value)}
             disabled=${disabled || !!o.disabled}
             title=${o.reason || undefined}
+            aria-describedby=${tipId}
             onClick=${() => s(o.value) !== s(value) && onChange(o.value)}
           >
             ${o.label}${o.dirty ? html`<span class="seg-dirty-dot" aria-label="staged edits" />` : null}
+            ${o.tip ? html`<span class="seg-tip" id=${tipId} aria-hidden="true">${o.tip}</span>` : null}
           </button>
-        `,
-      )}
+        `;
+      })}
     </span>
   `;
 }

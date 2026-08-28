@@ -190,44 +190,6 @@
   padding: 0 var(--sp-1);
 }
 
-/* A knob's tip, over the knob it explains. Same surface, border, size and color
-   as the mark's tip above, so the two read as one thing said twice.
-
-   A real element rather than a `::after` on an attribute, because these words are
-   the knob group's `aria-describedby` target and generated content is not in the
-   accessibility tree. Hidden by opacity rather than by `display`, which is what
-   keeps it readable to a screen reader while invisible to a pointer, and taken
-   out of flow so an invisible bubble does not push the segment down.
-
-   It carries no text role class, and must not: a tooltip is not caption prose,
-   and every one of those classes pins `opacity: 1` (typography.css) precisely so
-   that text is never dimmed by opacity. That file loads last, so a role class
-   here would tie on specificity, win on order, and leave the tip permanently
-   over the control below it. Its size and color are named here for the same
-   reason the mark's tip names them. */
-.easy-knob-tip {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  z-index: 20;
-  width: max-content;
-  max-width: 100%;
-  transform: translate(-50%, calc(var(--sp-1) * -1));
-  padding: var(--sp-1) var(--sp-2);
-  font-size: var(--fs-caption);
-  color: var(--fg);
-  text-align: center;
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur) var(--ease);
-}
-.easy-knob:hover .easy-knob-tip {
-  opacity: 1;
-}
-
 /* Both positions the same width, so a knob reads as one control split in two
    rather than two buttons that happen to sit together — 'Space' beside
    'Transients' is otherwise half its neighbour's size. The segment stretches to
@@ -235,11 +197,22 @@
 .easy-knob .segment {
   display: flex;
   width: 100%;
+  /* A position's tip is a child of its own button, and the segment clips its
+     children to its rounded corners (controls/primitives.css) — which would clip
+     the tip too. The clip is what rounds the end buttons' outer corners, so
+     lifting it means rounding those two directly. Scoped to a knob: every other
+     segment in the app keeps the clip and needs it. */
+  overflow: visible;
 }
 .easy-knob .seg {
   flex: 1;
 }
-
+.easy-knob .seg:first-child {
+  border-radius: var(--r-md) 0 0 var(--r-md);
+}
+.easy-knob .seg:last-child {
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
 
 /* The error-correction mark, on the tile's bottom edge under the knobs. The
    tile is a flex column whose picking half takes the row's slack, so this lands
@@ -249,37 +222,6 @@
 .easy-apod {
   display: inline-flex;
   position: relative;
-}
-
-/* The mark's hover tip. Drawn here rather than left to the browser's own `title`
-   bubble, whose delay is the browser's to decide and is close to a second: a
-   mark small enough to need explaining is one the pointer does not rest on for
-   that long. Same surface, border and type as the dropdown's tip so the two read
-   as one thing said twice.
-
-   The words come from `data-tip` rather than from this file, so the tip and the
-   mark's accessible name cannot drift apart: both are the one label the
-   component was given. */
-.easy-apod::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  z-index: 20;
-  transform: translate(-50%, calc(var(--sp-1) * -1));
-  padding: var(--sp-1) var(--sp-2);
-  font-size: var(--fs-caption);
-  color: var(--fg);
-  white-space: nowrap;
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur) var(--ease);
-}
-.easy-apod:hover::after {
-  opacity: 1;
 }
 
 /* The subtitle holds two things now, the paragraph and the link under it, so it
