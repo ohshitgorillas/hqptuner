@@ -51,16 +51,31 @@ const OTHER = "perfect-ten";
 // The tile pressed to take the light off whichever tile a case just wrote.
 const ELSEWHERE = "concert-hall";
 
-// `perfect-ten`'s standard-source, space-emphasis filter — what an untouched
-// press of that tile writes, so a field carrying it lights that tile with both
-// knobs at their defaults. Stated outright, as tests/js/components/easytiles.test.js
-// states it: a filter name is a wire identifier.
+// `perfect-ten`'s standard-source, space-emphasis filter — the one name that
+// position pair writes to both ends of the chain, so a field carrying it lights
+// that tile with its knobs on that pair. Stated outright, as
+// tests/js/components/easytiles.test.js states it: a filter name is a wire
+// identifier.
 const PERFECT_TEN_STANDARD_SPACE = "poly-sinc-gauss-long";
 
-// The defaults every knob starts from, and the positions this file moves to.
-const DEFAULTS = { source: "standard", emphasis: "space" };
+// The positions every knob rests at until something moves it — the reading the
+// two dark-tile cases below are ABOUT, and named nowhere else in this file.
+const RESTING = { source: "auto", emphasis: "space" };
+
+// The positions the seeded filter above stands for, which is what a LIT tile
+// reads off the fields. Not the resting positions and not derived from them: the
+// fields say `standard`/`space` because that is the pair that filter belongs to.
+const SEEDED = { source: "standard", emphasis: "space" };
+
+// The positions this file moves to.
 const MOVED_SOURCE = "hires";
 const MOVED_EMPHASIS = "transients";
+
+// The one-knob preset the record cases press: it carries no Source knob at all,
+// so what a press of it records cannot be disturbed by where Source comes to
+// rest. Its `emphasis` knob is stated outright at the position it is pressed at.
+const ONE_KNOB = "purist";
+const ONE_KNOB_EMPHASIS = "space";
 
 // ============================================================================
 // a tile that is not lit shows what was recorded for it
@@ -68,13 +83,13 @@ const MOVED_EMPHASIS = "transients";
 
 test("test_a_dark_tile_shows_the_source_position_last_recorded_for_it", async () => {
   await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", TWO_KNOB, { source: MOVED_SOURCE, emphasis: DEFAULTS.emphasis });
+  rememberKnobs("album", TWO_KNOB, { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
   assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "source"), [MOVED_SOURCE]);
 });
 
 test("test_a_dark_tile_shows_the_emphasis_position_last_recorded_for_it", async () => {
   await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", TWO_KNOB, { source: DEFAULTS.source, emphasis: MOVED_EMPHASIS });
+  rememberKnobs("album", TWO_KNOB, { source: RESTING.source, emphasis: MOVED_EMPHASIS });
   assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "emphasis"), [MOVED_EMPHASIS]);
 });
 
@@ -88,7 +103,7 @@ test("test_a_dark_tiles_unrecorded_knob_stays_at_its_default_while_its_neighbour
   const out = tabs();
   assert.deepEqual(
     [knobPositions(out, TWO_KNOB, "source"), knobPositions(out, TWO_KNOB, "emphasis")],
-    [[DEFAULTS.source], [MOVED_EMPHASIS]],
+    [[RESTING.source], [MOVED_EMPHASIS]],
   );
 });
 
@@ -102,7 +117,7 @@ test("test_a_dark_tile_shows_its_defaults_while_only_another_tiles_positions_are
   const out = tabs();
   assert.deepEqual(
     [knobPositions(out, TWO_KNOB, "source"), knobPositions(out, TWO_KNOB, "emphasis")],
-    [[DEFAULTS.source], [DEFAULTS.emphasis]],
+    [[RESTING.source], [RESTING.emphasis]],
   );
 });
 
@@ -110,10 +125,11 @@ test("test_a_dark_tile_shows_its_defaults_while_only_another_tiles_positions_are
 // a tile that IS lit reads the fields, not the record
 // ============================================================================
 //
-// The fields carry `perfect-ten` at both knob defaults while the record says
-// both are moved. What the tile is showing is the state the engine is actually
-// in, so the record loses — a card that let the record win would put a lit tile
-// out of step with the four filter fields underneath it.
+// The fields carry `perfect-ten` at the pair one named position stands for while
+// the record says both knobs are moved somewhere else. What the tile is showing
+// is the state the engine is actually in, so the record loses — a card that let
+// the record win would put a lit tile out of step with the four filter fields
+// underneath it.
 
 test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_recorded", async () => {
   await resetTab({ grid: "album", mode: "pcm", names: seedPcm(PERFECT_TEN_STANDARD_SPACE) });
@@ -121,7 +137,7 @@ test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_r
   const out = tabs();
   assert.deepEqual(
     [knobPositions(out, OTHER, "source"), knobPositions(out, OTHER, "emphasis")],
-    [[DEFAULTS.source], [DEFAULTS.emphasis]],
+    [[SEEDED.source], [SEEDED.emphasis]],
   );
 });
 
@@ -132,28 +148,30 @@ test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_r
 // Read through `knobsFor`, the store's own reader, because what a press records
 // is a claim about the record and not about a rendering. The positions a press
 // records are the positions it WROTE, which for a knob move is the moved knob
-// plus its neighbours where they stood, and for a plain tile press is the
-// defaults the press wrote.
+// plus its neighbours where they stood, and for a plain tile press is the whole
+// row the press wrote. The tile-press case reads the ONE-KNOB preset: what a
+// press records is the subject, and a preset carrying no Source knob cannot
+// have that reading disturbed by where Source rests.
 
 test("test_moving_a_knob_records_the_positions_that_press_wrote", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
   pressKnob(seenTabs(), TWO_KNOB, MOVED_SOURCE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: DEFAULTS.emphasis });
+  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
 });
 
 test("test_pressing_a_tile_records_the_positions_that_press_wrote", async () => {
   const w = await resetTab({ grid: "album", mode: "pcm" });
-  pressTile(seenTabs(), TWO_KNOB);
+  pressTile(seenTabs(), ONE_KNOB);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: DEFAULTS.source, emphasis: DEFAULTS.emphasis });
+  assert.deepEqual(knobsFor("album", ONE_KNOB), { emphasis: ONE_KNOB_EMPHASIS });
 });
 
 test("test_a_press_on_the_live_lane_records_the_positions_it_wrote", async () => {
   const w = await resetLive({ grid: "album" });
   pressKnob(seenLive(), TWO_KNOB, MOVED_SOURCE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: DEFAULTS.emphasis });
+  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
 });
 
 // ============================================================================

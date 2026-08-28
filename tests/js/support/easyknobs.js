@@ -68,6 +68,20 @@ const group = (fragment) => {
 };
 
 /**
+ * Whether one knob renders a `role="group"` at all. Read beside
+ * `knobDescribedBy`, which answers `undefined` both for a group naming no
+ * description and for a knob that rendered no group: on its own that reading
+ * cannot tell "this knob describes itself with nothing" from "there is no
+ * wiring here at all", and only the first of the two is a behavior.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} knobId
+ * @returns {boolean}
+ */
+export const knobHasGroup = (out, presetId, knobId) => group(knobHtml(out, presetId, knobId)) !== undefined;
+
+/**
  * The id one knob's group names as its description, or undefined where it names
  * none. A knob with no tip carries no description, which is what makes this the
  * reading a tipless knob is asserted through.

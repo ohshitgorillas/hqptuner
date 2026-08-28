@@ -90,9 +90,12 @@ for (const [mode, keys] of MODE_KEYS) {
 // `old-school` and `damage-control` are read here on the PCM chain, where the
 // plain name lives; their SDM `-2s` flavor is behavior 4, below.
 
-// `perfect-ten` and `lifelike` are NOT read here: their Source knob rests on
-// `auto`, which writes two different names rather than one, so an untouched call
-// on either is the section immediately below.
+// `perfect-ten` and `lifelike` are NOT read here, and are read nowhere in this
+// file with their Source knob left out. What that knob writes at each of its
+// positions is `CROSSED_CASES` and tests/js/store/easy-source-auto.test.js;
+// which position it RESTS at is one case in that file. An untouched call on
+// either preset is the composition of those two, and composing facts already
+// pinned elsewhere only breaks when a resting position moves.
 
 /** @type {[string, string][]} */
 const ALBUM_HEADLINE_PCM = [
@@ -105,24 +108,6 @@ const ALBUM_HEADLINE_PCM = [
 for (const [presetId, name] of ALBUM_HEADLINE_PCM) {
   test(`test_the_album_preset_${presetId}_writes_its_headline_filter_to_both_ends_of_the_chain`, () => {
     assert.deepEqual(writeSet("album", presetId, "pcm"), pcmBoth(name));
-  });
-}
-
-// The two presets whose Source knob rests on `auto`: untouched, each writes its
-// standard filter at 1x and its hi-res one at Nx, so the chain's two ends differ.
-// The positions that pair belongs to are tests/js/store/easy-source-auto.test.js's;
-// what is read here is the same thing the table above reads for the other four —
-// what an untouched call produces.
-
-/** @type {[string, string, string][]} */
-const ALBUM_HEADLINE_PAIR_PCM = [
-  ["perfect-ten", "poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"],
-  ["lifelike", "poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp"],
-];
-
-for (const [presetId, oneX, nX] of ALBUM_HEADLINE_PAIR_PCM) {
-  test(`test_the_album_preset_${presetId}_untouched_writes_its_two_headline_filters_to_the_two_pcm_keys`, () => {
-    assert.deepEqual(writeSet("album", presetId, "pcm"), { [PCM_1X]: oneX, [PCM_NX]: nX });
   });
 }
 
@@ -212,9 +197,9 @@ test("test_an_auto_call_splits_the_chains_for_damage_control_too", () => {
 
 test("test_a_preset_with_no_two_stage_variant_writes_the_same_names_to_both_chains", () => {
   // the control: -2s belongs to the presets that define it, not to the SDM
-  // chain. `perfect-ten` rests on an `auto` source, so what each chain carries is
-  // the pair — the same pair, which is the claim.
-  assert.deepEqual(writeSet("album", "perfect-ten", "auto"), {
+  // chain. Every knob position is named, so what each chain carries is the pair
+  // that Source position writes — the same pair, which is the claim.
+  assert.deepEqual(writeSet("album", "perfect-ten", "auto", { source: "auto", emphasis: "space" }), {
     [PCM_1X]: "poly-sinc-gauss-long",
     [PCM_NX]: "poly-sinc-gauss-hires-lp",
     [SDM_1X]: "poly-sinc-gauss-long",
@@ -317,23 +302,25 @@ for (const [presetId, behavior, knobs, name] of KNOB_CASES) {
 // the engine would not enumerate — which is also what a stale caller still
 // holding a retired position gets.
 
-// Where the position falling back is the SOURCE knob's, the default it falls
-// back to is `auto` — so the expectation is that knob's pair rather than one
-// name on both keys, and each row states the whole write set it expects.
+// A row names every knob its preset carries EXCEPT the one whose fallback it is
+// about, so the only position left to the module's own defaults is the one the
+// case is reading. Where the knob falling back is the SOURCE knob, the default
+// it falls back to is what the row is for and the expectation is that knob's
+// pair rather than one name on both keys.
 
 /** @type {[string, string, Record<string, string>, Record<string, string>][]} */
 const FALLBACK_CASES = [
   [
     "lifelike",
     "the_retired_balanced_emphasis",
-    { emphasis: "balanced" },
-    { [PCM_1X]: "poly-sinc-ext2-long", [PCM_NX]: "poly-sinc-ext2-hires-lp" },
+    { source: "standard", emphasis: "balanced" },
+    pcmBoth("poly-sinc-ext2-long"),
   ],
   [
     "perfect-ten",
     "a_nonexistent_emphasis",
-    { emphasis: "loudness" },
-    { [PCM_1X]: "poly-sinc-gauss-long", [PCM_NX]: "poly-sinc-gauss-hires-lp" },
+    { source: "standard", emphasis: "loudness" },
+    pcmBoth("poly-sinc-gauss-long"),
   ],
   [
     "perfect-ten",

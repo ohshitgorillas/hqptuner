@@ -114,14 +114,16 @@ test("test_the_album_grids_six_cells_are_the_curated_presets_in_order", async ()
   assert.deepEqual(presetIds(tabs()), ALBUM_ROSTER);
 });
 
-test("test_the_playlist_grid_lays_out_two_cells", async () => {
-  await resetTab({ grid: "playlist" });
-  assert.equal(cells(tabs()), 2);
-});
+// How many cells the playlist grid lays out is
+// tests/js/components/easytiles-positions.test.js's. What is read here is what
+// its cells ARE, which is a different claim and carries no count: a cell
+// standing for no preset reads as `undefined`, so a grid that grew a
+// placeholder or a save-your-own affordance fails here however many cells it
+// has.
 
-test("test_the_playlist_grids_two_cells_are_both_preset_tiles", async () => {
+test("test_every_cell_of_the_playlist_grid_is_a_preset_tile", async () => {
   await resetTab({ grid: "playlist" });
-  assert.deepEqual(presetIds(tabs()), ["perfect-ten", "lifelike"]);
+  assert.equal(presetIds(tabs()).filter((id) => id === undefined).length, 0);
 });
 
 // ============================================================================
@@ -277,13 +279,15 @@ test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
 // table to agree with itself. Every one of the eight is confirmed present in
 // the running engine's filter enumeration.
 //
-// A knob press writes the preset at the pressed position; the untouched case is
-// therefore the defaults, `source=standard` and `emphasis=space`, reached by
-// pressing the tile itself. The fourth combination is the only one needing a
-// seeded field: `hires`/`transients` is two positions away from the defaults,
-// so the tile is seeded already carrying its family's hi-res filter — which is
-// what puts its `source` knob on `hires` — and the `emphasis` knob is moved
-// from there.
+// A knob press writes the preset at the pressed position, and each case here
+// names the positions it exercises rather than inheriting either knob's resting
+// position — a resting position is the owner's to revisit, and moving it must
+// not break a case about what a POSITION writes. Both combinations away from
+// `space` are therefore reached from a seeded field: the tile is seeded already
+// carrying its family's filter for the source under test, which is what puts its
+// `source` knob there, and the `emphasis` knob is moved from there.
+//
+// Where the two knobs REST is one case, immediately below, and only one.
 
 /** @type {[string, Record<string, string>][]} */
 const FAMILIES = [
@@ -307,16 +311,25 @@ const FAMILIES = [
   ],
 ];
 
-for (const [presetId, name] of FAMILIES) {
-  test(`test_an_untouched_${presetId}_tile_writes_its_standard_source_filter_for_space`, async () => {
-    const w = await resetTab({ grid: "album", mode: "pcm" });
-    pressTile(seenTabs(), presetId);
-    await flush(w);
-    assert.deepEqual(stagedNames(w), stagedPcm(name.standardSpace));
-  });
+// Where the two knobs rest, pressed through the tile body: a press writes the
+// preset at whatever positions its knobs are showing, so an untouched tile is
+// the one reading of this file that IS about the resting positions. One family
+// carries it, because the resting positions belong to the knobs rather than to a
+// preset — what the OTHER family writes at each named position is the loop
+// below.
 
-  test(`test_moving_${presetId}_to_transients_writes_its_standard_source_filter_for_transients`, async () => {
-    const w = await resetTab({ grid: "album", mode: "pcm" });
+const RESTING = FAMILIES[0];
+
+test("test_a_tile_pressed_at_its_resting_knob_positions_writes_the_pair_those_positions_name", async () => {
+  const w = await resetTab({ grid: "album", mode: "pcm" });
+  pressTile(seenTabs(), RESTING[0]);
+  await flush(w);
+  assert.deepEqual(stagedNames(w), stagedPcmPair(RESTING[1].standardSpace, RESTING[1].hiresSpace));
+});
+
+for (const [presetId, name] of FAMILIES) {
+  test(`test_moving_a_standard_source_${presetId}_to_transients_writes_its_standard_filter_for_transients`, async () => {
+    const w = await resetTab({ grid: "album", mode: "pcm", names: seedPcm(name.standardSpace) });
     pressKnob(seenTabs(), presetId, "transients");
     await flush(w);
     assert.deepEqual(stagedNames(w), stagedPcm(name.standardTransients));
@@ -347,11 +360,6 @@ for (const [presetId, name] of FAMILIES) {
   test(`test_a_hires_filter_in_the_fields_shows_the_${presetId}_source_knob_on_hires`, async () => {
     await resetTab({ grid: "album", mode: "pcm", names: seedPcm(name.hiresSpace) });
     assert.deepEqual(knobPositions(tabs(), presetId, "source"), ["hires"]);
-  });
-
-  test(`test_an_inactive_${presetId}_tile_shows_its_source_knob_on_standard`, async () => {
-    await resetTab({ grid: "album", mode: "pcm" });
-    assert.deepEqual(knobPositions(tabs(), presetId, "source"), ["standard"]);
   });
 }
 

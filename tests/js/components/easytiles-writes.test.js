@@ -57,17 +57,22 @@ const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const PCM_1X = "pcm_filter_1x";
 const NX_FIELD = "filter";
 
-// The filters the two tiles under test write, stated outright the way
-// tests/js/components/easytiles.test.js states them: `perfect-ten`'s
-// standard-source, space-emphasis filter, which the album tile writes to both
-// ends of the PCM chain, and `lifelike`'s playlist pair — one name for each end
-// — at its `transients` position and at its `space` one.
-const ALBUM_STANDARD_SPACE = "poly-sinc-gauss-long";
+// The album tile the two record-and-stage cases press. It carries ONE knob and
+// no Source knob at all, so neither case can be disturbed by where Source comes
+// to rest — what they are about is which fields a press writes and what it
+// records, not where a knob sits. Its `emphasis` position is stated outright
+// beside it, and so is the filter that position writes to both ends of the PCM
+// chain.
+const ONE_KNOB_TILE = "purist";
+const ONE_KNOB_POSITIONS = { emphasis: "space" };
+const ONE_KNOB_SPACE = "poly-sinc-gauss-halfband";
+
+// And `lifelike`'s playlist pair — one name for each end of the chain — at its
+// `transients` position and at its `space` one. Filter names are wire
+// identifiers, stated outright the way tests/js/components/easytiles.test.js
+// states them.
 const PLAYLIST_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
 const PLAYLIST_SPACE_NX = "poly-sinc-ext2-hires-lp";
-
-// Both knobs of the album tile, where an untouched press leaves them.
-const DEFAULT_KNOBS = { source: "standard", emphasis: "space" };
 
 // ============================================================================
 // a press that would change nothing writes nothing
@@ -105,10 +110,10 @@ test("test_pressing_the_lit_tile_on_the_live_lane_posts_no_fields", async () => 
 // the one it should have left alone.
 
 test("test_a_tile_press_stages_only_the_field_whose_value_differs", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm", names: { [PCM_1X]: ALBUM_STANDARD_SPACE } });
-  pressTile(seenTabs(), ALBUM_TILE);
+  const w = await resetTab({ grid: "album", mode: "pcm", names: { [PCM_1X]: ONE_KNOB_SPACE } });
+  pressTile(seenTabs(), ONE_KNOB_TILE);
   await flush(w);
-  assert.deepEqual(stagedNames(w), { [NX_FIELD]: ALBUM_STANDARD_SPACE });
+  assert.deepEqual(stagedNames(w), { [NX_FIELD]: ONE_KNOB_SPACE });
 });
 
 // And a knob MOVE that lands on a pair the fields half carry already: the
@@ -138,8 +143,8 @@ test("test_a_knob_move_stages_only_the_field_that_position_changes", async () =>
 // lose them.
 
 test("test_a_press_that_writes_nothing_still_records_the_tiles_knob_positions", async () => {
-  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ALBUM_TILE) });
-  pressTile(seenTabs(), ALBUM_TILE);
+  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_POSITIONS) });
+  pressTile(seenTabs(), ONE_KNOB_TILE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", ALBUM_TILE), DEFAULT_KNOBS);
+  assert.deepEqual(knobsFor("album", ONE_KNOB_TILE), ONE_KNOB_POSITIONS);
 });
