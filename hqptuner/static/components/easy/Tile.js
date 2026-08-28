@@ -8,15 +8,18 @@
 // so there is nothing here to fall out of step with the fields a user can also
 // edit by hand in the chain cards.
 //
-// Clicking is an ordinary field edit, four of them at most, through whichever
-// lane the page is on (store/easylane.js). No idle gate: a tile is honored
-// whether or not the daemon is playing, which is the binding product rule.
+// Clicking is an ordinary field edit, four of them at most and only for the
+// fields whose value actually changes, through whichever lane the page is on
+// (store/easylane.js). No idle gate: a tile is honored whether or not the
+// daemon is playing, which is the binding product rule.
 import { html } from "../../lib/dom.js";
 import { Segment } from "../controls/index.js";
-import { easyProse } from "../../store/prose.js";
+import { Apod } from "../controls/apod.js";
+import { easyProse, paragraphs } from "../../store/prose.js";
 import { rememberKnobs } from "../../store/easyview.js";
 import { writeSet } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
+import { filterFacets } from "../../store/narrow/facets.js";
 
 /**
  * @typedef {import("../../store/easy.js").Preset} Preset
@@ -38,27 +41,43 @@ import { easyLane } from "../../store/easylane.js";
 async function applyPreset(lane, grid, presetId, knobs) {
   // Recorded before the write, not after: the positions are what the user asked
   // for, and a write that resolves no filter name still leaves the tile showing
-  // where they put its knobs.
+  // where they put its knobs. Unconditional, so a press that writes nothing
+  // still moves the record.
   rememberKnobs(grid, presetId, knobs);
   const l = easyLane(lane);
-  for (const [key, name] of Object.entries(writeSet(grid, presetId, l.mode, knobs))) await l.write(key, name);
+  for (const [key, name] of Object.entries(writeSet(grid, presetId, l.mode, knobs))) {
+    // A field already holding this filter is skipped. On LIVE every write is a
+    // POST the engine acts on, so writing a value a field already holds reloads
+    // that filter and interrupts playback to arrive where it already was.
+    // This is not an idle gate: the button is never disabled and never refuses,
+    // and the state a press leaves behind is the state it names.
+    if (l.values[key] === name) continue;
+    await l.write(key, name);
+  }
 }
 
-// A description carries its own breaks: a blank line in the copy is a paragraph
-// boundary, so where a warning parts from the description it describes is an
-// edit to the text and nothing else. Splitting here rather than storing a second
-// field keeps one approved string per tile (data/easy-presets.json).
+// Which mark a tile wears. The filters a preset writes all share one apodizing
+// class — checked across the whole table, 1x and Nx, PCM and SDM, `-2s` and
+// plain — so any one of them answers for the tile, and the PCM chain is asked
+// rather than this page's actual output mode. That keeps the mark off the lane
+// entirely: building one per tile per render to learn a mode all four fields
+// agree on is work for an answer already known.
+//
+// Derived from the same facet map the health card reads (store/health.js), not
+// from a table here: apodizing is a fact about a filter, and a preset naming it
+// again is a second place to keep true.
 /**
- * One description's paragraphs, in order — one entry for copy with no break.
- *
- * @param {string} text
- * @returns {string[]}
+ * @param {string} grid
+ * @param {string} presetId
+ * @param {Record<string, string>} knobs
+ * @returns {"full" | "half" | "none" | undefined} undefined when nothing is known about the filter
  */
-function paragraphs(text) {
-  return text
-    .split(/\n[ \t]*\n+/)
-    .map((para) => para.trim())
-    .filter(Boolean);
+function markFor(grid, presetId, knobs) {
+  const name = Object.values(writeSet(grid, presetId, "pcm", knobs))[0];
+  const facet = name ? filterFacets.value[name] : undefined;
+  if (!facet) return undefined;
+  if (facet.apodizing) return "full";
+  return facet.apodizingHalf ? "half" : "none";
 }
 
 // A knob's positions are the preset's own option ids; their words come from the
@@ -98,6 +117,7 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
  * @param {{ grid: string, preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
  */
 export function PresetTile({ grid, preset, lane, active, knobs }) {
+  const mark = markFor(grid, preset.id, knobs);
   return html`
     <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, grid, preset.id, knobs)}>
@@ -114,6 +134,12 @@ export function PresetTile({ grid, preset, lane, active, knobs }) {
       ${preset.knobs.map(
         (knob) => html`<${KnobRow} grid=${grid} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
       )}
+      ${
+        mark &&
+        html`<span class="easy-apod" data-mark=${mark}>
+        <${Apod} kind=${mark} label=${easyProse("marks", mark)} />
+      </span>`
+      }
     </div>
   `;
 }

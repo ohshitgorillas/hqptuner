@@ -1,0 +1,34 @@
+/* apod — the circled apodizing mark itself, wherever it appears: dropdown
+   option rows, group headers, Easy Mode preset tiles.
+
+   Split from combobox.css when Easy Mode's tiles started wearing the same mark:
+   a tile styled by a rule named for the dropdown that first used it is how a
+   shared control ends up owned by one of its callers. Cascade order is fixed by
+   the <link> sequence in hqptuner/static/index.html — do not reorder.
+
+   This file owns the mark's shape, size and color, the way marks.css owns the
+   carets'. PLACEMENT stays with whichever component hosts it: where the mark
+   sits in a dropdown row is a fact about that row, and means nothing on a
+   tile. */
+
+.apod-mark {
+  display: inline-flex;
+  flex: none;
+  width: calc(var(--fs-micro) * 1.5);
+  height: calc(var(--fs-micro) * 1.5);
+  color: var(--accent);
+}
+.apod-mark svg {
+  width: 100%;
+  height: 100%;
+}
+/* Stroke and glyph both take the mark's currentColor; sizes are viewBox user
+   units (the SVG scales as one picture), not the page's type scale. */
+.apod-mark circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+.apod-mark path {
+  fill: currentColor;
+}

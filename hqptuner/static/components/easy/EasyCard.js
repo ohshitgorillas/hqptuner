@@ -7,10 +7,16 @@
 // it stands in for, and anything painting the card surface under its own class
 // name is how a panel drifts to the wrong border token (docs/design-system.md).
 //
-// The notice under the title is Signalyst's condition for approving the preset
-// set, so unlike the narrow bar's intro it is NOT behind the manual-text pref —
-// it is part of the card, not commentary on it. It rides the `subtitle` slot,
-// which is exactly "directly under the title, above everything else in the body".
+// The paragraph under the title says what the mode is and states that only a
+// few of HQPlayer's filters are reachable through it, which is Signalyst's
+// condition for approving the preset set. So unlike the narrow bar's intro it is
+// NOT behind the manual-text pref — it is part of the card, not commentary on
+// it. It rides the `subtitle` slot, which is exactly "directly under the title,
+// above everything else in the body".
+//
+// The link after it opens the help panel, which is NOT in the card: six
+// paragraphs of guidance here would push the grid off the screen for everyone
+// who never asked for them (Help.js).
 //
 // There is exactly ONE grid container and it says which grid it is, so a tile
 // has somewhere to land and something to read. Which page's write lane the tiles
@@ -19,10 +25,11 @@
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { Segment } from "../controls/index.js";
-import { easyGrid, knobsFor, setEasyGrid, setEasyMode } from "../../store/easyview.js";
+import { easyGrid, knobsFor, setEasyGrid, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
+import { EasyHelp } from "./Help.js";
 import { PresetTile } from "./Tile.js";
 
 // Album and Playlist are the two grids, and the switcher is a plain `Segment` at
@@ -102,7 +109,12 @@ export function EasyCard({ lane = "config" }) {
     <${Card}
       id="easy-mode"
       title=${html`Easy Mode<${ExitLink} />`}
-      subtitle=${html`<span data-note="easy-notice">${easyProse("notice")}</span>`}
+      subtitle=${html`<span data-note="easy-notice">
+        ${easyProse("notice")}
+        <button type="button" class="easy-help-link" data-testid="easy-help" onClick=${toggleEasyHelp}>
+          ${easyProse("help", "link")}
+        </button>
+      </span>`}
     >
       <div class="easy-switcher" data-testid="easy-switcher">
         <${Segment}
@@ -112,6 +124,7 @@ export function EasyCard({ lane = "config" }) {
         />
       </div>
       <${Grid} lane=${lane} />
+      <${EasyHelp} />
     <//>
   `;
 }
