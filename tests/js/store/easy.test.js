@@ -17,9 +17,9 @@
 //     (docs/architecture.md §2), so a name is the stable identifier here.
 //   * `-2s` two-stage variants are enumerated on the SDM chain only; the PCM
 //     chain carries none. That is why the `old-school` and `damage-control`
-//     cases split by chain, and why `perfect-ten` is pinned as the control that
-//     carries the SAME plain name on all four keys under "auto" — without it, a
-//     module that appended `-2s` to every SDM value would pass every other
+//     cases split by chain, and why `perfect-ten` is pinned as the control whose
+//     SDM keys carry the same plain names its PCM keys do under "auto" — without
+//     it, a module that appended `-2s` to every SDM value would pass every other
 //     case in this file.
 //
 // Deliberately NOT asserted: the preset table itself. Which presets a grid has
@@ -90,10 +90,12 @@ for (const [mode, keys] of MODE_KEYS) {
 // `old-school` and `damage-control` are read here on the PCM chain, where the
 // plain name lives; their SDM `-2s` flavor is behavior 4, below.
 
+// `perfect-ten` and `lifelike` are NOT read here: their Source knob rests on
+// `auto`, which writes two different names rather than one, so an untouched call
+// on either is the section immediately below.
+
 /** @type {[string, string][]} */
 const ALBUM_HEADLINE_PCM = [
-  ["perfect-ten", "poly-sinc-gauss-long"],
-  ["lifelike", "poly-sinc-ext2-long"],
   ["old-school", "poly-sinc-short-mp"],
   ["purist", "poly-sinc-gauss-halfband"],
   ["damage-control", "poly-sinc-xtr-short-lp"],
@@ -103,6 +105,24 @@ const ALBUM_HEADLINE_PCM = [
 for (const [presetId, name] of ALBUM_HEADLINE_PCM) {
   test(`test_the_album_preset_${presetId}_writes_its_headline_filter_to_both_ends_of_the_chain`, () => {
     assert.deepEqual(writeSet("album", presetId, "pcm"), pcmBoth(name));
+  });
+}
+
+// The two presets whose Source knob rests on `auto`: untouched, each writes its
+// standard filter at 1x and its hi-res one at Nx, so the chain's two ends differ.
+// The positions that pair belongs to are tests/js/store/easy-source-auto.test.js's;
+// what is read here is the same thing the table above reads for the other four —
+// what an untouched call produces.
+
+/** @type {[string, string, string][]} */
+const ALBUM_HEADLINE_PAIR_PCM = [
+  ["perfect-ten", "poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"],
+  ["lifelike", "poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp"],
+];
+
+for (const [presetId, oneX, nX] of ALBUM_HEADLINE_PAIR_PCM) {
+  test(`test_the_album_preset_${presetId}_untouched_writes_its_two_headline_filters_to_the_two_pcm_keys`, () => {
+    assert.deepEqual(writeSet("album", presetId, "pcm"), { [PCM_1X]: oneX, [PCM_NX]: nX });
   });
 }
 
@@ -190,11 +210,15 @@ test("test_an_auto_call_splits_the_chains_for_damage_control_too", () => {
   });
 });
 
-test("test_a_preset_with_no_two_stage_variant_writes_the_same_name_to_both_chains", () => {
-  // the control: -2s belongs to the presets that define it, not to the SDM chain
+test("test_a_preset_with_no_two_stage_variant_writes_the_same_names_to_both_chains", () => {
+  // the control: -2s belongs to the presets that define it, not to the SDM
+  // chain. `perfect-ten` rests on an `auto` source, so what each chain carries is
+  // the pair — the same pair, which is the claim.
   assert.deepEqual(writeSet("album", "perfect-ten", "auto"), {
-    ...pcmBoth("poly-sinc-gauss-long"),
-    ...sdmBoth("poly-sinc-gauss-long"),
+    [PCM_1X]: "poly-sinc-gauss-long",
+    [PCM_NX]: "poly-sinc-gauss-hires-lp",
+    [SDM_1X]: "poly-sinc-gauss-long",
+    [SDM_NX]: "poly-sinc-gauss-hires-lp",
   });
 });
 
@@ -293,34 +317,48 @@ for (const [presetId, behavior, knobs, name] of KNOB_CASES) {
 // the engine would not enumerate — which is also what a stale caller still
 // holding a retired position gets.
 
-/** @type {[string, string, Record<string, string>, string][]} */
+// Where the position falling back is the SOURCE knob's, the default it falls
+// back to is `auto` — so the expectation is that knob's pair rather than one
+// name on both keys, and each row states the whole write set it expects.
+
+/** @type {[string, string, Record<string, string>, Record<string, string>][]} */
 const FALLBACK_CASES = [
-  ["lifelike", "the_retired_balanced_emphasis", { emphasis: "balanced" }, "poly-sinc-ext2-long"],
-  ["perfect-ten", "a_nonexistent_emphasis", { emphasis: "loudness" }, "poly-sinc-gauss-long"],
+  [
+    "lifelike",
+    "the_retired_balanced_emphasis",
+    { emphasis: "balanced" },
+    { [PCM_1X]: "poly-sinc-ext2-long", [PCM_NX]: "poly-sinc-ext2-hires-lp" },
+  ],
+  [
+    "perfect-ten",
+    "a_nonexistent_emphasis",
+    { emphasis: "loudness" },
+    { [PCM_1X]: "poly-sinc-gauss-long", [PCM_NX]: "poly-sinc-gauss-hires-lp" },
+  ],
   [
     "perfect-ten",
     "a_nonexistent_source_beside_a_real_emphasis",
     { source: "vinyl", emphasis: "transients" },
-    "poly-sinc-gauss-medium",
+    { [PCM_1X]: "poly-sinc-gauss-medium", [PCM_NX]: "poly-sinc-gauss-hires-mp" },
   ],
   [
     "lifelike",
     "a_real_source_beside_a_nonexistent_emphasis",
     { source: "hires", emphasis: "loudness" },
-    "poly-sinc-ext2-hires-lp",
+    pcmBoth("poly-sinc-ext2-hires-lp"),
   ],
-  ["concert-hall", "a_nonexistent_version", { version: "purist" }, "poly-sinc-gauss-xla"],
+  ["concert-hall", "a_nonexistent_version", { version: "purist" }, pcmBoth("poly-sinc-gauss-xla")],
   [
     "concert-hall",
     "a_nonexistent_correction_beside_a_real_version",
     { version: "lifelike", correction: "sometimes" },
-    "poly-sinc-ext2-xla",
+    pcmBoth("poly-sinc-ext2-xla"),
   ],
 ];
 
-for (const [presetId, label, knobs, name] of FALLBACK_CASES) {
+for (const [presetId, label, knobs, expected] of FALLBACK_CASES) {
   test(`test_${presetId}_given_${label}_falls_back_to_the_default_position`, () => {
-    assert.deepEqual(writeSet("album", presetId, "pcm", knobs), pcmBoth(name));
+    assert.deepEqual(writeSet("album", presetId, "pcm", knobs), expected);
   });
 }
 
@@ -355,9 +393,16 @@ const MATCH_CASES = [
   ["playlist_lifelike_on_auto", "playlist", "lifelike", "auto", { emphasis: "transients" }],
 ];
 
+// The grid is passed as the caller's preference, uniformly across the table. It
+// is a tie-break and most of these rows have no tie to break, but the ones that
+// do — an album pair and a playlist pair are the same four values — would
+// otherwise be answered for a caller that never said which grid it is showing.
+// Which grid answers a caller that leans is
+// tests/js/store/easy-source-auto.test.js's; what is read here is the round trip.
+
 for (const [label, grid, presetId, mode, knobs] of MATCH_CASES) {
   test(`test_matchpreset_recovers_the_${label}_that_wrote_the_values`, () => {
-    assert.deepEqual(matchPreset(writeSet(grid, presetId, mode, knobs), mode), { grid, presetId, knobs });
+    assert.deepEqual(matchPreset(writeSet(grid, presetId, mode, knobs), mode, grid), { grid, presetId, knobs });
   });
 }
 
