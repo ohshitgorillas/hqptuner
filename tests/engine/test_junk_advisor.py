@@ -46,9 +46,7 @@ def _classify(
     seconds: float = 60.0,
     samplerate: int | None = 96000,
     sdm: bool = False,
-    junk_filter: str | None = "none",
     min_levels_db: list[float] | None = None,
-    filter_name: str | None = None,
 ) -> dict[str, Any] | None:
     return classify(
         levels,
@@ -56,28 +54,18 @@ def _classify(
         seconds,
         samplerate=samplerate,
         sdm=sdm,
-        junk_filter=junk_filter,
         min_levels_db=min_levels_db,
-        filter_name=filter_name,
     )
 
 
-def _classify_spur(
-    tone_hz: float,
-    *,
-    junk_filter: str | None = "none",
-    tone_db: float = -45.0,
-    filter_name: str | None = None,
-) -> dict[str, Any] | None:
+def _classify_spur(tone_hz: float, *, tone_db: float = -45.0) -> dict[str, Any] | None:
     """The spur rule reads the windowed minimum spectrum: the tone rides in
     ``min_levels_db`` while the mean alongside is ordinary decaying music."""
     return _classify(
         decaying_176(),
         88200.0,
         samplerate=176400,
-        junk_filter=junk_filter,
         min_levels_db=spur_min_176(tone_hz, tone_db),
-        filter_name=filter_name,
     )
 
 
@@ -169,32 +157,9 @@ def test_noise_shaping_ramp_recommends_the_50k_filter() -> None:
     assert verdict is not None and verdict["filter"] == "50k"
 
 
-# --- classify: engaged-filter suppression ---------------------------------------
-
-
-@pytest.mark.parametrize("engaged", [None, "none"])
-def test_no_engaged_filter_never_suppresses(engaged: str | None) -> None:
-    verdict = _classify_spur(40000.0, junk_filter=engaged)
-    assert verdict is not None and verdict["filter"] == "30k"
-
-
-@pytest.mark.parametrize(
-    "engaged",
-    [
-        "20k",  # fixed corner below the recommendation suppresses
-        "30k",  # ... and so does the recommended corner itself
-        "2x",  # rate-relative always suppresses
-        "4x",
-        "8x",
-    ],
-)
-def test_engaged_filter_suppresses_a_covered_spur_verdict(engaged: str) -> None:
-    assert _classify_spur(40000.0, junk_filter=engaged) is None
-
-
-def test_engaged_corner_above_the_recommendation_does_not_suppress() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0, junk_filter="50k")
-    assert verdict is not None and verdict["filter"] == "20k"
+# Suppression is no longer `classify`'s business: it detects the signature and
+# `treats` answers whether the engine's settings already deal with it, so the
+# cases that used to run through `classify` live in the `treats` section below.
 
 
 # --- MeteringReader against the fake 4322 stream --------------------------------
@@ -401,35 +366,6 @@ def test_spur_verdict_offers_the_hires_families() -> None:
     assert verdict is not None and verdict["families"] == SPUR_FAMILIES
 
 
-@pytest.mark.parametrize(
-    ("filter_name", "engaged"),
-    [
-        ("poly-sinc-gauss-hires-lp", "none"),
-        ("poly-sinc-gauss-hires-ip", None),
-        ("poly-sinc-ext2-hires-mp", "none"),
-        ("poly-sinc-ext2-hires-lp", None),
-    ],
-)
-def test_active_hires_family_filter_suppresses_the_spur_verdict(filter_name: str, engaged: str | None) -> None:
-    assert _classify_spur(40000.0, junk_filter=engaged, filter_name=filter_name) is None
-
-
-@pytest.mark.parametrize("filter_name", ["poly-sinc-ext2", "poly-sinc-gauss-long", "sinc-L"])
-def test_filter_outside_the_hires_families_does_not_suppress_the_spur(filter_name: str) -> None:
-    verdict = _classify_spur(40000.0, filter_name=filter_name)
-    assert verdict is not None and verdict["filter"] == "30k"
-
-
-def test_unknown_active_filter_does_not_suppress_the_spur() -> None:
-    verdict = _classify_spur(40000.0, filter_name=None)
-    assert verdict is not None and verdict["filter"] == "30k"
-
-
-def test_hires_family_filter_leaves_the_brickwall_verdict_standing() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0, filter_name="poly-sinc-gauss-hires-lp")
-    assert verdict is not None and verdict["filter"] == "20k"
-
-
 def test_brickwall_verdict_offers_no_families() -> None:
     verdict = _classify(fake_hires_96k(), 48000.0)
     assert verdict is not None and not verdict.get("families")
@@ -449,11 +385,18 @@ def test_shaping_ramp_verdict_offers_no_families() -> None:
         ("30k", None, True),  # corner at the recommendation treats
         ("20k", None, True),  # corner below it treats
         ("2x", None, True),  # rate-relative is a deliberate choice, never second-guessed
+        ("4x", None, True),
+        ("8x", None, True),
         ("40k", None, False),  # corner above the recommendation does not
         ("none", "poly-sinc-gauss-hires-lp", True),  # family filter treats the spur
         (None, "poly-sinc-ext2-hires-mp", True),
+        (None, "poly-sinc-gauss-hires-ip", True),
+        (None, "poly-sinc-ext2-hires-lp", True),
         ("none", "poly-sinc-gauss-long", False),  # ... other families do not
-        ("none", None, False),
+        ("none", "poly-sinc-ext2", False),
+        ("none", "sinc-L", False),
+        ("none", None, False),  # nothing engaged and nothing active treats anything
+        (None, None, False),
     ],
 )
 def test_treats_reads_the_spur_verdict_against_the_engine_settings(
@@ -466,6 +409,11 @@ def test_treats_reads_the_spur_verdict_against_the_engine_settings(
 def test_family_filter_does_not_treat_the_brickwall_verdict() -> None:
     verdict = _classify(fake_hires_96k(), 48000.0)
     assert verdict is not None and treats(verdict, "none", "poly-sinc-gauss-hires-lp") is False
+
+
+def test_engaged_corner_above_the_recommendation_does_not_treat_the_brickwall_verdict() -> None:
+    verdict = _classify(fake_hires_96k(), 48000.0)
+    assert verdict is not None and treats(verdict, "50k", None) is False
 
 
 def test_engaged_20k_corner_treats_the_brickwall_verdict() -> None:

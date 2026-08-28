@@ -94,10 +94,14 @@ test("test_the_narrowing_bar_stands_on_the_output_tab", async () => {
 });
 
 // --- pre-process card ----------------------------------------------------------
-// The two controls that shape the signal BEFORE the conversion chains: a plain
-// card titled Pre-process, ahead of the narrowing bar and the chain cards,
-// carrying exactly the high-frequency filter and the metering order — pinned as
-// the card's whole <label> sequence, in order.
+// The controls that shape the signal BEFORE the conversion chains: a plain card
+// titled Pre-process, ahead of the narrowing bar and the chain cards, carrying
+// exactly the high-frequency filter, its auto-pilot switch and the metering
+// order — pinned as the card's whole <label> sequence, in order.
+//
+// The auto-pilot switch is HQPTuner's own state, not a daemon setting: it has no
+// lane and no schema field, so it is absent from PREP below and is pinned by the
+// `data-k` its row carries, the same machine identity the fields are pinned by.
 
 /** @param {string} frag */
 const keysOf = (frag) => [...frag.matchAll(/data-k="([^"]*)"/g)].map((m) => m[1]);
@@ -110,9 +114,9 @@ test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", asyn
   assert.ok(at >= 0 && at < cardHeadAt(out, NARROW) && at < cardHeadAt(out, PCM));
 });
 
-test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
+test("test_the_pre_process_card_carries_exactly_its_three_controls_in_order", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
-  assert.deepEqual(keysOf(cardTitled(tab(), PREPROCESS)), ["junk_filter", "pre_before_meter"]);
+  assert.deepEqual(keysOf(cardTitled(tab(), PREPROCESS)), ["junk_filter", "junk_filter_autopilot", "pre_before_meter"]);
 });
 
 // --- which card opens ---------------------------------------------------------
