@@ -42,7 +42,9 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const { resetTab, tabs } = await import("../support/easytiles.js");
-const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed } = await import("../support/easyknobs.js");
+const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed, knobOptions, tippedOptions } =
+  await import("../support/easyknobs.js");
+const signals = await import("../../../hqptuner/static/store/signals.js");
 
 // The knob the seed below GIVES a tip, and the knob it gives none. Preset ids
 // and knob ids are wire identifiers, stated outright — but which shipped knobs
@@ -116,4 +118,80 @@ test("test_a_knob_with_no_tip_names_no_description", async () => {
 test("test_a_knob_group_is_named_whether_or_not_it_carries_a_tip", async () => {
   await seeded();
   assert.equal(knobIsNamed(tabs(), UNTIPPED.preset, UNTIPPED.knob), true);
+});
+
+// ============================================================================
+// a tip on every POSITION of a knob
+// ============================================================================
+//
+// Beside the one sentence a knob as a whole may carry, each POSITION of a knob
+// may carry its own: hover a position and you are told what that position
+// selects. The words ride on /api/metadata beside the tile copy, under
+// `easy.tips.<knobId>.<optionId>` — the shape tests/api/test_metadata_easy_tips.py
+// pins against the shipped file.
+//
+// WHAT THESE CASES SEED IS THEIR OWN, as everywhere else in this file: the
+// harness replaces the whole payload on every reset, so the tips a case meets
+// are the ones it put there and never the owner's. What the SHIPPED file
+// carries for each knob — which is the other half of the behavior, and the half
+// no seeded case can see — is pinned in Python.
+//
+// THE POSITION LIST IS NEVER STATED. Each case reads the positions the knob
+// offers, seeds a tip for each of them, and then asks which positions came back
+// tipped; a knob that gains or loses a position needs no edit here, and the
+// answer is compared against the offer rather than against a list.
+
+// The three knobs the shipped file gives per-position copy to, each read on a
+// tile that carries it, and the knob it gives none. Preset ids and knob ids are
+// wire identifiers, stated outright.
+const PER_POSITION = [
+  { preset: "perfect-ten", knob: "source" },
+  { preset: "purist", knob: "emphasis" },
+  { preset: "concert-hall", knob: "version" },
+];
+const NO_POSITIONS = { preset: "concert-hall", knob: "correction" };
+
+/**
+ * The album grid rendered with a stand-in tip on every position of each knob in
+ * `PER_POSITION`, and none anywhere else — the payload's `easy.tips` block, at
+ * the shape /api/metadata serves it. The positions are read off a first render
+ * so that no case here names one.
+ *
+ * @returns {Promise<string>}
+ */
+async function withPositionTips() {
+  await resetTab({ grid: "album", mode: "pcm" });
+  const first = tabs();
+  const tips = Object.fromEntries(
+    PER_POSITION.map(({ preset, knob }) => [
+      knob,
+      Object.fromEntries(knobOptions(first, preset, knob).map((v) => [v, "A stand-in tip, seeded by the suite."])),
+    ]),
+  );
+  signals.metadata.value = {
+    settings: {},
+    filters: { filters: {}, aliases: {} },
+    shapers: { pcm_dithers: {}, sdm_modulators: {} },
+    easy: { album: {}, tips },
+  };
+  return tabs();
+}
+
+for (const { preset, knob } of PER_POSITION) {
+  test(`test_every_position_the_${knob}_knob_offers_is_described_by_its_own_tip`, async () => {
+    const out = await withPositionTips();
+    assert.deepEqual(tippedOptions(out, preset, knob), knobOptions(out, preset, knob));
+  });
+}
+
+// ============================================================================
+// the knob given no per-position copy
+// ============================================================================
+//
+// Read in the same render as the three above, so "no position here is tipped"
+// is answered in a card where positions demonstrably are: a tile that had never
+// learned this wiring passes this case on its own and fails the three above.
+
+test("test_no_position_of_the_correction_knob_is_described_by_a_tip", async () => {
+  assert.deepEqual(tippedOptions(await withPositionTips(), NO_POSITIONS.preset, NO_POSITIONS.knob), []);
 });

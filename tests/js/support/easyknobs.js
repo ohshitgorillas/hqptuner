@@ -55,6 +55,52 @@ export function knobOptions(out, presetId, knobId) {
 }
 
 /**
+ * What one POSITION of a knob is described by, as a reader meets it, or the
+ * empty string where that position names no description or names an id that is
+ * not inside the knob. Both misses read the same way: a description pointing
+ * nowhere describes nothing.
+ *
+ * The position is found by its `data-v`, the wire value, never by its label —
+ * and the words themselves are asserted nowhere (docs/testing.md rule 9), only
+ * that there are some.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} knobId
+ * @param {string} value
+ * @returns {string}
+ */
+export function optionTipText(out, presetId, knobId, value) {
+  const fragment = knobHtml(out, presetId, knobId);
+  const btn = elements(fragment).find(
+    (el) => el.name === "button" && classes(el).includes("seg") && attr(el, "data-v") === value,
+  );
+  if (btn === undefined) throw new Error(`the "${knobId}" knob offers no "${value}" position`);
+  const named = (attr(btn, "aria-describedby") || "").split(/\s+/).filter((id) => id !== "");
+  return elements(fragment)
+    .filter((el) => named.includes(attr(el, "id") || ""))
+    .map((el) => text(el))
+    .join(" ")
+    .trim();
+}
+
+/**
+ * Every position of one knob that has a tip with something in it, in document
+ * order. Read against `knobOptions` — the positions the knob OFFERS — so that
+ * "every position carries a tip" and "no position does" are both one assertion,
+ * neither of them naming a position list this file would have to keep in step.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} knobId
+ * @returns {string[]}
+ */
+export const tippedOptions = (out, presetId, knobId) =>
+  knobOptions(out, presetId, knobId)
+    .flatMap((v) => (v === undefined ? [] : [v]))
+    .filter((v) => optionTipText(out, presetId, knobId, v) !== "");
+
+/**
  * The group one knob renders as: the outermost `role="group"` inside it, the
  * knob's own wrapper included. A knob that renders no group reads as undefined
  * rather than throwing, so "there is no group" is an answer a case can assert.
