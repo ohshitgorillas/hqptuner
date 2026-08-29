@@ -19,15 +19,12 @@
   text-align: center;
 }
 
-/* Mono on the whole block, not only the raw name: the breakdown lines describe
-   the name directly above them, and setting them in the body face would read as
-   two unrelated pieces of text rather than one identification. Small, because
-   the tile's own words are what a user reads first and this is the answer to
-   "which filter is that, then". */
+/* One size for the block, the same the tile's own description takes: this is
+   the answer to "which filter is that, then" and reads at the size the rest of
+   the tile's prose does. */
 .easy-filter-raw,
 .easy-filter-line {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
+  font-size: var(--fs-caption);
   line-height: 1.35;
   /* A filter name is a compound with no spaces to break at, and the narrowest
      tile in the grid is narrower than the longest name. Break inside the word
@@ -35,14 +32,16 @@
   overflow-wrap: anywhere;
 }
 
-/* The raw name is the line with contract value, so it carries the readable
-   foreground and the weight; the breakdown under it is a gloss and takes the
-   secondary gray the tile's own description takes. */
-.easy-filter-raw {
-  font-weight: var(--fw-medium);
-  color: var(--fg);
-}
+/* Mono on the engine name ALONE. It is an identifier — copied into a dropdown,
+   a forum post or the manual's index, and matched character for character — so
+   it is set in the face the app sets every other identifier in. The three lines
+   under it are ordinary English about that name, not identifiers, and setting
+   them in mono would claim they are.
 
-.easy-filter-line {
-  color: var(--fg-2);
+   Color is not named here. Every piece of text on a tile steps between the
+   primary and secondary grays with the tile's own lit state (easy.css), and a
+   color named in this file would take this block out of that ladder. */
+.easy-filter-raw {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
 }

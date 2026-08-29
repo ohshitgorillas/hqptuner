@@ -52,22 +52,35 @@
     var(--edge-light);
 }
 
-/* The lit tile says so twice: its edge and its name. One tile in the grid is the
-   filters actually running, and an edge alone is a thin thing to carry that on a
-   wall of six boxes. So the names carry it too — the unlit ones step back to the
-   secondary gray and the lit one keeps the primary, which makes the difference a
-   step on the gray ladder the design system already fixes rather than a fourth
-   color. Size and weight still separate a stepped-back title from the
-   description under it.
-
-   Both rules name the tile as well as the title, which they need to: the role
-   class sets the primary gray, typography.css loads last, and a lone
-   `.easy-title` ties on specificity and loses on order. */
-.easy-tile .easy-title {
+/* The lit tile says so twice: its edge and its contents. An edge alone is a thin
+   thing to carry "these are the filters running" on a wall of six boxes, so
+   everything inside steps with it — an unlit tile falls back to the secondary
+   gray, the lit one holds the primary. A step on the gray ladder the design
+   system already fixes, not a fourth color.
+   Caught by role class, which reaches the title, every line of prose and the
+   Cost word alike. Segments are out: they carry picked states of their own. The
+   tile is named too, since typography.css loads last and sets those grays. */
+.easy-tile .t-head,
+.easy-tile .t-label,
+.easy-tile .easy-filter-raw,
+.easy-tile .easy-filter-line {
   color: var(--fg-2);
 }
-.easy-tile[data-active="1"] .easy-title {
+.easy-tile[data-active="1"] .t-head,
+.easy-tile[data-active="1"] .t-label,
+.easy-tile[data-active="1"] .easy-filter-raw,
+.easy-tile[data-active="1"] .easy-filter-line {
   color: var(--fg);
+}
+
+/* The cost row's two drawn parts step with the words around them, painted rather
+   than colored. The pips take the full step; the divider stops a rung short,
+   since a hairline at full strength reads as a border, not a separator. */
+.easy-tile[data-active="1"] .easy-pip {
+  background: var(--fg);
+}
+.easy-tile[data-active="1"] .easy-cost-rule {
+  background: var(--fg-2);
 }
 
 /* The picking half. It is a button because clicking it acts, and it does not
