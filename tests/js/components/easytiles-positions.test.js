@@ -31,6 +31,7 @@ useStorage();
 
 const { resetTab, tabs } = await import("../support/easytiles.js");
 const { knobOptions, knobIds } = await import("../support/easyknobs.js");
+const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 // The three tiles that carry a `material` knob — the two flagships, which gained
 // it in place of the Source knob the revision retired, and Damage Control, which
@@ -64,13 +65,39 @@ for (const presetId of MATERIAL_TILES) {
   });
 }
 
-// And the knob the revision retired outright. No tile carries a `source` knob
-// any more, so the reader that finds one by its `data-knob` finds none — it
-// throws where the knob is absent, which is what this reads.
+// ============================================================================
+// and what the revision retired is gone from the WHOLE roster
+// ============================================================================
+//
+// Swept over `presetsFor`, the card's own enumeration of which tiles it has,
+// rather than over the two tiles that used to carry the Source knob: "there is
+// no `source` knob and no `auto`, `standard` or `hires` position anywhere" is a
+// claim about the card, and a tile named by hand cannot make it — a preset that
+// grew either of them, or a new preset that arrived carrying one, would go
+// unread. One case per tile, so a failure names the tile that kept it.
 
-for (const presetId of ["perfect-ten", "lifelike"]) {
+const ROSTER = presetsFor().map((/** @type {{ id: string }} */ preset) => String(preset.id));
+
+// The positions the retired knob offered. Wire identifiers, stated outright.
+const RETIRED_POSITIONS = ["auto", "standard", "hires"];
+
+for (const presetId of ROSTER) {
   test(`test_the_${presetId}_tile_carries_no_source_knob`, async () => {
     await resetTab({ mode: "pcm" });
     assert.equal(knobIds(tabs(), presetId).includes("source"), false);
+  });
+
+  // Every position of every knob the tile carries, against the three the
+  // retired knob offered: what comes back is the retired positions this tile
+  // still lays out, so a failure names them rather than reading as a bare false.
+
+  test(`test_no_knob_on_the_${presetId}_tile_offers_a_retired_source_position`, async () => {
+    await resetTab({ mode: "pcm" });
+    const out = tabs();
+    const offered = knobIds(out, presetId).flatMap((knobId) => knobOptions(out, presetId, knobId));
+    assert.deepEqual(
+      offered.filter((position) => RETIRED_POSITIONS.includes(String(position))),
+      [],
+    );
   });
 }

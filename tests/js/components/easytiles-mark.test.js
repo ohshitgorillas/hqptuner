@@ -115,7 +115,7 @@ const HALL_FACETS = {
 // here, rather than the nothing a dropdown row shows.
 
 for (const apodizing of CLASSES) {
-  test(`test_every_album_tile_renders_one_mark_while_its_filter_is_${apodizing}_apodizing`, async () => {
+  test(`test_every_preset_tile_renders_one_mark_while_its_filter_is_${apodizing}_apodizing`, async () => {
     await resetTab({ mode: "pcm" });
     seedFacets(uniformFacets(apodizing));
     assert.deepEqual(markCounts(tabs(), ROSTER), Object.fromEntries(ROSTER.map((id) => [id, 1])));

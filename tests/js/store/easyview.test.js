@@ -138,10 +138,13 @@ test("test_the_easy_mode_flag_is_kept_under_the_hqptuner_easy_mode_key_name", ()
 });
 
 // And the key that is no longer written. The card has one set of tiles and
-// nothing to choose between, so a session that exercises everything the store
-// offers leaves that key empty — a module still keeping a grid there would be
-// keeping a choice the user is never given.
-test("test_nothing_is_written_to_the_retired_easy_grid_key", () => {
+// nothing to choose between, so the two setters this module persists anything
+// through leave that key empty — a module still keeping a grid there would be
+// keeping a choice the user is never given. Named for the two setters it
+// drives, and no wider: what a press on the CARD leaves in storage is a claim
+// about the card and belongs to the component suites, not to this file, which
+// has no card in it.
+test("test_the_mode_and_knob_setters_write_nothing_to_the_retired_easy_grid_key", () => {
   storage.removeItem(GRID_KEY);
   view.setEasyMode(true);
   view.rememberKnobs("lifelike", { emphasis: "transients" });

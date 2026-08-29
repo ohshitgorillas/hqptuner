@@ -106,3 +106,34 @@ for (const [presetId, emphasis, material] of WRITES) {
     assert.deepEqual(matchPreset(writeSet(presetId, "pcm", knobs), "pcm"), { presetId, knobs });
   });
 }
+
+// ============================================================================
+// and on the auto chain the lossy shape reaches all four fields
+// ============================================================================
+//
+// The rows above are read on the PCM chain alone, which pins the two PCM keys
+// and says nothing about the SDM pair: a table that dropped or misnamed
+// `sdm_filter_1x` / `sdm_filter_nx` at `lossy` would satisfy every one of them.
+// Read in `auto`, the output mode that writes both chains at once, so the shape
+// of the write is read where it is widest — one hi-res name on all four fields,
+// there being nothing at 1x worth spending on material already thrown away.
+
+const SDM_1X = "sdm_filter_1x";
+const SDM_NX = "sdm_filter_nx";
+
+/** @param {string} name One filter name on both ends of both chains. */
+const everyChain = (name) => ({ [PCM_1X]: name, [PCM_NX]: name, [SDM_1X]: name, [SDM_NX]: name });
+
+/** @type {[string, string, string][]} */
+const LOSSY_ON_AUTO = [
+  ["perfect-ten", "space", "poly-sinc-gauss-hires-lp"],
+  ["perfect-ten", "transients", "poly-sinc-gauss-hires-mp"],
+  ["lifelike", "space", "poly-sinc-ext2-hires-lp"],
+  ["lifelike", "transients", "poly-sinc-ext2-hires-mp"],
+];
+
+for (const [presetId, emphasis, name] of LOSSY_ON_AUTO) {
+  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_its_hires_filter_to_all_four_fields`, () => {
+    assert.deepEqual(writeSet(presetId, "auto", { emphasis, material: "lossy" }), everyChain(name));
+  });
+}

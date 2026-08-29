@@ -46,7 +46,7 @@ const { HELP_LINK, helpPanels, helpLinks, subtitleCarriesHelpLink, introPrecedes
 
 // The tile pressed to put an edit in the staging buffer. A preset id is a wire
 // identifier.
-const ALBUM_TILE = "perfect-ten";
+const PRESET_TILE = "perfect-ten";
 
 /**
  * The card, with every signal it reads put back — the panel's own included,
@@ -146,7 +146,7 @@ test("test_opening_the_help_panel_writes_nothing_to_storage", async () => {
 test("test_an_open_help_panel_survives_an_edit_being_staged", async () => {
   const w = await reset();
   pressHelp();
-  pressTile(seenTabs(), ALBUM_TILE);
+  pressTile(seenTabs(), PRESET_TILE);
   await flush(w);
   assert.equal(helpPanels(tabs()), 1);
 });

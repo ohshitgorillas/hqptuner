@@ -600,6 +600,16 @@ export const postedFields = (w) =>
 const PRESET = "data-preset";
 
 /**
+ * The markup each collected render laid out, kept beside the vnodes it was
+ * built from. A press is aimed by what the card RENDERED — the tile marking, a
+ * wire identifier — and reaches into the vnode stream only for the handler,
+ * which is the one thing rendered markup does not carry.
+ *
+ * @type {WeakMap<VNode[], string>}
+ */
+const RENDERED = new WeakMap();
+
+/**
  * One render, with every vnode preact built along the way. `options.vnode` is
  * restored even if the render throws.
  *
@@ -615,7 +625,7 @@ function seenOf(node) {
     if (previous) previous(v);
   };
   try {
-    render(/** @type {never} */ (node));
+    RENDERED.set(seen, render(/** @type {never} */ (node)));
     return seen;
   } finally {
     options.vnode = previous;
@@ -681,43 +691,38 @@ export function pressTile(seen, presetId) {
 }
 
 /**
- * The stretch of the creation stream that belongs to one tile: its box, and
- * every vnode built after it until the next tile's box.
+ * Every knob option the card LAID OUT, in document order: the `seg` buttons of
+ * the rendered markup, wherever on the card they stand.
  *
- * A knob's option buttons are NOT reachable from the box's `props.children` —
- * they are built inside the shared Segment's own render, so they enter the
- * stream after the box rather than under it. What relates them to the tile is
- * the order preact builds them in, one tile at a time, which is why the window
- * is cut by the boxes on either side. A tile carrying none of its own knob
- * options leaves an empty window and the callers below throw.
- *
- * ONE WEAK EDGE, worth knowing before you move a knobbed preset to the end of a
- * grid: the window closes on the NEXT tile's box, so the last tile of a grid
- * has nothing closing it and its window runs to the end of the render stream —
- * everything the card built after the grid falls inside it. Its ambiguity guard
- * is therefore the loosest of the six, and a `data-v` that the card happens to
- * render below the grid would be reachable from it. Nothing presses the last
- * tile's knob today; a case that did would want a real closing bound here.
- *
- * @param {VNode[]} seen
- * @param {string} presetId
- * @returns {VNode[]}
+ * @param {string} out
+ * @returns {MarkupElement[]}
  */
-function tileWindow(seen, presetId) {
-  const built = seen.filter((v) => v && v.props);
-  const start = built.findIndex((v) => v.props[PRESET] === presetId);
-  if (start === -1) throw new Error(`nothing carries ${PRESET}="${presetId}"`);
-  const rest = built.slice(start + 1);
-  const end = rest.findIndex((v) => v.props[PRESET] !== undefined && v.props[PRESET] !== presetId);
-  return end === -1 ? rest : rest.slice(0, end);
-}
+const laidOutOptions = (out) =>
+  elements(out)
+    .filter((el) => el.name === "button" && classes(el).includes("seg"))
+    .sort((a, b) => a.start - b.start);
+
+/** Every knob option the card BUILT, in the order preact built them. */
+const builtOptions = (/** @type {VNode[]} */ seen) =>
+  seen.filter((v) => v && v.props && v.type === "button" && isSeg(v));
 
 /**
  * One press on a knob's option inside one tile, by the `data-v` that option
- * carries. Scoped to the tile because `data-v` is shared across tiles — several
- * presets carry an `emphasis` knob and its two option ids — so an unscoped
- * search would press whichever tile's knob came first in the vnode stream. An
- * ambiguous match WITHIN the tile still throws.
+ * carries.
+ *
+ * The tile is named by the `data-preset` marking of the RENDERED markup, so the
+ * scope of the press is the region of the card that tile actually encloses —
+ * not a stretch of preact's creation stream, which relates an option to a tile
+ * only by the order the two were built in and leaves the last tile of the
+ * roster unbounded. `data-v` is shared across tiles (several presets carry an
+ * `emphasis` knob and its two option ids), so an ambiguous match within the
+ * tile still throws, and so does an option no tile encloses.
+ *
+ * The vnode stream is consulted for one thing only: the handler, which rendered
+ * markup does not carry. Nth-built is nth-laid-out for these buttons — each is
+ * built by the render of the Segment that lays it out — and the counts are
+ * compared before the mapping is used, so a card that built options it never
+ * laid out fails loudly rather than pressing its neighbour.
  *
  * @param {VNode[]} seen
  * @param {string} presetId
@@ -725,11 +730,23 @@ function tileWindow(seen, presetId) {
  * @returns {void}
  */
 export function pressKnob(seen, presetId, optionId) {
-  const hits = tileWindow(seen, presetId).filter(
-    (v) => v.props["data-v"] === optionId && typeof v.props.onClick === "function",
+  const out = RENDERED.get(seen);
+  if (out === undefined) throw new Error("pressKnob wants a render collected by seenTabs or seenLive");
+  const laid = laidOutOptions(out);
+  const box = tile(out, presetId);
+  const mine = laid.filter(
+    (el) => el.start >= box.start && el.start < box.start + box.html.length && attr(el, "data-v") === optionId,
   );
-  if (hits.length !== 1) {
-    throw new Error(`expected one clickable data-v="${optionId}" in the "${presetId}" tile, found ${hits.length}`);
+  if (mine.length !== 1) {
+    throw new Error(`expected one data-v="${optionId}" option in the "${presetId}" tile, found ${mine.length}`);
   }
-  fire(hits[0]);
+  const built = builtOptions(seen);
+  if (built.length !== laid.length) {
+    throw new Error(`the card built ${built.length} knob options and laid out ${laid.length}`);
+  }
+  const target = built[laid.indexOf(mine[0])];
+  if (typeof target.props.onClick !== "function") {
+    throw new Error(`the data-v="${optionId}" option in the "${presetId}" tile is not clickable`);
+  }
+  fire(target);
 }

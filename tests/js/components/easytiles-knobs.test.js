@@ -204,8 +204,8 @@ test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_r
 // row the press wrote. The two knob-move cases seed the fields so that the
 // neighbour they read back stands at a position they NAMED. The tile-press case
 // reads the ONE-KNOB preset: what a press records is the subject, and a preset
-// carrying no Source knob cannot have that reading disturbed by where Source
-// rests.
+// carrying no `material` knob cannot have that reading disturbed by where
+// material rests.
 
 test("test_moving_a_knob_records_the_positions_that_press_wrote", async () => {
   const w = await resetTab({
