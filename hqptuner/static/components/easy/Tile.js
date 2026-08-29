@@ -134,14 +134,24 @@ function KnobRow({ preset, knob, knobs, lane }) {
 // The pips are drawn, so they are hidden from a screen reader and the group
 // takes its name from the words beside them. Counting the glyphs out in that
 // name is copy this feature does not have yet.
+// How many pips stand in a row. Up to seven they all fit on one; past that they
+// break into two EVEN rows, so twelve reads 6 over 6 and thirteen 7 over 6. A
+// fixed seven-wide grid would have left twelve as 7 over 5, which reads as a
+// dropped pip rather than as one row less.
+/**
+ * @param {number} count
+ * @returns {number}
+ */
+const pipColumns = (count) => (count <= 7 ? Math.max(count, 1) : Math.ceil(count / 2));
+
 /** @param {{ preset: Preset, lane: string, knobs: Record<string, string> }} props */
 function Pips({ preset, lane, knobs }) {
   const count = pipsFor(preset.id, easyLane(lane).mode, knobs);
   const labelId = `easy-pips-${preset.id}-label`;
   return html`
     <span class="easy-pips" data-testid="easy-pips" role="group" aria-labelledby=${labelId}>
-      <span class="t-label" id=${labelId}>Resources:</span>
-      <span class="easy-pips-dots" aria-hidden="true">
+      <span class="t-label" id=${labelId}>Cost:</span>
+      <span class="easy-pips-dots" aria-hidden="true" style=${`--pip-cols: ${pipColumns(count)}`}>
         ${Array.from({ length: count }, (_, i) => html`<span class="easy-pip" data-pip="" key=${String(i)}></span>`)}
       </span>
     </span>
@@ -176,6 +186,7 @@ export function PresetTile({ preset, lane, active, knobs }) {
               <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
             </span>`
             }
+            <span class="easy-cost-rule" aria-hidden="true"></span>
             <${Pips} preset=${preset} lane=${lane} knobs=${knobs} />
           </span>
         </span>

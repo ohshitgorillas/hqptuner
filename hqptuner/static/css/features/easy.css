@@ -169,15 +169,12 @@
 .easy-knob[data-knob="correction"] {
   padding: 0 var(--sp-4);
 }
-.easy-knob[data-knob="emphasis"] {
+.easy-knob[data-knob="emphasis"],
+.easy-knob[data-knob="material"] {
+  /* The two-position knobs, at the same inset: they sit one above the other on
+     three of the tiles, and a segment that changed width between them would read
+     as two different controls rather than two rows of one. */
   padding: 0 var(--sp-5);
-}
-.easy-knob[data-knob="source"] {
-  /* The smallest inset of the three that take one, because this knob divides its
-     row THREE ways where the others divide it two. At a wider inset "Hi-Res"
-     wraps onto a second line and the segment stands at twice the height of the
-     Emphasis knob above it. */
-  padding: 0 var(--sp-1);
 }
 
 /* Both positions the same width, so a knob reads as one control split in two
@@ -208,13 +205,35 @@
    height is fixed at two pip rows and does not depend on what it holds: the
    pips are the one thing on a tile whose count varies wildly (one pip to
    thirteen), and a row that grew for the heaviest preset would push that tile's
-   description down out of line with every other tile in the grid. */
+   description down out of line with every other tile in the grid.
+
+   The divider between the two, not the row itself, is what lines up with the
+   emoji above: three columns with equal slack on the outside put it dead center
+   whatever the mark and the pip count each take, where centering the row would
+   let a thirteen-pip tile drag it off to the left. */
 .easy-cost {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   min-height: calc(2 * var(--pip-size) + var(--sp-1));
+}
+
+/* The mark closes on the divider from the left and the pips open from the
+   right, so the gap either side of it is the row's own and nothing else. */
+.easy-cost > :first-child {
+  justify-self: end;
+}
+.easy-cost > :last-child {
+  justify-self: start;
+}
+
+/* The divider: a hairline standing where a written bar would, so it takes the
+   line color rather than a text color and never wraps or picks up a font. */
+.easy-cost-rule {
+  width: 1px;
+  height: 1.2em;
+  background: var(--muted);
 }
 
 /* The mark itself is drawn by controls/apod.css; this is where it sits. */
@@ -232,12 +251,13 @@
   gap: var(--sp-1);
 }
 
-/* Seven pips to a row, so thirteen breaks 7 over 6 and every count below that
-   stays on one. A grid rather than a wrapping flex: the column count is the
-   whole point, and wrapping would put it at the mercy of the tile's width. */
+/* The column count arrives from the markup, which knows how many pips there are:
+   up to seven on one row, more than that split evenly over two. A grid rather
+   than a wrapping flex, because where the break falls is the whole point and
+   wrapping would put it at the mercy of the tile's width. */
 .easy-pips-dots {
   display: grid;
-  grid-template-columns: repeat(7, auto);
+  grid-template-columns: repeat(var(--pip-cols, 7), auto);
   gap: var(--sp-1);
   align-content: center;
   justify-content: center;

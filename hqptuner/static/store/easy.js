@@ -58,7 +58,7 @@ const EMPHASIS = { id: "emphasis", default: "space", options: ["space", "transie
 // hi-res filter on both, because lossy material reads as low rate and wants the
 // hi-res filter anyway, which is a choice no rate can make for you.
 /** @type {Knob} */
-const MATERIAL = { id: "material", default: "lossless", options: ["lossy", "lossless"] };
+const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "lossy"] };
 
 /**
  * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
@@ -220,7 +220,12 @@ function findPreset(presetId) {
 export function pipsFor(presetId, outputMode, knobs = {}) {
   const row = (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
   if (!row) return 0;
-  return outputMode === "sdm" ? row.sdm : row.pcm;
+  const cost = outputMode === "sdm" ? row.sdm : row.pcm;
+  // Error correction off costs one pip less, which is the same thing that knob's
+  // own tip says in words. One pip rather than a proportion: the tiles carrying
+  // the knob are the expensive ones, and a pip is the smallest thing this scale
+  // can say.
+  return knobs.correction === "off" ? Math.max(cost - 1, 1) : cost;
 }
 
 /**

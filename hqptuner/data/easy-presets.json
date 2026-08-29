@@ -23,6 +23,9 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
+      },
+      "material": {
+        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
@@ -33,6 +36,9 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
+      },
+      "material": {
+        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
@@ -63,6 +69,9 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
+      },
+      "material": {
+        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
