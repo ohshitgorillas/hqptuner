@@ -14,6 +14,7 @@
 //   * `data-pip` on each pip inside that group
 //   * an accessible name on the group — an `aria-label` with something in it, or
 //     an `aria-labelledby` pointing at an element that says something
+//   * a `--pip-cols` custom property in the group's own inline style
 //
 // NO COPY IS READ HERE (docs/testing.md rule 9). A pip is found by the marking
 // it carries and never by a word; that the group HAS a name is a behavior, the
@@ -116,4 +117,59 @@ function smallestAround(fragment, els) {
   const around = elements(fragment).filter((el) => el.start <= from && el.start + el.html.length >= to);
   if (around.length === 0) throw new Error("nothing in the fragment encloses them all");
   return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+}
+
+/**
+ * The element one tile's pips actually sit in: the smallest element of the pip
+ * group that encloses every pip and is not itself a pip. Found structurally
+ * rather than by a class, so how the group wraps its label and its marks stays
+ * the writer's business — and a single-pip tile answers the pip's parent rather
+ * than the pip.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {MarkupElement}
+ */
+function pipBox(out, presetId) {
+  const fragment = group(out, presetId).html;
+  const pips = elements(fragment).filter((el) => hasAttr(el, "data-pip"));
+  if (pips.length === 0) throw new Error(`the "${presetId}" tile's pip group holds no pips`);
+  const around = smallestAround(fragment, pips);
+  if (!hasAttr(around, "data-pip")) return around;
+  const same = (/** @type {MarkupElement} */ el) => el.start === around.start && el.html.length === around.html.length;
+  const outer = elements(fragment).filter(
+    (el) => el.start <= around.start && el.start + el.html.length >= around.start + around.html.length && !same(el),
+  );
+  if (outer.length === 0) throw new Error(`nothing encloses the "${presetId}" tile's pips`);
+  return outer.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+}
+
+/**
+ * How many COLUMNS one tile lays its pips out in, as the pip container's own
+ * inline style declares it: the `--pip-cols` custom property, read as a number.
+ *
+ * The property is the contract — a CSS custom property name is a wire
+ * identifier, the same class of thing as a class name — and the layout it
+ * produces is the stylesheet's business, so this reads the declared count and
+ * never a pixel. A container carrying no inline style, or an inline style
+ * declaring no `--pip-cols`, throws rather than answering: "there is no column
+ * count here" and "the count is wrong" are different failures and must not read
+ * the same.
+ *
+ * The declaration's value is read as written, so a count rendered with a unit on
+ * it ("8px") answers NaN rather than 8 — a dimensioned custom property is not a
+ * column count.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {number}
+ */
+export function pipColumns(out, presetId) {
+  const box = pipBox(out, presetId);
+  const style = attr(box, "style");
+  if (style === undefined) throw new Error(`the "${presetId}" tile's pip container carries no inline style`);
+  const declared = /(^|;)\s*--pip-cols\s*:\s*([^;]*)/.exec(style);
+  if (declared === null) throw new Error(`the "${presetId}" tile's pip container declares no --pip-cols: "${style}"`);
+  const value = declared[2].trim();
+  return /^\d+$/.test(value) ? Number(value) : NaN;
 }

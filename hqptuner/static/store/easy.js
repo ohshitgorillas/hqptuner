@@ -157,7 +157,7 @@ const FILTERS = {
 const PIPS = {
   "perfect-ten": { sdm: 2, pcm: 1 },
   lifelike: { sdm: 2, pcm: 1 },
-  "concert-hall": { sdm: 13, pcm: 6 },
+  "concert-hall": { sdm: 16, pcm: 8 },
   purist: { sdm: 2, pcm: 1 },
   "old-school": { sdm: 1, pcm: 1 },
   "damage-control": { sdm: 1, pcm: 3 },
@@ -165,6 +165,16 @@ const PIPS = {
 
 /** @type {Record<string, {sdm: number, pcm: number}>} */
 const LOSSY_PIPS = { "damage-control": { sdm: 2, pcm: 1 } };
+
+// The presets whose Emphasis knob picks a filter LENGTH rather than a phase:
+// Space takes the longer filter of the pair and costs a pip more for it. On the
+// rest of the card the knob moves between `-lp` and `-mp`, which is the same
+// filter run at a different phase and the same work either way, so their tiles
+// read the same in both positions.
+//
+// The table above is therefore the Transients figure for these three, and the
+// resting position, Space, is the one that adds to it.
+const LENGTH_EMPHASIS = new Set(["perfect-ten", "lifelike", "purist"]);
 
 /**
  * The chain's name for a value that may differ by chain.
@@ -220,7 +230,8 @@ function findPreset(presetId) {
 export function pipsFor(presetId, outputMode, knobs = {}) {
   const row = (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
   if (!row) return 0;
-  const cost = outputMode === "sdm" ? row.sdm : row.pcm;
+  let cost = outputMode === "sdm" ? row.sdm : row.pcm;
+  if (knobs.emphasis === "space" && LENGTH_EMPHASIS.has(presetId)) cost += 1;
   // Error correction off costs one pip less, which is the same thing that knob's
   // own tip says in words. One pip rather than a proportion: the tiles carrying
   // the knob are the expensive ones, and a pip is the smallest thing this scale
