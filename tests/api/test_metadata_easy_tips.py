@@ -7,12 +7,17 @@ top-level `tips` block, keyed by knob id and then by option id: one sentence per
 POSITION of a knob, so that hovering a position says what that position
 selects. A block that does not reach the frontend leaves every position silent.
 
-Which knobs ship one is a fact about the shipped file, and it is the half the
-frontend suite cannot see: tests/js/components/easytiles-tips.test.js seeds its
-own stand-in tips, because the harness replaces the whole payload on every
-reset. So the readings below are made in BOTH directions — knobs that ship
-per-position copy and a knob that ships none — since a loader answering "yes"
-to everything and one answering "no" to everything each pass one half.
+WHICH POSITIONS A KNOB HAS IS NOT STATED HERE. The same response carries the
+tile copy, and a tile's entry lists its knobs' positions at
+`easy.<grid>.<presetId>.knobs.<knobId>.options` — so the offer is read out of
+the payload and the tips block is asked to cover every position of it, across
+both grids. A knob that gains a position and is not given copy for it fails
+here; a hand-typed position list would not have noticed.
+
+That the frontend WIRES those sentences to the positions is the other half, and
+it is pinned in tests/js/components/easytiles-tips.test.js, which seeds its own
+stand-in copy because the harness replaces the whole payload on every reset.
+This file is the half no seeded case can see: that the copy ships at all.
 
 What is pinned is PRESENCE and the KEYS, never a word (docs/testing.md rule 9).
 Knob ids and option ids are wire identifiers, contract like any other JSON key;
@@ -27,21 +32,13 @@ from typing import cast
 import pytest
 from fastapi.testclient import TestClient
 
-# Knob-and-position pairs the shipped file gives a tip to. Every id here is one
-# an existing suite already reads off the rendered card: the Source knob's three
-# positions (tests/js/components/easytiles-positions.test.js), the Emphasis
-# knob's resting position (tests/js/components/easytiles.test.js) and the
-# Version knob's second position (tests/js/support/easytiles.js's PICK).
-TIPPED = [
-    ("source", "auto"),
-    ("source", "standard"),
-    ("source", "hires"),
-    ("emphasis", "space"),
-    ("version", "lifelike"),
-]
+# The knobs the shipped file gives per-position copy to. Knob ids are wire
+# identifiers, stated outright; their POSITIONS are not, and are derived below.
+TIPPED_KNOBS = ["source", "emphasis", "version"]
 
-# The knob whose positions carry none.
-UNTIPPED = "correction"
+# The two grids a tile can live on, keyed by the same names the file is keyed by
+# (tests/api/test_metadata_easy.py pins that both are served).
+GRIDS = ["album", "playlist"]
 
 
 def _easy(client: TestClient) -> dict[str, object]:
@@ -49,23 +46,28 @@ def _easy(client: TestClient) -> dict[str, object]:
     return cast("dict[str, object]", payload["easy"])
 
 
-def _tips(client: TestClient) -> dict[str, object]:
-    return cast("dict[str, object]", _easy(client).get("tips", {}))
+def _offered(client: TestClient, knob: str) -> set[str]:
+    """Every position one knob offers anywhere in the card, read off the payload."""
+    easy = _easy(client)
+    found: set[str] = set()
+    for grid in GRIDS:
+        for entry in cast("dict[str, object]", easy.get(grid, {})).values():
+            knobs = cast("dict[str, object]", cast("dict[str, object]", entry).get("knobs", {}))
+            options = cast("dict[str, object]", cast("dict[str, object]", knobs.get(knob, {})).get("options", {}))
+            found |= set(options)
+    return found
 
 
-def _tip(client: TestClient, knob: str, option: str) -> str:
-    positions = cast("dict[str, object]", _tips(client).get(knob, {}))
-    return str(positions.get(option, "")).strip()
+def _tipped(client: TestClient, knob: str) -> set[str]:
+    """Every position of one knob the tips block gives a sentence with something in it."""
+    tips = cast("dict[str, object]", _easy(client).get("tips", {}))
+    positions = cast("dict[str, object]", tips.get(knob, {}))
+    return {option for option, words in positions.items() if str(words).strip() != ""}
 
 
-def test_the_easy_section_carries_a_tips_block(api_client: TestClient) -> None:
-    assert "tips" in _easy(api_client)
-
-
-@pytest.mark.parametrize(("knob", "option"), TIPPED)
-def test_the_shipped_position_tip_says_something(api_client: TestClient, knob: str, option: str) -> None:
-    assert _tip(api_client, knob, option) != ""
-
-
-def test_the_correction_knob_ships_no_per_position_tips(api_client: TestClient) -> None:
-    assert _tips(api_client).get(UNTIPPED, {}) == {}
+# The offer is compared against the coverage AND against emptiness in the one
+# assertion: a knob whose positions vanished from the payload would otherwise
+# have every position covered, vacuously.
+@pytest.mark.parametrize("knob", TIPPED_KNOBS)
+def test_every_position_the_knob_offers_ships_a_tip_that_says_something(api_client: TestClient, knob: str) -> None:
+    assert _tipped(api_client, knob) == _offered(api_client, knob) != set()
