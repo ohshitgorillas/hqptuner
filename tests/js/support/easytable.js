@@ -3,7 +3,7 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 //
-// It asks the shipped table — `presetsFor` for which presets a grid has and
+// It asks the shipped table — `presetsFor` for which presets the card has and
 // which knob positions each defines, `writeSet` for what every combination of
 // those positions names — rather than restating any of it. A name typed out
 // here would be a second copy of the table, drifting the first time the owner
@@ -19,9 +19,6 @@ import { writeSet, presetsFor } from "../../../hqptuner/static/store/easy.js";
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
-/** @type {("album" | "playlist")[]} */
-const GRIDS = ["album", "playlist"];
-
 /**
  * Every combination of knob positions a preset defines, defaults included.
  *
@@ -35,31 +32,22 @@ const combos = (knobs) =>
     [{}],
   );
 
-/**
- * Every write set one grid's table can produce, every knob position included.
- *
- * @param {string} grid
- * @returns {Record<string, string>[]}
- */
-const writesFor = (grid) =>
-  presetsFor(grid).flatMap((/** @type {Preset} */ preset) =>
-    combos(preset.knobs).map((knobs) => writeSet(grid, preset.id, "auto", knobs)),
+/** Every write set the table can produce, every knob position included. */
+export const everyWrite = () =>
+  presetsFor().flatMap((/** @type {Preset} */ preset) =>
+    combos(preset.knobs).map((knobs) => writeSet(preset.id, "auto", knobs)),
   );
 
-/** Every write set the table can produce: both grids, every knob position. */
-export const everyWrite = () => GRIDS.flatMap(writesFor);
-
 /**
- * Every distinct filter name one grid's presets can write, across all four
- * schema keys and every knob combination — the whole vocabulary that grid can
+ * Every distinct filter name the card's presets can write, across all four
+ * schema keys and every knob combination — the whole vocabulary Easy Mode can
  * put in front of the daemon.
  *
- * @param {string} grid
  * @returns {string[]}
  */
-export const namesWritten = (grid) => [
+export const namesWritten = () => [
   ...new Set(
-    writesFor(grid)
+    everyWrite()
       .flatMap((set) => Object.values(set))
       .filter(Boolean),
   ),

@@ -5,7 +5,7 @@
 //
 // The companion files are tests/js/components/easytiles-positions.test.js (what a
 // knob offers), tests/js/components/easytiles-knobs.test.js (which position it
-// marks) and tests/js/components/easytiles.test.js (the grids and the presses).
+// marks) and tests/js/components/easytiles.test.js (the tiles and the presses).
 // All share tests/js/support/easytiles.js, imported dynamically after
 // `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
 // load-time read.
@@ -20,7 +20,7 @@
 //
 // NOT A WORD THE OWNER OWNS IS ASSERTED (docs/testing.md rule 9). The copy these
 // cases render is this file's own stand-in text, seeded through /api/metadata's
-// `easy.<grid>.<presetId>` shape the way tests/js/components/easytiles-desc.test.js
+// `easy.<presetId>` shape the way tests/js/components/easytiles-desc.test.js
 // seeds its descriptions — the shipped sentence never reaches a case here, and
 // the owner may reword it freely. What a case DOES compare word for word is the
 // stand-in it seeded, which is its own input: a card rendering a knob's LABEL
@@ -31,7 +31,7 @@
 // ONE SEED FOR ALL FOUR CASES, tipped knob and untipped knob together. A tile
 // whose copy is absent altogether renders no tip either, so a tipless knob read
 // against an empty payload would pass whether the wiring exists or not. Seeded
-// side by side, "this knob has no tip" is read in a grid where a tip
+// side by side, "this knob has no tip" is read on a card where a tip
 // demonstrably does render.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-tips.test.js
@@ -53,7 +53,7 @@ const signals = await import("../../../hqptuner/static/store/signals.js");
 // carry a tip is not read here at all, because the copy every case renders is
 // this file's own. That the SHIPPED data carries a tip on `concert-hall`'s
 // `correction` knob and none on `purist`'s `emphasis` is pinned against
-// /api/metadata, in tests/api/test_metadata_easy_lossy.py.
+// /api/metadata, in tests/api/test_metadata_easy_copy.py.
 const TIPPED = { preset: "concert-hall", knob: "correction" };
 const UNTIPPED = { preset: "purist", knob: "emphasis" };
 
@@ -70,8 +70,8 @@ const COPY = {
   [UNTIPPED.preset]: { knobs: { [UNTIPPED.knob]: { label: "A stand-in label." } } },
 };
 
-/** The album grid seeded with that copy — what every case here renders. */
-const seeded = () => resetTab({ grid: "album", mode: "pcm", copy: COPY });
+/** The card seeded with that copy — what every case here renders. */
+const seeded = () => resetTab({ mode: "pcm", copy: COPY });
 
 // ============================================================================
 // a knob given a tip
@@ -154,11 +154,12 @@ test("test_a_knob_group_is_named_whether_or_not_it_carries_a_tip", async () => {
 // LABEL into its description, or one sentence over every position of a knob,
 // says something at every position and is a different card from this one.
 
-// The three knobs the shipped file gives per-position copy to, each read on a
-// tile that carries it, and the knob it gives none. Preset ids and knob ids are
-// wire identifiers, stated outright.
+// The knobs the shipped file gives per-position copy to, each read on a tile
+// that carries it, and the knob it gives none. Preset ids and knob ids are wire
+// identifiers, stated outright. `material` is not among them: its copy is not
+// written yet, and a stand-in seeded for it here would be read as a knob that
+// has copy.
 const PER_POSITION = [
-  { preset: "perfect-ten", knob: "source" },
   { preset: "purist", knob: "emphasis" },
   { preset: "concert-hall", knob: "version" },
 ];
@@ -174,7 +175,7 @@ const NO_POSITIONS = { preset: "concert-hall", knob: "correction" };
 const positionTip = (value) => `A stand-in tip for the ${value} position, seeded by the suite.`;
 
 /**
- * The album grid rendered with a stand-in tip on every position of each knob in
+ * The card rendered with a stand-in tip on every position of each knob in
  * `PER_POSITION`, and none anywhere else — the payload's `easy.tips` block, at
  * the shape /api/metadata serves it. The positions are read off a first render
  * so that no case here names one.
@@ -182,7 +183,7 @@ const positionTip = (value) => `A stand-in tip for the ${value} position, seeded
  * @returns {Promise<string>}
  */
 async function withPositionTips() {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await resetTab({ mode: "pcm" });
   const first = tabs();
   const tips = Object.fromEntries(
     PER_POSITION.map(({ preset, knob }) => [
@@ -194,7 +195,7 @@ async function withPositionTips() {
     settings: {},
     filters: { filters: {}, aliases: {} },
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
-    easy: { album: {}, tips },
+    easy: { tips },
   };
   return tabs();
 }

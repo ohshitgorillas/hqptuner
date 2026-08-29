@@ -1,22 +1,24 @@
-// Behavioral suite for the positions Easy Mode's tiles OFFER, and for how many
-// tiles the playlist grid lays out.
+// Behavioral suite for what Easy Mode's tiles OFFER: which knobs a tile carries
+// at all, in which order, and the positions each of them lays out.
 //
-// The companion files are tests/js/components/easytiles.test.js (the grids, the
+// The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
 // tests/js/components/easytiles-knobs.test.js (which position a tile's knob
 // MARKS). What a knob offers is a different reading from what it marks, and it
-// is the one a knob that gained a third position, or a grid that gained a third
-// tile, is observable as — so it has its own reader,
+// is the one a knob that gained a position, or a tile that gained a knob, is
+// observable as — so it has its own reader,
 // tests/js/support/easyknobs.js, and its own file.
 //
 // All of these share tests/js/support/easytiles.js, imported dynamically after
 // `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
 // load-time read.
 //
-// NAMES, NOT WORDS (docs/testing.md rule 9). A knob's positions are read by the
-// `data-v` each option carries — the wire identifier `writeSet` speaks, not the
-// word printed on the button. No title, description or label is asserted
-// anywhere in this file.
+// NAMES, NOT WORDS (docs/testing.md rule 9). A knob is read by its `data-knob`
+// and its positions by the `data-v` each option carries — the wire identifiers
+// `writeSet` speaks, not the words printed on the buttons. No title, description
+// or label is asserted anywhere in this file, and none is needed: Damage
+// Control's `material` knob ships no copy at all yet, and its two positions are
+// still wire identifiers that can be read.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-positions.test.js
 
@@ -27,42 +29,48 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, cells } = await import("../support/easytiles.js");
-const { knobOptions } = await import("../support/easyknobs.js");
+const { resetTab, tabs } = await import("../support/easytiles.js");
+const { knobOptions, knobIds } = await import("../support/easyknobs.js");
 
-// The album tile whose Source knob is read, and the playlist tile the grid
-// gained. Preset ids and knob ids are wire identifiers, stated outright.
-const ALBUM_TILE = "perfect-ten";
-const LOSSY_TILE = "lossy";
+// The three tiles that carry a `material` knob — the two flagships, which gained
+// it in place of the Source knob the revision retired, and Damage Control, which
+// gained it in place of the retired `lossy` tile. Preset ids and knob ids are
+// wire identifiers, stated outright.
+const MATERIAL_TILES = ["perfect-ten", "lifelike", "damage-control"];
 
 // ============================================================================
-// the Source knob's three positions
+// the two knobs each material tile carries
 // ============================================================================
 //
-// The count and the order are read separately: a knob that offers three
-// positions in the wrong order is a different defect from one that offers two,
-// and the count is what stays green while the owner rearranges nothing.
+// Which knobs a tile carries AND the order it lays them out are one reading: a
+// tile whose second knob went missing and a tile that put it first are both
+// wrong, and both fail here by naming what that tile laid out. The order is the
+// spec's own — `emphasis` then `material` — and not a display detail this file
+// invented.
 
-test("test_the_source_knob_offers_three_positions", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  assert.equal(knobOptions(tabs(), ALBUM_TILE, "source").length, 3);
-});
+for (const presetId of MATERIAL_TILES) {
+  test(`test_the_${presetId}_tile_carries_the_emphasis_knob_then_the_material_knob`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.deepEqual(knobIds(tabs(), presetId), ["emphasis", "material"]);
+  });
 
-test("test_the_source_knob_lays_its_positions_out_with_auto_first_then_standard_then_hires", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  assert.deepEqual(knobOptions(tabs(), ALBUM_TILE, "source"), ["auto", "standard", "hires"]);
-});
+  // The knob's two positions, sorted rather than in the order they are laid out:
+  // which order the owner shows them in is the owner's (rule 9), and what a case
+  // can state is WHICH two exist.
 
-// ============================================================================
-// the playlist grid's third tile
-// ============================================================================
+  test(`test_the_${presetId}_material_knob_offers_a_lossless_and_a_lossy_position`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.deepEqual(knobOptions(tabs(), presetId, "material").sort(), ["lossless", "lossy"]);
+  });
+}
 
-test("test_the_playlist_grid_lays_out_three_tiles", async () => {
-  await resetTab({ grid: "playlist", mode: "pcm" });
-  assert.equal(cells(tabs()), 3);
-});
+// And the knob the revision retired outright. No tile carries a `source` knob
+// any more, so the reader that finds one by its `data-knob` finds none — it
+// throws where the knob is absent, which is what this reads.
 
-test("test_the_lossy_tile_offers_two_emphasis_positions", async () => {
-  await resetTab({ grid: "playlist", mode: "pcm" });
-  assert.equal(knobOptions(tabs(), LOSSY_TILE, "emphasis").length, 2);
-});
+for (const presetId of ["perfect-ten", "lifelike"]) {
+  test(`test_the_${presetId}_tile_carries_no_source_knob`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.equal(knobIds(tabs(), presetId).includes("source"), false);
+  });
+}

@@ -11,7 +11,7 @@
 // over a faked wire on the real REST paths. Nothing of HQPTuner's is stubbed.
 //
 // NAMES, NOT WORDS (rule 9). Every card is found by the `data-card` its section
-// carries, every switcher option by its `data-v`, the Reset button by its
+// carries, the Reset button by its
 // `narrow-reset` class, and the two links and the notice by `data-testid` /
 // `data-note` markings the components carry for the purpose. The link captions,
 // the card title and the notice sentence are owner copy and are asserted
@@ -23,7 +23,8 @@
 //   * `data-testid="easy-enter"` on the Narrow Filters card's Easy Mode link
 //   * `data-testid="easy-exit"` on the Easy Mode card's exit link
 //   * `data-note="easy-notice"` on the card's notice/subtitle element
-//   * `data-grid` on the single grid container (already in the spec)
+//   * `data-testid="easy-switcher"` on a grid switcher, were there one — read
+//     only for its ABSENCE, the card having no switcher any more
 // Head and body are read as the `card-head` / `card-body` elements, which is
 // what "in the head" and "in the body" mean structurally.
 //
@@ -34,9 +35,8 @@
 // public seam, third-party surface. No signal of HQPTuner's is stubbed and none
 // is reached that a caller could not reach.
 //
-// The switcher's options are pressed the same way, by their `data-v`: what the
-// switcher marks and what pressing it does are two contracts, and the marking
-// cases all pass against options wired to nothing.
+// The card no longer offers a switcher, so nothing here presses one; that the
+// marking is absent is read as a plain count, in the card section below.
 //
 // A working fake localStorage stands for the whole file: the links' handlers
 // persist through it, and this process has none at all. It is installed EMPTY
@@ -60,7 +60,7 @@ const { Output } = await import("../../../hqptuner/static/components/tabs/Output
 const { LiveView } = await import("../../../hqptuner/static/components/live/View.js");
 const { EasyCard } = await import("../../../hqptuner/static/components/easy/EasyCard.js");
 const { NarrowBar } = await import("../../../hqptuner/static/components/narrowbar/Bar.js");
-const { easyMode, easyGrid } = await import("../../../hqptuner/static/store/easyview.js");
+const { easyMode } = await import("../../../hqptuner/static/store/easyview.js");
 const { easyProse } = await import("../../../hqptuner/static/store/prose.js");
 const signals = await import("../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../hqptuner/static/store/actions.js");
@@ -85,7 +85,7 @@ const META = {
   settings: {},
   filters: { filters: {}, aliases: {} },
   shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  easy: { notice: NOTICE, album: { heading: "A stand-in album heading." } },
+  easy: { notice: NOTICE, "perfect-ten": { title: "A stand-in tile title." } },
 };
 
 /**
@@ -127,15 +127,14 @@ const ENGINE = {
 
 // Module-level signals outlive a test, so every signal these pages read is put
 // back on every reset, not just the ones a case cares about.
-/** @param {{ easy?: boolean, grid?: string, notes?: boolean }} [opts] */
-function common({ easy = false, grid = "album", notes = true } = {}) {
+/** @param {{ easy?: boolean, notes?: boolean }} [opts] */
+function common({ easy = false, notes = true } = {}) {
   signals.metadata.value = { ...META };
   signals.matrixConfig.value = { fields: [] };
   showDescriptions.value = notes;
   keepOptionDescriptions.value = true;
   narrow.resetNarrowing();
   easyMode.value = easy;
-  easyGrid.value = grid;
 }
 
 /** @param {Parameters<typeof common>[0]} [opts] */
@@ -197,58 +196,15 @@ const LIVE_CARDS = [NARROW, "live-pcm-chain", "live-sdm-chain", EASY];
 const expected = (cards, easy) => Object.fromEntries(cards.map((c) => [c, c === EASY ? easy : !easy]));
 
 /**
- * The `data-grid` every grid container of a rendering carries, in document
- * order — so "exactly one" and "which one" are one reading.
+ * How many switcher containers a rendering carries, by the
+ * `data-testid="easy-switcher"` the switcher was found by — a marking put there
+ * to be found by, rather than the styling class beside it, which the owner may
+ * restyle without changing any behavior.
  *
  * @param {string} out
- * @returns {(string | undefined)[]}
+ * @returns {number}
  */
-const grids = (out) =>
-  elements(out)
-    .filter((el) => attr(el, "data-grid") !== undefined)
-    .sort((a, b) => a.start - b.start)
-    .map((el) => attr(el, "data-grid"));
-
-/**
- * The switcher's own container, the card's only `data-testid="easy-switcher"`
- * — a marking put there to be found by, rather than the styling class beside
- * it, which the owner may restyle without changing any behavior. The tiles'
- * knobs are the same shared `Segment`, so a reading of "the options the
- * switcher offers" that scanned the whole card would collect every knob
- * position beside them; the two readers below are handed this fragment rather
- * than the card.
- *
- * @param {string} out
- * @returns {string}
- */
-function switcher(out) {
-  const hits = elements(out).filter((el) => attr(el, "data-testid") === "easy-switcher");
-  if (hits.length !== 1) throw new Error(`expected one switcher container, found ${hits.length}`);
-  return hits[0].html;
-}
-
-/**
- * The switcher's options, by the wire value each carries in `data-v`.
- *
- * @param {string} out
- * @returns {(string | undefined)[]}
- */
-const segValues = (out) =>
-  elements(out)
-    .filter((el) => el.name === "button" && classes(el).includes("seg"))
-    .map((el) => attr(el, "data-v"))
-    .sort();
-
-/**
- * The switcher options a rendering marks active.
- *
- * @param {string} out
- * @returns {(string | undefined)[]}
- */
-const activeSegs = (out) =>
-  elements(out)
-    .filter((el) => el.name === "button" && classes(el).includes("seg") && classes(el).includes("active"))
-    .map((el) => attr(el, "data-v"));
+const switchers = (out) => elements(out).filter((el) => attr(el, "data-testid") === "easy-switcher").length;
 
 /**
  * One region of the Narrow Filters card — its head or its body — as the
@@ -306,7 +262,6 @@ function press(seen, name, value) {
 }
 
 const TESTID = "data-testid";
-const VALUE = "data-v";
 const ENTER = "easy-enter";
 const EXIT = "easy-exit";
 
@@ -394,31 +349,17 @@ test("test_the_card_offers_a_reset_once_a_facet_has_moved", async () => {
 // the Easy Mode card itself
 // ============================================================================
 
-// Exactly one grid container, and it is the one the switcher is on: two
-// containers left in the markup with one hidden by CSS would read as a single
-// choice to a user and as a defect here.
+// THE SWITCHER IS GONE. There is one set of tiles, so the card offers nothing
+// that chooses between two: a card still rendering the switcher would be
+// offering a choice the store no longer keeps. Read as an absence of the marking
+// the switcher was found by — whether the tiles are laid out in a container of
+// any kind, and what that container is marked with, is the writer's business and
+// is asserted nowhere.
 
-for (const grid of ["album", "playlist"]) {
-  test(`test_the_easy_mode_card_renders_one_grid_container_for_the_${grid}_grid`, async () => {
-    await resetTab({ easy: true, grid });
-    assert.deepEqual(grids(card()), [grid]);
-  });
-}
-
-test("test_the_switcher_offers_an_album_and_a_playlist_option", async () => {
+test("test_the_card_renders_no_switcher", async () => {
   await resetTab({ easy: true });
-  assert.deepEqual(segValues(switcher(card())), ["album", "playlist"]);
+  assert.equal(switchers(card()), 0);
 });
-
-// Exactly the current grid's option is marked, so a switcher that marked both,
-// or the wrong one, fails by naming what it marked.
-
-for (const grid of ["album", "playlist"]) {
-  test(`test_the_switcher_marks_the_${grid}_option_active_while_that_grid_is_showing`, async () => {
-    await resetTab({ easy: true, grid });
-    assert.deepEqual(activeSegs(switcher(card())), [grid]);
-  });
-}
 
 // The notice is not a setting description: it stands whatever the descriptions
 // preference says, because it is the card's own subtitle. What it must say is
@@ -446,22 +387,9 @@ test("test_pressing_the_exit_link_in_the_easy_mode_card_lowers_the_flag", async 
   assert.equal(easyMode.value, false);
 });
 
-// The switcher is the card's only working control this phase, and the cases
-// above ask only what it MARKS — every one of them passes against options wired
-// to nothing at all. Each option is pressed from the OTHER grid, so an option
-// that moves the grid to a fixed value rather than to its own fails one of the
-// two.
-
-for (const [grid, from] of [
-  ["playlist", "album"],
-  ["album", "playlist"],
-]) {
-  test(`test_pressing_the_${grid}_option_moves_the_card_to_the_${grid}_grid`, async () => {
-    await resetTab({ easy: true, grid: from });
-    press(seenOf(html`<${EasyCard} />`), VALUE, grid);
-    assert.equal(easyGrid.value, grid);
-  });
-}
+// What the tiles and their knobs do when pressed is
+// tests/js/components/easytiles.test.js's; the two links above are the controls
+// this file owns, the switcher they used to sit beside having gone.
 
 // ============================================================================
 // the notice reader
@@ -479,7 +407,7 @@ test("test_easy_prose_reads_a_top_level_key_off_the_easy_section", async () => {
 
 test("test_easy_prose_walks_down_a_nested_key_path", async () => {
   await resetTab();
-  assert.equal(easyProse("album", "heading"), META.easy.album.heading);
+  assert.equal(easyProse("perfect-ten", "title"), META.easy["perfect-ten"].title);
 });
 
 test("test_easy_prose_answers_empty_for_a_key_the_section_does_not_carry", async () => {
@@ -489,7 +417,7 @@ test("test_easy_prose_answers_empty_for_a_key_the_section_does_not_carry", async
 
 test("test_easy_prose_answers_empty_for_a_path_through_a_branch_that_is_not_there", async () => {
   await resetTab();
-  assert.equal(easyProse("album", "nowhere", "deeper"), "");
+  assert.equal(easyProse("perfect-ten", "nowhere", "deeper"), "");
 });
 
 test("test_easy_prose_answers_empty_before_the_metadata_has_loaded", async () => {

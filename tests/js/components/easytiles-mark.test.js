@@ -4,7 +4,7 @@
 // at the knob positions it is SHOWING, lit or dark; and a filter whose class
 // nothing has stated leaves the tile with no mark rather than a guessed one.
 //
-// The companion files are tests/js/components/easytiles.test.js (the grids, the
+// The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names),
 // tests/js/components/easytiles-knobs.test.js (what a dark tile's knobs show)
 // and tests/js/components/easytiles-desc.test.js (a description's structure).
@@ -42,7 +42,7 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { ALBUM_TILE, resetTab, running, seedPcm, tabs } = await import("../support/easytiles.js");
+const { TILE, resetTab, running, seedPcm, tabs } = await import("../support/easytiles.js");
 const {
   seedFacets,
   uniformFacets,
@@ -55,9 +55,9 @@ const {
 const { dropdownGlyphs } = await import("../support/apodglyph.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 
-// The album grid's roster, stated outright: a preset id is a wire identifier,
+// The card's roster, stated outright: a preset id is a wire identifier,
 // and a count alone would not name which tile lost its mark.
-const ALBUM_ROSTER = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"];
+const ROSTER = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"];
 
 // The three classes a filter can be in, as the overlay spells them.
 const CLASSES = ["full", "half", "none"];
@@ -82,9 +82,9 @@ const namesAt = (/** @type {Record<string, string>} */ knobs) => {
  * @returns {Promise<string | undefined>}
  */
 async function glyphOfClass(apodizing) {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await resetTab({ mode: "pcm" });
   seedFacets(uniformFacets(apodizing));
-  return markGlyph(tabs(), ALBUM_TILE);
+  return markGlyph(tabs(), TILE);
 }
 
 /**
@@ -95,9 +95,9 @@ async function glyphOfClass(apodizing) {
  * @returns {Promise<string>}
  */
 async function labelOfClass(apodizing) {
-  await resetTab({ grid: "album", mode: "pcm" });
+  await resetTab({ mode: "pcm" });
   seedFacets(uniformFacets(apodizing));
-  return markLabel(tabs(), ALBUM_TILE);
+  return markLabel(tabs(), TILE);
 }
 
 /** The facts the two concert-hall cases run on: its On filter full, its Off filter none. */
@@ -116,9 +116,9 @@ const HALL_FACETS = {
 
 for (const apodizing of CLASSES) {
   test(`test_every_album_tile_renders_one_mark_while_its_filter_is_${apodizing}_apodizing`, async () => {
-    await resetTab({ grid: "album", mode: "pcm" });
+    await resetTab({ mode: "pcm" });
     seedFacets(uniformFacets(apodizing));
-    assert.deepEqual(markCounts(tabs(), ALBUM_ROSTER), Object.fromEntries(ALBUM_ROSTER.map((id) => [id, 1])));
+    assert.deepEqual(markCounts(tabs(), ROSTER), Object.fromEntries(ROSTER.map((id) => [id, 1])));
   });
 }
 
@@ -131,8 +131,8 @@ for (const apodizing of CLASSES) {
 // fell back to one of the three forms fails here by naming every tile it marked.
 
 test("test_a_tile_renders_no_mark_while_no_facet_metadata_states_its_filters_class", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  assert.deepEqual(markCounts(tabs(), ALBUM_ROSTER), Object.fromEntries(ALBUM_ROSTER.map((id) => [id, 0])));
+  await resetTab({ mode: "pcm" });
+  assert.deepEqual(markCounts(tabs(), ROSTER), Object.fromEntries(ROSTER.map((id) => [id, 0])));
 });
 
 // ============================================================================
@@ -190,12 +190,12 @@ for (const apodizing of ANCHORED) {
 // where the mark sits in the tile
 // ============================================================================
 //
-// After the tile's title and before its description, on every tile of the grid —
+// After the tile's title and before its description, on every tile of the card —
 // document order, which is the half of a layout a rendering can answer; where
 // the three land on screen is CSS and belongs to the visual hand-back.
 //
 // The titles and descriptions are this file's own stand-ins, seeded through
-// /api/metadata's `easy.<grid>.<presetId>` shape
+// /api/metadata's `easy.<presetId>` shape
 // (tests/api/test_metadata_easy.py). No word of what ships reaches these cases,
 // and the title is used as a POSITION and never as a value.
 
@@ -203,15 +203,12 @@ for (const apodizing of ANCHORED) {
 const standInTitle = (presetId) => `A stand-in title for ${presetId}.`;
 
 const COPY = Object.fromEntries(
-  ALBUM_ROSTER.map((id) => [
-    id,
-    { title: standInTitle(id), description: "A stand-in description, seeded by the suite." },
-  ]),
+  ROSTER.map((id) => [id, { title: standInTitle(id), description: "A stand-in description, seeded by the suite." }]),
 );
 
-for (const presetId of ALBUM_ROSTER) {
+for (const presetId of ROSTER) {
   test(`test_the_${presetId}_mark_sits_between_its_title_and_its_description`, async () => {
-    await resetTab({ grid: "album", mode: "pcm", notes: true, copy: COPY });
+    await resetTab({ mode: "pcm", notes: true, copy: COPY });
     seedFacets(uniformFacets("full"));
     assert.equal(markFollowsTitleAndPrecedesDescription(tabs(), presetId, standInTitle(presetId)), true);
   });
@@ -229,22 +226,22 @@ for (const presetId of ALBUM_ROSTER) {
 
 test("test_a_dark_concert_hall_tile_at_the_on_position_draws_the_full_apodizing_mark", async () => {
   const full = await glyphOfClass("full");
-  await resetTab({ grid: "album", mode: "pcm" });
+  await resetTab({ mode: "pcm" });
   seedFacets(HALL_FACETS);
   assert.equal(markGlyph(tabs(), HALL.preset), full);
 });
 
 test("test_a_dark_concert_hall_tile_recorded_at_the_off_position_draws_the_no_apodizing_mark", async () => {
   const none = await glyphOfClass("none");
-  await resetTab({ grid: "album", mode: "pcm" });
+  await resetTab({ mode: "pcm" });
   seedFacets(HALL_FACETS);
-  rememberKnobs("album", HALL.preset, { [HALL.knob]: HALL.off });
+  rememberKnobs(HALL.preset, { [HALL.knob]: HALL.off });
   assert.equal(markGlyph(tabs(), HALL.preset), none);
 });
 
 test("test_a_lit_concert_hall_tile_whose_fields_carry_its_off_filter_draws_the_no_apodizing_mark", async () => {
   const none = await glyphOfClass("none");
-  await resetTab({ grid: "album", mode: "pcm", names: seedPcm(namesAt({ [HALL.knob]: HALL.off })[0]) });
+  await resetTab({ mode: "pcm", names: seedPcm(namesAt({ [HALL.knob]: HALL.off })[0]) });
   seedFacets(HALL_FACETS);
   assert.equal(markGlyph(tabs(), HALL.preset), none);
 });

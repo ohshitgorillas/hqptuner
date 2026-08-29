@@ -34,7 +34,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { EasyCard } from "../../../hqptuner/static/components/easy/EasyCard.js";
 import { writeSet, presetsFor } from "../../../hqptuner/static/store/easy.js";
-import { easyMode, easyGrid, easyKnobs } from "../../../hqptuner/static/store/easyview.js";
+import { easyMode, easyKnobs } from "../../../hqptuner/static/store/easyview.js";
 import * as signals from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -42,7 +42,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import * as narrow from "../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
 import { stagingWire, quiesce, ok } from "./wire.js";
-import { elements, classes, attr, enclosing } from "./markup.js";
+import { elements, classes, attr } from "./markup.js";
 import { formFields } from "./tabform.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
@@ -125,20 +125,20 @@ const idOf = (name) => String(ID.get(name));
 // re-statement of what the tile already shows. `concert-hall`'s `version` knob
 // is one such. The per-preset cases name their own knob and option inline.
 //
-// A knob option id is NOT unique across the album grid — `emphasis` carries the
-// same two option ids on five tiles and `source` carries the same two on two —
-// so `pressKnob` takes the preset whose tile it is pressing and refuses on an
+// A knob option id is NOT unique across the card — `emphasis` carries the same
+// two option ids on five tiles and `material` the same two on three — so
+// `pressKnob` takes the preset whose tile it is pressing and refuses on an
 // ambiguous match within it, rather than pressing whichever tile came first in
 // the vnode stream.
 
-export const ALBUM_TILE = "perfect-ten";
-export const PLAYLIST_TILE = "lifelike";
+export const TILE = "perfect-ten";
+export const SECOND_TILE = "lifelike";
 export const PICK = { preset: "concert-hall", knob: "version", option: "lifelike", fallback: "perfect-ten" };
 
 // The roster the active-marking map is read over. `presetsFor` is the public
-// enumeration of which tiles a grid has, and the composition cases pin how many
-// that is.
-const ALBUM_IDS = presetsFor("album").map((/** @type {Preset} */ preset) => String(preset.id));
+// enumeration of which tiles the card has, and the composition cases pin how
+// many that is.
+const PRESET_IDS = presetsFor().map((/** @type {Preset} */ preset) => String(preset.id));
 
 // --- the daemon's config form -----------------------------------------------------
 
@@ -217,12 +217,13 @@ const META = {
  * @param {Record<string, string>} [knobs]
  * @returns {Record<string, string>}
  */
-export const inForce = (presetId, knobs = {}) => writeSet("album", presetId, "auto", knobs);
+export const inForce = (presetId, knobs = {}) => writeSet(presetId, "auto", knobs);
 
 /**
- * One filter name on both ends of the PCM chain, keyed by SCHEMA key — what an
- * album preset's write set looks like, stated by name rather than derived, for
- * seeding `resetTab` from the owner's table instead of from the module's.
+ * One filter name on both ends of the PCM chain, keyed by SCHEMA key — what a
+ * single-name preset's write set looks like, stated by name rather than
+ * derived, for seeding `resetTab` from the owner's table instead of the
+ * module's.
  *
  * @param {string} name
  * @returns {Record<string, string>}
@@ -252,25 +253,22 @@ export const stagedPcmPair = (oneX, nX) => ({ [FIELD[PCM_1X]]: oneX, [FIELD[PCM_
 
 /**
  * The two PCM filter names a preset leaves the engine running, for seeding the
- * LIVE lane's State. The grid and the knob positions default to the album grid
- * at its defaults, which is what every case that predates the playlist knob
- * asks for.
+ * LIVE lane's State. The knob positions default to the resting ones.
  *
  * @param {string} presetId
  * @param {Record<string, string>} [knobs]
- * @param {"album" | "playlist"} [grid]
  * @returns {{ oneX: string, nX: string }}
  */
-export function running(presetId, knobs = {}, grid = "album") {
-  const set = writeSet(grid, presetId, "pcm", knobs);
+export function running(presetId, knobs = {}) {
+  const set = writeSet(presetId, "pcm", knobs);
   return { oneX: set[PCM_1X], nX: set[PCM_NX] };
 }
 
 /**
  * A DISTINCT pair on the two ends of the PCM chain, keyed by SCHEMA key — what a
- * playlist preset's write set looks like, stated by name rather than derived,
- * for seeding `resetTab` from the owner's table instead of from the module's.
- * `seedPcm` cannot express it: the two ends carry different names.
+ * chain-splitting preset's write set looks like, stated by name rather than
+ * derived, for seeding `resetTab` from the owner's table instead of the
+ * module's. `seedPcm` cannot express it: the two ends carry different names.
  *
  * @param {string} oneX
  * @param {string} nX
@@ -282,45 +280,36 @@ export const seedPcmPair = (oneX, nX) => ({ [PCM_1X]: oneX, [PCM_NX]: nX });
  * The write set a preset stands for, keyed by the daemon's form-field names.
  * `writeSet` is the authority; this only renames its keys.
  *
- * @param {"album" | "playlist"} grid
  * @param {string} presetId
  * @param {"pcm" | "sdm" | "auto"} mode
  * @param {Record<string, string>} [knobs]
  * @returns {Record<string, string>}
  */
-export const expectedNames = (grid, presetId, mode, knobs = {}) =>
-  Object.fromEntries(Object.entries(writeSet(grid, presetId, mode, knobs)).map(([key, name]) => [FIELD[key], name]));
+export const expectedNames = (presetId, mode, knobs = {}) =>
+  Object.fromEntries(Object.entries(writeSet(presetId, mode, knobs)).map(([key, name]) => [FIELD[key], name]));
 
 /**
  * What the LIVE lane must post for a preset in PCM mode: the two PCM live
- * fields, each valued by the engine's enum id for the preset's filter. Grid and
- * knob positions default to the album grid at its defaults.
+ * fields, each valued by the engine's enum id for the preset's filter. The knob
+ * positions default to the resting ones.
  *
  * @param {string} presetId
  * @param {Record<string, string>} [knobs]
- * @param {"album" | "playlist"} [grid]
  * @returns {Record<string, string>}
  */
-export function liveExpected(presetId, knobs = {}, grid = "album") {
-  const set = writeSet(grid, presetId, "pcm", knobs);
+export function liveExpected(presetId, knobs = {}) {
+  const set = writeSet(presetId, "pcm", knobs);
   return { [FIELD[PCM_1X]]: idOf(set[PCM_1X]), [FIELD[PCM_NX]]: idOf(set[PCM_NX]) };
 }
 
 /**
- * One grid with one tile lit, or none when handed null. The roster comes from
- * `presetsFor`, the public enumeration of which tiles a grid has.
+ * The card with one tile lit, or none when handed null. The roster comes from
+ * `presetsFor`, the public enumeration of which tiles the card has.
  *
  * @param {string | null} presetId
- * @param {string} [grid]
  * @returns {Record<string, string>}
  */
-export const oneLit = (presetId, grid = "album") =>
-  Object.fromEntries(
-    (grid === "album" ? ALBUM_IDS : presetsFor(grid).map((/** @type {Preset} */ p) => String(p.id))).map((id) => [
-      id,
-      id === presetId ? "1" : "0",
-    ]),
-  );
+export const oneLit = (presetId) => Object.fromEntries(PRESET_IDS.map((id) => [id, id === presetId ? "1" : "0"]));
 
 export const EMPTY = { live: {}, http: {} };
 
@@ -372,21 +361,19 @@ export async function flush(w) {
  * two lanes are shown sharing one record: the reset is what switching lanes
  * looks like from the harness, and the record is meant to cross it.
  *
- * `copy` is the owner copy /api/metadata carries for the tiles of one grid,
- * keyed by preset id (`easy.<grid>.<presetId>`, the shape
- * tests/api/test_metadata_easy.py pins). Every case that does not name it gets
- * the bare notice the fixture has always carried, so a tile shows no prose at
- * all; a case reading what a description RENDERS seeds its own stand-in text
- * here and never meets what ships.
+ * `copy` is the owner copy /api/metadata carries for the tiles, keyed by preset
+ * id (`easy.<presetId>`, the shape tests/api/test_metadata_easy.py pins). Every
+ * case that does not name it gets the bare notice the fixture has always
+ * carried, so a tile shows no prose at all; a case reading what a description
+ * RENDERS seeds its own stand-in text here and never meets what ships.
  *
- * @param {string} grid
  * @param {boolean} keepKnobs
  * @param {boolean} notes
  * @param {Record<string, object>} copy
  */
-function common(grid, keepKnobs, notes, copy) {
+function common(keepKnobs, notes, copy) {
   if (!keepKnobs) easyKnobs.value = {};
-  signals.metadata.value = { ...META, easy: { ...META.easy, [grid]: { ...copy } } };
+  signals.metadata.value = { ...META, easy: { ...META.easy, ...copy } };
   signals.matrixConfig.value = { fields: [] };
   signals.health.value = { reachable: true, info: {} };
   showDescriptions.value = notes;
@@ -395,7 +382,6 @@ function common(grid, keepKnobs, notes, copy) {
   liveBusy.value = "";
   narrow.resetNarrowing();
   easyMode.value = true;
-  easyGrid.value = grid;
 }
 
 /**
@@ -403,7 +389,6 @@ function common(grid, keepKnobs, notes, copy) {
  * parked on the names a case names and on "none" otherwise.
  *
  * @param {{
- *   grid?: string,
  *   mode?: string,
  *   names?: Record<string, string>,
  *   keepKnobs?: boolean,
@@ -412,16 +397,9 @@ function common(grid, keepKnobs, notes, copy) {
  * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetTab({
-  grid = "album",
-  mode = "pcm",
-  names = {},
-  keepKnobs = false,
-  notes = false,
-  copy = {},
-} = {}) {
+export async function resetTab({ mode = "pcm", names = {}, keepKnobs = false, notes = false, copy = {} } = {}) {
   const w = stagingWire({ routes });
-  common(grid, keepKnobs, notes, copy);
+  common(keepKnobs, notes, copy);
   liveMode.value = false;
   signals.engineState.value = {};
   signals.enums.value = null;
@@ -451,7 +429,6 @@ export async function resetTab({
  * not loaded has no dropdowns to show and does not render.
  *
  * @param {{
- *   grid?: string,
  *   mode?: string,
  *   output?: string,
  *   chain?: string,
@@ -461,20 +438,12 @@ export async function resetTab({
  * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetLive({
-  grid = "album",
-  mode = "PCM",
-  output = "pcm",
-  chain = "pcm",
-  oneX,
-  nX,
-  keepKnobs = false,
-} = {}) {
+export async function resetLive({ mode = "PCM", output = "pcm", chain = "pcm", oneX, nX, keepKnobs = false } = {}) {
   const w = stagingWire({ routes });
   // No copy and no descriptions preference: the LIVE lane's cases are about the
   // wire, and what a description RENDERS is read on the tabs lane
   // (tests/js/components/easytiles-desc.test.js).
-  common(grid, keepKnobs, false, {});
+  common(keepKnobs, false, {});
   signals.enums.value = ENUMS(mode);
   signals.engineState.value = {
     mode: "1",
@@ -523,40 +492,20 @@ function tile(out, presetId) {
 }
 
 /**
- * The cells of a grid: the direct children of the `[data-grid]` container, in
- * the order it laid them out. Direct children because a grid container lays out
- * what its own children are — an element between the container and a tile would
- * not be a cell of it.
- *
- * @param {string} out
- * @returns {MarkupElement[]}
- */
-function gridCells(out) {
-  const grid = elements(out).find((el) => attr(el, "data-grid") !== undefined);
-  if (grid === undefined) throw new Error("the card laid out no [data-grid] container");
-  // Read within the container's own outer HTML, where the container itself is
-  // the element at offset 0 and a direct child is one whose smallest encloser
-  // is that element.
-  return elements(grid.html).filter((el) => el.start !== 0 && enclosing(grid.html, el).start === 0);
-}
-
-/**
- * How many cells a grid laid out, whatever each one turns out to be.
+ * How many tiles the card laid out.
  *
  * @param {string} out
  * @returns {number}
  */
-export const cells = (out) => gridCells(out).length;
+export const tiles = (out) => tileIds(out).length;
 
 /**
- * The preset each cell of a grid stands for, in order. A cell carrying no
- * `data-preset` reads as `undefined` rather than being skipped, so "every cell
- * is a preset tile" is part of this reading and not a separate one.
+ * The preset each tile stands for, in the order the card laid them out.
  *
  * @param {string} out
- * @returns {(string | undefined)[]}
+ * @returns {string[]}
  */
-export const presetIds = (out) => gridCells(out).map((el) => attr(el, "data-preset"));
+export const presetIds = (out) => tileIds(out);
 
 /**
  * Every tile the grid laid out, against the `data-active` it carries. The whole

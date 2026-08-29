@@ -9,10 +9,10 @@ selects. A block that does not reach the frontend leaves every position silent.
 
 WHICH POSITIONS A KNOB HAS IS NOT STATED HERE. The same response carries the
 tile copy, and a tile's entry lists its knobs' positions at
-`easy.<grid>.<presetId>.knobs.<knobId>.options` — so the offer is read out of
-the payload and the tips block is asked to cover every position of it, across
-both grids. A knob that gains a position and is not given copy for it fails
-here; a hand-typed position list would not have noticed.
+`easy.<presetId>.knobs.<knobId>.options` — so the offer is read out of the
+payload and the tips block is asked to cover every position of it. A knob
+that gains a position and is not given copy for it fails here; a hand-typed
+position list would not have noticed.
 
 That the frontend WIRES those sentences to the positions is the other half, and
 it is pinned in tests/js/components/easytiles-tips.test.js, which seeds its own
@@ -34,11 +34,14 @@ from fastapi.testclient import TestClient
 
 # The knobs the shipped file gives per-position copy to. Knob ids are wire
 # identifiers, stated outright; their POSITIONS are not, and are derived below.
-TIPPED_KNOBS = ["source", "emphasis", "version"]
+TIPPED_KNOBS = ["emphasis", "version"]
 
-# The two grids a tile can live on, keyed by the same names the file is keyed by
-# (tests/api/test_metadata_easy.py pins that both are served).
-GRIDS = ["album", "playlist"]
+# The tiles the card lays out, keyed by the same ids the file is keyed by
+# (tests/api/test_metadata_easy.py pins that each is served). Damage Control's
+# `material` knob — carried by the two flagship tiles as well — is not in
+# TIPPED_KNOBS: its copy is not written yet, so there is no tip to ask for and
+# none may be invented. Neither is `source`, which no tile carries any more.
+PRESETS = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"]
 
 
 def _easy(client: TestClient) -> dict[str, object]:
@@ -50,11 +53,11 @@ def _offered(client: TestClient, knob: str) -> set[str]:
     """Every position one knob offers anywhere in the card, read off the payload."""
     easy = _easy(client)
     found: set[str] = set()
-    for grid in GRIDS:
-        for entry in cast("dict[str, object]", easy.get(grid, {})).values():
-            knobs = cast("dict[str, object]", cast("dict[str, object]", entry).get("knobs", {}))
-            options = cast("dict[str, object]", cast("dict[str, object]", knobs.get(knob, {})).get("options", {}))
-            found |= set(options)
+    for preset in PRESETS:
+        entry = cast("dict[str, object]", easy.get(preset, {}))
+        knobs = cast("dict[str, object]", entry.get("knobs", {}))
+        options = cast("dict[str, object]", cast("dict[str, object]", knobs.get(knob, {})).get("options", {}))
+        found |= set(options)
     return found
 
 

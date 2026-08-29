@@ -3,13 +3,15 @@
 The Easy Mode card is drawn from `hqptuner/data/easy-presets.json`, which the
 static metadata loader serves whole under the `easy` key beside `filters`,
 `shapers`, `settings` and `plain_names`. The frontend reads its notice and its
-two preset tables from there (`store/prose.js`'s `easyProse`), so a payload that
+preset entries from there (`store/prose.js`'s `easyProse`), so a payload that
 carries no `easy` section leaves the card with nothing to say.
 
-What is pinned here is the KEYS — `easy`, and `notice` / `album` / `playlist`
-inside it — and that the notice is a non-empty string. The notice's WORDING is
-owner-owned copy and is asserted nowhere (docs/testing.md rule 9): the owner may
-reword it without changing a single behavior.
+THE PRESETS SIT AT THE TOP LEVEL of that section, keyed by preset id: there is
+one set of tiles and no grid to key them under. What is pinned here is the KEYS
+— `easy`, its `notice`, and an entry per preset — and that the notice is a
+non-empty string. The notice's WORDING is owner-owned copy and is asserted
+nowhere (docs/testing.md rule 9): the owner may reword it without changing a
+single behavior.
 
 Static loader data, so the guard-only `api_client` (no daemon behind it) is
 enough — same as tests/api/test_metadata_blurbs.py.
@@ -20,9 +22,9 @@ from typing import cast
 import pytest
 from fastapi.testclient import TestClient
 
-# The two preset grids the card switches between, by the keys the file is keyed
-# by — wire identifiers, contract like any other JSON key.
-GRIDS = ["album", "playlist"]
+# The tiles the card lays out, by the ids the file is keyed by — wire
+# identifiers, contract like any other JSON key.
+PRESETS = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"]
 
 
 def _payload(client: TestClient) -> dict[str, object]:
@@ -51,12 +53,24 @@ def test_the_notice_says_something(api_client: TestClient) -> None:
     assert str(_easy(api_client).get("notice", "")).strip() != ""
 
 
-# --- the notice arrives BESIDE the preset tables, not instead of them ----------
+# --- the notice arrives BESIDE the preset entries, not instead of them ---------
 #
 # The route serves the whole file, so a loader that learned to serve the notice
 # and dropped what was already there fails here rather than passing above.
 
 
-@pytest.mark.parametrize("grid", GRIDS)
-def test_the_easy_section_still_carries_each_preset_grid(api_client: TestClient, grid: str) -> None:
-    assert grid in _easy(api_client)
+@pytest.mark.parametrize("preset", PRESETS)
+def test_the_easy_section_carries_each_presets_entry(api_client: TestClient, preset: str) -> None:
+    assert preset in _easy(api_client)
+
+
+# --- and nothing of the retired grids is left in it ----------------------------
+#
+# The two grid blocks the presets used to be nested under, and the tile that
+# lived on one of them. A payload still carrying either would be serving the card
+# a set of tiles it no longer lays out.
+
+
+@pytest.mark.parametrize("retired", ["album", "playlist", "lossy"])
+def test_the_easy_section_carries_no_retired_key(api_client: TestClient, retired: str) -> None:
+    assert retired not in _easy(api_client)

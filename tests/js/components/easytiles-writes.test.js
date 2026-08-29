@@ -31,8 +31,8 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const {
-  ALBUM_TILE,
-  PLAYLIST_TILE,
+  TILE,
+  SECOND_TILE,
   EMPTY,
   resetTab,
   resetLive,
@@ -57,9 +57,9 @@ const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const PCM_1X = "pcm_filter_1x";
 const NX_FIELD = "filter";
 
-// The album tile the two record-and-stage cases press. It carries ONE knob and
-// no Source knob at all, so neither case can be disturbed by where Source comes
-// to rest — what they are about is which fields a press writes and what it
+// The tile the two record-and-stage cases press. It carries ONE knob and no
+// `material` knob at all, so neither case can be disturbed by where that knob
+// comes to rest — what they are about is which fields a press writes and what it
 // records, not where a knob sits. Its `emphasis` position is stated outright
 // beside it, and so is the filter that position writes to both ends of the PCM
 // chain.
@@ -72,12 +72,12 @@ const ONE_KNOB_SPACE = "poly-sinc-gauss-halfband";
 // DEFAULTS would have written.
 const ONE_KNOB_MOVED = { emphasis: "transients" };
 
-// And `lifelike`'s playlist pair — one name for each end of the chain — at its
-// `transients` position and at its `space` one. Filter names are wire
+// And `lifelike`'s lossless pair — one name for each end of the chain — at its
+// `transients` emphasis and at its `space` one. Filter names are wire
 // identifiers, stated outright the way tests/js/components/easytiles.test.js
 // states them.
-const PLAYLIST_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
-const PLAYLIST_SPACE_NX = "poly-sinc-ext2-hires-lp";
+const LOSSLESS_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
+const LOSSLESS_SPACE_NX = "poly-sinc-ext2-hires-lp";
 
 // ============================================================================
 // a press that would change nothing writes nothing
@@ -89,8 +89,8 @@ const PLAYLIST_SPACE_NX = "poly-sinc-ext2-hires-lp";
 // at all.
 
 test("test_pressing_the_lit_tile_at_its_current_knob_positions_stages_nothing", async () => {
-  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ALBUM_TILE) });
-  pressTile(seenTabs(), ALBUM_TILE);
+  const w = await resetTab({ mode: "auto", names: inForce(TILE) });
+  pressTile(seenTabs(), TILE);
   await flush(w);
   assert.deepEqual(w.staged, EMPTY);
 });
@@ -100,8 +100,8 @@ test("test_pressing_the_lit_tile_at_its_current_knob_positions_stages_nothing", 
 // handed over. The lane is a different wire; the rule is the same one.
 
 test("test_pressing_the_lit_tile_on_the_live_lane_posts_no_fields", async () => {
-  const w = await resetLive({ grid: "album", ...running(ALBUM_TILE) });
-  pressTile(seenLive(), ALBUM_TILE);
+  const w = await resetLive({ ...running(TILE) });
+  pressTile(seenLive(), TILE);
   await flush(w);
   assert.deepEqual(postedFields(w), {});
 });
@@ -115,26 +115,25 @@ test("test_pressing_the_lit_tile_on_the_live_lane_posts_no_fields", async () => 
 // the one it should have left alone.
 
 test("test_a_tile_press_stages_only_the_field_whose_value_differs", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm", names: { [PCM_1X]: ONE_KNOB_SPACE } });
+  const w = await resetTab({ mode: "pcm", names: { [PCM_1X]: ONE_KNOB_SPACE } });
   pressTile(seenTabs(), ONE_KNOB_TILE);
   await flush(w);
   assert.deepEqual(stagedNames(w), { [NX_FIELD]: ONE_KNOB_SPACE });
 });
 
-// And a knob MOVE that lands on a pair the fields half carry already: the
-// playlist tile's `emphasis` knob names one filter for each end of the chain, so
+// And a knob MOVE that lands on a pair the fields half carry already: at the
+// lossless material the `emphasis` knob names one filter for each end, so
 // a fixture carrying the transients 1x filter beside the space Nx one leaves the
 // move one field to make.
 
 test("test_a_knob_move_stages_only_the_field_that_position_changes", async () => {
   const w = await resetTab({
-    grid: "playlist",
     mode: "pcm",
-    names: seedPcmPair(PLAYLIST_TRANSIENTS.oneX, PLAYLIST_SPACE_NX),
+    names: seedPcmPair(LOSSLESS_TRANSIENTS.oneX, LOSSLESS_SPACE_NX),
   });
-  pressKnob(seenTabs(), PLAYLIST_TILE, "transients");
+  pressKnob(seenTabs(), SECOND_TILE, "transients");
   await flush(w);
-  assert.deepEqual(stagedNames(w), { [NX_FIELD]: PLAYLIST_TRANSIENTS.nX });
+  assert.deepEqual(stagedNames(w), { [NX_FIELD]: LOSSLESS_TRANSIENTS.nX });
 });
 
 // ============================================================================
@@ -148,8 +147,8 @@ test("test_a_knob_move_stages_only_the_field_that_position_changes", async () =>
 // lose them.
 
 test("test_a_press_that_writes_nothing_still_records_the_tiles_knob_positions", async () => {
-  const w = await resetTab({ grid: "album", mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_MOVED) });
+  const w = await resetTab({ mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_MOVED) });
   pressTile(seenTabs(), ONE_KNOB_TILE);
   await flush(w);
-  assert.deepEqual(knobsFor("album", ONE_KNOB_TILE), ONE_KNOB_MOVED);
+  assert.deepEqual(knobsFor(ONE_KNOB_TILE), ONE_KNOB_MOVED);
 });

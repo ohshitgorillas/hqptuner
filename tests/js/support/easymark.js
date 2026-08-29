@@ -66,16 +66,15 @@ export function seedFacets(byName) {
 }
 
 /**
- * One apodizing class for EVERY filter name the curated table can write, both
- * grids and every knob position — so whichever filter a tile would write, its
- * class is stated. The roster comes from the shipped table, never from a list
- * typed out here.
+ * One apodizing class for EVERY filter name the curated table can write, at
+ * every knob position — so whichever filter a tile would write, its class is
+ * stated. The roster comes from the shipped table, never from a list typed out
+ * here.
  *
  * @param {string} apodizing
  * @returns {Record<string, string>}
  */
-export const uniformFacets = (apodizing) =>
-  Object.fromEntries([...new Set([...namesWritten("album"), ...namesWritten("playlist")])].map((n) => [n, apodizing]));
+export const uniformFacets = (apodizing) => Object.fromEntries(namesWritten().map((n) => [n, apodizing]));
 
 /**
  * One apodizing class for the names given, and no fact at all about any other

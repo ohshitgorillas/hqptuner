@@ -40,6 +40,25 @@ function knobHtml(out, presetId, knobId) {
 }
 
 /**
+ * Every knob one tile carries, in the order the tile lays them out, by the
+ * `data-knob` each wrapper carries — a wire identifier, never a word. Which
+ * knobs a tile has and the order they read in is what a tile that gained a
+ * second knob is observable as.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {string[]}
+ */
+export const knobIds = (out, presetId) => [
+  ...new Set(
+    elements(tileHtml(out, presetId))
+      .filter((el) => attr(el, "data-knob") !== undefined)
+      .sort((a, b) => a.start - b.start)
+      .map((el) => String(attr(el, "data-knob"))),
+  ),
+];
+
+/**
  * Every position one tile's knob offers, in document order.
  *
  * @param {string} out

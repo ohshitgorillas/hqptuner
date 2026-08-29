@@ -1,15 +1,15 @@
 // Behavioral suite for what a DARK Easy Mode tile shows on its knobs: the
-// positions last recorded for that preset in that grid, rather than the knob's
+// positions last recorded for that preset, rather than the knob's
 // hardcoded default. Recording happens where the positions are written — a knob
 // moved, or the tile pressed — and the record is read back through
 // `store/easyview.js`'s `knobsFor`.
 //
 // The companion file is tests/js/components/easytiles.test.js, which owns the
-// grids, the active marking and where a press routes what the table names. Only
+// tiles, the active marking and where a press routes what the table names. Only
 // the knob-memory half lives here, and it reuses that file's harness whole:
 // tests/js/support/easytiles.js, imported dynamically after `useStorage()` so
 // that `store/easyview.js` meets the fake localStorage at its load-time read.
-// The store's OWN behavior — reading back, per-grid and per-preset separation,
+// The store's OWN behavior — reading back, per-preset separation,
 // surviving a reload — is tests/js/store/easyview.test.js's.
 //
 // WHAT IS RESET. The record is a module-level signal and outlives a case, so
@@ -20,8 +20,8 @@
 // `keepKnobs`: there the reset is standing in for a user changing lanes, which
 // the record is meant to cross.
 //
-// WHAT IS NOT PINNED. The shape of the record is not read. How a grid and a
-// preset are spelt into one key, and how a knob map is nested under it, is the
+// WHAT IS NOT PINNED. The shape of the record is not read. How a
+// preset is spelt into a key, and how a knob map is nested under it, is the
 // writer's business — the record is only ever reached through `rememberKnobs`
 // and `knobsFor`, exactly as a caller reaches it.
 //
@@ -38,8 +38,20 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, resetLive, seedPcm, flush, tabs, liveCard, seenTabs, seenLive, knobPositions, pressTile, pressKnob } =
-  await import("../support/easytiles.js");
+const {
+  resetTab,
+  resetLive,
+  seedPcm,
+  seedPcmPair,
+  flush,
+  tabs,
+  liveCard,
+  seenTabs,
+  seenLive,
+  knobPositions,
+  pressTile,
+  pressKnob,
+} = await import("../support/easytiles.js");
 
 const { rememberKnobs, knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 
@@ -51,54 +63,85 @@ const OTHER = "perfect-ten";
 // The tile pressed to take the light off whichever tile a case just wrote.
 const ELSEWHERE = "concert-hall";
 
-// `perfect-ten`'s standard-source, space-emphasis filter — the one name that
-// position pair writes to both ends of the chain, so a field carrying it lights
-// that tile with its knobs on that pair. Stated outright, as
+// `perfect-ten`'s lossless, space-emphasis PAIR — the standard name at the 1x
+// end and the hi-res one at the Nx end, so fields carrying it light that tile
+// with its knobs on that combination. Stated outright, as
 // tests/js/components/easytiles.test.js states it: a filter name is a wire
 // identifier.
-const PERFECT_TEN_STANDARD_SPACE = "poly-sinc-gauss-long";
+const PERFECT_TEN_LOSSLESS_SPACE = { oneX: "poly-sinc-gauss-long", nX: "poly-sinc-gauss-hires-lp" };
 
 // The positions every knob rests at until something moves it — the reading the
 // two dark-tile cases below are ABOUT, and named nowhere else in this file.
-const RESTING = { source: "auto", emphasis: "space" };
+const RESTING = { material: "lossless", emphasis: "space" };
 
-// The positions the seeded filter above stands for, which is what a LIT tile
-// reads off the fields. Not the resting positions and not derived from them: the
-// fields say `standard`/`space` because that is the pair that filter belongs to.
-const SEEDED = { source: "standard", emphasis: "space" };
+// The positions the seeded pair above stands for, which is what a LIT tile reads
+// off the fields. Not derived from the resting positions: the fields say
+// `lossless`/`space` because that is the combination that pair belongs to. They
+// coincide with the resting pair, which is why the record the case seeds beside
+// them is a MOVED one — a tile reading the fields and a tile reading the record
+// answer differently there.
+const SEEDED = { material: "lossless", emphasis: "space" };
 
 // The positions this file moves to.
-const MOVED_SOURCE = "hires";
+const MOVED_MATERIAL = "lossy";
 const MOVED_EMPHASIS = "transients";
 
-// `lifelike`'s standard-source, transients-emphasis filter — the one name that
-// position pair writes to both ends of the chain. The two record cases below
+// `lifelike`'s lossless, transients-emphasis pair. The two record cases below
 // seed it, so that the NEIGHBOUR position they read back out of the record is
 // one they stated rather than one they inherited from wherever `emphasis`
 // happens to rest: a resting position is the owner's to revisit, and moving it
 // must not break a case about what a press RECORDS.
-const LIFELIKE_STANDARD_TRANSIENTS = "poly-sinc-ext2-medium";
+const LIFELIKE_LOSSLESS_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
 const SEEDED_EMPHASIS = "transients";
 
-// The one-knob preset the record cases press: it carries no Source knob at all,
-// so what a press of it records cannot be disturbed by where Source comes to
-// rest. Its `emphasis` knob is stated outright at the position it is pressed at.
+// The one-knob preset the record cases press: it carries no `material` knob at
+// all, so what a press of it records cannot be disturbed by where that knob
+// comes to rest. Its `emphasis` knob is stated outright at the position it is
+// pressed at.
 const ONE_KNOB = "purist";
 const ONE_KNOB_EMPHASIS = "space";
+
+// ============================================================================
+// where Damage Control's second knob rests
+// ============================================================================
+//
+// The knob the tile gained with the `lossy` tile's retirement, on an untouched
+// card with nothing recorded for it: a fresh tile stands at `lossless`, which is
+// the position that keeps the material the user has. A card resting it on
+// `lossy` would put every untouched press through the lossy filters.
+//
+// Read here rather than in the store, because a resting position is only ever
+// observable as what a knob SHOWS. `lossless` and `lossy` are wire identifiers
+// carried in `data-v`, so this reads no copy — which matters for this knob in
+// particular, since the copy for it is not written yet.
+
+test("test_an_untouched_damage_control_tile_shows_its_material_knob_on_lossless", async () => {
+  await resetTab({ mode: "pcm" });
+  assert.deepEqual(knobPositions(tabs(), "damage-control", "material"), ["lossless"]);
+});
+
+// And the mirror: the lossy filter in the fields lights the tile with the knob
+// at the position that wrote it. The name is a wire identifier, stated outright
+// the way tests/js/components/easytiles.test.js states them.
+
+test("test_the_lossy_filter_in_the_fields_shows_the_material_knob_on_lossy", async () => {
+  await resetTab({ mode: "pcm", names: seedPcm("poly-sinc-mqa/mp3-lp") });
+  assert.deepEqual(knobPositions(tabs(), "damage-control", "material"), ["lossy"]);
+});
 
 // ============================================================================
 // a tile that is not lit shows what was recorded for it
 // ============================================================================
 
-test("test_a_dark_tile_shows_the_source_position_last_recorded_for_it", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", TWO_KNOB, { source: MOVED_SOURCE, emphasis: RESTING.emphasis });
-  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "source"), [MOVED_SOURCE]);
+test("test_a_dark_tile_shows_the_material_position_last_recorded_for_it", async () => {
+  await resetTab({ mode: "pcm" });
+  rememberKnobs(TWO_KNOB, { material: MOVED_MATERIAL, emphasis: RESTING.emphasis });
+  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "material"), [MOVED_MATERIAL]);
 });
 
 test("test_a_dark_tile_shows_the_emphasis_position_last_recorded_for_it", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", TWO_KNOB, { source: RESTING.source, emphasis: MOVED_EMPHASIS });
+  await resetTab({ mode: "pcm" });
+  rememberKnobs(TWO_KNOB, { material: RESTING.material, emphasis: MOVED_EMPHASIS });
   assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "emphasis"), [MOVED_EMPHASIS]);
 });
 
@@ -107,12 +150,12 @@ test("test_a_dark_tile_shows_the_emphasis_position_last_recorded_for_it", async 
 // of a single claim about a partial record: a tile that dragged its whole knob
 // row along with the one recorded position fails here in place.
 test("test_a_dark_tiles_unrecorded_knob_stays_at_its_default_while_its_neighbour_shows_its_record", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", TWO_KNOB, { emphasis: MOVED_EMPHASIS });
+  await resetTab({ mode: "pcm" });
+  rememberKnobs(TWO_KNOB, { emphasis: MOVED_EMPHASIS });
   const out = tabs();
   assert.deepEqual(
-    [knobPositions(out, TWO_KNOB, "source"), knobPositions(out, TWO_KNOB, "emphasis")],
-    [[RESTING.source], [MOVED_EMPHASIS]],
+    [knobPositions(out, TWO_KNOB, "material"), knobPositions(out, TWO_KNOB, "emphasis")],
+    [[RESTING.material], [MOVED_EMPHASIS]],
   );
 });
 
@@ -121,12 +164,12 @@ test("test_a_dark_tiles_unrecorded_knob_stays_at_its_default_while_its_neighbour
 // carries a full record — the state Easy Mode was already in before tiles
 // remembered anything, and a guard rather than a new claim.
 test("test_a_dark_tile_shows_its_defaults_while_only_another_tiles_positions_are_recorded", async () => {
-  await resetTab({ grid: "album", mode: "pcm" });
-  rememberKnobs("album", OTHER, { source: MOVED_SOURCE, emphasis: MOVED_EMPHASIS });
+  await resetTab({ mode: "pcm" });
+  rememberKnobs(OTHER, { material: MOVED_MATERIAL, emphasis: MOVED_EMPHASIS });
   const out = tabs();
   assert.deepEqual(
-    [knobPositions(out, TWO_KNOB, "source"), knobPositions(out, TWO_KNOB, "emphasis")],
-    [[RESTING.source], [RESTING.emphasis]],
+    [knobPositions(out, TWO_KNOB, "material"), knobPositions(out, TWO_KNOB, "emphasis")],
+    [[RESTING.material], [RESTING.emphasis]],
   );
 });
 
@@ -141,12 +184,12 @@ test("test_a_dark_tile_shows_its_defaults_while_only_another_tiles_positions_are
 // underneath it.
 
 test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_recorded", async () => {
-  await resetTab({ grid: "album", mode: "pcm", names: seedPcm(PERFECT_TEN_STANDARD_SPACE) });
-  rememberKnobs("album", OTHER, { source: MOVED_SOURCE, emphasis: MOVED_EMPHASIS });
+  await resetTab({ mode: "pcm", names: seedPcmPair(PERFECT_TEN_LOSSLESS_SPACE.oneX, PERFECT_TEN_LOSSLESS_SPACE.nX) });
+  rememberKnobs(OTHER, { material: MOVED_MATERIAL, emphasis: MOVED_EMPHASIS });
   const out = tabs();
   assert.deepEqual(
-    [knobPositions(out, OTHER, "source"), knobPositions(out, OTHER, "emphasis")],
-    [[SEEDED.source], [SEEDED.emphasis]],
+    [knobPositions(out, OTHER, "material"), knobPositions(out, OTHER, "emphasis")],
+    [[SEEDED.material], [SEEDED.emphasis]],
   );
 });
 
@@ -165,28 +208,30 @@ test("test_a_lit_tiles_knobs_show_the_positions_its_filters_carry_whatever_was_r
 // rests.
 
 test("test_moving_a_knob_records_the_positions_that_press_wrote", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm", names: seedPcm(LIFELIKE_STANDARD_TRANSIENTS) });
-  pressKnob(seenTabs(), TWO_KNOB, MOVED_SOURCE);
+  const w = await resetTab({
+    mode: "pcm",
+    names: seedPcmPair(LIFELIKE_LOSSLESS_TRANSIENTS.oneX, LIFELIKE_LOSSLESS_TRANSIENTS.nX),
+  });
+  pressKnob(seenTabs(), TWO_KNOB, MOVED_MATERIAL);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: SEEDED_EMPHASIS });
+  assert.deepEqual(knobsFor(TWO_KNOB), { material: MOVED_MATERIAL, emphasis: SEEDED_EMPHASIS });
 });
 
 test("test_pressing_a_tile_records_the_positions_that_press_wrote", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
+  const w = await resetTab({ mode: "pcm" });
   pressTile(seenTabs(), ONE_KNOB);
   await flush(w);
-  assert.deepEqual(knobsFor("album", ONE_KNOB), { emphasis: ONE_KNOB_EMPHASIS });
+  assert.deepEqual(knobsFor(ONE_KNOB), { emphasis: ONE_KNOB_EMPHASIS });
 });
 
 test("test_a_press_on_the_live_lane_records_the_positions_it_wrote", async () => {
   const w = await resetLive({
-    grid: "album",
-    oneX: LIFELIKE_STANDARD_TRANSIENTS,
-    nX: LIFELIKE_STANDARD_TRANSIENTS,
+    oneX: LIFELIKE_LOSSLESS_TRANSIENTS.oneX,
+    nX: LIFELIKE_LOSSLESS_TRANSIENTS.nX,
   });
-  pressKnob(seenLive(), TWO_KNOB, MOVED_SOURCE);
+  pressKnob(seenLive(), TWO_KNOB, MOVED_MATERIAL);
   await flush(w);
-  assert.deepEqual(knobsFor("album", TWO_KNOB), { source: MOVED_SOURCE, emphasis: SEEDED_EMPHASIS });
+  assert.deepEqual(knobsFor(TWO_KNOB), { material: MOVED_MATERIAL, emphasis: SEEDED_EMPHASIS });
 });
 
 // ============================================================================
@@ -199,12 +244,12 @@ test("test_a_press_on_the_live_lane_records_the_positions_it_wrote", async () =>
 // still on it.
 
 test("test_a_knob_moved_on_a_tile_is_still_showing_after_another_tile_is_pressed", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
-  pressKnob(seenTabs(), TWO_KNOB, MOVED_SOURCE);
+  const w = await resetTab({ mode: "pcm" });
+  pressKnob(seenTabs(), TWO_KNOB, MOVED_MATERIAL);
   await flush(w);
   pressTile(seenTabs(), ELSEWHERE);
   await flush(w);
-  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "source"), [MOVED_SOURCE]);
+  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "material"), [MOVED_MATERIAL]);
 });
 
 // ============================================================================
@@ -217,17 +262,17 @@ test("test_a_knob_moved_on_a_tile_is_still_showing_after_another_tile_is_pressed
 // record kept per lane fails both of these.
 
 test("test_a_knob_moved_on_the_live_lane_is_showing_on_the_tabs_lane", async () => {
-  const w = await resetLive({ grid: "album" });
-  pressKnob(seenLive(), TWO_KNOB, MOVED_SOURCE);
+  const w = await resetLive();
+  pressKnob(seenLive(), TWO_KNOB, MOVED_MATERIAL);
   await flush(w);
-  await resetTab({ grid: "album", mode: "pcm", keepKnobs: true });
-  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "source"), [MOVED_SOURCE]);
+  await resetTab({ mode: "pcm", keepKnobs: true });
+  assert.deepEqual(knobPositions(tabs(), TWO_KNOB, "material"), [MOVED_MATERIAL]);
 });
 
 test("test_a_knob_moved_on_the_tabs_lane_is_showing_on_the_live_lane", async () => {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
-  pressKnob(seenTabs(), TWO_KNOB, MOVED_SOURCE);
+  const w = await resetTab({ mode: "pcm" });
+  pressKnob(seenTabs(), TWO_KNOB, MOVED_MATERIAL);
   await flush(w);
-  await resetLive({ grid: "album", keepKnobs: true });
-  assert.deepEqual(knobPositions(liveCard(), TWO_KNOB, "source"), [MOVED_SOURCE]);
+  await resetLive({ keepKnobs: true });
+  assert.deepEqual(knobPositions(liveCard(), TWO_KNOB, "material"), [MOVED_MATERIAL]);
 });

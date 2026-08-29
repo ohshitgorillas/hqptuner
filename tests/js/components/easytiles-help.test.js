@@ -20,7 +20,7 @@
 //   * `data-testid="easy-help"` on the subtitle's link, carrying its own onClick
 //   * `data-testid="easy-help-panel"` on the panel that link opens
 //   * the open state observable across renders — a module-level signal, the way
-//     `easyMode` and `easyGrid` are. SSR runs no effect and keeps no component
+//     `easyMode` is. SSR runs no effect and keeps no component
 //     state between renders, so a panel held in `useState` cannot be seen to
 //     open at all.
 //
@@ -55,7 +55,7 @@ const ALBUM_TILE = "perfect-ten";
  * @returns {Promise<import("../support/wire.js").StagingWire>}
  */
 async function reset() {
-  const w = await resetTab({ grid: "album", mode: "pcm" });
+  const w = await resetTab({ mode: "pcm" });
   resetHelp();
   return w;
 }

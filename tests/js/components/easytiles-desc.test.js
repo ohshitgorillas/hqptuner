@@ -3,7 +3,7 @@
 // in the order the copy states them, and a description with no blank line in it
 // renders as one block.
 //
-// The companion files are tests/js/components/easytiles.test.js (the grids, the
+// The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
 // tests/js/components/easytiles-knobs.test.js (what a dark tile's knobs show).
 // All three share tests/js/support/easytiles.js, imported dynamically after
@@ -12,7 +12,7 @@
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The descriptions the tiles
 // are rendering are this file's own stand-ins, seeded through /api/metadata's
-// `easy.<grid>.<presetId>` shape (tests/api/test_metadata_easy.py) — the owner's
+// `easy.<presetId>` shape (tests/api/test_metadata_easy.py) — the owner's
 // own descriptions never reach these cases, no block's words are asserted, no
 // substring is looked for and no length is counted. What is asserted is how many
 // blocks a description of N paragraphs comes out as, and that they hang off one
@@ -22,7 +22,7 @@
 // HOOK THIS SUITE REQUIRES the implementation to provide:
 //   * `data-para` on each paragraph element of a tile's description — one per
 //     paragraph, children of the description element. A marking put there to be
-//     found by, the way `data-note="easy-notice"` and `data-testid="easy-switcher"`
+//     found by, the way `data-note="easy-notice"` and `data-testid="easy-pips"`
 //     already are. The styling classes around it (`.easy-desc` and whatever a
 //     paragraph carries) are the owner's to change and are selected on nowhere.
 //     Only the attribute's PRESENCE is read: what it is valued with is the
@@ -42,8 +42,8 @@ const { descBlockCount, descBlockContainers } = await import("../support/easydes
 
 // The tiles the stand-in copy is hung on. Preset ids are wire identifiers, so
 // they are stated outright.
-const ALBUM_TILE = "perfect-ten";
-const PLAYLIST_TILE = "lifelike";
+const TILE = "perfect-ten";
+const SECOND_TILE = "lifelike";
 
 // Stand-in prose, never compared against what ships. Three paragraphs, one
 // paragraph, and one paragraph carrying an interior newline that is NOT a blank
@@ -54,7 +54,7 @@ const ONE = "One paragraph, seeded by the suite, with no blank line anywhere in 
 const WRAPPED = "One paragraph, seeded by the suite,\nsoft wrapped across two lines.";
 
 /**
- * The metadata copy for one tile of a grid, keyed the way /api/metadata keys it.
+ * The metadata copy for one tile, keyed the way /api/metadata keys it.
  *
  * @param {string} presetId
  * @param {string} description
@@ -69,28 +69,28 @@ const copyFor = (presetId, description) => ({
 // ============================================================================
 
 test("test_a_tile_description_of_three_paragraphs_renders_three_blocks", async () => {
-  await resetTab({ grid: "album", notes: true, copy: copyFor(ALBUM_TILE, THREE) });
-  assert.equal(descBlockCount(tabs(), ALBUM_TILE), 3);
+  await resetTab({ notes: true, copy: copyFor(TILE, THREE) });
+  assert.equal(descBlockCount(tabs(), TILE), 3);
 });
 
 test("test_a_tile_description_with_no_blank_line_renders_one_block", async () => {
-  await resetTab({ grid: "album", notes: true, copy: copyFor(ALBUM_TILE, ONE) });
-  assert.equal(descBlockCount(tabs(), ALBUM_TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(TILE, ONE) });
+  assert.equal(descBlockCount(tabs(), TILE), 1);
 });
 
 // A newline that is not a blank line is inside a paragraph, not between two.
 
 test("test_a_tile_description_broken_only_by_a_single_newline_renders_one_block", async () => {
-  await resetTab({ grid: "album", notes: true, copy: copyFor(ALBUM_TILE, WRAPPED) });
-  assert.equal(descBlockCount(tabs(), ALBUM_TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(TILE, WRAPPED) });
+  assert.equal(descBlockCount(tabs(), TILE), 1);
 });
 
-// The same structure on the other grid, whose tiles are the ones this revision
-// is changing: paragraph blocks belong to a tile, not to a grid.
+// The same structure on a second tile: paragraph blocks belong to a tile rather
+// than to whichever one the card happens to lay out first.
 
-test("test_a_playlist_tile_description_of_three_paragraphs_renders_three_blocks", async () => {
-  await resetTab({ grid: "playlist", notes: true, copy: copyFor(PLAYLIST_TILE, THREE) });
-  assert.equal(descBlockCount(tabs(), PLAYLIST_TILE), 3);
+test("test_a_second_tiles_description_of_three_paragraphs_renders_three_blocks", async () => {
+  await resetTab({ notes: true, copy: copyFor(SECOND_TILE, THREE) });
+  assert.equal(descBlockCount(tabs(), SECOND_TILE), 3);
 });
 
 // ============================================================================
@@ -103,6 +103,6 @@ test("test_a_playlist_tile_description_of_three_paragraphs_renders_three_blocks"
 // above.
 
 test("test_the_blocks_of_a_multi_paragraph_description_hang_off_one_container", async () => {
-  await resetTab({ grid: "album", notes: true, copy: copyFor(ALBUM_TILE, THREE) });
-  assert.equal(descBlockContainers(tabs(), ALBUM_TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(TILE, THREE) });
+  assert.equal(descBlockContainers(tabs(), TILE), 1);
 });
