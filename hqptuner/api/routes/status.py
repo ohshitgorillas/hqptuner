@@ -76,7 +76,7 @@ def status(manager: Mgr) -> dict[str, Any]:
     junk = manager.metering.recommendation() if manager.metering is not None else None
     autopilot = False
     with contextlib.suppress(AutopilotError):
-        autopilot = manager.autopilot.enabled
+        autopilot = manager.presetops.autopilot.enabled
     return deps.snapshot(
         manager,
         {
