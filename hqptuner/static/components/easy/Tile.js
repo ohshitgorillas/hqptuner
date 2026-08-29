@@ -226,8 +226,10 @@ export function PresetTile({ preset, lane, active, knobs }) {
     <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset.id, knobs)}>
         <span class="easy-mark">
-          <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
-          <span class="easy-title t-head">${easyProse(preset.id, "title")}</span>
+          <span class="easy-name">
+            <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
+            <span class="easy-title t-head">${easyProse(preset.id, "title")}</span>
+          </span>
           <span class="easy-cost">
             <span class="easy-cost-marks">
               ${
@@ -237,20 +239,23 @@ export function PresetTile({ preset, lane, active, knobs }) {
               </span>`
               }
               ${mark && preset.hires && html`<span class="easy-cost-rule" aria-hidden="true"></span>`}
-              ${
-                preset.hires &&
-                html`<span
-                class="easy-hires"
-                data-testid="easy-hires"
-                role="img"
-                aria-label=${HIRES_TIP}
-                data-tip=${HIRES_TIP}
-                >${HIRES_LABEL}</span
-              >`
-              }
             </span>
-            <span class="easy-cost-rule" aria-hidden="true"></span>
-            <${Pips} preset=${preset} lane=${lane} knobs=${knobs} />
+            ${
+              preset.hires
+                ? html`<span
+                    class="easy-hires"
+                    data-testid="easy-hires"
+                    role="img"
+                    aria-label=${HIRES_TIP}
+                    data-tip=${HIRES_TIP}
+                    >${HIRES_LABEL}</span
+                  >`
+                : html`<span class="easy-cost-rule" aria-hidden="true"></span>`
+            }
+            <span class="easy-cost-tail">
+              ${preset.hires && html`<span class="easy-cost-rule" aria-hidden="true"></span>`}
+              <${Pips} preset=${preset} lane=${lane} knobs=${knobs} />
+            </span>
           </span>
         </span>
         <span class="easy-desc t-label">

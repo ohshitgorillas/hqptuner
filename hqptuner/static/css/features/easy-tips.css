@@ -80,6 +80,12 @@
   content: attr(data-tip);
   width: max-content;
   max-width: 15rem;
+  /* Named, not inherited. The badge sets `nowrap` so its own two words never
+     break across the box, and a pseudo-element takes its host's value: the tip
+     inherited it, refused every line break, and ran its sentence straight out of
+     its own background and across the tile next door. The max-width clamps the
+     BOX, so nothing about the overflow read as an error until it was hovered. */
+  white-space: normal;
 }
 
 /* Painting, and the wait before it. A knob's tip and a position's tip both wait
