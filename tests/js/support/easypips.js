@@ -21,7 +21,7 @@
 // words it is spelt with are the owner's.
 
 import { tileHtml } from "./easytiles.js";
-import { elements, attr, hasAttr, text, enclosing } from "./markup.js";
+import { elements, attr, hasAttr, text } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 
@@ -79,16 +79,21 @@ export function pipsAreNamed(out, presetId) {
 /**
  * Whether the pip group and the apodizing mark stand in ONE row.
  *
- * Read as: the smallest element of the tile that encloses BOTH of them is the
- * pip group's own parent. That is what "one row" means structurally and it is
- * indifferent to how the mark is wrapped — a mark sitting inside a positioning
- * wrapper that is the group's sibling answers true, and so does a bare mark
- * beside it, because the wrapper is the writer's business. A group moved out of
- * the row answers false: the smallest element enclosing both is then an
- * ancestor of the group's parent rather than the parent itself.
+ * Read as: the smallest element of the tile enclosing BOTH of them is some
+ * element INSIDE the tile rather than the tile box itself. That is what "one
+ * row" means structurally, and it is indifferent to how deeply either of them
+ * is wrapped — a mark inside a positioning wrapper answers true, and so do pips
+ * inside one, because a row is free to group its contents however it likes and
+ * how it does so is the writer's business, not a behavior.
+ *
+ * A group moved OUT of the mark's row — into a row of its own, or anywhere else
+ * the two no longer share a region of the tile — answers false: the smallest
+ * element enclosing both is then the tile box, the only thing left that holds
+ * them both.
  *
  * A tile showing no mark throws rather than answering false about a row that is
- * not there.
+ * not there, and so does a tile carrying anything but exactly one pip group
+ * (`group`).
  *
  * @param {string} out
  * @param {string} presetId
@@ -99,9 +104,8 @@ export function pipsShareTheMarksRow(out, presetId) {
   const marks = elements(fragment).filter((el) => (attr(el, "class") || "").split(/\s+/).includes("apod-mark"));
   if (marks.length !== 1) throw new Error(`expected one mark on the "${presetId}" tile, found ${marks.length}`);
   const pips = group(out, presetId);
-  const row = enclosing(fragment, pips);
   const both = smallestAround(fragment, [marks[0], pips]);
-  return both.start === row.start && both.html.length === row.html.length;
+  return both.html.length < fragment.length;
 }
 
 /**
