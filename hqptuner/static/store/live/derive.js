@@ -9,7 +9,7 @@
 // no request is made — which is why the rate card, the chain cards and the view
 // model can all sit on top of it without depending on each other.
 
-import { engineState, enums, modeName } from "../signals.js";
+import { engineState, engineStatus, enums, modeName } from "../signals.js";
 import { schema, TIER } from "../schema.js";
 
 /**
@@ -92,6 +92,25 @@ export function modeValue() {
   if (name.startsWith("[SOURCE]")) return "auto";
   if (name.startsWith("PCM")) return "pcm";
   return name.startsWith("SDM") || name.startsWith("DSD") ? "sdm" : "";
+}
+
+// Which side of the 1x/Nx split the playing material falls on. The boundary is
+// the engine's own and not a round number of ours: manual §4.6 states that the
+// 1x filter selection "covers source sampling rates below 50 kHz, so-called base
+// rates", which puts 50 kHz and everything above it on the Nx filter. 64 kHz is
+// the one real rate where that differs from the 88.2 kHz figure it is easy to
+// assume, and it is Nx.
+//
+// The SOURCE rate answers this, never `Status.active_rate`: active_rate is what
+// the engine is putting out, already upsampled, so it reads Nx during every
+// playback there is and would answer the question with its own output. With
+// nothing playing there is no source and no Nx side to be on.
+const NX_FLOOR = 50000;
+
+/** Whether the playing source's rate puts playback on the Nx side of the filter split. */
+export function sourceIsNx() {
+  const md = (engineStatus.value || {}).metadata || {};
+  return Number(md.samplerate) >= NX_FLOOR;
 }
 
 // `RatesItem` carries neither a name nor a value — it is `<RatesItem index rate/>`

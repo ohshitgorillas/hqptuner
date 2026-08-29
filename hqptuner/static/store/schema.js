@@ -539,7 +539,7 @@ export const schema = {
   // changed. The pending bar reads this to count them as live changes.
   pcm_filter_1x: {
     label: "1x filter",
-    sublabel: "CD quality and 48 kHz",
+    sublabel: "Sources up to 48 kHz",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
@@ -557,7 +557,7 @@ export const schema = {
   },
   pcm_filter_nx: {
     label: "Nx filter",
-    sublabel: "Hi-res content (≥88.2 kHz)",
+    sublabel: "Sources above 48 kHz",
     group: "dsp",
     note: "filter_nx",
     widget: "dropdown",
@@ -591,7 +591,7 @@ export const schema = {
   },
   sdm_filter_1x: {
     label: "1x filter",
-    sublabel: "CD quality and 48 kHz",
+    sublabel: "Sources up to 48 kHz",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
@@ -609,7 +609,7 @@ export const schema = {
   },
   sdm_filter_nx: {
     label: "Nx filter",
-    sublabel: "Hi-res content (≥88.2 kHz)",
+    sublabel: "Sources above 48 kHz",
     group: "dsp",
     note: "filter_nx",
     widget: "dropdown",
