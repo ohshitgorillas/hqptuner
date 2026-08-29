@@ -16,13 +16,15 @@
 // them would only ask the card to agree with the module it draws from, and would
 // pass on a card and a table that are wrong together.
 //
-// THEY ARE NOT THE STORE SUITE'S NUMBERS, and the difference is a behavior. A
-// tile always passes its knob positions, and an `emphasis` knob RESTS on
-// `space`, which on the three presets whose emphasis picks a filter LENGTH costs
-// a pip more than `transients` — so a resting Perfect Ten tile draws three on
-// the SDM chain where a bare `pipsFor("perfect-ten", "sdm")` answers two. The
-// numbers below are therefore the resting-tile numbers, stated outright, and the
-// bare-call numbers are tests/js/store/easy-pips.test.js's.
+// WHAT A RESTING TILE DRAWS is the resting position of every knob it carries, so
+// these numbers are the store suite's numbers AT THOSE POSITIONS rather than its
+// bare-call numbers. An `emphasis` knob rests on `space` everywhere except Old
+// School, which rests on `transients`, and The Concert Hall's `correction` rests
+// on `on`. The space position costs a pip more than transients on the PCM chain
+// alone, and only on the three presets whose emphasis picks a filter LENGTH — so
+// a resting Perfect Ten tile draws two on the PCM chain where a bare
+// `pipsFor("perfect-ten", "pcm")` answers one, while its SDM number is the same
+// two either way.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
 //   * `data-testid="easy-pips"` on the pip group, one per tile
@@ -51,18 +53,18 @@ const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 
 // preset, SDM count, PCM count — what each tile draws AT REST, every knob where
-// it comes up. The three length-picking presets carry the space position's
-// extra pip; Old School and Damage Control move between phases instead and cost
-// the same either way, and The Concert Hall carries no emphasis knob at all.
-// Preset ids are wire identifiers.
+// it comes up. The three length-picking presets carry the space position's extra
+// pip on the PCM chain and nothing extra on the SDM chain; Old School and Damage
+// Control move between phases instead and cost the same either way, and The
+// Concert Hall carries no emphasis knob at all. Preset ids are wire identifiers.
 /** @type {[string, number, number][]} */
 const COSTS = [
-  ["perfect-ten", 3, 2],
-  ["lifelike", 3, 2],
-  ["purist", 3, 2],
+  ["perfect-ten", 2, 2],
+  ["lifelike", 2, 2],
+  ["purist", 2, 2],
   ["old-school", 1, 1],
   ["damage-control", 1, 3],
-  ["concert-hall", 16, 8],
+  ["concert-hall", 17, 8],
 ];
 
 // The tile the row and the naming are read on. `concert-hall` because it is the
@@ -94,7 +96,7 @@ for (const [presetId, sdm] of COSTS) {
 
 // The auto output mode shows the PCM number. One tile carries it, and it is the
 // one whose two numbers are furthest apart: a card showing the SDM count under
-// "auto" draws sixteen where eight belong.
+// "auto" draws seventeen where eight belong.
 
 test("test_a_tile_draws_its_pcm_pips_in_the_auto_output_mode", async () => {
   await resetTab({ mode: "auto" });
@@ -139,10 +141,10 @@ test("test_the_pip_group_carries_an_accessible_name", async () => {
 
 const CORRECTION_OFF = { correction: "off" };
 
-test("test_the_concert_hall_tile_draws_15_pips_in_the_sdm_output_mode_with_error_correction_off", async () => {
+test("test_the_concert_hall_tile_draws_16_pips_in_the_sdm_output_mode_with_error_correction_off", async () => {
   await resetTab({ mode: "sdm" });
   rememberKnobs(TILE, CORRECTION_OFF);
-  assert.equal(pipCount(tabs(), TILE), 15);
+  assert.equal(pipCount(tabs(), TILE), 16);
 });
 
 test("test_the_concert_hall_tile_draws_7_pips_in_the_pcm_output_mode_with_error_correction_off", async () => {
@@ -167,10 +169,10 @@ test("test_the_concert_hall_tile_draws_7_pips_in_the_pcm_output_mode_with_error_
 const COLUMNS = [
   ["old-school", "pcm", 1, 1],
   ["perfect-ten", "pcm", 2, 2],
-  ["perfect-ten", "sdm", 3, 3],
+  ["perfect-ten", "sdm", 2, 2],
   ["damage-control", "pcm", 3, 3],
   ["concert-hall", "pcm", 8, 4],
-  ["concert-hall", "sdm", 16, 8],
+  ["concert-hall", "sdm", 17, 9],
 ];
 
 for (const [presetId, mode, pips, cols] of COLUMNS) {
@@ -180,10 +182,11 @@ for (const [presetId, mode, pips, cols] of COLUMNS) {
   });
 }
 
-// The two edges of the rule, both of them reachable only with the
-// error-correction knob off: seven pips are the most that stand in one row, and
-// an odd count past seven rounds its half up rather than dropping a pip into a
-// third row or leaving a row short.
+// The seven-pip edge of the rule, reachable only with the error-correction knob
+// off: seven pips are the most that stand in one row. The odd count past seven
+// is the resting Concert Hall's seventeen above, which rounds its half up rather
+// than dropping a pip into a third row or leaving a row short; the even count
+// past seven is its sixteen with the knob off.
 
 test("test_a_tile_of_7_pips_lays_them_out_in_7_columns", async () => {
   await resetTab({ mode: "pcm" });
@@ -191,7 +194,7 @@ test("test_a_tile_of_7_pips_lays_them_out_in_7_columns", async () => {
   assert.equal(pipColumns(tabs(), TILE), 7);
 });
 
-test("test_a_tile_of_15_pips_lays_them_out_in_8_columns", async () => {
+test("test_a_tile_of_16_pips_lays_them_out_in_8_columns", async () => {
   await resetTab({ mode: "sdm" });
   rememberKnobs(TILE, CORRECTION_OFF);
   assert.equal(pipColumns(tabs(), TILE), 8);
@@ -202,14 +205,21 @@ test("test_a_tile_of_15_pips_lays_them_out_in_8_columns", async () => {
 // ============================================================================
 //
 // On the three presets whose emphasis knob picks a filter LENGTH, the space
-// position costs a pip more than transients, and a tile draws whichever position
-// is on record for it. The resting tiles above are the space half of that claim;
-// what is read here is the transients half, on the preset whose two chains are
-// furthest apart. The knob id and its positions are wire identifiers carried in
-// `data-v`, and no word of the knob's copy is read.
+// position costs a pip more than transients ON THE PCM CHAIN, and the SDM chain
+// costs the same either way. A tile draws whichever position is on record for
+// it. The resting tiles above are the space half of that claim; what is read
+// here is the transients half, on the preset whose two positions are furthest
+// apart. The knob id and its positions are wire identifiers carried in `data-v`,
+// and no word of the knob's copy is read.
 
 const TRANSIENTS = { emphasis: "transients" };
 const SPACE = { emphasis: "space" };
+
+test("test_a_perfect_ten_tile_recorded_on_transients_draws_1_pip_in_the_pcm_output_mode", async () => {
+  await resetTab({ mode: "pcm" });
+  rememberKnobs("perfect-ten", TRANSIENTS);
+  assert.equal(pipCount(tabs(), "perfect-ten"), 1);
+});
 
 test("test_a_perfect_ten_tile_recorded_on_transients_draws_2_pips_in_the_sdm_output_mode", async () => {
   await resetTab({ mode: "sdm" });
@@ -217,10 +227,22 @@ test("test_a_perfect_ten_tile_recorded_on_transients_draws_2_pips_in_the_sdm_out
   assert.equal(pipCount(tabs(), "perfect-ten"), 2);
 });
 
-test("test_a_perfect_ten_tile_recorded_on_transients_draws_1_pip_in_the_pcm_output_mode", async () => {
+// The space half of the same claim, recorded outright rather than left to the
+// resting position: a tile whose knob is ON RECORD at space draws the extra pip
+// on the PCM chain and the same number as transients on the SDM chain, which is
+// what makes the pairs here a rule about the knob and not a reading of where the
+// knob happens to rest.
+
+test("test_a_perfect_ten_tile_recorded_on_space_draws_2_pips_in_the_pcm_output_mode", async () => {
   await resetTab({ mode: "pcm" });
-  rememberKnobs("perfect-ten", TRANSIENTS);
-  assert.equal(pipCount(tabs(), "perfect-ten"), 1);
+  rememberKnobs("perfect-ten", SPACE);
+  assert.equal(pipCount(tabs(), "perfect-ten"), 2);
+});
+
+test("test_a_perfect_ten_tile_recorded_on_space_draws_the_same_2_pips_in_the_sdm_output_mode", async () => {
+  await resetTab({ mode: "sdm" });
+  rememberKnobs("perfect-ten", SPACE);
+  assert.equal(pipCount(tabs(), "perfect-ten"), 2);
 });
 
 // Old School's emphasis moves between linear and minimum phase, the same work
@@ -233,25 +255,31 @@ test("test_an_old_school_tile_recorded_on_transients_draws_the_same_1_pip_in_the
   assert.equal(pipCount(tabs(), "old-school"), 1);
 });
 
-// The space half of the same claim, recorded outright rather than left to the
-// resting position: a tile whose knob is ON RECORD at space draws the extra pip,
-// which is what makes the pair above a rule about the knob and not a reading of
-// where the knob happens to rest.
-
-test("test_a_perfect_ten_tile_recorded_on_space_draws_3_pips_in_the_sdm_output_mode", async () => {
-  await resetTab({ mode: "sdm" });
-  rememberKnobs("perfect-ten", SPACE);
-  assert.equal(pipCount(tabs(), "perfect-ten"), 3);
-});
-
-test("test_a_perfect_ten_tile_recorded_on_space_draws_2_pips_in_the_pcm_output_mode", async () => {
-  await resetTab({ mode: "pcm" });
-  rememberKnobs("perfect-ten", SPACE);
-  assert.equal(pipCount(tabs(), "perfect-ten"), 2);
-});
-
 test("test_an_old_school_tile_recorded_on_space_draws_the_same_1_pip_in_the_pcm_output_mode", async () => {
   await resetTab({ mode: "pcm" });
   rememberKnobs("old-school", SPACE);
   assert.equal(pipCount(tabs(), "old-school"), 1);
+});
+
+// ============================================================================
+// what the material knob costs
+// ============================================================================
+//
+// `material` is Damage Control's knob and it moves the PCM number alone: lossy
+// material draws one pip where lossless draws the resting three, and the SDM
+// chain draws its one pip whichever material is on record. Positions are wire
+// identifiers, stated outright.
+
+const LOSSY = { material: "lossy" };
+
+test("test_a_damage_control_tile_recorded_on_lossy_material_draws_1_pip_in_the_pcm_output_mode", async () => {
+  await resetTab({ mode: "pcm" });
+  rememberKnobs("damage-control", LOSSY);
+  assert.equal(pipCount(tabs(), "damage-control"), 1);
+});
+
+test("test_a_damage_control_tile_recorded_on_lossy_material_draws_the_same_1_pip_in_the_sdm_output_mode", async () => {
+  await resetTab({ mode: "sdm" });
+  rememberKnobs("damage-control", LOSSY);
+  assert.equal(pipCount(tabs(), "damage-control"), 1);
 });
