@@ -14,17 +14,35 @@
 //   * `data-pip` on each pip inside that group
 //   * an accessible name on the group — an `aria-label` with something in it, or
 //     an `aria-labelledby` pointing at an element that says something
+//   * the `easy-cost` class on the tile's cost row, and the `easy-apod` class on
+//     the apodizing mark standing in it — the same two hooks
+//     tests/js/components/easytiles-hires.test.js reads that row's arrangement
+//     through
 //
 // NO COPY IS READ HERE (docs/testing.md rule 9). A pip is found by the marking
 // it carries and never by a word; that the group HAS a name is a behavior, the
 // words it is spelt with are the owner's.
 
 import { tileHtml } from "./easytiles.js";
-import { elements, attr, hasAttr, text } from "./markup.js";
+import { elements, attr, classes, hasAttr, text } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 
 const GROUP = "easy-pips";
+
+// The COST ROW, and the apodizing mark that stands in it. Both are class
+// tokens, both are hooks and not words, and both are the ones
+// tests/js/components/easytiles-hires.test.js already reads the same row's
+// arrangement through, so the two suites name the row's parts identically.
+//
+// `easy-apod` is the ROW PART: the element the row lays out beside the badge
+// and the pips. The `apod-mark` class tests/js/support/easymark.js reads is a
+// DIFFERENT element nested inside it — the glyph badge shared with the filter
+// dropdowns, which is where the geometry and the accessible label live. Row
+// membership is a question about the row's part, so it is asked here about
+// `easy-apod`; what the mark DRAWS is asked there about `apod-mark`.
+const ROW = "easy-cost";
+const MARK = "easy-apod";
 
 /**
  * One tile's pip group; anything but exactly one throws, so a tile that grew a
@@ -78,21 +96,23 @@ export function pipsAreNamed(out, presetId) {
 /**
  * Whether the pip group and the apodizing mark stand in ONE row.
  *
- * Read as: the smallest element of the tile enclosing BOTH of them is some
- * element INSIDE the tile rather than the tile box itself. That is what "one
- * row" means structurally, and it is indifferent to how deeply either of them
- * is wrapped — a mark inside a positioning wrapper answers true, and so do pips
- * inside one, because a row is free to group its contents however it likes and
- * how it does so is the writer's business, not a behavior.
+ * Read as MEMBERSHIP OF THE COST ROW: the tile's one `.easy-cost` element
+ * encloses both the mark and the pip group. That is what "one row" means
+ * structurally, and it is indifferent to how deeply either of them is wrapped
+ * INSIDE the row — a mark inside a positioning wrapper answers true, and so do
+ * pips inside one, because a row is free to group its contents however it likes
+ * and how it does so is the writer's business, not a behavior.
  *
- * A group moved OUT of the mark's row — into a row of its own, or anywhere else
- * the two no longer share a region of the tile — answers false: the smallest
- * element enclosing both is then the tile box, the only thing left that holds
- * them both.
+ * A group moved OUT of the row — into a row of its own, into the tile body, or
+ * anywhere else on the tile — answers false, however many outer wrappers still
+ * happen to contain both it and the mark. That is the reading an earlier
+ * revision of this helper did not have: it asked only whether SOME element
+ * below the tile root enclosed both, which any tile body or content div does,
+ * so a relocated group went on passing.
  *
- * A tile showing no mark throws rather than answering false about a row that is
- * not there, and so does a tile carrying anything but exactly one pip group
- * (`group`).
+ * A tile showing no cost row, or no mark, throws rather than answering false
+ * about a row that is not there, and so does a tile carrying anything but
+ * exactly one pip group (`group`).
  *
  * @param {string} out
  * @param {string} presetId
@@ -100,24 +120,35 @@ export function pipsAreNamed(out, presetId) {
  */
 export function pipsShareTheMarksRow(out, presetId) {
   const fragment = tileHtml(out, presetId);
-  const marks = elements(fragment).filter((el) => (attr(el, "class") || "").split(/\s+/).includes("apod-mark"));
-  if (marks.length !== 1) throw new Error(`expected one mark on the "${presetId}" tile, found ${marks.length}`);
+  const row = only(fragment, (el) => classes(el).includes(ROW), "cost row", presetId);
+  const mark = only(fragment, (el) => classes(el).includes(MARK), "mark", presetId);
   const pips = group(out, presetId);
-  const both = smallestAround(fragment, [marks[0], pips]);
-  return both.html.length < fragment.length;
+  return encloses(row, mark) && encloses(row, pips);
 }
 
 /**
- * The smallest element of a fragment enclosing every one of the elements given.
+ * The one element of a tile answering a test; anything but exactly one throws,
+ * so "there is no row" and "the group left the row" fail differently.
  *
  * @param {string} fragment
- * @param {MarkupElement[]} els
+ * @param {(el: MarkupElement) => boolean} test
+ * @param {string} what
+ * @param {string} presetId
  * @returns {MarkupElement}
  */
-function smallestAround(fragment, els) {
-  const from = Math.min(...els.map((el) => el.start));
-  const to = Math.max(...els.map((el) => el.start + el.html.length));
-  const around = elements(fragment).filter((el) => el.start <= from && el.start + el.html.length >= to);
-  if (around.length === 0) throw new Error("nothing in the fragment encloses them all");
-  return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+function only(fragment, test, what, presetId) {
+  const hits = elements(fragment).filter(test);
+  if (hits.length !== 1) throw new Error(`expected one ${what} on the "${presetId}" tile, found ${hits.length}`);
+  return hits[0];
 }
+
+/**
+ * Whether one element of a fragment contains another, an element counting as
+ * containing itself: a row IS its own region.
+ *
+ * @param {MarkupElement} outer
+ * @param {MarkupElement} inner
+ * @returns {boolean}
+ */
+const encloses = (outer, inner) =>
+  outer.start <= inner.start && outer.start + outer.html.length >= inner.start + inner.html.length;

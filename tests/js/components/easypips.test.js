@@ -3,7 +3,9 @@
 // costs, and how that cost moves with a knob, is `pipsFor`'s and is pinned
 // relationally in tests/js/store/easy-pips.test.js; what is read HERE is that a
 // tile draws as many pips as the module answers, that the group stands in the
-// same row as the apodizing mark, and that a reader meets it by a name.
+// same row as the apodizing mark, and that a reader meets it by a name. Both
+// lanes are read: the tabs lane, whose output mode is a form field, and the LIVE
+// lane, whose output mode is derived from the engine's reported mode name.
 //
 // THE COUNTS ARE READ OUT OF `pipsFor`, NOT TYPED. The pip numbers are
 // owner-tunable data — The Concert Hall went from sixteen to seventeen because
@@ -35,6 +37,10 @@
 //   * `data-pip` on each pip inside it
 //   * an accessible name on the group — an `aria-label` with something in it, or
 //     an `aria-labelledby` pointing at an element that says something
+//   * the `easy-cost` class on the tile's cost row and the `easy-apod` class on
+//     the apodizing mark inside it, which is how "the group stands in the mark's
+//     row" is read — the same two hooks
+//     tests/js/components/easytiles-hires.test.js reads that row through
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The group's name is read for
 // EXISTING and never for what it says, and no title, description, label or hint
@@ -49,7 +55,7 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs } = await import("../support/easytiles.js");
+const { resetTab, tabs, resetLive, liveCard } = await import("../support/easytiles.js");
 const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../support/easypips.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
@@ -132,11 +138,18 @@ test("test_the_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async ()
 
 // A group announced as nothing is a row of marks a reader is told nothing about.
 // What it SAYS is the owner's and is asserted nowhere.
+//
+// One case per preset, off the shipped roster like the count sweeps: a card
+// that named one tile's group and left the other five anonymous fails by naming
+// the tile a reader is told nothing about, where a single reading would have
+// passed on the one tile it happened to take.
 
-test("test_the_pip_group_carries_an_accessible_name", async () => {
-  await resetTab({ mode: "pcm" });
-  assert.equal(pipsAreNamed(tabs(), TILE), true);
-});
+for (const preset of PRESETS) {
+  test(`test_the_${preset.id}_tiles_pip_group_carries_an_accessible_name`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.equal(pipsAreNamed(tabs(), preset.id), true);
+  });
+}
 
 // ============================================================================
 // a tile drawn at a knob position that is not the resting one
@@ -200,4 +213,41 @@ test("test_a_concert_hall_tile_recorded_off_its_correction_default_draws_what_th
   await resetTab({ mode: "sdm" });
   rememberKnobs(TILE, knobs);
   assert.equal(pipCount(tabs(), TILE), pipsFor(TILE, "sdm", knobs));
+});
+
+// ============================================================================
+// the LIVE lane
+// ============================================================================
+//
+// The card renders on the LIVE page too, where the output mode is not a form
+// field but the engine's own reported mode NAME (`store/live/derive.js`, the
+// derivation tests/js/components/easytiles.test.js drives its live cases
+// through). Every case above is a tabs-lane case, so a card that asked the
+// config form which mode it was in and drew the PCM row on every live page was
+// wrong with nothing red.
+//
+// The reading is taken on the tile whose two chains are furthest apart, and the
+// premise that they ARE apart is asserted first rather than assumed: were the
+// two costs equal, the case below would pass on a card that had never derived
+// the mode at all. Neither number is typed — both are asked of the module.
+
+test("test_the_costliest_tiles_pcm_and_sdm_costs_differ_so_the_live_case_can_tell_them_apart", () => {
+  const hall = PRESETS.filter((p) => p.id === TILE)[0];
+  assert.notEqual(pipsFor(TILE, "pcm", resting(hall)), pipsFor(TILE, "sdm", resting(hall)));
+});
+
+test("test_a_live_tile_draws_its_sdm_pips_while_the_engine_reports_an_sdm_mode_name", async () => {
+  const hall = PRESETS.filter((p) => p.id === TILE)[0];
+  await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
+  assert.equal(pipCount(liveCard(), TILE), pipsFor(TILE, "sdm", resting(hall)));
+});
+
+// And the group stands in the mark's row on the live page as well, which is a
+// different rendering of the same tile and not the one every row case above
+// read.
+
+test("test_a_live_tiles_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async () => {
+  await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
+  seedFacets(uniformFacets("full"));
+  assert.equal(pipsShareTheMarksRow(liveCard(), TILE), true);
 });
