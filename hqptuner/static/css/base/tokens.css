@@ -183,6 +183,10 @@
   --tri-sm: 0.28rem; /* narrowbar caret, beside --fs-body text */
   --tri-md: 0.5rem; /* combobox trigger caret */
   --tri-lg: 0.6rem; /* disclosure: card head, group header, selection mark */
+  /* Resource pip — one dot in an Easy Mode tile's cost row. A size, not a font
+     size: the dot is a rounded box, and the row's fixed height is figured from
+     it (two rows of pips plus the gap between them). */
+  --pip-size: 6px;
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
   /* page gutter — the inset from --w-app to the content lane. EVERY chrome row
