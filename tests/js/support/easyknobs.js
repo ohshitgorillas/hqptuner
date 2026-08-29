@@ -60,9 +60,11 @@ export function knobOptions(out, presetId, knobId) {
  * not inside the knob. Both misses read the same way: a description pointing
  * nowhere describes nothing.
  *
- * The position is found by its `data-v`, the wire value, never by its label —
- * and the words themselves are asserted nowhere (docs/testing.md rule 9), only
- * that there are some.
+ * The position is found by its `data-v`, the wire value, never by its label. The
+ * words come back whole so that a case can compare them against the copy IT
+ * seeded: no case compares them against anything shipped (docs/testing.md rule
+ * 9), and a card rendering a position's LABEL into its description — which any
+ * "there are some words" reading passes — fails against the seeded sentence.
  *
  * @param {string} out
  * @param {string} presetId
@@ -85,20 +87,23 @@ function optionTipText(out, presetId, knobId, value) {
 }
 
 /**
- * Every position of one knob that has a tip with something in it, in document
- * order. Read against `knobOptions` — the positions the knob OFFERS — so that
- * "every position carries a tip" and "no position does" are both one assertion,
- * neither of them naming a position list this file would have to keep in step.
+ * What every position of one knob is described by, keyed by the position's
+ * `data-v` — the empty string for a position described by nothing. Keyed by the
+ * OFFER rather than by what happens to be tipped, so that a knob where every
+ * position is tipped and a knob where none is are one assertion apiece, and
+ * neither names a position list this file would have to keep in step.
  *
  * @param {string} out
  * @param {string} presetId
  * @param {string} knobId
- * @returns {string[]}
+ * @returns {Record<string, string>}
  */
-export const tippedOptions = (out, presetId, knobId) =>
-  knobOptions(out, presetId, knobId)
-    .flatMap((v) => (v === undefined ? [] : [v]))
-    .filter((v) => optionTipText(out, presetId, knobId, v) !== "");
+export const optionTips = (out, presetId, knobId) =>
+  Object.fromEntries(
+    knobOptions(out, presetId, knobId).flatMap((v) =>
+      v === undefined ? [] : [[v, optionTipText(out, presetId, knobId, v)]],
+    ),
+  );
 
 /**
  * The group one knob renders as: the outermost `role="group"` inside it, the
