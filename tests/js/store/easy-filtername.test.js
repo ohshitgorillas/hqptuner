@@ -83,6 +83,20 @@ test("test_the_perfect_ten_tile_on_lossy_material_names_the_hi_res_filter_on_the
   );
 });
 
+// The Nx side is read in SDM mode too, not only in PCM: the `nx` argument and
+// the output mode are separate selectors, and a `filterFor` that only ever
+// consulted `nx` on the PCM chain would pass every other case in this file.
+// `perfect-ten` declares no two-stage variant, so its SDM values carry the same
+// plain names its PCM values do (tests/js/store/easy.test.js's control) — which
+// is what makes it readable here without a `-2s` name standing in the answer.
+
+test("test_the_perfect_ten_tile_in_sdm_mode_names_the_hi_res_filter_on_the_nx_side", () => {
+  assert.equal(
+    easy.filterFor("perfect-ten", "sdm", { emphasis: "space", material: "lossless" }, NX),
+    "poly-sinc-gauss-hires-lp",
+  );
+});
+
 // ============================================================================
 // the output mode selects which chain is named
 // ============================================================================

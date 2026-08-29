@@ -20,11 +20,20 @@
 //
 // NAMES, NOT WORDS (rule 9). The engine filter name is a wire identifier —
 // static data joins the running engine by name (docs/architecture.md §2) — so
-// it is contract and is asserted outright. The three descriptor lines are the
-// opposite: their wording is owner-owned plain-names data, reworded at will, so
-// no case here reads a family, class or shape STRING. Only whether such a line
-// is there at all. Nothing is selected on a sentence: every element is found by
-// its `data-testid` or its `data-part`, and the tile it sits in by its
+// it is contract and is asserted outright.
+//
+// The three descriptor lines are read too, and what they are read against is
+// this file's OWN INJECTED STRINGS. The shipped plain-names wording is
+// owner-owned and reworded at will, and no case here goes near it; the overlay
+// these cases render is seeded below out of four obviously synthetic values
+// that exist nowhere but this file, so the owner cannot reword them and rule 9
+// has nothing to protect. Reading them is what pins the MAPPING — which overlay
+// field feeds which line — and presence alone cannot: an implementation feeding
+// one field into all three lines, or swapping two of them, renders three lines
+// either way.
+//
+// Nothing is selected on a sentence: every element is found by its
+// `data-testid` or its `data-part`, and the tile it sits in by its
 // `data-preset`.
 //
 // THE OVERLAY IS THIS FILE'S OWN. The plain-names data rides /api/metadata
@@ -75,9 +84,13 @@ const signals = await import("../../../hqptuner/static/store/signals.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
-// The single-filter tile and the filter it writes at its resting knob position.
-// Both wire identifiers, stated outright.
+// The single-filter tile, the knob position it is put on and the filter that
+// position writes to both ends of its chain. All three wire identifiers, stated
+// outright — the position in particular, rather than inherited from wherever
+// `emphasis` happens to rest: a resting position is the owner's to revisit, and
+// moving it must not silently repoint these cases at another filter.
 const ONE_FILTER_TILE = "purist";
+const ONE_FILTER_KNOBS = { emphasis: "space" };
 const ONE_FILTER = "poly-sinc-gauss-halfband";
 
 // The split-chain tile, its knob positions stated rather than inherited from
@@ -94,15 +107,39 @@ const SPLIT_NX = "poly-sinc-gauss-hires-lp";
 const SOURCE_1X = { samplerate: "44100", activeRate: "705600" };
 const SOURCE_NX = { samplerate: "96000", activeRate: "44100" };
 
-// The overlay row for the one annotated filter. Family, variant, leaf and short
-// are invented test data, asserted nowhere — only the fact that a row exists is
-// what the presence case rests on.
+// The overlay row for the one annotated filter, and the four values it carries.
+// Every one is invented test data that occurs nowhere else in this repository —
+// no shipped overlay, no schema, no label reads anything like them — so a line
+// reading one of them can only have got it from this fixture. They are
+// deliberately distinct from each other and share no substring, so a rendering
+// that fed one field into two lines, or swapped two fields, fails by naming the
+// value it put where.
+//
+// `short` is seeded and never expected on any line: it is the field the three
+// lines must not come from, and a line carrying it fails the case for that
+// line.
+//
+// WHY THE VALUES ARE MATCHED WITHIN A LINE RATHER THAN AGAINST THE WHOLE OF IT.
+// A descriptor line carries a word of the component's own beside the value it
+// was built from, and that word is owner copy — rule 9 keeps it out of every
+// assertion here. So a line is read the way
+// tests/js/components/combobox-plainnames.test.js reads a family header: the
+// injected values are unique tokens that occur nowhere else in a render, so
+// WHICH of them a line carries is observable without matching any word the
+// component supplies. `injectedIn` below answers exactly that, and each case
+// asserts the whole of its answer — so a line carrying two of the values, or
+// the wrong one, or none, fails by naming what it carried.
+const FAMILY_VALUE = "Zzfamily Alpha";
+const VARIANT_VALUE = "Yyvariant Bravo";
+const LEAF_VALUE = "Xxleaf Charlie";
+const SHORT_VALUE = "Wwshort Delta";
+
 const PLAIN_FILTERS = {
   [ONE_FILTER]: {
-    family: "Famgauss",
-    variant: "Zed tap",
-    leaf: "Halfband pick",
-    short: "Gauss HB",
+    family: FAMILY_VALUE,
+    variant: VARIANT_VALUE,
+    leaf: LEAF_VALUE,
+    short: SHORT_VALUE,
     apod: false,
   },
 };
@@ -144,10 +181,17 @@ async function card({ source, record } = {}) {
 }
 
 /**
- * The split-chain tile's card, on the stated knob positions, with one source
- * rate playing.
+ * The annotated tile's card, on the stated knob position, with nothing playing.
  *
- * @param {{ samplerate: string, activeRate: string }} source
+ * @returns {Promise<string>}
+ */
+const annotatedCard = () => card({ record: { preset: ONE_FILTER_TILE, positions: ONE_FILTER_KNOBS } });
+
+/**
+ * The split-chain tile's card, on the stated knob positions, with one source
+ * rate playing — or with nothing playing when handed no source.
+ *
+ * @param {{ samplerate: string, activeRate: string }} [source]
  * @returns {Promise<string>}
  */
 const splitCard = (source) => card({ source, record: { preset: SPLIT_TILE, positions: SPLIT_KNOBS } });
@@ -188,6 +232,24 @@ function parts(out, presetId) {
 }
 
 /**
+ * WHICH of this file's injected overlay values one part of a tile's filter
+ * block carries, in the fixture's own order. Empty when the part carries none
+ * of them, and empty when the tile renders no such part at all.
+ *
+ * The values are unique tokens sharing no substring, so this is unambiguous,
+ * and it reads no word the component supplies alongside them.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} part
+ * @returns {string[]}
+ */
+const injectedIn = (out, presetId, part) =>
+  [FAMILY_VALUE, VARIANT_VALUE, LEAF_VALUE, SHORT_VALUE].filter((value) =>
+    (partText(out, presetId, part) || "").includes(value),
+  );
+
+/**
  * What one part of a tile's filter block reads, or undefined when the tile
  * renders no such part.
  *
@@ -211,35 +273,32 @@ function partText(out, presetId, part) {
 // enumerates it.
 
 test("test_a_tile_shows_the_engine_filter_name_its_knob_positions_write", async () => {
-  assert.equal(partText(await card(), ONE_FILTER_TILE, "raw"), ONE_FILTER);
+  assert.equal(partText(await annotatedCard(), ONE_FILTER_TILE, "raw"), ONE_FILTER);
 });
 
 // ============================================================================
 // the descriptor lines
 // ============================================================================
 //
-// A filter the overlay annotates gets its descriptor lines; a filter it does
-// not know gets the raw name and nothing derived. The three presence cases are
-// what keep the absence case honest — a tile that never rendered a descriptor
-// at all would satisfy the absence case on its own — and they are three rather
-// than one because a tile that laid out the family line and dropped either of
-// the other two would satisfy a single one.
+// A filter the overlay annotates gets its descriptor lines, each carrying the
+// field of the overlay row it is built from: the row's `family` on the family
+// line, its `variant` on the class line, its `leaf` on the shape line. A filter
+// the overlay does not know gets the raw name and nothing derived.
 //
-// No case reads a word of the descriptors. The first three ask only whether a
-// line is there, the last asks which of the two markings the block laid out,
-// the wording of the fixture's own overlay row is never compared against, and
-// no case says which of that row's fields fed which line.
+// Read against this file's own injected values, never against shipped wording
+// (see the header). Three cases rather than one, one line apiece, so a
+// rendering that got two of the three right fails by naming the one it did not.
 
-test("test_a_tile_whose_filter_the_overlay_annotates_shows_a_family_line", async () => {
-  assert.ok(parts(await card(), ONE_FILTER_TILE).includes("family"));
+test("test_a_tile_shows_the_overlay_rows_family_on_the_family_line", async () => {
+  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "family"), [FAMILY_VALUE]);
 });
 
-test("test_a_tile_whose_filter_the_overlay_annotates_shows_a_class_line", async () => {
-  assert.ok(parts(await card(), ONE_FILTER_TILE).includes("class"));
+test("test_a_tile_shows_the_overlay_rows_variant_on_the_class_line", async () => {
+  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "class"), [VARIANT_VALUE]);
 });
 
-test("test_a_tile_whose_filter_the_overlay_annotates_shows_a_shape_line", async () => {
-  assert.ok(parts(await card(), ONE_FILTER_TILE).includes("shape"));
+test("test_a_tile_shows_the_overlay_rows_leaf_on_the_shape_line", async () => {
+  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "shape"), [LEAF_VALUE]);
 });
 
 test("test_a_tile_whose_filter_the_overlay_does_not_know_shows_the_raw_name_and_no_family_line", async () => {
@@ -262,4 +321,14 @@ test("test_a_tile_playing_a_base_rate_source_names_the_filter_at_the_1x_end", as
 
 test("test_a_tile_playing_a_multiple_rate_source_names_the_filter_at_the_nx_end", async () => {
   assert.equal(partText(await splitCard(SOURCE_NX), SPLIT_TILE, "raw"), SPLIT_NX);
+});
+
+// And with nothing playing at all there is no source rate to follow, so the
+// tile rests on the 1x end — the same side a base-rate source puts it on. Read
+// on the SPLIT tile, where the two sides carry different names: a tile that
+// defaulted to the Nx end while idle names the other filter here, and is
+// invisible on a tile whose two ends agree.
+
+test("test_a_tile_with_nothing_playing_names_the_filter_at_the_1x_end", async () => {
+  assert.equal(partText(await splitCard(), SPLIT_TILE, "raw"), SPLIT_1X);
 });

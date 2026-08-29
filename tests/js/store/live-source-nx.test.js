@@ -22,8 +22,13 @@
 // `samplerate` a string attribute (docs/protocol.md §Status). A fresh object
 // every time: writing the same reference to a signal does not notify.
 //
-// Nothing playing is the case with no `samplerate` in the metadata at all,
-// which is what the daemon serves between tracks.
+// NOTHING PLAYING IS TWO SHAPES, and both are read. The daemon sends the
+// `<metadata>` child of Status ONLY when a track is loaded (docs/protocol.md
+// §Status), so an idle engine's status frame carries no `metadata` key at all —
+// never an empty one, which is a shape the wire does not produce. The second
+// shape is the signal before any frame has arrived, which the app holds as
+// null. Both are the 1x side, and an implementation that reached into either
+// without guarding it would throw rather than answer.
 //
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link — the convention
@@ -81,10 +86,16 @@ for (const [at, samplerate, activeRate, isNx] of SOURCES) {
 
 // --- nothing playing ---------------------------------------------------------------
 //
-// Metadata with no `samplerate` in it: there is no source, so there is no side
-// it puts playback on, and the answer is the 1x one.
+// There is no source, so there is no side it puts playback on, and the answer
+// is the 1x one. Both idle shapes carry an Nx OUTPUT rate, so an answer taken
+// off the output rate is wrong on both.
 
-test("test_no_source_playing_puts_playback_on_the_1x_side", () => {
-  engineStatus.value = { status: { active_rate: OUTPUT_NX }, metadata: {} };
+test("test_an_idle_engine_carrying_no_metadata_puts_playback_on_the_1x_side", () => {
+  engineStatus.value = { status: { active_rate: OUTPUT_NX } };
+  assert.equal(derive.sourceIsNx(), false);
+});
+
+test("test_an_engine_that_has_reported_nothing_yet_puts_playback_on_the_1x_side", () => {
+  engineStatus.value = null;
   assert.equal(derive.sourceIsNx(), false);
 });
