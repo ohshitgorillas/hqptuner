@@ -64,7 +64,7 @@
     "poly-ext2": {
       "family": "Polyphase sinc",
       "variant": null,
-      "leaf": "Extended frequency response 2",
+      "leaf": "Extended frequency response v2",
       "short": "Poly-sinc · Ext2"
     },
     "poly-gauss-long": {

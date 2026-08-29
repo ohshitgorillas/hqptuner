@@ -9,6 +9,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **High-frequency filter auto-pilot engages and disengages the filter as the playing track warrants.** Off by default; setting the filter by hand switches it off, and both live and general presets carry it.
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card with an Album/Playlist switcher, on the Output tab and the LIVE page; a link inside it swaps back.
 
+### Changed
+
+- **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
+
 ## [1.13.0] — 2026-08-26
 
 ### Added

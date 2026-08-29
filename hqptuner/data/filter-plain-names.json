@@ -14,14 +14,14 @@
     "Conventional|Brickwall": "A steeper cut with pre-ringing on strong transients; adjustable length",
     "Polyphase sinc|Base": "The family's base form",
     "Polyphase sinc|Extended frequency response": "Keeps response wide while fully cutting off at the limit",
-    "Polyphase sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
+    "Polyphase sinc|Extended frequency response v2": "Sharper version of extended response, stronger suppression above the audio band",
     "Polyphase sinc|Extreme roll-off and attenuation": "Steepest cutoff and strongest suppression",
     "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients",
     "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response at the cutoff",
     "Polyphase sinc|Half-band": "Response reaches the cutoff; for clean, well-mastered sources",
     "Polyphase sinc|MQA and MP3": "Tailored for lossy sources",
     "Pure sinc|Base": "The family's base form",
-    "Pure sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
+    "Pure sinc|Extended frequency response v2": "Sharper version of extended response, stronger suppression above the audio band",
     "Pure sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients",
     "Pure sinc|Rate-flexible": "Capable of any rate change at the cost of a higher processing load",
     "Interpolation|Closed form": "An approximation-free solution to defining the inter-sample curve",
@@ -247,63 +247,63 @@
     },
     "poly-sinc-ext2": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Linear phase",
       "short": "Poly-sinc · Ext2 · Linear",
       "apod": "full"
     },
     "poly-sinc-ext2-short": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Short linear phase",
       "short": "Poly-sinc · Ext2 · Short linear",
       "apod": "half"
     },
     "poly-sinc-ext2-medium": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Medium linear phase",
       "short": "Poly-sinc · Ext2 · Medium linear",
       "apod": "full"
     },
     "poly-sinc-ext2-long": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Long linear phase",
       "short": "Poly-sinc · Ext2 · Long linear",
       "apod": "full"
     },
     "poly-sinc-ext2-xl": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Extra-long linear phase",
       "short": "Poly-sinc · Ext2 · X-long linear",
       "apod": "none"
     },
     "poly-sinc-ext2-xla": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Extra-long linear phase",
       "short": "Poly-sinc · Ext2 · X-long linear, apod",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-mp": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Minimum phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res minimum",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-ip": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Intermediate phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res intermediate",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-lp": {
       "family": "Polyphase sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Linear phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res linear",
       "apod": "full"
@@ -583,21 +583,21 @@
     },
     "sinc-S": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Short",
       "short": "Sinc · Ext2 · Short",
       "apod": "full"
     },
     "sinc-M": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Constant length",
       "short": "Sinc · Ext2 · Constant length",
       "apod": "full"
     },
     "sinc-Mx": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
+      "variant": "Extended frequency response v2",
       "leaf": "Constant time",
       "short": "Sinc · Ext2 · Constant time",
       "apod": "full"

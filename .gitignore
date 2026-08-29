@@ -113,3 +113,5 @@ docs/filter-guide.md
 # not a repo probe (scripts/probes/ otherwise holds committed, gated scripts)
 scripts/probes/probe_filter_cost.py
 scripts/probes/filter_cost*.json
+scripts/probes/record_apod.py
+apod-log.tsv
