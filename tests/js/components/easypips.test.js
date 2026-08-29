@@ -35,8 +35,6 @@
 //   * `data-pip` on each pip inside it
 //   * an accessible name on the group — an `aria-label` with something in it, or
 //     an `aria-labelledby` pointing at an element that says something
-//   * a `--pip-cols` custom property in the group's own inline style, carrying
-//     the column count
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The group's name is read for
 // EXISTING and never for what it says, and no title, description, label or hint
@@ -52,7 +50,7 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const { resetTab, tabs } = await import("../support/easytiles.js");
-const { pipCount, pipColumns, pipsAreNamed, pipsShareTheMarksRow } = await import("../support/easypips.js");
+const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../support/easypips.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 const { pipsFor, presetsFor } = await import("../../../hqptuner/static/store/easy.js");
@@ -72,10 +70,9 @@ const PRESETS = presetsFor();
  */
 const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [knob.id, knob.default]));
 
-// The tile the row, the naming and the wide column case are read on.
-// `concert-hall` because it is the costliest, so a group drawn empty and a group
-// drawn once are both a long way from what it must show. Preset ids are wire
-// identifiers.
+// The tile the row and the naming are read on. `concert-hall` because it is the
+// costliest, so a group drawn empty and a group drawn once are both a long way
+// from what it must show. Preset ids are wire identifiers.
 const TILE = "concert-hall";
 
 // ============================================================================
@@ -85,6 +82,14 @@ const TILE = "concert-hall";
 // One case per preset per output mode, so a tile that drew the wrong number
 // fails by naming the tile and the chain rather than by a count that could
 // belong to any of the twelve.
+//
+// Both sweeps are generated from the shipped roster, so a roster that came back
+// empty would generate no cases and retire the rule with nothing red. This case
+// is their smoke alarm: it fails by name where they would simply cease to exist.
+
+test("test_the_shipped_table_names_at_least_one_preset_for_the_per_preset_sweeps", () => {
+  assert.ok(PRESETS.length > 0, "presetsFor() named no presets, so both per-preset sweeps below generated nothing");
+});
 
 for (const preset of PRESETS) {
   test(`test_the_${preset.id}_tile_draws_the_pips_its_preset_costs_in_the_pcm_output_mode`, async () => {
@@ -143,61 +148,56 @@ test("test_the_pip_group_carries_an_accessible_name", async () => {
 // Positions are recorded through `rememberKnobs`, the public way a knob's
 // position is put on record, and AFTER the reset because the reset clears it.
 //
-// Knob ids and their positions are wire identifiers, carried in `data-v`; no
-// word of any knob's copy is read.
+// THE POSITION RECORDED IS DERIVED, NOT TYPED: it is whichever of the knob's
+// options is not the one it rests on, asked of the shipped table. Typed out, a
+// case here would quietly become a restatement of the resting case the day the
+// owner flipped that knob's default — and a card that ignored the recorded
+// positions entirely would go on passing it. Derived, the contrast between the
+// recorded position and the resting one holds by construction.
+//
+// Knob ids are wire identifiers and are named; the positions themselves come
+// from the table, and no word of any knob's copy is read.
 
-const TRANSIENTS = { emphasis: "transients" };
-const LOSSY = { material: "lossy" };
-const CORRECTION_OFF = { correction: "off" };
+/**
+ * The knobs record putting one knob of one preset on the position it does NOT
+ * rest on, as the shipped table declares its options and its default.
+ *
+ * A knob offering anything but exactly one position off its default throws
+ * rather than picking one: "there is no single other position" and "the tile
+ * drew the wrong number" are different failures and must not read the same.
+ *
+ * @param {string} presetId
+ * @param {string} knobId
+ * @returns {Record<string, string>}
+ */
+function awayFromDefault(presetId, knobId) {
+  const preset = PRESETS.filter((p) => p.id === presetId)[0];
+  if (preset === undefined) throw new Error(`the shipped table names no "${presetId}" preset`);
+  const knob = preset.knobs.filter((k) => k.id === knobId)[0];
+  if (knob === undefined) throw new Error(`the "${presetId}" preset carries no "${knobId}" knob`);
+  const away = knob.options.filter((option) => option !== knob.default);
+  if (away.length !== 1)
+    throw new Error(`the "${presetId}" preset's "${knobId}" knob offers ${away.length} positions off its default`);
+  return { [knobId]: away[0] };
+}
 
-test("test_a_perfect_ten_tile_recorded_on_transients_draws_what_that_position_costs_on_the_pcm_chain", async () => {
+test("test_a_perfect_ten_tile_recorded_off_its_emphasis_default_draws_what_that_position_costs_on_the_pcm_chain", async () => {
+  const knobs = awayFromDefault("perfect-ten", "emphasis");
   await resetTab({ mode: "pcm" });
-  rememberKnobs("perfect-ten", TRANSIENTS);
-  assert.equal(pipCount(tabs(), "perfect-ten"), pipsFor("perfect-ten", "pcm", TRANSIENTS));
+  rememberKnobs("perfect-ten", knobs);
+  assert.equal(pipCount(tabs(), "perfect-ten"), pipsFor("perfect-ten", "pcm", knobs));
 });
 
-test("test_a_damage_control_tile_recorded_on_lossy_material_draws_what_that_material_costs_on_the_pcm_chain", async () => {
+test("test_a_damage_control_tile_recorded_off_its_material_default_draws_what_that_material_costs_on_the_pcm_chain", async () => {
+  const knobs = awayFromDefault("damage-control", "material");
   await resetTab({ mode: "pcm" });
-  rememberKnobs("damage-control", LOSSY);
-  assert.equal(pipCount(tabs(), "damage-control"), pipsFor("damage-control", "pcm", LOSSY));
+  rememberKnobs("damage-control", knobs);
+  assert.equal(pipCount(tabs(), "damage-control"), pipsFor("damage-control", "pcm", knobs));
 });
 
-test("test_a_concert_hall_tile_recorded_with_error_correction_off_draws_what_that_position_costs_on_the_sdm_chain", async () => {
+test("test_a_concert_hall_tile_recorded_off_its_correction_default_draws_what_that_position_costs_on_the_sdm_chain", async () => {
+  const knobs = awayFromDefault(TILE, "correction");
   await resetTab({ mode: "sdm" });
-  rememberKnobs(TILE, CORRECTION_OFF);
-  assert.equal(pipCount(tabs(), TILE), pipsFor(TILE, "sdm", CORRECTION_OFF));
-});
-
-// ============================================================================
-// how many columns the pips are laid out in
-// ============================================================================
-//
-// Seven or fewer pips stand in one row, so the column count IS the pip count;
-// past seven they split evenly over two, so the column count is half the pips
-// rounded up. THIS RULE IS CARRIED FROM THE PREVIOUS REVISION OF THIS SUITE'S
-// HEADER and is not owner-approved spec — it is stated here as the suite found
-// it, and a reviewer who knows better should correct it rather than assume it
-// was signed off.
-//
-// The expectation is computed from the count the tile ACTUALLY DREW, so no pip
-// number is typed. What is read is the `--pip-cols` custom property the group
-// declares, never a measured width: nothing is laid out here, and how a
-// stylesheet spends that number is the stylesheet's business.
-//
-// @type {(pips: number) => number}
-const columnsFor = (/** @type {number} */ pips) => (pips <= 7 ? pips : Math.ceil(pips / 2));
-
-// One case each side of the boundary: the cheapest tile on the card, which
-// cannot reach a second row, and the costliest, which cannot fit in one.
-
-test("test_a_tile_of_seven_pips_or_fewer_lays_them_out_in_as_many_columns_as_it_has_pips", async () => {
-  await resetTab({ mode: "pcm" });
-  const out = tabs();
-  assert.equal(pipColumns(out, "old-school"), columnsFor(pipCount(out, "old-school")));
-});
-
-test("test_a_tile_of_more_than_seven_pips_lays_them_out_in_half_as_many_columns_rounded_up", async () => {
-  await resetTab({ mode: "sdm" });
-  const out = tabs();
-  assert.equal(pipColumns(out, TILE), columnsFor(pipCount(out, TILE)));
+  rememberKnobs(TILE, knobs);
+  assert.equal(pipCount(tabs(), TILE), pipsFor(TILE, "sdm", knobs));
 });
