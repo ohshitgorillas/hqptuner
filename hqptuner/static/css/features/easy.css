@@ -110,10 +110,24 @@
   cursor: pointer;
 }
 
-/* The emoji and the title, as one thing: the preset's name. Grouped so the
-   space under the title can be a line while the space under the emoji stays
-   tight. */
+/* The preset's name and the row of properties under it, stacked. */
 .easy-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* A line's worth of air under the name, so the row of properties below reads
+     as a separate thing rather than as a third line of the title. Two parents
+     are what two spacings take: this gap serves the name and the properties
+     row, and the tight one between emoji and title belongs to the group under
+     it (docs/design-system.md, one mechanism for space between siblings). */
+  gap: var(--sp-4);
+  width: 100%;
+}
+
+/* The emoji and the words under it: the preset's name, said twice. Its own gap,
+   which is what keeps the emoji sitting close to the title while the title
+   stands well clear of the row beneath. */
+.easy-name {
   display: flex;
   flex-direction: column;
   align-items: center;
