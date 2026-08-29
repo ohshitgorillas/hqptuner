@@ -234,7 +234,9 @@ export function PresetTile({ preset, lane, active, knobs }) {
         </span>
         <${FilterName} presetId=${preset.id} lane=${lane} knobs=${knobs} />
       </button>
-      ${preset.knobs.map((knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`)}
+      <span class="easy-knobs">
+        ${preset.knobs.map((knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`)}
+      </span>
     </div>
   `;
 }

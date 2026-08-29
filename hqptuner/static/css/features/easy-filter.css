@@ -19,6 +19,31 @@
   text-align: center;
 }
 
+/* The knobs, as one group. They were direct children of the tile, which left one
+   gap doing two jobs: the space under the button and the space between two
+   knobs. Grouping them splits it, so the space before the switches can grow
+   without the switches spreading apart from each other — two spacings mean two
+   parents (docs/design-system.md), and this is the second parent.
+
+   This rule and the one under it live here rather than in easy.css because that
+   file sits exactly on the file-length gate's watch line with no room left. The
+   next change to it needs the split the gate is pointing at. */
+.easy-knobs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+}
+
+/* A tile with two settings stacks two rows of switches under the name block, and
+   the leaf line ran straight into the first of them. Such a tile opens the space
+   between its button and its switches by one line. Only the two-switch tiles:
+   one row reads clear on the tile's own gap. `:has` asks the markup how many
+   there are rather than making the component state it in an attribute. */
+.easy-tile:has(.easy-knob + .easy-knob) {
+  gap: var(--sp-4);
+}
+
 /* One size for the block, the same the tile's own description takes: this is
    the answer to "which filter is that, then" and reads at the size the rest of
    the tile's prose does. */

@@ -91,9 +91,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* The name group ends in the cost row, and the description stands clear of it
-     rather than crowding the pips. */
-  gap: var(--sp-2);
+  /* A clear line either side of the description: the cost row ends above it and
+     the filter name block starts below, and it needs the room on both sides. */
+  gap: var(--sp-4);
   width: 100%;
   padding: 0;
   /* Takes the row's slack, so the knobs under it sit on the tile's bottom edge
