@@ -153,9 +153,18 @@ const FILTERS = {
   },
 };
 
-// What a preset costs the machine, in pips, per chain. Owner-supplied numbers:
-// they are a relative ranking of the presets against each other, not a measured
-// quantity and not a filter specification.
+// What a preset costs the machine, in pips, per chain. Neither column is a
+// filter specification: both rank the presets against each other and say nothing
+// about how any filter is designed.
+//
+// The SDM column is measured. Each preset's Space filter was loaded in turn on a
+// playing engine and GPU power and utilization sampled, the two channels agreeing
+// on the ranking once the shaper's floor is subtracted. Old School sets the scale
+// at one pip. The measurement was taken on the SDM chain only, so it says nothing
+// about PCM.
+//
+// The PCM column is the owner's ranking, unmeasured, and does not follow the SDM
+// one.
 //
 // Only Damage Control changes family when its material knob moves: its lossless
 // positions take the xtr-short filters and its lossy ones the mqa/mp3 family, so
@@ -167,23 +176,28 @@ const FILTERS = {
 const PIPS = {
   "perfect-ten": { sdm: 2, pcm: 1 },
   lifelike: { sdm: 2, pcm: 1 },
-  "concert-hall": { sdm: 16, pcm: 8 },
+  "concert-hall": { sdm: 17, pcm: 8 },
   purist: { sdm: 2, pcm: 1 },
   "old-school": { sdm: 1, pcm: 1 },
   "damage-control": { sdm: 1, pcm: 3 },
 };
 
+// The SDM figure matches the row above: on that chain Damage Control costs the
+// same whichever material it is aimed at. The PCM figure is the one this row
+// exists for.
 /** @type {Record<string, {sdm: number, pcm: number}>} */
-const LOSSY_PIPS = { "damage-control": { sdm: 2, pcm: 1 } };
+const LOSSY_PIPS = { "damage-control": { sdm: 1, pcm: 1 } };
 
 // The presets whose Emphasis knob picks a filter LENGTH rather than a phase:
-// Space takes the longer filter of the pair and costs a pip more for it. On the
-// rest of the card the knob moves between `-lp` and `-mp`, which is the same
-// filter run at a different phase and the same work either way, so their tiles
-// read the same in both positions.
+// Space takes the longer filter of the pair. On the rest of the card the knob
+// moves between `-lp` and `-mp`, which is the same filter run at a different
+// phase and the same work either way.
 //
-// The table above is therefore the Transients figure for these three, and the
-// resting position, Space, is the one that adds to it.
+// The extra pip applies OFF THE SDM CHAIN ONLY. Measured, the longer filter of a
+// pair costs a few percent more than the shorter, which is far under what a pip
+// can say, so the SDM column reads the same in both positions. The PCM column
+// keeps the pip because no measurement has been taken on that chain to replace
+// it, and there it is the Transients figure that the table states.
 const LENGTH_EMPHASIS = new Set(["perfect-ten", "lifelike", "purist"]);
 
 /**
@@ -240,8 +254,9 @@ function findPreset(presetId) {
 export function pipsFor(presetId, outputMode, knobs = {}) {
   const row = (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
   if (!row) return 0;
-  let cost = outputMode === "sdm" ? row.sdm : row.pcm;
-  if (knobs.emphasis === "space" && LENGTH_EMPHASIS.has(presetId)) cost += 1;
+  const sdm = outputMode === "sdm";
+  let cost = sdm ? row.sdm : row.pcm;
+  if (!sdm && knobs.emphasis === "space" && LENGTH_EMPHASIS.has(presetId)) cost += 1;
   // Error correction off costs one pip less, which is the same thing that knob's
   // own tip says in words. One pip rather than a proportion: the tiles carrying
   // the knob are the expensive ones, and a pip is the smallest thing this scale
