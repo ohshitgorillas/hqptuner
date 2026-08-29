@@ -140,6 +140,21 @@ export const PICK = { preset: "concert-hall", knob: "version", option: "lifelike
 // many that is.
 const PRESET_IDS = presetsFor().map((/** @type {Preset} */ preset) => String(preset.id));
 
+/**
+ * The presets the public store names for the card, as a SORTED list of ids.
+ *
+ * Sorted on the way out, so that nothing reading it can pin the order the owner
+ * lays the grid out in — a display order is owner-owned data, rearranged at
+ * will (docs/testing.md rule 9). Which ids are in the list is the contract; the
+ * sequence is not. A preset id is a wire identifier, so the ids themselves come
+ * from `presetsFor` rather than being typed out, and a case comparing against
+ * this asks the card and the store to agree instead of asking either to agree
+ * with a literal.
+ *
+ * @returns {string[]}
+ */
+export const namedPresets = () => [...PRESET_IDS].sort();
+
 // --- the daemon's config form -----------------------------------------------------
 
 const MODES = [

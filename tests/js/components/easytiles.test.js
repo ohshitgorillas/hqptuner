@@ -75,6 +75,7 @@ const {
   seenLive,
   tiles,
   presetIds,
+  namedPresets,
   seedPcm,
   seedPcmPair,
   stagedPcm,
@@ -93,33 +94,28 @@ const {
 // ============================================================================
 //
 // How many tiles, then which. The count fails on a card that gained or lost a
-// tile of any kind; the roster below names which preset went missing.
+// tile of any kind; the roster below names which preset went missing, or which
+// tile the store stands behind no preset for.
 
 test("test_the_card_lays_out_six_tiles", async () => {
   await resetTab();
   assert.equal(tiles(tabs()), 6);
 });
 
-// The roster itself: what each tile stands for, in order. Stated by hand rather
-// than read off `presetsFor`, because a preset id is a wire identifier and this
-// is the one case that would catch the table growing a tile back — `oneLit` and
-// the active-marking cases below derive their roster FROM `presetsFor`, so they
-// agree with whatever it says.
+// The roster itself: the grid and the public store name the same presets. Both
+// sides sorted, because WHICH presets have tiles is the contract while the
+// order they are laid out in is the owner's, rearranged at will (rule 9) — a
+// case pinning the sequence goes red on a rearrangement that broke nothing.
+//
+// Derived from `presetsFor` rather than typed out, so the two surfaces are
+// asked to agree with each other instead of with a literal that drifts the
+// first time the table is curated. It still bites both ways: a card that
+// dropped a tile is missing an id the store names, and a card laying out a tile
+// no preset stands behind carries an id the store does not.
 
-const ROSTER = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"];
-
-test("test_the_six_tiles_are_the_curated_presets_in_order", async () => {
+test("test_the_card_lays_out_one_tile_for_every_preset_the_store_names", async () => {
   await resetTab();
-  assert.deepEqual(presetIds(tabs()), ROSTER);
-});
-
-// And the tile the revision took out. `lossy` was the playlist grid's third
-// tile; what it wrote is now `damage-control`'s `material` knob, so a card still
-// laying it out would be offering the same thing twice.
-
-test("test_the_card_lays_out_no_lossy_tile", async () => {
-  await resetTab();
-  assert.equal(presetIds(tabs()).includes("lossy"), false);
+  assert.deepEqual([...presetIds(tabs())].sort(), namedPresets());
 });
 
 // ============================================================================
@@ -462,5 +458,5 @@ test("test_a_tile_press_on_the_tabs_lane_never_reaches_the_live_path", async () 
 
 test("test_each_tile_offers_exactly_one_pressable_button", async () => {
   await resetTab();
-  assert.deepEqual(pressables(tabs()), Object.fromEntries(ROSTER.map((id) => [id, 1])));
+  assert.deepEqual(pressables(tabs()), Object.fromEntries(namedPresets().map((id) => [id, 1])));
 });
