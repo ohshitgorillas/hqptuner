@@ -80,7 +80,7 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
         manager = ConnectionManager(cfg, http)
         task = asyncio.create_task(manager.run())
         await eventually(
-            lambda: manager.reachable and manager.state is not None and manager.loaded_at is not None,
+            lambda: manager.reachable and manager.readings.state is not None and manager.readings.loaded_at is not None,
             timeout=5.0,
         )
         built.append((manager, task, http))
@@ -113,21 +113,21 @@ def _submitted(result: dict[str, Any]) -> None:
 def _pinned(manager: ConnectionManager) -> None:
     """A LIVE rate the manager is actually remembering, or a failure. Without
     it there is nothing for the restart to clear and the case proves nothing."""
-    if not manager.live.rates:
+    if not manager.readings.live.rates:
         raise AssertionError("the LIVE rate write was never remembered: nothing for the restart to clear")
 
 
 def _held(manager: ConnectionManager) -> None:
     """A chain edit the manager is actually holding, or a failure — same
     premise, for the dormant chain's half of the memory."""
-    if not manager.live.chain:
+    if not manager.readings.live.chain:
         raise AssertionError("the LIVE chain edit was never held: nothing for the restart to clear")
 
 
 def _filter_id(manager: ConnectionManager, name: str) -> str:
     """The enum ID the engine's current filter enumeration carries for a filter
     NAME, or "" when the enumerated chain does not offer it."""
-    return next((item["value"] for item in present(manager.enums)["filters"] if item["name"] == name), "")
+    return next((item["value"] for item in present(manager.readings.enums)["filters"] if item["name"] == name), "")
 
 
 async def _stored_preset(manager: ConnectionManager) -> None:
@@ -149,7 +149,7 @@ async def test_a_preset_load_clears_the_remembered_rate_pin(dual_lane: DualLane)
     _pinned(manager)
     await _stored_preset(manager)
     await presetlane.load(manager, "Stored")
-    assert manager.live.rates == {}
+    assert manager.readings.live.rates == {}
 
 
 async def test_a_preset_load_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
@@ -160,7 +160,7 @@ async def test_a_preset_load_clears_the_held_chain_edit(dual_lane: DualLane) -> 
     _held(manager)
     await _stored_preset(manager)
     await presetlane.load(manager, "Stored")
-    assert manager.live.chain == {}
+    assert manager.readings.live.chain == {}
 
 
 # --- the picture is re-read from the engine that came back -------------------
@@ -175,7 +175,7 @@ async def test_a_preset_load_leaves_the_post_restore_state_in_the_picture(
     await _stored_preset(manager)
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     await presetlane.load(manager, "Stored")
-    assert present(manager.state).get("filterNx") == "2"
+    assert present(manager.readings.state).get("filterNx") == "2"
 
 
 async def test_a_preset_load_leaves_the_post_restore_enumerations_in_the_picture(
@@ -206,7 +206,7 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state(
         await presetlane.load(manager, "Stored")
     finally:
         await http.aclose()
-    assert manager.state is None
+    assert manager.readings.state is None
 
 
 #: The restarted daemon takes the post-restore `State` read down with it: the
@@ -225,7 +225,7 @@ async def test_a_preset_load_whose_state_read_finds_the_connection_gone_leaves_n
     await _stored_preset(manager)
     http_daemon["_on_restore"] = lambda: state.update(STATE_READ_DIES)
     await presetlane.load(manager, "Stored")
-    assert manager.state is None
+    assert manager.readings.state is None
 
 
 async def test_a_preset_load_whose_state_read_finds_the_connection_gone_still_loads(
@@ -312,7 +312,7 @@ async def test_a_staged_apply_clears_the_remembered_rate_pin(dual_lane: DualLane
     await lane.apply_now(manager, {"rate": "352800"})
     _pinned(manager)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert manager.live.rates == {}
+    assert manager.readings.live.rates == {}
 
 
 async def test_a_staged_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
@@ -320,7 +320,7 @@ async def test_a_staged_apply_clears_the_held_chain_edit(dual_lane: DualLane) ->
     await lane.apply_now(manager, {"oversampling": "23"})
     _held(manager)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert manager.live.chain == {}
+    assert manager.readings.live.chain == {}
 
 
 async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
@@ -329,7 +329,7 @@ async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
     manager, state = await dual_lane()
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert present(manager.state).get("filterNx") == "2"
+    assert present(manager.readings.state).get("filterNx") == "2"
 
 
 async def test_an_engine_apply_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
@@ -337,7 +337,7 @@ async def test_an_engine_apply_clears_the_remembered_rate_pin(dual_lane: DualLan
     await lane.apply_now(manager, {"rate": "352800"})
     _pinned(manager)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
-    assert manager.live.rates == {}
+    assert manager.readings.live.rates == {}
 
 
 async def test_an_engine_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
@@ -345,7 +345,7 @@ async def test_an_engine_apply_clears_the_held_chain_edit(dual_lane: DualLane) -
     await lane.apply_now(manager, {"oversampling": "23"})
     _held(manager)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
-    assert manager.live.chain == {}
+    assert manager.readings.live.chain == {}
 
 
 async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
@@ -354,4 +354,4 @@ async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
     manager, state = await dual_lane()
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
-    assert present(manager.state).get("filterNx") == "2"
+    assert present(manager.readings.state).get("filterNx") == "2"

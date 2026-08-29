@@ -81,9 +81,9 @@ def _remember_rate(mgr: ConnectionManager, hz: str) -> None:
     a hand-made request.
     """
     if hz == "0":
-        mgr.live.rates.clear()
+        mgr.readings.live.rates.clear()
         return
-    mgr.live.rates[rate_family(hz)] = hz
+    mgr.readings.live.rates[rate_family(hz)] = hz
 
 
 async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[dict[str, Any]]:
@@ -103,12 +103,12 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     picked.
     """
     family = pin_family(mgr)
-    hz = mgr.live.rates.get(family or "")
+    hz = mgr.readings.live.rates.get(family or "")
     if hz is None:
         return []
     index = rate_index_for(mgr, hz)
     if index is None:
-        del mgr.live.rates[family or ""]
+        del mgr.readings.live.rates[family or ""]
         return []
     return await apply_live(client, {"rate": {"value": index}}, mgr.audit)
 
@@ -116,7 +116,7 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
 async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: dict[str, str]) -> None:
     """Re-ask the daemon for the rates list, replacing the cached one, if this batch carries a rate.
 
-    ``mgr.enums`` is fetched at connect and re-fetched by the poll loop only when
+    ``mgr.readings.enums`` is fetched at connect and re-fetched by the poll loop only when
     ``mode`` or ``state`` moves (``manager._poll``). That is right for the dropdowns
     it feeds and wrong for a write: ``GetRates`` answers per mode AND per transport
     state, so a connect taken while the transport was idle caches the auto entry
@@ -130,7 +130,7 @@ async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: 
     """
     if "rate" not in fields:
         return
-    mgr.enums = {**(mgr.enums or {}), "rates": await client.get_enumeration(ENUM_COMMANDS["rates"])}
+    mgr.readings.enums = {**(mgr.readings.enums or {}), "rates": await client.get_enumeration(ENUM_COMMANDS["rates"])}
 
 
 def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> dict[str, str]:
@@ -152,7 +152,7 @@ def _remember_chain(mgr: ConnectionManager, chain: str, fields: dict[str, str]) 
     of its own left to report. This is that record (`LiveMemory`).
     """
     if fields:
-        mgr.live.chain.setdefault(chain, {}).update(fields)
+        mgr.readings.live.chain.setdefault(chain, {}).update(fields)
 
 
 def _applied_chain_fields(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str, str]:
@@ -190,7 +190,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     approximated, and the memory itself is kept: it is what
     `overrides.live_overrides` reports for the chain that is dormant next.
 
-    Resolves against `mgr.enums` as it stands, so the caller must re-enumerate
+    Resolves against `mgr.readings.enums` as it stands, so the caller must re-enumerate
     first — these are the lists the chain change just swapped.
     """
     chain = active_chain(mgr)
@@ -198,7 +198,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
         return []
     edits, dropped = routing.resolve_chain(mgr, chain)
     for field in dropped:
-        del mgr.live.chain[chain][field]
+        del mgr.readings.live.chain[chain][field]
     return await apply_live(client, edits, mgr.audit) if edits else []
 
 
@@ -221,9 +221,9 @@ async def chain_entered(
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)
     if not reenumerated:
-        mgr.enums = await client.get_all_enumerations()
+        mgr.readings.enums = await client.get_all_enumerations()
     if await reassert_chain(mgr, client):
-        mgr.state = await client.get_state()
+        mgr.readings.state = await client.get_state()
 
 
 async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
@@ -236,9 +236,9 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
     (``manager._poll``) — so a caller that skipped this left both the cache and
     the fallback stale. Every live-routing caller runs it, staged lane included.
     """
-    mgr.state = await client.get_state()
+    mgr.readings.state = await client.get_state()
     if _REENUMERATES & set(edits):
-        mgr.enums = await client.get_all_enumerations()
+        mgr.readings.enums = await client.get_all_enumerations()
 
 
 async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
@@ -290,7 +290,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         # the entered chain's held settings against the lists SetMode just swapped
         try:
             report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
-            mgr.state = await client.get_state()
+            mgr.readings.state = await client.get_state()
         except ControlError as exc:
             log.warning("post-apply re-assert failed: %s", exc)
     return {"live": report, "stored": _held_fields(stored, held_rate)}
@@ -304,10 +304,10 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
-    index = (mgr.state or {}).get("mode")
+    index = (mgr.readings.state or {}).get("mode")
     if index is None:
         return False
-    return routing.mode_form_value((mgr.enums or {}).get("modes") or [], index) == want
+    return routing.mode_form_value((mgr.readings.enums or {}).get("modes") or [], index) == want
 
 
 async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:

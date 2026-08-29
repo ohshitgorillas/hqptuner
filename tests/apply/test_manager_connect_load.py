@@ -32,7 +32,7 @@ async def test_an_unusable_backup_does_not_fail_the_connect(
 async def test_a_dead_http_lane_leaves_file_config_unset(start_manager: StartManager, closed_port: int) -> None:
     # the failed read is tolerated AND leaves no fabricated file truth behind
     manager = await start_manager(closed_port)
-    assert manager.file_config is None
+    assert manager.readings.file_config is None
 
 
 async def test_a_dead_http_lane_does_not_fail_the_connect(start_manager: StartManager, closed_port: int) -> None:
@@ -42,7 +42,7 @@ async def test_a_dead_http_lane_does_not_fail_the_connect(start_manager: StartMa
 
 async def test_a_dead_http_lane_records_the_form_error(start_manager: StartManager, closed_port: int) -> None:
     manager = await start_manager(closed_port)
-    assert manager.config_error is not None
+    assert manager.readings.config_error is not None
 
 
 async def test_a_failed_preset_migration_does_not_fail_the_connect(

@@ -53,7 +53,7 @@ async def test_switch_reports_the_new_active_profile(switch_manager: ConnectionM
 
 async def test_switch_updates_the_state_snapshot(switch_manager: ConnectionManager) -> None:
     await matrixlane.switch_profile(switch_manager, "Mch-to-Stereo mixdown")
-    assert present(switch_manager.state)["matrix_profile"] == "Mch-to-Stereo mixdown"
+    assert present(switch_manager.readings.state)["matrix_profile"] == "Mch-to-Stereo mixdown"
 
 
 async def test_switch_resyncs_the_matrix_form(switch_manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:
@@ -61,7 +61,7 @@ async def test_switch_resyncs_the_matrix_form(switch_manager: ConnectionManager,
     # form must follow it too, without waiting for the next poll
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     await matrixlane.switch_profile(switch_manager, "Mch-to-Stereo mixdown")
-    assert present(switch_manager.matrix_form)["active"] == "Mch-to-Stereo mixdown"
+    assert present(switch_manager.readings.matrix_form)["active"] == "Mch-to-Stereo mixdown"
 
 
 async def test_switch_without_a_connection_raises() -> None:

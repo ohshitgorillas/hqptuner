@@ -24,7 +24,7 @@ def rate_family(hz: str) -> str:
 
 def rate_index_for(mgr: ConnectionManager, hz: str) -> str | None:
     """Return the ``RatesItem`` index carrying this rate in Hz, in the engine's current list."""
-    return index_for_rate((mgr.enums or {}).get("rates") or [], hz)
+    return index_for_rate((mgr.readings.enums or {}).get("rates") or [], hz)
 
 
 def pin_family(mgr: ConnectionManager) -> str | None:
@@ -95,10 +95,10 @@ def _chain_name(name: str) -> str | None:
 
 def _chain_from_state(mgr: ConnectionManager) -> str | None:
     """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto."""
-    index = (mgr.state or {}).get("mode")
+    index = (mgr.readings.state or {}).get("mode")
     if index is None:
         return None
-    for item in (mgr.enums or {}).get("modes", []):
+    for item in (mgr.readings.enums or {}).get("modes", []):
         if str(item.get("index")) == str(index):
             return _chain_name(item.get("name") or "")
     return None
@@ -114,7 +114,7 @@ def _chain_from_status(mgr: ConnectionManager) -> str | None:
     does answer, and unambiguously: it is the rate coming out, and its family is
     the chain that produced it (``rate_family``, no rate lands between the two).
     """
-    status = mgr.status or {}
+    status = mgr.readings.status or {}
     named = _chain_name(status.get("active_mode") or "")
     if named is not None:
         return named

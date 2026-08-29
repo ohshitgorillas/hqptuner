@@ -33,14 +33,14 @@ def _snapshot(manager: ConnectionManager) -> dict[str, dict[str, str]]:
 def _without(manager: ConnectionManager, attribute: str) -> None:
     """Drop one attribute from the manager's State — an engine that never
     reported it (`filter1x`/`filterNx` are documented optional, protocol.md §6)."""
-    manager.state = {k: v for k, v in present(manager.state).items() if k != attribute}
+    manager.readings.state = {k: v for k, v in present(manager.readings.state).items() if k != attribute}
 
 
 def _with_enum(manager: ConnectionManager, name: str, items: list[dict[str, str]]) -> None:
     """Serve one enumeration list in place of the one the daemon answered with."""
-    enums: dict[str, Any] = dict(present(manager.enums))
+    enums: dict[str, Any] = dict(present(manager.readings.enums))
     enums[name] = items
-    manager.enums = enums
+    manager.readings.enums = enums
 
 
 # --- the chain has to be knowable at all --------------------------------------

@@ -47,9 +47,6 @@ WATCH_LINE = 400
 #: this table exists to refuse.
 ALLOWANCE: dict[str, int] = {
     "hqptuner/conf/matrixconf.py": 497,
-    # Raised, against this table's own rule, to land a directory move: the split
-    # of lanes/http cost this file one import line. Owed a split, not a number.
-    "hqptuner/core/manager.py": 480,
     "hqptuner/static/components/xfeed/Card.js": 483,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,

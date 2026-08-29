@@ -20,9 +20,9 @@ def volume_get(manager: Mgr) -> dict[str, Any]:
 
     Separate from the staged-config surface — this is the runtime playback-volume lane.
     """
-    vr = manager.volume_range or {}
+    vr = manager.readings.volume_range or {}
     return {
-        "volume": (manager.state or {}).get("volume"),
+        "volume": (manager.readings.state or {}).get("volume"),
         "min": vr.get("min"),
         "max": vr.get("max"),
         "enabled": vr.get("enabled"),

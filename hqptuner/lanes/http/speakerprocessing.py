@@ -31,8 +31,8 @@ async def apply(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, 
     await http.apply_speakers(channels, enabled=enabled)
     applied = await _verify(mgr, channels, enabled=enabled)
     with contextlib.suppress(httpx.HTTPError):
-        mgr.speakers_form = await http.get_speakers()
-    return {"applied": applied, "speakers": mgr.speakers_form}
+        mgr.readings.speakers_form = await http.get_speakers()
+    return {"applied": applied, "speakers": mgr.readings.speakers_form}
 
 
 async def _verify(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, enabled: bool) -> bool:

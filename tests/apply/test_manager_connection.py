@@ -12,11 +12,12 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
-from conftest import eventually
+from conftest import LiveManager, eventually
 from fake_control import serve as fake_serve
 from narrow import present
 
 from hqptuner.config import Config
+from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
 
@@ -119,8 +120,8 @@ async def test_a_mode_change_is_reenumerated_on_the_next_poll(outage_manager: Ou
     # wholesale — enum 38 is the SDM chain's poly-sinc-gauss-long, not PCM's 40
     manager, _ = outage_manager
     await present(manager.control).set_command("SetMode", value="2")
-    await eventually(lambda: (manager.enums or {}).get("filters", [{}])[0].get("value") == "38")
-    assert present(manager.enums)["filters"][0]["value"] == "38"
+    await eventually(lambda: (manager.readings.enums or {}).get("filters", [{}])[0].get("value") == "38")
+    assert present(manager.readings.enums)["filters"][0]["value"] == "38"
 
 
 # --- live volume lane ---------------------------------------------------------
@@ -142,8 +143,18 @@ async def test_set_volume_without_a_connection_raises() -> None:
 
 async def test_current_mode_name_joins_state_to_the_modes_enum(outage_manager: OutageManager) -> None:
     manager, _ = outage_manager
-    assert manager.current_mode_name() == "PCM"
+    assert engineread.current_mode_name(manager) == "PCM"
 
 
 def test_current_mode_name_is_empty_before_any_connection() -> None:
-    assert ConnectionManager(Config()).current_mode_name() == ""
+    assert engineread.current_mode_name(ConnectionManager(Config())) == ""
+
+
+async def test_current_mode_name_is_empty_when_the_modes_enum_has_no_such_index(
+    live_manager: LiveManager,
+) -> None:
+    # a DAC that cannot do DSD enumerates no SDM entry while the engine still
+    # reports mode index 2, so the join finds nothing — and naming some other
+    # mode instead would report a mode the engine is not in
+    manager, _, _ = await live_manager(mode="2", _no_sdm="1")
+    assert engineread.current_mode_name(manager) == ""

@@ -76,17 +76,17 @@ class TrackContext:
 
 def context_from(manager: "ConnectionManager") -> TrackContext | None:
     """Return the reader's view of the manager's last poll — None while unreachable."""
-    status = manager.status
+    status = manager.readings.status
     if not manager.reachable or status is None:
         return None
-    meta = manager.status_metadata or {}
+    meta = manager.readings.status_metadata or {}
     rate = meta.get("samplerate")
     return TrackContext(
         playing=_int(status.get("state")) == PLAYING,
         track_serial=status.get("track_serial"),
         samplerate=_int(rate) if rate else None,
         sdm=meta.get("sdm") in ("1", "true"),
-        junk_filter=_junk_filter_name(manager.state or {}, manager.enums),
+        junk_filter=_junk_filter_name(manager.readings.state or {}, manager.readings.enums),
         filter=status.get("active_filter") or None,
     )
 

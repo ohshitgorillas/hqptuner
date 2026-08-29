@@ -43,7 +43,7 @@ async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str,
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
-        got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh, mgr.active_config))
+        got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh, mgr.readings.active_config))
         return got if all(got.get(key) == want for key, want in overrides.items()) else None
 
     # the restore just restarted the daemon — spend the first interval waiting

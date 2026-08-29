@@ -41,7 +41,7 @@ def _enabled(mgr: ConnectionManager) -> bool:
 
 def _junk_filters(mgr: ConnectionManager) -> list[dict[str, str]]:
     """Return the running junk-filter enumeration, empty until the engine has answered for it."""
-    return (mgr.enums or {}).get("junk_filters") or []
+    return (mgr.readings.enums or {}).get("junk_filters") or []
 
 
 def _move(mgr: ConnectionManager) -> tuple[str, str | None] | None:

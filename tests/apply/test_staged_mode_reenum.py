@@ -36,12 +36,12 @@ from hqptuner.core.manager import ConnectionManager
 def _running_filter_name(manager: ConnectionManager) -> str:
     """The NAME the engine's current main-filter index carries on the list the
     engine is currently enumerating — what the user sees for what is running."""
-    index = present(manager.state).get("filterNx")
-    return next((item["name"] for item in present(manager.enums)["filters"] if item["index"] == index), "")
+    index = present(manager.readings.state).get("filterNx")
+    return next((item["name"] for item in present(manager.readings.enums)["filters"] if item["index"] == index), "")
 
 
 def _filter_enum_ids(manager: ConnectionManager) -> list[str]:
-    return [item["value"] for item in present(manager.enums)["filters"]]
+    return [item["value"] for item in present(manager.readings.enums)["filters"]]
 
 
 # --- a mode-only apply, then a chain field in a separate apply -----------------
@@ -55,7 +55,7 @@ async def test_a_later_apply_resolves_its_filter_on_the_entered_modes_list(live_
     manager, _, _ = await live_manager(mode="2")
     await manager.applyops.apply({}, {"mode": "pcm"})
     await manager.applyops.apply({}, {"filter": "57"})
-    assert present(manager.state)["filterNx"] == "3"
+    assert present(manager.readings.state)["filterNx"] == "3"
 
 
 async def test_a_later_apply_leaves_the_engine_running_the_filter_that_was_named(
@@ -109,7 +109,7 @@ async def test_a_filter_apply_re_reads_early_enough_for_the_next_resolve(live_ma
     state["mode"] = "2"
     await manager.applyops.apply({}, {"filter": "57"})
     await manager.applyops.apply({}, {"oversampling": "57"})
-    assert present(manager.state)["filterNx"] == "2"
+    assert present(manager.readings.state)["filterNx"] == "2"
 
 
 # --- a mode the daemon answers OK for and never applies ------------------------

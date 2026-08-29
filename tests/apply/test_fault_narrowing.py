@@ -64,7 +64,7 @@ async def test_a_refusing_form_route_records_that_forms_error(
 ) -> None:
     http_daemon["_fail_paths"] = [f"/{form}"]
     await forms.refresh(http_manager)
-    assert getattr(http_manager, f"{form}_error") is not None
+    assert getattr(http_manager.readings, f"{form}_error") is not None
 
 
 @pytest.mark.parametrize(("broken", "intact"), SURVIVORS)
@@ -73,7 +73,7 @@ async def test_a_refusing_form_route_still_refreshes_the_other_forms(
 ) -> None:
     http_daemon["_fail_paths"] = [f"/{broken}"]
     await forms.refresh(http_manager)
-    assert FORMS[intact](present(getattr(http_manager, f"{intact}_form")))
+    assert FORMS[intact](present(getattr(http_manager.readings, f"{intact}_form")))
 
 
 async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
@@ -85,7 +85,7 @@ async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     http_daemon["_fail_paths"] = ["/matrix"]
     await forms.refresh(http_manager)
-    assert present(http_manager.matrix_form)["active"] == "[Default]"
+    assert present(http_manager.readings.matrix_form)["active"] == "[Default]"
 
 
 # --- connect-time faults on the best-effort lanes -----------------------------
@@ -109,7 +109,7 @@ async def test_a_refusing_backup_route_leaves_file_config_unset(
 ) -> None:
     http_daemon["_fail_paths"] = ["/backup/settings.zip"]
     manager = await start_manager(http_daemon["_port"])
-    assert manager.file_config is None
+    assert manager.readings.file_config is None
 
 
 def _newer_store(tmp_path: Path) -> Path:
@@ -151,7 +151,7 @@ async def test_a_healthy_pass_records_no_error_for_any_form(
 ) -> None:
     manager = http_manager_factory(http_daemon)
     await forms.refresh(manager)
-    assert getattr(manager, f"{form}_error") is None
+    assert getattr(manager.readings, f"{form}_error") is None
 
 
 # --- the other half: an UNEXPECTED fault must not be swallowed ----------------
@@ -220,7 +220,7 @@ async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
     manager, _client = faulting_matrix
     with contextlib.suppress(TypeError):
         await forms.refresh(manager)
-    assert manager.matrix_error is None
+    assert manager.readings.matrix_error is None
 
 
 async def test_an_unexpected_poll_fault_records_no_outage(

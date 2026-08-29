@@ -61,7 +61,7 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     A named preset reads from the store; the empty ("(no preset)") selection reads the current running config.
     """
     if not name:
-        return dict(mgr.file_config or await mgr.load_file_config())
+        return dict(mgr.readings.file_config or await mgr.load_file_config())
     return presetconf.read_config(mgr.presetops.store.read(name))
 
 
@@ -152,7 +152,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
         backup = await mgr.presetops.backup_or_cached(for_write=True)
-        working = engineconf.base_config_xml(backup, mgr.active_config)
+        working = engineconf.base_config_xml(backup, mgr.readings.active_config)
         if not working:
             raise ControlError("no running config to save")
         # Live-routed edits (filters, dither/modulator, mode) never touched the
@@ -186,7 +186,7 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
         return None
     try:
         backup = await mgr.presetops.backup_or_cached(for_write=True)
-        working = engineconf.base_config_xml(backup, mgr.active_config)
+        working = engineconf.base_config_xml(backup, mgr.readings.active_config)
         if not working:
             raise ControlError("no running config to auto-save")
         working = presetconf.apply_edits(working, overrides.live_overrides(mgr))

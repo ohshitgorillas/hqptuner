@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
 
@@ -255,23 +256,26 @@ def _manager(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManag
 async def _loaded(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
     """A manager that has loaded the daemon's config forms — and nothing else.
     Learning the device capability is part of that load, so no test below asks
-    for it separately: a manager that only learns caps when told to fails here."""
+    for it to be LEARNED separately: a manager that only learns caps when told
+    to fails here. The re-read tests do call the refresh again by hand, on a
+    manager already holding the capability — a different question, whether a
+    second read of the log is paid for at all."""
     manager = _manager(factory, daemon)
-    await manager.refresh_devices()
+    await engineread.refresh_devices(manager)
     return manager
 
 
 def test_a_fresh_manager_reports_no_device_capability(
     http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]
 ) -> None:
-    assert _manager(http_manager_factory, http_daemon).device_caps is None
+    assert _manager(http_manager_factory, http_daemon).readings.device_caps is None
 
 
 async def test_manager_reports_the_capability_of_the_announced_selected_device(
     http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
 ) -> None:
     manager = await _loaded(http_manager_factory, announcing_daemon)
-    assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
+    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
 
 
 async def test_manager_reports_nothing_when_the_log_announces_another_device(
@@ -279,14 +283,52 @@ async def test_manager_reports_nothing_when_the_log_announces_another_device(
 ) -> None:
     http_daemon["_log"] = OTHER_LOG
     manager = await _loaded(http_manager_factory, http_daemon)
-    assert manager.device_caps is None
+    assert manager.readings.device_caps is None
 
 
 async def test_manager_reports_nothing_when_the_log_carries_no_announcement(
     http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]
 ) -> None:
     manager = await _loaded(http_manager_factory, http_daemon)
-    assert manager.device_caps is None
+    assert manager.readings.device_caps is None
+
+
+async def test_a_log_that_cannot_be_fetched_stores_no_capability(
+    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
+) -> None:
+    # this daemon's config form has selected the device its log announces, so a
+    # readable log narrows the menus here (the announced-device case above) —
+    # what must stop it is the 8088 lane refusing GET /log, which leaves nothing
+    # known about the device
+    announcing_daemon["_fail_paths"] = ["/log"]
+    manager = await _loaded(http_manager_factory, announcing_daemon)
+    assert manager.readings.device_caps is None
+
+
+# --- what a refresh costs: the log is re-read only when there is something to
+# learn, because reading it costs a whole GET /log ---------------------------
+
+
+async def test_a_refresh_reads_no_log_while_the_held_capability_still_stands(
+    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
+) -> None:
+    # the capability is held and the selected device has not moved, so a second
+    # read could only announce the same device again
+    manager = await _loaded(http_manager_factory, announcing_daemon)
+    already_read = announcing_daemon["_log_reads"]
+    await engineread.refresh_device_caps(manager)
+    assert announcing_daemon["_log_reads"] == already_read
+
+
+async def test_a_forced_refresh_reads_the_log_again(
+    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
+) -> None:
+    # what a fresh connection does: the held capability describes whatever the
+    # daemon had open before, so the log is read again on its own account
+    manager = await _loaded(http_manager_factory, announcing_daemon)
+    already_read = announcing_daemon["_log_reads"]
+    await engineread.refresh_device_caps(manager, force=True)
+    assert announcing_daemon["_log_reads"] == already_read + 1
 
 
 # --- the manager, with both config views in hand ----------------------------
@@ -323,7 +365,7 @@ async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> Connec
     which is the state every ordinary poll leaves it in."""
     manager = _manager(factory, daemon)
     await manager.load_file_config()
-    await manager.refresh_devices()
+    await engineread.refresh_devices(manager)
     return manager
 
 
@@ -331,7 +373,7 @@ async def test_manager_serves_the_capability_when_both_views_name_the_announced_
     http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
 ) -> None:
     manager = await _both_views(http_manager_factory, announcing_daemon)
-    assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
+    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
 
 
 async def test_manager_serves_nothing_while_the_two_views_name_different_devices(
@@ -340,7 +382,7 @@ async def test_manager_serves_nothing_while_the_two_views_name_different_devices
     # the log agrees with the form here, so the announcement alone would narrow:
     # what must stop it is the file naming another generation's device
     manager = await _both_views(http_manager_factory, disagreeing_daemon)
-    assert manager.device_caps is None
+    assert manager.readings.device_caps is None
 
 
 async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agree(
@@ -352,8 +394,8 @@ async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agre
     disagreeing_daemon["_log"] = SELECTED_LOG
     # one ordinary refresh, unforced and with no virtual time passed: a retry
     # interval charged for the disagreement would still be closed here
-    await manager.refresh_devices()
-    assert (manager.device_caps or {})["device"] == SELECTED
+    await engineread.refresh_devices(manager)
+    assert (manager.readings.device_caps or {})["device"] == SELECTED
 
 
 async def test_manager_serves_the_capability_when_the_archive_read_failed(
@@ -364,8 +406,8 @@ async def test_manager_serves_the_capability_when_the_archive_read_failed(
     # selected device, exactly as before
     port = backupless_daemon["_port"]
     manager = await start_manager(port, hqp_http_port=port)
-    await manager.refresh_devices()
-    assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
+    await engineread.refresh_devices(manager)
+    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
 
 
 # --- the REST surface -------------------------------------------------------

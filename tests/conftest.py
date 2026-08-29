@@ -164,9 +164,9 @@ async def settled(manager: ConnectionManager) -> None:
     """A full connect plus one completed poll. ``run()`` flags the daemon
     reachable before the best-effort 8088 loads run, so the flag alone cannot
     prove the connect returned whole — a completed poll can."""
-    await eventually(lambda: manager.reachable and manager.loaded_at is not None, timeout=5.0)
-    first = manager.loaded_at
-    await eventually(lambda: manager.reachable and manager.loaded_at != first, timeout=5.0)
+    await eventually(lambda: manager.reachable and manager.readings.loaded_at is not None, timeout=5.0)
+    first = manager.readings.loaded_at
+    await eventually(lambda: manager.reachable and manager.readings.loaded_at != first, timeout=5.0)
 
 
 @pytest.fixture

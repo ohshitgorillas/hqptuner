@@ -156,7 +156,7 @@ async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: C
     # change (protocol.md §6), so a surviving pin proves no SetMode went out.
     await running_manager.applyops.apply({"rate": {"value": "1"}}, {})
     await running_manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
-    assert present(running_manager.state)["rate"] == "1"
+    assert present(running_manager.readings.state)["rate"] == "1"
 
 
 # A leftover field means the restore lane's restart is happening regardless, and

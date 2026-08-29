@@ -216,7 +216,7 @@ async def test_the_engines_own_filter_outranks_a_held_one(live_manager: LiveMana
     await lane.apply_now(manager, {"filter": "25"})  # held: PCM chain is dormant
     await lane.apply_now(manager, {"mode": "pcm"})  # 25 goes on the wire here
     await present(manager.control).set_command("SetFilter", value="1")
-    await eventually(lambda: present(manager.state).get("filterNx") == "1")  # the poll has seen it
+    await eventually(lambda: present(manager.readings.state).get("filterNx") == "1")  # the poll has seen it
     assert overrides.live_overrides(manager)["filter"] == "40"
 
 
@@ -283,7 +283,7 @@ async def test_a_held_edit_does_not_survive_the_connection_being_remade(
     # machine that no longer exists.
     manager, sever = severable_manager
     await lane.apply_now(manager, {"oversampling": "23"})
-    before = manager.loaded_at
+    before = manager.readings.loaded_at
     await sever()
     # Waits on `loaded_at`, not on the reachable flag, because the flag is not
     # observable: `manager._connect_and_load` lowers it and raises it again within
@@ -291,7 +291,7 @@ async def test_a_held_edit_does_not_survive_the_connection_being_remade(
     # a reconnect that did happen — which is how this test failed in CI while
     # passing locally. `loaded_at` is stamped once per handshake and never reverts,
     # so it is the same event with no race in reading it.
-    await eventually(lambda: manager.loaded_at != before)
+    await eventually(lambda: manager.readings.loaded_at != before)
     assert "oversampling" not in overrides.live_overrides(manager)
 
 
@@ -308,8 +308,10 @@ async def test_a_source_change_serves_the_entered_chains_filters(live_manager: L
     # list being served says without ambiguity which chain was enumerated.
     manager, _, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
     state["_active_mode"] = "SDM (DSD)"
-    await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("filters", [])] == ["38", "23", "57"])
-    assert [i["value"] for i in present(manager.enums)["filters"]] == ["38", "23", "57"]
+    await eventually(
+        lambda: [i["value"] for i in (manager.readings.enums or {}).get("filters", [])] == ["38", "23", "57"]
+    )
+    assert [i["value"] for i in present(manager.readings.enums)["filters"]] == ["38", "23", "57"]
 
 
 async def test_a_source_change_serves_the_entered_chains_shapers(live_manager: LiveManager) -> None:
@@ -317,8 +319,8 @@ async def test_a_source_change_serves_the_entered_chains_shapers(live_manager: L
     # dithers 0/5, so a lane that re-pulled the filters alone fails here.
     manager, _, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
     state["_active_mode"] = "SDM (DSD)"
-    await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("shapers", [])] == ["0", "3"])
-    assert [i["value"] for i in present(manager.enums)["shapers"]] == ["0", "3"]
+    await eventually(lambda: [i["value"] for i in (manager.readings.enums or {}).get("shapers", [])] == ["0", "3"])
+    assert [i["value"] for i in present(manager.readings.enums)["shapers"]] == ["0", "3"]
 
 
 async def test_a_source_change_writes_the_edit_held_for_the_chain_it_loaded(live_manager: LiveManager) -> None:

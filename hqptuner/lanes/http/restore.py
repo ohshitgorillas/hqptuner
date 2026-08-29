@@ -120,7 +120,7 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
     profile that is active — a matrix about to be removed is not one to adopt.
     Both staged delete shapes count (a plain name, or the fan-out JSON).
     """
-    name = (mgr.state or {}).get("matrix_profile", "")
+    name = (mgr.readings.state or {}).get("matrix_profile", "")
     if not name or MATRIX_PROFILE_DELETE not in edits:
         return name
     return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
@@ -152,7 +152,7 @@ async def _one_pass(
             "submitted": True,
             "applied": True,
             "attempts": attempt + 1,
-            "active": mgr.active_config,
+            "active": mgr.readings.active_config,
         }
         return final, {}, None
     # the diff is the whole diagnosis of an unconverged apply, and the UI has room
@@ -176,7 +176,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
-    running = presetzip.snapshot_member(backup, None, mgr.active_config)
+    running = presetzip.snapshot_member(backup, None, mgr.readings.active_config)
     adopt = active_profile if active_profile and has_profile(running, active_profile) else None
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
@@ -184,7 +184,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
         backup,
         merged,
         presetzip.ApplyContext(
-            active=mgr.active_config,
+            active=mgr.readings.active_config,
             matrix_profile=adopt,
             audit=mgr.audit,
             extra_members=mgr.presetops.parked_filter_members(),
@@ -213,8 +213,8 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
-        realized = presetconf.read_config(engineconf.base_config_xml(fresh, mgr.active_config))
-        mgr.file_config = realized  # fresh file truth for the lossy-form fields
+        realized = presetconf.read_config(engineconf.base_config_xml(fresh, mgr.readings.active_config))
+        mgr.readings.file_config = realized  # fresh file truth for the lossy-form fields
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 

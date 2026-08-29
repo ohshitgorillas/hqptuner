@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
+from hqptuner.core import engineread
 from hqptuner.lanes.live import chain
 from hqptuner.metadata import StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
@@ -31,13 +32,13 @@ def health(manager: Mgr) -> dict[str, Any]:
         # shorter than the frontend's health poll, so `reachable` never visibly goes
         # false and an edge on it cannot be seen; this changes on every reconnect,
         # which is what the LIVE page keys its stale-error clearing on.
-        "connected_at": manager.loaded_at,
+        "connected_at": manager.readings.loaded_at,
         "alarm": manager.alarm,
-        "info": manager.info,
+        "info": manager.readings.info,
         # installed release ("6.0.2") off the daemon's /about page — GetInfo's
         # `engine` is the separately-numbered DSP engine, not this.
-        "release": manager.release,
-        "license": manager.license,
+        "release": manager.readings.release,
+        "license": manager.readings.license,
         # HQPTuner's own version, not the engine's: the About HQPTuner card reads
         # it from here so the package is the single source of truth.
         "app_version": __version__,
@@ -55,7 +56,7 @@ def state(manager: Mgr) -> dict[str, Any]:
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
-    live = manager.state
+    live = manager.readings.state
     data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
     return deps.snapshot(manager, data)
 
@@ -71,7 +72,7 @@ def status(manager: Mgr) -> dict[str, Any]:
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
     against: a null recommendation cannot tell "nothing to report" from "nothing is reading".
     """
-    if manager.status is None:
+    if manager.readings.status is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     junk = manager.metering.recommendation() if manager.metering is not None else None
     autopilot = False
@@ -80,8 +81,8 @@ def status(manager: Mgr) -> dict[str, Any]:
     return deps.snapshot(
         manager,
         {
-            "status": manager.status,
-            "metadata": manager.status_metadata,
+            "status": manager.readings.status,
+            "metadata": manager.readings.status_metadata,
             "junk": junk,
             "autopilot": autopilot,
             "metering": manager.metering is not None,
@@ -95,11 +96,11 @@ def enumerations(request: Request, manager: Mgr) -> dict[str, Any]:
 
     The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
     """
-    if manager.enums is None:
+    if manager.readings.enums is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    mode_name = manager.current_mode_name()
-    merged = merge_enumerations(manager.enums, request.app.state.static, mode_name)
-    merged["mode"] = {"index": (manager.state or {}).get("mode"), "name": mode_name}
+    mode_name = engineread.current_mode_name(manager)
+    merged = merge_enumerations(manager.readings.enums, request.app.state.static, mode_name)
+    merged["mode"] = {"index": (manager.readings.state or {}).get("mode"), "name": mode_name}
     return deps.snapshot(manager, merged)
 
 
@@ -120,4 +121,4 @@ async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
     Read-only, no daemon socket — reads the file the running config points at.
     """
     n = max(1, min(lines, 500))
-    return await manager.read_log_tail(n)
+    return await engineread.read_log_tail(manager, n)

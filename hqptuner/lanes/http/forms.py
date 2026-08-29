@@ -47,7 +47,7 @@ async def refresh(mgr: ConnectionManager) -> None:
         try:
             form = await getter()
         except httpx.HTTPError as exc:
-            setattr(mgr, error_attr, str(exc))
+            setattr(mgr.readings, error_attr, str(exc))
             continue
-        setattr(mgr, form_attr, form)
-        setattr(mgr, error_attr, None)
+        setattr(mgr.readings, form_attr, form)
+        setattr(mgr.readings, error_attr, None)

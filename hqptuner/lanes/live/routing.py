@@ -38,7 +38,7 @@ class LiveField(NamedTuple):
 
     setting: str  # writer.py handler key
     arg: str  # setter attribute ('value' | 'value1x')
-    enum: str  # manager.enums key to translate through
+    enum: str  # manager.readings.enums key to translate through
     chain: str | None  # chain the field belongs to; None = chain-independent
     state: str  # State attribute carrying this setting's current list index
 
@@ -116,7 +116,7 @@ def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) 
     spec = ROUTABLE[field]
     if spec.chain is not None and spec.chain != chain:
         return None
-    items = (mgr.enums or {}).get(spec.enum) or []
+    items = (mgr.readings.enums or {}).get(spec.enum) or []
     if field == "mode":
         return _index_for_mode(items, value)
     return _index_for_enum_id(items, value)
@@ -204,7 +204,7 @@ def split_live(
     if not routable or _mode_blocks_batch(routable):
         return live_edits, dict(http_fields)
     live, routed = _route_all(mgr, routable, active_chain(mgr))
-    if "filter" in live and not _complete_filter_pair(live["filter"], mgr.state or {}):
+    if "filter" in live and not _complete_filter_pair(live["filter"], mgr.readings.state or {}):
         routed = _unroute_filter(live, routed)
     if any(field not in routed for field in http_fields):
         return live_edits, dict(http_fields)
@@ -269,7 +269,7 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
     """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
-    items = (mgr.enums or {}).get(_LIVE_ONLY[field].enum) or []
+    items = (mgr.readings.enums or {}).get(_LIVE_ONLY[field].enum) or []
     return index_for_rate(items, value) if field == "rate" else _known_index(items, value)
 
 
@@ -343,7 +343,7 @@ def resolve_live(
             }
         )
     edits, stored, reasons = _route_live(mgr, fields, active_chain(mgr))
-    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.state or {}):
+    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.readings.state or {}):
         unfillable = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
         reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS and f not in stored), unfillable))
     if reasons:
@@ -365,20 +365,20 @@ def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[st
     Those dropped fields are dropped rather than approximated, the same rule ``_reassert_rate``
     applies to a tier the entered mode does not offer: the nearest filter the
     engine does have is a filter the user never picked. Resolved against
-    ``mgr.enums`` as it stands, so the caller must re-enumerate after the mode
+    ``mgr.readings.enums`` as it stands, so the caller must re-enumerate after the mode
     change first — the lists this joins through are the ones SetMode just swapped.
     """
     edits: dict[str, dict[str, str]] = {}
     dropped: set[str] = set()
-    for field, value in (mgr.live.chain.get(chain) or {}).items():
+    for field, value in (mgr.readings.live.chain.get(chain) or {}).items():
         spec = ROUTABLE[field]
-        index = _index_for_enum_id((mgr.enums or {}).get(spec.enum) or [], value)
+        index = _index_for_enum_id((mgr.readings.enums or {}).get(spec.enum) or [], value)
         if index is None:
             dropped.add(field)
             continue
         edits.setdefault(spec.setting, {})[spec.arg] = index
     # SetFilter sets both halves at once, so a one-sided re-assert would clobber
     # the other; State supplies the missing half now that the chain is loaded.
-    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.state or {}):
+    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.readings.state or {}):
         del edits["filter"]
     return edits, dropped

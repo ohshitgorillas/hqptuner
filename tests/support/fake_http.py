@@ -178,6 +178,13 @@ def _about_render(st: dict[str, Any]) -> str:
 
 
 def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
+    if path == "/log":
+        # `_log_reads` counts every arrival, refused or not, the way
+        # `_restore_attempts` counts POST /restore: serving the whole log is the
+        # cost a caller that re-reads it per poll is paying, and a request either
+        # reached the daemon or it did not.
+        with _STATE:
+            st["_log_reads"] = st.get("_log_reads", 0) + 1
     # `_down`: restore accepted, daemon never came back. `_fail_paths`: the same
     # 503 frame narrowed to named routes — a daemon answering some pages and
     # refusing others (one subsystem down, the rest of the web UI up).
@@ -507,5 +514,7 @@ def state(**extra: Any) -> dict[str, Any]:
         # is refused and the count is bookkeeping no existing test reads.
         "_restore_refusals": 0,
         "_restore_attempts": 0,
+        # Running count of GET /log arrivals, same bookkeeping shape.
+        "_log_reads": 0,
         **extra,
     }

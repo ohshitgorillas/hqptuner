@@ -13,6 +13,7 @@ import pytest
 from conftest import ManagerFactory
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import presetlane
 
@@ -146,8 +147,8 @@ async def test_rescan_surfaces_a_newly_present_output_device(
     # rescan; refresh_devices must trigger it AND refetch the form so the new
     # device is actually offered — a bare POST that skipped the refetch would not
     http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    await http_manager.refresh_devices()
-    fields = (http_manager.config_form or {}).get("fields", [])
+    await engineread.refresh_devices(http_manager)
+    fields = (http_manager.readings.config_form or {}).get("fields", [])
     offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
     assert "S99/hw:CARD=WokeUp,DEV=0" in offered
 

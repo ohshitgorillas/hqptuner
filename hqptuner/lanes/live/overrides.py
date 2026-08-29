@@ -53,7 +53,7 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
     index = state.get(spec.state)
     if index is None:
         return None
-    items = (mgr.enums or {}).get(spec.enum) or []
+    items = (mgr.readings.enums or {}).get(spec.enum) or []
     return mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
 
 
@@ -76,7 +76,7 @@ def _pinned_rate(mgr: ConnectionManager, state: dict[str, str]) -> str | None:
     index = state.get("rate")
     if index is None:
         return None
-    items = (mgr.enums or {}).get("rates") or []
+    items = (mgr.readings.enums or {}).get("rates") or []
     hz = next((item.get("rate") for item in items if str(item.get("index")) == str(index)), None)
     return None if hz is None or hz == "0" else hz
 
@@ -87,14 +87,14 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
     ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
     (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
     only ever answer for the family it is running and only until the next mode
-    switch. ``mgr.live.rates`` is what LIVE pinned per family, which ``lane``
+    switch. ``mgr.readings.live.rates`` is what LIVE pinned per family, which ``lane``
     puts back on the engine when that family comes round again — so reporting both
     here says what the engine is set to rather than what it happens to report.
 
     The engine still wins for the family it is running: a pin set from somewhere
     other than LIVE is real, and this remembers only what LIVE itself wrote.
     """
-    rates = dict(mgr.live.rates)
+    rates = dict(mgr.readings.live.rates)
     pinned = _pinned_rate(mgr, state)
     if pinned is not None:
         rates[rate_family(pinned)] = pinned
@@ -112,7 +112,7 @@ def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str,
             value = _override_for(mgr, field, state)
             if value is not None:
                 overrides[field] = value
-    for other, remembered in mgr.live.chain.items():
+    for other, remembered in mgr.readings.live.chain.items():
         if other != chain:
             overrides.update(remembered)
     return overrides
@@ -124,13 +124,13 @@ def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
     So a save captures what is actually playing rather than a stale file.
 
     The engine answers for the ACTIVE chain only — State reports one
-    filter/shaper pair — so the dormant chain is reported from ``mgr.live.chain``
+    filter/shaper pair — so the dormant chain is reported from ``mgr.readings.live.chain``
     instead, which is what LIVE set on it and what ``lane`` puts back when it
     loads. Reading the engine's pair for both chains would be the one thing that
     is never right: the two chains number their enum IDs differently, so it would
     overwrite the dormant chain's settings with a translation of the other one's.
     """
-    state = mgr.state or {}
+    state = mgr.readings.state or {}
     # Rate is not chain-gated the way the filter/shaper pair is: the two families'
     # limits are separate fields, so carrying both overwrites neither.
     return {

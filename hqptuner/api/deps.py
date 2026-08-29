@@ -51,7 +51,7 @@ def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
     """
     if data is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    return {"stale": not manager.reachable, "loaded_at": manager.loaded_at, "data": data}
+    return {"stale": not manager.reachable, "loaded_at": manager.readings.loaded_at, "data": data}
 
 
 def ensure_form(form: dict[str, Any] | None, error: str | None, label: str) -> dict[str, Any]:

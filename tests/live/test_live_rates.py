@@ -62,7 +62,7 @@ async def test_a_rate_the_engine_does_not_offer_resolves_to_nothing(live_manager
 async def test_a_verified_rate_write_is_remembered_under_its_family(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager()
     await lane.apply_now(manager, {"rate": "352800"})
-    assert manager.live.rates["pcm"] == "352800"
+    assert manager.readings.live.rates["pcm"] == "352800"
 
 
 async def test_a_rate_write_that_never_verified_is_not_remembered(live_manager: LiveManager) -> None:
@@ -70,7 +70,7 @@ async def test_a_rate_write_that_never_verified_is_not_remembered(live_manager: 
     # matches; remembering it anyway would re-pin a rate the engine refused.
     manager, _, _ = await live_manager(_deaf="SetRate")
     await lane.apply_now(manager, {"rate": "352800"})
-    assert "pcm" not in manager.live.rates
+    assert "pcm" not in manager.readings.live.rates
 
 
 async def test_pinning_auto_forgets_the_remembered_pcm_rate(live_manager: LiveManager) -> None:
@@ -79,7 +79,7 @@ async def test_pinning_auto_forgets_the_remembered_pcm_rate(live_manager: LiveMa
     manager, _, _ = await live_manager()
     await lane.apply_now(manager, {"rate": "44100"})
     await lane.apply_now(manager, {"rate": "0"})
-    assert "pcm" not in manager.live.rates
+    assert "pcm" not in manager.readings.live.rates
 
 
 async def test_pinning_auto_forgets_the_remembered_sdm_rate(live_manager: LiveManager) -> None:
@@ -87,7 +87,7 @@ async def test_pinning_auto_forgets_the_remembered_sdm_rate(live_manager: LiveMa
     await lane.apply_now(manager, {"mode": "sdm"})
     await lane.apply_now(manager, {"rate": "2822400"})
     await lane.apply_now(manager, {"rate": "0"})
-    assert "sdm" not in manager.live.rates
+    assert "sdm" not in manager.readings.live.rates
 
 
 # --- what the config side is told --------------------------------------------
@@ -133,7 +133,7 @@ async def test_the_engines_own_pin_outranks_the_remembered_one(live_manager: Liv
     # running the engine's report wins: index 2 is 352800 (8x → 384000), while
     # the memory would report 44100 (1x → 48000).
     manager, _, _ = await live_manager(rate="2")
-    manager.live.rates["pcm"] = "44100"
+    manager.readings.live.rates["pcm"] = "44100"
     assert overrides.live_overrides(manager)["defaults_samplerate"] == "384000"
 
 
@@ -185,7 +185,7 @@ async def test_a_remembered_rate_the_entered_mode_lacks_is_never_pinned(live_man
     # Pinning the nearest offered rate would be a rate the user never picked.
     manager, log, _ = await live_manager()
     await lane.apply_now(manager, {"mode": "sdm"})
-    manager.live.rates["pcm"] = "88200"  # no PCM list this engine offers carries it
+    manager.readings.live.rates["pcm"] = "88200"  # no PCM list this engine offers carries it
     log.clear()
     await lane.apply_now(manager, {"mode": "pcm"})
     assert _rate_writes(log) == []
@@ -194,9 +194,9 @@ async def test_a_remembered_rate_the_entered_mode_lacks_is_never_pinned(live_man
 async def test_a_remembered_rate_the_entered_mode_lacks_is_forgotten(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager()
     await lane.apply_now(manager, {"mode": "sdm"})
-    manager.live.rates["pcm"] = "88200"
+    manager.readings.live.rates["pcm"] = "88200"
     await lane.apply_now(manager, {"mode": "pcm"})
-    assert "pcm" not in manager.live.rates
+    assert "pcm" not in manager.readings.live.rates
 
 
 async def test_a_mode_write_that_never_verified_re_asserts_nothing(live_manager: LiveManager) -> None:
@@ -217,4 +217,4 @@ async def test_a_mode_write_that_never_verified_keeps_the_pin_it_left(live_manag
     manager, _, _ = await live_manager(_deaf="SetMode")
     await lane.apply_now(manager, {"rate": "44100"})
     await lane.apply_now(manager, {"mode": "sdm"})
-    assert manager.live.rates["pcm"] == "44100"
+    assert manager.readings.live.rates["pcm"] == "44100"

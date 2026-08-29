@@ -50,7 +50,7 @@ def matrix(manager: HttpMgr) -> dict[str, Any]:
 
     Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait.
     """
-    form = deps.ensure_form(manager.matrix_form, manager.matrix_error, "/matrix")
+    form = deps.ensure_form(manager.readings.matrix_form, manager.readings.matrix_error, "/matrix")
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
     # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
     # file_profiles is the saved-profile truth: the <matrix_profile> elements of
@@ -62,9 +62,9 @@ def matrix(manager: HttpMgr) -> dict[str, Any]:
         manager,
         {
             **form,
-            "live_profiles": manager.matrix_profiles or [],
-            "live_active": (manager.state or {}).get("matrix_profile", ""),
-            "file_profiles": json.loads((manager.file_config or {}).get(MATRIX_PROFILES) or "{}"),
+            "live_profiles": manager.readings.matrix_profiles or [],
+            "live_active": (manager.readings.state or {}).get("matrix_profile", ""),
+            "file_profiles": json.loads((manager.readings.file_config or {}).get(MATRIX_PROFILES) or "{}"),
             # each stored preset's profile names — the save/delete target pickers'
             # read model, computed from the store at request time (pure filesystem)
             "preset_profiles": manager.presetops.preset_profiles(),
@@ -122,7 +122,7 @@ def speakers(manager: HttpMgr) -> dict[str, Any]:
     Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait
     (fail-fast, see deps).
     """
-    form = deps.ensure_form(manager.speakers_form, manager.speakers_error, "/speakers")
+    form = deps.ensure_form(manager.readings.speakers_form, manager.readings.speakers_error, "/speakers")
     return deps.snapshot(manager, form)
 
 

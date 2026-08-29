@@ -14,6 +14,7 @@ from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
+from hqptuner.core import engineread
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import presetlane
@@ -31,7 +32,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
 
     Needs credentials — without them the 8088 lane does not exist and the route 503s.
     """
-    form = deps.ensure_form(manager.config_form, manager.config_error, "/config")
+    form = deps.ensure_form(manager.readings.config_form, manager.readings.config_error, "/config")
     # `profiles` and `active` come from HQPTuner's own preset store — the source of
     # truth — not the daemon's (unreliable) profile subsystem, which under our
     # restore-only model always reports [default].
@@ -50,11 +51,11 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
             "autosave": presets["autosave"],
-            "file": {**(manager.file_config or {}), **overrides.live_overrides(manager)},
+            "file": {**(manager.readings.file_config or {}), **overrides.live_overrides(manager)},
             # What the selected output device announced it can carry, or null when
             # nothing is known about it (core/manager.refresh_device_caps). The rate
             # menus gray against this; null grays nothing.
-            "device_caps": manager.device_caps,
+            "device_caps": manager.readings.device_caps,
         },
     )
 
@@ -87,7 +88,7 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
     A device that was absent (a powered-off NAA endpoint) appears in the dropdown afterwards.
     """
     try:
-        return await manager.refresh_devices()
+        return await engineread.refresh_devices(manager)
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"device refresh failed: {exc}") from exc
 
@@ -124,7 +125,7 @@ async def engine_get(manager: HttpMgr) -> dict[str, Any]:
     They are not on any form, so this costs a backup fetch — read on demand, never per poll.
     """
     try:
-        return {"engine": await manager.read_engine(), "active_config": manager.active_config}
+        return {"engine": await manager.read_engine(), "active_config": manager.readings.active_config}
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"read engine failed: {exc}") from exc
 

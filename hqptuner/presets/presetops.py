@@ -164,7 +164,7 @@ class PresetOps:
         over new ones. A read may be stale; a write may not.
         """
         backup = await self._mgr.require_http().backup()
-        if engineconf.base_config_xml(backup, self._mgr.active_config):  # working config resolved → usable
+        if engineconf.base_config_xml(backup, self._mgr.readings.active_config):  # working config resolved → usable
             self.last_healthy_backup = backup
             return backup
         summary = engineconf.archive_summary(backup)

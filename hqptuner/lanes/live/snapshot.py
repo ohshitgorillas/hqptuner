@@ -61,7 +61,7 @@ def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
     enumeration by NAME, because the modes list is device-dependent and its
     positions are not stable (``routing.MODE_NAMES``).
     """
-    items = (mgr.enums or {}).get("modes") or []
+    items = (mgr.readings.enums or {}).get("modes") or []
     form = mode_form_value(items, index)
     if form is None:
         return None
@@ -74,17 +74,17 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
     spec = _spec(field)
     if spec.chain is not None and spec.chain != chain:
         return None
-    index = (mgr.state or {}).get(spec.state)
+    index = (mgr.readings.state or {}).get(spec.state)
     if index is None:
         return None
     if field == "mode":
         return _mode_snapshot(mgr, index)
-    return _named((mgr.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
+    return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
 
 
 def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
     """Return the DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
-    state = mgr.state or {}
+    state = mgr.readings.state or {}
     snapshot = {}
     for field, attr in DIRECT.items():
         value = state.get(attr)

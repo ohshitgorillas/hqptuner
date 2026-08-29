@@ -99,8 +99,8 @@ async def _reread_engine(mgr: ConnectionManager) -> None:
     client = mgr.control
     if client is None:
         raise ControlError("daemon not connected")
-    mgr.state = await client.get_state()
-    mgr.enums = await client.get_all_enumerations()
+    mgr.readings.state = await client.get_state()
+    mgr.readings.enums = await client.get_all_enumerations()
 
 
 def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:

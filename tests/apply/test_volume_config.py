@@ -8,7 +8,7 @@ behaviors that were going untested.
 
 ``adaptive_volume`` is the odd one: it is a LIVE setting (``SetAdaptiveVolume``),
 so it never touches the config file — and a preset saved off that file therefore
-stored a value the user was not hearing. ``mgr.state`` is assigned directly to
+stored a value the user was not hearing. ``mgr.readings.state`` is assigned directly to
 stand in for the poll loop that normally fills it; it is the manager's public
 snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 """
@@ -139,7 +139,7 @@ async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -
 
 async def test_a_live_adaptive_volume_is_saved_into_the_preset(http_manager: ConnectionManager) -> None:
     # the file says off (fake default volume_adaptive="0"); the engine says on
-    http_manager.state = {"adaptive": "1"}
+    http_manager.readings.state = {"adaptive": "1"}
     await http_manager.presetops.save_preset("Loud")
     assert (await presetlane.read(http_manager, "Loud"))["adaptive_volume"] == "1"
 

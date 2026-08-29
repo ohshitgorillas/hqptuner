@@ -33,6 +33,6 @@ async def switch_profile(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     if client is None:
         raise ControlError("daemon not connected")
     await client.set_matrix_profile(name)
-    mgr.state = await client.get_state()
+    mgr.readings.state = await client.get_state()
     await mgr.refresh_http_forms()
-    return {"active": mgr.state.get("matrix_profile", "")}
+    return {"active": mgr.readings.state.get("matrix_profile", "")}

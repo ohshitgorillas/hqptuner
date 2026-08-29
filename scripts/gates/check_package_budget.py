@@ -38,7 +38,11 @@ BUDGET: dict[str, int] = {
     "hqptuner/api": 331,
     "hqptuner/api/routes": 1279,
     "hqptuner/conf": 2283,
-    "hqptuner/core": 707,
+    # Raised for an extraction, against this table's own rule, by owner decision:
+    # manager.py's state bag and on-demand readers became core/readings.py and
+    # core/engineread.py. No forwarders — 88 call sites moved. The delta is two new
+    # modules' docstrings and import blocks, which a line count cannot tell apart.
+    "hqptuner/core": 765,
     "hqptuner/engine": 1150,
     "hqptuner/lanes": 550,
     "hqptuner/lanes/http": 457,

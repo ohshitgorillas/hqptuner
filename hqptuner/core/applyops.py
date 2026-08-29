@@ -41,8 +41,8 @@ class ApplyOps:
         if client is None:
             raise ControlError("daemon not connected")
         await client.set_volume(db)
-        self._mgr.state = await client.get_state()
-        return {"volume": self._mgr.state.get("volume")}
+        self._mgr.readings.state = await client.get_state()
+        return {"volume": self._mgr.readings.state.get("volume")}
 
     # --- write path (Phase 3) -----------------------------------------
 
@@ -120,12 +120,14 @@ class ApplyOps:
         try:
             backup = await mgr.presetops.backup_or_cached()
             mgr.presetops.persist_backup(backup)
-            result = await engineattrs.apply(mgr, backup, overrides, mgr.active_config, all_presets=all_presets)
+            result = await engineattrs.apply(
+                mgr, backup, overrides, mgr.readings.active_config, all_presets=all_presets
+            )
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         # same restart, same stale readings as the staged-apply path above
         await mgr.resync_engine_state()
         engine = result["verified"].get("engine")
         if engine:
-            mgr.engine = engine
+            mgr.readings.engine = engine
         return result
