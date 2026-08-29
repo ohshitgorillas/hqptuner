@@ -134,14 +134,18 @@ const sdmFft = computed(() => usesFft(SDM_FILTERS));
 /** @param {{ on: { value: boolean } }} props `on` is the chain's own FFT computed */
 const FftLength = ({ on }) => (on.value ? html`<${Field} k="fft_size" />` : null);
 
-/** Pre-process card: the junk filter, its auto-pilot, and the pre-before-meter toggle. */
+/** Pre-process card: the junk filter with its auto-pilot beneath it, and the pre-before-meter toggle beside them.
+ *
+ * A chain pack rather than a plain one, by the relatedness rule (`docs/design-system.md`): the switch belongs under
+ * the filter it drives, not beside it in the other track, and a plain pack fills row-major and would put it there.
+ */
 export const PreProcessCard = () =>
   html`<${Card} id="pre-process" title="Pre-process">
-    <div class="pack">
+    <${ChainPack}>
       <${Field} k="junk_filter" />
       <${AutopilotToggle} />
       <${Field} k="pre_before_meter" />
-    </div>
+    <//>
   <//>`;
 
 /** PCM chain card, noting when the output mode makes it inert. */

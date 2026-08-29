@@ -12,6 +12,7 @@
 import { html } from "../lib/dom.js";
 import { Checkbox } from "./controls/index.js";
 import { autopilot, metering, setAutopilot } from "../store/actions.js";
+import { notesVisible } from "../store/prefs.js";
 
 const LABEL = "High-freq filter auto-pilot";
 const NOTE =
@@ -32,8 +33,9 @@ export function AutopilotToggle() {
           disabled=${grayed}
           onChange=${(/** @type {string} */ v) => setAutopilot(v === "1")}
         />
-        ${grayed ? html`<div class="field-gray-reason">${NO_METERING}</div>` : null}
       </div>
+      ${notesVisible.value ? html`<div class="field-note">${NOTE}</div>` : null}
+      ${grayed ? html`<div class="field-gray-reason">${NO_METERING}</div>` : null}
     </div>
   `;
 }

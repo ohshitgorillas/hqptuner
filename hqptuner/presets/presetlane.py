@@ -166,14 +166,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         mgr.presetops.store.set_active(name)
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
-    # The high-frequency filter's auto-pilot has no home in the XML — hqplayerd's config
-    # carries no junk-filter field at all — so the preset's copy of it goes into
-    # HQPTuner's own store, keyed by the name just saved. After the store commit and
-    # best-effort for the same reason the mirror is: the save already reached disk.
-    try:
-        mgr.presetops.autopilot.set_for_preset(name, enabled=mgr.presetops.autopilot.enabled)
-    except AutopilotError as exc:
-        log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
+    _record_autopilot(mgr, name)
     warning = await _mirror(mgr, name, working, backup)
     if warning is None:
         return {"name": name, "ok": True}
@@ -203,7 +196,25 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         log.warning("auto-save into preset %r failed: %s", name, exc)
         return {"name": name, "ok": False, "error": str(exc)}
+    _record_autopilot(mgr, name)
     return {"name": name, "ok": True}
+
+
+def _record_autopilot(mgr: ConnectionManager, name: str) -> None:
+    """Record auto-pilot's current state as the one preset ``name`` carries.
+
+    The high-frequency filter's auto-pilot has no home in the XML — hqplayerd's config carries no junk-filter field at
+    all — so a preset's copy of it goes into HQPTuner's own store, keyed by the name just written. Both write paths run
+    it: a save and an auto-save fold the same audible state into the same preset, and one of them skipping this leaves
+    the flag frozen at whatever the other last wrote.
+
+    Runs after the store commit and is best-effort for the same reason the daemon mirror is: the preset already reached
+    disk, and a store we cannot write is not worth failing a good save over.
+    """
+    try:
+        mgr.presetops.autopilot.set_for_preset(name, enabled=mgr.presetops.autopilot.enabled)
+    except AutopilotError as exc:
+        log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
 
 
 async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> str | None:

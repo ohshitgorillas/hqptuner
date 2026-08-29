@@ -108,3 +108,8 @@ docs/guide/
 /email*.txt
 
 docs/filter-guide.md
+
+# ad-hoc filter-cost probe and its captures — a local measurement scratchpad,
+# not a repo probe (scripts/probes/ otherwise holds committed, gated scripts)
+scripts/probes/probe_filter_cost.py
+scripts/probes/filter_cost*.json
