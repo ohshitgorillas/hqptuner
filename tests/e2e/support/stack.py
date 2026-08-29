@@ -130,6 +130,7 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
         "HQPTUNER_NARROWING_FILE": str(tmp / "narrowing.json"),
         "HQPTUNER_DESCRIPTION_FILE": str(tmp / "descriptions.json"),
         "HQPTUNER_MATRIX_MODE_FILE": str(tmp / "matrixmodes.json"),
+        "HQPTUNER_AUTOPILOT_FILE": str(tmp / "autopilot.json"),
         "HQPTUNER_POLL_INTERVAL": "0.1",
     }
 

@@ -17,11 +17,12 @@ state dir, and no case touches a real daemon.
 
 Known gaps, stated rather than papered over:
 
-* "The engine's junk filter is never written" is a negative, and the app's poll
-  loop has no milestone to wait on when it is behaving. The two cases that assert
-  it against a running app (auto-pilot off, metering disabled) bound the wait by
-  pumping the app's own loop through real requests — ``pump`` below — rather than
-  by any wall-clock sleep.
+* "The engine's junk filter is never written" is a negative, so each case that
+  asserts it bounds its wait by a milestone a write would have beaten. The
+  auto-pilot-off case waits for the advisor's verdict to reach ``/api/status``,
+  which a write demonstrably precedes; the metering-disabled case, which never
+  earns a verdict, waits out ``POLLS_PAST_A_WRITE`` of the app's own poll passes.
+  Neither waits on the wall clock.
 * The rate-relative baseline case (2x/4x/8x) is pinned at
   ``desired_junk_filter`` only: the fake daemon's ``GetJunkFilters`` enumeration
   carries none of those filters, so there is no engine-level situation to put one
@@ -222,12 +223,26 @@ def advised(client: TestClient) -> bool:
     return bool((client.get("/api/status").json().get("data") or {}).get("junk"))
 
 
-def pump(client: TestClient, passes: int = 300) -> None:
-    """Let the app's own loop run. Each request is a real round trip through the
-    app's event loop, so this bounds a negative case by passes of that loop
-    rather than by a wall-clock wait (docs/testing.md §7)."""
-    for _ in range(passes):
-        client.get("/api/state")
+#: How many of the app's own poll passes a negative case waits out before it may
+#: claim nothing was written. Auto-pilot runs as its own task, so turning the app
+#: over with requests proves nothing by itself: measured against this fixture,
+#: with metering on and auto-pilot enabled the write lands within 51 polls, so
+#: this is a threefold margin over a write that was going to happen.
+POLLS_PAST_A_WRITE = 150
+
+
+def polls(client: TestClient, count: int) -> None:
+    """Wait until the app has turned its own poll loop over ``count`` times,
+    counted by the distinct ``loaded_at`` stamps ``/api/status`` reports. A
+    milestone in the app's own passes, never a wall-clock wait (docs/testing.md
+    §7); the request bound only turns an app that stopped polling into a loud
+    failure rather than a hang."""
+    seen: set[object] = set()
+    for _ in range(200_000):
+        if len(seen) >= count:
+            return
+        seen.add(client.get("/api/status").json()["loaded_at"])
+    pytest.fail(f"the app never completed {count} polls")
 
 
 def enable(client: TestClient) -> None:
@@ -250,7 +265,7 @@ def test_autopilot_engages_the_filter_the_verdict_names(autopilot_api: Autopilot
 def test_metering_switched_off_leaves_the_engines_junk_filter_alone(autopilot_api: AutopilotApi) -> None:
     client = autopilot_api(metering=True, metering_enabled=False)
     enable(client)
-    pump(client)
+    polls(client, POLLS_PAST_A_WRITE)
     assert engaged(client) == INDEX_NONE
 
 
@@ -259,6 +274,9 @@ def test_metering_switched_off_leaves_the_engines_junk_filter_alone(autopilot_ap
 
 def test_enabling_autopilot_records_the_engaged_filter_as_the_baseline(autopilot_api: AutopilotApi) -> None:
     client = autopilot_api(filter_junk=INDEX_20K)
+    # reachable is not loaded: wait until the app has actually read the engine's
+    # engaged filter, or "what was engaged when auto-pilot came on" is a race
+    wait_for_api(client, lambda c: engaged(c) == INDEX_20K)
     enable(client)
     assert client.get("/api/autopilot").json()["baseline"] == JUNK_20K
 
