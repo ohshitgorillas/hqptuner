@@ -22,7 +22,8 @@
    Out of flow, so an invisible bubble does not push a control down. */
 .easy-knob-tip,
 .easy-knob .seg-tip,
-.easy-apod::after {
+.easy-apod::after,
+.easy-hires::after {
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -71,6 +72,16 @@
   white-space: nowrap;
 }
 
+/* The badge's tip is a sentence rather than three words, so it wraps where the
+   mark's does not, and it is sized against the tile instead of against the badge
+   it hangs from: the badge is a few characters wide and a max-width read off it
+   would leave one word per line. */
+.easy-hires::after {
+  content: attr(data-tip);
+  width: max-content;
+  max-width: 15rem;
+}
+
 /* Painting, and the wait before it. A knob's tip and a position's tip both wait
    for the pointer to settle: a position's tip answers "what does this one do?",
    which is asked by hovering and hesitating, not by crossing a row of buttons on
@@ -78,13 +89,15 @@
    positions waited would read as a fault. The delay sits on the hover rule
    alone, so a tip waits to appear and then leaves at once.
 
-   The mark is the exception and keeps its instant paint: a glyph small enough to
-   need explaining is one the pointer does not rest on for that long. */
+   The two marks in the cost row are the exception and keep their instant paint:
+   something small enough to need explaining is not what a pointer rests on for
+   that long. */
 .easy-knob:hover .easy-knob-tip,
 .easy-knob .seg:hover .seg-tip {
   opacity: 1;
   transition-delay: var(--delay-tip);
 }
-.easy-apod:hover::after {
+.easy-apod:hover::after,
+.easy-hires:hover::after {
   opacity: 1;
 }
