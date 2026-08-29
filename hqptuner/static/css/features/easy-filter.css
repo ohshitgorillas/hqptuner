@@ -1,0 +1,48 @@
+/* easy-filter — the name block on an Easy Mode tile: the engine filter name the
+   tile writes, with the plain-names overlay's family, class and shape under it.
+
+   Its own file rather than a block appended to easy.css, which is at the edge of
+   the file-length gate's watched band (scripts/gates/check_file_length.py): past
+   400 lines that file would need a ratchet entry, and entries there only ever
+   come down. easy-tips.css split off the same way. Loads after easy.css and owns
+   no layout of the tile itself; the button it sits in is placed there. */
+
+/* Centered under the description, on the button's own gap. Column rather than
+   inline lines, because the four lines are a block that reads top to bottom and
+   the space between them is this parent's gap and nothing else. */
+.easy-filter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Mono on the whole block, not only the raw name: the breakdown lines describe
+   the name directly above them, and setting them in the body face would read as
+   two unrelated pieces of text rather than one identification. Small, because
+   the tile's own words are what a user reads first and this is the answer to
+   "which filter is that, then". */
+.easy-filter-raw,
+.easy-filter-line {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.35;
+  /* A filter name is a compound with no spaces to break at, and the narrowest
+     tile in the grid is narrower than the longest name. Break inside the word
+     rather than let it set the tile's width. */
+  overflow-wrap: anywhere;
+}
+
+/* The raw name is the line with contract value, so it carries the readable
+   foreground and the weight; the breakdown under it is a gloss and takes the
+   secondary gray the tile's own description takes. */
+.easy-filter-raw {
+  font-weight: var(--fw-medium);
+  color: var(--fg);
+}
+
+.easy-filter-line {
+  color: var(--fg-2);
+}

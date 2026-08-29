@@ -17,8 +17,10 @@ import { Segment } from "../controls/index.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
 import { rememberKnobs } from "../../store/easyview.js";
-import { pipsFor, writeSet } from "../../store/easy.js";
+import { filterFor, pipsFor, writeSet } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
+import { sourceIsNx } from "../../store/live/derive.js";
+import { plainEntry } from "../../store/plainnames.js";
 import { filterFacets } from "../../store/narrow/facets.js";
 import { MARK_LABEL } from "./marks.js";
 
@@ -164,6 +166,35 @@ function Pips({ preset, lane, knobs }) {
   `;
 }
 
+// What the tile actually writes, named. The raw engine name first, because that
+// is the string a user carries to the manual, to a forum post, or to the chain
+// card's own dropdown; the overlay's breakdown under it, because the raw name is
+// a compound nobody should have to parse to learn what family they are in.
+//
+// The three descriptor lines are the plain-names overlay's own fields
+// (data/filter-plain-names.json) and nothing derived here: family, variant and
+// leaf already exist as owner-edited copy, and re-deriving phase or length from
+// the name would be a second place to keep true — one that reads blank on the
+// hi-res filters, whose names carry no length token at all.
+//
+// A name the overlay does not carry renders alone. Every filter the six presets
+// can write has a row today; a filter arriving without one shows the engine's
+// name and no invented breakdown, the same answer the dropdowns give.
+/** @param {{ presetId: string, lane: string, knobs: Record<string, string> }} props */
+function FilterName({ presetId, lane, knobs }) {
+  const name = filterFor(presetId, easyLane(lane).mode, knobs, sourceIsNx());
+  if (!name) return null;
+  const plain = plainEntry("filters", name);
+  return html`
+    <span class="easy-filter" data-testid="easy-filter">
+      <span class="easy-filter-raw" data-part="raw">${name}</span>
+      ${plain && plain.family && html`<span class="easy-filter-line" data-part="family">${plain.family} family</span>`}
+      ${plain && plain.variant && html`<span class="easy-filter-line" data-part="class">${plain.variant} class</span>`}
+      ${plain && html`<span class="easy-filter-line" data-part="shape">${plain.leaf}</span>`}
+    </span>
+  `;
+}
+
 // The picking half is a button and the knobs are outside it, because a button
 // inside a button is not markup a browser will keep. So the tile is the box, the
 // button is everything that means "this preset", and the knobs sit under it.
@@ -201,6 +232,7 @@ export function PresetTile({ preset, lane, active, knobs }) {
             (para, i) => html`<span data-para=${String(i)}>${para}</span>`,
           )}
         </span>
+        <${FilterName} presetId=${preset.id} lane=${lane} knobs=${knobs} />
       </button>
       ${preset.knobs.map((knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`)}
     </div>

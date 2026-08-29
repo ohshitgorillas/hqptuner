@@ -292,6 +292,37 @@ export function writeSet(presetId, outputMode, knobs = {}) {
   return out;
 }
 
+// Which filter a tile NAMES, as opposed to which four it writes. A tile shows
+// one name, so two things have to be decided that `writeSet` never has to: which
+// chain, and which of that chain's two fields.
+//
+// The chain follows the pips rather than the apodizing mark (Tile.js says why
+// each does what it does): a name is one of the things that genuinely differs
+// between the chains, because the daemon enumerates the `-2s` two-stage variants
+// on SDM only. Auto names the PCM chain for the same reason auto quotes the PCM
+// cost — nearly all material is PCM, and naming a filter the listener will never
+// reach is naming the wrong one.
+//
+// The field is the caller's: 1x unless the playing source is an Nx rate
+// (store/live/derive.js sourceIsNx). Only the two flagship presets hold
+// different filters in the two fields at all; every other preset answers the
+// same either way, and the lossy positions put the hi-res filter on both fields
+// already, so lossy needs no rule of its own here.
+/**
+ * The filter name a preset's tile displays, "" when the combination names nothing.
+ *
+ * @param {string} presetId
+ * @param {string} outputMode "pcm" | "sdm" | "auto"
+ * @param {Record<string, string>} [knobs] knob id -> option id
+ * @param {boolean} [nx] name the Nx field's filter rather than the 1x field's
+ * @returns {string}
+ */
+export function filterFor(presetId, outputMode, knobs = {}, nx = false) {
+  const chain = outputMode === "sdm" ? "sdm" : "pcm";
+  const keys = KEYS[chain];
+  return writeSet(presetId, chain, knobs)[nx ? keys.nx : keys.x1] || "";
+}
+
 /**
  * Every knob position combination a preset offers, as knob-id maps.
  *
