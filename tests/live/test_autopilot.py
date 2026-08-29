@@ -210,7 +210,7 @@ def engaged(manager: ConnectionManager) -> str | None:
     return None if context is None else context.junk_filter
 
 
-async def test_no_verdict_leaves_the_engine_sitting_on_none(advising: Advising) -> None:
+async def test_no_verdict_releases_the_engine_to_none(advising: Advising) -> None:
     # the user's own 20k corner is not a baseline to return to: with nothing
     # advised, auto-pilot's resting place is `none`
     manager, _log, state = await advising(frames=0, filter_junk="1")
@@ -230,7 +230,10 @@ async def test_an_untreated_verdict_engages_the_recommended_filter(advising: Adv
 
 
 async def test_a_fixed_corner_is_released_when_no_verdict_asks_for_it(advising: Advising) -> None:
-    # index 2 of the built-in enumeration is the 30k corner; index 0 is `none`
+    # index 2 of the built-in enumeration is the 30k corner; index 0 is `none`.
+    # The case above reads the release off the engine's own State, which cannot
+    # tell one write from a loop that rewrites `none` every pass; this one reads
+    # the command log, so the release is pinned as exactly one write.
     manager, log, _ = await advising(frames=0, filter_junk="2")
     await eventually(lambda: engaged(manager) == "30k")
     manager.presetops.autopilot.enable()
@@ -282,6 +285,16 @@ async def test_a_store_stamped_newer_than_understood_writes_nothing(advising: Ad
     (tmp_path / "autopilot.json").write_text(json.dumps({"schema": 99}))
     await act(manager)
     assert junk_writes(log) == []
+
+
+async def test_a_write_the_engine_refuses_is_still_attempted(advising: Advising) -> None:
+    # the precondition the case below rests on, stated rather than assumed: a
+    # daemon that answers SetJunkFilter with an error is still asked to engage
+    # 20k, so "refused" there is a refusal and not a write that never happened
+    manager, log, _ = await advising(_error="SetJunkFilter")
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert junk_writes(log) == ["1"]
 
 
 async def test_a_refused_write_leaves_auto_pilot_enabled(advising: Advising) -> None:
@@ -429,6 +442,14 @@ def test_setting_the_junk_filter_by_hand_switches_auto_pilot_off(autopilot_api: 
     client.post("/api/autopilot", json={"enabled": True})
     client.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
     assert client.get("/api/autopilot").json()["enabled"] is False
+
+
+def test_a_live_write_of_the_main_filter_is_accepted(autopilot_api: ApiFactory) -> None:
+    # the precondition the case below rests on: that write really does land, so
+    # "auto-pilot survived it" is a fact about a write and not about a no-op
+    client = autopilot_api()
+    client.post("/api/autopilot", json={"enabled": True})
+    assert client.post("/api/config/live", json={"fields": {"filter": "25"}}).json()["live"][0]["ok"] is True
 
 
 def test_a_live_write_without_the_junk_filter_leaves_auto_pilot_alone(autopilot_api: ApiFactory) -> None:

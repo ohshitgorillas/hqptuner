@@ -1,4 +1,4 @@
-"""Auto-pilot's own state — whether it is on, what it falls back to, and which config presets carry it.
+"""Auto-pilot's own state — whether it is on, and which config presets carry it.
 
 The high-frequency filter auto-pilot is HQPTuner's own feature and hqplayerd knows nothing about it. Neither does its
 config file: the daemon's ``/config`` form has no junk-filter field at all, so a config preset's XML snapshot cannot
