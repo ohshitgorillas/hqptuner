@@ -1,4 +1,4 @@
-"""Application lifespan — start the poll loop and the metering reader, and shut both down without hanging."""
+"""Application lifespan — start the poll loop, the metering reader and auto-pilot, shutting all three down cleanly."""
 
 import asyncio
 import contextlib
@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
+from hqptuner.core import autopilotops
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.metering import MeteringReader, context_from
 
@@ -40,12 +41,19 @@ def make_lifespan(
         # entirely, nothing is constructed and nothing ever connects.
         reader: MeteringReader | None = None
         metering_task: asyncio.Task[None] | None = None
+        # The high-frequency filter's auto-pilot acts on that reader's verdict, so it
+        # runs exactly where the reader does and nowhere else: with metering off there
+        # is nothing for it to read and nothing it could honestly decide.
+        autopilot_task: asyncio.Task[None] | None = None
         if cfg.metering_enabled:
             reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
             manager.metering = reader
             metering_task = asyncio.create_task(reader.run())
+            autopilot_task = asyncio.create_task(autopilotops.run(manager, cfg.poll_interval))
         yield
         manager.stop()
+        if autopilot_task is not None:
+            await _finish(autopilot_task, 0)
         if reader is not None and metering_task is not None:
             reader.stop()
             # no grace for the reader: it blocks in readexactly, which its stop flag

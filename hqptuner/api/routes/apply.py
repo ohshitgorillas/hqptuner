@@ -93,7 +93,7 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
         # the choice they just made. Before the write, not after, so there is no window
         # in which a poll can revert it.
         with contextlib.suppress(AutopilotError):
-            manager.autopilot.disable()
+            manager.presetops.autopilot.disable()
     try:
         report = await lane.apply_now(manager, body.fields)
         autosaved = await presetlane.autosave(manager)

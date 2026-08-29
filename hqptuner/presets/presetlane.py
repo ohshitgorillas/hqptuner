@@ -100,10 +100,10 @@ def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
     stand-in: hqplayerd's config has no junk-filter field, so a config preset cannot claim to carry one either way.
     """
     try:
-        if mgr.autopilot.for_preset(name):
-            mgr.autopilot.enable(baseline=NO_FILTER)
+        if mgr.presetops.autopilot.for_preset(name):
+            mgr.presetops.autopilot.enable(baseline=NO_FILTER)
         else:
-            mgr.autopilot.disable()
+            mgr.presetops.autopilot.disable()
     except AutopilotError as exc:
         log.warning("auto-pilot state not restored for preset %r: %s", name, exc)
 
@@ -171,7 +171,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     # HQPTuner's own store, keyed by the name just saved. After the store commit and
     # best-effort for the same reason the mirror is: the save already reached disk.
     try:
-        mgr.autopilot.set_for_preset(name, enabled=mgr.autopilot.enabled)
+        mgr.presetops.autopilot.set_for_preset(name, enabled=mgr.presetops.autopilot.enabled)
     except AutopilotError as exc:
         log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
     warning = await _mirror(mgr, name, working, backup)

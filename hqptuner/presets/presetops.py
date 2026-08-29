@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf import engineconf, matrixconf, presetconf, xmledit
 from hqptuner.presets import presetlane
+from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import FilterPark
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
@@ -35,6 +36,10 @@ class PresetOps:
         # presets. hqplayerd's own named-profile subsystem is unreliable, so we
         # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
         self.store = PresetStore(cfg.preset_dir, mgr.audit)
+        # The high-frequency filter's auto-pilot (store.autopilot). It lives here
+        # because half of what it stores is per-preset — which saved preset carries
+        # it — and a preset save and load are what put that half in and take it out.
+        self.autopilot = AutopilotStore(cfg.autopilot_file)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug

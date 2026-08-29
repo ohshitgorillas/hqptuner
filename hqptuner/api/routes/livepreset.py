@@ -38,11 +38,11 @@ def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> No
     A record from before auto-pilot existed carries no such key and reads as off.
     """
     if record.get("autopilot") is not True:
-        manager.autopilot.disable()
+        manager.presetops.autopilot.disable()
         return
     items = (manager.enums or {}).get("junk_filters") or []
     engaged = autopilot.junk_filter_name(items, (record.get("fields") or {}).get("junk_filter"))
-    manager.autopilot.enable(baseline=engaged or NO_FILTER)
+    manager.presetops.autopilot.enable(baseline=engaged or NO_FILTER)
 
 
 @router.get("/livepresets")
@@ -75,7 +75,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
         "chain": chain.active_chain(manager),
         "fields": {field: item["value"] for field, item in taken.items()},
         "names": {field: item["name"] for field, item in taken.items()},
-        "autopilot": manager.autopilot.enabled,
+        "autopilot": manager.presetops.autopilot.enabled,
     }
     try:
         _store(request).save(name, record)

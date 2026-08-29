@@ -1,8 +1,9 @@
 """Driving the high-frequency filter for the listener — auto-pilot's one write.
 
-Runs off the poll loop rather than off a route. The advisor's note is computed on demand by ``GET /api/status``, which
-only fires while a browser is open; auto-pilot has to keep working for someone who is only listening, so it lives
-where the manager already has a connection and a tick.
+A background task of its own, started by the app lifespan beside the metering reader whose verdict it acts on, and
+started only where that reader is. Deliberately not a route: the advisor's note is computed on demand by
+``GET /api/status``, which only fires while a browser is open, and auto-pilot has to keep working for someone who is
+only listening.
 
 The write goes through the ordinary LIVE lane (``lanes.live.lane.apply_now``), which readback-verifies it and records
 it in the event log like any other durable write. Nothing about it is privileged: it is the same ``SetJunkFilter`` the
@@ -20,7 +21,7 @@ from typing import TYPE_CHECKING
 from hqptuner.engine.control import ControlError
 from hqptuner.engine.metering import context_from
 from hqptuner.lanes import autopilot
-from hqptuner.lanes.live import lane
+from hqptuner.lanes.live import lane, routing
 from hqptuner.presets.store.autopilot import AutopilotError
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ log = logging.getLogger(__name__)
 def _baseline(mgr: ConnectionManager) -> str | None:
     """Return the filter auto-pilot falls back to, or None when it is switched off or its state cannot be read."""
     try:
-        return mgr.autopilot.baseline if mgr.autopilot.enabled else None
+        return mgr.presetops.autopilot.baseline if mgr.presetops.autopilot.enabled else None
     except AutopilotError as exc:
         log.warning("auto-pilot state unreadable: %s", exc)
         return None
@@ -77,5 +78,18 @@ async def act(mgr: ConnectionManager) -> None:
     log.info("auto-pilot: junk filter %s -> %s", engaged, want)
     try:
         await lane.apply_now(mgr, {"junk_filter": index})
-    except ControlError as exc:
+    except (ControlError, routing.LiveRouteError) as exc:
         log.warning("auto-pilot write failed: %s", exc)
+
+
+async def run(mgr: ConnectionManager, interval: float) -> None:
+    """Act once per tick until the task is cancelled, which is how the lifespan stops it.
+
+    A loop of its own rather than a step inside the manager's poll: what auto-pilot reads is the metering reader's
+    latched verdict, and the reader is a background task for the same reason. The cadence follows the status poll
+    because everything the decision reads is refreshed by it, and ticking faster would only re-ask the same question.
+    The wait is the manager's own, which the test suite virtualizes (``docs/testing.md`` §7).
+    """
+    while True:
+        await act(mgr)
+        await mgr.sleep(interval)

@@ -40,7 +40,7 @@ def autopilot(manager: Mgr) -> dict[str, Any]:
     that is there and full.
     """
     try:
-        return _reported(manager.autopilot)
+        return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -55,9 +55,9 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> dict[str, Any]:
     try:
         if body.enabled:
             ctx = context_from(manager)
-            manager.autopilot.enable(baseline=(ctx.junk_filter if ctx is not None else None) or NO_FILTER)
+            manager.presetops.autopilot.enable(baseline=(ctx.junk_filter if ctx is not None else None) or NO_FILTER)
         else:
-            manager.autopilot.disable()
-        return _reported(manager.autopilot)
+            manager.presetops.autopilot.disable()
+        return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
