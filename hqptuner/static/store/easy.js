@@ -61,7 +61,10 @@ const EMPHASIS = { id: "emphasis", default: "space", options: ["space", "transie
 const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "lossy"] };
 
 /**
- * Every curated preset, in the order `docs/plans/filters-for-fuckwits.md` lists them.
+ * Every curated preset, in the grid order the owner set.
+ *
+ * The order is display copy, not a fact about the presets: it is the owner's to
+ * rearrange, and nothing derives from a preset's position here.
  *
  * Reached through `presetsFor`, which is what the grid enumerates: the table
  * itself stays private so a caller cannot hold the frozen array and reorder it.
@@ -71,6 +74,9 @@ const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "l
 const PRESETS = Object.freeze([
   { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS, MATERIAL] },
   { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS, MATERIAL] },
+  { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
+  { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
+  { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
   {
     id: "concert-hall",
     emoji: "🏛️",
@@ -79,9 +85,6 @@ const PRESETS = Object.freeze([
       { id: "correction", default: "on", options: ["on", "off"] },
     ],
   },
-  { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
-  { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
-  { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
 ]);
 
 // Filter names per knob combination. A combination key is the preset's knob
