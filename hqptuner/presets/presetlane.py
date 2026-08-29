@@ -109,6 +109,20 @@ def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> N
     mgr.audit.autopilot_set(source, enabled=enabled, previous=previous)
 
 
+def stamp_autopilot_on_active(mgr: ConnectionManager) -> None:
+    """Fold auto-pilot's current state into the active preset, when auto-save is armed to do that.
+
+    The switch writes only the top-level flag, and the per-preset copy was written by a save or an auto-save alone.
+    So flipping the switch and loading a preset restored the copy as it stood before the flip, switching auto-pilot
+    back off with nothing to reconcile the two. Gated on the same pair auto-save itself is gated on, because folding
+    a change into the active preset unasked is exactly what auto-save is the user's permission for.
+    """
+    name = mgr.presetops.store.active
+    if not name or not mgr.presetops.store.autosave:
+        return
+    _record_autopilot(mgr, name)
+
+
 def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
     """Put auto-pilot back to what this preset carries.
 

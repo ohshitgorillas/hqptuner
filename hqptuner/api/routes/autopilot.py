@@ -52,6 +52,9 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> dict[str, Any]:
     """
     try:
         presetlane.switch_autopilot(manager, "switch", enabled=body.enabled)
+        # With auto-save armed, the active preset carries the switch too — otherwise loading that preset would
+        # restore the copy as it stood before this flip and undo it (presetlane.stamp_autopilot_on_active).
+        presetlane.stamp_autopilot_on_active(manager)
         return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
