@@ -16,6 +16,9 @@
 //     `aria-labelledby` pointing at an element of the same tile that says
 //     something.
 //   * a `data-tip` attribute on it, spelt the same as that accessible name.
+//   * the row's other parts findable as they already are: `data-testid`
+//     "easy-pips" on the pip group, the `easy-apod` class on the apodizing mark
+//     and the `easy-cost-rule` class on each divider.
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The badge's label and its
 // tip are owner-owned wording, reworded at will, and no case states either. The
@@ -26,44 +29,51 @@
 // modes, the `data-testid` and the class names of the cost row's parts.
 //
 // WHICH TILES. `perfect-ten` and `lifelike` are the two flagships and carry the
-// badge; the other four presets carry none. The flagship cases are read on
-// `perfect-ten`, whose `material` knob has both positions the badge must
-// survive.
+// badge; the other four presets carry none. Every flagship reading is taken on
+// BOTH of them, so a card that badged, named or tipped one of the two fails by
+// naming the tile it left bare. Only the ORDER case is read on a single tile:
+// where the badge stands in the row is one arrangement, not a per-tile fact.
 //
-// THE APODIZING MARK IS SEEDED where the row's ORDER is read, and only there. A
-// tile whose filter the facet overlay does not annotate renders no
-// `.easy-apod` at all (the "no marks" case in the mark suite), so there would
-// be nothing for the badge to follow; `seedFacets(uniformFacets(...))` states a
-// class for every filter the table can write, which is what puts a mark on the
-// row. The presence cases seed nothing, so a badge drawn only when a mark
-// happens to be beside it fails them.
+// THE APODIZING MARK IS SEEDED IN ONE CASE: the marked row's order. A tile
+// whose filter the facet overlay does not annotate renders no `.easy-apod` at
+// all (the "no marks" case in the mark suite), so there would be nothing for
+// the badge to follow; `seedFacets(uniformFacets(...))` states a class for
+// every filter the table can write, which is what puts a mark on the row. Every
+// other case seeds nothing and so reads a MARKLESS row — which is what the
+// unmarked-order case wants outright, and which means a badge drawn only when a
+// mark happens to be beside it fails the presence cases.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-hires.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { elements, attr, classes, text } from "../support/markup.js";
+import { elements, attr, classes, text, hasAttr } from "../support/markup.js";
 import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, tileHtml } = await import("../support/easytiles.js");
+const { resetTab, tabs, tileHtml, knobPositions } = await import("../support/easytiles.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
+// The markings the cost row's parts are found by, every one of them a hook and
+// not a word: two testids and two class names.
 const BADGE = "easy-hires";
+const PIPS = "easy-pips";
+const APOD = "easy-apod";
+const RULE = "easy-cost-rule";
 
 // The two flagship tiles, and the four that are not. Preset ids are wire
 // identifiers.
 const FLAGSHIPS = ["perfect-ten", "lifelike"];
 const PLAIN = ["old-school", "damage-control", "purist", "concert-hall"];
 
-// The flagship the knob and order cases are read on, and the knob whose two
-// positions the badge must survive. Knob id and positions are wire identifiers,
-// carried in `data-v`.
+// The flagship the order case is read on, and the knob whose two positions the
+// badge must survive. Knob id and positions are wire identifiers, carried in
+// `data-v`.
 const TILE = "perfect-ten";
 const MATERIAL = "material";
 const MATERIALS = ["lossless", "lossy"];
@@ -108,6 +118,31 @@ const badgesOnTile = (out, presetId) =>
   elements(tileHtml(out, presetId)).filter((el) => attr(el, "data-testid") === BADGE).length;
 
 /**
+ * How many hi-res badges stand in one tile's cost row WHILE ITS `material` KNOB
+ * SHOWS the position named — the reading the knob cases take.
+ *
+ * The knob is read back before the badges are counted, and a knob showing
+ * anything but that one position throws. Without it a recorded position that
+ * never reached the render would leave all four knob cases rendering the resting
+ * tile, four spellings of one reading that no longer says anything about the
+ * knob.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} material
+ * @returns {number}
+ */
+function badgesAtMaterial(out, presetId, material) {
+  const marked = knobPositions(out, presetId, MATERIAL);
+  if (marked.length !== 1 || marked[0] !== material) {
+    throw new Error(
+      `the "${presetId}" tile's "${MATERIAL}" knob shows [${marked.join(", ")}], not "${material}" alone`,
+    );
+  }
+  return badgesInCostRow(out, presetId);
+}
+
+/**
  * One tile's badge, thrown for rather than answered as undefined: "there is no
  * badge" and "the badge is wrong" are different failures and must not read the
  * same.
@@ -128,27 +163,75 @@ function badge(out, presetId) {
  * the divider. Parts the row does not render are simply absent from the list,
  * so a missing badge reads as a shorter sequence rather than as a reordering.
  *
+ * Only the parts standing BESIDE one another are sequenced. A part rendered
+ * INSIDE another opens later in the fragment and so would sort after it, which
+ * would let a badge nested within the apodizing mark read as a badge following
+ * it — a different arrangement entirely. An enclosed part is therefore dropped,
+ * leaving a sequence that is short where nesting happened rather than one that
+ * is spuriously in order.
+ *
  * @param {string} out
  * @param {string} presetId
  * @returns {string[]}
  */
-const costRowOrder = (out, presetId) =>
-  elements(costRow(out, presetId).html)
-    .filter((el) => partOf(el) !== undefined)
+function costRowOrder(out, presetId) {
+  const parts = elements(costRow(out, presetId).html).filter((el) => partOf(el) !== undefined);
+  return parts
+    .filter((el) => !parts.some((other) => encloses(other, el)))
     .sort((a, b) => a.start - b.start)
     .map((el) => String(partOf(el)));
+}
 
 /**
- * Which of the three parts an element is, or undefined when it is none of them.
+ * Whether one element of a fragment contains another, the element itself not
+ * counting as containing itself.
+ *
+ * @param {MarkupElement} outer
+ * @param {MarkupElement} inner
+ * @returns {boolean}
+ */
+const encloses = (outer, inner) =>
+  outer.start <= inner.start &&
+  outer.start + outer.html.length >= inner.start + inner.html.length &&
+  !(outer.start === inner.start && outer.html.length === inner.html.length);
+
+/**
+ * Which of the row's parts an element is, or undefined when it is none of them.
+ * A DIVIDER answers the same name wherever it stands: the row draws the same
+ * `.easy-cost-rule` on either side of the badge, so the two are told apart by
+ * where they fall in the sequence and by nothing else.
  *
  * @param {MarkupElement} el
  * @returns {string | undefined}
  */
 function partOf(el) {
   if (attr(el, "data-testid") === BADGE) return BADGE;
-  if (classes(el).includes("easy-apod")) return "easy-apod";
-  if (classes(el).includes("easy-cost-rule")) return "easy-cost-rule";
+  if (attr(el, "data-testid") === PIPS) return PIPS;
+  if (classes(el).includes(APOD)) return APOD;
+  if (classes(el).includes(RULE)) return RULE;
   return undefined;
+}
+
+/**
+ * The parts of one MARKLESS tile's cost row standing BEFORE its badge.
+ *
+ * Two premises are checked before the run is handed back, because an empty run
+ * is what the case asserts and every way of not having one would otherwise read
+ * as a pass: a row with no badge in it fails as a missing badge, and a row that
+ * DOES carry an apodizing mark fails as a case set up wrong — the reading is
+ * about the tile that has a badge and no mark, and a marked row is a different
+ * arrangement, the one the case above reads.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @returns {string[]}
+ */
+function partsBeforeUnmarkedBadge(out, presetId) {
+  const order = costRowOrder(out, presetId);
+  const at = order.indexOf(BADGE);
+  if (at < 0) throw new Error(`the "${presetId}" tile's cost row carries no hi-res badge`);
+  if (order.includes(APOD)) throw new Error(`the "${presetId}" tile's cost row carries an apodizing mark`);
+  return order.slice(0, at);
 }
 
 /**
@@ -173,8 +256,15 @@ const decode = (s) =>
  * A tile's badge's ACCESSIBLE NAME: its `aria-label`, or the text of the
  * element its `aria-labelledby` points at. Either wiring names the badge and
  * which one a writer reaches for is not a behavior, so the two are one answer
- * here. A badge wired with neither throws rather than answering "": an unnamed
- * badge and an emptily named one are different failures.
+ * here.
+ *
+ * A badge NAMED BY NOTHING answers "" rather than throwing, the convention the
+ * sibling harness settled (`markLabel`, tests/js/support/easymark.js). SSR emits
+ * an empty-string attribute bare (` aria-label`, never `aria-label=""`), so a
+ * throw here would swallow the empty case whole and leave the case below
+ * asserting only that a helper did not raise. A badge a reader is told nothing
+ * about is an answer, and belongs in the assertion as a value: no wiring, empty
+ * wiring and a labelledby pointing nowhere all read as "".
  *
  * The name is returned so that it can be compared with the tip on the same
  * element. No case reads what it says.
@@ -186,11 +276,10 @@ const decode = (s) =>
 function badgeName(out, presetId) {
   const fragment = tileHtml(out, presetId);
   const el = badge(out, presetId);
-  const label = attr(el, "aria-label");
-  if (label !== undefined) return decode(label).trim();
+  if (hasAttr(el, "aria-label")) return decode(attr(el, "aria-label") ?? "").trim();
   const by = attr(el, "aria-labelledby");
   const target = by === undefined ? [] : elements(fragment).filter((e) => attr(e, "id") === by);
-  if (target.length !== 1) throw new Error(`the "${presetId}" tile's hi-res badge carries no accessible name`);
+  if (target.length !== 1) return "";
   return decode(text(target[0])).trim();
 }
 
@@ -227,11 +316,17 @@ for (const presetId of FLAGSHIPS) {
 // rather than over its cost row: a badge drawn on one of these anywhere is
 // wrong, and a reading scoped to the row would call a misplaced one absent.
 
+// Read in both output modes, as the flagship cases are: a card that badges
+// every tile on one chain and only the flagships on the other is wrong on the
+// chain nobody read.
+
 for (const presetId of PLAIN) {
-  test(`test_the_${presetId}_tile_renders_no_hires_badge`, async () => {
-    await resetTab({ mode: "pcm" });
-    assert.equal(badgesOnTile(tabs(), presetId), 0);
-  });
+  for (const mode of MODES) {
+    test(`test_the_${presetId}_tile_renders_no_hires_badge_in_the_${mode}_output_mode`, async () => {
+      await resetTab({ mode });
+      assert.equal(badgesOnTile(tabs(), presetId), 0);
+    });
+  }
 }
 
 // ============================================================================
@@ -240,19 +335,23 @@ for (const presetId of PLAIN) {
 //
 // A flagship is a flagship whichever material its `material` knob is recorded
 // on and whichever chain the card is showing, so the badge stands in all four
-// combinations. The position is put on record through `rememberKnobs`, the
-// public way a knob's position is stated, AFTER the reset, which clears it.
+// combinations, on both flagships. The position is put on record through
+// `rememberKnobs`, the public way a knob's position is stated, AFTER the reset,
+// which clears it, and the tile is read through `badgesAtMaterial`, which
+// refuses a rendering whose knob does not show it.
 //
 // One case per combination, so a badge that survived only the resting knob, or
-// only one chain, fails by naming the case it did not.
+// only one chain, or only one flagship, fails by naming the case it did not.
 
-for (const material of MATERIALS) {
-  for (const mode of MODES) {
-    test(`test_a_flagship_tile_renders_its_hires_badge_on_${material}_material_in_the_${mode}_output_mode`, async () => {
-      await resetTab({ mode });
-      rememberKnobs(TILE, { [MATERIAL]: material });
-      assert.equal(badgesInCostRow(tabs(), TILE), 1);
-    });
+for (const presetId of FLAGSHIPS) {
+  for (const material of MATERIALS) {
+    for (const mode of MODES) {
+      test(`test_the_${presetId}_tile_renders_its_hires_badge_on_${material}_material_in_the_${mode}_output_mode`, async () => {
+        await resetTab({ mode });
+        rememberKnobs(presetId, { [MATERIAL]: material });
+        assert.equal(badgesAtMaterial(tabs(), presetId, material), 1);
+      });
+    }
   }
 }
 
@@ -260,16 +359,31 @@ for (const material of MATERIALS) {
 // where the badge stands in the row
 // ============================================================================
 //
-// Between the apodizing mark and the divider: after the mark, before the rule
-// that separates the marks from the pips. Read as the whole sequence of the
-// three parts rather than as two comparisons, so it is one assertion and so a
-// badge that is missing reads as a short sequence rather than as an order that
-// happens to hold.
+// A marked tile's row reads mark, divider, badge, divider, pips: the badge
+// stands between two dividers, the same `.easy-cost-rule` drawn on either side
+// of it. Read as the whole sequence rather than as a run of comparisons, so it
+// is one assertion and so a badge that is missing reads as a short sequence
+// rather than as an order that happens to hold.
+//
+// The mark is seeded here, and only here: a tile whose filter the facet overlay
+// does not annotate renders no `.easy-apod` at all, and this is the arrangement
+// where the row has both.
 
-test("test_the_hires_badge_follows_the_apodizing_mark_and_precedes_the_divider", async () => {
+test("test_a_marked_tiles_cost_row_reads_mark_divider_badge_divider_pips", async () => {
   await resetTab({ mode: "pcm" });
   seedFacets(uniformFacets("full"));
-  assert.deepEqual(costRowOrder(tabs(), TILE), ["easy-apod", BADGE, "easy-cost-rule"]);
+  assert.deepEqual(costRowOrder(tabs(), TILE), [APOD, RULE, BADGE, RULE, PIPS]);
+});
+
+// The divider before the badge is the one separating it FROM THE MARK, so a
+// tile with no mark has nothing for it to separate and draws none. Nothing is
+// seeded, which is what leaves the row markless; what is read is the run of
+// parts standing before the badge, and a divider anywhere in that run is the
+// separator drawn where there was nothing to separate.
+
+test("test_an_unmarked_tiles_hires_badge_is_preceded_by_no_divider", async () => {
+  await resetTab({ mode: "pcm" });
+  assert.equal(partsBeforeUnmarkedBadge(tabs(), TILE).includes(RULE), false);
 });
 
 // ============================================================================
@@ -280,16 +394,20 @@ test("test_the_hires_badge_follows_the_apodizing_mark_and_precedes_the_divider",
 // it says is the owner's and is asserted nowhere; that it says something is the
 // behavior.
 
-test("test_the_hires_badge_carries_an_accessible_name", async () => {
-  await resetTab({ mode: "pcm" });
-  assert.notEqual(badgeName(tabs(), TILE), "");
-});
+for (const presetId of FLAGSHIPS) {
+  test(`test_the_${presetId}_tiles_hires_badge_carries_an_accessible_name`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.notEqual(badgeName(tabs(), presetId), "");
+  });
+}
 
 // The pointer and the screen reader are told the same thing: the tip a hover
 // raises is the name the badge is announced by. Both sides are read off the
 // rendered element, so this holds through any rewording of either.
 
-test("test_the_hires_badges_tip_and_accessible_name_are_the_same_string", async () => {
-  await resetTab({ mode: "pcm" });
-  assert.equal(badgeTip(tabs(), TILE), badgeName(tabs(), TILE));
-});
+for (const presetId of FLAGSHIPS) {
+  test(`test_the_${presetId}_tiles_hires_badge_tip_and_accessible_name_are_the_same_string`, async () => {
+    await resetTab({ mode: "pcm" });
+    assert.equal(badgeTip(tabs(), presetId), badgeName(tabs(), presetId));
+  });
+}
