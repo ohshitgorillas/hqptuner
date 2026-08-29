@@ -20,7 +20,7 @@
 // words it is spelt with are the owner's.
 
 import { tileHtml } from "./easytiles.js";
-import { elements, attr, text, enclosing } from "./markup.js";
+import { elements, attr, hasAttr, text, enclosing } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 
@@ -43,12 +43,18 @@ function group(out, presetId) {
 /**
  * How many pips one tile renders.
  *
+ * A pip is marked with a BARE `data-pip`, so its presence is read with
+ * `hasAttr` and never with `attr`: SSR emits a valueless attribute bare
+ * (docs/testing.md, harness facts), and `attr` only matches `name="value"` — it
+ * would answer `undefined` for every pip on the card and count them all as
+ * none.
+ *
  * @param {string} out
  * @param {string} presetId
  * @returns {number}
  */
 export const pipCount = (out, presetId) =>
-  elements(group(out, presetId).html).filter((el) => attr(el, "data-pip") !== undefined).length;
+  elements(group(out, presetId).html).filter((el) => hasAttr(el, "data-pip")).length;
 
 /**
  * Whether the pip group carries an accessible name: an `aria-label` with
