@@ -80,7 +80,7 @@ const PRESETS = Object.freeze([
     ],
   },
   { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
-  { id: "old-school", emoji: "📼", knobs: [{ ...EMPHASIS, default: "transients" }] },
+  { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
   { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
 ]);
 

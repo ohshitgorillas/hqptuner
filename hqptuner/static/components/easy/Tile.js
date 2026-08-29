@@ -131,9 +131,10 @@ function KnobRow({ preset, knob, knobs, lane }) {
 // mark: cost is the one thing on a tile that genuinely differs between the two
 // chains, which is what there is to say.
 //
-// The pips are drawn, so they are hidden from a screen reader and the group
-// takes its name from the words beside them. Counting the glyphs out in that
-// name is copy this feature does not have yet.
+// The pips are drawn, so the count they stand for reaches a screen reader as
+// the row's own name and never as thirteen unlabeled marks. The group keeps the
+// visible word beside them, so the two together say what a sighted reader sees:
+// "Cost", then "13 pips".
 // How many pips stand in a row. Up to seven they all fit on one; past that they
 // break into two EVEN rows, so twelve reads 6 over 6 and thirteen 7 over 6. A
 // fixed seven-wide grid would have left twelve as 7 over 5, which reads as a
@@ -151,7 +152,12 @@ function Pips({ preset, lane, knobs }) {
   return html`
     <span class="easy-pips" data-testid="easy-pips" role="group" aria-labelledby=${labelId}>
       <span class="t-label" id=${labelId}>Cost:</span>
-      <span class="easy-pips-dots" aria-hidden="true" style=${`--pip-cols: ${pipColumns(count)}`}>
+      <span
+        class="easy-pips-dots"
+        role="img"
+        aria-label=${`${count} ${count === 1 ? "pip" : "pips"}`}
+        style=${`--pip-cols: ${pipColumns(count)}`}
+      >
         ${Array.from({ length: count }, (_, i) => html`<span class="easy-pip" data-pip="" key=${String(i)}></span>`)}
       </span>
     </span>
