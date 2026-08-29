@@ -42,12 +42,12 @@ BUDGET: dict[str, int] = {
     # manager.py's state bag and on-demand readers became core/readings.py and
     # core/engineread.py. No forwarders — 88 call sites moved. The delta is two new
     # modules' docstrings and import blocks, which a line count cannot tell apart.
-    "hqptuner/core": 765,
+    "hqptuner/core": 766,
     "hqptuner/engine": 1150,
     "hqptuner/lanes": 550,
     "hqptuner/lanes/http": 457,
     "hqptuner/lanes/live": 1180,
-    "hqptuner/presets": 557,
+    "hqptuner/presets": 570,
     "hqptuner/presets/store": 1207,
 }
 

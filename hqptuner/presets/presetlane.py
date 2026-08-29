@@ -91,6 +91,24 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     return {"name": name, "active": True}
 
 
+def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> None:
+    """Move auto-pilot's switch and record which ``source`` moved it.
+
+    Every path that writes the switch comes through here. The store keeps only the resulting value, so a user who
+    finds auto-pilot off can otherwise not tell the switch itself from a manual filter write, a live-preset apply or
+    a config-preset load. The previous value is read before the write, because the write is what erases it.
+
+    Lives in the presets package rather than beside the callers so the api routes and ``core.autopilotops`` share one
+    copy without either importing the other (the import layering in ``pyproject.toml``).
+    """
+    previous = mgr.presetops.autopilot.enabled
+    if enabled:
+        mgr.presetops.autopilot.enable()
+    else:
+        mgr.presetops.autopilot.disable()
+    mgr.audit.autopilot_set(source, enabled=enabled, previous=previous)
+
+
 def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
     """Put auto-pilot back to what this preset carries.
 
@@ -98,10 +116,7 @@ def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
     filter itself; auto-pilot settles the filter on its own from the next tick.
     """
     try:
-        if mgr.presetops.autopilot.for_preset(name):
-            mgr.presetops.autopilot.enable()
-        else:
-            mgr.presetops.autopilot.disable()
+        switch_autopilot(mgr, "preset.load", enabled=mgr.presetops.autopilot.for_preset(name))
     except AutopilotError as exc:
         log.warning("auto-pilot state not restored for preset %r: %s", name, exc)
 

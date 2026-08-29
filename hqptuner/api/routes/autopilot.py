@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
+from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotSchemaError, AutopilotStore
 
 router = APIRouter(prefix="/api")
@@ -50,10 +51,7 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> dict[str, Any]:
     does next.
     """
     try:
-        if body.enabled:
-            manager.presetops.autopilot.enable()
-        else:
-            manager.presetops.autopilot.disable()
+        presetlane.switch_autopilot(manager, "switch", enabled=body.enabled)
         return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

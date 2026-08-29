@@ -35,10 +35,7 @@ def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> No
     and a junk filter of its own applies both, and auto-pilot then releases that filter on its next tick unless the
     playing track asks for it — which is what auto-pilot being on means.
     """
-    if record.get("autopilot") is True:
-        manager.presetops.autopilot.enable()
-    else:
-        manager.presetops.autopilot.disable()
+    presetlane.switch_autopilot(manager, "livepreset.apply", enabled=record.get("autopilot") is True)
 
 
 @router.get("/livepresets")
