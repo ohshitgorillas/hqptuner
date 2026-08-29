@@ -30,6 +30,11 @@
   transform: translate(-50%, calc(var(--sp-1) * -1));
   padding: var(--sp-1) var(--sp-2);
   font-size: var(--fs-caption);
+  /* Named, not inherited. A position's tip sits INSIDE its button, and the
+     active button is semibold (controls/primitives.css) — so the tip on whatever
+     position is currently picked would read bolder than the others, for no
+     reason a user could name. Type in a tip is the tip's, wherever it hangs. */
+  font-weight: var(--fw-normal);
   color: var(--fg);
   text-align: center;
   background: var(--surface-raised);
