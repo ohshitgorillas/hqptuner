@@ -24,6 +24,18 @@ import { plainEntry } from "../../store/plainnames.js";
 import { filterFacets } from "../../store/narrow/facets.js";
 import { MARK_LABEL } from "./marks.js";
 
+// The hi-res badge's two strings. Constants rather than copy read through
+// `easyProse`, for the reason marks.js gives about its own labels: prose arrives
+// with the metadata and is empty until it does, and a badge sourced from it
+// would paint an empty pill on first render and fill in a moment later.
+//
+// One string serves as both the hover tip and the badge's accessible name. The
+// badge reads "Hi-Res", which names the thing without saying anything about it,
+// so the sentence is what a screen reader should hear.
+const HIRES_LABEL = "Hi-Res";
+const HIRES_TIP =
+  "Uses a special hi-res-optimized filter at rates above 48 kHz; these filters can also be used for Lossy content";
+
 /**
  * @typedef {import("../../store/easy.js").Preset} Preset
  * @typedef {import("../../store/easy.js").Knob} Knob
@@ -217,12 +229,25 @@ export function PresetTile({ preset, lane, active, knobs }) {
           <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
           <span class="easy-title t-head">${easyProse(preset.id, "title")}</span>
           <span class="easy-cost">
-            ${
-              mark &&
-              html`<span class="easy-apod" data-mark=${mark} data-tip=${MARK_LABEL[mark]}>
-              <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
-            </span>`
-            }
+            <span class="easy-cost-marks">
+              ${
+                mark &&
+                html`<span class="easy-apod" data-mark=${mark} data-tip=${MARK_LABEL[mark]}>
+                <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
+              </span>`
+              }
+              ${
+                preset.hires &&
+                html`<span
+                class="easy-hires"
+                data-testid="easy-hires"
+                role="img"
+                aria-label=${HIRES_TIP}
+                data-tip=${HIRES_TIP}
+                >${HIRES_LABEL}</span
+              >`
+              }
+            </span>
             <span class="easy-cost-rule" aria-hidden="true"></span>
             <${Pips} preset=${preset} lane=${lane} knobs=${knobs} />
           </span>

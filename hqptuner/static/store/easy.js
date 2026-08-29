@@ -22,6 +22,7 @@
  * @property {string} id
  * @property {string} emoji
  * @property {Knob[]} knobs
+ * @property {boolean} [hires] wears the hi-res badge
  *
  * @typedef {string | {pcm: string, sdm: string}} ChainName
  *   One filter name, or the two a preset takes when the chains differ.
@@ -72,8 +73,14 @@ const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "l
  * @type {readonly Preset[]}
  */
 const PRESETS = Object.freeze([
-  { id: "perfect-ten", emoji: "🥇", knobs: [EMPHASIS, MATERIAL] },
-  { id: "lifelike", emoji: "🎻", knobs: [EMPHASIS, MATERIAL] },
+  // `hires` is stated per preset rather than read off the filters, because the
+  // two are not the same set. Detecting it from the filter would ask
+  // `hiresFamily` (store/narrow/facets.js), which matches mqa and mp3 in a name
+  // as well as hires — so Damage Control would wear the badge in its Lossy
+  // positions, where the filter is aimed at a damaged encode rather than at a
+  // high source rate. The badge names the second thing, and only these two.
+  { id: "perfect-ten", emoji: "🥇", hires: true, knobs: [EMPHASIS, MATERIAL] },
+  { id: "lifelike", emoji: "🎻", hires: true, knobs: [EMPHASIS, MATERIAL] },
   { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
   { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
   { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
