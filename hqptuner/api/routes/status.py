@@ -65,7 +65,7 @@ def status(manager: Mgr) -> dict[str, Any]:
     """Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.
 
     503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.
-    Auto-pilot rides along because it moves in the background — the poll loop can switch the filter, and a page that
+    Auto-pilot rides along because it moves in the background — its own task can switch the filter, and a page that
     only asked when it last wrote would show the wrong control. An unreadable auto-pilot store reads as off here and
     says so properly on ``GET /api/autopilot``, so one damaged file cannot take the whole status page down. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays

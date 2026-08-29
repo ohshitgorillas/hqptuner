@@ -1,8 +1,8 @@
 """Auto-pilot REST surface — the high-frequency filter's one app-level switch.
 
-Two routes and no engine write: switching auto-pilot on does not itself move the filter, it only tells the poll loop
-it may. What the filter does next is the poll loop's (``core/autopilotops.py``), so a browser that flips the switch
-sees the change land the way it sees any other background move, through ``GET /api/status``.
+Two routes and no engine write: switching auto-pilot on does not itself move the filter, it only tells auto-pilot's
+own background task it may. What the filter does next is that task's (``core/autopilotops.py``), so a browser that
+flips the switch sees the change land the way it sees any other background move, through ``GET /api/status``.
 
 Switching on is where the baseline is captured — the filter the user was sitting on at that moment, which is what
 auto-pilot returns the engine to whenever the playing track asks for nothing. Captured here rather than in the store

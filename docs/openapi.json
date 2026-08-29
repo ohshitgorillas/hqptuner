@@ -29,6 +29,20 @@
         "title": "ApplyBody",
         "type": "object"
       },
+      "AutopilotBody": {
+        "description": "Auto-pilot's wanted state for ``POST /api/autopilot``.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AutopilotBody",
+        "type": "object"
+      },
       "AutosaveBody": {
         "description": "Carry the on/off flag ``POST /api/autosave`` sets on the preset store.",
         "properties": {
@@ -454,6 +468,66 @@
           }
         },
         "summary": "Autoeq Db"
+      }
+    },
+    "/api/autopilot": {
+      "get": {
+        "description": "Auto-pilot's state and the filter it falls back to.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 reporting \"off\" would be a lie about a file\nthat is there and full.",
+        "operationId": "autopilot_api_autopilot_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Autopilot Api Autopilot Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Autopilot"
+      },
+      "post": {
+        "description": "Switch auto-pilot on or off, and answer with the state that was stored.\n\nSwitching on records the engine's currently engaged junk filter as the baseline; an engine that cannot say what is\nengaged leaves the baseline at nothing engaged, which is the honest reading of an answer we do not have.",
+        "operationId": "set_autopilot_api_autopilot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutopilotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Set Autopilot Api Autopilot Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Autopilot"
       }
     },
     "/api/autosave": {
@@ -1682,7 +1756,7 @@
     },
     "/api/status": {
       "get": {
-        "description": "Return the daemon's Status frame with its track metadata and the junk-filter advisor's recommendation.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.",
+        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An unreadable auto-pilot store reads as off here and\nsays so properly on ``GET /api/autopilot``, so one damaged file cannot take the whole status page down. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\".",
         "operationId": "status_api_status_get",
         "responses": {
           "200": {
