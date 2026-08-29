@@ -7,11 +7,9 @@ beside the favorites and the narrow bar's facets, with their conventions — a s
 than this HQPTuner understands, an unstamped file adopted on its next write, and lazy creation so an install that
 never switches auto-pilot on reads as off.
 
-Three things are stored. ``enabled`` is the current state. ``baseline`` is the junk filter the user was sitting on when
-auto-pilot was switched on, which is what auto-pilot returns the engine to whenever it has no reason to override:
-persisted rather than re-derived at startup, because an HQPTuner restarted while auto-pilot had a filter engaged would
-otherwise adopt that engaged filter as the user's own and never let it go. ``presets`` is the per-config-preset value,
-keyed by preset name, so saving a preset records auto-pilot's state and loading it puts that state back.
+Two things are stored. ``enabled`` is the current state. ``presets`` is the per-config-preset value, keyed by preset
+name, so saving a preset records auto-pilot's state and loading it puts that state back. Nothing here records a filter
+to fall back to, because auto-pilot has none: its resting state is nothing engaged (``lanes/autopilot.py``).
 
 A damaged file costs auto-pilot rather than the app: anything unreadable or wrong-typed reads as off, on the narrow
 bar's reasoning. A too-new stamp is the one thing that raises, because acting on a misread store means writing filter
@@ -24,7 +22,6 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
-from hqptuner.engine.junkadvisor import NO_FILTER
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -87,22 +84,18 @@ class AutopilotStore:
         """Whether auto-pilot is currently on."""
         return self._read_file().get("enabled") is True
 
-    @property
-    def baseline(self) -> str:
-        """The junk filter auto-pilot returns the engine to, or ``none`` where nothing was recorded."""
-        stored = self._read_file().get("baseline")
-        return stored if isinstance(stored, str) else NO_FILTER
+    def enable(self) -> None:
+        """Switch auto-pilot on.
 
-    def enable(self, *, baseline: str) -> None:
-        """Switch auto-pilot on, recording ``baseline`` as the filter to fall back to."""
-        self._write({**self._read_file(), "enabled": True, "baseline": baseline})
+        A ``baseline`` left by an older HQPTuner is dropped rather than carried forward: nothing reads it, and a key
+        the store no longer means anything by is worse on disk than absent.
+        """
+        data = self._read_file()
+        data.pop("baseline", None)
+        self._write({**data, "enabled": True})
 
     def disable(self) -> None:
-        """Switch auto-pilot off, leaving the recorded baseline where it is.
-
-        The baseline outlives the switch on purpose: it is what the engine was put back to, so it stays readable to
-        whatever asks next rather than being cleared by the act of standing down.
-        """
+        """Switch auto-pilot off."""
         self._write({**self._read_file(), "enabled": False})
 
     def for_preset(self, name: str) -> bool:

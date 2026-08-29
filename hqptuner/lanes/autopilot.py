@@ -1,14 +1,16 @@
 """What the high-frequency filter auto-pilot wants engaged, given the track's signature.
 
-A pure decision with no I/O: the caller supplies the latched signature (``engine.metering.MeteringReader.verdict``),
-the baseline the user was sitting on when auto-pilot was switched on, and the active main filter's name. The answer is
-a junk-filter NAME for the caller to write.
+A pure decision with no I/O: the caller supplies the latched signature (``engine.metering.MeteringReader.verdict``)
+and the active main filter's name. The answer is a junk-filter NAME for the caller to write.
 
-The whole rule is ``junkadvisor.treats``, which is why there is no case analysis here. A baseline that already covers
-the signature stays put — and that is also what makes a rate-relative baseline (2x/4x/8x) untouchable, since ``treats``
-counts one as a deliberate choice and never second-guesses it. A main filter from one of the families a spur verdict
-offers covers the signature too, so switching to a hires filter drops the junk filter and switching away brings it
-back.
+Auto-pilot's resting state is nothing engaged. The junk filter is a corrective, not a preference: with auto-pilot on,
+it is engaged for the signature that calls for it and released the moment that signature clears, so a track carrying
+nothing to treat plays through no filter at all. A user who wants to hold a filter of their own switches auto-pilot
+off, which setting the filter by hand already does for them (``api/routes/apply.py``).
+
+The one thing that stays auto-pilot's hand is an active main filter from the families a spur verdict offers: it
+removes the spur by resampling, so switching to a hires filter drops the junk filter and switching away brings it
+back. That is still ``junkadvisor.treats`` and there is no case analysis here.
 """
 
 from __future__ import annotations
@@ -18,14 +20,16 @@ from typing import Any
 from hqptuner.engine import junkadvisor
 
 
-def desired_junk_filter(verdict: dict[str, Any] | None, baseline: str, active_filter: str | None) -> str:
+def desired_junk_filter(verdict: dict[str, Any] | None, active_filter: str | None) -> str:
     """Return the junk-filter NAME auto-pilot wants engaged right now.
 
-    The baseline when there is no verdict, or when the baseline (or the active main filter) already treats the one
-    there is; otherwise the verdict's own filter.
+    Nothing engaged when there is no verdict, or when the active main filter already covers the one there is;
+    otherwise the verdict's own filter. The second question is ``junkadvisor.treats`` asked with nothing engaged,
+    which is exactly what auto-pilot wants to know: would this signature still be treated if the junk filter were let
+    go? Nothing engaged never treats anything by itself, so what is left of the answer is the main filter alone.
     """
-    if verdict is None or junkadvisor.treats(verdict, baseline, active_filter):
-        return baseline
+    if verdict is None or junkadvisor.treats(verdict, junkadvisor.NO_FILTER, active_filter):
+        return junkadvisor.NO_FILTER
     return str(verdict["filter"])
 
 
@@ -39,19 +43,4 @@ def junk_filter_index(items: list[dict[str, str]], name: str) -> str | None:
         if item.get("name") == name:
             index = item.get("index")
             return None if index is None else str(index)
-    return None
-
-
-def junk_filter_name(items: list[dict[str, str]], index: str | None) -> str | None:
-    """Return the running enumeration's junk-filter name at this list index, or None when it carries no such index.
-
-    The join the other way, for the places that hold an index and need the name the decision above speaks in — a
-    stored preset's field, say, whose index means whatever the enumeration says it means today.
-    """
-    if index is None:
-        return None
-    for item in items:
-        if str(item.get("index")) == str(index):
-            name = item.get("name")
-            return None if name is None else str(name)
     return None
