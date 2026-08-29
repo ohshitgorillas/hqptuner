@@ -2,6 +2,11 @@
 
 Four layers, each driven at the smallest surface that reaches it.
 
+Auto-pilot switched on means the resting junk filter is `none`: it engages only
+what a track's signature asks for, and releases back to `none` as soon as the
+verdict clears. There is no baseline anywhere — not in the store, not in the
+decision, not in a payload.
+
 `desired_junk_filter` is pure, so the decision cases hand it verdicts built by
 `junkadvisor.classify` over the synthesized spectra in `junk_spectra` — never a
 hand-written verdict dict, which would pin this suite to a shape the advisor is
@@ -11,17 +16,25 @@ The acting cases call `core.autopilotops.act` directly against a real
 `ConnectionManager` on the fake control daemon, with a real `MeteringReader`
 attached to it the way the app's lifespan attaches one, fed by the fake 4322
 stream speaking real binary frames (`fake_metering`, protocol.md §7). One `act`
-is one decision and at most one write, so there is no poll loop to turn over,
-and the fixture hands back a manager whose advisor already has a verdict — a
-fixed batch of frames, waited out on the reader's own recommendation rather than
-on a clock, so a negative case is never a case where nothing had been advised
-yet.
+is one decision and at most one write, so there is no poll loop to turn over.
+The fixture takes the number of frames to feed: a covering batch hands back a
+manager whose advisor already has a verdict — waited out on the reader's own
+recommendation rather than on a clock, so a case is never one where nothing had
+been advised yet — and zero frames hands back one that will never earn a
+verdict, which is the resting case.
 
 A negative here ("the junk filter is never written") is asserted on the daemon's
-own command log, not on a State readback: the baseline in most of these cases is
-the `none` the engine already sits at, so a loop that rewrites the baseline every
-pass reads back exactly like one that writes nothing. `SetJunkFilter` reaching
-the daemon at all is the observable.
+own command log, not on a State readback: the engine in most of these cases
+already sits at the `none` auto-pilot rests on, so a loop that rewrites `none`
+every pass reads back exactly like one that writes nothing. `SetJunkFilter`
+reaching the daemon at all is the observable.
+
+One gap, stated rather than papered over: "a verdict plus an active main filter
+from its families rests on `none`" is pinned on `desired_junk_filter` only. At
+the acting layer it has no distinct observable — the one verdict the metering
+fixture can earn off `FAKE_HIRES_FRAME` offers no families at all, and for a
+spur verdict an active hi-res filter is exactly the condition the advisor goes
+quiet under, which is already the no-verdict case below.
 """
 
 import asyncio
@@ -43,7 +56,7 @@ from hqptuner.core.autopilotops import act
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import classify
 from hqptuner.engine.metering import MeteringReader, context_from
-from hqptuner.lanes.autopilot import desired_junk_filter, junk_filter_index, junk_filter_name
+from hqptuner.lanes.autopilot import desired_junk_filter, junk_filter_index
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotSchemaError, AutopilotStore
 from hqptuner.presets.store.presets import PresetStore
@@ -73,10 +86,18 @@ ITEMS = [
 
 METADATA_96K_PCM = '<metadata samplerate="96000" sdm="0"/>'
 
+#: An engine build whose junk-filter enumeration carries the rate-relative
+#: corners, in this order — index 1 is 2x, 2 is 4x, 3 is 8x, and 0 is `none`.
+RATE_RELATIVE_ENUM = "none 2x 4x 8x 20k"
+
 #: 60 frames at 0.7 s of coverage apiece ≈ 42 s, comfortably past the advisor's
 #: minimum — a bounded batch, so the evidence is a fact about what crossed the
 #: socket rather than about how long the test ran.
 COVERING_FRAMES = 60
+
+#: The hi-res filter families the spur verdict offers as an alternative to a
+#: corner; an active main filter from one of them covers the signature.
+HIRES_FILTERS = ["poly-sinc-gauss-hires-lp", "poly-sinc-ext2-hires-mp"]
 
 
 async def _instant(_seconds: float) -> None:
@@ -87,32 +108,22 @@ async def _instant(_seconds: float) -> None:
 # --- the decision (pure) ----------------------------------------------------
 
 
-def test_no_verdict_leaves_the_engine_on_the_baseline() -> None:
-    assert desired_junk_filter(None, "30k", None) == "30k"
+@pytest.mark.parametrize("active", [None, "poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"])
+def test_no_verdict_rests_on_none(active: str | None) -> None:
+    assert desired_junk_filter(None, active) == "none"
 
 
-def test_a_verdict_the_baseline_does_not_treat_asks_for_the_verdicts_filter() -> None:
-    assert desired_junk_filter(BRICKWALL, "none", None) == "20k"
-
-
-def test_a_verdict_the_baseline_already_treats_leaves_the_baseline_alone() -> None:
-    # the 20k corner sits below the spur verdict's recommended 30k, so it
-    # already covers the signature and nothing is overridden
-    assert desired_junk_filter(SPUR, "20k", None) == "20k"
-
-
-@pytest.mark.parametrize("baseline", ["2x", "4x", "8x"])
-def test_a_rate_relative_baseline_is_never_overridden(baseline: str) -> None:
-    assert desired_junk_filter(BRICKWALL, baseline, None) == baseline
-
-
-@pytest.mark.parametrize("active", ["poly-sinc-gauss-hires-lp", "poly-sinc-ext2-hires-mp"])
-def test_an_active_filter_from_the_verdicts_families_leaves_the_baseline_alone(active: str) -> None:
-    assert desired_junk_filter(SPUR, "none", active) == "none"
+def test_a_verdict_nothing_covers_asks_for_the_verdicts_filter() -> None:
+    assert desired_junk_filter(BRICKWALL, None) == "20k"
 
 
 def test_an_active_filter_outside_the_verdicts_families_asks_for_the_verdicts_filter() -> None:
-    assert desired_junk_filter(SPUR, "none", "poly-sinc-gauss-long") == "30k"
+    assert desired_junk_filter(SPUR, "poly-sinc-gauss-long") == "30k"
+
+
+@pytest.mark.parametrize("active", HIRES_FILTERS)
+def test_an_active_filter_from_the_verdicts_families_rests_on_none(active: str) -> None:
+    assert desired_junk_filter(SPUR, active) == "none"
 
 
 # --- resolving names against the running enumeration ------------------------
@@ -122,12 +133,7 @@ def test_a_name_the_enumeration_does_not_carry_resolves_to_no_index() -> None:
     assert junk_filter_index(ITEMS, "50k") is None
 
 
-@pytest.mark.parametrize("index", ["9", None])
-def test_an_index_the_enumeration_does_not_carry_resolves_to_no_name(index: str | None) -> None:
-    assert junk_filter_name(ITEMS, index) is None
-
-
-# --- acting: a manager whose advisor has a live verdict ---------------------
+# --- acting: a manager on the fake daemon, with or without a verdict --------
 
 Advising = Callable[..., Any]
 
@@ -135,16 +141,21 @@ Advising = Callable[..., Any]
 @pytest.fixture
 async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advising]:
     """A running manager whose control lane is the fake daemon and whose
-    advisor has already earned a verdict off the fake metering stream.
+    advisor has been fed `frames` metering frames off the fake stream.
 
-    Keyword arguments are the daemon's State overrides, as for `live_manager`.
-    The engine is reported playing a 96 kHz PCM track, because the reader only
-    holds the metering socket while something is playing (protocol.md §7)."""
+    A covering batch (the default) earns a verdict before the fixture hands the
+    manager back; zero frames means no verdict will ever be earned, which is the
+    resting case. Keyword arguments are the daemon's State overrides, as for
+    `live_manager`. The engine is reported playing a 96 kHz PCM track, because
+    the reader only holds the metering socket while something is playing
+    (protocol.md §7)."""
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
     readers: list[tuple[MeteringReader, asyncio.Task[None]]] = []
     streams: list[MeteringStream] = []
 
-    async def build(**overrides: str) -> tuple[ConnectionManager, CommandLog, dict[str, str]]:
+    async def build(
+        frames: int = COVERING_FRAMES, **overrides: str
+    ) -> tuple[ConnectionManager, CommandLog, dict[str, str]]:
         port, log, state = await daemon(state="2", _metadata=METADATA_96K_PCM, **overrides)
         stream = MeteringStream()
         streams.append(stream)
@@ -170,8 +181,9 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
         reader = MeteringReader("127.0.0.1", metering_port, lambda: context_from(manager), sleep=_instant)
         manager.metering = reader
         readers.append((reader, asyncio.create_task(reader.run())))
-        stream.send(FAKE_HIRES_FRAME, count=COVERING_FRAMES)
-        await eventually(lambda: reader.recommendation() is not None)
+        if frames:
+            stream.send(FAKE_HIRES_FRAME, count=frames)
+            await eventually(lambda: reader.recommendation() is not None)
         return manager, log, state
 
     yield build
@@ -198,13 +210,53 @@ def engaged(manager: ConnectionManager) -> str | None:
     return None if context is None else context.junk_filter
 
 
+async def test_no_verdict_leaves_the_engine_sitting_on_none(advising: Advising) -> None:
+    # the user's own 20k corner is not a baseline to return to: with nothing
+    # advised, auto-pilot's resting place is `none`
+    manager, _log, state = await advising(frames=0, filter_junk="1")
+    await eventually(lambda: engaged(manager) == "20k")
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert state["filter_junk"] == "0"
+
+
 async def test_an_untreated_verdict_engages_the_recommended_filter(advising: Advising) -> None:
     # 20k is index 1 of the fake's built-in enumeration; that the index is
     # resolved against the RUNNING list is the whole point of writing one
     manager, log, _ = await advising()
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await act(manager)
     assert junk_writes(log) == ["1"]
+
+
+async def test_a_fixed_corner_is_released_when_no_verdict_asks_for_it(advising: Advising) -> None:
+    # index 2 of the built-in enumeration is the 30k corner; index 0 is `none`
+    manager, log, _ = await advising(frames=0, filter_junk="2")
+    await eventually(lambda: engaged(manager) == "30k")
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert junk_writes(log) == ["0"]
+
+
+@pytest.mark.parametrize(("name", "index"), [("2x", "1"), ("4x", "2"), ("8x", "3")])
+async def test_a_rate_relative_filter_is_released_when_no_verdict_asks_for_it(
+    advising: Advising, name: str, index: str
+) -> None:
+    # rate-relative corners are no longer protected inside auto-pilot: on means
+    # the resting filter is `none`, whatever the user left engaged
+    manager, log, _ = await advising(frames=0, _junk_filters=RATE_RELATIVE_ENUM, filter_junk=index)
+    await eventually(lambda: engaged(manager) == name)
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert junk_writes(log) == ["0"]
+
+
+async def test_an_engine_already_resting_on_none_is_never_written_to(advising: Advising) -> None:
+    manager, log, _ = await advising(frames=0)
+    await eventually(lambda: engaged(manager) == "none")
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert junk_writes(log) == []
 
 
 async def test_auto_pilot_switched_off_never_writes_the_junk_filter(advising: Advising) -> None:
@@ -213,25 +265,11 @@ async def test_auto_pilot_switched_off_never_writes_the_junk_filter(advising: Ad
     assert junk_writes(log) == []
 
 
-async def test_a_baseline_that_already_treats_the_verdict_writes_nothing(advising: Advising) -> None:
-    # the user was already sitting on the 20k corner when they switched
-    # auto-pilot on, and that corner covers this signature: nothing to do. The
-    # engine is moved onto it after the verdict is earned, because a filter that
-    # is already treating the track is exactly the case the advisor goes quiet
-    # for, and the baseline still has to be left alone when it does.
-    manager, log, state = await advising()
-    state["filter_junk"] = "1"
-    await eventually(lambda: engaged(manager) == "20k")
-    manager.presetops.autopilot.enable(baseline="20k")
-    await act(manager)
-    assert junk_writes(log) == []
-
-
 async def test_a_filter_absent_from_the_running_enumeration_is_never_written(advising: Advising) -> None:
     # this engine build offers no 20k corner at all; an index resolved against a
     # list it does not serve would engage a filter nobody asked for
     manager, log, _ = await advising(_junk_filters="none 30k")
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await act(manager)
     assert junk_writes(log) == []
 
@@ -240,7 +278,7 @@ async def test_a_store_stamped_newer_than_understood_writes_nothing(advising: Ad
     # switched on first, so the only thing standing between this verdict and a
     # write is the stamp: a build that read the file anyway would engage 20k
     manager, log, _ = await advising()
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     (tmp_path / "autopilot.json").write_text(json.dumps({"schema": 99}))
     await act(manager)
     assert junk_writes(log) == []
@@ -250,7 +288,7 @@ async def test_a_refused_write_leaves_auto_pilot_enabled(advising: Advising) -> 
     # the engine says no; that is the engine's business, not a reason to hand
     # the user back a switch they never touched
     manager, _log, _ = await advising(_error="SetJunkFilter")
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await act(manager)
     assert manager.presetops.autopilot.enabled is True
 
@@ -266,19 +304,44 @@ def seed(tmp_path: Path, body: str) -> None:
     (tmp_path / "autopilot.json").write_text(body)
 
 
+def stored(tmp_path: Path) -> dict[str, Any]:
+    """The store's file as it sits on disk."""
+    loaded: dict[str, Any] = json.loads((tmp_path / "autopilot.json").read_text())
+    return loaded
+
+
+def add_leftover_baseline(tmp_path: Path) -> None:
+    """Put a `baseline` key back into a store file written by this build — what
+    a file written by an older HQPTuner carries."""
+    seed(tmp_path, json.dumps({**stored(tmp_path), "baseline": "30k"}))
+
+
 def test_a_store_that_was_never_written_reports_off(tmp_path: Path) -> None:
     assert store(tmp_path).enabled is False
 
 
-def test_enabling_records_the_baseline_it_was_handed(tmp_path: Path) -> None:
-    store(tmp_path).enable(baseline="30k")
-    assert store(tmp_path).baseline == "30k"
+def test_enabling_turns_auto_pilot_on(tmp_path: Path) -> None:
+    store(tmp_path).enable()
+    assert store(tmp_path).enabled is True
 
 
 def test_disabling_turns_auto_pilot_off(tmp_path: Path) -> None:
-    store(tmp_path).enable(baseline="30k")
+    store(tmp_path).enable()
     store(tmp_path).disable()
     assert store(tmp_path).enabled is False
+
+
+def test_a_leftover_baseline_key_reads_as_the_state_it_was_stored_with(tmp_path: Path) -> None:
+    store(tmp_path).enable()
+    add_leftover_baseline(tmp_path)
+    assert store(tmp_path).enabled is True
+
+
+def test_writing_over_a_leftover_baseline_key_drops_it(tmp_path: Path) -> None:
+    store(tmp_path).enable()
+    add_leftover_baseline(tmp_path)
+    store(tmp_path).enable()
+    assert "baseline" not in stored(tmp_path)
 
 
 def test_a_store_stamped_newer_than_understood_is_refused_on_read(tmp_path: Path) -> None:
@@ -290,7 +353,7 @@ def test_a_store_stamped_newer_than_understood_is_refused_on_read(tmp_path: Path
 def test_a_store_stamped_newer_than_understood_is_refused_on_write(tmp_path: Path) -> None:
     seed(tmp_path, json.dumps({"schema": 99}))
     with pytest.raises(AutopilotSchemaError):
-        store(tmp_path).enable(baseline="none")
+        store(tmp_path).enable()
 
 
 def test_a_file_that_is_not_a_json_object_reports_off(tmp_path: Path) -> None:
@@ -337,10 +400,28 @@ def autopilot_api(tmp_path: Path) -> Iterator[ApiFactory]:
         next(spawned, None)
 
 
-def test_switching_on_records_the_engaged_junk_filter_as_the_baseline(autopilot_api: ApiFactory) -> None:
-    # index 2 of the fake's enumeration is the 30k corner
+def test_switching_on_answers_switched_on(autopilot_api: ApiFactory) -> None:
+    # the engine is sitting on the 30k corner, which auto-pilot no longer has
+    # any opinion about at the moment it is switched on
     client = autopilot_api(filter_junk="2")
-    assert client.post("/api/autopilot", json={"enabled": True}).json()["baseline"] == "30k"
+    assert client.post("/api/autopilot", json={"enabled": True}).json()["enabled"] is True
+
+
+def test_switching_on_answers_no_baseline(autopilot_api: ApiFactory) -> None:
+    client = autopilot_api(filter_junk="2")
+    assert "baseline" not in client.post("/api/autopilot", json={"enabled": True}).json()
+
+
+def test_reading_the_state_answers_what_was_stored(autopilot_api: ApiFactory) -> None:
+    client = autopilot_api()
+    client.post("/api/autopilot", json={"enabled": True})
+    assert client.get("/api/autopilot").json()["enabled"] is True
+
+
+def test_reading_the_state_answers_no_baseline(autopilot_api: ApiFactory) -> None:
+    client = autopilot_api()
+    client.post("/api/autopilot", json={"enabled": True})
+    assert "baseline" not in client.get("/api/autopilot").json()
 
 
 def test_setting_the_junk_filter_by_hand_switches_auto_pilot_off(autopilot_api: ApiFactory) -> None:
@@ -410,7 +491,7 @@ async def test_saving_a_general_preset_records_auto_pilot_under_its_own_name(
     http_manager_factory: Callable[..., ConnectionManager], http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager = preset_manager(http_manager_factory, http_daemon, tmp_path)
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await manager.presetops.save_preset("Studio")
     assert manager.presetops.autopilot.for_preset("Studio") is True
 
@@ -420,7 +501,7 @@ async def test_saving_a_general_preset_records_nothing_for_a_preset_it_did_not_s
 ) -> None:
     # a store that answered the same for every name would have recorded nothing
     manager = preset_manager(http_manager_factory, http_daemon, tmp_path)
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await manager.presetops.save_preset("Studio")
     assert manager.presetops.autopilot.for_preset("Den") is False
 
@@ -429,7 +510,7 @@ async def test_loading_a_general_preset_restores_the_auto_pilot_state_it_was_sav
     http_manager_factory: Callable[..., ConnectionManager], http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager = preset_manager(http_manager_factory, http_daemon, tmp_path)
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await manager.presetops.save_preset("Studio")
     manager.presetops.autopilot.disable()
     await manager.presetops.load_preset("Studio")
@@ -444,6 +525,6 @@ async def test_an_auto_save_records_auto_pilot_under_the_active_presets_name(
     manager = preset_manager(http_manager_factory, http_daemon, tmp_path)
     await manager.presetops.save_preset("Studio")
     PresetStore(tmp_path / "presets").set_autosave(enabled=True)
-    manager.presetops.autopilot.enable(baseline="none")
+    manager.presetops.autopilot.enable()
     await presetlane.autosave(manager)
     assert manager.presetops.autopilot.for_preset("Studio") is True
