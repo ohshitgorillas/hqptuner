@@ -472,7 +472,7 @@
     },
     "/api/autopilot": {
       "get": {
-        "description": "Auto-pilot's state and the filter it falls back to.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 reporting \"off\" would be a lie about a file\nthat is there and full.",
+        "description": "Auto-pilot's state.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 reporting \"off\" would be a lie about a file\nthat is there and full.",
         "operationId": "autopilot_api_autopilot_get",
         "responses": {
           "200": {
@@ -491,7 +491,7 @@
         "summary": "Autopilot"
       },
       "post": {
-        "description": "Switch auto-pilot on or off, and answer with the state that was stored.\n\nSwitching on records the engine's currently engaged junk filter as the baseline; an engine that cannot say what is\nengaged leaves the baseline at nothing engaged, which is the honest reading of an answer we do not have.",
+        "description": "Switch auto-pilot on or off, and answer with the state that was stored.\n\nNeither direction reads the engine: what is engaged when the switch is flipped has no bearing on what auto-pilot\ndoes next.",
         "operationId": "set_autopilot_api_autopilot_post",
         "requestBody": {
           "content": {

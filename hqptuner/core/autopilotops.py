@@ -30,13 +30,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _baseline(mgr: ConnectionManager) -> str | None:
-    """Return the filter auto-pilot falls back to, or None when it is switched off or its state cannot be read."""
+def _enabled(mgr: ConnectionManager) -> bool:
+    """Return whether auto-pilot is on, and False when its state cannot be read at all."""
     try:
-        return mgr.presetops.autopilot.baseline if mgr.presetops.autopilot.enabled else None
+        return mgr.presetops.autopilot.enabled
     except AutopilotError as exc:
         log.warning("auto-pilot state unreadable: %s", exc)
-        return None
+        return False
 
 
 def _junk_filters(mgr: ConnectionManager) -> list[dict[str, str]]:
@@ -51,13 +51,13 @@ def _move(mgr: ConnectionManager) -> tuple[str, str | None] | None:
     or no stream to read), an engine that is not answering, a state file that cannot be read, and the ordinary case of
     the engaged filter already being the wanted one.
     """
-    reader, baseline = mgr.metering, _baseline(mgr)
-    if reader is None or baseline is None:
+    reader = mgr.metering
+    if reader is None or not _enabled(mgr):
         return None
     ctx = context_from(mgr)
     if ctx is None:
         return None
-    want = autopilot.desired_junk_filter(reader.verdict(), baseline, ctx.filter)
+    want = autopilot.desired_junk_filter(reader.verdict(), ctx.filter)
     return None if want == ctx.junk_filter else (want, ctx.junk_filter)
 
 

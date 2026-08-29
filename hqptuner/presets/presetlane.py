@@ -23,7 +23,6 @@ import httpx
 
 from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
-from hqptuner.engine.junkadvisor import NO_FILTER
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets.store.autopilot import AutopilotError
@@ -93,15 +92,14 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
 
 def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
-    """Put auto-pilot back to what this preset carries, baselined on nothing engaged.
+    """Put auto-pilot back to what this preset carries.
 
-    The baseline is not read from the engine because the restore above restarted it and Status is refreshed by the
-    poll loop, not here — reading it would give the filter the previous engine had. Nothing engaged is the honest
-    stand-in: hqplayerd's config has no junk-filter field, so a config preset cannot claim to carry one either way.
+    hqplayerd's config has no junk-filter field, so a config preset carries auto-pilot's state and nothing about the
+    filter itself; auto-pilot settles the filter on its own from the next tick.
     """
     try:
         if mgr.presetops.autopilot.for_preset(name):
-            mgr.presetops.autopilot.enable(baseline=NO_FILTER)
+            mgr.presetops.autopilot.enable()
         else:
             mgr.presetops.autopilot.disable()
     except AutopilotError as exc:

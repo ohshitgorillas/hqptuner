@@ -12,8 +12,6 @@ from fastapi import APIRouter, HTTPException, Request
 from hqptuner.api.deps import Mgr
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
-from hqptuner.engine.junkadvisor import NO_FILTER
-from hqptuner.lanes import autopilot
 from hqptuner.lanes.live import chain, lane, routing, snapshot
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
@@ -31,18 +29,16 @@ def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
 
 
 def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> None:
-    """Put auto-pilot back to what this record carries, baselined on the junk filter the record just applied.
+    """Put auto-pilot back to what this record carries.
 
-    The baseline comes from the record rather than from the engine because Status is only refreshed by the poll loop
-    and still describes the filter that was engaged a moment ago; the record's own field is what the lane just wrote.
-    A record from before auto-pilot existed carries no such key and reads as off.
+    A record from before auto-pilot existed carries no such key and reads as off. A record that carries auto-pilot on
+    and a junk filter of its own applies both, and auto-pilot then releases that filter on its next tick unless the
+    playing track asks for it — which is what auto-pilot being on means.
     """
-    if record.get("autopilot") is not True:
+    if record.get("autopilot") is True:
+        manager.presetops.autopilot.enable()
+    else:
         manager.presetops.autopilot.disable()
-        return
-    items = (manager.enums or {}).get("junk_filters") or []
-    engaged = autopilot.junk_filter_name(items, (record.get("fields") or {}).get("junk_filter"))
-    manager.presetops.autopilot.enable(baseline=engaged or NO_FILTER)
 
 
 @router.get("/livepresets")
