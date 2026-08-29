@@ -1,19 +1,9 @@
 /* Easy Mode — the card that stands in for the narrowing and chain cards.
-   Three parts, top to bottom: the Album/Playlist switcher, the grid of preset
-   tiles, and the way back to the full controls.
+   Two parts, top to bottom: the grid of preset tiles and the way back to the
+   full controls.
 
    The card frame, its title and the simplification notice under it are all the
    shared Card's (components/common.js, cards.css); nothing here repaints them. */
-
-/* The switcher is the first thing in the card and the thing the directive asks
-   to be unmissable, so it is centered on the card rather than left-aligned with
-   the controls below it. It is a plain .segment at the app's ONE segment size —
-   the Matrix banner's exemption is named for that banner and is not borrowed
-   here (docs/design-system.md). */
-.easy-switcher {
-  display: flex;
-  justify-content: center;
-}
 
 /* The tile grid. The column count is not written down: tiles are laid at a
    minimum width and the row fills with however many fit, which is what keeps
@@ -214,14 +204,51 @@
   border-radius: 0 var(--r-md) var(--r-md) 0;
 }
 
-/* The error-correction mark, on the tile's bottom edge under the knobs. The
-   tile is a flex column whose picking half takes the row's slack, so this lands
-   on the floor and the marks line up across a row whatever each tile holds
-   above them. The mark itself is drawn by controls/apod.css; this is where it
-   sits. */
+/* The error-correction mark and the resource pips, one row under the name. Its
+   height is fixed at two pip rows and does not depend on what it holds: the
+   pips are the one thing on a tile whose count varies wildly (one pip to
+   thirteen), and a row that grew for the heaviest preset would push that tile's
+   description down out of line with every other tile in the grid. */
+.easy-cost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: calc(2 * var(--pip-size) + var(--sp-1));
+}
+
+/* The mark itself is drawn by controls/apod.css; this is where it sits. */
 .easy-apod {
   display: inline-flex;
   position: relative;
+}
+
+/* What the preset costs the machine: a word and a count of pips. The words take
+   the label role, so the row reads as a name and its value rather than as
+   decoration. */
+.easy-pips {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* Seven pips to a row, so thirteen breaks 7 over 6 and every count below that
+   stays on one. A grid rather than a wrapping flex: the column count is the
+   whole point, and wrapping would put it at the mercy of the tile's width. */
+.easy-pips-dots {
+  display: grid;
+  grid-template-columns: repeat(7, auto);
+  gap: var(--sp-1);
+  align-content: center;
+  justify-content: center;
+}
+
+/* One pip. A dot, in the same gray the label beside it takes. */
+.easy-pip {
+  width: var(--pip-size);
+  height: var(--pip-size);
+  background: var(--fg-2);
+  border-radius: var(--r-circle);
 }
 
 /* The subtitle holds two things now, the paragraph and the link under it, so it

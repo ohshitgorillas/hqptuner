@@ -1,130 +1,83 @@
 {
-  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by grid, then preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no grid or preset, because one position means one thing wherever it is offered; its Space and Transients entries repeat two of `help.body`'s paragraphs verbatim, and both places have to move together. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
+  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no preset, because one position means one thing wherever it is offered; its Space and Transients entries repeat two of `help.body`'s paragraphs verbatim, and both places have to move together. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
   "notice": "Easy Mode dramatically simplifies the process of filter selection, an otherwise nuanced topic. Only a few of HQPlayer's filters are accessible here, so think of Easy Mode like training wheels and don't be afraid to experiment.",
   "help": {
     "link": "Still confused?",
     "title": "Easy Mode, explained",
-    "body": "Select Playlist for a mix of content quality and sources back-to-back, or Album for consistent production and quality, then pick your preset and its emphasis or version.\n\nChoose 'Space' for live or acoustic performances where the room or venue is part of the recording. These filters emphasize accuracy in the upper octaves where our ears perceive spatial cues.\n\n'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\n'Hi-Res' modes are optimized for material with a sampling rate ≥88.2 kHz rather than any 24-bit content. These modes also work for lossy material like MQAs and MP3s. 'Auto' uses the correct filter automatically for lossless content; set to 'Hi-Res' for lossy material.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
+    "body": "Choose 'Space' for live or acoustic performances where the room or venue is part of the recording. These filters emphasize accuracy in the upper octaves where our ears perceive spatial cues.\n\n'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\n'Hi-Res' modes are optimized for material with a sampling rate ≥88.2 kHz rather than any 24-bit content. These modes also work for lossy material like MQAs and MP3s. 'Auto' uses the correct filter automatically for lossless content; set to 'Hi-Res' for lossy material.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
   },
   "tips": {
     "emphasis": {
       "space": "Choose 'Space' for live or acoustic performances where the room or venue is part of the recording. These filters emphasize accuracy in the upper octaves where our ears perceive spatial cues.",
       "transients": "'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction."
     },
-    "source": {
-      "auto": "Use a filter optimized for hi-res content only at those rates.",
-      "standard": "Use the standard filter for all content.",
-      "hires": "Use filters optimized for content ≥88.2 kHz or lossy material."
-    },
     "version": {
       "perfect-ten": "A variant of 'The Perfect Ten'.",
       "lifelike": "A variant of 'Lifelike'."
     }
   },
-  "playlist": {
-    "perfect-ten": {
-      "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
-      }
-    },
-    "lifelike": {
-      "title": "Lifelike",
-      "description": "Puts the focus on natural, realistic timbre. Excellent with live performances.",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
-      }
-    },
-    "lossy": {
-      "title": "Lossy Mode",
-      "description": "Make the most of lossy playlists, streams, or files such as MQA or MP3.",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
+  "perfect-ten": {
+    "title": "The Perfect Ten",
+    "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
     }
   },
-  "album": {
-    "perfect-ten": {
-      "title": "The Perfect Ten",
-      "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
-      "knobs": {
-        "source": {
-          "label": "Source",
-          "options": { "auto": "Auto", "standard": "Standard", "hires": "Hi-Res" }
-        },
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
+  "lifelike": {
+    "title": "Lifelike",
+    "description": "Puts the focus on natural, realistic timbre. Excellent with live performances.",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
-    },
-    "lifelike": {
-      "title": "Lifelike",
-      "description": "Puts the focus on natural, realistic timbre. Excellent with live performances.",
-      "knobs": {
-        "source": {
-          "label": "Source",
-          "options": { "auto": "Auto", "standard": "Standard", "hires": "Hi-Res" }
-        },
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
+    }
+  },
+  "old-school": {
+    "title": "Old School",
+    "description": "Best for classic-era analog recordings. Try it with modern content, too!",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
-    },
-    "old-school": {
-      "title": "Old School",
-      "description": "Best for classic-era analog recordings. Try it with modern content, too!",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
+    }
+  },
+  "purist": {
+    "title": "The Purist",
+    "description": "Passes the original samples through unchanged. Only for the highest technical quality source material.",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
-    },
-    "purist": {
-      "title": "The Purist",
-      "description": "Passes the original samples through unchanged. Only for the highest technical quality source material.",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
+    }
+  },
+  "damage-control": {
+    "title": "Damage Control",
+    "description": "Aggressive clean-up for loudness war-era and other less-than-good material.",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
-    },
-    "damage-control": {
-      "title": "Damage Control",
-      "description": "Aggressive clean-up for loudness war-era and other less-than-good material.",
-      "knobs": {
-        "emphasis": {
-          "label": "Emphasis",
-          "options": { "space": "Space", "transients": "Transients" }
-        }
-      }
-    },
-    "concert-hall": {
-      "title": "The Concert Hall",
-      "description": "Heavily emphasizes space at the cost of transients. For material with minimal transients like live classical.",
-      "knobs": {
-        "version": {
-          "label": "Version",
-          "options": { "perfect-ten": "The Perfect Ten", "lifelike": "Lifelike" }
-        },
-        "correction": {
-          "label": "Error correction",
-          "tip": "Disabling error correction reduces resource consumption.",
-          "options": { "on": "On", "off": "Off" }
-        }
+    }
+  },
+  "concert-hall": {
+    "title": "The Concert Hall",
+    "description": "Heavily emphasizes space at the cost of transients. For material with minimal transients like live classical.",
+    "knobs": {
+      "version": {
+        "label": "Version",
+        "options": { "perfect-ten": "The Perfect Ten", "lifelike": "Lifelike" }
+      },
+      "correction": {
+        "label": "Error correction",
+        "tip": "Disabling error correction reduces resource consumption.",
+        "options": { "on": "On", "off": "Off" }
       }
     }
   }

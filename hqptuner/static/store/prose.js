@@ -44,9 +44,9 @@ import { notesVisible } from "./prefs.js";
  * @property {{ sdm_modulators?: Record<string, OverlayEntry>,
  *   pcm_dithers?: Record<string, OverlayEntry> }} [shapers]
  * @property {Record<string, Record<string, ControlProse>>} [settings]
- * @property {Record<string, unknown>} [easy] Easy Mode's tile copy, a nested tree keyed by grid,
- *   preset id and knob id (data/easy-presets.json). Deliberately not typed further: the tiles that
- *   read the leaves arrive in a later phase, and a shape written before them would be a guess.
+ * @property {Record<string, unknown>} [easy] Easy Mode's tile copy, a nested tree keyed by preset id
+ *   and knob id (data/easy-presets.json). Deliberately not typed further: the tiles that read the
+ *   leaves arrive in a later phase, and a shape written before them would be a guess.
  */
 
 /**
@@ -67,7 +67,7 @@ export function describe(entry, key) {
 // cards read it from here rather than fetching the file themselves.
 /**
  * Easy Mode's copy, addressed by its path through data/easy-presets.json —
- * `easyProse("notice")`, `easyProse("album", "purist", "title")`. Empty when
+ * `easyProse("notice")`, `easyProse("purist", "title")`. Empty when
  * anything on the path is missing or is not a string, so a card renders without
  * the sentence rather than with the word "undefined" where it should have been.
  *

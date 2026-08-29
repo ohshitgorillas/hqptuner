@@ -17,7 +17,7 @@ import { Segment } from "../controls/index.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
 import { rememberKnobs } from "../../store/easyview.js";
-import { writeSet } from "../../store/easy.js";
+import { pipsFor, writeSet } from "../../store/easy.js";
 import { easyLane } from "../../store/easylane.js";
 import { filterFacets } from "../../store/narrow/facets.js";
 import { MARK_LABEL } from "./marks.js";
@@ -34,19 +34,18 @@ import { MARK_LABEL } from "./marks.js";
  * Write one preset's filters at the given knob positions, through this page's lane.
  *
  * @param {string} lane
- * @param {string} grid
  * @param {string} presetId
  * @param {Record<string, string>} knobs
  * @returns {Promise<void>}
  */
-async function applyPreset(lane, grid, presetId, knobs) {
+async function applyPreset(lane, presetId, knobs) {
   // Recorded before the write, not after: the positions are what the user asked
   // for, and a write that resolves no filter name still leaves the tile showing
   // where they put its knobs. Unconditional, so a press that writes nothing
   // still moves the record.
-  rememberKnobs(grid, presetId, knobs);
+  rememberKnobs(presetId, knobs);
   const l = easyLane(lane);
-  for (const [key, name] of Object.entries(writeSet(grid, presetId, l.mode, knobs))) {
+  for (const [key, name] of Object.entries(writeSet(presetId, l.mode, knobs))) {
     // A field already holding this filter is skipped. On LIVE every write is a
     // POST the engine acts on, so writing a value a field already holds reloads
     // that filter and interrupts playback to arrive where it already was.
@@ -68,13 +67,12 @@ async function applyPreset(lane, grid, presetId, knobs) {
 // from a table here: apodizing is a fact about a filter, and a preset naming it
 // again is a second place to keep true.
 /**
- * @param {string} grid
  * @param {string} presetId
  * @param {Record<string, string>} knobs
  * @returns {"full" | "half" | "none" | undefined} undefined when nothing is known about the filter
  */
-function markFor(grid, presetId, knobs) {
-  const name = Object.values(writeSet(grid, presetId, "pcm", knobs))[0];
+function markFor(presetId, knobs) {
+  const name = Object.values(writeSet(presetId, "pcm", knobs))[0];
   const facet = name ? filterFacets.value[name] : undefined;
   if (!facet) return undefined;
   if (facet.apodizing) return "full";
@@ -88,23 +86,23 @@ function markFor(grid, presetId, knobs) {
 // A knob may carry a tip: one sentence about what its positions cost, for the
 // knobs where the choice is not self-evident from the two words on the segment.
 // The words are shown on hover and named as the knob's description, so the tip
-// reaches a screen reader rather than only a pointer. The id is grid, preset and
-// knob, which is unique in a grid of tiles because a preset appears once in one.
+// reaches a screen reader rather than only a pointer. The id is preset and knob,
+// which is unique in the grid because a preset appears in it once.
 //
 // A position may carry a tip of its own, saying what picking that one does. That
 // copy is keyed by knob and option alone, outside any preset: the same 'Space'
 // means the same thing on every tile that offers it, and a paragraph repeated
 // under eight presets is eight places to keep true. A knob whose positions have
 // no tip copy hands the segment empty strings, which render nothing.
-/** @param {{ grid: string, preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string }} props */
-function KnobRow({ grid, preset, knob, knobs, lane }) {
+/** @param {{ preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string }} props */
+function KnobRow({ preset, knob, knobs, lane }) {
   const options = knob.options.map((id) => ({
     value: id,
-    label: easyProse(grid, preset.id, "knobs", knob.id, "options", id),
+    label: easyProse(preset.id, "knobs", knob.id, "options", id),
     tip: easyProse("tips", knob.id, id),
   }));
-  const tip = easyProse(grid, preset.id, "knobs", knob.id, "tip");
-  const base = `easy-knob-${grid}-${preset.id}-${knob.id}`;
+  const tip = easyProse(preset.id, "knobs", knob.id, "tip");
+  const base = `easy-knob-${preset.id}-${knob.id}`;
   return html`
     <div
       class="easy-knob"
@@ -114,7 +112,7 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
       aria-describedby=${tip ? `${base}-tip` : undefined}
     >
       <span class="t-label" id=${`${base}-label`}>
-        ${easyProse(grid, preset.id, "knobs", knob.id, "label")}
+        ${easyProse(preset.id, "knobs", knob.id, "label")}
       </span>
       ${tip && html`<span class="easy-knob-tip" id=${`${base}-tip`}>${tip}</span>`}
       <${Segment}
@@ -122,9 +120,31 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
         options=${options}
         idBase=${base}
         onChange=${(/** @type {string | number} */ v) =>
-          applyPreset(lane, grid, preset.id, { ...knobs, [knob.id]: String(v) })}
+          applyPreset(lane, preset.id, { ...knobs, [knob.id]: String(v) })}
       />
     </div>
+  `;
+}
+
+// What the preset costs the machine, as pips, on the row the apodizing mark
+// already occupies. The number comes from the lane's own output mode, unlike the
+// mark: cost is the one thing on a tile that genuinely differs between the two
+// chains, which is what there is to say.
+//
+// The pips are drawn, so they are hidden from a screen reader and the group
+// takes its name from the words beside them. Counting the glyphs out in that
+// name is copy this feature does not have yet.
+/** @param {{ preset: Preset, lane: string, knobs: Record<string, string> }} props */
+function Pips({ preset, lane, knobs }) {
+  const count = pipsFor(preset.id, easyLane(lane).mode, knobs);
+  const labelId = `easy-pips-${preset.id}-label`;
+  return html`
+    <span class="easy-pips" data-testid="easy-pips" role="group" aria-labelledby=${labelId}>
+      <span class="t-label" id=${labelId}>Resources:</span>
+      <span class="easy-pips-dots" aria-hidden="true">
+        ${Array.from({ length: count }, (_, i) => html`<span class="easy-pip" data-pip="" key=${String(i)}></span>`)}
+      </span>
+    </span>
   `;
 }
 
@@ -138,33 +158,34 @@ function KnobRow({ grid, preset, knob, knobs, lane }) {
 // between siblings is the parent's gap and nothing else (docs/design-system.md),
 // so two spacings mean two parents.
 /**
- * One curated preset as a tile: its mark, its words, its adjustments, and the click that sets it.
- * @param {{ grid: string, preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
+ * One curated preset as a tile: its mark, its cost, its words, its adjustments, and the click that sets it.
+ * @param {{ preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
  */
-export function PresetTile({ grid, preset, lane, active, knobs }) {
-  const mark = markFor(grid, preset.id, knobs);
+export function PresetTile({ preset, lane, active, knobs }) {
+  const mark = markFor(preset.id, knobs);
   return html`
     <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
-      <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, grid, preset.id, knobs)}>
+      <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset.id, knobs)}>
         <span class="easy-mark">
           <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
-          <span class="easy-title t-head">${easyProse(grid, preset.id, "title")}</span>
-          ${
-            mark &&
-            html`<span class="easy-apod" data-mark=${mark} data-tip=${MARK_LABEL[mark]}>
-            <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
-          </span>`
-          }
+          <span class="easy-title t-head">${easyProse(preset.id, "title")}</span>
+          <span class="easy-cost">
+            ${
+              mark &&
+              html`<span class="easy-apod" data-mark=${mark} data-tip=${MARK_LABEL[mark]}>
+              <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
+            </span>`
+            }
+            <${Pips} preset=${preset} lane=${lane} knobs=${knobs} />
+          </span>
         </span>
         <span class="easy-desc t-label">
-          ${paragraphs(easyProse(grid, preset.id, "description")).map(
+          ${paragraphs(easyProse(preset.id, "description")).map(
             (para, i) => html`<span data-para=${String(i)}>${para}</span>`,
           )}
         </span>
       </button>
-      ${preset.knobs.map(
-        (knob) => html`<${KnobRow} grid=${grid} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
-      )}
+      ${preset.knobs.map((knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`)}
     </div>
   `;
 }
