@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from audit_records import last, records
 from conftest import wait_for_api
 from fake_config_xml import cfg_xml
 from fake_http import state
@@ -97,20 +98,8 @@ def dual_lane_client(
 # --- reading the log back, independently of the module that writes it ---------
 
 
-def records(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
 def events(path: Path) -> list[str]:
     return [str(rec.get("event")) for rec in records(path)]
-
-
-def last(path: Path, event: str) -> dict[str, Any]:
-    """The most recent record of that event, or an empty one if it never came."""
-    matching = [rec for rec in records(path) if rec.get("event") == event]
-    return matching[-1] if matching else {}
 
 
 def profile_targets(path: Path) -> list[Any]:

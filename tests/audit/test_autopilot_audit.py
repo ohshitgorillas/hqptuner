@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from audit_records import last, records
 from conftest import DaemonFactory, eventually, wait_for_api
 from fake_config_xml import cfg_xml
 from fake_http import state
@@ -54,6 +55,10 @@ COVERING_FRAMES = 60
 #: daemon's built-in junk-filter enumeration names it.
 RECOMMENDED = "20k"
 
+#: A fixed corner a user could have left engaged, as that same enumeration names
+#: it — neither the resting `none` nor the filter the verdict asks for.
+FIXED_CORNER = "30k"
+
 
 async def _instant(_seconds: float) -> None:
     """The reader's idle re-check, paced by the loop instead of the clock."""
@@ -61,18 +66,10 @@ async def _instant(_seconds: float) -> None:
 
 
 # --- reading the log back, independently of the module that writes it ---------
-
-
-def records(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
-def last(path: Path, event: str) -> dict[str, Any]:
-    """The most recent record of that event, or an empty one if it never came."""
-    matching = [record for record in records(path) if record.get("event") == event]
-    return matching[-1] if matching else {}
+#
+# `records` and `last` are the shared readers in tests/support/audit_records.py;
+# what is local here is the marking, because every case below runs after a
+# switch that recorded a record of its own.
 
 
 def highest_seq(path: Path) -> int:
@@ -85,6 +82,18 @@ def events_after(path: Path, mark: int) -> list[str]:
     """Every event recorded after the mark. Switching auto-pilot on records too,
     so a case about switching it off has to look past that."""
     return [str(record.get("event")) for record in records(path) if int(record["seq"]) > mark]
+
+
+def first_after(path: Path, mark: int, event: str) -> dict[str, Any]:
+    """The first record of that event past the mark, or an empty one if none
+    came. Never the newest record in the file: switching auto-pilot on goes
+    through the same route and records its own `autopilot.set` with the same
+    `switch` source, so a case reading the newest record would pass against a
+    build where switching OFF recorded nothing at all."""
+    for record in records(path):
+        if int(record["seq"]) > mark and record.get("event") == event:
+            return record
+    return {}
 
 
 # --- the app: both lanes, with auto-pilot and the audit log in tmp_path -------
@@ -157,10 +166,14 @@ def test_switching_auto_pilot_off_appends_an_autopilot_set_record(
 def test_switching_auto_pilot_off_records_the_switch_as_the_source(
     autopilot_client: TestClient, audit_log: Path
 ) -> None:
-    # the question the record exists to answer: which of the four paths did it
+    # the question the record exists to answer: which of the four paths did it.
+    # Read past the mark, never off the newest record: switching ON records its
+    # own `switch` record, which would answer this case for a build where
+    # switching off recorded nothing.
     switch_on(autopilot_client)
+    mark = highest_seq(audit_log)
     autopilot_client.post("/api/autopilot", json={"enabled": False})
-    assert last(audit_log, "autopilot.set")["source"] == "switch"
+    assert first_after(audit_log, mark, "autopilot.set")["source"] == "switch"
 
 
 def test_switching_off_a_store_that_was_on_records_the_previous_state(
@@ -169,8 +182,20 @@ def test_switching_off_a_store_that_was_on_records_the_previous_state(
     # what it was before, not only what it became: a record of the new state
     # alone cannot tell a real change from a switch that was already off
     switch_on(autopilot_client)
+    mark = highest_seq(audit_log)
     autopilot_client.post("/api/autopilot", json={"enabled": False})
-    assert last(audit_log, "autopilot.set")["previous"] is True
+    assert first_after(audit_log, mark, "autopilot.set")["previous"] is True
+
+
+def test_switching_off_a_store_that_was_already_off_records_the_previous_state(
+    autopilot_client: TestClient, audit_log: Path
+) -> None:
+    # the pairing case: an implementation that never reads the store and writes
+    # `previous` as the negation of what was asked for answers True here too,
+    # and only a switch-off against an already-off store tells the two apart
+    mark = highest_seq(audit_log)
+    autopilot_client.post("/api/autopilot", json={"enabled": False})
+    assert first_after(audit_log, mark, "autopilot.set")["previous"] is False
 
 
 # --- a live write of the junk filter -----------------------------------------
@@ -194,11 +219,13 @@ def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(
     autopilot_client: TestClient, audit_log: Path
 ) -> None:
     # auto-pilot survives a main-filter write, so there is nothing to record;
-    # a log that recorded one anyway would name a change that never happened
+    # a log that recorded one anyway would name a change that never happened.
+    # Asserted as the write's own record ALONE rather than as an absence: a
+    # write the daemon never accepted would satisfy an absence for free.
     switch_on(autopilot_client)
     mark = highest_seq(audit_log)
     autopilot_client.post("/api/config/live", json={"fields": {"filter": "25"}})
-    assert "autopilot.set" not in events_after(audit_log, mark)
+    assert events_after(audit_log, mark) == ["live.write"]
 
 
 # --- applying a live preset saved without auto-pilot -------------------------
@@ -284,10 +311,29 @@ async def advising(daemon: DaemonFactory, tmp_path: Path, audit_log: Path) -> As
         await stream.close()
 
 
-async def test_engaging_a_recommended_junk_filter_records_what_it_moved_to(advising: Advising, audit_log: Path) -> None:
+def engaged(manager: ConnectionManager) -> str | None:
+    """The junk filter the engine is running right now, as the advisor sees it."""
+    context = context_from(manager)
+    return None if context is None else context.junk_filter
+
+
+async def test_the_act_record_names_the_junk_filter_it_moved_to(advising: Advising, audit_log: Path) -> None:
     # the acting loop writes with nobody watching, so the record naming the
     # filter it moved to is the only account of why the engine changed
     manager = await advising()
     manager.presetops.autopilot.enable()
     await act(manager)
     assert last(audit_log, "autopilot.act")["want"] == RECOMMENDED
+
+
+async def test_the_act_record_names_the_junk_filter_engaged_before_the_move(
+    advising: Advising, audit_log: Path
+) -> None:
+    # the engine sits on the 30k corner while the verdict asks for 20k, so the
+    # record's two filters differ from each other and from the resting `none`:
+    # a build that wrote the wanted filter into both is visible here
+    manager = await advising(filter_junk="2")
+    await eventually(lambda: engaged(manager) == FIXED_CORNER)
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    assert last(audit_log, "autopilot.act")["engaged"] == FIXED_CORNER
