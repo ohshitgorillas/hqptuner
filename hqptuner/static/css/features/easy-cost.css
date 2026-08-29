@@ -49,11 +49,13 @@
 }
 
 /* The row's left-hand cell: the error-correction mark, and on the two presets
-   that carry one, the hi-res badge after it. */
+   that carry one, a second hairline and the hi-res badge after it. Its gap is
+   the row's own, so the two dividers stand off their neighbours by the same
+   distance and read as one pair rather than as a rule and a near-miss. */
 .easy-cost-marks {
   display: flex;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--sp-3);
 }
 
 /* The mark itself is drawn by controls/apod.css; this is where it sits. */
@@ -70,13 +72,21 @@
 .easy-hires {
   display: inline-flex;
   position: relative;
+  flex: none;
+  /* Both axes, so the text centers between the side borders and between the top
+     and bottom ones rather than sitting on the row's baseline. */
   align-items: center;
-  padding: 0 var(--sp-1);
+  justify-content: center;
+  /* A quarter step above and below, which is what the type needs to sit off the
+     border rather than against it. The row reserves more height than the badge
+     takes, so this is spent out of slack and moves nothing. */
+  padding: calc(var(--sp-1) / 4) var(--sp-1);
+  line-height: 1;
   font-size: var(--fs-micro);
-  color: var(--fg-2);
+  color: var(--accent);
   white-space: nowrap;
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
 }
 
 /* What the preset costs the machine: a word and a count of pips. The words take

@@ -236,6 +236,7 @@ export function PresetTile({ preset, lane, active, knobs }) {
                 <${Apod} kind=${mark} label=${MARK_LABEL[mark]} />
               </span>`
               }
+              ${mark && preset.hires && html`<span class="easy-cost-rule" aria-hidden="true"></span>`}
               ${
                 preset.hires &&
                 html`<span
