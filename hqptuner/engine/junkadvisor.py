@@ -144,8 +144,7 @@ def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | 
     """Whether the engine's current settings already treat the verdict's signature.
 
     Treatment is either the engaged junk filter (corner logic above), or — for verdicts that offer filter families — an
-    active main filter from one of them. Asking it with ``NO_FILTER`` engaged therefore asks the narrower question of
-    whether the main filter alone covers the signature, which is the question auto-pilot puts to it.
+    active main filter from one of them.
     """
     if treated(junk_filter, str(verdict["filter"])):
         return True
