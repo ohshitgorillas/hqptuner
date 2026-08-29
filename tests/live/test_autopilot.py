@@ -47,7 +47,7 @@ from junk_spectra import FAKE_HIRES_FRAME, decaying_176, fake_hires_96k, spur_mi
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.engine.junkadvisor import classify
-from hqptuner.lanes.autopilot import desired_junk_filter
+from hqptuner.lanes.autopilot import desired_junk_filter, junk_filter_index, junk_filter_name
 from hqptuner.presets.store.autopilot import AutopilotSchemaError, AutopilotStore
 
 if TYPE_CHECKING:  # the reader's context type is named in annotations only
@@ -386,3 +386,80 @@ def test_a_store_stamped_by_a_newer_hqptuner_is_refused_on_write(tmp_path: Path)
     seed_stamped(tmp_path, TOO_NEW)
     with pytest.raises(AutopilotSchemaError):
         AutopilotStore(tmp_path / "autopilot.json").enable(baseline=NONE)
+
+
+# --- resolving a filter between the name domain and the index domain --------------
+
+#: The enumeration as `manager.enums["junk_filters"]` holds it: the running
+#: engine's own rows, name and index (architecture §2).
+JUNK_ENUM = [{"index": INDEX_NONE, "name": NONE}, {"index": INDEX_20K, "name": JUNK_20K}]
+
+#: A name and an index this enumeration does not carry — a filter another engine
+#: build lists, or a row a re-enumeration dropped.
+ABSENT_NAME = "40k"
+ABSENT_INDEX = "7"
+
+
+def test_a_name_the_enumeration_does_not_carry_resolves_to_no_index() -> None:
+    assert junk_filter_index(JUNK_ENUM, ABSENT_NAME) is None
+
+
+def test_an_index_the_enumeration_does_not_carry_resolves_to_no_name() -> None:
+    assert junk_filter_name(JUNK_ENUM, ABSENT_INDEX) is None
+
+
+def test_no_index_at_all_resolves_to_no_name() -> None:
+    assert junk_filter_name(JUNK_ENUM, None) is None
+
+
+# --- failure paths: auto-pilot does nothing, and survives -------------------------
+
+
+def test_a_store_stamped_by_a_newer_hqptuner_leaves_the_engines_junk_filter_alone(
+    tmp_path: Path, autopilot_api: AutopilotApi
+) -> None:
+    # the same milestone the auto-pilot-off case waits for: a write that was going
+    # to happen precedes the verdict reaching /api/status
+    seed_stamped(tmp_path, TOO_NEW)
+    client = autopilot_api(metering=True)
+    wait_for_api(client, advised)
+    assert engaged(client) == INDEX_NONE
+
+
+def test_no_usable_answer_about_the_engine_leaves_the_junk_filter_alone(autopilot_api: AutopilotApi) -> None:
+    # the daemon refuses `Status` (protocol.md §6), so there is no track context to
+    # act on however good the advice is
+    client = autopilot_api(metering=True, _error="Status")
+    enable(client)
+    polls(client, POLLS_PAST_A_WRITE)
+    assert engaged(client) == INDEX_NONE
+
+
+def test_a_verdict_naming_a_filter_the_engine_does_not_enumerate_writes_nothing(autopilot_api: AutopilotApi) -> None:
+    # enumerations are engine-built: this daemon lists no 20k, and the verdict on
+    # the fake-hi-res spectrum names one. Writing an index resolved against any
+    # other list would engage a filter nobody asked for.
+    client = autopilot_api(metering=True, _junk_filters=f"{NONE} {JUNK_30K}")
+    enable(client)
+    polls(client, POLLS_PAST_A_WRITE)
+    assert engaged(client) == INDEX_NONE
+
+
+def test_the_autopilot_route_refuses_a_store_stamped_by_a_newer_hqptuner(
+    tmp_path: Path, autopilot_api: AutopilotApi
+) -> None:
+    seed_stamped(tmp_path, TOO_NEW)
+    assert autopilot_api().get("/api/autopilot").status_code == 409
+
+
+def test_switching_autopilot_is_refused_on_a_store_stamped_by_a_newer_hqptuner(
+    tmp_path: Path, autopilot_api: AutopilotApi
+) -> None:
+    seed_stamped(tmp_path, TOO_NEW)
+    assert autopilot_api().post("/api/autopilot", json={"enabled": True}).status_code == 409
+
+
+def test_a_store_file_that_is_not_an_object_reports_autopilot_off(tmp_path: Path) -> None:
+    path = tmp_path / "autopilot.json"
+    path.write_text(json.dumps([{"enabled": True}]))
+    assert AutopilotStore(path).enabled is False

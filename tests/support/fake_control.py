@@ -46,6 +46,10 @@ DEFAULTS = {
     "_vol_enabled": "1",
     "_vol_adaptive": "0",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
+    # The junk-filter enumeration this daemon answers with, space separated in
+    # list order (protocol.md §6: `<JunkFiltersItem index name value/>`); empty
+    # means the built-in list below.
+    "_junk_filters": "",
     # Space-separated commands answered `result="OK"` without applying: the
     # `value="999"` caveat above (protocol.md §4), keyed by command instead.
     "_deaf": "",
@@ -222,6 +226,21 @@ def _filter_items(rows: tuple[tuple[str, str, str], ...]) -> str:
     )
 
 
+def _junk_filters(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
+    """The junk filters this daemon answers `GetJunkFilters` with.
+
+    The `_junk_filters` knob names the list outright, space separated, so a test
+    can serve an enumeration that differs from the built-in one — which is what a
+    different engine build really does answer (architecture §2: the running
+    engine is the authority on the names and the ordering). Empty means the
+    built-in list.
+    """
+    named = state.get("_junk_filters", "")
+    if named:
+        return tuple((str(i), n, str(i)) for i, n in enumerate(named.split()))
+    return _JUNK_FILTERS
+
+
 def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
     return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
 
@@ -303,7 +322,7 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     if name == "GetRates":
         return f"<GetRates>{_rate_items(_rates(state, sdm=sdm))}</GetRates>"
     if name == "GetJunkFilters":
-        return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
+        return f"<GetJunkFilters>{_items('JunkFiltersItem', _junk_filters(state))}</GetJunkFilters>"
     return None
 
 
