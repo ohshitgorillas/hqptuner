@@ -86,17 +86,22 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
         track_serial=status.get("track_serial"),
         samplerate=_int(rate) if rate else None,
         sdm=meta.get("sdm") in ("1", "true"),
-        junk_filter=_junk_filter_name(status, manager.enums),
+        junk_filter=_junk_filter_name(manager.state or {}, manager.enums),
         filter=status.get("active_filter") or None,
     )
 
 
-def _junk_filter_name(status: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
-    """``Status.filter_junk`` joined against the running enumeration.
+def _junk_filter_name(state: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
+    """``State.filter_junk`` joined against the running enumeration.
 
     The engine is the sole authority for index→name (architecture §2).
+
+    Read off State rather than Status, though both carry it: State's attribute table lists it unconditionally, while
+    Status's is documented as a superset (`protocol.md` §6) — the same caveat that makes `filter1x`/`filterNx` a
+    fall-back there. A frame that happens not to carry it would otherwise read as nothing engaged, which is the one
+    answer that must not be guessed: it decides whether the advisor's note goes quiet and what auto-pilot falls back to.
     """
-    idx = status.get("filter_junk")
+    idx = state.get("filter_junk")
     for item in (enums or {}).get("junk_filters", []):
         if item.get("index") == idx:
             return item.get("name")
