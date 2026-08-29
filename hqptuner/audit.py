@@ -282,6 +282,23 @@ class AuditLog:
         """
         self._write("autosave.set", {"enabled": enabled, "previous": previous})
 
+    def autopilot_set(self, source: str, *, enabled: bool, previous: bool) -> None:
+        """Record auto-pilot's switch moving, naming the ``source`` that moved it.
+
+        Four paths write it — the switch itself, a manual junk-filter write, a live-preset apply and a config-preset
+        load — and the store keeps only the resulting value, so without the source a user who finds auto-pilot off
+        has no way to tell which of them did it.
+        """
+        self._write("autopilot.set", {"source": source, "enabled": enabled, "previous": previous})
+
+    def autopilot_act(self, want: str, engaged: str | None) -> None:
+        """Record auto-pilot deciding to move the junk filter, before the write that carries it out.
+
+        Auto-pilot writes through the ordinary live lane, so its ``live.write`` records are indistinguishable from
+        the user's own. This is what separates them.
+        """
+        self._write("autopilot.act", {"want": want, "engaged": engaged})
+
     def restore_upload(self, filename: str, size: int, digest: str) -> None:
         """Record a config archive arriving for restore, before any of it reaches the daemon.
 

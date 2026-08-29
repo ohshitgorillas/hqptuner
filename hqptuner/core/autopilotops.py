@@ -76,6 +76,7 @@ async def act(mgr: ConnectionManager) -> None:
         log.warning("auto-pilot wanted junk filter %r, which the running enumeration does not carry", want)
         return
     log.info("auto-pilot: junk filter %s -> %s", engaged, want)
+    mgr.audit.autopilot_act(want, engaged)
     try:
         await lane.apply_now(mgr, {"junk_filter": index})
     except (ControlError, routing.LiveRouteError) as exc:
