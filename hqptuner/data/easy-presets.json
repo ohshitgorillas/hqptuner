@@ -37,7 +37,7 @@
   },
   "lifelike": {
     "title": "Lifelike",
-    "description": "Puts the focus on natural, realistic timbre. Excellent with live performances.",
+    "description": "Puts the focus on natural, realistic timbre.",
     "knobs": {
       "emphasis": {
         "label": "Emphasis",
@@ -51,7 +51,7 @@
   },
   "old-school": {
     "title": "Old School",
-    "description": "Best for classic-era analog recordings. Try it with modern content, too!",
+    "description": "Pairs well with classic-era analog recordings.",
     "knobs": {
       "emphasis": {
         "label": "Emphasis",
@@ -90,7 +90,7 @@
   },
   "textbook": {
     "title": "Textbook",
-    "description": "Standard issue; the sound of most DAC hardware.",
+    "description": "The sound of most standard-issue DAC hardware.",
     "knobs": {
       "emphasis": {
         "label": "Emphasis",
@@ -100,7 +100,7 @@
   },
   "concert-hall": {
     "title": "The Concert Hall",
-    "description": "Heavily emphasizes space at the cost of transients. For material with minimal transients like live classical.",
+    "description": "Heavily emphasizes space over transients; for material like live classical with minimal transient content.",
     "knobs": {
       "version": {
         "label": "Version",

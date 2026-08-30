@@ -14,7 +14,7 @@ import { Checkbox } from "./controls/index.js";
 import { autopilot, metering, setAutopilot } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 
-const LABEL = "High-freq filter auto-pilot";
+const LABEL = "HF filter auto-pilot";
 const NOTE =
   "Automatically engages and disengages the high-frequency filter 20k to 50k settings as needed for hi-res content. Setting the filter manually disables this setting.";
 // Grays when the metering reader is off (HQPTUNER_METERING_ENABLED=0): the advisor is what
