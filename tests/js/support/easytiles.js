@@ -765,3 +765,16 @@ export function pressKnob(seen, presetId, optionId) {
   }
   fire(target);
 }
+
+/**
+ * Every tile the grid laid out, against the `data-selected` it carries — the
+ * peer of `activeMap` for the other of the two markings. Read the same way and
+ * for the same reason: the whole map, so that the "0" half of the contract is
+ * pinned and a card marking every tile, marking none, or leaving one carrying
+ * no `data-selected` at all fails by naming the tile.
+ *
+ * @param {string} out
+ * @returns {Record<string, string | undefined>}
+ */
+export const selectedMap = (out) =>
+  Object.fromEntries(tileIds(out).map((id) => [id, attr(tile(out, id), "data-selected")]));
