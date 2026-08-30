@@ -44,6 +44,8 @@ import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";
 import { cardHeadAt, section } from "../support/tabform.js";
+import { elements, classes, attr, hasAttr, text } from "../support/markup.js";
+import { rows } from "../support/comborows.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -106,17 +108,44 @@ const decode = (s) =>
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
+// The picker is a combobox (controls/Combobox.js): a role="combobox" button
+// beside a .dd-pop listbox of .dd-opt rows, each carrying the option's wire
+// value in `data-v`. The pop renders in its CLOSED state here rather than
+// unmounted, so its rows are in the SSR string and can be read.
+//
+// The picker's own subtree, by the machine identity its control wrapper carries
+// — not the whole card, so a control added to the card later cannot be mistaken
+// for an option of this one.
+/** @param {string} frag */
+const picker = (frag) => {
+  const el = elements(frag).find((e) => attr(e, "data-testid") === "live-preset");
+  if (el === undefined) throw new Error("the card renders no live preset picker");
+  return el.html;
+};
+
+// SSR emits an EMPTY attribute value bare (`data-v`, never `data-v=""`), which
+// `attr` reads as undefined — so presence is asked first and the placeholder
+// row's value comes back as the empty string it is. A row carrying no `data-v`
+// at all is not an option and is dropped.
+/** @param {import("../support/markup.js").MarkupElement} el */
+const valueOf = (el) => (hasAttr(el, "data-v") ? (attr(el, "data-v") ?? "") : undefined);
+
 /** @param {string} frag */
 const options = (frag) =>
-  [...frag.matchAll(/<option\b[^>]*>([\s\S]*?)<\/option>/g)].map((m) => ({ tag: m[0], text: decode(m[1]).trim() }));
+  rows(picker(frag))
+    .filter((el) => valueOf(el) !== undefined)
+    .map((el) => ({ el, v: /** @type {string} */ (valueOf(el)), text: decode(text(el)) }));
 
 // The two fixtures straddle the chains on purpose: one was captured under the
 // mode the engine reports, one under the other. Neither is special any more.
 const HERE = () => rec("Living Room", "pcm"); // captured under the running mode
 const ELSEWHERE = () => rec("Bedroom", "sdm"); // captured under the other one
 const BOTH = () => [HERE(), ELSEWHERE()];
+// The rows offering the two fixture presets, found by the wire value each row
+// carries: for this picker an option's value IS the preset's name, so the row
+// is identified without reading the words rendered in it (rule 9).
 /** @param {string} frag */
-const NAMED = (frag) => options(frag).filter((o) => BOTH().some((p) => o.text.includes(p.name)));
+const NAMED = (frag) => options(frag).filter((o) => BOTH().some((p) => o.v === p.name));
 
 test("test_the_live_page_carries_a_live_mode_card", async () => {
   await resetPage();
@@ -128,9 +157,9 @@ test("test_the_live_page_carries_a_live_mode_card", async () => {
 
 test("test_every_saved_preset_is_offered_by_name", async () => {
   await resetPage({ presets: BOTH() });
-  const labels = options(card(page(), LIVE_MODE)).map((o) => o.text);
+  const offered = options(card(page(), LIVE_MODE)).map((o) => o.v);
   assert.deepEqual(
-    ["Living Room", "Bedroom"].filter((n) => labels.some((t) => t.includes(n))),
+    ["Living Room", "Bedroom"].filter((n) => offered.includes(n)),
     ["Living Room", "Bedroom"],
   );
 });
@@ -138,11 +167,16 @@ test("test_every_saved_preset_is_offered_by_name", async () => {
 // Stated positively — "the pickable ones are BOTH of them", not "none is
 // disabled" — so a card that dropped a preset from the picker altogether fails
 // here instead of passing on an empty list.
+// A combobox row states its unpickability with `aria-disabled` rather than the
+// native attribute, and dresses it with a class; either one grays the row.
+/** @param {import("../support/markup.js").MarkupElement} el */
+const grayed = (el) => attr(el, "aria-disabled") === "true" || classes(el).includes("disabled");
+
 /** @param {string} frag */
 const pickable = (frag) =>
   NAMED(frag)
-    .filter((o) => !/\bdisabled/.test(o.tag))
-    .map((o) => o.text)
+    .filter((o) => !grayed(o.el))
+    .map((o) => o.v)
     .sort();
 
 test("test_both_saved_presets_can_be_picked_while_the_engine_runs_pcm", async () => {
@@ -172,22 +206,22 @@ test("test_every_saved_preset_is_offered_by_name_alone", async () => {
 test("test_an_empty_preset_store_offers_one_option_that_is_no_preset", async () => {
   // In the PICKER, not merely somewhere on the card: the line has to be what the
   // dropdown offers, or a card that printed it as a paragraph beside an empty
-  // select would pass while the control said nothing. WHAT that one option says
+  // picker would pass while the control said nothing. WHAT that one option says
   // is the owner's wording (rule 9), so the "is no preset" half is read off the
   // option's VALUE: a preset option carries the preset it selects, and this one
-  // carries nothing — SSR emits an empty value as a bare `value`. Counting the
+  // carries nothing — SSR emits an empty value as a bare `data-v`. Counting the
   // options alone leaves that half unchecked.
   await resetPage({ presets: [] });
   const only = options(card(page(), LIVE_MODE));
-  const seen = { count: only.length, selects: only.map((o) => (/\svalue="([^"]*)"/.exec(o.tag) || ["", ""])[1]) };
+  const seen = { count: only.length, selects: only.map((o) => o.v) };
   assert.deepEqual(seen, { count: 1, selects: [""] });
 });
 
 test("test_a_stocked_picker_opens_on_something_that_is_no_preset", async () => {
   await resetPage({ presets: BOTH() });
-  const first = options(card(page(), LIVE_MODE))[0].text;
+  const first = options(card(page(), LIVE_MODE))[0].v;
   assert.equal(
-    BOTH().some((p) => first.includes(p.name)),
+    BOTH().some((p) => first === p.name),
     false,
   );
 });
