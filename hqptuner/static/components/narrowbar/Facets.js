@@ -69,6 +69,52 @@ const focusSolo = (/** @type {string} */ v) => ({ focus: [v] });
 const phaseSolo = (/** @type {string} */ v) => ({ phase: [v] });
 const lengthSolo = (/** @type {string} */ v) => ({ length: [v] });
 
+// The hint prose closing the phase and length popovers — owner-approved copy,
+// verbatim, in the same note chrome the rate popover's explainer uses.
+const PhaseHint = html`<div class="rate-note t-caption">
+  <strong>HQPTuner Hints:</strong> A filter's phase determines where it smears transients in time, aka ringing, and
+  can be thought of as a trade-off between transient reproduction and spatial accuracy. Linear phase filters improve
+  spatial accuracy by ensuring all frequencies arrive at the same time, but they pay for this with an unnatural
+  side-effect: pre-ringing, or smearing of the transient into the time before it actually occurs. Minimum phase
+  filters delay higher frequencies relative to lower, marring the sense of space, but have no pre-ringing and
+  therefore produce more natural transients. Intermediate phase rings asymmetrically, with more smearing after the
+  transient than before.
+</div>`;
+const LengthHint = html`<div class="rate-note t-caption">
+  <strong>HQPTuner Hints:</strong> Length represents a trade-off between cleaner transients and an improved sense of
+  space through better filtering or junk removal. Shorter filters ring less and produce cleaner transients at the
+  cost of less filtering; longer filters smear transients more in time but filter the junk more thoroughly.
+</div>`;
+
+// The phase and length dropdowns, out of the assembly the way RateFacet is:
+// each is one MultiSelect wired to its facet's signals, closed by its hint.
+function PhaseFacet() {
+  return html`<${MultiSelect}
+    open=${phaseOpen}
+    name="phase"
+    label=${phaseLabel()}
+    items=${PHASES}
+    sig=${nPhase}
+    active=${!!nPhase.value.length}
+    count=${phasePick}
+    off=${(/** @type {string} */ v) => tagRowOff(nPhase.value, v, phaseSolo(v), phasePick(v))}
+    extra=${PhaseHint}
+  />`;
+}
+function LengthFacet() {
+  return html`<${MultiSelect}
+    open=${lengthOpen}
+    name="length"
+    label=${lengthLabel()}
+    items=${LENGTHS}
+    sig=${nLength}
+    active=${!!nLength.value.length}
+    count=${lengthPick}
+    off=${(/** @type {string} */ v) => tagRowOff(nLength.value, v, lengthSolo(v), lengthPick(v))}
+    extra=${LengthHint}
+  />`;
+}
+
 /**
  * Renders the facet row: the genre, quality, focus, phase, length and ratio
  * dropdowns plus the favorites toggle. Each dropdown's `count` maps a candidate
@@ -113,26 +159,8 @@ export function NarrowFacets() {
         off=${(/** @type {string} */ v) => tagRowOff(nFocus.value, v, focusSolo(v), focusPick(v))}
         extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
       />
-      <${MultiSelect}
-        open=${phaseOpen}
-        name="phase"
-        label=${phaseLabel()}
-        items=${PHASES}
-        sig=${nPhase}
-        active=${!!nPhase.value.length}
-        count=${phasePick}
-        off=${(/** @type {string} */ v) => tagRowOff(nPhase.value, v, phaseSolo(v), phasePick(v))}
-      />
-      <${MultiSelect}
-        open=${lengthOpen}
-        name="length"
-        label=${lengthLabel()}
-        items=${LENGTHS}
-        sig=${nLength}
-        active=${!!nLength.value.length}
-        count=${lengthPick}
-        off=${(/** @type {string} */ v) => tagRowOff(nLength.value, v, lengthSolo(v), lengthPick(v))}
-      />
+      <${PhaseFacet} />
+      <${LengthFacet} />
       <${RateFacet} />
     </div>
   `;

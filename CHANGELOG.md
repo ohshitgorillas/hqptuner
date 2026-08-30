@@ -7,12 +7,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Added
 
 - **High-frequency filter auto-pilot engages and disengages the filter as the playing track warrants.** Off by default; setting the filter by hand switches it off, and both live and general presets carry it.
-- **The Length dropdown gains Stupid long and Adaptive rows.** Stupid long collects the million-tap filters; Adaptive matches the sinc filters whose tap count scales with conversion ratio. A filter can hold both a length and the adaptive trait.
+- **The Length dropdown gains Extra-short, Stupid long, and Adaptive rows.** Extra-short collects the polynomial interpolators; Stupid long the million-tap filters; Adaptive matches the sinc filters whose tap count scales with conversion ratio. A filter can hold both a length and the adaptive trait.
+- **The Length and Phase dropdowns carry a hint on the trade-off each facet controls.**
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card of preset tiles, each with its own emphasis and source adjustments, on the Output tab and the LIVE page; a link inside it swaps back.
 
 ### Changed
 
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
+- **sinc-Lh reads "Medium with high attenuation".** Its published tap multiplier matches sinc-Lm, not the long tier; the earlier phrasing followed sinc-long-h, which keeps it.
 - **SDM filter menus drop superseded single-stage variants.** On the SDM chain a filter whose `-2s` two-stage variant exists no longer appears in the 1x and Nx lists or their counts; a selection already set to one stays listed. Simplified option style drops the two-stage clause from the names and the two-stage notes from the description.
 
 ### Fixed

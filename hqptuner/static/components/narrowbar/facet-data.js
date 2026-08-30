@@ -40,10 +40,11 @@ export const PHASES = [
   ["", "Unspecified"],
 ];
 export const LENGTHS = [
+  ["xshort", "Extra-short"],
   ["short", "Short"],
   ["medium", "Medium"],
   ["long", "Long"],
-  ["xlong", "Extra long"],
+  ["xlong", "Extra-long"],
   ["stupid", "Stupid long"],
   // a trait rather than one more bucket — matching reads the filter's adaptive
   // flag, held alongside its length (store/narrow/match.js), so this row keeps

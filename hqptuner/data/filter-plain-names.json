@@ -528,8 +528,8 @@
     "sinc-Lh": {
       "family": "Pure sinc",
       "variant": "Base",
-      "leaf": "Long with high attenuation",
-      "short": "Sinc · Long with high attenuation",
+      "leaf": "Medium with high attenuation",
+      "short": "Sinc · Medium with high attenuation",
       "apod": "none"
     },
     "sinc-L": {
