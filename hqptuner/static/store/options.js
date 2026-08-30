@@ -125,6 +125,37 @@ export function enumOptions(name) {
   return list.map((o) => ({ value: o.index, label: o.name, disabled: false, reason: "" }));
 }
 
+// Superseded single-stage filters, on the SDM chain only. A filter whose
+// two-stage `-2s` twin is in the same list has no reason to be picked there, so
+// it is not offered and not counted. The rule reads the list it was handed
+// rather than a shipped name table: the running engine is the sole authority for
+// which filters exist (architecture §2), and a `-2s` the engine stops
+// enumerating brings its plain twin straight back.
+//
+// One name survives the prune: whatever the field is currently set to. The
+// closed control and its prose read their label off this same list
+// (store/prose.js selectedLabel), so dropping the running selection would leave
+// the control naming nothing.
+/**
+ * A filter option list without the single-stage filters their own two-stage
+ * variant supersedes, keeping the one the field is set to.
+ * @template {{ value?: string | number, label: string }} T
+ * @param {T[]} options
+ * @param {string | number | boolean} keep the option VALUE that stays listed however it joins
+ * @returns {T[]}
+ */
+export function dropSupersededTwoStage(options, keep) {
+  const names = new Set(options.map((o) => o.label));
+  return options.filter((o) => !names.has(`${o.label}-2s`) || String(o.value) === String(keep));
+}
+
+// The two SDM chain filter fields, by their /config form name, paired with the
+// schema key holding the selection the prune spares. The PCM pair (filter1x,
+// filter) is deliberately absent: both chains enumerate the same filters and the
+// rule is the SDM chain's alone.
+/** @type {Record<string, string>} */
+const SDM_FILTER_FIELDS = { oversampling1x: "sdm_filter_1x", oversampling: "sdm_filter_nx" };
+
 // kind: 'config' (a /config form field) | 'matrix' (a /matrix form field).
 /**
  * One daemon form field's own options, as menu options — empty when the form has no
@@ -137,5 +168,12 @@ export function optionsFor(kind, field) {
   /** @type {Record<string, import("./resolve.js").FormField>} */
   const map = kind === "matrix" ? matrixByName.value : configByName.value;
   const f = map[field];
-  return ((f && f.options) || []).map((o) => ({ value: o.value, label: o.label, disabled: false, reason: "" }));
+  const built = ((f && f.options) || []).map((o) => ({
+    value: o.value,
+    label: o.label,
+    disabled: false,
+    reason: "",
+  }));
+  const key = kind === "config" ? SDM_FILTER_FIELDS[field] : "";
+  return key ? dropSupersededTwoStage(built, String(effective(key))) : built;
 }

@@ -5,7 +5,7 @@
 // somewhere other than the enumerations.
 
 import { runningValue } from "../resolve.js";
-import { optionsFor, grayShapersByRate, stripRateSuffix } from "../options.js";
+import { optionsFor, grayShapersByRate, stripRateSuffix, dropSupersededTwoStage } from "../options.js";
 import { narrowOptions, narrowCount, favOnlyModulators } from "../narrow/match.js";
 import { decorateOptions } from "../plainnames.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
@@ -87,7 +87,13 @@ export function chainControls(chain, loaded) {
   return CHAINS[chain].map((c) => {
     const live = chain === loaded;
     const value = live ? idValue(c.enumKey, c.state) : (runningValue(c.key) ?? "");
-    const raw = live ? idOptions(c.enumKey) : optionsFor("config", c.field);
+    // The loaded chain's list comes from the enumeration, which offers every
+    // filter the engine holds, so the SDM chain's superseded single-stage
+    // filters are dropped here the way optionsFor drops them on the dormant
+    // (config-backed) side. `desc` names the chain a control reads on
+    // (store/schema.js), and the modulator carries a different one.
+    const listed = live ? idOptions(c.enumKey) : optionsFor("config", c.field);
+    const raw = live && c.entry.desc === "sdm_filter" ? dropSupersededTwoStage(listed, value) : listed;
     return {
       field: c.field,
       key: c.key,
