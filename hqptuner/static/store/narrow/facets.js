@@ -5,8 +5,8 @@
 // while the engine only ever enumerates the ACTIVE mode's filters — so the
 // inactive mode's exclusive filters are absent from the live enum and would have
 // no facets at all (the mode-scoping narrowing bug). The static filters.json
-// overlay (quality/focus/apodizing/ratio, transcribed from the manual) fills
-// exactly those gaps. Static is name-keyed and NEVER overrides live: a future
+// overlay (quality/focus/apodizing/ratio/length/adaptive, transcribed from the
+// manual) fills exactly those gaps. Static is name-keyed and NEVER overrides live: a future
 // HQPlayer that renames/adds filters is still covered live for the active mode,
 // and a stale static entry simply never matches. (architecture §2 volatility.)
 import { computed } from "@preact/signals";
@@ -25,6 +25,8 @@ import { enums, metadata } from "../signals.js";
  * @property {string} [ratio_pcm] mode-split ratio: mqa/mp3 only
  * @property {string} [ratio_sdm]
  * @property {boolean} [upsample_only]
+ * @property {string} [length] curated length token; wins over the name rules
+ * @property {boolean} [adaptive] tap count scales with conversion ratio
  *
  * @typedef {object} EnumItem
  *   One item of a live enumeration. Every attribute the daemon sends arrives as
@@ -47,7 +49,7 @@ import { enums, metadata } from "../signals.js";
  * @property {number|null} quality null when the description carries no "n/5"
  * @property {string[]} focus
  * @property {string} phase "" when the name carries no phase token
- * @property {string} length short | medium | long | xlong | stupid, "" when nothing classifies it
+ * @property {string} length xshort | short | medium | long | xlong | stupid, "" when nothing classifies it
  * @property {boolean} adaptive tap count scales with conversion ratio — a trait, held alongside a length
  * @property {boolean} hiresFamily
  * @property {boolean} apodizing
@@ -179,64 +181,42 @@ function isHiresFamily(name) {
   return /hires|mqa|mp3/i.test(name || "");
 }
 
-// length — short / medium / long / xlong / stupid. Most names carry a readable token and
-// classify by it: short / medium / long, the xl/xla extra-long variants, the
-// hb-xs / hb-s / hb-l halfbands, with the -2s two-stage suffix stripped first.
+// length — xshort / short / medium / long / xlong / stupid. The overlay row is
+// authority where it states one: a `length` token on the filter's filters.json
+// entry (curated from Signalyst's own published descriptions, backend-joined
+// onto -2s names) wins over any name rule. Names the overlay does not reach
+// classify by their own readable token: short / medium / long, the xl/xla
+// extra-long variants, the hb-s / hb-l halfbands, with the -2s two-stage
+// suffix stripped first.
 //
-// A letter-coded name carries no token, so it gets an explicit entry only where
-// the filter's own description states a length in words: gauss-halfband-s
-// ("Short … Gaussian") and hb-m ("Medium … half-band").
-//
-// The "stupid" bucket is the million-tap set, classified from Signalyst's own
-// published descriptions: sinc-M / sinc-Mx / sinc-MG / sinc-MGa and
-// closed-form-M / closed-form-16M each state one million taps or more outright.
-// sinc-S is short by its own length letter, the same S/m/l the rest of the
-// sinc set uses.
-//
-// Everything else reads "", the same answer `phase` gives. A description
-// stating only a tap multiplier (the sinc-L series) or nothing at all (the
-// polynomial interpolators, minringFIR) yields no length rather than a
-// plausible one.
-/** @type {Record<string, string>} */
-const LENGTH_OVERRIDES = {
-  "sinc-S": "short",
-  "sinc-M": "stupid",
-  "sinc-Mx": "stupid",
-  "sinc-MG": "stupid",
-  "sinc-MGa": "stupid",
-  "closed-form-M": "stupid",
-  "closed-form-16M": "stupid",
-  "poly-sinc-gauss-halfband-s": "short",
-  "poly-sinc-hb-m": "medium",
-};
-
-// The adaptive trait — tap count scales with conversion ratio — is held
-// ALONGSIDE a length, not instead of one: sinc-S is short and adaptive at
-// once. Membership from the descriptions that state "adaptive number of taps"
-// verbatim; the constant-time million-tap set (sinc-Mx, sinc-MG, sinc-MGa)
-// says "constant time" instead and stays out.
-const ADAPTIVE = new Set(["sinc-S", "sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]);
+// Everything else reads "", the same answer `phase` gives — no length rather
+// than a plausible one.
 /**
  * @param {string} name
- * @returns {boolean}
- */
-function adaptive(name) {
-  const n = name || "";
-  return ADAPTIVE.has(n.endsWith("-2s") ? n.slice(0, -3) : n);
-}
-/**
- * @param {string} name
+ * @param {StaticFilterEntry} [s]
  * @returns {string}
  */
-function length(name) {
+function length(name, s) {
+  if (s && s.length != null) return s.length;
   const n = name || "";
   const base = n.endsWith("-2s") ? n.slice(0, -3) : n;
-  if (LENGTH_OVERRIDES[base]) return LENGTH_OVERRIDES[base];
-  if (/short|shrt|-hb-xs$|-hb-s$/.test(base)) return "short";
+  if (/(?:short)|(?:shrt)|(?:-hb-s$)/.test(base)) return "short";
   if (/-xla?$/.test(base)) return "xlong";
   if (/(?:long)|(?:-hb-l$)/.test(base)) return "long";
   if (/medium/.test(base)) return "medium";
   return "";
+}
+
+// The adaptive trait — tap count scales with conversion ratio — is held
+// ALONGSIDE a length, not instead of one: sinc-S is short and adaptive at
+// once. No name token encodes it, so the overlay row is its only source;
+// overlay silence reads false.
+/**
+ * @param {StaticFilterEntry} [s]
+ * @returns {boolean}
+ */
+function adaptive(s) {
+  return !!(s && s.adaptive);
 }
 
 // Y / ½ / N from the manual → the same shape the live arg bits produce: full sets
@@ -281,8 +261,8 @@ function liveFacet(it, s) {
     quality: quality(it.description),
     focus: focus(it.description),
     phase: phase(it.name, it.static || s),
-    length: length(it.name),
-    adaptive: adaptive(it.name),
+    length: length(it.name, it.static || s),
+    adaptive: adaptive(it.static || s),
     hiresFamily: isHiresFamily(it.name),
     apodizing: !!it.apodizing,
     apodizingHalf: (Number(it.arg) & 2) === 2,
@@ -306,8 +286,8 @@ function staticFacet(name, s) {
     quality: s.quality ?? null,
     focus: s.focus || [],
     phase: phase(name, s),
-    length: length(name),
-    adaptive: adaptive(name),
+    length: length(name, s),
+    adaptive: adaptive(s),
     hiresFamily: isHiresFamily(name),
     apodizing: apod.apodizing,
     apodizingHalf: apod.apodizingHalf,

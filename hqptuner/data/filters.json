@@ -75,7 +75,8 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real-world acoustic environment such as a concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in the time domain. Average amount of pre- and post-ringing."
+      "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real-world acoustic environment such as a concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in the time domain. Average amount of pre- and post-ringing.",
+      "length": "short"
     },
     "asymFIR": {
       "genre": ["jazz"],
@@ -83,7 +84,8 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "description": "Asymmetric FIR, good for jazz/blues and other music containing transients recorded in a real-world acoustic environment. Otherwise same as FIR, but with shorter pre-ringing and longer post-ringing. Modifies phase response, but not as much as minimum phase FIR."
+      "description": "Asymmetric FIR, good for jazz/blues and other music containing transients recorded in a real-world acoustic environment. Otherwise same as FIR, but with shorter pre-ringing and longer post-ringing. Modifies phase response, but not as much as minimum phase FIR.",
+      "length": "short"
     },
     "minphaseFIR": {
       "genre": ["pop", "electronic"],
@@ -92,7 +94,8 @@
       "apodizing": "full",
       "ratio": "integer",
       "phase": "minimum",
-      "description": "Minimum phase FIR, good for pop/rock/electronic music containing strong transients such as drums and percussion, where the recording is made in a studio using multi-track equipment. No pre-ringing, but somewhat long post-ringing."
+      "description": "Minimum phase FIR, good for pop/rock/electronic music containing strong transients such as drums and percussion, where the recording is made in a studio using multi-track equipment. No pre-ringing, but somewhat long post-ringing.",
+      "length": "short"
     },
     "FFT": {
       "genre": ["any"],
@@ -176,7 +179,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Extremely short linear phase polyphase half-band filter with slow roll-off and low attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "notes": "Only suitable for highest technical quality source materials.",
+      "length": "xshort"
     },
     "poly-sinc-hb-s": {
       "genre": ["pop"],
@@ -196,7 +200,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Medium linear phase polyphase half-band filter with average roll-off and medium attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "notes": "Only suitable for highest technical quality source materials.",
+      "length": "medium"
     },
     "poly-sinc-hb-l": {
       "genre": ["classical", "jazz"],
@@ -448,7 +453,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Short linear phase half-band Gaussian filter. Leaky around Nyquist, but high attenuation.",
-      "notes": "Only suitable for highest technical quality source materials."
+      "notes": "Only suitable for highest technical quality source materials.",
+      "length": "short"
     },
     "ASRC": {
       "genre": [],
@@ -467,7 +473,8 @@
       "ratio": "integer",
       "upsample_only": true,
       "description": "Polynomial interpolation. No apparent pre- or post-ringing. Frequency response rolls off slowly in the top octave. Poor stop-band rejection and will thus leak a fairly high amount of ultrasonic distortion. These types of filters are sometimes referred to as \"non-ringing\" by some manufacturers.",
-      "notes": "Not recommended."
+      "notes": "Not recommended.",
+      "length": "xshort"
     },
     "polynomial-2": {
       "genre": [],
@@ -477,7 +484,8 @@
       "ratio": "integer",
       "upsample_only": true,
       "description": "Similar to polynomial-1, but higher stop-band rejection and only one cycle of pre- and post-ringing.",
-      "notes": "Not recommended."
+      "notes": "Not recommended.",
+      "length": "xshort"
     },
     "minringFIR-lp": {
       "genre": [],
@@ -522,7 +530,8 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "description": "Closed form interpolation with one million taps."
+      "description": "Closed form interpolation with one million taps.",
+      "length": "stupid"
     },
     "closed-form-16M": {
       "genre": [],
@@ -531,7 +540,8 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "description": "Closed form interpolation with 16 million taps."
+      "description": "Closed form interpolation with 16 million taps.",
+      "length": "stupid"
     },
     "sinc-S": {
       "genre": ["any"],
@@ -541,7 +551,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Sinc filter with adaptive number of taps. Number of taps is 4096x conversion ratio. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla."
+      "description": "Sinc filter with adaptive number of taps. Number of taps is 4096x conversion ratio. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla.",
+      "length": "short",
+      "adaptive": true
     },
     "sinc-M": {
       "genre": ["classical", "jazz"],
@@ -551,7 +563,8 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Sinc filter with one million taps. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla."
+      "description": "Sinc filter with one million taps. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla.",
+      "length": "stupid"
     },
     "sinc-Mx": {
       "genre": ["classical", "jazz"],
@@ -561,7 +574,8 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Constant time version of sinc-M. Filter length is constant in time, with one million taps at 16x PCM output rates. Variant of poly-sinc-ext2-xla. (65536x conversion ratio)"
+      "description": "Constant time version of sinc-M. Filter length is constant in time, with one million taps at 16x PCM output rates. Variant of poly-sinc-ext2-xla. (65536x conversion ratio)",
+      "length": "stupid"
     },
     "sinc-MG": {
       "genre": ["classical", "jazz"],
@@ -571,7 +585,8 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Gaussian constant time filter with one million taps at 16x PCM output rates. Extremely high attenuation. Variant of poly-sinc-gauss-xl. (65536x conversion ratio)"
+      "description": "Gaussian constant time filter with one million taps at 16x PCM output rates. Extremely high attenuation. Variant of poly-sinc-gauss-xl. (65536x conversion ratio)",
+      "length": "stupid"
     },
     "sinc-MGa": {
       "genre": ["classical", "jazz"],
@@ -581,7 +596,8 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Apodizing Gaussian constant time filter with one million taps at 16x PCM output rates. Extremely high attenuation. Variant of poly-sinc-gauss-xla. (65536x conversion ratio)"
+      "description": "Apodizing Gaussian constant time filter with one million taps at 16x PCM output rates. Extremely high attenuation. Variant of poly-sinc-gauss-xla. (65536x conversion ratio)",
+      "length": "stupid"
     },
     "sinc-L": {
       "genre": ["classical"],
@@ -591,7 +607,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Sinc filter with adaptive number of taps. Number of taps is 131070x conversion ratio. Extremely sharp roll-off and average attenuation."
+      "description": "Sinc filter with adaptive number of taps. Number of taps is 131070x conversion ratio. Extremely sharp roll-off and average attenuation.",
+      "length": "xlong",
+      "adaptive": true
     },
     "sinc-Ls": {
       "genre": ["any"],
@@ -601,7 +619,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Average attenuation sinc filter with adaptive number of taps (4096x conversion ratio)."
+      "description": "Average attenuation sinc filter with adaptive number of taps (4096x conversion ratio).",
+      "length": "short",
+      "adaptive": true
     },
     "sinc-Lm": {
       "genre": ["classical", "jazz"],
@@ -611,7 +631,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Average attenuation sinc filter with adaptive number of taps (16384x conversion ratio)."
+      "description": "Average attenuation sinc filter with adaptive number of taps (16384x conversion ratio).",
+      "length": "medium",
+      "adaptive": true
     },
     "sinc-Ll": {
       "genre": ["classical"],
@@ -621,7 +643,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "Average attenuation sinc filter with adaptive number of taps (65536x conversion ratio)."
+      "description": "Average attenuation sinc filter with adaptive number of taps (65536x conversion ratio).",
+      "length": "long",
+      "adaptive": true
     },
     "sinc-Lh": {
       "genre": ["classical", "jazz"],
@@ -631,7 +655,9 @@
       "ratio": "2x",
       "upsample_only": true,
       "phase": "linear",
-      "description": "High attenuation sinc filter with adaptive number of taps (16384x ratio). Significantly better quality than sinc-L at 1/8th of the load."
+      "description": "High attenuation sinc filter with adaptive number of taps (16384x ratio). Significantly better quality than sinc-L at 1/8th of the load.",
+      "length": "medium",
+      "adaptive": true
     },
     "sinc-short": {
       "genre": ["any"],
@@ -641,7 +667,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Short average attenuation sinc filter with adaptive number of taps.",
-      "sdm_two_stage": true
+      "sdm_two_stage": true,
+      "adaptive": true
     },
     "sinc-medium": {
       "genre": ["classical", "jazz"],
@@ -651,7 +678,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Average attenuation sinc filter with adaptive number of taps.",
-      "sdm_two_stage": true
+      "sdm_two_stage": true,
+      "adaptive": true
     },
     "sinc-long": {
       "genre": ["classical"],
@@ -661,7 +689,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Long average attenuation sinc filter with adaptive number of taps.",
-      "sdm_two_stage": true
+      "sdm_two_stage": true,
+      "adaptive": true
     },
     "sinc-long-h": {
       "genre": ["classical", "jazz"],
@@ -671,7 +700,8 @@
       "ratio": "any",
       "phase": "linear",
       "description": "Long high attenuation sinc filter with adaptive number of taps.",
-      "sdm_two_stage": true
+      "sdm_two_stage": true,
+      "adaptive": true
     }
   }
 }

@@ -40,7 +40,7 @@ _MAX_LIST = 32
 _GENRES = frozenset({"pop", "jazz", "classical", "electronic", "any"})
 _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
-_LENGTHS = frozenset({"", "short", "medium", "long", "xlong"})
+_LENGTHS = frozenset({"", "xshort", "short", "medium", "long", "xlong", "stupid", "adaptive"})
 _QUALITIES = frozenset({0, 3, 4, 5})
 # The rate-limited hide is tri-state: "auto" follows the DAC (the frontend resolves it against the live rates
 # enumeration), "on"/"off" are the user's explicit override.
