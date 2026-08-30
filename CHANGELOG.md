@@ -12,6 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Changed
 
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
+- **SDM filter menus drop superseded single-stage variants.** On the SDM chain a filter whose `-2s` two-stage variant exists no longer appears in the 1x and Nx lists or their counts; a selection already set to one stays listed.
 
 ## [1.13.0] — 2026-08-26
 
