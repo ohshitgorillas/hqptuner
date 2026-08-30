@@ -44,6 +44,11 @@ export const LENGTHS = [
   ["medium", "Medium"],
   ["long", "Long"],
   ["xlong", "Extra long"],
+  ["stupid", "Stupid long"],
+  // a trait rather than one more bucket — matching reads the filter's adaptive
+  // flag, held alongside its length (store/narrow/match.js), so this row keeps
+  // sinc-S even though its length is short
+  ["adaptive", "Adaptive"],
   // the filters no name token or description classifies (store/narrow/facets.js
   // `length`) — a real facet value, distinct from the empty selection the button
   // calls "Any length", which means "not narrowed by length at all". Picking it

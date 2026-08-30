@@ -34,7 +34,7 @@ export const nFocusMode = signal(FOCUS_MODE_DEFAULT);
 // pick can have. Their picks therefore always union, and each further pick
 // widens the list. [] = any.
 export const nPhase = signal([]); // multi-select: linear | minimum | intermediate
-export const nLength = signal([]); // multi-select: short | medium | long | xlong
+export const nLength = signal([]); // multi-select: short | medium | long | xlong | stupid | adaptive
 // Rate-change narrowing. The manual's ratio column names LIMITATIONS (2x-only,
 // integer-only, upsample-only), and nobody shops FOR a limitation — the user's
 // scenario decides which limitation would bite, so the control is three

@@ -110,9 +110,10 @@ const FACET_CHECKS = [
   (f, s) => !s.focus.length || multiPass(s.focus, f.focus, s.focusMode),
   // Phase and length union rather than intersect, and carry no mode switch to
   // say otherwise: a filter holds exactly one of each, so a second pick can
-  // only widen.
+  // only widen. The length menu's "adaptive" row is a trait rather than one
+  // more bucket — it matches the flag a filter holds alongside its length.
   (f, s) => !s.phase.length || s.phase.includes(f.phase),
-  (f, s) => !s.length.length || s.length.includes(f.length),
+  (f, s) => !s.length.length || s.length.includes(f.length) || (s.length.includes("adaptive") && f.adaptive),
   // The rate-change rules hide only what they can positively exclude: a filter
   // whose ratio class is unknown (null) is never hidden by them. The odd-rate
   // rule hides just the 2x class — integer filters can still reach HQPTuner's
