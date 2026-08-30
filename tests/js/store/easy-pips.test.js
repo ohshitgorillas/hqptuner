@@ -36,7 +36,7 @@ import assert from "node:assert/strict";
 import { pipsFor, presetsFor } from "../../../hqptuner/static/store/easy.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
-/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
@@ -137,12 +137,19 @@ const HALL = "concert-hall";
 /**
  * The id of the preset costing the FEWEST pips on a chain, asked of the module
  * rather than typed: which preset sits at the bottom of the card is the owner's
- * to retune, and the floor case only needs whichever one does.
+ * to retune, and the floor case only needs whichever one does. Presets marked
+ * `costText` are excluded on their declared property: their cost row is a text
+ * caption rather than pips, `pipsFor` answers 0 for them by design, and the
+ * floor rule is only stated for presets that cost pips at all. Filtering on
+ * `pipsFor(...) > 0` instead would assume the very invariant under test.
  *
  * @param {string} mode
  * @returns {string}
  */
-const cheapestOn = (mode) => PRESETS.map((p) => p.id).reduce((a, b) => (pipsFor(a, mode) <= pipsFor(b, mode) ? a : b));
+const cheapestOn = (mode) =>
+  PRESETS.filter((p) => !p.costText)
+    .map((p) => p.id)
+    .reduce((a, b) => (pipsFor(a, mode) <= pipsFor(b, mode) ? a : b));
 
 test("test_error_correction_off_still_leaves_the_cheapest_preset_costing_more_than_a_preset_the_module_does_not_carry_on_the_sdm_chain", () => {
   assert.ok(pipsFor(cheapestOn("sdm"), "sdm", CORRECTION_OFF) > pipsFor(NO_SUCH_PRESET, "sdm"));

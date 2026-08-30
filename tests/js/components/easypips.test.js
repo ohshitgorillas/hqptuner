@@ -62,7 +62,7 @@ const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.
 const { pipsFor, presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
-/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
@@ -142,9 +142,11 @@ test("test_the_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async ()
 // One case per preset, off the shipped roster like the count sweeps: a card
 // that named one tile's group and left the other five anonymous fails by naming
 // the tile a reader is told nothing about, where a single reading would have
-// passed on the one tile it happened to take.
+// passed on the one tile it happened to take. Presets declaring `costText`
+// render no pip group at all — their cost row is plain text — so they are
+// excluded on that declared property.
 
-for (const preset of PRESETS) {
+for (const preset of PRESETS.filter((p) => !p.costText)) {
   test(`test_the_${preset.id}_tiles_pip_group_carries_an_accessible_name`, async () => {
     await resetTab({ mode: "pcm" });
     assert.equal(pipsAreNamed(tabs(), preset.id), true);
