@@ -120,9 +120,11 @@
   padding-top: var(--sp-1);
   border-top: 1px solid var(--surface-raised);
 }
-/* the phase and length popovers close with the same hint chrome (Facets.js):
-   their option rows are short and nowrap, so without the rate pop's measure
-   the note would wrap into a one-word column */
+/* the quality, focus, phase and length popovers close with the same hint
+   chrome (Facets.js): their option rows are short and nowrap, so without the
+   rate pop's measure the note would wrap into a one-word column */
+.multi[data-multi="quality"] .multi-pop,
+.multi[data-multi="focus"] .multi-pop,
 .multi[data-multi="phase"] .multi-pop,
 .multi[data-multi="length"] .multi-pop {
   width: 24rem;

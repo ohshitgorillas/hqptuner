@@ -69,8 +69,28 @@ const focusSolo = (/** @type {string} */ v) => ({ focus: [v] });
 const phaseSolo = (/** @type {string} */ v) => ({ phase: [v] });
 const lengthSolo = (/** @type {string} */ v) => ({ length: [v] });
 
-// The hint prose closing the phase and length popovers — owner-approved copy,
-// verbatim, in the same note chrome the rate popover's explainer uses.
+// The hint prose closing the quality, focus, phase and length popovers —
+// owner-approved copy, verbatim, in the same note chrome the rate popover's
+// explainer uses.
+const QualityHint = html`<div class="rate-note t-caption">
+  <strong>HQPTuner Hints:</strong> Quality ratings are relative to general-purpose use; lesser-rated filters can
+  outperform higher-rated ones with the appropriate content.
+</div>`;
+const FocusHint = html`<div class="rate-note t-caption">
+  <p><strong>HQPTuner Hints:</strong> Select the properties you want emphasized by the filter.</p>
+  <p>
+    <strong>Transients</strong> are sudden sounds like a snare hit or the leading edge of a plucked string; these
+    filters emphasize clean reproduction of such events.
+  </p>
+  <p>
+    <strong>Space</strong> is how we perceive the spatial distribution of instruments within a recording; these
+    filters emphasize the content's soundstage.
+  </p>
+  <p>
+    <strong>Timbre</strong> is how natural and realistic instruments and voices are rendered; these filters
+    emphasize a more lifelike sound.
+  </p>
+</div>`;
 const PhaseHint = html`<div class="rate-note t-caption">
   <strong>HQPTuner Hints:</strong> A filter's phase determines where it smears transients in time, aka ringing, and
   can be thought of as a trade-off between transient reproduction and spatial accuracy. Linear phase filters improve
@@ -83,7 +103,7 @@ const PhaseHint = html`<div class="rate-note t-caption">
 const LengthHint = html`<div class="rate-note t-caption">
   <strong>HQPTuner Hints:</strong> Length represents a trade-off between cleaner transients and an improved sense of
   space through better filtering or junk removal. Shorter filters ring less and produce cleaner transients at the
-  cost of less filtering; longer filters smear transients more in time but filter the junk more thoroughly.
+  cost of less filtering; longer filters smear transients more in time but are more capable at filtering the junk.
 </div>`;
 
 // The phase and length dropdowns, out of the assembly the way RateFacet is:
@@ -147,6 +167,7 @@ export function NarrowFacets() {
         onPick=${(/** @type {string | number} */ v) => (nQuality.value = Number(v))}
         active=${Number(nQuality.value) !== QUALITY_DEFAULT}
         count=${(/** @type {string | number} */ v) => ({ quality: Number(v) })}
+        extra=${QualityHint}
       />
       <${MultiSelect}
         open=${focusOpen}
@@ -157,7 +178,7 @@ export function NarrowFacets() {
         active=${!!nFocus.value.length}
         count=${focusPick}
         off=${(/** @type {string} */ v) => tagRowOff(nFocus.value, v, focusSolo(v), focusPick(v))}
-        extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
+        extra=${html`<${ModeSwitch} sig=${nFocusMode} />${FocusHint}`}
       />
       <${PhaseFacet} />
       <${LengthFacet} />
