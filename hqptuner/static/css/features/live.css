@@ -115,9 +115,9 @@
   align-items: center;
   gap: var(--sp-2);
 }
-/* Half-track row: the select is capped by the column, not by --w-select
+/* Half-track row: the picker button is capped by the column, not by --w-select
    (design-system §Rules). */
-.live-presets select {
+.live-presets .dd-box {
   width: 100%;
   max-width: 100%;
   min-width: 0;

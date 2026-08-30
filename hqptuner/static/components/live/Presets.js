@@ -22,7 +22,7 @@ import {
 } from "../../store/live/presets.js";
 import { askName, askConfirm } from "../../store/ask.js";
 import { Ask } from "../Ask.js";
-import { Dropdown } from "../controls/index.js";
+import { Combobox } from "../controls/Combobox.js";
 import { liveEditing, setLiveEditing } from "./Layout.js";
 import { Card } from "../common.js";
 
@@ -75,6 +75,10 @@ async function onDeletePreset(name) {
   selectedPreset.value = "";
 }
 
+// A Combobox rather than a native select, for one reason: a native select fires
+// no change event when the option already selected is picked again, and picking
+// the current preset again is the card's most useful action — it is how a
+// setting changed by hand is put back. The Combobox commits every pick.
 function LivePresetPicker() {
   const presets = livePresets.value || [];
   const busy = !!livePresetsBusy.value;
@@ -82,8 +86,8 @@ function LivePresetPicker() {
   return html`
     <div class="field live-presets">
       <label>Live preset</label>
-      <div class="control">
-        <${Dropdown} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
+      <div class="control" data-testid="live-preset">
+        <${Combobox} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
       </div>
       <div class="live-preset-actions">
         <button type="button" onClick=${() => onSavePreset(presets)} disabled=${busy}>Save…</button>
