@@ -2,9 +2,9 @@
 // server-side. A chain control whose schema entry carries `desc` — the PCM/SDM
 // filters and the modulator — renders the custom combobox (button class
 // "dd-box", role="combobox") in place of a native <select>; a dropdown whose
-// entry has no `desc` — the rate pair — keeps its native <select>, as do the
-// two pickers that are not schema desc entries at all, the matrix profile
-// picker and the live preset picker.
+// entry has no `desc` — the rate pair — keeps its native <select>. Of the two
+// pickers that are not schema desc entries at all, the matrix profile picker is
+// native and the live preset picker is a combobox.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. SSR reaches the CLOSED state only — the popup opens from a handler
@@ -230,17 +230,18 @@ for (const chain of ["pcm", "sdm"]) {
   });
 }
 
-// --- the two pickers that are not schema entries stay native ------------------
-// Neither carries a schema key, so each is reached through its own card.
+// --- the two pickers that are not schema entries ------------------------------
+// Neither carries a schema key, so each is reached through its own card. The
+// matrix profile picker is native; the live preset picker is a combobox.
 
 test("test_the_matrix_profile_picker_stays_a_native_select", async () => {
   await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: ["Room"] } });
   assert.equal(selects(card(page(), "matrix-profile")).length, 1);
 });
 
-test("test_the_live_preset_picker_stays_a_native_select", async () => {
+test("test_the_live_preset_picker_renders_a_combobox", async () => {
   await reset({ presets: [rec("Living Room", "pcm")] });
-  assert.equal(selects(card(page(), "live-mode")).length, 1);
+  assert.notEqual(openTag(card(page(), "live-mode"), 'role="combobox"'), null);
 });
 
 test("test_the_matrix_profile_picker_offers_the_loaded_profile", async () => {
