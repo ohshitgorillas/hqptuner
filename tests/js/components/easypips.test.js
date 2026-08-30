@@ -88,7 +88,7 @@ const TILE = "concert-hall";
 //
 // One case per preset per output mode, so a tile that drew the wrong number
 // fails by naming the tile and the chain rather than by a count that could
-// belong to any of the twelve.
+// belong to any of the sixteen.
 //
 // Both sweeps are generated from the shipped roster, so a roster that came back
 // empty would generate no cases and retire the rule with nothing red. This case
@@ -141,11 +141,13 @@ test("test_the_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async ()
 // What it SAYS is the owner's and is asserted nowhere.
 //
 // One case per preset, off the shipped roster like the count sweeps: a card
-// that named one tile's group and left the other five anonymous fails by naming
-// the tile a reader is told nothing about, where a single reading would have
-// passed on the one tile it happened to take. Presets declaring `costText`
-// render no pip group at all — their cost row is plain text — so they are
-// excluded on that declared property.
+// that named one tile's group and left the other seven anonymous fails by
+// naming the tile a reader is told nothing about, where a single reading would
+// have passed on the one tile it happened to take. Presets declaring `costText`
+// still render the single `data-testid="easy-pips"` cost-row container, but it
+// holds caption text — no pip dots and no named `role="img"` group — so they
+// are excluded from THIS naming sweep on that declared property, while the
+// count sweeps above stay unfiltered (0 dots agrees with `pipsFor` at 0).
 
 for (const preset of PRESETS.filter((p) => !p.costText)) {
   test(`test_the_${preset.id}_tiles_pip_group_carries_an_accessible_name`, async () => {

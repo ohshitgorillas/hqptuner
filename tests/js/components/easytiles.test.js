@@ -10,7 +10,7 @@
 // preset MEANS is tests/js/store/easy.test.js's; this file is about the lane in
 // between the table and the daemon.
 //
-// THERE IS NO GRID SWITCHER. The card lays out one set of six tiles, so nothing
+// THERE IS NO GRID SWITCHER. The card lays out one set of eight tiles, so nothing
 // here names a grid and no reading is scoped to one.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at

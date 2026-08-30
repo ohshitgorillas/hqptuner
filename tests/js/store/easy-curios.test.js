@@ -62,7 +62,9 @@ test("test_full_analog_on_auto_writes_iir2_to_all_four_filter_fields", () => {
 // --- behavior 2: textbook's emphasis knob picks one classic FIR name ---------------------
 //
 // Every row NAMES the position it reads at; what each case pins is the name
-// that position writes to both ends of the chain.
+// that position writes to both ends of the chain. The sweep runs on each
+// covered chain, because the SDM keys carry the same plain names (no -2s
+// variant exists for any of the three).
 
 /** @type {[string, string][]} */
 const EMPHASIS_CASES = [
@@ -72,8 +74,14 @@ const EMPHASIS_CASES = [
 ];
 
 for (const [emphasis, name] of EMPHASIS_CASES) {
-  test(`test_textbook_with_emphasis_on_${emphasis}_writes_${name}_to_both_ends_of_the_chain`, () => {
+  test(`test_textbook_with_emphasis_on_${emphasis}_writes_${name}_to_both_ends_of_the_pcm_chain`, () => {
     assert.deepEqual(writeSet("textbook", "pcm", { emphasis }), pcmBoth(name));
+  });
+}
+
+for (const [emphasis, name] of EMPHASIS_CASES) {
+  test(`test_textbook_with_emphasis_on_${emphasis}_writes_${name}_to_both_ends_of_the_sdm_chain`, () => {
+    assert.deepEqual(writeSet("textbook", "sdm", { emphasis }), sdmBoth(name));
   });
 }
 
@@ -106,6 +114,7 @@ test("test_textbook_on_auto_writes_the_same_plain_name_to_both_chains", () => {
 /** @type {[string, ("pcm" | "sdm" | "auto")][]} */
 const FULL_ANALOG_MODES = [
   ["pcm", "pcm"],
+  ["sdm", "sdm"],
   ["auto", "auto"],
 ];
 
