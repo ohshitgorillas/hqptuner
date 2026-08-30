@@ -11,7 +11,7 @@
 // joins by name (architecture §2). Resolving a name to the id a lane wants is
 // the last thing that happens, against the option list that lane is showing.
 import { schema } from "./schema.js";
-import { effective } from "./resolve.js";
+import { effective, runningValue } from "./resolve.js";
 import { optionsFor } from "./options.js";
 import { selectedLabel } from "./prose.js";
 import { edit } from "./actions.js";
@@ -61,14 +61,28 @@ function idFor(options, name) {
   return hit === undefined || hit.value === undefined ? "" : String(hit.value);
 }
 
-/** The tabs lane: the running configuration's own form, staged through the pending buffer. */
-function configLane() {
+// The tabs lane answers two different questions out of the same four fields, and
+// the reader handed in is the whole difference: `effective` folds the pending
+// buffer in, so it says what the grid has picked; `runningValue` leaves it out,
+// so it says what the engine is running (store/resolve.js). A page with nothing
+// staged gets the same answer from both, which is why LIVE needs no such split.
+/**
+ * The tabs lane's output mode and four filter names, resolved through one reader.
+ *
+ * @param {(key: string) => string | number | boolean | undefined} read
+ * @returns {{ mode: string, values: Record<string, string> }}
+ */
+function configShape(read) {
   /** @type {Record<string, string>} */
   const values = {};
-  for (const key of FILTER_KEYS) values[key] = selectedLabel(configOptions(key), effective(key));
+  for (const key of FILTER_KEYS) values[key] = selectedLabel(configOptions(key), read(key));
+  return { mode: String(read("output_mode") ?? ""), values };
+}
+
+/** The tabs lane: the running configuration's own form, staged through the pending buffer. */
+function configLane() {
   return {
-    mode: String(effective("output_mode") ?? ""),
-    values,
+    ...configShape(effective),
     /**
      * @param {string} key
      * @param {string} name
@@ -98,8 +112,13 @@ function liveControls() {
   return out;
 }
 
-/** The LIVE lane: the engine's own enumerations, written through on the spot. */
-function liveLane() {
+/**
+ * The LIVE lane's output mode and four filter names. Nothing stages here, so
+ * this is what the grid has picked and what the engine is running alike.
+ *
+ * @returns {{ mode: string, values: Record<string, string> }}
+ */
+function liveShape() {
   const controls = liveControls();
   /** @type {Record<string, string>} */
   const values = {};
@@ -107,9 +126,13 @@ function liveLane() {
     const c = controls[key];
     values[key] = c ? selectedLabel(c.optionsRaw, c.value) : "";
   }
+  return { mode: modeValue(), values };
+}
+
+/** The LIVE lane: the engine's own enumerations, written through on the spot. */
+function liveLane() {
   return {
-    mode: modeValue(),
-    values,
+    ...liveShape(),
     /**
      * @param {string} key
      * @param {string} name
@@ -135,4 +158,16 @@ function liveLane() {
  */
 export function easyLane(lane) {
   return lane === "live" ? liveLane() : configLane();
+}
+
+/**
+ * What the engine is running on one of those two pages, staged edits and preset
+ * preview ignored. On the LIVE lane that is the lane's own values, which never
+ * stage.
+ *
+ * @param {string} lane "config" (the Output tab, staged) | "live" (the LIVE page, written through)
+ * @returns {{ mode: string, values: Record<string, string> }}
+ */
+export function easyRunning(lane) {
+  return lane === "live" ? liveShape() : configShape(runningValue);
 }

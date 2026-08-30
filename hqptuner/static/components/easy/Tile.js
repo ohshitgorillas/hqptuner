@@ -218,12 +218,17 @@ function FilterName({ presetId, lane, knobs }) {
 // so two spacings mean two parents.
 /**
  * One curated preset as a tile: its mark, its cost, its words, its adjustments, and the click that sets it.
- * @param {{ preset: Preset, lane: string, active: boolean, knobs: Record<string, string> }} props
+ * @param {{ preset: Preset, lane: string, selected: boolean, active: boolean, knobs: Record<string, string> }} props
  */
-export function PresetTile({ preset, lane, active, knobs }) {
+export function PresetTile({ preset, lane, selected, active, knobs }) {
   const mark = markFor(preset.id, knobs);
   return html`
-    <div class="easy-tile" data-preset=${preset.id} data-active=${active ? "1" : "0"}>
+    <div
+      class="easy-tile"
+      data-preset=${preset.id}
+      data-selected=${selected ? "1" : "0"}
+      data-active=${active ? "1" : "0"}
+    >
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset.id, knobs)}>
         <span class="easy-mark">
           <span class="easy-name">

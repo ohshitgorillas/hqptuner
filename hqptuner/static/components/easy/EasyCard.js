@@ -27,7 +27,7 @@ import { Card } from "../common.js";
 import { knobsFor, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
-import { easyLane } from "../../store/easylane.js";
+import { easyLane, easyRunning } from "../../store/easylane.js";
 import { EasyHelp } from "./Help.js";
 import { PresetTile } from "./Tile.js";
 
@@ -64,24 +64,42 @@ const resting = (preset) => ({
   ...knobsFor(preset.id),
 });
 
-// Which tile is lit is derived end to end: the lane says what the filters are,
-// the preset table says which preset that corresponds to, and the tiles paint
-// that. Nothing about the marking is stored, so a filter changed by hand in a
-// chain card shows up here on the same poll. The only thing remembered is where
-// a DARK tile's knobs sit, which the fields cannot say.
+// Which tiles are marked is derived end to end: a lane says what the filters
+// are, the preset table says which preset that corresponds to, and the tiles
+// paint that. Nothing about a marking is stored, so a filter changed by hand in
+// a chain card shows up here on the same poll. The only thing remembered is
+// where a DARK tile's knobs sit, which the fields cannot say.
+//
+// TWO markings, from two readings of the same four fields. SELECTED is what the
+// grid has picked, staged edits folded in; ACTIVE is what the engine is running,
+// staged edits left out (store/easylane.js). On LIVE nothing stages and the two
+// always land on one tile. On the Output tab they part the moment a preset is
+// staged, and that parting is the point: with one marking, staging a preset
+// takes the only mark off the tile the engine is still running and the page has
+// nothing left that says what is playing.
 /** @param {{ lane: string }} props */
 function Grid({ lane }) {
   const l = easyLane(lane);
-  const hit = matchPreset(l.values, l.mode);
+  const r = easyRunning(lane);
+  const picked = matchPreset(l.values, l.mode);
+  const running = matchPreset(r.values, r.mode);
   return html`
     <div class="easy-grid">
       ${presetsFor().map((preset) => {
-        const on = !!hit && hit.presetId === preset.id;
+        const selected = !!picked && picked.presetId === preset.id;
+        const active = !!running && running.presetId === preset.id;
+        // Knobs follow the marking a tile carries: the selected tile shows where
+        // the staged filters put them, a tile that is only active shows where
+        // the running ones do, and a dark tile falls back to its record.
+        let knobs = resting(preset);
+        if (selected && picked) knobs = picked.knobs;
+        else if (active && running) knobs = running.knobs;
         return html`<${PresetTile}
           preset=${preset}
           lane=${lane}
-          active=${on}
-          knobs=${on ? hit.knobs : resting(preset)}
+          selected=${selected}
+          active=${active}
+          knobs=${knobs}
         />`;
       })}
     </div>
