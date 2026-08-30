@@ -90,7 +90,9 @@ function LivePresetPicker() {
         <${Combobox} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
       </div>
       <div class="live-preset-actions">
-        <button type="button" onClick=${() => onSavePreset(presets)} disabled=${busy}>Save…</button>
+        <button type="button" data-testid="live-preset-save" onClick=${() => onSavePreset(presets)} disabled=${busy}>
+          Save…
+        </button>
         <button type="button" onClick=${() => onDeletePreset(name)} disabled=${busy || !name}>Delete</button>
       </div>
       <${Ask} owner=${PRESET_OWNER} />
