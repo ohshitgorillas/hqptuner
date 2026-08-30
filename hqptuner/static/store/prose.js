@@ -13,7 +13,7 @@
 
 import { metadata } from "./signals.js";
 import { schema } from "./schema.js";
-import { notesVisible } from "./prefs.js";
+import { notesVisible, plainNames } from "./prefs.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -185,8 +185,12 @@ function filterDescription(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
   if (!entry) return "";
-  const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
-  return joinProse(entry.description, sdmNote, entry.notes, twoStage ? f.two_stage_note : "");
+  // Simplified mode says nothing about the two-stage variant: its names drop the
+  // clause (store/plainnames.js), so both notes go with them and the description
+  // keeps the filter's own prose alone. Standard mode is unchanged.
+  const twoStageNotes = !plainNames.value;
+  const sdmNote = twoStageNotes && sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
+  return joinProse(entry.description, sdmNote, entry.notes, twoStageNotes && twoStage ? f.two_stage_note : "");
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
