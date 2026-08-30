@@ -9,6 +9,7 @@
   "tips": {
     "emphasis": {
       "space": "Choose 'Space' for live or acoustic performances where the room or venue is part of the recording. The trade is slightly softer transients.",
+      "balanced": "Balanced between 'Space' and 'Transients'.",
       "transients": "'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction."
     },
     "version": {
@@ -79,6 +80,21 @@
       "material": {
         "label": "Source",
         "options": { "lossless": "Lossless", "lossy": "Lossy" }
+      }
+    }
+  },
+  "full-analog": {
+    "title": "Full Analog",
+    "description": "Imitates the smooth and relaxing sound of an analog playback chain.",
+    "cost": "CPU-bound"
+  },
+  "textbook": {
+    "title": "Textbook",
+    "description": "Standard issue; the sound of most DAC hardware.",
+    "knobs": {
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "balanced": "Balanced", "transients": "Transients" }
       }
     }
   },

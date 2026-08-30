@@ -23,6 +23,7 @@
  * @property {string} emoji
  * @property {Knob[]} knobs
  * @property {boolean} [hires] wears the hi-res badge
+ * @property {boolean} [costText] cost row is a caption, not pips (prose key "cost")
  *
  * @typedef {string | {pcm: string, sdm: string}} ChainName
  *   One filter name, or the two a preset takes when the chains differ.
@@ -92,6 +93,14 @@ const PRESETS = Object.freeze([
       { id: "correction", default: "on", options: ["on", "off"] },
     ],
   },
+  // The bottom-row pair. Full Analog has no PIPS row on purpose: its cost is
+  // stated as a caption (costText), not ranked against the card.
+  { id: "full-analog", emoji: "🎛️", costText: true, knobs: [] },
+  {
+    id: "textbook",
+    emoji: "📖",
+    knobs: [{ id: "emphasis", default: "balanced", options: ["space", "balanced", "transients"] }],
+  },
 ]);
 
 // Filter names per knob combination. A combination key is the preset's knob
@@ -151,6 +160,14 @@ const FILTERS = {
     "lifelike/on": "poly-sinc-ext2-xla",
     "lifelike/off": "poly-sinc-ext2-xl",
   },
+  // These names enumerate identically on both chains, with no `-2s` variants,
+  // so one plain name serves every field (data/engine-enums.json).
+  "full-analog": { "": "IIR2" },
+  textbook: {
+    space: "FIR",
+    balanced: "asymFIR",
+    transients: "minphaseFIR",
+  },
 };
 
 // What a preset costs the machine, in pips, per chain. Neither column is a
@@ -180,6 +197,7 @@ const PIPS = {
   purist: { sdm: 2, pcm: 1 },
   "old-school": { sdm: 1, pcm: 1 },
   "damage-control": { sdm: 1, pcm: 3 },
+  textbook: { sdm: 1, pcm: 1 },
 };
 
 // The SDM figure matches the row above: on that chain Damage Control costs the

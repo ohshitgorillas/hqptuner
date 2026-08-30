@@ -161,6 +161,17 @@ const pipColumns = (count) => (count <= 7 ? Math.max(count, 1) : Math.ceil(count
 
 /** @param {{ preset: Preset, lane: string, knobs: Record<string, string> }} props */
 function Pips({ preset, lane, knobs }) {
+  // A costText preset ranks against nothing, so its row says a word where the
+  // others count pips. The word is owner copy (prose key "cost"), the label the
+  // same one the dots get.
+  if (preset.costText) {
+    return html`
+      <span class="easy-pips" data-testid="easy-pips">
+        <span class="t-label">Cost:</span>
+        <span class="t-label">${easyProse(preset.id, "cost")}</span>
+      </span>
+    `;
+  }
   const count = pipsFor(preset.id, easyLane(lane).mode, knobs);
   const labelId = `easy-pips-${preset.id}-label`;
   return html`
