@@ -194,10 +194,10 @@ test("test_a_linear_phase_name_token_renders_a_linear_phase_row", () => {
 });
 
 // The xlong class has no literal name token: it derives from an -xl/-xla
-// suffix (or a fixed per-name override table).
+// suffix.
 test("test_an_xla_suffixed_name_renders_an_extra_long_length_row", () => {
-  seed([{ name: "poly-sinc-ext2-xla", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(rowCodes("poly-sinc-ext2-xla", LENGTH), [XLONG]);
+  seed([{ name: "gauss-xla", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(rowCodes("gauss-xla", LENGTH), [XLONG]);
 });
 
 test("test_a_minimum_phase_name_token_renders_a_minimum_phase_row", () => {
@@ -211,21 +211,22 @@ test("test_an_intermediate_phase_name_token_renders_an_intermediate_phase_row", 
 });
 
 test("test_a_long_name_substring_renders_a_long_length_row", () => {
-  seed([{ name: "poly-sinc-gauss-long", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(rowCodes("poly-sinc-gauss-long", LENGTH), [LONG]);
+  seed([{ name: "gauss-long", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(rowCodes("gauss-long", LENGTH), [LONG]);
 });
 
 test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
-  seed([{ name: "poly-sinc-ext3-xl", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(rowCodes("poly-sinc-ext3-xl", LENGTH), [XLONG]);
+  seed([{ name: "gauss-xl", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(rowCodes("gauss-xl", LENGTH), [XLONG]);
 });
 
-// poly-sinc-gauss-halfband-s carries no -short suffix of its own: its short
-// class comes from the fixed per-name override table. It is not adaptive, so
-// its Length row's tokens are exactly the short code and nothing else.
-test("test_an_override_table_name_renders_its_short_length_row", () => {
-  seed([{ name: "poly-sinc-gauss-halfband-s", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(rowCodes("poly-sinc-gauss-halfband-s", LENGTH), [SHORT]);
+// A filter whose overlay row states its length outright: the name matches no
+// length rule, so the tip's Length row can only have come from the overlay.
+// Not adaptive, so its Length row's tokens are exactly the short code and
+// nothing else.
+test("test_an_overlay_stated_length_renders_its_short_length_row", () => {
+  seed([], { "gauss-tiny": { length: "short" } });
+  assert.deepEqual(rowCodes("gauss-tiny", LENGTH), [SHORT]);
 });
 
 test("test_an_any_genre_filter_renders_the_any_genre_code", () => {
@@ -282,13 +283,12 @@ test("test_a_name_without_length_tokens_renders_no_length_row", () => {
   assert.equal(rowKeys("gauss-plain").includes(LENGTH), false);
 });
 
-// The sinc-M set's descriptions state a million taps, so its length facets
-// "stupid" and the tip carries a Length row whose value tokens include that
-// code — token membership only; the label and any joined reading beside it are
-// the owner's wording.
+// A filter whose overlay row states the "stupid" length: the tip carries a
+// Length row whose value tokens are exactly that code — the label and any
+// joined reading beside it are the owner's wording.
 test("test_a_stupid_length_filter_renders_a_length_row_carrying_the_stupid_token", () => {
-  seed([{ name: "sinc-M", description: "4/5 ⥮ Any" }]);
-  assert.ok((rowCodes("sinc-M", LENGTH) || []).includes(STUPID));
+  seed([], { "gauss-huge": { length: "stupid" } });
+  assert.deepEqual(rowCodes("gauss-huge", LENGTH), [STUPID]);
 });
 
 // The regression guard on that fix: the fallback used to cover a name that says

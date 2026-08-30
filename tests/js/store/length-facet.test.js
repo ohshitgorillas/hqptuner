@@ -1,29 +1,10 @@
-// Behavioral suite for the filter LENGTH facet (store/narrow/facets.js): which
-// length bucket a filter name classifies into, and which names carry no length
-// at all.
+// Behavioral suite for the filter LENGTH facet (store/narrow/facets.js): which length a filter carries, overlay-first with the name-token rules as fallback.
 //
-// Four suffix buckets — "short", "medium", "long", "xlong" — plus "", meaning
-// no length is known. (The fifth bucket, "stupid", and the adaptive boolean are
-// pinned in tests/js/store/length-adaptive.test.js.) The classifier takes a
-// NAME and reads nothing else; HQPlayer's
-// own descriptions are the rationale for which names carry which bucket, not a
-// runtime input. Where the description states no length, the bucket is "" and
-// not a plausible guess: a tap MULTIPLIER ("4096 x conversion ratio",
-// "131070 x conversion ratio") is a filter specification, not a bucket. That
-// is what separates `poly-sinc-gauss-xl` (an xl suffix in the name itself, so
-// "xlong") from `sinc-L` (a tap multiplier only, so ""). The names whose
-// descriptions state millions of taps outright classify as "stupid", pinned in
-// length-adaptive.test.js.
+// The overlay row in data/filters.json may state a `length` token outright, and an explicit overlay length wins over anything the name says. Where no overlay row speaks, the name-token rules classify: the words short/medium/long, the halfband suffixes -hb-s and -hb-l, the -xl/-xla suffixes, with a trailing -2s stripped first. The -hb-xs suffix is NOT a name rule: an xshort length reaches a filter only through an overlay `length: "xshort"` row. A name no rule reaches carries "" — no length. (The adaptive boolean and the narrowing over it are pinned in tests/js/store/length-adaptive.test.js.)
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no
-// snapshots. Live enum items are hand-built in the engine's own shape
-// (`{index, name, value, arg, description, apodizing, static}`), the way the
-// `<GetFilters/>` enumeration serves them (protocol.md) once the backend has
-// merged the static overlay row; the engine is the sole authority for which
-// names exist (architecture.md §2). Every name below is one the engine
-// enumerates, with one deliberate exception: `gauss-plain` in the
-// nothing-matched case is synthetic, standing for any name no length rule
-// reaches.
+// Every name here is synthetic — no real filter's classification is asserted; the rules themselves are the subject.
+//
+// Policy (docs/testing.md): public API only, one assertion per test, no snapshots. Overlay rows reach the frontend two ways, and both are exercised: merged onto a live enum item under its `static` key the way the backend serves `<GetFilters/>` (protocol.md), and as entries of `metadata.value.filters.filters` keyed by name for filters the live enum does not carry (architecture.md §2).
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/length-facet.test.js
 
@@ -36,13 +17,13 @@ import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 /**
  * A static overlay row as filters.json ships it.
  *
- * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, description?: string }} OverlayRow
+ * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, description?: string, length?: string, adaptive?: boolean }} OverlayRow
  */
 
 /**
  * One `<FiltersItem/>` as the backend serves it: the engine's enumeration
  * fields plus the backend-merged overlay row under `static` (undefined on an
- * overlay miss, which is what these length cases seed).
+ * overlay miss).
  *
  * @param {string} name
  * @param {number} index
@@ -59,13 +40,16 @@ const item = (name, index, staticRow) => ({
 });
 
 /**
- * Reseed both source signals — module-level signals outlive a test, so every
- * case reassigns the pair in full.
+ * Reseed both source signals with LIVE-enum filters — module-level signals
+ * outlive a test, so every case reassigns the pair in full. Each entry's
+ * overlay row (or undefined) rides the item's `static` key, the way the
+ * backend merges it.
  *
- * @param {string[]} names
+ * @param {Record<string, OverlayRow | undefined>} rowsByName
  */
-function seed(names) {
-  enums.value = { filters: names.map((name, i) => item(name, i)) };
+function seed(rowsByName) {
+  const names = Object.keys(rowsByName);
+  enums.value = { filters: names.map((name, i) => item(name, i, rowsByName[name])) };
   metadata.value = {
     settings: {},
     filters: { filters: {}, aliases: {} },
@@ -73,88 +57,89 @@ function seed(names) {
   };
 }
 
+/**
+ * Reseed with an EMPTY live enum: the names exist only as keys of the static
+ * metadata overlay, which fills facets for names the engine did not enumerate.
+ *
+ * @param {Record<string, OverlayRow>} overlay
+ */
+function seedOverlayOnly(overlay) {
+  enums.value = { filters: [] };
+  metadata.value = {
+    settings: {},
+    filters: { filters: overlay, aliases: {} },
+    shapers: { pcm_dithers: {}, sdm_modulators: {} },
+  };
+}
+
 /** @param {string} name */
 const lengthOf = (name) => filterFacets.value[name].length;
 
-// --- the sinc set's letter is a length letter --------------------------------
-// `sinc-S`'s description ends "Variant of poly-sinc-ext2-xla", which names the
-// ext2 FAMILY, not a length; per Signalyst the sinc set's letters follow its
-// short/medium/long lengths, matching the Ls/Lm/Ll pattern. So the S is short.
+// --- an overlay length token classifies outright, on both paths --------------
+// `gauss-plain` matches no name rule, so the length below can only have come
+// from the overlay row.
 
-test("test_sinc_S_classifies_as_short", () => {
-  seed(["sinc-S"]);
-  assert.equal(lengthOf("sinc-S"), "short");
-});
+const TOKENS = ["short", "medium", "long", "xlong", "xshort", "stupid"];
 
-// --- names documented by tap multiplier only ---------------------------------
-// The sinc-L family is documented by a tap multiplier. Taps are a filter
-// specification: never a length bucket, so no bucket reaches these — their
-// adaptive facet is a separate boolean, pinned in length-adaptive.test.js. The
-// sinc-M set and the closed-form pair, stated in millions of taps, classify as
-// "stupid" and are pinned there too.
-
-for (const name of ["sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "");
+for (const token of TOKENS) {
+  test(`test_an_overlay_length_${token}_on_a_live_enum_item_facets_${token}`, () => {
+    seed({ "gauss-plain": { length: token } });
+    assert.equal(lengthOf("gauss-plain"), token);
   });
 }
 
-// --- names with no documented length at all ----------------------------------
-// The polynomial pair states none; the minringFIR pair compares ringing to
-// other filters and states none.
-
-for (const name of ["polynomial-1", "polynomial-2", "minringFIR-lp", "minringFIR-mp"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "");
+for (const token of TOKENS) {
+  test(`test_an_overlay_length_${token}_known_only_to_the_overlay_facets_${token}`, () => {
+    seedOverlayOnly({ "gauss-plain": { length: token } });
+    assert.equal(lengthOf("gauss-plain"), token);
   });
 }
 
-// --- halfband names documented with a length word ----------------------------
+// --- an explicit overlay length wins over a name-token rule ------------------
 
-test("test_poly_sinc_gauss_halfband_s_classifies_as_short", () => {
-  seed(["poly-sinc-gauss-halfband-s"]);
-  assert.equal(lengthOf("poly-sinc-gauss-halfband-s"), "short");
+test("test_an_overlay_length_wins_over_the_name_rule", () => {
+  seed({ "gauss-short": { length: "long" } });
+  assert.equal(lengthOf("gauss-short"), "long");
 });
 
-test("test_poly_sinc_hb_m_classifies_as_medium", () => {
-  seed(["poly-sinc-hb-m"]);
-  assert.equal(lengthOf("poly-sinc-hb-m"), "medium");
+// --- overlay silent on length: the name rules are the fallback ---------------
+
+test("test_an_overlay_row_without_a_length_falls_back_to_the_name_rule", () => {
+  seed({ "gauss-short": {} });
+  assert.equal(lengthOf("gauss-short"), "short");
 });
 
 // --- a length word in the name classifies by that word -----------------------
 
 for (const [name, expected] of [
-  ["poly-sinc-short", "short"],
-  ["poly-sinc-medium", "medium"],
-  ["poly-sinc-long", "long"],
+  ["gauss-short", "short"],
+  ["gauss-medium", "medium"],
+  ["gauss-long", "long"],
 ]) {
   test(`test_a_name_carrying_${expected}_classifies_as_${expected}`, () => {
-    seed([name]);
+    seed({ [name]: undefined });
     assert.equal(lengthOf(name), expected);
-  });
-}
-
-// --- xl / xla suffixes -------------------------------------------------------
-
-for (const name of ["poly-sinc-gauss-xl", "poly-sinc-gauss-xla"]) {
-  test(`test_${name.replace(/-/g, "_")}_classifies_as_xlong`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "xlong");
   });
 }
 
 // --- halfband suffixes classify by their documented length words -------------
 
 for (const [name, expected] of [
-  ["poly-sinc-hb-xs", "short"],
-  ["poly-sinc-hb-s", "short"],
-  ["poly-sinc-hb-l", "long"],
+  ["gauss-hb-s", "short"],
+  ["gauss-hb-l", "long"],
 ]) {
   test(`test_the_halfband_suffix_of_${name.replace(/-/g, "_")}_gives_${expected}`, () => {
-    seed([name]);
+    seed({ [name]: undefined });
     assert.equal(lengthOf(name), expected);
+  });
+}
+
+// --- xl / xla suffixes -------------------------------------------------------
+
+for (const name of ["gauss-xl", "gauss-xla"]) {
+  test(`test_${name.replace(/-/g, "_")}_classifies_as_xlong`, () => {
+    seed({ [name]: undefined });
+    assert.equal(lengthOf(name), "xlong");
   });
 }
 
@@ -164,13 +149,22 @@ for (const [name, expected] of [
 // length suffix at all.
 
 test("test_a_trailing_2s_suffix_is_stripped_before_classifying", () => {
-  seed(["poly-sinc-hb-l-2s"]);
-  assert.equal(lengthOf("poly-sinc-hb-l-2s"), "long");
+  seed({ "gauss-hb-l-2s": undefined });
+  assert.equal(lengthOf("gauss-hb-l-2s"), "long");
+});
+
+// --- -hb-xs is not a name rule -----------------------------------------------
+// The xshort length comes only from an overlay `length: "xshort"` row (pinned
+// above); the suffix alone carries nothing.
+
+test("test_an_hb_xs_name_with_no_overlay_row_has_no_length", () => {
+  seed({ "gauss-hb-xs": undefined });
+  assert.equal(lengthOf("gauss-hb-xs"), "");
 });
 
 // --- nothing matched ---------------------------------------------------------
 
 test("test_a_name_matching_no_length_rule_has_no_length", () => {
-  seed(["gauss-plain"]);
+  seed({ "gauss-plain": undefined });
   assert.equal(lengthOf("gauss-plain"), "");
 });

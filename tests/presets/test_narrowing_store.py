@@ -477,6 +477,19 @@ def test_a_write_of_the_unspecified_length_token_beside_a_named_length_reads_bac
     assert store.read()["length"] == ["", "medium"]
 
 
+# The length domain also carries the overlay-era picks: "stupid" and "xshort"
+# are lengths a filter's overlay row may state, and "adaptive" is the pick that
+# narrows by the adaptive boolean whatever the filter's length. All three are
+# in-domain tokens like any named length.
+
+
+@pytest.mark.parametrize("token", ["stupid", "adaptive", "xshort"])
+def test_a_write_of_an_overlay_era_length_pick_is_stored_and_read_back(tmp_path: Path, token: str) -> None:
+    store = store_at(tmp_path)
+    store.write({"length": [token]})
+    assert store.read()["length"] == [token]
+
+
 # The length domain is closed everywhere else: widening it by one real pick did
 # not open it to unknown tokens.
 def test_a_length_write_holding_an_unknown_token_is_refused_naming_the_facet(tmp_path: Path) -> None:
