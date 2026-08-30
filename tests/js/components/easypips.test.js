@@ -59,7 +59,8 @@ const { resetTab, tabs, resetLive, liveCard } = await import("../support/easytil
 const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../support/easypips.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
-const { pipsFor, presetsFor } = await import("../../../hqptuner/static/store/easy.js");
+const { pipsFor } = await import("../../../hqptuner/static/store/easycost.js");
+const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */

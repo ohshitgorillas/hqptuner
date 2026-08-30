@@ -1,4 +1,4 @@
-// Behavioral suite for `pipsFor` (store/easy.js): how a preset's cost in pips
+// Behavioral suite for `pipsFor` (store/easycost.js): how a preset's cost in pips
 // MOVES, per output mode and per knob. What a tile draws that many pips of is
 // tests/js/components/easypips.test.js; this file is the rule the number obeys.
 //
@@ -33,7 +33,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { pipsFor, presetsFor } from "../../../hqptuner/static/store/easy.js";
+import { pipsFor } from "../../../hqptuner/static/store/easycost.js";
+import { presetsFor } from "../../../hqptuner/static/store/easy.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
