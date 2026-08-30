@@ -2,15 +2,18 @@
 // length bucket a filter name classifies into, and which names carry no length
 // at all.
 //
-// Four buckets — "short", "medium", "long", "xlong" — plus "", meaning no
-// length is known. The classifier takes a NAME and reads nothing else; HQPlayer's
+// Four suffix buckets — "short", "medium", "long", "xlong" — plus "", meaning
+// no length is known. (The fifth bucket, "stupid", and the adaptive boolean are
+// pinned in tests/js/store/length-adaptive.test.js.) The classifier takes a
+// NAME and reads nothing else; HQPlayer's
 // own descriptions are the rationale for which names carry which bucket, not a
 // runtime input. Where the description states no length, the bucket is "" and
-// not a plausible guess: a tap count ("4096 x conversion ratio", "131070 x
-// conversion ratio", a stated number of taps) is a filter SPECIFICATION, never
-// converted into a length bucket. That is what separates `poly-sinc-gauss-xl`
-// (an xl suffix in the name itself, so "xlong") from `sinc-L` (a tap multiplier
-// only, so "").
+// not a plausible guess: a tap MULTIPLIER ("4096 x conversion ratio",
+// "131070 x conversion ratio") is a filter specification, not a bucket. That
+// is what separates `poly-sinc-gauss-xl` (an xl suffix in the name itself, so
+// "xlong") from `sinc-L` (a tap multiplier only, so ""). The names whose
+// descriptions state millions of taps outright classify as "stupid", pinned in
+// length-adaptive.test.js.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no
 // snapshots. Live enum items are hand-built in the engine's own shape
@@ -83,28 +86,14 @@ test("test_sinc_S_classifies_as_short", () => {
   assert.equal(lengthOf("sinc-S"), "short");
 });
 
-// --- names documented by tap count only --------------------------------------
-// The sinc-L family is documented by a tap multiplier, the closed-form pair by
-// a tap count. Taps are a filter specification: never a bucket. The sinc-M set
-// lands here too: its M marks the million-tap form, and the "Variant of
-// poly-sinc-ext2-xla" / "poly-sinc-gauss-xl(a)" reference each name carries
-// states the family, not a length, so nothing classifies them.
-
-for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "");
-  });
-}
+// --- names documented by tap multiplier only ---------------------------------
+// The sinc-L family is documented by a tap multiplier. Taps are a filter
+// specification: never a length bucket, so no bucket reaches these — their
+// adaptive facet is a separate boolean, pinned in length-adaptive.test.js. The
+// sinc-M set and the closed-form pair, stated in millions of taps, classify as
+// "stupid" and are pinned there too.
 
 for (const name of ["sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "");
-  });
-}
-
-for (const name of ["closed-form-M", "closed-form-16M"]) {
   test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "");

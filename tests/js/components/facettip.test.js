@@ -160,6 +160,7 @@ const SHORT = "short";
 const MEDIUM = "medium";
 const LONG = "long";
 const XLONG = "xlong";
+const STUPID = "stupid";
 const ANY = "any";
 const INTEGER = "integer";
 const TWO_X = "2x";
@@ -219,13 +220,12 @@ test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
   assert.deepEqual(rowCodes("poly-sinc-ext3-xl", LENGTH), [XLONG]);
 });
 
-// sinc-S carries no -short suffix: its short class comes from the fixed
-// per-name override table, keyed on the S length letter the sinc set uses
-// (Ls/Lm/Ll). Its "Variant of poly-sinc-ext2-xla" reference names the family,
-// not the length, so the ancestor's -xla classifies nothing here.
+// poly-sinc-gauss-halfband-s carries no -short suffix of its own: its short
+// class comes from the fixed per-name override table. It is not adaptive, so
+// its Length row's tokens are exactly the short code and nothing else.
 test("test_an_override_table_name_renders_its_short_length_row", () => {
-  seed([{ name: "sinc-S", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(rowCodes("sinc-S", LENGTH), [SHORT]);
+  seed([{ name: "poly-sinc-gauss-halfband-s", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(rowCodes("poly-sinc-gauss-halfband-s", LENGTH), [SHORT]);
 });
 
 test("test_an_any_genre_filter_renders_the_any_genre_code", () => {
@@ -282,16 +282,14 @@ test("test_a_name_without_length_tokens_renders_no_length_row", () => {
   assert.equal(rowKeys("gauss-plain").includes(LENGTH), false);
 });
 
-// The sinc-M set states a tap count and no length letter, and the "Variant of
-// poly-sinc-ext2-xla" / "poly-sinc-gauss-xl(a)" reference each name carries
-// names the filter family, not the length. Nothing classifies them, so the tip
-// carries no Length row for any of them.
-for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
-  test(`test_${name.replace(/-/g, "_")}_renders_no_length_row`, () => {
-    seed([{ name, description: "4/5 ⥮ Any" }]);
-    assert.equal(rowKeys(name).includes(LENGTH), false);
-  });
-}
+// The sinc-M set's descriptions state a million taps, so its length facets
+// "stupid" and the tip carries a Length row whose value tokens include that
+// code — token membership only; the label and any joined reading beside it are
+// the owner's wording.
+test("test_a_stupid_length_filter_renders_a_length_row_carrying_the_stupid_token", () => {
+  seed([{ name: "sinc-M", description: "4/5 ⥮ Any" }]);
+  assert.ok((rowCodes("sinc-M", LENGTH) || []).includes(STUPID));
+});
 
 // The regression guard on that fix: the fallback used to cover a name that says
 // medium by accident, and removing it must not cost such a name its own value.
