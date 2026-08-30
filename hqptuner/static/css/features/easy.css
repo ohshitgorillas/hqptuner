@@ -42,11 +42,10 @@
    only staged; ACTIVE means "the engine is running this". Both are read off the
    field values every render, never stored.
 
-   Selected takes the accent, the same way a control with a border of its own
-   marks a staged edit. Active takes the border in the primary text color, so a
-   tile still running while another is staged reads as marked rather than as one
-   of the four dark boxes around it. Neither edge changes the box: the ring is
-   drawn inside it. */
+   Only SELECTED touches the edge, and it takes the accent, the same way a
+   control with a border of its own marks a staged edit. Active is carried by
+   the contents alone, below. The edge does not change the box either way: the
+   ring is drawn inside it. */
 .easy-tile[data-selected="1"] {
   border-color: var(--accent);
   /* A second ring INSIDE the border, so a marked edge reads at twice the weight
@@ -58,18 +57,12 @@
     inset 0 0 0 1px var(--accent),
     var(--edge-light);
 }
-.easy-tile[data-active="1"][data-selected="0"] {
-  border-color: var(--fg);
-  box-shadow:
-    inset 0 0 0 1px var(--fg),
-    var(--edge-light);
-}
 
-/* The active tile says so twice: its edge and its contents. An edge alone is a
-   thin thing to carry "these are the filters running" on a wall of six boxes, so
-   everything inside steps with it — every other tile falls back to the secondary
-   gray, the active one holds the primary. A step on the gray ladder the design
-   system already fixes, not a fourth color.
+/* Active is said by the contents and nothing else: every other tile falls back
+   to the secondary gray and the active one holds the primary, so "these are the
+   filters running" travels on the text rather than on a second edge treatment
+   competing with the accent. A step on the gray ladder the design system already
+   fixes, not a fourth color.
    Caught by role class, which reaches the title, every line of prose and the
    Cost word alike. Segments are out: they carry picked states of their own. The
    tile is named too, since typography.css loads last and sets those grays. */
