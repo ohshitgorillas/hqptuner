@@ -208,6 +208,12 @@
      as two different controls rather than two rows of one. */
   padding: 0 var(--sp-5);
 }
+[data-preset="textbook"] .easy-knob[data-knob="emphasis"] {
+  /* The one three-position emphasis row. At the two-position inset its buttons
+     need more room than the row has and spill past the tile's edge, so like the
+     version knob it spends no inset of its own. */
+  padding: 0;
+}
 
 /* Both positions the same width, so a knob reads as one control split in two
    rather than two buttons that happen to sit together — 'Space' beside
