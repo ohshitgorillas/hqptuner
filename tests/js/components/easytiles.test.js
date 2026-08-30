@@ -97,9 +97,9 @@ const {
 // tile of any kind; the roster below names which preset went missing, or which
 // tile the store stands behind no preset for.
 
-test("test_the_card_lays_out_six_tiles", async () => {
+test("test_the_card_lays_out_eight_tiles", async () => {
   await resetTab();
-  assert.equal(tiles(tabs()), 6);
+  assert.equal(tiles(tabs()), 8);
 });
 
 // The roster itself: the grid and the public store name the same presets. Both

@@ -41,7 +41,17 @@ TIPPED_KNOBS = ["emphasis", "version"]
 # `material` knob — carried by the two flagship tiles as well — is not in
 # TIPPED_KNOBS: its copy is not written yet, so there is no tip to ask for and
 # none may be invented. Neither is `source`, which no tile carries any more.
-PRESETS = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"]
+# Full Analog carries no knobs, so it offers nothing for the sweep to cover.
+PRESETS = [
+    "perfect-ten",
+    "lifelike",
+    "concert-hall",
+    "purist",
+    "old-school",
+    "damage-control",
+    "textbook",
+    "full-analog",
+]
 
 
 def _easy(client: TestClient) -> dict[str, object]:
