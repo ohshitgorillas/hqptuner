@@ -82,8 +82,8 @@ const PRESETS = Object.freeze([
   // high source rate. The badge names the second thing, and only these two.
   { id: "perfect-ten", emoji: "🥇", hires: true, knobs: [EMPHASIS, MATERIAL] },
   { id: "lifelike", emoji: "🎻", hires: true, knobs: [EMPHASIS, MATERIAL] },
-  { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
   { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
+  { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
   { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
   {
     id: "concert-hall",
