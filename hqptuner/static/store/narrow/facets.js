@@ -47,7 +47,8 @@ import { enums, metadata } from "../signals.js";
  * @property {number|null} quality null when the description carries no "n/5"
  * @property {string[]} focus
  * @property {string} phase "" when the name carries no phase token
- * @property {string} length short | medium | long | xlong, "" when nothing classifies it
+ * @property {string} length short | medium | long | xlong | stupid, "" when nothing classifies it
+ * @property {boolean} adaptive tap count scales with conversion ratio — a trait, held alongside a length
  * @property {boolean} hiresFamily
  * @property {boolean} apodizing
  * @property {boolean} apodizingHalf
@@ -178,7 +179,7 @@ function isHiresFamily(name) {
   return /hires|mqa|mp3/i.test(name || "");
 }
 
-// length — short / medium / long / xlong. Most names carry a readable token and
+// length — short / medium / long / xlong / stupid. Most names carry a readable token and
 // classify by it: short / medium / long, the xl/xla extra-long variants, the
 // hb-xs / hb-s / hb-l halfbands, with the -2s two-stage suffix stripped first.
 //
@@ -186,24 +187,43 @@ function isHiresFamily(name) {
 // the filter's own description states a length in words: gauss-halfband-s
 // ("Short … Gaussian") and hb-m ("Medium … half-band").
 //
-// The sinc-S / sinc-M / sinc-Mx / sinc-MG / sinc-MGa descriptions each end in a
-// "Variant of poly-sinc-ext2-xla" style reference, which names the filter
-// family and not the length — Signalyst places sinc-S and sinc-M(x) in the ext2
-// family and sinc-MG(a) in the gauss family. So the reference classifies none of
-// them. sinc-S is short by its own length letter, the same S/m/l the rest of the
-// sinc set uses; the M names carry no length letter and state only a tap count,
-// so they read "" like the sinc-L series.
+// The "stupid" bucket is the million-tap set, classified from Signalyst's own
+// published descriptions: sinc-M / sinc-Mx / sinc-MG / sinc-MGa and
+// closed-form-M / closed-form-16M each state one million taps or more outright.
+// sinc-S is short by its own length letter, the same S/m/l the rest of the
+// sinc set uses.
 //
-// Everything else reads "", the same answer `phase` gives. Tap count is a
-// filter SPECIFICATION, so a description stating only a tap multiplier
-// (the sinc-L series, the closed-forms) or nothing at all (the polynomial
-// interpolators, minringFIR) yields no length rather than a plausible one.
+// Everything else reads "", the same answer `phase` gives. A description
+// stating only a tap multiplier (the sinc-L series) or nothing at all (the
+// polynomial interpolators, minringFIR) yields no length rather than a
+// plausible one.
 /** @type {Record<string, string>} */
 const LENGTH_OVERRIDES = {
   "sinc-S": "short",
+  "sinc-M": "stupid",
+  "sinc-Mx": "stupid",
+  "sinc-MG": "stupid",
+  "sinc-MGa": "stupid",
+  "closed-form-M": "stupid",
+  "closed-form-16M": "stupid",
   "poly-sinc-gauss-halfband-s": "short",
   "poly-sinc-hb-m": "medium",
 };
+
+// The adaptive trait — tap count scales with conversion ratio — is held
+// ALONGSIDE a length, not instead of one: sinc-S is short and adaptive at
+// once. Membership from the descriptions that state "adaptive number of taps"
+// verbatim; the constant-time million-tap set (sinc-Mx, sinc-MG, sinc-MGa)
+// says "constant time" instead and stays out.
+const ADAPTIVE = new Set(["sinc-S", "sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]);
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
+function adaptive(name) {
+  const n = name || "";
+  return ADAPTIVE.has(n.endsWith("-2s") ? n.slice(0, -3) : n);
+}
 /**
  * @param {string} name
  * @returns {string}
@@ -262,6 +282,7 @@ function liveFacet(it, s) {
     focus: focus(it.description),
     phase: phase(it.name, it.static || s),
     length: length(it.name),
+    adaptive: adaptive(it.name),
     hiresFamily: isHiresFamily(it.name),
     apodizing: !!it.apodizing,
     apodizingHalf: (Number(it.arg) & 2) === 2,
@@ -286,6 +307,7 @@ function staticFacet(name, s) {
     focus: s.focus || [],
     phase: phase(name, s),
     length: length(name),
+    adaptive: adaptive(name),
     hiresFamily: isHiresFamily(name),
     apodizing: apod.apodizing,
     apodizingHalf: apod.apodizingHalf,

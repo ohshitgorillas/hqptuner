@@ -7,6 +7,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Added
 
 - **High-frequency filter auto-pilot engages and disengages the filter as the playing track warrants.** Off by default; setting the filter by hand switches it off, and both live and general presets carry it.
+- **The Length dropdown gains Stupid long and Adaptive rows.** Stupid long collects the million-tap filters; Adaptive matches the sinc filters whose tap count scales with conversion ratio. A filter can hold both a length and the adaptive trait.
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card of preset tiles, each with its own emphasis and source adjustments, on the Output tab and the LIVE page; a link inside it swaps back.
 
 ### Changed

@@ -61,6 +61,27 @@ function ratioCodes(f) {
   return f.ratio == null ? [] : [String(f.ratio)];
 }
 
+// The Length row carries the adaptive trait beside the bucket: "Short,
+// adaptive" for a filter holding both, bare "Adaptive" when the trait is all
+// it has. Codes carry the same pair raw.
+/**
+ * @param {FilterFacet} f
+ * @returns {string}
+ */
+function lengthValue(f) {
+  if (!f.adaptive) return lbl(LENGTHS, f.length);
+  return f.length ? `${lbl(LENGTHS, f.length)}, adaptive` : lbl(LENGTHS, "adaptive");
+}
+/**
+ * @param {FilterFacet} f
+ * @returns {string[]}
+ */
+function lengthCodes(f) {
+  const codes = f.length ? [String(f.length)] : [];
+  if (f.adaptive) codes.push("adaptive");
+  return codes;
+}
+
 // Rows appear only for facets that hold a value, in the narrow bar's own order.
 // Each row leads with the facet's own key and ends with the raw facet codes it
 // was built from, so a reader of the tip can be asked which facets it shows and
@@ -76,7 +97,7 @@ function facetRows(f) {
   if (f.genre.length) rows.push(["genre", "Genre", f.genre.map((g) => lbl(GENRES, g)).join(", "), f.genre.map(String)]);
   if (f.focus.length) rows.push(["focus", "Focus", f.focus.map((v) => lbl(FOCUS, v)).join(", "), f.focus.map(String)]);
   if (f.phase) rows.push(["phase", "Phase", lbl(PHASES, f.phase), [String(f.phase)]]);
-  if (f.length) rows.push(["length", "Length", lbl(LENGTHS, f.length), [String(f.length)]]);
+  if (f.length || f.adaptive) rows.push(["length", "Length", lengthValue(f), lengthCodes(f)]);
   const ratio = ratioValue(f);
   if (ratio) rows.push(["ratio", "Ratio", ratio, ratioCodes(f)]);
   return rows;
