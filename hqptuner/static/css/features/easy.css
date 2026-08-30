@@ -37,25 +37,38 @@
   border-radius: var(--r-md);
 }
 
-/* Lit means "these are the filters currently set", and it is read off the field
-   values every render, never stored. Accent on the tile's own border, the same
-   way a control with a border of its own marks a staged edit. */
-.easy-tile[data-active="1"] {
+/* A tile carries two markings and they say different things. SELECTED means "the
+   grid has this one picked", which on the Output tab includes a pick that is
+   only staged; ACTIVE means "the engine is running this". Both are read off the
+   field values every render, never stored.
+
+   Selected takes the accent, the same way a control with a border of its own
+   marks a staged edit. Active takes the border in the primary text color, so a
+   tile still running while another is staged reads as marked rather than as one
+   of the four dark boxes around it. Neither edge changes the box: the ring is
+   drawn inside it. */
+.easy-tile[data-selected="1"] {
   border-color: var(--accent);
-  /* A second accent ring INSIDE the border, so the lit edge reads at twice the
-     weight without the box changing size — a 2px border would move every tile in
-     the row by a pixel as the selection travels. The edge light aesthetic.css
-     spends on every raised element is carried along rather than replaced: this
-     file loads after it, so naming box-shadow here drops it otherwise. */
+  /* A second ring INSIDE the border, so a marked edge reads at twice the weight
+     without the box changing size — a 2px border would move every tile in the
+     row by a pixel as the selection travels. The edge light aesthetic.css spends
+     on every raised element is carried along rather than replaced: this file
+     loads after it, so naming box-shadow here drops it otherwise. */
   box-shadow:
     inset 0 0 0 1px var(--accent),
     var(--edge-light);
 }
+.easy-tile[data-active="1"][data-selected="0"] {
+  border-color: var(--fg);
+  box-shadow:
+    inset 0 0 0 1px var(--fg),
+    var(--edge-light);
+}
 
-/* The lit tile says so twice: its edge and its contents. An edge alone is a thin
-   thing to carry "these are the filters running" on a wall of six boxes, so
-   everything inside steps with it — an unlit tile falls back to the secondary
-   gray, the lit one holds the primary. A step on the gray ladder the design
+/* The active tile says so twice: its edge and its contents. An edge alone is a
+   thin thing to carry "these are the filters running" on a wall of six boxes, so
+   everything inside steps with it — every other tile falls back to the secondary
+   gray, the active one holds the primary. A step on the gray ladder the design
    system already fixes, not a fourth color.
    Caught by role class, which reaches the title, every line of prose and the
    Cost word alike. Segments are out: they carry picked states of their own. The
