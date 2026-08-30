@@ -41,7 +41,7 @@ import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { staticWire } from "../support/wire.js";
 import { rec } from "../support/livepresetwire.js";
-import { labeled } from "../support/markup.js";
+import { attr, elements, labeled } from "../support/markup.js";
 import { section } from "../support/tabform.js";
 
 // The two chains number the same filters differently, so each column's options
@@ -194,6 +194,18 @@ function widgetTag(out, key) {
 /** @param {string} out */
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 
+// The LIVE preset picker's OWN subtree, by the machine identity its control
+// wrapper carries. Scoped rather than measured across the whole card: another
+// control landing on the card later must not answer for this one, either way
+// round — a combobox elsewhere on the card would satisfy the first case and a
+// native select elsewhere would fail the second.
+/** @param {string} out */
+function preset(out) {
+  const el = elements(out).find((e) => attr(e, "data-testid") === "live-preset");
+  if (el === undefined) throw new Error("the page renders no live preset picker");
+  return el.html;
+}
+
 // --- a desc-bearing chain control renders the custom combobox -----------------
 // The LIVE view keys its chain fields per chain, so the Nx filter is reached as
 // `pcm_filter_nx` or `sdm_filter_nx` (store/live/derive.js). These three read
@@ -241,7 +253,12 @@ test("test_the_matrix_profile_picker_stays_a_native_select", async () => {
 
 test("test_the_live_preset_picker_renders_a_combobox", async () => {
   await reset({ presets: [rec("Living Room", "pcm")] });
-  assert.notEqual(openTag(card(page(), "live-mode"), 'role="combobox"'), null);
+  assert.notEqual(openTag(preset(page()), 'role="combobox"'), null);
+});
+
+test("test_the_live_preset_picker_carries_no_native_select", async () => {
+  await reset({ presets: [rec("Living Room", "pcm")] });
+  assert.equal(selects(preset(page())).length, 0);
 });
 
 test("test_the_matrix_profile_picker_offers_the_loaded_profile", async () => {

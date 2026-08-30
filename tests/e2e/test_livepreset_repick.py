@@ -7,10 +7,12 @@ SECOND pick of the SAME row — picking the preset that is already the picker's
 current selection applies it again, where before it sent nothing at all.
 
 Why these cases are here and not in `tests/js/components/livepresetscard.test.js`:
-a pick is a pointer event on an option row, and `preact-render-to-string` fires
-no handler, so the SSR harness can observe the picker's markup and never what a
-pick does. The batch only exists on the wire, and only a real browser driving
-the real app against the control fake puts it there.
+the CONTROL-API BATCH is what they observe, and that batch only exists once a
+real browser drives the real app against the whole stack. What a pick does to
+the app's own wire — which apply request it fires, and how many — is observable
+in the JS suite, which fires an option row's own handler through the renderer's
+vnode seam and counts the applies the fake was handed; those counts are pinned
+there and are not this suite's job.
 
 What is observed is `stack.control_log` — every control-API (port 4321) command
 the app has sent this session, in order. It is cumulative across the session and
@@ -40,26 +42,20 @@ Policy notes (docs/testing.md):
   wording is asserted.
 - The preset a case picks is created through the card's own Save flow, in the
   browser, because that is the only way a browser has to make one. The Save
-  button carries no machine identity of its own, so `open_name_prompt` finds it
-  by what it DOES — the one action button on the card that opens a name prompt —
-  rather than by the words on it.
+  button is addressed by the `data-testid` it carries, never by its caption.
 - `clean_slate` removes the preset a case saved, so nothing here leaks into the
   next test in the session.
 
-NOT covered here, and deliberately so: that picking the PLACEHOLDER row applies
-nothing. Stating "no command followed" needs either a fixed wall-clock wait,
-which rule 7 forbids outright, or a positive condition that necessarily comes
-after any batch would have been dispatched, and the picker offers none — the pop
-closing says the click was handled, not that the app has finished deciding what
-to send. A case anchored on the pop closing would pass whether or not a batch
-was on its way, so none is written. A regression that applied the placeholder
-row would pass this suite.
+NOT covered here: that picking the PLACEHOLDER row applies nothing. It is a
+deterministic negative on the app's own wire and it is pinned in the JS suite
+(`test_picking_the_placeholder_row_applies_nothing`), where the fake answers
+every request it is handed and a wire that went quiet is a real condition. A
+regression that applied the placeholder row turns that case red, not this suite.
 """
 
 import time
 
-from playwright.sync_api import Locator, Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
+from playwright.sync_api import Locator, Page, expect
 
 from e2e.support.stack import Stack
 
@@ -68,11 +64,6 @@ from e2e.support.stack import Stack
 LOAD_MS = 30_000
 SETTLE_MS = 20_000
 
-#: Ceiling on "did clicking THIS button open the name prompt". Short because it
-#: is asked once per action button while identifying the Save control, and the
-#: negative answer is the useful one for every button that is not Save.
-PROBE_MS = 3_000
-
 #: Gap between passes of the control-log poll. Not a wait anything is expected
 #: to take — it is how often the question gets asked again.
 POLL_S = 0.05
@@ -80,11 +71,13 @@ POLL_S = 0.05
 #: The Live preset picker's own control wrapper.
 PICKER = "[data-testid='live-preset']"
 
-#: The card the picker sits in: whatever section encloses it, so nothing here is
-#: pinned to a card id or to the page order. `section.card` and not `section`:
-#: the tab body is a section too, and matching it as well is a strict-mode
-#: violation, not a wider net.
-CARD = f"section.card:has({PICKER})"
+#: The picker's own button. It carries the `disabled` attribute while an apply
+#: is in flight and loses it when the call settles, so its enabled state is the
+#: positive completion signal these cases anchor a baseline on.
+PICKER_BUTTON = f"{PICKER} [role='combobox']"
+
+#: The card's Save control, by the machine identity it carries.
+SAVE = "[data-testid='live-preset-save']"
 
 #: The picker's placeholder row — the empty-valued first row, which selects no
 #: preset at all.
@@ -107,7 +100,6 @@ WRITES = frozenset(
         "SetJunkFilter",
         "SetAdaptiveVolume",
         "Volume",
-        "MatrixSetProfile",
     }
 )
 
@@ -129,27 +121,9 @@ def enter_live(page: Page, stack: Stack) -> None:
 
 
 def open_name_prompt(page: Page) -> None:
-    """Open the card's inline name prompt, by trying each of its action buttons.
-
-    The Save and Delete buttons carry no `data-testid`, and their captions are
-    owner copy that a test may not select on (rule 9). So the Save button is
-    identified by the one thing that tells it apart by machine: clicking it puts
-    the shared name field on screen. Anything else that opens (the delete
-    confirm) is dismissed with Escape, which `Ask` documents as the way out.
-    """
-    field = page.locator("input#ask-field")
-    buttons = page.locator(f"{CARD} .live-preset-actions button")
-    for index in range(buttons.count()):
-        button = buttons.nth(index)
-        if not button.is_enabled():
-            continue
-        button.click()
-        try:
-            field.wait_for(state="visible", timeout=PROBE_MS)
-        except PlaywrightTimeout:
-            page.keyboard.press("Escape")
-            continue
-        return
+    """Open the card's inline name prompt, through the Save button's own machine identity."""
+    page.locator(SAVE).click()
+    page.locator("input#ask-field").wait_for(state="visible", timeout=SETTLE_MS)
 
 
 def save_preset(page: Page, name: str) -> None:
@@ -170,7 +144,7 @@ def row(page: Page, value: str) -> Locator:
 
 def pick(page: Page, value: str) -> None:
     """Open the picker and click the row carrying `value`."""
-    page.locator(f"{PICKER} [role='combobox']").click()
+    page.locator(PICKER_BUTTON).click()
     option = row(page, value)
     option.wait_for(state="visible", timeout=SETTLE_MS)
     option.click()
@@ -213,6 +187,21 @@ def settled_writes(stack: Stack, timeout_ms: int = SETTLE_MS) -> int:
     return count
 
 
+def settled_after_pick(page: Page, stack: Stack, before: int) -> int:
+    """Wait for the apply a pick started to finish, and report the write count.
+
+    Two positive conditions, in order: the batch has STARTED (a write past
+    `before` reached the control fake) and it has FINISHED (the picker button
+    has lost the `disabled` attribute it wears while an apply is in flight).
+    Silence is never read as completion — a batch that stalls mid-flight would
+    otherwise set a baseline its own leftovers go on to satisfy, and the case
+    would pass on the FIRST pick's traffic.
+    """
+    wait_for_growth(stack, before)
+    expect(page.locator(PICKER_BUTTON)).to_be_enabled(timeout=SETTLE_MS)
+    return writes(stack)
+
+
 def stocked_picker(page: Page, stack: Stack) -> None:
     """Enter LIVE, save one preset, and leave the picker sitting on the placeholder."""
     enter_live(page, stack)
@@ -232,12 +221,18 @@ def test_picking_the_preset_already_selected_sends_a_second_batch(page: Page, st
     """Re-picking the current selection applies it again, where before it sent nothing.
 
     The first pick is what makes the preset the current selection, so the second
-    click on the same row is the one under test, and the baseline is taken once
-    the first pick's batch has finished arriving — so what is counted is traffic
-    the SECOND click caused and nothing the first one left in flight.
+    click on the same row is the one under test. Two things guard the case: the
+    baseline is taken on the picker going IDLE rather than on the wire going
+    quiet, so nothing the first pick left in flight is counted for the second;
+    and the selection really being the preset is waited on before the second
+    click, so the case cannot pass against a picker that applies only on a
+    CHANGE of value. The button names the current selection, and for this picker
+    a preset's wire value IS its name, so that wait reads data and not copy.
     """
     stocked_picker(page, stack)
+    before = settled_writes(stack)
     pick(page, PRESET)
-    baseline = settled_writes(stack)
+    baseline = settled_after_pick(page, stack, before)
+    expect(page.locator(PICKER_BUTTON)).to_contain_text(PRESET)
     pick(page, PRESET)
     assert wait_for_growth(stack, baseline) > baseline

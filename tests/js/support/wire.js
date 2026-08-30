@@ -187,7 +187,10 @@ export function stagingWire({ routes, fallback } = {}) {
 // request nothing ever answers must not read as a quiet wire, which would hand
 // the caller the half-settled state this helper exists to eliminate.
 /**
- * @param {StagingWire} w
+ * Any fake that keeps its outstanding requests, `stagingWire`'s and the live
+ * preset suites' alike — the member is the contract, not the fake.
+ *
+ * @param {{ inflight: Set<Promise<FakeResponse>> }} w
  * @param {number} [turns]
  * @returns {Promise<void>}
  */

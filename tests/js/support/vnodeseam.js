@@ -16,13 +16,13 @@ import { Field } from "../../../hqptuner/static/components/Field.js";
 /** @typedef {import("./wheel.js").VNode} VNode */
 
 /**
- * One render of a Field, with every vnode preact builds along the way.
+ * One render of any tree, with every vnode preact builds along the way.
  * `options.vnode` is restored even if the render throws.
  *
- * @param {string} k
+ * @param {Parameters<typeof render>[0]} tree
  * @returns {{ out: string, seen: VNode[] }}
  */
-export function renderField(k) {
+export function renderTree(tree) {
   /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
@@ -31,11 +31,19 @@ export function renderField(k) {
     if (previous) previous(vnode);
   };
   try {
-    return { out: render(html`<${Field} k=${k} />`), seen };
+    return { out: render(tree), seen };
   } finally {
     options.vnode = previous;
   }
 }
+
+/**
+ * One render of a Field, with every vnode preact builds along the way.
+ *
+ * @param {string} k
+ * @returns {{ out: string, seen: VNode[] }}
+ */
+export const renderField = (k) => renderTree(html`<${Field} k=${k} />`);
 
 /**
  * Concatenated text of a vnode subtree.

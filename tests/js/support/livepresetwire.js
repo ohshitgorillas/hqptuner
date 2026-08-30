@@ -44,9 +44,14 @@ import { ok, bad } from "./wire.js";
  * What the fake was handed and what it now holds: the calls in arrival order,
  * and the preset list the way the backend's store would have moved it.
  *
+ * `inflight` holds the requests the fake has been handed and not yet answered,
+ * the same member `stagingWire` keeps, so a suite can wait for this wire to go
+ * quiet (`quiesce`) rather than for a stopwatch (docs/testing.md rule 7).
+ *
  * @typedef {{
  *   calls: { path: string, method: string, body?: string }[],
  *   presets: PresetRecord[],
+ *   inflight: Set<Promise<FakeResponse>>,
  * }} PresetWire
  */
 
@@ -198,8 +203,8 @@ export function presetWire(cfg = {}) {
   const c = { presets: [], chain: "pcm", listStatus: 200, saveStatus: 200, applyStatus: 200, ...cfg };
   c.report = cfg.report || { live: [], stored: {} };
   /** @type {PresetWire} */
-  const w = { calls: [], presets: [...c.presets] };
-  env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
+  const w = { calls: [], presets: [...c.presets], inflight: new Set() };
+  const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
     if (path === "/api/livepresets") {
@@ -209,6 +214,15 @@ export function presetWire(cfg = {}) {
     return one
       ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method })
       : ambient(path, c);
+  };
+  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
+    const req = answer(path, opts);
+    w.inflight.add(req);
+    req.then(
+      () => w.inflight.delete(req),
+      () => w.inflight.delete(req),
+    );
+    return req;
   };
   return w;
 }

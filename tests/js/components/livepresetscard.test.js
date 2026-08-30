@@ -6,11 +6,13 @@
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire.
 //
-// Not observable here, deliberately: picking a preset from the dropdown,
-// clicking Save or Delete, and the name prompt / overwrite / delete confirms.
-// The suite renders server-side (preact-render-to-string), which never fires an
-// event handler, and the module-private signals those handlers write are not
-// widened to reach them (docs/testing.md, "Branches that cannot be reached").
+// PICKING a preset IS observable here: an option row's own onClick is reached
+// through the vnode preact built (tests/js/support/vnodeseam.js), the
+// renderer's public seam, and the wire fake records the request the handler
+// fires. What is still not observable is Save and Delete and their name prompt
+// / overwrite / delete confirms, whose flows run through module-private signals
+// this suite does not widen (docs/testing.md, "Branches that cannot be
+// reached").
 //
 // Covered only as far as the mention, because the spec quotes no copy for them:
 // the card naming live presets as distinct from the header's presets and the
@@ -43,9 +45,11 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";
+import { renderTree } from "../support/vnodeseam.js";
+import { quiesce } from "../support/wire.js";
 import { cardHeadAt, section } from "../support/tabform.js";
 import { elements, classes, attr, hasAttr, text } from "../support/markup.js";
-import { rows } from "../support/comborows.js";
+import { boxText, rows, vnodeRows, click } from "../support/comborows.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -59,9 +63,10 @@ afterEach(() => {
 
 /**
  * @param {{ chain?: string, presets?: PresetRecord[], error?: string, busy?: string }} [fixture]
+ * @returns {Promise<import("../support/livepresetwire.js").PresetWire>}
  */
 async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } = {}) {
-  presetWire({ presets, chain });
+  const wire = presetWire({ presets, chain });
   health.value = { reachable: true, info: {} };
   engineState.value = STATE(chain);
   engineStatus.value = null;
@@ -78,6 +83,7 @@ async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } 
   livePresetsBusy.value = busy;
   livePresetError.value = error;
   await discardAll();
+  return wire;
 }
 
 const page = () => render(html`<${LiveView} />`);
@@ -155,14 +161,9 @@ test("test_the_live_page_carries_a_live_mode_card", async () => {
 // The case that pinned the card's lede is gone: that sentence is owner-owned
 // copy with no machine identity beside it (rule 9).
 
-test("test_every_saved_preset_is_offered_by_name", async () => {
-  await resetPage({ presets: BOTH() });
-  const offered = options(card(page(), LIVE_MODE)).map((o) => o.v);
-  assert.deepEqual(
-    ["Living Room", "Bedroom"].filter((n) => offered.includes(n)),
-    ["Living Room", "Bedroom"],
-  );
-});
+// The case that asked only that both presets are OFFERED by name is gone: it is
+// subsumed by test_both_saved_presets_can_be_picked_while_the_engine_runs_pcm,
+// which asserts the same two wire values and their pickability besides.
 
 // Stated positively — "the pickable ones are BOTH of them", not "none is
 // disabled" — so a card that dropped a preset from the picker altogether fails
@@ -218,10 +219,14 @@ test("test_an_empty_preset_store_offers_one_option_that_is_no_preset", async () 
 });
 
 test("test_a_stocked_picker_opens_on_something_that_is_no_preset", async () => {
+  // The picker's SELECTION, which is what the CLOSED button shows — not the
+  // first row of the pop, which says only what the list starts with. WHAT the
+  // button says instead is the owner's wording (rule 9), so the assertion is
+  // that it is none of the saved names.
   await resetPage({ presets: BOTH() });
-  const first = options(card(page(), LIVE_MODE))[0].v;
+  const shown = decode(boxText(picker(card(page(), LIVE_MODE))));
   assert.equal(
-    BOTH().some((p) => first === p.name),
+    BOTH().some((p) => shown === p.name),
     false,
   );
 });
@@ -235,3 +240,92 @@ test("test_a_preset_failure_shows_on_the_card", async () => {
 // a preset stores the whole page — a regex over the card's prose. It is gone:
 // what the card's sentences say is owner-owned copy and a reading job, not a
 // unit test's (docs/testing.md rule 9).
+
+// --- what a pick does ---------------------------------------------------------
+//
+// A pick is an option row's own onClick, fired through the vnode preact built
+// for that row — the renderer's public `options.vnode` seam, nothing of
+// HQPTuner's stubbed (docs/testing.md rule 4), the same way
+// combobox-fav.test.js activates a star SSR renders but cannot click.
+//
+// Rows are addressed by the wire value each carries and NOT by walking down
+// from the picker's wrapper: `props.children` does not cross a component
+// boundary (support/wheel.js states the same limit), so a subtree walk from a
+// wrapper some parent rendered reaches none of the rows. `pickRow` instead
+// requires the value to be carried by exactly one dd-opt row in the whole page
+// and throws otherwise, so no case can click another dropdown's row by mistake.
+
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+
+const renderLive = () => renderTree(html`<${LiveView} />`);
+
+/**
+ * The one option row carrying `value`, anywhere in the rendered page.
+ *
+ * @param {VNode[]} seen
+ * @param {string} value
+ * @returns {VNode}
+ */
+function pickRow(seen, value) {
+  const hits = vnodeRows(seen).filter((r) => r.props["data-v"] === value);
+  if (hits.length !== 1) {
+    throw new Error(`expected one dd-opt row carrying data-v="${value}", found ${hits.length}`);
+  }
+  return hits[0];
+}
+
+// POST /api/livepresets/{name}/apply is the one request that applies a preset
+// (the fake serves the real path). The names are read back off the paths the
+// fake was handed, so a case pins WHICH preset was applied and HOW OFTEN in one
+// comparison.
+const APPLY = /^\/api\/livepresets\/([^/]+)\/apply$/;
+
+/**
+ * @param {import("../support/livepresetwire.js").PresetWire} w
+ * @returns {string[]}
+ */
+const applied = (w) =>
+  w.calls
+    .filter((c) => c.method === "POST" && APPLY.test(c.path))
+    .map((c) => decodeURIComponent(/** @type {RegExpExecArray} */ (APPLY.exec(c.path))[1]));
+
+// The picker's SELECTION, off the closed button — for this picker the wire
+// value of a preset row IS the preset's name, so this reads data and not copy.
+// Throws rather than asserting: it is the second re-pick case's PRECONDITION,
+// and a case whose precondition never held must not read as a pass.
+/** @param {string} name */
+function requireSelection(name) {
+  const shown = decode(boxText(picker(card(page(), LIVE_MODE))));
+  if (shown !== name) throw new Error(`the picker's selection is "${shown}", not "${name}"`);
+}
+
+test("test_picking_a_preset_applies_that_preset_once", async () => {
+  const w = await resetPage({ presets: BOTH() });
+  click(pickRow(renderLive().seen, "Living Room"));
+  await quiesce(w);
+  assert.deepEqual(applied(w), ["Living Room"]);
+});
+
+test("test_picking_the_preset_already_selected_applies_it_again", async () => {
+  // One apply per click: two clicks on the same row, two applies. The first
+  // click is what makes the preset the selection, and that precondition is
+  // established before the second click rather than assumed — without it the
+  // case would pass against a picker that applies only on a CHANGE of value.
+  const w = await resetPage({ presets: BOTH() });
+  click(pickRow(renderLive().seen, "Living Room"));
+  await quiesce(w);
+  requireSelection("Living Room");
+  click(pickRow(renderLive().seen, "Living Room"));
+  await quiesce(w);
+  assert.deepEqual(applied(w), ["Living Room", "Living Room"]);
+});
+
+test("test_picking_the_placeholder_row_applies_nothing", async () => {
+  // A deterministic negative: the fake answers every request it is handed, so
+  // `quiesce` returns on a wire that went quiet rather than on one still
+  // waiting (combobox-fav.test.js does the same for a star click).
+  const w = await resetPage({ presets: BOTH() });
+  click(pickRow(renderLive().seen, ""));
+  await quiesce(w);
+  assert.deepEqual(applied(w), []);
+});
