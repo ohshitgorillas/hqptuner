@@ -390,6 +390,11 @@ function common(keepKnobs, notes, copy) {
   if (!keepKnobs) easyKnobs.value = {};
   signals.metadata.value = { ...META, easy: { ...META.easy, ...copy } };
   signals.matrixConfig.value = { fields: [] };
+  // The preview a click in the presets pane leaves behind is module-level like
+  // the rest and outlives a case, so it is put back on every reset whether or
+  // not the case that follows seeds one.
+  signals.previewConfig.value = null;
+  signals.pendingPreset.value = null;
   signals.health.value = { reachable: true, info: {} };
   showDescriptions.value = notes;
   keepOptionDescriptions.value = true;
