@@ -21,6 +21,7 @@ import { signal } from "@preact/signals";
  * @property {string | boolean | null} cancelled
  * @property {boolean} refused a blank name was submitted and not committed
  * @property {ChoiceOption[]} [options] choices only
+ * @property {boolean} [named] choices only — the panel also asks for a name
  * @property {string} [confirm] warn only — wording of the button that proceeds
  * @property {string} [decline] warn only — wording of the button that backs out
  */
@@ -97,18 +98,21 @@ export function askWarn(owner, message, labels = WARN_LABELS) {
 // Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
 // the checked values in option order, or null if the user backs out. A disabled
 // option's checked state is pinned — rendered for honesty, immune to clicks.
+// With `{name: true}` the panel also carries a name field and resolves
+// {name, values} instead; a blank name is refused the way askName refuses it.
 /**
  * Open a multiple-choice question, resolving the checked values in option order
- * or null if the user backs out.
+ * (or {name, values} when a name is asked for too) or null if the user backs out.
  *
  * @param {string} owner
  * @param {string} message
  * @param {ChoiceOption[]} options
+ * @param {{ name?: boolean }} [opts]
  * @returns {Promise<unknown>}
  */
-export function askChoices(owner, message, options) {
+export function askChoices(owner, message, options, opts = {}) {
   const q = open(owner, "choices", message, null);
-  question.value = { ...question.value, options: options.map((o) => ({ ...o })) };
+  question.value = { ...question.value, options: options.map((o) => ({ ...o })), named: !!opts.name };
   return q;
 }
 
@@ -145,17 +149,20 @@ export function toggleChoice(value) {
 export function answer(value) {
   const q = question.value;
   if (!q) return;
+  const name = String(value == null ? "" : value).trim();
   if (q.kind === "choices") {
-    close(
-      q.options.filter((/** @type {ChoiceOption} */ o) => o.checked).map((/** @type {ChoiceOption} */ o) => o.value),
-    );
+    const values = q.options
+      .filter((/** @type {ChoiceOption} */ o) => o.checked)
+      .map((/** @type {ChoiceOption} */ o) => o.value);
+    if (!q.named) close(values);
+    else if (name) close({ name, values });
+    else question.value = { ...q, refused: true };
     return;
   }
   if (q.kind !== "name") {
     close(true);
     return;
   }
-  const name = String(value == null ? "" : value).trim();
   if (name) close(name);
   else question.value = { ...q, refused: true };
 }

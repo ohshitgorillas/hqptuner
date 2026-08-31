@@ -8,6 +8,7 @@ the Phase-2 live lane and so can never restart the daemon.
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
 from hqptuner.core.manager import ConnectionManager
@@ -17,6 +18,23 @@ from hqptuner.presets import presetlane
 from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
 
 router = APIRouter(prefix="/api")
+
+# The one record key that is not a live-lane field: auto-pilot is HQPTuner's own
+# switch (presets/store/live.py), selectable like the rest.
+AUTOPILOT = "autopilot"
+
+# Chain-scoped fields index the enumerations of one chain, so a preset carrying
+# any of them has to say which chain to be on — mode rides along unasked.
+_CHAIN_SCOPED = frozenset(field for field, spec in routing.ROUTABLE.items() if spec.chain is not None)
+
+
+class SaveBody(BaseModel):
+    """Which settings ``PUT /api/livepresets/{name}`` stores; None keeps everything the engine reports."""
+
+    fields: list[str] | None = None
+
+
+_UNKNOWN_CHAIN = {"chain": "the engine's active chain is unknown, so there is no live state to snapshot"}
 
 
 def _store(request: Request) -> LivePresetStore:
@@ -29,13 +47,55 @@ def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
 
 
 def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> None:
-    """Put auto-pilot back to what this record carries.
+    """Put auto-pilot back to what this record carries, or leave it alone when the record omits it (null).
 
     A record from before auto-pilot existed carries no such key and reads as off. A record that carries auto-pilot on
     and a junk filter of its own applies both, and auto-pilot then releases that filter on its next tick unless the
     playing track asks for it — which is what auto-pilot being on means.
     """
-    presetlane.switch_autopilot(manager, "livepreset.apply", enabled=record.get("autopilot") is True)
+    if record.get(AUTOPILOT, False) is None:
+        return
+    presetlane.switch_autopilot(manager, "livepreset.apply", enabled=record.get(AUTOPILOT) is True)
+
+
+def _selected(wanted: list[str] | None) -> set[str] | None:
+    """Return the keys a save keeps, mode forced beside any chain-scoped one; None = everything. Unknown key -> 422."""
+    if wanted is None:
+        return None
+    known = {*routing.live_fields(), AUTOPILOT}
+    unknown = [key for key in wanted if key not in known]
+    if unknown:
+        raise HTTPException(status_code=422, detail={"fields": f"not live preset settings: {', '.join(unknown)}"})
+    keys = set(wanted)
+    if keys & _CHAIN_SCOPED:
+        keys.add("mode")
+    return keys
+
+
+def _record(manager: ConnectionManager, keys: set[str] | None) -> dict[str, Any]:
+    """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all). 409 chain unknown."""
+    taken = snapshot.live_snapshot(manager)
+    if taken is None:
+        raise HTTPException(status_code=409, detail=_UNKNOWN_CHAIN)
+    kept = {field: item for field, item in taken.items() if keys is None or field in keys}
+    return {
+        "chain": chain.active_chain(manager),
+        "fields": {field: item["value"] for field, item in kept.items()},
+        "names": {field: item["name"] for field, item in kept.items()},
+        AUTOPILOT: manager.presetops.autopilot.enabled if keys is None or AUTOPILOT in keys else None,
+    }
+
+
+@router.get("/livepresets/snapshot")
+def live_snapshot(manager: Mgr) -> dict[str, Any]:
+    """Return what a save would store right now, per setting with its display name — what the save popover lists.
+
+    409 when the loaded chain is unknowable, the same refusal a save gives.
+    """
+    taken = snapshot.live_snapshot(manager)
+    if taken is None:
+        raise HTTPException(status_code=409, detail=_UNKNOWN_CHAIN)
+    return {"chain": chain.active_chain(manager), "fields": taken, AUTOPILOT: manager.presetops.autopilot.enabled}
 
 
 @router.get("/livepresets")
@@ -53,23 +113,14 @@ def live_presets(request: Request) -> dict[str, Any]:
 
 
 @router.put("/livepresets/{name}")
-def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any]:
+def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody | None = None) -> dict[str, Any]:
     """Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.
 
-    409 when the loaded chain is unknowable — the record would claim a chain it never captured.
+    A body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them
+    where the engine has them. 409 when the loaded chain is unknowable — the record would claim a chain it never
+    captured. 422 when a named field is not a live preset setting.
     """
-    taken = snapshot.live_snapshot(manager)
-    if taken is None:
-        raise HTTPException(
-            status_code=409,
-            detail={"chain": "the engine's active chain is unknown, so there is no live state to snapshot"},
-        )
-    record = {
-        "chain": chain.active_chain(manager),
-        "fields": {field: item["value"] for field, item in taken.items()},
-        "names": {field: item["name"] for field, item in taken.items()},
-        "autopilot": manager.presetops.autopilot.enabled,
-    }
+    record = _record(manager, _selected(None if body is None else body.fields))
     try:
         _store(request).save(name, record)
     except LivePresetSchemaError as exc:

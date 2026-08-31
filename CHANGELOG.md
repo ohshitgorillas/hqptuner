@@ -13,6 +13,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
 - **sinc-Lh reads "Medium with high attenuation".** Its published tap multiplier matches sinc-Lm, not the long tier; the earlier phrasing followed sinc-long-h, which keeps it.

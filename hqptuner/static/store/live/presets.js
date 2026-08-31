@@ -106,14 +106,16 @@ export async function applyLivePreset(name) {
   );
 }
 
-// The backend snapshots the engine itself, so a save sends nothing but a name.
+// The backend snapshots the engine itself, so a save sends a name and, at
+// most, which settings to keep.
 /**
  * Save the engine's current live settings under a name, then re-read the list.
  * @param {string} name
+ * @param {string[]} [fields] the settings to keep; omitted keeps every one
  * @returns {Promise<void>}
  */
-export async function saveLivePreset(name) {
-  await run(name, () => api.saveLivePreset(name), refreshLivePresets);
+export async function saveLivePreset(name, fields) {
+  await run(name, () => api.saveLivePreset(name, fields), refreshLivePresets);
 }
 
 /**
