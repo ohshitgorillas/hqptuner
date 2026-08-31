@@ -97,3 +97,21 @@
 .ask-pop .ask-choice-pinned {
   color: var(--muted);
 }
+/* the named choices ask (live preset save) carries its name field above the
+   rows; the field takes the panel's width rather than the inline name width */
+.ask-pop-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-bottom: var(--sp-1);
+}
+.ask-pop .ask-pop-name input[type="text"] {
+  width: 100%;
+}
+/* a row's current value sits after its label, muted: the label is the choice,
+   the value is what the choice would store */
+.ask-choice-detail {
+  margin-left: auto;
+  padding-left: var(--sp-3);
+  color: var(--muted);
+}

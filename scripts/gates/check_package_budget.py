@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 #: in it. Raise an entry for a feature; never raise one for a refactor.
 BUDGET: dict[str, int] = {
     "hqptuner/api": 331,
-    "hqptuner/api/routes": 1279,
+    "hqptuner/api/routes": 1322,
     "hqptuner/conf": 2283,
     # Raised for an extraction, against this table's own rule, by owner decision:
     # manager.py's state bag and on-demand readers became core/readings.py and

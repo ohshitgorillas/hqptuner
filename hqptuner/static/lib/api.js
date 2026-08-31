@@ -105,7 +105,10 @@ export const api = {
   // body: the backend snapshots the running engine itself, so the browser has
   // nothing to send that the daemon has not already reported.
   livePresets: () => getJSON("/api/livepresets"),
-  saveLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
+  liveSnapshot: () => getJSON("/api/livepresets/snapshot"),
+  // `fields` names the settings the preset keeps; omitted, the backend keeps them all.
+  saveLivePreset: (/** @type {string} */ name, /** @type {string[] | undefined} */ fields) =>
+    send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields ? { fields } : undefined),
   applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
   deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
   // Favorites — starred filter and modulator NAMES, stored for the install

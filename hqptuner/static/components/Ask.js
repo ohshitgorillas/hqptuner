@@ -19,10 +19,10 @@ import { question, answer, cancel, clearRefusal, toggleChoice } from "../store/a
 
 /**
  * @typedef {{ owner: string, kind: string, message: string, refused?: boolean,
- *   options?: ChoiceOption[], confirm?: string, decline?: string }} Question
- *   The open question as store/ask.js publishes it. `options` exists on the
- *   "choices" kind only; `confirm` and `decline` on the "warn" kind only;
- *   `refused` is set by the name kind's empty-answer path.
+ *   options?: ChoiceOption[], named?: boolean, confirm?: string, decline?: string }} Question
+ *   The open question as store/ask.js publishes it. `options` and `named` exist
+ *   on the "choices" kind only; `confirm` and `decline` on the "warn" kind only;
+ *   `refused` is set by the empty-answer path of the name kind and of named choices.
  * @typedef {{ current: HTMLInputElement | null }} FieldRef
  */
 
@@ -111,16 +111,27 @@ function usePinnedPopover(pop) {
   }, []);
 }
 
+// A named choices panel (the live preset save) carries the name field above
+// the list; its value rides to answer() the way the inline name field's does.
 /**
- * @param {{ q: Question }} props
+ * @param {{ q: Question, ref: FieldRef }} props
  */
-function ChoicesList({ q }) {
+function ChoicesList({ q, ref }) {
   const pop = useRef(/** @type {HTMLElement | null} */ (null));
   usePinnedPopover(pop);
+  const commit = () => answer(ref.current && ref.current.value);
   return html`
   <span class="ask ask-choices">
     <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
       <span class="ask-msg">${q.message}</span>
+      ${
+        q.named
+          ? html`<span class="ask-pop-name">
+            <input id="ask-field" type="text" ref=${ref} onKeyDown=${onKey} onInput=${clearRefusal} />
+            ${q.refused ? html`<span class="ask-refused">Enter a name first</span>` : null}
+          </span>`
+          : null
+      }
       ${(q.options || []).map(
         (o) => html`
           <label class=${o.disabled ? "ask-choice-pinned" : ""}>
@@ -131,11 +142,12 @@ function ChoicesList({ q }) {
               onChange=${() => toggleChoice(o.value)}
             />
             <span class="opt-label">${o.label}</span>
+            ${o.detail ? html`<span class="ask-choice-detail">${o.detail}</span>` : null}
           </label>
         `,
       )}
       <span class="ask-pop-actions">
-        <button class="primary" onClick=${() => answer()}>Confirm</button>
+        <button class="primary" onClick=${commit}>Confirm</button>
         <button onClick=${cancel}>Cancel</button>
       </span>
     </span>
@@ -186,12 +198,12 @@ const confirmLine = (q) => html`
 export function Ask({ owner }) {
   const ref = useRef(null);
   const q = question.value;
-  const mine = !!q && q.owner === owner && q.kind === "name";
+  const mine = !!q && q.owner === owner && (q.kind === "name" || (q.kind === "choices" && !!q.named));
   useLayoutEffect(() => {
     if (mine && ref.current) ref.current.focus();
   }, [mine]);
   if (!q || q.owner !== owner) return null;
-  if (q.kind === "choices") return html`<${ChoicesList} q=${q} />`;
+  if (q.kind === "choices") return html`<${ChoicesList} q=${q} ref=${ref} />`;
   if (q.kind === "warn") return html`<${WarnBox} q=${q} />`;
   return q.kind === "name" ? nameField(q, ref) : confirmLine(q);
 }
