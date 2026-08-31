@@ -74,7 +74,7 @@ READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
 # the subagent's context — so charging the spawn as well double-counts, and the
 # double charge is what trips the leash in the middle of a chain the project
 # requires. Freeing the spawn unmeters no write. Exact names only, as above.
-FREE_SPAWN_AGENTS = {"test-writer", "test-reviewer"}
+FREE_SPAWN_AGENTS = {"test-writer", "spec-reviewer"}
 
 
 def _load(name):

@@ -17,9 +17,19 @@ That is the whole point of you. A test written by the agent that wrote the code 
 
 ## What you are given
 
-A **spec block** in your task prompt. It contains: the behavior in plain words, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, and which existing fixtures or fakes apply.
+A **spec block** in your task prompt. It contains: the numbered behaviors, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, and which existing fixtures or fakes apply. Each behavior line has this shape:
+
+```
+N. <behavior as the caller sees it>
+   kills: <a wrong implementation a user would notice, which this line rejects>
+   existing: none
+```
+
+The `kills:` clause is your assertion target. The test you write for line N must fail on the implementation that clause names and pass on a correct one; an assertion that would hold under both is the wrong assertion, however true it is.
 
 The spec block is your only knowledge of the code. If it does not say what the behavior is, you do not know — **say so and stop**. Do not infer it, do not go looking for it, do not write a test that asserts whatever seems likely. A gap in the spec is a finding to report, not a hole to fill.
+
+**The spec is closed.** One test per behavior line, a parametrize sweep counting as one; nothing beyond the numbered lines. A behavior you believe is missing, an entry point you think deserves its own case, a boundary the spec did not state: those are findings for your report, never files you write. A test count above the line count is a defect in your output.
 
 ## Where you work
 
@@ -35,7 +45,7 @@ cd <your tree> && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q
 
 ## What you may read
 
-- `docs/` — all of it. `docs/testing.md` is binding policy and is reproduced below; the rest is design and wire truth.
+- `docs/` — all of it. `docs/testing.md` is binding policy and you read it first; the rest is design and wire truth.
 - `tests/conftest.py`, `tests/fake_*.py`, `tests/fixtures/*`, and existing files under `tests/` — the fakes, fixtures and house style you are writing against.
 - `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the repo root — HQPlayer's own documentation, authoritative for daemon behavior, config attributes, enum meanings and plugin parameters. Reference them before inferring anything about the wire.
 - The interface extract inside your spec block.
@@ -50,45 +60,17 @@ Running the suite is allowed even though a traceback may quote implementation so
 
 Tests under `tests/`, and nothing else. You do not touch `hqptuner/`, `docs/`, `Makefile`, or any config. If a test cannot be written without a new fixture or a new capability in a fake, add it to `tests/conftest.py` or the relevant `tests/fake_*.py` — a fake speaks the wire protocol, so extending one means teaching it a real frame, never teaching it to return what your test wants.
 
-Verify before you report: run the tests you wrote (`.venv/bin/pytest tests/<file> -q`) and the mechanical gates that apply to them (`.venv/bin/ruff check tests`, `.venv/bin/black --check tests`, `.venv/bin/python scripts/gates/check_test_assertions.py tests/*.py`).
+Verify before you report: run the tests you wrote (`.venv/bin/pytest tests/<file> -q`) and the mechanical gates that apply to them (`.venv/bin/ruff check tests`, `.venv/bin/black --check tests`, `.venv/bin/python scripts/gates/check_test_assertions.py tests/*.py`, `.venv/bin/python scripts/gates/check_no_copy_assertions.py tests/*.py`).
 
 ## What you report back
 
-- The file(s) you wrote, and one line per test naming the behavior it pins.
+- The file(s) you wrote, and one line per test naming the spec line it pins and the `kills:` implementation it distinguishes, so the mapping can be checked by eye.
 - Which spec behaviors you could **not** cover, and why.
 - Any place the spec was ambiguous, with the reading you took.
 - The pass/fail result of the run, quoted, including tests that fail. **A failing test is a legitimate outcome and you must report it as one.** You do not know whether the code or the spec is wrong — you have not seen the code. Never edit a test to make it pass. Never soften an assertion. Hand the failure up; the orchestrator adjudicates.
 
 ---
 
-# docs/testing.md — binding policy, reproduced in full
+# Binding policy
 
-If the copy in the repo differs from the copy below, **the repo file wins** — read it and follow it.
-
-## Core rules
-
-1. **Test behavior and intent, never implementation.** Test asserts observable contract: given this input / wire traffic, public API yields this result. Refactor preserves behavior but breaks test = test defective. Module layout, private helpers, internal state, call sequences, log text — all off-limits.
-
-2. **One assertion per test.** Each test asserts one condition (`assert` statement or one `pytest.raises` block). Failure names one broken behavior. Case sweeps use `@pytest.mark.parametrize` — one condition per generated case — never assert-in-a-loop or assertion stacks.
-
-3. **Public API only.** Tests exercise same surface a caller would. No reaching into `_private` attributes, no monkeypatching internals.
-
-4. **Fakes speak wire protocol; mocks of our own code forbidden.** To test 4321 client, run fake daemon speaking real XML over real socket (including documented protocol quirks: split frames, bare `&`, double-escaped entities). Never stub client's own methods to test client.
-
-5. **Anchor on stable contract facts, not golden dumps.** Compare specific fields with known meaning (`channels min == 2`), never whole-structure equality against snapshot — snapshots re-assert implementation back at itself, break on harmless change.
-
-6. **Test names state behavior**: `test_<behavior in plain words>` — `test_checked_checkbox_parses_true`, not `test_parse_2`.
-
-7. **No test waits on wall clock.** Retry/verify/poll loop tested for how many passes it makes and what it concludes — never how long it takes. So production code paces itself through injectable clock, suite virtualizes it.
-   - **Lanes pace on manager's seams**, `ConnectionManager.sleep` and `ConnectionManager.monotonic` — never `asyncio.sleep` or `time.monotonic` directly. Deadline is `mgr.monotonic() + mgr.alarm_threshold`; wait is `await mgr.sleep(...)`. New lane reaching for module-level clock = review flag.
-   - **`tests/conftest.py` `virtual_clock` (autouse) virtualizes both**: `sleep` advances offset, `monotonic` reads it back. Both public methods, so seam, not rule-3 violation — patching private `_sleep` would be.
-   - **Advance clock; never freeze one half.** No-op `sleep` with real `monotonic` turns every deadline loop into hot spin hammering fake for full wall-clock deadline — slower than sleeps it removed, and different code path than production.
-   - **`ConnectionManager.run()` stays on real clock** by design. Paces on private stop-event wait, which `virtual_clock` does not touch, so manager started with `create_task(manager.run())` polls at real interval instead of spinning.
-   - **Fake servers tear down promptly.** `http.server.HTTPServer.shutdown()` blocks on `serve_forever`'s `poll_interval`, 0.5 s default charged to every fixture teardown; `fake_http.spawn` passes `poll_interval=0.01`. Any new threaded fake does same.
-
-   Reason: suite once took 84 s, ~80 s of it real sleeps. Now 7 s. Test reintroducing wall-clock wait is defective even when it passes.
-
-## Markers
-
-- Default suite offline and deterministic; must pass on machine with no hqplayerd.
-- Tests needing real daemon marked `@pytest.mark.live`, must be read-only against it. Everything write-shaped runs against fakes — permanently: live tests never write to production daemon.
+`docs/testing.md` is binding in full and you read it before writing a line: rule 8 (tests must bite) and rule 9 (a test asserts only strings it put on the wire itself; every string born inside `hqptuner/` is copy) are the two the `kills:` clause and your assertion target turn on. The spec block may quote it; the repo file wins where they differ.

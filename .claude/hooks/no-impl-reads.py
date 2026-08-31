@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: keep a blind test-author out of the implementation.
+"""PreToolUse hook: keep a blind test-author or spec-reviewer out of the implementation.
 
 Wired from the `hooks:` frontmatter of `.claude/agents/test-writer.md` and
-`.claude/agents/test-reviewer.md`, so it binds those subagents only — the
+`.claude/agents/spec-reviewer.md`, so it binds those subagents only — the
 orchestrator and every other agent are untouched. A session-wide
 `permissions.deny` would have blinded the orchestrator too, which is the one
 agent that has to read the implementation to adjudicate a failure.
@@ -40,7 +40,7 @@ PACKAGE = "hqptuner"
 BASH_PATH = re.compile(r"(?:^|[\s\"'=(:])\.?/?hqptuner/")
 
 _WHY = (
-    "Blind test author: the implementation is out of bounds. Work from the spec block, "
+    "Blind agent: the implementation is out of bounds. Work from the spec block, "
     "docs/, tests/, and the HQPlayer documentation. If the spec does not say what the "
     "behavior is, report that gap instead of reading the code to find out."
 )

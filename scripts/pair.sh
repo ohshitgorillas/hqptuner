@@ -6,12 +6,13 @@
 #   scripts/pair.sh abort <slug>
 #   scripts/pair.sh list
 #
-# The /tests chain runs the blind test-writer and the implementer concurrently.
-# They cannot share a tree: the writer's tree must contain no implementation for
-# the red run to prove anything, and several sessions may be doing this at once.
-# So each session gets a PAIR of worktrees off dev's tip:
+# The /tests chain writes tests first — by the blind test-writer for larger
+# specs, by the orchestrator for one- or two-line ones — and implements beside
+# them. They cannot share a tree: the tests tree must contain no implementation
+# for the red run to prove anything, and several sessions may be doing this at
+# once. So each session gets a PAIR of worktrees off dev's tip:
 #
-#   .claude/worktrees/<slug>-spec   branch spec/<slug>   writer   tests/ only
+#   .claude/worktrees/<slug>-spec   branch spec/<slug>   tests    tests/ only
 #   .claude/worktrees/<slug>-impl   branch impl/<slug>   you      everything but tests/
 #
 # The main checkout is never an agent workspace — it is the user's.
@@ -210,7 +211,7 @@ do_open() {
   base        $(git rev-parse --short "$base") (dev)
 
   spec tree   $SPEC_DIR
-              branch $SPEC_BR — test-writer works here, tests/ only.
+              branch $SPEC_BR — tests are written here, tests/ only.
               No implementation lands here before the merge, so the red run
               in this tree is the bite proof.
 
