@@ -229,11 +229,15 @@ function FilterName({ presetId, lane, knobs }) {
 // the prose can differ from the gap between the emoji and the name — space
 // between siblings is the parent's gap and nothing else (docs/design-system.md),
 // so two spacings mean two parents.
+// GRAYED is a third marking and the only one the card decides rather than the
+// fields: the card's material knob says the source is lossy and this preset has
+// no filter made for it (store/easyoffer.js presetGrayed). It dims the tile and
+// nothing else — the button still works, because a user action always proceeds.
 /**
  * One curated preset as a tile: its mark, its cost, its words, its adjustments, and the click that sets it.
- * @param {{ preset: Preset, lane: string, selected: boolean, active: boolean, knobs: Record<string, string> }} props
+ * @param {{ preset: Preset, lane: string, selected: boolean, active: boolean, grayed?: boolean, knobs: Record<string, string> }} props
  */
-export function PresetTile({ preset, lane, selected, active, knobs }) {
+export function PresetTile({ preset, lane, selected, active, grayed, knobs }) {
   const mark = markFor(preset.id, knobs);
   return html`
     <div
@@ -241,6 +245,7 @@ export function PresetTile({ preset, lane, selected, active, knobs }) {
       data-preset=${preset.id}
       data-selected=${selected ? "1" : "0"}
       data-active=${active ? "1" : "0"}
+      data-grayed=${grayed ? "1" : undefined}
     >
       <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset.id, knobs)}>
         <span class="easy-mark">

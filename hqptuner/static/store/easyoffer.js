@@ -21,6 +21,7 @@ import { combos, filterFor, knobsShown, presetsFor, writeSet } from "./easy.js";
 import { dsd44kOnly, rateLimited } from "./narrow/match.js";
 import { filterFacets } from "./narrow/facets.js";
 import { sourceIsNx } from "./live/derive.js";
+import { easyMaterial } from "./easyview.js";
 
 /**
  * @typedef {import("./easy.js").Preset} Preset
@@ -53,6 +54,66 @@ function filtersWritten(presetId, outputMode) {
 export function presetOffered(preset, mode) {
   if (mode !== "sdm" || !dsd44kOnly.value) return true;
   return filtersWritten(preset.id, "sdm").some((name) => !rateLimited(name, "sdm"));
+}
+
+/**
+ * The knobs set on the card rather than on a tile, each once, in the order the
+ * presets first name them.
+ *
+ * @returns {Knob[]}
+ */
+export function cardKnobs() {
+  /** @type {Knob[]} */
+  const out = [];
+  for (const preset of presetsFor()) {
+    for (const knob of preset.knobs) if (knob.card && !out.some((k) => k.id === knob.id)) out.push(knob);
+  }
+  return out;
+}
+
+// The card's knobs, at their positions. One today, and the store holds it as one
+// named signal rather than a map, so this is where a knob id meets its signal.
+/**
+ * Where the card's knobs stand, by knob id.
+ *
+ * @returns {Record<string, string>}
+ */
+export function cardPositions() {
+  return { material: easyMaterial.value };
+}
+
+/**
+ * Whether any card knob stands off its default.
+ *
+ * @returns {boolean}
+ */
+function cardMoved() {
+  const at = cardPositions();
+  return cardKnobs().some((knob) => at[knob.id] !== knob.default);
+}
+
+// The third rule, the card-level one. With the card's material knob off its
+// default the user has said the source is lossy, and a preset whose every path
+// writes a filter not made for it is offered but grayed: it still works, it is
+// just not the answer to what they said. Read across every combination the tile
+// can write, so a preset that reaches a hi-res filter at some position of its
+// other knobs stays lit.
+//
+// Positive evidence only, again: a preset whose filters the engine has said
+// nothing about is not grayed, since nothing known says it should be.
+/**
+ * Whether a tile is grayed under one lane's output mode.
+ *
+ * @param {Preset} preset
+ * @param {string} mode "pcm" | "sdm" | "auto"
+ * @returns {boolean}
+ */
+export function presetGrayed(preset, mode) {
+  if (!cardMoved()) return false;
+  const known = filtersWritten(preset.id, mode)
+    .map((name) => filterFacets.value[name])
+    .filter((facet) => !!facet);
+  return known.length > 0 && !known.some((facet) => facet.hiresFamily);
 }
 
 /**
@@ -93,5 +154,8 @@ function namesHires(presetId, knobs, mode) {
  * @returns {Knob[]}
  */
 export function knobsOffered(preset, knobs, mode) {
-  return knobsShown(preset, knobs).filter((knob) => !knob.whenHires || namesHires(preset.id, knobs, mode));
+  // A card knob is offered on the card, once, never on a tile.
+  return knobsShown(preset, knobs).filter(
+    (knob) => !knob.card && (!knob.whenHires || namesHires(preset.id, knobs, mode)),
+  );
 }

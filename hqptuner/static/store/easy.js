@@ -19,6 +19,7 @@
  * @property {string[]} options
  * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
  * @property {boolean} [whenHires] offered only while the filter the tile names is a hi-res one
+ * @property {boolean} [card] set once on the card rather than on each tile; its position reaches every tile that takes it
  *
  * @typedef {object} Preset
  * @property {string} id
@@ -56,16 +57,16 @@ const EMPHASIS_HIRES = { ...EMPHASIS, whenHires: true };
 
 // Lossy material is a knob rather than a tile of its own: the lossy filters are
 // the same presets aimed at material damaged by its encoder rather than by its
-// mastering, and the tile someone already trusts is where they go looking for
-// them. Lossless rests, because most material is lossless.
+// mastering. Lossless rests, because most material is lossless. A CARD knob: the
+// source is a fact about what is playing, not about a preset, so it is set once
+// on the card (store/easyview.js) and every tile that takes it follows.
 //
-// On the two flagship presets the knob picks how the two fields are filled.
-// Lossless puts the standard filter on the 1x field and the hi-res filter on Nx,
-// so the engine takes whichever suits the track it is playing. Lossy puts the
-// hi-res filter on both, because lossy material reads as low rate and wants that
-// filter anyway, which is a choice no rate can make for you.
+// On the flagships the knob picks how the two fields are filled. Lossless puts
+// the standard filter on 1x and the hi-res filter on Nx, so the engine takes
+// whichever suits the track. Lossy puts the hi-res filter on both, because lossy
+// material reads as low rate and wants that filter anyway.
 /** @type {Knob} */
-const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "lossy"] };
+const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "lossy"], card: true };
 
 /**
  * Every curated preset, in the grid order the owner set.

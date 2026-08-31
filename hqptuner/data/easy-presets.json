@@ -21,6 +21,12 @@
       "lossy": "For lossy material."
     }
   },
+  "card": {
+    "material": {
+      "sub": "Set to the current source material; 'Lossy' shows only lossy (and hi-res) optimized filters.",
+      "options": { "lossless": "Lossless", "lossy": "Lossy" }
+    }
+  },
   "perfect-ten": {
     "title": "The Perfect Ten",
     "description": "Does everything well, no strings attached: the best-case solution to the tension at the heart of filter design.",
@@ -28,10 +34,6 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
-      },
-      "material": {
-        "label": "Source",
-        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
@@ -42,10 +44,6 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
-      },
-      "material": {
-        "label": "Source",
-        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
@@ -70,10 +68,6 @@
       "emphasis": {
         "label": "Emphasis",
         "options": { "space": "Space", "transients": "Transients" }
-      },
-      "material": {
-        "label": "Source",
-        "options": { "lossless": "Lossless", "lossy": "Lossy" }
       }
     }
   },
