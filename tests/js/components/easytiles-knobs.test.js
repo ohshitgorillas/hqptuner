@@ -93,13 +93,16 @@ const PRESETS = presetsFor();
 const ROSTER = PRESETS.map((preset) => String(preset.id));
 
 /**
- * Every knob of a preset at its `default`: where the tile rests until something
- * moves it.
+ * Every knob of a preset's TILE at its `default`: where the tile rests until
+ * something moves it. The card knob is the card's, a row on no tile, and never
+ * enters a preset's record, so it is left out here as `offeredAnySource` leaves
+ * it out of the rows.
  *
  * @param {Preset} preset
  * @returns {Record<string, string>}
  */
-const restingOf = (preset) => Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
+const restingOf = (preset) =>
+  Object.fromEntries(preset.knobs.filter((knob) => !knob.card).map((knob) => [String(knob.id), knob.default]));
 
 /**
  * The knobs a preset offers at its defaults, read through `knobsShown()` so a
@@ -318,14 +321,19 @@ for (const preset of MULTI_KNOB) {
 
 /**
  * The positions a tile standing at a combination offers: that combination, on
- * the knobs shown there.
+ * the knobs shown there that are the TILE's (`offeredAnySource`; the card knob
+ * is the card's and never enters a preset's record).
  *
  * @param {Preset} preset
  * @param {Record<string, string>} combo
  * @returns {Record<string, string>}
  */
 const writtenAt = (preset, combo) =>
-  Object.fromEntries(knobsShown(preset, combo).map((knob) => [String(knob.id), combo[String(knob.id)]]));
+  Object.fromEntries(
+    knobsShown(preset, combo)
+      .filter(offeredAnySource)
+      .map((knob) => [String(knob.id), combo[String(knob.id)]]),
+  );
 
 /**
  * The fields a knob-move case starts from: every neighbour moved, the pressed
