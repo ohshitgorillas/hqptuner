@@ -20,6 +20,7 @@
  * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
  * @property {boolean} [whenHires] offered only while the filter the tile names is a hi-res one
  * @property {boolean} [card] set once on the card rather than on each tile; its position reaches every tile that takes it
+ * @property {boolean} [inert] a VIEW fact, never declared in the table: the tile shows this knob but will not take a move (store/easyoffer.js)
  *
  * @typedef {object} Preset
  * @property {string} id
@@ -99,8 +100,8 @@ const PRESETS = Object.freeze([
       { id: "correction", default: "on", options: ["on", "off"] },
     ],
   },
-  // One second knob at a time: Version decides whether the tile offers Error
-  // correction (gauss pair) or Emphasis (ext2 pair); the other is not counted.
+  // Error correction belongs to the gauss pair alone: the ext2 version names one
+  // filter and has nothing for the lever to reach, so `when` gates it there.
   {
     id: "crucible",
     emoji: "🔥",
@@ -108,7 +109,6 @@ const PRESETS = Object.freeze([
     knobs: [
       { id: "version", default: "perfect-ten", options: ["perfect-ten", "lifelike"] },
       { id: "correction", default: "on", options: ["on", "off"], when: { version: "perfect-ten" } },
-      { ...EMPHASIS, when: { version: "lifelike" } },
     ],
   },
   // The bottom-row pair. Full Analog has no cost row in store/easycost.js on
@@ -118,7 +118,7 @@ const PRESETS = Object.freeze([
   {
     id: "textbook",
     emoji: "📖",
-    knobs: [{ id: "emphasis", default: "balanced", options: ["space", "balanced", "transients"] }],
+    knobs: [EMPHASIS],
   },
 ]);
 
@@ -176,20 +176,18 @@ const FILTERS = {
     "lifelike/on": "poly-sinc-ext2-xla",
     "lifelike/off": "poly-sinc-ext2-xl",
   },
-  // Keys name offered knobs only: Version plus the one knob it puts on the tile.
-  // Pure sinc names enumerate identically on both chains, no `-2s`.
+  // Keys name offered knobs only: Version, plus Error correction where it is
+  // offered. Pure sinc names enumerate identically on both chains, no `-2s`.
   crucible: {
     "perfect-ten/on": "sinc-MGa",
     "perfect-ten/off": "sinc-MG",
-    "lifelike/space": "sinc-Mx",
-    "lifelike/transients": "sinc-S",
+    lifelike: "sinc-M",
   },
   // These names enumerate identically on both chains, with no `-2s` variants,
   // so one plain name serves every field (data/engine-enums.json).
   "full-analog": { "": "IIR2" },
   textbook: {
     space: "FIR",
-    balanced: "asymFIR",
     transients: "minphaseFIR",
   },
 };

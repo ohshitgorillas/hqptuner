@@ -25,21 +25,39 @@ export const MARK_LABEL = {
 // sentence would say if nothing were substituted, which keeps the copy legible
 // on its own and leaves the owner nothing new to learn.
 /** @type {Record<string, string>} */
-const STANDIN = { "(A)": "full", "(1/2)": "half" };
+const STANDIN = { "(A)": "full", "(1/2)": "half", "(No)": "none" };
 
-/** Matches every stand-in, and captures it, so a split keeps the pieces. */
-const SPLIT = /(\(A\)|\(1\/2\))/g;
+// Emphasis travels the same way, and for a related reason: the copy is one JSON
+// string, so a stressed word cannot carry markup of its own. `*asterisks*` are
+// what the owner writes, and the panel is where they become a tag.
+/** Matches a stressed word, and captures what is stressed. */
+const STRESS = /^\*([^*]+)\*$/;
+
+/** Matches every stand-in and stressed word, and captures it, so a split keeps the pieces. */
+const SPLIT = /(\(A\)|\(1\/2\)|\(No\)|\*[^*]+\*)/g;
 
 /**
- * One paragraph broken into its text runs and the marks named inside it. A run
- * is `{text}`; a mark is `{kind}`.
+ * One run of a paragraph: plain `{text}`, a mark `{kind}`, or a stressed `{em}`.
+ *
+ * @param {string} piece
+ * @returns {{text?: string, kind?: string, em?: string}}
+ */
+function runOf(piece) {
+  if (STANDIN[piece]) return { kind: STANDIN[piece] };
+  const stressed = STRESS.exec(piece);
+  return stressed ? { em: stressed[1] } : { text: piece };
+}
+
+/**
+ * One paragraph broken into its text runs, the marks named inside it and the
+ * words it stresses.
  *
  * @param {string} para
- * @returns {{text?: string, kind?: string}[]}
+ * @returns {{text?: string, kind?: string, em?: string}[]}
  */
 export function markRuns(para) {
   return para
     .split(SPLIT)
     .filter((piece) => piece !== "")
-    .map((piece) => (STANDIN[piece] ? { kind: STANDIN[piece] } : { text: piece }));
+    .map(runOf);
 }
