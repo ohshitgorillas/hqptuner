@@ -114,12 +114,12 @@ function usePinnedPopover(pop) {
 // A named choices panel (the live preset save) carries the name field above
 // the list; its value rides to answer() the way the inline name field's does.
 /**
- * @param {{ q: Question, ref: FieldRef }} props
+ * @param {{ q: Question, field: FieldRef }} props
  */
-function ChoicesList({ q, ref }) {
+function ChoicesList({ q, field }) {
   const pop = useRef(/** @type {HTMLElement | null} */ (null));
   usePinnedPopover(pop);
-  const commit = () => answer(ref.current && ref.current.value);
+  const commit = () => answer(field.current && field.current.value);
   return html`
   <span class="ask ask-choices">
     <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
@@ -127,7 +127,7 @@ function ChoicesList({ q, ref }) {
       ${
         q.named
           ? html`<span class="ask-pop-name">
-            <input id="ask-field" type="text" ref=${ref} onKeyDown=${onKey} onInput=${clearRefusal} />
+            <input id="ask-field" type="text" ref=${field} onKeyDown=${onKey} onInput=${clearRefusal} />
             ${q.refused ? html`<span class="ask-refused">Enter a name first</span>` : null}
           </span>`
           : null
@@ -203,7 +203,7 @@ export function Ask({ owner }) {
     if (mine && ref.current) ref.current.focus();
   }, [mine]);
   if (!q || q.owner !== owner) return null;
-  if (q.kind === "choices") return html`<${ChoicesList} q=${q} ref=${ref} />`;
+  if (q.kind === "choices") return html`<${ChoicesList} q=${q} field=${ref} />`;
   if (q.kind === "warn") return html`<${WarnBox} q=${q} />`;
   return q.kind === "name" ? nameField(q, ref) : confirmLine(q);
 }

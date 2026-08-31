@@ -20,21 +20,24 @@ import {
   saveLivePreset,
   deleteLivePreset,
 } from "../../store/live/presets.js";
-import { askChoices, askConfirm } from "../../store/ask.js";
+import { askChoices, askConfirm, question } from "../../store/ask.js";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
+import { hz } from "../../lib/units.js";
+import { rateColumn } from "../../store/live/rates.js";
+import { TIER } from "../../store/schema.js";
 import { Ask } from "../Ask.js";
 import { Combobox } from "../controls/Combobox.js";
 import { liveEditing, setLiveEditing } from "./Layout.js";
 import { Card } from "../common.js";
 
 /**
- * @typedef {{ name: string, fields: Record<string, string>, names?: Record<string, string>,
+ * @typedef {{ name: string, chain: string, fields: Record<string, string>, names?: Record<string, string>,
  *   autopilot?: boolean | null }} LivePreset
  *   One saved live preset as /api/livepresets serves it. `fields` is the stored
  *   batch; `names` each field's display name; `autopilot` null when the preset
  *   does not carry the switch.
- * @typedef {{ fields: Record<string, { value: string, name: string }>, autopilot: boolean }} Snapshot
+ * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }>, autopilot: boolean }} Snapshot
  *   What a save would store right now (/api/livepresets/snapshot).
  * @typedef {import("../controls/Combobox.js").TipContent} TipContent
  */
@@ -44,10 +47,11 @@ const AUTOPILOT = "autopilot";
 const selectedPreset = signal("");
 
 // The popover rows and the picker tip share one label per setting key, in the
-// order the rows are listed.
+// order the rows are listed. Not here: the HF filter, which follows the
+// material the way volume does and is no preset's to fix; and output mode,
+// which the backend stores beside any chain-scoped setting without asking.
 /** @type {[string, string][]} */
 const LABELS = [
-  ["mode", "Output mode"],
   ["rate", "Output rate"],
   ["filter1x", "1x filter"],
   ["oversampling1x", "1x filter"],
@@ -55,25 +59,55 @@ const LABELS = [
   ["oversampling", "Nx filter"],
   ["dither", "Dither"],
   ["modulator", "Modulator"],
-  ["junk_filter", "HF filter"],
   [AUTOPILOT, "HF auto-pilot"],
   ["adaptive_volume", "Adaptive volume"],
 ];
 
-// One checkbox row per setting the engine reports, all checked; output mode is
-// pinned because every chain-scoped setting indexes the chain it names.
+// The rate the way the LIVE column shows it. State reports "0" whenever the
+// engine holds no pin of its own (store/live/rates.js), and the column then
+// names the family's configured tier instead of an empty slot; the row here
+// says the same thing from the same source. A pinned rate reads by its tier's
+// menu label, as a frequency when the menu has no row for it.
+/**
+ * @param {string} value the stored rate in Hz, "0" for no pin
+ * @param {string} family "pcm" | "sdm" — the chain the value belongs to
+ * @returns {string}
+ */
+function rateShown(value, family) {
+  const column = rateColumn(family);
+  const tier = value === "0" ? String(column.value) : TIER[value] || value;
+  const row = column.options.find((o) => String(o.value) === tier);
+  return row ? String(row.label) : hz(Number(tier), 2);
+}
+
+// A stored value in the words the LIVE page uses for it: the rate as its
+// column shows it, the two switches as the schema's ON/OFF; everything else
+// carries its enumeration name.
+/**
+ * @param {string} key
+ * @param {string | boolean} value the stored value or its display name
+ * @param {string} family the chain the record belongs to
+ * @returns {string}
+ */
+function shown(key, value, family) {
+  if (key === "rate") return rateShown(String(value), family);
+  if (key === AUTOPILOT || key === "adaptive_volume") return value === true || value === "1" ? "ON" : "OFF";
+  return String(value);
+}
+
+// One checkbox row per setting the engine reports, all checked.
 /**
  * @param {Snapshot} snap
  * @returns {ChoiceOption[]}
  */
 function choiceRows(snap) {
   /** @param {string} key */
-  const detail = (key) => (key === AUTOPILOT ? String(snap.autopilot) : snap.fields[key].name);
+  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot : snap.fields[key].name, snap.chain);
   return LABELS.filter(([key]) => key === AUTOPILOT || key in snap.fields).map(([key, label]) => ({
     value: key,
     label,
     checked: true,
-    disabled: key === "mode",
+    disabled: false,
     detail: detail(key),
   }));
 }
@@ -91,8 +125,10 @@ const presetTips = (presets) => (o) => {
   if (!record) return tip;
   const names = record.names || {};
   for (const [key, label] of LABELS) {
-    if (key === AUTOPILOT && record.autopilot != null) tip.rows.push([key, label, String(record.autopilot), []]);
-    else if (key in record.fields) tip.rows.push([key, label, names[key] || record.fields[key], []]);
+    const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
+    if (key === AUTOPILOT ? record.autopilot != null : key in record.fields) {
+      tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value), record.chain), []]);
+    }
   }
   return tip;
 };
@@ -157,7 +193,10 @@ async function onDeletePreset(name) {
 // setting changed by hand is put back. The Combobox commits every pick.
 function LivePresetPicker() {
   const presets = livePresets.value || [];
-  const busy = !!livePresetsBusy.value;
+  // Locked while this card has a question open: the popover lives in the top
+  // layer and the page under it stays clickable, so without this the picker
+  // could apply a preset in the middle of saving one.
+  const busy = !!livePresetsBusy.value || (!!question.value && question.value.owner === PRESET_OWNER);
   const name = selectedPreset.value;
   return html`
     <div class="field live-presets">
