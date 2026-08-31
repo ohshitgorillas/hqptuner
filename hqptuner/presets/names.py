@@ -18,6 +18,7 @@ no reason the daemon or the filesystem cared about.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 # ``<name>.xml`` has to fit one filesystem path component. Linux caps that at 255
@@ -61,6 +62,17 @@ def _is_valid(name: str) -> bool:
     if not name or name != name.strip():
         return False
     return not (_escapes_the_store(name) or _has_control_char(name) or _too_long(name))
+
+
+def sort_key(name: str) -> tuple[tuple[int, int, str], ...]:
+    """Sort key putting embedded numbers in numeric order.
+
+    Preset names are mostly settings written out ("DSD256", "PCM 8x"), and a plain string sort reads their digits
+    left to right: "DSD1024" lands above "DSD256" because "1" precedes "2". Splitting on digit runs and comparing
+    the runs as integers puts the list back in the order the names describe. Text between the runs still compares
+    as text, case and all, so nothing but the numbers changes.
+    """
+    return tuple((1, int(part), "") if part.isdigit() else (0, 0, part) for part in re.split(r"(\d+)", name))
 
 
 def validate_name(name: str, error: type[ValueError], label: str) -> str:

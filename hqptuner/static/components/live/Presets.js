@@ -25,6 +25,7 @@ import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { hz } from "../../lib/units.js";
 import { rateColumn } from "../../store/live/rates.js";
+import { rateReachableByDevice, sdmReachableByDevice } from "../../store/narrow/devicecaps.js";
 import { TIER } from "../../store/schema.js";
 import { Ask } from "../Ask.js";
 import { Combobox } from "../controls/Combobox.js";
@@ -112,8 +113,34 @@ function choiceRows(snap) {
   }));
 }
 
+// Why the device cannot play a preset, "" when it can. A preset that stores no
+// output mode switches neither chain nor rate, so there is nothing for the
+// device to refuse; one that does is judged on the mode it would switch TO, not
+// on whatever the engine happens to be running now. An unpinned rate ("0") is
+// the engine's own choice at play time and is likewise not the preset's to be
+// grayed for. Both answers come from the same capability the LIVE page's own
+// rate and mode controls already gray against (store/narrow/devicecaps.js), so
+// a rate grayed in the column is grayed in the picker that would set it.
+const NO_RATE = "No support for this output rate from the current device.";
+const NO_MODE = "No support for this output mode from the current device.";
+
+/**
+ * @param {LivePreset} record
+ * @returns {string}
+ */
+function unplayable(record) {
+  const mode = record.fields.mode;
+  if (mode !== "pcm" && mode !== "sdm") return "";
+  if (mode === "sdm" && !sdmReachableByDevice()) return NO_MODE;
+  const rate = record.fields.rate;
+  if (rate && rate !== "0" && !rateReachableByDevice(rate, mode)) return NO_RATE;
+  return "";
+}
+
 // The picker's per-option tip: the settings the preset carries, with their
-// values; a setting the preset omits is simply not listed.
+// values; a setting the preset omits is simply not listed. A preset the device
+// cannot play leads with why — the row itself is grayed, and a gray row with no
+// reason on it is the failure this whole path exists to stop.
 /**
  * @param {LivePreset[]} presets
  * @returns {(o: { value: string | number }) => TipContent}
@@ -123,6 +150,7 @@ const presetTips = (presets) => (o) => {
   /** @type {TipContent} */
   const tip = { name: "", text: "", rows: [], chips: [] };
   if (!record) return tip;
+  tip.text = unplayable(record);
   const names = record.names || {};
   for (const [key, label] of LABELS) {
     const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
@@ -133,14 +161,17 @@ const presetTips = (presets) => (o) => {
   return tip;
 };
 
-// Every preset is pickable whatever the engine is running. A preset carries its
-// own output mode, so one taken on the other chain applies by switching to it —
-// which is the point of saving it.
+// Which chain the engine is running never gates a preset: a preset carries its
+// own output mode, so one taken on the other chain applies by switching to it,
+// which is the point of saving it. The DEVICE does gate it. A preset holding a
+// rate or a mode the open device cannot take applies as silence or as a dropped
+// stream, and unlike every other control on this page the picker had no way to
+// say so before the user picked it.
 /** @param {LivePreset[]} presets */
 function presetOptions(presets) {
   return [
     { value: "", label: presets.length ? "Select a preset…" : "No live presets saved" },
-    ...presets.map((p) => ({ value: p.name, label: p.name })),
+    ...presets.map((p) => ({ value: p.name, label: p.name, disabled: !!unplayable(p) })),
   ];
 }
 

@@ -113,7 +113,7 @@ class PresetStore:
         if not self._dir.is_dir():
             return []
         self._meta()
-        return sorted(p.stem for p in self._dir.glob("*.xml"))
+        return sorted((p.stem for p in self._dir.glob("*.xml")), key=names.sort_key)
 
     def exists(self, name: str) -> bool:
         """Report whether ``name`` is a stored preset. Raises ``PresetError`` if the name itself is invalid."""
