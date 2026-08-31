@@ -79,7 +79,7 @@ export const configPayload = (form, mode, engine) => ({
 // narrowing with). A filter the enumeration describes with no tail, or does not
 // describe at all, carries no ratio class: that is the absence a case wanting
 // "the enumeration says nothing" seeds.
-const TAIL = { "2x": "2ˣ", integer: "Int", any: "Any" };
+const TAIL = { "2x": "2^x", integer: "Int", any: "Any" };
 
 /** One SDM item's description. The head is a stand-in; what a case reads is the tail. */
 const describedAs = (/** @type {string} */ cls) => `4/5 ⥣ ${TAIL[/** @type {keyof typeof TAIL} */ (cls)]}`;
