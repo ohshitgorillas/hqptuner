@@ -4,9 +4,12 @@
 // A knob carrying `when` is offered only where its siblings stand where the
 // `when` names. Where they do not, the knob is still a row on the tile — shown
 // inert rather than taken away, so the row a user learned is where they left it
-// — and its control refuses a pointer. `knobsShown()` is unchanged by this and
-// still leaves such a knob out; what a tile RENDERS is the subject here, so
-// every case reads the rendered card.
+// — and its control refuses a pointer while the sibling that gates it keeps
+// taking one, which is what leaves the user a way back. The disabled case
+// therefore reads BOTH knobs: a tile that dulled every row would honour the
+// gated knob's half and still strand the user. `knobsShown()` is unchanged by
+// this and still leaves such a knob out; what a tile RENDERS is the subject
+// here, so every case reads the rendered card.
 //
 // The other way is a record holding a position the knob does not offer: the
 // tile marks that knob's `default` instead.
@@ -123,10 +126,11 @@ for (const { presetId, knobId, sibId, at, combo } of GATED) {
     assert.equal(knobPresent(tabs(), presetId, knobId), true);
   });
 
-  test(`test_the_${presetId}_${knobId}_knob_is_disabled_while_its_${sibId}_sibling_stands_at_${at}`, async () => {
+  test(`test_the_${presetId}_${knobId}_knob_is_disabled_while_its_${sibId}_sibling_standing_at_${at}_stays_live`, async () => {
     await resetTab({ mode: "pcm" });
     rememberKnobs(presetId, combo);
-    assert.equal(knobIsDisabled(tabs(), presetId, knobId), true);
+    const out = tabs();
+    assert.deepEqual([knobIsDisabled(out, presetId, knobId), knobIsDisabled(out, presetId, sibId)], [true, false]);
   });
 }
 
