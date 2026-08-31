@@ -14,6 +14,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Changed
 
 - **Selecting a preset in LIVE mode loads it immediately.** Previously the pick only staged a preview, and applying it meant leaving LIVE for the Apply button.
+- **Live presets the output device cannot play are grayed in the picker.** A preset pinning a rate or an output mode the open device does not offer renders disabled, with the reason on it.
 - **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
@@ -23,6 +24,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Fixed
 
 - **Re-selecting a live preset now re-applies the settings.** Before, changing a setting left no way to re-engage the selected Live preset. Now there is.
+- **Preset names sort by number.** DSD1024 listed above DSD256 in both preset pickers, because the digits sorted as text.
 
 ## [1.13.0] — 2026-08-26
 

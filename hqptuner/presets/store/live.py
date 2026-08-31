@@ -127,12 +127,12 @@ class LivePresetStore:
 
     def names(self) -> list[str]:
         """Every stored preset name, sorted."""
-        return sorted(self._presets())
+        return sorted(self._presets(), key=names.sort_key)
 
     def all(self) -> dict[str, Any]:
         """Every preset, name -> record, sorted by name."""
         presets = self._presets()
-        return {name: presets[name] for name in sorted(presets)}
+        return {name: presets[name] for name in sorted(presets, key=names.sort_key)}
 
     def read(self, name: str) -> dict[str, Any]:
         """One preset's record. Raises ``LivePresetError`` if absent."""
