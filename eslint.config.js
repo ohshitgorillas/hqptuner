@@ -10,6 +10,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 import sonarjs from "eslint-plugin-sonarjs";
 import oneAssertionPerTest from "./eslint-rules/one-assertion-per-test.js";
 import noHandRolledCard from "./eslint-rules/no-hand-rolled-card.js";
+import noCopyAssertions from "./eslint-rules/no-copy-assertions.js";
 
 const RULES = {
   // xenon --max-absolute B => cyclomatic complexity <= 10 (ruff C901 uses the
@@ -183,8 +184,14 @@ export default [
     // one-assertion gate is the JS peer of scripts/gates/check_test_assertions.py.
     files: ["tests/js/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
-    plugins: { ...PLUGINS, hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest } } },
-    rules: { ...RULES, "hqptuner/one-assertion-per-test": "error" },
+    plugins: {
+      ...PLUGINS,
+      hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest, "no-copy-assertions": noCopyAssertions } },
+    },
+    // no-copy-assertions is the JS peer of scripts/gates/check_no_copy_assertions.py
+    // and sits at "warn" while the suite is migrated off copy (docs/testing.md
+    // rule 9); it flips to "error" once the warning count reaches zero.
+    rules: { ...RULES, "hqptuner/one-assertion-per-test": "error", "hqptuner/no-copy-assertions": "warn" },
   },
   {
     // scripts/eqlab is a node CLI, not browser code: it imports the same

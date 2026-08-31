@@ -70,6 +70,12 @@ repos:
         language: system
         types: [python]
         files: ^tests/
+      - id: no-copy-assertions
+        name: no copy in assertions (report only until the suite is clean)
+        entry: .venv/bin/python scripts/gates/check_no_copy_assertions.py --report
+        language: system
+        types: [python]
+        files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
         entry: .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
