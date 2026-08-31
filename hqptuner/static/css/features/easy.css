@@ -201,11 +201,9 @@
 .easy-knob[data-knob="correction"] {
   padding: 0 var(--sp-4);
 }
-.easy-knob[data-knob="emphasis"],
-.easy-knob[data-knob="material"] {
-  /* The two-position knobs, at the same inset: they sit one above the other on
-     three of the tiles, and a segment that changed width between them would read
-     as two different controls rather than two rows of one. */
+.easy-knob[data-knob="emphasis"] {
+  /* The two-position knob, inset so it reads as a control under the prose
+     rather than a bar across the tile. */
   padding: 0 var(--sp-5);
 }
 [data-preset="textbook"] .easy-knob[data-knob="emphasis"] {
@@ -239,14 +237,44 @@
   border-radius: 0 var(--r-md) var(--r-md) 0;
 }
 
-/* The subtitle holds two things now, the paragraph and the link under it, so it
-   stacks them. Left-aligned rather than centered: it is the card's opening
-   prose, and the switcher below it is the thing that is centered. */
+/* The subtitle is a row: the paragraph and its link on the left, the card's
+   knob on the right. The prose takes what the knob leaves and wraps; the knob
+   keeps its own width and drops under the prose only when the row cannot hold
+   both. */
 [data-note="easy-notice"] {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.easy-notice-text {
+  display: flex;
+  flex: 1 1 24rem;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--sp-2);
+}
+
+/* The card's knob: its segment over its sub-label, right-aligned so the pair
+   holds the row's far corner. The sub-label is a caption because it explains the
+   control, the same role the card's own subtitle wears. */
+.easy-card-knob {
+  display: flex;
+  flex: 0 1 18rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  margin-left: auto;
+  text-align: right;
+}
+
+/* Grayed says "not for what you said is playing" and nothing more: the tile is
+   still a tile, still pressable, so it steps down as a whole rather than
+   changing any one part. Active's contrast rule still applies inside it, which
+   is right — a grayed tile can be the one the engine is running. */
+.easy-tile[data-grayed="1"] {
+  opacity: var(--o-dim);
 }
 
 /* The way into the help panel. Same shape as the way out of Easy Mode — a

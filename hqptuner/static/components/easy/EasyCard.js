@@ -24,10 +24,11 @@
 // written straight through.
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
-import { knobsFor, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
+import { Segment } from "../controls/index.js";
+import { knobsFor, setEasyMaterial, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
-import { presetOffered } from "../../store/easyoffer.js";
+import { cardKnobs, cardPositions, presetGrayed, presetOffered } from "../../store/easyoffer.js";
 import { easyLane, easyRunning } from "../../store/easylane.js";
 import { EasyHelp } from "./Help.js";
 import { PresetTile } from "./Tile.js";
@@ -46,6 +47,38 @@ function ExitLink() {
   >
     Back to full control
   </button>`;
+}
+
+// The card's knobs, set once for every tile. Material is a fact about what is
+// playing, not about a preset, so one control on the notice's row says it and
+// every tile that takes the knob follows (store/easy.js MATERIAL). Moving it
+// writes nothing: it changes what the tiles name and what a press would write,
+// and the press is still the write. The words are the card's own copy, keyed the
+// way a tile knob's are; the position tips are the shared ones.
+function CardKnobs() {
+  const at = cardPositions();
+  return html`${cardKnobs().map((knob) => {
+    const base = `easy-card-${knob.id}`;
+    const options = knob.options.map((id) => ({
+      value: id,
+      label: easyProse("card", knob.id, "options", id),
+      tip: easyProse("tips", knob.id, id),
+    }));
+    return html`<span
+      class="easy-card-knob"
+      data-testid=${`easy-${knob.id}`}
+      role="group"
+      aria-describedby=${`${base}-sub`}
+    >
+      <${Segment}
+        value=${at[knob.id]}
+        options=${options}
+        idBase=${base}
+        onChange=${(/** @type {string | number} */ v) => setEasyMaterial(String(v))}
+      />
+      <span class="t-caption" id=${`${base}-sub`}>${easyProse("card", knob.id, "sub")}</span>
+    </span>`;
+  })}`;
 }
 
 // Where each knob stands on a tile that is NOT lit: where the user last put it,
@@ -87,6 +120,7 @@ function Grid({ lane }) {
   const r = easyRunning(lane);
   const picked = matchPreset(l.values, l.mode);
   const running = matchPreset(r.values, r.mode);
+  const card = cardPositions();
   return html`
     <div class="easy-grid">
       ${presetsFor()
@@ -97,14 +131,18 @@ function Grid({ lane }) {
           // Knobs follow the marking a tile carries: the selected tile shows
           // where the staged filters put them, a tile that is only active shows
           // where the running ones do, and a dark tile falls back to its record.
+          // The card's knobs win on every tile, lit or dark: what the tile names
+          // and what a press writes follow the material the card says is playing.
           let knobs = resting(preset);
           if (selected && picked) knobs = picked.knobs;
           else if (active && running) knobs = running.knobs;
+          knobs = { ...knobs, ...card };
           return html`<${PresetTile}
             preset=${preset}
             lane=${lane}
             selected=${selected}
             active=${active}
+            grayed=${presetGrayed(preset, l.mode)}
             knobs=${knobs}
           />`;
         })}
@@ -122,10 +160,13 @@ export function EasyCard({ lane = "config" }) {
       id="easy-mode"
       title=${html`Easy Mode<${ExitLink} />`}
       subtitle=${html`<span data-note="easy-notice">
-        ${easyProse("notice")}
-        <button type="button" class="easy-help-link" data-testid="easy-help" onClick=${toggleEasyHelp}>
-          ${easyProse("help", "link")}
-        </button>
+        <span class="easy-notice-text">
+          ${easyProse("notice")}
+          <button type="button" class="easy-help-link" data-testid="easy-help" onClick=${toggleEasyHelp}>
+            ${easyProse("help", "link")}
+          </button>
+        </span>
+        <${CardKnobs} />
       </span>`}
     >
       <${Grid} lane=${lane} />
