@@ -25,7 +25,7 @@ N. <behavior as the caller sees it>
    existing: none | tests/<file>::<test>
 ```
 
-You may read `docs/` (`docs/testing.md` is the binding policy you check against), `tests/conftest.py`, `tests/fake_*.py`, `tests/fixtures/*` and every file under `tests/`, plus `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf`.
+You may read `docs/` (`docs/testing.md` is the binding policy you check against), `tests/conftest.py`, `tests/fake_*.py`, `tests/support/fixtures/*` and every file under `tests/`, plus `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf`.
 
 ## The checks, per line
 

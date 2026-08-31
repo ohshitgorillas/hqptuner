@@ -61,7 +61,9 @@ source_paths = ["hqptuner"]
 do_not_mutate = ["hqptuner/static/*"]
 # Same suite the gate runs: offline and deterministic. A mutation run must never
 # reach the production daemon, so the live marker is deselected here too.
-pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q"]
+# tests/gates exercises scripts/, which the mutants/ copy does not carry, and
+# never touches hqptuner/; collecting it there only errors the stats pass.
+pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests/gates"]
 
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not

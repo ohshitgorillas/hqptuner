@@ -121,6 +121,10 @@ manual:
 # and not a reason to skip the report — hence the leading `-`. Scope and pytest
 # arguments live in pyproject.toml under [tool.mutmut]; the working copies go in
 # the gitignored mutants/ directory.
+# mutants/ is rebuilt from scratch every run: mutmut copies a file only when
+# its target is absent, so a copy left by an older layout keeps stale modules
+# (a tests/fake_http.py that pythonpath then shadows the current one with).
 mutate:
+	rm -rf mutants
 	-$(VENV)/mutmut run $(MUTATE)
 	$(VENV)/mutmut results

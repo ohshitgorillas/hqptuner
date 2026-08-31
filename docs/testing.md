@@ -31,7 +31,7 @@ Violations rejected in review even if tests pass.
 9. **A test asserts only strings it put on the wire itself, wire identifiers, and numbers derived from wire data. Every string born inside `hqptuner/` is copy.** Source or `data/`, makes no difference: labels, headings, blurbs, hints, tooltips, status lines, error text, a picker's option list, a curated list's order and its count are owner-owned data, reworded at will. The test: to know this literal, would the writer have to read `hqptuner/`? Then it is copy, and it stays out of the assertion and out of the DOM selector. A device name the fixture handed in is wire data and may be asserted; the sentence the app wraps around it may not. Wire identifiers — engine names, option values, config attributes, JSON keys, CSS classes, error codes — are contract, and pinning those is correct. Consequences:
    - **Error text is copy.** Exceptions and API errors carry a code; tests match the type plus the code, never the message. `pytest.raises(match=...)` and `error.includes(...)` are legal only for a wire identifier (`match="alsa_dop"`), never a sentence.
    - **Rendered text is copy.** Assert classes, attributes, `data-*` state, disabled flags, values and numbers; text only where it is a wire identifier or a number.
-   - **`data/*.json` never supplies an expected value.** Join and lookup mechanics are tested against fixtures under `tests/fixtures/`; a check that the owner's data is well-formed is a gate under `scripts/gates/`, not a behavior test.
+   - **`data/*.json` never supplies an expected value.** Join and lookup mechanics are tested against fixtures under `tests/support/fixtures/`; a check that the owner's data is well-formed is a gate under `scripts/gates/`, not a behavior test.
    - **A curated count is copy, like a curated order.** The number of presets is data; the number of channels the engine reported is contract.
    - Where a selector would need a sentence, add a `data-testid`. If nothing meaningful survives removing the wording, delete the test instead of leaving a tautology. `scripts/gates/check_no_copy_assertions.py` and its eslint peer catch the mechanical shape; the principle is what review checks.
 
@@ -49,7 +49,7 @@ Periodic health check on the suite itself. **Not part of `make check`, not in pr
 
 ```
 make mutate                              # whole package, hours
-make mutate MUTATE=hqptuner.presets.store.presets  # one module, minutes
+make mutate MUTATE='hqptuner.presets.store.presets.*'  # one module, minutes; glob, matched with fnmatch
 ```
 
 Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.

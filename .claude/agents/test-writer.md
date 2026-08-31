@@ -46,7 +46,7 @@ cd <your tree> && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q
 ## What you may read
 
 - `docs/` — all of it. `docs/testing.md` is binding policy and you read it first; the rest is design and wire truth.
-- `tests/conftest.py`, `tests/fake_*.py`, `tests/fixtures/*`, and existing files under `tests/` — the fakes, fixtures and house style you are writing against.
+- `tests/conftest.py`, `tests/fake_*.py`, `tests/support/fixtures/*`, and existing files under `tests/` — the fakes, fixtures and house style you are writing against.
 - `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the repo root — HQPlayer's own documentation, authoritative for daemon behavior, config attributes, enum meanings and plugin parameters. Reference them before inferring anything about the wire.
 - The interface extract inside your spec block.
 
