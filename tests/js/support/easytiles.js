@@ -33,7 +33,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { EasyCard } from "../../../hqptuner/static/components/easy/EasyCard.js";
-import { writeSet, presetsFor } from "../../../hqptuner/static/store/easy.js";
+import { writeSet, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
 import { easyMode, easyKnobs } from "../../../hqptuner/static/store/easyview.js";
 import * as signals from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
@@ -49,7 +49,8 @@ import { engineRows, configPayload, enumerations, tabEnums, loaded } from "./eas
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
 /** @typedef {import("./easyrate.js").Engine} Engine */
-/** @typedef {{ id: string, emoji: string, knobs: { id: string }[] }} Preset */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 // --- the four filter fields -------------------------------------------------------
 //
@@ -198,6 +199,20 @@ const META = {
 };
 
 // --- what a preset means, read through the shipped table ------------------------------
+
+/**
+ * Whether the fields can carry a combination. A knob its `when` hides at a
+ * combination writes nothing there, so a combination parking a hidden knob off
+ * its default seeds the very same fields as the one parking it at default, and
+ * a case built on it would restate that one. Only the representable ones seed.
+ *
+ * @param {Preset} preset
+ * @param {Record<string, string>} knobs
+ */
+export const seedable = (preset, knobs) => {
+  const shown = new Set(knobsShown(preset, knobs).map((knob) => String(knob.id)));
+  return preset.knobs.every((knob) => shown.has(String(knob.id)) || knobs[String(knob.id)] === knob.default);
+};
 
 /**
  * The filter names a preset's write set parks the four fields on, by schema key

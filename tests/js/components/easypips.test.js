@@ -80,7 +80,7 @@ const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [knob.
 //
 // One case per preset per output mode, so a tile that drew the wrong number
 // fails by naming the tile and the chain rather than by a count that could
-// belong to any of the sixteen.
+// belong to any of them.
 //
 // Both sweeps are generated from the shipped roster, so a roster that came back
 // empty would generate no cases and retire the rule with nothing red. This case

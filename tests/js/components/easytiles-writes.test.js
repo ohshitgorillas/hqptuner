@@ -45,6 +45,7 @@ const {
   postedFields,
   pressTile,
   pressKnob,
+  seedable,
 } = await import("../support/easytiles.js");
 
 const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
@@ -145,11 +146,13 @@ const MOVES = PRESETS.flatMap((preset) =>
 // empty one.
 
 const LIT = PRESETS.flatMap((preset) =>
-  combos(preset.knobs).map((combo) => ({
-    id: String(preset.id),
-    combo,
-    where: Object.keys(combo).length === 0 ? "with_no_knobs" : `at_${at(combo)}`,
-  })),
+  combos(preset.knobs)
+    .filter((combo) => seedable(preset, combo))
+    .map((combo) => ({
+      id: String(preset.id),
+      combo,
+      where: Object.keys(combo).length === 0 ? "with_no_knobs" : `at_${at(combo)}`,
+    })),
 );
 
 for (const { id, combo, where } of LIT) {

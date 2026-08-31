@@ -82,6 +82,7 @@ const {
   pressTile,
   pressKnob,
   pressables,
+  seedable,
 } = await import("../support/easytiles.js");
 
 // The preset table's public readers, imported the same way the harness is so
@@ -120,20 +121,6 @@ const positionsOf = (knobs) =>
   Object.entries(knobs)
     .map(([knobId, option]) => `${knobId}=${option}`)
     .join("_");
-
-/**
- * Whether the fields can carry a combination. A knob its `when` hides at a
- * combination writes nothing there, so a combination parking a hidden knob off
- * its default seeds the very same fields as the one parking it at default, and
- * a case built on it would restate that one. Only the representable ones seed.
- *
- * @param {Preset} preset
- * @param {Record<string, string>} knobs
- */
-const seedable = (preset, knobs) => {
-  const shown = new Set(knobsShown(preset, knobs).map((knob) => String(knob.id)));
-  return preset.knobs.every((knob) => shown.has(String(knob.id)) || knobs[String(knob.id)] === knob.default);
-};
 
 /**
  * The fields a write MOVES: those of `to` whose name differs from what `from`
@@ -336,7 +323,9 @@ for (const presetId of ROSTER) {
 
 /** @type {[Preset, Record<string, string>][]} */
 const CELLS = PRESETS.flatMap((preset) =>
-  combos(preset.knobs).map((c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c])),
+  combos(preset.knobs)
+    .filter((c) => seedable(preset, c))
+    .map((c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c])),
 );
 
 /** @type {[Preset, Record<string, string>][]} */
@@ -391,21 +380,8 @@ for (const [preset, c] of CHAIN_SPLIT) {
 // end of the chain stages one field, and a card wiring a position to nothing
 // stages nothing.
 //
-// Where the knobs REST is the sweep immediately below, and only that one.
-
-// Where the knobs rest, pressed through the tile body: a press writes the
-// preset at whatever positions its knobs are showing, so an untouched tile is
-// the one reading of this file that IS about the resting positions, read off
-// each knob's `default` rather than typed.
-
-for (const preset of KNOBBED) {
-  test(`test_${preset.id}_pressed_at_its_resting_knob_positions_writes_what_those_positions_name`, async () => {
-    const w = await resetTab({ mode: "pcm" });
-    pressTile(seenTabs(), preset.id);
-    await flush(w);
-    assert.deepEqual(stagedNames(w), expectedNames(preset.id, "pcm", resting(preset)));
-  });
-}
+// Where the knobs REST is the per-preset routing sweep above, which presses each
+// tile untouched, and only that one.
 
 /** @type {[Preset, Record<string, string>, string, string][]} */
 const KNOB_MOVES = SEEDS.flatMap(([preset, from]) =>

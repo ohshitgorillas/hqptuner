@@ -42,7 +42,7 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, running, seedPcmPair, tabs } = await import("../support/easytiles.js");
+const { ROSTER, resetTab, running, seedPcmPair, tabs } = await import("../support/easytiles.js");
 const {
   seedFacets,
   uniformFacets,
@@ -55,15 +55,6 @@ const {
 const { dropdownGlyphs } = await import("../support/apodglyph.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
-
-// The card's roster, read off `presetsFor` (which presets exist is owner data,
-// docs/testing.md rule 9), in display order. Kept as ids rather than a count
-// so a failure names which tile lost its mark.
-const ROSTER = presetsFor().map((/** @type {{ id: string }} */ preset) => String(preset.id));
-
-test("test_the_roster_presetsFor_enumerates_is_not_empty", () => {
-  assert.ok(ROSTER.length > 0, "presetsFor() named no presets, so every per-preset case below is vacuous");
-});
 
 // The three classes a filter can be in, as the overlay spells them.
 const CLASSES = ["full", "half", "none"];

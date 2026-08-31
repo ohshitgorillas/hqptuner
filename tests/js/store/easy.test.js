@@ -42,7 +42,9 @@
 //   7. returning one offered knob to its default from any combination changes
 //      the PCM pair (the KNOB_MOVES sweep);
 //   8. `matchPreset` answers null for values no single preset at one
-//      combination wrote, built from real writes and synthetic names.
+//      combination wrote, built from real writes and synthetic names;
+//   9. the auto mode write is both chains' writes, the PCM one and the SDM
+//      one merged, at every combination.
 //
 // Deliberately NOT asserted: the table's membership, ordering, emoji, shape or
 // any word a tile shows.
@@ -370,5 +372,23 @@ if (TWO_STAGE_CELL) {
   test(`test_matchpreset_returns_null_under_auto_when_${preset.id}_at_${positionsOf(c)}_carries_its_two_stage_pair_on_pcm`, () => {
     const sdm = writeSet(preset.id, "sdm", c);
     assert.equal(matchPreset({ [PCM_1X]: sdm[SDM_1X], [PCM_NX]: sdm[SDM_NX], ...sdm }, "auto"), null);
+  });
+}
+
+// --- behavior 9: the auto mode write is both chains' writes -----------------------------------
+//
+// Under "auto" the engine follows the incoming rate, so a tile must stage what
+// it would stage for PCM and what it would stage for SDM, both. Read as the
+// "auto" write against the "pcm" and "sdm" writes of the same preset at the
+// same combination, merged: the chains share no key (behavior 2), so the merge
+// is exact and a mode that dropped or altered either chain's value fails by
+// preset and positions.
+
+for (const [preset, c] of CELLS) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_in_auto_mode_writes_both_chains_writes`, () => {
+    assert.deepEqual(writeSet(preset.id, "auto", c), {
+      ...writeSet(preset.id, "pcm", c),
+      ...writeSet(preset.id, "sdm", c),
+    });
   });
 }
