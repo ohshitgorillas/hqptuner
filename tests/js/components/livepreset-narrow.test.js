@@ -52,8 +52,9 @@ import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner
 import { rec, STATE, ENUMS, METADATA, presetWire, settle } from "../support/livepresetwire.js";
 import { caps, tick, NET_DEVICE, PCM_TO_192, DSD64, DSD128, DSD512 } from "../support/devicecaps-harness.js";
 import { section } from "../support/tabform.js";
-import { elements, classes, attr } from "../support/markup.js";
+import { attr } from "../support/markup.js";
 import { rows } from "../support/comborows.js";
+import { picker as pickerIn, grayed } from "../support/livepicker.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -62,10 +63,10 @@ afterEach(() => {
 
 /** @typedef {import("../support/livepresetwire.js").PresetRecord} PresetRecord */
 
-// The LIVE MODE card and the picker inside it, by the machine identities they
-// carry — never the words in either (docs/testing.md rule 9).
+// The LIVE MODE card, by the machine identity it carries — never the words in
+// its head (docs/testing.md rule 9). The picker inside it is read through the
+// shared support/livepicker.js reader.
 const LIVE_MODE = "live-mode";
-const PICKER = "live-preset";
 
 // Rate constants as the wire carries them: option values and saved fields are
 // STRINGS, announced capability is INTEGERS. The two are kept in their real
@@ -127,21 +128,13 @@ async function resetPage({ presets, deviceCaps, netDop = false }) {
 
 const page = () => render(html`<${LiveView} />`);
 
-// The picker's own subtree, so a control added to the card later cannot be
-// mistaken for one of its options. A miss throws rather than quietly measuring
-// nothing.
+// The picker's own subtree of the LIVE MODE card. A missing card throws rather
+// than quietly measuring nothing.
 function picker() {
   const frag = section(page(), LIVE_MODE);
   if (frag === "") throw new Error(`no card identified "${LIVE_MODE}" in the rendered page`);
-  const el = elements(frag).find((e) => attr(e, "data-testid") === PICKER);
-  if (el === undefined) throw new Error("the card renders no live preset picker");
-  return el.html;
+  return pickerIn(frag);
 }
-
-// A combobox row states its unpickability with `aria-disabled` rather than the
-// native attribute, and dresses it with a class; either one grays the row.
-/** @param {import("../support/markup.js").MarkupElement} el */
-const grayed = (el) => attr(el, "aria-disabled") === "true" || classes(el).includes("disabled");
 
 // The one option row offering `name`. For this picker an option's wire value IS
 // the preset's name, so the row is found without reading the words in it. A

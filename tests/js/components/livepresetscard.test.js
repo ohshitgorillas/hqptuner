@@ -48,7 +48,8 @@ import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwi
 import { renderTree } from "../support/vnodeseam.js";
 import { quiesce } from "../support/wire.js";
 import { cardHeadAt, section } from "../support/tabform.js";
-import { elements, classes, attr, hasAttr, text } from "../support/markup.js";
+import { attr, hasAttr, text } from "../support/markup.js";
+import { picker, grayed } from "../support/livepicker.js";
 import { boxText, rows, vnodeRows, click } from "../support/comborows.js";
 
 const REAL_FETCH = globalThis.fetch;
@@ -117,17 +118,9 @@ const decode = (s) =>
 // The picker is a combobox (controls/Combobox.js): a role="combobox" button
 // beside a .dd-pop listbox of .dd-opt rows, each carrying the option's wire
 // value in `data-v`. The pop renders in its CLOSED state here rather than
-// unmounted, so its rows are in the SSR string and can be read.
-//
-// The picker's own subtree, by the machine identity its control wrapper carries
-// — not the whole card, so a control added to the card later cannot be mistaken
-// for an option of this one.
-/** @param {string} frag */
-const picker = (frag) => {
-  const el = elements(frag).find((e) => attr(e, "data-testid") === "live-preset");
-  if (el === undefined) throw new Error("the card renders no live preset picker");
-  return el.html;
-};
+// unmounted, so its rows are in the SSR string and can be read. Its subtree is
+// read through the shared support/livepicker.js reader, which livepreset-narrow
+// shares.
 
 // SSR emits an EMPTY attribute value bare (`data-v`, never `data-v=""`), which
 // `attr` reads as undefined — so presence is asked first and the placeholder
@@ -168,11 +161,6 @@ test("test_the_live_page_carries_a_live_mode_card", async () => {
 // Stated positively — "the pickable ones are BOTH of them", not "none is
 // disabled" — so a card that dropped a preset from the picker altogether fails
 // here instead of passing on an empty list.
-// A combobox row states its unpickability with `aria-disabled` rather than the
-// native attribute, and dresses it with a class; either one grays the row.
-/** @param {import("../support/markup.js").MarkupElement} el */
-const grayed = (el) => attr(el, "aria-disabled") === "true" || classes(el).includes("disabled");
-
 /** @param {string} frag */
 const pickable = (frag) =>
   NAMED(frag)

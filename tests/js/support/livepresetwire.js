@@ -4,9 +4,10 @@
 // A live preset is HQPTuner's, not the daemon's: it stores a batch of live
 // settings keyed by form-field name, and it carries the OUTPUT MODE among them
 // (`fields.mode`, one of auto / pcm / sdm). Applying one switches the engine to
-// that mode before applying the rest, so there is no such thing as an
-// incompatible preset: every saved preset is pickable, always, whatever chain
-// the engine currently reports.
+// that mode before applying the rest, so the chain the engine currently reports
+// never makes a preset incompatible: every saved preset is pickable whatever
+// chain is running. The OUTPUT DEVICE is a separate gate — a preset the opened
+// device cannot reach is grayed (livepreset-narrow.test.js).
 //
 // The fake answers the real REST paths with the real shapes —
 // GET /api/livepresets -> {presets}, PUT /api/livepresets/{name} -> the record,
