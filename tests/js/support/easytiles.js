@@ -43,11 +43,12 @@ import * as narrow from "../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
 import { stagingWire, quiesce, ok } from "./wire.js";
 import { elements, classes, attr } from "./markup.js";
-import { formFields } from "./tabform.js";
+import { engineRows, configPayload, enumerations, tabEnums, loaded } from "./easyrate.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
+/** @typedef {import("./easyrate.js").Engine} Engine */
 /** @typedef {{ id: string, emoji: string, knobs: { id: string }[] }} Preset */
 
 // --- the four filter fields -------------------------------------------------------
@@ -181,9 +182,10 @@ const pick = (names, chosen) => ({
  *
  * @param {string} mode
  * @param {Record<string, string>} names filter names by SCHEMA key
+ * @param {Engine} [engine]
  */
-const FORM = (mode, names) => ({
-  backend: "alsa",
+const FORM = (mode, names, engine = {}) => ({
+  ...engineRows(engine),
   mode: { value: mode, options: MODES },
   filter1x: pick(PCM_NAMES, names[PCM_1X]),
   filter: pick(PCM_NAMES, names[PCM_NX]),
@@ -193,25 +195,10 @@ const FORM = (mode, names) => ({
 
 // --- the engine's own enumeration and state ----------------------------------------
 
-const FILTERS = [
-  { index: "0", value: NONE.value, name: NONE.label },
-  ...ALL_NAMES.map((name, i) => ({ index: String(i + 1), value: idOf(name), name })),
-];
-
-/** State reports the LIST INDEX, never the id (docs/protocol.md §4). */
-const indexOf = (/** @type {string} */ name) => String(ALL_NAMES.indexOf(name) + 1);
-
-/** @param {string} modeName */
-const ENUMS = (modeName) => ({
-  filters: FILTERS,
-  shapers: [{ index: "0", value: "0", name: "none" }],
-  rates: [
-    { index: "0", rate: "0" },
-    { index: "1", rate: "96000" },
-  ],
-  junk_filters: [{ index: "0", value: "0", name: "none" }],
-  mode: { name: modeName },
-});
+// The enumerated vocabulary the engine's own lists are built out of
+// (tests/js/support/easyrate.js): every name the curated table can write, the id
+// each carries, and the "none" every list starts from.
+const VOCAB = { names: ALL_NAMES, idOf, none: NONE };
 
 // The card's own prose comes off /api/metadata. A stand-in, never compared
 // against what ships — the tiles are what is under test.
@@ -414,16 +401,26 @@ function common(keepKnobs, notes, copy) {
  *   keepKnobs?: boolean,
  *   notes?: boolean,
  *   copy?: Record<string, object>,
+ *   engine?: Engine,
+ *   ratios?: Record<string, string> | null,
  * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetTab({ mode = "pcm", names = {}, keepKnobs = false, notes = false, copy = {} } = {}) {
+export async function resetTab({
+  mode = "pcm",
+  names = {},
+  keepKnobs = false,
+  notes = false,
+  copy = {},
+  engine = {},
+  ratios = null,
+} = {}) {
   const w = stagingWire({ routes });
   common(keepKnobs, notes, copy);
   liveMode.value = false;
   signals.engineState.value = {};
-  signals.enums.value = null;
-  signals.config.value = { fields: formFields(FORM(mode, names)), file: { mode }, active: "", profiles: null };
+  signals.enums.value = tabEnums(VOCAB, mode, ratios);
+  signals.config.value = configPayload(FORM(mode, names, engine), mode, engine);
   await discardAll();
   return w;
 }
@@ -455,27 +452,38 @@ export async function resetTab({ mode = "pcm", names = {}, keepKnobs = false, no
  *   oneX?: string,
  *   nX?: string,
  *   keepKnobs?: boolean,
+ *   engine?: Engine,
+ *   ratios?: Record<string, string>,
  * }} [seams]
  * @returns {Promise<StagingWire>}
  */
-export async function resetLive({ mode = "PCM", output = "pcm", chain = "pcm", oneX, nX, keepKnobs = false } = {}) {
+export async function resetLive({
+  mode = "PCM",
+  output = "pcm",
+  chain = "pcm",
+  oneX,
+  nX,
+  keepKnobs = false,
+  engine = {},
+  ratios = {},
+} = {}) {
   const w = stagingWire({ routes });
   // No copy and no descriptions preference: the LIVE lane's cases are about the
   // wire, and what a description RENDERS is read on the tabs lane
   // (tests/js/components/easytiles-desc.test.js).
   common(keepKnobs, false, {});
-  signals.enums.value = ENUMS(mode);
+  signals.enums.value = enumerations(VOCAB, mode, ratios);
   signals.engineState.value = {
     mode: "1",
-    filter1x: oneX === undefined ? "0" : indexOf(oneX),
-    filterNx: nX === undefined ? "0" : indexOf(nX),
+    filter1x: loaded(VOCAB, oneX),
+    filterNx: loaded(VOCAB, nX),
     shaper: "0",
     rate: "0",
     filter_junk: "0",
     adaptive: "0",
     active_chain: chain,
   };
-  signals.config.value = { fields: formFields(FORM(output, {})), file: { mode: output }, active: "", profiles: null };
+  signals.config.value = configPayload(FORM(output, {}, engine), output, engine);
   liveMode.value = true;
   await discardAll();
   return w;
