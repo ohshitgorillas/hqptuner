@@ -131,22 +131,26 @@ def _call(url: str, method: str, payload: dict[str, Any] | None = None) -> Any:
     return json.loads(body) if body else None
 
 
-def _server_state(base_url: str) -> tuple[set[str], bool]:
-    """The two pieces of server state a test can leave behind: the named presets, and auto-save.
+def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
+    """The pieces of server state a test can leave behind: named presets, auto-save, and live presets.
 
-    Read from `/api/config` because that is the response the frontend itself
-    grounds the preset picker and the auto-save toggle in, so what this sees is
-    what a page would load.
+    Config presets and auto-save read from `/api/config` because that is the
+    response the frontend itself grounds the preset picker and the auto-save
+    toggle in, so what this sees is what a page would load. Live presets are a
+    separate store with their own endpoint, `/api/livepresets`, so they are read
+    from there — a live preset a test saves never shows up under `/api/config`.
     """
     data = _call(f"{base_url}/api/config", "GET")["data"]
     options = (data.get("profiles") or {}).get("options") or []
+    live = _call(f"{base_url}/api/livepresets", "GET")["presets"]
     # The unnamed default is not a preset a test could have saved, and it is not
     # deletable, so it never belongs in the set that gets diffed for cleanup.
-    return {option["value"] for option in options if option.get("value")}, bool(data.get("autosave"))
+    presets = {option["value"] for option in options if option.get("value")}
+    return presets, bool(data.get("autosave")), {record["name"] for record in live}
 
 
 @pytest.fixture(scope="session")
-def session_start(stack: stack_support.Stack) -> tuple[set[str], bool]:
+def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]:
     """What the server held before any test ran — the state `clean_slate` returns it to.
 
     Captured rather than assumed empty: the app imports the daemon's own presets
@@ -156,17 +160,19 @@ def session_start(stack: stack_support.Stack) -> tuple[set[str], bool]:
 
 
 @pytest.fixture(autouse=True)
-def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool]) -> None:
+def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]]) -> None:
     """Put the server back to its session-start state, so no test inherits another's leavings."""
     base = stack.base_url
     # Also releases the filter uploads parked against those staged edits.
     _call(f"{base}/api/config/pending", "DELETE")
-    presets, autosave = _server_state(base)
-    started_with, autosave_at_start = session_start
+    presets, autosave, live = _server_state(base)
+    started_with, autosave_at_start, live_at_start = session_start
     if autosave != autosave_at_start:
         _call(f"{base}/api/autosave", "POST", {"enabled": autosave_at_start})
     for name in sorted(presets - started_with):
         _call(f"{base}/api/preset/{urllib.parse.quote(name, safe='')}", "DELETE")
+    for name in sorted(live - live_at_start):
+        _call(f"{base}/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
 
 
 @pytest.fixture(scope="module")
