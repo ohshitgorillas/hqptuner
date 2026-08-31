@@ -83,22 +83,20 @@ const FocusHint = html`<div class="rate-note t-caption">
     filters emphasize clean reproduction of such events.
   </p>
   <p>
-    <strong>Space</strong> is how we perceive the spatial distribution of instruments within a recording; these
-    filters emphasize the content's soundstage.
-  </p>
-  <p>
     <strong>Timbre</strong> is how natural and realistic instruments and voices are rendered; these filters
     emphasize a more lifelike sound.
   </p>
+  <p>
+    <strong>Space</strong> is how we perceive the spatial distribution of instruments within a recording; these
+    filters emphasize the content's soundstage.
+  </p>
 </div>`;
 const PhaseHint = html`<div class="rate-note t-caption">
-  <strong>HQPTuner Hints:</strong> A filter's phase determines where it smears transients in time, aka ringing, and
-  can be thought of as a trade-off between transient reproduction and spatial accuracy. Linear phase filters improve
-  spatial accuracy by ensuring all frequencies arrive at the same time, but they pay for this with an unnatural
-  side-effect: pre-ringing, or smearing of the transient into the time before it actually occurs. Minimum phase
-  filters delay higher frequencies relative to lower, marring the sense of space, but have no pre-ringing and
-  therefore produce more natural transients. Intermediate phase rings asymmetrically, with more smearing after the
-  transient than before.
+  <strong>HQPTuner Hints:</strong> Phase sets where a filter smears transients in time, through ringing: a
+  trade-off between transient reproduction and spatial accuracy. Linear phase lands all frequencies together for
+  spatial accuracy, but pre-rings, smearing the transient into the time before it occurs. Minimum phase delays
+  higher frequencies relative to lower, marring the sense of space, but has no pre-ringing and so more natural
+  transients. Intermediate phase rings asymmetrically, more after the transient than before.
 </div>`;
 const LengthHint = html`<div class="rate-note t-caption">
   <strong>HQPTuner Hints:</strong> Length represents a trade-off between cleaner transients and an improved sense of
@@ -197,9 +195,9 @@ export function NarrowFacets() {
  */
 function RateRule({ on, label, code, onToggle, count }) {
   return html`<label data-v=${code}>
+    <${CountChip} overrides=${count} />
     <input type="checkbox" checked=${on} onChange=${onToggle} />
     <span class="opt-label">${label}</span>
-    <${CountChip} overrides=${count} />
   </label>`;
 }
 

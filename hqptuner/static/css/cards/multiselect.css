@@ -11,14 +11,15 @@
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
 }
 
-/* Per-option result counts in a facet popover ("Rock  14/22"): the label takes
-   the row, the count sits right-aligned and muted. `dead` = the pick zeroes out
-   both stages, dimmed as a visible dead end before it is clicked. */
+/* Per-option result counts in a facet popover ("14/22  Rock"): the count opens
+   the row as a fixed-width muted column, so the checkboxes behind it line up
+   whatever the digit counts; the measure covers "888/888". `dead` = the pick
+   zeroes out both stages, dimmed as a visible dead end before it is clicked. */
 .multi-pop label .opt-label {
   flex: 1;
 }
 .opt-count {
-  margin-left: var(--sp-3);
+  min-width: 7ch;
   color: var(--muted);
   font-size: var(--fs-label);
   font-variant-numeric: tabular-nums;
@@ -27,11 +28,10 @@
 .opt-count.dead {
   opacity: var(--o-off);
 }
-/* Column head over those counts: right-aligned to the same edge the chips end
-   on (the rows are flex with .opt-label taking the slack, so the chip column is
-   flush right), divided off the rows below it like .multi-extra is above. */
+/* Column head over those counts: left-aligned over the chip column that now
+   opens each row, divided off the rows below it like .multi-extra is above. */
 .multi-head {
-  text-align: right;
+  text-align: left;
   padding-bottom: var(--sp-1);
   border-bottom: 1px solid var(--surface-raised);
 }

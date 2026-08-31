@@ -10,9 +10,10 @@ import { toggleIn, chainCounts } from "./labels.js";
 // numbers are: the active chain's 1x list size and its Nx list size.
 const CountHead = () => html`<div class="multi-head t-label">1x / Nx</div>`;
 
-// The count chip shown right-aligned in each popover row. A pair that zeroes out
-// both stages reads `dead` — a dead-end pick, dimmed so it is visible before
-// clicking.
+// The count chip opening each popover row, a fixed column ahead of the
+// checkbox so every row's control lines up under the "1x / Nx" head. A pair
+// that zeroes out both stages reads `dead` — a dead-end pick, dimmed so it is
+// visible before clicking.
 /**
  * Renders one popover row's "1x/Nx" count chip, marked `dead` when the pick
  * would empty both stages.
@@ -50,6 +51,7 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
               ${items.map(
                 ([v, l]) => html`
                   <label data-v=${v}>
+                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                     <input
                       type="radio"
                       checked=${String(v) === String(value)}
@@ -59,7 +61,6 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
                       }}
                     />
                     <span class="opt-label">${l}</span>
-                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                   </label>
                 `,
               )}
@@ -105,6 +106,7 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
                 const inert = !!reason;
                 return html`
                   <label class=${inert ? "off" : ""} data-v=${v} title=${typeof reason === "string" ? reason : null}>
+                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                     <input
                       type="checkbox"
                       checked=${sig.value.includes(v)}
@@ -112,7 +114,6 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
                       onChange=${() => toggleIn(sig, v)}
                     />
                     <span class="opt-label">${l}</span>
-                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                   </label>
                 `;
               })}
