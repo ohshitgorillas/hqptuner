@@ -69,13 +69,18 @@ const env = globalThis;
  * applied, keyed by form-field name and carrying the output mode it was
  * captured under; `names` is display only.
  *
+ * `fields.rate` is the output rate the preset pins, in Hz as a string; "0" is
+ * the daemon's own "no pin" value and is what a preset saved without one
+ * carries.
+ *
  * @param {string} name
  * @param {string} chain
+ * @param {string} [rate]
  */
-export const rec = (name, chain) => ({
+export const rec = (name, chain, rate = "0") => ({
   name,
   chain,
-  fields: { mode: chain, filter1x: "40", rate: "0" },
+  fields: { mode: chain, filter1x: "40", rate },
   names: { mode: chain.toUpperCase(), filter1x: "poly-sinc-gauss-long" },
 });
 
