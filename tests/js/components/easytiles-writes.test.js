@@ -32,7 +32,6 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const {
-  TILE,
   EMPTY,
   resetTab,
   resetLive,
@@ -140,25 +139,40 @@ const MOVES = PRESETS.flatMap((preset) =>
 // The fields already carry exactly what the lit tile stands for, at the knob
 // positions it is showing. A lane that re-stated all four fields anyway would
 // leave the user an apply to make and an engine reload to pay for, for no change
-// at all.
+// at all. Swept over every preset and every combination of its knob positions,
+// so a lane that re-stated fields for a knobbed tile lit at a non-default
+// combination is caught; a preset offering no knobs has one combination, the
+// empty one.
 
-test("test_pressing_the_lit_tile_at_its_current_knob_positions_stages_nothing", async () => {
-  const w = await resetTab({ mode: "auto", names: inForce(TILE) });
-  pressTile(seenTabs(), TILE);
-  await flush(w);
-  assert.deepEqual(w.staged, EMPTY);
-});
+const LIT = PRESETS.flatMap((preset) =>
+  combos(preset.knobs).map((combo) => ({
+    id: String(preset.id),
+    combo,
+    where: Object.keys(combo).length === 0 ? "with_no_knobs" : `at_${at(combo)}`,
+  })),
+);
+
+for (const { id, combo, where } of LIT) {
+  test(`test_pressing_the_lit_${id}_tile_${where}_stages_nothing`, async () => {
+    const w = await resetTab({ mode: "auto", names: inForce(id, combo) });
+    pressTile(seenTabs(), id);
+    await flush(w);
+    assert.deepEqual(w.staged, EMPTY);
+  });
+}
 
 // The same on the LIVE lane, where "what the fields carry" is the engine's own
 // two filter indices joined to its enumerations rather than a form the daemon
 // handed over. The lane is a different wire; the rule is the same one.
 
-test("test_pressing_the_lit_tile_on_the_live_lane_posts_no_fields", async () => {
-  const w = await resetLive({ ...running(TILE) });
-  pressTile(seenLive(), TILE);
-  await flush(w);
-  assert.deepEqual(postedFields(w), {});
-});
+for (const { id, combo, where } of LIT) {
+  test(`test_pressing_the_lit_${id}_tile_${where}_on_the_live_lane_posts_no_fields`, async () => {
+    const w = await resetLive({ ...running(id, combo) });
+    pressTile(seenLive(), id);
+    await flush(w);
+    assert.deepEqual(postedFields(w), {});
+  });
+}
 
 // ============================================================================
 // a press that would change one field writes that one

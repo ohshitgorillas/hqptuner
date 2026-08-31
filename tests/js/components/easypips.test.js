@@ -8,10 +8,9 @@
 // lane, whose output mode is derived from the engine's reported mode name.
 //
 // THE COUNTS ARE READ OUT OF `pipsFor`, NOT TYPED. The pip numbers are
-// owner-tunable data — The Concert Hall went from sixteen to seventeen because
-// the owner said so, with no behavior changed — so a number typed here would
-// assert only that a constant is that constant, and would go red on a retune
-// where nothing is wrong (docs/testing.md rule 9). Reading the module is the
+// owner-tunable data, so a number typed here would assert only that a constant
+// is that constant, and would go red on a retune where nothing is wrong
+// (docs/testing.md rule 9). Reading the module is the
 // right move in THIS file and not a tautology: the module is the source of the
 // number, and the question a card suite asks is whether the CARD agrees with it,
 // which is a different claim from the module agreeing with itself. (An earlier
@@ -21,9 +20,7 @@
 // WHAT A TILE PASSES is its own knob positions, so a resting tile is read
 // against `pipsFor` at the RESTING positions — asked of the shipped table
 // through `presetsFor`, whose knobs carry their own defaults, rather than typed
-// out. That matters because the two are not the same call: the space position an
-// emphasis knob rests on costs a pip more than transients on the PCM chain, and
-// nothing extra on the SDM chain.
+// out.
 //
 // The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
@@ -77,11 +74,6 @@ const PRESETS = presetsFor();
  */
 const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [knob.id, knob.default]));
 
-// The tile the row and the naming are read on. `concert-hall` because it is the
-// costliest, so a group drawn empty and a group drawn once are both a long way
-// from what it must show. Preset ids are wire identifiers.
-const TILE = "concert-hall";
-
 // ============================================================================
 // a tile draws as many pips as its preset costs
 // ============================================================================
@@ -112,15 +104,16 @@ for (const preset of PRESETS) {
   });
 }
 
-// The auto output mode shows the PCM number. One tile carries it, and it is the
-// one whose two chains are furthest apart: a card showing the SDM count under
-// "auto" draws the whole Concert Hall where the PCM row belongs.
+// The auto output mode shows the PCM number. One case per preset, off the same
+// roster: a card showing the SDM count under "auto" fails by naming the tile
+// that drew the wrong row, and no preset is picked to stand for the rule.
 
-test("test_a_tile_draws_its_pcm_pips_in_the_auto_output_mode", async () => {
-  const hall = PRESETS.filter((p) => p.id === TILE)[0];
-  await resetTab({ mode: "auto" });
-  assert.equal(pipCount(tabs(), TILE), pipsFor(TILE, "pcm", resting(hall)));
-});
+for (const preset of PRESETS) {
+  test(`test_the_${preset.id}_tile_draws_its_pcm_pips_in_the_auto_output_mode`, async () => {
+    await resetTab({ mode: "auto" });
+    assert.equal(pipCount(tabs(), preset.id), pipsFor(preset.id, "pcm", resting(preset)));
+  });
+}
 
 // ============================================================================
 // where the group stands, and how a reader meets it
@@ -130,12 +123,21 @@ test("test_a_tile_draws_its_pcm_pips_in_the_auto_output_mode", async () => {
 // overlay is for: a class is stated for every filter the table can write, so
 // whichever filter the tile is showing, it has a mark to stand beside. A tile
 // with no mark makes the reader throw rather than answer.
+//
+// One case per preset drawing pips, selected off the roster by the declared
+// `costText` property (see the naming sweep below for why those are left out),
+// rather than on one tile named to stand for the rest.
 
-test("test_the_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async () => {
-  await resetTab({ mode: "pcm" });
-  seedFacets(uniformFacets("full"));
-  assert.equal(pipsShareTheMarksRow(tabs(), TILE), true);
-});
+/** The presets whose cost row holds pip dots rather than caption text. */
+const DOTTED = PRESETS.filter((p) => !p.costText);
+
+for (const preset of DOTTED) {
+  test(`test_the_${preset.id}_tiles_pip_group_stands_in_the_same_row_as_the_apodizing_mark`, async () => {
+    await resetTab({ mode: "pcm" });
+    seedFacets(uniformFacets("full"));
+    assert.equal(pipsShareTheMarksRow(tabs(), preset.id), true);
+  });
+}
 
 // A group announced as nothing is a row of marks a reader is told nothing about.
 // What it SAYS is the owner's and is asserted nowhere.
@@ -149,7 +151,7 @@ test("test_the_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async ()
 // are excluded from THIS naming sweep on that declared property, while the
 // count sweeps above stay unfiltered (0 dots agrees with `pipsFor` at 0).
 
-for (const preset of PRESETS.filter((p) => !p.costText)) {
+for (const preset of DOTTED) {
   test(`test_the_${preset.id}_tiles_pip_group_carries_an_accessible_name`, async () => {
     await resetTab({ mode: "pcm" });
     assert.equal(pipsAreNamed(tabs(), preset.id), true);
@@ -227,28 +229,28 @@ for (const { preset, knob, knobs } of movedPairs()) {
 // config form which mode it was in and drew the PCM row on every live page was
 // wrong with nothing red.
 //
-// The reading is taken on the tile whose two chains are furthest apart, and the
-// premise that they ARE apart is asserted first rather than assumed: were the
-// two costs equal, the case below would pass on a card that had never derived
-// the mode at all. Neither number is typed — both are asked of the module.
+// The reading is taken on every preset whose two chains answer different
+// numbers at rest, selected off the roster by asking the module and never by
+// name: on a tile costing the same on both chains the case could not tell a
+// derived mode from an ignored one, so such a tile generates no case, and a
+// roster on which no tile's chains differ generates none at all. Neither number
+// is typed; both are asked of the module.
 
-test("test_the_costliest_tiles_pcm_and_sdm_costs_differ_so_the_live_case_can_tell_them_apart", () => {
-  const hall = PRESETS.filter((p) => p.id === TILE)[0];
-  assert.notEqual(pipsFor(TILE, "pcm", resting(hall)), pipsFor(TILE, "sdm", resting(hall)));
-});
-
-test("test_a_live_tile_draws_its_sdm_pips_while_the_engine_reports_an_sdm_mode_name", async () => {
-  const hall = PRESETS.filter((p) => p.id === TILE)[0];
-  await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
-  assert.equal(pipCount(liveCard(), TILE), pipsFor(TILE, "sdm", resting(hall)));
-});
+for (const preset of PRESETS.filter((p) => pipsFor(p.id, "sdm", resting(p)) !== pipsFor(p.id, "pcm", resting(p)))) {
+  test(`test_a_live_${preset.id}_tile_draws_its_sdm_pips_while_the_engine_reports_an_sdm_mode_name`, async () => {
+    await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
+    assert.equal(pipCount(liveCard(), preset.id), pipsFor(preset.id, "sdm", resting(preset)));
+  });
+}
 
 // And the group stands in the mark's row on the live page as well, which is a
-// different rendering of the same tile and not the one every row case above
+// different rendering of the same tiles and not the one every row case above
 // read.
 
-test("test_a_live_tiles_pip_group_stands_in_the_same_row_as_the_apodizing_mark", async () => {
-  await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
-  seedFacets(uniformFacets("full"));
-  assert.equal(pipsShareTheMarksRow(liveCard(), TILE), true);
-});
+for (const preset of DOTTED) {
+  test(`test_a_live_${preset.id}_tiles_pip_group_stands_in_the_same_row_as_the_apodizing_mark`, async () => {
+    await resetLive({ mode: "SDM (DSD)", output: "sdm", chain: "sdm" });
+    seedFacets(uniformFacets("full"));
+    assert.equal(pipsShareTheMarksRow(liveCard(), preset.id), true);
+  });
+}

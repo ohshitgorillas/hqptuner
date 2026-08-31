@@ -17,7 +17,7 @@ WHICH TILES EXIST is the owner's curated list and is not stated here either
 (docs/testing.md rule 9): the title and description sweeps read the preset ids
 off the served payload and ask a property of every one.
 
-DAMAGE CONTROL'S `material` KNOB IS NOT READ HERE. Its copy is not written yet,
+The `material` knob is not read here. Its copy is not written yet,
 so there is nothing to assert about it and nothing may be invented; what that
 knob WRITES is pinned in tests/js/store/easy.test.js and what it
 offers in tests/js/components/easytiles-positions.test.js, both over wire

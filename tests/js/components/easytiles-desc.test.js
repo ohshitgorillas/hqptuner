@@ -37,13 +37,8 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs } = await import("../support/easytiles.js");
+const { ROSTER, resetTab, tabs } = await import("../support/easytiles.js");
 const { descBlockCount, descBlockContainers } = await import("../support/easydesc.js");
-
-// The tiles the stand-in copy is hung on. Preset ids are wire identifiers, so
-// they are stated outright.
-const TILE = "perfect-ten";
-const SECOND_TILE = "lifelike";
 
 // Stand-in prose, never compared against what ships. Three paragraphs, one
 // paragraph, and one paragraph carrying an interior newline that is NOT a blank
@@ -69,28 +64,28 @@ const copyFor = (presetId, description) => ({
 // ============================================================================
 
 test("test_a_tile_description_of_three_paragraphs_renders_three_blocks", async () => {
-  await resetTab({ notes: true, copy: copyFor(TILE, THREE) });
-  assert.equal(descBlockCount(tabs(), TILE), 3);
+  await resetTab({ notes: true, copy: copyFor(ROSTER[0], THREE) });
+  assert.equal(descBlockCount(tabs(), ROSTER[0]), 3);
 });
 
 test("test_a_tile_description_with_no_blank_line_renders_one_block", async () => {
-  await resetTab({ notes: true, copy: copyFor(TILE, ONE) });
-  assert.equal(descBlockCount(tabs(), TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(ROSTER[0], ONE) });
+  assert.equal(descBlockCount(tabs(), ROSTER[0]), 1);
 });
 
 // A newline that is not a blank line is inside a paragraph, not between two.
 
 test("test_a_tile_description_broken_only_by_a_single_newline_renders_one_block", async () => {
-  await resetTab({ notes: true, copy: copyFor(TILE, WRAPPED) });
-  assert.equal(descBlockCount(tabs(), TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(ROSTER[0], WRAPPED) });
+  assert.equal(descBlockCount(tabs(), ROSTER[0]), 1);
 });
 
 // The same structure on a second tile: paragraph blocks belong to a tile rather
 // than to whichever one the card happens to lay out first.
 
 test("test_a_second_tiles_description_of_three_paragraphs_renders_three_blocks", async () => {
-  await resetTab({ notes: true, copy: copyFor(SECOND_TILE, THREE) });
-  assert.equal(descBlockCount(tabs(), SECOND_TILE), 3);
+  await resetTab({ notes: true, copy: copyFor(ROSTER[1], THREE) });
+  assert.equal(descBlockCount(tabs(), ROSTER[1]), 3);
 });
 
 // ============================================================================
@@ -103,6 +98,6 @@ test("test_a_second_tiles_description_of_three_paragraphs_renders_three_blocks",
 // above.
 
 test("test_the_blocks_of_a_multi_paragraph_description_hang_off_one_container", async () => {
-  await resetTab({ notes: true, copy: copyFor(TILE, THREE) });
-  assert.equal(descBlockContainers(tabs(), TILE), 1);
+  await resetTab({ notes: true, copy: copyFor(ROSTER[0], THREE) });
+  assert.equal(descBlockContainers(tabs(), ROSTER[0]), 1);
 });

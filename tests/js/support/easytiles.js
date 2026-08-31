@@ -115,31 +115,19 @@ const idOf = (name) => String(ID.get(name));
 
 // --- what the shipped table names ----------------------------------------------------
 //
-// Named outright, not searched for at import. A preset id, a knob id and a knob
-// option id are wire identifiers, the same class of thing as a schema key or a
-// filter name, so a case states which one it exercises and fails by name when
-// the table moves under it. Only the FILTER NAMES are derived (above), because
-// those are the curated half a second copy would drift from.
-//
-// `PICK` is the knob position the generic press cases move to: a position that
-// differs from its knob's default, so that pressing it is a move rather than a
-// re-statement of what the tile already shows. `concert-hall`'s `version` knob
-// is one such. The per-preset cases name their own knob and option inline.
-//
 // A knob option id is NOT unique across the card — `emphasis` carries the same
 // two option ids on five tiles and `material` the same two on three — so
 // `pressKnob` takes the preset whose tile it is pressing and refuses on an
 // ambiguous match within it, rather than pressing whichever tile came first in
 // the vnode stream.
 
-export const TILE = "perfect-ten";
-export const SECOND_TILE = "lifelike";
-export const PICK = { preset: "concert-hall", knob: "version", option: "lifelike", fallback: "perfect-ten" };
-
-// The roster the active-marking map is read over. `presetsFor` is the public
-// enumeration of which tiles the card has, and the composition cases pin how
-// many that is.
-const PRESET_IDS = presetsFor().map((/** @type {Preset} */ preset) => String(preset.id));
+// The roster the active-marking map is read over, in display order.
+// `presetsFor` is the public enumeration of which tiles the card has, and the
+// composition cases pin how many that is. A case that needs "some tile" takes
+// one by position (`ROSTER[0]`, `ROSTER[1]`), and a case that needs a tile with
+// a property selects it off `presetsFor()`; no preset is named to stand for
+// either.
+export const ROSTER = presetsFor().map((/** @type {Preset} */ preset) => String(preset.id));
 
 /**
  * The presets the public store names for the card, as a SORTED list of ids.
@@ -154,7 +142,7 @@ const PRESET_IDS = presetsFor().map((/** @type {Preset} */ preset) => String(pre
  *
  * @returns {string[]}
  */
-export const namedPresets = () => [...PRESET_IDS].sort();
+export const namedPresets = () => [...ROSTER].sort();
 
 // --- the daemon's config form -----------------------------------------------------
 
@@ -279,7 +267,7 @@ export function liveExpected(presetId, knobs = {}) {
  * @param {string | null} presetId
  * @returns {Record<string, string>}
  */
-export const oneLit = (presetId) => Object.fromEntries(PRESET_IDS.map((id) => [id, id === presetId ? "1" : "0"]));
+export const oneLit = (presetId) => Object.fromEntries(ROSTER.map((id) => [id, id === presetId ? "1" : "0"]));
 
 export const EMPTY = { live: {}, http: {} };
 

@@ -42,8 +42,7 @@
 //   7. returning one offered knob to its default from any combination changes
 //      the PCM pair (the KNOB_MOVES sweep);
 //   8. `matchPreset` answers null for values no single preset at one
-//      combination wrote, built from real writes and synthetic names;
-//   9. the table's whole vocabulary is non-empty.
+//      combination wrote, built from real writes and synthetic names.
 //
 // Deliberately NOT asserted: the table's membership, ordering, emoji, shape or
 // any word a tile shows.
@@ -54,7 +53,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
-import { combos, namesWritten } from "../support/easytable.js";
+import { combos } from "../support/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
@@ -266,25 +265,43 @@ for (const [preset, knobs, knobId] of KNOB_MOVES) {
 // a filter, never typed from the table. Each search picks its material from
 // the roster by property; a search that finds nothing generates no test.
 
-// 8a. The two ends of one chain from two different presets. The presets are
-// the first pair in roster order whose PCM 1x values differ at rest.
+// 8a. The two ends of one chain from two different presets, at rest. The
+// presets are the first pair in roster order whose mixed PCM pair (a's 1x,
+// b's nx) no preset at any combination writes as its own: a correct table
+// may legitimately hand one preset's 1x and another's nx to some third cell,
+// and null would be the wrong answer there. A pair the table does write is
+// skipped, not asserted; a roster where every pair is written generates no
+// test here.
+
+/** The PCM pair made of `a`'s 1x value and `b`'s nx value, both at rest. */
+function mixedPcmPair(/** @type {Preset} */ a, /** @type {Preset} */ b) {
+  return { [PCM_1X]: writeSet(a.id, "pcm")[PCM_1X], [PCM_NX]: writeSet(b.id, "pcm")[PCM_NX] };
+}
+
+/** Whether any (preset, combination) in the table writes exactly `pair` on the PCM chain. */
+function tableWritesPcmPair(/** @type {Record<string, string>} */ pair) {
+  const cell = CELLS.find(([preset, c]) => {
+    const written = writeSet(preset.id, "pcm", c);
+    return written[PCM_1X] === pair[PCM_1X] && written[PCM_NX] === pair[PCM_NX];
+  });
+  return cell !== undefined;
+}
 
 /** @returns {[Preset, Preset] | undefined} */
-function firstPresetsWithDifferentPcm1x() {
+function firstPresetsWithUnwrittenMixedPcmPair() {
   for (const a of PRESETS) {
-    const b = PRESETS.find((other) => writeSet(other.id, "pcm")[PCM_1X] !== writeSet(a.id, "pcm")[PCM_1X]);
+    const b = PRESETS.find((other) => other !== a && !tableWritesPcmPair(mixedPcmPair(a, other)));
     if (b) return [a, b];
   }
   return undefined;
 }
 
-const SPLIT_PRESETS = firstPresetsWithDifferentPcm1x();
+const SPLIT_PRESETS = firstPresetsWithUnwrittenMixedPcmPair();
 
 if (SPLIT_PRESETS) {
   const [a, b] = SPLIT_PRESETS;
   test(`test_matchpreset_returns_null_when_the_1x_end_is_${a.id}s_and_the_nx_end_is_${b.id}s`, () => {
-    const mixed = { [PCM_1X]: writeSet(a.id, "pcm")[PCM_1X], [PCM_NX]: writeSet(b.id, "pcm")[PCM_NX] };
-    assert.equal(matchPreset(mixed, "pcm"), null);
+    assert.equal(matchPreset(mixedPcmPair(a, b), "pcm"), null);
   });
 }
 
@@ -355,13 +372,3 @@ if (TWO_STAGE_CELL) {
     assert.equal(matchPreset({ [PCM_1X]: sdm[SDM_1X], [PCM_NX]: sdm[SDM_NX], ...sdm }, "auto"), null);
   });
 }
-
-// --- behavior 9: the table's whole vocabulary is non-empty ---------------------------------
-//
-// The table swept whole, every preset at every combination of the positions
-// its knobs define, produces a non-empty vocabulary, so a table writing no
-// names at all cannot pass the sweeps that read it.
-
-test("test_the_table_writes_a_vocabulary_of_filter_names_to_sweep", () => {
-  assert.notEqual(namesWritten().length, 0);
-});

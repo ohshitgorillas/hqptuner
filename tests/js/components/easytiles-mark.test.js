@@ -42,7 +42,7 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { TILE, resetTab, running, seedPcmPair, tabs } = await import("../support/easytiles.js");
+const { resetTab, running, seedPcmPair, tabs } = await import("../support/easytiles.js");
 const {
   seedFacets,
   uniformFacets,
@@ -126,7 +126,7 @@ const MOVES = /** @type {Preset[]} */ (presetsFor())
 async function glyphOfClass(apodizing) {
   await resetTab({ mode: "pcm" });
   seedFacets(uniformFacets(apodizing));
-  return markGlyph(tabs(), TILE);
+  return markGlyph(tabs(), ROSTER[0]);
 }
 
 /**
@@ -139,7 +139,7 @@ async function glyphOfClass(apodizing) {
 async function labelOfClass(apodizing) {
   await resetTab({ mode: "pcm" });
   seedFacets(uniformFacets(apodizing));
-  return markLabel(tabs(), TILE);
+  return markLabel(tabs(), ROSTER[0]);
 }
 
 /**

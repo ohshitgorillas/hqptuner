@@ -55,8 +55,7 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const {
-  TILE,
-  PICK,
+  ROSTER,
   PCM_FIELDS,
   SDM_FIELDS,
   ALL_FIELDS,
@@ -197,10 +196,12 @@ test("test_the_card_lays_out_one_tile_for_every_preset_the_store_names", async (
 // which tile reads as the one in force
 // ============================================================================
 
-test("test_the_tile_whose_write_set_the_fields_carry_is_the_one_marked_active", async () => {
-  await resetTab({ mode: "auto", names: inForce(TILE) });
-  assert.deepEqual(activeMap(tabs()), oneLit(TILE));
-});
+for (const presetId of ROSTER) {
+  test(`test_the_${presetId}_write_set_in_the_fields_marks_the_${presetId}_tile_active`, async () => {
+    await resetTab({ mode: "auto", names: inForce(presetId) });
+    assert.deepEqual(activeMap(tabs()), oneLit(presetId));
+  });
+}
 
 test("test_every_tile_is_marked_inactive_while_the_fields_carry_no_presets_write_set", async () => {
   await resetTab({ mode: "auto" });
@@ -236,10 +237,12 @@ for (const [preset, knobs] of MATERIAL_SEEDS) {
 // names they land on are what a preset is matched against. Nothing else in this
 // file makes a tile light from `engineState`.
 
-test("test_the_live_lane_marks_the_tile_whose_write_set_the_engines_own_filters_match", async () => {
-  await resetLive({ ...running(TILE) });
-  assert.deepEqual(activeMap(liveCard()), oneLit(TILE));
-});
+for (const presetId of ROSTER) {
+  test(`test_the_live_lane_marks_${presetId}_active_while_the_engines_own_filters_match_its_write_set`, async () => {
+    await resetLive({ ...running(presetId) });
+    assert.deepEqual(activeMap(liveCard()), oneLit(presetId));
+  });
+}
 
 test("test_the_live_lane_marks_every_tile_inactive_while_the_engine_runs_no_presets_filters", async () => {
   await resetLive();
@@ -262,12 +265,14 @@ const MODE_FIELDS = [
 ];
 
 for (const [mode, fields] of MODE_FIELDS) {
-  test(`test_a_tile_press_in_the_${mode}_output_mode_writes_only_that_modes_filter_fields`, async () => {
-    const w = await resetTab({ mode });
-    pressTile(seenTabs(), TILE);
-    await flush(w);
-    assert.deepEqual(Object.keys(w.staged.http).sort(), fields);
-  });
+  for (const presetId of ROSTER) {
+    test(`test_a_${presetId}_press_in_the_${mode}_output_mode_writes_only_that_modes_filter_fields`, async () => {
+      const w = await resetTab({ mode });
+      pressTile(seenTabs(), presetId);
+      await flush(w);
+      assert.deepEqual(Object.keys(w.staged.http).sort(), fields);
+    });
+  }
 }
 
 // The output mode again on the LIVE lane, where it is not a form field but the
@@ -288,12 +293,14 @@ const LIVE_MODES = [
 ];
 
 for (const [label, engineMode, chain, fields] of LIVE_MODES) {
-  test(`test_a_live_tile_press_while_the_engine_reports_${label}_writes_only_that_modes_live_fields`, async () => {
-    const w = await resetLive({ mode: engineMode, output: label, chain });
-    pressTile(seenLive(), TILE);
-    await flush(w);
-    assert.deepEqual(Object.keys(postedFields(w)).sort(), fields);
-  });
+  for (const presetId of ROSTER) {
+    test(`test_a_live_${presetId}_press_while_the_engine_reports_${label}_writes_only_that_modes_live_fields`, async () => {
+      const w = await resetLive({ mode: engineMode, output: label, chain });
+      pressTile(seenLive(), presetId);
+      await flush(w);
+      assert.deepEqual(Object.keys(postedFields(w)).sort(), fields);
+    });
+  }
 }
 
 // ============================================================================
@@ -309,19 +316,48 @@ for (const [label, engineMode, chain, fields] of LIVE_MODES) {
 // enumeration carries no `-2s` entry at all: a lane routing an SDM value to a
 // PCM field has nothing there to resolve it against.
 
-test("test_a_tile_press_routes_its_write_set_by_enum_id_onto_the_pcm_fields", async () => {
-  const w = await resetTab({ mode: "pcm" });
-  pressTile(seenTabs(), TILE);
-  await flush(w);
-  assert.deepEqual(stagedNames(w), expectedNames(TILE, "pcm"));
-});
-
-for (const presetId of ["old-school", "damage-control"]) {
-  test(`test_pressing_${presetId}_routes_its_per_chain_names_onto_the_field_enumerating_each`, async () => {
-    const w = await resetTab({ mode: "auto" });
+for (const presetId of ROSTER) {
+  test(`test_a_${presetId}_press_routes_its_write_set_by_enum_id_onto_the_pcm_fields`, async () => {
+    const w = await resetTab({ mode: "pcm" });
     pressTile(seenTabs(), presetId);
     await flush(w);
-    assert.deepEqual(stagedNames(w), expectedNames(presetId, "auto"));
+    assert.deepEqual(stagedNames(w), expectedNames(presetId, "pcm"));
+  });
+}
+
+// The chain-split cells, selected by property rather than by naming a preset:
+// every (preset, combination) the table defines whose SDM write differs from
+// its PCM write on either end of the chain. Zero such cells generate zero cases.
+//
+// A cell off the tile's resting positions is reached the way a user reaches it:
+// the tile is pressed, then each knob the cell parks off its default is moved
+// there, one press per knob on a fresh render. The staging buffer merges field
+// by field, so what it holds at the end is the write for the cell itself.
+
+/** @type {[Preset, Record<string, string>][]} */
+const CELLS = PRESETS.flatMap((preset) =>
+  combos(preset.knobs).map((c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c])),
+);
+
+/** @type {[Preset, Record<string, string>][]} */
+const CHAIN_SPLIT = CELLS.filter(([preset, c]) => {
+  const sdm = writeSet(preset.id, "sdm", c);
+  const pcm = writeSet(preset.id, "pcm", c);
+  return sdm.sdm_filter_1x !== pcm.pcm_filter_1x || sdm.sdm_filter_nx !== pcm.pcm_filter_nx;
+});
+
+for (const [preset, c] of CHAIN_SPLIT) {
+  const moves = knobsShown(preset, c).filter((knob) => c[String(knob.id)] !== knob.default);
+
+  test(`test_pressing_${preset.id}_at_${positionsOf(c)}_routes_its_per_chain_names_onto_the_field_enumerating_each`, async () => {
+    const w = await resetTab({ mode: "auto" });
+    pressTile(seenTabs(), preset.id);
+    await flush(w);
+    for (const knob of moves) {
+      pressKnob(seenTabs(), preset.id, c[String(knob.id)]);
+      await flush(w);
+    }
+    assert.deepEqual(stagedNames(w), expectedNames(preset.id, "auto", c));
   });
 }
 
@@ -332,23 +368,6 @@ for (const presetId of ["old-school", "damage-control"]) {
 // What a tile's knob writes when it is moved, and which position it shows.
 // `knobPositions` throws when the knob it is asked for is absent, so each of
 // these also reads as "the tile carries that knob".
-
-test("test_moving_a_tiles_knob_writes_that_preset_at_the_new_position", async () => {
-  const w = await resetTab({ mode: "pcm" });
-  pressKnob(seenTabs(), PICK.preset, PICK.option);
-  await flush(w);
-  assert.deepEqual(stagedNames(w), expectedNames(PICK.preset, "pcm", { [PICK.knob]: PICK.option }));
-});
-
-test("test_an_active_tiles_knob_shows_the_position_the_fields_match", async () => {
-  await resetTab({ mode: "auto", names: inForce(PICK.preset, { [PICK.knob]: PICK.option }) });
-  assert.deepEqual(knobPositions(tabs(), PICK.preset, PICK.knob), [PICK.option]);
-});
-
-test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
-  await resetTab({ mode: "auto" });
-  assert.deepEqual(knobPositions(tabs(), PICK.preset, PICK.knob), [PICK.fallback]);
-});
 
 // ============================================================================
 // every knob of every preset, position by position
@@ -461,21 +480,21 @@ for (const [preset, knobId, option] of LIVE_MOVES) {
 
 test("test_a_tile_press_on_the_live_lane_writes_the_live_fields_by_enum_id", async () => {
   const w = await resetLive();
-  pressTile(seenLive(), TILE);
+  pressTile(seenLive(), ROSTER[0]);
   await flush(w);
-  assert.deepEqual(postedFields(w), liveExpected(TILE));
+  assert.deepEqual(postedFields(w), liveExpected(ROSTER[0]));
 });
 
 test("test_a_tile_press_on_the_live_lane_stages_nothing", async () => {
   const w = await resetLive();
-  pressTile(seenLive(), TILE);
+  pressTile(seenLive(), ROSTER[0]);
   await flush(w);
   assert.deepEqual(w.staged, EMPTY);
 });
 
 test("test_a_tile_press_on_the_tabs_lane_never_reaches_the_live_path", async () => {
   const w = await resetTab({ mode: "pcm" });
-  pressTile(seenTabs(), TILE);
+  pressTile(seenTabs(), ROSTER[0]);
   await flush(w);
   assert.deepEqual(w.posts, []);
 });

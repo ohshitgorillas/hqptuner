@@ -29,6 +29,7 @@ import assert from "node:assert/strict";
 
 import { pipsFor } from "../../../hqptuner/static/store/easycost.js";
 import { presetsFor } from "../../../hqptuner/static/store/easy.js";
+import { combos } from "../support/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
@@ -37,6 +38,16 @@ import { presetsFor } from "../../../hqptuner/static/store/easy.js";
 const PRESETS = presetsFor();
 
 const EMPHASIS = "emphasis";
+
+/**
+ * Where a preset's knobs rest, as the shipped table declares it. The positions
+ * `pipsFor` is asked about are always the whole set, so a case moving one knob
+ * spreads this in first and overrides the one it moves.
+ *
+ * @param {Preset} preset
+ * @returns {Record<string, string>}
+ */
+const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [knob.id, knob.default]));
 
 // ============================================================================
 // the auto output mode
@@ -58,22 +69,9 @@ test("test_the_shipped_table_names_at_least_one_preset_for_the_per_preset_sweeps
 
 for (const preset of PRESETS) {
   test(`test_${preset.id}_costs_its_pcm_pips_under_the_auto_output_mode`, () => {
-    assert.equal(pipsFor(preset.id, "auto"), pipsFor(preset.id, "pcm"));
+    assert.equal(pipsFor(preset.id, "auto", resting(preset)), pipsFor(preset.id, "pcm", resting(preset)));
   });
 }
-
-// Every case above reads the auto chain against the PCM chain, and all of them
-// would pass against a module that ignored the output mode and answered one
-// number per preset. What rules that out is that the two chains are not the same
-// chain: SOME preset costs a different number on SDM than on PCM. Which preset,
-// and by how much, is the owner's to retune, so the case names neither.
-
-test("test_at_least_one_preset_costs_a_different_number_on_the_sdm_chain_than_on_the_pcm_chain", () => {
-  assert.ok(
-    PRESETS.some((preset) => pipsFor(preset.id, "sdm") !== pipsFor(preset.id, "pcm")),
-    "every preset costs the same on both chains, so nothing here would notice a module ignoring the output mode",
-  );
-});
 
 // ============================================================================
 // a preset the module does not carry
@@ -118,7 +116,41 @@ for (const preset of PRESETS) {
       const a = positions[i];
       const b = positions[j];
       test(`test_${preset.id}_costs_the_same_on_the_sdm_chain_at_${a}_as_at_${b}`, () => {
-        assert.equal(pipsFor(preset.id, "sdm", { [EMPHASIS]: a }), pipsFor(preset.id, "sdm", { [EMPHASIS]: b }));
+        assert.equal(
+          pipsFor(preset.id, "sdm", { ...resting(preset), [EMPHASIS]: a }),
+          pipsFor(preset.id, "sdm", { ...resting(preset), [EMPHASIS]: b }),
+        );
+      });
+    }
+  }
+}
+
+// ============================================================================
+// every preset drawing pips costs more than nothing
+// ============================================================================
+//
+// A preset the table carries, drawing pips rather than caption text, costs MORE
+// on either chain than the id the module does not carry, at every combination
+// of its knob positions. Read against that absence call rather than against a
+// literal: the floor is the module's own zero, and how far above it any preset
+// sits is the owner's. Presets declaring `costText` are left out on that
+// declared property, since a captioned cost row draws no pips to count, and a
+// roster carrying none without it generates no case here. One case per preset,
+// per knob combination, per chain, so the failure names all three.
+
+const CHAINS = ["pcm", "sdm"];
+
+/** The knob positions of one combination, spelt for a test name. */
+const spelt = (/** @type {Record<string, string>} */ combo) =>
+  Object.entries(combo)
+    .map(([knob, option]) => `${knob}_at_${option}`)
+    .join("_and_") || "no_knobs";
+
+for (const preset of PRESETS.filter((p) => !p.costText)) {
+  for (const combo of combos(preset.knobs)) {
+    for (const chain of CHAINS) {
+      test(`test_${preset.id}_with_${spelt(combo)}_costs_more_on_the_${chain}_chain_than_a_preset_the_module_does_not_carry`, () => {
+        assert.ok(pipsFor(preset.id, chain, combo) > pipsFor(NO_SUCH_PRESET, chain));
       });
     }
   }

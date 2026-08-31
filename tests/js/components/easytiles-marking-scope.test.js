@@ -42,8 +42,7 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const {
-  TILE,
-  SECOND_TILE,
+  ROSTER,
   resetTab,
   resetLive,
   running,
@@ -75,13 +74,13 @@ function previewPreset(presetId) {
 }
 
 /**
- * The Output tab with `TILE`'s filters in the daemon's form and nothing staged
+ * The Output tab with `ROSTER[0]`'s filters in the daemon's form and nothing staged
  * over them — the engine running one preset, the grid holding no edit.
  *
  * @returns {Promise<import("../support/wire.js").StagingWire>}
  */
 async function runningTile() {
-  const set = running(TILE);
+  const set = running(ROSTER[0]);
   return resetTab({ mode: "pcm", names: seedPcmPair(set.oneX, set.nX) });
 }
 
@@ -90,8 +89,8 @@ async function runningTile() {
 // ============================================================================
 
 test("test_the_live_lane_marks_the_tile_whose_write_set_the_engines_own_filters_match_as_selected", async () => {
-  await resetLive({ ...running(TILE) });
-  assert.deepEqual(selectedMap(liveCard()), oneLit(TILE));
+  await resetLive({ ...running(ROSTER[0]) });
+  assert.deepEqual(selectedMap(liveCard()), oneLit(ROSTER[0]));
 });
 
 // ============================================================================
@@ -100,7 +99,7 @@ test("test_the_live_lane_marks_the_tile_whose_write_set_the_engines_own_filters_
 
 test("test_with_nothing_staged_the_selected_marking_is_on_the_tile_the_running_filters_match", async () => {
   await runningTile();
-  assert.deepEqual(selectedMap(tabs()), oneLit(TILE));
+  assert.deepEqual(selectedMap(tabs()), oneLit(ROSTER[0]));
 });
 
 // ============================================================================
@@ -114,18 +113,18 @@ test("test_with_nothing_staged_the_selected_marking_is_on_the_tile_the_running_f
 
 test("test_a_preset_preview_leaves_the_active_marking_on_the_running_preset", async () => {
   await runningTile();
-  previewPreset(SECOND_TILE);
-  assert.deepEqual(activeMap(tabs()), oneLit(TILE));
+  previewPreset(ROSTER[1]);
+  assert.deepEqual(activeMap(tabs()), oneLit(ROSTER[0]));
 });
 
 // A staged output MODE moves which chain a preset would be matched against. The
-// engine is running the PCM chain with `TILE`'s two filters in it and the SDM
+// engine is running the PCM chain with `ROSTER[0]`'s two filters in it and the SDM
 // fields on "none", so a match run against the staged SDM mode lights nothing —
-// while the engine has not moved and is still running `TILE`.
+// while the engine has not moved and is still running `ROSTER[0]`.
 
 test("test_a_staged_output_mode_leaves_the_active_marking_on_the_running_preset", async () => {
   const w = await runningTile();
   await edit("output_mode", "sdm");
   await flush(w);
-  assert.deepEqual(activeMap(tabs()), oneLit(TILE));
+  assert.deepEqual(activeMap(tabs()), oneLit(ROSTER[0]));
 });

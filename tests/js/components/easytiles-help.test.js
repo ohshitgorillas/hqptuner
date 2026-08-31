@@ -40,13 +40,9 @@ import { useStorage } from "../support/storage.js";
 
 const store = useStorage();
 
-const { resetTab, flush, tabs, seenTabs, pressTile } = await import("../support/easytiles.js");
+const { ROSTER, resetTab, flush, tabs, seenTabs, pressTile } = await import("../support/easytiles.js");
 const { HELP_LINK, helpPanels, helpLinks, subtitleCarriesHelpLink, introPrecedesHelpLink, pressTestId, resetHelp } =
   await import("../support/easyhelp.js");
-
-// The tile pressed to put an edit in the staging buffer. A preset id is a wire
-// identifier.
-const PRESET_TILE = "perfect-ten";
 
 /**
  * The card, with every signal it reads put back — the panel's own included,
@@ -146,7 +142,7 @@ test("test_opening_the_help_panel_writes_nothing_to_storage", async () => {
 test("test_an_open_help_panel_survives_an_edit_being_staged", async () => {
   const w = await reset();
   pressHelp();
-  pressTile(seenTabs(), PRESET_TILE);
+  pressTile(seenTabs(), ROSTER[0]);
   await flush(w);
   assert.equal(helpPanels(tabs()), 1);
 });

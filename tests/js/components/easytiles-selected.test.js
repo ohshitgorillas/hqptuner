@@ -37,8 +37,7 @@ import { useStorage } from "../support/storage.js";
 useStorage();
 
 const {
-  TILE,
-  PICK,
+  ROSTER,
   resetTab,
   running,
   oneLit,
@@ -51,24 +50,60 @@ const {
   knobPositions,
   pressTile,
 } = await import("../support/easytiles.js");
+const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-// The preset the ENGINE is left running: `concert-hall`, at the `version`
-// position its knob does NOT rest on, so that what the running tile shows is
-// distinguishable from what an unmatched tile shows. `PICK.fallback` is the
-// resting position, which is what a tile the grid has not matched falls back to.
-const ENGINE = { preset: PICK.preset, knob: PICK.knob, position: PICK.option };
+/** @typedef {{ id: string, default: string, options: string[] }} Knob */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
+/**
+ * The preset the ENGINE is left running, one of its knobs, the position that
+ * knob does NOT rest on that the engine is running it at, and a DIFFERENT
+ * preset to stage on top.
+ * @typedef {{ preset: string, knob: string, position: string, pressed: string }} Engine
+ */
 
 /**
- * The Output tab with `ENGINE`'s filters in the daemon's form and a different
- * preset staged on top of them. The filter names are the table's own, read back
- * through `running`.
+ * Every knob of one preset at its `default`: the positions a tile rests at.
  *
+ * @param {Preset} preset
+ * @returns {Record<string, string>}
+ */
+const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
+
+// Every state the engine can be left in that the cases below can tell apart
+// from an unmatched tile, swept from the shipped table: each preset, each knob
+// its tile OFFERS at rest (read through `knobsShown()`, so a knob whose `when`
+// hides it at the resting positions is not expected of the tile), each
+// position off that knob's default (a tile the grid has matched to nothing
+// falls back to the resting position, so a running position that IS the
+// resting one would show nothing distinguishable). Each is paired with the
+// first tile in the roster that is not the running one, which is what gets
+// staged. No preset is named to stand for the property; zero matches, or a
+// roster of one tile, generates no case.
+/** @type {Engine[]} */
+const ENGINES = /** @type {Preset[]} */ (presetsFor()).flatMap((preset) =>
+  /** @type {Knob[]} */ (knobsShown(preset, resting(preset))).flatMap((knob) =>
+    knob.options
+      .filter((option) => option !== knob.default)
+      .flatMap((position) =>
+        ROSTER.filter((id) => id !== String(preset.id))
+          .slice(0, 1)
+          .map((pressed) => ({ preset: String(preset.id), knob: String(knob.id), position, pressed })),
+      ),
+  ),
+);
+
+/**
+ * The Output tab with one `Engine`'s filters in the daemon's form and its
+ * `pressed` preset staged on top of them. The filter names are the table's
+ * own, read back through `running`.
+ *
+ * @param {Engine} engine
  * @returns {Promise<string>} the card, rendered after the press has settled
  */
-async function staged() {
-  const set = running(ENGINE.preset, { [ENGINE.knob]: ENGINE.position });
+async function staged(engine) {
+  const set = running(engine.preset, { [engine.knob]: engine.position });
   const w = await resetTab({ mode: "pcm", names: seedPcmPair(set.oneX, set.nX) });
-  pressTile(seenTabs(), TILE);
+  pressTile(seenTabs(), engine.pressed);
   await flush(w);
   return tabs();
 }
@@ -77,18 +112,22 @@ async function staged() {
 // the two markings, once they have come apart
 // ============================================================================
 
-test("test_the_active_marking_stays_on_the_running_preset_while_another_is_staged", async () => {
-  assert.deepEqual(activeMap(await staged()), oneLit(ENGINE.preset));
-});
+for (const engine of ENGINES) {
+  const at = `${engine.preset}_at_${engine.knob}_${engine.position}`;
 
-test("test_the_selected_marking_moves_to_the_staged_preset", async () => {
-  assert.deepEqual(selectedMap(await staged()), oneLit(TILE));
-});
+  test(`test_the_active_marking_stays_on_the_running_${at}_while_another_is_staged`, async () => {
+    assert.deepEqual(activeMap(await staged(engine)), oneLit(engine.preset));
+  });
 
-// A tile that is ACTIVE but not SELECTED is still showing the engine: its knob
-// stands where the running filters put it, not on the position it rests at when
-// the grid has matched it to nothing.
+  test(`test_the_selected_marking_moves_to_the_preset_staged_over_the_running_${at}`, async () => {
+    assert.deepEqual(selectedMap(await staged(engine)), oneLit(engine.pressed));
+  });
 
-test("test_an_active_but_unselected_tiles_knob_shows_the_position_the_engine_is_running", async () => {
-  assert.deepEqual(knobPositions(await staged(), ENGINE.preset, ENGINE.knob), [ENGINE.position]);
-});
+  // A tile that is ACTIVE but not SELECTED is still showing the engine: its
+  // knob stands where the running filters put it, not on the position it rests
+  // at when the grid has matched it to nothing.
+
+  test(`test_the_active_but_unselected_${at}_tiles_knob_shows_the_position_the_engine_is_running`, async () => {
+    assert.deepEqual(knobPositions(await staged(engine), engine.preset, engine.knob), [engine.position]);
+  });
+}
