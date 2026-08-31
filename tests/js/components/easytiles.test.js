@@ -93,6 +93,7 @@ const {
 // are read out of `presetsFor` and `knobsShown` for the same reason.
 const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 const { combos } = await import("../support/easytable.js");
+const { setCardFrom } = await import("../support/easyrecord.js");
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
@@ -400,6 +401,7 @@ for (const [preset, from, knobId, option] of KNOB_MOVES) {
 
   test(`test_moving_${preset.id}_${knobId}_from_${positionsOf(from)}_to_${option}_stages_the_fields_that_move`, async () => {
     const w = await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", from) });
+    setCardFrom(from);
     pressKnob(seenTabs(), preset.id, option);
     await flush(w);
     assert.deepEqual(stagedNames(w), moved(expectedNames(preset.id, "pcm", from), expectedNames(preset.id, "pcm", to)));

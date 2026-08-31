@@ -53,7 +53,7 @@ const {
   markFollowsTitleAndPrecedesDescription,
 } = await import("../support/easymark.js");
 const { dropdownGlyphs } = await import("../support/apodglyph.js");
-const { recordPositions } = await import("../support/easyrecord.js");
+const { recordPositions, setCardFrom } = await import("../support/easyrecord.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 // The three classes a filter can be in, as the overlay spells them.
@@ -291,6 +291,7 @@ for (const move of MOVES) {
   test(`test_a_lit_${move.preset}_tile_whose_fields_carry_its_${move.knob}_${move.moved}_filters_draws_the_mark_of_the_class_stated_for_them`, async () => {
     const none = await glyphOfClass("none");
     await resetTab({ mode: "pcm", names: seedPcmPair(move.movedNames[0], move.movedNames[1]) });
+    setCardFrom({ [move.knob]: move.moved });
     seedFacets(facetsOf(move));
     assert.equal(markGlyph(tabs(), move.preset), none);
   });

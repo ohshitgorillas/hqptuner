@@ -45,7 +45,7 @@ const RAW = "raw";
  * @param {string} mode
  * @returns {string[]}
  */
-export const namesOf = (preset, mode) => [
+const namesOf = (preset, mode) => [
   ...new Set(
     combos(preset.knobs)
       .flatMap((knobs) => Object.values(writeSet(preset.id, mode, knobs)))

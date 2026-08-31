@@ -52,6 +52,7 @@ const {
 const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const { presetsFor, knobsShown, writeSet } = await import("../../../hqptuner/static/store/easy.js");
 const { combos } = await import("../support/easytable.js");
+const { setCardFrom } = await import("../support/easyrecord.js");
 
 // The schema keys the fixture seeds the PCM chain by, and the daemon's own
 // form-field names those keys are carried to: `pcm_filter_1x` is the 1x end of
@@ -165,6 +166,7 @@ const LIT = PRESETS.flatMap((preset) =>
 for (const { id, combo, where } of LIT) {
   test(`test_pressing_the_lit_${id}_tile_${where}_stages_nothing`, async () => {
     const w = await resetTab({ mode: "auto", names: inForce(id, combo) });
+    setCardFrom(combo);
     pressTile(seenTabs(), id);
     await flush(w);
     assert.deepEqual(w.staged, EMPTY);
@@ -178,6 +180,7 @@ for (const { id, combo, where } of LIT) {
 for (const { id, combo, where } of LIT) {
   test(`test_pressing_the_lit_${id}_tile_${where}_on_the_live_lane_posts_no_fields`, async () => {
     const w = await resetLive({ ...running(id, combo) });
+    setCardFrom(combo);
     pressTile(seenLive(), id);
     await flush(w);
     assert.deepEqual(postedFields(w), {});

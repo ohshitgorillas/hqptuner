@@ -24,6 +24,16 @@ const CARD_KNOBS = new Set(
 );
 
 /**
+ * The tile knobs' share of a set of positions: every entry that is not the
+ * card knob's.
+ *
+ * @param {Record<string, string>} positions
+ * @returns {Record<string, string>}
+ */
+const tileKnobsOf = (positions) =>
+  Object.fromEntries(Object.entries(positions).filter(([knobId]) => !CARD_KNOBS.has(knobId)));
+
+/**
  * Put a preset on a set of knob positions: the card knob's position is set on
  * the card, every other knob's is recorded for the tile.
  *
@@ -32,11 +42,21 @@ const CARD_KNOBS = new Set(
  * @returns {void}
  */
 export function recordPositions(presetId, positions) {
-  /** @type {Record<string, string>} */
-  const tile = {};
+  setCardFrom(positions);
+  rememberKnobs(presetId, tileKnobsOf(positions));
+}
+
+/**
+ * Set the card knob to the position a set of knob positions carries for it,
+ * and record nothing: what a case seeding the FIELDS at a combination does, so
+ * the card shows the material that write set was made at. A set carrying no
+ * card knob leaves the card where the reset put it.
+ *
+ * @param {Record<string, string>} positions
+ * @returns {void}
+ */
+export function setCardFrom(positions) {
   for (const [knobId, option] of Object.entries(positions)) {
     if (CARD_KNOBS.has(knobId)) setEasyMaterial(String(option));
-    else tile[knobId] = option;
   }
-  rememberKnobs(presetId, tile);
 }
