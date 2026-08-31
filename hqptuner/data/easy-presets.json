@@ -1,16 +1,15 @@
 {
-  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no preset, because one position means one thing wherever it is offered; its Space and Transients entries repeat two of `help.body`'s paragraphs verbatim, and both places have to move together. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
+  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no preset, because one position means one thing wherever it is offered. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
   "notice": "Easy Mode dramatically simplifies the process of filter selection, an otherwise nuanced topic. Only a few of HQPlayer's filters are accessible here, so think of Easy Mode like training wheels and don't be afraid to experiment.",
   "help": {
     "link": "Still confused?",
     "title": "Easy Mode, explained",
-    "body": "Pick the preset that suits your material, then set its emphasis when available. The Perfect Ten, Lifelike, and Damage Control are the most all-purpose presets; Old School, The Purist, and Concert Hall are excellent with the appropriate material; The Crucible, Full Analog, and Textbook are curiosities for the sake of comparison.\n\n'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction.\n\nChoose 'Space' for live or acoustic performances where the room or venue is part of the recording. The trade is slightly softer transients.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\nWhen listening to high-rate material 88.2kHz or up, using The Perfect Ten or Lifelike gives you special filters for those rates.\n\nWhen listening to lossy streams or files, use one of the presets with a Lossy mode (The Perfect Ten, Lifelike, and Damage Control); this gives you filters optimized for such content.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nPips estimate what a preset costs relative to the others on this card. The real load depends on your hardware, your output rate, and the rest of the chain, where the modulator or DAC correction can outweigh the filter entirely.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
+    "body": "Pick the preset that suits your material. The Perfect Ten, Lifelike, and Damage Control are the most all-purpose presets; Old School, The Purist, and Concert Hall are excellent with the appropriate material; The Crucible, Full Analog, and Textbook are curiosities for the sake of comparison. In SDM output mode, the last three are conditional on your DAC's support for 48 kHz family DSD rates, so don't worry if you don't see them... the others are better anyway!\n\nEmphasis can be set between 'Space' and 'Transients' on some presets; this adjusts between linear and minimum phases, respectively.\n\nLinear phase emphasizes spatial reproduction by ensuring all frequencies arrive at the same time; it pays for this with an unnatural side-effect called pre-ringing, or smearing the transient into the time before it occurs.\n\nMinimum phase side-steps pre-ringing, making transients sound more natural; it pays for this by delaying higher frequencies more than lower, marring the sense of space.\n\nChoose 'Space' for live or acoustic performances where the sense of space is part of the recording. Choose 'Transients' for multi-track studio material, which often has an artificial sense of space but strong transient content. This is far from a hard rule, so experiment with both and find what sounds best to you.\n\nWhen listening to high-rate material above 48 kHz (i.e., 88.2 kHz and up), switching to The Perfect Ten or Lifelike gives you special optimized \"hi-res\" filters. Note that in the context of HQPlayer, 'hi-res' means high-*rate*, not any 24-bit content.\n\nWhen listening to lossy streams or files like MQA or MP3, toggle the button in the top right of the Easy Mode card to Lossy. This switches the first two presets to special hi-res and lossy-optimized filters; for Damage Control, it switches to filters even more highly optimized for lossy content.\n\nThe glyphs (A), (1/2), and (No) indicate the error correction (apodizing) level; if half or no correction sounds harsh and/or generates an apodizing events warning, try a different setting.\n\nCost pips estimate resource consumption relative to the others on this card. These are highly relative rankings; the real load depends on your hardware, your output rate, and the rest of the chain, where the modulator or DAC correction can outweigh the filter load entirely. Your mileage may vary.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
   },
   "tips": {
     "emphasis": {
-      "space": "Choose 'Space' for live or acoustic performances where the room or venue is part of the recording. The trade is slightly softer transients.",
-      "balanced": "Balanced between 'Space' and 'Transients'.",
-      "transients": "'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction."
+      "space": "Choose 'Space' for live or acoustic performances where the sense of space is part of the recording. This is far from a hard rule, so experiment with both and find what sounds best to you.",
+      "transients": "Choose 'Transients' for multi-track studio material, which often has an artificial sense of space but strong transient content. This is far from a hard rule, so experiment with both and find what sounds best to you."
     },
     "version": {
       "perfect-ten": "A variant of 'The Perfect Ten'.",
@@ -82,7 +81,7 @@
     "knobs": {
       "emphasis": {
         "label": "Emphasis",
-        "options": { "space": "Space", "balanced": "Balanced", "transients": "Transients" }
+        "options": { "space": "Space", "transients": "Transients" }
       }
     }
   },
@@ -114,10 +113,6 @@
         "label": "Error correction",
         "tip": "Disabling error correction reduces resource consumption.",
         "options": { "on": "On", "off": "Off" }
-      },
-      "emphasis": {
-        "label": "Emphasis",
-        "options": { "space": "Space", "transients": "Transients" }
       }
     }
   }

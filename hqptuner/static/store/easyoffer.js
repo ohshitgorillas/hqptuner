@@ -145,8 +145,17 @@ function namesHires(presetId, knobs, mode) {
 // A hidden knob still counts in the write. `writeSet` reads `knobsShown`, so the
 // position the user last left it at continues to fill its field — the tile stops
 // offering the choice, it does not forget the one already made.
+//
+// The two rules part company on what the tile does about it. `whenHires` turns
+// on the source, which changes under the user without them touching anything, so
+// a knob that comes and goes with the track is simply absent. A `when` turns on a
+// SIBLING KNOB ON THE SAME TILE: the user moved that sibling, and a control that
+// vanishes under their own hand reads as a bug rather than as a consequence. So a
+// `when`-unmet knob stays on the tile, marked inert, and the sibling that shut it
+// is right there to move back.
 /**
- * The knobs a tile offers at these positions under one lane's output mode.
+ * The knobs a tile offers at these positions under one lane's output mode, each
+ * marked `inert` where its `when` is unmet.
  *
  * @param {Preset} preset
  * @param {Record<string, string>} knobs
@@ -154,8 +163,9 @@ function namesHires(presetId, knobs, mode) {
  * @returns {Knob[]}
  */
 export function knobsOffered(preset, knobs, mode) {
+  const live = new Set(knobsShown(preset, knobs));
   // A card knob is offered on the card, once, never on a tile.
-  return knobsShown(preset, knobs).filter(
-    (knob) => !knob.card && (!knob.whenHires || namesHires(preset.id, knobs, mode)),
-  );
+  return preset.knobs
+    .filter((knob) => !knob.card && (!knob.whenHires || namesHires(preset.id, knobs, mode)))
+    .map((knob) => (live.has(knob) ? knob : { ...knob, inert: true }));
 }

@@ -18,11 +18,17 @@ import { MARK_LABEL, markRuns } from "./marks.js";
 // A paragraph that names a mark shows the mark, not a description of it: the
 // glyphs are drawn geometry and there is no circled one-half to type, so the
 // approved sentence carries a stand-in and the real mark is swapped in here.
+// A stressed word arrives the same way, as asterisks the copy cannot render
+// itself (marks.js).
+/** @param {{ run: {text?: string, kind?: string, em?: string} }} props */
+function Run({ run }) {
+  if (run.kind !== undefined) return html`<${Apod} kind=${run.kind} label=${MARK_LABEL[run.kind]} />`;
+  return run.em === undefined ? html`${run.text}` : html`<em>${run.em}</em>`;
+}
+
 /** @param {{ para: string }} props */
 function Para({ para }) {
-  return html`${markRuns(para).map((run) =>
-    run.kind === undefined ? run.text : html`<${Apod} kind=${run.kind} label=${MARK_LABEL[run.kind]} />`,
-  )}`;
+  return html`${markRuns(para).map((run) => html`<${Run} run=${run} />`)}`;
 }
 
 /** The help panel, or nothing when it is closed. */

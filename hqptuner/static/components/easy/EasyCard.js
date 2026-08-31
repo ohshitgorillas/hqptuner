@@ -87,16 +87,19 @@ function CardKnobs() {
 // record, pressing another tile would drop the one you left back to its defaults
 // and lose a position you set (store/easyview.js).
 //
-// Merged over the defaults rather than used raw, so a preset that later gains a
-// knob still has a position for the one nothing was recorded for.
+// Read per knob rather than merged over the defaults wholesale, so the record
+// can only ever supply a position the knob actually offers. The store keeps
+// whatever was written to it, and a position that has since been removed from a
+// knob would otherwise key nothing: the row would come up with none of its
+// options marked and a press would stage an empty filter name.
 /**
  * @param {import("../../store/easy.js").Preset} preset
  * @returns {Record<string, string>}
  */
-const resting = (preset) => ({
-  ...Object.fromEntries(preset.knobs.map((k) => [k.id, k.default])),
-  ...knobsFor(preset.id),
-});
+const resting = (preset) => {
+  const at = knobsFor(preset.id);
+  return Object.fromEntries(preset.knobs.map((k) => [k.id, k.options.includes(at[k.id]) ? at[k.id] : k.default]));
+};
 
 // Which tiles are marked is derived end to end: a lane says what the filters
 // are, the preset table says which preset that corresponds to, and the tiles

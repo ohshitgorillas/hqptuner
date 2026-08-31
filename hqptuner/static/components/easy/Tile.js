@@ -310,7 +310,14 @@ function TileKnobs({ preset, lane, knobs, disabled }) {
   return html`
     <span class="easy-knobs">
       ${knobsOffered(preset, knobs, easyLane(lane).mode).map(
-        (knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} disabled=${disabled} />`,
+        (knob) =>
+          html`<${KnobRow}
+            preset=${preset}
+            knob=${knob}
+            knobs=${knobs}
+            lane=${lane}
+            disabled=${disabled || !!knob.inert}
+          />`,
       )}
     </span>
   `;
