@@ -61,13 +61,7 @@
   },
   "purist": {
     "title": "The Purist",
-    "description": "Passes the original samples through unchanged. Only for the highest technical quality source material.",
-    "knobs": {
-      "emphasis": {
-        "label": "Emphasis",
-        "options": { "space": "Space", "transients": "Transients" }
-      }
-    }
+    "description": "Passes the original samples through unchanged. Only for the highest technical quality source material."
   },
   "damage-control": {
     "title": "Damage Control",

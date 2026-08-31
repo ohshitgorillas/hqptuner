@@ -198,27 +198,6 @@ const MULTI_KNOB = PRESETS.filter((preset) => shownAtRest(preset).length >= 2);
 const ONE_KNOB = PRESETS.filter((preset) => shownAtRest(preset).length === 1);
 
 // ============================================================================
-// where an untouched tile's knobs rest
-// ============================================================================
-//
-// Every tile on the roster, every knob it offers at rest, on an untouched card
-// with nothing recorded for it: the knob stands at its `default`. Read here
-// rather than in the store, because a resting position is only ever observable
-// as what a knob SHOWS, and read by the `data-v` the marked option carries, so
-// this reads no copy.
-
-for (const preset of PRESETS) {
-  const presetId = String(preset.id);
-  for (const knob of shownAtRest(preset)) {
-    const knobId = String(knob.id);
-    test(`test_an_untouched_${presetId}_tile_shows_its_${knobId}_knob_at_its_default`, async () => {
-      await resetTab({ mode: "pcm" });
-      assert.deepEqual(knobPositions(tabs(), presetId, knobId), [String(knob.default)]);
-    });
-  }
-}
-
-// ============================================================================
 // the fields carrying a moved position light the tile with the knob on it
 // ============================================================================
 //

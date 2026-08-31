@@ -39,18 +39,6 @@ const PIPS = {
 /** @type {Record<string, {sdm: number, pcm: number}>} */
 const LOSSY_PIPS = { "damage-control": { sdm: 1, pcm: 1 } };
 
-// The presets whose Emphasis knob picks a filter LENGTH rather than a phase:
-// Space takes the longer filter of the pair. On the rest of the card the knob
-// moves between `-lp` and `-mp`, which is the same filter run at a different
-// phase and the same work either way.
-//
-// The extra pip applies OFF THE SDM CHAIN ONLY. Measured, the longer filter of a
-// pair costs a few percent more than the shorter, which is far under what a pip
-// can say, so the SDM column reads the same in both positions. The PCM column
-// keeps the pip because no measurement has been taken on that chain to replace
-// it, and there it is the Transients figure that the table states.
-const LENGTH_EMPHASIS = new Set(["perfect-ten", "lifelike", "purist"]);
-
 /**
  * How many pips a preset shows for an output mode — 0 for a preset this module
  * does not carry.
@@ -68,8 +56,7 @@ export function pipsFor(presetId, outputMode, knobs = {}) {
   const row = (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
   if (!row) return 0;
   const sdm = outputMode === "sdm";
-  let cost = sdm ? row.sdm : row.pcm;
-  if (!sdm && knobs.emphasis === "space" && LENGTH_EMPHASIS.has(presetId)) cost += 1;
+  const cost = sdm ? row.sdm : row.pcm;
   // Error correction off costs one pip less, which is the same thing that knob's
   // own tip says in words. One pip rather than a proportion: the tiles carrying
   // the knob are the expensive ones, and a pip is the smallest thing this scale

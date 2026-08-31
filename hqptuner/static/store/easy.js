@@ -18,6 +18,7 @@
  * @property {string} default position used when the caller names none
  * @property {string[]} options
  * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
+ * @property {boolean} [whenHires] offered only while the filter the tile names is a hi-res one
  *
  * @typedef {object} Preset
  * @property {string} id
@@ -43,23 +44,26 @@ const KEYS = {
   sdm: { x1: "sdm_filter_1x", nx: "sdm_filter_nx" },
 };
 
-// Emphasis is two positions everywhere it appears. It was three on the two
-// flagship presets, whose third position took a `-short` filter; those are
-// half-apodizing (data/filters.json) and every position left is full, which is
-// why the tiles that carried them no longer warn about error correction.
+// Emphasis is two positions everywhere it appears.
 /** @type {Knob} */
 const EMPHASIS = { id: "emphasis", default: "space", options: ["space", "transients"] };
+
+// Emphasis is a PHASE lever and only that. The flagships move their hi-res
+// filter alone, so `whenHires` offers the knob only while that is the filter the
+// tile names — an engine question, applied in store/easyoffer.js.
+/** @type {Knob} */
+const EMPHASIS_HIRES = { ...EMPHASIS, whenHires: true };
 
 // Lossy material is a knob rather than a tile of its own: the lossy filters are
 // the same presets aimed at material damaged by its encoder rather than by its
 // mastering, and the tile someone already trusts is where they go looking for
-// them. Lossless rests, because most material is.
+// them. Lossless rests, because most material is lossless.
 //
 // On the two flagship presets the knob picks how the two fields are filled.
 // Lossless puts the standard filter on the 1x field and the hi-res filter on Nx,
 // so the engine takes whichever suits the track it is playing. Lossy puts the
-// hi-res filter on both, because lossy material reads as low rate and wants the
-// hi-res filter anyway, which is a choice no rate can make for you.
+// hi-res filter on both, because lossy material reads as low rate and wants that
+// filter anyway, which is a choice no rate can make for you.
 /** @type {Knob} */
 const MATERIAL = { id: "material", default: "lossless", options: ["lossless", "lossy"] };
 
@@ -81,11 +85,11 @@ const PRESETS = Object.freeze([
   // as well as hires — so Damage Control would wear the badge in its Lossy
   // positions, where the filter is aimed at a damaged encode rather than at a
   // high source rate. The badge names the second thing, and only these two.
-  { id: "perfect-ten", emoji: "🥇", hires: true, knobs: [EMPHASIS, MATERIAL] },
-  { id: "lifelike", emoji: "🎻", hires: true, knobs: [EMPHASIS, MATERIAL] },
+  { id: "perfect-ten", emoji: "🥇", hires: true, knobs: [EMPHASIS_HIRES, MATERIAL] },
+  { id: "lifelike", emoji: "🎻", hires: true, knobs: [EMPHASIS_HIRES, MATERIAL] },
   { id: "damage-control", emoji: "🚑", knobs: [EMPHASIS, MATERIAL] },
   { id: "old-school", emoji: "📻", knobs: [{ ...EMPHASIS, default: "transients" }] },
-  { id: "purist", emoji: "💧", knobs: [EMPHASIS] },
+  { id: "purist", emoji: "💧", knobs: [] },
   {
     id: "concert-hall",
     emoji: "🏛️",
@@ -140,13 +144,13 @@ const FILTERS = {
   // rate its encoder left it at and wants that filter regardless.
   "perfect-ten": {
     "space/lossless": { x1: "poly-sinc-gauss-long", nx: "poly-sinc-gauss-hires-lp" },
-    "transients/lossless": { x1: "poly-sinc-gauss-medium", nx: "poly-sinc-gauss-hires-mp" },
+    "transients/lossless": { x1: "poly-sinc-gauss-long", nx: "poly-sinc-gauss-hires-mp" },
     "space/lossy": "poly-sinc-gauss-hires-lp",
     "transients/lossy": "poly-sinc-gauss-hires-mp",
   },
   lifelike: {
     "space/lossless": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" },
-    "transients/lossless": { x1: "poly-sinc-ext2-medium", nx: "poly-sinc-ext2-hires-mp" },
+    "transients/lossless": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-mp" },
     "space/lossy": "poly-sinc-ext2-hires-lp",
     "transients/lossy": "poly-sinc-ext2-hires-mp",
   },
@@ -154,10 +158,7 @@ const FILTERS = {
     space: { pcm: "poly-sinc-short-lp", sdm: "poly-sinc-short-lp-2s" },
     transients: { pcm: "poly-sinc-short-mp", sdm: "poly-sinc-short-mp-2s" },
   },
-  purist: {
-    space: "poly-sinc-gauss-halfband",
-    transients: "poly-sinc-gauss-halfband-s",
-  },
+  purist: { "": "poly-sinc-gauss-halfband" },
   // The lossy rows put one name on both fields, unlike their lossless
   // neighbours. The family has no separate base-rate member for the 1x field:
   // these are hi-res filters whose own recommendation starts at 4x, and lossy

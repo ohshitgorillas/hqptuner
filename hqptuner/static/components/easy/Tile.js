@@ -17,7 +17,8 @@ import { Segment } from "../controls/index.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
 import { rememberKnobs } from "../../store/easyview.js";
-import { filterFor, knobsShown, writeSet } from "../../store/easy.js";
+import { filterFor, writeSet } from "../../store/easy.js";
+import { knobsOffered } from "../../store/easyoffer.js";
 import { pipsFor } from "../../store/easycost.js";
 import { easyLane } from "../../store/easylane.js";
 import { sourceIsNx } from "../../store/live/derive.js";
@@ -283,7 +284,7 @@ export function PresetTile({ preset, lane, selected, active, knobs }) {
         <${FilterName} presetId=${preset.id} lane=${lane} knobs=${knobs} />
       </button>
       <span class="easy-knobs">
-        ${knobsShown(preset, knobs).map(
+        ${knobsOffered(preset, knobs, easyLane(lane).mode).map(
           (knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
         )}
       </span>
