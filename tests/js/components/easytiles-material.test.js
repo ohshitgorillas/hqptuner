@@ -15,6 +15,10 @@
 //   * the tile BOX as an `easy-tile`-classed element carrying `data-preset`,
 //     with `data-grayed="1"` while grayed and NO `data-grayed` attribute
 //     otherwise;
+//   * the tile's preset button as the one `button.easy-pick` inside that box,
+//     and its knob option buttons as the `.seg[data-v]` buttons inside the
+//     tile's `[data-knob]` wrappers, each carrying the `disabled` attribute
+//     while the tile is grayed (SSR renders it bare: ` disabled`);
 //   * `data-testid="easy-filter"` on the tile's filter block and
 //     `data-part="raw"` on the engine filter name inside it, the hooks
 //     tests/js/components/easytiles-filtername.test.js already pins;
@@ -52,10 +56,19 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs } = await import("../support/easytiles.js");
+const { resetTab, tabs, ROSTER } = await import("../support/easytiles.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
-const { writesHiresFamily, facetless, grayed, grayMap, noneGrayed, rawName, hiresFamily } =
-  await import("../support/easygray.js");
+const {
+  writesHiresFamily,
+  facetless,
+  grayed,
+  grayMap,
+  rawName,
+  hiresFamily,
+  pickDisabled,
+  knobOptionsOf,
+  optionDisabled,
+} = await import("../support/easygray.js");
 const { setEasyMaterial } = await import("../../../hqptuner/static/store/easyview.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
@@ -126,28 +139,34 @@ const NON_WRITERS = Object.fromEntries(
   ]),
 );
 
-// ============================================================================
-// the partition is not empty
-// ============================================================================
-//
 // Every sweep below is generated from one side of the partition, so a table on
 // which one side were empty would retire that side's rule with nothing red.
-// These two are the smoke alarms: they fail by name where the sweeps would
-// simply cease to exist.
+// Guards, not tests: which presets fall on which side is the curated table's
+// business (docs/testing.md rule 9), so a side being empty is a suite that
+// cannot be generated, and the module throws rather than pinning the table.
 
-test("test_some_preset_writes_no_hires_family_filter_at_any_knob_combination_in_some_mode", () => {
-  assert.ok(
-    MODES.some((mode) => NON_WRITERS[mode].length > 0),
-    "every preset writes a hi-res-family filter somewhere in every mode, so the grayed sweep generated nothing",
-  );
-});
+if (!MODES.some((mode) => NON_WRITERS[mode].length > 0))
+  throw new Error("every preset writes a hi-res-family filter somewhere in every mode; the grayed sweep is empty");
+if (!MODES.some((mode) => HIRES_WRITERS[mode].length > 0))
+  throw new Error("no preset writes a hi-res-family filter in any mode; the not-grayed sweep is empty");
 
-test("test_some_preset_writes_a_hires_family_filter_at_some_knob_combination_in_some_mode", () => {
-  assert.ok(
-    MODES.some((mode) => HIRES_WRITERS[mode].length > 0),
-    "no preset writes a hi-res-family filter in any mode, so the not-grayed sweep generated nothing",
+// The knob option buttons the GRAYED tiles render, per mode, read off one
+// rendering of the card with its knob off its default: one entry per option
+// button of every knob row a grayed tile lays out. A grayed tile rendering no
+// knob row contributes nothing, so the sweep over option buttons is generated
+// off what the card draws rather than off the table. Empty across every mode
+// means the sweep cannot be generated at all, and the module throws.
+
+/** @type {Record<string, { presetId: string, knobId: string, value: string }[]>} */
+const GRAYED_OPTIONS = {};
+for (const mode of MODES) {
+  const out = await card(mode, EVERY_NAME_FACETED, OFF_DEFAULT);
+  GRAYED_OPTIONS[mode] = NON_WRITERS[mode].flatMap((presetId) =>
+    knobOptionsOf(out, presetId).map((option) => ({ presetId, ...option })),
   );
-});
+}
+if (!MODES.some((mode) => GRAYED_OPTIONS[mode].length > 0))
+  throw new Error("no grayed tile renders a knob row in any mode; the disabled-option sweep is empty");
 
 // ============================================================================
 // the card knob off its default
@@ -215,11 +234,52 @@ for (const mode of MODES) {
 // ============================================================================
 //
 // Nothing grays, whatever the facets say: the whole map is read, so a card that
-// grayed one tile at rest fails by naming it rather than by a count.
+// grayed one tile at rest fails by naming it rather than by a count. The
+// expected map is built off `ROSTER`, the store's own roster, not off the ids
+// the same rendering laid out, so a card that dropped a tile fails here too
+// rather than agreeing with itself.
+
+/** @type {Record<string, undefined>} */
+const NONE_GRAYED = Object.fromEntries(ROSTER.map((id) => [id, undefined]));
 
 for (const mode of MODES) {
   test(`test_no_tile_is_grayed_in_the_${mode}_mode_while_the_card_knob_is_at_its_default`, async () => {
-    const out = await card(mode, EVERY_NAME_FACETED, AT_DEFAULT);
-    assert.deepEqual(grayMap(out), noneGrayed(out));
+    assert.deepEqual(grayMap(await card(mode, EVERY_NAME_FACETED, AT_DEFAULT)), NONE_GRAYED);
   });
+}
+
+// ============================================================================
+// a grayed tile is disabled
+// ============================================================================
+//
+// A grayed tile has nothing to offer the material the card is set to, so what
+// it offers a pointer is taken away: its preset button carries `disabled`. One
+// case per grayed preset per mode, so a card that grayed a tile and left its
+// button live fails by naming the tile. The grayed marking itself is checked
+// before the reading, so a case in which the tile was NOT grayed fails as set
+// up wrong rather than as a live button on a lit tile.
+
+for (const mode of MODES) {
+  for (const presetId of NON_WRITERS[mode]) {
+    test(`test_the_${presetId}_tiles_preset_button_is_disabled_in_the_${mode}_mode_while_the_tile_is_grayed`, async () => {
+      const out = await card(mode, EVERY_NAME_FACETED, OFF_DEFAULT);
+      if (grayed(out, presetId) !== "1") throw new Error(`the "${presetId}" tile is not grayed`);
+      assert.equal(pickDisabled(out, presetId), true);
+    });
+  }
+}
+
+// And every knob option button on it carries `disabled` too: one case per
+// option button of every knob row a grayed tile renders, off `GRAYED_OPTIONS`,
+// so a card that disabled the preset button and left a knob live fails by
+// naming the knob and the position.
+
+for (const mode of MODES) {
+  for (const { presetId, knobId, value } of GRAYED_OPTIONS[mode]) {
+    test(`test_the_${presetId}_tiles_${knobId}_knob_${value}_option_is_disabled_in_the_${mode}_mode_while_the_tile_is_grayed`, async () => {
+      const out = await card(mode, EVERY_NAME_FACETED, OFF_DEFAULT);
+      if (grayed(out, presetId) !== "1") throw new Error(`the "${presetId}" tile is not grayed`);
+      assert.equal(optionDisabled(out, presetId, knobId, value), true);
+    });
+  }
 }

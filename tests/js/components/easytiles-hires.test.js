@@ -37,8 +37,10 @@
 // `material` knob, at every position that knob declares; no preset is named to
 // stand for the property. The knob is the CARD's, one control on the card body
 // and a row on no tile, so its position is put on record through
-// `setEasyMaterial`, the public way the card's position is stated, and there is
-// no tile row to confirm it against.
+// `setEasyMaterial`, the public way the card's position is stated, and confirmed
+// off the card control's own marked position (`data-testid="easy-material"`,
+// the `.seg.active` inside it carrying the material in `data-v`) before any
+// `on_<material>` reading is taken.
 //
 // THE APODIZING MARK IS SEEDED IN ONE CASE: the marked row's order. A tile
 // whose filter the facet overlay does not annotate renders no `.easy-apod` at
@@ -294,6 +296,34 @@ function badgeTip(out, presetId) {
   return decode(tip).trim();
 }
 
+// The card control the material knob renders as, found by its testid; the
+// position it marks is the `data-v` of the one `.seg.active` inside it.
+const CARD_CONTROL = "easy-material";
+
+/**
+ * The rendering handed back once the CARD CONTROL confirms the position a case
+ * put the knob on: `setEasyMaterial` states the position through the store, and
+ * this is the rendered output confirming it took. A card control that is
+ * missing, marks no position, marks two, or marks another one throws, so every
+ * `on_<material>` reading below is taken on a card that is where the case said
+ * and never on one that quietly stayed at rest.
+ *
+ * @param {string} out
+ * @param {string} material
+ * @returns {string}
+ */
+function onMaterial(out, material) {
+  const controls = elements(out).filter((el) => attr(el, "data-testid") === CARD_CONTROL);
+  if (controls.length === 0) throw new Error(`the card renders no "${CARD_CONTROL}" control`);
+  const outer = controls.reduce((a, b) => (a.start <= b.start ? a : b));
+  const marked = elements(outer.html)
+    .filter((el) => classes(el).includes("seg") && classes(el).includes("active"))
+    .map((el) => attr(el, "data-v"));
+  if (marked.length !== 1 || marked[0] !== material)
+    throw new Error(`the card control marks [${marked.join(", ")}], not "${material}"`);
+  return out;
+}
+
 // ============================================================================
 // which tiles carry the badge
 // ============================================================================
@@ -357,7 +387,7 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
       test(`test_the_${presetId}_tile_renders_its_hires_badge_on_${material}_material_in_the_${mode}_output_mode`, async () => {
         await resetTab({ mode });
         setEasyMaterial(material);
-        assert.equal(badgesInCostRow(tabs(), presetId), 1);
+        assert.equal(badgesInCostRow(onMaterial(tabs(), material), presetId), 1);
       });
     }
   }
@@ -388,7 +418,7 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
       await resetTab({ mode: "pcm" });
       seedFacets(uniformFacets("full"));
       setEasyMaterial(material);
-      assert.deepEqual(costRowOrder(tabs(), presetId), [APOD, RULE, BADGE, RULE, PIPS]);
+      assert.deepEqual(costRowOrder(onMaterial(tabs(), material), presetId), [APOD, RULE, BADGE, RULE, PIPS]);
     });
   }
 }
@@ -404,7 +434,7 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
     test(`test_the_unmarked_${presetId}_tiles_hires_badge_on_${material}_material_is_preceded_by_no_divider`, async () => {
       await resetTab({ mode: "pcm" });
       setEasyMaterial(material);
-      assert.equal(partsBeforeUnmarkedBadge(tabs(), presetId).includes(RULE), false);
+      assert.equal(partsBeforeUnmarkedBadge(onMaterial(tabs(), material), presetId).includes(RULE), false);
     });
   }
 }
