@@ -11,6 +11,7 @@ import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
+import { liveMode } from "./prefs.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
@@ -215,6 +216,18 @@ export async function previewPreset(name) {
   pendingPreset.value = name;
 }
 
+// What the header's picker calls. Outside LIVE a pick previews and waits for
+// Apply; LIVE has no Apply, so there the pick IS the commit. Whatever else is
+// staged rides along — the staged set lives on the server and every apply drains
+// it, so a switch-only apply does not exist. Nothing pending means the pick was
+// the active preset, and an apply with no switch and nothing staged is a 400.
+/** Preview a preset, and in LIVE mode commit the switch immediately. */
+export async function pickPreset(/** @type {string} */ name) {
+  await previewPreset(name);
+  if (!liveMode.value || pendingPreset.value === null) return;
+  await commitApply();
+}
+
 // Kept exported with no current caller: it is the symmetric half of the exported
 // previewPreset, and a preview API that can start but not clear is a trap.
 /**
@@ -289,6 +302,14 @@ export async function applyAll(save) {
   // Declining sends nothing and keeps the staging, so Discard stays the only
   // thing that throws work away.
   if (!(await applyGuard())) return null;
+  return commitApply(save);
+}
+
+// The apply itself, guard-free: applyGuard asks with owner "pending", and that
+// question renders only in PendingBar, which LIVE does not put on the page — so
+// asked from LIVE the promise never settles and the click does nothing at all.
+/** @param {{ name: string }} [save] */
+async function commitApply(save) {
   const count = stagedCount.value; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
   // that trips the daemon's empty-/backup bug and leaves Apply stuck lit.

@@ -1,12 +1,14 @@
 // Global header: daemon identity + live state, presets dropdown, status pill.
-// Picking a preset does NOT touch the daemon — it previews that preset's saved
-// settings into the editor (previewPreset) so they can be tweaked first; the
-// header then shows "(pending apply)" until Apply commits the switch. The active
-// preset comes from config.active (the truly-loaded ConfigurationGet name).
+// Outside LIVE, picking a preset does NOT touch the daemon — it previews that
+// preset's saved settings into the editor so they can be tweaked first, and the
+// header shows "(pending apply)" until Apply commits the switch. LIVE has no
+// Apply button, so there the pick loads the preset on the spot (pickPreset).
+// The active preset comes from config.active (the truly-loaded
+// ConfigurationGet name).
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { health, config, pendingPreset } from "../store/signals.js";
-import { previewPreset, deletePreset } from "../store/actions.js";
+import { pickPreset, deletePreset } from "../store/actions.js";
 import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
@@ -24,7 +26,7 @@ async function onPick(e) {
   const name = e.target.value;
   pickStatus.value = "Loading…";
   try {
-    await previewPreset(name);
+    await pickPreset(name);
     pickStatus.value = "";
   } catch (err) {
     pickStatus.value = `Failed: ${err}`;
