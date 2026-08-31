@@ -13,6 +13,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Selecting a preset in LIVE mode loads it immediately.** Previously the pick only staged a preview, and applying it meant leaving LIVE for the Apply button.
 - **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
