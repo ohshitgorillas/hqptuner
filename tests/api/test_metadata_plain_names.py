@@ -22,10 +22,14 @@ Served by the static loader, so the guard-only `api_client` (no daemon behind
 it) is enough — same as tests/api/test_metadata_genres.py.
 """
 
+import json
+from pathlib import Path
 from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
+
+DATA_DIR = Path(__file__).parent.parent.parent / "hqptuner" / "data"
 
 GROUPED_FIELDS = {"family", "variant", "leaf", "short"}
 FLAT_FIELDS = {"leaf", "short"}
@@ -70,6 +74,29 @@ def test_every_two_stage_filter_name_joins_a_served_base_name(api_client: TestCl
 def test_at_least_one_two_stage_filter_name_is_served(api_client: TestClient) -> None:
     # Keeps the base-name join above from passing vacuously.
     assert [name for name in _entries(api_client, "filters") if name.endswith("-2s")] != []
+
+
+def _engine_filter_names() -> set[str]:
+    # The reference enumeration snapshot: every filter name the engine lists on
+    # either chain. A chain whose array is absent or not a list enumerates none.
+    snapshot = json.loads((DATA_DIR / "engine-enums.json").read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for key in ("filters_pcm", "filters_sdm"):
+        items = snapshot.get(key)
+        if isinstance(items, list):
+            names.update(str(item["name"]) for item in items)
+    return names
+
+
+def test_every_engine_enumerated_filter_name_joins_a_served_entry(api_client: TestClient) -> None:
+    served = set(_entries(api_client, "filters"))
+    offenders = sorted(name for name in _engine_filter_names() if name not in served)
+    assert offenders == []
+
+
+def test_the_engine_enumerates_at_least_one_filter_name() -> None:
+    # Keeps the engine join above from passing vacuously.
+    assert _engine_filter_names() != set()
 
 
 @pytest.mark.parametrize("section", SECTIONS)

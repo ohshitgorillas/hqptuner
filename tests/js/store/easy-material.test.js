@@ -122,8 +122,10 @@ for (const [presetId, emphasis, material] of WRITES) {
 // and says nothing about the SDM pair: a table that dropped or misnamed
 // `sdm_filter_1x` / `sdm_filter_nx` at `lossy` would satisfy every one of them.
 // Read in `auto`, the output mode that writes both chains at once, so the shape
-// of the write is read where it is widest — one hi-res name on all four fields,
-// there being nothing at 1x worth spending on material already thrown away.
+// of the write is read where it is widest: on all four fields, the one value
+// the same knobs write to `pcm_filter_1x` in pcm mode. Four fields agreeing
+// with each other is not enough, since a table that put some other single
+// name on the auto chain would still agree with itself.
 
 const SDM_1X = "sdm_filter_1x";
 const SDM_NX = "sdm_filter_nx";
@@ -140,8 +142,8 @@ const LOSSY_ON_AUTO = [
 ];
 
 for (const [presetId, emphasis] of LOSSY_ON_AUTO) {
-  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_one_filter_to_all_four_fields`, () => {
+  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_the_pcm_lossy_filter_to_all_four_fields`, () => {
     const out = writeSet(presetId, "auto", { emphasis, material: "lossy" });
-    assert.deepEqual(out, everyChain(out[PCM_1X]));
+    assert.deepEqual(out, everyChain(writeSet(presetId, "pcm", { emphasis, material: "lossy" })[PCM_1X]));
   });
 }

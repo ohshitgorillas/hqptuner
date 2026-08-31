@@ -135,7 +135,7 @@ const HEADLINE_PCM = [
 for (const [presetId, at, knobs] of HEADLINE_PCM) {
   test(`test_the_preset_${presetId}_${at}_writes_one_filter_to_both_ends_of_the_chain`, () => {
     const out = writeSet(presetId, "pcm", knobs);
-    assert.equal(out[PCM_NX], out[PCM_1X]);
+    assert.deepEqual(out, { [PCM_1X]: out[PCM_1X], [PCM_NX]: out[PCM_1X] });
   });
 }
 
@@ -180,22 +180,40 @@ for (const emphasis of knobOf("old-school", "emphasis").options) {
 
 // --- the knob positions each preset defines ---------------------------------------------
 //
-// Swept from the shipped table: every preset, every knob a tile offers with
-// all knobs at their declared defaults, every option of that knob other than
-// its default. Moving one knob off its default, the others resting, writes a
-// PCM pair different from the resting pair. Distinct is the claim; which
-// filter either side is stays the owner's. A knob that moves nothing fails
-// here by preset, knob and option. Presets with no knobs generate nothing.
+// Swept from the shipped table: every preset, every combination of every
+// option of every knob it declares, and within each combination every knob
+// the tile offers at those positions that stands off its default. Returning
+// that one knob to its default, the siblings held where they are, writes a
+// PCM pair different from the combination's own. Distinct is the claim; which
+// filter either side is stays the owner's. The full cross product is walked
+// rather than one knob at a time from rest, so a knob the table ignores
+// whenever a sibling is off its default fails here by preset, combination and
+// knob. A knob whose `when` is not met at a combination is not offered there
+// and generates nothing; presets with no knobs generate nothing.
 
-/** @type {[string, string, string][]} */
-const KNOB_MOVES = PRESETS.flatMap((preset) => {
-  const defaults = restingKnobs(preset.id);
-  return knobsShown(preset, defaults).flatMap((knob) =>
-    knob.options
-      .filter((option) => option !== knob.default)
-      .map((option) => /** @type {[string, string, string]} */ ([preset.id, knob.id, option])),
+/** Every combination of the positions a knob list defines, one knob map each. */
+function combinations(/** @type {Knob[]} */ knobs) {
+  return knobs.reduce(
+    (acc, knob) => acc.flatMap((c) => knob.options.map((option) => ({ ...c, [knob.id]: option }))),
+    /** @type {Record<string, string>[]} */ ([{}]),
   );
-});
+}
+
+/** A combination as `knob=option` pairs joined with `_`, for a test name. */
+function positionsOf(/** @type {Record<string, string>} */ knobs) {
+  return Object.entries(knobs)
+    .map(([knobId, option]) => `${knobId}=${option}`)
+    .join("_");
+}
+
+/** @type {[string, Record<string, string>, string][]} */
+const KNOB_MOVES = PRESETS.flatMap((preset) =>
+  combinations(preset.knobs).flatMap((c) =>
+    knobsShown(preset, c)
+      .filter((knob) => c[knob.id] !== knob.default)
+      .map((knob) => /** @type {[string, Record<string, string>, string]} */ ([preset.id, c, knob.id])),
+  ),
+);
 
 // The sweep is generated from the table, so an empty roster or a knob shape
 // the sweep no longer recognises would retire the rule silently. This case
@@ -208,12 +226,11 @@ test("test_the_shipped_table_offers_at_least_one_non_default_knob_position_to_sw
   );
 });
 
-for (const [presetId, knobId, option] of KNOB_MOVES) {
-  test(`test_${presetId}_moving_${knobId}_to_${option}_writes_a_different_pcm_pair_than_its_default`, () => {
-    const defaults = restingKnobs(presetId);
+for (const [presetId, knobs, knobId] of KNOB_MOVES) {
+  test(`test_${presetId}_at_${positionsOf(knobs)}_returning_${knobId}_to_default_writes_a_different_pcm_pair`, () => {
     assert.notDeepEqual(
-      writeSet(presetId, "pcm", { ...defaults, [knobId]: option }),
-      writeSet(presetId, "pcm", defaults),
+      writeSet(presetId, "pcm", knobs),
+      writeSet(presetId, "pcm", atDefault(presetId, knobs, knobId)),
     );
   });
 }

@@ -20,14 +20,17 @@ def _filter_entries(client: TestClient) -> dict[str, dict[str, object]]:
     return entries
 
 
-def test_some_served_filter_is_marked_apodizing_on_its_apod_field(api_client: TestClient) -> None:
-    marked = [name for name, entry in _filter_entries(api_client).items() if entry.get("apod") not in (None, "none")]
-    assert marked != []
+APOD_DOMAIN = {"full", "half", "none"}
+
+
+def test_every_served_filter_carries_an_apod_value_from_the_known_set(api_client: TestClient) -> None:
+    offenders = [name for name, entry in _filter_entries(api_client).items() if entry.get("apod") not in APOD_DOMAIN]
+    assert offenders == []
 
 
 def test_no_filter_family_variant_or_leaf_still_says_apodizing(api_client: TestClient) -> None:
-    # The word belongs to the badge now; `short` keeps its ", apod" tail and is
-    # exempt, so only the three grouping/display fields are swept.
+    # The word belongs to the badge now. `short` is display copy and is not
+    # swept, so only the three grouping/display fields are.
     offenders = [
         (name, field)
         for name, entry in _filter_entries(api_client).items()

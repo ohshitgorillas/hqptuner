@@ -1,6 +1,6 @@
 // Behavioral suite for the two curio presets in Easy Mode's table
 // (store/easy.js): `full-analog`, which has no knobs, and `textbook`, whose
-// `emphasis` knob picks one of three positions. Same pure pair as
+// `emphasis` knob picks one of its declared positions. Same pure pair as
 // tests/js/store/easy.test.js, `writeSet` and `matchPreset`, plain calls,
 // nothing stubbed, no fake (docs/testing.md rule 4 has nothing to bite on
 // where there is no wire).
@@ -70,9 +70,28 @@ test("test_full_analog_on_auto_writes_one_name_to_all_four_filter_fields", () =>
 // Every row NAMES the position it reads at; what each case pins is that the
 // position writes one value to both ends of the chain. The sweep runs on
 // each covered chain. Which name a position stages is owner data (rule 9),
-// so the three are pinned as pairwise distinct, never by name.
+// so the positions are pinned as pairwise distinct, never by name. The roster
+// itself is read off `presetsFor()`, the table's own declaration, so the
+// sweep holds whichever positions the owner declares; one guard pins that
+// the declared list is not empty, since an empty roster would generate no
+// cases and the sweep would pass vacuously.
 
-const EMPHASIS_POSITIONS = ["space", "balanced", "transients"];
+/**
+ * The `emphasis` knob's declared positions, from the shipped table.
+ * @returns {string[]}
+ */
+function textbookEmphasisOptions() {
+  const preset = presetsFor().find((/** @type {{ id: string }} */ p) => p.id === "textbook");
+  const knob = preset?.knobs.find((/** @type {{ id: string }} */ k) => k.id === "emphasis");
+  if (knob === undefined) throw new Error("textbook declares no emphasis knob");
+  return knob.options;
+}
+
+const EMPHASIS_POSITIONS = textbookEmphasisOptions();
+
+test("test_textbook_declares_at_least_one_emphasis_position", () => {
+  assert.ok(EMPHASIS_POSITIONS.length > 0);
+});
 
 for (const emphasis of EMPHASIS_POSITIONS) {
   test(`test_textbook_with_emphasis_on_${emphasis}_writes_one_name_to_both_ends_of_the_pcm_chain`, () => {
@@ -88,9 +107,9 @@ for (const emphasis of EMPHASIS_POSITIONS) {
   });
 }
 
-test("test_textbook_three_emphasis_positions_write_three_distinct_pcm_names", () => {
+test("test_textbook_emphasis_positions_each_write_a_distinct_pcm_name", () => {
   const names = EMPHASIS_POSITIONS.map((emphasis) => writeSet("textbook", "pcm", { emphasis })[PCM_1X]);
-  assert.equal(new Set(names).size, 3);
+  assert.equal(new Set(names).size, EMPHASIS_POSITIONS.length);
 });
 
 // --- behavior 3: no position, or one not in `options`, writes the knob's default ---------

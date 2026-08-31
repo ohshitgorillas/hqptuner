@@ -3,9 +3,11 @@
 The entries dict's key order IS the dropdown display order. Which filters share
 a family, which families exist and where each one sits in that order is owner
 data (docs/testing.md rule 9), so nothing here names a filter or a family. What
-survives is shape: every served entry carries the three display fields as
-non-empty strings, and every family occupies one contiguous run of the served
-order rather than being split by a row of another family.
+survives is shape: every served entry carries `family` and `leaf` as non-empty
+strings (the non-empty `short` label is pinned in
+tests/api/test_metadata_plain_names.py), every family occupies one contiguous
+run of the served order rather than being split by a row of another family,
+and so does every (family, variant) pair within it.
 
 The running engine stays the sole authority for the enumeration itself
 (docs/architecture.md §2); the sweeps below iterate over whatever keys the
@@ -21,7 +23,7 @@ from typing import cast
 import pytest
 from fastapi.testclient import TestClient
 
-DISPLAY_FIELDS = ["family", "leaf", "short"]
+DISPLAY_FIELDS = ["family", "leaf"]
 
 
 def _filter_entries(client: TestClient) -> dict[str, dict[str, object]]:
@@ -38,6 +40,11 @@ def _families_in_served_order(entries: dict[str, dict[str, object]]) -> list[str
     return [_family_of(entries, name) for name in entries]
 
 
+def _pairs_in_served_order(entries: dict[str, dict[str, object]]) -> list[tuple[str, str | None]]:
+    """(family, variant) of every entry, in display order; a null variant is its own group."""
+    return [(_family_of(entries, name), cast("str | None", entries[name]["variant"])) for name in entries]
+
+
 # --- grouping ----------------------------------------------------------------
 
 
@@ -46,6 +53,15 @@ def test_every_family_occupies_one_contiguous_run_of_the_display_order(api_clien
     # family across the dropdown, so each family may open exactly one run.
     runs = [family for family, _ in groupby(_families_in_served_order(_filter_entries(api_client)))]
     assert sorted(family for family in set(runs) if runs.count(family) > 1) == []
+
+
+def test_every_family_variant_pair_occupies_one_contiguous_run_of_the_display_order(api_client: TestClient) -> None:
+    # Within a family, two rows of one variant separated by a row of another
+    # variant (or of no variant) would split the pair across the dropdown, so
+    # each (family, variant) pair may open exactly one run. (family, None) is
+    # a group like any other.
+    runs = [pair for pair, _ in groupby(_pairs_in_served_order(_filter_entries(api_client)))]
+    assert sorted(pair for pair in set(runs) if runs.count(pair) > 1) == []
 
 
 # --- shape of every served entry ---------------------------------------------

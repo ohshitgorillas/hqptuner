@@ -38,17 +38,26 @@ for (const entry of prefs.APOD_WINDOWS) {
 
 // --- the setter -----------------------------------------------------------------
 
+// Seeded from the offered list rather than by literal id (rule 9): which windows
+// are on offer is owner data, and the expected value is derived from the same
+// expression as the seed so a reworded list cannot fail these.
+
 test("test_choosing_a_window_persists_it", () => {
-  prefs.setApodWindow("120");
-  assert.equal(storage.getItem("hqptuner.apodWindow"), "120");
+  prefs.setApodWindow(prefs.APOD_WINDOWS[0]);
+  assert.equal(storage.getItem("hqptuner.apodWindow"), prefs.APOD_WINDOWS[0]);
 });
 
-test("test_choosing_the_whole_track_persists_all", () => {
-  prefs.setApodWindow("all");
-  assert.equal(storage.getItem("hqptuner.apodWindow"), "all");
+// `.at(-1)` types as possibly undefined; the first case above already pins the
+// list non-empty, so the guard here is for the type checker, not a second pin.
+const LAST_WINDOW = prefs.APOD_WINDOWS.at(-1);
+if (LAST_WINDOW === undefined) throw new Error("APOD_WINDOWS is empty");
+
+test("test_choosing_the_last_offered_window_persists_it", () => {
+  prefs.setApodWindow(LAST_WINDOW);
+  assert.equal(storage.getItem("hqptuner.apodWindow"), LAST_WINDOW);
 });
 
 test("test_the_setter_moves_the_signal", () => {
-  prefs.setApodWindow("30");
-  assert.equal(prefs.apodWindow.value, "30");
+  prefs.setApodWindow(prefs.APOD_WINDOWS[0]);
+  assert.equal(prefs.apodWindow.value, prefs.APOD_WINDOWS[0]);
 });

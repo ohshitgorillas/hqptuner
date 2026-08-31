@@ -12,7 +12,10 @@ orphan.
 The recommendation flag: a `rec` key, where present, is the boolean `True`
 and nothing else, and no entry of any other plain-names section carries one.
 Which entries are recommended, and whether a section recommends any at all,
-is owner data and no test names them (docs/testing.md rule 9).
+is owner data and no test names them (docs/testing.md rule 9). That is why
+the `rec` sweep carries no non-empty guard: a key's value is contract (the
+flag is `True` or absent), while whether any entry is recommended is owner
+data, so the sweep pins validity and nothing pins presence.
 
 Section key order is display order, so family runs are pinned contiguous:
 once a family's run ends, no later entry names it again. The order of entries
