@@ -87,6 +87,9 @@ def _live_app(
         # never the repo's own state/ — a live-preset write in a test would land
         # in the dev container's bind mount and outlive the run
         live_preset_file=tmp_path / "live-presets.json",
+        # the auto-pilot switch lands beside it for the same reason: a preset
+        # test that flips the switch must not stamp the dev container's store
+        autopilot_file=tmp_path / "autopilot.json",
     )
     if request_timeout is not None:  # real wall clock, unlike the virtualized one
         cfg = replace(cfg, request_timeout=request_timeout)
