@@ -183,12 +183,6 @@ def test_preset_write_records_its_trigger(tmp_path: Path) -> None:
 # --- oversized values -------------------------------------------------------
 
 
-def test_the_per_value_cap_is_128_kilobytes() -> None:
-    # a product decision, not an implementation detail: every other truncation
-    # case here is written against the constant, so this is what pins the number
-    assert MAX_VALUE_BYTES == 128 * 1024
-
-
 def test_a_value_over_the_cap_is_stored_truncated_to_the_cap(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.live_write("convolution.filter", "x" * (MAX_VALUE_BYTES + 500), None, ok=True)

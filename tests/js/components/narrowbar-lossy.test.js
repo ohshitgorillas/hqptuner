@@ -36,10 +36,9 @@ import { resetBar, renderBar, seen, isSegment, encloses, attr, group, switchesIn
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
-// The owner-approved explainer. Its wording is pinned character for character in
-// exactly one place, tests/js/components/narrowbar-tips.test.js; these cases are
-// about WHERE the bar puts it, so they take it as the bar's own export rather
-// than repeating 400 characters a reword would have to be chased through twice.
+// The owner-approved explainer. These cases are about WHERE the bar puts it, so
+// they take it as the bar's own export rather than repeating 400 characters a
+// reword would have to be chased through twice.
 const EXPLAINER = LOSSY_TIP;
 
 // The group's own machine identity, the `data-group` its element carries, so a

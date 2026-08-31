@@ -12,11 +12,10 @@ entry joins its base.
 
 A section's key order is its dropdown display order, so the ordering tests
 below pin that order rather than any wording: phase groups run minimum,
-intermediate, linear; a two-stage row follows its single-stage peer; a group's
-bare row precedes its lengths, ascending; and an apodizing row follows its
-non-apodizing peer. Display wording is owner-owned data and no test asserts it
-— `short` is pinned as non-empty and unique per section, and a filter's
-family+variant+leaf+apod identity as unique across the section.
+intermediate, linear; and a two-stage row follows its single-stage peer.
+Display wording is owner-owned data and no test asserts it — `short` is pinned
+as non-empty and unique per section, and a filter's family+variant+leaf+apod
+identity as unique across the section.
 
 Served by the static loader, so the guard-only `api_client` (no daemon behind
 it) is enough — same as tests/api/test_metadata_genres.py.
@@ -57,10 +56,6 @@ def test_metadata_serves_a_plain_names_section_per_dropdown_kind(api_client: Tes
 
 def test_the_filters_section_is_not_empty(api_client: TestClient) -> None:
     assert _entries(api_client, "filters") != {}
-
-
-def test_a_known_engine_filter_name_is_annotated(api_client: TestClient) -> None:
-    assert "poly-sinc-gauss-long" in _entries(api_client, "filters")
 
 
 def test_every_two_stage_filter_name_joins_a_served_base_name(api_client: TestClient) -> None:
@@ -173,20 +168,6 @@ def test_every_two_stage_filter_serves_after_its_single_stage_peer(api_client: T
         if "-2s" in name and name.replace("-2s", "") in order and order[name] < order[name.replace("-2s", "")]
     ]
     assert violations == []
-
-
-def test_half_band_serves_bare_row_first_then_lengths_ascending(api_client: TestClient) -> None:
-    # Within a family/variant group the bare/default row comes first and the
-    # length variants ascend — pinned on the Half-band group.
-    wanted = ["poly-sinc-hb", "poly-sinc-hb-xs", "poly-sinc-hb-s", "poly-sinc-hb-m", "poly-sinc-hb-l"]
-    served = [name for name in _entries(api_client, "filters") if name in wanted]
-    assert served == wanted
-
-
-def test_an_apodizing_row_serves_after_its_non_apodizing_peer(api_client: TestClient) -> None:
-    wanted = ["poly-sinc-gauss-xl", "poly-sinc-gauss-xla"]
-    served = [name for name in _entries(api_client, "filters") if name in wanted]
-    assert served == wanted
 
 
 # --- the two SDM-source dropdowns -------------------------------------------

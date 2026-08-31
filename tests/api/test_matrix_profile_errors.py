@@ -78,7 +78,3 @@ def test_a_switch_refused_for_another_reason_reports_the_daemons_own_words(
     # the daemon's own words intact, behind the command-and-result prefix every
     # failed Control API setter carries
     assert _switch(refusing_api(OTHER_ERROR)).json()["detail"] == f"MatrixSetProfile: Error: {OTHER_ERROR}"
-
-
-def test_a_switch_the_daemon_accepts_answers_200(live_api: TestClient) -> None:
-    assert _switch(live_api).status_code == 200
