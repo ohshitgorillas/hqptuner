@@ -5,7 +5,9 @@
 // The wire is faked, not the store (docs/testing.md rule 4): a fetch fake
 // answers the real REST paths with the daemon's real response shapes —
 // GET /api/preset/{name} -> {name, config}, GET /api/livepresets -> {presets},
-// POST /api/config/apply -> the apply verdict. No store function is stubbed.
+// and nothing else. No store function is stubbed. POST /api/config/apply is
+// answered with a bare ok({}): the case asserts on the request the store
+// sends, not on any verdict it gets back.
 // `switch_to` is a wire identifier, so pinning it is correct (rule 9).
 //
 // Module-level signals outlive a test file, so reset() reassigns every signal
@@ -42,16 +44,19 @@ afterEach(() => {
 /** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
 const CALLS = [];
 
-// The one call matching a path — thrown rather than left undefined, since the
-// case is asserting on a wire trip it expects to have happened. Not an
-// assertion: a lane that never fired has lost its premise, not its verdict.
+// The one call matching a verb AND a path — the verb is part of the wire
+// contract, so a request made with any other method is not this trip. Thrown
+// rather than left undefined, since the case is asserting on a wire trip it
+// expects to have happened. Not an assertion: a lane that never fired has lost
+// its premise, not its verdict.
 /**
+ * @param {string} method
  * @param {string} path
  * @returns {{ path: string, method: string, body: Record<string, unknown> | null }}
  */
-function callFor(path) {
-  const call = CALLS.find((c) => c.path === path);
-  if (!call) throw new Error(`no call recorded for ${path}`);
+function callFor(method, path) {
+  const call = CALLS.find((c) => c.method === method && c.path === path);
+  if (!call) throw new Error(`no call recorded for ${method} ${path}`);
   return call;
 }
 
@@ -103,5 +108,5 @@ test("test_picking_a_preset_in_live_mode_sends_it_as_the_switch_target", async (
   await reset({ "GET /api/preset/Night": ok({ name: "Night", config: { volume_max: "-9" } }) });
   liveMode.value = true;
   await pickPreset("Night");
-  assert.equal(callFor("/api/config/apply").body?.switch_to, "Night");
+  assert.equal(callFor("POST", "/api/config/apply").body?.switch_to, "Night");
 });
