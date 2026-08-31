@@ -238,43 +238,47 @@
 }
 
 /* The subtitle is a row: the paragraph and its link on the left, the card's
-   knob on the right. The prose takes what the knob leaves and wraps; the knob
-   keeps its own width and drops under the prose only when the row cannot hold
-   both. */
+   knob at the top right. The caption role caps its box at the measure, which is
+   right for prose and wrong for a row that carries a control, so the cap moves
+   off the box and onto the prose inside it. */
+.card-sub:has([data-note="easy-notice"]) {
+  max-width: none;
+}
 [data-note="easy-notice"] {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
   gap: var(--sp-3);
 }
 .easy-notice-text {
   display: flex;
-  flex: 1 1 24rem;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--sp-2);
+  max-width: var(--measure);
 }
 
 /* The card's knob: its segment over its sub-label, right-aligned so the pair
-   holds the row's far corner. The sub-label is a caption because it explains the
-   control, the same role the card's own subtitle wears. */
+   holds the row's far corner. An .easy-knob, so its position tips paint the way
+   a tile knob's do; what that class fixes for a tile row is undone here. */
 .easy-card-knob {
-  display: flex;
-  flex: 0 1 18rem;
-  flex-direction: column;
+  flex: 0 0 auto;
   align-items: flex-end;
-  gap: var(--sp-1);
+  width: auto;
+  padding: 0;
   margin-left: auto;
   text-align: right;
 }
 
-/* Grayed says "not for what you said is playing" and nothing more: the tile is
-   still a tile, still pressable, so it steps down as a whole rather than
-   changing any one part. Active's contrast rule still applies inside it, which
-   is right — a grayed tile can be the one the engine is running. */
+/* Grayed says "not for what you said is playing": the tile cannot be operated
+   until the card knob moves, so it steps down as a whole, at the state ladder's
+   disabled rung. Active's contrast rule still applies inside it, which is right
+   — a grayed tile can be the one the engine is running. */
 .easy-tile[data-grayed="1"] {
-  opacity: var(--o-dim);
+  opacity: var(--o-disabled);
+}
+.easy-pick:disabled {
+  cursor: not-allowed;
 }
 
 /* The way into the help panel. Same shape as the way out of Easy Mode — a

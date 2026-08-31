@@ -65,7 +65,7 @@ function CardKnobs() {
       tip: easyProse("tips", knob.id, id),
     }));
     return html`<span
-      class="easy-card-knob"
+      class="easy-knob easy-card-knob"
       data-testid=${`easy-${knob.id}`}
       role="group"
       aria-describedby=${`${base}-sub`}
