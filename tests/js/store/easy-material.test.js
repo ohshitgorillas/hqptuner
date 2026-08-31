@@ -1,169 +1,122 @@
-// Behavioral suite for the two flagship presets' knobs — `emphasis` and
-// `material`, crossed — and for what each of the four combinations writes.
+// Behavioral suite for the `material` knob: what its two positions, `lossless`
+// and `lossy`, do to the write of every preset that carries it.
 //
-// This file replaces the Source knob's, which the revision retired outright:
-// there is no `source` knob anywhere in the feature and no `auto`, `standard` or
-// `hires` position. What stands in its place on The Perfect Ten and Lifelike is
-// the same `material` knob Damage Control carries, and its two positions pick
-// the SHAPE of the write:
+// The presets are selected by PROPERTY, never by name: every preset from
+// `presetsFor()` whose `knobs` include one with id `material`. A preset named
+// here would stand in for the property and drift the first time the owner
+// moved the knob to another tile. A table with no such preset generates zero
+// cases, and that is the correct answer, not a gap to guard against.
 //
-//   * `lossless` writes a PAIR — the standard filter at 1x, the hi-res one at Nx
-//     — so the engine picks per rate rather than the user picking once.
-//   * `lossy` writes the hi-res filter to BOTH ends, there being nothing at 1x
-//     worth spending on material that has already been thrown away.
+// For each such preset, every combination of its OTHER knobs is walked (via
+// `combos` over the knobs minus `material`) so a table that ignored a sibling
+// knob at one material position fails by preset, combination and material.
+// Four rules per combination:
 //
-// So the two positions are read as two different shapes and not merely as two
-// names, and every case states both knob positions: a table that ignored the
-// knob it was handed would otherwise pass by landing on the resting pair.
+//   * `lossy` writes ONE value to both PCM ends.
+//   * `auto` on `lossy` carries that one value to all four schema keys, so the
+//     SDM pair is read where the PCM-only rows cannot see it.
+//   * A call that omits `material` writes what `lossless` writes: that is where
+//     the knob rests.
+//   * The write at either material round-trips through `matchPreset` to the
+//     same preset and the positions of every knob the tile offers there.
 //
-// The companion files are tests/js/store/easy.test.js, which owns the rest of
-// the curated table, and tests/js/store/easy-damage-control.test.js, which owns
-// the third tile carrying this knob. What the two flagships COST is unchanged by
-// either position and is pinned in tests/js/store/easy-pips.test.js.
-//
-// Anchored on schema keys and filter names, both wire identifiers — nothing here
-// reads a word of copy (docs/testing.md rule 9), which matters for this knob in
-// particular: it ships no label and no position words yet.
+// Anchored on schema keys, preset ids, knob ids and knob positions, all wire
+// identifiers. No filter name appears and no copy is read (docs/testing.md
+// rule 9); what `lossless` writes to each end is the owner's and is not pinned.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy-material.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { writeSet, matchPreset, presetsFor } from "../../../hqptuner/static/store/easy.js";
+import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
+import { combos } from "../support/easytable.js";
+
+/** @typedef {ReturnType<typeof presetsFor>[number]} Preset */
 
 const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
-
-/** @param {string} oneX @param {string} nX */
-const pcmPair = (oneX, nX) => ({ [PCM_1X]: oneX, [PCM_NX]: nX });
-
-/** @param {string} name */
-const pcmBoth = (name) => pcmPair(name, name);
-
-// The two flagships, and the emphasis positions each declares. The roster is
-// read off `presetsFor()`, the table's own declaration, so the sweeps below
-// hold whichever positions the owner declares; one guard per preset pins that
-// the declared list is not empty, since an empty roster would generate no
-// cases and the sweeps would pass vacuously.
-
-const FLAGSHIPS = ["perfect-ten", "lifelike"];
-
-/**
- * The `emphasis` knob's declared positions for one preset, from the shipped table.
- * @param {string} presetId
- * @returns {string[]}
- */
-function emphasisOptions(presetId) {
-  const preset = presetsFor().find((/** @type {{ id: string }} */ p) => p.id === presetId);
-  const knob = preset?.knobs.find((/** @type {{ id: string }} */ k) => k.id === "emphasis");
-  if (knob === undefined) throw new Error(`${presetId} declares no emphasis knob`);
-  return knob.options;
-}
-
-for (const presetId of FLAGSHIPS) {
-  test(`test_${presetId}_declares_at_least_one_emphasis_position`, () => {
-    assert.ok(emphasisOptions(presetId).length > 0);
-  });
-}
-
-// ============================================================================
-// what each combination of the two knobs writes
-// ============================================================================
-//
-// Filter names are owner data (docs/testing.md rule 9), so the SHAPE is pinned
-// and the names are not: lossless is two different values, lossy is the
-// lossless Nx value on both ends. Read on the PCM chain; neither preset defines
-// a `-2s` variant, which tests/js/store/easy.test.js pins as its own control.
-
-/** @type {[string, string, string][]} */
-const WRITES = FLAGSHIPS.flatMap((presetId) =>
-  ["lossless", "lossy"].flatMap((material) =>
-    emphasisOptions(presetId).map(
-      (emphasis) => /** @type {[string, string, string]} */ ([presetId, emphasis, material]),
-    ),
-  ),
-);
-
-for (const [presetId, emphasis, material] of WRITES) {
-  if (material === "lossless") {
-    test(`test_${presetId}_on_${emphasis}_with_lossless_material_writes_two_different_filters_to_the_pcm_chain`, () => {
-      const out = writeSet(presetId, "pcm", { emphasis, material });
-      assert.notEqual(out[PCM_1X], out[PCM_NX]);
-    });
-  } else {
-    test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_the_lossless_nx_filter_to_both_pcm_ends`, () => {
-      const lossless = writeSet(presetId, "pcm", { emphasis, material: "lossless" });
-      assert.deepEqual(writeSet(presetId, "pcm", { emphasis, material }), pcmBoth(lossless[PCM_NX]));
-    });
-  }
-}
-
-// ============================================================================
-// where the material knob rests
-// ============================================================================
-//
-// A call naming the emphasis and leaving the material out answers with the
-// lossless pair, so `lossless` is where a fresh tile stands — the position that
-// keeps what the user has. Read against the explicit lossless call at the same
-// emphasis. One case per preset, because each names its own family's pair.
-
-test("test_a_perfect_ten_call_that_names_no_material_writes_what_lossless_writes", () => {
-  assert.deepEqual(
-    writeSet("perfect-ten", "pcm", { emphasis: "space" }),
-    writeSet("perfect-ten", "pcm", { emphasis: "space", material: "lossless" }),
-  );
-});
-
-test("test_a_lifelike_call_that_names_no_material_writes_what_lossless_writes", () => {
-  assert.deepEqual(
-    writeSet("lifelike", "pcm", { emphasis: "space" }),
-    writeSet("lifelike", "pcm", { emphasis: "space", material: "lossless" }),
-  );
-});
-
-// ============================================================================
-// and those names read back as that preset at those positions
-// ============================================================================
-//
-// The round trip: the values `writeSet` produced are fed to `matchPreset`, which
-// is what lights the tile and puts its two knobs where the fields say they
-// stand. Both knobs are named in every row, so the expected map is unambiguous.
-
-for (const [presetId, emphasis, material] of WRITES) {
-  test(`test_matchpreset_recovers_${presetId}_on_${emphasis}_with_${material}_material`, () => {
-    const knobs = { emphasis, material };
-    assert.deepEqual(matchPreset(writeSet(presetId, "pcm", knobs), "pcm"), { presetId, knobs });
-  });
-}
-
-// ============================================================================
-// and on the auto chain the lossy shape reaches all four fields
-// ============================================================================
-//
-// The rows above are read on the PCM chain alone, which pins the two PCM keys
-// and says nothing about the SDM pair: a table that dropped or misnamed
-// `sdm_filter_1x` / `sdm_filter_nx` at `lossy` would satisfy every one of them.
-// Read in `auto`, the output mode that writes both chains at once, so the shape
-// of the write is read where it is widest: on all four fields, the one value
-// the same knobs write to `pcm_filter_1x` in pcm mode. Four fields agreeing
-// with each other is not enough, since a table that put some other single
-// name on the auto chain would still agree with itself.
-
 const SDM_1X = "sdm_filter_1x";
 const SDM_NX = "sdm_filter_nx";
 
-/** @param {string} name One filter name on both ends of both chains. */
+const MATERIAL = "material";
+const LOSSLESS = "lossless";
+const LOSSY = "lossy";
+
+/** @param {string} name One value on both PCM ends. */
+const pcmBoth = (name) => ({ [PCM_1X]: name, [PCM_NX]: name });
+
+/** @param {string} name One value on both ends of both chains. */
 const everyChain = (name) => ({ [PCM_1X]: name, [PCM_NX]: name, [SDM_1X]: name, [SDM_NX]: name });
 
-/** @type {[string, string][]} */
-const LOSSY_ON_AUTO = FLAGSHIPS.flatMap((presetId) =>
-  emphasisOptions(presetId).map((emphasis) => /** @type {[string, string]} */ ([presetId, emphasis])),
-);
+/** A combination as `knob=option` pairs joined with `_`, for a test name. */
+function positionsOf(/** @type {Record<string, string>} */ knobs) {
+  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
+  return pairs.length > 0 ? pairs.join("_") : "no_other_knobs";
+}
 
-for (const [presetId, emphasis] of LOSSY_ON_AUTO) {
-  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_the_pcm_lossy_filter_to_all_four_fields`, () => {
-    const out = writeSet(presetId, "auto", { emphasis, material: "lossy" });
-    assert.deepEqual(out, everyChain(writeSet(presetId, "pcm", { emphasis, material: "lossy" })[PCM_1X]));
+/** The knob positions a tile offers at `full`, keyed by knob id. */
+function offeredAt(/** @type {Preset} */ preset, /** @type {Record<string, string>} */ full) {
+  return Object.fromEntries(knobsShown(preset, full).map((knob) => [String(knob.id), full[String(knob.id)]]));
+}
+
+// Every preset carrying a `material` knob, crossed with every combination of
+// its other knobs. Selected by property from the shipped table; zero presets
+// with the knob means zero cases here.
+
+/** @type {[Preset, Record<string, string>][]} */
+const CASES = presetsFor()
+  .filter((preset) => preset.knobs.some((knob) => String(knob.id) === MATERIAL))
+  .flatMap((preset) =>
+    combos(preset.knobs.filter((knob) => String(knob.id) !== MATERIAL)).map(
+      (c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c]),
+    ),
+  );
+
+// ============================================================================
+// lossy writes one value to both PCM ends
+// ============================================================================
+
+for (const [preset, c] of CASES) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_with_${LOSSY}_material_writes_one_value_to_both_pcm_ends`, () => {
+    const out = writeSet(preset.id, "pcm", { ...c, [MATERIAL]: LOSSY });
+    assert.deepEqual(out, pcmBoth(out[PCM_1X]));
   });
+}
+
+// ============================================================================
+// auto on lossy carries the pcm lossy value to all four keys
+// ============================================================================
+
+for (const [preset, c] of CASES) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_with_${LOSSY}_material_on_auto_writes_the_pcm_value_to_all_four_keys`, () => {
+    const knobs = { ...c, [MATERIAL]: LOSSY };
+    assert.deepEqual(writeSet(preset.id, "auto", knobs), everyChain(writeSet(preset.id, "pcm", knobs)[PCM_1X]));
+  });
+}
+
+// ============================================================================
+// the material knob rests at lossless
+// ============================================================================
+
+for (const [preset, c] of CASES) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_with_no_material_named_writes_what_${LOSSLESS}_writes`, () => {
+    assert.deepEqual(writeSet(preset.id, "pcm", c), writeSet(preset.id, "pcm", { ...c, [MATERIAL]: LOSSLESS }));
+  });
+}
+
+// ============================================================================
+// the write reads back as the preset at those positions
+// ============================================================================
+
+for (const [preset, c] of CASES) {
+  for (const material of [LOSSLESS, LOSSY]) {
+    test(`test_matchpreset_recovers_${preset.id}_at_${positionsOf(c)}_with_${material}_material_on_auto`, () => {
+      const full = { ...c, [MATERIAL]: material };
+      assert.deepEqual(matchPreset(writeSet(preset.id, "auto", full), "auto"), {
+        presetId: preset.id,
+        knobs: offeredAt(preset, full),
+      });
+    });
+  }
 }

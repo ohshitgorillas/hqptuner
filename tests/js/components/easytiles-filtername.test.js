@@ -18,17 +18,19 @@
 //     `data-part="family"`, `data-part="class"` and `data-part="shape"` on the
 //     three descriptor lines.
 //
-// NAMES, NOT WORDS (rule 9). The engine filter name is a wire identifier —
-// static data joins the running engine by name (docs/architecture.md §2) — so
-// it is contract and is asserted outright.
+// NAMES, NOT WORDS (rule 9). The engine filter name is a wire identifier, since
+// static data joins the running engine by name (docs/architecture.md §2), so it
+// is contract and is asserted outright. No filter name is TYPED here, though:
+// every one is asked of `writeSet` for the preset and knob positions in hand,
+// so the table stays the one copy of what a tile writes.
 //
 // The three descriptor lines are read too, and what they are read against is
 // this file's OWN INJECTED STRINGS. The shipped plain-names wording is
 // owner-owned and reworded at will, and no case here goes near it; the overlay
 // these cases render is seeded below out of four obviously synthetic values
 // that exist nowhere but this file, so the owner cannot reword them and rule 9
-// has nothing to protect. Reading them is what pins the MAPPING — which overlay
-// field feeds which line — and presence alone cannot: an implementation feeding
+// has nothing to protect. Reading them is what pins the MAPPING, which overlay
+// field feeds which line, and presence alone cannot: an implementation feeding
 // one field into all three lines, or swapping two of them, renders three lines
 // either way.
 //
@@ -38,35 +40,36 @@
 //
 // THE OVERLAY IS THIS FILE'S OWN. The plain-names data rides /api/metadata
 // (`plain_names`, keyed filters/dithers/modulators, raw name ->
-// {family, variant, leaf, short} — the shape
-// tests/js/components/combobox-plainnames.test.js drives), and the fixture
-// below annotates ONE filter: the single name `purist` writes to both ends of
-// its chain. Every other tile's filter is therefore a name the overlay does not
-// know, which is the "no overlay row" case in the middle of the file. The
-// shipped overlay never reaches these cases.
+// {family, variant, leaf, short}, the shape
+// tests/js/components/combobox-plainnames.test.js drives), and each render
+// below annotates AT MOST ONE filter, named by the case in hand. The shipped
+// overlay never reaches these cases.
 //
-// WHICH TILE EACH SECTION USES, and why:
-//   * `purist` writes ONE filter to both ends of the chain, so what its block
-//     names does not depend on which side of the chain is being shown. That is
-//     what makes it the tile for the raw-name and descriptor cases: they are
-//     about the block, not about the side, and there they cannot be disturbed
-//     by a source rate.
-//   * `perfect-ten` on lossless material writes DIFFERENT filters to its two
-//     ends, which is what makes it the tile for the source-rate cases: the two
-//     answers are distinct names, so a tile fixed on one side fails one of the
-//     two rather than coinciding with both.
+// WHICH TILES EACH SECTION SWEEPS, and why. No preset is named to stand for a
+// property; each is selected BY the property, off the shipped table, and every
+// knob combination the preset declares is swept (`combos`):
+//   * A tile whose two PCM ends carry ONE filter (`writeSet` names the same
+//     filter at the 1x and the Nx end) is a tile whose block does not depend on
+//     which side of the chain is being shown. Those are the tiles for the
+//     raw-name and descriptor cases: they are about the block, not about the
+//     side, and there they cannot be disturbed by a source rate.
+//   * A tile whose two PCM ends DIFFER is the tile for the source-rate cases:
+//     the two answers are distinct names, so a tile fixed on one side fails one
+//     of the two rather than coinciding with both.
+// A table in which no preset has one of the two shapes generates no cases of
+// that shape, by construction and without a guard.
 //
-// THE SOURCE RATE. The last two cases drive the engine's own /api/status shape
-// on the exported `engineStatus` signal: `metadata.samplerate` is the SOURCE
-// rate, a string attribute (docs/protocol.md §Status), and the manual puts the
-// boundary at 50 kHz — "Filter/oversampling selection for '1x' rates covers
-// source sampling rates below 50 kHz, so called base rates. Filter selection
-// for 'Nx' rates covers everything else above the 1x rates" (HQPlayer 6 Desktop
-// manual §4.6). Each of the two carries a `status.active_rate` on the OPPOSITE
-// side of that boundary from its own source rate, so a tile reading the OUTPUT
-// rate answers backwards on both rather than coinciding on one. Every other
-// case here plays nothing at all: `engineStatus` is put back to null, the same
-// reset the live suites make.
+// THE SOURCE RATE. The source-rate cases drive the engine's own /api/status
+// shape on the exported `engineStatus` signal: `metadata.samplerate` is the
+// SOURCE rate, a string attribute (docs/protocol.md §Status), and the manual
+// puts the boundary at 50 kHz: "Filter/oversampling selection for '1x' rates
+// covers source sampling rates below 50 kHz, so called base rates. Filter
+// selection for 'Nx' rates covers everything else above the 1x rates" (HQPlayer
+// 6 Desktop manual §4.6). Each of the two carries a `status.active_rate` on the
+// OPPOSITE side of that boundary from its own source rate, so a tile reading
+// the OUTPUT rate answers backwards on both rather than coinciding on one.
+// Every other case here plays nothing at all: `engineStatus` is put back to
+// null, the same reset the live suites make.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-filtername.test.js
 
@@ -78,29 +81,36 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, tileHtml } = await import("../support/easytiles.js");
+const { resetTab, tabs, tileHtml, running } = await import("../support/easytiles.js");
+const { combos } = await import("../support/easytable.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 const signals = await import("../../../hqptuner/static/store/signals.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {{ id: string, default: string, options: string[] }} Knob */
+/** @typedef {{ id: string, knobs: Knob[] }} Preset */
+/**
+ * One preset on one combination of its knob positions, with the two PCM filter
+ * names that combination writes.
+ * @typedef {{ preset: Preset, knobs: Record<string, string>, oneX: string, nX: string }} Hit
+ */
 
-// The single-filter tile, the knob position it is put on and the filter that
-// position writes to both ends of its chain. All three wire identifiers, stated
-// outright — the position in particular, rather than inherited from wherever
-// `emphasis` happens to rest: a resting position is the owner's to revisit, and
-// moving it must not silently repoint these cases at another filter.
-const ONE_FILTER_TILE = "purist";
-const ONE_FILTER_KNOBS = { emphasis: "space" };
-const ONE_FILTER = "poly-sinc-gauss-halfband";
+/** A combination as `knob=option` pairs joined with `_`, for a test name. */
+function positionsOf(/** @type {Record<string, string>} */ knobs) {
+  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
+  return pairs.length > 0 ? pairs.join("_") : "no_knobs";
+}
 
-// The split-chain tile, its knob positions stated rather than inherited from
-// wherever the knobs happen to rest, and the two DIFFERENT filters that
-// combination writes — the standard one at the 1x end, the hi-res one at the Nx
-// end. Neither is annotated by the fixture's overlay.
-const SPLIT_TILE = "perfect-ten";
-const SPLIT_KNOBS = { emphasis: "space", material: "lossless" };
-const SPLIT_1X = "poly-sinc-gauss-long";
-const SPLIT_NX = "poly-sinc-gauss-hires-lp";
+// Every preset on every combination of its knob positions, each with the two
+// PCM filter names it writes, asked of the table. Split by the one property
+// this file cares about: whether the two ends carry one filter or two.
+/** @type {Hit[]} */
+const HITS = /** @type {Preset[]} */ (presetsFor()).flatMap((preset) =>
+  combos(preset.knobs).map((knobs) => ({ preset, knobs, ...running(preset.id, knobs) })),
+);
+const ONE_FILTER_HITS = HITS.filter((hit) => hit.oneX === hit.nX);
+const SPLIT_HITS = HITS.filter((hit) => hit.oneX !== hit.nX);
 
 // Two source rates either side of the engine's 50 kHz boundary, each paired
 // with an output rate on the other side of it.
@@ -108,8 +118,8 @@ const SOURCE_1X = { samplerate: "44100", activeRate: "705600" };
 const SOURCE_NX = { samplerate: "96000", activeRate: "44100" };
 
 // The overlay row for the one annotated filter, and the four values it carries.
-// Every one is invented test data that occurs nowhere else in this repository —
-// no shipped overlay, no schema, no label reads anything like them — so a line
+// Every one is invented test data that occurs nowhere else in this repository,
+// no shipped overlay, no schema, no label reads anything like them, so a line
 // reading one of them can only have got it from this fixture. They are
 // deliberately distinct from each other and share no substring, so a rendering
 // that fed one field into two lines, or swapped two fields, fails by naming the
@@ -121,45 +131,46 @@ const SOURCE_NX = { samplerate: "96000", activeRate: "44100" };
 //
 // WHY THE VALUES ARE MATCHED WITHIN A LINE RATHER THAN AGAINST THE WHOLE OF IT.
 // A descriptor line carries a word of the component's own beside the value it
-// was built from, and that word is owner copy — rule 9 keeps it out of every
+// was built from, and that word is owner copy; rule 9 keeps it out of every
 // assertion here. So a line is read the way
 // tests/js/components/combobox-plainnames.test.js reads a family header: the
 // injected values are unique tokens that occur nowhere else in a render, so
 // WHICH of them a line carries is observable without matching any word the
 // component supplies. `injectedIn` below answers exactly that, and each case
-// asserts the whole of its answer — so a line carrying two of the values, or
+// asserts the whole of its answer, so a line carrying two of the values, or
 // the wrong one, or none, fails by naming what it carried.
 const FAMILY_VALUE = "Zzfamily Alpha";
 const VARIANT_VALUE = "Yyvariant Bravo";
 const LEAF_VALUE = "Xxleaf Charlie";
 const SHORT_VALUE = "Wwshort Delta";
 
-const PLAIN_FILTERS = {
-  [ONE_FILTER]: {
-    family: FAMILY_VALUE,
-    variant: VARIANT_VALUE,
-    leaf: LEAF_VALUE,
-    short: SHORT_VALUE,
-    apod: false,
-  },
+const OVERLAY_ROW = {
+  family: FAMILY_VALUE,
+  variant: VARIANT_VALUE,
+  leaf: LEAF_VALUE,
+  short: SHORT_VALUE,
+  apod: false,
 };
 
 const EMPTY_SECTION = { entries: {}, families: {}, variants: {} };
 
 /**
- * The tabs lane, rendered with the fixture's overlay riding /api/metadata.
+ * The tabs lane, rendered with this file's overlay riding /api/metadata.
  *
- * `source` is what the engine reports playing, or nothing at all when a case
- * does not name one. `record` is the knob positions a tile is put on, recorded
- * after the reset that clears the record and before the render that reads it.
+ * `annotate` is the one filter name the overlay states a row for, or nothing,
+ * in which case the overlay knows no filter at all. `source` is what the engine
+ * reports playing, or nothing at all when a case does not name one. `record` is
+ * the knob positions a tile is put on, recorded after the reset that clears the
+ * record and before the render that reads it.
  *
  * @param {{
+ *   annotate?: string,
  *   source?: { samplerate: string, activeRate: string },
  *   record?: { preset: string, positions: Record<string, string> },
  * }} [seams]
  * @returns {Promise<string>}
  */
-async function card({ source, record } = {}) {
+async function card({ annotate, source, record } = {}) {
   await resetTab({ mode: "pcm" });
   signals.engineStatus.value =
     source === undefined
@@ -171,7 +182,11 @@ async function card({ source, record } = {}) {
   signals.metadata.value = {
     ...signals.metadata.value,
     plain_names: {
-      filters: { entries: PLAIN_FILTERS, families: {}, variants: {} },
+      filters: {
+        entries: annotate === undefined ? {} : { [annotate]: OVERLAY_ROW },
+        families: {},
+        variants: {},
+      },
       dithers: { ...EMPTY_SECTION },
       modulators: { ...EMPTY_SECTION },
     },
@@ -181,20 +196,24 @@ async function card({ source, record } = {}) {
 }
 
 /**
- * The annotated tile's card, on the stated knob position, with nothing playing.
+ * A one-filter hit's card: its tile on the hit's knob positions, the one filter
+ * those positions write annotated by the overlay, and nothing playing.
  *
+ * @param {Hit} hit
  * @returns {Promise<string>}
  */
-const annotatedCard = () => card({ record: { preset: ONE_FILTER_TILE, positions: ONE_FILTER_KNOBS } });
+const annotatedCard = (hit) => card({ annotate: hit.oneX, record: { preset: hit.preset.id, positions: hit.knobs } });
 
 /**
- * The split-chain tile's card, on the stated knob positions, with one source
- * rate playing — or with nothing playing when handed no source.
+ * A split hit's card: its tile on the hit's knob positions with one source rate
+ * playing, or with nothing playing when handed no source. The overlay knows no
+ * filter at all here; these cases read the raw name and nothing else.
  *
+ * @param {Hit} hit
  * @param {{ samplerate: string, activeRate: string }} [source]
  * @returns {Promise<string>}
  */
-const splitCard = (source) => card({ source, record: { preset: SPLIT_TILE, positions: SPLIT_KNOBS } });
+const splitCard = (hit, source) => card({ source, record: { preset: hit.preset.id, positions: hit.knobs } });
 
 // --- readers -------------------------------------------------------------------
 //
@@ -270,11 +289,14 @@ function partText(out, presetId, part) {
 // ============================================================================
 //
 // The name the tile's knob positions write, spelt exactly as the engine
-// enumerates it.
+// enumerates it. One case per one-filter hit, so a tile that named the wrong
+// filter fails by naming the preset and the positions it was on.
 
-test("test_a_tile_shows_the_engine_filter_name_its_knob_positions_write", async () => {
-  assert.equal(partText(await annotatedCard(), ONE_FILTER_TILE, "raw"), ONE_FILTER);
-});
+for (const hit of ONE_FILTER_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_shows_the_engine_filter_name_those_positions_write`, async () => {
+    assert.equal(partText(await annotatedCard(hit), hit.preset.id, "raw"), hit.oneX);
+  });
+}
 
 // ============================================================================
 // the descriptor lines
@@ -286,25 +308,40 @@ test("test_a_tile_shows_the_engine_filter_name_its_knob_positions_write", async 
 // the overlay does not know gets the raw name and nothing derived.
 //
 // Read against this file's own injected values, never against shipped wording
-// (see the header). Three cases rather than one, one line apiece, so a
+// (see the header). Three cases per hit rather than one, one line apiece, so a
 // rendering that got two of the three right fails by naming the one it did not.
 
-test("test_a_tile_shows_the_overlay_rows_family_on_the_family_line", async () => {
-  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "family"), [FAMILY_VALUE]);
-});
+for (const hit of ONE_FILTER_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_shows_the_overlay_rows_family_on_the_family_line`, async () => {
+    assert.deepEqual(injectedIn(await annotatedCard(hit), hit.preset.id, "family"), [FAMILY_VALUE]);
+  });
+}
 
-test("test_a_tile_shows_the_overlay_rows_variant_on_the_class_line", async () => {
-  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "class"), [VARIANT_VALUE]);
-});
+for (const hit of ONE_FILTER_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_shows_the_overlay_rows_variant_on_the_class_line`, async () => {
+    assert.deepEqual(injectedIn(await annotatedCard(hit), hit.preset.id, "class"), [VARIANT_VALUE]);
+  });
+}
 
-test("test_a_tile_shows_the_overlay_rows_leaf_on_the_shape_line", async () => {
-  assert.deepEqual(injectedIn(await annotatedCard(), ONE_FILTER_TILE, "shape"), [LEAF_VALUE]);
-});
+for (const hit of ONE_FILTER_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_shows_the_overlay_rows_leaf_on_the_shape_line`, async () => {
+    assert.deepEqual(injectedIn(await annotatedCard(hit), hit.preset.id, "shape"), [LEAF_VALUE]);
+  });
+}
 
-test("test_a_tile_whose_filter_the_overlay_does_not_know_shows_the_raw_name_and_no_family_line", async () => {
-  const laid = parts(await card(), SPLIT_TILE).filter((part) => part === "raw" || part === "family");
-  assert.deepEqual(laid, ["raw"]);
-});
+// The unknown-filter reading is taken on the split tiles, with nothing playing,
+// where the tile rests on the 1x end (pinned at the foot of this file). The
+// overlay is handed a row for the filter at the OTHER end of that same tile, so
+// a block that looked its row up by the wrong end's name, rather than by the
+// name it is showing, renders a family line here and fails.
+
+for (const hit of SPLIT_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_whose_shown_filter_the_overlay_does_not_know_shows_the_raw_name_and_no_family_line`, async () => {
+    const out = await card({ annotate: hit.nX, record: { preset: hit.preset.id, positions: hit.knobs } });
+    const laid = parts(out, hit.preset.id).filter((part) => part === "raw" || part === "family");
+    assert.deepEqual(laid, ["raw"]);
+  });
+}
 
 // ============================================================================
 // the name follows the playing source rate
@@ -312,23 +349,29 @@ test("test_a_tile_whose_filter_the_overlay_does_not_know_shows_the_raw_name_and_
 //
 // One tile, one set of knob positions, two source rates: a base-rate source
 // names the filter at the 1x end of the chain and a multiple-rate source names
-// the one at the Nx end. The two names differ, so neither case can be satisfied
-// by a tile that always shows the other side.
+// the one at the Nx end. The two names differ on every split hit, so neither
+// case can be satisfied by a tile that always shows the other side.
 
-test("test_a_tile_playing_a_base_rate_source_names_the_filter_at_the_1x_end", async () => {
-  assert.equal(partText(await splitCard(SOURCE_1X), SPLIT_TILE, "raw"), SPLIT_1X);
-});
+for (const hit of SPLIT_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_playing_a_base_rate_source_names_the_filter_at_the_1x_end`, async () => {
+    assert.equal(partText(await splitCard(hit, SOURCE_1X), hit.preset.id, "raw"), hit.oneX);
+  });
+}
 
-test("test_a_tile_playing_a_multiple_rate_source_names_the_filter_at_the_nx_end", async () => {
-  assert.equal(partText(await splitCard(SOURCE_NX), SPLIT_TILE, "raw"), SPLIT_NX);
-});
+for (const hit of SPLIT_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_playing_a_multiple_rate_source_names_the_filter_at_the_nx_end`, async () => {
+    assert.equal(partText(await splitCard(hit, SOURCE_NX), hit.preset.id, "raw"), hit.nX);
+  });
+}
 
 // And with nothing playing at all there is no source rate to follow, so the
-// tile rests on the 1x end — the same side a base-rate source puts it on. Read
-// on the SPLIT tile, where the two sides carry different names: a tile that
+// tile rests on the 1x end, the same side a base-rate source puts it on. Read
+// on the split tiles, where the two sides carry different names: a tile that
 // defaulted to the Nx end while idle names the other filter here, and is
 // invisible on a tile whose two ends agree.
 
-test("test_a_tile_with_nothing_playing_names_the_filter_at_the_1x_end", async () => {
-  assert.equal(partText(await splitCard(), SPLIT_TILE, "raw"), SPLIT_1X);
-});
+for (const hit of SPLIT_HITS) {
+  test(`test_the_${hit.preset.id}_tile_at_${positionsOf(hit.knobs)}_with_nothing_playing_names_the_filter_at_the_1x_end`, async () => {
+    assert.equal(partText(await splitCard(hit), hit.preset.id, "raw"), hit.oneX);
+  });
+}

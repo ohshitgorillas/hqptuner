@@ -222,38 +222,6 @@ const META = {
 export const inForce = (presetId, knobs = {}) => writeSet(presetId, "auto", knobs);
 
 /**
- * One filter name on both ends of the PCM chain, keyed by SCHEMA key — what a
- * single-name preset's write set looks like, stated by name rather than
- * derived, for seeding `resetTab` from the owner's table instead of the
- * module's.
- *
- * @param {string} name
- * @returns {Record<string, string>}
- */
-export const seedPcm = (name) => ({ [PCM_1X]: name, [PCM_NX]: name });
-
-/**
- * The same pair keyed by the daemon's own FORM-FIELD names — what `stagedNames`
- * reads back after a press that wrote that filter to both ends of the PCM
- * chain.
- *
- * @param {string} name
- * @returns {Record<string, string>}
- */
-export const stagedPcm = (name) => ({ [FIELD[PCM_1X]]: name, [FIELD[PCM_NX]]: name });
-
-/**
- * A distinct pair keyed by the daemon's own FORM-FIELD names — what
- * `stagedNames` reads back after a press that wrote one name to the 1x end of
- * the PCM chain and another to its Nx end.
- *
- * @param {string} oneX
- * @param {string} nX
- * @returns {Record<string, string>}
- */
-export const stagedPcmPair = (oneX, nX) => ({ [FIELD[PCM_1X]]: oneX, [FIELD[PCM_NX]]: nX });
-
-/**
  * The two PCM filter names a preset leaves the engine running, for seeding the
  * LIVE lane's State. The knob positions default to the resting ones.
  *
@@ -270,7 +238,7 @@ export function running(presetId, knobs = {}) {
  * A DISTINCT pair on the two ends of the PCM chain, keyed by SCHEMA key — what a
  * chain-splitting preset's write set looks like, stated by name rather than
  * derived, for seeding `resetTab` from the owner's table instead of the
- * module's. `seedPcm` cannot express it: the two ends carry different names.
+ * module's. The two ends carry different names.
  *
  * @param {string} oneX
  * @param {string} nX

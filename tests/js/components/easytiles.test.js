@@ -56,7 +56,6 @@ useStorage();
 
 const {
   TILE,
-  SECOND_TILE,
   PICK,
   PCM_FIELDS,
   SDM_FIELDS,
@@ -77,10 +76,6 @@ const {
   tiles,
   presetIds,
   namedPresets,
-  seedPcm,
-  seedPcmPair,
-  stagedPcm,
-  stagedPcmPair,
   activeMap,
   knobPositions,
   stagedNames,
@@ -90,13 +85,81 @@ const {
   pressables,
 } = await import("../support/easytiles.js");
 
-// The preset table's public reader, imported the same way the harness is so
+// The preset table's public readers, imported the same way the harness is so
 // the fake storage is in place before any store module loads. Every filter
-// name this file seeds or expects is read out of it, never typed (rule 9).
-const { writeSet } = await import("../../../hqptuner/static/store/easy.js");
+// name this file seeds or expects is read out of `writeSet`, never typed (rule
+// 9); which presets carry which knobs, and which positions each knob offers,
+// are read out of `presetsFor` and `knobsShown` for the same reason.
+const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
+const { combos } = await import("../support/easytable.js");
 
-/** @type {(presetId: string, knobs: Record<string, string>) => Record<string, string>} */
-const pcmSet = (presetId, knobs) => writeSet(presetId, "pcm", knobs);
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
+
+/** @type {Preset[]} */
+const PRESETS = presetsFor();
+
+// A knob id is a wire identifier, stated outright. Which presets carry it is
+// the owner's, so a sweep asks the table rather than naming one.
+const MATERIAL = "material";
+
+/**
+ * Every knob of a preset at its `default`, keyed by knob id: where the tile's
+ * knobs rest, read from the table rather than typed.
+ *
+ * @param {Preset} preset
+ * @returns {Record<string, string>}
+ */
+const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
+
+/**
+ * A combination as `knob=option` pairs joined with `_`, for a test name.
+ *
+ * @param {Record<string, string>} knobs
+ */
+const positionsOf = (knobs) =>
+  Object.entries(knobs)
+    .map(([knobId, option]) => `${knobId}=${option}`)
+    .join("_");
+
+/**
+ * Whether the fields can carry a combination. A knob its `when` hides at a
+ * combination writes nothing there, so a combination parking a hidden knob off
+ * its default seeds the very same fields as the one parking it at default, and
+ * a case built on it would restate that one. Only the representable ones seed.
+ *
+ * @param {Preset} preset
+ * @param {Record<string, string>} knobs
+ */
+const seedable = (preset, knobs) => {
+  const shown = new Set(knobsShown(preset, knobs).map((knob) => String(knob.id)));
+  return preset.knobs.every((knob) => shown.has(String(knob.id)) || knobs[String(knob.id)] === knob.default);
+};
+
+/**
+ * The fields a write MOVES: those of `to` whose name differs from what `from`
+ * carries there, with the name `to` carries. A press stages a field only when
+ * its value would change (tests/js/components/easytiles-writes.test.js), so the
+ * write for a knob move is this difference and nothing more.
+ *
+ * @param {Record<string, string>} from
+ * @param {Record<string, string>} to
+ * @returns {Record<string, string>}
+ */
+const moved = (from, to) => Object.fromEntries(Object.entries(to).filter(([field, name]) => from[field] !== name));
+
+// The presets carrying at least one knob, and every combination of positions
+// each defines that the fields can carry. Selected by property from the table:
+// zero presets with a knob means zero knob cases here.
+
+const KNOBBED = PRESETS.filter((preset) => preset.knobs.length > 0);
+
+/** @type {[Preset, Record<string, string>][]} */
+const SEEDS = KNOBBED.flatMap((preset) =>
+  combos(preset.knobs)
+    .filter((knobs) => seedable(preset, knobs))
+    .map((knobs) => /** @type {[Preset, Record<string, string>]} */ ([preset, knobs])),
+);
 
 // ============================================================================
 // what the card lays out
@@ -144,18 +207,28 @@ test("test_every_tile_is_marked_inactive_while_the_fields_carry_no_presets_write
   assert.deepEqual(activeMap(tabs()), oneLit(null));
 });
 
-// The filter the retired `lossy` tile used to write, in the fields: it lights
-// `damage-control` now, that name being what its `material` knob writes at its
-// `lossy` position, which is where it is read from. A card still matching it to
-// a tile of its own would light nothing here, and a card matching it nowhere
-// would light nothing either, so the whole map is read, and names which tile
-// came up.
+// What a `material` knob writes, in the fields, at every position of every knob
+// its tile carries: the tile it belongs to lights, and its material knob shows
+// the position that write was made at. Swept over the presets carrying the
+// knob rather than naming one, and over the positions each knob defines rather
+// than typing them: the filter the retired `lossy` tile used to write is one of
+// these, and a card still matching it to a tile of its own would light nothing
+// here. The whole map is read so a failure names which tile came up.
 
-test("test_the_lossy_filter_in_the_fields_marks_the_damage_control_tile_active", async () => {
-  const lossy = pcmSet("damage-control", { material: "lossy" }).pcm_filter_1x;
-  await resetTab({ mode: "pcm", names: seedPcm(lossy) });
-  assert.deepEqual(activeMap(tabs()), oneLit("damage-control"));
-});
+/** @type {[Preset, Record<string, string>][]} */
+const MATERIAL_SEEDS = SEEDS.filter(([preset]) => preset.knobs.some((knob) => String(knob.id) === MATERIAL));
+
+for (const [preset, knobs] of MATERIAL_SEEDS) {
+  test(`test_${preset.id}_at_${positionsOf(knobs)}_in_the_fields_marks_that_tile_active`, async () => {
+    await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", knobs) });
+    assert.deepEqual(activeMap(tabs()), oneLit(preset.id));
+  });
+
+  test(`test_${preset.id}_at_${positionsOf(knobs)}_in_the_fields_shows_its_material_knob_at_${knobs[MATERIAL]}`, async () => {
+    await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", knobs) });
+    assert.deepEqual(knobPositions(tabs(), preset.id, MATERIAL), [knobs[MATERIAL]]);
+  });
+}
 
 // The same contract on the OTHER lane, where the values are not a form the
 // daemon handed over but the engine's own State joined to its enumerations: the
@@ -278,123 +351,63 @@ test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
 });
 
 // ============================================================================
-// the two-knob presets, position by position
+// every knob of every preset, position by position
 // ============================================================================
 //
-// The owner's table for the two presets that carry both knobs, read through a
-// press: what lands in the daemon's two PCM filter fields at each of the four
-// `emphasis`/`material` combinations. The names come out of `writeSet` at the
-// lossless position of each emphasis (rule 9); what these cases pin is the
-// SHAPE of each write and which end of the chain it lands on.
+// The owner's table read through a press: what lands in the daemon's two PCM
+// filter fields when one knob is moved from one combination of positions to
+// another. Every preset carrying a knob, every combination the fields can
+// carry, every knob the tile offers there, every OTHER position that knob
+// defines; the moved knob and its target come out of the table, never typed.
 //
-// WHAT THE TWO MATERIAL POSITIONS DIFFER IN is the shape of the write, not only
-// the names: `lossless` writes a PAIR, the standard filter at 1x and the hi-res
-// one at Nx, while `lossy` writes the hi-res filter to both ends. So a press
-// that moves the material from a seeded lossless pair leaves exactly ONE field
-// to write — the Nx end already carries the hi-res name — and that is what makes
-// these cases sharper than a pair compared against a pair.
+// A knob press writes the preset at the pressed position, and each case names
+// the positions it exercises rather than inheriting any knob's resting position:
+// a resting position is the owner's to revisit, and moving it must not break a
+// case about what a POSITION writes. Every case is therefore reached from
+// seeded fields: the tile is seeded already carrying the write for the
+// combination under test, which is what puts its knobs there, and the knob
+// under test is moved from there. What that press stages is the DIFFERENCE
+// between the two write sets: a field already carrying the name the new
+// position writes has nothing to write, so a material move that changes one
+// end of the chain stages one field, and a card wiring a position to nothing
+// stages nothing.
 //
-// The daemon's own name for the 1x end of the PCM chain — the Nx end it calls
-// `filter` and the 1x end `filter1x` (store/live/derive.js). A wire identifier,
-// stated the way tests/js/components/easytiles-writes.test.js states it, and
-// read by the two cases below whose press leaves exactly one end to write.
-const ONE_X_FIELD = "filter1x";
+// Where the knobs REST is the sweep immediately below, and only that one.
 
-// A knob press writes the preset at the pressed position, and each case here
-// names the positions it exercises rather than inheriting either knob's resting
-// position — a resting position is the owner's to revisit, and moving it must
-// not break a case about what a POSITION writes. Every case away from the
-// resting pair is therefore reached from seeded fields: the tile is seeded
-// already carrying the pair for the combination under test, which is what puts
-// its knobs there, and the knob under test is moved from there.
-//
-// Where the two knobs REST is one case, immediately below, and only one.
-
-/** @type {(presetId: string) => Record<string, string>} */
-const family = (presetId) => {
-  const space = pcmSet(presetId, { emphasis: "space", material: "lossless" });
-  const transients = pcmSet(presetId, { emphasis: "transients", material: "lossless" });
-  return {
-    spaceOneX: space.pcm_filter_1x,
-    spaceNx: space.pcm_filter_nx,
-    transientsOneX: transients.pcm_filter_1x,
-    transientsNx: transients.pcm_filter_nx,
-  };
-};
-
-/** @type {[string, Record<string, string>][]} */
-const FAMILIES = [
-  ["perfect-ten", family("perfect-ten")],
-  ["lifelike", family("lifelike")],
-];
-
-// Where the two knobs rest, pressed through the tile body: a press writes the
+// Where the knobs rest, pressed through the tile body: a press writes the
 // preset at whatever positions its knobs are showing, so an untouched tile is
-// the one reading of this file that IS about the resting positions. One family
-// carries it, because the resting positions belong to the knobs rather than to a
-// preset — what the OTHER family writes at each named position is the loop
-// below.
+// the one reading of this file that IS about the resting positions, read off
+// each knob's `default` rather than typed.
 
-const RESTING = FAMILIES[0];
-
-test("test_a_tile_pressed_at_its_resting_knob_positions_writes_the_pair_those_positions_name", async () => {
-  const w = await resetTab({ mode: "pcm" });
-  pressTile(seenTabs(), RESTING[0]);
-  await flush(w);
-  assert.deepEqual(stagedNames(w), stagedPcmPair(RESTING[1].spaceOneX, RESTING[1].spaceNx));
-});
-
-for (const [presetId, name] of FAMILIES) {
-  test(`test_moving_a_lossless_${presetId}_to_transients_writes_its_transients_pair`, async () => {
-    const w = await resetTab({ mode: "pcm", names: seedPcmPair(name.spaceOneX, name.spaceNx) });
-    pressKnob(seenTabs(), presetId, "transients");
+for (const preset of KNOBBED) {
+  test(`test_${preset.id}_pressed_at_its_resting_knob_positions_writes_what_those_positions_name`, async () => {
+    const w = await resetTab({ mode: "pcm" });
+    pressTile(seenTabs(), preset.id);
     await flush(w);
-    assert.deepEqual(stagedNames(w), stagedPcmPair(name.transientsOneX, name.transientsNx));
+    assert.deepEqual(stagedNames(w), expectedNames(preset.id, "pcm", resting(preset)));
   });
+}
 
-  // Material to `lossy` from the lossless pair: the hi-res name goes to both
-  // ends, and the Nx end already carries it, so the 1x end is the only field
-  // with anything to write. A card wiring the `lossy` position to nothing stages
-  // nothing; one that wrote the standard name to both ends stages two fields.
+/** @type {[Preset, Record<string, string>, string, string][]} */
+const KNOB_MOVES = SEEDS.flatMap(([preset, from]) =>
+  knobsShown(preset, from).flatMap((knob) =>
+    knob.options
+      .filter((option) => option !== from[String(knob.id)])
+      .map(
+        (option) =>
+          /** @type {[Preset, Record<string, string>, string, string]} */ ([preset, from, String(knob.id), option]),
+      ),
+  ),
+);
 
-  test(`test_moving_a_lossless_${presetId}_to_lossy_material_writes_its_hires_name_at_1x`, async () => {
-    const w = await resetTab({ mode: "pcm", names: seedPcmPair(name.spaceOneX, name.spaceNx) });
-    pressKnob(seenTabs(), presetId, "lossy");
+for (const [preset, from, knobId, option] of KNOB_MOVES) {
+  const to = { ...from, [knobId]: option };
+
+  test(`test_moving_${preset.id}_${knobId}_from_${positionsOf(from)}_to_${option}_stages_the_fields_that_move`, async () => {
+    const w = await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", from) });
+    pressKnob(seenTabs(), preset.id, option);
     await flush(w);
-    assert.deepEqual(stagedNames(w), { [ONE_X_FIELD]: name.spaceNx });
-  });
-
-  // And back again, so `lossless` is a position the knob WRITES from rather than
-  // only the state a fresh tile is found in. The seeded fields carry the hi-res
-  // name at both ends, which is where the material stands; moving back to
-  // `lossless` splits the chain, so the 1x end moves to the standard name while
-  // the Nx end is left alone.
-
-  test(`test_moving_a_lossy_${presetId}_back_to_lossless_material_writes_its_standard_name_at_1x`, async () => {
-    const w = await resetTab({ mode: "pcm", names: seedPcm(name.spaceNx) });
-    pressKnob(seenTabs(), presetId, "lossless");
-    await flush(w);
-    assert.deepEqual(stagedNames(w), { [ONE_X_FIELD]: name.spaceOneX });
-  });
-
-  test(`test_moving_a_lossy_${presetId}_to_transients_writes_its_transients_name_to_both_ends`, async () => {
-    const w = await resetTab({ mode: "pcm", names: seedPcm(name.spaceNx) });
-    pressKnob(seenTabs(), presetId, "transients");
-    await flush(w);
-    assert.deepEqual(stagedNames(w), stagedPcm(name.transientsNx));
-  });
-
-  // The seed the two cases above rest on, asserted in its own right: the hi-res
-  // name on both ends of the chain is that family's tile, at `material=lossy`.
-
-  test(`test_a_hires_name_on_both_ends_marks_the_${presetId}_tile_active`, async () => {
-    await resetTab({ mode: "pcm", names: seedPcm(name.spaceNx) });
-    assert.deepEqual(activeMap(tabs()), oneLit(presetId));
-  });
-
-  test(`test_a_hires_name_on_both_ends_shows_the_${presetId}_material_knob_on_lossy`, async () => {
-    await resetTab({ mode: "pcm", names: seedPcm(name.spaceNx) });
-    assert.deepEqual(knobPositions(tabs(), presetId, "material"), ["lossy"]);
+    assert.deepEqual(stagedNames(w), moved(expectedNames(preset.id, "pcm", from), expectedNames(preset.id, "pcm", to)));
   });
 }
 
@@ -402,29 +415,41 @@ for (const [presetId, name] of FAMILIES) {
 // a knob on the LIVE lane
 // ============================================================================
 //
-// The same knob on the other wire, where the pair is not a form the daemon
-// handed over but the engine's own two filter indices joined to its
-// enumerations. One preset carries these: what differs between the lanes is the
-// wire, not the table, and the tabs cases above cover both families.
+// The knobs on the other wire, where the pair is not a form the daemon handed
+// over but the engine's own two filter indices joined to its enumerations. One
+// move per knob per preset, from rest to each other position the knob defines:
+// what differs between the lanes is the wire, not the table, and the tabs sweep
+// above walks every combination.
 
-const LIVE_KNOB = { preset: SECOND_TILE, position: "transients" };
+/** @type {[Preset, string, string][]} */
+const LIVE_MOVES = KNOBBED.flatMap((preset) =>
+  knobsShown(preset, resting(preset)).flatMap((knob) =>
+    knob.options
+      .filter((option) => option !== knob.default)
+      .map((option) => /** @type {[Preset, string, string]} */ ([preset, String(knob.id), option])),
+  ),
+);
 
-test("test_a_knob_press_on_the_live_lane_writes_that_positions_pair_by_enum_id", async () => {
-  const w = await resetLive();
-  pressKnob(seenLive(), LIVE_KNOB.preset, LIVE_KNOB.position);
-  await flush(w);
-  assert.deepEqual(postedFields(w), liveExpected(LIVE_KNOB.preset, { emphasis: LIVE_KNOB.position }));
-});
+for (const [preset, knobId, option] of LIVE_MOVES) {
+  const at = { ...resting(preset), [knobId]: option };
 
-test("test_the_live_lane_marks_the_tile_whose_pair_the_engines_own_filters_carry", async () => {
-  await resetLive({ ...running(LIVE_KNOB.preset, { emphasis: LIVE_KNOB.position }) });
-  assert.deepEqual(activeMap(liveCard()), oneLit(LIVE_KNOB.preset));
-});
+  test(`test_a_${preset.id}_${knobId}_press_to_${option}_on_the_live_lane_writes_that_positions_pair_by_enum_id`, async () => {
+    const w = await resetLive();
+    pressKnob(seenLive(), preset.id, option);
+    await flush(w);
+    assert.deepEqual(postedFields(w), liveExpected(preset.id, at));
+  });
 
-test("test_the_live_lane_shows_a_tiles_knob_at_the_position_the_engines_filters_carry", async () => {
-  await resetLive({ ...running(LIVE_KNOB.preset, { emphasis: LIVE_KNOB.position }) });
-  assert.deepEqual(knobPositions(liveCard(), LIVE_KNOB.preset, "emphasis"), [LIVE_KNOB.position]);
-});
+  test(`test_the_live_lane_marks_${preset.id}_active_while_the_engine_carries_its_${knobId}_${option}_pair`, async () => {
+    await resetLive({ ...running(preset.id, at) });
+    assert.deepEqual(activeMap(liveCard()), oneLit(preset.id));
+  });
+
+  test(`test_the_live_lane_shows_${preset.id}_${knobId}_at_${option}_while_the_engine_carries_that_pair`, async () => {
+    await resetLive({ ...running(preset.id, at) });
+    assert.deepEqual(knobPositions(liveCard(), preset.id, knobId), [option]);
+  });
+}
 
 // The filters that left Easy Mode with the revision are pinned in
 // tests/js/store/easy.test.js, where the table they left is the subject: that

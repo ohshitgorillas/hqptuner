@@ -42,7 +42,7 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { TILE, resetTab, running, seedPcm, tabs } = await import("../support/easytiles.js");
+const { TILE, resetTab, running, seedPcmPair, tabs } = await import("../support/easytiles.js");
 const {
   seedFacets,
   uniformFacets,
@@ -68,15 +68,51 @@ test("test_the_roster_presetsFor_enumerates_is_not_empty", () => {
 // The three classes a filter can be in, as the overlay spells them.
 const CLASSES = ["full", "half", "none"];
 
-// The preset whose own knob names error correction, and the two positions it
-// offers. Knob ids and option ids are wire identifiers.
-const HALL = { preset: "concert-hall", knob: "correction", on: "on", off: "off" };
+/** @typedef {{ id: string, default: string, options: string[] }} Knob */
+/** @typedef {{ id: string, knobs: Knob[] }} Preset */
+/**
+ * One preset, one of its knobs, and one position off that knob's default, with
+ * the PCM filter names the tile writes at rest and at that position.
+ * @typedef {{ preset: string, knob: string, moved: string, restNames: string[], movedNames: string[] }} Move
+ */
 
-/** The PCM filter names one preset writes at one set of knob positions. */
-const namesAt = (/** @type {Record<string, string>} */ knobs) => {
-  const { oneX, nX } = running(HALL.preset, knobs);
+/**
+ * The PCM filter names one preset writes at one set of knob positions, the
+ * knobs left unnamed resting at their defaults.
+ *
+ * @param {string} presetId
+ * @param {Record<string, string>} knobs
+ * @returns {string[]}
+ */
+const namesAt = (presetId, knobs) => {
+  const { oneX, nX } = running(presetId, knobs);
   return [oneX, nX];
 };
+
+// Every knob move the shipped table offers whose filters can be told apart
+// from the resting ones: each preset, each knob it declares, each position
+// off that knob's default, kept only where the names written at that position
+// share nothing with the names written at rest. That property is what lets
+// the two states be stated in two classes without one name being stated in
+// both; a move that changes nothing the tile writes, or that trades one end's
+// name for the other's, generates no case. No preset is named to stand for
+// the property.
+/** @type {Move[]} */
+const MOVES = /** @type {Preset[]} */ (presetsFor())
+  .flatMap((preset) =>
+    preset.knobs.flatMap((knob) =>
+      knob.options
+        .filter((option) => option !== knob.default)
+        .map((moved) => ({
+          preset: String(preset.id),
+          knob: String(knob.id),
+          moved,
+          restNames: namesAt(String(preset.id), {}),
+          movedNames: namesAt(String(preset.id), { [knob.id]: moved }),
+        })),
+    ),
+  )
+  .filter((move) => move.restNames.every((name) => !move.movedNames.includes(name)));
 
 /**
  * The geometry a tile draws when the filter it would write is stated to be in
@@ -106,11 +142,17 @@ async function labelOfClass(apodizing) {
   return markLabel(tabs(), TILE);
 }
 
-/** The facts the two concert-hall cases run on: its On filter full, its Off filter none. */
-const HALL_FACETS = {
-  ...facetsFor(namesAt({ [HALL.knob]: HALL.on }), "full"),
-  ...facetsFor(namesAt({ [HALL.knob]: HALL.off }), "none"),
-};
+/**
+ * The facts one move's cases run on: the filters written at rest stated full,
+ * the filters written at the moved position stated none.
+ *
+ * @param {Move} move
+ * @returns {Record<string, string>}
+ */
+const facetsOf = (move) => ({
+  ...facetsFor(move.restNames, "full"),
+  ...facetsFor(move.movedNames, "none"),
+});
 
 // ============================================================================
 // every tile carries exactly one mark, in every class
@@ -224,30 +266,41 @@ for (const presetId of ROSTER) {
 // the mark follows the knob positions the tile is SHOWING
 // ============================================================================
 //
-// Concert Hall's own knob is the error-correction switch, so its two positions
-// name filters of two different classes and the mark has to move with it. The
-// three cases below put the tile in the three states it can show a position
-// from: dark at its default, dark at a recorded position, and lit by the fields
-// underneath it.
+// A knob whose move changes the filter a tile writes names filters of two
+// different classes once the two are stated so, and the mark has to move with
+// it. For every such move the table offers (`MOVES`), the three cases below
+// put the tile in the three states it can show a position from: dark at its
+// default, dark at a recorded position, and lit by the fields underneath it.
+// The rest state is stated full and the moved one none, so a tile that read
+// the wrong state draws the other class's form and fails by naming the move.
 
-test("test_a_dark_concert_hall_tile_at_the_on_position_draws_the_full_apodizing_mark", async () => {
-  const full = await glyphOfClass("full");
-  await resetTab({ mode: "pcm" });
-  seedFacets(HALL_FACETS);
-  assert.equal(markGlyph(tabs(), HALL.preset), full);
-});
+for (const move of MOVES) {
+  test(`test_a_dark_${move.preset}_tile_with_${move.knob}_at_rest_draws_the_mark_of_the_class_stated_for_its_resting_filter`, async () => {
+    const full = await glyphOfClass("full");
+    await resetTab({ mode: "pcm" });
+    seedFacets(facetsOf(move));
+    assert.equal(markGlyph(tabs(), move.preset), full);
+  });
+}
 
-test("test_a_dark_concert_hall_tile_recorded_at_the_off_position_draws_the_no_apodizing_mark", async () => {
-  const none = await glyphOfClass("none");
-  await resetTab({ mode: "pcm" });
-  seedFacets(HALL_FACETS);
-  rememberKnobs(HALL.preset, { [HALL.knob]: HALL.off });
-  assert.equal(markGlyph(tabs(), HALL.preset), none);
-});
+for (const move of MOVES) {
+  test(`test_a_dark_${move.preset}_tile_recorded_at_${move.knob}_${move.moved}_draws_the_mark_of_the_class_stated_for_that_positions_filter`, async () => {
+    const none = await glyphOfClass("none");
+    await resetTab({ mode: "pcm" });
+    seedFacets(facetsOf(move));
+    rememberKnobs(move.preset, { [move.knob]: move.moved });
+    assert.equal(markGlyph(tabs(), move.preset), none);
+  });
+}
 
-test("test_a_lit_concert_hall_tile_whose_fields_carry_its_off_filter_draws_the_no_apodizing_mark", async () => {
-  const none = await glyphOfClass("none");
-  await resetTab({ mode: "pcm", names: seedPcm(namesAt({ [HALL.knob]: HALL.off })[0]) });
-  seedFacets(HALL_FACETS);
-  assert.equal(markGlyph(tabs(), HALL.preset), none);
-});
+// Lit: the fields underneath carry the two PCM names the moved position writes,
+// so the tile shows that position without anything having been recorded.
+
+for (const move of MOVES) {
+  test(`test_a_lit_${move.preset}_tile_whose_fields_carry_its_${move.knob}_${move.moved}_filters_draws_the_mark_of_the_class_stated_for_them`, async () => {
+    const none = await glyphOfClass("none");
+    await resetTab({ mode: "pcm", names: seedPcmPair(move.movedNames[0], move.movedNames[1]) });
+    seedFacets(facetsOf(move));
+    assert.equal(markGlyph(tabs(), move.preset), none);
+  });
+}

@@ -1,44 +1,52 @@
 // Behavioral suite for Easy Mode's curated preset table (store/easy.js): the
 // pure pair `writeSet` (preset + knob positions -> the filter field values to
 // stage) and `matchPreset` (filter field values -> the preset and knob
-// positions they correspond to).
+// positions they correspond to), swept over the whole shipped table.
 //
-// The module is pure — no signals, no DOM, no network — so every case here is a
-// plain call with a plain return value. Nothing is stubbed and nothing needs a
-// fake (docs/testing.md rule 4 has nothing to bite on where there is no wire).
+// The module is pure (no signals, no DOM, no network), so every case is a
+// plain call with a plain return value. Nothing is stubbed and nothing needs
+// a fake (docs/testing.md rule 4 has nothing to bite on where there is no
+// wire).
 //
-// There is ONE preset list, and neither call takes a grid: `writeSet` and
-// `matchPreset` are handed a preset id and an output mode and nothing else.
-// Every preset carrying a `material` knob has its write table read elsewhere:
-// `damage-control`'s in tests/js/store/easy-damage-control.test.js, the two
-// flagships' in tests/js/store/easy-material.test.js. How many pips a preset
-// costs is tests/js/store/easy-pips.test.js's.
+// EVERY CASE IS GENERATED. No preset is named here to stand for a property
+// (has an emphasis knob, has two knobs, has a two-stage variant, is knobless):
+// the roster comes from `presetsFor()`, the positions from each knob's
+// `options` and `default`, and each behavior is a sweep over (preset, combo)
+// or over the cases a property selects. A property no preset carries yields
+// zero cases, not a skip and not a guard; the one guard is that `presetsFor()`
+// is non-empty, so the sweeps cannot pass vacuously.
 //
 // What the assertions are anchored on (rule 5, rule 9):
 //
 //   * The four SCHEMA KEYS `pcm_filter_1x`, `pcm_filter_nx`, `sdm_filter_1x`,
-//     `sdm_filter_nx` (store/schema.js). These are contract, not copy — the
-//     caller resolves each to its daemon field and enum id.
-//   * RELATIONS between calls, never filter names. Which filter a preset writes
-//     is owner data, retuned at will (docs/testing.md rule 9), so no assertion
-//     and no test name here carries a filter name: one `writeSet` call is read
-//     against another, or against a value derived from another. Preset ids,
-//     knob ids and knob positions are wire identifiers and are stated outright.
-//   * `-2s` two-stage variants are enumerated on the SDM chain only; the PCM
-//     chain carries none. That is why the `old-school` and `damage-control`
-//     cases split by chain, and why `perfect-ten` is pinned as the control whose
-//     SDM keys carry the same values its PCM keys do under "auto" — without
-//     it, a module that appended `-2s` to every SDM value would pass every other
-//     case in this file.
+//     `sdm_filter_nx` (store/schema.js): contract, not copy.
+//   * RELATIONS between calls, never filter names. Which filter a preset
+//     writes is owner data, retuned at will (rule 9), so no assertion and no
+//     test name carries a filter name: one `writeSet` call is read against
+//     another, or against a value derived from another. Preset ids, knob ids
+//     and knob positions are wire identifiers and appear in generated names.
+//   * `-2s` two-stage variants live on the SDM chain only: an SDM value that
+//     carries the suffix is the PCM value plus `-2s`, and one that does not
+//     is the PCM value itself. The two sweeps select their cases by that
+//     property so each asserts one exact relation.
 //
-// Deliberately NOT asserted: the preset table itself. Which presets the card
-// has and which positions their knobs define is `presetsFor`'s to say, and the
-// one section that walks the whole table asks it rather than restating it —
-// through tests/js/support/easytable.js, a pure sweep over `presetsFor` and
-// `writeSet` with no fake and no rendering in it. Nothing here asserts that
-// table's membership, ordering, emoji or shape. What a preset MEANS is pinned
-// through `writeSet` and `matchPreset`, the observable half. Where a knob RESTS
-// is read from `presetsFor` at the point of use, never typed.
+// What is pinned:
+//
+//   1. the roster is non-empty (the one guard);
+//   2. each output mode writes exactly its own chain keys;
+//   3. every key written carries a non-empty string;
+//   4. every write round-trips through `matchPreset` to its preset and the
+//      positions of every knob offered there;
+//   5. omitted and undefined knob positions write what the default writes;
+//   6. the two-stage relation between the SDM and PCM chains, by property;
+//   7. returning one offered knob to its default from any combination changes
+//      the PCM pair (the KNOB_MOVES sweep);
+//   8. `matchPreset` answers null for values no single preset at one
+//      combination wrote, built from real writes and synthetic names;
+//   9. the table's whole vocabulary is non-empty.
+//
+// Deliberately NOT asserted: the table's membership, ordering, emoji, shape or
+// any word a tile shows.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy.test.js
 
@@ -50,6 +58,7 @@ import { combos, namesWritten } from "../support/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
+/** @typedef {"pcm" | "sdm" | "auto"} Mode */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
@@ -59,126 +68,170 @@ const PCM_NX = "pcm_filter_nx";
 const SDM_1X = "sdm_filter_1x";
 const SDM_NX = "sdm_filter_nx";
 
-/** The knob a preset declares under an id, read from the shipped table. */
-function knobOf(/** @type {string} */ presetId, /** @type {string} */ knobId) {
-  const knob = PRESETS.find((p) => p.id === presetId)?.knobs.find((k) => k.id === knobId);
-  if (!knob) throw new Error(`preset ${presetId} declares no knob ${knobId}`);
-  return knob;
+/** @type {Mode[]} */
+const MODES = ["pcm", "sdm", "auto"];
+
+/** The chain ends, as (PCM key, SDM key) pairs. */
+const ENDS = [
+  ["1x", PCM_1X, SDM_1X],
+  ["nx", PCM_NX, SDM_NX],
+];
+
+const TWO_STAGE = "-2s";
+
+/** A combination as `knob=option` pairs joined with `_`, for a test name. */
+function positionsOf(/** @type {Record<string, string>} */ knobs) {
+  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
+  return pairs.length === 0 ? "no_knobs" : pairs.join("_");
 }
 
 /** Every knob of a preset at its declared default. */
-function restingKnobs(/** @type {string} */ presetId) {
-  const preset = PRESETS.find((p) => p.id === presetId);
-  if (!preset) throw new Error(`no preset ${presetId}`);
+function restingKnobs(/** @type {Preset} */ preset) {
   return Object.fromEntries(preset.knobs.map((k) => [k.id, k.default]));
 }
 
 /** `knobs` with one position swapped for that knob's declared default. */
 function atDefault(
-  /** @type {string} */ presetId,
+  /** @type {Preset} */ preset,
   /** @type {Record<string, string>} */ knobs,
   /** @type {string} */ knobId,
 ) {
-  return { ...knobs, [knobId]: knobOf(presetId, knobId).default };
+  const knob = preset.knobs.find((k) => k.id === knobId);
+  if (!knob) throw new Error(`preset ${preset.id} declares no knob ${knobId}`);
+  return { ...knobs, [knobId]: knob.default };
 }
 
-/** The SDM pair a PCM write implies for a preset carrying a two-stage variant. */
-function twoStageOf(/** @type {Record<string, string>} */ pcm) {
-  return { [SDM_1X]: `${pcm[PCM_1X]}-2s`, [SDM_NX]: `${pcm[PCM_NX]}-2s` };
+/** The positions of every knob the tile offers at `knobs`, as `matchPreset` reports them. */
+function offeredAt(/** @type {Preset} */ preset, /** @type {Record<string, string>} */ knobs) {
+  return Object.fromEntries(knobsShown(preset, knobs).map((knob) => [knob.id, knobs[knob.id]]));
 }
 
-/** The SDM pair a PCM write implies for a preset carrying no two-stage variant. */
-function sameOnSdm(/** @type {Record<string, string>} */ pcm) {
-  return { [SDM_1X]: pcm[PCM_1X], [SDM_NX]: pcm[PCM_NX] };
-}
+/** Every (preset, combination) the table defines. */
+/** @type {[Preset, Record<string, string>][]} */
+const CELLS = PRESETS.flatMap((preset) =>
+  combos(preset.knobs).map((c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c])),
+);
 
-// --- behavior 1: the output mode selects which chain(s) get written ------------------
+// --- behavior 1: the roster is non-empty ----------------------------------------------------
 //
-// Keys only, sorted — the values are every other section's business. A mode
-// writing a key belonging to the other chain is the failure this catches, in
-// both directions.
+// The one guard. Every sweep below reads `presetsFor()`, so an empty roster
+// would retire all of them silently; this case fails by name instead.
 
-/** @type {[("pcm" | "sdm" | "auto"), string[]][]} */
+test("test_the_shipped_table_carries_at_least_one_preset_to_sweep", () => {
+  assert.ok(PRESETS.length > 0, "presetsFor() returned no presets, so every sweep below generated nothing");
+});
+
+// --- behavior 2: the output mode selects which chain(s) get written ------------------------
+//
+// Keys only, sorted; the values are every other section's business. A mode
+// writing a key belonging to the other chain fails here, in both directions.
+
+/** @type {[Mode, string[]][]} */
 const MODE_KEYS = [
   ["pcm", [PCM_1X, PCM_NX]],
   ["sdm", [SDM_1X, SDM_NX]],
   ["auto", [PCM_1X, PCM_NX, SDM_1X, SDM_NX]],
 ];
 
-for (const [mode, keys] of MODE_KEYS) {
-  test(`test_the_${mode}_output_mode_writes_only_its_own_chain_keys`, () => {
-    assert.deepEqual(Object.keys(writeSet("perfect-ten", mode)).sort(), keys);
+for (const [preset, c] of CELLS) {
+  for (const [mode, keys] of MODE_KEYS) {
+    test(`test_${preset.id}_at_${positionsOf(c)}_in_${mode}_mode_writes_exactly_its_chain_keys`, () => {
+      assert.deepEqual(Object.keys(writeSet(preset.id, mode, c)).sort(), [...keys].sort());
+    });
+  }
+}
+
+// --- behavior 3: every key written carries a non-empty string -------------------------------
+//
+// Offenders are the keys whose value is not a non-empty string, so a failure
+// names the key rather than the whole write.
+
+for (const [preset, c] of CELLS) {
+  for (const mode of MODES) {
+    test(`test_${preset.id}_at_${positionsOf(c)}_in_${mode}_mode_writes_a_non_empty_name_to_every_key`, () => {
+      const written = writeSet(preset.id, mode, c);
+      const offenders = Object.keys(written).filter((key) => typeof written[key] !== "string" || written[key] === "");
+      assert.deepEqual(offenders, []);
+    });
+  }
+}
+
+// --- behavior 4: matchPreset recovers the preset and offered positions behind a write -------
+//
+// Round trips: the values fed to `matchPreset` are exactly what `writeSet`
+// produced, in every mode, at every combination. The expected knob map holds
+// every knob the tile OFFERS at that combination (`knobsShown`), so a knob
+// whose `when` is not met there is not expected back.
+
+for (const [preset, c] of CELLS) {
+  for (const mode of MODES) {
+    test(`test_matchpreset_recovers_${preset.id}_at_${positionsOf(c)}_from_its_${mode}_mode_write`, () => {
+      assert.deepEqual(matchPreset(writeSet(preset.id, mode, c), mode), {
+        presetId: preset.id,
+        knobs: offeredAt(preset, c),
+      });
+    });
+  }
+}
+
+// --- behavior 5: omitted and undefined positions write what the default writes -------------
+//
+// A call passing no positions answers exactly as one naming every knob at
+// the default `presetsFor` declares for it. And a position no knob defines
+// (a synthetic string, never a real position) answers as that knob's default
+// with its siblings held at theirs: what a stale caller holding a retired
+// position gets, never a synthesized name the engine would not enumerate.
+
+for (const preset of PRESETS) {
+  test(`test_${preset.id}_called_with_no_knob_positions_writes_what_its_declared_defaults_write`, () => {
+    assert.deepEqual(writeSet(preset.id, "pcm"), writeSet(preset.id, "pcm", restingKnobs(preset)));
   });
 }
 
-// --- behaviors 2 and 5: one filter written to both ends of a chain --------------------
+for (const preset of PRESETS) {
+  for (const knob of preset.knobs) {
+    test(`test_${preset.id}_given_an_undefined_${knob.id}_position_falls_back_to_that_knobs_default`, () => {
+      const bogus = { ...restingKnobs(preset), [knob.id]: "not-a-position" };
+      assert.deepEqual(writeSet(preset.id, "pcm", bogus), writeSet(preset.id, "pcm", restingKnobs(preset)));
+    });
+  }
+}
+
+// --- behavior 6: the two-stage relation between the SDM and PCM chains, by property --------
 //
-// The chain's 1x key and its Nx key carry the same value, preset by preset.
-// Every row NAMES every knob position it reads at, so what each case pins is
-// the shape of that combination's write, never which filter it is. That the
-// value is non-empty is carried by the vocabulary sweep further down.
-//
-// `old-school` is read here on the PCM chain, where the plain name lives; its
-// SDM `-2s` flavor is behavior 4, below. `damage-control` has its own file.
+// Each chain end is read from the preset's "sdm" write against its "pcm"
+// write at the same combination. The cases split by whether the SDM value
+// carries the `-2s` suffix: those that do must be the PCM value plus `-2s`,
+// those that do not must be the PCM value itself. Two sweeps, one exact
+// relation each, so a module appending `-2s` to every SDM value fails in the
+// second sweep and one appending it nowhere fails in the first. A table with
+// no two-stage variant generates no case in the first sweep.
 
-// `perfect-ten` and `lifelike` are NOT read here. Both carry an `emphasis` knob
-// and a `material` knob, crossed, and what each of the four combinations writes
-// is tests/js/store/easy-material.test.js's whole subject.
+/** @type {[Preset, Record<string, string>, string, string, string][]} */
+const CHAIN_ENDS = CELLS.flatMap(([preset, c]) =>
+  ENDS.map(
+    ([end, pcmKey, sdmKey]) =>
+      /** @type {[Preset, Record<string, string>, string, string, string]} */ ([preset, c, end, pcmKey, sdmKey]),
+  ),
+);
 
-/** @type {[string, string, Record<string, string>][]} */
-const HEADLINE_PCM = [
-  ["old-school", "with_emphasis_on_transients", { emphasis: "transients" }],
-  ["purist", "with_emphasis_on_space", { emphasis: "space" }],
-  ["concert-hall", "on_the_perfect_ten_version_with_correction_on", { version: "perfect-ten", correction: "on" }],
-];
+const carriesSuffix = (
+  /** @type {[Preset, Record<string, string>, string, string, string]} */ [preset, c, , , sdmKey],
+) => writeSet(preset.id, "sdm", c)[sdmKey].endsWith(TWO_STAGE);
 
-for (const [presetId, at, knobs] of HEADLINE_PCM) {
-  test(`test_the_preset_${presetId}_${at}_writes_one_filter_to_both_ends_of_the_chain`, () => {
-    const out = writeSet(presetId, "pcm", knobs);
-    assert.deepEqual(out, { [PCM_1X]: out[PCM_1X], [PCM_NX]: out[PCM_1X] });
+for (const [preset, c, end, pcmKey, sdmKey] of CHAIN_ENDS.filter(carriesSuffix)) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_writes_the_two_stage_variant_of_its_pcm_${end}_value_to_sdm`, () => {
+    assert.equal(writeSet(preset.id, "sdm", c)[sdmKey], `${writeSet(preset.id, "pcm", c)[pcmKey]}${TWO_STAGE}`);
   });
 }
 
-// Where the knobs rest: a call passing no positions at all answers exactly as
-// a call naming every knob at the default `presetsFor` declares for it. One
-// preset carries this, because a resting position belongs to the knob rather
-// than to a preset — `purist` because it carries a single knob, so nothing
-// else can be standing in the answer.
-
-test("test_a_preset_called_with_no_knob_positions_writes_what_its_declared_defaults_write", () => {
-  assert.deepEqual(writeSet("purist", "pcm"), writeSet("purist", "pcm", restingKnobs("purist")));
-});
-
-// --- behavior 4: one "auto" call splits the chains for a -2s preset ---------------------
-//
-// The SDM value is derived from the PCM call rather than typed: whichever
-// filter the preset writes, the SDM chain carries it with `-2s` appended.
-
-test("test_an_auto_call_writes_the_two_stage_variant_to_sdm_and_the_plain_name_to_pcm", () => {
-  const pcm = writeSet("old-school", "pcm");
-  assert.deepEqual(writeSet("old-school", "auto"), { ...pcm, ...twoStageOf(pcm) });
-});
-
-test("test_a_preset_with_no_two_stage_variant_writes_the_same_values_to_both_chains", () => {
-  // the control: -2s belongs to the presets that define it, not to the SDM
-  // chain. Every knob position is named, so what each chain carries is the pair
-  // that combination writes — the same pair, which is the claim.
-  const knobs = { emphasis: "space", material: "lossless" };
-  const pcm = writeSet("perfect-ten", "pcm", knobs);
-  assert.deepEqual(writeSet("perfect-ten", "auto", knobs), { ...pcm, ...sameOnSdm(pcm) });
-});
-
-// Every emphasis position `old-school` declares carries into the SDM variant,
-// so a module appending `-2s` only at the resting position fails by position.
-
-for (const emphasis of knobOf("old-school", "emphasis").options) {
-  test(`test_old_school_with_emphasis_on_${emphasis}_writes_the_two_stage_variant_of_its_pcm_pair_to_sdm`, () => {
-    const knobs = { emphasis };
-    assert.deepEqual(writeSet("old-school", "sdm", knobs), twoStageOf(writeSet("old-school", "pcm", knobs)));
+for (const [preset, c, end, pcmKey, sdmKey] of CHAIN_ENDS.filter((row) => !carriesSuffix(row))) {
+  test(`test_${preset.id}_at_${positionsOf(c)}_writes_its_pcm_${end}_value_unchanged_to_sdm`, () => {
+    assert.equal(writeSet(preset.id, "sdm", c)[sdmKey], writeSet(preset.id, "pcm", c)[pcmKey]);
   });
 }
 
-// --- the knob positions each preset defines ---------------------------------------------
+// --- behavior 7: the knob positions each preset defines ------------------------------------
 //
 // Swept from the shipped table: every preset, every combination of every
 // option of every knob it declares, and within each combination every knob
@@ -191,178 +244,124 @@ for (const emphasis of knobOf("old-school", "emphasis").options) {
 // knob. A knob whose `when` is not met at a combination is not offered there
 // and generates nothing; presets with no knobs generate nothing.
 
-/** A combination as `knob=option` pairs joined with `_`, for a test name. */
-function positionsOf(/** @type {Record<string, string>} */ knobs) {
-  return Object.entries(knobs)
-    .map(([knobId, option]) => `${knobId}=${option}`)
-    .join("_");
-}
-
-/** @type {[string, Record<string, string>, string][]} */
-const KNOB_MOVES = PRESETS.flatMap((preset) =>
-  combos(preset.knobs).flatMap((c) =>
-    knobsShown(preset, c)
-      .filter((knob) => c[knob.id] !== knob.default)
-      .map((knob) => /** @type {[string, Record<string, string>, string]} */ ([preset.id, c, knob.id])),
-  ),
+/** @type {[Preset, Record<string, string>, string][]} */
+const KNOB_MOVES = CELLS.flatMap(([preset, c]) =>
+  knobsShown(preset, c)
+    .filter((knob) => c[knob.id] !== knob.default)
+    .map((knob) => /** @type {[Preset, Record<string, string>, string]} */ ([preset, c, knob.id])),
 );
 
-// The sweep is generated from the table, so an empty roster or a knob shape
-// the sweep no longer recognises would retire the rule silently. This case
-// fails by name when that happens.
-
-test("test_the_shipped_table_offers_at_least_one_non_default_knob_position_to_sweep", () => {
-  assert.ok(
-    KNOB_MOVES.length > 0,
-    "no preset offers a knob with a non-default option, so the sweep below generated nothing",
-  );
-});
-
-for (const [presetId, knobs, knobId] of KNOB_MOVES) {
-  test(`test_${presetId}_at_${positionsOf(knobs)}_returning_${knobId}_to_default_writes_a_different_pcm_pair`, () => {
+for (const [preset, knobs, knobId] of KNOB_MOVES) {
+  test(`test_${preset.id}_at_${positionsOf(knobs)}_returning_${knobId}_to_default_writes_a_different_pcm_pair`, () => {
     assert.notDeepEqual(
-      writeSet(presetId, "pcm", knobs),
-      writeSet(presetId, "pcm", atDefault(presetId, knobs, knobId)),
+      writeSet(preset.id, "pcm", knobs),
+      writeSet(preset.id, "pcm", atDefault(preset, knobs, knobId)),
     );
   });
 }
 
-// --- behavior 6: an undefined knob position falls back to that knob's default ------------
+// --- behavior 8: matchPreset answers null for values no one write produced -----------------
 //
-// `concert-hall`'s `version` knob has no `purist` and no knob anywhere defines
-// `balanced` any more, so each of these asks for a position its preset does not
-// define. The answer is the knob's default, never a synthesized filter name that
-// the engine would not enumerate — which is also what a stale caller still
-// holding a retired position gets.
+// Each input is BUILT from real writes, or from a synthetic name that is not
+// a filter, never typed from the table. Each search picks its material from
+// the roster by property; a search that finds nothing generates no test.
 
-// A row names every knob its preset carries, one of them at a position the
-// preset does not define, and expects what the same call writes with that knob
-// swapped for the default `presetsFor` declares. The default is read from the
-// table, never typed.
+// 8a. The two ends of one chain from two different presets. The presets are
+// the first pair in roster order whose PCM 1x values differ at rest.
 
-/** @type {[string, string, Record<string, string>, string][]} */
-const FALLBACK_CASES = [
-  ["lifelike", "the_retired_balanced_emphasis", { material: "lossless", emphasis: "balanced" }, "emphasis"],
-  ["perfect-ten", "a_nonexistent_emphasis", { material: "lossless", emphasis: "loudness" }, "emphasis"],
-  [
-    "perfect-ten",
-    "a_nonexistent_material_beside_a_real_emphasis",
-    { material: "vinyl", emphasis: "transients" },
-    "material",
-  ],
-  [
-    "lifelike",
-    "a_real_material_beside_a_nonexistent_emphasis",
-    { material: "lossy", emphasis: "loudness" },
-    "emphasis",
-  ],
-  ["concert-hall", "a_nonexistent_version", { version: "purist" }, "version"],
-  [
-    "concert-hall",
-    "a_nonexistent_correction_beside_a_real_version",
-    { version: "lifelike", correction: "sometimes" },
-    "correction",
-  ],
-];
+/** @returns {[Preset, Preset] | undefined} */
+function firstPresetsWithDifferentPcm1x() {
+  for (const a of PRESETS) {
+    const b = PRESETS.find((other) => writeSet(other.id, "pcm")[PCM_1X] !== writeSet(a.id, "pcm")[PCM_1X]);
+    if (b) return [a, b];
+  }
+  return undefined;
+}
 
-for (const [presetId, label, knobs, bogus] of FALLBACK_CASES) {
-  test(`test_${presetId}_given_${label}_falls_back_to_the_default_position`, () => {
-    assert.deepEqual(writeSet(presetId, "pcm", knobs), writeSet(presetId, "pcm", atDefault(presetId, knobs, bogus)));
+const SPLIT_PRESETS = firstPresetsWithDifferentPcm1x();
+
+if (SPLIT_PRESETS) {
+  const [a, b] = SPLIT_PRESETS;
+  test(`test_matchpreset_returns_null_when_the_1x_end_is_${a.id}s_and_the_nx_end_is_${b.id}s`, () => {
+    const mixed = { [PCM_1X]: writeSet(a.id, "pcm")[PCM_1X], [PCM_NX]: writeSet(b.id, "pcm")[PCM_NX] };
+    assert.equal(matchPreset(mixed, "pcm"), null);
   });
 }
 
-// --- behavior 7: matchPreset names the preset and knob positions behind the values -------
-//
-// Round trips, so the values fed to `matchPreset` are exactly what `writeSet`
-// produced — the two are one contract read in both directions, and a table of
-// hand-written values here would only re-state the sections above.
-//
-// Every case passes EVERY knob its preset defines explicitly, so the expected
-// knob map is unambiguous. There is no grid to prefer and no tie to break: the
-// answer is a preset id and a knob map, and nothing else.
+// 8b. A synthetic name on every key: garbage rather than a real filter name,
+// so nothing here says which names the table does not carry.
 
-/** @type {[string, string, ("pcm" | "sdm" | "auto"), Record<string, string>][]} */
-const MATCH_CASES = [
-  ["perfect_ten_on_pcm", "perfect-ten", "pcm", { emphasis: "space", material: "lossless" }],
-  ["lifelike_on_auto", "lifelike", "auto", { emphasis: "transients", material: "lossy" }],
-  ["old_school_on_sdm", "old-school", "sdm", { emphasis: "transients" }],
-  ["purist_on_sdm", "purist", "sdm", { emphasis: "transients" }],
-  ["concert_hall_on_auto", "concert-hall", "auto", { version: "lifelike", correction: "off" }],
-];
-
-for (const [label, presetId, mode, knobs] of MATCH_CASES) {
-  test(`test_matchpreset_recovers_the_${label}_that_wrote_the_values`, () => {
-    assert.deepEqual(matchPreset(writeSet(presetId, mode, knobs), mode), { presetId, knobs });
-  });
-}
-
-// A value off the table entirely is synthetic garbage rather than a real
-// filter name, so nothing here says which names the table does not carry.
-
-test("test_matchpreset_returns_null_for_values_no_preset_writes", () => {
-  assert.equal(matchPreset({ [PCM_1X]: "not-a-filter", [PCM_NX]: "not-a-filter" }, "pcm"), null);
+test("test_matchpreset_returns_null_for_a_synthetic_name_on_every_key", () => {
+  const garbage = {
+    [PCM_1X]: "not-a-filter",
+    [PCM_NX]: "not-a-filter",
+    [SDM_1X]: "not-a-filter",
+    [SDM_NX]: "not-a-filter",
+  };
+  assert.equal(matchPreset(garbage, "auto"), null);
 });
 
-// The table swept whole, every preset at every combination of the positions
-// its knobs define, is pinned to produce a non-empty vocabulary, so a table
-// writing no names at all cannot pass the sweeps that read it.
+// 8c. Under "auto" both chains must agree on the knob positions: the PCM
+// keys from one combination and the SDM keys from another of the same
+// preset. The pair is the first found, sweeping presets in roster order and
+// combinations in table order, whose PCM halves differ and whose SDM halves
+// differ, so neither half alone could claim the mixed write.
 
-const swept = () => namesWritten();
+/** @returns {[Preset, Record<string, string>, Record<string, string>] | undefined} */
+function firstCombosWithDifferentWrites() {
+  for (const preset of PRESETS) {
+    const cs = combos(preset.knobs);
+    for (const [i, ci] of cs.entries()) {
+      const cj = cs.slice(i + 1).find((other) => differsOnBothChains(preset, ci, other));
+      if (cj) return [preset, ci, cj];
+    }
+  }
+  return undefined;
+}
+
+/** Whether two combinations of one preset write different PCM pairs and different SDM pairs. */
+function differsOnBothChains(
+  /** @type {Preset} */ preset,
+  /** @type {Record<string, string>} */ ci,
+  /** @type {Record<string, string>} */ cj,
+) {
+  const pcmDiffers = JSON.stringify(writeSet(preset.id, "pcm", ci)) !== JSON.stringify(writeSet(preset.id, "pcm", cj));
+  const sdmDiffers = JSON.stringify(writeSet(preset.id, "sdm", ci)) !== JSON.stringify(writeSet(preset.id, "sdm", cj));
+  return pcmDiffers && sdmDiffers;
+}
+
+const SPLIT_COMBOS = firstCombosWithDifferentWrites();
+
+if (SPLIT_COMBOS) {
+  const [preset, ci, cj] = SPLIT_COMBOS;
+  test(`test_matchpreset_returns_null_under_auto_when_${preset.id}_pcm_is_at_${positionsOf(ci)}_and_sdm_at_${positionsOf(cj)}`, () => {
+    const mixed = { ...writeSet(preset.id, "pcm", ci), ...writeSet(preset.id, "sdm", cj) };
+    assert.equal(matchPreset(mixed, "auto"), null);
+  });
+}
+
+// 8d. Under "auto" the SDM pair of a two-stage write copied onto the PCM
+// keys: the PCM chain never enumerates `-2s`, so both halves naming the same
+// preset is not enough. Selected by property: the first (preset, combination)
+// whose SDM 1x value carries the suffix. A table with no two-stage variant
+// generates no test here.
+
+const TWO_STAGE_CELL = CELLS.find(([preset, c]) => writeSet(preset.id, "sdm", c)[SDM_1X].endsWith(TWO_STAGE));
+
+if (TWO_STAGE_CELL) {
+  const [preset, c] = TWO_STAGE_CELL;
+  test(`test_matchpreset_returns_null_under_auto_when_${preset.id}_at_${positionsOf(c)}_carries_its_two_stage_pair_on_pcm`, () => {
+    const sdm = writeSet(preset.id, "sdm", c);
+    assert.equal(matchPreset({ [PCM_1X]: sdm[SDM_1X], [PCM_NX]: sdm[SDM_NX], ...sdm }, "auto"), null);
+  });
+}
+
+// --- behavior 9: the table's whole vocabulary is non-empty ---------------------------------
+//
+// The table swept whole, every preset at every combination of the positions
+// its knobs define, produces a non-empty vocabulary, so a table writing no
+// names at all cannot pass the sweeps that read it.
 
 test("test_the_table_writes_a_vocabulary_of_filter_names_to_sweep", () => {
-  assert.notEqual(swept().length, 0);
-});
-
-// Mixed inputs are BUILT from `writeSet` of two different presets, or of one
-// preset at two knob positions, rather than typed: the claim is that halves of
-// different writes do not read as one preset, whichever filters they carry.
-
-const HALF_A = { emphasis: "space", material: "lossless" };
-const HALF_B = { emphasis: "transients", material: "lossless" };
-
-test("test_matchpreset_returns_null_when_the_two_ends_of_one_chain_belong_to_different_presets", () => {
-  const mixed = {
-    [PCM_1X]: writeSet("perfect-ten", "pcm", HALF_A)[PCM_1X],
-    [PCM_NX]: writeSet("lifelike", "pcm", HALF_A)[PCM_NX],
-  };
-  assert.equal(matchPreset(mixed, "pcm"), null);
-});
-
-// --- behavior 8: under "auto" both chains must agree ------------------------------------
-//
-// Each chain on its own reads as a legitimate preset; together they do not, so
-// the whole match is null rather than whichever chain got looked at first.
-
-test("test_matchpreset_returns_null_under_auto_when_the_chains_name_different_presets", () => {
-  const mixed = { ...writeSet("perfect-ten", "pcm", HALF_A), ...writeSet("lifelike", "sdm", HALF_A) };
-  assert.equal(matchPreset(mixed, "auto"), null);
-});
-
-test("test_matchpreset_returns_null_under_auto_when_the_chains_name_different_knob_positions", () => {
-  const mixed = { ...writeSet("perfect-ten", "pcm", HALF_A), ...writeSet("perfect-ten", "sdm", HALF_B) };
-  assert.equal(matchPreset(mixed, "auto"), null);
-});
-
-test("test_matchpreset_returns_null_under_auto_when_only_one_chain_carries_the_two_stage_variant", () => {
-  // both halves are old-school, but the PCM chain never enumerates -2s
-  const sdm = writeSet("old-school", "sdm");
-  assert.equal(matchPreset({ [PCM_1X]: sdm[SDM_1X], [PCM_NX]: sdm[SDM_NX], ...sdm }, "auto"), null);
-});
-
-// --- there is one preset list, and no `lossy` in it -------------------------------------
-//
-// The `lossy` tile the playlist grid carried is gone: what it wrote is now
-// `damage-control`'s `material` knob at its `lossy` position
-// (tests/js/store/easy-damage-control.test.js). A preset id is a wire
-// identifier, so the id's absence is a fact this file may state; WHICH ids the
-// list carries and in what order is the card's, and is read there
-// (tests/js/components/easytiles.test.js).
-
-test("test_no_preset_carries_the_retired_lossy_id", () => {
-  assert.equal(
-    presetsFor()
-      .map((/** @type {{ id: string }} */ preset) => preset.id)
-      .includes("lossy"),
-    false,
-  );
+  assert.notEqual(namesWritten().length, 0);
 });

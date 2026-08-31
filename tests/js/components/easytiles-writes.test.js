@@ -33,7 +33,6 @@ useStorage();
 
 const {
   TILE,
-  SECOND_TILE,
   EMPTY,
   resetTab,
   resetLive,
@@ -50,38 +49,89 @@ const {
 } = await import("../support/easytiles.js");
 
 const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
-const { writeSet } = await import("../../../hqptuner/static/store/easy.js");
+const { presetsFor, knobsShown, writeSet } = await import("../../../hqptuner/static/store/easy.js");
+const { combos } = await import("../support/easytable.js");
 
-// The schema key the fixture seeds a field by, and the daemon's own form-field
-// name that key is carried to — `pcm_filter_1x` is the 1x end of the PCM chain
-// and the daemon calls it `filter1x`, `pcm_filter_nx` is the Nx end and the
-// daemon calls it `filter` (store/live/derive.js). Wire identifiers both.
+// The schema keys the fixture seeds the PCM chain by, and the daemon's own
+// form-field names those keys are carried to: `pcm_filter_1x` is the 1x end of
+// the PCM chain and the daemon calls it `filter1x`, `pcm_filter_nx` is the Nx
+// end and the daemon calls it `filter` (store/live/derive.js). Wire identifiers
+// all four.
 const PCM_1X = "pcm_filter_1x";
+const PCM_NX = "pcm_filter_nx";
 const NX_FIELD = "filter";
 
-// The tile the two record-and-stage cases press. It carries ONE knob and no
-// `material` knob at all, so neither case can be disturbed by where that knob
-// comes to rest — what they are about is which fields a press writes and what it
-// records, not where a knob sits. Its `emphasis` position is stated outright
-// beside it; the filter that position writes to both ends of the PCM chain is
-// read off `writeSet`.
-const ONE_KNOB_TILE = "purist";
-const ONE_KNOB_SPACE = writeSet(ONE_KNOB_TILE, "pcm", { emphasis: "space" }).pcm_filter_1x;
+/** @type {Record<string, string>} */
+const PCM_FIELD = { [PCM_1X]: "filter1x", [PCM_NX]: NX_FIELD };
 
-// And the position that knob does NOT rest at, with the filter it names: what
-// the record case below seeds the fields with and presses at, so that the
+/** @typedef {ReturnType<typeof presetsFor>[number]} Preset */
+
+/** @type {Preset[]} */
+const PRESETS = presetsFor();
+
+/**
+ * Every knob of a preset at its `default`, keyed by knob id.
+ *
+ * @param {Preset} preset
+ * @returns {Record<string, string>}
+ */
+const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
+
+/**
+ * A knob position record spelled out for a test name: `knob_position` pairs
+ * joined by underscores, so a failure names where every knob sat.
+ *
+ * @param {Record<string, string>} knobs
+ */
+const at = (knobs) =>
+  Object.entries(knobs)
+    .map(([knob, position]) => `${knob}_${position}`)
+    .join("_");
+
+// The tiles the record-and-stage cases press: every preset that OFFERS exactly
+// one knob at its defaults, read through `knobsShown()` so a knob whose `when`
+// hides it at rest is not counted. Which presets those are is owner data (rule
+// 9), selected by the property rather than named, so a preset that gained or
+// lost a knob is swept in or out without a hand edit. Beside each sits its knob,
+// the position that knob rests at, and the first position other than the resting
+// one: what the record case seeds the fields with and presses at, so that the
 // positions it reads back differ from the ones a card recording its knobs'
-// DEFAULTS would have written.
-const ONE_KNOB_MOVED = { emphasis: "transients" };
+// DEFAULTS would have written. A one-knob preset whose knob offers no other
+// position has no moved case to generate.
 
-// And `lifelike`'s lossless pair, one name for each end of the chain, at its
-// `transients` emphasis and at its `space` one, read off `writeSet`.
-const LOSSLESS_TRANSIENTS_SET = writeSet("lifelike", "pcm", { emphasis: "transients", material: "lossless" });
-const LOSSLESS_TRANSIENTS = {
-  oneX: LOSSLESS_TRANSIENTS_SET.pcm_filter_1x,
-  nX: LOSSLESS_TRANSIENTS_SET.pcm_filter_nx,
-};
-const LOSSLESS_SPACE_NX = writeSet("lifelike", "pcm", { emphasis: "space", material: "lossless" }).pcm_filter_nx;
+const ONE_KNOB = PRESETS.map((preset) => ({ preset, shown: knobsShown(preset, resting(preset)) }))
+  .filter(({ shown }) => shown.length === 1)
+  .map(({ preset, shown }) => ({
+    id: String(preset.id),
+    knob: String(shown[0].id),
+    rest: String(shown[0].default),
+    moved: shown[0].options.map(String).find((option) => option !== String(shown[0].default)),
+  }));
+
+// Every knob MOVE the table offers whose two write sets differ in exactly one
+// PCM key: for every preset, every combination of its knob positions, every knob
+// shown at that combination and every other position that knob offers, the
+// write set at the combination against the write set with that one knob moved.
+// A hit is one case; the table decides how many there are, and zero hits is
+// zero cases.
+
+const MOVES = PRESETS.flatMap((preset) =>
+  combos(preset.knobs).flatMap((from) =>
+    knobsShown(preset, from).flatMap((knob) =>
+      knob.options
+        .map(String)
+        .filter((option) => option !== from[String(knob.id)])
+        .map((option) => {
+          const to = { ...from, [String(knob.id)]: option };
+          const before = writeSet(String(preset.id), "pcm", from);
+          const after = writeSet(String(preset.id), "pcm", to);
+          const changed = [PCM_1X, PCM_NX].filter((key) => before[key] !== after[key]);
+          return { id: String(preset.id), knob: String(knob.id), option, from, before, after, changed };
+        })
+        .filter(({ changed }) => changed.length === 1),
+    ),
+  ),
+);
 
 // ============================================================================
 // a press that would change nothing writes nothing
@@ -116,29 +166,34 @@ test("test_pressing_the_lit_tile_on_the_live_lane_posts_no_fields", async () => 
 //
 // Half the chain already carries the preset's filter and half does not, so the
 // press has exactly one field to write. A lane that wrote both fails by naming
-// the one it should have left alone.
+// the one it should have left alone. Swept over the one-knob presets at their
+// resting position: the 1x end is seeded with what that position names for it,
+// and the Nx end is what the press has left to write.
 
-test("test_a_tile_press_stages_only_the_field_whose_value_differs", async () => {
-  const w = await resetTab({ mode: "pcm", names: { [PCM_1X]: ONE_KNOB_SPACE } });
-  pressTile(seenTabs(), ONE_KNOB_TILE);
-  await flush(w);
-  assert.deepEqual(stagedNames(w), { [NX_FIELD]: ONE_KNOB_SPACE });
-});
-
-// And a knob MOVE that lands on a pair the fields half carry already: at the
-// lossless material the `emphasis` knob names one filter for each end, so
-// a fixture carrying the transients 1x filter beside the space Nx one leaves the
-// move one field to make.
-
-test("test_a_knob_move_stages_only_the_field_that_position_changes", async () => {
-  const w = await resetTab({
-    mode: "pcm",
-    names: seedPcmPair(LOSSLESS_TRANSIENTS.oneX, LOSSLESS_SPACE_NX),
+for (const { id, knob, rest } of ONE_KNOB) {
+  test(`test_a_${id}_press_at_${knob}_${rest}_stages_only_the_field_whose_value_differs`, async () => {
+    const set = writeSet(id, "pcm", { [knob]: rest });
+    const w = await resetTab({ mode: "pcm", names: { [PCM_1X]: set[PCM_1X] } });
+    pressTile(seenTabs(), id);
+    await flush(w);
+    assert.deepEqual(stagedNames(w), { [NX_FIELD]: set[PCM_NX] });
   });
-  pressKnob(seenTabs(), SECOND_TILE, "transients");
-  await flush(w);
-  assert.deepEqual(stagedNames(w), { [NX_FIELD]: LOSSLESS_TRANSIENTS.nX });
-});
+}
+
+// And a knob MOVE that lands on a pair the fields half carry already: the tile
+// is lit at one combination of its knob positions, and the position pressed
+// names a write set differing from that combination's in exactly one PCM key,
+// so the move has one field to make. Every such move the table offers is one
+// case here.
+
+for (const { id, knob, option, from, before, after, changed } of MOVES) {
+  test(`test_moving_${id}_${knob}_to_${option}_at_${at(from)}_stages_only_the_field_that_position_changes`, async () => {
+    const w = await resetTab({ mode: "pcm", names: seedPcmPair(before[PCM_1X], before[PCM_NX]) });
+    pressKnob(seenTabs(), id, option);
+    await flush(w);
+    assert.deepEqual(stagedNames(w), { [PCM_FIELD[changed[0]]]: after[changed[0]] });
+  });
+}
 
 // ============================================================================
 // the record is kept either way
@@ -150,9 +205,11 @@ test("test_a_knob_move_stages_only_the_field_that_position_changes", async () =>
 // tile at those positions, and a card that recorded only when it wrote would
 // lose them.
 
-test("test_a_press_that_writes_nothing_still_records_the_tiles_knob_positions", async () => {
-  const w = await resetTab({ mode: "auto", names: inForce(ONE_KNOB_TILE, ONE_KNOB_MOVED) });
-  pressTile(seenTabs(), ONE_KNOB_TILE);
-  await flush(w);
-  assert.deepEqual(knobsFor(ONE_KNOB_TILE), ONE_KNOB_MOVED);
-});
+for (const { id, knob, moved } of ONE_KNOB.filter((one) => one.moved !== undefined)) {
+  test(`test_a_${id}_press_that_writes_nothing_at_${knob}_${moved}_still_records_the_tiles_knob_positions`, async () => {
+    const w = await resetTab({ mode: "auto", names: inForce(id, { [knob]: String(moved) }) });
+    pressTile(seenTabs(), id);
+    await flush(w);
+    assert.deepEqual(knobsFor(id), { [knob]: moved });
+  });
+}

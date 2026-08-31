@@ -1,7 +1,7 @@
-// Behavioral suite for a knob's TIP: the one sentence of guidance some Easy Mode
-// knobs carry, and the description wiring that ties it to the knob it belongs
-// to. Only some knobs have one, so both halves are read — the knob that carries
-// a tip and a knob that carries none.
+// Behavioral suite for a knob's TIP: the one sentence of guidance an Easy Mode
+// knob may carry, and the description wiring that ties it to the knob it belongs
+// to. Every case here is read on EVERY knob the card offers at rest, both ways:
+// the knob handed a tip and the same knob handed none.
 //
 // The companion files are tests/js/components/easytiles-positions.test.js (what a
 // knob offers), tests/js/components/easytiles-knobs.test.js (which position it
@@ -21,18 +21,21 @@
 // NOT A WORD THE OWNER OWNS IS ASSERTED (docs/testing.md rule 9). The copy these
 // cases render is this file's own stand-in text, seeded through /api/metadata's
 // `easy.<presetId>` shape the way tests/js/components/easytiles-desc.test.js
-// seeds its descriptions — the shipped sentence never reaches a case here, and
+// seeds its descriptions. The shipped sentence never reaches a case here, and
 // the owner may reword it freely. What a case DOES compare word for word is the
 // stand-in it seeded, which is its own input: a card rendering a knob's LABEL
 // into its description is not empty either, so "there are some words" is a
-// reading the wrong card passes. The group's NAME stays unread, though — that it
+// reading the wrong card passes. The group's NAME stays unread, though: that it
 // has one is the behavior, what it says is not.
 //
-// ONE SEED FOR ALL FOUR CASES, tipped knob and untipped knob together. A tile
-// whose copy is absent altogether renders no tip either, so a tipless knob read
-// against an empty payload would pass whether the wiring exists or not. Seeded
-// side by side, "this knob has no tip" is read on a card where a tip
-// demonstrably does render.
+// NO KNOB STANDS FOR A PROPERTY. Which shipped knobs carry a tip, and which
+// carry per-position copy, is the owner's and is asserted nowhere; a case never
+// names a preset to mean "the tipped one" or "the untipped one". Instead every
+// (preset, knob) pair the card offers at rest is read from `presetsFor()` and
+// `knobsShown()`, the card's own enumeration, and each case SEEDS the property
+// it reads: a tip for "a knob given a tip", none for "a knob given none". A
+// preset that gains or loses a knob is swept in or out without a hand edit, and
+// a roster offering no knobs at all generates no cases.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-tips.test.js
 
@@ -46,56 +49,76 @@ useStorage();
 const { resetTab, tabs } = await import("../support/easytiles.js");
 const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed, knobOptions, optionTips } =
   await import("../support/easyknobs.js");
-const signals = await import("../../../hqptuner/static/store/signals.js");
+const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-// The knob the seed below GIVES a tip, and the knob it gives none. Preset ids
-// and knob ids are wire identifiers, stated outright — but which shipped knobs
-// carry a tip is not read here at all, because the copy every case renders is
-// this file's own. That the SHIPPED data carries a tip on `concert-hall`'s
-// `correction` knob and none on `purist`'s `emphasis` is pinned against
-// /api/metadata, in tests/api/test_metadata_easy_copy.py.
-const TIPPED = { preset: "concert-hall", knob: "correction" };
-const UNTIPPED = { preset: "purist", knob: "emphasis" };
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
 
-// Stand-in copy, never compared against what ships: one knob given a label and a
-// tip, one given a label and no tip. The label and the tip are DIFFERENT
-// sentences on purpose, and the tip is compared against this constant rather
-// than read for being non-empty — a card rendering the knob's label into its
-// description says something, and saying something is not the behavior.
+/** @type {Preset[]} */
+const PRESETS = presetsFor();
+
+// Every knob every tile offers at rest: each preset's knobs sitting at their
+// `default`, read through `knobsShown()` so a knob whose `when` hides it at rest
+// is not expected of the tile. Preset ids and knob ids are wire identifiers.
+
+/** @type {{ preset: string, knob: Knob }[]} */
+const RESTING = PRESETS.flatMap((preset) => {
+  const resting = Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
+  return knobsShown(preset, resting).map((knob) => ({ preset: String(preset.id), knob }));
+});
+
+// Stand-in copy, never compared against what ships. The label and the tip are
+// DIFFERENT sentences on purpose, and the tip is compared against this constant
+// rather than read for being non-empty: a card rendering the knob's label into
+// its description says something, and saying something is not the behavior.
+const KNOB_LABEL = "A stand-in label.";
 const KNOB_TIP = "A stand-in tip, seeded by the suite.";
-const COPY = {
-  [TIPPED.preset]: {
-    knobs: { [TIPPED.knob]: { label: "A stand-in label.", tip: KNOB_TIP } },
-  },
-  [UNTIPPED.preset]: { knobs: { [UNTIPPED.knob]: { label: "A stand-in label." } } },
-};
 
-/** The card seeded with that copy — what every case here renders. */
-const seeded = () => resetTab({ mode: "pcm", copy: COPY });
+/**
+ * The payload giving one knob a label and a tip, at the `easy.<presetId>` shape.
+ *
+ * @param {string} preset
+ * @param {string} knob
+ * @returns {Record<string, object>}
+ */
+const tipped = (preset, knob) => ({ [preset]: { knobs: { [knob]: { label: KNOB_LABEL, tip: KNOB_TIP } } } });
+
+/**
+ * The payload giving one knob a label and no tip.
+ *
+ * @param {string} preset
+ * @param {string} knob
+ * @returns {Record<string, object>}
+ */
+const untipped = (preset, knob) => ({ [preset]: { knobs: { [knob]: { label: KNOB_LABEL } } } });
 
 // ============================================================================
 // a knob given a tip
 // ============================================================================
 //
-// Named for the wiring, not for a shipped knob: what these two read is that a
-// knob handed a tip renders it and points at it, and the tip they meet is the
+// Named for the wiring, not for a shipped knob: what these read is that a knob
+// handed a tip renders it and points at it, and the tip they meet is the
 // stand-in seeded above.
 
-test("test_a_knob_given_a_tip_names_a_description_resolving_to_an_element_inside_that_knob", async () => {
-  await seeded();
-  assert.notEqual(knobTip(tabs(), TIPPED.preset, TIPPED.knob), undefined);
-});
+for (const { preset, knob } of RESTING) {
+  const knobId = String(knob.id);
 
-test("test_a_knob_given_a_tip_renders_the_words_it_was_given", async () => {
-  await seeded();
-  assert.equal(knobTipText(tabs(), TIPPED.preset, TIPPED.knob), KNOB_TIP);
-});
+  test(`test_the_${preset}_${knobId}_knob_given_a_tip_names_a_description_resolving_to_an_element_inside_that_knob`, async () => {
+    await resetTab({ mode: "pcm", copy: tipped(preset, knobId) });
+    assert.notEqual(knobTip(tabs(), preset, knobId), undefined);
+  });
+
+  test(`test_the_${preset}_${knobId}_knob_given_a_tip_renders_the_words_it_was_given`, async () => {
+    await resetTab({ mode: "pcm", copy: tipped(preset, knobId) });
+    assert.equal(knobTipText(tabs(), preset, knobId), KNOB_TIP);
+  });
+}
 
 // ============================================================================
-// the knob that carries none
+// a knob given none
 // ============================================================================
 //
-// A knob with no guidance to give describes itself with nothing — rather than
+// A knob with no guidance to give describes itself with nothing, rather than
 // with an empty element, which a reader would announce as a description that is
 // there and says nothing.
 //
@@ -105,26 +128,30 @@ test("test_a_knob_given_a_tip_renders_the_words_it_was_given", async () => {
 // had never learned this wiring would pass a bare `aria-describedby` reading
 // while failing this one.
 
-test("test_a_knob_with_no_tip_names_no_description", async () => {
-  await seeded();
-  assert.deepEqual(
-    [knobHasGroup(tabs(), UNTIPPED.preset, UNTIPPED.knob), knobDescribedBy(tabs(), UNTIPPED.preset, UNTIPPED.knob)],
-    [true, undefined],
-  );
-});
+for (const { preset, knob } of RESTING) {
+  const knobId = String(knob.id);
 
-// ============================================================================
-// every knob is named, tip or no tip
-// ============================================================================
-//
-// The name is unconditional and only the description is conditional, so the knob
-// WITHOUT a tip is the one this is read on: a group that got its name from its
-// tip would fail here while passing on the tipped knob above.
+  test(`test_the_${preset}_${knobId}_knob_given_no_tip_names_no_description`, async () => {
+    await resetTab({ mode: "pcm", copy: untipped(preset, knobId) });
+    assert.deepEqual(
+      [knobHasGroup(tabs(), preset, knobId), knobDescribedBy(tabs(), preset, knobId)],
+      [true, undefined],
+    );
+  });
 
-test("test_a_knob_group_is_named_whether_or_not_it_carries_a_tip", async () => {
-  await seeded();
-  assert.equal(knobIsNamed(tabs(), UNTIPPED.preset, UNTIPPED.knob), true);
-});
+  // ==========================================================================
+  // every knob is named, tip or no tip
+  // ==========================================================================
+  //
+  // The name is unconditional and only the description is conditional, so it is
+  // read on the knob WITHOUT a tip: a group that got its name from its tip would
+  // fail here while passing on the tipped seed above.
+
+  test(`test_the_${preset}_${knobId}_knob_group_is_named_when_it_carries_no_tip`, async () => {
+    await resetTab({ mode: "pcm", copy: untipped(preset, knobId) });
+    assert.equal(knobIsNamed(tabs(), preset, knobId), true);
+  });
+}
 
 // ============================================================================
 // a tip on every POSITION of a knob
@@ -133,40 +160,28 @@ test("test_a_knob_group_is_named_whether_or_not_it_carries_a_tip", async () => {
 // Beside the one sentence a knob as a whole may carry, each POSITION of a knob
 // may carry its own: hover a position and you are told what that position
 // selects. The words ride on /api/metadata beside the tile copy, under
-// `easy.tips.<knobId>.<optionId>` — the shape tests/api/test_metadata_easy_tips.py
+// `easy.tips.<knobId>.<optionId>`, the shape tests/api/test_metadata_easy_tips.py
 // pins against the shipped file.
 //
 // WHAT THESE CASES SEED IS THEIR OWN, as everywhere else in this file: the
 // harness replaces the whole payload on every reset, so the tips a case meets
-// are the ones it put there and never the owner's. What the SHIPPED file
-// carries for each knob — which is the other half of the behavior, and the half
-// no seeded case can see — is pinned in Python.
+// are the ones it put there and never the owner's.
 //
-// THE POSITION LIST IS NEVER STATED. Each case reads the positions the knob
-// offers, seeds a tip for each of them, and then reads back what each position
-// is described by; a knob that gains or loses a position needs no edit here, and
-// the answer is compared against the offer rather than against a list. That the
-// offer is not EMPTY rides in the same assertion, since a knob rendering no
-// positions at all would otherwise answer every question here with agreement.
+// THE POSITION LIST IS NEVER STATED. Each case seeds a tip for every position
+// the knob's `options` declare, then reads back what each position the tile
+// OFFERS is described by; a knob that gains or loses a position needs no edit
+// here, and the answer is compared against the offer rather than against a
+// list. That the offer is not EMPTY rides in the same assertion, since a knob
+// rendering no positions at all would otherwise answer every question here with
+// agreement.
 //
 // EACH POSITION'S TIP NAMES THAT POSITION, and the comparison is against those
 // exact sentences rather than against "something": a card rendering a position's
 // LABEL into its description, or one sentence over every position of a knob,
 // says something at every position and is a different card from this one.
 
-// The knobs the shipped file gives per-position copy to, each read on a tile
-// that carries it, and the knob it gives none. Preset ids and knob ids are wire
-// identifiers, stated outright. `material` is not among them: its copy is not
-// written yet, and a stand-in seeded for it here would be read as a knob that
-// has copy.
-const PER_POSITION = [
-  { preset: "purist", knob: "emphasis" },
-  { preset: "concert-hall", knob: "version" },
-];
-const NO_POSITIONS = { preset: "concert-hall", knob: "correction" };
-
 /**
- * The stand-in sentence one position is seeded with — its own, so that a tip
+ * The stand-in sentence one position is seeded with, its own, so that a tip
  * arriving at the wrong position is a different answer from the right one.
  *
  * @param {string | undefined} value
@@ -175,60 +190,53 @@ const NO_POSITIONS = { preset: "concert-hall", knob: "correction" };
 const positionTip = (value) => `A stand-in tip for the ${value} position, seeded by the suite.`;
 
 /**
- * The card rendered with a stand-in tip on every position of each knob in
- * `PER_POSITION`, and none anywhere else — the payload's `easy.tips` block, at
- * the shape /api/metadata serves it. The positions are read off a first render
- * so that no case here names one.
+ * The payload giving every position a knob declares its own tip, at the
+ * `easy.tips` shape, and nothing else.
  *
- * @returns {Promise<string>}
+ * @param {Knob} knob
+ * @returns {Record<string, object>}
  */
-async function withPositionTips() {
-  await resetTab({ mode: "pcm" });
-  const first = tabs();
-  const tips = Object.fromEntries(
-    PER_POSITION.map(({ preset, knob }) => [
-      knob,
-      Object.fromEntries(knobOptions(first, preset, knob).map((v) => [v, positionTip(v)])),
-    ]),
-  );
-  signals.metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-    easy: { tips },
-  };
-  return tabs();
-}
+const positionTips = (knob) => ({
+  tips: { [String(knob.id)]: Object.fromEntries(knob.options.map((v) => [String(v), positionTip(String(v))])) },
+});
 
-for (const { preset, knob } of PER_POSITION) {
-  test(`test_every_position_the_${knob}_knob_offers_is_described_by_its_own_tip`, async () => {
-    const out = await withPositionTips();
-    const offered = knobOptions(out, preset, knob);
+for (const { preset, knob } of RESTING) {
+  const knobId = String(knob.id);
+
+  test(`test_every_position_the_${preset}_${knobId}_knob_offers_is_described_by_its_own_tip`, async () => {
+    await resetTab({ mode: "pcm", copy: positionTips(knob) });
+    const out = tabs();
+    const offered = knobOptions(out, preset, knobId);
     assert.deepEqual(
-      [optionTips(out, preset, knob), offered.length > 0],
+      [optionTips(out, preset, knobId), offered.length > 0],
       [Object.fromEntries(offered.map((v) => [v, positionTip(v)])), true],
     );
   });
 }
 
 // ============================================================================
-// the knob given no per-position copy
+// a knob given no per-position copy
 // ============================================================================
 //
 // This is the case that kills a card describing every position whatever the
-// payload says. It is read in the same render as the three above, so "no
-// position here is described" is answered in a card where positions demonstrably
-// are — and the knob it is read on is one the seed above hands nothing, never a
-// fact about which knobs ship copy.
+// payload says. The knob is seeded its GROUP tip and nothing per position, so
+// "no position here is described" is read on a card that demonstrably carries
+// copy for the knob, and a card spreading the group's sentence over each
+// position fails by naming the positions it described.
 //
 // The positions come from the offer, so this names none of them either, and the
 // offer's non-emptiness rides along for the same reason it does above.
 
-test("test_a_knob_given_no_per_position_copy_describes_none_of_its_positions", async () => {
-  const out = await withPositionTips();
-  const offered = knobOptions(out, NO_POSITIONS.preset, NO_POSITIONS.knob);
-  assert.deepEqual(
-    [optionTips(out, NO_POSITIONS.preset, NO_POSITIONS.knob), offered.length > 0],
-    [Object.fromEntries(offered.map((v) => [v, ""])), true],
-  );
-});
+for (const { preset, knob } of RESTING) {
+  const knobId = String(knob.id);
+
+  test(`test_the_${preset}_${knobId}_knob_given_no_per_position_copy_describes_none_of_its_positions`, async () => {
+    await resetTab({ mode: "pcm", copy: tipped(preset, knobId) });
+    const out = tabs();
+    const offered = knobOptions(out, preset, knobId);
+    assert.deepEqual(
+      [optionTips(out, preset, knobId), offered.length > 0],
+      [Object.fromEntries(offered.map((v) => [v, ""])), true],
+    );
+  });
+}

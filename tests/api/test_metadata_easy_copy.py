@@ -7,13 +7,11 @@ tests/api/test_metadata_easy.py and tests/api/test_easy_descriptions.py pin). A
 tile whose entry is missing renders with nothing on it, so the entry is the
 behavior.
 
-A KNOB'S TIP rides in the same entry, under `knobs.<knobId>.tip` — the sentence
+A KNOB'S TIP rides in the same entry, under `knobs.<knobId>.tip`, the sentence
 of guidance a tipped knob is described by. Only SOME knobs carry one, and which
-do is a fact about the shipped file: the frontend suite renders its own stand-in
-copy (tests/js/components/easytiles-tips.test.js seeds it, so that the wiring is
-read without meeting a word the owner owns), which leaves nothing over there
-saying that any shipped knob has a tip at all. That is what the knob case below
-is for. Which knobs ship NO tip is the owner's call and is asserted nowhere.
+do is the owner's call: it is asserted nowhere, here or in the frontend suite
+(tests/js/components/easytiles-tips.test.js seeds its own stand-in copy on every
+knob, so that the wiring is read without meeting a word the owner owns).
 
 WHICH TILES EXIST is the owner's curated list and is not stated here either
 (docs/testing.md rule 9): the title and description sweeps read the preset ids
@@ -21,7 +19,7 @@ off the served payload and ask a property of every one.
 
 DAMAGE CONTROL'S `material` KNOB IS NOT READ HERE. Its copy is not written yet,
 so there is nothing to assert about it and nothing may be invented; what that
-knob WRITES is pinned in tests/js/store/easy-damage-control.test.js and what it
+knob WRITES is pinned in tests/js/store/easy.test.js and what it
 offers in tests/js/components/easytiles-positions.test.js, both over wire
 identifiers alone.
 
@@ -42,10 +40,6 @@ from fastapi.testclient import TestClient
 # comment. Every other key is a preset entry.
 BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
 
-# The knob that ships a tip. Preset id and knob id are wire identifiers, stated
-# outright.
-TIPPED = ("concert-hall", "correction")
-
 
 def _easy(client: TestClient) -> dict[str, object]:
     payload = cast("dict[str, object]", client.get("/api/metadata").json())
@@ -59,15 +53,6 @@ def _entries(client: TestClient) -> dict[str, dict[str, object]]:
         for preset, entry in _easy(client).items()
         if preset not in BESIDE_THE_PRESETS
     }
-
-
-def _entry(client: TestClient, preset: str) -> dict[str, object]:
-    return cast("dict[str, object]", _easy(client).get(preset, {}))
-
-
-def _tip(client: TestClient, preset: str, knob: str) -> str:
-    knobs = cast("dict[str, object]", _entry(client, preset).get("knobs", {}))
-    return str(cast("dict[str, object]", knobs.get(knob, {})).get("tip", "")).strip()
 
 
 def _says_nothing(entry: dict[str, object], field: str) -> bool:
@@ -88,7 +73,3 @@ def test_every_tile_carries_a_description_that_says_something(api_client: TestCl
     entries = _entries(api_client)
     offenders = [preset for preset, entry in entries.items() if _says_nothing(entry, "description")]
     assert offenders == []
-
-
-def test_the_concert_hall_correction_knob_ships_a_tip_that_says_something(api_client: TestClient) -> None:
-    assert _tip(api_client, *TIPPED) != ""

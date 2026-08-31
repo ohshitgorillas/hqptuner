@@ -60,7 +60,7 @@ const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../suppor
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
 const { pipsFor } = await import("../../../hqptuner/static/store/easycost.js");
-const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
+const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
@@ -162,63 +162,59 @@ for (const preset of PRESETS.filter((p) => !p.costText)) {
 //
 // A tile draws what the module answers FOR ITS OWN KNOB POSITIONS, which is a
 // claim about the card carrying the positions through rather than about any
-// number. One case per knob that moves a count: emphasis, material, correction.
+// number. One case per preset, per knob that preset offers at rest, per output
+// chain: a card that carried one knob through and dropped another, or carried
+// them on one chain only, fails by naming the tile, the knob and the chain.
 // Positions are recorded through `rememberKnobs`, the public way a knob's
 // position is put on record, and AFTER the reset because the reset clears it.
 //
-// THE POSITION RECORDED IS DERIVED, NOT TYPED: it is whichever of the knob's
-// options is not the one it rests on, asked of the shipped table. Typed out, a
-// case here would quietly become a restatement of the resting case the day the
-// owner flipped that knob's default — and a card that ignored the recorded
-// positions entirely would go on passing it. Derived, the contrast between the
-// recorded position and the resting one holds by construction.
+// NO PRESET IS NAMED TO STAND FOR A KNOB. Which presets carry which knobs is
+// owner data, so the pairs are swept off the shipped table: every preset
+// `presetsFor` declares, and for each the knobs `knobsShown` offers at its
+// resting positions, since a knob hidden at rest is not one the tile can be
+// recorded off. A knob offering no position but its default generates no case.
 //
-// Knob ids are wire identifiers and are named; the positions themselves come
-// from the table, and no word of any knob's copy is read.
+// THE POSITION RECORDED IS DERIVED, NOT TYPED: it is the first of the knob's
+// options that is not the one it rests on, asked of the shipped table. Typed
+// out, a case here would quietly become a restatement of the resting case the
+// day the owner flipped that knob's default, and a card that ignored the
+// recorded positions entirely would go on passing it. Derived, the contrast
+// between the recorded position and the resting one holds by construction.
+//
+// THE POSITIONS ARE THE WHOLE SET, the resting ones with that one knob moved,
+// on both sides of the reading: what is recorded and what `pipsFor` is asked
+// about. A tile passes all of its knob positions (see the header), so asking
+// the module about the moved knob alone would read the tile against a
+// different question, and the two do not agree wherever another knob's
+// resting position carries a cost of its own.
 
 /**
- * The knobs record putting one knob of one preset on the position it does NOT
- * rest on, as the shipped table declares its options and its default.
+ * Every (preset, knob) pair the shipped table offers at rest, each with the
+ * knob positions putting that one knob on the first position it does NOT rest
+ * on and every other knob on its default. Pairs whose knob offers no other
+ * position are left out.
  *
- * A knob offering anything but exactly one position off its default throws
- * rather than picking one: "there is no single other position" and "the tile
- * drew the wrong number" are different failures and must not read the same.
- *
- * @param {string} presetId
- * @param {string} knobId
- * @returns {Record<string, string>}
+ * @returns {{ preset: Preset, knob: Knob, knobs: Record<string, string> }[]}
  */
-function awayFromDefault(presetId, knobId) {
-  const preset = PRESETS.filter((p) => p.id === presetId)[0];
-  if (preset === undefined) throw new Error(`the shipped table names no "${presetId}" preset`);
-  const knob = preset.knobs.filter((k) => k.id === knobId)[0];
-  if (knob === undefined) throw new Error(`the "${presetId}" preset carries no "${knobId}" knob`);
-  const away = knob.options.filter((option) => option !== knob.default);
-  if (away.length !== 1)
-    throw new Error(`the "${presetId}" preset's "${knobId}" knob offers ${away.length} positions off its default`);
-  return { [knobId]: away[0] };
+const movedPairs = () =>
+  PRESETS.flatMap((preset) =>
+    /** @type {Knob[]} */ (knobsShown(preset, resting(preset)))
+      .map((knob) => ({ preset, knob, away: knob.options.filter((option) => option !== knob.default) }))
+      .filter(({ away }) => away.length > 0)
+      .map(({ preset: p, knob, away }) => ({ preset: p, knob, knobs: { ...resting(p), [knob.id]: away[0] } })),
+  );
+
+const CHAINS = ["pcm", "sdm"];
+
+for (const { preset, knob, knobs } of movedPairs()) {
+  for (const chain of CHAINS) {
+    test(`test_a_${preset.id}_tile_recorded_off_its_${knob.id}_default_draws_what_that_position_costs_on_the_${chain}_chain`, async () => {
+      await resetTab({ mode: chain });
+      rememberKnobs(preset.id, knobs);
+      assert.equal(pipCount(tabs(), preset.id), pipsFor(preset.id, chain, knobs));
+    });
+  }
 }
-
-test("test_a_perfect_ten_tile_recorded_off_its_emphasis_default_draws_what_that_position_costs_on_the_pcm_chain", async () => {
-  const knobs = awayFromDefault("perfect-ten", "emphasis");
-  await resetTab({ mode: "pcm" });
-  rememberKnobs("perfect-ten", knobs);
-  assert.equal(pipCount(tabs(), "perfect-ten"), pipsFor("perfect-ten", "pcm", knobs));
-});
-
-test("test_a_damage_control_tile_recorded_off_its_material_default_draws_what_that_material_costs_on_the_pcm_chain", async () => {
-  const knobs = awayFromDefault("damage-control", "material");
-  await resetTab({ mode: "pcm" });
-  rememberKnobs("damage-control", knobs);
-  assert.equal(pipCount(tabs(), "damage-control"), pipsFor("damage-control", "pcm", knobs));
-});
-
-test("test_a_concert_hall_tile_recorded_off_its_correction_default_draws_what_that_position_costs_on_the_sdm_chain", async () => {
-  const knobs = awayFromDefault(TILE, "correction");
-  await resetTab({ mode: "sdm" });
-  rememberKnobs(TILE, knobs);
-  assert.equal(pipCount(tabs(), TILE), pipsFor(TILE, "sdm", knobs));
-});
 
 // ============================================================================
 // the LIVE lane
