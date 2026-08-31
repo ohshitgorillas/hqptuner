@@ -278,6 +278,27 @@
         "title": "ProfileBody",
         "type": "object"
       },
+      "SaveBody": {
+        "description": "Which settings ``PUT /api/livepresets/{name}`` stores; None keeps everything the engine reports.",
+        "properties": {
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "title": "SaveBody",
+        "type": "object"
+      },
       "SaveTarget": {
         "description": "Name the preset a successful apply persists into \u2014 nested under ``ApplyBody.save``.",
         "properties": {
@@ -1069,6 +1090,27 @@
         "summary": "Live Presets"
       }
     },
+    "/api/livepresets/snapshot": {
+      "get": {
+        "description": "Return what a save would store right now, per setting with its display name \u2014 what the save popover lists.\n\n409 when the loaded chain is unknowable, the same refusal a save gives.",
+        "operationId": "live_snapshot_api_livepresets_snapshot_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Snapshot Api Livepresets Snapshot Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live Snapshot"
+      }
+    },
     "/api/livepresets/{name}": {
       "delete": {
         "description": "Remove a saved live preset from the store, leaving the running engine untouched.\n\n404 when no preset is saved under the name.",
@@ -1111,7 +1153,7 @@
         "summary": "Delete Live Preset"
       },
       "put": {
-        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\n409 when the loaded chain is unknowable \u2014 the record would claim a chain it never captured.",
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live preset setting.",
         "operationId": "save_live_preset_api_livepresets__name__put",
         "parameters": [
           {
@@ -1124,6 +1166,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SaveBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
