@@ -131,12 +131,13 @@ function Grid({ lane }) {
           // Knobs follow the marking a tile carries: the selected tile shows
           // where the staged filters put them, a tile that is only active shows
           // where the running ones do, and a dark tile falls back to its record.
-          // The card's knobs win on every tile, lit or dark: what the tile names
-          // and what a press writes follow the material the card says is playing.
+          // The card's knobs win on every tile that takes them, lit or dark: what
+          // the tile names and what a press writes follow the material the card
+          // says is playing. A preset without the knob is not handed it.
           let knobs = resting(preset);
           if (selected && picked) knobs = picked.knobs;
           else if (active && running) knobs = running.knobs;
-          knobs = { ...knobs, ...card };
+          for (const knob of preset.knobs) if (knob.card) knobs = { ...knobs, [knob.id]: card[knob.id] };
           return html`<${PresetTile}
             preset=${preset}
             lane=${lane}

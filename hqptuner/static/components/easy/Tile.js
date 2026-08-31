@@ -50,18 +50,22 @@ const HIRES_TIP =
  * Write one preset's filters at the given knob positions, through this page's lane.
  *
  * @param {string} lane
- * @param {string} presetId
+ * @param {Preset} preset
  * @param {Record<string, string>} knobs
  * @returns {Promise<void>}
  */
-async function applyPreset(lane, presetId, knobs) {
+async function applyPreset(lane, preset, knobs) {
   // Recorded before the write, not after: the positions are what the user asked
   // for, and a write that resolves no filter name still leaves the tile showing
   // where they put its knobs. Unconditional, so a press that writes nothing
-  // still moves the record.
-  rememberKnobs(presetId, knobs);
+  // still moves the record. The card's knobs are the card's, so the record
+  // keeps the tile's own.
+  const own = Object.fromEntries(
+    Object.entries(knobs).filter(([id]) => !preset.knobs.some((k) => k.card && k.id === id)),
+  );
+  rememberKnobs(preset.id, own);
   const l = easyLane(lane);
-  for (const [key, name] of Object.entries(writeSet(presetId, l.mode, knobs))) {
+  for (const [key, name] of Object.entries(writeSet(preset.id, l.mode, knobs))) {
     // A field already holding this filter is skipped. On LIVE every write is a
     // POST the engine acts on, so writing a value a field already holds reloads
     // that filter and interrupts playback to arrive where it already was.
@@ -135,8 +139,7 @@ function KnobRow({ preset, knob, knobs, lane }) {
         value=${knobs[knob.id]}
         options=${options}
         idBase=${base}
-        onChange=${(/** @type {string | number} */ v) =>
-          applyPreset(lane, preset.id, { ...knobs, [knob.id]: String(v) })}
+        onChange=${(/** @type {string | number} */ v) => applyPreset(lane, preset, { ...knobs, [knob.id]: String(v) })}
       />
     </div>
   `;
@@ -247,7 +250,7 @@ export function PresetTile({ preset, lane, selected, active, grayed, knobs }) {
       data-active=${active ? "1" : "0"}
       data-grayed=${grayed ? "1" : undefined}
     >
-      <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset.id, knobs)}>
+      <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset, knobs)}>
         <span class="easy-mark">
           <span class="easy-name">
             <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
