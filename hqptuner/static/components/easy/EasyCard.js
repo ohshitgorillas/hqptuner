@@ -27,6 +27,7 @@ import { Card } from "../common.js";
 import { knobsFor, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
 import { easyProse } from "../../store/prose.js";
 import { matchPreset, presetsFor } from "../../store/easy.js";
+import { presetOffered } from "../../store/easyoffer.js";
 import { easyLane, easyRunning } from "../../store/easylane.js";
 import { EasyHelp } from "./Help.js";
 import { PresetTile } from "./Tile.js";
@@ -70,6 +71,9 @@ const resting = (preset) => ({
 // a chain card shows up here on the same poll. The only thing remembered is
 // where a DARK tile's knobs sit, which the fields cannot say.
 //
+// The roster itself is not the whole table: a preset the engine's current state
+// gives no working path to is left out (store/easyoffer.js says which and why).
+//
 // TWO markings, from two readings of the same four fields. SELECTED is what the
 // grid has picked, staged edits folded in; ACTIVE is what the engine is running,
 // staged edits left out (store/easylane.js). On LIVE nothing stages and the two
@@ -85,23 +89,25 @@ function Grid({ lane }) {
   const running = matchPreset(r.values, r.mode);
   return html`
     <div class="easy-grid">
-      ${presetsFor().map((preset) => {
-        const selected = !!picked && picked.presetId === preset.id;
-        const active = !!running && running.presetId === preset.id;
-        // Knobs follow the marking a tile carries: the selected tile shows where
-        // the staged filters put them, a tile that is only active shows where
-        // the running ones do, and a dark tile falls back to its record.
-        let knobs = resting(preset);
-        if (selected && picked) knobs = picked.knobs;
-        else if (active && running) knobs = running.knobs;
-        return html`<${PresetTile}
-          preset=${preset}
-          lane=${lane}
-          selected=${selected}
-          active=${active}
-          knobs=${knobs}
-        />`;
-      })}
+      ${presetsFor()
+        .filter((preset) => presetOffered(preset, l.mode))
+        .map((preset) => {
+          const selected = !!picked && picked.presetId === preset.id;
+          const active = !!running && running.presetId === preset.id;
+          // Knobs follow the marking a tile carries: the selected tile shows
+          // where the staged filters put them, a tile that is only active shows
+          // where the running ones do, and a dark tile falls back to its record.
+          let knobs = resting(preset);
+          if (selected && picked) knobs = picked.knobs;
+          else if (active && running) knobs = running.knobs;
+          return html`<${PresetTile}
+            preset=${preset}
+            lane=${lane}
+            selected=${selected}
+            active=${active}
+            knobs=${knobs}
+          />`;
+        })}
     </div>
   `;
 }

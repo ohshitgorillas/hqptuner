@@ -354,7 +354,7 @@ export function filterFor(presetId, outputMode, knobs = {}, nx = false) {
  * @param {Preset} preset
  * @returns {Record<string, string>[]}
  */
-function combos(preset) {
+export function combos(preset) {
   /** @type {Record<string, string>[]} */
   let acc = [{}];
   for (const k of preset.knobs) {

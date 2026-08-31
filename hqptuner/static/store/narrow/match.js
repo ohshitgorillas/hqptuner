@@ -77,6 +77,30 @@ function ratioOf(f, fam) {
   return fam === "sdm" ? f.ratioSdm : f.ratioPcm;
 }
 
+// Rate-limited: the two classes that can produce nothing from a source rate
+// outside their own family. Unknown (null) is not limited — the same
+// positive-evidence rule the checks below narrow by.
+/**
+ * @param {FilterFacet} f
+ * @param {string|null} fam
+ * @returns {boolean}
+ */
+const limitedRatio = (f, fam) => ratioOf(f, fam) === "2x" || ratioOf(f, fam) === "integer";
+
+/**
+ * Whether a filter NAME is rate-limited on one chain. The name-keyed peer of
+ * the check above, for callers holding a filter name rather than a facet — a
+ * name carrying no facet record is not limited.
+ *
+ * @param {string} name
+ * @param {string|null} fam "pcm" | "sdm"
+ * @returns {boolean}
+ */
+export function rateLimited(name, fam) {
+  const f = filterFacets.value[name];
+  return !!f && limitedRatio(f, fam);
+}
+
 // Filter a filter-field option list by the active facets. Options whose name
 // carries no facet data pass through — narrowing hides only what it can
 // positively exclude. `current` is never hidden. The apodizing check reads the
@@ -118,7 +142,7 @@ const FACET_CHECKS = [
   // whose ratio class is unknown (null) is never hidden by them. The odd-rate
   // rule hides just the 2x class — integer filters can still reach HQPTuner's
   // tiers from an uncommon source rate (3x48k from 32 kHz), 2x-only ones can't.
-  (f, s) => !s.hideLimited || (ratioOf(f, s.family) !== "2x" && ratioOf(f, s.family) !== "integer"),
+  (f, s) => !s.hideLimited || !limitedRatio(f, s.family),
   (f, s) => !s.oddOnly || ratioOf(f, s.family) !== "2x",
   (f, s) => !s.downsafeOnly || !upsampleOf(f, s.family),
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
@@ -148,13 +172,19 @@ function dsd441Only(key) {
   return v === false || String(v) === "0";
 }
 
-export const rateAutoHide = computed(() => {
-  if (effective("output_mode") !== "sdm") return false;
+/**
+ * Whether the ACTIVE backend pins DSD output to the 44.1 kHz base. Output mode
+ * is deliberately not part of it: this is the backend's own state, and the two
+ * callers ask about it in different modes.
+ */
+export const dsd44kOnly = computed(() => {
   const backend = effective("backend");
   if (backend === "alsa") return dsd441Only("alsa_anydsd");
   if (backend === "network") return dsd441Only("net_anydsd");
   return false;
 });
+
+export const rateAutoHide = computed(() => effective("output_mode") === "sdm" && dsd44kOnly.value);
 
 /** Effective rate-limited hide — the user's override, or the auto default. */
 export const effHideLimited = computed(
