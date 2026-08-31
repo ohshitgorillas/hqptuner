@@ -24,7 +24,8 @@
 // its `data-knob` and a knob position by the `data-v` its option button
 // carries. Every title, description, note and label in the preset table is
 // owner copy, asserted nowhere, and nothing here is selected on a sentence.
-// Filter names are the other thing entirely — wire identifiers, stated outright.
+// Filter names are the owner's table too, so they are read out of `writeSet`
+// rather than typed.
 //
 // THE RENDERED CONTRACT these cases rest on:
 //   * `data-preset="<presetId>"` and `data-active="0"|"1"` on each tile BOX,
@@ -89,6 +90,14 @@ const {
   pressables,
 } = await import("../support/easytiles.js");
 
+// The preset table's public reader, imported the same way the harness is so
+// the fake storage is in place before any store module loads. Every filter
+// name this file seeds or expects is read out of it, never typed (rule 9).
+const { writeSet } = await import("../../../hqptuner/static/store/easy.js");
+
+/** @type {(presetId: string, knobs: Record<string, string>) => Record<string, string>} */
+const pcmSet = (presetId, knobs) => writeSet(presetId, "pcm", knobs);
+
 // ============================================================================
 // what the card lays out
 // ============================================================================
@@ -137,12 +146,14 @@ test("test_every_tile_is_marked_inactive_while_the_fields_carry_no_presets_write
 
 // The filter the retired `lossy` tile used to write, in the fields: it lights
 // `damage-control` now, that name being what its `material` knob writes at its
-// `lossy` position. A card still matching it to a tile of its own would light
-// nothing here, and a card matching it nowhere would light nothing either — so
-// the whole map is read, and names which tile came up.
+// `lossy` position, which is where it is read from. A card still matching it to
+// a tile of its own would light nothing here, and a card matching it nowhere
+// would light nothing either, so the whole map is read, and names which tile
+// came up.
 
 test("test_the_lossy_filter_in_the_fields_marks_the_damage_control_tile_active", async () => {
-  await resetTab({ mode: "pcm", names: seedPcm("poly-sinc-mqa/mp3-lp") });
+  const lossy = pcmSet("damage-control", { material: "lossy" }).pcm_filter_1x;
+  await resetTab({ mode: "pcm", names: seedPcm(lossy) });
   assert.deepEqual(activeMap(tabs()), oneLit("damage-control"));
 });
 
@@ -272,11 +283,9 @@ test("test_an_inactive_tiles_knob_shows_its_default_position", async () => {
 //
 // The owner's table for the two presets that carry both knobs, read through a
 // press: what lands in the daemon's two PCM filter fields at each of the four
-// `emphasis`/`material` combinations. Filter NAMES stated outright here, not
-// read back out of `writeSet` the way the routing cases above do — the names ARE
-// the behavior under revision, and deriving them would only ask the table to
-// agree with itself. Every one of them is confirmed present in the running
-// engine's filter enumeration.
+// `emphasis`/`material` combinations. The names come out of `writeSet` at the
+// lossless position of each emphasis (rule 9); what these cases pin is the
+// SHAPE of each write and which end of the chain it lands on.
 //
 // WHAT THE TWO MATERIAL POSITIONS DIFFER IN is the shape of the write, not only
 // the names: `lossless` writes a PAIR, the standard filter at 1x and the hi-res
@@ -301,26 +310,22 @@ const ONE_X_FIELD = "filter1x";
 //
 // Where the two knobs REST is one case, immediately below, and only one.
 
+/** @type {(presetId: string) => Record<string, string>} */
+const family = (presetId) => {
+  const space = pcmSet(presetId, { emphasis: "space", material: "lossless" });
+  const transients = pcmSet(presetId, { emphasis: "transients", material: "lossless" });
+  return {
+    spaceOneX: space.pcm_filter_1x,
+    spaceNx: space.pcm_filter_nx,
+    transientsOneX: transients.pcm_filter_1x,
+    transientsNx: transients.pcm_filter_nx,
+  };
+};
+
 /** @type {[string, Record<string, string>][]} */
 const FAMILIES = [
-  [
-    "perfect-ten",
-    {
-      spaceOneX: "poly-sinc-gauss-long",
-      spaceNx: "poly-sinc-gauss-hires-lp",
-      transientsOneX: "poly-sinc-gauss-medium",
-      transientsNx: "poly-sinc-gauss-hires-mp",
-    },
-  ],
-  [
-    "lifelike",
-    {
-      spaceOneX: "poly-sinc-ext2-long",
-      spaceNx: "poly-sinc-ext2-hires-lp",
-      transientsOneX: "poly-sinc-ext2-medium",
-      transientsNx: "poly-sinc-ext2-hires-mp",
-    },
-  ],
+  ["perfect-ten", family("perfect-ten")],
+  ["lifelike", family("lifelike")],
 ];
 
 // Where the two knobs rest, pressed through the tile body: a press writes the

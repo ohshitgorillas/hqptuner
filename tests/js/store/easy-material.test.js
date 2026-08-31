@@ -45,27 +45,35 @@ const pcmBoth = (name) => pcmPair(name, name);
 // what each combination of the two knobs writes
 // ============================================================================
 //
-// The owner's table, stated outright: filter names are wire identifiers and
-// deriving them from anything would only ask the table to agree with itself.
-// Read on the PCM chain, where the plain names live; neither preset defines a
-// `-2s` variant, which tests/js/store/easy.test.js pins as its own control.
+// Filter names are owner data (docs/testing.md rule 9), so the SHAPE is pinned
+// and the names are not: lossless is two different values, lossy is the
+// lossless Nx value on both ends. Read on the PCM chain; neither preset defines
+// a `-2s` variant, which tests/js/store/easy.test.js pins as its own control.
 
-/** @type {[string, string, string, Record<string, string>][]} */
+/** @type {[string, string, string][]} */
 const WRITES = [
-  ["perfect-ten", "space", "lossless", pcmPair("poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp")],
-  ["perfect-ten", "transients", "lossless", pcmPair("poly-sinc-gauss-medium", "poly-sinc-gauss-hires-mp")],
-  ["perfect-ten", "space", "lossy", pcmBoth("poly-sinc-gauss-hires-lp")],
-  ["perfect-ten", "transients", "lossy", pcmBoth("poly-sinc-gauss-hires-mp")],
-  ["lifelike", "space", "lossless", pcmPair("poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp")],
-  ["lifelike", "transients", "lossless", pcmPair("poly-sinc-ext2-medium", "poly-sinc-ext2-hires-mp")],
-  ["lifelike", "space", "lossy", pcmBoth("poly-sinc-ext2-hires-lp")],
-  ["lifelike", "transients", "lossy", pcmBoth("poly-sinc-ext2-hires-mp")],
+  ["perfect-ten", "space", "lossless"],
+  ["perfect-ten", "transients", "lossless"],
+  ["perfect-ten", "space", "lossy"],
+  ["perfect-ten", "transients", "lossy"],
+  ["lifelike", "space", "lossless"],
+  ["lifelike", "transients", "lossless"],
+  ["lifelike", "space", "lossy"],
+  ["lifelike", "transients", "lossy"],
 ];
 
-for (const [presetId, emphasis, material, expected] of WRITES) {
-  test(`test_${presetId}_on_${emphasis}_with_${material}_material_writes_that_pair_to_the_pcm_chain`, () => {
-    assert.deepEqual(writeSet(presetId, "pcm", { emphasis, material }), expected);
-  });
+for (const [presetId, emphasis, material] of WRITES) {
+  if (material === "lossless") {
+    test(`test_${presetId}_on_${emphasis}_with_lossless_material_writes_two_different_filters_to_the_pcm_chain`, () => {
+      const out = writeSet(presetId, "pcm", { emphasis, material });
+      assert.notEqual(out[PCM_1X], out[PCM_NX]);
+    });
+  } else {
+    test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_the_lossless_nx_filter_to_both_pcm_ends`, () => {
+      const lossless = writeSet(presetId, "pcm", { emphasis, material: "lossless" });
+      assert.deepEqual(writeSet(presetId, "pcm", { emphasis, material }), pcmBoth(lossless[PCM_NX]));
+    });
+  }
 }
 
 // ============================================================================
@@ -74,21 +82,20 @@ for (const [presetId, emphasis, material, expected] of WRITES) {
 //
 // A call naming the emphasis and leaving the material out answers with the
 // lossless pair, so `lossless` is where a fresh tile stands — the position that
-// keeps what the user has. Read against the pair outright rather than against a
-// second `writeSet` call, which would only ask the module to agree with itself.
-// One case per preset, because each names its own family's pair.
+// keeps what the user has. Read against the explicit lossless call at the same
+// emphasis. One case per preset, because each names its own family's pair.
 
-test("test_a_perfect_ten_call_that_names_no_material_writes_the_lossless_pair", () => {
+test("test_a_perfect_ten_call_that_names_no_material_writes_what_lossless_writes", () => {
   assert.deepEqual(
     writeSet("perfect-ten", "pcm", { emphasis: "space" }),
-    pcmPair("poly-sinc-gauss-long", "poly-sinc-gauss-hires-lp"),
+    writeSet("perfect-ten", "pcm", { emphasis: "space", material: "lossless" }),
   );
 });
 
-test("test_a_lifelike_call_that_names_no_material_writes_the_lossless_pair", () => {
+test("test_a_lifelike_call_that_names_no_material_writes_what_lossless_writes", () => {
   assert.deepEqual(
     writeSet("lifelike", "pcm", { emphasis: "space" }),
-    pcmPair("poly-sinc-ext2-long", "poly-sinc-ext2-hires-lp"),
+    writeSet("lifelike", "pcm", { emphasis: "space", material: "lossless" }),
   );
 });
 
@@ -124,16 +131,17 @@ const SDM_NX = "sdm_filter_nx";
 /** @param {string} name One filter name on both ends of both chains. */
 const everyChain = (name) => ({ [PCM_1X]: name, [PCM_NX]: name, [SDM_1X]: name, [SDM_NX]: name });
 
-/** @type {[string, string, string][]} */
+/** @type {[string, string][]} */
 const LOSSY_ON_AUTO = [
-  ["perfect-ten", "space", "poly-sinc-gauss-hires-lp"],
-  ["perfect-ten", "transients", "poly-sinc-gauss-hires-mp"],
-  ["lifelike", "space", "poly-sinc-ext2-hires-lp"],
-  ["lifelike", "transients", "poly-sinc-ext2-hires-mp"],
+  ["perfect-ten", "space"],
+  ["perfect-ten", "transients"],
+  ["lifelike", "space"],
+  ["lifelike", "transients"],
 ];
 
-for (const [presetId, emphasis, name] of LOSSY_ON_AUTO) {
-  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_its_hires_filter_to_all_four_fields`, () => {
-    assert.deepEqual(writeSet(presetId, "auto", { emphasis, material: "lossy" }), everyChain(name));
+for (const [presetId, emphasis] of LOSSY_ON_AUTO) {
+  test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_one_filter_to_all_four_fields`, () => {
+    const out = writeSet(presetId, "auto", { emphasis, material: "lossy" });
+    assert.deepEqual(out, everyChain(out[PCM_1X]));
   });
 }

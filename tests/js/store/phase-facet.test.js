@@ -19,15 +19,12 @@
 // snapshots. Live enum items are hand-built in the engine's own shape
 // (`{index, name, value, arg, description, apodizing, static}`); the `static`
 // member is the backend-merged overlay row, seeded directly the way the
-// backend would have joined it. The data-contract cases at the bottom read the
-// REAL hqptuner/data/filters.json, pinning that the shipped overlay carries
-// the `phase` fields the fallback needs — specific named fields, never a dump.
+// backend would have joined it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/phase-facet.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { filterFacets } from "../../../hqptuner/static/store/narrow/facets.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
@@ -161,88 +158,4 @@ test("test_a_static_only_filter_takes_phase_from_its_overlay_entry", () => {
 test("test_a_static_only_filter_name_token_beats_its_overlay_phase", () => {
   seed([item("poly-sinc-hb", 0)], { "poly-sinc-short-mp": { phase: "linear" } });
   assert.equal(phaseOf("poly-sinc-short-mp"), "minimum");
-});
-
-// --- data contract: the shipped overlay carries what the fallback needs -------
-// Read the real file; assert named fields with known meaning, never the whole
-// structure. Each case reports its full offender list so a failure names every
-// missing or stray field at once — still one condition per test.
-
-/** @type {{ filters: Record<string, OverlayRow> }} */
-const DATA = JSON.parse(readFileSync(new URL("../../../hqptuner/data/filters.json", import.meta.url), "utf8"));
-
-const LINEAR_NAMES = [
-  "poly-sinc-ext",
-  "poly-sinc-ext2",
-  "poly-sinc-ext2-short",
-  "poly-sinc-ext2-medium",
-  "poly-sinc-ext2-long",
-  "poly-sinc-ext2-xl",
-  "poly-sinc-ext2-xla",
-  "poly-sinc-gauss-short",
-  "poly-sinc-gauss-medium",
-  "poly-sinc-gauss-long",
-  "poly-sinc-gauss-xl",
-  "poly-sinc-gauss-xla",
-  "poly-sinc-gauss-halfband",
-  "poly-sinc-gauss-halfband-s",
-  "poly-sinc-hb",
-  "poly-sinc-hb-xs",
-  "poly-sinc-hb-s",
-  "poly-sinc-hb-m",
-  "poly-sinc-hb-l",
-  "sinc-S",
-  "sinc-M",
-  "sinc-Mx",
-  "sinc-MG",
-  "sinc-MGa",
-  "sinc-L",
-  "sinc-Ls",
-  "sinc-Lm",
-  "sinc-Ll",
-  "sinc-Lh",
-  "sinc-short",
-  "sinc-medium",
-  "sinc-long",
-  "sinc-long-h",
-];
-
-test("test_every_shipped_tokenless_linear_filter_carries_phase_linear", () => {
-  const offenders = LINEAR_NAMES.filter((n) => DATA.filters[n]?.phase !== "linear");
-  assert.deepEqual(offenders, []);
-});
-
-test("test_shipped_minphaseFIR_carries_phase_minimum", () => {
-  assert.equal(DATA.filters["minphaseFIR"]?.phase, "minimum");
-});
-
-// The manual states no phase for asymFIR, IIR or IIR2, so nothing shipped is
-// classified intermediate at all.
-test("test_no_shipped_entry_carries_phase_intermediate", () => {
-  const offenders = Object.keys(DATA.filters).filter((n) => DATA.filters[n].phase === "intermediate");
-  assert.deepEqual(offenders, []);
-});
-
-test("test_shipped_phase_less_entries_carry_no_phase_key", () => {
-  const offenders = [
-    "none",
-    "ASRC",
-    "polynomial-1",
-    "polynomial-2",
-    "closed-form",
-    "closed-form-fast",
-    "closed-form-M",
-    "closed-form-16M",
-    "asymFIR",
-    "IIR",
-    "IIR2",
-    "FIR",
-    "FFT",
-  ].filter((n) => "phase" in (DATA.filters[n] ?? {}));
-  assert.deepEqual(offenders, []);
-});
-
-test("test_no_shipped_entry_with_a_phase_token_in_its_name_carries_a_phase_key", () => {
-  const offenders = Object.keys(DATA.filters).filter((n) => /-(lp|mp|ip)(-|$)/.test(n) && "phase" in DATA.filters[n]);
-  assert.deepEqual(offenders, []);
 });

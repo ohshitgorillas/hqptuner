@@ -51,16 +51,25 @@ def test_metadata_serves_a_plain_names_section_per_dropdown_kind(api_client: Tes
     assert {"filters", "dithers", "modulators"} <= set(_plain_names(api_client))
 
 
-def test_plain_names_covers_the_84_filter_names_of_both_chains(api_client: TestClient) -> None:
-    assert len(_entries(api_client, "filters")) == 84
+def test_the_filters_section_is_not_empty(api_client: TestClient) -> None:
+    assert _entries(api_client, "filters") != {}
 
 
 def test_a_known_engine_filter_name_is_annotated(api_client: TestClient) -> None:
     assert "poly-sinc-gauss-long" in _entries(api_client, "filters")
 
 
-def test_all_sixteen_two_stage_filter_names_are_annotated(api_client: TestClient) -> None:
-    assert len([name for name in _entries(api_client, "filters") if name.endswith("-2s")]) == 16
+def test_every_two_stage_filter_name_joins_a_served_base_name(api_client: TestClient) -> None:
+    # A "-2s" row annotates the two-stage variant of a base filter, so the name
+    # with "-2s" stripped must itself be a served key.
+    served = set(_entries(api_client, "filters"))
+    offenders = [name for name in served if name.endswith("-2s") and name[: -len("-2s")] not in served]
+    assert offenders == []
+
+
+def test_at_least_one_two_stage_filter_name_is_served(api_client: TestClient) -> None:
+    # Keeps the base-name join above from passing vacuously.
+    assert [name for name in _entries(api_client, "filters") if name.endswith("-2s")] != []
 
 
 @pytest.mark.parametrize("section", SECTIONS)

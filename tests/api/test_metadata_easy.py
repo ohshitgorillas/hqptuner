@@ -8,10 +8,11 @@ carries no `easy` section leaves the card with nothing to say.
 
 THE PRESETS SIT AT THE TOP LEVEL of that section, keyed by preset id: there is
 one set of tiles and no grid to key them under. What is pinned here is the KEYS
-— `easy`, its `notice`, and an entry per preset — and that the notice is a
-non-empty string. The notice's WORDING is owner-owned copy and is asserted
-nowhere (docs/testing.md rule 9): the owner may reword it without changing a
-single behavior.
+`easy` and its `notice`, that the notice is a non-empty string, and that the
+section carries at least one preset entry and every entry it carries is an
+object. WHICH presets exist is the owner's curated list and is asserted nowhere
+(docs/testing.md rule 9), as is the notice's WORDING: the owner may add a tile,
+drop one or reword the notice without changing a single behavior.
 
 Static loader data, so the guard-only `api_client` (no daemon behind it) is
 enough — same as tests/api/test_metadata_blurbs.py.
@@ -22,9 +23,12 @@ from typing import cast
 import pytest
 from fastapi.testclient import TestClient
 
-# The tiles the card lays out, by the ids the file is keyed by — wire
-# identifiers, contract like any other JSON key.
-PRESETS = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"]
+# The keys the section carries BESIDE its preset entries: the notice the card's
+# subtitle is drawn from, the help panel's copy
+# (tests/js/components/easytiles-help.test.js), the per-position tips block
+# (tests/api/test_metadata_easy_tips.py), and the file's own authoring comment.
+# Every other key is a preset entry.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
 
 
 def _payload(client: TestClient) -> dict[str, object]:
@@ -33,6 +37,11 @@ def _payload(client: TestClient) -> dict[str, object]:
 
 def _easy(client: TestClient) -> dict[str, object]:
     return cast("dict[str, object]", _payload(client)["easy"])
+
+
+def _entries(client: TestClient) -> dict[str, object]:
+    """The preset entries the section carries, keyed by preset id."""
+    return {key: value for key, value in _easy(client).items() if key not in BESIDE_THE_PRESETS}
 
 
 # --- the section reaches the frontend at all ----------------------------------
@@ -56,12 +65,18 @@ def test_the_notice_says_something(api_client: TestClient) -> None:
 # --- the notice arrives BESIDE the preset entries, not instead of them ---------
 #
 # The route serves the whole file, so a loader that learned to serve the notice
-# and dropped what was already there fails here rather than passing above.
+# and dropped what was already there fails here rather than passing above. Which
+# presets are served is the owner's list: the sweep reads the keys off the
+# payload and asks a property of every one, never which ones exist.
 
 
-@pytest.mark.parametrize("preset", PRESETS)
-def test_the_easy_section_carries_each_presets_entry(api_client: TestClient, preset: str) -> None:
-    assert preset in _easy(api_client)
+def test_the_easy_section_carries_at_least_one_preset_entry(api_client: TestClient) -> None:
+    assert _entries(api_client) != {}
+
+
+def test_every_preset_entry_the_easy_section_carries_is_an_object(api_client: TestClient) -> None:
+    offenders = [preset for preset, entry in _entries(api_client).items() if not isinstance(entry, dict)]
+    assert offenders == []
 
 
 # --- and nothing of the retired grids is left in it ----------------------------

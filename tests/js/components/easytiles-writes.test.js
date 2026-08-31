@@ -17,9 +17,10 @@
 // No store function of HQPTuner's is stubbed.
 //
 // NAMES, NOT WORDS (rule 9). Schema keys, the daemon's own form-field names,
-// preset ids, knob option ids and filter names are wire identifiers and are
-// stated outright. Nothing here asserts a title, a description or any other
-// piece of owner copy.
+// preset ids and knob option ids are wire identifiers and are stated outright.
+// Filter names are owner-curated data and are read back from `writeSet`, never
+// typed. Nothing here asserts a title, a description or any other piece of
+// owner copy.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-writes.test.js
 
@@ -49,6 +50,7 @@ const {
 } = await import("../support/easytiles.js");
 
 const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
+const { writeSet } = await import("../../../hqptuner/static/store/easy.js");
 
 // The schema key the fixture seeds a field by, and the daemon's own form-field
 // name that key is carried to — `pcm_filter_1x` is the 1x end of the PCM chain
@@ -61,10 +63,10 @@ const NX_FIELD = "filter";
 // `material` knob at all, so neither case can be disturbed by where that knob
 // comes to rest — what they are about is which fields a press writes and what it
 // records, not where a knob sits. Its `emphasis` position is stated outright
-// beside it, and so is the filter that position writes to both ends of the PCM
-// chain.
+// beside it; the filter that position writes to both ends of the PCM chain is
+// read off `writeSet`.
 const ONE_KNOB_TILE = "purist";
-const ONE_KNOB_SPACE = "poly-sinc-gauss-halfband";
+const ONE_KNOB_SPACE = writeSet(ONE_KNOB_TILE, "pcm", { emphasis: "space" }).pcm_filter_1x;
 
 // And the position that knob does NOT rest at, with the filter it names: what
 // the record case below seeds the fields with and presses at, so that the
@@ -72,12 +74,14 @@ const ONE_KNOB_SPACE = "poly-sinc-gauss-halfband";
 // DEFAULTS would have written.
 const ONE_KNOB_MOVED = { emphasis: "transients" };
 
-// And `lifelike`'s lossless pair — one name for each end of the chain — at its
-// `transients` emphasis and at its `space` one. Filter names are wire
-// identifiers, stated outright the way tests/js/components/easytiles.test.js
-// states them.
-const LOSSLESS_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
-const LOSSLESS_SPACE_NX = "poly-sinc-ext2-hires-lp";
+// And `lifelike`'s lossless pair, one name for each end of the chain, at its
+// `transients` emphasis and at its `space` one, read off `writeSet`.
+const LOSSLESS_TRANSIENTS_SET = writeSet("lifelike", "pcm", { emphasis: "transients", material: "lossless" });
+const LOSSLESS_TRANSIENTS = {
+  oneX: LOSSLESS_TRANSIENTS_SET.pcm_filter_1x,
+  nX: LOSSLESS_TRANSIENTS_SET.pcm_filter_nx,
+};
+const LOSSLESS_SPACE_NX = writeSet("lifelike", "pcm", { emphasis: "space", material: "lossless" }).pcm_filter_nx;
 
 // ============================================================================
 // a press that would change nothing writes nothing

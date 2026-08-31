@@ -33,26 +33,45 @@ const { resetTab, tabs } = await import("../support/easytiles.js");
 const { knobOptions, knobIds } = await import("../support/easyknobs.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
-// The three tiles that carry a `material` knob — the two flagships, which gained
-// it in place of the Source knob the revision retired, and Damage Control, which
-// gained it in place of the retired `lossy` tile. Preset ids and knob ids are
-// wire identifiers, stated outright.
-const MATERIAL_TILES = ["perfect-ten", "lifelike", "damage-control"];
+// The tiles that carry a `material` knob, read from `presetsFor()` rather than
+// named by hand: which presets carry which knobs is owner data (rule 9), and a
+// preset that gained or lost the knob is swept in or out here without a hand
+// edit. Preset ids and knob ids are wire identifiers, stated outright.
+
+/** @type {Array<{ id: string, knobs: Array<{ id: string }> }>} */
+const PRESETS = presetsFor();
+
+const MATERIAL_TILES = PRESETS.filter((preset) => preset.knobs.some((knob) => String(knob.id) === "material")).map(
+  (preset) => String(preset.id),
+);
+
+// Guard: a sweep over an empty list generates no cases and reads as green, so
+// the sweep's own precondition is one pin.
+
+test("test_at_least_one_preset_carries_a_material_knob", () => {
+  assert.equal(MATERIAL_TILES.length > 0, true);
+});
+
+/** @param {string} presetId */
+function declaredKnobIds(presetId) {
+  const preset = PRESETS.find((candidate) => String(candidate.id) === presetId);
+  return (preset ? preset.knobs : []).map((knob) => String(knob.id)).sort();
+}
 
 // ============================================================================
-// the two knobs each material tile carries
+// the knobs each material tile carries
 // ============================================================================
 //
-// Which knobs a tile carries AND the order it lays them out are one reading: a
-// tile whose second knob went missing and a tile that put it first are both
-// wrong, and both fail here by naming what that tile laid out. The order is the
-// spec's own — `emphasis` then `material` — and not a display detail this file
-// invented.
+// Which knobs a tile carries is read as a set against the knobs its preset
+// declares: a tile whose knob went missing, and a tile that laid out a knob its
+// preset never declared, both fail here by naming what that tile laid out. The
+// order the knobs are laid out in is the owner's (rule 9), so both sides are
+// sorted before comparing.
 
 for (const presetId of MATERIAL_TILES) {
-  test(`test_the_${presetId}_tile_carries_the_emphasis_knob_then_the_material_knob`, async () => {
+  test(`test_the_${presetId}_tile_carries_the_knobs_its_preset_declares`, async () => {
     await resetTab({ mode: "pcm" });
-    assert.deepEqual(knobIds(tabs(), presetId), ["emphasis", "material"]);
+    assert.deepEqual([...knobIds(tabs(), presetId)].sort(), declaredKnobIds(presetId));
   });
 
   // The knob's two positions, sorted rather than in the order they are laid out:

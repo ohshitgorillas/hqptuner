@@ -12,10 +12,12 @@ of guidance a tipped knob is described by. Only SOME knobs carry one, and which
 do is a fact about the shipped file: the frontend suite renders its own stand-in
 copy (tests/js/components/easytiles-tips.test.js seeds it, so that the wiring is
 read without meeting a word the owner owns), which leaves nothing over there
-saying that any shipped knob has a tip at all. That is what the two knob cases
-below are for, and they are read in BOTH directions — a knob that ships one and
-a knob that ships none — because a loader answering "yes" to everything and a
-loader answering "no" to everything each pass one half.
+saying that any shipped knob has a tip at all. That is what the knob case below
+is for. Which knobs ship NO tip is the owner's call and is asserted nowhere.
+
+WHICH TILES EXIST is the owner's curated list and is not stated here either
+(docs/testing.md rule 9): the title and description sweeps read the preset ids
+off the served payload and ask a property of every one.
 
 DAMAGE CONTROL'S `material` KNOB IS NOT READ HERE. Its copy is not written yet,
 so there is nothing to assert about it and nothing may be invented; what that
@@ -33,23 +35,34 @@ enough, same as tests/api/test_metadata_easy.py.
 
 from typing import cast
 
-import pytest
 from fastapi.testclient import TestClient
 
-# The tiles whose entries are read, by the ids the payload is keyed by — wire
-# identifiers, keys like any other.
-PRESETS = ["perfect-ten", "lifelike", "concert-hall", "purist", "old-school", "damage-control"]
+# The keys the section carries BESIDE its preset entries: the card's notice, the
+# help panel's copy, the per-position tips block and the file's own authoring
+# comment. Every other key is a preset entry.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
 
-# The knob that ships a tip, and the knob that ships none. Preset ids and knob
-# ids are wire identifiers too, stated outright.
+# The knob that ships a tip. Preset id and knob id are wire identifiers, stated
+# outright.
 TIPPED = ("concert-hall", "correction")
-UNTIPPED = ("purist", "emphasis")
+
+
+def _easy(client: TestClient) -> dict[str, object]:
+    payload = cast("dict[str, object]", client.get("/api/metadata").json())
+    return cast("dict[str, object]", payload["easy"])
+
+
+def _entries(client: TestClient) -> dict[str, dict[str, object]]:
+    """Every preset entry the section serves, keyed by preset id."""
+    return {
+        preset: cast("dict[str, object]", entry)
+        for preset, entry in _easy(client).items()
+        if preset not in BESIDE_THE_PRESETS
+    }
 
 
 def _entry(client: TestClient, preset: str) -> dict[str, object]:
-    payload = cast("dict[str, object]", client.get("/api/metadata").json())
-    easy = cast("dict[str, object]", payload["easy"])
-    return cast("dict[str, object]", easy.get(preset, {}))
+    return cast("dict[str, object]", _easy(client).get(preset, {}))
 
 
 def _tip(client: TestClient, preset: str, knob: str) -> str:
@@ -57,19 +70,19 @@ def _tip(client: TestClient, preset: str, knob: str) -> str:
     return str(cast("dict[str, object]", knobs.get(knob, {})).get("tip", "")).strip()
 
 
-@pytest.mark.parametrize("preset", PRESETS)
-def test_the_tile_carries_a_title_that_says_something(api_client: TestClient, preset: str) -> None:
-    assert str(_entry(api_client, preset).get("title", "")).strip() != ""
+def _says_nothing(entry: dict[str, object], field: str) -> bool:
+    return str(entry.get(field, "")).strip() == ""
 
 
-@pytest.mark.parametrize("preset", PRESETS)
-def test_the_tile_carries_a_description_that_says_something(api_client: TestClient, preset: str) -> None:
-    assert str(_entry(api_client, preset).get("description", "")).strip() != ""
+def test_every_tile_carries_a_title_that_says_something(api_client: TestClient) -> None:
+    offenders = [preset for preset, entry in _entries(api_client).items() if _says_nothing(entry, "title")]
+    assert offenders == []
+
+
+def test_every_tile_carries_a_description_that_says_something(api_client: TestClient) -> None:
+    offenders = [preset for preset, entry in _entries(api_client).items() if _says_nothing(entry, "description")]
+    assert offenders == []
 
 
 def test_the_concert_hall_correction_knob_ships_a_tip_that_says_something(api_client: TestClient) -> None:
     assert _tip(api_client, *TIPPED) != ""
-
-
-def test_the_purist_emphasis_knob_ships_no_tip(api_client: TestClient) -> None:
-    assert _tip(api_client, *UNTIPPED) == ""

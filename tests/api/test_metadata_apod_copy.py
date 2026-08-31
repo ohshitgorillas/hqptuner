@@ -2,17 +2,15 @@
 
 The class lives on the `apod` field (and the frontend badge that renders it), so
 no `family`, `variant` or `leaf` value anywhere in the filters section says
-"apodizing" any more. `short` is the exception: it carries the class as a ",
-apod" tail, which is a structural fact about that field rather than a sentence.
+"apodizing" any more. `short` is display copy and nothing here reads it.
 
 The display wording itself is owner-owned data and no test asserts it
-(docs/testing.md rule 9) — only the tail, and only its absence elsewhere.
+(docs/testing.md rule 9): only the field, and only the word's absence elsewhere.
 
 Served by the static loader, so the guard-only `api_client` (no daemon behind
-it) is enough — same as tests/api/test_metadata_plain_names.py.
+it) is enough, same as tests/api/test_metadata_plain_names.py.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -22,9 +20,9 @@ def _filter_entries(client: TestClient) -> dict[str, dict[str, object]]:
     return entries
 
 
-@pytest.mark.parametrize("name", ["poly-sinc-ext2-xla", "poly-sinc-gauss-xla", "sinc-MGa"])
-def test_an_apodizing_filters_short_name_keeps_its_apod_tail(api_client: TestClient, name: str) -> None:
-    assert str(_filter_entries(api_client)[name]["short"]).endswith(", apod")
+def test_some_served_filter_is_marked_apodizing_on_its_apod_field(api_client: TestClient) -> None:
+    marked = [name for name, entry in _filter_entries(api_client).items() if entry.get("apod") not in (None, "none")]
+    assert marked != []
 
 
 def test_no_filter_family_variant_or_leaf_still_says_apodizing(api_client: TestClient) -> None:

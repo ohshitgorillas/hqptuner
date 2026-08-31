@@ -7,18 +7,18 @@ below are the wire identifiers the 6.0.4 form fixture serves). Each entry maps
 a raw engine name to `family` (non-empty), `variant` (null throughout — these
 enumerations carry no variant axis), `leaf` and `short`; every family an entry
 names carries a blurb in its section's `families` map, and no blurb is an
-orphan. `noise_filter` holds three blurbs, `pcm_conversion` four.
+orphan.
 
-New here is the recommendation flag: exactly the entries named in REC carry
-`rec: true`, no other entry of these sections carries a `rec` key at all, and
-no entry of any other plain-names section carries one either.
+The recommendation flag: a `rec` key, where present, is the boolean `True`
+and nothing else, and no entry of any other plain-names section carries one.
+Which entries are recommended, and whether a section recommends any at all,
+is owner data and no test names them (docs/testing.md rule 9).
 
-Section key order is display order, so family runs are pinned contiguous —
-once a family's run ends, no later entry names it again — and a minimum-phase
-entry precedes its linear-phase peer (the filters-section convention: phase
-groups run minimum, intermediate, linear). Display wording is
-owner-owned data and no test asserts a label, family name or blurb string;
-`short` is pinned non-empty and unique per section.
+Section key order is display order, so family runs are pinned contiguous:
+once a family's run ends, no later entry names it again. The order of entries
+within a run is curation and not asserted. Display wording is owner-owned
+data and no test asserts a label, family name or blurb string; `short` is
+pinned non-empty and unique per section.
 
 Served by the static loader, so the guard-only `api_client` (no daemon behind
 it) is enough — same as tests/api/test_metadata_plain_names.py.
@@ -66,14 +66,6 @@ ENGINE_NAMES = {
         "poly-gauss-long",
         "none",
     },
-}
-
-REC = {
-    "noise_filter": {"standard", "low", "high-order", "wec2", "medium", "medium-high"},
-    # No pcm_conversion recommendations: only one option there is manual-flagged
-    # "Recommended.", and a lone recommended option is the default, not a
-    # recommendation among peers.
-    "pcm_conversion": set(),
 }
 
 
@@ -159,31 +151,7 @@ def test_family_runs_are_contiguous_in_entry_order(api_client: TestClient, secti
     assert violations == []
 
 
-@pytest.mark.parametrize(
-    ("section", "mp_name", "lp_name"),
-    [
-        ("noise_filter", "slow-mp", "slow-lp"),
-        ("noise_filter", "fast-mp", "fast-lp"),
-        ("pcm_conversion", "poly-mp", "poly-lp"),
-        ("pcm_conversion", "poly-short-mp", "poly-short-lp"),
-    ],
-)
-def test_a_minimum_phase_entry_precedes_its_linear_phase_peer(
-    api_client: TestClient, section: str, mp_name: str, lp_name: str
-) -> None:
-    order = list(_entries(api_client, section))
-    assert order.index(mp_name) < order.index(lp_name)
-
-
 # --- the family blurbs --------------------------------------------------------
-
-
-def test_the_noise_filter_families_map_holds_three_blurbs(api_client: TestClient) -> None:
-    assert len(_families(api_client, "noise_filter")) == 3
-
-
-def test_the_pcm_conversion_families_map_holds_four_blurbs(api_client: TestClient) -> None:
-    assert len(_families(api_client, "pcm_conversion")) == 4
 
 
 @pytest.mark.parametrize("section", SECTIONS)
@@ -213,15 +181,10 @@ def test_every_family_an_entry_names_has_a_blurb(api_client: TestClient, section
 
 
 @pytest.mark.parametrize("section", SECTIONS)
-def test_exactly_the_recommended_entries_carry_rec_true(api_client: TestClient, section: str) -> None:
+def test_every_rec_key_present_carries_the_boolean_true(api_client: TestClient, section: str) -> None:
+    # The key is a flag: present means True, and no other value is served under it.
     entries = _entries(api_client, section)
-    assert {name for name, entry in entries.items() if entry.get("rec") is True} == REC[section]
-
-
-@pytest.mark.parametrize("section", SECTIONS)
-def test_no_entry_beyond_the_recommended_set_carries_a_rec_key(api_client: TestClient, section: str) -> None:
-    entries = _entries(api_client, section)
-    assert {name for name, entry in entries.items() if "rec" in entry} == REC[section]
+    assert [name for name, entry in entries.items() if "rec" in entry and entry["rec"] is not True] == []
 
 
 def test_no_entry_of_any_other_plain_names_section_carries_a_rec_key(api_client: TestClient) -> None:

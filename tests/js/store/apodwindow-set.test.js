@@ -21,10 +21,20 @@ const storage = useStorage();
 const prefs = await import("../../../hqptuner/static/store/prefs.js");
 
 // --- the windows on offer -------------------------------------------------------
+// The option list is curated data (docs/testing.md rule 9): pin that there is
+// one, and that every offered value round-trips through the setter, never the
+// list itself.
 
-test("test_the_store_offers_the_five_windows_shortest_first", () => {
-  assert.deepEqual(prefs.APOD_WINDOWS, ["30", "60", "120", "300", "all"]);
+test("test_the_store_offers_at_least_one_window", () => {
+  assert.ok(prefs.APOD_WINDOWS.length > 0);
 });
+
+for (const entry of prefs.APOD_WINDOWS) {
+  test(`test_choosing_offered_window_${entry}_round_trips_through_the_signal`, () => {
+    prefs.setApodWindow(entry);
+    assert.equal(prefs.apodWindow.value, entry);
+  });
+}
 
 // --- the setter -----------------------------------------------------------------
 

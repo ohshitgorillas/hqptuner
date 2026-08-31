@@ -6,10 +6,10 @@
 // plain call with a plain return value. Nothing is stubbed and nothing needs a
 // fake (docs/testing.md rule 4 has nothing to bite on where there is no wire).
 //
-// WHAT IS ASSERTED (rule 5, rule 9). Filter NAMES, never enum ids and never a
-// word a reader sees. A filter name is a wire identifier — the running engine
-// is the sole authority for ids and ordering and static data joins by name
-// (docs/architecture.md §2) — so it is contract and is stated outright. The
+// WHAT IS ASSERTED (rule 5, rule 9). Which FIELD of the preset's write set the
+// tile names, never the filter name itself: which filter a preset carries is
+// owner-curated data, so every expectation is read back from `writeSet` on the
+// same preset, mode and knobs, and no name literal stands in an assertion. The
 // plain-names overlay's family, class and shape wording is owner copy and is
 // asserted nowhere in this suite; that wording is not what `filterFor` answers
 // with.
@@ -52,48 +52,48 @@ const UNKNOWN = "no-such-preset-in-the-table";
 // a preset whose two fields hold DIFFERENT filters
 // ============================================================================
 //
-// `perfect-ten` on lossless material splits the chain: the standard filter at
-// the 1x end and the hi-res one at the Nx end (the pair
+// `perfect-ten` on lossless material splits the chain: one filter at the 1x
+// end and another at the Nx end (the pair
 // tests/js/components/easytiles-knobs.test.js seeds). Each side is read on its
-// own, so a call that answered with the wrong field fails by naming the filter
-// it gave.
+// own against its own field of the write set, so a call that answered with the
+// wrong field fails.
 
-test("test_the_perfect_ten_tile_names_the_standard_filter_on_the_1x_side", () => {
+test("test_the_perfect_ten_tile_names_the_pcm_1x_field_on_the_1x_side", () => {
+  const knobs = { emphasis: "space", material: "lossless" };
   assert.equal(
-    easy.filterFor("perfect-ten", "pcm", { emphasis: "space", material: "lossless" }, ONE_X),
-    "poly-sinc-gauss-long",
+    easy.filterFor("perfect-ten", "pcm", knobs, ONE_X),
+    easy.writeSet("perfect-ten", "pcm", knobs).pcm_filter_1x,
   );
 });
 
-test("test_the_perfect_ten_tile_names_the_hi_res_filter_on_the_nx_side", () => {
+test("test_the_perfect_ten_tile_names_the_pcm_nx_field_on_the_nx_side", () => {
+  const knobs = { emphasis: "space", material: "lossless" };
   assert.equal(
-    easy.filterFor("perfect-ten", "pcm", { emphasis: "space", material: "lossless" }, NX),
-    "poly-sinc-gauss-hires-lp",
+    easy.filterFor("perfect-ten", "pcm", knobs, NX),
+    easy.writeSet("perfect-ten", "pcm", knobs).pcm_filter_nx,
   );
 });
 
-// Lossy material puts the hi-res filter on BOTH fields, so the 1x side names it
-// too — the one case where moving a knob changes what the 1x side answers
-// without changing the Nx side at all.
+// Lossy material changes what the 1x field carries, so the 1x side follows the
+// knob: the one case where moving a knob changes what the 1x side answers.
 
-test("test_the_perfect_ten_tile_on_lossy_material_names_the_hi_res_filter_on_the_1x_side", () => {
+test("test_the_perfect_ten_tile_on_lossy_material_names_the_pcm_1x_field_on_the_1x_side", () => {
+  const knobs = { emphasis: "space", material: "lossy" };
   assert.equal(
-    easy.filterFor("perfect-ten", "pcm", { emphasis: "space", material: "lossy" }, ONE_X),
-    "poly-sinc-gauss-hires-lp",
+    easy.filterFor("perfect-ten", "pcm", knobs, ONE_X),
+    easy.writeSet("perfect-ten", "pcm", knobs).pcm_filter_1x,
   );
 });
 
 // The Nx side is read in SDM mode too, not only in PCM: the `nx` argument and
 // the output mode are separate selectors, and a `filterFor` that only ever
 // consulted `nx` on the PCM chain would pass every other case in this file.
-// `perfect-ten` declares no two-stage variant, so its SDM values carry the same
-// plain names its PCM values do (tests/js/store/easy.test.js's control) — which
-// is what makes it readable here without a `-2s` name standing in the answer.
 
-test("test_the_perfect_ten_tile_in_sdm_mode_names_the_hi_res_filter_on_the_nx_side", () => {
+test("test_the_perfect_ten_tile_in_sdm_mode_names_the_sdm_nx_field_on_the_nx_side", () => {
+  const knobs = { emphasis: "space", material: "lossless" };
   assert.equal(
-    easy.filterFor("perfect-ten", "sdm", { emphasis: "space", material: "lossless" }, NX),
-    "poly-sinc-gauss-hires-lp",
+    easy.filterFor("perfect-ten", "sdm", knobs, NX),
+    easy.writeSet("perfect-ten", "sdm", knobs).sdm_filter_nx,
   );
 });
 
@@ -101,17 +101,25 @@ test("test_the_perfect_ten_tile_in_sdm_mode_names_the_hi_res_filter_on_the_nx_si
 // the output mode selects which chain is named
 // ============================================================================
 //
-// `old-school` is the preset with a two-stage variant: the `-2s` flavor is
-// enumerated on the SDM chain only and the PCM chain carries none
-// (tests/js/store/easy.test.js). So the SDM mode names the `-2s` filter, and
-// `auto` — which writes both chains — names the PCM chain's plain one.
+// `old-school` is the preset with a two-stage variant, enumerated on the SDM
+// chain only (tests/js/store/easy.test.js), so its SDM and PCM fields differ.
+// SDM mode names the SDM chain's field, and `auto`, which writes both chains,
+// names the PCM chain's.
 
-test("test_the_old_school_tile_in_sdm_mode_names_the_two_stage_filter", () => {
-  assert.equal(easy.filterFor("old-school", "sdm", { emphasis: "space" }, ONE_X), "poly-sinc-short-lp-2s");
+test("test_the_old_school_tile_in_sdm_mode_names_the_sdm_chains_field", () => {
+  const knobs = { emphasis: "space" };
+  assert.equal(
+    easy.filterFor("old-school", "sdm", knobs, ONE_X),
+    easy.writeSet("old-school", "sdm", knobs).sdm_filter_1x,
+  );
 });
 
-test("test_the_old_school_tile_in_auto_mode_names_the_pcm_chains_filter", () => {
-  assert.equal(easy.filterFor("old-school", "auto", { emphasis: "space" }, ONE_X), "poly-sinc-short-lp");
+test("test_the_old_school_tile_in_auto_mode_names_the_pcm_chains_field", () => {
+  const knobs = { emphasis: "space" };
+  assert.equal(
+    easy.filterFor("old-school", "auto", knobs, ONE_X),
+    easy.writeSet("old-school", "auto", knobs).pcm_filter_1x,
+  );
 });
 
 // ============================================================================
@@ -120,14 +128,16 @@ test("test_the_old_school_tile_in_auto_mode_names_the_pcm_chains_filter", () => 
 //
 // `purist` writes a single name to both ends of the PCM chain, so both sides
 // answer with it. Two cases rather than one comparison of the two calls: each
-// side is a condition of its own, and the name is pinned on each.
+// side is a condition of its own, and each is read against its own field.
 
-test("test_the_purist_tile_names_its_single_filter_on_the_1x_side", () => {
-  assert.equal(easy.filterFor("purist", "pcm", { emphasis: "space" }, ONE_X), "poly-sinc-gauss-halfband");
+test("test_the_purist_tile_names_the_pcm_1x_field_on_the_1x_side", () => {
+  const knobs = { emphasis: "space" };
+  assert.equal(easy.filterFor("purist", "pcm", knobs, ONE_X), easy.writeSet("purist", "pcm", knobs).pcm_filter_1x);
 });
 
-test("test_the_purist_tile_names_its_single_filter_on_the_nx_side", () => {
-  assert.equal(easy.filterFor("purist", "pcm", { emphasis: "space" }, NX), "poly-sinc-gauss-halfband");
+test("test_the_purist_tile_names_the_pcm_nx_field_on_the_nx_side", () => {
+  const knobs = { emphasis: "space" };
+  assert.equal(easy.filterFor("purist", "pcm", knobs, NX), easy.writeSet("purist", "pcm", knobs).pcm_filter_nx);
 });
 
 // ============================================================================

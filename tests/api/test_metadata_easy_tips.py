@@ -36,22 +36,14 @@ from fastapi.testclient import TestClient
 # identifiers, stated outright; their POSITIONS are not, and are derived below.
 TIPPED_KNOBS = ["emphasis", "version"]
 
-# The tiles the card lays out, keyed by the same ids the file is keyed by
-# (tests/api/test_metadata_easy.py pins that each is served). Damage Control's
-# `material` knob — carried by the two flagship tiles as well — is not in
-# TIPPED_KNOBS: its copy is not written yet, so there is no tip to ask for and
-# none may be invented. Neither is `source`, which no tile carries any more.
-# Full Analog carries no knobs, so it offers nothing for the sweep to cover.
-PRESETS = [
-    "perfect-ten",
-    "lifelike",
-    "concert-hall",
-    "purist",
-    "old-school",
-    "damage-control",
-    "textbook",
-    "full-analog",
-]
+# WHICH TILES the card lays out is the owner's curated list and is not stated
+# here (docs/testing.md rule 9): the sweep walks every preset entry the payload
+# serves, which is every key of the section beside the notice, the help panel's
+# copy, the tips block and the file's own authoring comment. Damage Control's
+# `material` knob is not in TIPPED_KNOBS: its copy is not written yet, so there
+# is no tip to ask for and none may be invented. A tile with no knobs offers
+# nothing for the sweep to cover.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
 
 
 def _easy(client: TestClient) -> dict[str, object]:
@@ -63,8 +55,10 @@ def _offered(client: TestClient, knob: str) -> set[str]:
     """Every position one knob offers anywhere in the card, read off the payload."""
     easy = _easy(client)
     found: set[str] = set()
-    for preset in PRESETS:
-        entry = cast("dict[str, object]", easy.get(preset, {}))
+    for preset, served in easy.items():
+        if preset in BESIDE_THE_PRESETS:
+            continue
+        entry = cast("dict[str, object]", served)
         knobs = cast("dict[str, object]", entry.get("knobs", {}))
         options = cast("dict[str, object]", cast("dict[str, object]", knobs.get(knob, {})).get("options", {}))
         found |= set(options)

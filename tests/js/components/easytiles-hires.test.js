@@ -28,11 +28,13 @@
 // outright are wire identifiers: preset ids, knob ids, knob positions, output
 // modes, the `data-testid` and the class names of the cost row's parts.
 //
-// WHICH TILES. `perfect-ten` and `lifelike` are the two flagships and carry the
-// badge; the other four presets carry none. Every flagship reading is taken on
-// BOTH of them, so a card that badged, named or tipped one of the two fails by
-// naming the tile it left bare. Only the ORDER case is read on a single tile:
-// where the badge stands in the row is one arrangement, not a per-tile fact.
+// WHICH TILES. Which presets exist and which of them are flagships is owner
+// data (docs/testing.md rule 9), so neither roster is typed here: both are
+// swept from `presetsFor()`, the flagships being the presets that declare
+// `hires`. Every flagship reading is taken on EVERY one of them, so a card that
+// badged, named or tipped some but not all fails by naming the tile it left
+// bare. Only the ORDER case is read on a single tile: where the badge stands in
+// the row is one arrangement, not a per-tile fact.
 //
 // THE APODIZING MARK IS SEEDED IN ONE CASE: the marked row's order. A tile
 // whose filter the facet overlay does not annotate renders no `.easy-apod` at
@@ -56,8 +58,10 @@ useStorage();
 const { resetTab, tabs, tileHtml, knobPositions } = await import("../support/easytiles.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
 const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {{ id: string, hires?: boolean }} Preset */
 
 // The markings the cost row's parts are found by, every one of them a hook and
 // not a word: two testids and two class names.
@@ -66,10 +70,14 @@ const PIPS = "easy-pips";
 const APOD = "easy-apod";
 const RULE = "easy-cost-rule";
 
-// The two flagship tiles, and the four that are not. Preset ids are wire
-// identifiers.
-const FLAGSHIPS = ["perfect-ten", "lifelike"];
-const PLAIN = ["old-school", "damage-control", "purist", "concert-hall"];
+// The flagship tiles and the tiles that are not, swept from the shipped table:
+// a flagship is a preset declaring `hires`, and every other preset is plain.
+// Which presets exist and which wear the badge is owner data and is typed
+// nowhere in this file.
+/** @type {Preset[]} */
+const PRESETS = presetsFor();
+const FLAGSHIPS = PRESETS.filter((preset) => Boolean(preset.hires)).map((preset) => String(preset.id));
+const PLAIN = PRESETS.filter((preset) => !preset.hires).map((preset) => String(preset.id));
 
 // The flagship the order case is read on, and the knob whose two positions the
 // badge must survive. Knob id and positions are wire identifiers, carried in
@@ -302,7 +310,19 @@ function badgeTip(out, presetId) {
 // which tiles carry the badge
 // ============================================================================
 //
-// One case per flagship, so a card that badged one of the two fails by naming
+// Every flagship sweep below is generated from `FLAGSHIPS`, so a table that
+// declared `hires` on nothing would generate no cases and retire every badge
+// rule with nothing red. This case is their smoke alarm: it fails by name where
+// they would simply cease to exist.
+
+test("test_the_shipped_table_declares_hires_on_at_least_one_preset", () => {
+  assert.ok(
+    FLAGSHIPS.length > 0,
+    "presetsFor() declared hires on no preset, so every flagship sweep generated nothing",
+  );
+});
+
+// One case per flagship, so a card that badged some but not all fails by naming
 // the tile it left bare.
 
 for (const presetId of FLAGSHIPS) {

@@ -25,9 +25,10 @@
 // writer's business — the record is only ever reached through `rememberKnobs`
 // and `knobsFor`, exactly as a caller reaches it.
 //
-// NAMES, NOT WORDS (rule 9). Preset ids, knob ids, knob option ids and filter
-// names are wire identifiers and are stated outright; nothing here asserts a
-// title, a description or any other piece of owner copy.
+// NAMES, NOT WORDS (rule 9). Preset ids, knob ids and knob option ids are wire
+// identifiers and are stated outright. Filter names are owner data and are read
+// off `store/easy.js`'s `writeSet` for the position they stand for, never typed;
+// nothing here asserts a title, a description or any other piece of owner copy.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-knobs.test.js
 
@@ -41,7 +42,6 @@ useStorage();
 const {
   resetTab,
   resetLive,
-  seedPcm,
   seedPcmPair,
   flush,
   tabs,
@@ -54,6 +54,20 @@ const {
 } = await import("../support/easytiles.js");
 
 const { rememberKnobs, knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
+const { writeSet } = await import("../../../hqptuner/static/store/easy.js");
+
+/**
+ * The PCM pair a preset writes at a knob combination, read off the table so
+ * that no filter name is typed here.
+ *
+ * @param {string} preset
+ * @param {Record<string, string>} knobs
+ * @returns {{ oneX: string, nX: string }}
+ */
+const pairFor = (preset, knobs) => {
+  const set = writeSet(preset, "pcm", knobs);
+  return { oneX: set.pcm_filter_1x, nX: set.pcm_filter_nx };
+};
 
 // The two presets that carry both knobs. `lifelike` is the one moved and read
 // back; `perfect-ten` is the one whose record must not follow it.
@@ -63,12 +77,9 @@ const OTHER = "perfect-ten";
 // The tile pressed to take the light off whichever tile a case just wrote.
 const ELSEWHERE = "concert-hall";
 
-// `perfect-ten`'s lossless, space-emphasis PAIR — the standard name at the 1x
-// end and the hi-res one at the Nx end, so fields carrying it light that tile
-// with its knobs on that combination. Stated outright, as
-// tests/js/components/easytiles.test.js states it: a filter name is a wire
-// identifier.
-const PERFECT_TEN_LOSSLESS_SPACE = { oneX: "poly-sinc-gauss-long", nX: "poly-sinc-gauss-hires-lp" };
+// `perfect-ten`'s lossless, space-emphasis PAIR, so fields carrying it light
+// that tile with its knobs on that combination.
+const PERFECT_TEN_LOSSLESS_SPACE = pairFor("perfect-ten", { emphasis: "space", material: "lossless" });
 
 // The positions every knob rests at until something moves it — the reading the
 // two dark-tile cases below are ABOUT, and named nowhere else in this file.
@@ -91,7 +102,7 @@ const MOVED_EMPHASIS = "transients";
 // one they stated rather than one they inherited from wherever `emphasis`
 // happens to rest: a resting position is the owner's to revisit, and moving it
 // must not break a case about what a press RECORDS.
-const LIFELIKE_LOSSLESS_TRANSIENTS = { oneX: "poly-sinc-ext2-medium", nX: "poly-sinc-ext2-hires-mp" };
+const LIFELIKE_LOSSLESS_TRANSIENTS = pairFor("lifelike", { emphasis: "transients", material: "lossless" });
 const SEEDED_EMPHASIS = "transients";
 
 // The one-knob preset the record cases press: it carries no `material` knob at
@@ -121,11 +132,12 @@ test("test_an_untouched_damage_control_tile_shows_its_material_knob_on_lossless"
 });
 
 // And the mirror: the lossy filter in the fields lights the tile with the knob
-// at the position that wrote it. The name is a wire identifier, stated outright
-// the way tests/js/components/easytiles.test.js states them.
+// at the position that wrote it.
+
+const DAMAGE_CONTROL_LOSSY = pairFor("damage-control", { material: "lossy" });
 
 test("test_the_lossy_filter_in_the_fields_shows_the_material_knob_on_lossy", async () => {
-  await resetTab({ mode: "pcm", names: seedPcm("poly-sinc-mqa/mp3-lp") });
+  await resetTab({ mode: "pcm", names: seedPcmPair(DAMAGE_CONTROL_LOSSY.oneX, DAMAGE_CONTROL_LOSSY.nX) });
   assert.deepEqual(knobPositions(tabs(), "damage-control", "material"), ["lossy"]);
 });
 
