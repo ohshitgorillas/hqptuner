@@ -74,19 +74,20 @@ def _says_nothing(entry: dict[str, object], field: str) -> bool:
     return str(entry.get(field, "")).strip() == ""
 
 
-# The offenders list is compared against emptiness AND the served entries
-# against emptiness in the one assertion: a section that lost its tiles would
-# otherwise have every tile carrying copy, vacuously.
+# The non-empty guard for the served section lives in
+# tests/api/test_metadata_easy.py
+# (test_the_easy_section_carries_at_least_one_preset_entry), so these sweeps do
+# not restate it.
 def test_every_tile_carries_a_title_that_says_something(api_client: TestClient) -> None:
     entries = _entries(api_client)
     offenders = [preset for preset, entry in entries.items() if _says_nothing(entry, "title")]
-    assert offenders == [] != list(entries)
+    assert offenders == []
 
 
 def test_every_tile_carries_a_description_that_says_something(api_client: TestClient) -> None:
     entries = _entries(api_client)
     offenders = [preset for preset, entry in entries.items() if _says_nothing(entry, "description")]
-    assert offenders == [] != list(entries)
+    assert offenders == []
 
 
 def test_the_concert_hall_correction_knob_ships_a_tip_that_says_something(api_client: TestClient) -> None:

@@ -7,8 +7,8 @@ raw name to the display record the frontend regroups the dropdown by: `family`,
 `variant` (nullable), `leaf` and `short`, with filters additionally classified
 `apod`. A FLAT section — sdm_conversion — carries `leaf` and `short` alone, no
 `family` on any entry, and its `families`/`variants` blurb maps arrive empty.
-The filter data spans both chains' enumerations, PCM and SDM, 84 unique
-names including every `-2s` entry.
+The filters section covers both chains' names, PCM and SDM, and every `-2s`
+entry joins its base.
 
 A section's key order is its dropdown display order, so the ordering tests
 below pin that order rather than any wording: phase groups run minimum,

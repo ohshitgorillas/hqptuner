@@ -30,7 +30,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { writeSet, matchPreset } from "../../../hqptuner/static/store/easy.js";
+import { writeSet, matchPreset, presetsFor } from "../../../hqptuner/static/store/easy.js";
 
 const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
@@ -40,6 +40,32 @@ const pcmPair = (oneX, nX) => ({ [PCM_1X]: oneX, [PCM_NX]: nX });
 
 /** @param {string} name */
 const pcmBoth = (name) => pcmPair(name, name);
+
+// The two flagships, and the emphasis positions each declares. The roster is
+// read off `presetsFor()`, the table's own declaration, so the sweeps below
+// hold whichever positions the owner declares; one guard per preset pins that
+// the declared list is not empty, since an empty roster would generate no
+// cases and the sweeps would pass vacuously.
+
+const FLAGSHIPS = ["perfect-ten", "lifelike"];
+
+/**
+ * The `emphasis` knob's declared positions for one preset, from the shipped table.
+ * @param {string} presetId
+ * @returns {string[]}
+ */
+function emphasisOptions(presetId) {
+  const preset = presetsFor().find((/** @type {{ id: string }} */ p) => p.id === presetId);
+  const knob = preset?.knobs.find((/** @type {{ id: string }} */ k) => k.id === "emphasis");
+  if (knob === undefined) throw new Error(`${presetId} declares no emphasis knob`);
+  return knob.options;
+}
+
+for (const presetId of FLAGSHIPS) {
+  test(`test_${presetId}_declares_at_least_one_emphasis_position`, () => {
+    assert.ok(emphasisOptions(presetId).length > 0);
+  });
+}
 
 // ============================================================================
 // what each combination of the two knobs writes
@@ -51,16 +77,13 @@ const pcmBoth = (name) => pcmPair(name, name);
 // a `-2s` variant, which tests/js/store/easy.test.js pins as its own control.
 
 /** @type {[string, string, string][]} */
-const WRITES = [
-  ["perfect-ten", "space", "lossless"],
-  ["perfect-ten", "transients", "lossless"],
-  ["perfect-ten", "space", "lossy"],
-  ["perfect-ten", "transients", "lossy"],
-  ["lifelike", "space", "lossless"],
-  ["lifelike", "transients", "lossless"],
-  ["lifelike", "space", "lossy"],
-  ["lifelike", "transients", "lossy"],
-];
+const WRITES = FLAGSHIPS.flatMap((presetId) =>
+  ["lossless", "lossy"].flatMap((material) =>
+    emphasisOptions(presetId).map(
+      (emphasis) => /** @type {[string, string, string]} */ ([presetId, emphasis, material]),
+    ),
+  ),
+);
 
 for (const [presetId, emphasis, material] of WRITES) {
   if (material === "lossless") {
@@ -134,12 +157,9 @@ const SDM_NX = "sdm_filter_nx";
 const everyChain = (name) => ({ [PCM_1X]: name, [PCM_NX]: name, [SDM_1X]: name, [SDM_NX]: name });
 
 /** @type {[string, string][]} */
-const LOSSY_ON_AUTO = [
-  ["perfect-ten", "space"],
-  ["perfect-ten", "transients"],
-  ["lifelike", "space"],
-  ["lifelike", "transients"],
-];
+const LOSSY_ON_AUTO = FLAGSHIPS.flatMap((presetId) =>
+  emphasisOptions(presetId).map((emphasis) => /** @type {[string, string]} */ ([presetId, emphasis])),
+);
 
 for (const [presetId, emphasis] of LOSSY_ON_AUTO) {
   test(`test_${presetId}_on_${emphasis}_with_lossy_material_writes_the_pcm_lossy_filter_to_all_four_fields`, () => {

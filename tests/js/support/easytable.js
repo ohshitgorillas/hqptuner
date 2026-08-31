@@ -25,7 +25,7 @@ import { writeSet, presetsFor } from "../../../hqptuner/static/store/easy.js";
  * @param {Knob[]} knobs
  * @returns {Record<string, string>[]}
  */
-const combos = (knobs) =>
+export const combos = (knobs) =>
   knobs.reduce(
     (/** @type {Record<string, string>[]} */ acc, knob) =>
       acc.flatMap((one) => knob.options.map((option) => ({ ...one, [knob.id]: option }))),

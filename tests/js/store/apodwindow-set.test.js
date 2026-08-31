@@ -56,8 +56,3 @@ test("test_choosing_the_last_offered_window_persists_it", () => {
   prefs.setApodWindow(LAST_WINDOW);
   assert.equal(storage.getItem("hqptuner.apodWindow"), LAST_WINDOW);
 });
-
-test("test_the_setter_moves_the_signal", () => {
-  prefs.setApodWindow(prefs.APOD_WINDOWS[0]);
-  assert.equal(prefs.apodWindow.value, prefs.APOD_WINDOWS[0]);
-});

@@ -46,7 +46,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
-import { namesWritten } from "../support/easytable.js";
+import { combos, namesWritten } from "../support/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
@@ -191,14 +191,6 @@ for (const emphasis of knobOf("old-school", "emphasis").options) {
 // knob. A knob whose `when` is not met at a combination is not offered there
 // and generates nothing; presets with no knobs generate nothing.
 
-/** Every combination of the positions a knob list defines, one knob map each. */
-function combinations(/** @type {Knob[]} */ knobs) {
-  return knobs.reduce(
-    (acc, knob) => acc.flatMap((c) => knob.options.map((option) => ({ ...c, [knob.id]: option }))),
-    /** @type {Record<string, string>[]} */ ([{}]),
-  );
-}
-
 /** A combination as `knob=option` pairs joined with `_`, for a test name. */
 function positionsOf(/** @type {Record<string, string>} */ knobs) {
   return Object.entries(knobs)
@@ -208,7 +200,7 @@ function positionsOf(/** @type {Record<string, string>} */ knobs) {
 
 /** @type {[string, Record<string, string>, string][]} */
 const KNOB_MOVES = PRESETS.flatMap((preset) =>
-  combinations(preset.knobs).flatMap((c) =>
+  combos(preset.knobs).flatMap((c) =>
     knobsShown(preset, c)
       .filter((knob) => c[knob.id] !== knob.default)
       .map((knob) => /** @type {[string, Record<string, string>, string]} */ ([preset.id, c, knob.id])),
