@@ -32,6 +32,38 @@ from hqptuner.engine.metering import MeteringReader, TrackContext
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
+#: Every Config field whose default points into the repo checkout — the state/
+#: files the dev container bind-mounts, plus the backup and preset dirs. Env
+#: name to the filename the guard parks it under.
+_REPO_PATH_ENVS = {
+    "HQPTUNER_AUTOPILOT_FILE": "autopilot.json",
+    "HQPTUNER_LIVE_PRESET_FILE": "live-presets.json",
+    "HQPTUNER_FAVORITES_FILE": "favorites.json",
+    "HQPTUNER_NARROWING_FILE": "narrowing.json",
+    "HQPTUNER_DESCRIPTION_FILE": "descriptions.json",
+    "HQPTUNER_MATRIX_MODE_FILE": "matrixmodes.json",
+    "HQPTUNER_BACKUP_DIR": "backups",
+    "HQPTUNER_PRESET_DIR": "presets",
+}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _state_never_touches_the_repo(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """Backstop: a bare ``Config()`` in any test resolves its state paths into a
+    session tmp dir, never the repo's own ``state/``.
+
+    The repo defaults are the dev container's bind mount — the running
+    install's live state. A test fixture that forgets one ``*_file`` override
+    must land here, not there; forgetting has already stamped the real
+    auto-pilot store off mid-listen. Explicit per-test ``tmp_path`` overrides in
+    fixtures remain the first line; this exists so the next omission costs
+    nothing."""
+    tmp = tmp_path_factory.mktemp("repo-path-guard")
+    with pytest.MonkeyPatch.context() as mp:
+        for env, name in _REPO_PATH_ENVS.items():
+            mp.setenv(env, str(tmp / name))
+        yield
+
 
 @pytest.fixture(autouse=True)
 def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:

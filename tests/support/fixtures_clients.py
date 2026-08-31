@@ -72,6 +72,15 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
         alarm_threshold=1.0,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
+        # every state-file store in tmp too — a preset save through this client
+        # records auto-pilot state, and the defaults are the dev container's
+        # bind-mounted state/ (the conftest env guard backstops this)
+        live_preset_file=tmp_path / "live-presets.json",
+        favorites_file=tmp_path / "favorites.json",
+        narrowing_file=tmp_path / "narrowing.json",
+        description_file=tmp_path / "descriptions.json",
+        matrix_mode_file=tmp_path / "matrixmodes.json",
+        autopilot_file=tmp_path / "autopilot.json",
         hqp_home="/x/home",
     )
     with TestClient(create_app(cfg)) as test_client:
