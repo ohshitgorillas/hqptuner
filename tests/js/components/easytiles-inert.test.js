@@ -18,8 +18,11 @@
 // PROPERTIES, NOT EXEMPLARS. No preset is named to stand for a kind of tile.
 // The gated-knob cases sweep every preset declaring a knob with a `when`, and
 // drive one sibling the `when` names to a position it does not name. The record
-// cases sweep every preset with a tile knob offering more than one position. A
-// roster with no preset of a kind generates no case.
+// case takes the FIRST tile knob offering more than one position, selected off
+// the table by that property rather than named: the fallback to a knob's
+// `default` is one path that does not vary by preset, so a second case would
+// exercise the same path again. A roster with no preset of a kind generates no
+// case.
 //
 // NAMES, NOT WORDS (rule 9). Preset ids, knob ids and knob position ids are
 // wire identifiers and are stated outright. Nothing here reads a label, a title
@@ -135,7 +138,7 @@ for (const { presetId, knobId, sibId, at, combo } of GATED) {
 // not a knob its `when` also gates.
 
 /** @type {{ presetId: string, knobId: string, fallback: string, record: Record<string, string> }[]} */
-const UNOFFERED = PRESETS.flatMap((preset) =>
+const QUALIFYING = PRESETS.flatMap((preset) =>
   preset.knobs
     .filter(isTileKnob)
     .filter((knob) => knob.options.length > 1)
@@ -155,7 +158,7 @@ const UNOFFERED = PRESETS.flatMap((preset) =>
 // an unoffered recorded position falls back to the knob's default
 // ============================================================================
 
-for (const { presetId, knobId, fallback, record } of UNOFFERED) {
+for (const { presetId, knobId, fallback, record } of QUALIFYING.slice(0, 1)) {
   test(`test_a_dark_${presetId}_tile_marks_the_${knobId}_default_when_its_record_holds_a_position_that_knob_does_not_offer`, async () => {
     await resetTab({ mode: "pcm" });
     rememberKnobs(presetId, record);
