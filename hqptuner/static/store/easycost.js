@@ -39,6 +39,14 @@ const PIPS = {
 /** @type {Record<string, {sdm: number, pcm: number}>} */
 const LOSSY_PIPS = { "damage-control": { sdm: 1, pcm: 1 } };
 
+// A version knob can change what KIND of cost a preset has, not just how much.
+// The Crucible's gauss versions are adaptive and rank against nothing, which is
+// what its caption says; its ext2 version names a fixed filter that does rank,
+// and ranks alongside Concert Hall. So the caption stands for the preset and
+// this row overrides it at the one position where a number is the truer answer.
+/** @type {Record<string, Record<string, {sdm: number, pcm: number}>>} */
+const VERSION_PIPS = { crucible: { lifelike: { sdm: 17, pcm: 8 } } };
+
 /**
  * How many pips a preset shows for an output mode — 0 for a preset this module
  * does not carry.
@@ -53,10 +61,15 @@ const LOSSY_PIPS = { "damage-control": { sdm: 1, pcm: 1 } };
  * @returns {number}
  */
 export function pipsFor(presetId, outputMode, knobs = {}) {
-  const row = (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
+  const version = (VERSION_PIPS[presetId] || {})[knobs.version];
+  const row = version || (knobs.material === "lossy" && LOSSY_PIPS[presetId]) || PIPS[presetId];
   if (!row) return 0;
   const sdm = outputMode === "sdm";
   const cost = sdm ? row.sdm : row.pcm;
+  // A version carrying its own row is one whose filter has no error correction
+  // to turn off, so the discount below would answer for a knob that is not
+  // offered there.
+  if (version) return cost;
   // Error correction off costs one pip less, which is the same thing that knob's
   // own tip says in words. One pip rather than a proportion: the tiles carrying
   // the knob are the expensive ones, and a pip is the smallest thing this scale

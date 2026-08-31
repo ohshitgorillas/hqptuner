@@ -102,7 +102,7 @@
   },
   "crucible": {
     "title": "The Crucible",
-    "description": "Trial by fire: maximalist, brute-force signal reconstruction with no shortcuts.",
+    "description": "'Concert Hall' taken to the extreme using a maximalist, brute-force reconstruction approach.",
     "cost": "Adaptive",
     "knobs": {
       "version": {
