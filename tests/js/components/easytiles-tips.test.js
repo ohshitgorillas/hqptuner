@@ -46,12 +46,12 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs } = await import("../support/easytiles.js");
+const { resetTab, tabs, offeredAnySource } = await import("../support/easytiles.js");
 const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed, knobOptions, optionTips } =
   await import("../support/easyknobs.js");
 const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
 
 /** @type {Preset[]} */
@@ -59,12 +59,15 @@ const PRESETS = presetsFor();
 
 // Every knob every tile offers at rest: each preset's knobs sitting at their
 // `default`, read through `knobsShown()` so a knob whose `when` hides it at rest
-// is not expected of the tile. Preset ids and knob ids are wire identifiers.
+// is not expected of the tile, and filtered by `offeredAnySource` so a knob the
+// source gates out of the rendering is not expected of it either. Preset ids and knob ids are wire identifiers.
 
 /** @type {{ preset: string, knob: Knob }[]} */
 const RESTING = PRESETS.flatMap((preset) => {
   const resting = Object.fromEntries(preset.knobs.map((knob) => [String(knob.id), knob.default]));
-  return knobsShown(preset, resting).map((knob) => ({ preset: String(preset.id), knob }));
+  return knobsShown(preset, resting)
+    .filter(offeredAnySource)
+    .map((knob) => ({ preset: String(preset.id), knob }));
 });
 
 // Stand-in copy, never compared against what ships. The label and the tip are

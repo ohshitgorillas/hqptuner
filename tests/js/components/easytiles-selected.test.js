@@ -49,10 +49,11 @@ const {
   selectedMap,
   knobPositions,
   pressTile,
+  offeredAnySource,
 } = await import("../support/easytiles.js");
 const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-/** @typedef {{ id: string, default: string, options: string[] }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 /**
  * The preset the ENGINE is left running, one of its knobs, the position that
@@ -72,7 +73,8 @@ const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [Strin
 // Every state the engine can be left in that the cases below can tell apart
 // from an unmatched tile, swept from the shipped table: each preset, each knob
 // its tile OFFERS at rest (read through `knobsShown()`, so a knob whose `when`
-// hides it at the resting positions is not expected of the tile), each
+// hides it at the resting positions is not expected of the tile, and
+// `offeredAnySource` drops a knob the source gates out of the rendering), each
 // position off that knob's default (a tile the grid has matched to nothing
 // falls back to the resting position, so a running position that IS the
 // resting one would show nothing distinguishable). Each is paired with the
@@ -81,7 +83,7 @@ const resting = (preset) => Object.fromEntries(preset.knobs.map((knob) => [Strin
 // roster of one tile, generates no case.
 /** @type {Engine[]} */
 const ENGINES = /** @type {Preset[]} */ (presetsFor()).flatMap((preset) =>
-  /** @type {Knob[]} */ (knobsShown(preset, resting(preset))).flatMap((knob) =>
+  /** @type {Knob[]} */ (knobsShown(preset, resting(preset))).filter(offeredAnySource).flatMap((knob) =>
     knob.options
       .filter((option) => option !== knob.default)
       .flatMap((position) =>

@@ -49,7 +49,7 @@ import { engineRows, configPayload, enumerations, tabEnums, loaded } from "./eas
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
 /** @typedef {import("./easyrate.js").Engine} Engine */
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 // --- the four filter fields -------------------------------------------------------
@@ -199,6 +199,19 @@ const META = {
 };
 
 // --- what a preset means, read through the shipped table ------------------------------
+
+/**
+ * Whether a knob is one the tile offers whatever the source is. A knob carrying
+ * `whenHires` is offered only while the filter its tile names is a hi-res one,
+ * and these suites seed no hi-res source, so such a knob is not on the tile
+ * here. Sweeps enumerating knobs out of `knobsShown()` filter by this: the
+ * store's declaration stays the oracle, and a knob the source gates out of the
+ * rendering generates no case.
+ *
+ * @param {Knob} knob
+ * @returns {boolean}
+ */
+export const offeredAnySource = (knob) => !knob.whenHires;
 
 /**
  * Whether the fields can carry a combination. A knob its `when` hides at a

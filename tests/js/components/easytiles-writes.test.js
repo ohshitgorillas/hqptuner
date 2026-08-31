@@ -46,6 +46,7 @@ const {
   pressTile,
   pressKnob,
   seedable,
+  offeredAnySource,
 } = await import("../support/easytiles.js");
 
 const { knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
@@ -117,19 +118,21 @@ const ONE_KNOB = PRESETS.map((preset) => ({ preset, shown: knobsShown(preset, re
 
 const MOVES = PRESETS.flatMap((preset) =>
   combos(preset.knobs).flatMap((from) =>
-    knobsShown(preset, from).flatMap((knob) =>
-      knob.options
-        .map(String)
-        .filter((option) => option !== from[String(knob.id)])
-        .map((option) => {
-          const to = { ...from, [String(knob.id)]: option };
-          const before = writeSet(String(preset.id), "pcm", from);
-          const after = writeSet(String(preset.id), "pcm", to);
-          const changed = [PCM_1X, PCM_NX].filter((key) => before[key] !== after[key]);
-          return { id: String(preset.id), knob: String(knob.id), option, from, before, after, changed };
-        })
-        .filter(({ changed }) => changed.length === 1),
-    ),
+    knobsShown(preset, from)
+      .filter(offeredAnySource)
+      .flatMap((knob) =>
+        knob.options
+          .map(String)
+          .filter((option) => option !== from[String(knob.id)])
+          .map((option) => {
+            const to = { ...from, [String(knob.id)]: option };
+            const before = writeSet(String(preset.id), "pcm", from);
+            const after = writeSet(String(preset.id), "pcm", to);
+            const changed = [PCM_1X, PCM_NX].filter((key) => before[key] !== after[key]);
+            return { id: String(preset.id), knob: String(knob.id), option, from, before, after, changed };
+          })
+          .filter(({ changed }) => changed.length === 1),
+      ),
   ),
 );
 

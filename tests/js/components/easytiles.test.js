@@ -83,6 +83,7 @@ const {
   pressKnob,
   pressables,
   seedable,
+  offeredAnySource,
 } = await import("../support/easytiles.js");
 
 // The preset table's public readers, imported the same way the harness is so
@@ -93,7 +94,7 @@ const {
 const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 const { combos } = await import("../support/easytable.js");
 
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 /** @type {Preset[]} */
@@ -385,14 +386,16 @@ for (const [preset, c] of CHAIN_SPLIT) {
 
 /** @type {[Preset, Record<string, string>, string, string][]} */
 const KNOB_MOVES = SEEDS.flatMap(([preset, from]) =>
-  knobsShown(preset, from).flatMap((knob) =>
-    knob.options
-      .filter((option) => option !== from[String(knob.id)])
-      .map(
-        (option) =>
-          /** @type {[Preset, Record<string, string>, string, string]} */ ([preset, from, String(knob.id), option]),
-      ),
-  ),
+  knobsShown(preset, from)
+    .filter(offeredAnySource)
+    .flatMap((knob) =>
+      knob.options
+        .filter((option) => option !== from[String(knob.id)])
+        .map(
+          (option) =>
+            /** @type {[Preset, Record<string, string>, string, string]} */ ([preset, from, String(knob.id), option]),
+        ),
+    ),
 );
 
 for (const [preset, from, knobId, option] of KNOB_MOVES) {
@@ -418,11 +421,13 @@ for (const [preset, from, knobId, option] of KNOB_MOVES) {
 
 /** @type {[Preset, string, string][]} */
 const LIVE_MOVES = KNOBBED.flatMap((preset) =>
-  knobsShown(preset, resting(preset)).flatMap((knob) =>
-    knob.options
-      .filter((option) => option !== knob.default)
-      .map((option) => /** @type {[Preset, string, string]} */ ([preset, String(knob.id), option])),
-  ),
+  knobsShown(preset, resting(preset))
+    .filter(offeredAnySource)
+    .flatMap((knob) =>
+      knob.options
+        .filter((option) => option !== knob.default)
+        .map((option) => /** @type {[Preset, string, string]} */ ([preset, String(knob.id), option])),
+    ),
 );
 
 for (const [preset, knobId, option] of LIVE_MOVES) {

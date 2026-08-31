@@ -62,12 +62,13 @@ const {
   knobPositions,
   pressTile,
   pressKnob,
+  offeredAnySource,
 } = await import("../support/easytiles.js");
 
 const { rememberKnobs, knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 /**
@@ -102,12 +103,13 @@ const restingOf = (preset) => Object.fromEntries(preset.knobs.map((knob) => [Str
 
 /**
  * The knobs a preset offers at its defaults, read through `knobsShown()` so a
- * knob whose `when` hides it at rest is not counted.
+ * knob whose `when` hides it at rest is not counted, and a knob the source
+ * gates out of the rendering (`offeredAnySource`) is not counted either.
  *
  * @param {Preset} preset
  * @returns {Knob[]}
  */
-const shownAtRest = (preset) => knobsShown(preset, restingOf(preset));
+const shownAtRest = (preset) => knobsShown(preset, restingOf(preset)).filter(offeredAnySource);
 
 /**
  * The first position a knob offers other than its default, or `undefined` for a
@@ -161,7 +163,9 @@ const allMoved = (preset) =>
  * @returns {Knob[]}
  */
 const neighboursShown = (preset, knob, moved) =>
-  knobsShown(preset, oneMoved(preset, knob, moved)).filter((other) => String(other.id) !== String(knob.id));
+  knobsShown(preset, oneMoved(preset, knob, moved))
+    .filter(offeredAnySource)
+    .filter((other) => String(other.id) !== String(knob.id));
 
 /**
  * The positions one tile marks on every knob it offers at rest, in the order the
