@@ -18,7 +18,7 @@
 // `data-v`, a wire identifier `writeSet` speaks — never by the word printed on
 // the button, which is the owner's to reword.
 
-import { elements, attr, classes, text } from "./markup.js";
+import { elements, attr, classes, hasAttr, text } from "./markup.js";
 import { tileHtml } from "./easytiles.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
@@ -198,4 +198,39 @@ export function knobIsNamed(out, presetId, knobId) {
   if (label !== undefined && label.trim() !== "") return true;
   const by = attr(g, "aria-labelledby");
   return by !== undefined && elements(fragment).some((el) => attr(el, "id") === by && text(el) !== "");
+}
+
+/**
+ * Whether one tile carries a knob at all, as a reading rather than a throw:
+ * "the tile has no such row" is an answer a case asserts, not a crash. The knob
+ * is found by its `data-knob` marking, a wire identifier, inside the tile's own
+ * fragment.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} knobId
+ * @returns {boolean}
+ */
+export const knobPresent = (out, presetId, knobId) =>
+  elements(tileHtml(out, presetId)).some((el) => attr(el, "data-knob") === knobId);
+
+/**
+ * Whether every position one tile's knob lays out is marked disabled — what a
+ * Segment handed `disabled` renders (components/Segment.js puts the attribute on
+ * each of its buttons, pinned by tests/js/components/segment.test.js). Read off
+ * the attribute a pointer meets, never off any class name a component is free
+ * to rename. A knob laying out no position at all throws rather than reading as
+ * vacuously disabled.
+ *
+ * @param {string} out
+ * @param {string} presetId
+ * @param {string} knobId
+ * @returns {boolean}
+ */
+export function knobIsDisabled(out, presetId, knobId) {
+  const buttons = elements(knobHtml(out, presetId, knobId)).filter(
+    (el) => el.name === "button" && classes(el).includes("seg"),
+  );
+  if (buttons.length === 0) throw new Error(`the "${knobId}" knob on "${presetId}" lays out no position`);
+  return buttons.every((el) => hasAttr(el, "disabled"));
 }
