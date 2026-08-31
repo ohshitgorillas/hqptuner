@@ -150,8 +150,8 @@ const FILTERS = {
     "transients/lossy": "poly-sinc-gauss-hires-mp",
   },
   lifelike: {
-    "space/lossless": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-lp" },
-    "transients/lossless": { x1: "poly-sinc-ext2-long", nx: "poly-sinc-ext2-hires-mp" },
+    "space/lossless": { x1: "poly-sinc-ext2", nx: "poly-sinc-ext2-hires-lp" },
+    "transients/lossless": { x1: "poly-sinc-ext2", nx: "poly-sinc-ext2-hires-mp" },
     "space/lossy": "poly-sinc-ext2-hires-lp",
     "transients/lossy": "poly-sinc-ext2-hires-mp",
   },
