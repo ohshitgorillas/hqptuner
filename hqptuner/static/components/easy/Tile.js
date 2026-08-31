@@ -114,8 +114,8 @@ function markFor(presetId, knobs) {
 // means the same thing on every tile that offers it, and a paragraph repeated
 // under eight presets is eight places to keep true. A knob whose positions have
 // no tip copy hands the segment empty strings, which render nothing.
-/** @param {{ preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string }} props */
-function KnobRow({ preset, knob, knobs, lane }) {
+/** @param {{ preset: Preset, knob: Knob, knobs: Record<string, string>, lane: string, disabled?: boolean }} props */
+function KnobRow({ preset, knob, knobs, lane, disabled }) {
   const options = knob.options.map((id) => ({
     value: id,
     label: easyProse(preset.id, "knobs", knob.id, "options", id),
@@ -138,6 +138,7 @@ function KnobRow({ preset, knob, knobs, lane }) {
       <${Segment}
         value=${knobs[knob.id]}
         options=${options}
+        disabled=${disabled}
         idBase=${base}
         onChange=${(/** @type {string | number} */ v) => applyPreset(lane, preset, { ...knobs, [knob.id]: String(v) })}
       />
@@ -234,8 +235,8 @@ function FilterName({ presetId, lane, knobs }) {
 // so two spacings mean two parents.
 // GRAYED is a third marking and the only one the card decides rather than the
 // fields: the card's material knob says the source is lossy and this preset has
-// no filter made for it (store/easyoffer.js presetGrayed). It dims the tile and
-// nothing else — the button still works, because a user action always proceeds.
+// no filter made for it (store/easyoffer.js presetGrayed). A grayed tile cannot
+// be operated: its button and its knobs are disabled until the card knob moves.
 /**
  * One curated preset as a tile: its mark, its cost, its words, its adjustments, and the click that sets it.
  * @param {{ preset: Preset, lane: string, selected: boolean, active: boolean, grayed?: boolean, knobs: Record<string, string> }} props
@@ -250,7 +251,12 @@ export function PresetTile({ preset, lane, selected, active, grayed, knobs }) {
       data-active=${active ? "1" : "0"}
       data-grayed=${grayed ? "1" : undefined}
     >
-      <button type="button" class="easy-pick" onClick=${() => applyPreset(lane, preset, knobs)}>
+      <button
+        type="button"
+        class="easy-pick"
+        disabled=${grayed || undefined}
+        onClick=${() => applyPreset(lane, preset, knobs)}
+      >
         <span class="easy-mark">
           <span class="easy-name">
             <span class="easy-emoji" aria-hidden="true">${preset.emoji}</span>
@@ -291,11 +297,21 @@ export function PresetTile({ preset, lane, selected, active, grayed, knobs }) {
         </span>
         <${FilterName} presetId=${preset.id} lane=${lane} knobs=${knobs} />
       </button>
-      <span class="easy-knobs">
-        ${knobsOffered(preset, knobs, easyLane(lane).mode).map(
-          (knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} />`,
-        )}
-      </span>
+      <${TileKnobs} preset=${preset} lane=${lane} knobs=${knobs} disabled=${grayed} />
     </div>
+  `;
+}
+
+/**
+ * The knob rows a tile offers, under its button.
+ * @param {{ preset: Preset, lane: string, knobs: Record<string, string>, disabled: boolean }} props
+ */
+function TileKnobs({ preset, lane, knobs, disabled }) {
+  return html`
+    <span class="easy-knobs">
+      ${knobsOffered(preset, knobs, easyLane(lane).mode).map(
+        (knob) => html`<${KnobRow} preset=${preset} knob=${knob} knobs=${knobs} lane=${lane} disabled=${disabled} />`,
+      )}
+    </span>
   `;
 }
