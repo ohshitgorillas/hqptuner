@@ -31,19 +31,19 @@ const ONE_HALF =
   "15.56 11.07Q15.56 11.34 15.44 11.63Q15.33 11.93 15.00 12.36Q14.68 12.79 14.05 13.48L13.29 " +
   "14.33V14.40H15.64V15.38Z";
 
-// The strike that negates the A, drawn as a filled bar rather than a stroked
-// line: a mark is ONE path, so the three forms are three different `d` strings
-// and telling them apart never depends on how many elements happen to be inside
-// the svg. Corners are the 1.7-wide band around the diagonal from (4.6,15.4) to
-// (15.4,4.6), each end offset by half that width along the perpendicular; every
-// corner falls inside the circle.
+// The strike, drawn as a filled bar rather than a stroked line: a mark is ONE
+// path, so the three forms are three different `d` strings and telling them
+// apart never depends on how many elements happen to be inside the svg. Corners
+// are the 1.7-wide band around the diagonal from (4.6,15.4) to (15.4,4.6), each
+// end offset by half that width along the perpendicular; every corner falls
+// inside the circle.
 const STRIKE = "M5.20 16.00L16.00 5.20L14.80 4.00L4.00 14.80Z";
 
-// "None" is the A struck through rather than a third letter: the glyph being
-// negated has to stay legible for the negation to name anything, and a struck
-// letter is the mark every reader already knows.
+// "None" is the bare struck circle rather than a struck letter: nothing is being
+// corrected, so there is no quantity to letter, and the empty circle-slash is
+// the mark every reader already reads as "none".
 /** @type {Record<ApodKind, string>} */
-const APOD_PATH = { full: A, half: ONE_HALF, none: A + STRIKE };
+const APOD_PATH = { full: A, half: ONE_HALF, none: STRIKE };
 
 /**
  * The circled apodizing mark. Renders nothing without a kind, so a caller with
