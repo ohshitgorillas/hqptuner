@@ -17,6 +17,7 @@
  * @property {string} id
  * @property {string} default position used when the caller names none
  * @property {string[]} options
+ * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
  *
  * @typedef {object} Preset
  * @property {string} id
@@ -93,6 +94,18 @@ const PRESETS = Object.freeze([
       { id: "correction", default: "on", options: ["on", "off"] },
     ],
   },
+  // One second knob at a time: Version decides whether the tile offers Error
+  // correction (gauss pair) or Emphasis (ext2 pair); the other is not counted.
+  {
+    id: "crucible",
+    emoji: "🔥",
+    costText: true,
+    knobs: [
+      { id: "version", default: "perfect-ten", options: ["perfect-ten", "lifelike"] },
+      { id: "correction", default: "on", options: ["on", "off"], when: { version: "perfect-ten" } },
+      { ...EMPHASIS, when: { version: "lifelike" } },
+    ],
+  },
   // The bottom-row pair. Full Analog has no cost row in store/easycost.js on
   // purpose: its cost is stated as a caption (costText), not ranked against
   // the card.
@@ -161,6 +174,14 @@ const FILTERS = {
     "lifelike/on": "poly-sinc-ext2-xla",
     "lifelike/off": "poly-sinc-ext2-xl",
   },
+  // Keys name offered knobs only: Version plus the one knob it puts on the tile.
+  // Pure sinc names enumerate identically on both chains, no `-2s`.
+  crucible: {
+    "perfect-ten/on": "sinc-MGa",
+    "perfect-ten/off": "sinc-MG",
+    "lifelike/space": "sinc-Mx",
+    "lifelike/transients": "sinc-S",
+  },
   // These names enumerate identically on both chains, with no `-2s` variants,
   // so one plain name serves every field (data/engine-enums.json).
   "full-analog": { "": "IIR2" },
@@ -210,15 +231,47 @@ function findPreset(presetId) {
 }
 
 /**
- * The combination key for a preset's knob positions, substituting the knob's
- * default for any position the preset does not define.
+ * Where one knob sits: the caller's position if the knob offers it, else its default.
+ *
+ * @param {Knob} knob
+ * @param {Record<string, string>} knobs
+ * @returns {string}
+ */
+function positionOf(knob, knobs) {
+  return knob.options.includes(knobs[knob.id]) ? knobs[knob.id] : knob.default;
+}
+
+/**
+ * The knobs a tile offers at these positions, in declared order. A knob is
+ * offered when every sibling its `when` names sits where asked; one whose
+ * `when` is unmet is neither shown nor counted in the write.
+ *
+ * @param {Preset} preset
+ * @param {Record<string, string>} knobs
+ * @returns {Knob[]}
+ */
+export function knobsShown(preset, knobs) {
+  return preset.knobs.filter((knob) =>
+    Object.entries(knob.when || {}).every(([id, at]) => {
+      const sibling = preset.knobs.find((k) => k.id === id);
+      return sibling !== undefined && positionOf(sibling, knobs) === at;
+    }),
+  );
+}
+
+/**
+ * The combination key for a preset's knob positions: the offered knobs'
+ * positions in declared order, a knob's default standing in for any position
+ * the preset does not define.
  *
  * @param {Preset} preset
  * @param {Record<string, string>} knobs
  * @returns {string}
  */
 function comboKey(preset, knobs) {
-  return preset.knobs.map((k) => (k.options.includes(knobs[k.id]) ? knobs[k.id] : k.default)).join("/");
+  return knobsShown(preset, knobs)
+    .map((k) => positionOf(k, knobs))
+    .join("/");
 }
 
 /**
@@ -294,7 +347,9 @@ export function filterFor(presetId, outputMode, knobs = {}, nx = false) {
 }
 
 /**
- * Every knob position combination a preset offers, as knob-id maps.
+ * Every knob position combination a preset offers, as knob-id maps. A knob not
+ * offered at a partial combination is absent from the maps grown from it. A
+ * `when` may only name knobs declared before its own, the order the sweep fixes.
  *
  * @param {Preset} preset
  * @returns {Record<string, string>[]}
@@ -303,7 +358,7 @@ function combos(preset) {
   /** @type {Record<string, string>[]} */
   let acc = [{}];
   for (const k of preset.knobs) {
-    acc = acc.flatMap((c) => k.options.map((o) => ({ ...c, [k.id]: o })));
+    acc = acc.flatMap((c) => (knobsShown(preset, c).includes(k) ? k.options.map((o) => ({ ...c, [k.id]: o })) : [c]));
   }
   return acc;
 }

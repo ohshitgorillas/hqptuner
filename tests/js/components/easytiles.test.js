@@ -10,8 +10,8 @@
 // preset MEANS is tests/js/store/easy.test.js's; this file is about the lane in
 // between the table and the daemon.
 //
-// THERE IS NO GRID SWITCHER. The card lays out one set of eight tiles, so nothing
-// here names a grid and no reading is scoped to one.
+// THERE IS NO GRID SWITCHER. The card lays out one set of tiles, one per preset
+// the store enumerates, so nothing here names a grid and no reading is scoped to one.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. Every case drives the exported store signals with the shapes
@@ -93,13 +93,16 @@ const {
 // what the card lays out
 // ============================================================================
 //
-// How many tiles, then which. The count fails on a card that gained or lost a
-// tile of any kind; the roster below names which preset went missing, or which
-// tile the store stands behind no preset for.
+// How many tiles, then which. The count is the store's, never a literal: how
+// many presets exist is owner-curated data (rule 9), so the card is asked to
+// lay out one tile per preset `presetsFor` enumerates, however many that is.
+// The count fails on a card that gained or lost a tile of any kind; the roster
+// below names which preset went missing, or which tile the store stands behind
+// no preset for.
 
-test("test_the_card_lays_out_eight_tiles", async () => {
+test("test_the_card_lays_out_exactly_one_tile_per_preset_the_store_enumerates", async () => {
   await resetTab();
-  assert.equal(tiles(tabs()), 8);
+  assert.equal(tiles(tabs()), namedPresets().length);
 });
 
 // The roster itself: the grid and the public store name the same presets. Both

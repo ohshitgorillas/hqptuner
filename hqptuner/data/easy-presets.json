@@ -4,7 +4,7 @@
   "help": {
     "link": "Still confused?",
     "title": "Easy Mode, explained",
-    "body": "Pick the preset that suits your material, then set its emphasis when available. The Perfect Ten, Lifelike, and Damage Control are the most all-purpose presets; Old School, The Purist, and Concert Hall are excellent with the appropriate material; Full Analog and Textbook are curiosities for the sake of comparison.\n\n'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction.\n\nChoose 'Space' for live or acoustic performances where the room or venue is part of the recording. The trade is slightly softer transients.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\nWhen listening to high-rate material 88.2kHz or up, using The Perfect Ten or Lifelike gives you special filters for those rates.\n\nWhen listening to lossy streams or files, use one of the presets with a Lossy mode (The Perfect Ten, Lifelike, and Damage Control); this gives you filters optimized for such content.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nPips estimate what a preset costs relative to the others on this card. The real load depends on your hardware, your output rate, and the rest of the chain, where the modulator or DAC correction can outweigh the filter entirely.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
+    "body": "Pick the preset that suits your material, then set its emphasis when available. The Perfect Ten, Lifelike, and Damage Control are the most all-purpose presets; Old School, The Purist, and Concert Hall are excellent with the appropriate material; The Crucible, Full Analog, and Textbook are curiosities for the sake of comparison.\n\n'Transients' are sudden sounds like a snare drum hit or the leading edge of a plucked string. Choose for most multi-track studio recordings; such content often has an artificial sense of space but strong transient content. These filters emphasize clean transient reproduction.\n\nChoose 'Space' for live or acoustic performances where the room or venue is part of the recording. The trade is slightly softer transients.\n\nNote that the effect of these levers varies from preset to preset: for example, 'The Purist' adjusts the filter's length to change the emphasis; Old School, on the other hand, changes its phase.\n\nWhen listening to high-rate material 88.2kHz or up, using The Perfect Ten or Lifelike gives you special filters for those rates.\n\nWhen listening to lossy streams or files, use one of the presets with a Lossy mode (The Perfect Ten, Lifelike, and Damage Control); this gives you filters optimized for such content.\n\nThe glyphs (A) and (1/2) indicate the error correction level (apodizing); if no or half error correction sounds harsh or generates an apodizing events warning, try a different setting.\n\nPips estimate what a preset costs relative to the others on this card. The real load depends on your hardware, your output rate, and the rest of the chain, where the modulator or DAC correction can outweigh the filter entirely.\n\nStill can't decide? Experiment! Presets can be changed live at any time with only a brief interruption to playback."
   },
   "tips": {
     "emphasis": {
@@ -110,6 +110,26 @@
         "label": "Error correction",
         "tip": "Disabling error correction reduces resource consumption.",
         "options": { "on": "On", "off": "Off" }
+      }
+    }
+  },
+  "crucible": {
+    "title": "The Crucible",
+    "description": "Trial by fire: maximalist, brute-force signal reconstruction with no shortcuts.",
+    "cost": "Adaptive",
+    "knobs": {
+      "version": {
+        "label": "Version",
+        "options": { "perfect-ten": "The Perfect Ten", "lifelike": "Lifelike" }
+      },
+      "correction": {
+        "label": "Error correction",
+        "tip": "Disabling error correction reduces resource consumption.",
+        "options": { "on": "On", "off": "Off" }
+      },
+      "emphasis": {
+        "label": "Emphasis",
+        "options": { "space": "Space", "transients": "Transients" }
       }
     }
   }
