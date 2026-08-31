@@ -34,7 +34,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { EasyCard } from "../../../hqptuner/static/components/easy/EasyCard.js";
 import { writeSet, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
-import { easyMode, easyKnobs } from "../../../hqptuner/static/store/easyview.js";
+import { easyMode, easyKnobs, setEasyMaterial } from "../../../hqptuner/static/store/easyview.js";
 import * as signals from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -49,7 +49,7 @@ import { engineRows, configPayload, enumerations, tabEnums, loaded } from "./eas
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
 /** @typedef {import("./easyrate.js").Engine} Engine */
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 // --- the four filter fields -------------------------------------------------------
@@ -204,14 +204,31 @@ const META = {
  * Whether a knob is one the tile offers whatever the source is. A knob carrying
  * `whenHires` is offered only while the filter its tile names is a hi-res one,
  * and these suites seed no hi-res source, so such a knob is not on the tile
- * here. Sweeps enumerating knobs out of `knobsShown()` filter by this: the
- * store's declaration stays the oracle, and a knob the source gates out of the
- * rendering generates no case.
+ * here. A knob carrying `card` is the CARD's knob, one control on the card body
+ * rather than a row on any tile, so no tile offers it either. Sweeps
+ * enumerating knobs out of `knobsShown()` filter by this: the store's
+ * declaration stays the oracle, and a knob the source gates out of the
+ * rendering, or the card keeps for itself, generates no tile case.
  *
  * @param {Knob} knob
  * @returns {boolean}
  */
-export const offeredAnySource = (knob) => !knob.whenHires;
+export const offeredAnySource = (knob) => !knob.whenHires && !knob.card;
+
+/**
+ * The card knob's resting position, read off the table: the `default` of the
+ * knob the presets declare `card`. A table declaring none throws, so the card
+ * is never quietly reset to a position nothing stated.
+ *
+ * @returns {string}
+ */
+function cardDefault() {
+  const card = presetsFor()
+    .flatMap((/** @type {Preset} */ preset) => preset.knobs)
+    .find((/** @type {Knob} */ knob) => knob.card);
+  if (card === undefined) throw new Error("no preset of the table declares a card knob");
+  return String(card.default);
+}
 
 /**
  * Whether the fields can carry a combination. A knob its `when` hides at a
@@ -359,6 +376,9 @@ export async function flush(w) {
  */
 function common(keepKnobs, notes, copy) {
   if (!keepKnobs) easyKnobs.value = {};
+  // The card's material position is module-level like the record and outlives
+  // a case; a case wanting it off its default sets it AFTER the reset.
+  setEasyMaterial(cardDefault());
   signals.metadata.value = { ...META, easy: { ...META.easy, ...copy } };
   signals.matrixConfig.value = { fields: [] };
   // The preview a click in the presets pane leaves behind is module-level like

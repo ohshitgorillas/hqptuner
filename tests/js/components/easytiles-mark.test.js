@@ -53,7 +53,7 @@ const {
   markFollowsTitleAndPrecedesDescription,
 } = await import("../support/easymark.js");
 const { dropdownGlyphs } = await import("../support/apodglyph.js");
-const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { recordPositions } = await import("../support/easyrecord.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 // The three classes a filter can be in, as the overlay spells them.
@@ -279,7 +279,7 @@ for (const move of MOVES) {
     const none = await glyphOfClass("none");
     await resetTab({ mode: "pcm" });
     seedFacets(facetsOf(move));
-    rememberKnobs(move.preset, { [move.knob]: move.moved });
+    recordPositions(move.preset, { [move.knob]: move.moved });
     assert.equal(markGlyph(tabs(), move.preset), none);
   });
 }

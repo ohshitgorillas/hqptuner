@@ -36,9 +36,10 @@ from typing import cast
 from fastapi.testclient import TestClient
 
 # The keys the section carries BESIDE its preset entries: the card's notice, the
-# help panel's copy, the per-position tips block and the file's own authoring
-# comment. Every other key is a preset entry.
-BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
+# help panel's copy, the per-position tips block, the card knob's own copy
+# (`card.material`, the one control on the card body rather than on any tile)
+# and the file's own authoring comment. Every other key is a preset entry.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "card", "_comment"}
 
 
 def _easy(client: TestClient) -> dict[str, object]:

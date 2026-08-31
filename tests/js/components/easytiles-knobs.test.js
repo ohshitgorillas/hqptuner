@@ -68,7 +68,7 @@ const {
 const { rememberKnobs, knobsFor } = await import("../../../hqptuner/static/store/easyview.js");
 const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 /**
@@ -103,8 +103,10 @@ const restingOf = (preset) => Object.fromEntries(preset.knobs.map((knob) => [Str
 
 /**
  * The knobs a preset offers at its defaults, read through `knobsShown()` so a
- * knob whose `when` hides it at rest is not counted, and a knob the source
- * gates out of the rendering (`offeredAnySource`) is not counted either.
+ * knob whose `when` hides it at rest is not counted, and a knob no tile offers
+ * (`offeredAnySource`: one the source gates out of the rendering, or the CARD's
+ * own knob, which is one control on the card body and a row on no tile) is not
+ * counted either.
  *
  * @param {Preset} preset
  * @returns {Knob[]}

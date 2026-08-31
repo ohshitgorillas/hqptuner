@@ -55,7 +55,7 @@ useStorage();
 const { resetTab, tabs, resetLive, liveCard } = await import("../support/easytiles.js");
 const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../support/easypips.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
-const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { recordPositions } = await import("../support/easyrecord.js");
 const { pipsFor } = await import("../../../hqptuner/static/store/easycost.js");
 const { presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 
@@ -167,8 +167,10 @@ for (const preset of DOTTED) {
 // number. One case per preset, per knob that preset offers at rest, per output
 // chain: a card that carried one knob through and dropped another, or carried
 // them on one chain only, fails by naming the tile, the knob and the chain.
-// Positions are recorded through `rememberKnobs`, the public way a knob's
-// position is put on record, and AFTER the reset because the reset clears it.
+// Positions are put on record through `recordPositions`
+// (tests/js/support/easyrecord.js): a tile knob's through `rememberKnobs`, the
+// card knob's through `setEasyMaterial`, and AFTER the reset because the reset
+// clears both.
 //
 // NO PRESET IS NAMED TO STAND FOR A KNOB. Which presets carry which knobs is
 // owner data, so the pairs are swept off the shipped table: every preset
@@ -212,7 +214,7 @@ for (const { preset, knob, knobs } of movedPairs()) {
   for (const chain of CHAINS) {
     test(`test_a_${preset.id}_tile_recorded_off_its_${knob.id}_default_draws_what_that_position_costs_on_the_${chain}_chain`, async () => {
       await resetTab({ mode: chain });
-      rememberKnobs(preset.id, knobs);
+      recordPositions(preset.id, knobs);
       assert.equal(pipCount(tabs(), preset.id), pipsFor(preset.id, chain, knobs));
     });
   }

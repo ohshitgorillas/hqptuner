@@ -26,9 +26,10 @@ from fastapi.testclient import TestClient
 # The keys the section carries BESIDE its preset entries: the notice the card's
 # subtitle is drawn from, the help panel's copy
 # (tests/js/components/easytiles-help.test.js), the per-position tips block
-# (tests/api/test_metadata_easy_tips.py), and the file's own authoring comment.
-# Every other key is a preset entry.
-BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
+# (tests/api/test_metadata_easy_tips.py), the card knob's own copy (`card`,
+# the material control on the card body rather than on any tile), and the
+# file's own authoring comment. Every other key is a preset entry.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "card", "_comment"}
 
 
 def _payload(client: TestClient) -> dict[str, object]:

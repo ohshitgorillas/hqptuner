@@ -33,9 +33,12 @@
 // swept from `presetsFor()`, the flagships being the presets that declare
 // `hires`. Every flagship reading is taken on EVERY one of them, so a card that
 // badged, named or tipped some but not all fails by naming the tile it left
-// bare. The knob and ORDER cases are read on every flagship that carries a
+// bare. The material and ORDER cases are read on every flagship that takes the
 // `material` knob, at every position that knob declares; no preset is named to
-// stand for the property.
+// stand for the property. The knob is the CARD's, one control on the card body
+// and a row on no tile, so its position is put on record through
+// `setEasyMaterial`, the public way the card's position is stated, and there is
+// no tile row to confirm it against.
 //
 // THE APODIZING MARK IS SEEDED IN ONE CASE: the marked row's order. A tile
 // whose filter the facet overlay does not annotate renders no `.easy-apod` at
@@ -56,9 +59,9 @@ import { useStorage } from "../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, tileHtml, knobPositions } = await import("../support/easytiles.js");
+const { resetTab, tabs, tileHtml } = await import("../support/easytiles.js");
 const { seedFacets, uniformFacets } = await import("../support/easymark.js");
-const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { setEasyMaterial } = await import("../../../hqptuner/static/store/easyview.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
@@ -86,10 +89,10 @@ const PLAIN = PRESETS.filter((preset) => !preset.hires).map((preset) => String(p
 const MATERIAL = "material";
 const MODES = ["pcm", "sdm"];
 
-// The flagships that carry a `material` knob, each with the positions that knob
-// declares, off the shipped table: the tiles the knob cases and the order cases
-// are read on. No preset is named to stand for the property, and a table in
-// which no flagship carries the knob generates no such case.
+// The flagships that take the `material` knob, each with the positions that
+// knob declares, off the shipped table: the tiles the material cases and the
+// order cases are read on. No preset is named to stand for the property, and a
+// table in which no flagship takes the knob generates no such case.
 /** @type {{ presetId: string, materials: string[] }[]} */
 const MATERIAL_FLAGSHIPS = PRESETS.filter((preset) => Boolean(preset.hires)).flatMap((preset) =>
   preset.knobs
@@ -134,42 +137,6 @@ const badgesInCostRow = (out, presetId) =>
  */
 const badgesOnTile = (out, presetId) =>
   elements(tileHtml(out, presetId)).filter((el) => attr(el, "data-testid") === BADGE).length;
-
-/**
- * The rendered card, handed back only WHILE ONE TILE'S `material` KNOB SHOWS
- * the position named; a knob showing anything but that one position throws.
- *
- * Every reading taken at a recorded material goes through this first. Without
- * it a recorded position that never reached the render would leave every knob
- * case rendering the resting tile, so many spellings of one reading that no
- * longer says anything about the knob.
- *
- * @param {string} out
- * @param {string} presetId
- * @param {string} material
- * @returns {string}
- */
-function showingMaterial(out, presetId, material) {
-  const marked = knobPositions(out, presetId, MATERIAL);
-  if (marked.length !== 1 || marked[0] !== material) {
-    throw new Error(
-      `the "${presetId}" tile's "${MATERIAL}" knob shows [${marked.join(", ")}], not "${material}" alone`,
-    );
-  }
-  return out;
-}
-
-/**
- * How many hi-res badges stand in one tile's cost row while its `material`
- * knob shows the position named, the reading the knob cases take.
- *
- * @param {string} out
- * @param {string} presetId
- * @param {string} material
- * @returns {number}
- */
-const badgesAtMaterial = (out, presetId, material) =>
-  badgesInCostRow(showingMaterial(out, presetId, material), presetId);
 
 /**
  * One tile's badge, thrown for rather than answered as undefined: "there is no
@@ -374,13 +341,12 @@ for (const presetId of PLAIN) {
 // the badge does not move with the knobs or the output mode
 // ============================================================================
 //
-// A flagship is a flagship whichever material its `material` knob is recorded
-// on and whichever chain the card is showing, so the badge stands in every
-// combination, on every flagship carrying the knob. The positions are the
-// knob's own declared options; the position is put on record through
-// `rememberKnobs`, the public way a knob's position is stated, AFTER the reset,
-// which clears it, and the tile is read through `badgesAtMaterial`, which
-// refuses a rendering whose knob does not show it.
+// A flagship is a flagship whichever material the card's `material` knob is
+// set to and whichever chain the card is showing, so the badge stands in every
+// combination, on every flagship taking the knob. The positions are the knob's
+// own declared options; the position is set through `setEasyMaterial`, the
+// public way the card's position is stated, AFTER the reset, which puts the
+// card back at its default.
 //
 // One case per combination, so a badge that survived only the resting knob, or
 // only one chain, or only one flagship, fails by naming the case it did not.
@@ -390,8 +356,8 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
     for (const mode of MODES) {
       test(`test_the_${presetId}_tile_renders_its_hires_badge_on_${material}_material_in_the_${mode}_output_mode`, async () => {
         await resetTab({ mode });
-        rememberKnobs(presetId, { [MATERIAL]: material });
-        assert.equal(badgesAtMaterial(tabs(), presetId, material), 1);
+        setEasyMaterial(material);
+        assert.equal(badgesInCostRow(tabs(), presetId), 1);
       });
     }
   }
@@ -412,24 +378,17 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
 // where the row has both. The seeding states a class for every filter the
 // table can write, so the mark is there whichever material is recorded.
 //
-// Read on every flagship carrying a `material` knob, at every position that
-// knob declares, through `showingMaterial`, which refuses a rendering whose
-// knob does not show the position: an arrangement that held at rest and
-// shuffled on a recorded position fails by naming the position.
+// Read on every flagship taking the `material` knob, at every position the
+// card's knob declares: an arrangement that held at rest and shuffled on a
+// moved position fails by naming the position.
 
 for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
   for (const material of materials) {
     test(`test_the_marked_${presetId}_tiles_cost_row_on_${material}_material_reads_mark_divider_badge_divider_pips`, async () => {
       await resetTab({ mode: "pcm" });
       seedFacets(uniformFacets("full"));
-      rememberKnobs(presetId, { [MATERIAL]: material });
-      assert.deepEqual(costRowOrder(showingMaterial(tabs(), presetId, material), presetId), [
-        APOD,
-        RULE,
-        BADGE,
-        RULE,
-        PIPS,
-      ]);
+      setEasyMaterial(material);
+      assert.deepEqual(costRowOrder(tabs(), presetId), [APOD, RULE, BADGE, RULE, PIPS]);
     });
   }
 }
@@ -444,11 +403,8 @@ for (const { presetId, materials } of MATERIAL_FLAGSHIPS) {
   for (const material of materials) {
     test(`test_the_unmarked_${presetId}_tiles_hires_badge_on_${material}_material_is_preceded_by_no_divider`, async () => {
       await resetTab({ mode: "pcm" });
-      rememberKnobs(presetId, { [MATERIAL]: material });
-      assert.equal(
-        partsBeforeUnmarkedBadge(showingMaterial(tabs(), presetId, material), presetId).includes(RULE),
-        false,
-      );
+      setEasyMaterial(material);
+      assert.equal(partsBeforeUnmarkedBadge(tabs(), presetId).includes(RULE), false);
     });
   }
 }

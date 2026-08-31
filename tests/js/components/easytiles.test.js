@@ -94,7 +94,7 @@ const {
 const { writeSet, presetsFor, knobsShown } = await import("../../../hqptuner/static/store/easy.js");
 const { combos } = await import("../support/easytable.js");
 
-/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
+/** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */
 
 /** @type {Preset[]} */
@@ -197,12 +197,14 @@ test("test_every_tile_is_marked_inactive_while_the_fields_carry_no_presets_write
 });
 
 // What a `material` knob writes, in the fields, at every position of every knob
-// its tile carries: the tile it belongs to lights, and its material knob shows
-// the position that write was made at. Swept over the presets carrying the
-// knob rather than naming one, and over the positions each knob defines rather
-// than typing them: the filter the retired `lossy` tile used to write is one of
-// these, and a card still matching it to a tile of its own would light nothing
-// here. The whole map is read so a failure names which tile came up.
+// its tile carries: the tile it belongs to lights. Swept over the presets
+// carrying the knob rather than naming one, and over the positions each knob
+// defines rather than typing them: the filter the retired `lossy` tile used to
+// write is one of these, and a card still matching it to a tile of its own
+// would light nothing here. The whole map is read so a failure names which tile
+// came up. The knob is the CARD's, one control on the card body and no row on
+// any tile, so there is no per-tile knob row to read its position off; what the
+// card control shows is tests/js/components/easytiles-material.test.js's.
 
 /** @type {[Preset, Record<string, string>][]} */
 const MATERIAL_SEEDS = SEEDS.filter(([preset]) => preset.knobs.some((knob) => String(knob.id) === MATERIAL));
@@ -211,11 +213,6 @@ for (const [preset, knobs] of MATERIAL_SEEDS) {
   test(`test_${preset.id}_at_${positionsOf(knobs)}_in_the_fields_marks_that_tile_active`, async () => {
     await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", knobs) });
     assert.deepEqual(activeMap(tabs()), oneLit(preset.id));
-  });
-
-  test(`test_${preset.id}_at_${positionsOf(knobs)}_in_the_fields_shows_its_material_knob_at_${knobs[MATERIAL]}`, async () => {
-    await resetTab({ mode: "pcm", names: writeSet(preset.id, "pcm", knobs) });
-    assert.deepEqual(knobPositions(tabs(), preset.id, MATERIAL), [knobs[MATERIAL]]);
   });
 }
 
@@ -377,9 +374,9 @@ for (const [preset, c] of CHAIN_SPLIT) {
 // combination under test, which is what puts its knobs there, and the knob
 // under test is moved from there. What that press stages is the DIFFERENCE
 // between the two write sets: a field already carrying the name the new
-// position writes has nothing to write, so a material move that changes one
-// end of the chain stages one field, and a card wiring a position to nothing
-// stages nothing.
+// position writes has nothing to write, so a move that changes one end of the
+// chain stages one field, and a card wiring a position to nothing stages
+// nothing. The card's own knob is no tile row and is not pressed here.
 //
 // Where the knobs REST is the per-preset routing sweep above, which presses each
 // tile untouched, and only that one.

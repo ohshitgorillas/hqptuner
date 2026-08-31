@@ -83,7 +83,7 @@ useStorage();
 
 const { resetTab, tabs, tileHtml, running } = await import("../support/easytiles.js");
 const { combos } = await import("../support/easytable.js");
-const { rememberKnobs } = await import("../../../hqptuner/static/store/easyview.js");
+const { recordPositions } = await import("../support/easyrecord.js");
 const { presetsFor } = await import("../../../hqptuner/static/store/easy.js");
 const signals = await import("../../../hqptuner/static/store/signals.js");
 
@@ -160,8 +160,10 @@ const EMPTY_SECTION = { entries: {}, families: {}, variants: {} };
  * `annotate` is the one filter name the overlay states a row for, or nothing,
  * in which case the overlay knows no filter at all. `source` is what the engine
  * reports playing, or nothing at all when a case does not name one. `record` is
- * the knob positions a tile is put on, recorded after the reset that clears the
- * record and before the render that reads it.
+ * the knob positions a tile is put on, put on record after the reset that
+ * clears them and before the render that reads them: a tile knob's through
+ * `rememberKnobs`, the card knob's through `setEasyMaterial`
+ * (tests/js/support/easyrecord.js).
  *
  * @param {{
  *   annotate?: string,
@@ -191,7 +193,7 @@ async function card({ annotate, source, record } = {}) {
       modulators: { ...EMPTY_SECTION },
     },
   };
-  if (record !== undefined) rememberKnobs(record.preset, record.positions);
+  if (record !== undefined) recordPositions(record.preset, record.positions);
   return tabs();
 }
 

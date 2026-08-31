@@ -91,7 +91,8 @@ const at = (knobs) =>
 
 // The tiles the record-and-stage cases press: every preset that OFFERS exactly
 // one knob at its defaults, read through `knobsShown()` so a knob whose `when`
-// hides it at rest is not counted. Which presets those are is owner data (rule
+// hides it at rest is not counted, nor is a knob no tile offers
+// (`offeredAnySource`: the card's own knob is a row on no tile). Which presets those are is owner data (rule
 // 9), selected by the property rather than named, so a preset that gained or
 // lost a knob is swept in or out without a hand edit. Beside each sits its knob,
 // the position that knob rests at, and the first position other than the resting
@@ -100,7 +101,10 @@ const at = (knobs) =>
 // DEFAULTS would have written. A one-knob preset whose knob offers no other
 // position has no moved case to generate.
 
-const ONE_KNOB = PRESETS.map((preset) => ({ preset, shown: knobsShown(preset, resting(preset)) }))
+const ONE_KNOB = PRESETS.map((preset) => ({
+  preset,
+  shown: knobsShown(preset, resting(preset)).filter(offeredAnySource),
+}))
   .filter(({ shown }) => shown.length === 1)
   .map(({ preset, shown }) => ({
     id: String(preset.id),

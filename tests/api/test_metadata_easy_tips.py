@@ -39,11 +39,12 @@ TIPPED_KNOBS = ["emphasis", "version"]
 # WHICH TILES the card lays out is the owner's curated list and is not stated
 # here (docs/testing.md rule 9): the sweep walks every preset entry the payload
 # serves, which is every key of the section beside the notice, the help panel's
-# copy, the tips block and the file's own authoring comment. Damage Control's
-# `material` knob is not in TIPPED_KNOBS: its copy is not written yet, so there
-# is no tip to ask for and none may be invented. A tile with no knobs offers
-# nothing for the sweep to cover.
-BESIDE_THE_PRESETS = {"notice", "help", "tips", "_comment"}
+# copy, the tips block, the card knob's own copy (`card`) and the file's own
+# authoring comment. The `material` knob is not in TIPPED_KNOBS: it is the
+# CARD's knob, one control on the card body, so no preset entry carries
+# `knobs.material` and there is no per-tile position to ask a tip for. A tile
+# with no knobs offers nothing for the sweep to cover.
+BESIDE_THE_PRESETS = {"notice", "help", "tips", "card", "_comment"}
 
 
 def _easy(client: TestClient) -> dict[str, object]:
