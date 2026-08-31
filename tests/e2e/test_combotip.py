@@ -16,10 +16,12 @@ states for `.dd-tip-name`/`.dd-tip-desc`, which is why that suite pins the tip's
 name through the module API instead. A real pointer over a real row is the only
 way to observe the rendered tip, and that is what a browser test is for.
 
-Every case is a CONTRAST rather than an existence check: a filter the facet
-rules place carries the marking and a filter they do not place carries no such
-marking, so a tip that marked every row with one constant, or dropped the
-markings entirely, fails here.
+The facet and chip markings are pinned as CONTRASTS wherever the absent half
+rides a wire identifier: a filter the rules place carries the marking and a
+filter they do not place carries no such marking, so a tip that marked every row
+with one constant, or dropped the markings entirely, fails here. An absence that
+would ride the owner-curated overlay instead is not pinned at all — the owner
+adds a key there without changing behavior, which is the test rule 9 names.
 
 What the tip states comes from two sources this stack serves for real. The live
 enumeration (`tests/support/fake_control.py`) supplies each filter's quality,
@@ -29,8 +31,7 @@ driven here:
 
 - `none` — the pass-through, `1/5 ⥮ 1:1`, `arg="0"`. Rated and ratioed, and
   nothing else: no phase, no length, no boolean facet at all.
-- `sinc-M` — no length: the sinc-M set states a tap count and no length letter,
-  and nothing classifies it (the rule `facettip.test.js` pins by name).
+- `sinc-M` — upsample-only in the shipped overlay.
 - `poly-sinc-short-mp` — a `-mp` name token (minimum phase) and a `short` one.
 
 Policy notes (docs/testing.md): one assertion per test; playwright's `expect()`
@@ -124,24 +125,10 @@ def test_a_facet_the_pass_through_does_not_state_is_marked_on_no_row_of_its_tip(
 
 
 @pytest.mark.parametrize("facet", ["quality", "genre", "phase", "ratio"])
-def test_a_facet_the_no_length_filter_states_is_marked_on_its_tip(page: Page, stack: Stack, facet: str) -> None:
-    """sinc-M is placed by every facet rule but length, and each of those rows is marked.
-
-    The positive half of the contrast below: without it, a tip that rendered no
-    facet rows at all for this filter would satisfy "no length row" too.
-    """
+def test_a_facet_a_placed_filter_states_is_marked_on_its_tip(page: Page, stack: Stack, facet: str) -> None:
+    """Each facet the rules place on sinc-M is marked with the code for that facet."""
     hover_tip(page, stack, SINC_M)
     assert facet in facets(page)
-
-
-def test_a_filter_no_length_rule_places_is_marked_with_no_length_facet(page: Page, stack: Stack) -> None:
-    """sinc-M states a tap count and no length letter, so its tip carries no length row.
-
-    The contrast that makes `data-facet="length"` mean something: the case above
-    shows this filter IS marked for quality, genre, phase and ratio.
-    """
-    hover_tip(page, stack, SINC_M)
-    assert "length" not in facets(page)
 
 
 def test_every_facet_row_of_a_tip_carries_a_marking(page: Page, stack: Stack) -> None:
