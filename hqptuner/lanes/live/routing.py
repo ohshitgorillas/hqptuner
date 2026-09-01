@@ -268,13 +268,20 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
     """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
-    items = (mgr.readings.enums or {}).get(_LIVE_ONLY[field].enum) or []
+    spec = _LIVE_ONLY.get(field)
+    if spec is None:
+        # Neither table carries it, so there is nothing to resolve against: it is
+        # refused with the rest of the unresolvable fields rather than crashing.
+        return None
+    items = (mgr.readings.enums or {}).get(spec.enum) or []
     return _known_index(items, value)
 
 
 def _why_unresolved(field: str, value: str) -> str:
     """Why a field would not resolve, in terms the control that sent it can show."""
-    spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
+    spec = ROUTABLE.get(field) or _LIVE_ONLY.get(field)
+    if spec is None:
+        return "not a live setting"
     return f"{value} is not in the engine's live {spec.enum} list"
 
 
