@@ -18,6 +18,7 @@ const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
+const K_APOD_LIGHT = "hqptuner.apodLight";
 
 // A dead store is worth exactly one line of console noise: silence hides the
 // "prefs never persist" case (notably node/SSR, where every read is a default),
@@ -125,6 +126,22 @@ export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 export function setQuickSystemUpdates(on) {
   quickSystemUpdates.value = !!on;
   persist(K_QUICK_SYS, quickSystemUpdates.value);
+}
+
+// The header's apodizing indicator. Off by default: it is a monitor for a
+// question most listening does not ask, and an indicator nobody switched on has
+// no business flashing in the chrome. Consumed by components/ApodLamp.js.
+export const apodLight = signal(loadBool(K_APOD_LIGHT, false));
+
+/**
+ * Set the header apodizing indicator's opt-in and persist it.
+ *
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function setApodLight(on) {
+  apodLight.value = !!on;
+  persist(K_APOD_LIGHT, apodLight.value);
 }
 
 // Time window of the Engine health card's apodizing-events density strip: how

@@ -10,6 +10,7 @@
 // needle's CSS transform transition gives it damped-ballistics sweep
 // between polls.
 import { html } from "../lib/dom.js";
+import { rateOf, intensity, SAT } from "../lib/apodscale.js";
 import { engineStatus } from "../store/signals.js";
 import { trackCounters, outputBufferApplies } from "../store/health.js";
 import { apodStripVisible, apodVisibleBins } from "../store/apodhistory.js";
@@ -125,33 +126,6 @@ const Counter = ({ label, delta, total, alert }) => html`
 // observed, and right-aligning against the window's own width means a
 // half-filled window fills from the right rather than stretching three bins
 // across the card.
-//
-// Density is a RATE, not a count: events per second, taken over the interval the
-// bin actually observed. A bin covers 1 s in LIVE and 2 s elsewhere, so scoring
-// the raw count would paint the same music half as hot on the page that polls
-// faster, and a run that changed cadence mid-track would step to a different
-// color with no change in what the engine did.
-/**
- * @param {{ ms: number, n: number }} bin
- * @returns {number} events per second
- */
-const rateOf = (bin) => (bin.ms > 0 ? (bin.n * 1000) / bin.ms : 0);
-
-// Intensity is logarithmic and saturates at SAT, carried by color over a
-// full-height column rather than by the column's height: this is a spectrogram,
-// and density reads as color temperature. Fixed reference, so a column never
-// changes retroactively when a denser passage arrives.
-//
-// SAT is set from what the engine actually produces rather than a round number:
-// measured live, ordinary playback on an apodizing filter runs about 2.5 to 12.5
-// events per second. Saturating at 30 puts ordinary listening across the lower
-// middle of the ramp, which is what stops routine playback reading as one
-// undifferentiated hot band, and leaves a genuine burst somewhere to climb.
-const SAT = 30;
-const LOG_SPAN = Math.log10(SAT + 1);
-
-/** @param {number} rate @returns {number} 0..1 */
-const intensity = (rate) => Math.min(1, Math.log10(rate + 1) / LOG_SPAN);
 
 // The ramp's control points, floor first. Color lives in tokens.css and this
 // names it; the blend between two of them is what makes the scale continuous, so

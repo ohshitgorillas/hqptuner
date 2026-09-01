@@ -56,6 +56,11 @@ const MAX_BINS = 3600;
  */
 
 const bins = signal(/** @type {Bin[]} */ ([]));
+// A monotonic count of bins ever recorded, which the array's own length stops
+// being once MAX_BINS starts sliding the window. The header indicator restarts
+// its flash on every change of this, so a length that goes flat after an hour of
+// playback would leave the lamp lit at the last value and never fire again.
+const seq = signal(0);
 const track = signal(/** @type {TrackState} */ ({ serial: null, apodPrev: null, posPrev: undefined, sawEvent: false }));
 const visible = signal(false);
 
@@ -64,6 +69,9 @@ export const apodBins = computed(() => bins.value);
 
 /** Whether the density strip shows at all. */
 export const apodStripVisible = computed(() => visible.value);
+
+/** How many bins have ever been recorded, counting past the window's slide. */
+export const apodBinSeq = computed(() => seq.value);
 
 const num = (/** @type {string | number | undefined | null} */ v) => {
   const n = Number(v);
