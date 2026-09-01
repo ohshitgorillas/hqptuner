@@ -28,7 +28,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain, rate_index_for
+from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -237,16 +237,12 @@ class LiveRouteError(HQPTunerError):
 
 
 _LIVE_ONLY: dict[str, LiveField] = {
-    # Target output rate. Deliberately absent from ROUTABLE, and for the reason
-    # stated there: the config form's `defaults_samplerate`/`defaults_bitrate` are
-    # a per-family ceiling under forced auto-family, a different slot from the
-    # target rate `SetRate` writes. LIVE carries the target slot itself, as an
-    # actual rate in Hz ("0" = auto) — and `RatesItem` has no `value` attribute
-    # (`<RatesItem index rate/>`, protocol.md §6), so this one joins on `rate`.
-    # A live-set rate is ephemeral by design: http.restore.FORCED_CONFIG re-forces
-    # samplerate=0 on every persistent apply, so LIVE experiments never reach the
-    # config file.
-    "rate": LiveField("rate", "value", "rates", None, "rate"),
+    # Deliberately NOT here: the output rate. `SetRate` writes the FIXED slot
+    # (`samplerate`/`bitrate`), and an exact rate there overrides automatic
+    # base-rate selection — 44.1k material then goes out at a 48k base and the
+    # engine refuses the filter. HQPTuner holds that slot at auto always and puts
+    # a rate choice in the LIMIT slot instead (`chain.RATE_LIMIT_FIELD`), which is
+    # a config field, so a rate write leaves the live lane entirely.
     # Junk (playback) filter. Already index-domain on both sides — the daemon's
     # /config form has no field for it, so the frontend has always carried the
     # list index (store/schema.js `junk_filter`) — which makes the translation a
@@ -272,13 +268,20 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
     """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
-    items = (mgr.readings.enums or {}).get(_LIVE_ONLY[field].enum) or []
-    return rate_index_for(mgr, value) if field == "rate" else _known_index(items, value)
+    spec = _LIVE_ONLY.get(field)
+    if spec is None:
+        # Neither table carries it, so there is nothing to resolve against: it is
+        # refused with the rest of the unresolvable fields rather than crashing.
+        return None
+    items = (mgr.readings.enums or {}).get(spec.enum) or []
+    return _known_index(items, value)
 
 
 def _why_unresolved(field: str, value: str) -> str:
     """Why a field would not resolve, in terms the control that sent it can show."""
-    spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
+    spec = ROUTABLE.get(field) or _LIVE_ONLY.get(field)
+    if spec is None:
+        return "not a live setting"
     return f"{value} is not in the engine's live {spec.enum} list"
 
 
@@ -365,9 +368,8 @@ def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
 def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
     """Return a chain's remembered settings as ``writer.apply_live`` edits, alongside fields its lists do not carry.
 
-    Those dropped fields are dropped rather than approximated, the same rule ``_reassert_rate``
-    applies to a tier the entered mode does not offer: the nearest filter the
-    engine does have is a filter the user never picked. Resolved against
+    Those dropped fields are dropped rather than approximated: the nearest filter
+    the engine does have is a filter the user never picked. Resolved against
     ``mgr.readings.enums`` as it stands, so the caller must re-enumerate after the mode
     change first — the lists this joins through are the ones SetMode just swapped.
     """

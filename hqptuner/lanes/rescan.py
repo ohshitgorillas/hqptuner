@@ -6,7 +6,7 @@ setting, because a live setting is applied over 4321 and written nowhere
 (``snapshot``). Every OTHER daemon reload survives that, since a
 restore-shaped write folds the active preset's stored values into the XML it
 pushes (``presetfields.carried_live_fields``); a rescan writes no config at all,
-so nothing carries them and the user's filters, mode and rate pin are gone.
+so nothing carries them and the user's filters and mode are gone.
 
 This is the carrier for that one case: read what the engine is running BEFORE the
 rescan, put it back after. Gated on auto-save, because auto-save is the user
@@ -46,11 +46,14 @@ WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
-    ``snapshot`` is the reader, the same one a live preset is taken with: its
-    field set is every setting the live lane can write — the chains' filters and
-    shapers, output mode, adaptive volume, and the two that exist ONLY on the
-    engine, the rate pin and the junk filter. Reading them any other way loses
-    those two, because the config file has no field for either.
+    ``live_snapshot`` is the reader, the same one a live preset is taken with —
+    the chains' filters and shapers, output mode, adaptive volume, and the junk
+    filter, which exists ONLY on the engine and so is readable no other way.
+
+    Narrowed to what the live lane accepts (``routing.live_fields``), which drops
+    the rate: it goes to the config LIMIT slot (``live.chain.RATE_LIMIT_FIELD``),
+    persistent config that survives a rescan on its own. Filtering on the lane's
+    own field set rather than naming the rate keeps the two from drifting apart.
 
     Empty when auto-save is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
@@ -60,7 +63,10 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     if not mgr.presetops.store.autosave:
         return {}
     taken = live_snapshot(mgr)
-    return {} if taken is None else {field: item["value"] for field, item in taken.items()}
+    if taken is None:
+        return {}
+    accepted = routing.live_fields()
+    return {field: item["value"] for field, item in taken.items() if field in accepted}
 
 
 def _setting_of(name: str) -> str:

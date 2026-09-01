@@ -14,26 +14,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain, rate_family, tier_rate
+from hqptuner.lanes.live.chain import RATE_LIMIT_FIELD, EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
 
-# Where a live rate lands on the config side. `SetRate` writes an exact rate, the
-# config form's rate menu writes the per-family LIMIT, and the two agree in the
-# only terms the menu speaks: the tier. A pinned DSD256 becomes a DSD256 limit,
-# which the engine then selects in the source's own base family — the same output,
-# and the only form a config write may take (probe-verified on 6.0.4: a config rate
-# slot cannot pick a base family, so writing one would send 44.1k material out at
-# a 48k base rate behind the user's `any_dsd` setting).
-_RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
-
 # Every config field a live edit can reach — which is exactly the set the config
 # file cannot learn on its own, since a live edit never writes it. hqplayerd boots
 # from that file, so a restore-shaped write has to carry these from somewhere else
 # or the daemon comes back without them (``presetfields.carried_live_fields``).
-LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *_RATE_LIMIT_FIELD.values()})
+LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *RATE_LIMIT_FIELD.values()})
 
 
 def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
@@ -53,38 +44,6 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
         return None
     items = (mgr.readings.enums or {}).get(spec.enum) or []
     return mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
-
-
-def _pinned_rate(mgr: ConnectionManager, state: dict[str, str]) -> str | None:
-    """Return the rate in Hz the engine is pinned to right now, or None when it has none.
-
-    None when the engine has no pin of its own (``rate="0"``): the configured
-    limit is then already what it is following, so there is nothing to override.
-    """
-    items = (mgr.readings.enums or {}).get("rates") or []
-    by_index = {str(item.get("index")): str(item.get("rate")) for item in items}
-    hz = by_index.get(str(state.get("rate")))
-    return None if hz in (None, "0") else hz
-
-
-def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, str]:
-    """Both families' live rates as config limit fields.
-
-    ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
-    (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
-    only ever answer for the family it is running and only until the next mode
-    switch. ``mgr.readings.live.rates`` is what LIVE pinned per family, which ``lane``
-    puts back on the engine when that family comes round again — so reporting both
-    here says what the engine is set to rather than what it happens to report.
-
-    The engine still wins for the family it is running: a pin set from somewhere
-    other than LIVE is real, and this remembers only what LIVE itself wrote.
-    """
-    rates = dict(mgr.readings.live.rates)
-    pinned = _pinned_rate(mgr, state)
-    if pinned is not None:
-        rates[rate_family(pinned)] = pinned
-    return {_RATE_LIMIT_FIELD[family]: tier_rate(hz) for family, hz in rates.items()}
 
 
 def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
@@ -117,10 +76,9 @@ def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
     overwrite the dormant chain's settings with a translation of the other one's.
     """
     state = mgr.readings.state or {}
-    # Rate is not chain-gated the way the filter/shaper pair is: the two families'
-    # limits are separate fields, so carrying both overwrites neither.
+    # No rate override: the rate lives in the limit slot, which is a config field
+    # written persistently, so the file already carries it (``chain.RATE_LIMIT_FIELD``).
     return {
         **_chain_overrides(mgr, active_chain(mgr), state),
         **{field: state[attr] for field, attr in DIRECT.items() if state.get(attr) is not None},
-        **_rate_overrides(mgr, state),
     }

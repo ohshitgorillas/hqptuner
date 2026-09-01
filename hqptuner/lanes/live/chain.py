@@ -1,4 +1,4 @@
-"""Which chain the engine has loaded, and which output family a rate pin can land in."""
+"""Which chain the engine has loaded, and which output family a rate belongs to."""
 
 from __future__ import annotations
 
@@ -16,96 +16,44 @@ EnumItems = list[dict[str, str]]
 # the two families outright — no rate in Hz is ambiguous between them.
 _SDM_FLOOR = 2822400
 
-
-def rate_family(hz: str) -> str:
-    """Which output family a rate in Hz belongs to."""
-    return SDM if int(hz) >= _SDM_FLOOR else PCM
-
-
-# Every tier is n x 44100 or n x 48000 for the same n. A pin names the TIER, sent
-# as its 48k member: with `auto_family` on (readme §1.2, forced by
-# http.restore.FORCED_CONFIG) the engine keeps 44.1k material in its own family
-# under that pin, so the 44.1k member is never what goes on the wire by choice.
+# The two rate slots. `SetRate` writes the FIXED slot (`samplerate`/`bitrate`),
+# which HQPTuner holds at auto ("0") always: an exact rate there overrides automatic
+# base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses
+# the filter. The LIMIT slot holds the tier as its 48k member, and `auto_family` picks
+# the member matching the source per track (http.restore.FORCED_CONFIG forces the pair).
+RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
 _BASE_44K = 44100
 _BASE_48K = 48000
 
 
 def tier_rate(hz: str) -> str:
-    """Return a rate as the 48k-base member of its tier — the form a pin takes.
+    """Return a rate as the 48k-base member of its tier — the form the limit slot takes.
 
-    The 44.1k member converts exactly and anything else is already the 48k one.
+    Every tier is n x 44100 or n x 48000 for the same n, so the 44.1k member
+    converts exactly and anything else is already the 48k one.
     """
     value = int(hz)
     return str(value // _BASE_44K * _BASE_48K) if value % _BASE_44K == 0 else hz
 
 
-def rate_index_for(mgr: ConnectionManager, hz: str) -> str | None:
-    """Return the ``RatesItem`` index carrying this rate's tier, in the engine's current list.
+def tier_member(hz: str) -> bool:
+    """Whether a rate in Hz is a member of a rate tier, and so a legal limit value.
 
-    The tier's 48k member first; the rate as given only when the engine lists no
-    48k member for it, which is a device doing DSD in one base family alone.
+    Every tier is n x 44100 or n x 48000, so anything divisible by neither names no
+    tier the engine has. The limit slot is persistent config, and a value that names
+    no tier would be written to the file and booted from.
     """
-    items = (mgr.readings.enums or {}).get("rates") or []
-    index = index_for_rate(items, tier_rate(hz))
-    return index if index is not None else index_for_rate(items, hz)
+    return hz.isdigit() and int(hz) > 0 and (int(hz) % _BASE_44K == 0 or int(hz) % _BASE_48K == 0)
 
 
-def pin_family(mgr: ConnectionManager) -> str | None:
-    """Return the output family the engine will accept a rate pin for, or None for none.
-
-    The CONFIGURED mode answers this, never the running chain, and the two come
-    apart in exactly the case that matters: in ``[source]`` the engine has a chain
-    loaded and still refuses every pin — ``SetRate`` answers ``result="OK"`` with
-    ``State.rate`` unmoved (probe-verified on 6.0.4,
-    ``scripts/probes/probe_rate_playing.py``). In ``[source]`` the output rate
-    follows the source (readme §1.7), so there is no pin slot to write.
-    """
-    return _chain_from_state(mgr)
+def limit_field_for(hz: str) -> str:
+    """Return the limit slot a rate in Hz belongs to, by output family."""
+    return RATE_LIMIT_FIELD[rate_family(hz)]
 
 
-def unpinnable_rate(mgr: ConnectionManager, hz: str) -> bool:
-    """Whether the engine will refuse this rate as a pin right now.
-
-    Two ways it refuses, and both look identical on the wire — ``result="OK"``
-    with ``State.rate`` unmoved. A rate for the family the engine is not running
-    has no index to send at all: ``GetRates`` is mode-scoped and a bare Hz value is
-    accepted and ignored (protocol.md §6, measured). And in ``[source]`` no rate is
-    pinnable at all (``pin_family``).
-
-    So it is held rather than refused, exactly as an edit to the dormant chain's
-    card is (``resolve_live``): setting up the SDM side while PCM plays, or the
-    whole output before leaving auto, is an ordinary thing to do on the LIVE page.
-    ``lane._reassert_rate`` puts it on the engine when that family becomes
-    pinnable — which is also what makes it survive the switch it was made for,
-    since the engine keeps ONE pin and ``SetMode`` clears it outright.
-
-    Auto (``"0"``) says *stop* pinning, which the engine does take: never held.
-    """
-    return hz != "0" and rate_family(hz) != pin_family(mgr)
-
-
-def split_unpinnable_rate(mgr: ConnectionManager, fields: dict[str, str]) -> tuple[dict[str, str], str | None]:
-    """Return the batch minus a rate the engine will not pin, and that rate.
-
-    Split before `resolve_live` rather than routed inside it: the held rate does
-    not belong to `stored`. That is the per-chain memory of filters and shapers,
-    keyed by config-form field, and the rate has neither a chain of its own to be
-    keyed under (its family comes from its VALUE) nor the same fate on the way
-    back in — `LiveMemory.rates` and `_reassert_rate` land it, not `resolve_chain`.
-    """
-    hz = fields.get("rate")
-    if hz is None or not unpinnable_rate(mgr, hz):
-        return fields, None
-    return {field: value for field, value in fields.items() if field != "rate"}, hz
-
-
-def index_for_rate(items: EnumItems, hz: str) -> str | None:
-    """Return the ``RatesItem`` index carrying this rate in Hz (``"0"`` = auto)."""
-    for item in items:
-        if str(item.get("rate")) == str(hz):
-            index = item.get("index")
-            return None if index is None else str(index)
-    return None
+def rate_family(hz: str) -> str:
+    """Which output family a rate in Hz belongs to."""
+    return SDM if int(hz) >= _SDM_FLOOR else PCM
 
 
 def _chain_name(name: str) -> str | None:
@@ -154,9 +102,8 @@ def active_chain(mgr: ConnectionManager) -> str | None:
     None when neither can answer, which keeps the fields on the restore lane
     rather than guessing a chain.
 
-    This is not ``pin_family``, and the difference is the whole of auto mode: a
-    chain is loaded there and takes filter and shaper edits live, while the rate
-    pin is refused. Chain questions ask this one; rate questions ask that one.
+    A rate choice is a different question and does not come here: it goes to the
+    config LIMIT slot (``RATE_LIMIT_FIELD``), not to the loaded chain.
     """
     chain = _chain_from_state(mgr)
     return chain if chain is not None else _chain_from_status(mgr)
