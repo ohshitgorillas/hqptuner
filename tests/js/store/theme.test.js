@@ -225,7 +225,6 @@ test("test_init_stamps_the_dyslexic_attribute_from_the_stored_preference", () =>
   assert.equal(root.dataset.dyslexic, "1");
 });
 
-
 test("test_init_stamps_the_root_attribute_from_the_stored_accent", () => {
   const { root } = setup();
   accent.value = "green";
