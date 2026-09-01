@@ -331,7 +331,7 @@ async def test_a_rescan_whose_replay_fails_restores_nothing(
 async def test_a_rescan_whose_replay_fails_warns_the_user(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["warning"] == rescan.NO_DAEMON
+    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["warning"] == rescan.WRITE_FAILED
 
 
 # --- the engine is the source, never the store -------------------------------
@@ -459,7 +459,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await engineread.refresh_devices(manager))["warning"] == rescan.NO_DAEMON
+    assert (await engineread.refresh_devices(manager))["warning"] == rescan.WRITE_FAILED
 
 
 async def test_a_rescan_whose_replay_raises_warns_the_user(
