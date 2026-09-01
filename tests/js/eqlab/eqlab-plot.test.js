@@ -178,12 +178,9 @@ for (const name of ["target", "residual", "terrain"]) {
   });
 }
 
-test("test_the_missing_target_error_says_needs_a_target_declare_job_target", () => {
+test("test_the_missing_target_error_names_the_series_that_needed_it", () => {
   const { out } = runPlot({ path: outPath(), show: ["residual"] }, { target: undefined });
-  assert.ok(
-    String(out.error).includes("needs a target — declare job.target"),
-    `expected the exact phrase in: ${out && out.error}`,
-  );
+  assert.ok(String(out.error).includes('"residual"'), `expected the series name in: ${out && out.error}`);
 });
 
 test("test_show_response_without_a_target_succeeds", () => {

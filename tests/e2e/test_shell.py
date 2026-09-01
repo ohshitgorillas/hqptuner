@@ -244,7 +244,7 @@ def test_the_index_page_renders_the_app_shell(page: Page, stack: Stack) -> None:
     # times out here, while the assertion stays on what the shell offers.
     for selector in ("header.chrome-header", "nav.tab-nav", "main section.tab-body"):
         page.wait_for_selector(selector, timeout=LOAD_MS)
-    assert [tab.get_attribute("data-testid") for tab in page.locator("nav.tab-nav button").all()] == TAB_IDS
+    assert [tab.get_attribute("data-testid") for tab in page.locator("nav.tab-nav").locator("button").all()] == TAB_IDS
 
 
 @pytest.mark.parametrize("testid", NAMED_CONTROLS)

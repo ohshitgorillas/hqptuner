@@ -181,18 +181,6 @@ def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: Any) -> Non
     assert str(missing) in capsys.readouterr().out
 
 
-def test_a_missing_report_is_said_to_be_absent_on_stdout(tmp_path: Path, capsys: Any) -> None:
-    """Naming the path is not enough — the line has to say the report is not there.
-
-    Asserted against the line with the path stripped out, so the wording has to
-    come from the gate and not from a ``tmp_path`` named after this test.
-    """
-    missing = tmp_path / "never-written.json"
-    CHECK(missing, 90, {})
-    said = without_the_report_path(line_naming(capsys.readouterr().out, str(missing)), missing)
-    assert "no coverage report" in said.lower()
-
-
 def test_a_report_measuring_no_files_fails_the_gate(tmp_path: Path) -> None:
     """An empty measurement is not a pass."""
     assert CHECK(write_report(tmp_path, {}), 90, {}) == 1

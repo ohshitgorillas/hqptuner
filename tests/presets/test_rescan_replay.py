@@ -42,6 +42,7 @@ from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
+from hqptuner.lanes import rescan
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets.store.presets import PresetStore
 
@@ -330,7 +331,7 @@ async def test_a_rescan_whose_replay_fails_restores_nothing(
 async def test_a_rescan_whose_replay_fails_warns_the_user(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    assert "live settings" in (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["warning"].lower()
+    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["warning"] == rescan.NO_DAEMON
 
 
 # --- the engine is the source, never the store -------------------------------
@@ -458,7 +459,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert "live settings" in (await engineread.refresh_devices(manager))["warning"].lower()
+    assert (await engineread.refresh_devices(manager))["warning"] == rescan.NO_DAEMON
 
 
 async def test_a_rescan_whose_replay_raises_warns_the_user(
@@ -467,7 +468,7 @@ async def test_a_rescan_whose_replay_raises_warns_the_user(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert "live settings" in (await engineread.refresh_devices(manager))["warning"].lower()
+    assert (await engineread.refresh_devices(manager))["warning"] == rescan.WRITE_FAILED
 
 
 async def test_a_rescan_that_put_everything_back_warns_about_nothing(

@@ -17,6 +17,9 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 
+#: A preset name carrying an em dash, the character HQPlayer's charset rules bend around.
+DASHED_NAME = "Headphones — ZMF Ori 3.0"
+
 
 def _zip(members: dict[str, bytes]) -> bytes:
     out = io.BytesIO()
@@ -48,9 +51,9 @@ def test_restore_zip_writes_a_non_ascii_mirror_snapshot_under_that_name() -> Non
     # HQPlayer's docs constrains its charset, and an em dash round-trips through
     # the live daemon, so the member must carry the name intact.
     archive = presetzip.restore_zip_with_working(
-        _zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name="Headphones — ZMF Ori 3.0"
+        _zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name=DASHED_NAME
     )
-    assert _member(archive, "data/cfgs/Headphones — ZMF Ori 3.0.xml") == b"<new/>"
+    assert _member(archive, f"data/cfgs/{DASHED_NAME}.xml") == b"<new/>"
 
 
 def test_restore_zip_inserts_hqplayerd_when_a_named_profile_was_active() -> None:
