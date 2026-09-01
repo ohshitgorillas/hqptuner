@@ -197,3 +197,13 @@ def test_a_deleted_live_preset_is_gone_from_the_list(live_api: TestClient) -> No
     live_api.put("/api/livepresets/Warm")
     live_api.delete("/api/livepresets/Warm")
     assert live_api.get("/api/livepresets").json()["presets"] == []
+
+
+def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: TestClient, tmp_path: Path) -> None:
+    # Presets saved before the LIVE rate control was removed still carry a
+    # "rate" field. It is nobody's to apply anymore, and it must not take the
+    # rest of the preset down with it: the other settings land as saved.
+    record = {"chain": "pcm", "fields": {"rate": "384000", "junk_filter": "1"}, "names": {}}
+    _seed_presets(tmp_path, {"schema": 1, "presets": {"Legacy": record}})
+    live_api.post("/api/livepresets/Legacy/apply")
+    assert live_api.get("/api/state").json()["data"]["filter_junk"] == "1"

@@ -185,10 +185,6 @@ def test_a_mode_change_cannot_be_batched_with_other_settings(live_api: TestClien
     assert resp.status_code == 409
 
 
-def test_a_rate_the_engine_does_not_offer_is_refused(live_api: TestClient) -> None:
-    assert live_api.post("/api/config/live", json={"fields": {"rate": "12345"}}).status_code == 409
-
-
 def test_an_unknown_live_field_is_refused(live_api: TestClient) -> None:
     assert live_api.post("/api/config/live", json={"fields": {"nope": "1"}}).status_code == 422
 
