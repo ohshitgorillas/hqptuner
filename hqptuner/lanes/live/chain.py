@@ -16,12 +16,11 @@ EnumItems = list[dict[str, str]]
 # the two families outright — no rate in Hz is ambiguous between them.
 _SDM_FLOOR = 2822400
 
-# The two rate slots, and which one a rate choice belongs in. `SetRate` writes the
-# FIXED slot (`samplerate`/`bitrate`), which HQPTuner holds at auto ("0") always:
-# an exact rate there overrides automatic base-rate selection, so 44.1k material
-# goes out at a 48k base and the engine refuses the filter. The LIMIT slot holds
-# the tier, always as its 48k member, and `auto_family` picks the member matching
-# the source per track (http.restore.FORCED_CONFIG forces the pair).
+# The two rate slots. `SetRate` writes the FIXED slot (`samplerate`/`bitrate`),
+# which HQPTuner holds at auto ("0") always: an exact rate there overrides automatic
+# base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses
+# the filter. The LIMIT slot holds the tier as its 48k member, and `auto_family` picks
+# the member matching the source per track (http.restore.FORCED_CONFIG forces the pair).
 RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
 _BASE_44K = 44100
 _BASE_48K = 48000
