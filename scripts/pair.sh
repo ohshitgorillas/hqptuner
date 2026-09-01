@@ -320,7 +320,7 @@ EOF
 
   echo
   echo "  dev is now $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
-  echo "  both worktrees removed. Next: test-reviewer and /task-check, from here."
+  echo "  both worktrees removed. Next: /task-check, from here."
 }
 
 # ---- abort ------------------------------------------------------------------
