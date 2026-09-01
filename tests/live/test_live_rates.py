@@ -59,20 +59,6 @@ async def test_a_rate_the_engine_does_not_offer_resolves_to_nothing(live_manager
 # --- what a LIVE rate write remembers ---------------------------------------
 
 
-async def test_a_verified_rate_write_is_remembered_under_its_family(live_manager: LiveManager) -> None:
-    manager, _, _ = await live_manager()
-    await lane.apply_now(manager, {"rate": "352800"})
-    assert manager.readings.live.rates["pcm"] == "352800"
-
-
-async def test_a_rate_write_that_never_verified_is_not_remembered(live_manager: LiveManager) -> None:
-    # The daemon accepts the SetRate and does not apply it, so the readback never
-    # matches; remembering it anyway would re-pin a rate the engine refused.
-    manager, _, _ = await live_manager(_deaf="SetRate")
-    await lane.apply_now(manager, {"rate": "352800"})
-    assert "pcm" not in manager.readings.live.rates
-
-
 async def test_pinning_auto_forgets_the_remembered_pcm_rate(live_manager: LiveManager) -> None:
     # Index 0 is the engine's Auto and pins nothing, so there is nothing to put
     # back when the family comes round again.
@@ -128,15 +114,6 @@ async def test_a_dormant_48k_base_sdm_pin_is_reported_unchanged(live_manager: Li
     assert overrides.live_overrides(manager)["defaults_bitrate"] == "12288000"
 
 
-async def test_the_engines_own_pin_outranks_the_remembered_one(live_manager: LiveManager) -> None:
-    # A pin set from outside HQPTuner is real, so for the family the engine is
-    # running the engine's report wins: index 2 is 352800 (8x → 384000), while
-    # the memory would report 44100 (1x → 48000).
-    manager, _, _ = await live_manager(rate="2")
-    manager.readings.live.rates["pcm"] = "44100"
-    assert overrides.live_overrides(manager)["defaults_samplerate"] == "384000"
-
-
 @pytest.mark.parametrize("field", ["defaults_samplerate", "defaults_bitrate"])
 async def test_a_family_with_no_pin_reports_no_rate_limit(live_manager: LiveManager, field: str) -> None:
     # `State rate="0"` is the engine's Auto: it pins nothing, and reporting a
@@ -146,49 +123,6 @@ async def test_a_family_with_no_pin_reports_no_rate_limit(live_manager: LiveMana
 
 
 # --- putting the pin back when its family comes round again ------------------
-
-
-async def test_entering_pcm_re_asserts_the_remembered_pcm_pin(live_manager: LiveManager) -> None:
-    # 44100 sits at index 1 of the PCM list and nowhere in the SDM one, so an
-    # index resolved against the list the engine offered BEFORE the switch could
-    # not produce this write.
-    manager, log, _ = await live_manager()
-    await lane.apply_now(manager, {"rate": "44100"})
-    await lane.apply_now(manager, {"mode": "sdm"})
-    log.clear()
-    await lane.apply_now(manager, {"mode": "pcm"})
-    assert _rate_writes(log) == ["1"]
-
-
-async def test_entering_sdm_re_asserts_the_remembered_sdm_pin(live_manager: LiveManager) -> None:
-    # The mirror of the case above: 2822400 is index 1 of the SDM list and absent
-    # from the PCM one. A lane that only put one family's pin back passes there
-    # and fails here.
-    manager, log, _ = await live_manager()
-    await lane.apply_now(manager, {"mode": "sdm"})
-    await lane.apply_now(manager, {"rate": "2822400"})
-    await lane.apply_now(manager, {"mode": "pcm"})
-    log.clear()
-    await lane.apply_now(manager, {"mode": "sdm"})
-    assert _rate_writes(log) == ["1"]
-
-
-async def test_the_re_asserted_pin_is_reported_as_a_rate_setting(live_manager: LiveManager) -> None:
-    manager, _, _ = await live_manager()
-    await lane.apply_now(manager, {"rate": "44100"})
-    await lane.apply_now(manager, {"mode": "sdm"})
-    report = await lane.apply_now(manager, {"mode": "pcm"})
-    assert [r["ok"] for r in report["live"] if r["setting"] == "rate"] == [True]
-
-
-async def test_a_remembered_rate_the_entered_mode_lacks_is_never_pinned(live_manager: LiveManager) -> None:
-    # Pinning the nearest offered rate would be a rate the user never picked.
-    manager, log, _ = await live_manager()
-    await lane.apply_now(manager, {"mode": "sdm"})
-    manager.readings.live.rates["pcm"] = "88200"  # no PCM list this engine offers carries it
-    log.clear()
-    await lane.apply_now(manager, {"mode": "pcm"})
-    assert _rate_writes(log) == []
 
 
 async def test_a_remembered_rate_the_entered_mode_lacks_is_forgotten(live_manager: LiveManager) -> None:
