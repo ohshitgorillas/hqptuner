@@ -9,6 +9,6 @@
   ],
   "project": ["hqptuner/static/**/*.js", "scripts/eqlab/**/*.js", "scripts/eqstage/**/*.js", "tests/js/**/*.js"],
   "ignore": ["hqptuner/static/vendor/**"],
-  "ignoreDependencies": ["eslint", "prettier", "jscpd"],
+  "ignoreDependencies": ["prettier", "jscpd"],
   "exclude": ["unlisted", "binaries"]
 }

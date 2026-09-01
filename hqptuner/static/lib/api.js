@@ -34,7 +34,7 @@ function detailOf(body) {
 // showing; `status` and `code` are what a control branches on, so both ride on
 // the rejected error as properties instead of being fished back out of prose.
 /** A non-OK answer from the backend: the sentence, the HTTP status, the body's code. */
-export class ApiFailure extends Error {
+class ApiFailure extends Error {
   /**
    * Keep the status and code beside the message.
    * @param {string} message
