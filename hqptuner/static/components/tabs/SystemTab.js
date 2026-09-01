@@ -15,6 +15,8 @@ import {
   keepOptionDescriptions,
   setShowDescriptions,
   setKeepOptionDescriptions,
+  apodLight,
+  setApodLight,
 } from "../../store/prefs.js";
 import { Section, Card, collapseFrom } from "../common.js";
 
@@ -110,6 +112,23 @@ const DescriptionPrefs = () => html`
   </div>
 `;
 
+// The header lamp's opt-in. It sits with the appearance preferences rather than
+// in the Engine health card beside the strip it mirrors: what the switch governs
+// is whether a thing appears in the chrome, and the chrome is what this card is
+// for.
+const ApodLightPref = () => html`
+  <div class="field" data-k="apodLight">
+    <label>Apodizing indicator</label>
+    <div class="control">
+      <${Checkbox}
+        value=${apodLight.value ? "1" : "0"}
+        onChange=${(/** @type {string | number} */ v) => setApodLight(v === "1")}
+      />
+    </div>
+    <div class="field-note">flashes red on every apodizing event, always visible from header</div>
+  </div>
+`;
+
 /** @type {Record<string, string>} */
 const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber", violet: "Violet" };
 
@@ -201,6 +220,7 @@ export const System = () =>
              12rem label + control of these rows overflows the ~267px half-track a
              two-up pack would give them (CLAUDE.md: the column is the cap). -->
         <${DescriptionPrefs} />
+        <${ApodLightPref} />
         <${AccentPicker} />
       <//>
     </div>

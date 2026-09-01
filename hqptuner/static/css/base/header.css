@@ -29,10 +29,12 @@
 }
 /* the LIVE switch — one latching button, not an ON|OFF pair, so the header costs
    the same height in either mode. Off it reads as chrome; on it takes the accent,
-   which in this app means exactly one thing. The auto margin here and the one on
-   .presets split the header's free space evenly, which lands the switch midway
-   between the daemon state and the preset picker — the row's one empty stretch,
-   and no new alignment to maintain. */
+   which in this app means exactly one thing. This auto margin is one of three —
+   .apod-lamp and .presets carry the others — and together they split the header's
+   free space into equal thirds, which is what spaces the switch, the lamp and the
+   picker across the row's one empty stretch with no new alignment to maintain.
+   The lamp is optional, and when it is off the same three-way split becomes the
+   two-way one this row had before it existed. */
 .live-toggle {
   margin-left: auto;
   background: var(--surface-raised);
@@ -50,6 +52,80 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+}
+/* the apodizing indicator — a jewel lamp on a tuner's dial plate, legend
+   silkscreened beside it. Only the jewel modulates: the legend is a constant
+   label, the way STEREO or TUNED is printed on the panel whether or not its lamp
+   is lit.
+
+   --lamp is the peak brightness for the newest poll (components/ApodLamp.js),
+   --lit is that value decaying to dark, and the two are separate because the
+   flash has to restart from the peak on every bin rather than track it. --lit is
+   registered below so it interpolates as a number; an unregistered custom
+   property animates discretely and the decay would be a hold and a snap. */
+@property --lit {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+.apod-lamp {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* the well: painted a step darker than the header band it sits in, so an unlit
+   lamp reads as a lamp that is off rather than as a gap in the row. The inner
+   hairline is the bezel. */
+.apod-jewel {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-page);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* the light itself, mixed toward the ramp's hot stop by --lit rather than faded
+   with opacity: brightness here is a reading, and mixing is what the density
+   strip does with the same scale. The outer glow grows with it, because a real
+   lamp driven harder spills further, and the two channels moving together are
+   what separate a jewel from a flat dot. */
+.apod-jewel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 4px color-mix(in oklab, var(--spec-5) calc(var(--lit) * 100%), transparent),
+    0 0 calc(2px + 8px * var(--lit)) color-mix(in oklab, var(--spec-5) calc(var(--lit) * 70%), transparent);
+  animation: apod-flash var(--lamp-decay) var(--ease) 1;
+}
+/* fast attack, slow release — a filament heating and cooling, and the only
+   envelope that reads as a flash on music that never stops producing events. */
+@keyframes apod-flash {
+  0% {
+    --lit: 0;
+  }
+  8% {
+    --lit: var(--lamp);
+  }
+  100% {
+    --lit: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* no flash: the jewel holds the current reading steady. Same information,
+     nothing blinking. */
+  .apod-jewel::after {
+    animation: none;
+    --lit: var(--lamp);
+  }
+}
+.apod-legend {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--track-caps);
+  color: var(--muted);
 }
 .presets {
   margin-left: auto;

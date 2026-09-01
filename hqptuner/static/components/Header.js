@@ -13,6 +13,7 @@ import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
 import { StatusPill } from "./StatusPill.js";
+import { ApodLamp } from "./ApodLamp.js";
 
 // Questions this header asks render beside the picker, not in a native dialog.
 const OWNER = "header";
@@ -50,16 +51,16 @@ async function onDelete(name) {
 
 // Daemon identity. Transport state is not printed here — the signal path's chips
 // already show whether the engine is running.
+//
+// Nor is the daemon's release. It sat beside the brand mark, one gap from the
+// word HQPTuner, which is a good way to read as HQPTuner's own version number
+// while being hqplayerd's. The System tab's About card states it as the Version
+// row, next to the engine build it is forever confused with.
 function daemonIdentity() {
-  const h = health.value || {};
-  const info = h.info || {};
-  // The RELEASE, not GetInfo's `engine`: the DSP engine carries its own number
-  // (6.0.4 against release 6.0.2) and reading the engine's here puts a version
-  // beside the daemon's name that matches nothing the user can look up.
+  const info = (health.value || {}).info || {};
   return html`
     <div class="daemon">
       <span>${info.name || "hqplayerd"}</span>
-      <span class="muted">${h.release ? `v${h.release}` : ""}</span>
     </div>
   `;
 }
@@ -129,7 +130,7 @@ function presetPicker() {
   `;
 }
 
-/** Chrome header: brand mark, daemon identity, LIVE switch, preset picker, Ask button and connection pill. */
+/** Chrome header: brand mark, daemon identity, LIVE switch, apodizing lamp, preset picker, Ask button and connection pill. */
 export function Header() {
   return html`
     <header class="chrome-header">
@@ -145,6 +146,7 @@ export function Header() {
       </div>
       ${daemonIdentity()}
       <${LiveSwitch} />
+      <${ApodLamp} />
       <div class="presets">${presetPicker()}</div>
       <${Ask} owner=${OWNER} />
       <${StatusPill} />
