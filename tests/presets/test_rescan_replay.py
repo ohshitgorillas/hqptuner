@@ -42,8 +42,8 @@ from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
-from hqptuner.lanes import rescan
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes import rescan
 from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at

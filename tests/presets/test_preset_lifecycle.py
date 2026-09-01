@@ -50,9 +50,7 @@ def test_restore_zip_writes_a_non_ascii_mirror_snapshot_under_that_name() -> Non
     # A preset name is a zip member name too (docs/protocol.md:91). Nothing in
     # HQPlayer's docs constrains its charset, and an em dash round-trips through
     # the live daemon, so the member must carry the name intact.
-    archive = presetzip.restore_zip_with_working(
-        _zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name=DASHED_NAME
-    )
+    archive = presetzip.restore_zip_with_working(_zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name=DASHED_NAME)
     assert _member(archive, f"data/cfgs/{DASHED_NAME}.xml") == b"<new/>"
 
 
