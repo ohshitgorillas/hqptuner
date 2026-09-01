@@ -15,7 +15,7 @@ from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes.live import chain, lane, routing
+from hqptuner.lanes.live import lane, routing
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -85,14 +85,6 @@ def _stand_autopilot_down(manager: ConnectionManager, fields: dict[str, str]) ->
         presetlane.switch_autopilot(manager, "live.write", enabled=False)
 
 
-async def _write_live(manager: ConnectionManager, fields: dict[str, str], rate: str | None) -> dict[str, Any]:
-    """Apply the live setters, and the rate into its limit slot, as one report."""
-    report = await lane.apply_now(manager, fields) if fields else {"live": [], "stored": {}}
-    if rate is not None:
-        report["rate"] = await manager.applyops.set_rate_limit(rate)
-    return report
-
-
 @router.post("/config/live")
 async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """Apply live-lane config-form fields immediately, readback-verified.
@@ -106,19 +98,13 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """
     if not body.fields:
         raise refuse("fields_unknown", "no live fields given")
-    # The rate is not a live setter: it lands in the limit slot, which is a config
-    # field, so it leaves the live lane here rather than resolving to a `SetRate`.
     fields = dict(body.fields)
-    rate = fields.pop("rate", None)
-    if rate is not None and rate != "0" and not chain.tier_member(rate):
-        why = {"rate": f"{rate} names no rate tier"}
-        raise refuse(routing.LiveRouteError(why), why)
     unknown = sorted(set(fields) - set(routing.live_fields()))
     if unknown:
         raise refuse("fields_unknown", f"unknown live fields: {unknown}")
     _stand_autopilot_down(manager, fields)
     try:
-        report = await _write_live(manager, fields, rate)
+        report = await lane.apply_now(manager, fields)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

@@ -114,18 +114,11 @@ const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ me
 // whose options come from an enumeration, while ANY re-enumerating write is in
 // flight (store/live/state.js `liveEnumBusy`): its list is the pre-write one for that
 // whole window, so an ID picked out of it means something else by the time it
-// lands. Otherwise only where the engine has no live route for the setting at
-// all, which is the rate pair in auto and nothing else (`AUTO_RATE_REASON`). Both chain
-// cards and, under an explicit mode, both rate columns take edits whichever
-// family is running: a rate writes that family's config limit slot
-// (lanes/live/chain.RATE_LIMIT_FIELD), not the running chain. Nothing here is ever disabled for
-// playing (CLAUDE.md).
+// lands. Both chain cards take edits whichever family is running. Nothing here
+// is ever disabled for playing (CLAUDE.md).
 //
-// The reason rides the hover title and prints nowhere on the page, the same way
-// the tabs' rate pair grays (`quietGray`, store/schema.js). A visible caption
-// appears in one mode only, so the Rate card is a line taller in auto than under
-// an explicit mode and the Mode switch beside it stretches to match — the hero
-// row sizes its cards together. Hover costs the page nothing in any mode.
+// A gray reason rides the hover title and prints nowhere on the page
+// (`quietGray`, store/schema.js), so hover costs the page nothing in any mode.
 /** @param {{ entry: FieldEntry, meta: FieldMeta, badge: NarrowBadge | null | undefined }} props */
 function LiveLabel({ entry, meta, badge }) {
   return html`
@@ -266,24 +259,18 @@ function ChainCards() {
   `;
 }
 
-// Mode and Rate lead this page as the same hero cards that lead the Output tab —
-// same frame, same centered title, same segment and rate-stack treatment, because
-// they are the same two masters. The tab's third box, Backend, has no live twin:
-// changing backend rebuilds the audio path, which is a restart rather than a
-// live write. .top-row divides itself between however many cards it holds, so
-// the pair takes half the row each with no width rule of its own.
+// Mode leads this page as the same hero card that leads the Output tab — same
+// frame, same centered title, same segment treatment, because it is the same
+// master. The tab's other boxes have no live twin: changing backend rebuilds
+// the audio path, and the rate limits are config fields with no live route, so
+// both are restarts rather than live writes. .top-row divides itself between
+// however many cards it holds, so a lone card takes the full row.
 function HeroRow() {
-  const { mode, pcmRate, sdmRate } = liveModel.value;
+  const { mode } = liveModel.value;
   return html`
     <div class="top-row">
       <${Card} id="live-output-mode" title="Mode" center=${true} cardClass="seg-box">
         <${LiveField} control=${mode} widget=${Segment} />
-      <//>
-      <${Card} id="live-rate" title="Rate" center=${true}>
-        <div class="rate-stack">
-          <${LiveField} control=${pcmRate} />
-          <${LiveField} control=${sdmRate} />
-        </div>
       <//>
     </div>
   `;
@@ -315,7 +302,7 @@ function PlaybackCard() {
 }
 
 // The same card the System tab carries, high on the page because on LIVE it is
-// the instrument you judge a write by: change the rate or the filter and the
+// the instrument you judge a write by: change the filter and the
 // needle is what tells you the engine took it. This card drops its "quick
 // updates" checkbox here — LIVE polls at 1 s unconditionally (store/ui.js).
 function HealthCard() {

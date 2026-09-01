@@ -20,7 +20,6 @@ import { schema } from "../schema.js";
 import { enumOptions } from "../options.js";
 import { grayModesByDevice } from "../narrow/devicecaps.js";
 import { catalog, modeValue, stateOf } from "./derive.js";
-import { rateColumn } from "./rates.js";
 import { chainControls } from "./chains.js";
 
 // Everything the LIVE page renders, in one read. A single computed rather than a
@@ -39,8 +38,6 @@ export const liveModel = computed(() => {
       value: modeValue(),
       options: grayModesByDevice(schema.output_mode.options || []),
     },
-    pcmRate: rateColumn("pcm"),
-    sdmRate: rateColumn("sdm"),
     // The junk (playback) filter is index-domain on both sides: the daemon's own
     // /config form has no field for it, so the list index IS the value — which
     // is what enumOptions hands back, and what its per-option prose is keyed by.

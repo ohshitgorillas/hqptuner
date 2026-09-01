@@ -22,33 +22,6 @@ _SDM_FLOOR = 2822400
 # the filter. The LIMIT slot holds the tier as its 48k member, and `auto_family` picks
 # the member matching the source per track (http.restore.FORCED_CONFIG forces the pair).
 RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
-_BASE_44K = 44100
-_BASE_48K = 48000
-
-
-def tier_rate(hz: str) -> str:
-    """Return a rate as the 48k-base member of its tier — the form the limit slot takes.
-
-    Every tier is n x 44100 or n x 48000 for the same n, so the 44.1k member
-    converts exactly and anything else is already the 48k one.
-    """
-    value = int(hz)
-    return str(value // _BASE_44K * _BASE_48K) if value % _BASE_44K == 0 else hz
-
-
-def tier_member(hz: str) -> bool:
-    """Whether a rate in Hz is a member of a rate tier, and so a legal limit value.
-
-    Every tier is n x 44100 or n x 48000, so anything divisible by neither names no
-    tier the engine has. The limit slot is persistent config, and a value that names
-    no tier would be written to the file and booted from.
-    """
-    return hz.isdigit() and int(hz) > 0 and (int(hz) % _BASE_44K == 0 or int(hz) % _BASE_48K == 0)
-
-
-def limit_field_for(hz: str) -> str:
-    """Return the limit slot a rate in Hz belongs to, by output family."""
-    return RATE_LIMIT_FIELD[rate_family(hz)]
 
 
 def rate_family(hz: str) -> str:

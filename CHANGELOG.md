@@ -18,17 +18,20 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Apply tells an engine that stopped answering apart from one that refused a value.** The apply note names the settings that failed under each, and every failed setting in the apply report carries a machine code beside its message.
 - **Selecting a preset in LIVE mode loads it immediately.** Previously the pick only staged a preview, and applying it meant leaving LIVE for the Apply button.
-- **Live presets the output device cannot play are grayed in the picker.** A preset pinning a rate or an output mode the open device does not offer renders disabled, with the reason on it.
+- **Live presets the output device cannot play are grayed in the picker.** A preset pinning an output mode the open device does not offer renders disabled, with the reason on it.
 - **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
 - **sinc-Lh reads "Medium with high attenuation".** Its published tap multiplier matches sinc-Lm, not the long tier; the earlier phrasing followed sinc-long-h, which keeps it.
 - **SDM filter menus drop superseded single-stage variants.** On the SDM chain a filter whose `-2s` two-stage variant exists no longer appears in the 1x and Nx lists or their counts; a selection already set to one stays listed. Simplified option style drops the two-stage clause from the names and the two-stage notes from the description.
 
+### Removed
+
+- **The LIVE page drops its rate control.** HQPlayer offers no live route that changes the output rate limit without pinning an exact rate or restarting the engine, so rate selection lives on the Output tab, where an apply is expected to reload the engine. Saved live presets no longer store a rate; a preset that carries one applies its other settings and leaves the rate alone.
+
 ### Fixed
 
 - **A rescan the engine never returns from now says so.** The warning names the engine as gone rather than blaming the settings write, whichever the app noticed first.
-- **A rate chosen in LIVE mode now sets the output rate limit instead of pinning an exact rate.** A pinned rate overrode automatic base-rate selection, so 44.1 kHz material was sent out at a 48 kHz base rate and the engine refused the selected filter.
 - **Re-selecting a live preset now re-applies the settings.** Before, changing a setting left no way to re-engage the selected Live preset. Now there is.
 - **Preset names sort by number.** DSD1024 listed above DSD256 in both preset pickers, because the digits sorted as text.
 
