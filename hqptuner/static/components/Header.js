@@ -60,7 +60,10 @@ function daemonIdentity() {
   const info = (health.value || {}).info || {};
   return html`
     <div class="daemon">
-      <span>${info.name || "hqplayerd"}</span>
+      <!-- the daemon's name is a reading off health.info.name, not a second
+           wordmark: mono is what this app sets machine readouts in, and it is
+           what stops "Opal" pairing with HQPTuner one gap away. -->
+      <span class="t-value">${info.name || "hqplayerd"}</span>
     </div>
   `;
 }
@@ -119,7 +122,7 @@ function presetPicker() {
   // snapping the picker back to the active preset the user had just left.
   const shown = pending !== null ? pending : cfg.active || profiles.value || "";
   return html`
-    <label class="muted">Preset</label>
+    <label class="t-eyebrow">Preset</label>
     <select value=${shown} onWheel=${wheelGuard} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
       ${(profiles.options || []).map(
         (/** @type {SchemaOption} */ o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`,

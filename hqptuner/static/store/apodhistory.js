@@ -196,6 +196,7 @@ function accumulate(st) {
   const n = Math.max(0, apod - t.apodPrev);
   const next = bins.peek().concat([{ ms: fastPollMs.peek(), n }]);
   bins.value = next.length > MAX_BINS ? next.slice(next.length - MAX_BINS) : next;
+  seq.value = seq.peek() + 1;
   track.value = { ...t, apodPrev: apod, posPrev: st.position, sawEvent: t.sawEvent || n > 0 };
   if (n > 0 && !visible.peek()) visible.value = true;
 }

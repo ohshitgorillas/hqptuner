@@ -58,11 +58,16 @@
    label, the way STEREO or TUNED is printed on the panel whether or not its lamp
    is lit.
 
-   --lamp is the peak brightness for the newest poll (components/ApodLamp.js),
-   --lit is that value decaying to dark, and the two are separate because the
-   flash has to restart from the peak on every bin rather than track it. --lit is
-   registered below so it interpolates as a number; an unregistered custom
-   property animates discretely and the decay would be a hold and a snap. */
+   --lamp is the peak brightness for the newest poll (components/ApodLamp.js) and
+   --lit is the envelope, nought to one and back down; the light is the two
+   multiplied. Keeping them separate is not tidiness: the keyframes below must
+   not reference --lamp, because a registered custom property animated TO a var()
+   does not interpolate. Measured, with the reference in place: the animation ran
+   on every bin and --lit never left zero for 160 consecutive samples, so the lamp
+   restarted faithfully and stayed dark.
+
+   --lit is registered below so it interpolates as a number. An unregistered
+   custom property animates discretely and the decay would be a hold and a snap. */
 @property --lit {
   syntax: "<number>";
   inherits: true;
@@ -79,8 +84,8 @@
    hairline is the bezel. */
 .apod-jewel {
   position: relative;
-  width: 8px;
-  height: 8px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--r-pill);
   background: var(--surface-page);
   box-shadow: inset 0 0 0 1px var(--line);
@@ -96,18 +101,43 @@
   inset: 0;
   border-radius: var(--r-pill);
   box-shadow:
-    inset 0 0 0 4px color-mix(in oklab, var(--spec-5) calc(var(--lit) * 100%), transparent),
-    0 0 calc(2px + 8px * var(--lit)) color-mix(in oklab, var(--spec-5) calc(var(--lit) * 70%), transparent);
-  animation: apod-flash var(--lamp-decay) var(--ease) 1;
+    inset 0 0 0 9px color-mix(in oklab, var(--spec-5) calc(var(--lit) * var(--lamp) * 100%), transparent),
+    0 0 calc(3px + 12px * var(--lit) * var(--lamp))
+      color-mix(in oklab, var(--spec-5) calc(var(--lit) * var(--lamp) * 70%), transparent);
+  animation-duration: var(--lamp-decay);
+  animation-timing-function: var(--ease);
+  animation-iteration-count: 1;
 }
 /* fast attack, slow release — a filament heating and cooling, and the only
-   envelope that reads as a flash on music that never stops producing events. */
-@keyframes apod-flash {
+   envelope that reads as a flash on music that never stops producing events.
+
+   Two identical keyframes, alternated by the class the component writes, because
+   the flash has to restart on every bin and an animation restarts when its NAME
+   changes. Restarting it by replacing the element instead does not survive the
+   diff (components/ApodLamp.js). Keep the two bodies in step. */
+.apod-jewel.apod-flash-0::after {
+  animation-name: apod-flash-even;
+}
+.apod-jewel.apod-flash-1::after {
+  animation-name: apod-flash-odd;
+}
+@keyframes apod-flash-even {
   0% {
     --lit: 0;
   }
   8% {
-    --lit: var(--lamp);
+    --lit: 1;
+  }
+  100% {
+    --lit: 0;
+  }
+}
+@keyframes apod-flash-odd {
+  0% {
+    --lit: 0;
+  }
+  8% {
+    --lit: 1;
   }
   100% {
     --lit: 0;
@@ -117,15 +147,16 @@
   /* no flash: the jewel holds the current reading steady. Same information,
      nothing blinking. */
   .apod-jewel::after {
-    animation: none;
-    --lit: var(--lamp);
+    animation-name: none;
+    --lit: 1;
   }
 }
 .apod-legend {
-  font-size: var(--fs-micro);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-lg);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--track-caps);
-  color: var(--muted);
+  color: var(--fg-2);
 }
 .presets {
   margin-left: auto;
@@ -141,11 +172,13 @@
   font-weight: var(--fw-medium);
 }
 .preset-del {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-body);
   padding: var(--sp-1) var(--sp-2);
   color: var(--muted);
   background: transparent;
-  border: 1px solid var(--surface-raised);
+  /* a hairline is --line's job; a surface shade standing in for it was the
+     elevation drift docs/design-system.md warns about */
+  border: 1px solid var(--line);
   border-radius: var(--r-sm);
   cursor: pointer;
 }
