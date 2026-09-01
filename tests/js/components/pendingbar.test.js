@@ -224,6 +224,7 @@ test("test_a_failed_apply_shows_its_text", async () => {
 const VERDICTS = [
   [true, "switched"],
   [false, "live-failed"],
+  [false, "live-unavailable"],
   [false, "persist-refused"],
   [false, "persist-error"],
   [false, "endpoint-missing"],

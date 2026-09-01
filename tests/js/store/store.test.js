@@ -300,6 +300,50 @@ test("test_a_live_failure_outranks_a_failed_switch_and_a_failed_save", async () 
   assert.equal(verdict(lastApply).code, "live-failed");
 });
 
+// A failed live entry may carry the setter's error `code` (a wire identifier).
+// `daemon_unavailable` anywhere in the report is a different verdict from a
+// refusal; a report carrying only `daemon_refused`, or no code at all, is the
+// plain live failure the cases above pin.
+
+test("test_any_unavailable_live_failure_yields_live_unavailable_and_refused_or_uncoded_keep_live_failed", async () => {
+  await trees();
+  const codes = [];
+  route({
+    apply: {
+      live: [
+        { setting: "a", ok: false, code: "daemon_refused" },
+        { setting: "b", ok: false, code: "daemon_unavailable" },
+      ],
+    },
+  });
+  await applyAll();
+  codes.push(verdict(lastApply).code);
+  route({ apply: { live: [{ setting: "a", ok: false, code: "daemon_refused" }] } });
+  await applyAll();
+  codes.push(verdict(lastApply).code);
+  route({ apply: { live: [{ setting: "a", ok: false }] } });
+  await applyAll();
+  codes.push(verdict(lastApply).code);
+  assert.deepEqual(codes, ["live-unavailable", "live-failed", "live-failed"]);
+});
+
+test("test_live_unavailable_lists_every_failed_setter_refused_ones_included_in_report_order", async () => {
+  await trees();
+  // the refused one comes first, so a verdict keyed on the first failure alone
+  // would read this report as a plain live failure
+  route({
+    apply: {
+      live: [
+        { setting: "a", ok: false, code: "daemon_refused" },
+        { setting: "b", ok: false, code: "daemon_unavailable" },
+        { setting: "c", ok: true },
+      ],
+    },
+  });
+  await applyAll();
+  assert.deepEqual([verdict(lastApply).code, verdict(lastApply).settings], ["live-unavailable", ["a", "b"]]);
+});
+
 test("test_a_failed_apply_is_not_ok", async () => {
   await trees();
   route({ apply: { live: [{ setting: "filter", ok: false }] } });
