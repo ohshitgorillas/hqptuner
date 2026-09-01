@@ -29,7 +29,8 @@
 /* ── eyebrow — micro-caps that name a group or a readout. Secondary. ──── */
 .t-eyebrow,
 .vu-caption,
-.cluster-head {
+.cluster-head,
+.apod-legend {
   font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: var(--track-wide);
