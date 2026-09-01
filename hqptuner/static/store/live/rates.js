@@ -3,17 +3,16 @@
 // a hairline between them, the one the running mode cannot use grayed (schema
 // grayWhen isSdm/isPcm), both reading the manual's rate prose on hover.
 //
-// The two sides write different slots. The tab writes the LIMIT
-// (defaults_samplerate / defaults_bitrate, landing at the next restart), which
-// the engine then follows in the source's own base family. LIVE writes SetRate,
-// an exact rate that ignores both the limit and the source's family. Same tier
-// either way — what differs is only that the live one has to name a member of it.
+// Both sides write a LIMIT, and neither one picks a base family. The menus carry
+// a tier as its 48k member and mean the tier; the browser sends that value
+// unchanged; the backend puts it in the config limit slot, and the engine picks
+// the member matching the playing source, per track, under auto_family. Nothing
+// here reads what is playing.
 //
-// It is its own module because the tier/member arithmetic is the lane's largest
-// single idea and the only reader the write path needs: `wireRate` is what turns
-// a menu tier into the rate that goes on the wire.
+// It is its own module because the tier/member arithmetic is still what the menu
+// is grayed by: which tiers the engine is currently enumerating.
 
-import { engineState, engineStatus } from "../signals.js";
+import { engineState } from "../signals.js";
 import { schema, TWIN_44K } from "../schema.js";
 import { runningValue } from "../resolve.js";
 import { grayRatesByDevice } from "../narrow/devicecaps.js";
@@ -29,74 +28,33 @@ const SDM_FLOOR = 2822400;
 
 const rateFamily = (/** @type {string | number} */ rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
 
-// --- base family -------------------------------------------------------------
+// --- tiers and their members --------------------------------------------------
 // Every tier has a 44.1k and a 48k member (DSD512 is 22579200 or 24576000). The
-// menus carry the 48k one and mean the TIER, not that frequency. A config write
-// cannot choose between the two — it has no source — which is exactly why the
-// tab writes the limit slot and lets the engine decide. LIVE can choose, because
-// the engine reports what is playing, so a tier picked here resolves to that
-// source's own member and 44.1k material is never sent out at a 48k base rate.
-// Whether the DAC may use a 48k DSD base at all remains the user's setting
-// (alsa_anydsd / net_anydsd); this only declines to change it behind their back.
-//
-// Verified live on 6.0.4 (44.1 kHz source, limit DSD512): no pin -> 22579200;
-// pinned 12288000 -> 12288000; pinned 49152000 -> 49152000 (over the limit).
+// menus carry the 48k one and mean the TIER, not that frequency, and that is the
+// value that goes on the wire: the backend writes it to the limit slot and the
+// engine resolves the base family per track under auto_family. Neither this
+// module nor the write path looks at what is playing. Whether the DAC may use a
+// 48k DSD base at all remains the user's setting (alsa_anydsd / net_anydsd).
 // The tier pairing itself lives beside the rate tables it pairs (store/schema.js).
-const BASE_44K = 44100;
-
-// 44.1k when the playing source and 44100 divide either way — multiples cover
-// 88.2/176.4/352.8 and every DSD rate, and the other direction covers the
-// sub-44.1k members of the same family (22050, 11025), which are 44.1k material
-// as much as 88.2 is. With nothing playing there is no source to follow, so the
-// menus' own 48k base stands, which is what a config write would have used anyway.
-function sourceIs44k() {
-  const st = engineStatus.value || {};
-  const source = Number((st.metadata || {}).samplerate) || Number((st.status || {}).active_rate) || 0;
-  return source > 0 && (source % BASE_44K === 0 || BASE_44K % source === 0);
-}
-
-// The tier's member in the source's own base family — what LIVE would send if
-// the engine offered both.
-const forSource = (/** @type {string} */ tier) => (sourceIs44k() && TWIN_44K[tier] ? TWIN_44K[tier] : tier);
-
-// The tier's other member, '' when the menu value has no twin.
-const otherMember = (/** @type {string} */ tier, /** @type {string} */ member) =>
-  member === tier ? String(TWIN_44K[tier] || "") : tier;
 
 // The rates the engine is enumerating right now, as a set of Hz strings.
 /** @returns {Set<string>} */
 const offeredRates = () => new Set(items("rates").map((o) => String(o.rate)));
 
-// Which member of a tier the engine is actually holding, '' for neither. The
-// source's own member first — a 44.1k track goes out at a 44.1k base wherever
-// there is a choice — and the tier's other member when that is the only one the
-// engine lists. A device doing DSD in one base family only enumerates one member
-// of every DSD tier, and judging the tier by the member we would have PREFERRED
-// grayed tiers that device plays perfectly well (and, on the write path, held a
-// pin the engine had no index for: chain.rate_index_for).
+// Which member of a tier the engine is holding, '' for neither — the tier is
+// reachable when EITHER member is enumerated, because either one reaches it. A
+// device doing DSD in one base family only enumerates one member of every DSD
+// tier, and judging the tier by a single member grays tiers that device plays
+// perfectly well. Only the menu's gray marks read this; nothing sends the member.
 /**
  * @param {string} tier
  * @param {Set<string>} offered
  * @returns {string}
  */
 function offeredMember(tier, offered) {
-  const mine = forSource(tier);
-  if (offered.has(mine)) return mine;
-  const other = otherMember(tier, mine);
-  return other && offered.has(other) ? other : "";
-}
-
-// A menu value as the rate to actually send: the member the engine is holding,
-// falling back to the source's own when it holds neither — there is nothing
-// better to send, and the lane holds an unpinnable rate rather than dropping it.
-/**
- * The rate a menu tier goes on the wire as: the tier member the engine is offering,
- * falling back to the source's own when it offers neither.
- * @param {string} tier
- * @returns {string}
- */
-export function wireRate(tier) {
-  return offeredMember(tier, offeredRates()) || forSource(tier);
+  if (offered.has(tier)) return tier;
+  const twin = String(TWIN_44K[tier] || "");
+  return twin && offered.has(twin) ? twin : "";
 }
 
 // A tier the engine is not currently offering is listed and grayed with the
@@ -213,9 +171,9 @@ export function rateColumn(family) {
     // the whole time and takes filter and shaper edits live, which is why the
     // cards beside this one stay editable. Under an explicit mode NEITHER column
     // is disabled, on the same terms as the dormant chain card
-    // (components/live/View.js): a rate for the family the engine is not running
-    // is held and lands when that family loads (lanes/live/routing.unpinnable_rate),
-    // so setting up the SDM side while PCM plays is an ordinary thing to do here.
+    // (components/live/View.js): a rate writes that family's own config limit slot
+    // (lanes/live/chain.RATE_LIMIT_FIELD), so setting up the SDM side while PCM
+    // plays is an ordinary thing to do here.
     disabled: auto,
     reason: auto ? AUTO_RATE_REASON : "",
     // Which tiers the engine is offering is read off the rates enumeration, so

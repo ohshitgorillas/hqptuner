@@ -16,7 +16,7 @@ import httpx
 from hqptuner.conf import engineconf
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.http import engineattrs, restore
-from hqptuner.lanes.live import lane
+from hqptuner.lanes.live import chain, lane
 from hqptuner.lanes.writer import apply_live
 from hqptuner.presets import presetlane
 
@@ -43,6 +43,24 @@ class ApplyOps:
         await client.set_volume(db)
         self._mgr.readings.state = await client.get_state()
         return {"volume": self._mgr.readings.state.get("volume")}
+
+    async def set_rate_limit(self, hz: str) -> dict[str, Any]:
+        """Land a rate choice in the limit slot, leaving no exact rate pinned.
+
+        ``SetRate`` writes the FIXED slot, and an exact rate there overrides automatic
+        base-rate selection: 44.1k material then goes out at a 48k base and the engine
+        refuses the filter. So a rate goes to ``defaults_samplerate``/``defaults_bitrate``
+        as its tier's 48k member, and ``auto_family`` picks the member matching the source
+        per track. A pin standing from anywhere else keeps overriding that limit, so it is
+        cleared first.
+        """
+        client = self._mgr.control
+        if client is None:
+            raise ControlError("daemon not connected")
+        await client.set_command("SetRate", value="0")
+        if hz == "0":
+            return {"cleared": True}
+        return await restore.apply(self._mgr, {chain.limit_field_for(hz): chain.tier_rate(hz)})
 
     # --- write path (Phase 3) -----------------------------------------
 

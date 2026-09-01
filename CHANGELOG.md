@@ -26,6 +26,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **A rate chosen in LIVE mode now sets the output rate limit instead of pinning an exact rate.** A pinned rate overrode automatic base-rate selection, so 44.1 kHz material was sent out at a 48 kHz base rate and the engine refused the selected filter.
 - **Re-selecting a live preset now re-applies the settings.** Before, changing a setting left no way to re-engage the selected Live preset. Now there is.
 - **Preset names sort by number.** DSD1024 listed above DSD256 in both preset pickers, because the digits sorted as text.
 
