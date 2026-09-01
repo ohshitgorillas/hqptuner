@@ -86,7 +86,7 @@ def understood_schema(tmp_path_factory: pytest.TempPathFactory) -> int:
 
 
 def test_a_store_whose_file_was_never_written_lists_no_presets(tmp_path: Path) -> None:
-    assert LivePresetStore(tmp_path / "never-created" / "live-presets.json").names() == []
+    assert LivePresetStore(tmp_path / "never-created" / "live-presets.json").all() == {}
 
 
 def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
@@ -98,7 +98,7 @@ def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> No
 @pytest.mark.parametrize("content", UNREADABLE)
 def test_a_file_that_is_not_our_record_lists_no_presets(tmp_path: Path, content: str) -> None:
     seed(tmp_path, content)
-    assert store_at(tmp_path).names() == []
+    assert store_at(tmp_path).all() == {}
 
 
 # --- names nothing is saved under -------------------------------------------
@@ -138,7 +138,7 @@ def test_saving_over_an_existing_name_leaves_one_preset_under_it(tmp_path: Path)
     store = store_at(tmp_path)
     store.save("alpha", RECORD)
     store.save("alpha", OTHER_RECORD)
-    assert store.names() == ["alpha"]
+    assert list(store.all()) == ["alpha"]
 
 
 # --- the on-disk layout stamp ------------------------------------------------
@@ -147,7 +147,7 @@ def test_saving_over_an_existing_name_leaves_one_preset_under_it(tmp_path: Path)
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_listing(tmp_path: Path) -> None:
     seed_stamped(tmp_path, TOO_NEW)
     with pytest.raises(LivePresetSchemaError):
-        store_at(tmp_path).names()
+        store_at(tmp_path).all()
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:
@@ -177,7 +177,7 @@ def test_the_refusal_names_the_stamp_this_build_understands(tmp_path: Path, unde
 def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp_path: Path) -> None:
     seed_stamped(tmp_path, TOO_NEW)
     with pytest.raises(LivePresetError):
-        store_at(tmp_path).names()
+        store_at(tmp_path).all()
 
 
 @pytest.mark.parametrize("offset", [0, -1])

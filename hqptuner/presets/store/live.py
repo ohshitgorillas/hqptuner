@@ -130,10 +130,6 @@ class LivePresetStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
 
-    def names(self) -> list[str]:
-        """Every stored preset name, sorted."""
-        return sorted(self._presets(), key=names.sort_key)
-
     def all(self) -> dict[str, Any]:
         """Every preset, name -> record, sorted by name."""
         presets = self._presets()

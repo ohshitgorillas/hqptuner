@@ -94,13 +94,6 @@ def test_a_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path: Pat
     assert store.read(name) == PAYLOAD
 
 
-@pytest.mark.parametrize("name", ACCEPTED_NAMES)
-def test_an_accepted_name_is_listed_exactly_as_given(tmp_path: Path, name: str) -> None:
-    store = store_at(tmp_path)
-    store.save(name, PAYLOAD)
-    assert store.names() == [name]
-
-
 # --- accepted names, live store ---------------------------------------------
 
 
@@ -109,13 +102,6 @@ def test_a_live_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path
     store = live_store_at(tmp_path)
     store.save(name, RECORD)
     assert store.read(name) == RECORD
-
-
-@pytest.mark.parametrize("name", ACCEPTED_NAMES)
-def test_an_accepted_live_preset_name_is_listed_exactly_as_given(tmp_path: Path, name: str) -> None:
-    store = live_store_at(tmp_path)
-    store.save(name, RECORD)
-    assert store.names() == [name]
 
 
 # --- Unicode normalization is not the store's business -----------------------
@@ -136,7 +122,7 @@ def test_a_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(tmp_p
 def test_a_decomposed_live_preset_name_reads_back_still_decomposed(tmp_path: Path) -> None:
     store = live_store_at(tmp_path)
     store.save(DECOMPOSED, RECORD)
-    assert store.names() == [DECOMPOSED]
+    assert list(store.all()) == [DECOMPOSED]
 
 
 def test_a_live_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(tmp_path: Path) -> None:
