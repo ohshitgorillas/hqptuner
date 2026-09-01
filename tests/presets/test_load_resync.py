@@ -110,13 +110,6 @@ def _submitted(result: dict[str, Any]) -> None:
         raise AssertionError(f"the engine apply never reached the daemon: {result}")
 
 
-def _pinned(manager: ConnectionManager) -> None:
-    """A LIVE rate the manager is actually remembering, or a failure. Without
-    it there is nothing for the restart to clear and the case proves nothing."""
-    if not manager.readings.live.rates:
-        raise AssertionError("the LIVE rate write was never remembered: nothing for the restart to clear")
-
-
 def _held(manager: ConnectionManager) -> None:
     """A chain edit the manager is actually holding, or a failure — same
     premise, for the dormant chain's half of the memory."""
@@ -137,19 +130,9 @@ async def _stored_preset(manager: ConnectionManager) -> None:
 
 
 # --- the LIVE memory is of an engine that is gone ----------------------------
-# A LIVE rate pin and a held chain edit are memory of a running process: the
-# daemon holds one rate pin and clears it on a mode switch, and the dormant
-# chain cannot be told anything at all (docs/settings-classification.md). A
-# restart takes both with it.
-
-
-async def test_a_preset_load_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
-    manager, _state = await dual_lane()
-    await lane.apply_now(manager, {"rate": "352800"})  # remembered under pcm
-    _pinned(manager)
-    await _stored_preset(manager)
-    await presetlane.load(manager, "Stored")
-    assert manager.readings.live.rates == {}
+# A held chain edit is memory of a running process: the dormant chain cannot be
+# told anything at all (docs/settings-classification.md). A restart takes it
+# with it.
 
 
 async def test_a_preset_load_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
@@ -307,14 +290,6 @@ async def test_an_autosave_after_a_load_does_not_store_the_pre_load_engine_mode(
 # same way, so both leave the same picture of a process that no longer exists.
 
 
-async def test_a_staged_apply_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
-    manager, _state = await dual_lane()
-    await lane.apply_now(manager, {"rate": "352800"})
-    _pinned(manager)
-    _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert manager.readings.live.rates == {}
-
-
 async def test_a_staged_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
     await lane.apply_now(manager, {"oversampling": "23"})
@@ -330,14 +305,6 @@ async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
     assert present(manager.readings.state).get("filterNx") == "2"
-
-
-async def test_an_engine_apply_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
-    manager, _state = await dual_lane()
-    await lane.apply_now(manager, {"rate": "352800"})
-    _pinned(manager)
-    _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
-    assert manager.readings.live.rates == {}
 
 
 async def test_an_engine_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:

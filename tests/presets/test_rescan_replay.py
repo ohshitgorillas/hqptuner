@@ -4,11 +4,10 @@ fakes speak the wire protocol).
 
 `GET /config/refresh` re-scans the daemon's output devices, and on 6.0.4 it
 stops the engine while it does: every live-only setting — output mode, both
-chains' filter and shaper, adaptive volume, the rate pin, the junk filter —
-comes back at the config file's value, because a control-lane write never
-reached that file. With auto-save on, `refresh_devices` puts back what the
-ENGINE held before the rescan, so the rescan costs the user nothing they had
-set live.
+chains' filter and shaper, adaptive volume, the junk filter — comes back at the
+config file's value, because a control-lane write never reached that file. With
+auto-save on, `refresh_devices` puts back what the ENGINE held before the
+rescan, so the rescan costs the user nothing they had set live.
 
 The engine's side of the rescan is modeled where it happens: the 8088 fake
 runs the test's `_on_refresh` callable when the rescan lands, and that callable
@@ -17,19 +16,14 @@ on the state the control daemon ends in, or on the commands that reached it —
 never on how the replay was produced. Auto-save is the gate and the store is
 NOT the source: the values replayed are the engine's own.
 
-Two of the settings are engine-only in the strong sense. The rate pin is the
-exact output rate (`SetRate`, index into the mode-dependent `RatesItem` ladder,
-protocol.md §6) — a different slot from the config form's
-`defaults_samplerate`/`defaults_bitrate` per-family ceiling — and `SetMode`
-clears it outright, so a replay carrying both has to land the rate after the
-mode. The junk filter has no `/config` form field at all, so the engine is the
-only place it exists.
+The junk filter is engine-only in the strong sense: it has no `/config` form
+field at all, so the engine is the only place it exists.
 
 The `restored` mapping is read as reporting each setting under the field name
 the engine's live record knows it by, carrying that record's value: the enum ID
 for an enumerated field (`filter` 40, `dither` 5), the form's own word for the
-mode (`pcm`), the rate in Hz, and the bare flag for adaptive volume. That is the
-reading `tests/apply/test_live_snapshot.py` pins for those same names.
+mode (`pcm`), and the bare flag for adaptive volume. That is the reading
+`tests/apply/test_live_snapshot.py` pins for those same names.
 """
 
 from pathlib import Path
@@ -143,7 +137,6 @@ HELD_BY_THE_ENGINE = [
     ("filter1x", "1"),
     ("shaper", "1"),
     ("mode", "1"),
-    ("rate", "4"),
     ("filter_junk", "1"),
 ]
 
@@ -170,7 +163,6 @@ RESTORED_BY_THE_ENGINE = [
     ("filter", "40"),
     ("dither", "5"),
     ("mode", "pcm"),
-    ("rate", "352800"),
     ("junk_filter", "1"),
 ]
 
@@ -192,9 +184,9 @@ async def test_a_rescan_reports_the_value_it_put_back(
 
 
 # --- the order the replay has to go in ---------------------------------------
-# `SetMode` swaps the enumeration lists and clears the rate pin outright
-# (protocol.md §6, probe-verified on 6.0.4), so the mode goes first and alone,
-# and everything the switch would have wiped goes after it.
+# `SetMode` swaps the enumeration lists out from under every other setter
+# (protocol.md §4), so the mode goes first and alone, and everything resolved
+# against those lists goes after it.
 
 
 async def test_a_rescan_replays_the_output_mode_before_any_other_setting(
@@ -215,17 +207,6 @@ async def test_a_replayed_mode_switch_carries_no_other_setter_with_it(
     before = len(log)
     await engineread.refresh_devices(manager)
     assert _next_after_the_mode_switch(_sent(log[before:])) not in SETTERS
-
-
-async def test_a_rescan_pins_the_rate_after_the_mode_switch(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # a rate pinned before the switch is the pin the switch clears
-    manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    sent = _sent(log[before:])
-    assert _at(sent, "SetRate") > _at(sent, "SetMode") >= 0
 
 
 # --- what a rescan never replays ---------------------------------------------

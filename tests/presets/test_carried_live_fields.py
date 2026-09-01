@@ -2,9 +2,9 @@
 (docs/testing.md — behavior only, one assertion per test, public API only,
 fakes speak the wire protocol).
 
-Output mode, both chains' filters and shapers, adaptive volume and the
-per-family rate limits (``overrides.LIVE_DOMAIN``) are applied over the 4321
-control lane and never reach hqplayerd's config file. A restore restarts the
+Output mode, both chains' filters and shapers and adaptive volume
+(``overrides.LIVE_DOMAIN``) are applied over the 4321 control lane and never
+reach hqplayerd's config file. A restore restarts the
 daemon onto that file, so those settings have to be carried into the pushed
 config from somewhere. ``carried_live_fields`` answers where from: the RUNNING
 ENGINE first, because that is what the user is hearing, and the active preset's
@@ -104,24 +104,17 @@ class EngineCase(NamedTuple):
 #: chain it has LOADED, and the two chains number the same names differently
 #: (protocol.md §4) — so each row names the chain it reads under. Under PCM
 #: (``mode="1"``) State's ``filterNx``/``filter1x``/``shaper``/``rate`` are the
-#: ``filter``/``filter1x``/``dither``/``defaults_samplerate`` answers, resolved on
-#: the fake's PCM lists; under SDM (``mode="2"``) the same four attributes answer
-#: for ``oversampling``/``oversampling1x``/``modulator``/``defaults_bitrate`` on
-#: the SDM lists. ``adaptive`` belongs to neither chain, and ``mode`` is itself.
+#: ``filter``/``filter1x``/``dither`` answers, resolved on the fake's PCM lists;
+#: under SDM (``mode="2"``) the same three attributes answer for
+#: ``oversampling``/``oversampling1x``/``modulator`` on the SDM lists.
+#: ``adaptive`` belongs to neither chain, and ``mode`` is itself.
 #:
 #: Values from the fake's own enumerations: PCM filter index 2 = sinc-M = enum 25
-#: and index 3 = poly-sinc-short-mp = enum 57; PCM shaper index 1 = NS9 = enum 5;
-#: PCM rate index 2 = 352800 Hz. SDM filter index 1 = sinc-M = enum 23 and index
-#: 2 = poly-sinc-short-lp = enum 57; SDM shaper index 1 = ASDM7EC = enum 3; SDM
-#: rate index 2 = 5644800 Hz. The stored value differs from the engine's in every
-#: row, so a field taken from the store instead of the engine reads back wrong
-#: rather than reading back the same thing twice.
-#:
-#: The two rate rows land in a different domain from the rest: the limit slots
-#: are friendly per-tier menus written as the 48k-base member of each tier
-#: (settings-classification.md §Rate slots, §Rate per-family and friendly), so a
-#: 44.1-base engine rate is carried as its own tier's 48k-base member — 352800 is
-#: the 8x tier, written 384000; 5644800 is DSD128, written 6144000.
+#: and index 3 = poly-sinc-short-mp = enum 57; PCM shaper index 1 = NS9 = enum 5.
+#: SDM filter index 1 = sinc-M = enum 23 and index 2 = poly-sinc-short-lp = enum
+#: 57; SDM shaper index 1 = ASDM7EC = enum 3. The stored value differs from the
+#: engine's in every row, so a field taken from the store instead of the engine
+#: reads back wrong rather than reading back the same thing twice.
 ENGINE_WINS = [
     EngineCase({"mode": "2"}, "mode", "sdm", "auto"),
     EngineCase({"mode": "1", "filterNx": "2"}, "filter", "25", "40"),
@@ -131,8 +124,6 @@ ENGINE_WINS = [
     EngineCase({"mode": "2", "filter1x": "2"}, "oversampling1x", "57", "38"),
     EngineCase({"mode": "2", "shaper": "1"}, "modulator", "3", "12"),
     EngineCase({"mode": "1", "adaptive": "1"}, "adaptive_volume", "1", "0"),
-    EngineCase({"mode": "1", "rate": "2"}, "defaults_samplerate", "384000", "88200"),
-    EngineCase({"mode": "2", "rate": "2"}, "defaults_bitrate", "6144000", "2048000"),
 ]
 
 
@@ -142,7 +133,7 @@ async def test_the_engines_own_value_beats_a_different_stored_one(
 ) -> None:
     # the engine is running one value and the preset was saved on another: a
     # restore that carried the stored answer would boot the daemon out of the
-    # filter, shaper, rate or chain the user is listening to
+    # filter, shaper or chain the user is listening to
     manager = await engine_manager(**case.state)
     _active_preset_holding(tmp_path / "presets", {case.field: case.stored})
     assert carried_live_fields(manager)[case.field] == case.running
