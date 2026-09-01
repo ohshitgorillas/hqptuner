@@ -132,20 +132,18 @@ test("test_the_reported_daemon_name_is_shown", () => {
   assert.equal(idents(out)[NAME], "hqplayerd6");
 });
 
-// Which version string the identity line prints — the installed release, never
-// the separately-numbered DSP engine build — is asserted in
-// tests/js/components/header-release.test.js.
-
 // --- play state -------------------------------------------------------------
 
-// The header no longer prints the transport state; the signal path's chips carry
-// it. A playing engine adds no third identity span.
+// The header prints neither the transport state nor the daemon's release: the
+// signal path's chips carry the first, and the System tab's About card states
+// the second. So the identity line is the name and nothing else, and an engine
+// in any state adds no second span to it.
 test("test_a_playing_engine_adds_no_state_label_to_the_identity", () => {
-  assert.equal(idents(head({ engine: { state: "2" } })).length, 2);
+  assert.equal(idents(head({ engine: { state: "2" } })).length, 1);
 });
 
 test("test_a_stopped_engine_adds_no_state_label_to_the_identity", () => {
-  assert.equal(idents(head({ engine: { state: "0" } })).length, 2);
+  assert.equal(idents(head({ engine: { state: "0" } })).length, 1);
 });
 
 // --- the preset picker ------------------------------------------------------
