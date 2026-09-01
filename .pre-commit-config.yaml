@@ -71,8 +71,8 @@ repos:
         types: [python]
         files: ^tests/
       - id: no-copy-assertions
-        name: no copy in assertions (report only until the suite is clean)
-        entry: .venv/bin/python scripts/gates/check_no_copy_assertions.py --report
+        name: no copy in assertions
+        entry: .venv/bin/python scripts/gates/check_no_copy_assertions.py
         language: system
         types: [python]
         files: ^tests/
