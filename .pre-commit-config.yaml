@@ -196,6 +196,16 @@ repos:
         pass_filenames: false
         files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
 
+      # The shipped metadata is read by the application alone: the offline suite
+      # runs on fixtures, so a data file that stops loading or stops covering the
+      # engine snapshot fails here or in a running container.
+      - id: metadata
+        name: static metadata gate
+        entry: .venv/bin/python scripts/gates/check_metadata.py
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner/data/.*\.json|hqptuner/metadata\.py)$
+
       # Cross-cutting: a citation names a doc heading, so the gate has to run
       # when either the citing source or the cited doc moves.
       - id: doc-refs

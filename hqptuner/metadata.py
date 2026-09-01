@@ -2,12 +2,25 @@
 
 Join is by name only — the running engine is the sole authority for names,
 IDs, ordering, and structural facets (architecture §2 enumeration volatility).
-Filter join rules match data/validate.py: exact -> alias -> strip '-2s'.
+Filter join rules: exact -> alias -> strip '-2s' (filters.json ``_join_rules``);
+``scripts/gates/check_metadata.py`` holds the shipped files to them.
 """
 
 import json
 from pathlib import Path
 from typing import Any
+
+#: The plain-names overlays: the key each document carries, and the stem of the
+#: ``<stem>-plain-names.json`` file that carries it.
+OVERLAYS: tuple[tuple[str, str], ...] = (
+    ("filters", "filter"),
+    ("dithers", "dither"),
+    ("modulators", "modulator"),
+    ("sdm_conversion", "sdm-conversion"),
+    ("sdm_integrator", "sdm-integrator"),
+    ("noise_filter", "noise-filter"),
+    ("pcm_conversion", "pcm-conversion"),
+)
 
 
 class StaticMetadata:
@@ -23,16 +36,7 @@ class StaticMetadata:
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
         self._easy_db: dict[str, Any] = json.loads((data_dir / "easy-presets.json").read_text())
         self._plain_names: dict[str, Any] = {}
-        overlays = (
-            ("filters", "filter"),
-            ("dithers", "dither"),
-            ("modulators", "modulator"),
-            ("sdm_conversion", "sdm-conversion"),
-            ("sdm_integrator", "sdm-integrator"),
-            ("noise_filter", "noise-filter"),
-            ("pcm_conversion", "pcm-conversion"),
-        )
-        for key, stem in overlays:
+        for key, stem in OVERLAYS:
             doc = json.loads((data_dir / f"{stem}-plain-names.json").read_text())
             self._plain_names[key] = {
                 "entries": doc[key],
