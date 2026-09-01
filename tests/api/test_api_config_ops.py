@@ -96,10 +96,10 @@ def test_the_no_preset_option_previews_the_running_config(http_client: TestClien
     assert http_client.get("/api/preset/").json()["config"]["title"] == "Opal"
 
 
-def test_a_preset_name_carrying_a_path_separator_is_not_found(http_client: TestClient) -> None:
+def test_a_preset_name_carrying_a_path_separator_is_refused(http_client: TestClient) -> None:
     # reaching the empty name must not also let a name walk out of the store:
     # store.presets' name validation is what refuses this, and it still does
-    assert http_client.get("/api/preset/sub/Kept").status_code == 404
+    assert http_client.get("/api/preset/sub/Kept").status_code == 422
 
 
 def test_profile_load_activates_the_stored_preset(http_client: TestClient) -> None:

@@ -114,3 +114,16 @@ test("test_a_preset_name_is_url_encoded_in_the_path", async () => {
   await api.deletePreset("Night / Loud");
   assert.equal(seen.path, "/api/preset/Night%20%2F%20Loud");
 });
+
+// --- error codes on a refusal ---------------------------------------------------
+
+test("test_a_refusal_exposes_the_status_and_the_bodys_code_on_the_error", async () => {
+  // the body is seeded here, so its code is this test's own string to assert
+  wire({ ok: false, status: 409, json: async () => ({ detail: { rate: "x" }, code: "route_refused" }) });
+  /** @type {{ status?: number, code?: string }} */
+  const err = await api.status().then(
+    () => ({}),
+    (e) => e,
+  );
+  assert.deepEqual([err.status, err.code], [409, "route_refused"]);
+});
