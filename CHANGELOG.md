@@ -12,6 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card of preset tiles, each with its own emphasis and source adjustments, on the Output tab and the LIVE page; a link inside it swaps back.
 - **API errors carry a code.** Every refused request now answers with a `code` field beside `detail`, a stable identifier a client can act on without parsing the sentence.
 - **Added an apodizing indicator light to the top bar.** Brightness indicates density. Enabled in the HQPTuner card in the System tab.
+- **Dyslexic font mode.** Added the ability to switch the app's non-monospaced font from Inter to Atkinson Hyperlegible, a dyslexic-friendly font. Enabled in the HQPTuner card in the System tab.
 
 ### Changed
 

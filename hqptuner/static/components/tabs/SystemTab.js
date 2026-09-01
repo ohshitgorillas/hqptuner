@@ -9,7 +9,16 @@ import { EngineHealth } from "../EngineHealth.js";
 import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
 import { LogTail } from "../LogTail.js";
 import { Checkbox } from "../controls/index.js";
-import { accent, accentHex, applyAccent, applyAccentHex, ACCENTS, ACCENT_HEX } from "../../store/theme.js";
+import {
+  accent,
+  accentHex,
+  applyAccent,
+  applyAccentHex,
+  applyDyslexic,
+  dyslexic,
+  ACCENTS,
+  ACCENT_HEX,
+} from "../../store/theme.js";
 import {
   showDescriptions,
   keepOptionDescriptions,
@@ -129,6 +138,21 @@ const ApodLightPref = () => html`
   </div>
 `;
 
+// The dyslexic font switch. Chrome, like the two above it: the store stamps
+// `data-dyslexic` on the root and the CSS swaps `--font-ui` off it.
+const DyslexicPref = () => html`
+  <div class="field" data-k="dyslexic">
+    <label>Dyslexic font</label>
+    <div class="control">
+      <${Checkbox}
+        value=${dyslexic.value ? "1" : "0"}
+        onChange=${(/** @type {string | number} */ v) => applyDyslexic(v === "1")}
+      />
+    </div>
+    <div class="field-note">Use a dyslexic-friendly font (Atkinson Hyperlegible) for non-monospace text.</div>
+  </div>
+`;
+
 /** @type {Record<string, string>} */
 const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber", violet: "Violet" };
 
@@ -221,6 +245,7 @@ export const System = () =>
              two-up pack would give them (CLAUDE.md: the column is the cap). -->
         <${DescriptionPrefs} />
         <${ApodLightPref} />
+        <${DyslexicPref} />
         <${AccentPicker} />
       <//>
     </div>
