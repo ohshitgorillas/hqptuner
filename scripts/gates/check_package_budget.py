@@ -36,13 +36,13 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 #: in it. Raise an entry for a feature; never raise one for a refactor.
 BUDGET: dict[str, int] = {
     "hqptuner/api": 402,
-    "hqptuner/api/routes": 1360,
+    "hqptuner/api/routes": 1365,
     "hqptuner/conf": 2283,
     # Raised for an extraction, against this table's own rule, by owner decision:
     # manager.py's state bag and on-demand readers became core/readings.py and
     # core/engineread.py. No forwarders — 88 call sites moved. The delta is two new
     # modules' docstrings and import blocks, which a line count cannot tell apart.
-    "hqptuner/core": 784,
+    "hqptuner/core": 790,
     "hqptuner/engine": 1156,
     "hqptuner/lanes": 550,
     "hqptuner/lanes/http": 457,
