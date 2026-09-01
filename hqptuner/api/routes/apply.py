@@ -72,6 +72,27 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     return report
 
 
+def _stand_autopilot_down(manager: ConnectionManager, fields: dict[str, str]) -> None:
+    """Switch auto-pilot off when this batch sets the high-frequency filter by hand.
+
+    It is the user taking the control back, and leaving it on would have the poll loop
+    undo the choice they just made. Before the write, not after, so there is no window
+    in which a poll can revert it.
+    """
+    if "junk_filter" not in fields:
+        return
+    with contextlib.suppress(AutopilotError):
+        presetlane.switch_autopilot(manager, "live.write", enabled=False)
+
+
+async def _write_live(manager: ConnectionManager, fields: dict[str, str], rate: str | None) -> dict[str, Any]:
+    """Apply the live setters, and the rate into its limit slot, as one report."""
+    report = await lane.apply_now(manager, fields) if fields else {"live": [], "stored": {}}
+    if rate is not None:
+        report["rate"] = await manager.applyops.set_rate_limit(rate)
+    return report
+
+
 @router.post("/config/live")
 async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """Apply live-lane config-form fields immediately, readback-verified.
@@ -92,17 +113,9 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     unknown = sorted(set(fields) - set(routing.live_fields()))
     if unknown:
         raise refuse("fields_unknown", f"unknown live fields: {unknown}")
-    if "junk_filter" in fields:
-        # Setting the high-frequency filter by hand stands auto-pilot down — it is the
-        # user taking the control back, and leaving it on would have the poll loop undo
-        # the choice they just made. Before the write, not after, so there is no window
-        # in which a poll can revert it.
-        with contextlib.suppress(AutopilotError):
-            presetlane.switch_autopilot(manager, "live.write", enabled=False)
+    _stand_autopilot_down(manager, fields)
     try:
-        report = await lane.apply_now(manager, fields) if fields else {"live": [], "stored": {}}
-        if rate is not None:
-            report["rate"] = await manager.applyops.set_rate_limit(rate)
+        report = await _write_live(manager, fields, rate)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved
