@@ -50,7 +50,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire, settle } from "../support/livepresetwire.js";
-import { caps, tick, NET_DEVICE, PCM_TO_192, DSD64, DSD128, DSD512 } from "../support/devicecaps-harness.js";
+import { caps, tick, NET_DEVICE } from "../support/devicecaps-harness.js";
 import { section } from "../support/tabform.js";
 import { attr } from "../support/markup.js";
 import { rows } from "../support/comborows.js";
@@ -72,7 +72,6 @@ const LIVE_MODE = "live-mode";
 // STRINGS, announced capability is INTEGERS. The two are kept in their real
 // types so a case pins the join rather than reading past a coercion.
 const PCM_96 = "96000";
-const PCM_768 = "768000";
 const DOP_CARRIER_FOR_DSD64 = 192000; // 3072000 / 16, and a member of PCM_TO_192
 const PCM_TO_96 = [44100, 48000, 88200, 96000]; // no DoP carrier for any DSD rate
 
@@ -167,23 +166,6 @@ function only(presets, carries) {
   return hits[0];
 }
 
-test("test_a_preset_pinned_to_a_dsd_rate_the_device_does_not_offer_is_grayed", async () => {
-  // The device HAS a DSD path and offers DSD64/DSD128 natively, so what
-  // disqualifies the DSD512 preset is its RATE and nothing else.
-  const presets = [rec("one", "sdm", DSD64), rec("two", "sdm", DSD512)];
-  await resetPage({
-    presets,
-    deviceCaps: caps(NET_DEVICE, PCM_TO_192, [Number(DSD64), Number(DSD128)]),
-  });
-  assert.deepEqual(
-    grayedByRole({
-      beyond: only(presets, (p) => p.fields.rate === DSD512),
-      offered: only(presets, (p) => p.fields.rate === DSD64),
-    }),
-    { beyond: true, offered: false },
-  );
-});
-
 test("test_an_sdm_preset_is_grayed_on_a_device_with_no_dsd_path_at_all", async () => {
   // No native DSD rates and no PCM rate high enough to carry one over DoP, so
   // the device cannot reach SDM by any route.
@@ -213,17 +195,5 @@ test("test_an_sdm_preset_is_grayed_when_the_only_dsd_path_is_dop_and_dop_is_off"
       pcm: only(presets, (p) => p.chain === "pcm"),
     }),
     { sdm: true, pcm: false },
-  );
-});
-
-test("test_a_preset_pinned_to_a_pcm_rate_the_device_does_not_offer_is_grayed", async () => {
-  const presets = [rec("one", "pcm", PCM_96), rec("two", "pcm", PCM_768)];
-  await resetPage({ presets, deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
-  assert.deepEqual(
-    grayedByRole({
-      beyond: only(presets, (p) => p.fields.rate === PCM_768),
-      offered: only(presets, (p) => p.fields.rate === PCM_96),
-    }),
-    { beyond: true, offered: false },
   );
 });

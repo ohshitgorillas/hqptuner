@@ -153,7 +153,7 @@ const MOVABLE = ["hero", "health", "chains", "playback", "matrix"];
 /** @type {{ key: string, card?: string, group?: string }[]} */
 const ANCHORS = [
   { key: LOCKED, card: "live-mode" },
-  { key: "hero", card: "live-rate" },
+  { key: "hero", card: "live-output-mode" },
   { key: "health", card: "live-engine-health" },
   { key: "chains", group: "live-chain-group" },
   { key: "playback", card: "live-playback" },

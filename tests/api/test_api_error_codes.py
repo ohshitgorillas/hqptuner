@@ -45,4 +45,4 @@ def test_config_without_credentials_is_unavailable_with_code_no_credentials(live
 
 def test_a_live_batch_the_lane_refuses_carries_code_route_refused(live_api: TestClient) -> None:
     # 409 and the per-field reasons dict are pinned elsewhere; this pins the code
-    assert live_api.post("/api/config/live", json={"fields": {"rate": "12345"}}).json()["code"] == "route_refused"
+    assert live_api.post("/api/config/live", json={"fields": {"filter": "9999"}}).json()["code"] == "route_refused"

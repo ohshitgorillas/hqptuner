@@ -180,17 +180,6 @@ const openTag = (out, needle) => {
   return m ? m[0] : null;
 };
 
-// The tag name of the form control a keyed field wraps.
-/**
- * @param {string} out
- * @param {string} key
- */
-function widgetTag(out, key) {
-  const m = /<(select|input|button)\b/.exec(row(out, key));
-  if (!m) throw new Error(`the field keyed "${key}" wraps no form control`);
-  return m[1];
-}
-
 /** @param {string} out */
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 
@@ -231,16 +220,6 @@ test("test_a_live_modulator_control_renders_a_combobox", async () => {
   await reset();
   assert.notEqual(openTag(row(card(page(), "live-sdm-chain"), "sdm_modulator"), 'role="combobox"'), null);
 });
-
-// --- a dropdown with no desc keeps its native select --------------------------
-// The rate pair renders as the two per-chain rate columns, keyed per chain.
-
-for (const chain of ["pcm", "sdm"]) {
-  test(`test_the_${chain}_rate_control_stays_a_native_select`, async () => {
-    await reset();
-    assert.equal(widgetTag(page(), `${chain}_rate`), "select");
-  });
-}
 
 // --- the two pickers that are not schema entries ------------------------------
 // Neither carries a schema key, so each is reached through its own card. The

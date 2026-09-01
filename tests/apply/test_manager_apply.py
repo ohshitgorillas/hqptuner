@@ -8,8 +8,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
-from conftest import eventually
-from narrow import present
+from conftest import LiveManager, eventually
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -144,12 +143,12 @@ async def test_the_switched_chain_field_becomes_the_running_truth(
     assert overrides.live_overrides(running_manager)["modulator"] == "3"
 
 
-async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: ConnectionManager) -> None:
-    # SetMode clears the engine's single rate pin even when the mode does not
-    # change (protocol.md §6), so a surviving pin proves no SetMode went out.
-    await running_manager.applyops.apply({"rate": {"value": "1"}}, {})
-    await running_manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
-    assert present(running_manager.readings.state)["rate"] == "1"
+async def test_a_mode_equal_to_the_running_mode_is_not_resent(live_manager: LiveManager) -> None:
+    # SetMode is not free even when it changes nothing — it reloads the chain and
+    # clears the engine's rate pin (protocol.md §6) — so the wire must show none.
+    manager, log, _ = await live_manager()
+    await manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
+    assert "SetMode" not in [name for name, _attrs in log]
 
 
 # A leftover field means the restore lane's restart is happening regardless, and

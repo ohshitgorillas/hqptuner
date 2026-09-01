@@ -207,3 +207,13 @@ def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: T
     _seed_presets(tmp_path, {"schema": 1, "presets": {"Legacy": record}})
     live_api.post("/api/livepresets/Legacy/apply")
     assert live_api.get("/api/state").json()["data"]["filter_junk"] == "1"
+
+
+def test_saving_a_preset_naming_a_setting_the_lane_lacks_is_refused_naming_it(
+    live_api: TestClient,
+) -> None:
+    # "rate" is no longer a live setting. Dropping it silently and saving the
+    # rest would leave the user believing the preset stores a rate it does not,
+    # so the save is refused and the response says which key was the problem.
+    resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter", "rate"]})
+    assert "rate" in resp.json()["detail"]["fields"]

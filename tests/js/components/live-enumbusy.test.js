@@ -238,7 +238,7 @@ function segmentGrayed(out, key) {
 // Read off the loaded chain's dither, which is none of the fields written below,
 // so every case here is graying on the window's account and not its own.
 
-const REENUM = ["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"];
+const REENUM = ["mode", "filter1x", "filter", "oversampling1x", "oversampling"];
 const PLAIN = ["adaptive_volume", "junk_filter"];
 
 const PCM_CARD = "live-pcm-chain";
@@ -260,7 +260,7 @@ for (const field of PLAIN) {
 
 // --- the loaded chain grays, the dormant chain does not ------------------------
 // Both directions of `active_chain`, in `[source]` so both cards render open.
-// The field in flight is `rate`, which belongs to neither card.
+// The field in flight is `mode`, which belongs to neither chain card.
 
 // Each chain card carries its OWN three keys, so the key names the chain as well
 // as the control (store/live/derive.js): the shaper row is `pcm_dither` on the
@@ -283,7 +283,7 @@ for (const chain of ["pcm", "sdm"]) {
     const dormant = CONTROLS[other(chain)][i];
 
     test(`test_the_loaded_${key}_grays_out_during_a_re_enumerating_write`, async () => {
-      await reset({ auto: true, chain, busy: "rate" });
+      await reset({ auto: true, chain, busy: "mode" });
       assert.equal(grayed(card(page(), CARD[chain]), key), true);
     });
 
@@ -295,7 +295,7 @@ for (const chain of ["pcm", "sdm"]) {
     // The dormant chain's options come from the running configuration, which no
     // re-enumeration touches, and its edits are held until that chain loads.
     test(`test_the_dormant_${dormant}_stays_live_during_a_re_enumerating_write`, async () => {
-      await reset({ auto: true, chain, busy: "rate" });
+      await reset({ auto: true, chain, busy: "mode" });
       assert.equal(grayed(card(page(), CARD[other(chain)]), dormant), false);
     });
   }
@@ -311,26 +311,6 @@ test("test_the_high_frequency_filter_grays_out_during_a_re_enumerating_write", a
 test("test_the_high_frequency_filter_is_not_grayed_with_no_write_in_flight", async () => {
   await reset();
   assert.equal(grayed(page(), "junk_filter"), false);
-});
-
-test("test_the_pcm_rate_column_grays_out_during_a_re_enumerating_write", async () => {
-  await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "pcm_rate"), true);
-});
-
-test("test_the_sdm_rate_column_grays_out_during_a_re_enumerating_write", async () => {
-  await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "sdm_rate"), true);
-});
-
-test("test_the_pcm_rate_column_is_not_grayed_with_no_write_in_flight", async () => {
-  await reset();
-  assert.equal(grayed(page(), "pcm_rate"), false);
-});
-
-test("test_the_sdm_rate_column_is_not_grayed_with_no_write_in_flight", async () => {
-  await reset();
-  assert.equal(grayed(page(), "sdm_rate"), false);
 });
 
 // --- controls that read no list at all ----------------------------------------
@@ -357,16 +337,6 @@ test("test_the_output_mode_switch_grays_while_it_is_itself_being_written", async
 test("test_a_plain_write_leaves_the_loaded_chains_filter_live", async () => {
   await reset({ busy: "junk_filter" });
   assert.equal(grayed(card(page(), PCM_CARD), "pcm_filter_nx"), false);
-});
-
-test("test_a_plain_write_leaves_the_pcm_rate_column_live", async () => {
-  await reset({ busy: "junk_filter" });
-  assert.equal(grayed(page(), "pcm_rate"), false);
-});
-
-test("test_a_plain_write_leaves_the_sdm_rate_column_live", async () => {
-  await reset({ busy: "junk_filter" });
-  assert.equal(grayed(page(), "sdm_rate"), false);
 });
 
 test("test_a_plain_write_grays_the_control_it_is_writing", async () => {

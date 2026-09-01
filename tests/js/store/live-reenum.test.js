@@ -4,7 +4,7 @@
 //
 // SetMode rebuilds the filter and shaper enumerations wholesale, and the rate
 // list depends on both the mode and the selected filter (HQPlayer manual §4.6) —
-// so `mode`, `filter1x`, `filter`, `oversampling1x`, `oversampling` and `rate`
+// so `mode`, `filter1x`, `filter`, `oversampling1x` and `oversampling`
 // leave every menu ID on the page meaning something else than it did. A menu
 // entry's ID is only meaningful against the enumeration it came from, so between
 // such a write landing and the new lists arriving the page is stale, and the new
@@ -230,7 +230,6 @@ const REENUM = [
   { field: "mode", value: "sdm" },
   { field: "filter1x", value: "40" },
   { field: "filter", value: "40" },
-  { field: "rate", value: "192000" },
   { field: "oversampling1x", value: "38", sdm: true },
   { field: "oversampling", value: "38", sdm: true },
 ];
