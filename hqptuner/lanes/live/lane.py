@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine.control import ENUM_COMMANDS, ControlClient, ControlError
 from hqptuner.lanes.live import routing
-from hqptuner.lanes.live.chain import active_chain
+from hqptuner.lanes.live.chain import active_chain, pin_family, rate_family, rate_index_for, split_unpinnable_rate
 from hqptuner.lanes.writer import apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -42,18 +42,20 @@ _REENUMERATES = frozenset({"mode", "filter", "rate"})
 class LiveMemory:
     """What LIVE has set that the engine itself cannot hold on to.
 
-    The engine keeps ONE filter/shaper pair, so the moment the loaded chain
-    changes there is nothing left on the engine to say what LIVE set for the
-    other one. This is that record, and it is what `overrides.live_overrides`
-    reports for whichever chain is dormant.
+    The engine keeps ONE rate pin and ONE filter/shaper pair, and `SetMode` clears
+    the pin outright (probe-verified on 6.0.4, `scripts/probes/probe_mode_rate_pin.py`), so
+    the moment the output family or the loaded chain changes there is nothing left
+    on the engine to say what LIVE set for the other one. This is that record, and
+    it is what `overrides.live_overrides` reports for whichever is dormant.
 
-    `chain` is per chain, config-form field -> enum ID — IDs rather than list
-    indices because an index is only meaningful while its chain is loaded, which
-    is exactly the condition this outlives.
+    `rates` is per family, in Hz. `chain` is per chain, config-form field -> enum
+    ID — IDs rather than list indices because an index is only meaningful while
+    its chain is loaded, which is exactly the condition this outlives.
     """
 
     def __init__(self) -> None:
-        """Start out remembering nothing — no setting held for any chain."""
+        """Start out remembering nothing — no rate pinned in any family, no setting held for any chain."""
+        self.rates: dict[str, str] = {}
         self.chain: dict[str, dict[str, str]] = {}
 
     def forget(self) -> None:
@@ -62,12 +64,53 @@ class LiveMemory:
         A fresh handshake is what a restart looks like from here. Holding on would report, and
         re-assert, a setting nothing is playing any more.
         """
+        self.rates.clear()
         self.chain.clear()
 
 
 def _applied(report: list[dict[str, Any]], setting: str) -> bool:
     """Whether this setting is in the report and verified by readback."""
     return any(entry["setting"] == setting and entry["ok"] for entry in report)
+
+
+def _remember_rate(mgr: ConnectionManager, hz: str) -> None:
+    """Record the rate LIVE just pinned under the family it belongs to.
+
+    ``"0"`` is the engine's Auto and pins nothing, so it forgets instead. The rate
+    menus carry no Auto entry (``store/schema.js``), so this is only reachable from
+    a hand-made request.
+    """
+    if hz == "0":
+        mgr.readings.live.rates.clear()
+        return
+    mgr.readings.live.rates[rate_family(hz)] = hz
+
+
+async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[dict[str, Any]]:
+    """Put the entered family's remembered pin back on the engine.
+
+    ``SetMode`` clears the rate pin outright — the engine keeps one, not one per
+    family (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``). Without this
+    a mode switch silently throws away the rate the user picked, and both this page
+    and the Output tab fall back to the configured limit.
+
+    Asks ``pin_family`` rather than ``active_chain``, because leaving ``[source]``
+    is a switch this has to land on too: the rate was held for want of a pin slot,
+    not for want of a chain, and in ``[source]`` a chain is loaded the whole time.
+
+    A tier the entered mode does not offer is forgotten rather than approximated:
+    pinning the nearest rate the engine does offer would be a rate the user never
+    picked.
+    """
+    family = pin_family(mgr)
+    hz = mgr.readings.live.rates.get(family or "")
+    if hz is None:
+        return []
+    index = rate_index_for(mgr, hz)
+    if index is None:
+        del mgr.readings.live.rates[family or ""]
+        return []
+    return await apply_live(client, {"rate": {"value": index}}, mgr.audit)
 
 
 async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: dict[str, str]) -> None:
@@ -90,13 +133,15 @@ async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: 
     mgr.readings.enums = {**(mgr.readings.enums or {}), "rates": await client.get_enumeration(ENUM_COMMANDS["rates"])}
 
 
-def _held_fields(stored: dict[str, dict[str, str]]) -> dict[str, str]:
+def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> dict[str, str]:
     """Everything this batch held, flat, as the caller's `stored` answer.
 
-    Held is held: the frontend re-reads the running config on any of it, which is
-    where a held value shows up (`overrides.live_overrides`).
+    The chains' fields and the off-family rate alike. Held is held: the frontend
+    re-reads the running config on any of it, which is where a held value shows
+    up (`overrides.live_overrides`).
     """
-    return {field: value for chain_held in stored.values() for field, value in chain_held.items()}
+    held = {field: value for chain_held in stored.values() for field, value in chain_held.items()}
+    return held if held_rate is None else {**held, "rate": held_rate}
 
 
 def _remember_chain(mgr: ConnectionManager, chain: str, fields: dict[str, str]) -> None:
@@ -205,7 +250,12 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
 
     Fields for the chain the engine has not loaded are held rather than refused —
     LIVE shows both chains at once — and come back under `stored` so the caller
-    knows the value it sent is real but not yet playing.
+    knows the value it sent is real but not yet playing. A rate the engine will not
+    pin — the other family's, or any at all while the mode is `[source]` — is held
+    on the same terms and for the same reason (`chain.unpinnable_rate`), but into
+    its own memory: the engine's rate pin is one slot the mode switch clears, not a
+    per-chain list, so it is `LiveMemory.rates` that holds it and `_reassert_rate`
+    that lands it.
 
     Everything after `apply_live` is bookkeeping for the NEXT write — the write
     itself is already readback-verified — so a control-connection failure there is
@@ -218,26 +268,32 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     if client is None:
         raise ControlError("daemon not connected")
     await _refresh_rates(mgr, client, fields)
+    fields, held_rate = split_unpinnable_rate(mgr, fields)
     edits, stored = routing.resolve_live(mgr, fields)
     report = await apply_live(client, edits, mgr.audit)
     try:
         await refresh_after_live(mgr, client, edits)
     except ControlError as exc:
         log.warning("post-apply refresh failed: %s", exc)
+    if _applied(report, "rate"):
+        _remember_rate(mgr, fields["rate"])
+    if held_rate is not None:
+        _remember_rate(mgr, held_rate)
     for chain, held in stored.items():
         _remember_chain(mgr, chain, held)
     loaded = active_chain(mgr)
     if loaded is not None:
         _remember_chain(mgr, loaded, _applied_chain_fields(report, fields))
     if _applied(report, "mode"):
-        # after the re-enumeration above: the entered chain's held settings
-        # resolve against the lists SetMode just swapped
+        # after the re-enumeration above: the rates list is mode-dependent
+        # (manual §4.6), so the remembered rate resolves against the NEW list, and
+        # the entered chain's held settings against the lists SetMode just swapped
         try:
-            report = report + await reassert_chain(mgr, client)
+            report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
             mgr.readings.state = await client.get_state()
         except ControlError as exc:
             log.warning("post-apply re-assert failed: %s", exc)
-    return {"live": report, "stored": _held_fields(stored)}
+    return {"live": report, "stored": _held_fields(stored, held_rate)}
 
 
 def mode_already_running(mgr: ConnectionManager, want: str) -> bool:

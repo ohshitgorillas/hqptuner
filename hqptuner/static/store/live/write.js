@@ -22,6 +22,7 @@ import { errText } from "../../lib/errtext.js";
 import { engineState, enums } from "../signals.js";
 import { refreshConfig } from "../sync.js";
 import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./state.js";
+import { wireRate } from "./rates.js";
 
 /** @typedef {import("./state.js").LiveReport} LiveReport */
 
@@ -71,7 +72,12 @@ export async function writeLive(field, value) {
   liveBusy.value = field;
   setError(field, "");
   try {
-    const report = await api.live({ [field]: String(value) });
+    // Rate is the one control whose menu value is not what goes on the wire: the
+    // menus name a tier, and only here are the source and the engine's own list
+    // known well enough to say which member of it (see the base-family note in
+    // store/live/rates.js).
+    const wire = field === "rate" ? wireRate(String(value)) : String(value);
+    const report = await api.live({ [field]: wire });
     await remirrorLive([field], report);
     setError(field, reportError(report));
   } catch (e) {
