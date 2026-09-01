@@ -189,9 +189,8 @@ export default [
       hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest, "no-copy-assertions": noCopyAssertions } },
     },
     // no-copy-assertions is the JS peer of scripts/gates/check_no_copy_assertions.py
-    // and sits at "warn" while the suite is migrated off copy (docs/testing.md
-    // rule 9); it flips to "error" once the warning count reaches zero.
-    rules: { ...RULES, "hqptuner/one-assertion-per-test": "error", "hqptuner/no-copy-assertions": "warn" },
+    // (docs/testing.md rule 9), same semantics, blocking on both sides.
+    rules: { ...RULES, "hqptuner/one-assertion-per-test": "error", "hqptuner/no-copy-assertions": "error" },
   },
   {
     // scripts/eqlab is a node CLI, not browser code: it imports the same

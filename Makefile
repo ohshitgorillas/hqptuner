@@ -14,7 +14,7 @@ lint:
 	$(VENV)/python scripts/gates/check_package_budget.py
 	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py')
 	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_no_copy_assertions.py --report $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 	$(VENV)/python scripts/gates/check_archaeology.py $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
