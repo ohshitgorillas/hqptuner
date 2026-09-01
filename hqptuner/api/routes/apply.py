@@ -15,7 +15,7 @@ from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes.live import chain, lane, routing
+from hqptuner.lanes.live import lane, routing
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -72,27 +72,6 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     return report
 
 
-def _stand_autopilot_down(manager: ConnectionManager, fields: dict[str, str]) -> None:
-    """Switch auto-pilot off when this batch sets the high-frequency filter by hand.
-
-    It is the user taking the control back, and leaving it on would have the poll loop
-    undo the choice they just made. Before the write, not after, so there is no window
-    in which a poll can revert it.
-    """
-    if "junk_filter" not in fields:
-        return
-    with contextlib.suppress(AutopilotError):
-        presetlane.switch_autopilot(manager, "live.write", enabled=False)
-
-
-async def _write_live(manager: ConnectionManager, fields: dict[str, str], rate: str | None) -> dict[str, Any]:
-    """Apply the live setters, and the rate into its limit slot, as one report."""
-    report = await lane.apply_now(manager, fields) if fields else {"live": [], "stored": {}}
-    if rate is not None:
-        report["rate"] = await manager.applyops.set_rate_limit(rate)
-    return report
-
-
 @router.post("/config/live")
 async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """Apply live-lane config-form fields immediately, readback-verified.
@@ -106,19 +85,18 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """
     if not body.fields:
         raise refuse("fields_unknown", "no live fields given")
-    # The rate is not a live setter: it lands in the limit slot, which is a config
-    # field, so it leaves the live lane here rather than resolving to a `SetRate`.
-    fields = dict(body.fields)
-    rate = fields.pop("rate", None)
-    if rate is not None and rate != "0" and not chain.tier_member(rate):
-        why = {"rate": f"{rate} names no rate tier"}
-        raise refuse(routing.LiveRouteError(why), why)
-    unknown = sorted(set(fields) - set(routing.live_fields()))
+    unknown = sorted(set(body.fields) - set(routing.live_fields()))
     if unknown:
         raise refuse("fields_unknown", f"unknown live fields: {unknown}")
-    _stand_autopilot_down(manager, fields)
+    if "junk_filter" in body.fields:
+        # Setting the high-frequency filter by hand stands auto-pilot down — it is the
+        # user taking the control back, and leaving it on would have the poll loop undo
+        # the choice they just made. Before the write, not after, so there is no window
+        # in which a poll can revert it.
+        with contextlib.suppress(AutopilotError):
+            presetlane.switch_autopilot(manager, "live.write", enabled=False)
     try:
-        report = await _write_live(manager, fields, rate)
+        report = await lane.apply_now(manager, body.fields)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved
