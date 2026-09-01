@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr, Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.conf.matrixconf import MATRIX_PROFILES
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import matrixlane
@@ -36,7 +37,7 @@ def autoeq_db() -> FileResponse:
     lazy-loaded on first picker open.
     """
     if not _AUTOEQ_BLOB.exists():
-        raise HTTPException(status_code=404, detail="AutoEq library not built (scripts/build_autoeq_db.py)")
+        raise refuse("not_found", "AutoEq library not built (scripts/build_autoeq_db.py)")
     return FileResponse(
         _AUTOEQ_BLOB,
         media_type="application/json",
@@ -108,11 +109,11 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     profile's rows alongside this call, so a load is live AND persists.
     """
     if body.action != "switch":
-        raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
+        raise refuse("not_found", f"unknown matrix profile action: {body.action}")
     try:
         return await matrixlane.switch_profile(manager, body.name)
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=_switch_refusal(str(exc))) from exc
+        raise refuse("daemon_refused", _switch_refusal(str(exc))) from exc
 
 
 @router.get("/speakers")
@@ -147,9 +148,9 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
             report["autosaved"] = autosaved
         return report
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse("invalid_input", str(exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"speakers apply failed: {exc}") from exc
+        raise refuse("daemon_write_failed", f"speakers apply failed: {exc}") from exc
 
 
 @router.post("/matrix/filter")
@@ -162,4 +163,4 @@ async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> di
     try:
         return manager.presetops.park_filter(file.filename or "", await file.read())
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse("invalid_input", str(exc)) from exc

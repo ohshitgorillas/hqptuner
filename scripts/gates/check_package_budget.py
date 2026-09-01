@@ -35,20 +35,20 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 #: Package directory to the total lines permitted across the .py files directly
 #: in it. Raise an entry for a feature; never raise one for a refactor.
 BUDGET: dict[str, int] = {
-    "hqptuner/api": 331,
-    "hqptuner/api/routes": 1322,
+    "hqptuner/api": 402,
+    "hqptuner/api/routes": 1335,
     "hqptuner/conf": 2283,
     # Raised for an extraction, against this table's own rule, by owner decision:
     # manager.py's state bag and on-demand readers became core/readings.py and
     # core/engineread.py. No forwarders — 88 call sites moved. The delta is two new
     # modules' docstrings and import blocks, which a line count cannot tell apart.
     "hqptuner/core": 766,
-    "hqptuner/engine": 1150,
+    "hqptuner/engine": 1156,
     "hqptuner/lanes": 550,
     "hqptuner/lanes/http": 457,
-    "hqptuner/lanes/live": 1180,
-    "hqptuner/presets": 596,
-    "hqptuner/presets/store": 1207,
+    "hqptuner/lanes/live": 1183,
+    "hqptuner/presets": 600,
+    "hqptuner/presets/store": 1238,
 }
 
 

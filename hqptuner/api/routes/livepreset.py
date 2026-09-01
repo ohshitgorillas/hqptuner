@@ -7,10 +7,11 @@ the Phase-2 live lane and so can never restart the daemon.
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import ApiError, refuse
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import chain, lane, routing, snapshot
@@ -42,8 +43,8 @@ def _store(request: Request) -> LivePresetStore:
     return store
 
 
-def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
-    return HTTPException(status_code=409, detail=str(exc))
+def _unreadable(exc: LivePresetSchemaError) -> ApiError:
+    return refuse(exc)
 
 
 def _restore_autopilot(manager: ConnectionManager, record: dict[str, Any]) -> None:
@@ -65,7 +66,7 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     known = {*routing.live_fields(), AUTOPILOT}
     unknown = [key for key in wanted if key not in known]
     if unknown:
-        raise HTTPException(status_code=422, detail={"fields": f"not live preset settings: {', '.join(unknown)}"})
+        raise refuse("fields_unknown", {"fields": f"not live preset settings: {', '.join(unknown)}"})
     keys = set(wanted)
     if keys & _CHAIN_SCOPED:
         keys.add("mode")
@@ -76,7 +77,7 @@ def _record(manager: ConnectionManager, keys: set[str] | None) -> dict[str, Any]
     """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all). 409 chain unknown."""
     taken = snapshot.live_snapshot(manager)
     if taken is None:
-        raise HTTPException(status_code=409, detail=_UNKNOWN_CHAIN)
+        raise refuse("chain_unknown", _UNKNOWN_CHAIN)
     kept = {field: item for field, item in taken.items() if keys is None or field in keys}
     return {
         "chain": chain.active_chain(manager),
@@ -94,7 +95,7 @@ def live_snapshot(manager: Mgr) -> dict[str, Any]:
     """
     taken = snapshot.live_snapshot(manager)
     if taken is None:
-        raise HTTPException(status_code=409, detail=_UNKNOWN_CHAIN)
+        raise refuse("chain_unknown", _UNKNOWN_CHAIN)
     return {"chain": chain.active_chain(manager), "fields": taken, AUTOPILOT: manager.presetops.autopilot.enabled}
 
 
@@ -126,7 +127,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     return {"name": name, **record}
 
 
@@ -146,7 +147,7 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     try:
         report = await lane.apply_preset(manager, record.get("fields") or {})
         _restore_autopilot(manager, record)
@@ -155,9 +156,9 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
             report["autosaved"] = autosaved
         return report
     except routing.LiveRouteError as exc:
-        raise HTTPException(status_code=409, detail=exc.reasons) from exc
+        raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.delete("/livepresets/{name}")
@@ -171,5 +172,5 @@ def delete_live_preset(name: str, request: Request) -> dict[str, Any]:
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     return {"deleted": name}

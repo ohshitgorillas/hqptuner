@@ -14,8 +14,9 @@ user action).
 
 from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 
+from hqptuner.api.errors import refuse
 from hqptuner.core.manager import ConnectionManager
 
 
@@ -32,7 +33,7 @@ def require_credentials(request: Request) -> None:
     rather than broken.
     """
     if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+        raise refuse("no_credentials", "no hqplayerd credentials configured")
 
 
 def _http_manager(request: Request) -> ConnectionManager:
@@ -50,7 +51,7 @@ def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
     Never a socket wait (connection-manager fail-fast rule).
     """
     if data is None:
-        raise HTTPException(status_code=503, detail="not yet loaded from daemon")
+        raise refuse("not_loaded", "not yet loaded from daemon")
     return {"stale": not manager.reachable, "loaded_at": manager.readings.loaded_at, "data": data}
 
 
@@ -63,5 +64,5 @@ def ensure_form(form: dict[str, Any] | None, error: str | None, label: str) -> d
     if form is not None:
         return form
     if error:
-        raise HTTPException(status_code=502, detail=f"GET {label} failed: {error}")
-    raise HTTPException(status_code=503, detail="not yet loaded from daemon")
+        raise refuse("daemon_read_failed", f"GET {label} failed: {error}")
+    raise refuse("not_loaded", "not yet loaded from daemon")

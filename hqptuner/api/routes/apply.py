@@ -7,9 +7,10 @@ restarts. Both fold a clean write into a preset when auto-save is armed.
 import contextlib
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
@@ -53,7 +54,7 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     store = _pending(request)
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
-        raise HTTPException(status_code=400, detail="nothing staged")
+        raise refuse("nothing_staged", "nothing staged")
     # the staged set as it stands NOW — a clean apply clears the buffer below, so
     # nothing captured after this point can say what was applied
     staged_http, staged_live = dict(store.http), dict(store.live)
@@ -61,7 +62,7 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     try:
         report = await manager.applyops.apply(store.live, store.http, switch_to)
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     ok = _apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
@@ -83,10 +84,10 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     directly for the same reason.
     """
     if not body.fields:
-        raise HTTPException(status_code=422, detail="no live fields given")
+        raise refuse("fields_unknown", "no live fields given")
     unknown = sorted(set(body.fields) - set(routing.live_fields()))
     if unknown:
-        raise HTTPException(status_code=422, detail=f"unknown live fields: {unknown}")
+        raise refuse("fields_unknown", f"unknown live fields: {unknown}")
     if "junk_filter" in body.fields:
         # Setting the high-frequency filter by hand stands auto-pilot down — it is the
         # user taking the control back, and leaving it on would have the poll loop undo
@@ -104,6 +105,6 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
         # 409, not 422: every field is a real live control and its value was a
         # real option — the engine's current chain or lists are what refuse it,
         # so the reasons are per field and the batch applied nothing.
-        raise HTTPException(status_code=409, detail=exc.reasons) from exc
+        raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc

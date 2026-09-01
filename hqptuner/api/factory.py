@@ -4,6 +4,7 @@ import logging
 
 from fastapi import FastAPI
 
+from hqptuner.api import errors
 from hqptuner.api.lifespan import make_lifespan
 from hqptuner.api.routes import (
     apply,
@@ -51,6 +52,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     manager = ConnectionManager(cfg, http_client)
 
     app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager, http_client))
+    errors.install(app)
     app.state.manager = manager
     app.state.static = static
     app.state.http_client = http_client

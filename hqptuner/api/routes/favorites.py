@@ -5,9 +5,10 @@ control lane, the http lane, or the pending store. Both routes answer with the w
 is a set and a partial answer would leave it guessing.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.errors import refuse
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 router = APIRouter(prefix="/api")
@@ -42,7 +43,7 @@ def favorites(request: Request) -> dict[str, list[str]]:
     try:
         return {"filters": store.read(), "modulators": store.read_modulators()}
     except FavoriteSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.put("/favorites")
@@ -56,7 +57,7 @@ def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]
     """
     store = _store(request)
     if body.filters is None and body.modulators is None:
-        raise HTTPException(status_code=422, detail="favorites write names no set: send filters, modulators, or both")
+        raise refuse("fields_unknown", "favorites write names no set: send filters, modulators, or both")
     try:
         if body.filters is not None:
             store.write(list(body.filters))
@@ -64,6 +65,6 @@ def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]
             store.write_modulators(list(body.modulators))
         return {"filters": store.read(), "modulators": store.read_modulators()}
     except FavoriteSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except FavoriteError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse(exc) from exc

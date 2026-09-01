@@ -20,6 +20,10 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from hqptuner.errors import HQPTunerError
 
 # ``<name>.xml`` has to fit one filesystem path component. Linux caps that at 255
 # BYTES, not characters, so the limit is measured on the UTF-8 encoding — a
@@ -75,7 +79,7 @@ def sort_key(name: str) -> tuple[tuple[int, int, str], ...]:
     return tuple((1, int(part), "") if part.isdigit() else (0, 0, part) for part in re.split(r"(\d+)", name))
 
 
-def validate_name(name: str, error: type[ValueError], label: str) -> str:
+def validate_name(name: str, error: type[HQPTunerError], label: str) -> str:
     """``name`` back when it is a usable preset name, else ``error`` naming it.
 
     ``label`` distinguishes the two stores' messages ("preset" / "live preset");
@@ -83,5 +87,5 @@ def validate_name(name: str, error: type[ValueError], label: str) -> str:
     saves in the other.
     """
     if not _is_valid(name):
-        raise error(f"invalid {label} name: {name!r}")
+        raise error(f"invalid {label} name: {name!r}", code="name_invalid")
     return name

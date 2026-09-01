@@ -6,9 +6,10 @@ Preset reads live in ``configapi``; this module holds only the routes that mutat
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from hqptuner.api.deps import HttpMgr, Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.api.models import ProfileBody
 from hqptuner.engine.control import ControlError
 from hqptuner.presets.store.presets import PresetError
@@ -28,17 +29,17 @@ async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any
         "delete": manager.presetops.delete_preset,
     }
     if action not in methods:
-        raise HTTPException(status_code=404, detail=f"unknown profile action: {action}")
+        raise refuse("not_found", f"unknown profile action: {action}")
     if not body.name:
-        raise HTTPException(status_code=422, detail="profile name required")
+        raise refuse("invalid_input", "profile name required")
     try:
         return await methods[action](body.name)
     except PresetError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise refuse("daemon_read_failed", str(exc)) from exc
 
 
 @router.delete("/preset/{name}")
@@ -50,6 +51,6 @@ async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     try:
         return await manager.presetops.delete_preset(name)
     except PresetError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"delete preset failed: {exc}") from exc
+        raise refuse("daemon_write_failed", f"delete preset failed: {exc}") from exc

@@ -6,11 +6,12 @@ Every route here answers from the poll loop's cached view or from files, so none
 import contextlib
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.core import engineread
 from hqptuner.lanes.live import chain
 from hqptuner.metadata import StaticMetadata, merge_enumerations
@@ -73,7 +74,7 @@ def status(manager: Mgr) -> dict[str, Any]:
     against: a null recommendation cannot tell "nothing to report" from "nothing is reading".
     """
     if manager.readings.status is None:
-        raise HTTPException(status_code=503, detail="not yet loaded from daemon")
+        raise refuse("not_loaded", "not yet loaded from daemon")
     junk = manager.metering.recommendation() if manager.metering is not None else None
     autopilot = False
     with contextlib.suppress(AutopilotError):
@@ -97,7 +98,7 @@ def enumerations(request: Request, manager: Mgr) -> dict[str, Any]:
     The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
     """
     if manager.readings.enums is None:
-        raise HTTPException(status_code=503, detail="not yet loaded from daemon")
+        raise refuse("not_loaded", "not yet loaded from daemon")
     mode_name = engineread.current_mode_name(manager)
     merged = merge_enumerations(manager.readings.enums, request.app.state.static, mode_name)
     merged["mode"] = {"index": (manager.readings.state or {}).get("mode"), "name": mode_name}

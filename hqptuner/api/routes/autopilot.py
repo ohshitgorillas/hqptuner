@@ -10,10 +10,11 @@ engaged when the switch was flipped is released on the next tick unless the play
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotSchemaError, AutopilotStore
 
@@ -40,7 +41,7 @@ def autopilot(manager: Mgr) -> dict[str, Any]:
     try:
         return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.post("/autopilot")
@@ -57,4 +58,4 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> dict[str, Any]:
         presetlane.stamp_autopilot_on_active(manager)
         return _reported(manager.presetops.autopilot)
     except AutopilotSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc

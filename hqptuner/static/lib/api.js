@@ -29,19 +29,41 @@ function detailOf(body) {
     .join("; ");
 }
 
+// A refusal from our own backend also carries `code`, a stable identifier
+// beside the sentence (docs/architecture.md "API errors"). The sentence is for
+// showing; `status` and `code` are what a control branches on, so both ride on
+// the rejected error as properties instead of being fished back out of prose.
+/** A non-OK answer from the backend: the sentence, the HTTP status, the body's code. */
+export class ApiFailure extends Error {
+  /**
+   * Keep the status and code beside the message.
+   * @param {string} message
+   * @param {number} status
+   * @param {string} code "" when the body carried none
+   */
+  constructor(message, status, code) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 /**
  * @param {string} path
  * @param {Response} r
- * @returns {Promise<Error>}
+ * @returns {Promise<ApiFailure>}
  */
 async function failure(path, r) {
   let detail = "";
+  let code = "";
   try {
-    detail = detailOf(await r.json());
+    const body = await r.json();
+    detail = detailOf(body);
+    code = typeof body?.code === "string" ? body.code : "";
   } catch {
     detail = "";
   }
-  return new Error(detail || `${path} -> ${r.status}`);
+  return new ApiFailure(detail || `${path} -> ${r.status}`, r.status, code);
 }
 
 /** @param {string} path */

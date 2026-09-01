@@ -58,6 +58,29 @@ Tabs are **Output · Volume · Resampling · DSP · System** (registry: `static/
 
 **Transport params are per-backend, not mode-gated** — Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" behavior belongs to *desktop* app, does not apply here. IPv6 is Network-only. ALSA / Network sections collapse by backend rather than gray; every field still persists (daemon rejects partial form).
 
+### API errors
+
+Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is FastAPI's field, a sentence or the live lane's per-field reasons dict, user-facing and reworded at will; nothing branches on it and no test asserts it (`docs/testing.md` rule 9). `code` is the stable identifier a client acts on. The status is a property of the code (`hqptuner/api/errors.py` `STATUS`), so a route names the cause and never picks a status; project exceptions carry their code from `hqptuner/errors.py` `HQPTunerError` and reach the body through `refuse(exc)`. The frontend surfaces both as `status` and `code` on the rejected `ApiFailure` (`static/lib/api.js`).
+
+| code | status | meaning |
+|---|---|---|
+| `no_credentials` | 503 | app built without hqplayerd management credentials |
+| `not_loaded` | 503 | first poll of the daemon has not landed yet |
+| `daemon_read_failed` | 502 | a read from hqplayerd's HTTP or 4321 interface failed |
+| `daemon_write_failed` | 502 | a write to hqplayerd failed |
+| `daemon_unavailable` | 503 | 4321 not connected, timed out, or answered unparseably |
+| `daemon_refused` | 503 | daemon answered `result="Error"` |
+| `not_found` | 404 | no preset, profile, action or library under that name |
+| `name_invalid` | 422 | a preset name the shared name rule rejects |
+| `invalid_input` | 422 | a value a store or the config editor rejects |
+| `nothing_staged` | 400 | apply with nothing to apply |
+| `fields_unknown` | 422 | a field no lane accepts |
+| `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
+| `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
+| `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |
+
+Lane reports returned inside a 200 body (`{"ok": false, "error": ...}`) carry no code yet.
+
 ## 5. Behavior rules
 
 - **Disclosure by mode/backend.** Per-family rate control grays for inactive mode on the tabs view (Auto ungrays both). On LIVE the rule is the mode's, not the chain's: under an explicit PCM/SDM mode **both** columns take edits, the non-running family's being held until that family loads (`lanes/live/chain.unpinnable_rate`), same rule as the dormant chain card; in **auto both gray**, because `[source]` accepts no rate on the wire at all (protocol.md §6) and the only slot that governs the rate there is the config limit, which costs a daemon restart to write. That gray is the page's one exception to *every control here applies now*, so it **carries a caption naming the restart** and pointing at the Output tab — a control the user cannot use must say why, and "it needs a restart" is the whole reason. **Chain and pin family are different questions and must not be conflated:** in auto a chain IS loaded and takes filter/shaper edits live (`active_chain`, resolved from `Status.active_rate`), while no rate is settable at all (`pin_family`). ALSA / Network sections **collapse** by backend. FFT filter length has no card of its own: it renders inside a chain card only while that chain's OWN filter slots select an FFT-family filter, so auto mode with FFT on both sides shows it in both cards, and it is absent everywhere else. The daemon carries one `fft_size` field, so the two renders are two views of one value. Graying carries no caption where reason string would reflow row on mode change (`quietGray`) — which is why the tabs' rate pair is quiet and LIVE's is not: LIVE's reason is fixed text shown in one mode only.

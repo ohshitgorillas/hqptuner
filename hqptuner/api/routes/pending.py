@@ -6,9 +6,10 @@ The apply route stays in ``app`` and reads the buffer through ``_pending``.
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
 from hqptuner.lanes.writer import known_live_settings
@@ -98,7 +99,7 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     """
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
-        raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
+        raise refuse("fields_unknown", f"unknown live settings: {sorted(unknown)}")
     store = _pending(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.

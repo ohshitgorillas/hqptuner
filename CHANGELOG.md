@@ -10,6 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The Length dropdown gains Extra-short, Stupid long, and Adaptive rows.** Extra-short collects the polynomial interpolators; Stupid long the million-tap filters; Adaptive matches the sinc filters whose tap count scales with conversion ratio. A filter can hold both a length and the adaptive trait.
 - **The narrowing dropdowns carry hints on how to use each facet.**
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card of preset tiles, each with its own emphasis and source adjustments, on the Output tab and the LIVE page; a link inside it swaps back.
+- **API errors carry a code.** Every refused request now answers with a `code` field beside `detail`, a stable identifier a client can act on without parsing the sentence.
 
 ### Changed
 

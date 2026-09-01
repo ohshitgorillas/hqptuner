@@ -7,9 +7,10 @@ set, because the client's state is the whole bar and a partial answer would leav
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.errors import refuse
 from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
 
 router = APIRouter(prefix="/api")
@@ -40,7 +41,7 @@ def narrowing(request: Request) -> dict[str, dict[str, Any]]:
     try:
         return {"facets": _store(request).read()}
     except NarrowingSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.put("/narrowing")
@@ -53,6 +54,6 @@ def save_narrowing(body: NarrowingBody, request: Request) -> dict[str, dict[str,
     try:
         return {"facets": _store(request).write(dict(body.facets))}
     except NarrowingSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except NarrowingError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse(exc) from exc
