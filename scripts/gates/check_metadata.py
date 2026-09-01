@@ -69,10 +69,11 @@ def check_files(data_dir: Path) -> list[str]:
 
 
 def _row_problems(name: str, entry: dict[str, Any] | None, fields: tuple[str, ...], db_key: str) -> list[str]:
-    """The fields an engine-reported shaper's row lacks, or the row itself."""
+    """Name the fields an engine-reported shaper's row lacks, or the missing row itself."""
     if entry is None:
         return [f"shapers.json: engine {db_key} {name!r} has no entry"]
-    return [f"shapers.json: {db_key} {name!r} missing {field}" for field in (*fields, "description") if field not in entry]
+    required = (*fields, "description")
+    return [f"shapers.json: {db_key} {name!r} missing {field}" for field in required if field not in entry]
 
 
 def check_shapers(enums: dict[str, Any], shapers: dict[str, Any]) -> list[str]:
