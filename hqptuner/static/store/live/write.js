@@ -51,10 +51,10 @@ export async function remirrorLive(fields, report) {
   const fresh = !held && fields.some((f) => REENUMERATES.has(f)) ? await api.enumerations() : null;
   engineState.value = state.data;
   if (fresh) enums.value = fresh.data;
-  // A rate or mode write moves what the running config reports for BOTH rate
-  // limits (routing.live_overrides), and that overlay is what the dormant rate
-  // column reads. Its own poll is on the slow cadence, so pull it here rather
-  // than leave the column showing the pre-switch tier for a few seconds.
+  // A mode write moves what the running config reports for BOTH rate limits
+  // (routing.live_overrides), and that overlay is what the Output tab's rate
+  // columns read. Its own poll is on the slow cadence, so pull it here rather
+  // than leave them showing the pre-switch tier for a few seconds.
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
 }
 

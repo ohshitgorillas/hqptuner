@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.lanes.live.chain import RATE_LIMIT_FIELD, EnumItems, active_chain, tier_rate
+from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
@@ -101,22 +101,6 @@ def _config_value(mgr: ConnectionManager, field: str) -> str | None:
     return (mgr.readings.file_config or {}).get(field) or _form_value(mgr.readings.config_form, field)
 
 
-def _rate_snapshot(mgr: ConnectionManager, chain: str) -> dict[str, str] | None:
-    """Return the running rate as ``{value, name}``, or None when the config cannot say.
-
-    The rate a preset means is the tier in the config LIMIT slot for the chain the
-    engine has loaded (``chain.RATE_LIMIT_FIELD``), not ``State.rate``: that is the
-    FIXED slot, which HQPTuner holds at auto, so it never names the tier. Stored as
-    the tier's 48k member, the form the limit slot takes (``chain.tier_rate``), and
-    it carries no separate label — ``RatesItem`` has no name, so the value is one.
-    """
-    hz = _config_value(mgr, RATE_LIMIT_FIELD[chain])
-    if not hz or not hz.isdigit():
-        return None
-    rate = tier_rate(hz)
-    return {"value": rate, "name": rate}
-
-
 def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
     """Return the DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
     state = mgr.readings.state or {}
@@ -139,5 +123,4 @@ def live_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]] | None:
     if chain is None:
         return None
     chained = {f: item for f in _SNAPSHOT_FIELDS if (item := _snapshot_field(mgr, f, chain)) is not None}
-    rate = _rate_snapshot(mgr, chain)
-    return {**chained, **({"rate": rate} if rate is not None else {}), **_direct_snapshot(mgr)}
+    return {**chained, **_direct_snapshot(mgr)}

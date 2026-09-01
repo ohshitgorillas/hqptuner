@@ -16,7 +16,7 @@ export const liveErrors = signal({});
 
 // Writes whose own success invalidates an enumeration, in config-form terms.
 // Mirrors lane._REENUMERATES, which names the same three by setter key.
-export const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"]);
+export const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling"]);
 // True while a write that invalidates the lists is in flight. Every control
 // whose options come from an enumeration is unsafe for that whole window: its
 // list is the pre-write one, and the IDs in it stop meaning what they meant the
@@ -24,7 +24,7 @@ export const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling
 // text note would reflow the row for the seconds a mode write takes.
 export const liveEnumBusy = computed(() => REENUMERATES.has(liveBusy.value));
 // Writes that change what the running config reports for the two rate limits.
-export const RATE_MIRRORED = new Set(["mode", "rate"]);
+export const RATE_MIRRORED = new Set(["mode"]);
 
 // A live error is about one write and the connection that write died on. The
 // engine goes down briefly under SetFilter and SetMode, and the poll loop brings

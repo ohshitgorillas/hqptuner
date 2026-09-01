@@ -240,9 +240,9 @@ _LIVE_ONLY: dict[str, LiveField] = {
     # Deliberately NOT here: the output rate. `SetRate` writes the FIXED slot
     # (`samplerate`/`bitrate`), and an exact rate there overrides automatic
     # base-rate selection — 44.1k material then goes out at a 48k base and the
-    # engine refuses the filter. HQPTuner holds that slot at auto always and puts
-    # a rate choice in the LIMIT slot instead (`chain.RATE_LIMIT_FIELD`), which is
-    # a config field, so a rate write leaves the live lane entirely.
+    # engine refuses the filter. HQPTuner holds that slot at auto always; the
+    # rate limits are config fields (`chain.RATE_LIMIT_FIELD`) with no live
+    # route, so LIVE carries no rate control at all.
     # Junk (playback) filter. Already index-domain on both sides — the daemon's
     # /config form has no field for it, so the frontend has always carried the
     # list index (store/schema.js `junk_filter`) — which makes the translation a

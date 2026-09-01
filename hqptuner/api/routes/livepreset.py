@@ -63,9 +63,7 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     """Return the keys a save keeps, mode forced beside any chain-scoped one; None = everything. Unknown key -> 422."""
     if wanted is None:
         return None
-    # `rate` beside the live fields: a preset carries one, but it is not a live
-    # setter — it lands in the config limit slot (`live.chain.RATE_LIMIT_FIELD`).
-    known = {*routing.live_fields(), "rate", AUTOPILOT}
+    known = {*routing.live_fields(), AUTOPILOT}
     unknown = [key for key in wanted if key not in known]
     if unknown:
         raise refuse("fields_unknown", {"fields": f"not live preset settings: {', '.join(unknown)}"})
@@ -151,13 +149,11 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
     except LivePresetError as exc:
         raise refuse(exc) from exc
     fields = dict(record.get("fields") or {})
-    # A stored rate is a tier, and a tier belongs in the limit slot: routing it to
-    # `SetRate` would pin an exact rate and override automatic base-rate selection.
-    rate = fields.pop("rate", None)
+    # A preset saved before the LIVE rate control was removed can still carry a
+    # "rate" field. It has no live route, so it is dropped and the rest applies.
+    fields.pop("rate", None)
     try:
         report = await lane.apply_preset(manager, fields) if fields else {"live": [], "stored": {}}
-        if rate is not None:
-            report["rate"] = await manager.applyops.set_rate_limit(rate)
         _restore_autopilot(manager, record)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:

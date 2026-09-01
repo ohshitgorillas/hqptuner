@@ -23,10 +23,7 @@ import {
 import { askChoices, askConfirm, question } from "../../store/ask.js";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { hz } from "../../lib/units.js";
-import { rateColumn } from "../../store/live/rates.js";
-import { rateReachableByDevice, sdmReachableByDevice } from "../../store/narrow/devicecaps.js";
-import { TIER } from "../../store/schema.js";
+import { sdmReachableByDevice } from "../../store/narrow/devicecaps.js";
 import { Ask } from "../Ask.js";
 import { Combobox } from "../controls/Combobox.js";
 import { liveEditing, setLiveEditing } from "./Layout.js";
@@ -53,7 +50,6 @@ const selectedPreset = signal("");
 // which the backend stores beside any chain-scoped setting without asking.
 /** @type {[string, string][]} */
 const LABELS = [
-  ["rate", "Output rate"],
   ["filter1x", "1x filter"],
   ["oversampling1x", "1x filter"],
   ["filter", "Nx filter"],
@@ -64,34 +60,14 @@ const LABELS = [
   ["adaptive_volume", "Adaptive volume"],
 ];
 
-// The rate the way the LIVE column shows it. State reports "0" whenever the
-// engine holds no pin of its own (store/live/rates.js), and the column then
-// names the family's configured tier instead of an empty slot; the row here
-// says the same thing from the same source. A pinned rate reads by its tier's
-// menu label, as a frequency when the menu has no row for it.
-/**
- * @param {string} value the stored rate in Hz, "0" for no pin
- * @param {string} family "pcm" | "sdm" — the chain the value belongs to
- * @returns {string}
- */
-function rateShown(value, family) {
-  const column = rateColumn(family);
-  const tier = value === "0" ? String(column.value) : TIER[value] || value;
-  const row = column.options.find((o) => String(o.value) === tier);
-  return row ? String(row.label) : hz(Number(tier), 2);
-}
-
-// A stored value in the words the LIVE page uses for it: the rate as its
-// column shows it, the two switches as the schema's ON/OFF; everything else
-// carries its enumeration name.
+// A stored value in the words the LIVE page uses for it: the two switches as
+// the schema's ON/OFF; everything else carries its enumeration name.
 /**
  * @param {string} key
  * @param {string | boolean} value the stored value or its display name
- * @param {string} family the chain the record belongs to
  * @returns {string}
  */
-function shown(key, value, family) {
-  if (key === "rate") return rateShown(String(value), family);
+function shown(key, value) {
   if (key === AUTOPILOT || key === "adaptive_volume") return value === true || value === "1" ? "ON" : "OFF";
   return String(value);
 }
@@ -103,7 +79,7 @@ function shown(key, value, family) {
  */
 function choiceRows(snap) {
   /** @param {string} key */
-  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot : snap.fields[key].name, snap.chain);
+  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot : snap.fields[key].name);
   return LABELS.filter(([key]) => key === AUTOPILOT || key in snap.fields).map(([key, label]) => ({
     value: key,
     label,
@@ -114,14 +90,11 @@ function choiceRows(snap) {
 }
 
 // Why the device cannot play a preset, "" when it can. A preset that stores no
-// output mode switches neither chain nor rate, so there is nothing for the
-// device to refuse; one that does is judged on the mode it would switch TO, not
-// on whatever the engine happens to be running now. An unpinned rate ("0") is
-// the engine's own choice at play time and is likewise not the preset's to be
-// grayed for. Both answers come from the same capability the LIVE page's own
-// rate and mode controls already gray against (store/narrow/devicecaps.js), so
-// a rate grayed in the column is grayed in the picker that would set it.
-const NO_RATE = "No support for this output rate from the current device.";
+// output mode switches nothing, so there is nothing for the device to refuse;
+// one that does is judged on the mode it would switch TO, not on whatever the
+// engine happens to be running now. The answer comes from the same capability
+// the LIVE page's own mode control already grays against
+// (store/narrow/devicecaps.js).
 const NO_MODE = "No support for this output mode from the current device.";
 
 /**
@@ -132,8 +105,6 @@ function unplayable(record) {
   const mode = record.fields.mode;
   if (mode !== "pcm" && mode !== "sdm") return "";
   if (mode === "sdm" && !sdmReachableByDevice()) return NO_MODE;
-  const rate = record.fields.rate;
-  if (rate && rate !== "0" && !rateReachableByDevice(rate, mode)) return NO_RATE;
   return "";
 }
 
@@ -155,7 +126,7 @@ const presetTips = (presets) => (o) => {
   for (const [key, label] of LABELS) {
     const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
     if (key === AUTOPILOT ? record.autopilot != null : key in record.fields) {
-      tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value), record.chain), []]);
+      tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value)), []]);
     }
   }
   return tip;
@@ -164,7 +135,7 @@ const presetTips = (presets) => (o) => {
 // Which chain the engine is running never gates a preset: a preset carries its
 // own output mode, so one taken on the other chain applies by switching to it,
 // which is the point of saving it. The DEVICE does gate it. A preset holding a
-// rate or a mode the open device cannot take applies as silence or as a dropped
+// mode the open device cannot take applies as silence or as a dropped
 // stream, and unlike every other control on this page the picker had no way to
 // say so before the user picked it.
 /** @param {LivePreset[]} presets */

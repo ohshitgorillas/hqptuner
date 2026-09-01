@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.engine.control import ENUM_COMMANDS, ControlClient, ControlError
+from hqptuner.engine.control import ControlClient, ControlError
 from hqptuner.lanes.live import routing
 from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import apply_live
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 # on both mode and the selected filter (manual §4.6). The poll loop re-enumerates
 # only on a mode-index change, so without this the control the user reaches for
 # next would resolve its value against a stale list.
-_REENUMERATES = frozenset({"mode", "filter", "rate"})
+_REENUMERATES = frozenset({"mode", "filter"})
 
 
 class LiveMemory:
@@ -68,26 +68,6 @@ class LiveMemory:
 def _applied(report: list[dict[str, Any]], setting: str) -> bool:
     """Whether this setting is in the report and verified by readback."""
     return any(entry["setting"] == setting and entry["ok"] for entry in report)
-
-
-async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: dict[str, str]) -> None:
-    """Re-ask the daemon for the rates list, replacing the cached one, if this batch carries a rate.
-
-    ``mgr.readings.enums`` is fetched at connect and re-fetched by the poll loop only when
-    ``mode`` or ``state`` moves (``manager._poll``). That is right for the dropdowns
-    it feeds and wrong for a write: ``GetRates`` answers per mode AND per transport
-    state, so a connect taken while the transport was idle caches the auto entry
-    alone, and no ``mode``/``state`` transition is pending to clear it. Every rate
-    the user then picks resolves against that degenerate list and is refused.
-
-    The first ask on a fresh connection is already truthful — verified on 6.0.4,
-    two connections, three ``GetRates`` each, all six answers the full 11-item
-    ladder (``scripts/probes/probe_rates_on_demand.py``) — so asking here is enough
-    and no device-capability cross-check is needed.
-    """
-    if "rate" not in fields:
-        return
-    mgr.readings.enums = {**(mgr.readings.enums or {}), "rates": await client.get_enumeration(ENUM_COMMANDS["rates"])}
 
 
 def _held_fields(stored: dict[str, dict[str, str]]) -> dict[str, str]:
@@ -199,10 +179,6 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
 async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
     """Resolve, apply and readback-verify a batch of LIVE config-form fields.
 
-    A batch carrying a rate re-asks the daemon for the rates list first
-    (`_refresh_rates`): the cached one can be degenerate, and resolving a rate
-    against it refused every tier the user picked.
-
     Fields for the chain the engine has not loaded are held rather than refused —
     LIVE shows both chains at once — and come back under `stored` so the caller
     knows the value it sent is real but not yet playing.
@@ -217,7 +193,6 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     client = mgr.control
     if client is None:
         raise ControlError("daemon not connected")
-    await _refresh_rates(mgr, client, fields)
     edits, stored = routing.resolve_live(mgr, fields)
     report = await apply_live(client, edits, mgr.audit)
     try:

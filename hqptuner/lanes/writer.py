@@ -12,7 +12,7 @@ Applies a staged change set to the live daemon:
 
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,
-shaper, rate, junk filter, adaptive volume, volume. No idle gate — live
+shaper, junk filter, adaptive volume, volume. No idle gate — live
 settings apply immediately even during playback: the engine reorients and audio
 pauses briefly before resuming. Nothing here restarts the daemon or drops the
 client; that is the http lane's `POST /restore`, above.
@@ -67,7 +67,6 @@ SETTINGS: dict[str, LiveSetting | Handler] = {
     "mode": LiveSetting("SetMode", "mode"),
     "filter": _apply_filter,
     "shaper": LiveSetting("SetShaping", "shaper"),
-    "rate": LiveSetting("SetRate", "rate"),
     "junk_filter": LiveSetting("SetJunkFilter", "filter_junk"),
     "adaptive_volume": LiveSetting("SetAdaptiveVolume", "adaptive"),
     "volume": _apply_volume,

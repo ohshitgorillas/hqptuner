@@ -213,23 +213,9 @@ effect(() => {
 
 // --- asking about one saved value ---------------------------------------------
 // The menus above narrow a list they are handed. A saved live preset is not a
-// list: it carries one rate and one output mode, decided when it was saved, and
-// the picker needs to know whether the device can play them. Same two questions,
-// asked one value at a time — and the same answer to an unknown announcement,
-// which is yes.
-
-/**
- * Whether the selected output device can carry `rate` (Hz) on `family`'s chain.
- * @param {string | number | undefined} rate
- * @param {string} family "pcm" | "sdm"
- * @returns {boolean}
- */
-export function rateReachableByDevice(rate, family) {
-  const caps = deviceCaps.value;
-  const reaches = REACHES[family];
-  if (!caps || !reaches) return true;
-  return reaches(caps, rate);
-}
+// list: it carries an output mode, decided when it was saved, and the picker
+// needs to know whether the device can play it. Same question, asked one value
+// at a time — and the same answer to an unknown announcement, which is yes.
 
 /**
  * Whether the selected output device can reach any DSD rate at all, natively or over DoP.

@@ -10,7 +10,7 @@
 // model can all sit on top of it without depending on each other.
 
 import { engineState, engineStatus, enums, modeName } from "../signals.js";
-import { schema, TIER } from "../schema.js";
+import { schema } from "../schema.js";
 
 /**
  * @typedef {import("../narrow/facets.js").EnumItem} EnumItem
@@ -111,14 +111,4 @@ const NX_FLOOR = 50000;
 export function sourceIsNx() {
   const md = (engineStatus.value || {}).metadata || {};
   return Number(md.samplerate) >= NX_FLOOR;
-}
-
-// `RatesItem` carries neither a name nor a value — it is `<RatesItem index rate/>`
-// (protocol.md §6) — so the rate in Hz is what the lane takes back. The menus
-// speak tiers, so State's rate comes back as the tier it belongs to; rate "0"
-// belongs to no tier and reads as "" (the engine has no pin of its own).
-/** The menu tier the engine's reported rate belongs to, "" when it belongs to none. */
-export function rateValue() {
-  const item = atIndex(items("rates"), stateOf("rate"));
-  return TIER[(item && item.rate) || ""] || "";
 }

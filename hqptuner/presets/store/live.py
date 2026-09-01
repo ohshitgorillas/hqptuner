@@ -16,7 +16,7 @@ unstamped file adopted on its next write.
 A record is::
 
     {"chain": "pcm",
-     "fields": {"mode": "pcm", "filter": "40", "dither": "5", "rate": "0", ...},
+     "fields": {"mode": "pcm", "filter": "40", "dither": "5", ...},
      "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...},
      "autopilot": false}
 
