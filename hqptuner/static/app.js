@@ -3,12 +3,12 @@ import { render } from "preact";
 import { html } from "./lib/dom.js";
 import { App } from "./components/App.js";
 import { startPolling } from "./store/sync.js";
-import { initAccent } from "./store/theme.js";
+import { initTheme } from "./store/theme.js";
 import { initFavicon } from "./store/favicon.js";
 import { initHealth } from "./store/health.js";
 import { initApodHistory } from "./store/apodhistory.js";
 
-initAccent();
+initTheme();
 initFavicon();
 initHealth();
 initApodHistory();

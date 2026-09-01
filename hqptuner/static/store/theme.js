@@ -1,6 +1,8 @@
-// Client-only UI preference: the signature accent color. Persisted in
-// localStorage and applied as `data-accent` on <html>; the CSS owns the actual
-// color values (`:root[data-accent="…"]`). No daemon involvement — pure chrome.
+// Client-only UI preferences stamped on <html> for the CSS to key off: the
+// signature accent color (`data-accent`, the CSS owns the color values in
+// `:root[data-accent="…"]`) and the dyslexic font switch (`data-dyslexic`,
+// which swaps `--font-ui`). Both persisted in localStorage, both stamped once
+// at boot. No daemon involvement — pure chrome.
 //
 // Module load must stay node-safe (the SSR harness imports the component graph
 // with no `localStorage`/`document`): the storage read is guarded, and the
@@ -9,6 +11,7 @@ import { signal } from "@preact/signals";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
+const KEY_DYSLEXIC = "hqptuner.dyslexic";
 export const ACCENTS = ["blue", "green", "amber", "violet"];
 const DEFAULT = "blue";
 // each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
@@ -41,8 +44,17 @@ function loadHex() {
   }
 }
 
+function loadDyslexic() {
+  try {
+    return localStorage.getItem(KEY_DYSLEXIC) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export const accent = signal(load());
 export const accentHex = signal(loadHex()); // "" = follow the preset swatch
+export const dyslexic = signal(loadDyslexic()); // true = Atkinson Hyperlegible for --font-ui
 
 // --accent-glow is the brighter hero sibling; derive it from a custom hex by
 // pulling each channel 30% toward white (matches the presets' glow relationship)
@@ -117,8 +129,37 @@ export function applyAccentHex(hex) {
   }
 }
 
-/** Stamp the root attribute (and any custom hex) at boot — no first-paint flash. */
-export function initAccent() {
+// The dyslexic font is one attribute on the root and a CSS rule keyed off it;
+// absent means the default typeface, so the off state deletes rather than
+// writing a falsy value.
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
+function stampDyslexic(on) {
+  const root = document.documentElement;
+  if (on) root.dataset.dyslexic = "1";
+  else delete root.dataset.dyslexic;
+}
+
+/**
+ * Persist and apply the dyslexic font switch.
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function applyDyslexic(on) {
+  dyslexic.value = !!on;
+  stampDyslexic(dyslexic.value);
+  try {
+    localStorage.setItem(KEY_DYSLEXIC, dyslexic.value ? "1" : "0");
+  } catch {
+    /* storage disabled (private mode) — keep the in-memory value */
+  }
+}
+
+/** Stamp the root attributes (accent, any custom hex, dyslexic font) at boot — no first-paint flash. */
+export function initTheme() {
   document.documentElement.dataset.accent = accent.value;
   if (accentHex.value) setInline(accentHex.value);
+  stampDyslexic(dyslexic.value);
 }

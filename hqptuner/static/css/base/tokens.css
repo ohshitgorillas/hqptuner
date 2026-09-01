@@ -5,7 +5,9 @@
 /* HQPTuner — dark theme. Deliberately restrained: this is a configurator, the
    controls are the content. Typography: Inter for UI, JetBrains Mono for every
    *value* (rates, dB, Hz, version) — instrument-readout convention, and it kills
-   number-width jitter on live updates. Both vendored, offline, CSP-clean. */
+   number-width jitter on live updates. Atkinson Hyperlegible stands in for Inter
+   under `:root[data-dyslexic]`; it declares 400 and 700, and the UI's 600 weight
+   maps to the 700 face. All vendored, offline, CSP-clean. */
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -19,6 +21,20 @@
   font-weight: 600;
   font-display: swap;
   src: url("/fonts/inter-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/atkinson-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/atkinson-700.woff2") format("woff2");
 }
 @font-face {
   font-family: "JetBrains Mono";
@@ -288,6 +304,13 @@
 :root[data-accent="violet"] {
   --accent: #a78bfa; /* plasma display */
   --accent-glow: #c4b0ff;
+}
+
+/* the dyslexic font switch — UI face only. --font-mono is deliberately left
+   alone: the readouts are columns of digits, and tabular figures are their own
+   readability. */
+:root[data-dyslexic] {
+  --font-ui: "Atkinson Hyperlegible", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * {
