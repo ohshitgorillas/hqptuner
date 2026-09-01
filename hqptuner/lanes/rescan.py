@@ -50,12 +50,10 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     the chains' filters and shapers, output mode, adaptive volume, and the junk
     filter, which exists ONLY on the engine and so is readable no other way.
 
-    Narrowed to what the live lane accepts (``routing.live_fields``), because
-    that is what a replay can put back. The rate is the field this drops: it goes
-    to the config LIMIT slot (``live.chain.RATE_LIMIT_FIELD``), which is
-    persistent config and survives a rescan on its own, so there is nothing to
-    put back. Filtering on the lane's own field set rather than naming the rate
-    keeps the two from drifting apart.
+    Narrowed to what the live lane accepts (``routing.live_fields``), which drops
+    the rate: it goes to the config LIMIT slot (``live.chain.RATE_LIMIT_FIELD``),
+    persistent config that survives a rescan on its own. Filtering on the lane's
+    own field set rather than naming the rate keeps the two from drifting apart.
 
     Empty when auto-save is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
