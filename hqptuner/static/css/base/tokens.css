@@ -7,7 +7,10 @@
    *value* (rates, dB, Hz, version) — instrument-readout convention, and it kills
    number-width jitter on live updates. Atkinson Hyperlegible stands in for Inter
    under `:root[data-dyslexic]`; it declares 400 and 700, and the UI's 600 weight
-   maps to the 700 face. All vendored, offline, CSP-clean. */
+   maps to the 700 face. Its size-adjust is measured, not guessed: at a common
+   font-size Atkinson's x-height runs ~9% under Inter's, which reads as the whole
+   page shrinking on the swap, and 108% puts the cap heights level (73.4 against
+   73 at 100px) for 2% extra advance width. All vendored, offline, CSP-clean. */
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -27,6 +30,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
+  size-adjust: 108%;
   src: url("/fonts/atkinson-400.woff2") format("woff2");
 }
 @font-face {
@@ -34,6 +38,7 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
+  size-adjust: 108%;
   src: url("/fonts/atkinson-700.woff2") format("woff2");
 }
 @font-face {
