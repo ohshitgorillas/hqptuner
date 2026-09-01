@@ -12,7 +12,15 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { accent, accentHex, applyAccent, applyAccentHex, initAccent } from "../../../hqptuner/static/store/theme.js";
+import {
+  accent,
+  accentHex,
+  applyAccent,
+  applyAccentHex,
+  applyDyslexic,
+  dyslexic,
+  initTheme,
+} from "../../../hqptuner/static/store/theme.js";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
@@ -84,6 +92,7 @@ function setup(storage = fakeStorage()) {
   env.localStorage = storage;
   accent.value = "blue";
   accentHex.value = "";
+  dyslexic.value = false;
   return { root: doc.documentElement, storage };
 }
 
@@ -192,24 +201,47 @@ test("test_a_custom_hex_still_applies_when_storage_is_disabled", () => {
   assert.equal(accentHex.value, "#4f9dde");
 });
 
-// --- initAccent: the boot-time stamp ------------------------------------------------
+// --- the dyslexic-font switch -------------------------------------------------------
+
+test("test_switching_the_dyslexic_font_on_stamps_the_root_attribute", () => {
+  const { root } = setup();
+  applyDyslexic(true);
+  assert.equal(root.dataset.dyslexic, "1");
+});
+
+test("test_switching_the_dyslexic_font_off_clears_the_root_attribute", () => {
+  const { root } = setup();
+  applyDyslexic(true);
+  applyDyslexic(false);
+  assert.equal(root.dataset.dyslexic, undefined);
+});
+
+// --- initTheme: the boot-time stamp -------------------------------------------------
+
+test("test_init_stamps_the_dyslexic_attribute_from_the_stored_preference", () => {
+  const { root } = setup();
+  dyslexic.value = true;
+  initTheme();
+  assert.equal(root.dataset.dyslexic, "1");
+});
+
 
 test("test_init_stamps_the_root_attribute_from_the_stored_accent", () => {
   const { root } = setup();
   accent.value = "green";
-  initAccent();
+  initTheme();
   assert.equal(root.dataset.accent, "green");
 });
 
 test("test_init_reapplies_a_stored_custom_hex_inline", () => {
   const { root } = setup();
   accentHex.value = "#123456";
-  initAccent();
+  initTheme();
   assert.equal(root.style.vars.get("--accent"), "#123456");
 });
 
 test("test_init_without_a_custom_hex_leaves_the_inline_variable_unset", () => {
   const { root } = setup();
-  initAccent();
+  initTheme();
   assert.equal(root.style.vars.has("--accent"), false);
 });
