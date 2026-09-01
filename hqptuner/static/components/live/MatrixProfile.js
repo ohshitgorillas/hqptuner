@@ -69,9 +69,7 @@ export function MatrixProfileCard() {
         </div>
         ${described ? html`<div class="live-desc">${described.text}</div>` : null}
         <div class="field-note">
-          Switches the running matrix immediately — no engine reload, and your crossfeed, DAC correction and loudness
-          settings are left alone. A live switch alone is dropped at the next daemon restart; save it from the Matrix tab
-          to keep it.
+          Switch the running matrix profile.
         </div>
         ${profileError.value ? html`<div class="live-error">${profileError.value}</div>` : null}
       </div>
