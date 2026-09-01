@@ -17,24 +17,24 @@ from fastapi.testclient import TestClient
 #: A live-preset store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
 
-#: The three ways a live-preset read is refused, each with the status and code a
+#: The three ways a live-preset delete is refused, each with the status and code a
 #: client is promised, so a code shared across causes shows up as a wrong tuple.
 REFUSED_READS = [
     pytest.param("Nope", None, (404, "not_found"), id="absent-name"),
-    pytest.param("a/b", None, (422, "name_invalid"), id="invalid-name"),
+    pytest.param("..", None, (422, "name_invalid"), id="invalid-name"),
     pytest.param("Warm", FUTURE_STORE, (409, "store_too_new"), id="store-too-new"),
 ]
 
 
 @pytest.mark.parametrize(("name", "store", "expected"), REFUSED_READS)
-def test_a_refused_live_preset_read_names_its_cause_by_code(
+def test_a_refused_live_preset_delete_names_its_cause_by_code(
     live_api: TestClient, tmp_path: Path, name: str, store: dict[str, object] | None, expected: tuple[int, str]
 ) -> None:
     if store is not None:
         (tmp_path / "live-presets.json").write_text(json.dumps(store))
-    # the name is sent percent-encoded so a `/` reaches the handler as one segment
+    # percent-encoded whole, so `..` reaches the handler instead of resolving as a path segment
     encoded = "".join(f"%{byte:02X}" for byte in name.encode())
-    resp = live_api.get(f"/api/livepresets/{encoded}")
+    resp = live_api.delete(f"/api/livepresets/{encoded}")
     assert (resp.status_code, resp.json()["code"]) == expected
 
 
