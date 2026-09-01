@@ -78,3 +78,19 @@ def test_the_archive_summary_names_a_member() -> None:
 
 def test_the_archive_summary_marks_bytes_that_are_not_a_zip_unreadable() -> None:
     assert engineconf.archive_summary(b"<html>gateway timeout</html>").readable is False
+
+
+def test_apply_to_all_names_every_preset_snapshot_beside_the_working_config() -> None:
+    # one preset is the active one; "all presets" has to reach the other too
+    archive = _archive(
+        {
+            "hqplayerd.xml": _XML,
+            engineconf.snapshot_member_name("Speakers"): _XML,
+            engineconf.snapshot_member_name("Office"): _OTHER,
+        }
+    )
+    assert set(engineconf.config_members(archive, "Speakers", all_presets=True)) == {
+        "hqplayerd.xml",
+        engineconf.snapshot_member_name("Speakers"),
+        engineconf.snapshot_member_name("Office"),
+    }

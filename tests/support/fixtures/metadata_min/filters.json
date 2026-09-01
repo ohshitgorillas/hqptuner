@@ -1,0 +1,10 @@
+{
+  "_join_rules": "exact name, then aliases, then strip -2s and append two_stage_note",
+  "two_stage_note": "Second stage runs at the halfway rate in this fixture.",
+  "aliases": {},
+  "filters": {
+    "fixture-base-lp": {
+      "description": "A wholly invented filter that exists only for this fixture."
+    }
+  }
+}
