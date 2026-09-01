@@ -197,7 +197,9 @@ function isPlainCall(node) {
  * @returns {value is Node}
  */
 function isNode(value) {
-  return typeof value === "object" && value !== null && typeof (/** @type {{ type?: unknown }} */ (value).type) === "string";
+  return (
+    typeof value === "object" && value !== null && typeof (/** @type {{ type?: unknown }} */ (value).type) === "string"
+  );
 }
 
 /** @param {Node} node */
