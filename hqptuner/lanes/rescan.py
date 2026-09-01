@@ -91,13 +91,12 @@ async def _reachable(mgr: ConnectionManager) -> bool:
 
     The manager's reachable flag is flipped by its own poll loop, which races the
     replay to a dead socket. Trusting the flag made the warning depend on which
-    task noticed first; asking the lane makes it depend on the lane.
+    task noticed first; asking the lane makes it depend on the lane. The probe
+    is the re-read itself, so a lane that answers leaves the manager holding
+    what the engine came back on.
     """
-    client = mgr.control
-    if client is None:
-        return False
     try:
-        await client.get_state()
+        await _reread_engine(mgr)
     except ControlError:
         return False
     return True
@@ -176,7 +175,6 @@ async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, An
         log.warning("device rescan: daemon never came back, live settings not restored")
         return {"restored": {}, "warning": NO_DAEMON}
     try:
-        await _reread_engine(mgr)
         moved = _moved(mgr, fields)
         if not moved:
             return {"restored": {}}
