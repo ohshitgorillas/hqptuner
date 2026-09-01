@@ -1,7 +1,7 @@
 // Behavioral suite for the limited-SNR modulator guard on edit().
 //
-// Two SDM modulators in the shipped shapers overlay carry a structural flag
-// saying they need an EXTERNAL volume control (hqptuner/data/shapers.json,
+// Two SDM modulators in the shapers overlay carry a structural flag saying
+// they need an EXTERNAL volume control (the SHAPERS fixture below states it,
 // sdm_modulators: AHM5EC5L and AHM7EC5L). Combining one of those with a LIVE
 // HQPlayer volume control is the dangerous state, so an edit that would create
 // it does not stage straight away: a question opens on the ask signal, the edit
@@ -17,12 +17,11 @@
 // volume control outright. Any one of those makes the pairing harmless and the
 // edit stages question-free.
 //
-// The flag itself is never faked here: the REAL shipped overlay is seeded into
-// the /api/metadata signal, so a test claiming a name is flagged is claiming it
-// about the data that ships. `fixture()` throws rather than asserts when a name
-// this suite names is missing from that data — a fixture that failed to set up
-// makes every case below vacuous, which is a broken fixture and not a broken
-// behavior.
+// The flag is stated by this file's own overlay fixture (SHAPERS), seeded into
+// the /api/metadata signal the way the wire would carry it. Which modulators
+// the shipped data flags is the owner's call and never read here
+// (docs/testing.md rule 9); a shipped row that stops loading is the metadata
+// gate's business.
 //
 // Everything is driven through the real edit() against a staging wire
 // (docs/testing.md rule 4); the question is driven through the public ask
@@ -39,7 +38,6 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit, lastApply } from "../../../hqptuner/static/store/actions.js";
@@ -47,16 +45,24 @@ import { question, answer, cancel } from "../../../hqptuner/static/store/ask.js"
 import { effective } from "../../../hqptuner/static/store/resolve.js";
 import { stagingWire, quiesce } from "../support/wire.js";
 
-// The shipped overlay, whole and unedited: the same payload /api/metadata
-// serves the frontend under `shapers`.
-const SHAPERS = JSON.parse(readFileSync(new URL("../../../hqptuner/data/shapers.json", import.meta.url), "utf8"));
-
 // The two flagged names, and two plainly different ones to stand for every
 // modulator that is not flagged.
 const AHM5 = "AHM5EC5L";
 const AHM7 = "AHM7EC5L";
 const PLAIN = "DSD7";
 const PLAIN2 = "ASDM7EC-super";
+
+// The overlay as the wire would carry it: which modulators need an external
+// volume control is stated here, never read from the shipped file
+// (docs/testing.md rule 9).
+const SHAPERS = {
+  sdm_modulators: {
+    [AHM5]: { needs_external_volume: true },
+    [AHM7]: { needs_external_volume: true },
+    [PLAIN]: {},
+    [PLAIN2]: {},
+  },
+};
 
 // The enumeration the /config form offers for `modulator`, in the form's own
 // shape: an index string per row, carrying the engine's name as its label.
@@ -124,11 +130,6 @@ const ZERO_RANGE_VOLUME = patch(patch(LIVE_VOLUME, "volume_min", "0"), "volume_m
  * @returns {Promise<import("../support/wire.js").StagingWire>}
  */
 async function fixture({ modulator, volume = LIVE_VOLUME, file = {} }) {
-  for (const name of [AHM5, AHM7, PLAIN, PLAIN2]) {
-    if (!(name in (SHAPERS.sdm_modulators || {}))) {
-      throw new Error(`shapers.json carries no sdm_modulators entry named ${name}: the cases below cannot bite`);
-    }
-  }
   const w = stagingWire();
   engineState.value = {};
   enums.value = null;

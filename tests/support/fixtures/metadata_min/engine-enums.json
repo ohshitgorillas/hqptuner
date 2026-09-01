@@ -1,0 +1,6 @@
+{
+  "filters_sdm": [{"name": "fixture-base-lp"}],
+  "shapers_sdm": [{"name": "fixture-sdm-mod"}],
+  "filters_pcm": [{"name": "fixture-base-lp"}],
+  "shapers_pcm": [{"name": "fixture-pcm-dither"}]
+}

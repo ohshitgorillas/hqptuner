@@ -93,6 +93,11 @@ def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ConnectionManager, "monotonic", monotonic)
 
 
+#: Invented metadata for the app under test: join and lookup mechanics run on
+#: this, never on the shipped prose (docs/testing.md rule 9).
+METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
+
+
 def _reachable(client: TestClient) -> bool:
     return bool(client.get("/api/health").json()["reachable"])
 
@@ -114,6 +119,7 @@ def _live_app(
         hqp_control_port=control_port,
         hqp_username="",
         hqp_password="",
+        data_dir=METADATA_MIN,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         # never the repo's own state/ — a live-preset write in a test would land

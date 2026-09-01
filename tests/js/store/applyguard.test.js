@@ -12,8 +12,8 @@
 // declining sends nothing and keeps the staged set.
 //
 // Two hazards:
-//   * A modulator flagged `needs_external_volume` (hqptuner/data/shapers.json,
-//     sdm_modulators: AHM5EC5L and AHM7EC5L) with a LIVE volume control —
+//   * A modulator flagged `needs_external_volume` (the SHAPERS fixture below
+//     states it, sdm_modulators: AHM5EC5L) with a LIVE volume control —
 //     nothing pinned (`fixed_volume_enabled` off, `optimal_iso` zero, a volume
 //     range with somewhere to travel) and Direct SDM off.
 //   * `direct_sdm` ON against a volume that is not already fixed at -3 dBFS,
@@ -36,11 +36,10 @@
 // question there would be the second warning the rule forbids. A preview stages
 // no field, trips no edit guard, and reaches the apply unacknowledged.
 //
-// The flag itself is never faked: the REAL shipped overlay is seeded into the
-// /api/metadata signal, so a case claiming a name is flagged claims it about the
-// data that ships. Fixture helpers THROW rather than assert when their setup did
-// not take — a fixture that failed to set up makes the case below it vacuous,
-// which is a broken fixture and not a broken behavior.
+// The flag is stated by this file's own overlay fixture (SHAPERS), seeded into
+// the /api/metadata signal the way the wire would carry it. Which modulators the
+// shipped data flags is the owner's call and never read here (docs/testing.md
+// rule 9); a shipped row that stops loading is the metadata gate's business.
 //
 // Everything rides the real wire (docs/testing.md rule 4): edits stage through
 // POST /api/config/stage, applies go out as POST /api/config/apply, and the
@@ -57,17 +56,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { applyAll, discardAll, edit, previewPreset, lastApply } from "../../../hqptuner/static/store/actions.js";
 import { question, answer, cancel } from "../../../hqptuner/static/store/ask.js";
 import { effective } from "../../../hqptuner/static/store/resolve.js";
 import { ok, bad, stagingWire, quiesce } from "../support/wire.js";
-
-// The shipped overlay, whole and unedited: the same payload /api/metadata serves
-// the frontend under `shapers`.
-const SHAPERS = JSON.parse(readFileSync(new URL("../../../hqptuner/data/shapers.json", import.meta.url), "utf8"));
 
 // A flagged name, and TWO plainly unflagged ones. Two, because the flag is what
 // is supposed to select the hazard: with a single unflagged name the only thing
@@ -79,6 +73,17 @@ const SHAPERS = JSON.parse(readFileSync(new URL("../../../hqptuner/data/shapers.
 const AHM5 = "AHM5EC5L";
 const PLAIN = "DSD7";
 const PLAIN2 = "ASDM7EC-super";
+
+// The overlay as the wire would carry it: which modulators need an external
+// volume control is stated here, never read from the shipped file
+// (docs/testing.md rule 9).
+const SHAPERS = {
+  sdm_modulators: {
+    [AHM5]: { needs_external_volume: true },
+    [PLAIN]: {},
+    [PLAIN2]: {},
+  },
+};
 
 // The enumeration the /config form offers for `modulator`, in the form's own
 // shape: an index string per row carrying the engine's name as its label. The
@@ -194,23 +199,6 @@ const DIRECT_SDM_PRESET = {
 
 // --- fixture -----------------------------------------------------------------
 
-// Throw unless the shipped overlay says about these names what the cases below
-// claim about them: the flagged one flagged, the unflagged ones not. The flag is
-// never faked, so a case that turns on the difference between them is only worth
-// reading while the data that ships still draws it.
-/** @returns {void} */
-function requireFlags() {
-  const shapers = SHAPERS.sdm_modulators || {};
-  if (shapers[AHM5]?.needs_external_volume !== true) {
-    throw new Error(`shapers.json does not flag ${AHM5} needs_external_volume: the cases below cannot bite`);
-  }
-  for (const name of [PLAIN, PLAIN2]) {
-    if (!(name in shapers) || shapers[name].needs_external_volume === true) {
-      throw new Error(`shapers.json carries no UNflagged sdm_modulators entry named ${name}: cases cannot bite`);
-    }
-  }
-}
-
 // Total reset: module-level signals outlive a test file, so a partial reset makes
 // cases pass alone and fail in sequence. `staged` is private and is cleared
 // through discardAll().
@@ -238,7 +226,6 @@ async function fixture({
   preset,
   applyFails = false,
 } = {}) {
-  requireFlags();
   const w = stagingWire({
     routes: (path, opts, wire) => {
       if (path === "/api/config/apply") {

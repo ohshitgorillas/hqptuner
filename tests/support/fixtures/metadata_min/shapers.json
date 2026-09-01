@@ -1,4 +1,15 @@
 {
-  "pcm_dithers": {},
-  "sdm_modulators": {}
+  "pcm_dithers": {
+    "fixture-pcm-dither": {
+      "description": "A wholly invented dither that exists only for this fixture.",
+      "min_rate_hz": 44100,
+      "max_rate_hz": 192000
+    }
+  },
+  "sdm_modulators": {
+    "fixture-sdm-mod": {
+      "description": "A wholly invented modulator that exists only for this fixture.",
+      "min_rate_hz": 2822400
+    }
+  }
 }

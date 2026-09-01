@@ -12,13 +12,12 @@ are the behavior, the owner's wording is not (docs/testing.md rule 9).
 """
 
 import json
-from pathlib import Path
 
+from conftest import METADATA_MIN as FIXTURE_DIR
 from narrow import present
 
 from hqptuner.metadata import StaticMetadata
 
-FIXTURE_DIR = Path(__file__).parent.parent / "support" / "fixtures" / "metadata_min"
 _FILTERS = json.loads((FIXTURE_DIR / "filters.json").read_text())
 BASE_NAME = "fixture-base-lp"
 BASE_DESCRIPTION = _FILTERS["filters"][BASE_NAME]["description"]
