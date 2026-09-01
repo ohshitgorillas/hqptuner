@@ -80,7 +80,7 @@ def seed_support(tmp_path: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
-    (fixtures / "page.html").write_text(f"<p>{FIXTURE_SEED}</p>\n", encoding="utf-8")
+    (fixtures / "page.html").write_text(f"<p>\n{FIXTURE_SEED}\n</p>\n", encoding="utf-8")
 
 
 def line_of(index: int) -> int:
@@ -101,7 +101,7 @@ def test_a_literal_handed_to_a_plain_call_is_input_while_a_method_call_argument_
     body = [
         "def test_it() -> None:",
         '    assert WORDS("alpha beta gamma") == 3',
-        '    assert body.count("alpha beta gamma") == 1',
+        '    assert body.count("delta epsilon zeta") == 1',
     ]
     path = write_checked_file(tmp_path, body)
     findings = GATE.check_file(path)

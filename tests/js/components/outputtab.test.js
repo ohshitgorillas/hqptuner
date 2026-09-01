@@ -265,7 +265,7 @@ test("test_the_network_backend_warns_about_its_own_missing_device", async () => 
 
 test("test_combo_names_both_backends_when_neither_has_a_device", async () => {
   await reset({ cfg: { backend: "combo", alsa_device: alsaDev(""), net_device: netDev("") } });
-  assert.deepEqual(alertBackends(tab()).split(" "), ["alsa", "network"]);
+  assert.deepEqual(String(alertBackends(tab())).split(" "), ["alsa", "network"]);
 });
 
 // DELETED: "the alert says how to recover the device", which read the recovery

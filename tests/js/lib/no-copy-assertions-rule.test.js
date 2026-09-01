@@ -19,6 +19,7 @@ import { Linter } from "eslint";
 
 import rule from "../../../eslint-rules/no-copy-assertions.js";
 
+/** @type {import("eslint").Linter.Config[]} */
 const CONFIG = [
   {
     files: ["**/*.js"],
