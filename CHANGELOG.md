@@ -15,6 +15,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Apply tells an engine that stopped answering apart from one that refused a value.** The apply note names the settings that failed under each, and every failed setting in the apply report carries a machine code beside its message.
 - **Selecting a preset in LIVE mode loads it immediately.** Previously the pick only staged a preview, and applying it meant leaving LIVE for the Apply button.
 - **Live presets the output device cannot play are grayed in the picker.** A preset pinning a rate or an output mode the open device does not offer renders disabled, with the reason on it.
 - **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
