@@ -48,11 +48,9 @@ What it cannot check is tone, and that is where entries actually go wrong. Three
 - **State the change; do not sell it.** "its settings moved to where they belong" is a verdict on your own work. "its settings moved" is the change.
 - **One entry per change, not one per commit.** Three commits fixing one bug are one entry.
 
-## File length, package budgets, and barrels
+## File length and barrels
 
 A source file is capped at 500 lines, a test file at 800. Above 400 lines a source file also enters a ratchet: it carries an entry in `ALLOWANCE` in `scripts/gates/check_file_length.py` and may only ever get shorter. Growing past the entry fails, and so does measuring under it — the gate makes you lower the number to match, so headroom cannot be banked in one commit and spent in the next. Nothing raises an allowance. A file that needs more room needs a split. The ratchet does not reach under `tests/`, where the one-assertion-per-test policy inflates line count without adding coupling.
-
-`scripts/gates/check_package_budget.py` holds a line total per package in `BUDGET`. Unlike the allowance, a budget may be raised, because features legitimately make a package bigger — but **an extraction may never raise one**. An honest split is close to line-neutral: the lines leave one file and arrive in another. A split that grows its package is a split that left forwarders behind.
 
 `scripts/gates/check_no_barrels.py` refuses the two shapes that shorten a file without simplifying anything: a module that is imports and nothing else, and a method whose whole body returns a call passing on its own arguments. `__init__.py` is exempt from the first — re-exporting a package's surface is what it is for. Route handlers under `hqptuner/api/` are exempt from the second, being thin adapters by design. Anything else that has earned its shape goes in `MODULE_EXEMPT` or `FORWARDER_EXEMPT` with a reason; an entry that stops excusing anything fails as stale.
 

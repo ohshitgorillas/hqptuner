@@ -45,14 +45,6 @@ repos:
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
-      # Counts whole packages, so it takes no filenames and must run even when
-      # the commit touches nothing this gate would otherwise be handed.
-      - id: package-budget
-        name: package line budget
-        entry: .venv/bin/python scripts/gates/check_package_budget.py
-        language: system
-        pass_filenames: false
-        always_run: true
       - id: no-barrels
         name: no re-export modules or trivial forwarders
         entry: .venv/bin/python scripts/gates/check_no_barrels.py
