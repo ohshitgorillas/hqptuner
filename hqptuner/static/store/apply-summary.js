@@ -25,7 +25,7 @@
  * @property {boolean} ok
  * @property {string} code
  * @property {string} text
- * @property {string[]} [settings] live setters that were refused (live-failed)
+ * @property {string[]} [settings] live setters that failed (live-failed, live-unavailable)
  * @property {string[]} [fields] fields that did not converge (persist-refused)
  * @property {string} [reason] why the persistent lane declined (persist-refused)
  * @property {string} [endpoint] the output endpoint that was absent (endpoint-missing)
@@ -38,6 +38,7 @@
  * @property {boolean} ok
  * @property {string} setting
  * @property {string} [error]
+ * @property {string} [code] daemon_unavailable | daemon_refused | invalid_input, on a failure
  *
  * @typedef {object} SwitchResult
  *   A preset switch's outcome (presetlane.switch). The empty name is the
@@ -87,7 +88,12 @@ function liveFailure(report) {
   const fails = (report.live || []).filter((x) => !x.ok);
   if (!fails.length) return null;
   const settings = fails.map((f) => f.setting);
-  return failure("live-failed", `Failed: ${settings.join(", ")}`, { settings });
+  // An engine that stopped answering explains every other failure in the same
+  // apply, so one such entry decides the verdict for the whole list.
+  if (fails.some((f) => f.code === "daemon_unavailable")) {
+    return failure("live-unavailable", `Engine stopped answering: ${settings.join(", ")}`, { settings });
+  }
+  return failure("live-failed", `Engine refused: ${settings.join(", ")}`, { settings });
 }
 
 // The persistent lane declined. A missing output endpoint is named rather than

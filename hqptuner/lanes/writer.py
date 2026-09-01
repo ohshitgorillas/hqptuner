@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
 from hqptuner.audit import AuditLog
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import CommandError, ControlClient, ControlError
 
 _VOLUME_TOLERANCE = 0.05
 
@@ -53,7 +53,7 @@ async def _apply_volume(client: ControlClient, params: dict[str, str]) -> None:
     state = await client.get_state()  # volume is a float — verify with tolerance
     got = state.get("volume")
     if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
-        raise ControlError(f"Volume readback mismatch: want {want} got {got}")
+        raise CommandError(f"Volume readback mismatch: want {want} got {got}")
 
 
 # The live lane, one row per setting — and INSERTION ORDER IS APPLY ORDER, so a
@@ -114,7 +114,11 @@ async def _apply_one(client: ControlClient, setting: str, params: dict[str, str]
             await spec(client, params)
     except (ControlError, KeyError, ValueError) as exc:
         audit.live_write(setting, value, None, ok=False)
-        return {"setting": setting, "ok": False, "error": str(exc)}
+        # The error's own code travels with the message: daemon_unavailable for a
+        # transport that died, daemon_refused for a refusal or readback mismatch.
+        # A KeyError/ValueError is a malformed edit and has no code of its own.
+        code = getattr(exc, "code", "invalid_input")
+        return {"setting": setting, "ok": False, "error": str(exc), "code": code}
     # returning without raising means the readback matched, so the value sent is
     # also the value confirmed — there is no other way for a setter to succeed
     audit.live_write(setting, value, value, ok=True)
