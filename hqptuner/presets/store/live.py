@@ -45,6 +45,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 
 if TYPE_CHECKING:
@@ -59,11 +60,13 @@ if TYPE_CHECKING:
 _SCHEMA = 3
 
 
-class LivePresetError(ValueError):
+class LivePresetError(HQPTunerError, ValueError):
     """A live-preset operation that cannot proceed.
 
     Either an invalid name, or a preset that does not exist.
     """
+
+    code = "invalid_input"
 
 
 class LivePresetSchemaError(LivePresetError):
@@ -72,6 +75,8 @@ class LivePresetSchemaError(LivePresetError):
     Separate from ``LivePresetError`` so a route can answer "this store is unreadable" rather than "no such preset",
     which would be a lie about a store that is there and full.
     """
+
+    code = "store_too_new"
 
 
 def _validate(name: str) -> str:
@@ -138,7 +143,7 @@ class LivePresetStore:
         """One preset's record. Raises ``LivePresetError`` if absent."""
         record = self._presets().get(_validate(name))
         if not isinstance(record, dict):
-            raise LivePresetError(f"no such live preset: {name!r}")
+            raise LivePresetError(f"no such live preset: {name!r}", code="not_found")
         return record
 
     def save(self, name: str, record: dict[str, Any]) -> None:
@@ -151,6 +156,6 @@ class LivePresetStore:
         """Remove a preset. Raises ``LivePresetError`` if absent."""
         presets = self._presets()
         if _validate(name) not in presets:
-            raise LivePresetError(f"no such live preset: {name!r}")
+            raise LivePresetError(f"no such live preset: {name!r}", code="not_found")
         del presets[name]
         self._write(presets)

@@ -8,9 +8,10 @@ The name travels in the BODY rather than the path, the way a description's does:
 typed, slashes and all, and a path segment would make the route's shape depend on what they called it.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.errors import refuse
 from hqptuner.presets.store.matrixmode import MatrixModeError, MatrixModeSchemaError, MatrixModeStore
 
 router = APIRouter(prefix="/api")
@@ -42,7 +43,7 @@ def matrix_modes(request: Request) -> dict[str, dict[str, str]]:
     try:
         return {"presets": _store(request).read()}
     except MatrixModeSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.put("/matrixmodes")
@@ -55,6 +56,6 @@ def save_matrix_mode(body: MatrixModeBody, request: Request) -> dict[str, dict[s
     try:
         return {"presets": _store(request).write(body.name, body.mode)}
     except MatrixModeSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except MatrixModeError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse(exc) from exc

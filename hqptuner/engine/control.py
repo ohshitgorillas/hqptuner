@@ -18,6 +18,8 @@ from collections.abc import Iterator
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
+from hqptuner.errors import HQPTunerError
+
 log = logging.getLogger(__name__)
 
 XML_HDR = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -35,12 +37,16 @@ ENUM_COMMANDS = {
 }
 
 
-class ControlError(Exception):
+class ControlError(HQPTunerError):
     """Base for every Control API failure: not connected, timed out, socket died, response would not parse."""
+
+    code = "daemon_unavailable"
 
 
 class CommandError(ControlError):
     """Daemon answered result="Error"."""
+
+    code = "daemon_refused"
 
 
 def _element_name(element: str) -> str:

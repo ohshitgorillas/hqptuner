@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
 from hqptuner.audit import AuditLog
+from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 
 if TYPE_CHECKING:
@@ -39,11 +40,13 @@ _STORE_FILE = "store.json"
 _SCHEMA = 1
 
 
-class PresetError(ValueError):
+class PresetError(HQPTunerError, ValueError):
     """A preset operation that cannot proceed.
 
     Either an invalid name, or a preset that does not exist.
     """
+
+    code = "invalid_input"
 
 
 def _validate(name: str) -> str:
@@ -124,7 +127,7 @@ class PresetStore:
         self._meta()
         path = self._path(name)
         if not path.is_file():
-            raise PresetError(f"no such preset: {name!r}")
+            raise PresetError(f"no such preset: {name!r}", code="not_found")
         return path.read_bytes()
 
     def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
@@ -148,7 +151,7 @@ class PresetStore:
         """
         path = self._path(name)
         if not path.is_file():
-            raise PresetError(f"no such preset: {name!r}")
+            raise PresetError(f"no such preset: {name!r}", code="not_found")
         was_active = self.active == name  # unlinking does not touch the pointer
         path.unlink()
         self._audit.preset_delete(name, was_active=was_active)

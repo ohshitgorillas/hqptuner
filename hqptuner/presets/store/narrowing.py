@@ -21,6 +21,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -55,8 +56,10 @@ _SRC_FORMAT = frozenset({"pcm", "both"})
 _MODES = frozenset({"and", "or"})
 
 
-class NarrowingError(ValueError):
+class NarrowingError(HQPTunerError, ValueError):
     """A narrowing operation that cannot proceed — a facet object that is not storable."""
+
+    code = "invalid_input"
 
 
 class NarrowingSchemaError(NarrowingError):
@@ -66,6 +69,8 @@ class NarrowingSchemaError(NarrowingError):
     a route can answer "this store is unreadable" rather than "your facets are invalid", which would blame the client
     for the server's file.
     """
+
+    code = "store_too_new"
 
 
 def _one_of(allowed: frozenset[Any]) -> Callable[[Any], bool]:

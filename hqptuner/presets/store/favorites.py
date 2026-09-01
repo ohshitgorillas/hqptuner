@@ -20,6 +20,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,8 +42,10 @@ _MAX_NAMES = 256
 _MAX_NAME_LEN = 64
 
 
-class FavoriteError(ValueError):
+class FavoriteError(HQPTunerError, ValueError):
     """A favorites operation that cannot proceed — a name list that is not storable."""
+
+    code = "invalid_input"
 
 
 class FavoriteSchemaError(FavoriteError):
@@ -52,6 +55,8 @@ class FavoriteSchemaError(FavoriteError):
     route can answer "this store is unreadable" rather than "your list is invalid", which would blame the client for
     the server's file.
     """
+
+    code = "store_too_new"
 
 
 def _validate(names: list[str]) -> list[str]:

@@ -8,9 +8,10 @@ The name travels in the BODY rather than the path: a matrix profile's name is fr
 all, and a path segment would make the route's shape depend on what they called it.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.errors import refuse
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionSchemaError, DescriptionStore
 
 router = APIRouter(prefix="/api")
@@ -42,7 +43,7 @@ def descriptions(request: Request) -> dict[str, dict[str, dict[str, str]]]:
     try:
         return {"profiles": _store(request).read()}
     except DescriptionSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.put("/descriptions")
@@ -55,6 +56,6 @@ def save_description(body: DescriptionBody, request: Request) -> dict[str, dict[
     try:
         return {"profiles": _store(request).write(body.name, body.text)}
     except DescriptionSchemaError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except DescriptionError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse(exc) from exc

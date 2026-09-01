@@ -22,6 +22,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 
 if TYPE_CHECKING:
@@ -39,8 +40,10 @@ _MODES = ("speakers", "headphones")
 _MAX_PRESETS = 256
 
 
-class MatrixModeError(ValueError):
+class MatrixModeError(HQPTunerError, ValueError):
     """A matrix-mode operation that cannot proceed — a name or a mode that is not storable."""
+
+    code = "invalid_input"
 
 
 class MatrixModeSchemaError(MatrixModeError):
@@ -50,6 +53,8 @@ class MatrixModeSchemaError(MatrixModeError):
     a route can answer "this store is unreadable" rather than "your mode is invalid", which would blame the client for
     the server's file.
     """
+
+    code = "store_too_new"
 
 
 def _validate_mode(mode: Any) -> str:

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
+from hqptuner.errors import HQPTunerError
 from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain, index_for_rate
 
 if TYPE_CHECKING:
@@ -218,7 +219,7 @@ def split_live(
 # this resolves.
 
 
-class LiveRouteError(Exception):
+class LiveRouteError(HQPTunerError):
     """A LIVE batch that could not be resolved, carrying one reason per field.
 
     Raised rather than dropping the unroutable fields the way ``split_live``
@@ -226,6 +227,8 @@ class LiveRouteError(Exception):
     slower; LIVE has no fallback, so a silently skipped field would leave its
     control displaying a value the engine never took.
     """
+
+    code = "route_refused"
 
     def __init__(self, reasons: dict[str, str]) -> None:
         """Build the message by joining the per-field reasons in field order, and keep the mapping on ``reasons``."""

@@ -22,6 +22,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,8 +32,10 @@ if TYPE_CHECKING:
 _SCHEMA = 1
 
 
-class AutopilotError(ValueError):
+class AutopilotError(HQPTunerError, ValueError):
     """An auto-pilot store operation that cannot proceed."""
+
+    code = "invalid_input"
 
 
 class AutopilotSchemaError(AutopilotError):
@@ -41,6 +44,8 @@ class AutopilotSchemaError(AutopilotError):
     Separate from ``AutopilotError`` so a route can answer "this store is unreadable" rather than describing a state
     it never managed to read.
     """
+
+    code = "store_too_new"
 
 
 class AutopilotStore:

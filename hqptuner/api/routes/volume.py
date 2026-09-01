@@ -5,9 +5,10 @@ Separate from the staged-config surface: a volume write is never staged, never p
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from hqptuner.api.deps import Mgr
+from hqptuner.api.errors import refuse
 from hqptuner.api.models import VolumeBody
 from hqptuner.engine.control import ControlError
 
@@ -39,4 +40,4 @@ async def volume_set(body: VolumeBody, manager: Mgr) -> dict[str, Any]:
     try:
         return await manager.applyops.set_volume(body.level)
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc

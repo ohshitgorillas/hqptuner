@@ -8,7 +8,7 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
-import { api } from "../lib/api.js";
+import { api, ApiFailure } from "../lib/api.js";
 import { metadata } from "../store/signals.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
@@ -177,7 +177,7 @@ async function apply() {
     if (applied) say("Applied.", "ok");
     else say("Submitted — not confirmed.", "warn");
   } catch (err) {
-    if (String(err).includes("409")) say("Stop playback first (daemon busy).", "err");
+    if (err instanceof ApiFailure && err.status === 409) say("Stop playback first (daemon busy).", "err");
     else say(`Failed: ${err}`, "err");
   }
 }
@@ -323,7 +323,8 @@ async function onRestore(e) {
     await api.restore(file);
     restoreStatus.value = "Restored — daemon restarting.";
   } catch (err) {
-    restoreStatus.value = String(err).includes("409") ? "Stop playback first (daemon busy)." : `Failed: ${err}`;
+    restoreStatus.value =
+      err instanceof ApiFailure && err.status === 409 ? "Stop playback first (daemon busy)." : `Failed: ${err}`;
   }
 }
 

@@ -8,10 +8,11 @@ import logging
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, File, Request, Response, UploadFile
 
 from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr
+from hqptuner.api.errors import refuse
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
 from hqptuner.core import engineread
@@ -76,9 +77,9 @@ async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     try:
         return {"name": name, "config": await presetlane.read(manager, name)}
     except PresetError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise refuse(exc) from exc
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"read preset failed: {exc}") from exc
+        raise refuse("daemon_read_failed", f"read preset failed: {exc}") from exc
 
 
 @router.post("/config/refresh")
@@ -90,7 +91,7 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
     try:
         return await engineread.refresh_devices(manager)
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"device refresh failed: {exc}") from exc
+        raise refuse("daemon_read_failed", f"device refresh failed: {exc}") from exc
 
 
 @router.get("/backup")
@@ -104,7 +105,7 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     try:
         data = await manager.presetops.backup()
     except ControlError as exc:
-        raise HTTPException(status_code=502, detail=f"backup failed: {exc}") from exc
+        raise refuse("daemon_write_failed", f"backup failed: {exc}") from exc
     store: DescriptionStore = request.app.state.descriptions
     try:
         data = presetzip.embed_descriptions(data, store.export_bytes())
@@ -127,7 +128,7 @@ async def engine_get(manager: HttpMgr) -> dict[str, Any]:
     try:
         return {"engine": await manager.read_engine(), "active_config": manager.readings.active_config}
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"read engine failed: {exc}") from exc
+        raise refuse("daemon_read_failed", f"read engine failed: {exc}") from exc
 
 
 @router.post("/engine")
@@ -138,7 +139,7 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
     interrupts playback — the user's call, never refused for it.
     """
     if not body.overrides:
-        raise HTTPException(status_code=400, detail="no engine overrides given")
+        raise refuse("nothing_staged", "no engine overrides given")
     try:
         report = await manager.applyops.apply_engine(body.overrides, all_presets=body.all_presets)
         autosaved = await presetlane.autosave(manager)
@@ -146,9 +147,9 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
             report["autosaved"] = autosaved
         return report
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise refuse("invalid_input", str(exc)) from exc
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise refuse(exc) from exc
 
 
 @router.post("/restore")
@@ -174,5 +175,5 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     try:
         await manager.require_http().restore(data)
     except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"restore failed: {exc}") from exc
+        raise refuse("daemon_write_failed", f"restore failed: {exc}") from exc
     return {"restored": True, "bytes": len(data)}

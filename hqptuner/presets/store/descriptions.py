@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,8 +44,10 @@ _KEPT_CONTROLS = ("\n", "\t")
 _FIRST_PRINTABLE = 0x20
 
 
-class DescriptionError(ValueError):
+class DescriptionError(HQPTunerError, ValueError):
     """A description operation that cannot proceed — a name or a text that is not storable."""
+
+    code = "invalid_input"
 
 
 class DescriptionSchemaError(DescriptionError):
@@ -54,6 +57,8 @@ class DescriptionSchemaError(DescriptionError):
     so a route can answer "this store is unreadable" rather than "your text is invalid", which would blame the client
     for the server's file.
     """
+
+    code = "store_too_new"
 
 
 def _validate_name(name: Any) -> str:
