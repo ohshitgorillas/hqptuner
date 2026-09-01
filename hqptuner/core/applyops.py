@@ -57,10 +57,16 @@ class ApplyOps:
         client = self._mgr.control
         if client is None:
             raise ControlError("daemon not connected")
+        report = (
+            {"cleared": True}
+            if hz == "0"
+            else await restore.apply(self._mgr, {chain.limit_field_for(hz): chain.tier_rate(hz)})
+        )
+        # Last, not first: the limit write restarts the daemon, and a pin cleared
+        # before that restart is a pin the daemon can come back holding.
         await client.set_command("SetRate", value="0")
-        if hz == "0":
-            return {"cleared": True}
-        return await restore.apply(self._mgr, {chain.limit_field_for(hz): chain.tier_rate(hz)})
+        self._mgr.readings.state = await client.get_state()
+        return report
 
     # --- write path (Phase 3) -----------------------------------------
 

@@ -36,6 +36,16 @@ def tier_rate(hz: str) -> str:
     return str(value // _BASE_44K * _BASE_48K) if value % _BASE_44K == 0 else hz
 
 
+def tier_member(hz: str) -> bool:
+    """Whether a rate in Hz is a member of a rate tier, and so a legal limit value.
+
+    Every tier is n x 44100 or n x 48000, so anything divisible by neither names no
+    tier the engine has. The limit slot is persistent config, and a value that names
+    no tier would be written to the file and booted from.
+    """
+    return hz.isdigit() and int(hz) > 0 and (int(hz) % _BASE_44K == 0 or int(hz) % _BASE_48K == 0)
+
+
 def limit_field_for(hz: str) -> str:
     """Return the limit slot a rate in Hz belongs to, by output family."""
     return RATE_LIMIT_FIELD[rate_family(hz)]

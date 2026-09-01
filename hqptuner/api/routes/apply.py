@@ -15,7 +15,7 @@ from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes.live import lane, routing
+from hqptuner.lanes.live import chain, lane, routing
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -110,6 +110,9 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     # field, so it leaves the live lane here rather than resolving to a `SetRate`.
     fields = dict(body.fields)
     rate = fields.pop("rate", None)
+    if rate is not None and rate != "0" and not chain.tier_member(rate):
+        why = {"rate": f"{rate} names no rate tier"}
+        raise refuse(routing.LiveRouteError(why), why)
     unknown = sorted(set(fields) - set(routing.live_fields()))
     if unknown:
         raise refuse("fields_unknown", f"unknown live fields: {unknown}")
