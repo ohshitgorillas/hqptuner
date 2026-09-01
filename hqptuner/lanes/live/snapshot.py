@@ -12,7 +12,7 @@ back out.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
@@ -80,25 +80,6 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
     if field == "mode":
         return _mode_snapshot(mgr, index)
     return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
-
-
-def _form_value(config_form: dict[str, Any] | None, field: str) -> str | None:
-    """Return one field's value out of a parsed ``GET /config`` form, or None when it has none."""
-    for item in (config_form or {}).get("fields", []):
-        if item.get("name") == field:
-            value = item.get("value")
-            return None if value is None else str(value)
-    return None
-
-
-def _config_value(mgr: ConnectionManager, field: str) -> str | None:
-    """Return a config field's running value: the file view, falling back to the ``/config`` form.
-
-    The file view is the same form-field vocabulary (``conf/presetconf.FIELD_MAP``)
-    and is refreshed after every persistent apply; the form answers while it is
-    unread, on a fresh connection before the first ``/backup``.
-    """
-    return (mgr.readings.file_config or {}).get(field) or _form_value(mgr.readings.config_form, field)
 
 
 def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
