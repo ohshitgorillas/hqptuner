@@ -4,9 +4,9 @@ LIVE card keys its messaging off.
 Characterization of behavior that already exists (docs/testing.md §8 exemption:
 nothing here is new or changed). Every case is driven the way a caller reaches
 it — a store file this HQPTuner cannot read, a name the store refuses, a preset
-nobody saved, an engine whose loaded chain is unknowable. No store method is
-stubbed and no manager internals are touched: the fakes speak the wire, the
-store is a real file on disk.
+nobody saved, an engine whose loaded chain is unknowable, a daemon that drops the
+connection mid-apply. No store method is stubbed and no manager internals are
+touched: the fakes speak the wire, the store is a real file on disk.
 
 Detail assertions anchor on the substantive part of each message (the schema the
 file is stamped with, the name that is missing, the field that went stale) rather
@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 
 #: A store stamped with a schema no build of this HQPTuner understands. Reading
 #: it is refused outright rather than guessed at, on every route that touches it.
@@ -92,6 +93,18 @@ def chainless_api(chain_api: Callable[..., TestClient]) -> TestClient:
     """An engine whose loaded chain cannot be determined: no mode configured, so
     it follows the source, and no source is playing to have loaded one."""
     return chain_api(mode="0", _active_mode="")
+
+
+@pytest.fixture
+def dropping_apply(chain_api: Callable[..., TestClient]) -> Response:
+    """Applying a preset saved on the other chain against a daemon that drops the
+    connection on the mode switch — what hqplayerd does while the switch takes the
+    audio engine down, so the lane loses the socket mid-apply."""
+    chain_api(mode="2").put("/api/livepresets/Dark")
+    # Annotated rather than returned straight: TestClient's verbs are untyped
+    # here, so a bare return is an Any return under strict mypy.
+    dropped: Response = chain_api(mode="1", _close="SetMode").post("/api/livepresets/Dark/apply")
+    return dropped
 
 
 # --- GET /api/livepresets --------------------------------------------------------
@@ -178,6 +191,22 @@ def test_applying_a_preset_the_engine_cannot_route_details_the_refused_fields_al
     # the routing refusal's own reasons, unwrapped: one entry per field that could
     # not be routed and nothing else, so the card can mark exactly those controls
     assert set(stale_api.post("/api/livepresets/Stale/apply").json()["detail"]) == {"filter"}
+
+
+def test_applying_a_preset_when_the_daemon_drops_the_connection_is_unavailable(
+    dropping_apply: Response,
+) -> None:
+    assert dropping_apply.status_code == 503
+
+
+# That the 503 carries a body at all is state, not wording: a client showing the
+# user why the apply failed has nothing to show when `detail` comes back empty.
+# WHAT it says stays the owner's and is named nowhere here (docs/testing.md
+# rule 9) — only that something was said.
+def test_a_dropped_connection_explains_itself_rather_than_failing_silently(
+    dropping_apply: Response,
+) -> None:
+    assert dropping_apply.json()["detail"] != ""
 
 
 # --- DELETE /api/livepresets/{name} ----------------------------------------------

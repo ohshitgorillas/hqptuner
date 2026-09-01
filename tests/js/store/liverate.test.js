@@ -14,13 +14,8 @@
 //
 // The menus name a TIER, not a frequency. Every tier has a 44.1k and a 48k
 // member and the menu carries the 48k one, so DSD512 is 24576000 in the menu
-// and 22579200 as the same tier's 44.1k twin. The 48k member is also the number
-// that leaves the browser, whatever is playing: a picked rate goes to the config
-// LIMIT slot (`defaults_samplerate` / `defaults_bitrate`,
-// docs/settings-classification.md §Rate slots), which caps the tier and leaves
-// the ENGINE to pick the member in the playing source's own base family, per
-// track. The browser chooses no base family at all, so the question left here is
-// REACHABILITY alone:
+// and 22579200 as the same tier's 44.1k twin. REACHABILITY and the RATE SENT
+// are two separate questions:
 //
 //   - a tier is reachable when the engine's list holds EITHER of its members,
 //     and grayed with a reason only when it holds NEITHER. A tier the engine is
@@ -32,12 +27,10 @@
 //     it is offered whole, every tier reachable. The dormant-column cases below
 //     are not an exception to the either-member rule — they are the case where
 //     the rule has nothing to speak about.
-//
-// A source is 44.1-family when its reported rate and 44100 divide either way,
-// and it is `metadata.samplerate` with `status.active_rate` as the fallback.
-// Fixtures below still separate the two, because a column judged against the
-// engine's own output rate rather than the loaded family would read alike on a
-// fixture where they agree.
+//   - which member actually leaves the browser does NOT depend on the source:
+//     the tier's own 48k member when the engine's list holds it, otherwise the
+//     tier's 44.1k member when the list holds only that one, otherwise the 48k
+//     member regardless. Those sends are pinned at the wire, on `w.posts`.
 //
 // A tier the engine is not offering is LISTED and grayed, never dropped: an
 // entry that has vanished reads as a rate this build does not support rather
@@ -224,14 +217,10 @@ const FILE = (mode, samplerate, bitrate) => ({
   defaults_bitrate: bitrate,
 });
 
-// What /api/status serves while a track plays. The SOURCE's own rate is
-// `metadata.samplerate`; `status.active_rate` is what the engine is putting
-// out, a different number entirely with oversampling in the path. The tier
-// resolves against the source — settings-classification §LIVE: "engine report
-// what is playing, so store/live/rates.js resolve the picked tier to that source's
-// own member before sending (DSD512 on 44.1k track → 22579200)" — so the
-// caller names the output rate separately, and the cases below put it in the
-// family the source is NOT in.
+// What /api/status serves while a 44.1 kHz track plays. The SOURCE's own rate
+// is `metadata.samplerate`; `status.active_rate` is what the engine is putting
+// out. The member sent never depends on it: a store that resolved the tier
+// against the source would send 22579200 under this fixture.
 /**
  * @param {string} out
  * @returns {EngineStatus}
@@ -329,8 +318,8 @@ const PCM_LIST_44K = (over = {}) => ({
 });
 
 // The mirror: the engine enumerates DSD512 by its 48k member alone, and is
-// putting that same 48k rate out, while the source is 44.1 kHz — so the tier is
-// listed at one member only and the source is in the other family.
+// putting that same 48k rate out, while the source is 44.1 kHz — so the member
+// that would be sent is the one the list is missing.
 const SDM_LIST_48K_ON_44K_SOURCE = () => ({
   state: STATE({ mode: "2", chain: "sdm", rate: "1" }),
   lists: ENUMS("SDM (DSD)", rates(DSD512)),
@@ -526,6 +515,47 @@ test("test_a_grayed_tier_is_still_listed_in_the_menu", () => {
   reset(SDM_RUNNING());
   const found = liveModel.value.sdmRate.options.some((/** @type {RateOption} */ o) => String(o.value) === DSD512);
   assert.ok(found, "the grayed DSD512 tier was dropped from the menu instead of listed");
+});
+
+// --- which member of a picked tier actually leaves the browser ----------------
+// The menu carries the 48k member as the tier's name, so every write below asks
+// for the same DSD512 entry and the number on the wire is the store's whole
+// answer. Order: the source's own member if the engine lists it, else the
+// tier's other member if the engine lists that, else the source's own member
+// regardless.
+
+test("test_a_write_of_a_tier_the_engine_lists_only_at_44_1k_sends_the_44_1k_member", async () => {
+  // Nothing playing, so the source's member is 24576000 and the engine does not
+  // list it; 22579200 is listed, so that is what `SetRate` can actually take.
+  const w = reset(SDM_LIST_44K());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
+});
+
+test("test_a_write_of_a_pcm_tier_the_engine_lists_only_at_44_1k_sends_the_44_1k_member", async () => {
+  // The PCM half of the send rule. Nothing is playing, so the source's member
+  // is 192000 and the engine does not list it; 176400 is listed, so that is
+  // what `SetRate` can take. A store that resolves twins for DSD alone, or
+  // hard-codes the DSD512 pair, sends 192000 here.
+  const w = reset(PCM_LIST_44K());
+  await writeLive("rate", PCM_4X);
+  assert.deepEqual(w.posts, [{ fields: { rate: PCM_4X_44K } }]);
+});
+
+test("test_under_a_44_1k_source_a_write_of_a_tier_listed_only_at_48k_sends_the_48k_member", async () => {
+  // The mirror: the source's member is 22579200 and the engine does not list
+  // it, so the tier's other member — the one the engine does list — goes out.
+  const w = reset(SDM_LIST_48K_ON_44K_SOURCE());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512 } }]);
+});
+
+test("test_with_nothing_playing_a_write_of_a_tier_the_engine_lists_at_neither_member_sends_the_48k_member", async () => {
+  // The engine offers DSD256 alone, so neither member can be found and the
+  // tier goes out unchanged — the number the menu itself carries.
+  const w = reset(SDM_RUNNING());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512 } }]);
 });
 
 // --- a list with nothing to judge by ------------------------------------------

@@ -16,12 +16,9 @@ it 38 at index 0, `sinc-M` is enum 23 at SDM index 1, the PCM rates ladder is
 `SDM (DSD)` at indices 0/1/2.
 """
 
-from collections.abc import Iterator
 from typing import Any
 
-import fake_http
-import pytest
-from conftest import LiveManager, StartManager
+from conftest import LiveManager
 from narrow import present
 
 from hqptuner.core.manager import ConnectionManager
@@ -128,27 +125,10 @@ async def test_the_loaded_pcm_chains_dither_is_reported_by_enum_id_and_name(
 # --- the rates enumeration, whose items have no name (protocol.md §6) ----------
 
 
-@pytest.fixture
-def limited_http_daemon() -> Iterator[dict[str, Any]]:
-    """The 8088 fake serving a config file that caps the PCM chain at 384000.
-
-    The rate a snapshot reports is the LIMIT slot for the loaded chain
-    (`<defaults samplerate>` for PCM, `<defaults bitrate>` for SDM), stored as
-    the 48k member of the tier the user picked — not the engine's exact-rate
-    pin, which HQPTuner leaves on auto. 384000 is off the fake's own default of
-    192000, so the value asserted can only have come from this file."""
-    yield from fake_http.spawn(fake_http.state(mode="pcm", defaults_samplerate="384000"))
-
-
-async def test_a_rate_is_named_by_its_own_value(
-    start_manager: StartManager, limited_http_daemon: dict[str, Any]
-) -> None:
-    # A rate has no name of its own anywhere — `<RatesItem index rate/>` carries
-    # none and the config attribute is a bare number — so the rate in Hz is the
-    # label. Reporting the ladder index (384000 sits at PCM index 4) or an empty
-    # name would leave the card with nothing to show.
-    manager = await start_manager(limited_http_daemon["_port"])
-    assert _snapshot(manager)["rate"] == {"value": "384000", "name": "384000"}
+async def test_a_rate_is_named_by_its_own_value(live_manager: LiveManager) -> None:
+    # `<RatesItem index rate/>` carries no name, so the rate in Hz is the label.
+    manager, _, _ = await live_manager(mode="1", rate="2")
+    assert _snapshot(manager)["rate"] == {"value": "352800", "name": "352800"}
 
 
 # --- the output mode ------------------------------------------------------------
