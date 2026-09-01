@@ -10,7 +10,7 @@
 //   as a plain list rather than as one nameless group.
 //
 //   Order: the decorated options come back in the OVERLAY's own key order (the
-//   section's key order is its display order, tests/api/test_metadata_plain_names.py),
+//   section's key order is its display order),
 //   and an option the overlay does not know sorts after every known one,
 //   keeping its own input order — the same tail rule the grouped sections
 //   follow (tests/js/components/combobox-plainnames.test.js).

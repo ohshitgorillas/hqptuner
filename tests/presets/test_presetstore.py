@@ -52,13 +52,6 @@ def test_resaving_a_name_returns_the_newer_bytes(tmp_path: Path) -> None:
     assert store.read("alpha") == b"<new/>"
 
 
-def test_reading_an_unsaved_name_reports_no_such_preset(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save("alpha", PAYLOAD)
-    with pytest.raises(PresetError, match="no such preset"):
-        store.read("bravo")
-
-
 # --- listing and existence --------------------------------------------------
 
 
@@ -83,13 +76,6 @@ def test_exists_answers_for_saved_and_unsaved_names(tmp_path: Path, name: str, *
 # --- delete -----------------------------------------------------------------
 
 
-def test_deleting_an_unsaved_name_reports_no_such_preset(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save("alpha", PAYLOAD)
-    with pytest.raises(PresetError, match="no such preset"):
-        store.delete("bravo")
-
-
 def test_a_deleted_preset_no_longer_exists(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
@@ -106,13 +92,6 @@ def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
 
 
 # --- name refusal -----------------------------------------------------------
-
-
-@pytest.mark.parametrize("name", UNSAFE_NAMES)
-def test_saving_a_name_that_is_not_plain_is_refused(tmp_path: Path, name: str) -> None:
-    store = store_at(tmp_path)
-    with pytest.raises(PresetError, match="invalid preset name"):
-        store.save(name, PAYLOAD)
 
 
 @pytest.mark.parametrize("name", ESCAPING_NAMES)

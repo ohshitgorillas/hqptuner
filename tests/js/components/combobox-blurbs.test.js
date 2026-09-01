@@ -49,8 +49,7 @@ import { staticWire } from "../support/wire.js";
 // shape and given blurbs for SOME of its groups: families Gauss and Sinc carry
 // a blurb while Ext does not, and of Gauss's two variants only "Zed tap"
 // carries one — so both the present-blurb and the absent-blurb renders are
-// observable in one fragment. Blurb strings are invented test data (the
-// shipped wording is pinned server-side, tests/api/test_metadata_blurbs.py).
+// observable in one fragment. Blurb strings are invented test data.
 
 const GAUSS_BLURB = "Bells of every width";
 const SINC_BLURB = "One long ess";

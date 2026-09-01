@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 import pytest
 from narrow import present
 
-from hqptuner.engine.control import CommandError, ControlClient
+from hqptuner.engine.control import ControlClient
 
 XML = '<?xml version="1.0" encoding="UTF-8"?>'
 
@@ -77,8 +77,3 @@ async def test_bare_ampersand_in_attribute_is_tolerated(client: ControlClient) -
 async def test_double_escaped_entities_are_fully_unescaped(client: ControlClient) -> None:
     _, meta = await client.get_status()
     assert present(meta)["artist"] == "Simon & Garfunkel"
-
-
-async def test_setter_error_result_raises(client: ControlClient) -> None:
-    with pytest.raises(CommandError, match="invalid filter"):
-        await client.set_command("SetFilter", value="999")

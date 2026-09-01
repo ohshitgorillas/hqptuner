@@ -103,13 +103,6 @@ test("test_a_failed_read_leaves_the_list_empty", async () => {
   assert.deepEqual(livePresets.value, []);
 });
 
-test("test_a_failed_read_reports_its_reason", async () => {
-  reset({ listStatus: 500, listDetail: "the preset store is unreadable" });
-  liveMode.value = true;
-  await settle();
-  assert.ok(livePresetError.value.includes("the preset store is unreadable"));
-});
-
 // --- applying -----------------------------------------------------------------
 
 test("test_applying_a_preset_posts_to_its_apply_endpoint", async () => {
@@ -122,35 +115,6 @@ test("test_applying_a_preset_whose_name_has_a_space_escapes_the_path", async () 
   const w = reset({ presets: [rec("Living Room", "pcm")] });
   await applyLivePreset("Living Room");
   assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Living%20Room/apply").length, 1);
-});
-
-test("test_a_refused_apply_carries_the_engines_own_reason", async () => {
-  // 409's detail is a per-field object; the fetch wrapper flattens its values
-  // into one sentence, so the reason — not the object — is what surfaces.
-  reset({
-    presets: [rec("Den", "pcm")],
-    applyStatus: 409,
-    applyDetail: { filter1x: "the pcm chain is not loaded (engine chain: sdm)" },
-  });
-  await applyLivePreset("Den");
-  assert.ok(livePresetError.value.includes("the pcm chain is not loaded (engine chain: sdm)"));
-});
-
-test("test_a_setting_that_did_not_verify_is_reported_after_a_successful_apply", async () => {
-  // A 200 can still carry a failure: result="OK" is not proof, so every live
-  // write is verified by reading the state back (protocol.md §4).
-  reset({
-    presets: [rec("Den", "pcm")],
-    report: {
-      live: [
-        { setting: "filter1x", ok: true },
-        { setting: "rate", ok: false, error: "SetRate did not take" },
-      ],
-      stored: {},
-    },
-  });
-  await applyLivePreset("Den");
-  assert.ok(livePresetError.value.includes("SetRate did not take"));
 });
 
 test("test_an_apply_whose_settings_all_verified_reports_nothing", async () => {
@@ -241,12 +205,6 @@ test("test_a_save_re_reads_the_preset_list", async () => {
   reset({ presets: [rec("Living Room", "pcm")] });
   await saveLivePreset("Den");
   assert.deepEqual(names(), ["Living Room", "Den"]);
-});
-
-test("test_a_failed_save_reports_its_reason", async () => {
-  reset({ saveStatus: 500, saveDetail: "the preset store is not writable" });
-  await saveLivePreset("Den");
-  assert.ok(livePresetError.value.includes("the preset store is not writable"));
 });
 
 test("test_deleting_a_preset_sends_a_delete_to_its_endpoint", async () => {

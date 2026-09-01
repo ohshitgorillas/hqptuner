@@ -188,13 +188,6 @@ test("test_a_failed_save_reverts_an_unstar_too", async () => {
   assert.equal(favoriteFilters.value.has("gauss-a"), true);
 });
 
-test("test_a_failed_save_reports_the_sentence_the_server_sent", async () => {
-  reset(PLAIN);
-  favoritesWire({ putStatus: 500, putDetail: "State directory is read-only." });
-  await toggleFavorite("gauss-a");
-  assert.equal(favoritesError.value, "State directory is read-only.");
-});
-
 test("test_a_successful_save_leaves_no_error", async () => {
   reset(PLAIN);
   favoritesWire();

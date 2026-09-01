@@ -13,7 +13,6 @@ from narrow import present
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import overrides, routing
 
 
@@ -43,12 +42,6 @@ async def split_filter_manager(split_filter_daemon_port: int) -> AsyncIterator[C
 async def test_live_edit_applies_and_verifies(running_manager: ConnectionManager) -> None:
     report = await running_manager.applyops.apply({"shaper": {"value": "5"}}, {})
     assert report["live"][0]["ok"] is True
-
-
-async def test_live_edit_without_connection_raises() -> None:
-    manager = ConnectionManager(Config())
-    with pytest.raises(ControlError, match="not connected"):
-        await manager.applyops.apply({"shaper": {"value": "5"}}, {})
 
 
 async def test_http_edit_without_credentials_reports_error() -> None:

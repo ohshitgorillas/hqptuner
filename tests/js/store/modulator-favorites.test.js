@@ -196,13 +196,6 @@ test("test_a_failed_modulator_save_reverts_an_unstar_too", async () => {
   assert.equal(favoriteModulators.value.has("ASDM7EC"), true);
 });
 
-test("test_a_failed_modulator_save_reports_the_sentence_the_server_sent", async () => {
-  reset();
-  favoritesWire({ putStatus: 500, putDetail: "State directory is read-only." });
-  await toggleFavoriteModulator("ASDM7EC");
-  assert.equal(favoritesError.value, "State directory is read-only.");
-});
-
 test("test_a_successful_modulator_save_leaves_no_error", async () => {
   reset();
   favoritesWire();

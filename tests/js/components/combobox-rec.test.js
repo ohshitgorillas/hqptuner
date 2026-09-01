@@ -12,8 +12,7 @@
 // field joins (here `noise_filter`), driven through the field harness's
 // metadata fixture; raw option labels are the daemon's own enumeration names
 // (tests/support/fixtures/config-form-6.0.4.html). Family, leaf and short
-// strings are invented test data — the shipped wording is pinned server-side
-// (tests/api/test_metadata_pcm_plain_names.py).
+// strings are invented test data.
 //
 // Glyph and legend are found by their CSS class, which is contract, and rows by
 // the `data-v` wire value they carry — never by the words either renders

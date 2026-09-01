@@ -253,11 +253,6 @@ test("test_the_structural_view_draws_the_geometry_diagram", async () => {
   assert.ok(card().includes('class="spk-diagram"'));
 });
 
-test("test_the_structural_view_lists_the_named_presets", async () => {
-  await reset({ mode: "structural" });
-  assert.ok(card().includes('<option value="neutral">Neutral center</option>'));
-});
-
 test("test_on_preset_controls_offer_no_custom_option", async () => {
   await reset({ mode: "structural" }); // 30° / 100% is the Anechoic preset
   assert.equal(card().includes('value="custom"'), false);

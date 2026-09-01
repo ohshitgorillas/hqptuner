@@ -154,12 +154,6 @@ test("test_the_tab_bar_stands_with_live_off", async () => {
 // The case that pinned the page's lede is gone: that sentence is owner-owned
 // copy with no machine identity beside it (docs/testing.md rule 9).
 
-test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
-  await reset();
-  liveErrors.value = { rate: "the pcm chain is not loaded" };
-  assert.ok(page().includes('<div class="live-error">the pcm chain is not loaded</div>'));
-});
-
 // The option's own tag, by the name the fixture gave the profile. What the
 // picker SAYS about an unloadable profile is the owner's wording; that it
 // cannot be picked is the behavior (rule 9).

@@ -163,8 +163,7 @@ for (const { preset, knob } of RESTING) {
 // Beside the one sentence a knob as a whole may carry, each POSITION of a knob
 // may carry its own: hover a position and you are told what that position
 // selects. The words ride on /api/metadata beside the tile copy, under
-// `easy.tips.<knobId>.<optionId>`, the shape tests/api/test_metadata_easy_tips.py
-// pins against the shipped file.
+// `easy.tips.<knobId>.<optionId>`.
 //
 // WHAT THESE CASES SEED IS THEIR OWN, as everywhere else in this file: the
 // harness replaces the whole payload on every reset, so the tips a case meets

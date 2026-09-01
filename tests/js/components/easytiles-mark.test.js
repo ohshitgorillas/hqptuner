@@ -234,8 +234,7 @@ for (const apodizing of ANCHORED) {
 // the three land on screen is CSS and belongs to the visual hand-back.
 //
 // The titles and descriptions are this file's own stand-ins, seeded through
-// /api/metadata's `easy.<presetId>` shape
-// (tests/api/test_metadata_easy.py). No word of what ships reaches these cases,
+// /api/metadata's `easy.<presetId>` shape. No word of what ships reaches these cases,
 // and the title is used as a POSITION and never as a value.
 
 /** @param {string} presetId */

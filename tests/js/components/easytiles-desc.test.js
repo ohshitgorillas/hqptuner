@@ -12,7 +12,7 @@
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The descriptions the tiles
 // are rendering are this file's own stand-ins, seeded through /api/metadata's
-// `easy.<presetId>` shape (tests/api/test_metadata_easy.py) — the owner's
+// `easy.<presetId>` shape — the owner's
 // own descriptions never reach these cases, no block's words are asserted, no
 // substring is looked for and no length is counted. What is asserted is how many
 // blocks a description of N paragraphs comes out as, and that they hang off one

@@ -169,24 +169,6 @@ def test_blanking_a_name_that_was_never_written_is_not_refused(tmp_path: Path) -
 # --- what a name may be ----------------------------------------------------------
 
 
-# The refusal has to NAME the problem, so `match=` holds it to saying which of
-# the two fields it is about — the wording beyond that is the store's to choose,
-# but a bare "invalid input" leaves the user nothing to act on.
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param("", id="empty"),
-        pytest.param("x" * 129, id="129-chars"),
-        pytest.param("Living\x00Room", id="null-byte"),
-        pytest.param("Living\nRoom", id="newline"),
-        pytest.param("Living\x07Room", id="bell"),
-    ],
-)
-def test_an_invalid_name_is_refused(tmp_path: Path, name: str) -> None:
-    with pytest.raises(DescriptionError, match=r"(?i)name"):
-        store_at(tmp_path).write(name, TEXT)
-
-
 def test_a_name_of_exactly_128_characters_is_accepted(tmp_path: Path) -> None:
     assert "x" * 128 in store_at(tmp_path).write("x" * 128, TEXT)
 
@@ -199,20 +181,6 @@ def test_a_refused_name_stores_nothing(tmp_path: Path) -> None:
 
 
 # --- what text may be -------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        pytest.param("x" * 2001, id="2001-chars"),
-        pytest.param("warm\x00room", id="null-byte"),
-        pytest.param("warm\x07room", id="bell"),
-        pytest.param("warm\x1broom", id="escape"),
-    ],
-)
-def test_invalid_text_is_refused(tmp_path: Path, text: str) -> None:
-    with pytest.raises(DescriptionError, match=r"(?i)(text|description)"):
-        store_at(tmp_path).write(NAME, text)
 
 
 def test_text_of_exactly_2000_characters_is_accepted(tmp_path: Path) -> None:

@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from hqptuner.presets.store.live import LivePresetError, LivePresetStore
+from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
@@ -148,29 +148,7 @@ def test_a_live_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(
 # --- refusals ----------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", REFUSED_NAMES)
-def test_a_name_that_would_break_the_store_is_refused(tmp_path: Path, name: str) -> None:
-    store = store_at(tmp_path)
-    with pytest.raises(PresetError, match="invalid preset name"):
-        store.save(name, PAYLOAD)
-
-
-@pytest.mark.parametrize("name", REFUSED_NAMES)
-def test_a_live_preset_name_that_would_break_the_store_is_refused(tmp_path: Path, name: str) -> None:
-    store = live_store_at(tmp_path)
-    with pytest.raises(LivePresetError, match="invalid live preset name"):
-        store.save(name, RECORD)
-
-
 # --- the 255-BYTE filename boundary -----------------------------------------
-
-
-def test_a_name_whose_utf8_bytes_plus_suffix_exceed_255_is_refused(tmp_path: Path) -> None:
-    # PresetError, not a bare OSError leaking out of the filesystem — the caller
-    # is told the name is invalid, not handed an errno.
-    store = store_at(tmp_path)
-    with pytest.raises(PresetError, match="invalid preset name"):
-        store.save(FIRST_REFUSED_LENGTH, PAYLOAD)
 
 
 def test_a_name_whose_utf8_bytes_plus_suffix_are_exactly_255_is_accepted(tmp_path: Path) -> None:

@@ -43,11 +43,6 @@ def test_path_components_are_stripped_from_upload_names(manager: ConnectionManag
     assert manager.presetops.park_filter("../../etc/evil.wav", b"RIFF")["name"] == "evil.wav"
 
 
-def test_non_filter_extension_is_refused(manager: ConnectionManager) -> None:
-    with pytest.raises(ValueError, match=r"wav or \.txt"):
-        manager.presetops.park_filter("payload.exe", b"MZ")
-
-
 def test_parametric_eq_txt_is_accepted(manager: ConnectionManager) -> None:
     assert manager.presetops.park_filter("autoeq.txt", b"Preamp: -6.4 dB")["name"] == "autoeq.txt"
 

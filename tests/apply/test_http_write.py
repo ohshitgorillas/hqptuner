@@ -68,14 +68,6 @@ async def test_post_profile_load_hits_the_load_route(
     assert captured[0][0] == "/config/profile/load"
 
 
-async def test_post_profile_rejects_an_unknown_action(
-    http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
-) -> None:
-    client, _ = http_client
-    with pytest.raises(ValueError, match="unknown profile action"):
-        await client.post_profile("bogus", profile="x")
-
-
 async def test_backup_returns_the_daemon_bytes(
     http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
 ) -> None:

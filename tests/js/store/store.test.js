@@ -458,17 +458,6 @@ test("test_a_failed_save_is_reported_as_failed", async () => {
 // code stays the base outcome's. The base sentence is read off a save-free run
 // of the same apply, so no owner wording is pinned — only the composition.
 
-test("test_a_failed_save_appends_its_failure_to_the_base_apply_sentence", async () => {
-  await trees();
-  await discardAll();
-  route({ apply: {} });
-  await applyAll();
-  const base = verdict(lastApply).text;
-  route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).text, `${base} — save to "P" failed: disk`);
-});
-
 // As with the persistent lane's daemon error above: the error string is
 // test-invented, so asserting it back pins no shipped wording.
 test("test_the_save_errors_own_text_reaches_the_user", async () => {

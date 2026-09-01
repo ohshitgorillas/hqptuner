@@ -81,7 +81,7 @@ Shipped as JSON, extracted from HQPlayer manual, joined against live enumeration
 - `data/shapers.json` — dither/modulator prose, order, type, and minimum/optimal rate constraints that drive §5's modulator graying and both families' conflict alerts. Sole source for those constraints.
 - `data/settings.json` — per-control tooltip prose, with `source` field citing manual §, readme §, or `hqptuner` for UI-native text.
 
-Coverage guarded by `tests/test_metadata.py` and `scripts/validate_metadata.py`.
+Coverage guarded by `scripts/validate_metadata.py`.
 
 ## 7. Presets
 

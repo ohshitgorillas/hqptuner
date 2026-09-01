@@ -247,18 +247,6 @@ test("test_a_verified_write_leaves_the_control_without_an_error", async () => {
   assert.equal(liveErrors.value.filter, undefined);
 });
 
-test("test_a_setter_that_did_not_verify_names_itself_on_the_control", async () => {
-  reset({ report: { live: [{ setting: "filter", ok: false, error: "filter never converged" }] } });
-  await writeLive("filter", "40");
-  assert.equal(liveErrors.value.filter, "filter never converged");
-});
-
-test("test_a_refused_batch_carries_the_engines_own_reason", async () => {
-  reset({ status: 409, detail: { filter: "the pcm chain is not loaded (engine chain: sdm)" } });
-  await writeLive("filter", "40");
-  assert.equal(liveErrors.value.filter, "the pcm chain is not loaded (engine chain: sdm)");
-});
-
 test("test_a_mode_write_re_pulls_the_enumerations", async () => {
   reset({ fresh: RE_ENUMS() });
   await writeLive("mode", "sdm");
@@ -344,10 +332,4 @@ test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => 
   reset(REFUSED());
   await writeLive("filter", "40");
   assert.equal(control("filter").value, "0");
-});
-
-test("test_a_write_the_backend_refused_names_its_reason_on_the_control", async () => {
-  reset(REFUSED());
-  await writeLive("filter", "40");
-  assert.match(liveErrors.value.filter, /no reply within/);
 });

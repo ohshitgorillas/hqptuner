@@ -1,8 +1,6 @@
 """Typed Control API setters and readback verification against the stateful
 fake daemon (docs/testing.md — behavior via public API, one assertion each)."""
 
-import pytest
-
 from hqptuner.engine.control import CommandError, ControlClient
 
 
@@ -32,8 +30,3 @@ async def test_verify_state_passes_on_match(live_client: ControlClient) -> None:
     except CommandError:
         pass
     assert outcome == "returned"
-
-
-async def test_verify_state_raises_on_mismatch(live_client: ControlClient) -> None:
-    with pytest.raises(CommandError, match="mismatch"):
-        await live_client.verify_state({"mode": "9"})

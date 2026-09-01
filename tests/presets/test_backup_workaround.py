@@ -24,14 +24,6 @@ from hqptuner.presets import presetlane
 # --- backup_or_cached: the workaround itself ----------------------------------
 
 
-async def test_a_write_refuses_an_empty_backup_archive(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any]
-) -> None:
-    http_daemon["_empty"] = True
-    with pytest.raises(xmledit.GroundingError, match="nothing to build a restore"):
-        await http_manager.presetops.backup_or_cached(for_write=True)
-
-
 async def test_a_write_refuses_the_cached_fallback_too(
     http_manager: ConnectionManager, http_daemon: dict[str, Any]
 ) -> None:

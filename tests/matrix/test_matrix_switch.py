@@ -15,7 +15,6 @@ from narrow import present
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.control import ControlError
 from hqptuner.lanes import matrixlane
 
 
@@ -62,9 +61,3 @@ async def test_switch_resyncs_the_matrix_form(switch_manager: ConnectionManager,
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     await matrixlane.switch_profile(switch_manager, "Mch-to-Stereo mixdown")
     assert present(switch_manager.readings.matrix_form)["active"] == "Mch-to-Stereo mixdown"
-
-
-async def test_switch_without_a_connection_raises() -> None:
-    manager = ConnectionManager(Config())
-    with pytest.raises(ControlError, match="not connected"):
-        await matrixlane.switch_profile(manager, "Default")

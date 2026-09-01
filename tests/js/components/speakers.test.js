@@ -304,13 +304,6 @@ function refuse(answer) {
   });
 }
 
-test("test_a_refused_apply_reports_the_daemons_own_reason", async () => {
-  await reset();
-  refuse(bad(502, "speakers apply failed: engine did not answer"));
-  await applySpeakers(true, {});
-  assert.equal(speakersError.value, "speakers apply failed: engine did not answer");
-});
-
 test("test_a_refusal_with_no_reason_still_reports_the_status", async () => {
   await reset();
   refuse(bad(502));

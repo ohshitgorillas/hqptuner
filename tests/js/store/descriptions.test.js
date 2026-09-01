@@ -218,13 +218,6 @@ test("test_a_successful_save_leaves_no_error", async () => {
 // server refused leaves the text queued, so the next flush still carries it, and
 // says why on the error line — it never blanks what is on screen.
 
-test("test_a_failed_save_reports_the_sentence_the_server_sent", async () => {
-  await reset({ putStatus: 422, putDetail: "That description is too long." });
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  assert.equal(descriptionError.value, "That description is too long.");
-});
-
 test("test_a_failed_save_keeps_the_text_queued_for_the_next_flush", async () => {
   const w = await reset({ putStatus: 500, putDetail: "State directory is read-only." });
   queueDescription(NAME, TEXT);

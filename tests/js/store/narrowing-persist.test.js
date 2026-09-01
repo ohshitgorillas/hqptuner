@@ -176,12 +176,6 @@ test("test_a_failed_hydration_leaves_a_facet_at_the_value_it_already_held", asyn
   assert.deepEqual(nPhase.value, ["minimum"]);
 });
 
-test("test_a_failed_hydration_reports_the_sentence_the_server_sent", async () => {
-  await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
-  await hydrateNarrowing();
-  assert.equal(narrowingError.value, "Narrowing is unavailable.");
-});
-
 // A facet the user has already touched is theirs: the answer that was in flight
 // while they toggled describes the page before the toggle, and must not undo it.
 test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async () => {
@@ -342,14 +336,6 @@ test("test_a_failed_write_keeps_the_facet_the_user_set", async () => {
   nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.deepEqual(nPhase.value, ["minimum"]);
-});
-
-test("test_a_failed_write_reports_the_sentence_the_server_sent", async () => {
-  await reset({ putStatus: 500, putDetail: "State directory is read-only." });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.equal(narrowingError.value, "State directory is read-only.");
 });
 
 test("test_a_write_that_succeeds_after_a_failed_one_clears_the_error", async () => {

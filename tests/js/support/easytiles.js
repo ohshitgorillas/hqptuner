@@ -365,7 +365,7 @@ export async function flush(w) {
  * looks like from the harness, and the record is meant to cross it.
  *
  * `copy` is the owner copy /api/metadata carries for the tiles, keyed by preset
- * id (`easy.<presetId>`, the shape tests/api/test_metadata_easy.py pins). Every
+ * id (`easy.<presetId>`). Every
  * case that does not name it gets the bare notice the fixture has always
  * carried, so a tile shows no prose at all; a case reading what a description
  * RENDERS seeds its own stand-in text here and never meets what ships.

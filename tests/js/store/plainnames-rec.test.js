@@ -18,8 +18,7 @@
 // the pref is the exported signal. Raw option labels are the daemon's own
 // enumeration names (tests/support/fixtures/config-form-6.0.4.html), wire
 // identifiers rather than wording; family, leaf and short strings are invented
-// test data — the shipped wording is pinned server-side
-// (tests/api/test_metadata_pcm_plain_names.py).
+// test data.
 //
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link — the convention
