@@ -63,7 +63,9 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     """Return the keys a save keeps, mode forced beside any chain-scoped one; None = everything. Unknown key -> 422."""
     if wanted is None:
         return None
-    known = {*routing.live_fields(), AUTOPILOT}
+    # `rate` beside the live fields: a preset carries one, but it is not a live
+    # setter — it lands in the config limit slot (`live.chain.RATE_LIMIT_FIELD`).
+    known = {*routing.live_fields(), "rate", AUTOPILOT}
     unknown = [key for key in wanted if key not in known]
     if unknown:
         raise refuse("fields_unknown", {"fields": f"not live preset settings: {', '.join(unknown)}"})
