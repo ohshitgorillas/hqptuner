@@ -117,8 +117,8 @@ const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ me
 // lands. Otherwise only where the engine has no live route for the setting at
 // all, which is the rate pair in auto and nothing else (`AUTO_RATE_REASON`). Both chain
 // cards and, under an explicit mode, both rate columns take edits whichever
-// family is running, the dormant side's being held and landing when that family
-// loads (lanes/live/routing.unpinnable_rate). Nothing here is ever disabled for
+// family is running: a rate writes that family's config limit slot
+// (lanes/live/chain.RATE_LIMIT_FIELD), not the running chain. Nothing here is ever disabled for
 // playing (CLAUDE.md).
 //
 // The reason rides the hover title and prints nowhere on the page, the same way

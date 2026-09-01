@@ -85,10 +85,14 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     """
     if not body.fields:
         raise refuse("fields_unknown", "no live fields given")
-    unknown = sorted(set(body.fields) - set(routing.live_fields()))
+    # The rate is not a live setter: it lands in the limit slot, which is a config
+    # field, so it leaves the live lane here rather than resolving to a `SetRate`.
+    fields = dict(body.fields)
+    rate = fields.pop("rate", None)
+    unknown = sorted(set(fields) - set(routing.live_fields()))
     if unknown:
         raise refuse("fields_unknown", f"unknown live fields: {unknown}")
-    if "junk_filter" in body.fields:
+    if "junk_filter" in fields:
         # Setting the high-frequency filter by hand stands auto-pilot down — it is the
         # user taking the control back, and leaving it on would have the poll loop undo
         # the choice they just made. Before the write, not after, so there is no window
@@ -96,7 +100,9 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
         with contextlib.suppress(AutopilotError):
             presetlane.switch_autopilot(manager, "live.write", enabled=False)
     try:
-        report = await lane.apply_now(manager, body.fields)
+        report = await lane.apply_now(manager, fields) if fields else {"live": [], "stored": {}}
+        if rate is not None:
+            report["rate"] = await manager.applyops.set_rate_limit(rate)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

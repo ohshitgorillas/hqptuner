@@ -19,8 +19,8 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 |---|---|---|
 | Output mode (PCM/SDM) | live | `SetMode` verified: index domain (0=[source], 1=PCM, 2=SDM); immediate; reset rate to auto, swap enumeration lists. HTTP field `mode` (`auto`/`pcm`/`sdm`) also set it persistently |
 | Backend (ALSA/Network) | http | field `backend` (`alsa`/`network`/`combo`) |
-| Rate | live | `SetRate` verified: `RatesItem` index; immediate even while stopped; index 0 = auto |
-| Auto rate family | http | live-adjacent: `SetRate` index 0 select auto/source-based rate |
+| Rate | http | `defaults_samplerate` / `defaults_bitrate`, always the tier's 48k member. **`SetRate` is never sent**: it writes the FIXED slot (`samplerate`/`bitrate`) and an exact rate there overrides automatic base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses the filter (measured on 6.0.4: pin 24576000 under a 44.1 kHz source held 24576000; clearing it gave 22579200) |
+| Auto rate family | http | `auto_family`, forced on with the fixed slots at 0 (`FORCED_CONFIG`); what picks the tier member matching the source, per track |
 | Output device | http | **per-backend**: `alsa_device` / `net_device` (select) |
 | DAC bits | http | **per-backend**: `alsa_bits` / `net_bits` (0–32). Independent values (live: `alsa_bits=24`, `net_bits=20`) |
 | DoP | http | **per-backend**: `alsa_dop` / `net_dop` (checkbox) |

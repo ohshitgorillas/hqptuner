@@ -148,8 +148,14 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
         raise refuse(exc) from exc
+    fields = dict(record.get("fields") or {})
+    # A stored rate is a tier, and a tier belongs in the limit slot: routing it to
+    # `SetRate` would pin an exact rate and override automatic base-rate selection.
+    rate = fields.pop("rate", None)
     try:
-        report = await lane.apply_preset(manager, record.get("fields") or {})
+        report = await lane.apply_preset(manager, fields) if fields else {"live": [], "stored": {}}
+        if rate is not None:
+            report["rate"] = await manager.applyops.set_rate_limit(rate)
         _restore_autopilot(manager, record)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
