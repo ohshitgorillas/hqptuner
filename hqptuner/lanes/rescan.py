@@ -87,8 +87,20 @@ def _restored(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str,
 
 
 async def _reachable(mgr: ConnectionManager) -> bool:
-    """Whether the control lane is answering again."""
-    return mgr.reachable and mgr.control is not None
+    """Whether the control lane is answering again: a read succeeds, not a flag.
+
+    The manager's reachable flag is flipped by its own poll loop, which races the
+    replay to a dead socket. Trusting the flag made the warning depend on which
+    task noticed first; asking the lane makes it depend on the lane.
+    """
+    client = mgr.control
+    if client is None:
+        return False
+    try:
+        await client.get_state()
+    except ControlError:
+        return False
+    return True
 
 
 async def _reread_engine(mgr: ConnectionManager) -> None:
