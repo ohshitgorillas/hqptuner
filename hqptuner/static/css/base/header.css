@@ -94,7 +94,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  border-radius: var(--r-pill);
   box-shadow:
     inset 0 0 0 4px color-mix(in oklab, var(--spec-5) calc(var(--lit) * 100%), transparent),
     0 0 calc(2px + 8px * var(--lit)) color-mix(in oklab, var(--spec-5) calc(var(--lit) * 70%), transparent);
