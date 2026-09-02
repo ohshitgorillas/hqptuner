@@ -10,19 +10,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The Length dropdown gains Extra-short, Stupid long, and Adaptive rows.** Extra-short collects the polynomial interpolators; Stupid long the million-tap filters; Adaptive matches the sinc filters whose tap count scales with conversion ratio. A filter can hold both a length and the adaptive trait.
 - **The narrowing dropdowns carry hints on how to use each facet.**
 - **Easy Mode replaces the filter cards with a small set of curated presets.** A link in the Narrow Filters header swaps the narrowing and chain cards for one card of preset tiles, each with its own emphasis and source adjustments, on the Output tab and the LIVE page; a link inside it swaps back.
-- **API errors carry a code.** Every refused request now answers with a `code` field beside `detail`, a stable identifier a client can act on without parsing the sentence.
 - **Added an apodizing indicator light to the top bar.** Brightness indicates density. Enabled in the HQPTuner card in the System tab.
 - **Dyslexic font mode.** Added the ability to switch the app's non-monospaced font from Inter to Atkinson Hyperlegible, a dyslexic-friendly font. Enabled in the HQPTuner card in the System tab.
 
 ### Changed
 
-- **Apply tells an engine that stopped answering apart from one that refused a value.** The apply note names the settings that failed under each, and every failed setting in the apply report carries a machine code beside its message.
 - **Selecting a preset in LIVE mode loads it immediately.** Previously the pick only staged a preview, and applying it meant leaving LIVE for the Apply button.
-- **Live presets the output device cannot play are grayed in the picker.** A preset pinning an output mode the open device does not offer renders disabled, with the reason on it.
 - **Live presets optionally omit settings.** Saving a live preset opens a popover with checkboxes for choosing which settings the preset carries.
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
-- **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
-- **sinc-Lh reads "Medium with high attenuation".** Its published tap multiplier matches sinc-Lm, not the long tier; the earlier phrasing followed sinc-long-h, which keeps it.
 - **The Mode card moves up beside LIVE MODE.** Both sit in the locked top row: the lede and the preset picker stack on the left, Mode fills the right half. Its old movable slot is gone, and a saved layout order drops it on load.
 - **SDM filter menus drop superseded single-stage variants.** On the SDM chain a filter whose `-2s` two-stage variant exists no longer appears in the 1x and Nx lists or their counts; a selection already set to one stays listed. Simplified option style drops the two-stage clause from the names and the two-stage notes from the description.
 
@@ -32,7 +27,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **A rescan the engine never returns from now says so.** The warning names the engine as gone rather than blaming the settings write, whichever the app noticed first.
 - **Re-selecting a live preset now re-applies the settings.** Before, changing a setting left no way to re-engage the selected Live preset. Now there is.
 - **Preset names sort by number.** DSD1024 listed above DSD256 in both preset pickers, because the digits sorted as text.
 
