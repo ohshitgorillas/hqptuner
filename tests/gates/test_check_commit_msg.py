@@ -40,11 +40,7 @@ def _load_gate_module() -> ModuleType:
 GATE = _load_gate_module()
 CHECK_MESSAGE = GATE.check_message
 
-_SKIPPED_TAIL = (
-    "# 2026-07-28 git wrote this line\n"
-    "\n"
-    "Claude-Session: this session\n"
-)
+_SKIPPED_TAIL = "# 2026-07-28 git wrote this line\n\nClaude-Session: this session\n"
 
 
 def _message(*scanned: str) -> str:
