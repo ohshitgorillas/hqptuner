@@ -66,7 +66,7 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     known = {*routing.live_fields(), AUTOPILOT}
     unknown = [key for key in wanted if key not in known]
     if unknown:
-        raise refuse("fields_unknown", {"fields": f"not live preset settings: {', '.join(unknown)}"})
+        raise refuse("fields_unknown", {"fields": f"not live snapshot settings: {', '.join(unknown)}"})
     keys = set(wanted)
     if keys & _CHAIN_SCOPED:
         keys.add("mode")

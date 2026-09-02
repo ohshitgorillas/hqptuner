@@ -141,7 +141,7 @@ const presetTips = (presets) => (o) => {
 /** @param {LivePreset[]} presets */
 function presetOptions(presets) {
   return [
-    { value: "", label: presets.length ? "Select a preset…" : "No live presets saved" },
+    { value: "", label: presets.length ? "Select a snapshot…" : "No live snapshots saved" },
     ...presets.map((p) => ({ value: p.name, label: p.name, disabled: !!unplayable(p) })),
   ];
 }
@@ -170,21 +170,21 @@ async function onSavePreset(presets) {
   // askChoices resolves whatever the prompt collected (store/ask.js types that
   // `unknown`); a named choices prompt settles {name, values} or the cancel null.
   const picked = /** @type {{ name: string, values: string[] } | null} */ (
-    await askChoices(PRESET_OWNER, "Select the settings to attach to the new preset.", choiceRows(snap), {
+    await askChoices(PRESET_OWNER, "Select the settings to attach to the new snapshot.", choiceRows(snap), {
       name: true,
     })
   );
   if (!picked) return;
   const { name, values } = picked;
   const exists = presets.some((p) => p.name === name);
-  if (exists && !(await askConfirm(PRESET_OWNER, `Live preset "${name}" already exists. Overwrite it?`))) return;
+  if (exists && !(await askConfirm(PRESET_OWNER, `Live snapshot "${name}" already exists. Overwrite it?`))) return;
   await saveLivePreset(name, values);
   selectedPreset.value = name;
 }
 
 /** @param {string} name */
 async function onDeletePreset(name) {
-  if (!(await askConfirm(PRESET_OWNER, `Delete live preset "${name}"? This cannot be undone.`))) return;
+  if (!(await askConfirm(PRESET_OWNER, `Delete live snapshot "${name}"? This cannot be undone.`))) return;
   await deleteLivePreset(name);
   selectedPreset.value = "";
 }
@@ -202,7 +202,7 @@ function LivePresetPicker() {
   const name = selectedPreset.value;
   return html`
     <div class="field live-presets">
-      <label>Live preset</label>
+      <label>Live snapshot</label>
       <div class="control" data-testid="live-preset">
         <${Combobox}
           value=${name}
