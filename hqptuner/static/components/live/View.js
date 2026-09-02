@@ -272,7 +272,7 @@ function LockedRow() {
   return html`
     <div class="card-grid">
       <${LiveModeCard} />
-      <${Card} id="live-output-mode" title="Mode" center=${true} cardClass="seg-box">
+      <${Card} id="live-output-mode" title="Mode" center=${true} cardClass="seg-box seg-stack">
         <${LiveField} control=${mode} widget=${Segment} />
       <//>
     </div>

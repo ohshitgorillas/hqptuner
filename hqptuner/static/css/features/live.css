@@ -27,6 +27,49 @@
   white-space: pre-wrap;
 }
 
+/* LIVE's Mode card: the segment stacks vertically, one full-width row per mode,
+   the stack centered in the height the locked row hands the card. The modifier
+   rides beside .seg-box (base sizing, hero.css), but the hero card's stretch
+   chain is scoped .top-row and this card now lives in a card-grid — so the
+   body-to-segment flex chain is rebuilt here; the divider between buttons
+   swaps from a left edge to a top edge with the axis. */
+.seg-stack .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.seg-stack .field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+}
+.seg-stack .field .control {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+}
+.seg-stack .segment {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  max-width: none;
+}
+.seg-stack .segment .seg {
+  flex: 0 0 auto;
+  width: 100%;
+  border-left: none;
+  border-top: 1px solid var(--line);
+}
+.seg-stack .segment .seg:first-child {
+  border-top: none;
+}
+
 /* The Playback card: the two level settings on the left, the volume dial on the
    right. A fixed two-column split with a 1px TRACK, so the hairline lands on
    the card's center line with every other divider down the page. */

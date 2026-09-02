@@ -219,9 +219,7 @@ function LivePresetPicker() {
         <button type="button" onClick=${() => onDeletePreset(name)} disabled=${busy || !name}>Delete</button>
       </div>
       <${Ask} owner=${PRESET_OWNER} />
-      <div class="field-note">
-        Live presets optionally store everything on this page (except filter narrowing settings) for fast switching.
-      </div>
+      <div class="field-note">Save the current settings to recall them in one click.</div>
       ${livePresetError.value ? html`<div class="live-error">${livePresetError.value}</div>` : null}
     </div>
   `;
@@ -251,9 +249,8 @@ export function LiveModeCard() {
       Edit layout
     </button>
   `;
-  const lede = html`Every control on this page writes to the engine when you select it — no staging, no Apply. Music
-    may be interrupted briefly while the engine reorients itself. Note that changing output mode and another setting
-    too quickly may cause the engine to reset itself.`;
+  const lede = html`In Live mode, settings write to the engine upon selection: no Apply necessary. Changing mode and
+    another setting too quickly will cause the engine to reset.`;
   return html`
     <${Card} id="live-mode" title=${title} subtitle=${lede}>
       <${LivePresetPicker} />
