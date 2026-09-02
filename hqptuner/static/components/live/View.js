@@ -259,16 +259,19 @@ function ChainCards() {
   `;
 }
 
-// Mode leads this page as the same hero card that leads the Output tab — same
-// frame, same centered title, same segment treatment, because it is the same
-// master. The tab's other boxes have no live twin: changing backend rebuilds
-// the audio path, and the rate limits are config fields with no live route, so
-// both are restarts rather than live writes. .top-row divides itself between
-// however many cards it holds, so a lone card takes the full row.
-function HeroRow() {
+// The locked top row: the LIVE MODE card on the left, the Mode card on the
+// right, in the same half-and-half card-grid the tabs pair cards with. Mode is
+// the page's master control, so it lives up here with the lede and the presets
+// rather than in a movable block a stored order could push mid-page. Same
+// frame and segment treatment as the Output tab's own Mode box, because it is
+// the same master. The tab's other boxes have no live twin: changing backend
+// rebuilds the audio path, and the rate limits are config fields with no live
+// route, so both are restarts rather than live writes.
+function LockedRow() {
   const { mode } = liveModel.value;
   return html`
-    <div class="top-row">
+    <div class="card-grid">
+      <${LiveModeCard} />
       <${Card} id="live-output-mode" title="Mode" center=${true} cardClass="seg-box">
         <${LiveField} control=${mode} widget=${Segment} />
       <//>
@@ -314,18 +317,18 @@ function HealthCard() {
 }
 
 /**
- * LIVE page: the locked LIVE MODE card, then the five movable blocks in the
- * user's own order (components/live/Layout.js). The keys are the stored order's
- * vocabulary — a key added here needs the same key in `LIVE_BLOCK_ORDER`
- * (store/prefs.js), which is what keeps a stored order from stranding a block.
+ * LIVE page: the locked row — LIVE MODE and Mode side by side — then the four
+ * movable blocks in the user's own order (components/live/Layout.js). The keys
+ * are the stored order's vocabulary — a key added here needs the same key in
+ * `LIVE_BLOCK_ORDER` (store/prefs.js), which is what keeps a stored order from
+ * stranding a block.
  */
 export function LiveView() {
   return html`
     <${Section}>
       <${LiveBlocks}
-        locked=${html`<${LiveModeCard} />`}
+        locked=${html`<${LockedRow} />`}
         blocks=${{
-          hero: html`<${HeroRow} />`,
           health: html`<${HealthCard} />`,
           chains: html`<${ChainCards} />`,
           playback: html`<${PlaybackCard} />`,

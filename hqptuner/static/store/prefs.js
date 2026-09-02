@@ -242,16 +242,16 @@ export const notesVisible = computed(() => showDescriptions.value);
 // Per-selection option descriptions survive a hidden master when kept.
 export const descVisible = computed(() => showDescriptions.value || keepOptionDescriptions.value);
 
-// The LIVE page's block order. The page is six stacked blocks; the first, LIVE
-// MODE, is locked, and the other five are the user's to arrange. Stored as a
+// The LIVE page's block order. The page is a locked top row (LIVE MODE and
+// Mode) over four movable blocks the user arranges. Stored as a
 // JSON list of block keys rather than an index per block so that a release
 // which adds or drops a block reconciles rather than strands: an unknown key is
 // dropped and a missing one is appended in default order, both on load and on
 // every set, so the stored list can never render a block off the page.
 const K_LIVE_ORDER = "hqptuner.liveOrder";
 
-/** Default top-to-bottom order of the five movable LIVE blocks. */
-export const LIVE_BLOCK_ORDER = ["hero", "health", "chains", "playback", "matrix"];
+/** Default top-to-bottom order of the four movable LIVE blocks. */
+export const LIVE_BLOCK_ORDER = ["health", "chains", "playback", "matrix"];
 
 /**
  * @param {string[]} keys

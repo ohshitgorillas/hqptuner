@@ -23,6 +23,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Filter narrowing counts (1x/Nx columns) in narrowing dropdowns move to the left of the option.** This prevents them from being separated from their option by tons of dead space.
 - **ext2 filters' Simplified class now reads 'Extended frequency response v2'.** Previously just '2', which was somewhat confusing.
 - **sinc-Lh reads "Medium with high attenuation".** Its published tap multiplier matches sinc-Lm, not the long tier; the earlier phrasing followed sinc-long-h, which keeps it.
+- **The Mode card moves up beside LIVE MODE.** Both sit in the locked top row: the lede and the preset picker stack on the left, Mode fills the right half. Its old movable slot is gone, and a saved layout order drops it on load.
 - **SDM filter menus drop superseded single-stage variants.** On the SDM chain a filter whose `-2s` two-stage variant exists no longer appears in the 1x and Nx lists or their counts; a selection already set to one stays listed. Simplified option style drops the two-stage clause from the names and the two-stage notes from the description.
 
 ### Removed

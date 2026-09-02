@@ -43,7 +43,7 @@ The above three features are my flagships, but the following benefits are offere
 * **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
-* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, rate, both filter chains, dither, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live preset** and load it back in one click.
+* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, both filter chains, dither, modulator, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live preset** and load it back in one click.
 * **Exposes more options**: Critical hardware acceleration options like multicore DSP, CUDA mode, and E-core modes are all exposed and explained.
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
 * **Log tail in the browser**: The daemon's log, right in the System tab.

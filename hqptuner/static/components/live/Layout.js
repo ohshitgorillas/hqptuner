@@ -1,7 +1,8 @@
 // The LIVE page's block order and the edit mode that changes it.
 //
-// The page is six stacked blocks. LIVE MODE is locked at the top; the other
-// five are the user's to arrange, and the arrangement is a stored preference
+// The page is a locked row over four stacked blocks. The locked row (LIVE MODE
+// and Mode) stays at the top; the rest are the user's to arrange, and the
+// arrangement is a stored preference
 // (store/prefs.js liveOrder) rather than page state, so it survives a reload
 // the way every other LIVE preference does.
 //

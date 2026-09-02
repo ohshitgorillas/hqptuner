@@ -4,9 +4,9 @@
 // it on the spot, like every other control there; there is no Apply on that page
 // for it to wait for.
 //
-// The picker sits beside the lede rather than under it: both are about what LIVE
-// is, and a preset is the fastest way to say "put the engine back the way I had
-// it", which is the first thing a returning user wants.
+// The lede rides the card head and the picker is the body: both are about what
+// LIVE is, and a preset is the fastest way to say "put the engine back the way
+// I had it", which is the first thing a returning user wants.
 //
 // Filed apart from View.js because none of it touches the live write path —
 // the presets lane speaks to /api/livepresets and to nothing on the page.
@@ -230,7 +230,9 @@ function LivePresetPicker() {
 /**
  * The LIVE page's lede and its presets, in one frame. Bare text floating above
  * the page reads as a stray caption rather than as the thing that explains the
- * whole page.
+ * whole page. The lede rides the card head as its subtitle and the picker is
+ * the body; the Mode card sits beside this one in the locked row
+ * (components/live/View.js LockedRow).
  */
 export function LiveModeCard() {
   const editing = liveEditing.value;
@@ -249,21 +251,12 @@ export function LiveModeCard() {
       Edit layout
     </button>
   `;
+  const lede = html`Every control on this page writes to the engine when you select it — no staging, no Apply. Music
+    may be interrupted briefly while the engine reorients itself. Note that changing output mode and another setting
+    too quickly may cause the engine to reset itself.`;
   return html`
-    <${Card} id="live-mode" title=${title}>
-      <div class="live-mode-cols">
-        <${LivePresetPicker} />
-        <span class="col-rule" aria-hidden="true"></span>
-        <div class="live-mode-lede">
-          <div class="t-caption">
-            Every control on this page writes to the engine when you select it — no staging, no Apply. Music may be
-            interrupted briefly while the engine reorients itself.
-          </div>
-          <div class="t-caption">
-            Note that changing output mode and another setting too quickly may cause the engine to reset itself.
-          </div>
-        </div>
-      </div>
+    <${Card} id="live-mode" title=${title} subtitle=${lede}>
+      <${LivePresetPicker} />
     <//>
   `;
 }

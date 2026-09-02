@@ -44,7 +44,7 @@ const KEY = "hqptuner.liveOrder";
 const PREFS_MODULE = "../../../hqptuner/static/store/prefs.js";
 
 // What this browser had stored before the page ever loaded.
-const STORED = ["chains", "matrix", "hero", "playback", "health"];
+const STORED = ["chains", "matrix", "playback", "health"];
 
 const storage = useStorage();
 storage.setItem(KEY, JSON.stringify(STORED));
@@ -69,7 +69,7 @@ async function loadedWith(tag, stored) {
   return [...fresh.liveOrder.value];
 }
 
-const ORDER = ["matrix", "hero", "health", "chains", "playback"];
+const ORDER = ["matrix", "health", "chains", "playback"];
 
 // --- what the browser had stored is what the page comes up in ---------------------
 
@@ -118,7 +118,7 @@ test("test_a_reorder_made_during_layout_edit_mode_stores_nothing", () => {
   prefs.setLiveOrder(ORDER);
   layout.setLiveEditing(true);
   storage.removeItem(KEY);
-  layout.setDrag("hero", 3);
+  layout.setDrag("health", 2);
   layout.endDrag();
   assert.equal(storage.getItem(KEY), null);
 });

@@ -27,31 +27,9 @@
   white-space: pre-wrap;
 }
 
-/* The LIVE MODE card: presets on the left, the page's lede on the right. A
-   fixed two-column split, so the hairline gets its own 1px TRACK and lands on
-   the card's center line with every other divider down the page (design-system
-   §Rules). .col-rule's own styling — and its disappearance below the breakpoint
-   — is knobs.css's, shared by every split on the page. */
-.live-mode-cols {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-}
-@media (min-width: 1100px) {
-  .live-mode-cols {
-    display: grid;
-    grid-template-columns: 1fr 1px 1fr;
-    gap: var(--sp-4);
-    align-items: start;
-  }
-}
-.live-mode-cols > * {
-  min-width: 0;
-}
-
 /* The Playback card: the two level settings on the left, the volume dial on the
-   right. Same split as LIVE MODE above — the 1px track puts the hairline on the
-   card's center line with every other divider down the page. */
+   right. A fixed two-column split with a 1px TRACK, so the hairline lands on
+   the card's center line with every other divider down the page. */
 .playback-cols {
   display: flex;
   flex-direction: column;
@@ -91,15 +69,6 @@
 .playback-cols .playback-col {
   align-self: stretch;
   justify-content: center;
-}
-
-/* The lede's two paragraphs. Their own measure is the card column, which is
-   narrower than --measure, so the cap does no work here — the gap is all this
-   needs. */
-.live-mode-lede {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
 }
 
 /* The preset picker is a .field, so its label track is the shared one and its
