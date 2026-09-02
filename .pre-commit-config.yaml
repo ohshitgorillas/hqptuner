@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: local
     hooks:
@@ -213,6 +215,15 @@ repos:
         language: system
         types_or: [python, javascript, css]
         exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
+
+      # Runs at the commit-msg stage, so it gets the message file, not the staged
+      # paths; `default_install_hook_types` above is what makes `pre-commit
+      # install` wire that stage alongside pre-commit.
+      - id: commit-msg-archaeology
+        name: commit-message archaeology gate
+        entry: .venv/bin/python scripts/gates/check_commit_msg.py
+        language: system
+        stages: [commit-msg]
 
       # Wiring drifts when either config moves, and neither is a source file any
       # types: selector matches, so this one always runs.
