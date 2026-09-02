@@ -22,7 +22,9 @@ const W = 320;
 const H = 200;
 const PADL = 30;
 const PADR = 10;
-const PADT = 10;
+// The top band is the axis words' own row, clear of the first tick label.
+const PADT = 18;
+const AXIS_Y = 9;
 const PADB = 20;
 const PLOT_W = W - PADL - PADR;
 const PLOT_H = H - PADT - PADB;
@@ -31,11 +33,12 @@ const DB_STEP = 30;
 const FREQ_POINTS = 512;
 // The impulse axis reaches a little past the filter's own half length.
 const SPAN_MARGIN = 1.1;
+// Ticks per side of the transient, at most; the step rounds up to a round
+// figure so the labels never crowd.
 const TIME_TICKS = 4;
 
 /** @param {number} v */
 const r1 = (v) => v.toFixed(1);
-
 /**
  * The impulse pane's traces: output and pulse, in milliseconds from the pulse
  * centre and normalised to the pulse peak.
@@ -59,14 +62,14 @@ function impulse() {
 }
 
 /**
- * A round tick step at or below the raw one: 1, 2 or 5 times a power of ten.
+ * A round tick step at or above the raw one: 1, 2, 5 or 10 times a power of ten.
  * @param {number} raw
  * @returns {number}
  */
 function niceStep(raw) {
   const mag = 10 ** Math.floor(Math.log10(raw));
   const m = raw / mag;
-  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * mag;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * mag;
 }
 
 /** @param {number} ms */
@@ -82,13 +85,13 @@ function ImpulsePane() {
       <svg viewBox="0 0 ${W} ${H}" class="plot-svg">
         <line class="plot-zero" x1=${PADL} y1=${cy} x2=${W - PADR} y2=${cy} />
         <line class="plot-zero" x1=${cx} y1=${PADT} x2=${cx} y2=${PADT + PLOT_H} />
+        <text class="plot-lbl plot-axis" x=${PADL - 4} y=${H - 6} text-anchor="end">ms</text>
         ${ticks.map(
           (ms) => html`
             <text class="plot-lbl" x=${r1(xOf(ms))} y=${H - 6} text-anchor="middle">${fmtMs(ms)}</text>
             ${ms > 0 ? html`<text class="plot-lbl" x=${r1(xOf(-ms))} y=${H - 6} text-anchor="middle">-${fmtMs(ms)}</text>` : null}
           `,
         )}
-        <text class="plot-lbl plot-axis" x=${W - PADR} y=${H - 6} text-anchor="end">ms</text>
         <polyline class="plot-trace ghost" points=${ghost} />
         <polyline class="plot-trace applied" points=${out} />
       </svg>
@@ -141,7 +144,8 @@ function FrequencyPane() {
   /** @type {number[]} */
   const dbLines = [];
   for (let db = 0; db >= DB_MIN; db -= DB_STEP) dbLines.push(db);
-  const fTicks = [0, nyquist, 2 * nyquist, 3 * nyquist, top];
+  // No label at the origin: the unit word sits in that corner.
+  const fTicks = [nyquist, 2 * nyquist, 3 * nyquist, top];
   const nx = r1(xOf(nyquist));
   return html`
     <div class="plot" data-pane="frequency">
@@ -153,17 +157,19 @@ function FrequencyPane() {
             <text class="plot-lbl" x=${PADL - 4} y=${r1(yOf(db) + 2.5)} text-anchor="end">${db}</text>
           `,
         )}
-        <text class="plot-lbl plot-axis" x=${PADL - 4} y=${PADT - 2} text-anchor="end">dB</text>
+        <text class="plot-lbl plot-axis" x=${PADL - 4} y=${AXIS_Y} text-anchor="end">dB</text>
         <path class="primer-wash" d=${wash} />
         <path class="primer-images" d=${images} />
         <line class="primer-nyquist" x1=${nx} y1=${PADT} x2=${nx} y2=${PADT + PLOT_H} />
-        <text class="plot-lbl plot-axis" x=${nx} y=${PADT - 2} text-anchor="middle">Nyquist</text>
+        <text class="plot-lbl plot-axis" x=${nx} y=${AXIS_Y} text-anchor="middle">Nyquist</text>
         <path class="primer-leak" d=${leak} />
         <polyline class="plot-trace applied" points=${filter} />
+        <text class="plot-lbl plot-axis" x=${PADL - 4} y=${H - 6} text-anchor="end">kHz</text>
         ${fTicks.map(
-          (f) => html`<text class="plot-lbl" x=${r1(xOf(f))} y=${H - 6} text-anchor="middle">${fmtKhz(f)}</text>`,
+          (f) => html`
+            <text class="plot-lbl" x=${r1(xOf(f))} y=${H - 6} text-anchor="middle">${fmtKhz(f)}</text>
+          `,
         )}
-        <text class="plot-lbl plot-axis" x=${W - PADR} y=${PADT - 2} text-anchor="end">kHz</text>
       </svg>
     </div>
   `;
