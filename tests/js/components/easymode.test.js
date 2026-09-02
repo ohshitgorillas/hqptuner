@@ -22,6 +22,8 @@
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
 //   * `data-testid="easy-enter"` on the Narrow Filters card's Easy Mode link
 //   * `data-testid="easy-exit"` on the Easy Mode card's exit link
+//   * `data-card="filter-primer"` on the primer's section, the third face the
+//     filter half of each page can show (store/primerview.js's `primerOpen`)
 //   * `data-note="easy-notice"` on the card's notice/subtitle element
 //   * `data-testid="easy-switcher"` on a grid switcher, were there one — read
 //     only for its ABSENCE, the card having no switcher any more
@@ -61,6 +63,7 @@ const { LiveView } = await import("../../../hqptuner/static/components/live/View
 const { EasyCard } = await import("../../../hqptuner/static/components/easy/EasyCard.js");
 const { NarrowBar } = await import("../../../hqptuner/static/components/narrowbar/Bar.js");
 const { easyMode } = await import("../../../hqptuner/static/store/easyview.js");
+const { primerOpen } = await import("../../../hqptuner/static/store/primerview.js");
 const { easyProse } = await import("../../../hqptuner/static/store/prose.js");
 const signals = await import("../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../hqptuner/static/store/actions.js");
@@ -127,14 +130,15 @@ const ENGINE = {
 
 // Module-level signals outlive a test, so every signal these pages read is put
 // back on every reset, not just the ones a case cares about.
-/** @param {{ easy?: boolean, notes?: boolean }} [opts] */
-function common({ easy = false, notes = true } = {}) {
+/** @param {{ easy?: boolean, primer?: boolean, notes?: boolean }} [opts] */
+function common({ easy = false, primer = false, notes = true } = {}) {
   signals.metadata.value = { ...META };
   signals.matrixConfig.value = { fields: [] };
   showDescriptions.value = notes;
   keepOptionDescriptions.value = true;
   narrow.resetNarrowing();
   easyMode.value = easy;
+  primerOpen.value = primer;
 }
 
 /** @param {Parameters<typeof common>[0]} [opts] */
@@ -188,12 +192,17 @@ const card = () => render(html`<${EasyCard} />`);
 const drew = (out, cards) => Object.fromEntries(cards.map((c) => [c, cardHeadAt(out, c) >= 0]));
 
 const EASY = "easy-mode";
+const PRIMER = "filter-primer";
 const NARROW = "narrow-filters";
-const TAB_CARDS = [NARROW, "pcm-chain", "sdm-chain", EASY];
-const LIVE_CARDS = [NARROW, "live-pcm-chain", "live-sdm-chain", EASY];
+const TAB_CARDS = [NARROW, "pcm-chain", "sdm-chain", EASY, PRIMER];
+const LIVE_CARDS = [NARROW, "live-pcm-chain", "live-sdm-chain", EASY, PRIMER];
 
-/** @param {string[]} cards @param {boolean} easy */
-const expected = (cards, easy) => Object.fromEntries(cards.map((c) => [c, c === EASY ? easy : !easy]));
+// The filter half of a page shows one of three faces: the filter cards (`up`
+// null), the Easy Mode card, or the primer. Whichever stand-in is up is drawn
+// alone; with neither up the filter cards are drawn and neither stand-in is.
+/** @param {string[]} cards @param {string | null} up */
+const expected = (cards, up) =>
+  Object.fromEntries(cards.map((c) => [c, up ? c === up : c !== EASY && c !== PRIMER]));
 
 /**
  * How many switcher containers a rendering carries, by the
@@ -289,22 +298,32 @@ function noticeText(out) {
 
 test("test_the_output_tab_draws_the_three_filter_cards_and_no_easy_mode_card_with_the_flag_down", async () => {
   await resetTab({ easy: false });
-  assert.deepEqual(drew(tab(), TAB_CARDS), expected(TAB_CARDS, false));
+  assert.deepEqual(drew(tab(), TAB_CARDS), expected(TAB_CARDS, null));
 });
 
 test("test_the_output_tab_draws_the_easy_mode_card_alone_with_the_flag_up", async () => {
   await resetTab({ easy: true });
-  assert.deepEqual(drew(tab(), TAB_CARDS), expected(TAB_CARDS, true));
+  assert.deepEqual(drew(tab(), TAB_CARDS), expected(TAB_CARDS, EASY));
+});
+
+test("test_the_output_tab_draws_the_primer_alone_with_the_primer_open", async () => {
+  await resetTab({ primer: true });
+  assert.deepEqual(drew(tab(), TAB_CARDS), expected(TAB_CARDS, PRIMER));
 });
 
 test("test_the_live_page_draws_the_three_filter_cards_and_no_easy_mode_card_with_the_flag_down", async () => {
   await resetLive({ easy: false });
-  assert.deepEqual(drew(live(), LIVE_CARDS), expected(LIVE_CARDS, false));
+  assert.deepEqual(drew(live(), LIVE_CARDS), expected(LIVE_CARDS, null));
 });
 
 test("test_the_live_page_draws_the_easy_mode_card_alone_with_the_flag_up", async () => {
   await resetLive({ easy: true });
-  assert.deepEqual(drew(live(), LIVE_CARDS), expected(LIVE_CARDS, true));
+  assert.deepEqual(drew(live(), LIVE_CARDS), expected(LIVE_CARDS, EASY));
+});
+
+test("test_the_live_page_draws_the_primer_alone_with_the_primer_open", async () => {
+  await resetLive({ primer: true });
+  assert.deepEqual(drew(live(), LIVE_CARDS), expected(LIVE_CARDS, PRIMER));
 });
 
 // ============================================================================
