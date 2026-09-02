@@ -40,7 +40,7 @@ N. <behavior as the caller sees it>
 
 ### The spec-reviewer runs before the user sees the spec
 
-Once the draft is written, spawn the `spec-reviewer` with the behavior lines and nothing else. It returns one verdict per line, `KEEP` or `CUT` with a reason. Apply every `CUT` before presenting; a `CUT` you disagree with stays out of the spec and goes into the plan as one line of disagreement for the user to rule on. The plan presents the trimmed spec plus one line: `spec-reviewer cut N: <names>`. The spec that reaches the user has already been through the adversary; the user reads `kills:` clauses, not a padded list.
+Once the draft is written, spawn the `spec-reviewer` with the behavior lines and nothing else. It returns one verdict per line, `KEEP`, `DELTA` or `CUT` with a reason, plus its two stub lines and a surviving count. Apply every `CUT` and fold every `DELTA` into the named existing test before presenting; a verdict you disagree with stays applied and goes into the plan as one line of disagreement for the user to rule on. The plan presents the trimmed spec, then the reviewer's output **pasted verbatim** beneath it, never summarized: the user sees what the adversary said and that it ran. A block with more than one `CUT` goes back through the reviewer after the rewrite, and the last verdict is the one pasted. The spec that reaches the user has already been through the adversary; the user reads `kills:` clauses, not a padded list.
 
 **The approved spec is closed.** The numbered lines are the whole spec: no additions in the writer brief, no "may also cover", no entry-point tests on top. The test count equals the behavior count, parametrize sweeps counting as one. A behavior discovered later takes section 6's path.
 
