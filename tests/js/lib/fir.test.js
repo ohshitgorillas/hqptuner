@@ -19,6 +19,7 @@ import {
   gaussianPulse,
   ringing,
   sourceSpectrumDb,
+  foldSpectrumDb,
 } from "../../../hqptuner/static/lib/dsp/fir.js";
 
 // [ok, message] for spreading into ONE assert.ok — see dsp.test.js.
@@ -93,4 +94,14 @@ test("test_kaiser_window_matches_the_published_values_for_beta_four", () => {
 // 6. the Kaiser attenuation relation with the width taken in hertz.
 test("test_kaiser_attenuation_follows_the_published_relation_in_hertz", () => {
   assert.ok(...near(kaiserAttenuation(211, 826.875, 44100), 64.48, 0.01));
+});
+
+// 7. the fold keeps what survives the filter above output Nyquist: a tone at
+// 60 kHz on a 192k stream resampled to 96k lands at 36 kHz, at its own level.
+test("test_fold_places_a_tone_above_output_nyquist_at_its_alias", () => {
+  const freqsHz = range(0, 192000, 100);
+  const levelsDb = new Float64Array(freqsHz.length).fill(-120);
+  levelsDb[freqsHz.indexOf(60000)] = -20;
+  const folded = foldSpectrumDb(levelsDb, freqsHz, 192000, 96000);
+  assert.ok(...near(folded[freqsHz.indexOf(36000)], -20, 0.5));
 });

@@ -7,9 +7,13 @@
 // HQPTuner's stubbed. Rule 9: the elements are found by their classes and
 // `data-pane` markings (wire identifiers).
 //
-// GEOMETRY READ. Inside the frequency pane the Nyquist mark is
-// `line.primer-nyquist` and the result fill is `path.primer-leak`, absolute
-// coordinates only, larger y meaning lower dB.
+// GEOMETRY READ. Inside the frequency pane the Nyquist marks are
+// `line.primer-nyquist` with `data-mark="source"` (always, first in document
+// order) and `data-mark="output"` (when an output rate is set and differs from
+// the source rate); the result fill is `path.primer-leak`, absolute coordinates
+// only, larger y meaning lower dB. The leak is the fill between the two marks:
+// past the output mark the output stream carries its own images at the music's
+// level whatever the filter, so that region separates nothing.
 //
 // Every test leaves the store as it found it: `showMe("intro")` after each.
 //
@@ -21,7 +25,8 @@ import { render } from "preact-render-to-string";
 
 const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../hqptuner/static/components/primer/Graph.js");
-const { rate, lengthMs, LENGTH_CHIPS, showMe } = await import("../../../hqptuner/static/store/primergraph.js");
+const { rate, outputRate, phase, lengthMs, rolloff, transientUs, content, LENGTH_CHIPS, showMe } =
+  await import("../../../hqptuner/static/store/primergraph.js");
 const { elements, classes, attr } = await import("../support/markup.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
@@ -89,31 +94,105 @@ function pairs(s) {
 }
 
 /**
- * The smallest y (highest level) of the leak fill beyond the Nyquist mark.
+ * The smallest y (highest level) of the leak fill strictly between the source
+ * Nyquist mark and the output Nyquist mark.
  *
  * @returns {number}
  */
 function leakTop() {
   const box = pane("frequency");
-  const [mark] = inside(box, "line", ["primer-nyquist"]);
+  const marks = inside(box, "line", ["primer-nyquist"]);
+  const source = marks.find((el) => attr(el, "data-mark") === "source");
+  const output = marks.find((el) => attr(el, "data-mark") === "output");
   const [leak] = inside(box, "path", ["primer-leak"]);
-  if (!mark || !leak) throw new Error("the frequency pane lacks a Nyquist mark or a leak fill");
-  const nyquist = num(mark, "x1");
-  const beyond = pairs(attr(leak, "d") || "").filter(([x]) => x > nyquist);
-  if (beyond.length === 0) throw new Error("the leak fill has no vertex beyond the Nyquist mark");
-  return Math.min(...beyond.map(([, y]) => y));
+  if (!source || !output || !leak) throw new Error("the frequency pane lacks a Nyquist mark or a leak fill");
+  const lo = num(source, "x1");
+  const hi = num(output, "x1");
+  const between = pairs(attr(leak, "d") || "").filter(([x]) => x > lo && x < hi);
+  if (between.length === 0) throw new Error("the leak fill has no vertex between the Nyquist marks");
+  return Math.min(...between.map(([, y]) => y));
 }
 
 // --- the case -------------------------------------------------------------------
 
-// A longer filter leaks less past Nyquist: the fill's top edge beyond the mark
-// sits lower (larger y) with the long filter than with the short one.
+// A longer filter leaks less past source Nyquist: the fill's top edge between
+// the source and output marks sits lower (larger y) with the long filter than
+// with the short one.
 
 test("test_long_filter_leaks_less_past_nyquist_than_short_filter", () => {
   rate.value = 96000;
+  outputRate.value = 192000;
   lengthMs.value = LENGTH_CHIPS.short;
   const short = leakTop();
   lengthMs.value = LENGTH_CHIPS.long;
   const long = leakTop();
   assert.ok(long > short, `long ${long} vs short ${short}`);
+});
+
+// --- the controls ---------------------------------------------------------------
+
+/** The inputs the spec fixes unless a line names them. */
+function baseline() {
+  phase.value = "linear";
+  rolloff.value = 0.5;
+  transientUs.value = 100;
+  content.value = { spurs: false, fakeHires: false, risingNoise: false };
+}
+
+/**
+ * How many elements of the render carry `data-testid="<id>"`.
+ *
+ * @param {string} id
+ * @returns {number}
+ */
+const testids = (id) => elements(draw()).filter((el) => attr(el, "data-testid") === id).length;
+
+/**
+ * The outermost element carrying `data-testid="<id>"`.
+ *
+ * @param {string} id
+ * @returns {MarkupElement}
+ */
+function region(id) {
+  const hits = elements(draw()).filter((el) => attr(el, "data-testid") === id);
+  if (hits.length === 0) throw new Error(`no data-testid="${id}" in the render`);
+  return hits.reduce((a, b) => (a.start <= b.start ? a : b));
+}
+
+/**
+ * How many lit chips the length chip row shows.
+ *
+ * @returns {number}
+ */
+const litLengthChips = () =>
+  elements(region("primer-chips-length").html).filter((el) => ["seg", "active"].every((c) => classes(el).includes(c)))
+    .length;
+
+// The content toggles row exists only for the hi-res sources: absent at 44.1k,
+// present once at 96k and at 192k.
+
+test("test_content_row_is_absent_at_cd_rate_and_present_once_at_hires_rates", () => {
+  baseline();
+  const sweep = [44100, 96000, 192000].map((hz) => {
+    rate.value = hz;
+    return testids("primer-content");
+  });
+  assert.deepEqual(sweep, [0, 1, 1]);
+});
+
+// A length chip lights only when the slider sits exactly on its value: one lit
+// at every chip, none lit halfway between the two smallest.
+
+test("test_length_chip_lights_only_at_its_own_value", () => {
+  baseline();
+  const values = Object.values(LENGTH_CHIPS).sort((a, b) => a - b);
+  const probes = [...values, (values[0] + values[1]) / 2];
+  const sweep = probes.map((ms) => {
+    lengthMs.value = ms;
+    return litLengthChips();
+  });
+  assert.deepEqual(
+    sweep,
+    probes.map((ms) => (values.includes(ms) ? 1 : 0)),
+  );
 });
