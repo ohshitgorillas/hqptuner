@@ -12,7 +12,7 @@
 /** @type {string[]} */
 export const INTRO = [
   "Choosing a filter is easy: you just need a few simple concepts.",
-  "If you're still overwhelmed after reading the below, start with poly-sinc-gauss (Simplified: Polyphase Sinc family, Gaussian variants); these represent the most general-use, best-case solution to the trade-offs defined below.",
+  "If you're still overwhelmed after reading the below, start with poly-sinc-gauss-long and poly-sinc-gauss-hires-lp, aka the program defaults. These are the most general use filters and represent the best-case solution to the trade-offs defined below.",
 ];
 
 /** @type {{ id: string, heading: string, blocks: Block[] }[]} */
@@ -41,7 +41,7 @@ export const SECTIONS = [
       ["at what frequency the cliff begins", "how steep the cut is", "how far down it goes"],
       'The cliff effect, as with so many things, comes at a price: ringing. A filter\'s length determines how long it rings or smears the transient in time; it may also be thought of as a "budget" to be spent on the shape of the cliff. "Slow" or "gentle" filters roll off gradually, fading the top of the music while letting some junk through; "fast" or "steep" filters have a sharper cliff and are therefore better able to separate music from junk.',
       "The faster a filter is, however, the more it costs, and the longer it rings. A shorter filter that spends its budget well for the content at hand will therefore outperform a longer filter that spends where it isn't needed, all while producing cleaner transients and using fewer resources.",
-      'When selecting a roll-off character, ask yourself: how much do I trust the top end of this recording? Technically clean, well-mastered content has little junk lurking near the top of the music, so a cliff that starts as late as possible yields the best results; these are, for example, the "extended frequency response" variants, with half-band and Gaussian half-band being the extremes. Compressed, harsh, or otherwise suspect studio work can have more junk than music up top and are better served by fast and aggressive filters, even if it ends up taking some music with it. These are exemplified by the "extreme roll-off and attenuation" variants.',
+      'When selecting a roll-off character, ask yourself: how much do I trust the top end of this recording? Technically clean, well-mastered content has little junk lurking near the top of the music, so a gentle cliff that starts as late as possible yields the best results; these are, for example, the "extended frequency response" variants, with half-band and Gaussian half-band being the extremes. Compressed, harsh, or otherwise suspect studio work can have more junk than music up top and are better served by fast and aggressive filters, even if it ends up taking some music with it. These are exemplified by the "extreme roll-off and attenuation" variants.',
       "When in doubt, go Gaussian: these represent the best-case solution to the time-frequency tension, ring minimally, and optimally balance music retention and junk removal.",
     ],
   },
