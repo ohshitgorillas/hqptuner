@@ -41,6 +41,8 @@ import { AutopilotToggle } from "../AutopilotToggle.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
 import { easyMode } from "../../store/easyview.js";
+import { PrimerView } from "../primer/View.js";
+import { primerOpen } from "../../store/primerview.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
@@ -248,15 +250,15 @@ function ExpertChainCards() {
   `;
 }
 
-// Easy Mode stands in for all three, exactly as it does on the Output tab, and
-// the group wrapper stays either way: it is this block's slot in the LIVE layout
-// (./Layout.js), not decoration on the cards inside it.
+// Easy Mode or the primer stands in for all three, exactly as on the Output tab
+// (the primer first, as there), and the group wrapper stays whichever face is
+// up: it is this block's slot in the LIVE layout (./Layout.js), not decoration
+// on the cards inside it.
 function ChainCards() {
-  return html`
-    <div class="live-chain-group">
-      ${easyMode.value ? html`<${EasyCard} lane="live" />` : html`<${ExpertChainCards} />`}
-    </div>
-  `;
+  let face = html`<${ExpertChainCards} />`;
+  if (primerOpen.value) face = html`<${PrimerView} />`;
+  else if (easyMode.value) face = html`<${EasyCard} lane="live" />`;
+  return html`<div class="live-chain-group">${face}</div>`;
 }
 
 // The locked top row: the LIVE MODE card on the left, the Mode card on the
