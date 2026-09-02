@@ -60,6 +60,78 @@
   opacity: var(--o-back);
 }
 
+/* The graph block: the panes, then the controls beneath them, spaced by the
+   card body's field rhythm. */
+.primer-graph {
+  display: grid;
+  gap: var(--rhythm-field);
+}
+.primer-controls {
+  display: grid;
+  gap: var(--sp-4);
+}
+/* The three segments share one row above the sliders; below the breakpoint
+   they wrap. */
+.primer-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-5);
+}
+/* One control: its name, then the widget, then the chips; the slider is the
+   card's instrument here as in the crossfeed card, so its track is uncapped. */
+.primer-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.primer-control .range-wrap {
+  max-width: none;
+}
+.primer-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+}
+.primer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* The readouts: a content-sized grid of key and value pairs, keys secondary,
+   values in the mono value role. */
+.primer-readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, max-content));
+  grid-auto-flow: column;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-1);
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.primer-readouts dt {
+  grid-row: 1;
+  font-family: var(--font-ui);
+  font-size: var(--fs-caption);
+  color: var(--fg-2);
+}
+.primer-readouts dd {
+  grid-row: 2;
+  margin: 0;
+}
+/* The way back up: one text button per section, accent, no chrome, the
+   prose's own type. */
+.primer-showme {
+  justify-self: start;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 /* The prose below the graph, at the reading measure. */
 .primer-layout {
   display: grid;

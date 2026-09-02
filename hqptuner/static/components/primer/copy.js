@@ -12,7 +12,7 @@
 /** @type {string[]} */
 export const INTRO = [
   "Choosing a filter is easy: you just need a few simple concepts.",
-  "If you're still overwhelmed after reading the below, start with poly-sinc-gauss-long and poly-sinc-gauss-hires-lp, aka the program defaults. These are the most general use filters and represent the best-case solution to the trade-offs defined below.",
+  "If you're still overwhelmed after reading the below, try Easy Mode! It offers a truly jargon-free approach to choosing some of the best filters in the program.",
 ];
 
 /** @type {{ id: string, heading: string, blocks: Block[] }[]} */
