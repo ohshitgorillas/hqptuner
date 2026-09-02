@@ -1,6 +1,6 @@
-"""Browser end-to-end pins on what a pick in the Live preset picker sends the engine.
+"""Browser end-to-end pins on what a pick in the Live snapshot picker sends the engine.
 
-Picking a live preset applies that preset's stored settings to the running
+Picking a live snapshot applies that preset's stored settings to the running
 engine: the app sends the engine the batch of control-API commands the preset
 carries (docs/architecture.md, the live lane). The behavior under change is the
 SECOND pick of the SAME row — picking the preset that is already the picker's
@@ -68,7 +68,7 @@ SETTLE_MS = 20_000
 #: to take — it is how often the question gets asked again.
 POLL_S = 0.05
 
-#: The Live preset picker's own control wrapper.
+#: The Live snapshot picker's own control wrapper.
 PICKER = "[data-testid='live-preset']"
 
 #: The picker's own button. It carries the `disabled` attribute while an apply
@@ -127,7 +127,7 @@ def open_name_prompt(page: Page) -> None:
 
 
 def save_preset(page: Page, name: str) -> None:
-    """Save the running settings as a live preset called `name`, through the card's own flow."""
+    """Save the running settings as a live snapshot called `name`, through the card's own flow."""
     open_name_prompt(page)
     field = page.locator("input#ask-field")
     field.fill(name)

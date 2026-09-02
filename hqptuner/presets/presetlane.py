@@ -95,7 +95,7 @@ def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> N
     """Move auto-pilot's switch and record which ``source`` moved it.
 
     Every path that writes the switch comes through here. The store keeps only the resulting value, so a user who
-    finds auto-pilot off can otherwise not tell the switch itself from a manual filter write, a live-preset apply or
+    finds auto-pilot off can otherwise not tell the switch itself from a manual filter write, a live-snapshot apply or
     a config-preset load. The previous value is read before the write, because the write is what erases it.
 
     Lives in the presets package rather than beside the callers so the api routes and ``core.autopilotops`` share one

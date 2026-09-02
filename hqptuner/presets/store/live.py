@@ -1,10 +1,10 @@
-"""Live presets — named combos of the settings the engine can change right now.
+"""Live snapshots — named combos of the settings the engine can change right now.
 
-A live preset is not a config snapshot. The tabs view's presets (``store.presets``)
-are whole ``hqplayerd.xml`` files applied by restarting the daemon; a live preset
+A live snapshot is not a config snapshot. The tabs view's presets (``store.presets``)
+are whole ``hqplayerd.xml`` files applied by restarting the daemon; a live snapshot
 is a handful of enum IDs applied by ``POST /api/config/live``, which never writes
 the config file and never restarts anything. The two stores are deliberately
-separate: a live preset must stay applicable in one batch, so it holds only what
+separate: a live snapshot must stay applicable in one batch, so it holds only what
 ``lanes/live/routing.resolve_live`` accepts back.
 
 The daemon never sees these — they are HQPTuner's own record, stored as one JSON
@@ -61,7 +61,7 @@ _SCHEMA = 3
 
 
 class LivePresetError(HQPTunerError, ValueError):
-    """A live-preset operation that cannot proceed.
+    """A live-snapshot operation that cannot proceed.
 
     Either an invalid name, or a preset that does not exist.
     """
@@ -80,13 +80,13 @@ class LivePresetSchemaError(LivePresetError):
 
 
 def _validate(name: str) -> str:
-    # A live preset is a JSON key, never a filename, but it shares the config
+    # A live snapshot is a JSON key, never a filename, but it shares the config
     # store's rule so a name that saves on one surface saves on the other.
-    return names.validate_name(name, LivePresetError, "live preset")
+    return names.validate_name(name, LivePresetError, "live snapshot")
 
 
 class LivePresetStore:
-    """Live presets in one JSON file.
+    """Live snapshots in one JSON file.
 
     The file (and its directory) is created lazily on the first write, so an install that never saves one reads as
     empty.
@@ -112,7 +112,7 @@ class LivePresetStore:
         schema = data.get("schema")
         if isinstance(schema, int) and schema > _SCHEMA:
             raise LivePresetSchemaError(
-                f"live preset store is schema {schema}, this HQPTuner {__version__} understands "
+                f"live snapshot store is schema {schema}, this HQPTuner {__version__} understands "
                 f"{_SCHEMA} — upgrade HQPTuner to read these presets"
             )
         return data
@@ -139,7 +139,7 @@ class LivePresetStore:
         """One preset's record. Raises ``LivePresetError`` if absent."""
         record = self._presets().get(_validate(name))
         if not isinstance(record, dict):
-            raise LivePresetError(f"no such live preset: {name!r}", code="not_found")
+            raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
         return record
 
     def save(self, name: str, record: dict[str, Any]) -> None:
@@ -152,6 +152,6 @@ class LivePresetStore:
         """Remove a preset. Raises ``LivePresetError`` if absent."""
         presets = self._presets()
         if _validate(name) not in presets:
-            raise LivePresetError(f"no such live preset: {name!r}", code="not_found")
+            raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
         del presets[name]
         self._write(presets)

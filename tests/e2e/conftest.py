@@ -132,13 +132,13 @@ def _call(url: str, method: str, payload: dict[str, Any] | None = None) -> Any:
 
 
 def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
-    """The pieces of server state a test can leave behind: named presets, auto-save, and live presets.
+    """The pieces of server state a test can leave behind: named presets, auto-save, and live snapshots.
 
     Config presets and auto-save read from `/api/config` because that is the
     response the frontend itself grounds the preset picker and the auto-save
-    toggle in, so what this sees is what a page would load. Live presets are a
+    toggle in, so what this sees is what a page would load. Live snapshots are a
     separate store with their own endpoint, `/api/livepresets`, so they are read
-    from there — a live preset a test saves never shows up under `/api/config`.
+    from there — a live snapshot a test saves never shows up under `/api/config`.
     """
     data = _call(f"{base_url}/api/config", "GET")["data"]
     options = (data.get("profiles") or {}).get("options") or []

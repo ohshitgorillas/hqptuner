@@ -8,7 +8,7 @@
    that row's alignment and only sets its own internal gap.
 
    It wraps. In a chrome row nothing ever does, but the row is also mounted in
-   a half-width column's control track (the LIVE preset picker), narrower than
+   a half-width column's control track (the LIVE snapshot picker), narrower than
    the row's own minimum width; without the wrap the message is the only
    shrinkable item, so it collapses to one word per line and the buttons still
    overrun the column. The buttons are the wrong thing to shrink either way —
@@ -97,7 +97,7 @@
 .ask-pop .ask-choice-pinned {
   color: var(--muted);
 }
-/* the named choices ask (live preset save) carries its name field above the
+/* the named choices ask (live snapshot save) carries its name field above the
    rows; the field takes the panel's width rather than the inline name width */
 .ask-pop-name {
   display: flex;

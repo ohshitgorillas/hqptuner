@@ -285,7 +285,7 @@ class AuditLog:
     def autopilot_set(self, source: str, *, enabled: bool, previous: bool) -> None:
         """Record auto-pilot's switch moving, naming the ``source`` that moved it.
 
-        Four paths write it — the switch itself, a manual junk-filter write, a live-preset apply and a config-preset
+        Four paths write it — the switch itself, a manual junk-filter write, a live-snapshot apply and a config-preset
         load — and the store keeps only the resulting value, so without the source a user who finds auto-pilot off
         has no way to tell which of them did it.
         """

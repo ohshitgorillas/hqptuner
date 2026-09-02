@@ -1,7 +1,7 @@
-// Live presets — the LIVE page's named setting combos, and the four calls that
+// Live snapshots — the LIVE page's named setting combos, and the four calls that
 // reach them.
 //
-// A live preset is not a config preset. The header's presets are whole
+// A live snapshot is not a config preset. The header's presets are whole
 // hqplayerd.xml files applied by restarting the daemon; one of these is a
 // handful of enum IDs handed to POST /api/config/live, which writes the running
 // engine and never touches the configuration file. Nothing here stages, and
@@ -48,7 +48,7 @@ async function refreshLivePresets() {
 // One preset's stored batch, for deciding what a successful apply invalidated.
 /**
  * @typedef {object} LivePreset
- *   One saved live preset, as /api/livepresets serves it.
+ *   One saved live snapshot, as /api/livepresets serves it.
  * @property {string} name
  * @property {string} chain
  * @property {Record<string, string>} fields the stored batch, keyed by live form field
@@ -119,7 +119,7 @@ export async function saveLivePreset(name, fields) {
 }
 
 /**
- * Delete a saved live preset, then re-read the list.
+ * Delete a saved live snapshot, then re-read the list.
  * @param {string} name
  * @returns {Promise<void>}
  */

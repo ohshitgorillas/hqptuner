@@ -1,4 +1,4 @@
-"""Live presets that carry only the settings the user picked.
+"""Live snapshots that carry only the settings the user picked.
 
 ``PUT /api/livepresets/{name}`` takes an optional body naming the fields the
 preset holds; a setting left out of the record is a setting the preset has no

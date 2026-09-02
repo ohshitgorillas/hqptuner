@@ -1,7 +1,7 @@
-// Shared fixtures for the live-preset suites: the wire fake, the records it
+// Shared fixtures for the live-snapshot suites: the wire fake, the records it
 // serves, and the enumeration/metadata trees the LIVE page reads.
 //
-// A live preset is HQPTuner's, not the daemon's: it stores a batch of live
+// A live snapshot is HQPTuner's, not the daemon's: it stores a batch of live
 // settings keyed by form-field name, and it carries the OUTPUT MODE among them
 // (`fields.mode`, one of auto / pcm / sdm). Applying one switches the engine to
 // that mode before applying the rest, so the chain the engine currently reports

@@ -122,7 +122,7 @@ def _live_app(
         data_dir=METADATA_MIN,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
-        # never the repo's own state/ — a live-preset write in a test would land
+        # never the repo's own state/ — a live-snapshot write in a test would land
         # in the dev container's bind mount and outlive the run
         live_preset_file=tmp_path / "live-presets.json",
         # the auto-pilot switch lands beside it for the same reason: a preset

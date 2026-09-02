@@ -7,7 +7,7 @@ HQPlayer's documentation constrains the charset of a configuration name
 denylist: refuse only what breaks a filename, a zip member name or the store,
 and accept the rest of Unicode.
 
-The live store shares the naming rule even though a live preset name is a JSON
+The live store shares the naming rule even though a live snapshot name is a JSON
 key rather than a filename; the byte-length and on-disk cases are therefore
 config-store only.
 
@@ -26,7 +26,7 @@ from hqptuner.presets.store.presets import PresetError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
 
-# The shape a live preset record has on the wire (see tests/live/test_live_presets.py);
+# The shape a live snapshot record has on the wire (see tests/live/test_live_presets.py);
 # the store treats it as opaque, so the contents only need to survive a round trip.
 RECORD: dict[str, Any] = {"chain": "pcm", "fields": {"filter": "40"}, "names": {"filter": "poly-sinc-gauss-long"}}
 

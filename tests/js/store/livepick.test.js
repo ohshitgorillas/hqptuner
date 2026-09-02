@@ -11,7 +11,7 @@
 // `switch_to` is a wire identifier, so pinning it is correct (rule 9).
 //
 // Module-level signals outlive a test file, so reset() reassigns every signal
-// this file touches — including the live-preset ones, which turning LIVE mode
+// this file touches — including the live-snapshot ones, which turning LIVE mode
 // on sets going — and clears the staged buffer through discardAll().
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/livepick.test.js
@@ -60,7 +60,7 @@ function callFor(method, path) {
   return call;
 }
 
-// The endpoints a pick may touch on either side of its own — the live-preset
+// The endpoints a pick may touch on either side of its own — the live-snapshot
 // list LIVE mode reads, the engine's state, the trees the page reads. Each
 // answers its real shape, so a lane reading one gets something it can adopt
 // rather than a bare {}.

@@ -230,7 +230,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
 
 
 async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
-    """Apply a live preset — a batch that may carry the output mode.
+    """Apply a live snapshot — a batch that may carry the output mode.
 
     ``resolve_live`` refuses mode beside anything else, and rightly: ``SetMode``
     swaps the filter, shaper and rate enumerations, so indices resolved before it

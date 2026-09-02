@@ -3,7 +3,7 @@
 // backend, and the state it mirrors has no business knowing that.
 //
 // The facets are stored for the INSTALL, in state/narrowing.json, the way stars
-// and live presets are: the bar is presentational and has no daemon field
+// and live snapshots are: the bar is presentational and has no daemon field
 // behind it, so there is nowhere else for it to live and nothing to reconcile
 // with. Nothing polls — a tab picks up another tab's narrowing on reload, and
 // two browsers racing is last-write-wins. The favorites-only switch is NOT part

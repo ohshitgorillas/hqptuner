@@ -212,7 +212,7 @@ effect(() => {
 });
 
 // --- asking about one saved value ---------------------------------------------
-// The menus above narrow a list they are handed. A saved live preset is not a
+// The menus above narrow a list they are handed. A saved live snapshot is not a
 // list: it carries an output mode, decided when it was saved, and the picker
 // needs to know whether the device can play it. Same question, asked one value
 // at a time — and the same answer to an unknown announcement, which is yes.

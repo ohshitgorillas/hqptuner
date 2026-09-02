@@ -1,7 +1,7 @@
-"""Live-preset REST surface — the LIVE view's named setting combos.
+"""Live-snapshot REST surface — the LIVE view's named setting combos.
 
 A self-contained feature surface mounted alongside ``app``. Nothing here touches the
-8088 lane, the pending store, or ``store.presets`` — a live preset is applied by
+8088 lane, the pending store, or ``store.presets`` — a live snapshot is applied by
 the Phase-2 live lane and so can never restart the daemon.
 """
 
@@ -101,7 +101,7 @@ def live_snapshot(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/livepresets")
 def live_presets(request: Request) -> dict[str, Any]:
-    """Every saved live preset.
+    """Every saved live snapshot.
 
     Flat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it
     rather than conflicting with what is loaded — there is nothing here to gate on.
@@ -119,7 +119,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
 
     A body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them
     where the engine has them. 409 when the loaded chain is unknowable — the record would claim a chain it never
-    captured. 422 when a named field is not a live preset setting.
+    captured. 422 when a named field is not a live snapshot setting.
     """
     record = _record(manager, _selected(None if body is None else body.fields))
     try:
@@ -167,7 +167,7 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
 
 @router.delete("/livepresets/{name}")
 def delete_live_preset(name: str, request: Request) -> dict[str, Any]:
-    """Remove a saved live preset from the store, leaving the running engine untouched.
+    """Remove a saved live snapshot from the store, leaving the running engine untouched.
 
     404 when no preset is saved under the name.
     """

@@ -4,7 +4,7 @@
 // "dd-box", role="combobox") in place of a native <select>; a dropdown whose
 // entry has no `desc` — the rate pair — keeps its native <select>. Of the two
 // pickers that are not schema desc entries at all, the matrix profile picker is
-// native and the live preset picker is a combobox.
+// native and the live snapshot picker is a combobox.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. SSR reaches the CLOSED state only — the popup opens from a handler
@@ -183,7 +183,7 @@ const openTag = (out, needle) => {
 /** @param {string} out */
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 
-// The LIVE preset picker's OWN subtree, by the machine identity its control
+// The LIVE snapshot picker's OWN subtree, by the machine identity its control
 // wrapper carries. Scoped rather than measured across the whole card: another
 // control landing on the card later must not answer for this one, either way
 // round — a combobox elsewhere on the card would satisfy the first case and a
@@ -191,7 +191,7 @@ const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)]
 /** @param {string} out */
 function preset(out) {
   const el = elements(out).find((e) => attr(e, "data-testid") === "live-preset");
-  if (el === undefined) throw new Error("the page renders no live preset picker");
+  if (el === undefined) throw new Error("the page renders no live snapshot picker");
   return el.html;
 }
 
@@ -223,7 +223,7 @@ test("test_a_live_modulator_control_renders_a_combobox", async () => {
 
 // --- the two pickers that are not schema entries ------------------------------
 // Neither carries a schema key, so each is reached through its own card. The
-// matrix profile picker is native; the live preset picker is a combobox.
+// matrix profile picker is native; the live snapshot picker is a combobox.
 
 test("test_the_matrix_profile_picker_stays_a_native_select", async () => {
   await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: ["Room"] } });

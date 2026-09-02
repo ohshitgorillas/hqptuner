@@ -123,7 +123,7 @@ export const api = {
   // the LIVE view's whole write path: applied on the spot, readback-verified,
   // never staged (store/live/write.js)
   live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
-  // Live presets — HQPTuner's own record, never the daemon's. A save takes no
+  // Live snapshots — HQPTuner's own record, never the daemon's. A save takes no
   // body: the backend snapshots the running engine itself, so the browser has
   // nothing to send that the daemon has not already reported.
   livePresets: () => getJSON("/api/livepresets"),

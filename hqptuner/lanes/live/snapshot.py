@@ -1,6 +1,6 @@
 """The engine's current live settings, as a saveable record.
 
-A live preset (``presets/store/live.py``) is a snapshot of what the engine is playing
+A live snapshot (``presets/store/live.py``) is a snapshot of what the engine is playing
 right now, taken in the same domain ``routing.resolve_live`` accepts back — so
 applying a preset is the same batch the LIVE view would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a

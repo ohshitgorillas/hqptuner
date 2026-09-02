@@ -1,4 +1,4 @@
-"""Live presets end to end — the LIVE view's saved combos of live settings.
+"""Live snapshots end to end — the LIVE view's saved combos of live settings.
 
 Split out of ``test_api_routes`` at the file-length gate. Same shape as the rest
 of that module: the app under ``TestClient`` against the threaded fake control
@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-# A live preset is not a config snapshot: it holds only what the live lane can
+# A live snapshot is not a config snapshot: it holds only what the live lane can
 # apply in one batch, so applying one never writes the config file and never
 # restarts the daemon. Everything below goes through the routes, except the two
 # cases that need a store this HQPTuner would not have written itself.

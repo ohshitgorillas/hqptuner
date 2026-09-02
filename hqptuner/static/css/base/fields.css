@@ -75,7 +75,7 @@
    `field-dropdown` comes from Field.js alone, so keying on it missed the LIVE
    page (which builds its rows as a bare `field`, live/View.js) and the rows
    assembled by their own components rather than through Field — the matrix
-   profile picker and the live preset picker among them. */
+   profile picker and the live snapshot picker among them. */
 .field:has(> .control > select) > .field-desc,
 .field:has(> .control > .dd-box) > .field-desc,
 .field:has(> .control > select) > .field-note,

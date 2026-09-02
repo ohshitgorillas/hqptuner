@@ -3,7 +3,7 @@ FastAPI's `detail`, so a client can branch on the cause without parsing prose.
 
 Written blind from the spec block, against the fakes alone: the app is built the
 way `live_api` builds it (control lane on the threaded fake daemon, no hqplayerd
-credentials, a live-preset store that is a real file under tmp_path). No route
+credentials, a live-snapshot store that is a real file under tmp_path). No route
 handler is stubbed and no `detail` text is asserted anywhere (docs/testing.md
 rule 9): `code` values are wire identifiers, `detail` is copy.
 """
@@ -14,10 +14,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-#: A live-preset store stamped by a newer HQPTuner than this build understands.
+#: A live-snapshot store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
 
-#: The three ways a live-preset delete is refused, each with the status and code a
+#: The three ways a live-snapshot delete is refused, each with the status and code a
 #: client is promised, so a code shared across causes shows up as a wrong tuple.
 REFUSED_READS = [
     pytest.param("Nope", None, (404, "not_found"), id="absent-name"),

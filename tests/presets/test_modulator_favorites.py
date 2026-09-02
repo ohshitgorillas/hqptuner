@@ -1,7 +1,7 @@
 """Favorite MODULATOR names, the second set the favorites store keeps.
 
 The store already held one set of starred filter names in one JSON file beside
-the live presets; this suite pins the second set living in the same file, read
+the live snapshots; this suite pins the second set living in the same file, read
 and written through `read_modulators`/`write_modulators`, and served by the same
 GET/PUT `/api/favorites` pair under a `modulators` member. Neither surface
 touches hqplayerd — a favorite is HQPTuner's own record, keyed by the engine's

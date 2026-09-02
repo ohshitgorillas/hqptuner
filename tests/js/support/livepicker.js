@@ -1,4 +1,4 @@
-// Readers for the LIVE preset picker, shared by the suites that ask what it
+// Readers for the LIVE snapshot picker, shared by the suites that ask what it
 // offers (livepresetscard.test.js) and which of its rows the announced device
 // capability grays (livepreset-narrow.test.js).
 //
@@ -26,7 +26,7 @@ const PICKER = "live-preset";
  */
 export const picker = (frag) => {
   const el = elements(frag).find((e) => attr(e, "data-testid") === PICKER);
-  if (el === undefined) throw new Error("the card renders no live preset picker");
+  if (el === undefined) throw new Error("the card renders no live snapshot picker");
   return el.html;
 };
 

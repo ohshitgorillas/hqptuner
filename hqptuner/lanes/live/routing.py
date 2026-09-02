@@ -98,7 +98,7 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
 
     The inverse of ``_index_for_mode``, and public because two other lanes need
     it: ``overrides`` to report the running mode and ``snapshot`` to store
-    it in a live preset. Matched by NAME for the same reason the forward join is —
+    it in a live snapshot. Matched by NAME for the same reason the forward join is —
     the modes enumeration is device-dependent, so positions are not stable.
     """
     for item in items:

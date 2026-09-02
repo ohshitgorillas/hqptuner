@@ -59,7 +59,7 @@ def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | No
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         # state-file stores in tmp — the preset saves and loads below write
-        # auto-pilot and live-preset state, whose defaults are the dev
+        # auto-pilot and live-snapshot state, whose defaults are the dev
         # container's bind-mounted state/
         live_preset_file=tmp_path / "live-presets.json",
         favorites_file=tmp_path / "favorites.json",

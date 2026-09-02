@@ -3,7 +3,7 @@
 // card LiveView renders from them is covered in livepresetscard.test.js; the
 // wire fake and the records it serves live in livepresetwire.js.
 //
-// A live preset is HQPTuner's, not the daemon's: it stores a batch of live
+// A live snapshot is HQPTuner's, not the daemon's: it stores a batch of live
 // settings keyed by form-field name, and it carries the OUTPUT MODE among them
 // (`fields.mode`, one of auto / pcm / sdm). Applying one switches the engine to
 // that mode before applying the rest, so there is no such thing as an

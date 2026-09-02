@@ -2,7 +2,7 @@
 
 Auto-pilot is one stored flag a background task acts on, and four different code
 paths can turn it off: the user's own switch, a hand write of the junk filter on
-the live lane, applying a live preset saved without it, and loading a config
+the live lane, applying a live snapshot saved without it, and loading a config
 preset the store holds no flag for. A user who finds the switch off has no way to
 tell which of the four did it unless the log says so, which is what ``source``
 on the ``autopilot.set`` record is for.
@@ -135,7 +135,7 @@ def switch_on(client: TestClient) -> None:
 
 
 def strip_autopilot(tmp_path: Path, name: str) -> None:
-    """Drop the ``autopilot`` key from a stored live preset — what a record saved
+    """Drop the ``autopilot`` key from a stored live snapshot — what a record saved
     by an HQPTuner that had no auto-pilot to record looks like."""
     path = tmp_path / "live-presets.json"
     store: dict[str, Any] = json.loads(path.read_text())
@@ -228,7 +228,7 @@ def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(
     assert events_after(audit_log, mark) == ["live.write"]
 
 
-# --- applying a live preset saved without auto-pilot -------------------------
+# --- applying a live snapshot saved without auto-pilot -------------------------
 
 
 def test_applying_a_live_preset_carrying_no_auto_pilot_key_records_its_source(

@@ -1071,7 +1071,7 @@
     },
     "/api/livepresets": {
       "get": {
-        "description": "Every saved live preset.\n\nFlat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it\nrather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
+        "description": "Every saved live snapshot.\n\nFlat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it\nrather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
         "operationId": "live_presets_api_livepresets_get",
         "responses": {
           "200": {
@@ -1113,7 +1113,7 @@
     },
     "/api/livepresets/{name}": {
       "delete": {
-        "description": "Remove a saved live preset from the store, leaving the running engine untouched.\n\n404 when no preset is saved under the name.",
+        "description": "Remove a saved live snapshot from the store, leaving the running engine untouched.\n\n404 when no preset is saved under the name.",
         "operationId": "delete_live_preset_api_livepresets__name__delete",
         "parameters": [
           {
@@ -1153,7 +1153,7 @@
         "summary": "Delete Live Preset"
       },
       "put": {
-        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live preset setting.",
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting.",
         "operationId": "save_live_preset_api_livepresets__name__put",
         "parameters": [
           {

@@ -46,7 +46,7 @@ WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
-    ``live_snapshot`` is the reader, the same one a live preset is taken with —
+    ``live_snapshot`` is the reader, the same one a live snapshot is taken with —
     the chains' filters and shapers, output mode, adaptive volume, and the junk
     filter, which exists ONLY on the engine and so is readable no other way.
 

@@ -1,5 +1,5 @@
 // The LIVE page's lede card: the page's one piece of its own prose, and beside
-// it the live presets — named combos of the settings on that page, saved by
+// it the live snapshots — named combos of the settings on that page, saved by
 // HQPTuner rather than by the daemon (store/live/presets.js). Picking one applies
 // it on the spot, like every other control there; there is no Apply on that page
 // for it to wait for.
@@ -32,7 +32,7 @@ import { Card } from "../common.js";
 /**
  * @typedef {{ name: string, chain: string, fields: Record<string, string>, names?: Record<string, string>,
  *   autopilot?: boolean | null }} LivePreset
- *   One saved live preset as /api/livepresets serves it. `fields` is the stored
+ *   One saved live snapshot as /api/livepresets serves it. `fields` is the stored
  *   batch; `names` each field's display name; `autopilot` null when the preset
  *   does not carry the switch.
  * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }>, autopilot: boolean }} Snapshot

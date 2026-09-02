@@ -111,7 +111,7 @@ function usePinnedPopover(pop) {
   }, []);
 }
 
-// A named choices panel (the live preset save) carries the name field above
+// A named choices panel (the live snapshot save) carries the name field above
 // the list; its value rides to answer() the way the inline name field's does.
 /**
  * @param {{ q: Question, field: FieldRef }} props

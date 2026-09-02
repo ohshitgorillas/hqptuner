@@ -198,7 +198,7 @@ def stack(tmp: Path) -> Iterator[Stack]:
     """Bring the three fakes and the app up, yield the `Stack`, tear it all down.
 
     `tmp` is a scratch directory the app owns for the run: preset store, backup
-    directory, live-preset file and the captured startup log all land there, so
+    directory, live-snapshot file and the captured startup log all land there, so
     nothing a test does reaches the repo's own `state/`.
     """
     control_state: dict[str, str] = dict(DEFAULTS)

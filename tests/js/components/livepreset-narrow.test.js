@@ -1,6 +1,6 @@
-// Device-aware graying of the LIVE preset picker (components/live/Presets.js).
+// Device-aware graying of the LIVE snapshot picker (components/live/Presets.js).
 //
-// A saved live preset carries the output mode it was captured under (`chain`)
+// A saved live snapshot carries the output mode it was captured under (`chain`)
 // and the output rate it pins (`fields.rate`, Hz as a string, "0" meaning no
 // pin). The output device the daemon opened announces what it can play, and
 // HQPTuner serves that on /api/config as `device_caps`:

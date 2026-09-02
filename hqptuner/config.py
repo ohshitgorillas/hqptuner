@@ -60,8 +60,8 @@ class Config:
     preset_dir: Path = field(
         default_factory=lambda: Path(_env("PRESET_DIR", str(Path(__file__).resolve().parent.parent / "presets")))
     )
-    # The LIVE view's named live presets (see presets/store/live.py) — one JSON file, not a
-    # directory, because a live preset is a handful of enum IDs rather than a
+    # The LIVE view's named live snapshots (see presets/store/live.py) — one JSON file, not a
+    # directory, because a live snapshot is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.
     live_preset_file: Path = field(

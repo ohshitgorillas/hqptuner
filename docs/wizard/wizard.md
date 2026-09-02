@@ -348,7 +348,7 @@ The Apply button is highlighted. Once the daemon reloads, the tour resumes.
 
 > LIVE mode exposes all settings that the daemon is capable of changing in the fly without restarting the engine. Each field's value is applied upon selection: no staging, no apply.
 >
-> Live presets also allow you to keep combinations of live settings for applying on the fly all at once.
+> Live snapshots also allow you to keep combinations of live settings for applying on the fly all at once.
 
 
 ## 4. Fin

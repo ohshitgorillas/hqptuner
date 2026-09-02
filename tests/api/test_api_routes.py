@@ -50,7 +50,7 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
 @pytest.fixture
 def disabled_volume_api(threaded_disabled_volume_port: int, tmp_path: Path) -> Iterator[TestClient]:
     """The control-only app on a daemon whose VolumeRange is disabled. `live_api`
-    and `chain_api`, its two siblings, are in `conftest` — the live-preset suite
+    and `chain_api`, its two siblings, are in `conftest` — the live-snapshot suite
     needs them too, and a fixture two modules use is a shared one."""
     yield from _live_app(threaded_disabled_volume_port, tmp_path)
 

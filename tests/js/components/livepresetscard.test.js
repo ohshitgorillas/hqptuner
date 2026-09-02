@@ -1,5 +1,5 @@
 // Behavioral suite for the LIVE MODE card components/live/View.js renders from
-// the saved live presets. The store itself — the list and the four verbs — is
+// the saved live snapshots. The store itself — the list and the four verbs — is
 // covered in livepresets.test.js; the wire fake and fixtures both suites use
 // live in livepresetwire.js.
 //
@@ -15,7 +15,7 @@
 // reached").
 //
 // Covered only as far as the mention, because the spec quotes no copy for them:
-// the card naming live presets as distinct from the header's presets and the
+// the card naming live snapshots as distinct from the header's presets and the
 // matrix profiles, and the two things it says about the output mode — that a
 // save captures it and that an apply can switch it. The words matched are the
 // spec's own; whether the sentences read well is a reading job, not a unit

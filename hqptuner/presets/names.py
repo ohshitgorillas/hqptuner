@@ -82,7 +82,7 @@ def sort_key(name: str) -> tuple[tuple[int, int, str], ...]:
 def validate_name(name: str, error: type[HQPTunerError], label: str) -> str:
     """``name`` back when it is a usable preset name, else ``error`` naming it.
 
-    ``label`` distinguishes the two stores' messages ("preset" / "live preset");
+    ``label`` distinguishes the two stores' messages ("preset" / "live snapshot");
     the rule itself is deliberately one rule, so a name that saves in one surface
     saves in the other.
     """

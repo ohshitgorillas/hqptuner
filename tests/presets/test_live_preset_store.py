@@ -3,7 +3,7 @@
 Characterization of behavior that already exists (docs/testing.md rule 8
 exemption): every case here describes the store as it stands, not a change.
 
-Live presets are HQPTuner's own state — a handful of enum ids applied through
+Live snapshots are HQPTuner's own state — a handful of enum ids applied through
 the LIVE lane, never written to hqplayerd's config (docs/architecture.md §98) —
 so nothing here needs a daemon, a socket or a port. The whole store is one JSON
 file, and every one of them lands under pytest's ``tmp_path``.

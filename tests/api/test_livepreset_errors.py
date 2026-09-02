@@ -1,4 +1,4 @@
-"""Error contracts of the live-preset REST surface — the statuses and details the
+"""Error contracts of the live-snapshot REST surface — the statuses and details the
 LIVE card keys its messaging off.
 
 Characterization of behavior that already exists (docs/testing.md §8 exemption:
@@ -75,7 +75,7 @@ def _seed(tmp_path: Path, store: dict[str, Any]) -> None:
 
 @pytest.fixture
 def unreadable_api(live_api: TestClient, tmp_path: Path) -> Iterator[TestClient]:
-    """The REST app over a live-preset store written by a newer HQPTuner."""
+    """The REST app over a live-snapshot store written by a newer HQPTuner."""
     _seed(tmp_path, FUTURE_STORE)
     yield live_api
 
