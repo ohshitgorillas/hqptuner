@@ -59,7 +59,7 @@ const SHOW_ME = {
 };
 
 export const rate = signal(SHOW_ME.intro.rate);
-export const phase = signal(SHOW_ME.intro.phase);
+const phase = signal(SHOW_ME.intro.phase);
 export const lengthMs = signal(SHOW_ME.intro.lengthMs);
 const rolloff = signal(SHOW_ME.intro.rolloff);
 export const transientUs = signal(SHOW_ME.intro.transientUs);
