@@ -109,7 +109,7 @@ function OutputRateControl() {
 
 function ContentRow() {
   return html`
-    <div class="primer-control primer-content" data-testid="primer-content">
+    <div class="primer-control" data-testid="primer-content">
       <label class="t-label">Content</label>
       <div class="primer-toggles">
         ${CONTENT_ROWS.map(
