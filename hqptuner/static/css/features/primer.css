@@ -22,22 +22,49 @@
   cursor: pointer;
 }
 
-/* Two tracks above the app's one breakpoint: the prose in the left track at the
-   reading measure, the graph in the right track sticking under the chrome so the
-   reader never loses it. Below the breakpoint one column, sticky off. */
+/* The graph across the full width at the top of the card: two panes side by
+   side above the app's one breakpoint, stacked below it. Each pane is a plot
+   box (cards/plots.css) with its title inside, so the box and its name read as
+   one thing. */
+.primer-panes {
+  display: grid;
+  gap: var(--rhythm-row);
+}
+@media (min-width: 1100px) {
+  .primer-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Frequency pane layers, back to front on the plot depth ladder: the source
+   wash and its images furthest back, the Nyquist mark a reference line, the
+   result fill in the accent just under the accent trace. The fill above the
+   Nyquist mark is the leak, and it is the one thing painted in the accent
+   besides the traces. */
+.primer-wash,
+.primer-images {
+  fill: var(--muted);
+  opacity: var(--o-back);
+}
+.primer-images {
+  opacity: calc(var(--o-back) / 2);
+}
+.primer-nyquist {
+  stroke: var(--muted);
+  stroke-width: 0.8;
+  stroke-dasharray: 4 3;
+  opacity: var(--o-mid);
+}
+.primer-leak {
+  fill: var(--accent);
+  opacity: var(--o-back);
+}
+
+/* The prose below the graph, at the reading measure. */
 .primer-layout {
   display: grid;
   gap: var(--rhythm-field);
-}
-@media (min-width: 1100px) {
-  .primer-layout {
-    grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
-    align-items: start;
-  }
-  .primer-graph {
-    position: sticky;
-    top: var(--sp-4);
-  }
+  max-width: var(--measure);
 }
 
 /* The prose column: paragraphs and sections spaced by the card body's own
