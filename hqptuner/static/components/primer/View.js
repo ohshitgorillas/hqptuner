@@ -18,7 +18,6 @@
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { setPrimerOpen } from "../../store/primerview.js";
-import { showMe } from "../../store/primergraph.js";
 import { INTRO, SECTIONS } from "./copy.js";
 import { PrimerGraph } from "./Graph.js";
 
@@ -67,17 +66,6 @@ function BackLink() {
   </button>`;
 }
 
-// A "Show me" sets the graph to the state its section describes and brings
-// the graph back into view, since the section sits below it.
-/** @param {{ id: string }} props */
-function ShowMe({ id }) {
-  const show = () => {
-    showMe(id);
-    document.querySelector(".primer-graph")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-  return html`<button type="button" class="primer-showme" data-showme=${id} onClick=${show}>Show me</button>`;
-}
-
 /** The filter playground, standing in for the Narrow filters card and the two chain cards. */
 export function PrimerView() {
   return html`
@@ -87,13 +75,11 @@ export function PrimerView() {
         <div class="primer-prose t-read">
           <div class="t-head">Filter Primer</div>
           ${INTRO.map((text) => html`<${Para} text=${text} />`)}
-          <${ShowMe} id="intro" />
           ${SECTIONS.map(
             (s) => html`
               <section class="primer-section" data-section=${s.id}>
                 <div class="t-eyebrow">${s.heading}</div>
                 ${s.blocks.map((block) => html`<${Prose} block=${block} />`)}
-                <${ShowMe} id=${s.id} />
               </section>
             `,
           )}

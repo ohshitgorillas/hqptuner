@@ -1,5 +1,5 @@
 // The filter primer graph's state: the knobs the reader turns, the chip values
-// each slider snaps to, the "Show me" rows that set the whole state at once,
+// each slider snaps to, the named rows that set the whole state at once,
 // and the filter, readouts and spectrum designed from them
 // (docs/plans/filter-primer-graph.md).
 //
