@@ -201,8 +201,7 @@ const LIVE_CARDS = [NARROW, "live-pcm-chain", "live-sdm-chain", EASY, PRIMER];
 // null), the Easy Mode card, or the primer. Whichever stand-in is up is drawn
 // alone; with neither up the filter cards are drawn and neither stand-in is.
 /** @param {string[]} cards @param {string | null} up */
-const expected = (cards, up) =>
-  Object.fromEntries(cards.map((c) => [c, up ? c === up : c !== EASY && c !== PRIMER]));
+const expected = (cards, up) => Object.fromEntries(cards.map((c) => [c, up ? c === up : c !== EASY && c !== PRIMER]));
 
 /**
  * How many switcher containers a rendering carries, by the
