@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-09-01
+
 ### Added
 
 - **High-frequency filter auto-pilot engages and disengages the filter as the playing track warrants.** Off by default; setting the filter by hand switches it off, and both live and general presets carry it.
