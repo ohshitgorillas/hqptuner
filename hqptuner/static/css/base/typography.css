@@ -81,6 +81,16 @@
   opacity: 1;
 }
 
+/* ── read — running prose meant to be read top to bottom, not a caption on
+   a control: the primer. Body size, primary color, a reading line-height,
+   capped at the shared measure. ──────────────────────────────────────── */
+.t-read {
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--fg);
+  max-width: var(--measure);
+}
+
 /* ── value — a measurement. Mono + tabular so live updates do not jitter.
    Primary tier: the number IS the content. ───────────────────────────── */
 .t-value {

@@ -13,6 +13,8 @@ import { optionsFor } from "../../store/options.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
 import { easyMode } from "../../store/easyview.js";
+import { PrimerView } from "../primer/View.js";
+import { primerOpen } from "../../store/primerview.js";
 import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
 import { PreProcessCard, PcmChainCard, SdmChainCard } from "./ConversionCards.js";
@@ -95,18 +97,22 @@ const NetCard =
   </div>
 <//>`;
 
-// The filter half of the tab has two faces. Easy Mode stands in for the whole
-// group rather than for any one card, because the narrowing bar exists to make
-// the two chain cards navigable and a chain card with no bar above it is the
-// hard face without the tool that makes it usable.
-const FilterCards = () =>
-  easyMode.value
+// The filter half of the tab has three faces. Easy Mode and the primer each
+// stand in for the whole group rather than for any one card, because the
+// narrowing bar exists to make the two chain cards navigable and a chain card
+// with no bar above it is the hard face without the tool that makes it usable.
+// The primer wins when both flags are up: it is reached deliberately and left
+// by its own Back, and the Easy Mode preference is still there when it is.
+const FilterCards = () => {
+  if (primerOpen.value) return html`<${PrimerView} />`;
+  return easyMode.value
     ? html`<${EasyCard} />`
     : html`
         <${NarrowBar} />
         <${PcmChainCard} />
         <${SdmChainCard} />
       `;
+};
 
 // Mode / Backend / Rate lead the tab as the three master switches.
 /** Output tab: backend, mode and rate switches, the conversion cards, DAC correction, and the ALSA and network cards. */

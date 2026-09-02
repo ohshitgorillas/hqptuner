@@ -1,0 +1,61 @@
+/* Filter primer — the view that stands in for the filter cards while it is
+   open (components/primer/View.js, docs/plans/filter-primer-design.md).
+
+   The card frame, its title and head are the shared Card's (cards.css); nothing
+   here repaints them. The text roles are typography.css's: the prose reads in
+   `.t-read`, the section headings are the `.t-eyebrow` the app's subsections
+   already wear. What is here is the layout and the way out. */
+
+/* The way out, in the card's head at the corner the way in occupies in the
+   Narrow filters head. Same treatment as that link and Easy Mode's exit: no
+   padding, no border, accent, the head's own type, pushed to the right edge. */
+.card-head .primer-back {
+  margin-left: auto;
+}
+.primer-back {
+  padding: 0;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Two tracks above the app's one breakpoint: the prose in the left track at the
+   reading measure, the graph in the right track sticking under the chrome so the
+   reader never loses it. Below the breakpoint one column, sticky off. */
+.primer-layout {
+  display: grid;
+  gap: var(--rhythm-field);
+}
+@media (min-width: 1100px) {
+  .primer-layout {
+    grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
+    align-items: start;
+  }
+  .primer-graph {
+    position: sticky;
+    top: var(--sp-4);
+  }
+}
+
+/* The prose column: paragraphs and sections spaced by the card body's own
+   field rhythm, never by paragraph margins, so a section reads as one stack. */
+.primer-prose {
+  display: grid;
+  gap: var(--sp-3);
+}
+.primer-prose p,
+.primer-prose ul {
+  margin: 0;
+}
+.primer-prose ul {
+  padding-left: var(--sp-4);
+  display: grid;
+  gap: var(--sp-1);
+}
+.primer-section {
+  display: grid;
+  gap: var(--sp-3);
+}
