@@ -16,6 +16,7 @@ lint:
 	$(VENV)/python scripts/gates/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 	$(VENV)/python scripts/gates/check_archaeology.py $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
+	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
 	$(VENV)/python scripts/gates/check_binaural.py
