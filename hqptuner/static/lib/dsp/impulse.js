@@ -1,10 +1,11 @@
 // --- convolution preview (client FFT of a session-uploaded IR) ---------------
 // The impulse-response registry and everything that feeds it: a minimal WAV
-// reader, a radix-2 FFT, and the lookup a conv stage plots through. Its own
+// reader, the radix-2 FFT from fft.js, and the lookup a conv stage plots through. Its own
 // module because `irCache` is module-level mutable state — one cache, written by
 // registerIr and read by every consumer, so it must have exactly one home.
 
-import { DEG, TAU, wrapDeg } from "./biquad.js";
+import { DEG, wrapDeg } from "./biquad.js";
+import { fftRadix2 } from "./fft.js";
 import { bandFreqs } from "./curves.js";
 
 /**
@@ -16,46 +17,6 @@ import { bandFreqs } from "./curves.js";
 const IR_GRID = bandFreqs(256);
 /** @type {Map<string, IrEntry | null>} daemon path -> response, null while unpreviewable */
 const irCache = new Map();
-
-/**
- * @param {Float64Array} re
- * @param {Float64Array} im
- * @returns {void}
- */
-function fftRadix2(re, im) {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i += 1) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      [re[i], re[j]] = [re[j], re[i]];
-      [im[i], im[j]] = [im[j], im[i]];
-    }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const ang = (-TAU / len) * 1;
-    const wr = Math.cos(ang);
-    const wi = Math.sin(ang);
-    for (let i = 0; i < n; i += len) {
-      let cr = 1;
-      let ci = 0;
-      for (let j = 0; j < len / 2; j += 1) {
-        const ur = re[i + j];
-        const ui = im[i + j];
-        const vr = re[i + j + len / 2] * cr - im[i + j + len / 2] * ci;
-        const vi = re[i + j + len / 2] * ci + im[i + j + len / 2] * cr;
-        re[i + j] = ur + vr;
-        im[i + j] = ui + vi;
-        re[i + j + len / 2] = ur - vr;
-        im[i + j + len / 2] = ui - vi;
-        const ncr = cr * wr - ci * wi;
-        ci = cr * wi + ci * wr;
-        cr = ncr;
-      }
-    }
-  }
-}
 
 // Walk the RIFF chunk list for the two chunks we need. Odd-sized chunks carry a
 // pad byte, hence the `size & 1`.
