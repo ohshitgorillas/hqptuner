@@ -216,6 +216,27 @@ export function gaussianPulse(sigmaSamples) {
 }
 
 /**
+ * The pulse through the filter: the full convolution, and the index of the
+ * filter's tap centroid, its group delay at DC, so the pulse's first sample
+ * sits at `y[delay]` and a minimum-phase filter's front-loaded response is not
+ * credited as arriving early.
+ * @param {Float64Array} taps
+ * @param {Float64Array} pulse
+ * @returns {{ y: Float64Array, delay: number }}
+ */
+export function filterPulse(taps, pulse) {
+  const y = new Float64Array(taps.length + pulse.length - 1);
+  let moment = 0;
+  let mass = 0;
+  for (let i = 0; i < taps.length; i += 1) {
+    moment += i * taps[i];
+    mass += taps[i];
+    for (let j = 0; j < pulse.length; j += 1) y[i + j] += taps[i] * pulse[j];
+  }
+  return { y, delay: Math.round(moment / mass) };
+}
+
+/**
  * Peak of what the filter added outside the pulse's own extent, before and
  * after its centre, in dB relative to the pulse peak. The output is aligned on
  * the filter's tap centroid, its group delay at DC, so a minimum-phase filter's
@@ -225,15 +246,7 @@ export function gaussianPulse(sigmaSamples) {
  * @returns {{ beforeDb: number, afterDb: number }}
  */
 export function ringing(taps, pulse) {
-  const y = new Float64Array(taps.length + pulse.length - 1);
-  let moment = 0;
-  let mass = 0;
-  for (let i = 0; i < taps.length; i += 1) {
-    moment += i * taps[i];
-    mass += taps[i];
-    for (let j = 0; j < pulse.length; j += 1) y[i + j] += taps[i] * pulse[j];
-  }
-  const delay = Math.round(moment / mass);
+  const { y, delay } = filterPulse(taps, pulse);
   let peak = 0;
   for (let j = 0; j < pulse.length; j += 1) peak = Math.max(peak, Math.abs(pulse[j]));
   let before = 0;

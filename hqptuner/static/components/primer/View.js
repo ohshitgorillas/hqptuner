@@ -10,9 +10,8 @@
 //
 // Prose is the owner's, verbatim, from ./copy.js; the only markup the view adds
 // is the tags the owner's `**strong**` and `*stressed*` marks and bullet lists
-// stand for. The prose sits in the left track at the reading measure and the
-// right track is the graph's, which is not built here: the slot stays empty
-// until it is.
+// stand for. The graph (./Graph.js) sits across the full width at the top of
+// the card, the prose below it at the reading measure.
 //
 // Rendered only while open: the pages mount it behind the flag, so there is no
 // hidden copy in the document while the filter cards are showing.
@@ -20,6 +19,7 @@ import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { setPrimerOpen } from "../../store/primerview.js";
 import { INTRO, SECTIONS } from "./copy.js";
+import { PrimerGraph } from "./Graph.js";
 
 /** Matches a strong or stressed run and captures it, so a split keeps the pieces. */
 const SPLIT = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
@@ -66,6 +66,7 @@ function BackLink() {
 export function PrimerView() {
   return html`
     <${Card} id="filter-primer" title=${html`Filter Primer<${BackLink} />`}>
+      <${PrimerGraph} />
       <div class="primer-layout">
         <div class="primer-prose t-read">
           ${INTRO.map((text) => html`<${Para} text=${text} />`)}
@@ -78,7 +79,6 @@ export function PrimerView() {
             `,
           )}
         </div>
-        <aside class="primer-graph"></aside>
       </div>
     <//>
   `;
