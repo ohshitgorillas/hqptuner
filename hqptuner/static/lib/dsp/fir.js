@@ -5,7 +5,6 @@
 // `minimum_phase(method="homomorphic", half=False)`) so their published
 // reference values pin the transcription.
 
-import { TAU } from "./biquad.js";
 import { fftRadix2, ifftRadix2 } from "./fft.js";
 
 /** Magnitudes below this read as the floor; keeps log10 finite on exact zeros. */
@@ -175,24 +174,64 @@ export function minimumPhase(taps) {
   return re.slice(0, n);
 }
 
+/** Smallest FFT the magnitude reading is taken on; finer than any drawn grid. */
+const MIN_NFFT = 1 << 14;
+
 /**
- * Magnitude response in dB at each requested frequency.
+ * Magnitude response in dB at each requested frequency, read off one FFT of the
+ * taps and interpolated between bins. Frequencies past the rate wrap, so the
+ * reading is periodic in `rate` like the response itself.
  * @param {Float64Array} taps
  * @param {number} rate
  * @param {number[]} freqsHz
  * @returns {Float64Array}
  */
 export function magnitudeDb(taps, rate, freqsHz) {
+  const nfft = Math.max(MIN_NFFT, 1 << Math.ceil(Math.log2(2 * taps.length)));
+  const re = new Float64Array(nfft);
+  const im = new Float64Array(nfft);
+  re.set(taps);
+  fftRadix2(re, im);
+  const mag = new Float64Array(nfft);
+  for (let i = 0; i < nfft; i += 1) mag[i] = Math.hypot(re[i], im[i]);
   const out = new Float64Array(freqsHz.length);
   for (let k = 0; k < freqsHz.length; k += 1) {
-    const w = (TAU * freqsHz[k]) / rate;
-    let re = 0;
-    let im = 0;
-    for (let i = 0; i < taps.length; i += 1) {
-      re += taps[i] * Math.cos(w * i);
-      im -= taps[i] * Math.sin(w * i);
-    }
-    out[k] = 20 * Math.log10(Math.max(Math.hypot(re, im), MAG_FLOOR));
+    const pos = (((freqsHz[k] / rate) % 1) + 1) % 1;
+    const x = pos * nfft;
+    const lo = Math.floor(x) % nfft;
+    const hi = (lo + 1) % nfft;
+    const t = x - Math.floor(x);
+    out[k] = 20 * Math.log10(Math.max(mag[lo] * (1 - t) + mag[hi] * t, MAG_FLOOR));
+  }
+  return out;
+}
+
+/**
+ * The spectrum of a stream at `inputRate` after resampling to `outputRate`,
+ * on the same grid (uniform, starting at 0, reaching at least half the input
+ * rate). Every input frequency within the input's own band that lands on a
+ * given output frequency adds its power there, so what a decimation does not
+ * remove folds into the passband; the result is periodic in the output rate.
+ * @param {Float64Array} levelsDb
+ * @param {number[]} freqsHz
+ * @param {number} inputRate
+ * @param {number} outputRate
+ * @returns {Float64Array}
+ */
+export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
+  const step = freqsHz[1] - freqsHz[0];
+  const at = (/** @type {number} */ f) => {
+    const i = Math.round(f / step);
+    return i < levelsDb.length ? 10 ** (levelsDb[i] / 10) : 0;
+  };
+  const out = new Float64Array(freqsHz.length);
+  for (let k = 0; k < freqsHz.length; k += 1) {
+    const m = freqsHz[k] % outputRate;
+    const g = m > outputRate / 2 ? outputRate - m : m;
+    let total = 0;
+    for (let a = g; a <= inputRate / 2; a += outputRate) total += at(a);
+    for (let a = outputRate - g; a <= inputRate / 2; a += outputRate) total += at(a);
+    out[k] = 10 * Math.log10(Math.max(total, MAG_FLOOR * MAG_FLOOR));
   }
   return out;
 }

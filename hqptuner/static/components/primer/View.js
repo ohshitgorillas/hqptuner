@@ -18,8 +18,13 @@
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { setPrimerOpen } from "../../store/primerview.js";
+import { showMe } from "../../store/primergraph.js";
 import { INTRO, SECTIONS } from "./copy.js";
 import { PrimerGraph } from "./Graph.js";
+
+/** The card's explanation, owner copy verbatim. */
+const SUBTITLE =
+  "The Filter Playground features textbook-standard filter mathematics, similar but not equivalent to HQPlayer's FIR filters. HQPlayer's actual filter mathematics are proprietary and strictly off-limits under the terms and conditions.";
 
 /** Matches a strong or stressed run and captures it, so a split keeps the pieces. */
 const SPLIT = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
@@ -62,19 +67,33 @@ function BackLink() {
   </button>`;
 }
 
-/** The filter primer, standing in for the Narrow filters card and the two chain cards. */
+// A "Show me" sets the graph to the state its section describes and brings
+// the graph back into view, since the section sits below it.
+/** @param {{ id: string }} props */
+function ShowMe({ id }) {
+  const show = () => {
+    showMe(id);
+    document.querySelector(".primer-graph")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return html`<button type="button" class="primer-showme" data-showme=${id} onClick=${show}>Show me</button>`;
+}
+
+/** The filter playground, standing in for the Narrow filters card and the two chain cards. */
 export function PrimerView() {
   return html`
-    <${Card} id="filter-primer" title=${html`Filter Primer<${BackLink} />`}>
+    <${Card} id="filter-primer" title=${html`Filter Playground<${BackLink} />`} subtitle=${SUBTITLE}>
       <${PrimerGraph} />
       <div class="primer-layout">
         <div class="primer-prose t-read">
+          <div class="t-head">Filter Primer</div>
           ${INTRO.map((text) => html`<${Para} text=${text} />`)}
+          <${ShowMe} id="intro" />
           ${SECTIONS.map(
             (s) => html`
               <section class="primer-section" data-section=${s.id}>
                 <div class="t-eyebrow">${s.heading}</div>
                 ${s.blocks.map((block) => html`<${Prose} block=${block} />`)}
+                <${ShowMe} id=${s.id} />
               </section>
             `,
           )}
