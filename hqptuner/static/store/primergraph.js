@@ -38,21 +38,24 @@ const SHOW_ME = {
     lengthMs: LENGTH_CHIPS.medium,
     rolloff: ROLLOFF_CHIPS.medium,
     transientUs: TRANSIENT_CHIPS.snap,
-    content: QUIET,  },
+    content: QUIET,
+  },
   "phase-length": {
     rate: 44100,
     phase: "linear",
     lengthMs: LENGTH_CHIPS.long,
     rolloff: ROLLOFF_CHIPS.medium,
     transientUs: TRANSIENT_CHIPS.click,
-    content: QUIET,  },
+    content: QUIET,
+  },
   "roll-off": {
     rate: 96000,
     phase: "linear",
     lengthMs: LENGTH_CHIPS.medium,
     rolloff: ROLLOFF_CHIPS.fast,
     transientUs: TRANSIENT_CHIPS.snap,
-    content: { ...QUIET, risingNoise: true },  },
+    content: { ...QUIET, risingNoise: true },
+  },
 };
 
 export const rate = signal(SHOW_ME.intro.rate);
