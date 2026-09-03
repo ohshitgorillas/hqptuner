@@ -67,22 +67,22 @@ The line is decisions, not size. Anything where you'd have to *decide* mid-edit 
 
 ## Change budget (hard rule)
 
-`.claude/hooks/change-budget.py` meters what you change between turns where user speaks, on **two separate leashes**. Whichever trips first stops you and forces report: what you did, what you found, what you plan next — "plan next" means immediate next steps (1-3 lines), not a full plan; a trip mid-investigation reports findings-so-far + next reads, and full plans arrive only through the plan gate, grounded per the grounding gate above.
+`.claude/hooks/change-budget.py` meters what you change between turns where user speaks, on **one leash: actions you cannot take back**. A trip stops you and forces report: what you did, what you found, what you plan next — "plan next" means immediate next steps (1-3 lines), not a full plan; a trip mid-investigation reports findings-so-far + next reads, and full plans arrive only through the plan gate, grounded per the grounding gate above.
 
-**Only prose you typed resets the leashes.** Slash command, `/clear`, local-command output — harness rows, not user reading anything, so they buy nothing. One exception: first human row after a trip always resets, whatever it is, so answering a trip with a slash command never wedges you.
+**Only prose you typed resets the leash.** Slash command, `/clear`, local-command output — harness rows, not user reading anything, so they buy nothing. One exception: first human row after a trip always resets, whatever it is, so answering a trip with a slash command never wedges you.
 
 - **Change budget — 8.** Anything escaping working tree or not undoable from it: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside repo.
-- **Edit allowance — 100.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree.
+- **In-tree edits are free.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree, unmetered and uncapped — `git restore` undoes them, `make check` gates them, plan gate ruled on them first. Write outside tree still meters.
 
 `scripts/pair.sh open|merge|abort` is one metered action each — whole lifecycle of a `/tests` run costs two. `scripts/pair.sh list` is free.
 
 Free, never counted, never blocked: file reads, `Grep`/`Glob`, web fetch/search, delegation to read-only agent type, read-only Bash — verification (`make check`, `make lint-js`, `make test-js`, `node --test <file>`, `pytest`, `ruff check`, `mypy`, …) and investigation (`grep`, `sed -n`, `ls`, `find`, `cat`, `jq`, read-only `git log`/`show`/`diff`/`blame`, …), even piped or redirected to `/dev/null` or scratchpad. Ground yourself in code, docs, live state before spending anything.
 
-**Free list = closed allowlist (`.claude/hooks/free_bash.py`); one unrecognized stage meters whole pipeline.** Three misfires worth memorizing: `cd` and `awk` not on list, so any pipeline containing either meters — chain with `&&` or pass paths to `grep` directly instead of `cd`, use `cut`/`column`/`grep -o` in place of `awk`; and `sed` free **only** in no-autoprint mode, so `sed -n '10,20p'` free while `sed -E 's/…/'` meters. Shell loops (`for … do … done`) are never parsed and always meter, however read-only the body — use `diff -r -q` or an `&&` chain instead.
+**Free list = closed allowlist (`.claude/hooks/free_bash.py`); one unrecognized stage meters whole pipeline.** Free now and previously not: `cd <path>`, `set -a` / `source hqpcreds`, a segment that is only `VAR=…` assignments, `$(pwd)` and `$(git rev-parse --show-toplevel)`, `make -C <dir> <free target>`, `npx eslint|tsc|knip|jscpd|prettier`, `git branch` (no `-d`/`-D`/`-m`/`-f`), `git worktree list`, `git check-ignore`. Three misfires worth memorizing: `awk` not on list, so any pipeline containing it meters — use `cut`/`column`/`grep -o` instead; every command substitution other than the two above meters; and `sed` free **only** in no-autoprint mode, so `sed -n '10,20p'` free while `sed -E 's/…/'` meters. Shell loops (`for … do … done`, `until …`) are never parsed and always meter, however read-only the body — use `diff -r -q` or an `&&` chain instead.
 
 `python -c`, `python script.py`, mutating `curl` stay metered — arbitrary code and network writes can't be inspected. Free equivalents: `jq` for JSON (loopback GETs free: `curl -s http://127.0.0.1:<port>/api/… | jq '…'`), `grep`/`sed -n` for text, `Read` tool for files.
 
-**Two advisories, `.claude/hooks/read-volume.py` (PostToolUse). Advisory only — never deny, never meter, never block.** Past 25 KB of free reading in one leash period it names the read-only agent types you can hand remaining reading to; free-read of a path already in context that nothing has written since, it says so once. Heed both — measured: over a third of all free-read bytes were rereads of files already in context.
+**Three advisories, `.claude/hooks/read-volume.py` (PostToolUse). Advisory only — never deny, never meter, never block.** Every metered call is followed by `Budget: 3/8 (metered: `sed` lacking `-n`)` — the running count and the token that decided it, so a charge is legible at the command that caused it rather than eight commands later. Past 25 KB of free reading in one leash period it names the read-only agent types you can hand remaining reading to; free-read of a path already in context that nothing has written since, it says so once. Heed all three — measured: over a third of all free-read bytes were rereads of files already in context.
 
 Rules:
 

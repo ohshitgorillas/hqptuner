@@ -6,7 +6,13 @@ The change budget prices what an agent *changes*. Nothing prices what it
 free-read bytes are re-reads of files already in context, and heavy read
 periods often produce zero edits.
 
-So this emits two advisories, both purely informational:
+So this emits three advisories, all purely informational:
+
+  0. **Budget counter** — this call was metered, so it cost one of CHANGE_LIMIT.
+     Names the count and the reason, because the denial arrives eight commands
+     later and by then nothing connects it to the shape that caused it. The
+     count comes from the budget's own window and tally, never a second path.
+
 
   a. **Byte advisory** — free reads in this leash period crossed another
      multiple of THRESHOLD. Names the read-only agent types by name, because
@@ -15,9 +21,10 @@ So this emits two advisories, both purely informational:
      already read and nothing has written to since. A path that *was* edited
      since its last read never triggers: re-reading it is correct.
 
-Both fire at most once per leash period (the byte one, once per crossing), and
-neither can stop anything. An advisory that blocks is a budget, and the budget
-already exists; this is here to be read and ignored when it's wrong.
+The read advisories fire at most once per leash period (the byte one, once per
+crossing); the counter fires on every metered call, which is the point of it.
+None of them can stop anything. An advisory that blocks is a budget, and the
+budget already exists; this is here to be read and ignored when it's wrong.
 
 Statelessness is deliberate: everything is derived from the transcript on each
 invocation, so there is no state file to go stale, no session id to key, and
@@ -220,13 +227,52 @@ def _batch_follower(rows, tool_id, sizes):
     return False
 
 
+def why_metered(name, tool_input):
+    """A few words naming what made this call cost an action.
+
+    For Bash the allowlist parser answers; for the other tools the class itself
+    is the answer, and naming the tool is what makes the charge legible — an
+    agent that reads "Agent(general-purpose)" knows to reach for Explore next
+    time, where a bare count teaches nothing.
+    """
+    if name == "Bash":
+        return budget.reason_metered(tool_input.get("command", ""))
+    if name == "Agent":
+        return f"Agent({tool_input.get('subagent_type')}) not a read-only type"
+    if name in budget.EDIT_TOOLS:
+        return f"{name} outside the working tree"
+    return f"{name} not on the free list"
+
+
+def count_metered(data, rows, root, cwd):
+    """This call's ordinal among the metered actions since the user last spoke.
+
+    Deliberately the same three functions the denial uses — budget.window() for
+    the period, count_blocks() for the tally, _pending_present() for whether
+    this call has reached the transcript yet. A second counting path here would
+    let the number the agent reads drift from the number that denies it, which
+    is the one thing this advisory cannot afford to get wrong.
+    """
+    period = budget.window(rows)
+    count = sum(budget.count_blocks(ev, root, cwd)[0] for ev in period)
+    name, tool_input = data.get("tool_name"), data.get("tool_input") or {}
+    if not budget._pending_present(period, budget._result_ids(rows), name, tool_input):
+        count += 1
+    return count
+
+
 def advise(data, rows):
     """The advisory text for this call, or None. Never denies — there is no
     code path in this file that returns a permission decision."""
     cwd = data.get("cwd") or os.getcwd()
     name, tool_input = data.get("tool_name"), data.get("tool_input") or {}
     root = budget._repo_root(cwd)
-    if budget.classify(name, tool_input, root, cwd) != budget.FREE:
+    kind = budget.classify(name, tool_input, root, cwd)
+    if kind == budget.CHANGE:
+        count = count_metered(data, rows, root, cwd)
+        return (f"Budget: {count}/{budget.CHANGE_LIMIT} "
+                f"(metered: {why_metered(name, tool_input)})")
+    if kind != budget.FREE:
         return None
 
     period = budget.window(rows)
@@ -314,6 +360,15 @@ def _post(name, tool_input, size, tool_id="pending"):
             "tool_use_id": tool_id, "tool_response": "y" * size}
 
 
+def _metered(count, start=0):
+    """`count` completed metered calls, each with its result already recorded."""
+    rows = []
+    for i in range(start, start + count):
+        rows += [_call(f"m{i}", f"tm{i}", "Bash", {"command": f"sudo ls {i}"}),
+                 _result(f"tm{i}", 10)]
+    return rows
+
+
 def _check(label, condition):
     print(f"  {'PASS' if condition else 'FAIL'}  {label}")
     return condition
@@ -360,8 +415,19 @@ def self_test():
     ok.append(_check("a new period is advised again",
                      bool(advise(_post("Read", {"file_path": one}, 10), after_reply))))
 
-    ok.append(_check("a metered call is never advised",
-                     advise(_post("Bash", {"command": "sudo ls"}, 10), plain) is None))
+    two = [_said("go"), *_metered(2)]
+    counted = advise(_post("Bash", {"command": "sed -E 's/a/b/' f"}, 10), two)
+    silent = (advise(_post("Bash", {"command": "grep -n x f"}, 10), two),
+              advise(_post("Edit", {"file_path": os.path.join(HOOK_DIR, "one.py")}, 10), two))
+    ok.append(_check("the third metered call in a period is counted, the free ones are not",
+                     "3/8" in (counted or "") and not any(silent)))
+    ok.append(_check("a metered Agent spawn is counted too",
+                     "3/8" in (advise(_post("Agent", {"subagent_type": "general-purpose"}, 10),
+                                      two) or "")))
+    full = [_said("go"), *_metered(budget.CHANGE_LIMIT - 1)]
+    ok.append(_check("the counter at the limit includes the call that just completed",
+                     f"{budget.CHANGE_LIMIT}/{budget.CHANGE_LIMIT}"
+                     in (advise(_post("Bash", {"command": "sudo ls"}, 10), full) or "")))
     every = [advise(_post("Read", {"file_path": one}, n), plain) for n in (0, 10, 10**6)]
     ok.append(_check("no advisory ever carries a permission decision",
                      all("permissionDecision" not in (t or "") for t in every)))

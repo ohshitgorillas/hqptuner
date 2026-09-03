@@ -22,8 +22,8 @@ def _load(name):
 budget = _load("change-budget")
 evaluate = budget.evaluate
 is_free_bash = budget.is_free_bash
+reason_metered = budget.reason_metered
 CHANGE_LIMIT = budget.CHANGE_LIMIT
-EDIT_LIMIT = budget.EDIT_LIMIT
 
 
 def _call(uuid, tool_id, name, tool_input):
@@ -89,7 +89,8 @@ def _budget_checks():
     ok.append(_check("a /tests agent spawn is free past the limit",
                      evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
 
-    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"), *_ran(2, start=3)]
+    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"),
+           *_ran(limit - 2, start=3)]
     ok.append(_check("a command row mid-burst does not reset the count", bool(_verdict(mid))))
     ok.append(_check("prose mid-burst does reset the count",
                      _verdict([_said("do it"), *_ran(limit + 1), _said("now do this other thing")]) is None))
@@ -99,47 +100,99 @@ def _budget_checks():
              _said("<command-name>/clear</command-name>")]
     ok.append(_check("a command row right after a trip does reset", _verdict(after) is None))
 
+    ask = {"cwd": os.path.dirname(os.path.abspath(__file__)),
+           "tool_name": "AskUserQuestion", "tool_input": {"questions": []}}
+    ok.append(_check("surfacing to the user is free past the limit",
+                     evaluate(ask, [_said("hi"), *_ran(limit + 5)]) is None))
+
     edits = [_said("edit them")]
-    for i in range(EDIT_LIMIT):
+    for i in range(500):
         edits += [_call(f"e{i}", f"u{i}", "Edit", {"file_path": __file__}), _done(f"u{i}")]
     data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
             "tool_name": "Edit", "tool_input": {"file_path": __file__}}
-    ok.append(_check(f"{EDIT_LIMIT} complete edits allowed, {EDIT_LIMIT + 1} denied",
-                     bool(evaluate(data, edits)) and evaluate(data, edits[:-2]) is None))
+    ok.append(_check("in-tree edits are never denied, however many",
+                     evaluate(data, edits) is None))
+    outside = {"cwd": os.path.dirname(os.path.abspath(__file__)),
+               "tool_name": "Write", "tool_input": {"file_path": "/etc/x"}}
+    ok.append(_check("a write outside the tree still meters past the limit",
+                     bool(evaluate(outside, [_said("hi"), *_ran(limit)]))))
     return ok
 
 
-# (command, expected free?) — the allowlist cases worth pinning
+# (command, expected free?) — and, for a metering case, a third element: a token
+# the command itself contains, which the reason must echo back. The token is
+# typed here in the input, so asserting on it pins which part of the command
+# decided the verdict without pinning a word of the diagnostic's prose.
 ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
-    ("cd /tmp && ls", False),
+    ("sed -E 's/x/y/' f", False, "-n"),
+    ("black --diff x", False, "--check"),
+    # cd: a free segment head, but it frees only itself
+    ("cd /tmp && ls", True),
+    ("cd /tmp && sudo ls", False, "sudo"),
+    ("cd /tmp; rm -rf x", False, "rm"),
+    # credentials: `source` is free only for hqpcreds, never a general file
+    ("set -a && source /srv/hqptuner/hqpcreds && set +a && make check", True),
+    (". hqpcreds", True),
+    ("source /tmp/evil.sh", False, "source"),
+    # command substitution: two known-safe forms, nothing else
+    ("PYTHONPATH=$(pwd) make check", True),
+    ("make -C $(git rev-parse --show-toplevel) check", True),
+    ("ls $(cat /etc/passwd)", False, "$("),
+    # make: -C takes a directory, which is not a target
+    ("make -C /srv/hqptuner/.claude/worktrees/x check", True),
+    ("make -C /x mutate", False, "mutate"),
+    # a segment that is only variable assignments binds names and runs nothing
+    ("S=/srv/hqptuner; grep -n check $S/Makefile", True),
+    ("S=x; sudo ls", False, "sudo"),
+    # npx verifiers: read-only ones by name; --fix / --write are banned already
+    ("npx tsc -p jsconfig.json", True),
+    ("npx eslint . --fix", False, "--fix"),
+    ("npx prettier --check hqptuner/static/", True),
+    ("npx prettier --write hqptuner/static/", False, "--write"),
+    ("npx tsc x.js", False, "tsc"),
+    ("npx some-codemod", False, "some-codemod"),
     # git: read-only history archaeology is investigation, not mutation
     ("git -C /srv/hqptuner log --oneline -20", True),
     ("git log --all --oneline -S 'title' -- a/b.js | head", True),
     ("git show ec903fc --stat ; git status", True),
-    ("git -c core.pager=cat log", False),        # -c can define an alias
-    ("git config --global user.name x", False),
-    ("git commit -m x", False),
-    ("git branch -d dev", False),
-    ("git diff --output=/srv/hqptuner/x", False),
+    ("git -c core.pager=cat log", False, "-c"),  # -c can define an alias
+    ("git config --global user.name x", False, "config"),
+    ("git commit -m x", False, "commit"),
+    ("git branch -v", True),
+    ("git branch -d dev", False, "-d"),
+    ("git branch -D main", False, "-D"),
+    ("git worktree list", True),
+    ("git worktree remove x", False, "remove"),
+    ("git check-ignore -v docs/x.md", True),
+    ("git diff --output=/srv/hqptuner/x", False, "--output"),
     # node: the JS suite, narrowed to one file
     ("node --import ./tests/js/support/vendor-resolve.js --test tests/js/eqlab/a.test.js", True),
-    ("node -e 'require(\"fs\").rmSync(\"x\")'", False),
-    ("node scripts/build.js", False),
+    ("node -e 'require(\"fs\").rmSync(\"x\")'", False, "-e"),
+    ("node scripts/build.js", False, "--test"),
     # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
     ("scripts/pair.sh list", True),
-    ("scripts/pair.sh open eqfix", False),
-    ("scripts/pair.sh merge eqfix", False),
-    ("scripts/pair.sh abort eqfix", False),
-    ("bash scripts/pair.sh list", False),        # `bash` is not a recognized head
+    ("scripts/pair.sh open eqfix", False, "open"),
+    ("scripts/pair.sh merge eqfix", False, "merge"),
+    ("scripts/pair.sh abort eqfix", False, "abort"),
+    ("bash scripts/pair.sh list", False, "bash"),   # `bash` is not a recognized head
     # unchanged: a shell loop is not parsed, so it still meters
-    ("for f in a b; do diff -q $f x/$f; done", False),
+    ("for f in a b; do diff -q $f x/$f; done", False, "for"),
 ]
 
 
 def _allowlist_checks():
-    return [_check(f"{'free' if want else 'meters'}: {cmd}", is_free_bash(cmd) is want)
-            for cmd, want in ALLOWLIST_CASES]
+    ok = [_check(f"{'free' if case[1] else 'meters'}: {case[0]}",
+                 is_free_bash(case[0]) is case[1])
+          for case in ALLOWLIST_CASES]
+    # every metering case carries a token, so the sweep below cannot be
+    # satisfied by a reason that explains only the cases someone thought of
+    metering = [c for c in ALLOWLIST_CASES if not c[1]]
+    ok.append(_check("every metering case declares a deciding token",
+                     all(len(c) == 3 for c in metering)))
+    ok += [_check(f"reason names {c[2]}: {c[0]}", c[2] in reason_metered(c[0]))
+           for c in metering if len(c) == 3]
+    return ok
 
 
 def self_test():

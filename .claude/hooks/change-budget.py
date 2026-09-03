@@ -9,28 +9,26 @@ can't run a long silent burst the user has to interrupt to stop.
 Enforcement is self-tripping: it does NOT depend on the user noticing the
 spam and interrupting. The counters are the tripwire.
 
-TWO LEASHES, because reversibility differs:
+ONE LEASH — CHANGE_LIMIT, counting metered actions: anything that escapes the
+working tree or can't be undone from it. sudo, docker, git commit/push,
+mutating curl, rm, `python -c` / `python script.py`, writes outside the repo.
+These are the ones the user cannot cheaply take back, so they are the ones
+priced.
 
-  * CHANGE_LIMIT (metered actions) — anything that escapes the working tree or
-    can't be undone from it: sudo, docker, git commit/push, mutating curl, rm,
-    `python -c` / `python script.py`, writes outside the repo. Small budget:
-    these are the ones the user cannot cheaply take back.
-
-  * EDIT_LIMIT (structured edits) — Write/Edit/NotebookEdit to a path inside
-    the current git working tree. Recoverable by `git restore`, visible in
-    `git diff`, gated by `make check`, and reviewed before commit. Generous
-    budget: enough to land a real change in one turn.
-
-Whichever trips first forces the report.
+In-tree Write/Edit/NotebookEdit classify as EDIT and are never denied.
+Recoverable by `git restore`, visible in `git diff`, gated by `make check`,
+reviewed before commit — and the plan gate already rules on the change before
+an edit is written, which is where a runaway edit burst actually gets caught.
+The class survives because the analyzers under scripts/budget/ measure edits
+per leash period through it; only the limit is gone.
 
 Deliberate asymmetry: Bash mutations always meter, even in-tree. Deciding
 whether a shell command only touches the working tree is not tractable —
-is_free_bash() is already a conservative parser and will not be extended that
-far. Only the structured tools get the cheap lane, because their target is a
-known field rather than a string to parse. That asymmetry is a feature: it
-prices the reviewable path (nine Edit calls) below the opaque one (one
-`python -c` that rewrites nine files), which is the opposite of what a single
-flat counter does.
+is_free_bash() is a conservative parser and will not be extended that far. Only
+the structured tools get the free lane, because their target is a known field
+rather than a string to parse. That asymmetry is a feature: it prices the
+reviewable path (nine Edit calls) below the opaque one (one `python -c` that
+rewrites nine files), which is the opposite of what a flat counter does.
 
 WHAT COUNTS AS THE USER SPEAKING. Only prose the user typed — see
 is_genuine_reply(). A slash command, a /clear, or a local command's stdout is
@@ -58,8 +56,12 @@ import re
 import importlib.util
 
 CHANGE_LIMIT = 8   # metered actions since the user last spoke; the next blocks
-EDIT_LIMIT = 100    # in-tree structured edits since the user last spoke
-FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}  # read-only tools
+# read-only tools, plus the harness's own bookkeeping: none of these reach the
+# filesystem, the daemon or another agent. AskUserQuestion is here because it is
+# how a trip gets answered — pricing it makes the escape cost an action.
+FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch",
+              "ToolSearch", "ListAgents", "TaskOutput", "AskUserQuestion",
+              "EnterPlanMode", "ExitPlanMode"}
 
 # structured edit tools -> the input field naming their target path
 EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
@@ -96,6 +98,7 @@ _free = _load("free_bash")
 # re-exported: the callers above reach for these through this module, which is
 # the one they load
 is_free_bash = _free.is_free_bash
+reason_metered = _free.reason_metered
 _curl_ok = _free._curl_ok
 _strip_prefix = _free._strip_prefix
 _cmd_name = _free._cmd_name
@@ -345,18 +348,16 @@ def evaluate(data, rows):
     if kind == FREE:            # costs nothing: allow regardless of prior counts
         return None
 
+    if kind == EDIT:            # in-tree, reviewable, `git restore`-able: free
+        return None
+
     win = window(rows)
-    changes = edits = 0
-    labels = []
+    changes, labels = 0, []
     for ev in win:
-        c, e = count_blocks(ev, root, cwd, labels)
-        changes += c
-        edits += e
+        changes += count_blocks(ev, root, cwd, labels)[0]
     if not _pending_present(win, _result_ids(rows), name, tool_input):
-        changes += kind == CHANGE
-        edits += kind == EDIT
-        if kind == CHANGE:
-            labels.append(_label({"name": name, "input": tool_input}))
+        changes += 1
+        labels.append(_label({"name": name, "input": tool_input}))
 
     # Counts now include the pending call exactly once, so they are its ordinal:
     # the Nth action since the reset. N > LIMIT is the first one past budget,
@@ -366,9 +367,6 @@ def evaluate(data, rows):
         return (f"{changes} metered actions since the user last spoke "
                 f"(change budget {CHANGE_LIMIT}). " + _REPORT
                 + f"\nMetered: {listing}")
-    if edits > EDIT_LIMIT:
-        return (f"{edits} in-tree edits since the user last spoke "
-                f"(edit allowance {EDIT_LIMIT}). " + _REPORT)
     return None
 
 
@@ -397,7 +395,8 @@ def main():
     # denied, and parsing a multi-megabyte file to learn that would put the
     # cost of the budget on the calls the budget deliberately does not price.
     cwd = data.get("cwd") or os.getcwd()
-    if classify(data.get("tool_name"), data.get("tool_input"), _repo_root(cwd), cwd) == FREE:
+    if classify(data.get("tool_name"), data.get("tool_input"),
+                _repo_root(cwd), cwd) in (FREE, EDIT):
         return
 
     tp = data.get("transcript_path")

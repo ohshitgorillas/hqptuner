@@ -45,13 +45,27 @@ FIND_BAD = {"-exec", "-execdir", "-delete", "-ok", "-okdir",
 # telling those apart is not worth the parser.
 GIT_READ_SUBCMDS = {"log", "show", "diff", "status", "blame", "shortlog",
                     "rev-parse", "rev-list", "ls-files", "ls-tree", "cat-file",
-                    "describe", "name-rev", "whatchanged"}
+                    "describe", "name-rev", "whatchanged", "check-ignore"}
 # git global options that cannot change WHICH code runs. `-c k=v` is absent on
 # purpose: it can define an alias or a textconv filter that executes.
 GIT_GLOBAL_FLAGS = {"--no-pager", "-P", "--literal-pathspecs",
                     "--no-replace-objects", "--bare"}
+# `git branch` flags that write a ref instead of listing them
+GIT_BRANCH_BAD = {"-d", "-D", "-m", "-M", "-c", "-C", "-f", "--delete", "--move",
+                  "--copy", "--force", "--set-upstream-to", "-u",
+                  "--unset-upstream", "--edit-description"}
 # node flags that hand it a program on the command line instead of a test file
 NODE_BAD = {"-e", "--eval", "-p", "--print", "-i", "--interactive"}
+# JS-side verifiers, reached through `npx`. They read and report; the flags that
+# would make them rewrite (--fix, --write) are in BANNED_SUBSTR already.
+FREE_JS_CMDS = {"eslint", "knip", "jscpd", "prettier"}
+# `set` flags that only change shell options — `set -a` before sourcing creds
+SET_FLAGS = re.compile(r'^[-+][aeux]$')
+# The one file a `source` may name: the gitignored dev credentials at repo root.
+SOURCEABLE = "hqpcreds"
+# Command substitutions that cannot run anything but themselves. Rewritten to a
+# plain word before the `$(` ban is applied, so every other substitution meters.
+SAFE_SUBST = re.compile(r'\$\((?:pwd|git rev-parse --show-toplevel)\)')
 
 # substrings that can never appear benignly OUTSIDE quotes in a read-only command
 BANNED_SUBSTR = ("`", "$(", "<(", ">(", "||", "--fix", "--write", "--in-place",
@@ -63,6 +77,19 @@ _BG_AMP = re.compile(r'(?<![>&])&(?![&>])')            # a lone background &
 
 def _cmd_name(tok):
     return tok.rsplit("/", 1)[-1]  # strip path: .venv/bin/pytest -> pytest
+
+
+def _no(note, reason):
+    """Record why this command meters, then reject it.
+
+    Every reason echoes a token from the command itself — the head that isn't on
+    the list, the flag that decided it, the option that was missing. The counter
+    in read-volume.py shows this back, and a reason that named nothing from the
+    command would leave the agent guessing which part to change.
+    """
+    if note is not None and not note:
+        note.append(reason)
+    return False
 
 
 def _is_scratch(p):
@@ -204,7 +231,7 @@ def _curl_ok(rest):
     return all(loop.match(u) for u in urls)
 
 
-def _git_ok(rest):
+def _git_ok(rest, note=None):
     """A read-only git: a query subcommand, reached through only the global
     options above. History archaeology is investigation, not mutation."""
     i = 0
@@ -216,7 +243,20 @@ def _git_ok(rest):
             i += 1
         else:
             break
-    return i < len(rest) and rest[i] in GIT_READ_SUBCMDS
+    if i >= len(rest):
+        return _no(note, "`git` with no subcommand")
+    sub, args = rest[i], rest[i + 1:]
+    if sub == "worktree":
+        if args and args[0] == "list":                # add/remove move trees
+            return True
+        return _no(note, f"`git worktree {args[0] if args else ''}`")
+    if sub == "branch":
+        bad = next((a for a in args if a in GIT_BRANCH_BAD
+                    or a.startswith("--set-upstream-to=")), None)
+        return True if bad is None else _no(note, f"`git branch {bad}`")
+    if sub in GIT_READ_SUBCMDS:
+        return True
+    return _no(note, f"`git {sub}`")
 
 
 def _node_ok(rest):
@@ -228,16 +268,23 @@ def _node_ok(rest):
     return "--test" in rest
 
 
-def _stage_ok(mstage, ostage, is_head):
+def _stage_ok(mstage, ostage, is_head, note=None):
     clean = _analyze_redirects(mstage, ostage)
     if clean is None:
-        return False
+        return _no(note, "redirect outside the scratchpad")
     try:
-        toks = _strip_prefix(shlex.split(clean, comments=False, posix=True))
+        raw = shlex.split(clean, comments=False, posix=True)
     except ValueError:
-        return False
+        return _no(note, "unparsable command")
+    if not raw:
+        return _no(note, "empty command")
+    # a stage that is only assignments binds names and runs nothing; the names
+    # reappear downstream as `$S`, which is never a recognized command head
+    if all(re.match(r'^[A-Za-z_]\w*=', t) for t in raw):
+        return True
+    toks = _strip_prefix(raw)
     if not toks:
-        return False
+        return _no(note, f"`{_cmd_name(raw[0])}` with nothing to run")
     name = _cmd_name(toks[0])
     rest = toks[1:]
 
@@ -250,79 +297,142 @@ def _stage_ok(mstage, ostage, is_head):
                  or any("n" in a for a in short))
         inplace = (any(a.startswith("--in-place") for a in rest)
                    or any("i" in a for a in short))
-        return quiet and not inplace
+        if inplace:
+            return _no(note, "`sed` rewriting in place")
+        return quiet or _no(note, "`sed` lacking `-n`")
     if name == "find":
-        return not any(a in FIND_BAD for a in rest)
+        bad = next((a for a in rest if a in FIND_BAD), None)
+        return bad is None or _no(note, f"`find {bad}`")
     if name == "sort":
-        return not any(a == "-o" or a.startswith("-o") or a.startswith("--output")
-                       for a in rest)
+        bad = next((a for a in rest if a.startswith(("-o", "--output"))), None)
+        return bad is None or _no(note, f"`sort {bad}`")
     if name == "rpm":
         # query mode only (-q / -ql / -qa / --query); never install/erase/etc.
         qmode = any(a.startswith("-q") or a == "--query" for a in rest)
-        return qmode and not any(a in RPM_BAD for a in rest)
+        bad = next((a for a in rest if a in RPM_BAD), None)
+        if qmode and bad is None:
+            return True
+        return _no(note, f"`rpm {bad}`" if bad else "`rpm` lacking `-q`")
     if name == "command":
-        return "-v" in rest or "-V" in rest      # locate only, never exec
+        # locate only, never exec
+        return "-v" in rest or "-V" in rest or _no(note, "`command` lacking `-v`")
     if name == "curl":
-        return _curl_ok(rest)                     # loopback GET only
+        return _curl_ok(rest) or _no(note, "`curl` is not a loopback GET")
     if name in ("pip", "pip3"):
         # read-only query subcommands only; install/uninstall/download/config mutate
         sub = next((a for a in rest if not a.startswith("-")), None)
-        return sub in {"list", "show", "freeze", "check", "inspect"}
+        if sub in {"list", "show", "freeze", "check", "inspect"}:
+            return True
+        return _no(note, f"`pip {sub}`" if sub else "`pip` with no subcommand")
     if name in READERS:
         return True
 
     if not is_head:
-        return False
+        return _no(note, f"`{name}` is not a read-only pipe stage")
 
     # head-only sources / verifiers
+    if name == "cd":
+        # frees itself only; the next segment is judged alone
+        return len(rest) <= 1 or _no(note, "`cd` with arguments")
+    if name == "set":
+        return all(SET_FLAGS.match(a) for a in rest) or _no(note, "`set` beyond shell flags")
+    if name in ("source", "."):
+        if len(rest) == 1 and _cmd_name(rest[0]) == SOURCEABLE:
+            return True
+        return _no(note, f"`source` needs `{SOURCEABLE}`")
     if name == "make":
-        targets = [a for a in rest if not a.startswith("-")]
-        return bool(targets) and all(t in FREE_MAKE_TARGETS for t in targets)
+        targets, i = [], 0
+        while i < len(rest):
+            a = rest[i]
+            if a in ("-C", "--directory"):
+                i += 2                                # -C <dir>: not a target
+                continue
+            if not a.startswith("-"):
+                targets.append(a)
+            i += 1
+        if not targets:
+            return _no(note, "`make` with no target")
+        bad = next((t for t in targets if t not in FREE_MAKE_TARGETS), None)
+        return bad is None or _no(note, f"`make` target `{bad}`")
+    if name in FREE_JS_CMDS:
+        return True
+    if name == "tsc":
+        # emit is governed by the project config (both of this repo's set
+        # noEmit); a bare `tsc file.js` writes JS next to the source
+        return (any(a in ("-p", "--project", "--noEmit") for a in rest)
+                or _no(note, "`tsc` lacking `-p` or `--noEmit`"))
     if name == "ruff":
-        return bool(rest) and rest[0] == "check"      # `ruff format` mutates
+        # `ruff format` mutates
+        return (bool(rest) and rest[0] == "check") or _no(note, "`ruff` lacking `check`")
     if name == "black":
-        return "--check" in rest                      # bare black reformats
+        # bare black reformats
+        return "--check" in rest or _no(note, "`black` lacking `--check`")
     if name == "pdftotext":
         # output must be stdout (`-`) or a scratchpad file; never a repo path
         pos = [a for a in rest if a == "-" or not a.startswith("-")]
-        return bool(pos) and (pos[-1] == "-" or _is_scratch(pos[-1]))
+        if pos and (pos[-1] == "-" or _is_scratch(pos[-1])):
+            return True
+        return _no(note, "`pdftotext` writing outside the scratchpad")
     if name in FREE_PY_CMDS:
         return True
     if name == "pair.sh":
         # `list` prints the open /tests worktree pairs and touches nothing;
         # open / merge / abort move branches and are meant to cost an action.
-        return bool(rest) and rest[0] == "list"
+        if rest and rest[0] == "list":
+            return True
+        return _no(note, f"`pair.sh {rest[0]}`" if rest else "`pair.sh` with no subcommand")
     if name == "git":
-        return _git_ok(rest)
+        return _git_ok(rest, note)
     if name in ("node", "nodejs"):
-        return _node_ok(rest)
-    return False
+        bad = next((a for a in rest if a in NODE_BAD), None)
+        if bad is not None:
+            return _no(note, f"`node {bad}`")
+        return _node_ok(rest) or _no(note, "`node` lacking `--test`")
+    return _no(note, f"`{name}` not on the free list")
 
 
-def _seg_ok(mseg, oseg):
+def _seg_ok(mseg, oseg, note=None):
     stages = _split(mseg, oseg, r'\|')     # || is banned earlier, so | is a pipe
     if any(not o.strip() for _, o in stages):
+        return _no(note, "empty pipe stage")
+    if not _stage_ok(stages[0][0], stages[0][1], True, note):
         return False
-    if not _stage_ok(stages[0][0], stages[0][1], True):
-        return False
-    return all(_stage_ok(m, o, False) for m, o in stages[1:])
+    return all(_stage_ok(m, o, False, note) for m, o in stages[1:])
 
 
-def is_free_bash(cmd):
+def is_free_bash(cmd, note=None):
     """True only for a purely read-only command (verification or investigation).
-    Bias: any doubt returns False (the command meters)."""
+    Bias: any doubt returns False (the command meters).
+
+    `note`, when given, collects the first reason the command was rejected —
+    see _no(). Passing it changes no verdict.
+    """
     try:
         if not cmd or not cmd.strip():
-            return False
+            return _no(note, "empty command")
+        cmd = SAFE_SUBST.sub("/SAFESUBST", cmd)
         masked = _mask(cmd)
         if masked is None:
-            return False
+            return _no(note, "unbalanced quote")
         for b in BANNED_SUBSTR:
             if b in masked:
-                return False
+                return _no(note, f"`{b}` is never read-only")
         segs = [(m, o) for m, o in _split(masked, cmd, r'&&|;') if o.strip()]
         if not segs:
-            return False
-        return all(_seg_ok(m, o) for m, o in segs)
+            return _no(note, "empty command")
+        return all(_seg_ok(m, o, note) for m, o in segs)
     except Exception:
         return False  # parse failure -> not free -> meters (safe side)
+
+
+def reason_metered(cmd):
+    """Why `cmd` meters, in a few words naming a token from the command itself.
+
+    Callers use this to explain a charge; it is not consulted for the verdict.
+    Never empty: a rejection at a site nobody annotated still has to say
+    something, or the counter prints a blank parenthesis.
+    """
+    note = []
+    if is_free_bash(cmd, note):
+        return ""
+    return note[0] if note else "not on the free list"

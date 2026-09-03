@@ -30,7 +30,7 @@
         ]
       },
       {
-        "matcher": "Read|Bash|Grep|Glob|WebFetch|WebSearch",
+        "matcher": "Read|Bash|Grep|Glob|WebFetch|WebSearch|Agent|Write|Edit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
