@@ -196,3 +196,36 @@ test("test_length_chip_lights_only_at_its_own_value", () => {
     probes.map((ms) => (values.includes(ms) ? 1 : 0)),
   );
 });
+
+// --- the delay pane ---------------------------------------------------------------
+
+/**
+ * The y of the first vertex of the delay pane's trace carrying all of `want`.
+ *
+ * @param {string[]} want
+ * @returns {number}
+ */
+function delayTraceStartY(want) {
+  const [trace] = inside(pane("delay"), "path", ["plot-trace", ...want]);
+  if (!trace) throw new Error(`the delay pane lacks a ${want.join(".")} trace`);
+  const [first] = pairs(attr(trace, "d") || "");
+  if (!first) throw new Error("the delay trace has no vertex");
+  return first[1];
+}
+
+// The delay pane paints the selected phase as the accent trace and the other
+// as the ghost: with minimum phase selected the applied trace starts lower on
+// the milliseconds axis (larger y) than the ghost; with linear selected the
+// order reverses.
+
+test("test_delay_pane_paints_the_selected_phase_as_the_applied_trace", () => {
+  baseline();
+  rate.value = 44100;
+  outputRate.value = 176400;
+  lengthMs.value = 8;
+  const sweep = ["minimum", "linear"].map((p) => {
+    phase.value = p;
+    return delayTraceStartY(["applied"]) > delayTraceStartY(["ghost"]);
+  });
+  assert.deepEqual(sweep, [true, false]);
+});

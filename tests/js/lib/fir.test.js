@@ -20,6 +20,7 @@ import {
   ringing,
   sourceSpectrumDb,
   foldSpectrumDb,
+  groupDelaySamples,
 } from "../../../hqptuner/static/lib/dsp/fir.js";
 
 // [ok, message] for spreading into ONE assert.ok — see dsp.test.js.
@@ -104,4 +105,12 @@ test("test_fold_places_a_tone_above_output_nyquist_at_its_alias", () => {
   levelsDb[freqsHz.indexOf(60000)] = -20;
   const folded = foldSpectrumDb(levelsDb, freqsHz, 192000, 96000);
   assert.ok(...near(folded[freqsHz.indexOf(36000)], -20, 0.5));
+});
+
+// Group delay of a minimum-phase filter rises towards the corner: the delay in
+// samples at 22.05 kHz exceeds the delay at 1 kHz by more than 50 samples.
+test("test_minimum_phase_group_delay_rises_towards_the_corner", () => {
+  const h = minimumPhase(designLowpass({ rate: 88200, taps: 401, cutoffHz: 22050, widthHz: 4000 }));
+  const [low, corner] = groupDelaySamples(h, 88200, [1000, 22050]);
+  assert.ok(corner - low > 50, `expected 22.05 kHz to exceed 1 kHz by more than 50 samples, got ${corner - low}`);
 });
