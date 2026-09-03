@@ -8,7 +8,7 @@
 // decimate chain; no HQPlayer filter is plotted or approximated.
 import { computed, signal } from "@preact/signals";
 import { designLowpass, designPoint, minimumPhase } from "../lib/dsp/fir.js";
-import { gaussianPulse, ringing, upsampledPulse } from "../lib/dsp/pulse.js";
+import { filterPulse, gaussianPulse, ringing, upsampledPulse } from "../lib/dsp/pulse.js";
 import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from "../lib/dsp/spectrum.js";
 
 /** Length chips, in milliseconds of filter. */
@@ -186,6 +186,21 @@ export const sourcePulse = computed(() => gaussianPulse((transientUs.value / 1e6
 export const pulse = computed(() =>
   upsampledPulse(sourcePulse.value, Math.round(design.value.designRate / rate.value)),
 );
+
+/**
+ * The transient through the filter at the design rate, with the index of time
+ * zero: the input pulse's centre after the filter's nominal delay, half the
+ * length for linear phase and nothing for minimum phase, so a linear-phase
+ * output sits on the input and a minimum-phase output starts where the input
+ * starts and trails after it.
+ */
+export const output = computed(() => {
+  const { taps, h } = design.value;
+  const p = pulse.value;
+  const { y } = filterPulse(h, p);
+  const nominal = phase.value === "minimum" ? 0 : (taps - 1) / 2;
+  return { y, zero: (p.length - 1) / 2 + nominal };
+});
 
 /**
  * The readout row: output kHz, taps, length ms, transition band kHz,
