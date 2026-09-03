@@ -7,7 +7,7 @@
 // textbook FIR design from lib/dsp (fir, pulse, spectrum) on the standard interpolate, filter,
 // decimate chain; no HQPlayer filter is plotted or approximated.
 import { computed, signal } from "@preact/signals";
-import { designLowpass, kaiserAttenuation, minimumPhase } from "../lib/dsp/fir.js";
+import { designLowpass, designPoint, minimumPhase } from "../lib/dsp/fir.js";
 import { gaussianPulse, ringing } from "../lib/dsp/pulse.js";
 import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from "../lib/dsp/spectrum.js";
 
@@ -23,11 +23,13 @@ export const RATES = [44100, 96000, 192000];
 /** Oversampling factors the output rate segment offers, over the source's family base; 8x on 48 is the 384 kHz ceiling. */
 export const FACTORS = [2, 4, 8];
 
-// The transition band as a fraction of the cutoff Nyquist at each end of the
-// roll-off slider; the band narrows and slides up to end at Nyquist as the
-// slider moves toward fast.
+// The transition band asked for, as a fraction of the cutoff Nyquist at each
+// end of the roll-off slider, geometric between them; the band narrows and
+// slides up to end at Nyquist as the slider moves toward fast. What the
+// design then reaches is `designPoint`'s call: at the attenuation cap the
+// band is narrower than asked.
 const WIDTH_SLOW = 0.5;
-const WIDTH_FAST = 0.05;
+const WIDTH_FAST = 0.03;
 /** Points on the frequency grid the spectrum is computed on. */
 const FREQ_POINTS = 1024;
 /** Below this magnitude the group delay reading is blanked: a stop band arrives nowhere. */
@@ -120,24 +122,33 @@ export function setRate(hz) {
 /** Top of the frequency axis: the larger of twice the source rate and the output rate. */
 export const axisHz = computed(() => Math.max(2 * rate.value, outputRate.value ?? 0));
 
+/** No oversampling, or an output rate equal to the source (a ratio of one): the chain is identity. */
+const noFilter = computed(() => outputRate.value === null || outputRate.value === rate.value);
+
 /**
  * The linear-phase oversampling filter the state describes, on the
  * interpolate, filter, decimate chain: designed at the larger of source and
  * output rate, cutting at half the smaller; taps = ms x design rate forced
  * odd; cutoff at the centre of a transition band that straddles Nyquist at
- * the slow end and ends at it at the fast end. No oversampling is no filter:
- * a single unit tap at the source rate.
+ * the slow end and ends at it at the fast end. `widthHz` and `attenDb` are
+ * the point the design reaches, not the band asked for. No oversampling, and
+ * an output rate equal to the source, is no filter: a single unit tap at the
+ * source rate.
  */
 const linearDesign = computed(() => {
   const fs = rate.value;
   const out = outputRate.value;
-  if (out === null) return { designRate: fs, taps: 1, cutoffHz: fs / 2, widthHz: 0, h: Float64Array.of(1) };
-  const designRate = Math.max(fs, out);
-  const nyquist = Math.min(fs, out) / 2;
-  const widthHz = (WIDTH_SLOW + (WIDTH_FAST - WIDTH_SLOW) * rolloff.value) * nyquist;
-  const cutoffHz = nyquist - (rolloff.value * widthHz) / 2;
+  if (noFilter.value) {
+    return { designRate: fs, taps: 1, cutoffHz: fs / 2, widthHz: 0, attenDb: 0, h: Float64Array.of(1) };
+  }
+  const designRate = Math.max(fs, out ?? fs);
+  const nyquist = Math.min(fs, out ?? fs) / 2;
+  const asked = WIDTH_SLOW * (WIDTH_FAST / WIDTH_SLOW) ** rolloff.value * nyquist;
   const taps = Math.max(3, Math.round((lengthMs.value / 1000) * designRate)) | 1;
-  return { designRate, taps, cutoffHz, widthHz, h: designLowpass({ rate: designRate, taps, cutoffHz, widthHz }) };
+  const { attenDb, widthHz } = designPoint(taps, asked, designRate);
+  const cutoffHz = nyquist - (rolloff.value * widthHz) / 2;
+  const h = designLowpass({ rate: designRate, taps, cutoffHz, widthHz: asked });
+  return { designRate, taps, cutoffHz, widthHz, attenDb, h };
 });
 
 /** The same magnitude with minimum phase; the unit tap is its own conversion. */
@@ -174,14 +185,14 @@ export const pulse = computed(() => gaussianPulse((transientUs.value / 1e6) * de
 /**
  * The readout row: output kHz, taps, length ms, transition band kHz,
  * attenuation dB, ring before and after dB. Null where a value does not
- * apply: everything but output under no oversampling, ring before under
+ * apply: everything but output where there is no filter, ring before under
  * minimum phase.
  */
 export const readouts = computed(() => {
-  const { designRate, taps, widthHz, h } = design.value;
+  const { taps, widthHz, attenDb, h } = design.value;
   const out = outputRate.value;
   const outputKhz = out === null ? null : out / 1000;
-  if (out === null) {
+  if (noFilter.value) {
     return {
       outputKhz,
       taps: null,
@@ -198,7 +209,7 @@ export const readouts = computed(() => {
     taps,
     lengthMs: lengthMs.value,
     transitionKhz: widthHz / 1000,
-    attenuationDb: kaiserAttenuation(taps, widthHz, designRate),
+    attenuationDb: attenDb,
     ringBeforeDb: phase.value === "minimum" ? null : ring.beforeDb,
     ringAfterDb: ring.afterDb,
   };

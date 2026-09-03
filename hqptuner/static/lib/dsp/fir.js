@@ -7,8 +7,17 @@
 
 import { fftRadix2, ifftRadix2 } from "./fft.js";
 
-/** Largest FFT the cepstral conversion pads to. */
-const MAX_NFFT = 1 << 16;
+/**
+ * Ceiling on the attenuation a design is given, the published Kaiser and
+ * Schafer fit's top (docs/plans/filter-primer-math.md §1.4). Past it the
+ * window shape stays put and length buys transition width instead (§1.5).
+ */
+const ATTENUATION_CAP_DB = 120;
+/** How far under the peak bin the cepstral conversion floors the magnitude. */
+const CEPSTRUM_FLOOR_DB = -160;
+
+/** A tap count forced odd, rounding up, so the centre lands on a sample. */
+const oddTaps = (/** @type {number} */ taps) => (taps % 2 === 1 ? taps : taps + 1);
 
 // Cephes Chebyshev expansions for I0 on [0, 8] and (8, inf), as numpy `_i0A` / `_i0B`.
 const I0_A = [
@@ -92,6 +101,24 @@ export function kaiserAttenuation(taps, widthHz, rate) {
 }
 
 /**
+ * The point a Kaiser design of `taps` taps lands on when asked for a
+ * transition band `widthHz` wide at `rate`: the attenuation the relation
+ * predicts, capped at ATTENUATION_CAP_DB, and the band the design then has.
+ * Below the cap the band is the one asked for; at the cap the window shape
+ * is fixed and the surplus length narrows the band instead, by the inverse
+ * of the same relation. An even `taps` is rounded up as `designLowpass` does.
+ * @param {number} taps
+ * @param {number} widthHz
+ * @param {number} rate
+ * @returns {{ attenDb: number, widthHz: number }}
+ */
+export function designPoint(taps, widthHz, rate) {
+  const n = oddTaps(taps);
+  const attenDb = Math.min(ATTENUATION_CAP_DB, kaiserAttenuation(n, widthHz, rate));
+  return { attenDb, widthHz: ((attenDb - 7.95) / (2.285 * (n - 1) * Math.PI)) * (rate / 2) };
+}
+
+/**
  * Kaiser shape parameter for a target attenuation.
  * @param {number} attenDb
  * @returns {number}
@@ -113,8 +140,8 @@ const sinc = (x) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
  * @returns {Float64Array}
  */
 export function designLowpass({ rate, taps, cutoffHz, widthHz }) {
-  const n = taps % 2 === 1 ? taps : taps + 1;
-  const beta = kaiserBeta(kaiserAttenuation(n, widthHz, rate));
+  const n = oddTaps(taps);
+  const beta = kaiserBeta(designPoint(n, widthHz, rate).attenDb);
   const w = kaiserWindow(n, beta);
   const fc = cutoffHz / (rate / 2);
   const alpha = (n - 1) / 2;
@@ -130,23 +157,25 @@ export function designLowpass({ rate, taps, cutoffHz, widthHz }) {
 
 /**
  * Minimum-phase taps with the same magnitude response, by the homomorphic
- * (real cepstrum) method. Same length as the input.
+ * (real cepstrum) method. Same length as the input. The FFT is sized by the
+ * scipy rule, two hundred times the order, so the cepstrum is causal at any
+ * length; the magnitude is floored relative to its peak before the log.
  * @param {Float64Array} taps
  * @returns {Float64Array}
  */
 export function minimumPhase(taps) {
   const n = taps.length;
-  const nfft = Math.min(MAX_NFFT, 1 << Math.ceil(Math.log2(Math.max(n, 200 * (n - 1)))));
+  const nfft = 1 << Math.ceil(Math.log2(Math.max(n, 200 * (n - 1))));
   const re = new Float64Array(nfft);
   const im = new Float64Array(nfft);
   re.set(taps);
   fftRadix2(re, im);
-  let minNonzero = Infinity;
+  let peak = 0;
   for (let i = 0; i < nfft; i += 1) {
     re[i] = Math.hypot(re[i], im[i]);
-    if (re[i] > 0 && re[i] < minNonzero) minNonzero = re[i];
+    peak = Math.max(peak, re[i]);
   }
-  const floor = 1e-7 * minNonzero;
+  const floor = peak * 10 ** (CEPSTRUM_FLOOR_DB / 20);
   for (let i = 0; i < nfft; i += 1) {
     re[i] = Math.log(re[i] + floor);
     im[i] = 0;
