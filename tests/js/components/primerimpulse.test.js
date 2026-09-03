@@ -134,6 +134,29 @@ function zeroLine(box) {
 }
 
 /**
+ * The x of the vertical zero rule, and its y span.
+ *
+ * @param {MarkupElement} box
+ * @returns {{ x: number, y1: number, y2: number }}
+ */
+function zeroRule(box) {
+  const upright = inside(box, "line", ["plot-zero"]).find((el) => attr(el, "x1") === attr(el, "x2"));
+  if (!upright) throw new Error("the impulse pane lacks a vertical zero rule");
+  return { x: num(upright, "x1"), y1: num(upright, "y1"), y2: num(upright, "y2") };
+}
+
+/**
+ * The width of the plot in milliseconds, read off the time tick labels.
+ *
+ * @param {MarkupElement} box
+ * @returns {number}
+ */
+function spanMs(box) {
+  const zero = zeroLine(box);
+  return msPerUnit(box) * (zero.x2 - zero.x1);
+}
+
+/**
  * The vertex whose height above the zero line has the largest magnitude.
  *
  * @param {[number, number][]} pts
@@ -225,25 +248,20 @@ test("test_minimum_phase_output_peak_trails_input_peak_by_the_peak_tap_delay", (
   );
 });
 
-// 2. The time axis is sized from the response, not the tap count: at the Long
-// chip the plot spans at most twice the extent of the output's samples above
-// 1 percent of its peak.
+// 2. The same rounding at a second point on the curve: a 12 ms filter reaches
+// 6.02 ms either side of zero, which rounds up to a 20 ms axis. A span
+// proportional to the length would give 16.2, and a constant frame would give
+// whatever it was built with.
 
-test("test_long_filter_time_axis_spans_at_most_twice_the_visible_response", () => {
+test("test_axis_span_rounds_up_to_twenty_milliseconds_for_a_twelve_millisecond_filter", () => {
   rate.value = 44100;
   outputRate.value = 176400;
   phase.value = "linear";
-  lengthMs.value = LENGTH_CHIPS.long;
+  lengthMs.value = 12;
   rolloff.value = 0.5;
-  transientUs.value = TRANSIENT_CHIPS.click;
-  const box = impulsePane();
-  const zero = zeroLine(box);
-  const plotMs = msPerUnit(box) * (zero.x2 - zero.x1);
-  const { y } = filterPulse(design.value.h, pulse.value);
-  const floor = 0.01 * peakAbs(y);
-  const loud = [...y].map((v, i) => (Math.abs(v) > floor ? i : -1)).filter((i) => i >= 0);
-  const extentMs = ((loud[loud.length - 1] - loud[0]) / design.value.designRate) * 1000;
-  assert.ok(plotMs <= 2 * extentMs, `plot spans ${plotMs} ms against a ${extentMs} ms response`);
+  transientUs.value = 3;
+  const span = spanMs(impulsePane());
+  assert.ok(Math.abs(span - 20) < 0.1, `axis spans ${span} ms, wanted 20`);
 });
 
 // 3. Amplitude is drawn to scale with headroom: the output's peak height is the
@@ -268,4 +286,38 @@ test("test_output_peak_height_scales_with_filter_gain_and_stays_below_the_title_
     outputPeak >= 0.98 * R && outputPeak <= ceiling,
     `output peak height ${outputPeak}, wanted between ${0.98 * R} and ${ceiling}`,
   );
+});
+
+// 4. The axis span comes from the state, not from the drawing: a 3.7 ms filter
+// at 176.4 kHz reaches 1.848 ms either side of zero and the pulse another
+// 0.023 ms, so 3.74 ms rounds up to a 5 ms axis. A span tracking the drawn
+// response gives about 3.9 ms here, one proportional to the length gives 3.7,
+// and 3.7 is off every Length chip, so no lookup reaches it.
+
+test("test_axis_span_rounds_up_to_five_milliseconds_for_a_three_point_seven_millisecond_filter", () => {
+  rate.value = 44100;
+  outputRate.value = 176400;
+  phase.value = "linear";
+  lengthMs.value = 3.7;
+  rolloff.value = 0.5;
+  transientUs.value = 3;
+  const span = spanMs(impulsePane());
+  assert.ok(Math.abs(span - 5) < 0.05, `axis spans ${span} ms, wanted 5`);
+});
+
+// 5. Minimum phase gets an asymmetric frame: the filter's whole reach runs to
+// the right of time zero and the input keeps a tenth of the span to its left,
+// so at the same 5 ms span the plot begins 0.5 ms before zero. A symmetric
+// frame begins 2.5 ms before it.
+
+test("test_minimum_phase_plot_begins_a_tenth_of_the_span_before_time_zero", () => {
+  rate.value = 44100;
+  outputRate.value = 176400;
+  phase.value = "minimum";
+  lengthMs.value = 3.7;
+  rolloff.value = 0.5;
+  transientUs.value = 3;
+  const box = impulsePane();
+  const leadMs = msPerUnit(box) * (zeroRule(box).x - zeroLine(box).x1);
+  assert.ok(Math.abs(leadMs - 0.5) < 0.05, `plot begins ${leadMs} ms before zero, wanted 0.5`);
 });
