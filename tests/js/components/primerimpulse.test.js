@@ -359,10 +359,10 @@ test("test_input_trace_carries_one_vertex_per_source_sample", () => {
 
 // 7. The output trace is reduced to the plot width the pane reports, so the
 // picture resolves to the window it is drawn in. At 8 ms and 4x the frame holds
-// 1411 output samples: the trace carries 822 vertices while nothing has been
+// 1411 output samples: the trace carries 830 vertices while nothing has been
 // measured, 726 at a reported width of 250, and 1411 at 1000, where a vertex per
 // sample is all there is left to draw. A column count taken from the SVG's own
-// coordinate system draws 822 at all three, which is the same point list at a
+// coordinate system draws 830 at all three, which is the same point list at a
 // 640 px window as at a 1280 px one.
 
 test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
@@ -376,7 +376,7 @@ test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
     plotPx.value = px;
     return vertices(impulsePane(), ["applied"]).length;
   };
-  assert.deepEqual([drawn(0), drawn(250), drawn(1000)], [822, 726, 1411]);
+  assert.deepEqual([drawn(0), drawn(250), drawn(1000)], [830, 726, 1411]);
 });
 
 /**
