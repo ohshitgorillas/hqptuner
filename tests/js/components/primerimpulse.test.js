@@ -13,8 +13,15 @@
 // GEOMETRY READ. Inside the pane carrying `data-pane="impulse"`: the input trace
 // is `polyline.plot-trace.ghost` (one vertex per source-rate sample), the output
 // trace is `polyline.plot-trace.applied`, the horizontal zero line is the
-// `line.plot-zero` whose y1 equals y2, and the time tick labels are
-// `text.plot-lbl` without the `plot-axis` class. Larger y is lower on screen.
+// `line.plot-zero` whose y1 equals y2, and the vertical zero rule is the one
+// whose x1 equals x2. Larger y is lower on screen.
+//
+// Tick labels are all `text.plot-lbl`, split by where they sit against the plot
+// rectangle, whose left edge is the horizontal zero line's x1 and whose bottom
+// edge is the lower end of the vertical zero rule: the time ticks are the ones
+// below that bottom edge (and, as before, without the `plot-axis` class), the
+// amplitude ticks the rest, drawn in the gutter left of the plot. Trace names
+// are `text.plot-tlbl` carrying the `ghost` or the `applied` class.
 //
 // Every test sets every signal it depends on (signals persist for the life of
 // the file) and leaves the store as it found it: `showMe("intro")` after each.
@@ -192,14 +199,38 @@ function argmaxAbs(a) {
 const peakAbs = (a) => Math.abs(a[argmaxAbs(a)]);
 
 /**
- * Milliseconds per viewBox unit, from the two outermost time tick labels.
+ * The plot rectangle's left edge and its bottom edge: the horizontal zero line
+ * spans the plot's width, the vertical zero rule spans its height.
+ *
+ * @param {MarkupElement} box
+ * @returns {{ left: number, bottom: number }}
+ */
+function plotEdges(box) {
+  const rule = zeroRule(box);
+  return { left: zeroLine(box).x1, bottom: Math.max(rule.y1, rule.y2) };
+}
+
+/**
+ * The pane's amplitude tick labels: the `text.plot-lbl` elements that are not
+ * the time ticks, which are the ones below the plot rectangle's bottom edge.
+ *
+ * @param {MarkupElement} box
+ * @returns {MarkupElement[]}
+ */
+const amplitudeTicks = (box) => inside(box, "text", ["plot-lbl"]).filter((el) => num(el, "y") <= plotEdges(box).bottom);
+
+/**
+ * Milliseconds per viewBox unit, from the two outermost time tick labels. Time
+ * ticks are the `text.plot-lbl` elements drawn below the plot rectangle's
+ * bottom edge; the amplitude ticks, drawn left of the plot, are not among them.
  *
  * @param {MarkupElement} box
  * @returns {number}
  */
 function msPerUnit(box) {
+  const bottom = plotEdges(box).bottom;
   const ticks = inside(box, "text", ["plot-lbl"])
-    .filter((el) => !classes(el).includes("plot-axis"))
+    .filter((el) => !classes(el).includes("plot-axis") && num(el, "y") > bottom)
     .map((el) => ({ x: num(el, "x"), ms: Number(text(el)) }))
     .filter((t) => Number.isFinite(t.ms));
   if (ticks.length < 2) throw new Error("the impulse pane has fewer than two numeric time tick labels");
@@ -346,4 +377,77 @@ test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
     return vertices(impulsePane(), ["applied"]).length;
   };
   assert.deepEqual([drawn(0), drawn(250), drawn(1000)], [822, 726, 1411]);
+});
+
+/**
+ * The spec's filtered state: 44.1 kHz source, 4x output, a 3.7 ms linear-phase
+ * filter at roll-off 0.62 on a 17 us transient.
+ *
+ * @returns {void}
+ */
+function filteredState() {
+  rate.value = 44100;
+  outputRate.value = 176400;
+  phase.value = "linear";
+  lengthMs.value = 3.7;
+  rolloff.value = 0.62;
+  transientUs.value = 17;
+}
+
+// 8. The amplitude axis reads unit input, not the plot rectangle: the tick
+// labelled 1 is drawn at the height the input's own unit peak reaches. An axis
+// spread across the whole plot rectangle puts 1 on the top edge, a tenth of the
+// frame above the peak it is supposed to measure, and a unit input then reads
+// as never reaching full scale.
+
+test("test_the_amplitude_tick_labelled_one_sits_at_the_input_peaks_height", () => {
+  filteredState();
+  const box = impulsePane();
+  const zero = zeroLine(box);
+  const one = amplitudeTicks(box).find((el) => Number(text(el)) === 1);
+  if (!one) throw new Error("the impulse pane has no amplitude tick label reading 1");
+  const peakY = zero.y - peakVertex(vertices(box, ["ghost"]), zero.y).height;
+  const slack = 0.03 * viewBoxHeight(box);
+  assert.ok(
+    Math.abs(num(one, "y") - peakY) <= slack,
+    `the tick labelled 1 sits at y ${num(one, "y")}, the input peak at y ${peakY}, slack ${slack}`,
+  );
+});
+
+// 9. Trace names are drawn per trace actually drawn: with a filter there are two
+// traces and two names, one ghost and one applied; with no oversampling the
+// output IS the input's own array, one trace is drawn and one name goes with it.
+// Naming both unconditionally stacks two names on the same pixels there and
+// claims two traces where the pane draws one.
+
+test("test_trace_names_are_two_with_a_filter_and_one_without_oversampling", () => {
+  filteredState();
+  const withFilter = inside(impulsePane(), "text", ["plot-tlbl"]);
+  outputRate.value = 44100;
+  const flat = inside(impulsePane(), "text", ["plot-tlbl"]).length;
+  assert.deepEqual(
+    [
+      withFilter.filter((el) => classes(el).includes("ghost")).length,
+      withFilter.filter((el) => classes(el).includes("applied")).length,
+      flat,
+    ],
+    [1, 1, 1],
+  );
+});
+
+// 10. The amplitude labels fit in the gutter they are drawn in: every one of
+// them is left of the plot rectangle and still on the pane, at an x of zero or
+// more. Adding the axis over the pane's present 10-unit left gutter renders the
+// widest labels at negative x, clipped off the pane's left edge.
+
+test("test_every_amplitude_tick_label_is_drawn_left_of_the_plot_and_inside_the_pane", () => {
+  filteredState();
+  const box = impulsePane();
+  const left = plotEdges(box).left;
+  const xs = amplitudeTicks(box).map((el) => num(el, "x"));
+  if (xs.length === 0) throw new Error("the impulse pane has no amplitude tick labels");
+  assert.ok(
+    xs.every((x) => x >= 0 && x < left),
+    `amplitude ticks at x ${xs.join(", ")}, wanted every one between 0 and the plot's left edge ${left}`,
+  );
 });
