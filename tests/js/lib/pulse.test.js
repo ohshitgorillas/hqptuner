@@ -68,8 +68,24 @@ test("test_a_pulse_narrower_than_a_sample_is_a_single_sample_impulse", () => {
 // whole 39-tap response and report the -200 dB floor on the second case.
 test("test_ringing_after_counts_smear_inside_the_pulses_own_span", () => {
   const cases = [
-    { name: "19 taps at 176400, sigma 3.5", rate: 176400, taps: 19, cutoffHz: 21400, widthHz: 2700, sigma: 3.5, floorDb: -40 },
-    { name: "39 taps at 384000, sigma 3.8", rate: 384000, taps: 39, cutoffHz: 46600, widthHz: 5900, sigma: 3.8, floorDb: -60 },
+    {
+      name: "19 taps at 176400, sigma 3.5",
+      rate: 176400,
+      taps: 19,
+      cutoffHz: 21400,
+      widthHz: 2700,
+      sigma: 3.5,
+      floorDb: -40,
+    },
+    {
+      name: "39 taps at 384000, sigma 3.8",
+      rate: 384000,
+      taps: 39,
+      cutoffHz: 46600,
+      widthHz: 5900,
+      sigma: 3.8,
+      floorDb: -60,
+    },
   ];
   const results = cases.map((c) => {
     const short = designLowpass({ rate: c.rate, taps: c.taps, cutoffHz: c.cutoffHz, widthHz: c.widthHz });
