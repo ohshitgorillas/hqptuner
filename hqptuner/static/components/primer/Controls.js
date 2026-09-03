@@ -62,7 +62,17 @@ const sig3 = (n) => `${Number(n.toPrecision(3))}`;
 function SliderRow({ id, label, value, onSet, chips, min, max, step, boxStep, unit, scale }) {
   const names = Object.keys(chips);
   const lit = names.find((n) => chips[n] === value);
-  const set = (/** @type {string | number} */ v) => onSet(Number(v));
+  // The slider's range is the range, and the number box does not enforce it: a
+  // browser validates a typed value against `min`/`max` but still reports it,
+  // so the row clamps here. `parseFloat` rather than `Number` because a number
+  // input reports "" for a box that is empty AND for one holding text a browser
+  // could not parse, and `Number("")` is 0 — a figure nobody typed, landing in
+  // range. A value that is no number at all leaves the signal where it was.
+  const set = (/** @type {string | number} */ v) => {
+    const n = Number.parseFloat(String(v));
+    if (Number.isNaN(n)) return;
+    onSet(Math.min(max, Math.max(min, n)));
+  };
   return html`
     <div class="primer-control" data-control=${id}>
       <label class="t-label">${label}</label>
