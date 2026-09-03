@@ -15,8 +15,8 @@ import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from
 export const LENGTH_CHIPS = { short: 0.5, medium: 2, long: 8 };
 /** Roll-off chips, 0 the slow end (a wide band straddling Nyquist), 1 the fast end (a narrow band ending at Nyquist). */
 export const ROLLOFF_CHIPS = { slow: 0, medium: 0.5, fast: 1 };
-/** Transient chips, the pulse sigma in microseconds. */
-export const TRANSIENT_CHIPS = { click: 20, snap: 100, thud: 500 };
+/** Transient chips, the pulse sigma in microseconds; Thud rings below the plot floor, readout only. */
+export const TRANSIENT_CHIPS = { click: 3, snap: 10, thud: 30 };
 
 /** Source rates the graph offers, in Hz. */
 export const RATES = [44100, 96000, 192000];

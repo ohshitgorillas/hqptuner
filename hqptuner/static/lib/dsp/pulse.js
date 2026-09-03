@@ -4,23 +4,22 @@
 
 /** Magnitudes below this read as the floor; keeps log10 finite on exact zeros. */
 const MAG_FLOOR = 1e-10;
-/** Pulse narrower than this aliases at Nyquist and reads as fake ringing. */
-const MIN_SIGMA = 2;
+/** Half-extent of the pulse in sigmas; exp(-24.5) puts the truncation edge near -213 dB. */
+const EXTENT_SIGMAS = 7;
 
 /**
- * Gaussian pulse of the given sigma in samples, spanning plus or minus five
- * sigma, odd length, unit peak at the centre sample. Sigma is floored so the
- * pulse holds no energy at Nyquist.
+ * Gaussian pulse of the given sigma in samples, spanning plus or minus seven
+ * sigma, odd length, unit peak at the centre sample. A sigma below a sample
+ * is a single-sample impulse, the display standard.
  * @param {number} sigmaSamples
  * @returns {Float64Array}
  */
 export function gaussianPulse(sigmaSamples) {
-  const sigma = Math.max(MIN_SIGMA, sigmaSamples);
-  const half = Math.ceil(5 * sigma);
+  const half = Math.ceil(EXTENT_SIGMAS * sigmaSamples);
   const p = new Float64Array(2 * half + 1);
   for (let i = 0; i < p.length; i += 1) {
     const d = i - half;
-    p[i] = Math.exp(-(d * d) / (2 * sigma * sigma));
+    p[i] = Math.exp(-(d * d) / (2 * sigmaSamples * sigmaSamples));
   }
   return p;
 }
@@ -47,24 +46,35 @@ export function filterPulse(taps, pulse) {
 }
 
 /**
- * Peak of what the filter added outside the pulse's own extent, before and
- * after its centre, in dB relative to the pulse peak. The output is aligned on
- * the filter's tap centroid, its group delay at DC, so a minimum-phase filter's
- * front-loaded response is not credited as arriving early.
+ * The primer's ring measure: what the filter changed. The input pulse is
+ * aligned on the output's peak sample and subtracted; ring before is the peak
+ * of that residual ahead of the output peak, ring after the peak behind it,
+ * both in dB relative to the pulse peak. Smear inside the pulse's own span
+ * counts, and a minimum-phase tail counts as ring after.
  * @param {Float64Array} taps
  * @param {Float64Array} pulse
  * @returns {{ beforeDb: number, afterDb: number }}
  */
 export function ringing(taps, pulse) {
-  const { y, delay } = filterPulse(taps, pulse);
+  const { y } = filterPulse(taps, pulse);
   let peak = 0;
-  for (let j = 0; j < pulse.length; j += 1) peak = Math.max(peak, Math.abs(pulse[j]));
+  let centre = 0;
+  for (let j = 0; j < pulse.length; j += 1) {
+    if (Math.abs(pulse[j]) > peak) {
+      peak = Math.abs(pulse[j]);
+      centre = j;
+    }
+  }
+  let outPeak = 0;
+  for (let k = 0; k < y.length; k += 1) if (Math.abs(y[k]) > Math.abs(y[outPeak])) outPeak = k;
+  const offset = outPeak - centre;
   let before = 0;
   let after = 0;
   for (let k = 0; k < y.length; k += 1) {
-    const t = k - delay;
-    if (t < 0) before = Math.max(before, Math.abs(y[k]));
-    else if (t >= pulse.length) after = Math.max(after, Math.abs(y[k]));
+    const j = k - offset;
+    const r = Math.abs(y[k] - (j >= 0 && j < pulse.length ? pulse[j] : 0));
+    if (k < outPeak) before = Math.max(before, r);
+    else if (k > outPeak) after = Math.max(after, r);
   }
   const db = (/** @type {number} */ v) => 20 * Math.log10(Math.max(v / peak, MAG_FLOOR));
   return { beforeDb: db(before), afterDb: db(after) };
