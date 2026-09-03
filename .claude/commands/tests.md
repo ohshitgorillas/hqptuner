@@ -6,13 +6,13 @@ Cover this with tests: $ARGUMENTS
 
 You are the orchestrator. Run the chain below end to end without stopping to re-ask between steps.
 
-The chain is tests-first in every mode: the spec is approved at the plan gate, the tests are written from the spec in a tree that holds no implementation, the red run in that tree proves they bite (`docs/testing.md` rule 8), and only then does the implementation land beside them. Blindness is a bonus where it is cheap; the red run is the invariant. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
+The chain is tests-first in every mode: the spec is approved at stage 2 of the plan gate, the tests are written from the spec in a tree that holds no implementation, the red run in that tree proves they bite (`docs/testing.md` rule 8), and only then does the implementation land beside them. Blindness is a bonus where it is cheap; the red run is the invariant. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
 
 The pair costs two metered actions end to end (`open` and `merge`), so there is no size threshold worth arguing about: anything carrying a spec block uses it. Implement in the main checkout only for a change too small to have one.
 
 ## 1. Build the spec block
 
-For a change that adds or alters observable behavior, the spec block is authored **during planning** and presented inside the plan for approval — the grounding gate already forces the reading it requires. When `/tests` is invoked over code that already exists — characterization tests, retrofitting an untested module — build the spec here instead.
+For a change that adds or alters observable behavior, the spec block is authored **at stage 2 of the plan gate**, after the plain English plan has been approved, and presented for its own approval — the grounding gate already forces the reading it requires. When `/tests` is invoked over code that already exists — characterization tests, retrofitting an untested module — build the spec here instead.
 
 Read whatever you need of the implementation — that is your job, not the writer's — and distil it into a **spec block**. Five parts:
 
@@ -46,7 +46,7 @@ Once the draft is written, spawn the `spec-reviewer` with the behavior lines and
 
 ## 2. Open the pair, pick the mode, start
 
-On approval, open the two worktrees this run needs — one action:
+On stage-2 approval, open the two worktrees this run needs — one action:
 
 ```
 scripts/pair.sh open <slug>
