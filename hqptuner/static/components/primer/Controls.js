@@ -221,8 +221,8 @@ export function PrimerControls() {
           transientUs.value = n;
         }}
         chips=${TRANSIENT_CHIPS}
-        min=${5}
-        max=${2000}
+        min=${2}
+        max=${50}
         boxStep="any"
         unit="µs"
         scale="log"
