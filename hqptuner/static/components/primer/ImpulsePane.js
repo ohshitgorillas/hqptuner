@@ -13,18 +13,24 @@
 // pane is comparable across states and a real level drop reads as one; a peak
 // past the headroom is clipped to the plot rectangle rather than drawn over
 // the pane's top band. The output is drawn through `traceColumns`, one rule
-// per column, never one vertex per sample; the input is the source's own
+// per column and one column per rendered pixel, so the trace resolves to the
+// window it is drawn in rather than to the viewBox, and a resize redraws it at
+// the new resolution instead of scaling the old points; the input is the source's own
 // samples, one vertex each, in the dashed muted ghost every other plot uses,
 // drawn over the output so the reference stays readable where the two
 // coincide. No y labels, so the left gutter is a margin and nothing more.
+import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { traceColumns } from "../../lib/dsp/render.js";
-import { design, lengthMs, output, phase, rate, sourcePulse } from "../../store/primergraph.js";
+import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primergraph.js";
 import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis } from "./frame.js";
 
 const PADL = 10;
 const PLOT_W = W - PADL - PADR;
-/** Columns the output is reduced to: one per viewBox unit of plot width. */
+/**
+ * Columns the output is reduced to where the page has measured nothing: one per
+ * viewBox unit of plot width. A measured pane uses its pixels instead.
+ */
 const COLUMNS = PLOT_W;
 /** The clip the traces are drawn inside: the plot rectangle, title band excluded. */
 const CLIP = "primer-impulse-plot";
@@ -98,7 +104,12 @@ function impulse() {
   // No filter: the output is the input's own samples, so it draws as the input
   // does. Reducing it through the columns instead would draw a smooth curve
   // against the input's own straight chords, two pictures of one array.
-  const out = taps === 1 ? ghost : traceColumns(y, from, to, COLUMNS).map(([t, v]) => point(t, v));
+  // One column per rendered pixel, so the trace resolves to the window it is
+  // drawn in and the per-column rule draws the same picture every sample would.
+  // A column fixed in viewBox units draws one point list at every width, coarse
+  // on a wide window and finer than the screen on a narrow one.
+  const columns = plotPx.value || COLUMNS;
+  const out = taps === 1 ? ghost : traceColumns(y, from, to, columns).map(([t, v]) => point(t, v));
   return {
     out: out.join(" "),
     ghost: ghost.join(" "),
@@ -108,13 +119,42 @@ function impulse() {
   };
 }
 
+/**
+ * Report the plot rectangle's rendered width, in CSS pixels, for as long as the
+ * pane is mounted, and again whenever the layout moves it. The SVG scales its
+ * viewBox to whatever width the card gives it, so the drawing's own units say
+ * nothing about how many pixels the trace has to live in; only the laid out
+ * element does. A render with no layout behind it leaves the figure at zero and
+ * the pane falls back to its viewBox width.
+ * @param {{ current: SVGSVGElement | null }} ref
+ * @returns {void}
+ */
+function useMeasuredPlot(ref) {
+  useEffect(() => {
+    const svg = ref.current;
+    if (!svg || typeof ResizeObserver !== "function") return undefined;
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0];
+      if (!box) return;
+      plotPx.value = Math.round(box.contentRect.width * (PLOT_W / W));
+    });
+    ro.observe(svg);
+    return () => {
+      ro.disconnect();
+      plotPx.value = 0;
+    };
+  }, [ref]);
+}
+
 /** The impulse pane: the filtered output as the accent trace, the input's dashed ghost over it. */
 export function ImpulsePane() {
+  const svg = useRef(/** @type {SVGSVGElement | null} */ (null));
+  useMeasuredPlot(svg);
   const { out, ghost, cx, cy, marks } = impulse();
   return html`
     <div class="plot" data-pane="impulse">
       <div class="t-label">Impulse</div>
-      <svg viewBox="0 0 ${W} ${H}" class="plot-svg">
+      <svg ref=${svg} viewBox="0 0 ${W} ${H}" class="plot-svg">
         <clipPath id=${CLIP}><rect x=${PADL} y=${PADT} width=${PLOT_W} height=${PLOT_H} /></clipPath>
         <line class="plot-zero" x1=${PADL} y1=${r1(cy)} x2=${W - PADR} y2=${r1(cy)} />
         <line class="plot-zero" x1=${r1(cx)} y1=${PADT} x2=${r1(cx)} y2=${PADT + PLOT_H} />

@@ -90,6 +90,14 @@ export const rolloff = signal(SHOW_ME.intro.rolloff);
 export const transientUs = signal(SHOW_ME.intro.transientUs);
 export const content = signal(SHOW_ME.intro.content);
 
+// Not a control: what the page measured. The impulse pane reduces its output to
+// one column per rendered pixel, so the reduction needs a figure only the laid
+// out page has. Zero means nothing has measured yet — the first paint, and any
+// render with no layout behind it — and the pane falls back to its own drawing
+// width there.
+/** The impulse pane's plot rectangle in CSS pixels as the page renders it; 0 until the pane has measured itself. */
+export const plotPx = signal(0);
+
 /**
  * Set the whole graph to the state a prose section describes.
  * @param {string} id
