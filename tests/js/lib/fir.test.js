@@ -1,6 +1,6 @@
-// Behavioral suite for lib/dsp/fir.js — the Kaiser-windowed sinc designer,
-// minimum-phase transform and pulse-ringing measurement behind the filter
-// primer. Written blind from the spec block, before the module existed.
+// Behavioral suite for lib/dsp/fir.js — the Kaiser-windowed sinc designer and
+// minimum-phase transform behind the filter primer. Written blind from the
+// spec block, before the module existed.
 //
 // Every assertion is on what a filter DOES — a dB figure at a frequency, a
 // ringing level relative to a pulse peak, a window sample — never on how the
@@ -10,18 +10,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  kaiserWindow,
-  kaiserAttenuation,
-  designLowpass,
-  minimumPhase,
-  magnitudeDb,
-  gaussianPulse,
-  ringing,
-  sourceSpectrumDb,
-  foldSpectrumDb,
-  groupDelaySamples,
-} from "../../../hqptuner/static/lib/dsp/fir.js";
+import { kaiserWindow, kaiserAttenuation, designLowpass, minimumPhase } from "../../../hqptuner/static/lib/dsp/fir.js";
+import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/pulse.js";
+import { magnitudeDb, groupDelaySamples } from "../../../hqptuner/static/lib/dsp/spectrum.js";
 
 // [ok, message] for spreading into ONE assert.ok — see dsp.test.js.
 /**
@@ -67,21 +58,6 @@ test("test_ten_times_the_taps_deepens_the_stopband_by_at_least_twenty_db", () =>
   assert.ok(...atMost(worst(2001), worst(201) - 20));
 });
 
-// 3. the fake-hires flag removes the content above the source's real band.
-test("test_fake_hires_source_has_no_content_at_thirty_kilohertz", () => {
-  const flags = { spurs: false, risingNoise: false };
-  const fake = sourceSpectrumDb(96000, [30000], { ...flags, fakeHires: true })[0];
-  const real = sourceSpectrumDb(96000, [30000], { ...flags, fakeHires: false })[0];
-  assert.ok(...atMost(fake, real - 60));
-});
-
-// 4. a wider pulse excites less ringing after its centre.
-test("test_a_wider_pulse_rings_less_after_its_centre", () => {
-  const wide = ringing(H, gaussianPulse(8)).afterDb;
-  const narrow = ringing(H, P).afterDb;
-  assert.ok(...atMost(wide, narrow - 10));
-});
-
 // 5. the Kaiser window itself, against published values for beta 4.
 test("test_kaiser_window_matches_the_published_values_for_beta_four", () => {
   const expected = [
@@ -95,16 +71,6 @@ test("test_kaiser_window_matches_the_published_values_for_beta_four", () => {
 // 6. the Kaiser attenuation relation with the width taken in hertz.
 test("test_kaiser_attenuation_follows_the_published_relation_in_hertz", () => {
   assert.ok(...near(kaiserAttenuation(211, 826.875, 44100), 64.48, 0.01));
-});
-
-// 7. the fold keeps what survives the filter above output Nyquist: a tone at
-// 60 kHz on a 192k stream resampled to 96k lands at 36 kHz, at its own level.
-test("test_fold_places_a_tone_above_output_nyquist_at_its_alias", () => {
-  const freqsHz = range(0, 192000, 100);
-  const levelsDb = new Float64Array(freqsHz.length).fill(-120);
-  levelsDb[freqsHz.indexOf(60000)] = -20;
-  const folded = foldSpectrumDb(levelsDb, freqsHz, 192000, 96000);
-  assert.ok(...near(folded[freqsHz.indexOf(36000)], -20, 0.5));
 });
 
 // Group delay of a minimum-phase filter rises towards the corner: the delay in

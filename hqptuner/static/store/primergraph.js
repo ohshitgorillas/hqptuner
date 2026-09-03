@@ -4,20 +4,12 @@
 // (docs/plans/filter-primer-graph.md).
 //
 // Nothing here touches a field or the daemon. Every curve the graph draws is
-// textbook FIR design from lib/dsp/fir.js on the standard interpolate, filter,
+// textbook FIR design from lib/dsp (fir, pulse, spectrum) on the standard interpolate, filter,
 // decimate chain; no HQPlayer filter is plotted or approximated.
 import { computed, signal } from "@preact/signals";
-import {
-  designLowpass,
-  foldSpectrumDb,
-  gaussianPulse,
-  groupDelaySamples,
-  kaiserAttenuation,
-  magnitudeDb,
-  minimumPhase,
-  ringing,
-  sourceSpectrumDb,
-} from "../lib/dsp/fir.js";
+import { designLowpass, kaiserAttenuation, minimumPhase } from "../lib/dsp/fir.js";
+import { gaussianPulse, ringing } from "../lib/dsp/pulse.js";
+import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from "../lib/dsp/spectrum.js";
 
 /** Length chips, in milliseconds of filter. */
 export const LENGTH_CHIPS = { short: 0.5, medium: 2, long: 8 };

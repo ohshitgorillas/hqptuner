@@ -14,7 +14,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/fir.js";
+import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/pulse.js";
 import {
   rate,
   outputRate,

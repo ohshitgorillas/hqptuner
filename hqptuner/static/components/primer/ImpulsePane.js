@@ -3,7 +3,7 @@
 // follows the filter length so a short filter fills the frame as well as a
 // long one. No y labels, so the left gutter is a margin and nothing more.
 import { html } from "../../lib/dom.js";
-import { filterPulse } from "../../lib/dsp/fir.js";
+import { filterPulse } from "../../lib/dsp/pulse.js";
 import { design, pulse } from "../../store/primergraph.js";
 import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis } from "./frame.js";
 
