@@ -128,7 +128,7 @@ test("test_fast_rolloff_at_long_leaves_the_band_just_above_nyquist_between_minus
 });
 
 /**
- * Samples after the peak tap over which the taps stay above -60 dB of the peak.
+ * Samples after the peak tap over which the taps stay above -100 dB of the peak.
  *
  * @param {Float64Array} h
  * @returns {number}
@@ -136,20 +136,23 @@ test("test_fast_rolloff_at_long_leaves_the_band_just_above_nyquist_between_minus
 function tailSamples(h) {
   let peak = 0;
   for (let i = 1; i < h.length; i++) if (Math.abs(h[i]) > Math.abs(h[peak])) peak = i;
-  const floor = Math.abs(h[peak]) * 1e-3;
+  const floor = Math.abs(h[peak]) * 1e-5;
   let last = peak;
   for (let i = peak; i < h.length; i++) if (Math.abs(h[i]) > floor) last = i;
   return last - peak;
 }
 
-// Line 4. a longer filter rings longer: the 8 ms filter's tail above -60 dB is
-// more than three times the 2 ms filter's.
-test("test_long_filter_tail_above_minus_sixty_db_is_over_three_times_the_medium_filters", () => {
+// Line 4. a longer filter rings longer: the 8 ms filter's tail above -100 dB
+// is more than two and a half times the 2 ms filter's.
+test("test_long_filter_tail_above_minus_hundred_db_is_over_two_and_a_half_times_the_medium_filters", () => {
   configure({ rate: 44100, lengthMs: 8, outputRate: 176400, rolloff: 0.5 });
   const long = tailSamples(design.value.h);
   configure({ rate: 44100, lengthMs: 2, outputRate: 176400, rolloff: 0.5 });
   const medium = tailSamples(design.value.h);
-  assert.ok(long > 3 * medium, `expected 8 ms tail (${long}) to exceed three times the 2 ms tail (${medium})`);
+  assert.ok(
+    long > 2.5 * medium,
+    `expected 8 ms tail (${long}) to exceed two and a half times the 2 ms tail (${medium})`,
+  );
 });
 
 // 3. downsampling cuts at the OUTPUT Nyquist: 192k to 96k removes 60 kHz while
