@@ -16,11 +16,12 @@ the previous state, and the first state starts from the app's opening state::
    "content": {"spurs": false, "fakeHires": false, "risingNoise": false}}
 
 ``outputRate`` null means no oversampling. For each state the script writes
-``OUTDIR/<name>.png`` (the whole graph block: both panes, controls, readouts)
+``OUTDIR/<name>.png`` (the whole graph block: all three panes, controls, readouts)
 and ``OUTDIR/<name>.json`` holding the store's state, design (taps, cutoff,
 width, the tap values), pulse, readouts text, axis top, spectrum arrays on the
-store's grid, and both panes' drawn polylines, paths and text labels in the SVG
-viewBox. Browser binary from ``HQPTUNER_CHROMIUM`` when set, as scripts/snap.py.
+store's grid, the delay arrays (NaN blanked, as null), and every pane's drawn
+polylines, paths and text labels in the SVG viewBox. Browser binary from
+``HQPTUNER_CHROMIUM`` when set, as scripts/snap.py.
 """
 
 import argparse
@@ -78,7 +79,13 @@ async (s) => {
       filterDb: Array.from(sp.filterDb),
       resultDb: Array.from(sp.resultDb),
     },
+    delay: {
+      freqsHz: st.delay.value.freqsHz,
+      linearMs: Array.from(st.delay.value.linearMs),
+      minimumMs: Array.from(st.delay.value.minimumMs),
+    },
     impulse: pane('impulse'),
+    delayPane: pane('delay'),
     frequency: pane('frequency'),
   };
 }
