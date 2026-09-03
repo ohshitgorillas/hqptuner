@@ -4,7 +4,7 @@
 // long one. No y labels, so the left gutter is a margin and nothing more.
 import { html } from "../../lib/dom.js";
 import { filterPulse } from "../../lib/dsp/pulse.js";
-import { design, pulse } from "../../store/primergraph.js";
+import { design, pulse, rate, sourcePulse } from "../../store/primergraph.js";
 import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis } from "./frame.js";
 
 const PADL = 10;
@@ -28,8 +28,9 @@ function impulse() {
   const span = ((taps / 2) * msPer + (p.length * msPer) / 2) * SPAN_MARGIN;
   const xOf = (/** @type {number} */ ms) => PADL + ((ms + span) / (2 * span)) * PLOT_W;
   const yOf = (/** @type {number} */ v) => PADT + PLOT_H / 2 - (v * PLOT_H) / 2;
-  const trace = (/** @type {Float64Array} */ s, /** @type {number} */ c) =>
-    Array.from(s, (v, k) => `${r1(xOf((k - c) * msPer))},${r1(yOf(v))}`).join(" ");
+  const trace = (/** @type {Float64Array} */ s, /** @type {number} */ c, /** @type {number} */ per = msPer) =>
+    Array.from(s, (v, k) => `${r1(xOf((k - c) * per))},${r1(yOf(v))}`).join(" ");
+  const src = sourcePulse.value;
   const step = niceStep(span / TIME_TICKS);
   const marks = ticks(0, span, step).flatMap((ms) =>
     ms === 0
@@ -39,7 +40,13 @@ function impulse() {
           { x: xOf(ms), label: fmt3(ms) },
         ],
   );
-  return { out: trace(y, centre), ghost: trace(p, (p.length - 1) / 2), cx: xOf(0), cy: yOf(0), marks };
+  return {
+    out: trace(y, centre),
+    ghost: trace(src, (src.length - 1) / 2, 1000 / rate.value),
+    cx: xOf(0),
+    cy: yOf(0),
+    marks,
+  };
 }
 
 /** The impulse pane: transient ghost, filtered output accent, milliseconds either side. */
