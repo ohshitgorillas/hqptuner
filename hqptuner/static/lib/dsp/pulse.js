@@ -46,11 +46,11 @@ export function filterPulse(taps, pulse) {
 }
 
 /**
- * The primer's ring measure: what the filter changed. The input pulse is
- * aligned on the output's peak sample and subtracted; ring before is the peak
- * of that residual ahead of the output peak, ring after the peak behind it,
- * both in dB relative to the pulse peak. Smear inside the pulse's own span
- * counts, and a minimum-phase tail counts as ring after.
+ * The primer's ring measure. The output's main lobe is the run around its peak
+ * sample out to the first zero crossing on each side; ring before is the peak
+ * of the output ahead of that lobe, ring after the peak behind it, both in dB
+ * relative to the pulse peak. Sidelobes count wherever they lie, and a
+ * minimum-phase tail counts as ring after.
  * @param {Float64Array} taps
  * @param {Float64Array} pulse
  * @returns {{ beforeDb: number, afterDb: number }}
@@ -58,24 +58,18 @@ export function filterPulse(taps, pulse) {
 export function ringing(taps, pulse) {
   const { y } = filterPulse(taps, pulse);
   let peak = 0;
-  let centre = 0;
-  for (let j = 0; j < pulse.length; j += 1) {
-    if (Math.abs(pulse[j]) > peak) {
-      peak = Math.abs(pulse[j]);
-      centre = j;
-    }
-  }
+  for (let j = 0; j < pulse.length; j += 1) peak = Math.max(peak, Math.abs(pulse[j]));
   let outPeak = 0;
   for (let k = 0; k < y.length; k += 1) if (Math.abs(y[k]) > Math.abs(y[outPeak])) outPeak = k;
-  const offset = outPeak - centre;
+  const sign = Math.sign(y[outPeak]);
+  let lo = outPeak;
+  while (lo > 0 && Math.sign(y[lo - 1]) === sign) lo -= 1;
+  let hi = outPeak;
+  while (hi < y.length - 1 && Math.sign(y[hi + 1]) === sign) hi += 1;
   let before = 0;
   let after = 0;
-  for (let k = 0; k < y.length; k += 1) {
-    const j = k - offset;
-    const r = Math.abs(y[k] - (j >= 0 && j < pulse.length ? pulse[j] : 0));
-    if (k < outPeak) before = Math.max(before, r);
-    else if (k > outPeak) after = Math.max(after, r);
-  }
+  for (let k = 0; k < lo; k += 1) before = Math.max(before, Math.abs(y[k]));
+  for (let k = hi + 1; k < y.length; k += 1) after = Math.max(after, Math.abs(y[k]));
   const db = (/** @type {number} */ v) => 20 * Math.log10(Math.max(v / peak, MAG_FLOOR));
   return { beforeDb: db(before), afterDb: db(after) };
 }
