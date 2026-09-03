@@ -43,21 +43,6 @@
   }
 }
 
-/* Impulse pane, back to front: the input as a wide muted halo, the output's
-   accent trace over it, the source samples as dots on top. Where the output
-   sits on the input the accent reads as a line inside a band, so the reference
-   stays visible instead of vanishing under the trace; the dots mark what the
-   source actually holds, which under NOS is the whole signal. */
-.plot-trace.ghost.halo {
-  stroke-width: 5;
-  stroke-dasharray: none;
-  opacity: var(--o-mid);
-}
-.primer-sample {
-  fill: var(--muted);
-  opacity: var(--o-fore);
-}
-
 /* Frequency pane layers, back to front on the plot depth ladder: the source
    wash and its images furthest back, the Nyquist mark a reference line, the
    result fill in the accent just under the accent trace. The fill above the
