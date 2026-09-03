@@ -178,22 +178,24 @@ export function minimumPhase(taps) {
 const MIN_NFFT = 1 << 14;
 
 /**
- * Magnitude response in dB at each requested frequency, read off one FFT of the
- * taps and interpolated between bins. Frequencies past the rate wrap, so the
- * reading is periodic in `rate` like the response itself.
+ * The FFT size a reading of `taps` is taken on: at least MIN_NFFT, and at
+ * least twice the filter so the taps sit in the first half.
  * @param {Float64Array} taps
+ * @returns {number}
+ */
+const readSize = (taps) => Math.max(MIN_NFFT, 1 << Math.ceil(Math.log2(2 * taps.length)));
+
+/**
+ * A per-bin quantity read at each requested frequency, interpolated between
+ * bins. Frequencies past the rate wrap, so the reading is periodic in `rate`
+ * like the response itself.
+ * @param {Float64Array} bins
  * @param {number} rate
  * @param {number[]} freqsHz
  * @returns {Float64Array}
  */
-export function magnitudeDb(taps, rate, freqsHz) {
-  const nfft = Math.max(MIN_NFFT, 1 << Math.ceil(Math.log2(2 * taps.length)));
-  const re = new Float64Array(nfft);
-  const im = new Float64Array(nfft);
-  re.set(taps);
-  fftRadix2(re, im);
-  const mag = new Float64Array(nfft);
-  for (let i = 0; i < nfft; i += 1) mag[i] = Math.hypot(re[i], im[i]);
+function readBins(bins, rate, freqsHz) {
+  const nfft = bins.length;
   const out = new Float64Array(freqsHz.length);
   for (let k = 0; k < freqsHz.length; k += 1) {
     const pos = (((freqsHz[k] / rate) % 1) + 1) % 1;
@@ -201,9 +203,57 @@ export function magnitudeDb(taps, rate, freqsHz) {
     const lo = Math.floor(x) % nfft;
     const hi = (lo + 1) % nfft;
     const t = x - Math.floor(x);
-    out[k] = 20 * Math.log10(Math.max(mag[lo] * (1 - t) + mag[hi] * t, MAG_FLOOR));
+    out[k] = bins[lo] * (1 - t) + bins[hi] * t;
   }
   return out;
+}
+
+/**
+ * Magnitude response in dB at each requested frequency, read off one FFT of the
+ * taps and interpolated between bins; periodic in `rate`.
+ * @param {Float64Array} taps
+ * @param {number} rate
+ * @param {number[]} freqsHz
+ * @returns {Float64Array}
+ */
+export function magnitudeDb(taps, rate, freqsHz) {
+  const nfft = readSize(taps);
+  const re = new Float64Array(nfft);
+  const im = new Float64Array(nfft);
+  re.set(taps);
+  fftRadix2(re, im);
+  const mag = new Float64Array(nfft);
+  for (let i = 0; i < nfft; i += 1) mag[i] = Math.hypot(re[i], im[i]);
+  return readBins(mag, rate, freqsHz).map((v) => 20 * Math.log10(Math.max(v, MAG_FLOOR)));
+}
+
+/**
+ * Group delay in samples at each requested frequency: the real part of the
+ * ramped-tap transform over the plain one, read off one FFT pair and
+ * interpolated between bins; periodic in `rate`. No phase is unwrapped, so
+ * the reading is exact wherever the response has energy and meaningless in a
+ * stop band, which the caller masks by magnitude.
+ * @param {Float64Array} taps
+ * @param {number} rate
+ * @param {number[]} freqsHz
+ * @returns {Float64Array}
+ */
+export function groupDelaySamples(taps, rate, freqsHz) {
+  const nfft = readSize(taps);
+  const re = new Float64Array(nfft);
+  const im = new Float64Array(nfft);
+  const rampRe = new Float64Array(nfft);
+  const rampIm = new Float64Array(nfft);
+  re.set(taps);
+  for (let n = 0; n < taps.length; n += 1) rampRe[n] = n * taps[n];
+  fftRadix2(re, im);
+  fftRadix2(rampRe, rampIm);
+  const d = new Float64Array(nfft);
+  for (let i = 0; i < nfft; i += 1) {
+    const power = Math.max(re[i] * re[i] + im[i] * im[i], MAG_FLOOR * MAG_FLOOR);
+    d[i] = (rampRe[i] * re[i] + rampIm[i] * im[i]) / power;
+  }
+  return readBins(d, rate, freqsHz);
 }
 
 /**

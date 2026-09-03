@@ -11,6 +11,7 @@ import {
   designLowpass,
   foldSpectrumDb,
   gaussianPulse,
+  groupDelaySamples,
   kaiserAttenuation,
   magnitudeDb,
   minimumPhase,
@@ -37,6 +38,8 @@ const WIDTH_SLOW = 0.5;
 const WIDTH_FAST = 0.05;
 /** Points on the frequency grid the spectrum is computed on. */
 const FREQ_POINTS = 1024;
+/** Below this magnitude the group delay reading is blanked: a stop band arrives nowhere. */
+const DELAY_MASK_DB = -60;
 
 /**
  * @typedef {{ spurs: boolean, fakeHires: boolean, risingNoise: boolean }} Content
@@ -126,14 +129,14 @@ export function setRate(hz) {
 export const axisHz = computed(() => Math.max(2 * rate.value, outputRate.value ?? 0));
 
 /**
- * The oversampling filter the state describes, on the interpolate, filter,
- * decimate chain: designed at the larger of source and output rate, cutting at
- * half the smaller; taps = ms x design rate forced odd; cutoff at the centre of
- * a transition band that straddles Nyquist at the slow end and ends at it at
- * the fast end. Minimum phase is the same magnitude, converted. No
- * oversampling is no filter: a single unit tap at the source rate.
+ * The linear-phase oversampling filter the state describes, on the
+ * interpolate, filter, decimate chain: designed at the larger of source and
+ * output rate, cutting at half the smaller; taps = ms x design rate forced
+ * odd; cutoff at the centre of a transition band that straddles Nyquist at
+ * the slow end and ends at it at the fast end. No oversampling is no filter:
+ * a single unit tap at the source rate.
  */
-export const design = computed(() => {
+const linearDesign = computed(() => {
   const fs = rate.value;
   const out = outputRate.value;
   if (out === null) return { designRate: fs, taps: 1, cutoffHz: fs / 2, widthHz: 0, h: Float64Array.of(1) };
@@ -142,9 +145,35 @@ export const design = computed(() => {
   const widthHz = (WIDTH_SLOW + (WIDTH_FAST - WIDTH_SLOW) * rolloff.value) * nyquist;
   const cutoffHz = nyquist - (rolloff.value * widthHz) / 2;
   const taps = Math.max(3, Math.round((lengthMs.value / 1000) * designRate)) | 1;
-  const linear = designLowpass({ rate: designRate, taps, cutoffHz, widthHz });
-  const h = phase.value === "minimum" ? minimumPhase(linear) : linear;
-  return { designRate, taps, cutoffHz, widthHz, h };
+  return { designRate, taps, cutoffHz, widthHz, h: designLowpass({ rate: designRate, taps, cutoffHz, widthHz }) };
+});
+
+/** The same magnitude with minimum phase; the unit tap is its own conversion. */
+const minimumTaps = computed(() => {
+  const { taps, h } = linearDesign.value;
+  return taps === 1 ? h : minimumPhase(h);
+});
+
+/** The filter the state describes, in the selected phase. */
+export const design = computed(() => {
+  const d = linearDesign.value;
+  return { ...d, h: phase.value === "minimum" ? minimumTaps.value : d.h };
+});
+
+/**
+ * The delay pane's curves on a uniform grid from 0 to source Nyquist: the
+ * group delay of each phase in milliseconds, blanked (NaN) where the filter
+ * magnitude is below the mask, so a stop band draws nothing.
+ */
+export const delay = computed(() => {
+  const nyquist = rate.value / 2;
+  const { designRate, h: linear } = linearDesign.value;
+  /** @type {number[]} */
+  const freqsHz = Array.from({ length: FREQ_POINTS }, (_, i) => (i / (FREQ_POINTS - 1)) * nyquist);
+  const level = magnitudeDb(linear, designRate, freqsHz);
+  const toMs = (/** @type {Float64Array} */ h) =>
+    groupDelaySamples(h, designRate, freqsHz).map((s, i) => (level[i] < DELAY_MASK_DB ? NaN : (s * 1000) / designRate));
+  return { freqsHz, linearMs: toMs(linear), minimumMs: toMs(minimumTaps.value) };
 });
 
 /** The transient as a pulse at the design rate. */

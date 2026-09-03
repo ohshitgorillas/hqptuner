@@ -22,17 +22,24 @@
   cursor: pointer;
 }
 
-/* The graph across the full width at the top of the card: two panes side by
-   side above the app's one breakpoint, stacked below it. Each pane is a plot
-   box (cards/plots.css) with its title inside, so the box and its name read as
-   one thing. */
+/* The graph across the full width at the top of the card: Impulse and Delay
+   half width on the top row, Frequency the full width beneath. Each pane is a
+   plot box (cards/plots.css) with its title inside, so the box and its name
+   read as one thing. The pair stays side by side through the app's 1100px
+   breakpoint, because a half-width pane spread to the full width renders its
+   text at twice the size of every other plot; it stacks at 640px, where two
+   panes across are too narrow to read. That second breakpoint is deliberate
+   and this file's alone (docs/design-system.md). */
 .primer-panes {
   display: grid;
   gap: var(--rhythm-row);
 }
-@media (min-width: 1100px) {
+@media (min-width: 641px) {
   .primer-panes {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .primer-panes [data-pane="frequency"] {
+    grid-column: 1 / -1;
   }
 }
 
