@@ -20,22 +20,26 @@ import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/pulse.j
 const atMost = (actual, ceiling) => [actual <= ceiling, `expected <= ${ceiling}, got ${actual}`];
 
 const H = designLowpass({ rate: 88200, taps: 401, cutoffHz: 22050, widthHz: 4000 });
-const P = gaussianPulse(2);
+const H2 = designLowpass({ rate: 176400, taps: 353, cutoffHz: 21400, widthHz: 2700 });
 
-// 4. a wider pulse excites less ringing after its centre.
+// 4. a wider pulse excites less ringing after its centre, by at least the
+// stated margin. The sub-sample case (0.5 vs 1.8) holds only when the ring is
+// referenced to the pulse's own output peak, not the input peak.
 test("test_a_wider_pulse_rings_less_after_its_centre", () => {
-  const wide = ringing(H, gaussianPulse(8)).afterDb;
-  const narrow = ringing(H, P).afterDb;
-  assert.ok(...atMost(wide, narrow - 10));
+  const cases = [
+    { name: "H 8 vs 2", taps: H, wide: 8, narrow: 2, marginDb: 10 },
+    { name: "H2 1.8 vs 0.5", taps: H2, wide: 1.8, narrow: 0.5, marginDb: 0 },
+  ];
+  const results = cases.map((c) => {
+    const wideDb = ringing(c.taps, gaussianPulse(c.wide)).afterDb;
+    const narrowDb = ringing(c.taps, gaussianPulse(c.narrow)).afterDb;
+    return { name: c.name, wideDb, narrowDb, ok: wideDb <= narrowDb - c.marginDb };
+  });
+  assert.deepEqual(
+    results,
+    results.map((r) => ({ ...r, ok: true })),
+  );
 });
-
-// [ok, message] for spreading into ONE assert.ok.
-/**
- * @param {number} actual
- * @param {number} floor
- * @returns {[boolean, string]}
- */
-const above = (actual, floor) => [actual > floor, `expected > ${floor}, got ${actual}`];
 
 /**
  * The largest sample of a pulse other than its centre, in dB below the centre.
@@ -59,9 +63,21 @@ test("test_a_pulse_narrower_than_a_sample_is_a_single_sample_impulse", () => {
 });
 
 // 2. the ring readout is the output minus the input, so smear inside the
-// pulse's own span counts: a short 19-tap filter on a 3.5-sample pulse reads
-// well above -40 dB.
+// pulse's own span counts: a short filter on a few-sample pulse reads above
+// the floor. A main lobe bounded by zero crossings alone would swallow the
+// whole 39-tap response and report the -200 dB floor on the second case.
 test("test_ringing_after_counts_smear_inside_the_pulses_own_span", () => {
-  const short = designLowpass({ rate: 176400, taps: 19, cutoffHz: 21400, widthHz: 2700 });
-  assert.ok(...above(ringing(short, gaussianPulse(3.5)).afterDb, -40));
+  const cases = [
+    { name: "19 taps at 176400, sigma 3.5", rate: 176400, taps: 19, cutoffHz: 21400, widthHz: 2700, sigma: 3.5, floorDb: -40 },
+    { name: "39 taps at 384000, sigma 3.8", rate: 384000, taps: 39, cutoffHz: 46600, widthHz: 5900, sigma: 3.8, floorDb: -60 },
+  ];
+  const results = cases.map((c) => {
+    const short = designLowpass({ rate: c.rate, taps: c.taps, cutoffHz: c.cutoffHz, widthHz: c.widthHz });
+    const afterDb = ringing(short, gaussianPulse(c.sigma)).afterDb;
+    return { name: c.name, afterDb, ok: afterDb > c.floorDb };
+  });
+  assert.deepEqual(
+    results,
+    results.map((r) => ({ ...r, ok: true })),
+  );
 });

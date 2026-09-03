@@ -185,3 +185,18 @@ test("test_thud_chip_at_the_opening_state_rings_above_the_readout_floor", () => 
   const ring = readouts.value.ringAfterDb;
   assert.ok(ring > -100, `expected the thud chip to ring above -100 dB, got ${ring}`);
 });
+
+// Line 3 (B follow-up). the ring readout is output-rate invariant: a 3 µs
+// transient at 44.1k, linear, 2 ms, roll-off 0.5 reads the same ring after
+// at 2x and at 8x, within a decibel.
+test("test_ring_after_readout_is_the_same_at_two_times_and_eight_times_the_source_rate", () => {
+  configure({ rate: 44100, lengthMs: 2, outputRate: 88200, rolloff: 0.5 });
+  transientUs.value = 3;
+  const twoTimes = readouts.value.ringAfterDb;
+  outputRate.value = 352800;
+  const eightTimes = readouts.value.ringAfterDb;
+  assert.ok(
+    Math.abs(twoTimes - eightTimes) <= 1,
+    `expected ring after at 2x (${twoTimes}) within 1 dB of 8x (${eightTimes})`,
+  );
+});
