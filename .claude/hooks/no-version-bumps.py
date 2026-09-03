@@ -36,7 +36,7 @@ import sys
 #: the bump script, by name, however the command reaches it
 BASH_BUMP = re.compile(r"\bbump\.sh\b")
 #: a version assignment in either version file
-VERSION_LINE = re.compile(r"""(?:^|\s)(?:__version__|version)\s*=\s*["']\d""", re.MULTILINE)
+VERSION_LINE = re.compile(r"""(?:^|\s)(?:__version__|version)\s*=\s*["']\d[^"']*["']""", re.MULTILINE)
 
 VERSION_FILES = ("hqptuner/__init__.py", "pyproject.toml")
 
@@ -60,11 +60,22 @@ def _verdict(name: str, tool_input: dict, cwd: str) -> str | None:
     if name in ("Edit", "Write", "NotebookEdit"):
         if not _touches_version_file(tool_input.get("file_path", ""), cwd):
             return None
-        payload = "\n".join(
-            str(tool_input.get(key, "")) for key in ("new_string", "old_string", "content", "new_source")
+        before = _version_lines(tool_input.get("old_string", ""))
+        after = _version_lines(
+            "\n".join(str(tool_input.get(key, "")) for key in ("new_string", "content", "new_source"))
         )
-        return _WHY if VERSION_LINE.search(payload) else None
+        return _WHY if before != after else None
     return None
+
+
+def _version_lines(text: str) -> list[str]:
+    """Every version assignment in `text`, whitespace-normalized.
+
+    Compared before and after an edit: an edit that leaves the line as it
+    was is not a bump, whatever else its `old_string` happens to span.
+    Setting, changing or deleting the line is.
+    """
+    return [" ".join(match.split()) for match in VERSION_LINE.findall(str(text))]
 
 
 def main() -> None:
@@ -89,5 +100,20 @@ def main() -> None:
     )
 
 
+def self_test() -> int:
+    """Pin the verdicts on an edit beside the version line and on a real bump."""
+    cwd = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    kept = {"file_path": "pyproject.toml",
+            "old_string": 'name = "hqptuner"\nversion = "1.2.3"',
+            "new_string": 'name = "hqptuner2"\nversion = "1.2.3"'}
+    bumped = {"file_path": "pyproject.toml",
+              "old_string": 'version = "1.2.3"',
+              "new_string": 'version = "1.2.4"'}
+    pair = (_verdict("Edit", kept, cwd), _verdict("Edit", bumped, cwd))
+    passed = pair[0] is None and isinstance(pair[1], str)
+    print(f"  {'PASS' if passed else 'FAIL'}  version line kept allowed, bump denied: {pair}")
+    return 0 if passed else 1
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(self_test()) if "--self-test" in sys.argv else main()

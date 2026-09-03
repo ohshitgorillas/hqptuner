@@ -82,7 +82,9 @@ def _bash_paths(command, cwd):
             tokens = shlex.split(segment, comments=False, posix=True)
         except ValueError:
             tokens = segment.split()
-        for token in tokens[1:]:
+        for previous, token in zip(tokens, tokens[1:]):
+            if previous == "-C":
+                continue    # `git -C <dir>`: a working directory, not a file read
             if token.startswith(("-", "$")) or "/" not in token or "://" in token:
                 continue
             if GLOB_CHARS.search(token) or REDIRECT.match(token) or token.startswith("/dev/"):
@@ -194,6 +196,30 @@ STALE_TEXT = (
 )
 
 
+def _batch_follower(rows, tool_id, sizes):
+    """True when this call sits behind another unfinished free call in its own
+    assistant row.
+
+    A parallel batch fires one PostToolUse per call, and the siblings' results
+    are not in the transcript yet when each fires, so every sibling would
+    compute the same crossing and speak. Only the batch's first unfinished free
+    call speaks; the rest defer to it.
+    """
+    for row in rows:
+        message = budget._msg(row)
+        if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
+            continue
+        blocks = [b for b in message["content"] if isinstance(b, dict) and b.get("type") == "tool_use"]
+        if not any(b.get("id") == tool_id for b in blocks):
+            continue
+        cwd = row.get("cwd") or ""
+        root = budget._repo_root(cwd)
+        pending = [b["id"] for b in blocks if b.get("id") not in sizes
+                   and budget.classify(b.get("name"), b.get("input"), root, cwd) == budget.FREE]
+        return bool(pending) and pending[0] != tool_id
+    return False
+
+
 def advise(data, rows):
     """The advisory text for this call, or None. Never denies — there is no
     code path in this file that returns a permission decision."""
@@ -211,22 +237,21 @@ def advise(data, rows):
     # `counted` only ever sums calls that already have a result, and this call's
     # result is never one of them at PostToolUse time, so its bytes are always
     # the increment — no double counting to guard against.
+    tool_id = data.get("tool_use_id")
     counted = sum(sizes.get(c["id"], 0) for c in calls if c["kind"] == budget.FREE)
     after = counted + size
-    if after // THRESHOLD > counted // THRESHOLD:
+    if after // THRESHOLD > counted // THRESHOLD and not _batch_follower(rows, tool_id, sizes):
         return BYTE_TEXT.format(after=after, agents=AGENTS)
 
-    # Is the pending call already in the transcript? Identify it as the most
-    # recent tool_use with no result yet. Matching on (name, input) alone would
-    # be wrong for exactly the calls this advisory exists to catch: a re-read is
-    # byte-identical to the read before it, so the earlier call would be
-    # mistaken for this one and the re-read would never be seen.
+    # Is the pending call already in the transcript? Its tool_use_id says so.
+    # Matching on (name, input) would be wrong for exactly the calls this
+    # advisory exists to catch: a re-read is byte-identical to the read before
+    # it, so the earlier call would be mistaken for this one; and a call whose
+    # result is already written would be appended twice and see itself as prior.
     session = calls_in(rows, cwd)
-    logged = bool(session) and (session[-1]["name"] == name
-                                and session[-1]["input"] == tool_input
-                                and session[-1]["id"] not in sizes)
+    logged = tool_id is not None and any(c["id"] == tool_id for c in session)
     if not logged:
-        session.append({"id": None, "name": name, "input": tool_input,
+        session.append({"id": tool_id, "name": name, "input": tool_input,
                         "kind": budget.FREE, "paths": paths_of(name, tool_input, cwd)})
     stale = stale_events(session)
     if stale and stale[-1] == len(session) - 1:
@@ -261,7 +286,13 @@ def main():
 
 
 def _call(uuid, tool_id, name, tool_input):
-    content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
+    return _batch(uuid, [(tool_id, name, tool_input)])
+
+
+def _batch(uuid, calls):
+    """One assistant row holding several tool_use blocks: a parallel batch."""
+    content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}
+               for tool_id, name, tool_input in calls]
     return {"uuid": uuid, "cwd": HOOK_DIR, "message": {"role": "assistant", "content": content}}
 
 
@@ -278,8 +309,9 @@ def _read(index, path, size):
     return [_call(f"a{index}", f"t{index}", "Read", {"file_path": path}), _result(f"t{index}", size)]
 
 
-def _post(name, tool_input, size):
-    return {"cwd": HOOK_DIR, "tool_name": name, "tool_input": tool_input, "tool_response": "y" * size}
+def _post(name, tool_input, size, tool_id="pending"):
+    return {"cwd": HOOK_DIR, "tool_name": name, "tool_input": tool_input,
+            "tool_use_id": tool_id, "tool_response": "y" * size}
 
 
 def _check(label, condition):
@@ -300,14 +332,24 @@ def self_test():
     ok.append(_check("byte advisory does not fire again inside the same multiple",
                      advise(_post("Read", {"file_path": os.path.join(HOOK_DIR, "three.py")}, 100), rows) is None))
 
+    three = os.path.join(HOOK_DIR, "three.py")
+    batch = [_said("go"), *_read(0, one, THRESHOLD - 1000),
+             _batch("b", [("t1", "Read", {"file_path": two}), ("t2", "Read", {"file_path": three})])]
+    pair = (advise(_post("Read", {"file_path": two}, 5000, "t1"), batch),
+            advise(_post("Read", {"file_path": three}, 5000, "t2"), batch))
+    ok.append(_check("a parallel batch crossing the threshold speaks once, from its first call",
+                     bool(pair[0]) and pair[1] is None))
+
     edited = [_said("go"), *_read(0, one, small),
               _call("w", "tw", "Edit", {"file_path": one}), _result("tw", 10)]
     ok.append(_check("re-read of a path edited since is never advised",
                      advise(_post("Read", {"file_path": one}, 10), edited) is None))
 
     plain = [_said("go"), *_read(0, one, small)]
+    logged = advise(_post("Read", {"file_path": one}, small, "t0"), plain)
     first = advise(_post("Read", {"file_path": one}, small), plain)
-    ok.append(_check("stale re-read is advised once", bool(first) and "one.py" in first))
+    ok.append(_check("an already-logged first read is not stale; the second read is, once",
+                     logged is None and bool(first) and "one.py" in first))
     plain += [*_read(1, one, small)]
     ok.append(_check("a third read in the same period says nothing",
                      advise(_post("Read", {"file_path": one}, 10), plain) is None))

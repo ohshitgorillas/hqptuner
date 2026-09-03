@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import sys
 
 PACKAGE = "hqptuner"
@@ -84,8 +85,24 @@ def _verdict(name: str, tool_input: dict, root: str | None, cwd: str) -> str | N
         return _WHY if _in_package(target, root, cwd) else None
     if name == "Bash":
         command = tool_input.get("command", "")
-        return _WHY if BASH_PATH.search(command) else None
+        if BASH_PATH.search(command) or _names_package(command, root, cwd):
+            return _WHY
     return None
+
+
+def _names_package(command: str, root: str | None, cwd: str) -> bool:
+    """True when any word of the command resolves inside the package.
+
+    The regex above sees the relative spellings; this sees absolute ones,
+    which it cannot, because the repo directory is itself named `hqptuner`
+    and `/srv/hqptuner/hqptuner/…` has no anchor character before the
+    package segment.
+    """
+    try:
+        words = shlex.split(command, comments=False, posix=True)
+    except ValueError:
+        words = command.split()
+    return any(_in_package(word, root, cwd) for word in words if "/" in word)
 
 
 def main() -> None:
@@ -110,5 +127,17 @@ def main() -> None:
     )
 
 
+def self_test() -> int:
+    """Pin the verdicts on a docs path and an absolute package path."""
+    root = _repo_root(os.path.dirname(os.path.abspath(__file__))) or "/repo"
+    pair = (
+        _verdict("Bash", {"command": f"cat {root}/docs/testing.md"}, root, root),
+        _verdict("Bash", {"command": f"cat {root}/hqptuner/core/manager.py"}, root, root),
+    )
+    passed = pair[0] is None and isinstance(pair[1], str)
+    print(f"  {'PASS' if passed else 'FAIL'}  docs path allowed, absolute package path denied: {pair}")
+    return 0 if passed else 1
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(self_test()) if "--self-test" in sys.argv else main()
