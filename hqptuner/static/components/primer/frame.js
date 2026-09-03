@@ -68,14 +68,19 @@ export function ticks(from, to, step) {
 }
 
 /**
- * The bottom edge: tick labels at their x, then the unit word in the right gutter.
+ * The bottom edge: tick labels at their x, then the unit word in the right
+ * gutter. A mark may name its own anchor, so a pane whose axis ends on a tick
+ * can pull that label inside the frame instead of dropping it.
  * @param {number} w
- * @param {{ x: number, label: string }[]} marks
+ * @param {{ x: number, label: string, anchor?: string }[]} marks
  * @param {string} word
  */
 export function xAxis(w, marks, word) {
   return html`
-    ${marks.map(({ x, label }) => html`<text class="plot-lbl" x=${r1(x)} y=${LABEL_Y} text-anchor="middle">${label}</text>`)}
+    ${marks.map(
+      ({ x, label, anchor }) =>
+        html`<text class="plot-lbl" x=${r1(x)} y=${LABEL_Y} text-anchor=${anchor || "middle"}>${label}</text>`,
+    )}
     <text class="plot-lbl plot-axis" x=${w - PADR + 12} y=${LABEL_Y}>${word}</text>
   `;
 }
