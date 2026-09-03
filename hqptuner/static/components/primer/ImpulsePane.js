@@ -18,14 +18,18 @@
 // the new resolution instead of scaling the old points; the input is the source's own
 // samples, one vertex each, in the dashed muted ghost every other plot uses,
 // drawn over the output so the reference stays readable where the two
-// coincide. No y labels, so the left gutter is a margin and nothing more.
+// coincide. The left gutter carries an amplitude axis whose ticks are fixed to
+// unit input rather than to what is drawn, so a peak below one reads as the
+// level drop it is instead of filling the frame, and each trace carries its own
+// name in the plot's top corner. Where the design is the identity the output is
+// the input's own array and one name is drawn, not two on the same pixels.
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { traceColumns } from "../../lib/dsp/render.js";
 import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primergraph.js";
-import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis } from "./frame.js";
+import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
 
-const PADL = 10;
+const PADL = 30;
 const PLOT_W = W - PADL - PADR;
 /**
  * Columns the output is reduced to where the page has measured nothing: one per
@@ -38,6 +42,16 @@ const CLIP = "primer-impulse-plot";
 const HEADROOM = 1.1;
 /** Ticks across the frame, at most; the step rounds up to a round figure. */
 const TIME_TICKS = 5;
+/**
+ * The amplitude ticks, fixed: the scale is unit input in every state, so the
+ * figures are the same in every state too and one of them is the input's own
+ * peak. A step taken from what is drawn would move the scale under the reader.
+ */
+const AMP_TICKS = [1, 0.5, 0, -0.5, -1];
+/** Trace names sit in the plot's top right corner, one line apart. */
+const NAME_X = W - PADR - 2;
+const NAME_Y = PADT + 10;
+const NAME_GAP = 11;
 /** A tick label within this many units of a plot edge is anchored to it. */
 const EDGE = 1;
 
@@ -116,6 +130,8 @@ function impulse() {
     cx: xOf(zero),
     cy: yOf(0),
     marks,
+    yMarks: AMP_TICKS.map((v) => ({ y: yOf(v), label: fmt3(v) })),
+    identity: taps === 1,
   };
 }
 
@@ -146,11 +162,27 @@ function useMeasuredPlot(ref) {
   }, [ref]);
 }
 
+/**
+ * The trace names, top down. The output is named in every state; the input only
+ * where it is a second curve, since where the design is the identity the two are
+ * one array and two names would sit on the same pixels claiming two traces.
+ * @param {boolean} identity
+ */
+function names(identity) {
+  const named = identity
+    ? [{ kind: "applied", text: "Output" }]
+    : [
+        { kind: "applied", text: "Output" },
+        { kind: "ghost", text: "Input" },
+      ];
+  return named.map((n, i) => ({ ...n, y: NAME_Y + i * NAME_GAP }));
+}
+
 /** The impulse pane: the filtered output as the accent trace, the input's dashed ghost over it. */
 export function ImpulsePane() {
   const svg = useRef(/** @type {SVGSVGElement | null} */ (null));
   useMeasuredPlot(svg);
-  const { out, ghost, cx, cy, marks } = impulse();
+  const { out, ghost, cx, cy, marks, yMarks, identity } = impulse();
   return html`
     <div class="plot" data-pane="impulse">
       <div class="t-label">Impulse</div>
@@ -158,11 +190,14 @@ export function ImpulsePane() {
         <clipPath id=${CLIP}><rect x=${PADL} y=${PADT} width=${PLOT_W} height=${PLOT_H} /></clipPath>
         <line class="plot-zero" x1=${PADL} y1=${r1(cy)} x2=${W - PADR} y2=${r1(cy)} />
         <line class="plot-zero" x1=${r1(cx)} y1=${PADT} x2=${r1(cx)} y2=${PADT + PLOT_H} />
-        ${xAxis(W, marks, "ms")}
+        ${xAxis(W, marks, "ms")} ${yAxis(PADL, yMarks, "level")}
         <g clip-path=${`url(#${CLIP})`}>
           <polyline class="plot-trace applied" points=${out} />
           <polyline class="plot-trace ghost" points=${ghost} />
         </g>
+        ${names(identity).map(
+          (n) => html`<text class="plot-tlbl ${n.kind}" x=${NAME_X} y=${n.y} text-anchor="end">${n.text}</text>`,
+        )}
       </svg>
     </div>
   `;
