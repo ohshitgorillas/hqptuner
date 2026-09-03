@@ -15,6 +15,14 @@ import { fftRadix2, ifftRadix2 } from "./fft.js";
 const ATTENUATION_CAP_DB = 120;
 /** How far under the peak bin the cepstral conversion floors the magnitude. */
 const CEPSTRUM_FLOOR_DB = -160;
+// The cepstral FFT: sixteen times the taps between a floor and a ceiling. With
+// the magnitude floored relative to its peak, the ceiling holds the in-band
+// group delay within half a percent of a two-hundred-times reference at the
+// longest filter the primer offers, and keeps a slider frame a few
+// milliseconds at any length.
+const MIN_CEPSTRUM_NFFT = 1 << 14;
+const MAX_CEPSTRUM_NFFT = 1 << 16;
+const CEPSTRUM_NFFT_PER_TAP = 16;
 
 /** A tap count forced odd, rounding up, so the centre lands on a sample. */
 const oddTaps = (/** @type {number} */ taps) => (taps % 2 === 1 ? taps : taps + 1);
@@ -157,18 +165,20 @@ export function designLowpass({ rate, taps, cutoffHz, widthHz }) {
 
 /**
  * Minimum-phase taps with the same magnitude response, by the homomorphic
- * (real cepstrum) method. Same length as the input. The FFT is sized by the
- * scipy rule, two hundred times the order, so the cepstrum is causal at any
- * length; the magnitude is floored relative to its peak before the log.
+ * (real cepstrum) method. Same length as the input. The magnitude is floored
+ * relative to its peak before the log; taps beyond the FFT fold in circularly,
+ * which the floored cepstrum tolerates (docs/plans/filter-primer-refit.md,
+ * Phase 1 decisions).
  * @param {Float64Array} taps
  * @returns {Float64Array}
  */
 export function minimumPhase(taps) {
   const n = taps.length;
-  const nfft = 1 << Math.ceil(Math.log2(Math.max(n, 200 * (n - 1))));
+  const wanted = 1 << Math.ceil(Math.log2(Math.max(1, CEPSTRUM_NFFT_PER_TAP * n)));
+  const nfft = Math.min(MAX_CEPSTRUM_NFFT, Math.max(MIN_CEPSTRUM_NFFT, wanted));
   const re = new Float64Array(nfft);
   const im = new Float64Array(nfft);
-  re.set(taps);
+  for (let i = 0; i < n; i += 1) re[i % nfft] += taps[i];
   fftRadix2(re, im);
   let peak = 0;
   for (let i = 0; i < nfft; i += 1) {
@@ -194,5 +204,7 @@ export function minimumPhase(taps) {
     im[i] = mag * Math.sin(im[i]);
   }
   ifftRadix2(re, im);
-  return re.slice(0, n);
+  const out = new Float64Array(n);
+  out.set(re.subarray(0, Math.min(n, nfft)));
+  return out;
 }
