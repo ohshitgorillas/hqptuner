@@ -84,9 +84,7 @@ function impulse() {
   const yOf = (/** @type {number} */ v) => PADT + PLOT_H / 2 - (v / HEADROOM) * (PLOT_H / 2);
   const point = (/** @type {number} */ t, /** @type {number} */ v) => `${r1(xOf(t))},${r1(yOf(v))}`;
   const centre = (src.length - 1) / 2;
-  const samples = Array.from(src, (v, j) => [zero + (j - centre) * factor, v]).filter(
-    ([t]) => t >= from && t <= to,
-  );
+  const samples = Array.from(src, (v, j) => [zero + (j - centre) * factor, v]).filter(([t]) => t >= from && t <= to);
   const ghost = samples.map(([t, v]) => point(t, v));
   const dots = samples.map(([t, v]) => ({ cx: r1(xOf(t)), cy: r1(yOf(v)) }));
   const step = niceStep(span / TIME_TICKS);
