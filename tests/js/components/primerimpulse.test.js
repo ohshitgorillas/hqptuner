@@ -248,12 +248,12 @@ test("test_minimum_phase_output_peak_trails_input_peak_by_the_peak_tap_delay", (
   );
 });
 
-// 2. The same rounding at a second point on the curve: a 12 ms filter reaches
-// 6.02 ms either side of zero, which rounds up to a 20 ms axis. A span
-// proportional to the length would give 16.2, and a constant frame would give
-// whatever it was built with.
+// 2. The time axis spans exactly the filter's length: a 12 ms filter draws a
+// 12 ms axis. A span rounded up to a round figure (1, 2, 5 or 10 times a power
+// of ten) would draw this filter on a 20 ms axis, and the frame would jump as
+// the Length slider crossed each round figure.
 
-test("test_axis_span_rounds_up_to_twenty_milliseconds_for_a_twelve_millisecond_filter", () => {
+test("test_axis_span_equals_the_filter_length_at_linear_phase", () => {
   rate.value = 44100;
   outputRate.value = 176400;
   phase.value = "linear";
@@ -261,7 +261,7 @@ test("test_axis_span_rounds_up_to_twenty_milliseconds_for_a_twelve_millisecond_f
   rolloff.value = 0.5;
   transientUs.value = 3;
   const span = spanMs(impulsePane());
-  assert.ok(Math.abs(span - 20) < 0.1, `axis spans ${span} ms, wanted 20`);
+  assert.ok(Math.abs(span - lengthMs.value) < 0.1, `axis spans ${span} ms, wanted ${lengthMs.value}`);
 });
 
 // 3. Amplitude is drawn to scale with headroom: the output's peak height is the
@@ -288,29 +288,14 @@ test("test_output_peak_height_scales_with_filter_gain_and_stays_below_the_title_
   );
 });
 
-// 4. The axis span comes from the state, not from the drawing: a 3.7 ms filter
-// at 176.4 kHz reaches 1.848 ms either side of zero and the pulse another
-// 0.023 ms, so 3.74 ms rounds up to a 5 ms axis. A span tracking the drawn
-// response gives about 3.9 ms here, one proportional to the length gives 3.7,
-// and 3.7 is off every Length chip, so no lookup reaches it.
-
-test("test_axis_span_rounds_up_to_five_milliseconds_for_a_three_point_seven_millisecond_filter", () => {
-  rate.value = 44100;
-  outputRate.value = 176400;
-  phase.value = "linear";
-  lengthMs.value = 3.7;
-  rolloff.value = 0.5;
-  transientUs.value = 3;
-  const span = spanMs(impulsePane());
-  assert.ok(Math.abs(span - 5) < 0.05, `axis spans ${span} ms, wanted 5`);
-});
-
 // 5. Minimum phase gets an asymmetric frame: the filter's whole reach runs to
-// the right of time zero and the input keeps a tenth of the span to its left,
-// so at the same 5 ms span the plot begins 0.5 ms before zero. A symmetric
-// frame begins 2.5 ms before it.
+// the right of time zero, and to its left the plot reserves exactly the input's
+// own half extent, half of the source pulse's length in samples. At a 3 us
+// transient that is one source sample, 0.0227 ms. A fixed tenth of the span
+// would begin the plot 0.5 ms before zero, an empty strip whose width follows
+// the filter length rather than the input's width.
 
-test("test_minimum_phase_plot_begins_a_tenth_of_the_span_before_time_zero", () => {
+test("test_minimum_phase_plot_begins_the_inputs_own_half_extent_before_time_zero", () => {
   rate.value = 44100;
   outputRate.value = 176400;
   phase.value = "minimum";
@@ -319,5 +304,22 @@ test("test_minimum_phase_plot_begins_a_tenth_of_the_span_before_time_zero", () =
   transientUs.value = 3;
   const box = impulsePane();
   const leadMs = msPerUnit(box) * (zeroRule(box).x - zeroLine(box).x1);
-  assert.ok(Math.abs(leadMs - 0.5) < 0.05, `plot begins ${leadMs} ms before zero, wanted 0.5`);
+  const halfMs = (1000 * ((sourcePulse.value.length - 1) / 2)) / rate.value;
+  assert.ok(Math.abs(leadMs - halfMs) < 0.005, `plot begins ${leadMs} ms before zero, wanted ${halfMs}`);
+});
+
+// 6. The input trace carries one vertex per source sample, so the ghost is the
+// source pulse itself: at a 30 us transient that is 21 vertices. One vertex per
+// rendered plot column would draw 355 of them here, and would move the input's
+// drawn peak height whenever the phase toggle moved.
+
+test("test_input_trace_carries_one_vertex_per_source_sample", () => {
+  rate.value = 44100;
+  outputRate.value = 176400;
+  phase.value = "linear";
+  lengthMs.value = 8;
+  rolloff.value = 0.5;
+  transientUs.value = 30;
+  const drawn = vertices(impulsePane(), ["ghost"]).length;
+  assert.equal(drawn, sourcePulse.value.length);
 });
