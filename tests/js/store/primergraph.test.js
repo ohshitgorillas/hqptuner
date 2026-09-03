@@ -23,6 +23,7 @@ import {
   lengthMs,
   rolloff,
   transientUs,
+  TRANSIENT_CHIPS,
   content,
   design,
   readouts,
@@ -173,4 +174,14 @@ test("test_upsampled_result_has_an_image_at_the_output_rate_minus_the_content", 
   const image = levelAt(resultDb, freqsHz, 156400);
   const gap = levelAt(resultDb, freqsHz, 100000);
   assert.ok(image - gap > 40, `expected 156.4 kHz (${image}) to exceed 100 kHz (${gap}) by more than 40 dB`);
+});
+
+// Line 3. the fattest transient chip still rings above the readout floor at the
+// opening state: the thud chip at 44.1k to 176.4k, linear, 2 ms, roll-off 0.5
+// reads above -100 dB.
+test("test_thud_chip_at_the_opening_state_rings_above_the_readout_floor", () => {
+  configure({ rate: 44100, lengthMs: 2, outputRate: 176400, rolloff: 0.5 });
+  transientUs.value = TRANSIENT_CHIPS.thud;
+  const ring = readouts.value.ringAfterDb;
+  assert.ok(ring > -100, `expected the thud chip to ring above -100 dB, got ${ring}`);
 });
