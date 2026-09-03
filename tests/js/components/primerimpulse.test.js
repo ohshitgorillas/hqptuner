@@ -39,6 +39,7 @@ const {
   design,
   pulse,
   sourcePulse,
+  plotPx,
   showMe,
 } = await import("../../../hqptuner/static/store/primergraph.js");
 const { filterPulse } = await import("../../../hqptuner/static/lib/dsp/pulse.js");
@@ -47,6 +48,7 @@ const { elements, classes, attr, text } = await import("../support/markup.js");
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
 test.afterEach(() => {
+  plotPx.value = 0;
   showMe("intro");
 });
 
@@ -322,4 +324,26 @@ test("test_input_trace_carries_one_vertex_per_source_sample", () => {
   transientUs.value = 30;
   const drawn = vertices(impulsePane(), ["ghost"]).length;
   assert.equal(drawn, sourcePulse.value.length);
+});
+
+// 7. The output trace is reduced to the plot width the pane reports, so the
+// picture resolves to the window it is drawn in. At 8 ms and 4x the frame holds
+// 1411 output samples: the trace carries 822 vertices while nothing has been
+// measured, 726 at a reported width of 250, and 1411 at 1000, where a vertex per
+// sample is all there is left to draw. A column count taken from the SVG's own
+// coordinate system draws 822 at all three, which is the same point list at a
+// 640 px window as at a 1280 px one.
+
+test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
+  rate.value = 44100;
+  outputRate.value = 176400;
+  phase.value = "linear";
+  lengthMs.value = 8;
+  rolloff.value = 0.5;
+  transientUs.value = 3;
+  const drawn = (/** @type {number} */ px) => {
+    plotPx.value = px;
+    return vertices(impulsePane(), ["applied"]).length;
+  };
+  assert.deepEqual([drawn(0), drawn(250), drawn(1000)], [822, 726, 1411]);
 });
