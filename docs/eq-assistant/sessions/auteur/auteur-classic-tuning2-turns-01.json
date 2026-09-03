@@ -1,0 +1,1114 @@
+{
+  "of": "auteur-classic-tuning2.json",
+  "turns": [
+    {
+      "complaint": "ease off the midrange suckout. the treble that results is insanely clear with a glorious soundstage, but the midrange is barely audible and that's where the auteur classic's magic is.",
+      "answer": "Narrow Q to 0.70 and soften to −4.0 dB",
+      "clarify": "How to ease off the midrange suckout (Filter 2: PK 107 Hz, −5.2 dB, Q 0.26)?",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 107,
+          "gain_delta_db": 1.2,
+          "q": 0.7,
+          "rationale": "Ease cut and narrow it; Q0.26 gutted 200-800 Hz"
+        }
+      ],
+      "turn": 1
+    },
+    {
+      "complaint": "listening test. it's... still bright and bass light.",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "lshelf",
+          "f_hz": 105,
+          "gain_delta_db": 0.8,
+          "q": null,
+          "rationale": "Add bass weight against bass-light report"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 7959,
+          "gain_delta_db": -1.4,
+          "q": null,
+          "rationale": "Pull back treble to address brightness"
+        }
+      ],
+      "turn": 2
+    },
+    {
+      "complaint": "That's... remarkably better. It needs more heft, though.",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "lshelf",
+          "f_hz": 105,
+          "gain_delta_db": 0.5,
+          "q": null,
+          "rationale": "More body through the 80-250 Hz heft region"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 107,
+          "gain_delta_db": 0.8,
+          "q": null,
+          "rationale": "Cut sat atop the shelf, netting only ~+1.5 dB"
+        }
+      ],
+      "turn": 3
+    },
+    {
+      "complaint": "I think the mids are sounding a bit muffled after that last round.",
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 300,
+          "gain_db": -1.2,
+          "q": 1.2,
+          "rationale": "Dip masking mud that the heft pass raised"
+        }
+      ],
+      "turn": 4
+    },
+    {
+      "complaint": "there's too much bass, it's sounding muddy now too. cut it down a hair.",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "lshelf",
+          "f_hz": 105,
+          "gain_delta_db": -0.5,
+          "q": null,
+          "rationale": "Pull the bass shelf back a hair; keep eased cut"
+        }
+      ],
+      "turn": 5
+    },
+    {
+      "complaint": "I'm hearing some peakiness in the upper mids e.g. higher vocals/guitar solos that needs to be tamed",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2096,
+          "gain_delta_db": -1.2,
+          "q": null,
+          "rationale": "Narrow peak exactly where vocals and solos bite"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 3901,
+          "gain_delta_db": -0.6,
+          "q": null,
+          "rationale": "Assisting peak lowered alongside 2.1k"
+        }
+      ],
+      "turn": 6
+    },
+    {
+      "complaint": "still just very very slightly hot up there",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2096,
+          "gain_delta_db": -0.5,
+          "q": null,
+          "rationale": "Hair off the 2.1 kHz peak"
+        }
+      ],
+      "turn": 7
+    },
+    {
+      "complaint": "stopped. also, I think 1.5 dB might be a bit much, I mean like maybe 1dB",
+      "answer": "+4.5 (cut 0.5 more) — confirmed the value already queued from the prior turn",
+      "clarify": "2.1 kHz peak: original +6.2, you just heard +5.0 (−1.2) and called it very slightly hot. What lands next?",
+      "turn": 8
+    },
+    {
+      "complaint": "power chords are sounding a bit restrained...",
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 300,
+          "gain_delta_db": 0.4,
+          "q": 1.5,
+          "rationale": "Soften anti-mud dip, tighten Q; return chord body"
+        }
+      ],
+      "turn": 9
+    },
+    {
+      "complaint": "this one is real subtle. things like crunchy bass guitar and power chords, even down to lower male vocals, are *almost* right. half of the time, they're perfect, the other half of the time, they're just slightly too quiet. how do we fix that?",
+      "diagnosis": {
+        "method": "Computed net magnitude of the live chain, 40-600 Hz.",
+        "finding": "Broad -1.5 dB trough spanning 120-350 Hz against +1 to +4 dB below 100 Hz; 5.09 dB ripple across 50-400 Hz, minimum -1.53 dB at 168 Hz.",
+        "explains_symptom": "Inconsistency was register-dependent, not random: E1/E2 roots (41-82 Hz) sat in the boosted region and sounded right, while A2 (110 Hz) upward - most power-chord roots, bass runs, higher male vocal fundamentals - fell into the trough and read slightly quiet."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 190,
+          "gain_db": 1.4,
+          "q": 0.8
+        }
+      ],
+      "measured": {
+        "at_fundamentals_db": {
+          "82": 1.13,
+          "110": -0.21,
+          "147": -1.45,
+          "165": -1.53,
+          "196": -1.48,
+          "247": -1.41,
+          "294": -1.32
+        },
+        "selected_spread_db": 1.96
+      },
+      "alternatives_rejected": [
+        {
+          "band": "peak 180 Hz +1.2 dB Q0.90",
+          "spread_db": 2.15,
+          "reason": "Under-fills the trough, -0.67 dB residual at 294 Hz"
+        },
+        {
+          "band": "peak 170 Hz +1.5 dB Q1.00",
+          "spread_db": 2.23,
+          "reason": "Worst spread of the four; centre too low, leaves 247-330 down"
+        },
+        {
+          "band": "peak 200 Hz +1.3 dB Q0.70",
+          "spread_db": 1.92,
+          "reason": "Flattest, but +0.40 dB at 500 Hz risks re-muddying a profile already burned twice by mud/muffle"
+        }
+      ],
+      "turn": 10
+    },
+    {
+      "complaint": "not muddied, very clear, but now sounding a bit V-shaped... and I hate V-shaped.",
+      "diagnosis": {
+        "method": "Computed full-range net magnitude 20 Hz - 20 kHz with band averages.",
+        "finding": "v_db = mean(bass 50-150, treble 4k-10k) - mid 400-1500; positive = scooped mids. Mids averaged +0.82 dB against bass +1.45 and treble +2.33, a 1.07 dB scoop. The arms of the V were the existing 2096 peak (+5.35 at 2 kHz) and 7959 peak (+5.03 at 8 kHz), with no band at all between 400 and 1500 Hz."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 750,
+          "gain_db": 1.5,
+          "q": 0.7
+        }
+      ],
+      "measured": {
+        "octave_sweep_db": {
+          "125": -0.06,
+          "250": -0.24,
+          "500": 0.32,
+          "800": 0.82,
+          "1000": 1.07,
+          "2000": 5.35,
+          "4000": 3.8,
+          "8000": 5.03
+        },
+        "selected_v_db": -0.07
+      },
+      "alternatives_rejected": [
+        {
+          "approach": "lower the 2096 and 7959 peaks instead of filling",
+          "reason": "Those levels were set by ear in earlier turns and validated; clawing them back would undo accepted decisions"
+        },
+        {
+          "band": "peak 800 Hz +2.0 dB Q0.60",
+          "v_db": -0.51,
+          "reason": "Overshoots into mids-forward; listener asked for not-V, not mid-humped"
+        },
+        {
+          "band": "peak 900 Hz +1.8 dB Q0.55",
+          "v_db": -0.35,
+          "reason": "Overshoots and centres too high, leaving 500 Hz short"
+        },
+        {
+          "band": "peak 700 Hz +2.2 dB Q0.50",
+          "v_db": -0.7,
+          "reason": "Largest overshoot; lifts lowmid to +0.85 back toward mud"
+        }
+      ],
+      "turn": 11
+    },
+    {
+      "complaint": "that's vastly better, but two notes: big fuzzy bloomy guitars don't fill the space like they should, they're there and balanced but there's no OOMPH/wow/oversized feel to them. can we fix that without muddying things? also, I feel that there are peaks in the upper registers that haven't quite been tamed yet. female vocals and guitar solos aren't HOT or biting anymore per se, but they are a little bit forward.",
+      "interpreted": "A single utterance carrying two distinct complaints - no bloom on big fuzzy guitars, and upper registers still a little forward - diagnosed and fixed together in one pass, because the two fixes interact and had to be checked against each other rather than applied independently.",
+      "diagnosis": {
+        "method": "Computed net magnitude with band averages, both complaints evaluated on the same sweep so their interaction was visible.",
+        "finding": "Notch at 125-160 Hz (125 Hz +0.02, 160 Hz -0.08) sitting between the sub-bass (63 Hz +2.51) and the earlier 190 Hz fill. OOMPH band 80-160 averaged only +0.61. Net peaks at 2000 Hz (+5.76) and 4000 Hz (+3.90); FWD band 1.8-4 kHz averaged +3.24. Listener constraint: no added mud, and the mud band 200-400 Hz tracked at +0.22 before. The oomph fill raises the bass band while the treble trim lowers only 1.8-4 kHz, so the two do not cancel; the V metric moves +0.31 net.",
+        "explains_symptom": "Guitar fundamentals were present and level - hence 'there and balanced' - but the body beneath them was missing, so the sound never bloomed or read oversized. A notch, not a shortfall of bass. 'Forward but not hot or biting' matches a moderate excess spread across the whole presence band rather than one narrow hot spot - so two peaks trimmed lightly, not one cut deeply."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 120,
+          "gain_db": 1.5,
+          "q": 0.9,
+          "rationale": "Fill 125-160 Hz body notch; best oomph-per-mud ratio"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2096,
+          "gain_delta_db": -0.7,
+          "q": null,
+          "rationale": "Trim 2 kHz presence peak; forward rather than biting"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 3901,
+          "gain_delta_db": -0.9,
+          "q": null,
+          "rationale": "Trim the second peak at 4 kHz alongside the 2 kHz one"
+        }
+      ],
+      "measured": {
+        "oomph_80_160_db": {
+          "before": 0.61,
+          "after": 1.94
+        },
+        "mud_200_400_db": {
+          "before": 0.22,
+          "after": 0.63
+        },
+        "fwd_1800_4000_db": {
+          "before": 3.24,
+          "after": 2.79
+        },
+        "v_db": {
+          "before": -0.07,
+          "after": 0.38
+        }
+      },
+      "disclosed": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)",
+      "alternatives_rejected": [
+        {
+          "band": "peak 130 Hz +2.0 dB Q0.80",
+          "oomph_db": 2.37,
+          "mud_db": 0.97,
+          "reason": "More oomph but mud to +0.97, near the range that already drew two complaints"
+        },
+        {
+          "band": "peak 140 Hz +2.0 dB Q1.10",
+          "oomph_db": 2.14,
+          "mud_db": 0.82,
+          "reason": "Worse oomph-per-mud ratio than the 120 Hz fill"
+        },
+        {
+          "band": "peak 100 Hz +1.8 dB Q1.00",
+          "oomph_db": 2.13,
+          "mud_db": 0.51,
+          "reason": "Centre sits below the notch; lifts sub-bass more than guitar body"
+        },
+        {
+          "band": "trim 2096 only (to +3.8)",
+          "fwd_db": 2.96,
+          "reason": "Addresses one of the two measured peaks, leaving 4 kHz untouched"
+        },
+        {
+          "band": "broad dip 2800 Hz -1.2 dB Q1.0",
+          "fwd_db": 2.25,
+          "reason": "Overshoots for 'a little forward' and pulls mid back down to +1.87, re-opening the V just closed"
+        }
+      ],
+      "turn": 12
+    },
+    {
+      "complaint": "certain elements in the treble are a touch spicy, but it's hard for me to put my finger on whether it's the peak at ~3kish or the one around 9-10k. advise.",
+      "answer": "Neither - the peak BETWEEN 2k and 8k, identified visually on the response graph. Rest of the treble reported as incredibly clear, clean and correct. Reference tracks given: Purity Ring 'Fineshrine' and 'Crawlersout' - high-pitched vocals and dense top-end energy, solidly spicy.",
+      "clarify": "Which region: the 2 kHz peak (there is no 3 kHz peak - 3.2 kHz is a dip at -0.15, so a 2 kHz peak is likely being localized high), or the broad 7-10 kHz lift? Discriminator offered: 7-10 kHz shows on cymbals, hi-hats and sibilant tails as glassy sizzle riding over everything; 2 kHz shows on snare crack, brass and pick attack as forward projection in note attacks.",
+      "interpreted": "The assistant offered two regions and backed 7-10 kHz; the listener rejected both and placed the problem visually on the response graph between 2k and 8k, reporting the rest of the treble as correct. Reference tracks named in the answer.",
+      "diagnosis": {
+        "method": "Swept 3.2-5.2 kHz for the true local maximum, then simulated each candidate cut and tracked where the peak moved.",
+        "finding": "Bump peaks at 3922 Hz (+3.13 dB), average +2.30 across 3.4-4.6 kHz. It is not a boost: it is the unattenuated gap between the existing 3161 Hz (-2.7) and 5575 Hz (-7.5) cuts, with the 3901 band sitting on top of it. Cutting the 3901 band alone relocates the peak instead of flattening it - as the cut deepens the maximum migrates 3922 -> 3963 -> 4125 -> 4364 -> 4452 Hz, exposing the 4.3-4.5 kHz shoulder, which is exactly where high female vocals get edgy. The fix therefore needs a second stage to catch the shoulder. The listener reported the rest of the treble as correct, so 2 kHz and 7-10 kHz had to be held."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 3901,
+          "gain_delta_db": -1.4,
+          "q": null,
+          "rationale": "Remove boost sitting on the gap between two cuts"
+        },
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 4400,
+          "gain_db": -1.0,
+          "q": 2.5,
+          "rationale": "Catch the 4.3-4.5k shoulder the cut would expose"
+        }
+      ],
+      "measured": {
+        "peak_db": {
+          "before": 3.13,
+          "after": 1.01
+        },
+        "peak_hz": {
+          "before": 3922,
+          "after": 3851
+        },
+        "band_3400_4600_db": {
+          "before": 2.3,
+          "after": 0.79
+        },
+        "held_2000_db": {
+          "before": 5.12,
+          "after": 5.06
+        },
+        "held_8000_db": {
+          "before": 5.04,
+          "after": 4.95
+        }
+      },
+      "alternatives_rejected": [
+        {
+          "band": "trim 7959 +5.5 -> +4.5",
+          "reason": "The assistant's own first hypothesis, argued from breadth - Q0.98, +4.42 dB average across nearly two octaves, which reads as tonal character where a narrow 2 kHz peak reads as forward; ruled out by the listener, who reported 7-10 kHz as correct"
+        },
+        {
+          "band": "3901 -> +0.4",
+          "peak_db": 2.14,
+          "peak_hz": 3963,
+          "reason": "Insufficient; bump still clearly present"
+        },
+        {
+          "band": "3901 -> -0.8",
+          "peak_db": 1.45,
+          "peak_hz": 4364,
+          "reason": "Leaves the exposed shoulder at 4364 Hz"
+        },
+        {
+          "band": "3901 -> -1.6",
+          "peak_db": 1.21,
+          "peak_hz": 4452,
+          "reason": "Lowest band average but relocates the peak to 4452 rather than flattening it"
+        },
+        {
+          "band": "add dip 4200 -1.2 Q2.0 alone",
+          "peak_db": 2.03,
+          "peak_hz": 3901,
+          "reason": "Leaves the 3901 boost in place, so the original peak survives"
+        }
+      ],
+      "turn": 13
+    },
+    {
+      "complaint": "yeah, there's some spiciness up higher now",
+      "interpreted": "The assistant first attributed the new spiciness to the 6.3-7.5 kHz climb out of the 5575 Hz dip into the 7959 Hz peak, reasoning it as relative exposure since 1.5 dB had just been removed below it, and proposed a dip at 6800 Hz. The listener overrode that from a spectrogram: 'ok, actually, I think that region might be fine. I'm looking at the spectrogram from the HQPlayer Client now, and the high parts that are bothering me are at 7-9k almost exactly'. The curve-shape reasoning was self-consistent but wrong; only the spectrogram distinguished the two candidate regions.",
+      "diagnosis": {
+        "method": "After the spectrogram placed the problem at 7-9 kHz, measured that band directly and compared reducing the 7959 band's gain against notching it.",
+        "finding": "7-9 kHz averaged +4.69 dB with the maximum at +4.96 dB at 7917 Hz - the 7959 band itself (+5.5, Q0.98), not the skirt below it. A notch deliberately narrower than the peak it sits on (Q2.2 against Q0.98) carves out the flagged band while leaving that peak's skirts intact - the air above 10 kHz and the 5.5-7 kHz region. Reducing the broad band's gain to reach the same 7-9 kHz level would have cost 0.39 dB more above 10 kHz. The listener had repeatedly reported the upper treble as clear and correct, so only the 7-9 kHz band was to move."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 8000,
+          "gain_db": -1.2,
+          "q": 2.2,
+          "rationale": "Notch 7-9k; narrower than the peak so its skirts survive"
+        }
+      ],
+      "measured": {
+        "band_7000_9000_db": {
+          "before": 4.69,
+          "after": 3.64
+        },
+        "peak_db": {
+          "before": 4.96,
+          "after": 3.77
+        },
+        "peak_hz": {
+          "before": 7917,
+          "after": 7776
+        },
+        "held_10000_16000_db": {
+          "before": -0.17,
+          "after": -0.33
+        },
+        "held_5500_7000_db": {
+          "before": 0.6,
+          "after": 0.13
+        },
+        "held_2000_db": {
+          "before": 5.06,
+          "after": 5.04
+        }
+      },
+      "alternatives_rejected": [
+        {
+          "band": "dip 6800 Hz -1.2 Q2.0",
+          "reason": "The assistant's pre-spectrogram proposal; dropped once the listener confirmed 6.3-7.5 kHz was fine - it would have shaved the wrong side of the peak"
+        },
+        {
+          "band": "7959 +5.5 -> +4.5",
+          "band_7_9k_db": 3.72,
+          "band_10_16k_db": -0.56,
+          "reason": "Reaches the same 7-9 kHz level but costs 0.39 dB more above 10 kHz because the band is broad"
+        },
+        {
+          "band": "7959 +5.5 -> +4.0",
+          "band_7_9k_db": 3.24,
+          "band_10_16k_db": -0.76,
+          "reason": "Overshoots and takes still more air with it"
+        },
+        {
+          "band": "dip 8000 -1.5 Q1.6",
+          "band_7_9k_db": 3.3,
+          "reason": "Larger cut held in reserve; undershooting preferred with the target this close"
+        }
+      ],
+      "turn": 14
+    },
+    {
+      "complaint": "hmm... I'm not sure about that last one. it's a very fine line between sparkle and spice, but we'll find it. that said, this took away some of the magic and sparkle from the trebe in a way I'm having a hard time putting my finger on. it's not spicy anymore, but it's not quite as insanely clear or correct anymore. we've taken a step away from that. also, Purity Rings' vocals have taken a hit as well with the last round it sounds like",
+      "interpreted": "Reported as a regression of the previous turn's 8000 Hz notch at -1.2 dB Q2.2, which fixed the reported spice but degraded two things that were previously correct.",
+      "diagnosis": {
+        "method": "Selectivity probe - measured peak reduction against band-average reduction across notch shapes from Q2.2 to Q8.0.",
+        "finding": "The -1.2 Q2.2 notch dropped the 7-9 kHz band average by 1.05 dB and the peak by only 1.19 - very nearly uniform. It turned the whole region down rather than targeting anything within it. Selectivity (dB of peak removed per dB of band average lost) never exceeded about 1.2, and fell BELOW 1.0 as the notch tightened - Q6.0 gave 0.97 and Q8.0 gave 0.85, meaning a tighter notch costs more average than it removes peak. Narrow notches additionally relocated the maximum to 8.5-8.7 kHz, because the thing underneath is not a resonance but the 7959 band at Q0.98, which is genuinely broad. Carving a slot in it leaves the shoulder standing. At 7-9 kHz sparkle and spice are the same energy; no filter shape separates them. The problem is therefore a level decision, not a shape decision, and the previous setting was simply too deep.",
+        "explains_symptom": "cymbal sparkle and the sheen on high female vocals both occupy 7-9 kHz, which is why one cut regressed both at once"
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 8000,
+          "gain_delta_db": 0.6,
+          "q": null
+        }
+      ],
+      "measured": {
+        "band_7000_9000_db": {
+          "unnotched": 4.69,
+          "at_minus_1_2": 3.64,
+          "after_halving": 4.16
+        },
+        "peak_db": {
+          "unnotched": 4.96,
+          "at_minus_1_2": 3.77,
+          "after_halving": 4.36
+        },
+        "peak_hz": {
+          "unnotched": 7917,
+          "after_halving": 7877,
+          "note": "shape preserved, peak not relocated"
+        },
+        "band_9000_11000_db": {
+          "at_minus_1_2": 2.38,
+          "after_halving": 2.63
+        }
+      },
+      "disclosed": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure",
+      "alternatives_rejected": [
+        {
+          "band": "7900 Hz -1.2 Q4.0",
+          "selectivity": 1.2,
+          "peak_moves_to_hz": 8560,
+          "reason": "Marginal selectivity gain and relocates the maximum to 8560 Hz"
+        },
+        {
+          "band": "7900 Hz -1.8 Q6.0",
+          "selectivity": 0.97,
+          "peak_moves_to_hz": 8699,
+          "reason": "Selectivity below 1.0 - removes more band average than peak"
+        },
+        {
+          "band": "7900 Hz -2.2 Q8.0",
+          "selectivity": 0.85,
+          "peak_moves_to_hz": 8683,
+          "reason": "Worst selectivity of all; tighter notches are actively counterproductive on a broad peak"
+        }
+      ],
+      "turn": 15
+    },
+    {
+      "complaint": "let's knock that 2kish peak down just a hair now",
+      "interpreted": "'a hair' sized at -0.5 dB, matching the listener's own prior increments on this band (6.2 -> 4.5 -> 3.8, each accepted).",
+      "diagnosis": {
+        "method": "Swept trim options on the 2096 band and checked the surrounding bands for collateral movement.",
+        "finding": "Net peak sat at +5.33 dB at 2090 Hz, 1.8-2.5 kHz averaging +4.39. The 2096 band is well isolated at Q3.16, so a trim moves almost nothing else: 1-1.5 kHz shifts 0.05 dB, 3-4 kHz 0.04 dB, and the 400-1500 Hz mid average holds at +2.01."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2096,
+          "gain_delta_db": -0.5,
+          "q": null
+        }
+      ],
+      "measured": {
+        "peak_db": {
+          "before": 5.33,
+          "after": 4.83
+        },
+        "peak_hz": {
+          "before": 2090,
+          "after": 2089
+        },
+        "band_1800_2500_db": {
+          "before": 4.39,
+          "after": 4.01
+        },
+        "held_mid_400_1500_db": {
+          "before": 2.03,
+          "after": 2.01
+        },
+        "held_3000_4000_db": {
+          "before": 0.31,
+          "after": 0.27
+        }
+      },
+      "alternatives_rejected": [
+        {
+          "band": "2096 -> +3.0 (-0.8)",
+          "peak_db": 4.53,
+          "reason": "Larger than 'a hair' warrants; easy to take as a second step if wanted"
+        },
+        {
+          "band": "2096 -> +2.5 (-1.3)",
+          "peak_db": 4.03,
+          "reason": "Approaching the level that earlier drew a 'vocals recessed' risk"
+        }
+      ],
+      "turn": 16
+    },
+    {
+      "complaint": "see how weirdly peaky the region from 50-500 is? ... wondering if simplifying the peaks throughout the midrange and upper/mid bass region and letting the auteur classics do their magic in that region might be one approach to try that might result in a more natural sound",
+      "answer": "S1 chosen and confirmed by ear: 'quite good, I'm hearing more of the midrange magic come back. the simplification is a step in the right direction. much more natural.' Over-tuning hypothesis validated by listening, not only by measurement.",
+      "clarify": "Two candidates offered, both replacing all eight bands at or below 750 Hz. S2 - refactor: lshelf 58 Hz +5.2 Q0.70 | peak 103 Hz +1.7 Q1.06 | peak 789 Hz +1.8 Q1.39, reproducing the ear-approved contour with the minimum bands and leaving the sound unchanged; max deviation from current 0.34 dB, worst at any note fundamental 0.34, wiggle 0.31 -> 0.20, preamp -5.2. S1 - simplify: lshelf 89 Hz +4.7 Q0.70 | peak 621 Hz +1.4 Q0.62, deliberately dropping the fine structure and letting the broad contour stand; max deviation 0.69 dB, worst at any note fundamental 0.55, largest moves A2 110 Hz -0.5, D4 294 Hz +0.6, G4 392 Hz +0.5, wiggle 0.31 -> 0.19, peak group delay 1.07 -> 0.85 ms, preamp -4.7. A four-band S3 fit was measured too. S2 keeps what you approved by ear to within 0.34 dB and buys only a cleaner curve, while S1 changes what you hear by up to 0.6 dB at some fundamentals and is the actual test of the over-tuning hypothesis - which do you want staged?",
+      "interpreted": "'those tiny swales and humps ARE the peakiness, I'm using the term wrong - I mean how bumpy and rough the midrange response is. auteur classics have really good midrange and bass if we let it. the EQ is doing a ton of work in that region, but it's TASTE tuning, not CORRECTIVE tuning. I want to explore the idea that the current solution is over-tuned in that region.' Read as a hypothesis about over-tuning below 1 kHz rather than about narrow peaks, and confirmed by measurement.",
+      "diagnosis": {
+        "method": "Decomposed the live chain below 1 kHz into the AutoEq bass pair and the five bands added later, then compared each against every ZMF Auteur Classic measurement in the AutoEq repository - 16 pad/rig combinations across kr0mka, Kuulokenurkka and Super Review, each normalised to its own 1 kHz.",
+        "finding": "50-500 Hz is the smoothest region of this headphone on every unit and every pad. Deviation from its own smooth trend never exceeds 0.94 dB and is typically 0.2-0.5. There is no resonance, notch or peak there to correct. The level in that region is not known to better than about 6 dB across units and pads, so sub-dB structure placed there is below the confidence of any measurement it could be based on. Kuulokenurkka's published review independently describes the Auteur Classic as less mid-bass-emphasised and more neutral than the Atrium. lshelf 105 Hz +5.5 Q0.70 and peak 107 Hz -3.2 Q0.70 are two large opposing filters at the same centre frequency. Alone they produce a 6.41 dB swing: +4.94 dB at 30 Hz falling to a -1.47 dB trough at 156 Hz. That shape is a curve-fitting artifact of AutoEq's optimiser, not a correction - the headphone has nothing there. Meanwhile the 66, 99, 120, 190 and 300 Hz bands sum to +2.65 at 100, +2.60 at 120, +2.45 at 150 and +2.02 at 190 Hz - very nearly the exact inverse of that trough. net EQ fine structure in 50-500 Hz is 0.21 dB; the headphone's own is also 0.21 dB. The EQ is adding as much structure as the thing it would be correcting has.",
+        "explains_symptom": "the bumpiness is the residual of five bands cancelling one optimiser artifact. Two earlier by-ear complaints were the listener independently finding it: 'no OOMPH/bloom on fuzzy guitars' landed at the 125-160 Hz trough minimum, and 'power chords and lower male vocals slightly too quiet, register-dependent' landed on its 190-300 Hz shoulder. Both were answered with patch bands rather than by fixing the pair."
+      },
+      "measured": {
+        "native_fine_structure_db": {
+          "min": 0.14,
+          "max": 0.94,
+          "typical": "0.2-0.5",
+          "on_the_profile_in_use": 0.21
+        },
+        "unit_spread_db": {
+          "median_50_500": 5.95,
+          "note": "excludes the two Caldera-pad outliers, which run +10 to +12 dB in this region on the Super Review rig"
+        },
+        "net_50_500": {
+          "ripple_db": 3.89,
+          "wiggle_about_trend_db": 0.21,
+          "slope_reversals": [
+            83,
+            93,
+            301,
+            782
+          ],
+          "bands_in_region": 7
+        }
+      },
+      "outcome": "S1 applied: lshelf 89 Hz +4.7 Q0.70 | peak 621 Hz +1.4 Q0.62 replacing all eight bands at or below 750 Hz, preamp recomputed to -4.7 dB. The over-tuning hypothesis was validated by listening, not only by measurement.",
+      "disclosed": "The file still carries AutoEq's original preamp of -6.3 dB; it was never recomputed after twelve turns of changes. Net chain maximum is +5.32 dB at 20 Hz, so -5.3 dB is what is required - not a clipping risk, 1.0 dB of volume given away. Both candidates also exceed the per-turn band budget (amend <= 2, append <= 1) by a wide margin: this is a restructure of one region, not an ordinary turn, and should be staged and applied as a single reviewable diff rather than salami-sliced.",
+      "alternatives_rejected": [
+        {
+          "approach": "delete the 120, 190 and 300 Hz taste bands and leave the AutoEq pair standing",
+          "measured_loss_db": {
+            "E2_82": -1.4,
+            "A2_110": -2.2,
+            "D3_147": -2.4,
+            "E3_165": -2.3,
+            "G3_196": -1.9
+          },
+          "reason": "the naive reading of the listener's proposal. It re-opens the AutoEq trough to its full depth, costing up to 2.4 dB at 147-165 Hz - precisely the register that produced the 'power chords slightly too quiet' complaint. The taste bands are not the problem; they are the symptom."
+        },
+        {
+          "approach": "also delete the 66 and 99 Hz bands",
+          "measured_loss_db": {
+            "A2_110": -2.7
+          },
+          "reason": "slightly worse still, and those two came from the measurement rather than from taste"
+        },
+        {
+          "approach": "S3, a four-band fit",
+          "max_dev_from_current_db": 0.38,
+          "reason": "no better than the three-band fit and costs an extra biquad"
+        }
+      ],
+      "turn": 17
+    },
+    {
+      "complaint": "S1 is actually quite good... let's simplify further. the bass is solid, but can just sometimes be a little distracting more than natural, and I'm seeing a small dip at 200 Hz that I'd like to ease off a little too.",
+      "interpreted": "Two complaints in one utterance - the bass sometimes distracting rather than natural, and a small dip at 200 Hz - which share a cause and were handled jointly.",
+      "diagnosis": {
+        "method": "Measured the S1 chain across 60-1200 Hz, located the minimum, then solved for the two-band set that flattens 150 Hz - 1 kHz subject to a bass-average target and a hold on the 400-1500 Hz mid.",
+        "finding": "minimum is +0.56 dB at 204 Hz - the listener read the graph correctly. It is not a notch anyone placed; it is the saddle between the 89 Hz shelf skirt and the 621 Hz peak skirt. Ripple across 150 Hz - 1 kHz was 0.90 dB. bass 50-150 sat at +2.53 dB against a mid of +1.27 - the widest gap left in the chain, which is what reads as distracting rather than natural. both complaints are the same geometry. Lowering the shelf narrows the gap from above; broadening the mid band downward fills the saddle from below. Neither fix fights the other - they close the same distance from opposite sides. the saddle is not filled, it is removed. Widening the mid band to Q 0.30 and moving it to 414 Hz turns it from a bump into a tilt, so there are no longer two features with a gap between them."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "lshelf",
+          "f_hz": 89,
+          "to_f_hz": 81,
+          "gain_delta_db": -1.6,
+          "q": 0.7,
+          "rationale": "ease bass; corner moved down slightly so the reduction lands on 40-110 rather than on the saddle"
+        },
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 621,
+          "to_f_hz": 414,
+          "gain_delta_db": -0.2,
+          "q": 0.3,
+          "rationale": "broaden and lower the mid band so its skirt reaches 200 Hz; removes the saddle instead of patching it"
+        }
+      ],
+      "measured": {
+        "bass_50_150_db": {
+          "before": 2.53,
+          "after": 1.84
+        },
+        "oomph_80_160_db": {
+          "before": 1.58,
+          "after": 1.35
+        },
+        "mud_200_400_db": {
+          "before": 0.75,
+          "after": 1.17
+        },
+        "mid_400_1500_db": {
+          "before": 1.27,
+          "after": 1.14
+        },
+        "v_db": {
+          "before": 0.19,
+          "after": -0.01
+        },
+        "ripple_150_1000_db": {
+          "before": 0.9,
+          "after": 0.18
+        },
+        "at_200hz_db": {
+          "before": 0.56,
+          "after": 1.06
+        },
+        "preamp_db": {
+          "before": -4.7,
+          "after": -3.8
+        }
+      },
+      "outcome": "REJECTED BY EAR. Listener verdict recorded 2026-07-26: turn 18 was inferior to turn 17's two-band midrange simplification, which 'brought out more of the headphones' natural character'. The 81 Hz shelf and the 414 Hz Q0.30 tilt were rolled back; turn 17's S1 structure stands as the baseline all later turns work within.",
+      "disclosed": "mud_200_400 rises 0.42 dB. absolute mud rises, but total energy below 400 Hz falls - the gap between bass and mud narrows from 1.78 to 0.67 dB, which is the evenness the listener asked for. Disclosed before applying because this profile has drawn two mud complaints and +0.97 was previously flagged as near that range. Remedy named in advance: take the 414 Hz band to +0.9 dB rather than restoring the shelf. the 414 Hz band sits at Q 0.30, below the 0.5-1.6 voicing guidance but well inside AutoEq's 0.18 hard floor. That width is the point: it is what converts a bump into a tilt.",
+      "alternatives_rejected": [
+        {
+          "band": "single lshelf 65 Hz +6.0 Q0.70, one band total below 1 kHz",
+          "mid_400_1500_db": 0.15,
+          "v_db": 0.94,
+          "reason": "the maximally simple option, and it fails. Mid collapses from +1.27 to +0.15 and v_db goes to +0.94 - it reopens the 400-1500 Hz hole that drew the 'V-shaped, and I hate V-shaped' complaint"
+        },
+        {
+          "band": "lshelf 68 +2.8 Q0.70 | peak 378 +1.5 Q0.30, bass -1.0 dB",
+          "mud_200_400_db": 1.46,
+          "v_db": -0.35,
+          "reason": "held in reserve. Takes mud to +1.46 and tips v_db mid-forward; undershooting preferred with two complaints answered at once"
+        }
+      ],
+      "turn": 18
+    },
+    {
+      "complaint": "the current peaks create a small valley at around 220Hz-ish. I'm wondering if we could gently fill that in, and what that might sound like. Discuss first, no changes yet.",
+      "answer": "'no, your method is fine. can we back off that by about half? it's good, warmer and fuller, but just like a hair much' - fill confirmed audible and in the right direction, magnitude too large. Reference material: crushing doom metal.",
+      "interpreted": "Opened as a discuss turn, no changes requested, and closed once the listener picked a candidate. First turn of the post-simplification paradigm: turn 17's S1 structure is the baseline and this is one deliberate taste band on top of it, not the start of another patch pile.",
+      "diagnosis": {
+        "method": "Computed net magnitude of the live 10-band chain at 44.1 kHz with RBJ biquad math, swept 100-900 Hz at 1600 points for the true local minimum, then evaluated at note fundamentals A2-B4.",
+        "finding": "Chain read from the live daemon rather than reconstructed - it is not derivable from base_bands plus the turn list, because turn 18 was rejected and rolled back and the shelf reached 94 Hz / Q0.60 / +4.4 by unlogged by-ear tuning after turn 17: lshelf 94 +4.4 Q0.60 | peak 621 +1.4 Q0.62 | peak 2090 +3.0 Q3.16 | peak 3161 -2.7 Q5.18 | peak 3901 0.0 Q6.00 | peak 4400 -1.0 Q2.50 | peak 5575 -7.5 Q4.63 | peak 7959 +5.5 Q0.98 | peak 8000 -0.6 Q2.20 | hshelf 10000 -4.3 Q0.70. minimum +0.82 dB at 230 Hz, not 220. Left shoulder +2.10 at 100 Hz (94 Hz shelf skirt), right shoulder +1.49 at 624 Hz (621 Hz peak skirt). Depth 1.28 dB vs left, 0.67 dB vs right. Not a notch - the dished saddle between the two S1 bands, with nothing between them. Same geometry as turn 18's saddle, unchanged because turn 18 was rejected and rolled back.",
+        "explains_symptom": "spread across A2-G4 was 1.01 dB, smooth and monotone down-then-up: a bass line walking A2 (+1.83) up to A3 (+0.82) loses a decibel on the way, so the higher note reads slightly less substantial than the lower one for no musical reason. Register-dependent level, the consistency category rather than a tonal term. The fill is not heard as a bell - it is a two-thirds-octave slab of lower midrange raised half a decibel relative to its surroundings, and broad low-Q level shifts are the class listeners notice over a whole album (Toole repetition finding)."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 230,
+          "gain_db": 0.6,
+          "q": 0.6,
+          "rationale": "Fill the 94/621 saddle; centred on the measured minimum"
+        }
+      ],
+      "measured": {
+        "bass_50_150_db": {
+          "before": 2.5,
+          "after": 2.73
+        },
+        "oomph_80_160_db": {
+          "before": 1.81,
+          "after": 2.14
+        },
+        "mud_200_400_db": {
+          "before": 0.93,
+          "after": 1.47
+        },
+        "mid_400_1500_db": {
+          "before": 1.29,
+          "after": 1.46
+        },
+        "treble_4k_10k_db": {
+          "before": 0.41,
+          "after": 0.41
+        },
+        "v_db": {
+          "before": 0.16,
+          "after": 0.12
+        },
+        "ripple_150_1000_db": {
+          "before": 0.67,
+          "after": 0.44
+        },
+        "spread_A2_G4_db": {
+          "before": 1.01,
+          "after": 0.72
+        },
+        "at_230hz_db": {
+          "before": 0.82,
+          "after": 1.42
+        },
+        "preamp_required_db": {
+          "before": -4.32,
+          "after": -4.33
+        },
+        "at_fundamentals_db": {
+          "110": 1.83,
+          "131": 1.4,
+          "147": 1.18,
+          "165": 1.01,
+          "196": 0.86,
+          "220": 0.82,
+          "262": 0.84,
+          "294": 0.9,
+          "330": 0.99,
+          "392": 1.16,
+          "494": 1.39
+        }
+      },
+      "disclosed": "Crossfeed on this rig is structural binaural, NOT bs2b bauer: lambda 0.0, centre 0 pct, alpha_near 1.40895, alpha_far 0.2426, head radius 0.0955 m, k 0.582103, installed preamp -4.7 dB. lambda = 0 means the centre path is exactly flat at every frequency - no centre comb, no centre tilt - so the summed EQ response IS what the centre hears. bs2b spatial vocabulary (level/crossover/compensation strength) does not describe this rig. stated to the listener before any change: at 0.67-1.28 dB the saddle is BELOW Toole & Olive's threshold on music (+/-1.5 dB at Q approximately 1), below midrange reseat variance (up to 2 dB sigma), and below the confidence of the underlying measurement (turn 17 research: this headphone's native 50-500 Hz fine structure is 0.21 dB with about 6 dB unit spread). There is no corrective case here. The change is taste, and was presented as taste. mud_200_400 rises 0.54 dB, knowingly past the level that has drawn complaints on this profile - +0.97 was flagged at turn 12 as near that range. Accepted because the payoff is register evenness rather than added weight, and disclosed before applying. Remedy: take the band to +0.3 dB rather than reverting - keeps two thirds of the evenness gain for half the density. Headroom: installed preamp -4.7 against a required -4.33, so 0.37 dB is unused - the structural block still carries turn 17's S1 figure, so 0.37 dB of headroom is unused. Over-attenuated, which is the safe direction; clips=0 on the daemon. rescaling the preamp would make everything 0.37 dB louder in the same breath as a 0.6 dB tonal change, and level bias is the classic way an A/B goes wrong. Held at -4.70 so the fill could be judged level-clean; recovery deferred to its own change.",
+      "alternatives_rejected": [
+        {
+          "band": "peak 220 +0.6 Q0.60",
+          "spread_db": 0.74,
+          "mud_db": 1.45,
+          "reason": "the listener's own 220 Hz estimate; 230 is the measured minimum and buys 0.02 dB more evenness for free"
+        },
+        {
+          "band": "peak 220 +0.8 Q0.70",
+          "spread_db": 0.62,
+          "mud_db": 1.61,
+          "reason": "held in reserve as the next step up if +0.6 proved inaudible"
+        },
+        {
+          "band": "peak 230 +1.0 Q0.90",
+          "spread_db": 0.49,
+          "mud_db": 1.75,
+          "reason": "flattest of the set, but takes mud to 1.75 in a profile that has drawn two mud complaints; 0.13 dB of extra evenness does not buy that"
+        },
+        {
+          "band": "peak 250 +1.0 Q0.60",
+          "spread_db": 0.5,
+          "mud_db": 1.86,
+          "reason": "drifts high - lifts 400 Hz to +1.93 and raises mud rather than mid. Worst mud-per-evenness of the set"
+        },
+        {
+          "band": "peak 200 +0.8 Q1.00",
+          "spread_db": 0.76,
+          "mud_db": 1.46,
+          "reason": "misses the minimum, leaves 300 Hz down at +1.39 and still costs 0.53 dB of mud"
+        },
+        {
+          "approach": "remove the saddle instead of filling it, by widening the 621 band into a tilt",
+          "reason": "that is turn 18, already rejected by ear. Named to the listener so the choice to patch was made with eyes open rather than by default"
+        }
+      ],
+      "turn": 19,
+      "model": "claude-opus-5"
+    },
+    {
+      "complaint": "can we back off that by about half? it's good, warmer and fuller, but just like a hair much",
+      "interpreted": "'about half' is unambiguous on a single band's gain, +0.6 to +0.3; no interpretation was needed and none was invented. The remedy pre-named in turn 19 was already +0.3, so the fix was queued before it was asked for. This is a refinement of turn 19.",
+      "diagnosis": {
+        "method": "Amended the turn 19 band in place and recomputed the panel; compared -0.25/-0.30/-0.35 sizings against the pre-fill and +0.6 states.",
+        "finding": "'about half' is unambiguous on a single band's gain - +0.6 to +0.3. That lands 230 Hz at +1.12 dB, between the pre-fill +0.82 and the too-much +1.42, and takes mud from 1.47 back to 1.20. Evenness gives back roughly half of what it won - spread A2-G4 0.72 to 0.87 against 1.01 pre-fill - which is the point: the listener wants the warmth, not all of it."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 230,
+          "gain_delta_db": -0.3,
+          "q": null
+        }
+      ],
+      "measured": {
+        "bass_50_150_db": {
+          "before": 2.73,
+          "after": 2.61
+        },
+        "oomph_80_160_db": {
+          "before": 2.14,
+          "after": 1.97
+        },
+        "mud_200_400_db": {
+          "before": 1.47,
+          "after": 1.2
+        },
+        "mid_400_1500_db": {
+          "before": 1.46,
+          "after": 1.37
+        },
+        "treble_4k_10k_db": {
+          "before": 0.41,
+          "after": 0.41
+        },
+        "v_db": {
+          "before": 0.12,
+          "after": 0.14
+        },
+        "ripple_150_1000_db": {
+          "before": 0.44,
+          "after": 0.48
+        },
+        "spread_A2_G4_db": {
+          "before": 0.72,
+          "after": 0.87
+        },
+        "at_230hz_db": {
+          "before": 1.42,
+          "after": 1.12
+        },
+        "preamp_required_db": {
+          "before": -4.33,
+          "after": -4.33
+        },
+        "preamp_installed_db": {
+          "before": -4.7,
+          "after": -4.33
+        }
+      },
+      "disclosed": "Preamp installed -4.7 -> -4.33: net chain maximum 4.3257 dB at 20.0 Hz, preamp rounded away from zero so it can never under-attenuate, leaving peak after preamp -0.0043 dBFS. computed by AutoEq's rule - negative of the maximum of the SUMMED response of the whole chain - evaluated over 20 Hz to 20 kHz. The 94 Hz shelf's asymptote continues to +4.40 dB below 20 Hz, so sub-20 Hz content could reach about +0.07 dBFS; -4.40 would cover the asymptote. No agreed inter-sample-peak margin exists in the literature. the listener's standing instruction was to keep the preamp adjusted on EVERY turn. Turns 19 and 20 deferred it to protect the A/B from level bias, disclosed both times but not done. The instruction was explicit and outranked the reasoning; correcting the preamp is now part of every turn's change set, and where it would contaminate a comparison the right move is to say so in one line and do it anyway.",
+      "alternatives_rejected": [
+        {
+          "band": "230 -> +0.35",
+          "mud_db": 1.24,
+          "spread_db": 0.84,
+          "reason": "0.04 dB from the requested half and not distinguishable from it; no reason to answer a stated fraction with an unstated one"
+        },
+        {
+          "band": "230 -> +0.25",
+          "mud_db": 1.15,
+          "spread_db": 0.89,
+          "reason": "held in reserve if +0.3 is still a hair much; undershoots the requested half"
+        }
+      ],
+      "turn": 20,
+      "model": "claude-opus-5"
+    },
+    {
+      "complaint": "I've been battling some sibilance that I'm having a hard time pinpointing. I've tried clawing back the 2K peak from 3dB, and it helps, but it doesn't take it away and just makes the headphones sound dark in an unpleasant way. 2.8-3.2 dB is definitely the right place for that peak. this sibilance hits a very specific range of guitars and female vocals, in the upper registers, but not the far upper registers. it's a very specific spot that vocals can 'pass over' and become sibilant only as they pass through it.",
+      "interpreted": "Mid-turn addition from the listener, verbatim: 'I'm also thinking that the 2k peak needs to come up by maybe a quarter dB... there's not as much energy as there could be. but god that sibilance' - read as more energy in the 2 kHz region without more of the passover artifact, so both were answered in one shape change.",
+      "diagnosis": {
+        "method": "Net magnitude of the live 11-band chain at 44.1 kHz using RBJ biquad math, 6000-point log sweep 1-10 kHz for turning points, then every harmonic of every note G4-C6 evaluated to find which notes excite which feature.",
+        "finding": "Chain read from the live daemon, not reconstructed: lshelf 94 +4.4 Q0.60 | peak 230 +0.3 Q0.60 | peak 621 +1.4 Q0.62 | peak 2090 +3.0 Q3.16 | peak 3161 -2.7 Q5.18 | peak 3901 0.0 Q6.00 | peak 4400 -1.0 Q2.50 | peak 5575 -7.5 Q4.63 | peak 7959 +5.5 Q0.98 | peak 8000 -0.6 Q2.20 | hshelf 10000 -4.3 Q0.70, preamp -4.33 dB. The preset XML on disk also carries a stale second row variant (95 Hz / 2093 Hz / lp1 f=1294.4) which is NOT live. Above 1 kHz the chain has exactly two peaks and nothing else: 2083 Hz at +3.41 dB and 7867 Hz at +3.35 dB. Everything between is at or below zero - 2.5-3.5k averages -0.45, 3.4-4.6k -0.40, 4-5k -0.69, 5-6k -3.57. 2f landing sits flat at +1.1 to +1.5 dB across G4-G5, climbs at A5 (+1.88) and spikes at B5 (+3.10) and C6 (+3.40), then falls away above C6 (D6 +2.18, E6 +0.86). A line walking up through that region gets its loudest overtone lifted ~2.3 dB relative to neighbouring notes and loses it again on the way out - a window passed through, closing at the top, matching 'upper registers but not the far upper registers'. Same peak via the 3rd harmonic at E5 (1978 Hz, +3.11) and F5 (2095 Hz, +3.40); weaker because the 3rd harmonic carries less energy. For a peaking biquad the apex height IS the gain; Q sets width only. Widening the 2090 band does NOT lower its peak - the harmonic-window spread narrows purely by lifting the floor around it. Any proposal framed as 'widen it to bring the peak down' is wrong on the arithmetic before it is wrong by ear.",
+        "explains_symptom": "The 2090 band at Q3.16 is the only positive feature anywhere between 1 kHz and 6 kHz, so it carries the entire presence load alone as a narrow spike on a depressed plateau. Reducing its gain lowers the spike and the plateau's only support together, which is the reported dark-and-unpleasant. One narrow band is doing two jobs at once - it is both the thing hurting you and the only thing holding the upper mids up. Turn it down and you lose both."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2090,
+          "q_from": 3.16,
+          "q_to": 1.6,
+          "gain_from": 3.0,
+          "gain_to": 3.25,
+          "rationale": "W1 - widen at slightly higher gain: raise the neighbours to close the harmonic window while adding the quarter dB of energy requested"
+        }
+      ],
+      "measured": {
+        "peak_1500_3000_db": {
+          "before": 3.41,
+          "after": 3.66
+        },
+        "peak_hz": {
+          "before": 2083,
+          "after": 2066
+        },
+        "h2_spread_G4_E6_db": {
+          "before": 2.54,
+          "after": 2.12
+        },
+        "presence_2500_3500_db": {
+          "before": -0.45,
+          "after": 0.44
+        },
+        "upmid_1800_2500_db": {
+          "before": 2.67,
+          "after": 3.35
+        },
+        "mid_400_1500_db": {
+          "before": 1.37,
+          "after": 1.64
+        },
+        "mud_200_400_db": {
+          "before": 1.2,
+          "after": 1.22
+        },
+        "treble_4k_10k_db": {
+          "before": 0.41,
+          "after": 0.55
+        },
+        "v_db": {
+          "before": 0.14,
+          "after": -0.05
+        },
+        "preamp_db": {
+          "before": -4.33,
+          "after": -4.33
+        },
+        "turning_points_1k_10k_db": {
+          "1288": 1.08,
+          "2083": 3.41,
+          "3171": -1.87,
+          "3854": -0.18,
+          "5550": -5.03,
+          "7867": 3.35
+        },
+        "band_averages_db": {
+          "1800_2500": 2.67,
+          "2500_3500": -0.45,
+          "3400_4600": -0.4,
+          "4000_5000": -0.69,
+          "5000_6000": -3.57,
+          "6000_7000": 1.07,
+          "7000_9000": 3.15,
+          "9000_11000": 1.48
+        },
+        "h2_landing_db": {
+          "G4_784": 1.46,
+          "A4_880": 1.35,
+          "B4_988": 1.24,
+          "C5_1047": 1.19,
+          "D5_1175": 1.1,
+          "E5_1319": 1.08,
+          "F5_1397": 1.1,
+          "G5_1568": 1.3,
+          "A5_1760": 1.88,
+          "B5_1976": 3.1,
+          "C6_2093": 3.4,
+          "D6_2349": 2.18,
+          "E6_2637": 0.86
+        }
+      },
+      "outcome": "REJECTED BY EAR. Listener verdict: 'I think that's actually worse. It's hammering my ears now, and it feels like the area of damage has maybe widened.' Reverted to Q3.16 +3.0 the same turn; nothing saved to the preset. What the rejection settled: the mechanism is ABSOLUTE level in the 2 kHz region, not contrast - widening raised total energy across a wider span and the affected area widened with it, the direction that discriminates between the two hypotheses, so the contrast reading is dead. 7-9 kHz is closed: the listener confirmed it at +3.15 average 'looks hot but sounds correct to me', real fricative sibilance was never the complaint, and the region is held - do not propose moving it. Vocabulary: the listener reached for 'sibilance' for this percept and confirmed afterwards it was the wrong word; on this profile read that term as a candidate pitch-dependent 2 kHz artifact first, not as 5-9 kHz ess energy.",
+      "disclosed": "Read as CONTRAST - the note sticking out relative to its neighbours - with the alternative (absolute level in the region) named explicitly to the listener before applying, along with the discriminator: rides on sustained sung notes and moves with pitch = 2 kHz; rides on consonants regardless of pitch = 7-9 kHz. Headroom checked rather than skipped, per the turn 20 standing instruction: required -4.33, installed -4.33, identical before and after - the chain maximum is the 94 Hz shelf asymptote at 20 Hz, which a 2 kHz move does not reach.",
+      "alternatives_rejected": [
+        {
+          "band": "W4 2090 Q1.60 +3.00",
+          "h2_spread_db": 1.9,
+          "presence_2500_3500": 0.33,
+          "reason": "best contrast-per-risk in the table but delivers no extra energy"
+        },
+        {
+          "band": "W3 2090 Q1.20 +3.25",
+          "h2_spread_db": 1.88,
+          "presence_2500_3500": 0.86,
+          "reason": "flattest window but lifts 2.5-3.5k by 1.31 dB and takes v_db to -0.18, into the region that drew the turn 12 'a little bit forward' complaint"
+        },
+        {
+          "band": "G1 2090 Q3.16 +2.40 (the listener's own prior experiment)",
+          "peak_db": 2.81,
+          "presence_2500_3500": -0.57,
+          "upmid_1800_2500": 2.21,
+          "reason": "reproduces the reported darkening in numbers - the whole upper midrange sags"
+        },
+        {
+          "band": "G2 2090 Q3.16 +3.25 (bare quarter dB, shape unchanged)",
+          "h2_spread_db": 2.72,
+          "reason": "worst row in the table for the actual complaint - straight gain on a Q3.16 band buys spikiness along with the energy"
+        }
+      ],
+      "turn": 21,
+      "model": "claude-opus-5"
+    },
+    {
+      "complaint": "I'd like to hear D1. Calculate and stage, please.",
+      "interpreted": "D1 was the decouple proposal from turn 21's post-rejection analysis: bring the 2090 band down to kill the hot spot and put the missing energy back somewhere that is not hurting him.",
+      "diagnosis": {
+        "method": "Evaluated the naive D1 form (amend 2090 down, append a broad support band below it), then a 22680-combination grid search over amend gain/Q crossed with support frequency/Q/gain.",
+        "finding": "the support band's upper skirt feeds straight back into the peak it is meant to relieve. D1a (2090 +2.2 | peak 1400 Q1.0 +1.0) moved the hot spot only 3.41 -> 3.21 dB while adding 0.77 dB of body. That is not decoupling, it is just body. considered 22680, survived 6222, rejected by hot=8536 v_db=4302 body=3495 mud=125. Every one of the top twelve pinned the amend gain at 1.2, the floor of the range offered - the objective 'maximize body - hot' simply wanted the hot spot as low as possible, driving 2090 from +3.0 to +1.2 and taking presence to -0.66, WORSE than the -0.45 baseline. It bought its score by dumping energy at 1.3 kHz, which is a different sound (thicker low mids) rather than the presence lost when 2 kHz is cut. Both scalar objectives tried were proxies invented because the real question was not expressible, and both were gamed by wrecking a region that happened to be unconstrained."
+      },
+      "changes": [],
+      "measured": {
+        "reference_points_db": {
+          "LIVE": {
+            "hot": 3.41,
+            "body_1000_1800": 1.25
+          },
+          "D1a_2090_2.2_plus_1400_Q1.0_1.0": {
+            "hot": 3.21,
+            "body_1000_1800": 2.02
+          },
+          "D1f_2090_2.2_plus_1400_Q1.4_1.0": {
+            "hot": 3.04,
+            "body_1000_1800": 1.95
+          },
+          "D1e_2090_2.2_plus_2900_Q1.2_1.0": {
+            "hot": 3.21,
+            "body_1000_1800": 1.33,
+            "presence_2500_3500": 0.34
+          },
+          "R1_2090_2.2_no_support": {
+            "hot": 2.61,
+            "body_1000_1800": 1.12
+          }
+        }
+      },
+      "outcome": "NO CHANGE STAGED OR APPLIED. Chain remains on the turn 20 baseline. The question the tooling could not express: Find a change set that removes the local maximum in 1.7-2.6 kHz while leaving the net response across 1-3.5 kHz as close as possible to what it is now everywhere else. That is shape-matching against a target curve, not any scalar over band averages. Every scalar substitute bought its score somewhere unconstrained. Listener sensitivity: Do not size or dismiss a move against published thresholds for this listener. Turn 19's +0.6 dB at Q 0.6 sat below Toole & Olive's per-Q floor, below midrange reseat variance, and below this headphone's own 0.21 dB native fine structure in that region - and was heard on first listen and called 'a hair much'. Thresholds bound how precisely a move may be narrated, never whether he will hear it.",
+      "turn": 22,
+      "model": "claude-opus-5"
+    },
+    {
+      "complaint": "mid-flight resumption of the 2090 Hz problem: female vocals and guitar solos hit hard passing over a specific range; clawing the peak back sounds dark and dull, widening it increases the area of damage. Turn 22's inexpressible question was now expressible: shape-match against the current curve with the 1700-2600 Hz local maximum replaced by a straight line between its edges, everything else held.",
+      "diagnosis": {
+        "method": "43008-candidate grid over amend 2090 gain/Q crossed with optional support bands below (1200-1800) and above (2700-3300), scored by ERB-weighted rmse to the shaved target over 1-4 kHz, with continuous refine on survivors.",
+        "finding": "Chain verified live first: the turn 20/21 baseline, 11 bands with 2090 at Q 3.16 +3.0, preamp -4.33. winner is amend-only: 2090 gain 3.0 -> 1.2, Q 3.16 -> 1.62, no support bands. Every candidate carrying a support band lost - the target-relative objective priced the skirt feedback that gamed turn 22's scalar objectives, and it priced added bands as pure cost. passover max 1700-2600: 3.41 -> 1.62 dB. Worst deviation from target anywhere 20 Hz-20 kHz: 0.28 dB. H2 window closed exactly where it hurt: B5 -1.49, C6 -1.80, C#6 -1.46, while G4-F#5 moved <= 0.05. Presence 2500-3500 -0.04, body -0.03, bass/mud/treble <= 0.02, preamp unchanged."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2090,
+          "q_from": 3.16,
+          "q_to": 1.62,
+          "gain_from": 3.0,
+          "gain_to": 1.2,
+          "rationale": "shave the 1700-2600 local maximum to the line joining its edges; widening at reduced gain holds the 2.5-3.5k plateau the turn-21 straight cut dropped"
+        }
+      ],
+      "outcome": "APPLIED, accepted by ear: 'a remarkable step in the right direction... dramatically improved and the pass-over region has significantly shrunk to something very small.' Residual carried to turn 24: region still hits a little hard, and the area around the passover lost a hair of presence. What this turn settled: the apex constraint was shape-conditional - '2.8-3.2 dB is definitely the right place for that peak' was learned at Q 3.16, where the apex carried the whole presence load alone. At Q 1.62 an apex of 1.2 holds presence and body at baseline (deltas <= 0.04 dB) and the ear accepted it. Treat ear-validated numbers as conditional on the shape they were validated under. Decoupling via added bands is dead, confirmed independently of turn 22: support bands feed the region they are meant to relieve. Shape-matching found the answer was fewer degrees of freedom, not more. NEW STANDING RULE born this turn: the assistant only ever stages changes; it never applies. Apply is the listener's alone (this turn's change was agent-applied, which prompted the rule).",
+      "turn": 23,
+      "model": "claude-fable-5"
+    }
+  ]
+}
