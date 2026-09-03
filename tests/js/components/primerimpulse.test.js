@@ -38,6 +38,7 @@ const {
   TRANSIENT_CHIPS,
   design,
   pulse,
+  sourcePulse,
   showMe,
 } = await import("../../../hqptuner/static/store/primergraph.js");
 const { filterPulse } = await import("../../../hqptuner/static/lib/dsp/pulse.js");
@@ -260,7 +261,7 @@ test("test_output_peak_height_scales_with_filter_gain_and_stays_below_the_title_
   const zero = zeroLine(box);
   const inputPeak = peakVertex(vertices(box, ["ghost"]), zero.y).height;
   const outputPeak = peakVertex(vertices(box, ["applied"]), zero.y).height;
-  const gain = peakAbs(filterPulse(design.value.h, pulse.value).y) / peakAbs(pulse.value);
+  const gain = peakAbs(filterPulse(design.value.h, pulse.value).y) / peakAbs(sourcePulse.value);
   const R = inputPeak * gain;
   const ceiling = Math.min(1.02 * R, zero.y - 0.1 * viewBoxHeight(box));
   assert.ok(
