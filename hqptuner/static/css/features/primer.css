@@ -33,6 +33,7 @@
 .primer-panes {
   display: grid;
   gap: var(--rhythm-row);
+  min-width: 0;
 }
 @media (min-width: 641px) {
   .primer-panes {
@@ -68,7 +69,10 @@
 }
 
 /* The graph block: the panes, then the controls beneath them, spaced by the
-   card body's field rhythm. */
+   card body's field rhythm. Both rows take the card's width: a grid row's
+   automatic minimum is its min-content, so without this the readouts row, which
+   will not shrink below its own columns, sizes the block's one track and drags
+   the panes out past the card edge with it. */
 .primer-graph {
   display: grid;
   gap: var(--rhythm-field);
@@ -76,6 +80,7 @@
 .primer-controls {
   display: grid;
   gap: var(--sp-4);
+  min-width: 0;
 }
 /* The three segments share one row above the sliders; below the breakpoint
    they wrap. */
