@@ -33,7 +33,10 @@ function frequency() {
     for (let i = from; i < to; i += 1) pts.push(pt(i, at[i]));
     return `M${r1(xOf(freqsHz[from]))},${r1(yOf(DB_MIN))} L${pts.join(" L")} L${r1(xOf(freqsHz[to - 1]))},${r1(yOf(DB_MIN))} Z`;
   };
-  const half = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
+  // Where the axis stops at the source's own Nyquist, as it does when the chain
+  // decimates, the grid holds no frequency above it and the image band is empty.
+  const above = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
+  const half = above < 0 ? freqsHz.length : above;
   const step = niceStep(top / 1000 / FREQ_TICKS) * 1000;
   return {
     wash: filled(sourceDb, 0, half),

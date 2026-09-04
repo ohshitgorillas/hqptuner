@@ -102,9 +102,16 @@ export function groupDelaySamples(taps, rate, freqsHz) {
  */
 export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
   const step = freqsHz[1] - freqsHz[0];
+  // The levels are a curve sampled on the grid, and an alias rarely lands on a
+  // grid point, so the reading is taken between the two neighbours it falls
+  // between; the nearer of the two moves a steep part of the curve by a decibel.
   const at = (/** @type {number} */ f) => {
-    const i = Math.round(f / step);
-    return i < levelsDb.length ? 10 ** (levelsDb[i] / 10) : 0;
+    const x = f / step;
+    const lo = Math.floor(x);
+    if (lo < 0 || lo >= levelsDb.length) return 0;
+    const hi = Math.min(lo + 1, levelsDb.length - 1);
+    const t = x - lo;
+    return 10 ** ((levelsDb[lo] * (1 - t) + levelsDb[hi] * t) / 10);
   };
   const out = new Float64Array(freqsHz.length);
   for (let k = 0; k < freqsHz.length; k += 1) {
@@ -112,7 +119,10 @@ export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
     const g = m > outputRate / 2 ? outputRate - m : m;
     let total = 0;
     for (let a = g; a <= inputRate / 2; a += outputRate) total += at(a);
-    for (let a = outputRate - g; a <= inputRate / 2; a += outputRate) total += at(a);
+    // The reflected series is the direct one mirrored about each multiple of the
+    // output rate. At DC and at half the output rate the mirror lands on the
+    // series itself, and adding both counts every copy there twice.
+    for (let a = outputRate - g; g > 0 && g < outputRate / 2 && a <= inputRate / 2; a += outputRate) total += at(a);
     out[k] = 10 * Math.log10(Math.max(total, MAG_FLOOR * MAG_FLOOR));
   }
   return out;
