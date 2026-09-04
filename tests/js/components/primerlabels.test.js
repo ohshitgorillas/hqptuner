@@ -95,6 +95,7 @@ test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
     [192000, 96000],
     [96000, 48000],
     [44100, null],
+    [96000, 96000],
   ];
   const sweep = chains.map(([hz, out]) => {
     rate.value = hz;
@@ -105,6 +106,7 @@ test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
     ["filter", "images", "music", "output"],
     ["filter", "music", "output"],
     ["filter", "music", "output"],
+    ["images", "music"],
     ["images", "music"],
   ]);
 });
