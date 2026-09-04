@@ -4,10 +4,10 @@
 // beside them reads that chip's own figure; and the content toggles at the
 // rates that have room above 20 kHz for junk (docs/plans/filter-primer-graph.md).
 //
-// The readouts lead the block rather than closing it: the content row exists
-// only above 44.1 kHz, so a readout row beneath it moved 67 px every time the
-// source rate crossed that line, and the numbers belong beside the graph they
-// read in any case.
+// The readouts lead the block rather than closing it. The content row is there
+// only above 44.1 kHz, so anything below it shifts by that row's height as the
+// source rate crosses the line; the readings are what a reader holds against the
+// graph, and they sit above everything that comes and goes.
 //
 // Every control writes one signal of store/primergraph.js and nothing else;
 // the shared primitives from ../controls/index.js are used as they are, so
@@ -68,12 +68,12 @@ const title = (name) => name[0].toUpperCase() + name.slice(1);
  */
 function SliderRow({ id, label, value, onSet, chips, min, max, step, boxStep, unit, scale }) {
   const names = Object.keys(chips);
-  // A chip lights when the box beside it reads that chip's own figure, not when
-  // the signal equals it exactly. A log-scaled track works in log space, so
-  // dragging the thumb onto the 8 ms tick returns 7.999999999999998 and exact
-  // equality left the chip dark under a box already reading 8. Comparing what
-  // the two DISPLAY ties the lit chip to what the reader can see, and stays
-  // tight where a fixed tolerance would not: 0.501 shows in full and lights
+  // A chip lights when the box beside it reads that chip's own figure, never on
+  // exact equality with the signal. A log-scaled track works in log space and
+  // returns 7.999999999999998 for the thumb on the 8 ms tick, which a box
+  // showing three figures reads as 8: comparing what the two DISPLAY ties the
+  // lit chip to what the reader can see. It also stays tighter than any fixed
+  // tolerance would at the small end, where 0.501 shows in full and lights
   // nothing.
   const shown = fmt3(value);
   const lit = names.find((n) => fmt3(chips[n]) === shown);

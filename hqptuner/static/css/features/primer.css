@@ -155,11 +155,11 @@
   gap: var(--sp-2);
 }
 /* The readouts: key and value pairs, keys secondary, values in the mono value
-   role. A WRAPPING row of pairs, not one grid over all of them: `auto-flow:
-   column` forced every reading onto a single line whatever the width, so the
-   row's min-content was the sum of seven columns and it measured 381px inside a
-   272px card at 320px wide, values wrapping mid-unit. Each pair now stacks its
-   own key over its own value and the row wraps between pairs. */
+   role. A WRAPPING row of pairs, never one grid across all of them: a single
+   grid holding every reading has a min-content of all seven columns at once,
+   which is wider than the card at the narrow end of the range. Each pair stacks
+   its own key over its own value, so the row's min-content is one pair and it
+   wraps between them. */
 .primer-readouts {
   display: flex;
   flex-wrap: wrap;
