@@ -251,40 +251,8 @@ test("test_delay_pane_paints_the_selected_phase_as_the_applied_trace", () => {
   ]);
 });
 
-/**
- * The delay pane's frequency axis labels, as numbers in kilohertz: the
- * `text.plot-lbl` elements anchored `middle` inside the pane, in document
- * order. The unit word is anchored `start` and the millisecond labels `end`,
- * so neither is read.
- *
- * @returns {number[]}
- */
-function delayFreqLabels() {
-  return inside(pane("delay"), "text", ["plot-lbl"])
-    .filter((el) => attr(el, "text-anchor") === "middle")
-    .map((el) => Number(el.html.slice(el.html.indexOf(">") + 1, el.html.lastIndexOf("<"))));
-}
-
-// Spec line 1. The delay pane's frequency axis labels read over two chains:
-// 96 kHz into 192 kHz gives 10, 20, 30, 40 and 44.1 kHz into 176.4 kHz gives
-// 5, 10, 15, 20, in kilohertz.
-
-test("test_delay_pane_frequency_labels_follow_the_axis_at_two_chains", () => {
-  baseline();
-  const sweep = [
-    [96000, 192000],
-    [44100, 176400],
-  ].map(([src, out]) => {
-    rate.value = src;
-    outputRate.value = out;
-    return delayFreqLabels();
-  });
-  assert.deepEqual(sweep, [
-    [10, 20, 30, 40],
-    [5, 10, 15, 20],
-  ]);
-});
-
+// The delay pane's frequency axis labels are pinned in primerdownsample.test.js.
+//
 // Spec line 2. With the source at 44.1 kHz and the output at 176.4 kHz the
 // accent curve's first vertex y reads 42 for linear phase at 1.3 ms, 42 for
 // linear at 3.7 ms and 209 for minimum phase at 1.3 ms, each within one SVG

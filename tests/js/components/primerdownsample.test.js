@@ -104,10 +104,11 @@ function baseline() {
 
 // 1. The delay pane's frequency axis is the band the chain carries out, not the
 // band it takes in: with 192 kHz going in, an output of 48 kHz labels the axis
-// 10 and 20 kHz, and an output of 96 kHz labels it 20 and 40 kHz. An axis
-// topped at half the source rate reads 96 kHz wide in both, whose tick step
-// rounds to 50 kHz, so it carries the single label 50 and leaves the curve
-// ending partway across an empty frame.
+// 5, 10, 15 and 20 kHz, and an output of 96 kHz labels it 10, 20, 30 and 40
+// kHz. An axis topped at half the source rate reads 96 kHz wide in both, so it
+// carries the same labels at either output and leaves the curve ending partway
+// across an empty frame; an axis cut into a quarter of the frequency pane's
+// ticks carries 10 and 20 at 48 and 20 and 40 at 96.
 
 test("test_delay_frequency_axis_follows_the_slower_of_the_two_rates", () => {
   baseline();
@@ -117,8 +118,8 @@ test("test_delay_frequency_axis_follows_the_slower_of_the_two_rates", () => {
     return delayFrequencyLabels();
   });
   assert.deepEqual(sweep, [
-    ["10", "20"],
-    ["20", "40"],
+    ["5", "10", "15", "20"],
+    ["10", "20", "30", "40"],
   ]);
 });
 
