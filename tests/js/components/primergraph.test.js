@@ -180,20 +180,28 @@ test("test_content_row_is_absent_at_cd_rate_and_present_once_at_hires_rates", ()
   assert.deepEqual(sweep, [0, 1, 1]);
 });
 
-// A length chip lights only when the slider sits exactly on its value: one lit
-// at every chip, none lit halfway between the two smallest.
+// A length chip lights whenever the number box beside it reads that chip's own
+// figure: one lit at every chip, none lit halfway between the two smallest, and
+// none at a figure the box shows as its own. 7.999999999999998 is what a
+// log-scaled track returns for the 8 ms tick, so the box reads 8 there and the
+// chip has to agree with what the reader can see; 8.25 and 0.501 are figures the
+// box shows in full, and no chip claims them.
+//
+// The expectation is a retyped literal, deliberately: computing it from
+// `values.includes(ms)` would restate the exact-equality rule this case exists to
+// reject and would score the round-trip probe wrong by construction.
 
-test("test_length_chip_lights_only_at_its_own_value", () => {
+test("test_length_chip_lights_when_the_box_reads_its_own_figure", () => {
   baseline();
   const values = Object.values(LENGTH_CHIPS).sort((a, b) => a - b);
-  const probes = [...values, (values[0] + values[1]) / 2];
+  const probes = [...values, (values[0] + values[1]) / 2, 7.999999999999998, 8.25, 0.501];
   const sweep = probes.map((ms) => {
     lengthMs.value = ms;
     return litLengthChips();
   });
   assert.deepEqual(
     sweep,
-    probes.map((ms) => (values.includes(ms) ? 1 : 0)),
+    [1, 1, 1, 0, 1, 0, 0],
   );
 });
 
