@@ -48,9 +48,11 @@
    wash and its images furthest back, then the result fill, then the Nyquist
    mark as a reference line over both, and the accent trace on top. The fill
    above the Nyquist mark is the leak, and it is the one thing painted in the
-   accent besides the traces. It sits a step up the opacity ladder from the
-   wash and carries its own edge, because a fill sharing the wash's opacity
-   reads as one slab with it across the passband, where the two overlap. */
+   accent besides the traces. Its fill sits at the wash's own opacity and its
+   edge a step up the ladder, so the passband, where the two overlap, reads as
+   the wash seen through a tint under a curve rather than as one slab: a fill
+   opaque enough to be read as a layer of its own is opaque enough to hide the
+   source underneath it. */
 .primer-wash,
 .primer-images {
   fill: var(--muted);
@@ -67,9 +69,10 @@
 }
 .primer-leak {
   fill: var(--accent);
+  fill-opacity: var(--o-back);
   stroke: var(--accent);
+  stroke-opacity: var(--o-mid);
   stroke-width: 0.8;
-  opacity: var(--o-mid);
 }
 
 /* The graph block: the panes, then the controls beneath them, spaced by the
