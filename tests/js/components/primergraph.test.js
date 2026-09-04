@@ -199,10 +199,7 @@ test("test_length_chip_lights_when_the_box_reads_its_own_figure", () => {
     lengthMs.value = ms;
     return litLengthChips();
   });
-  assert.deepEqual(
-    sweep,
-    [1, 1, 1, 0, 1, 0, 0],
-  );
+  assert.deepEqual(sweep, [1, 1, 1, 0, 1, 0, 0]);
 });
 
 // --- the delay pane ---------------------------------------------------------------

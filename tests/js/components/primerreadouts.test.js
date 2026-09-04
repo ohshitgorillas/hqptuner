@@ -30,7 +30,7 @@ import { render } from "preact-render-to-string";
 const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerControls } = await import("../../../hqptuner/static/components/primer/Controls.js");
 const { rate, outputRate, showMe } = await import("../../../hqptuner/static/store/primergraph.js");
-const { elements, attr } = await import("../support/markup.js");
+const { elements, attr, text } = await import("../support/markup.js");
 
 test.afterEach(() => {
   showMe("intro");
@@ -49,9 +49,9 @@ function figure(key) {
   const out = render(html`<${PrimerControls} />`);
   const hits = elements(out).filter((el) => attr(el, "data-readout") === key);
   if (hits.length !== 1) throw new Error(`expected one data-readout="${key}" in the render, found ${hits.length}`);
-  const text = hits[0].html.replace(/<[^>]*>/g, " ");
-  const num = /-?\d+(?:\.\d+)?/.exec(text);
-  if (num === null) throw new Error(`no number in the ${key} readout: ${JSON.stringify(text)}`);
+  const shown = text(hits[0]);
+  const num = /-?[0-9.]+/.exec(shown);
+  if (num === null) throw new Error(`no number in the ${key} readout: ${JSON.stringify(shown)}`);
   return Number(num[0]);
 }
 
