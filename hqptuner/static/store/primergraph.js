@@ -9,13 +9,7 @@
 import { computed, signal } from "@preact/signals";
 import { designLowpass, designPoint, minimumPhase } from "../lib/dsp/fir.js";
 import { filterPulse, gaussianPulse, ringing, upsampledPulse } from "../lib/dsp/pulse.js";
-import {
-  aliasSpectrumDb,
-  foldSpectrumDb,
-  groupDelaySamples,
-  magnitudeDb,
-  sourceSpectrumDb,
-} from "../lib/dsp/spectrum.js";
+import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from "../lib/dsp/spectrum.js";
 
 /** Length chips, in milliseconds of filter. */
 export const LENGTH_CHIPS = { short: 0.5, medium: 2, long: 8 };
@@ -373,14 +367,11 @@ const spectrumGrid = computed(() => {
 /**
  * The frequency pane's curves on a uniform grid from 0 to the axis top: the
  * source and its images (periodic in the source rate), the filter (periodic in
- * the design rate), the output stream (their product folded into the output
- * rate), and what the fold brings in, read apart since a power sum buries it
- * under the music: `aliasDb` the source's copies landing on each frequency,
- * unfiltered; `leakDb` what the output carries that the music did not put there.
+ * the design rate), and the output stream, their product folded into the
+ * output rate.
  */
 export const spectrum = computed(() => {
   const fs = rate.value;
-  const out = outputRate.value ?? fs;
   const { designRate, h } = design.value;
   /** @type {number[]} */
   const freqsHz = spectrumGrid.value;
@@ -392,9 +383,6 @@ export const spectrum = computed(() => {
   const sourceDb = sourceSpectrumDb(fs, folded, content.value);
   const filterDb = magnitudeDb(h, designRate, freqsHz);
   const product = sourceDb.map((v, i) => v + filterDb[i]);
-  const resultDb = foldSpectrumDb(product, freqsHz, designRate, out);
-  const aliasDb = aliasSpectrumDb(sourceDb, freqsHz, fs, out);
-  const survived = aliasSpectrumDb(product, freqsHz, designRate, out);
-  const leakDb = resultDb.map((v, i) => (freqsHz[i] > fs / 2 ? v : survived[i]));
-  return { freqsHz, sourceDb, filterDb, resultDb, aliasDb, leakDb };
+  const resultDb = foldSpectrumDb(product, freqsHz, designRate, outputRate.value ?? fs);
+  return { freqsHz, sourceDb, filterDb, resultDb };
 });

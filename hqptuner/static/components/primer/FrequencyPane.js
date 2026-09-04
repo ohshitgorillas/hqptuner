@@ -1,15 +1,11 @@
 // The frequency pane: linear frequency from 0 to the larger of twice the
 // source rate and the output rate, the source music as a wash below source
-// Nyquist, the copies the resampling makes as a dimmer images fill, the filter
-// magnitude as the accent trace, and as the accent fill what the output carries
-// that the music did not put there. Upsampling puts the copies above source
-// Nyquist and the fill there is the leak; decimation folds the source's own top
-// band down under the music, so the copies and the fill both sit in the
-// passband, the copies as the picture before the filter and the fill as what
-// survived it. The music itself is never painted in accent: on a power sum the
-// output below source Nyquist is the music to a hundredth of a decibel, and a
-// fill of it buried the wash under one slab. No oversampling draws no filter
-// and no fill: the output is the source's own curve.
+// Nyquist, its images mirrored above, the filter magnitude as the accent
+// trace, and the output stream as a fill: above source Nyquist it is the leak,
+// and when downsampling what folds into the passband. No oversampling draws no
+// filter and no leak: the output is the source's own curve, and a fill painted
+// over the wash and its images at one opacity would flatten the two into one
+// slab.
 //
 // Every curve is drawn through `peakColumns`, one column per pixel the page
 // reports and the column's peak within it, so a comb finer than the window can
@@ -81,37 +77,16 @@ const MARK_Y = TOP + 10;
 const MARK_EDGE = 40;
 
 /**
- * Where on the grid each band begins and ends. `half` is the first point above
- * source Nyquist: where the axis stops at the source's own Nyquist, as it does
- * when the chain decimates, the grid holds no frequency above it and the image
- * band is empty. `leakFrom` is the last point at or under source Nyquist, so an
- * upsampling leak begins on the mark itself rather than a step past it.
- * `carried` is the first point above the output's Nyquist: above it the fold
- * repeats the band below, a copy of what is already drawn that no stream
- * carries, so the fills stop there.
- * @param {number[]} freqsHz
- * @param {number} fs
- * @param {number} out
- */
-function bands(freqsHz, fs, out) {
-  const above = freqsHz.findIndex((f) => f > fs / 2);
-  const half = above < 0 ? freqsHz.length : above;
-  const pastOut = freqsHz.findIndex((f) => f > out / 2);
-  return { half, leakFrom: Math.max(0, half - 1), carried: pastOut < 0 ? freqsHz.length : pastOut };
-}
-
-/**
  * The pane's curves from the store's spectrum on its grid from 0 to the axis
- * top: the source and its copies, the filter, and what the output carries
- * beyond the music. Each is reduced to the columns the page gives the pane, or
- * to the pane's own drawing width where the page has measured nothing.
+ * top: the source and its images, the filter, and the output stream. Each is
+ * reduced to the columns the page gives the pane, or to the pane's own drawing
+ * width where the page has measured nothing.
  */
 function frequency() {
-  const { freqsHz, sourceDb, filterDb, aliasDb, leakDb } = spectrum.value;
+  const { freqsHz, sourceDb, filterDb, resultDb } = spectrum.value;
   const fs = rate.value;
   const top = axisHz.value;
   const out = outputRate.value;
-  const { half, leakFrom, carried } = bands(freqsHz, fs, out ?? fs);
   const columns = freqPx.value || PLOT_W;
   const xOf = (/** @type {number} */ f) => PADL + (f / top) * PLOT_W;
   const yOf = (/** @type {number} */ db) => TOP + ((DB_MAX - clamp(db, DB_MIN, DB_MAX)) / (DB_MAX - DB_MIN)) * PLOT_HH;
@@ -130,19 +105,23 @@ function frequency() {
   };
   const fillOf = (/** @type {Float64Array} */ at, /** @type {number} */ from, /** @type {number} */ to) =>
     filled(at, from, to)?.fill ?? null;
+  // Where the axis stops at the source's own Nyquist, as it does when the chain
+  // decimates, the grid holds no frequency above it and the image band is empty.
+  const above = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
+  const half = above < 0 ? freqsHz.length : above;
+  // Above the output's Nyquist the fold repeats the band below it, so the
+  // result fill stops there: what it would draw past the mark is a copy of what
+  // it already drew, and no stream carries it.
+  const pastOut = freqsHz.findIndex((/** @type {number} */ f) => f > (out ?? fs) / 2);
+  const carried = pastOut < 0 ? freqsHz.length : pastOut;
   const step = niceStep(top / 1000 / FREQ_TICKS) * 1000;
   // The store's one identity rule, no oversampling or a ratio of one: no
   // filter, no output stream, and no second Nyquist mark.
   const identity = noFilter.value;
-  // Decimation folds the source's top band down into the passband: the copies
-  // and what survives of them both lie under the music, from DC to the output
-  // Nyquist. Upsampling puts the copies above source Nyquist, where the source
-  // itself, folded about its own rate, is the picture.
-  const decimates = !identity && out !== null && out < fs;
   return {
     wash: fillOf(sourceDb, 0, half),
-    images: decimates ? fillOf(aliasDb, 0, carried) : fillOf(sourceDb, half, freqsHz.length),
-    leak: identity ? null : filled(leakDb, decimates ? 0 : leakFrom, carried),
+    images: fillOf(sourceDb, half, freqsHz.length),
+    leak: identity ? null : filled(resultDb, 0, carried),
     filter: identity
       ? null
       : drawn(filterDb, 0, freqsHz.length)
@@ -150,21 +129,11 @@ function frequency() {
           .join(" "),
     xMarks: ticks(step, top, step).map((f) => ({ x: xOf(f), label: fmtKhz(f) })),
     yMarks: ticks(0, -DB_MIN, DB_STEP).map((db) => ({ y: yOf(-db), label: `${-db}` })),
-    marks: nyquistMarks(fs, identity ? null : out, xOf),
+    marks: [
+      { mark: "source", x: xOf(fs / 2), hz: fs / 2, name: "Source Nyquist" },
+      ...(identity || out === null ? [] : [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }]),
+    ],
   };
-}
-
-/**
- * The dashed Nyquist marks: the source's always, the output's where there is
- * an output stream.
- * @param {number} fs
- * @param {number | null} out
- * @param {(f: number) => number} xOf
- */
-function nyquistMarks(fs, out, xOf) {
-  const marks = [{ mark: "source", x: xOf(fs / 2), hz: fs / 2, name: "Source Nyquist" }];
-  if (out !== null) marks.push({ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" });
-  return marks;
 }
 
 /**
@@ -187,16 +156,14 @@ export function FrequencyPane() {
   useMeasuredPlot(svg, freqPx, PLOT_W / W);
   const { wash, images, leak, filter, xMarks, yMarks, marks } = frequency();
   const rows = legend({ wash, images, leak, filter });
-  // The copies go under the wash: where decimation folds them into the
-  // passband the music stays on top and the copies show through beneath it.
   return html`
     <div class="plot" data-pane="frequency">
       <div class="t-label">Frequency</div>
       <svg ref=${svg} viewBox="0 0 ${W} ${H}" class="plot-svg">
         ${yMarks.map((m) => html`<line class="plot-grid" x1=${PADL} y1=${r1(m.y)} x2=${W - PADR} y2=${r1(m.y)} />`)}
         ${yAxis(PADL, yMarks, "dB")}
-        ${images ? html`<path class="primer-images" d=${images} />` : null}
         ${wash ? html`<path class="primer-wash" d=${wash} />` : null}
+        ${images ? html`<path class="primer-images" d=${images} />` : null}
         ${leak ? html`<path class="primer-leak" d=${leak.fill} /><polyline class="primer-leak-edge" points=${leak.edge} />` : null}
         ${marks.map(({ mark, x, hz }) => {
           const sx = r1(x);
