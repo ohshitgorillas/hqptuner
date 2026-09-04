@@ -6,7 +6,7 @@
 // blanked by the store, and the pen lifts across it.
 import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
-import { delay, noFilter, phase } from "../../store/primergraph.js";
+import { delay, lengthMs, noFilter, phase } from "../../store/primergraph.js";
 import {
   HALF_W as W,
   H,
@@ -25,10 +25,13 @@ import {
 
 const PADL = 30;
 const PLOT_W = W - PADL - PADR;
-const FREQ_TICKS = 4;
+const FREQ_TICKS = 8;
 const MS_TICKS = 4;
-// The axis top sits a little above the slowest arrival, and never below this
-// many milliseconds, so a unit tap still draws on a readable scale.
+// The axis top sits a little above half the filter length, which is where a
+// linear-phase filter arrives, and never below this many milliseconds, so a
+// unit tap still draws on a readable scale. The span is not rounded: the tick
+// step rounds, as in the impulse pane, so the flat linear trace holds one
+// height while the Length control moves and the ticks slide under it.
 const HEADROOM = 1.1;
 const MIN_TOP_MS = 0.1;
 /** Both phases are drawn at once, so both are named; the stack sits in the plot's top right corner. */
@@ -65,19 +68,18 @@ function brokenPath(xs, ys) {
   return d.trim();
 }
 
-/** The largest finite value across both curves, or zero. */
-const peakOf = (/** @type {Float64Array[]} */ arrays) =>
-  arrays.reduce((m, c) => c.reduce((a, v) => (Number.isFinite(v) && v > a ? v : a), m), 0);
-
 /** The pane's curves on its grid, with the tick marks of both axes. */
 function curves() {
   const { freqsHz, linearMs, minimumMs } = delay.value;
   // The store's grid ends at the axis top, so the pane takes its scale from the
   // grid rather than recomputing it: one rule, in one place, for both.
   const nyquist = freqsHz[freqsHz.length - 1];
-  const reach = Math.max(peakOf([linearMs, minimumMs]), MIN_TOP_MS) * HEADROOM;
-  const step = niceStep(reach / MS_TICKS);
-  const top = Math.ceil(reach / step) * step;
+  // The scale comes from the Length control, not from the drawn peak: a
+  // stop-band null spike would set it otherwise (math.md 3.5), and a peak
+  // rounded to a tick multiple steps the top through a handful of values over
+  // one drag, snapping the flat trace to a new height at each.
+  const top = Math.max(lengthMs.value / 2, MIN_TOP_MS) * HEADROOM;
+  const step = niceStep(top / MS_TICKS);
   const xOf = (/** @type {number} */ f) => PADL + (f / nyquist) * PLOT_W;
   // A stop-band null is a spike, not an arrival time (math.md 3.5), and the
   // mask lets the shallower ones through, so the value is held to the drawn
