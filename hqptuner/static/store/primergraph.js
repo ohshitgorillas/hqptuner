@@ -261,12 +261,17 @@ export const design = computed(() => {
 });
 
 /**
- * The delay pane's curves on a uniform grid from 0 to source Nyquist: the
- * group delay of each phase in milliseconds, blanked (NaN) where the filter
- * magnitude is below the mask, so a stop band draws nothing.
+ * The delay pane's curves on a uniform grid from 0 to the Nyquist of the
+ * SLOWER of the two streams: the group delay of each phase in milliseconds,
+ * blanked (NaN) where the filter magnitude is below the mask, so a stop band
+ * draws nothing. Where the chain decimates, the band the source carries above
+ * the output's Nyquist reaches no output sample and so has no arrival time to
+ * plot; drawing to the source's own Nyquist there leaves the frame blank from
+ * the filter's cliff to its right edge.
  */
 export const delay = computed(() => {
-  const nyquist = rate.value / 2;
+  const out = outputRate.value;
+  const nyquist = Math.min(rate.value, out ?? rate.value) / 2;
   const { designRate, h: linear } = linearDesign.value;
   /** @type {number[]} */
   const freqsHz = Array.from({ length: FREQ_POINTS }, (_, i) => (i / (FREQ_POINTS - 1)) * nyquist);
