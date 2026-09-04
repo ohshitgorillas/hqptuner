@@ -34,6 +34,14 @@ const WIDTH_FAST = 0.03;
 const FREQ_POINTS = 1024;
 /** Points the spectrum grid spends on each sidelobe of the filter's comb. */
 const POINTS_PER_LOBE = 4;
+/**
+ * Points the spectrum grid spends on each pixel the frequency pane draws in.
+ * Lobe spacing alone fixes the density against the filter's length and not
+ * against the window, so a long filter puts a hundred lobes in a column and
+ * four points in a lobe, and the column keeps whichever of the four it was
+ * handed. Sixteen a column is enough for the column's peak to be a peak.
+ */
+const POINTS_PER_PIXEL = 16;
 /** Below this magnitude the group delay reading is blanked: a stop band arrives nowhere. */
 const DELAY_MASK_DB = -60;
 
@@ -99,6 +107,8 @@ export const content = signal(SHOW_ME.intro.content);
 // width there.
 /** The impulse pane's plot rectangle in CSS pixels as the page renders it; 0 until the pane has measured itself. */
 export const plotPx = signal(0);
+/** The frequency pane's plot rectangle in CSS pixels as the page renders it; 0 until the pane has measured itself. */
+export const freqPx = signal(0);
 
 /**
  * Set the whole graph to the state a prose section describes.
@@ -257,15 +267,20 @@ export const readouts = computed(() => {
 /**
  * The grid the spectrum is read on: uniform from 0 to the axis top, stepping a
  * quarter of the sidelobe spacing so the comb is resolved rather than sampled
- * at random depth (math section 5.4 rule 1). The nulls of a filter sit
- * 1 / length apart whatever the rate, so the step follows Length and nothing
- * else. The interval count is even, which puts both the axis top and the
+ * at random depth (math section 5.4 rule 1), and never fewer than sixteen
+ * points for each pixel the pane reports, so a column always has a comb to
+ * take its peak from. The nulls of a filter sit 1 / length apart whatever the
+ * rate, so lobe spacing follows Length and nothing else, while the pixel floor
+ * follows the window and nothing else; the grid takes whichever is denser, and
+ * before the page has measured anything there is no floor to take. The
+ * interval count is even, which puts both the axis top and the
  * source rate on grid points, so an alias reading lands on a sample instead of
  * between two.
  */
 const spectrumGrid = computed(() => {
   const lobeHz = 1000 / lengthMs.value;
-  const wanted = Math.ceil((axisHz.value * POINTS_PER_LOBE) / lobeHz);
+  const perLobe = Math.ceil((axisHz.value * POINTS_PER_LOBE) / lobeHz);
+  const wanted = Math.max(perLobe, POINTS_PER_PIXEL * freqPx.value);
   const intervals = wanted + (wanted % 2);
   /** @type {number[]} */
   const grid = Array.from({ length: intervals + 1 }, (_, i) => (i / intervals) * axisHz.value);

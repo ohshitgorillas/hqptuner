@@ -85,3 +85,33 @@ export function traceColumns(y, from, to, columns) {
   }
   return out;
 }
+
+/**
+ * The indices a spectrum's polyline keeps over the index window `[from, to)`
+ * across `columns` columns: first, the column's maximum, and last, in index
+ * order (section 5.4 rules 2 and 3). A spectrum is a level, so the picture the
+ * reader needs is the peak of what fell in the column, not its excursion;
+ * where a column holds one sample or fewer every index is kept and the
+ * reduction is a no-op. Indices, not values, so every curve sharing a grid
+ * stays on one x mapping.
+ * @param {ArrayLike<number>} values
+ * @param {number} from
+ * @param {number} to
+ * @param {number} columns
+ * @returns {number[]}
+ */
+export function peakColumns(values, from, to, columns) {
+  const per = (to - from) / columns;
+  if (per <= 1) return Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
+  /** @type {number[]} */
+  const out = [];
+  for (let c = 0; c < columns; c += 1) {
+    const lo = Math.max(from, Math.ceil(from + c * per));
+    const hi = Math.min(to - 1, Math.floor(from + (c + 1) * per - 1e-9));
+    if (lo > hi) continue;
+    let max = lo;
+    for (let i = lo + 1; i <= hi; i += 1) if (values[i] > values[max]) max = i;
+    for (const i of new Set([lo, max, hi])) out.push(i);
+  }
+  return out;
+}

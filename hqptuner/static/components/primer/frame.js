@@ -36,10 +36,12 @@ export const r1 = (v) => v.toFixed(1);
 export const fmt3 = (v) => `${Number(v.toPrecision(3))}`;
 
 /**
- * A frequency in Hz as a kilohertz tick label.
+ * A frequency in Hz as a kilohertz tick label, to two decimals with trailing
+ * zeros trimmed. Three significant figures would round 176.4 to 176 and 22.05
+ * to 22.1, which is every rate of the 44.1 family labelled as one it is not.
  * @param {number} f
  */
-export const fmtKhz = (f) => fmt3(f / 1000);
+export const fmtKhz = (f) => `${Number((f / 1000).toFixed(2))}`;
 
 /**
  * A round tick step at or above the raw one: 1, 2, 5 or 10 times a power of ten.
