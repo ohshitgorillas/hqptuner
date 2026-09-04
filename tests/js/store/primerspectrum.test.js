@@ -114,18 +114,21 @@ test("test_axis_ends_at_the_faster_streams_nyquist_in_both_directions", async ()
   assert.deepEqual(ends, [96000, 88200]);
 });
 
-// 5. the grid resolves to the window the trace will be drawn in, not to the
-// filter's own lobe spacing: at 44.1 kHz into 352.8 kHz on a 2 ms linear-phase
-// filter the axis holds 1413 points while the pane has measured nothing, 10241
-// points once the pane reports a 640 px plot and 16001 at 1000 px — at least
-// sixteen grid points for every pixel the trace has to be drawn in.
+// 5. the grid resolves to the window the trace will be drawn in, on a count
+// that is one more than a power of two: the smallest such count giving at
+// least four points per sidelobe and at least sixteen per reported pixel. At
+// 44.1 kHz into 352.8 kHz on a 2 ms linear-phase filter that is 2049 points
+// while the pane has measured nothing, 16385 once it reports a 640 px plot and
+// 32769 at 1100 px. A count sized to the lobe spacing alone stays at 2049 at
+// every width; one sized to sixteen per pixel without the power-of-two step
+// lands at 10241 and 17601 instead.
 test("test_grid_point_count_follows_the_measured_plot_width", async () => {
   const store = await import(STORE);
   configure(store, { rate: 44100, lengthMs: 2, outputRate: 352800 });
-  const counts = [0, 640, 1000].map((px) => {
+  const counts = [0, 640, 1100].map((px) => {
     store.freqPx.value = px;
     return store.spectrum.value.freqsHz.length;
   });
   store.freqPx.value = 0;
-  assert.deepEqual(counts, [1413, 10241, 16001]);
+  assert.deepEqual(counts, [2049, 16385, 32769]);
 });

@@ -12,7 +12,9 @@
 //
 // GEOMETRY READ. Inside the pane carrying `data-pane="impulse"`: the input trace
 // is `polyline.plot-trace.ghost` (one vertex per source-rate sample), the output
-// trace is `polyline.plot-trace.applied`, the horizontal zero line is the
+// trace is `polyline.plot-trace.applied` where the plot has a column per
+// sample and otherwise the envelope `path.primer-band` (its vertices are the
+// x,y pairs after its M and L commands), the horizontal zero line is the
 // `line.plot-zero` whose y1 equals y2, and the vertical zero rule is the one
 // whose x1 equals x2. Larger y is lower on screen.
 //
@@ -130,6 +132,49 @@ function vertices(box, want) {
   const pts = pairs(attr(trace, "points") || "");
   if (pts.length < 2) throw new Error(`the ${want.join(".")} trace has fewer than two vertices`);
   return pts;
+}
+
+/**
+ * The vertices of a path's `d`: the x,y pairs after its M and L commands, with
+ * Z ignored. Any other command is a shape this suite does not read.
+ *
+ * @param {string} d
+ * @returns {[number, number][]}
+ */
+function pathVertices(d) {
+  const tokens = d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g) || [];
+  /** @type {number[]} */
+  const nums = [];
+  for (const t of tokens) {
+    if (t === "M" || t === "L" || t === "Z" || t === "z") continue;
+    if (/[a-zA-Z]/.test(t)) throw new Error(`path command ${t} is not one of M, L, Z: ${d}`);
+    nums.push(Number(t));
+  }
+  if (nums.length % 2 !== 0) throw new Error(`path carries an odd number of coordinates: ${d}`);
+  /** @type {[number, number][]} */
+  const out = [];
+  for (let i = 0; i < nums.length; i += 2) out.push([nums[i], nums[i + 1]]);
+  return out;
+}
+
+/**
+ * Which of the two output shapes the pane draws, and its vertex count: a
+ * `path.primer-band` ("band") or a `polyline.plot-trace.applied` ("polyline").
+ * Exactly one of the two is expected at any width.
+ *
+ * @param {MarkupElement} box
+ * @returns {[string, number]}
+ */
+function outputShape(box) {
+  const bands = inside(box, "path", ["primer-band"]);
+  const lines = inside(box, "polyline", ["plot-trace", "applied"]);
+  if (bands.length + lines.length !== 1) {
+    throw new Error(
+      `the impulse pane draws ${bands.length} output bands and ${lines.length} output polylines, wanted one shape`,
+    );
+  }
+  if (bands.length === 1) return ["band", pathVertices(attr(bands[0], "d") || "").length];
+  return ["polyline", pairs(attr(lines[0], "points") || "").length];
 }
 
 /**
@@ -331,23 +376,31 @@ test("test_output_peak_height_scales_with_filter_gain_and_stays_below_the_title_
 });
 
 // 5. Minimum phase gets an asymmetric frame: the filter's whole reach runs to
-// the right of time zero, and to its left the plot reserves exactly the input's
-// own half extent, half of the source pulse's length in samples. At a 3 us
-// transient that is one source sample, 0.0227 ms. A fixed tenth of the span
-// would begin the plot 0.5 ms before zero, an empty strip whose width follows
-// the filter length rather than the input's width.
+// the right of time zero, and to its left the plot reserves the larger of the
+// input's own half extent (half the source pulse's length in samples) and a
+// twentieth of the filter length. At 3.7 ms a twentieth is 0.185 ms: on a 3 us
+// transient the input's half extent is one source sample, 0.0227 ms, and the
+// twentieth wins; on a 50 us transient the half extent is 0.363 ms and wins.
+// Reserving the half extent alone begins the 3 us plot 0.0227 ms before zero,
+// with the output's leading edge jammed against the frame; a fixed tenth of the
+// span begins both 0.37 ms before zero, following the filter length alone.
 
-test("test_minimum_phase_plot_begins_the_inputs_own_half_extent_before_time_zero", () => {
+test("test_minimum_phase_plot_begins_the_larger_of_input_half_extent_and_a_twentieth_of_length_before_zero", () => {
   rate.value = 44100;
   outputRate.value = 176400;
   phase.value = "minimum";
   lengthMs.value = 3.7;
   rolloff.value = 0.5;
-  transientUs.value = 3;
-  const box = impulsePane();
-  const leadMs = msPerUnit(box) * (zeroRule(box).x - zeroLine(box).x1);
-  const halfMs = (1000 * ((sourcePulse.value.length - 1) / 2)) / rate.value;
-  assert.ok(Math.abs(leadMs - halfMs) < 0.005, `plot begins ${leadMs} ms before zero, wanted ${halfMs}`);
+  const leads = [3, 50].map((us) => {
+    transientUs.value = us;
+    const box = impulsePane();
+    return msPerUnit(box) * (zeroRule(box).x - zeroLine(box).x1);
+  });
+  const want = [0.185, 0.363];
+  assert.ok(
+    leads.every((ms, i) => Math.abs(ms - want[i]) < 0.005),
+    `plot begins [${leads.join(", ")}] ms before zero at 3 and 50 us, wanted [${want.join(", ")}] within 0.005`,
+  );
 });
 
 // 6. The input trace carries one vertex per source sample, so the ghost is the
@@ -366,15 +419,19 @@ test("test_input_trace_carries_one_vertex_per_source_sample", () => {
   assert.equal(drawn, sourcePulse.value.length);
 });
 
-// 7. The output trace is reduced to the plot width the pane reports, so the
-// picture resolves to the window it is drawn in. At 8 ms and 4x the frame holds
-// 1411 output samples: the trace carries 830 vertices while nothing has been
-// measured, 726 at a reported width of 250, and 1411 at 1000, where a vertex per
-// sample is all there is left to draw. A column count taken from the SVG's own
-// coordinate system draws 830 at all three, which is the same point list at a
-// 640 px window as at a 1280 px one.
+// 7. The output is drawn to the plot width the pane reports, so the picture
+// resolves to the window it is drawn in. At 8 ms and 4x the frame holds 1411
+// output samples. Where there are more samples than columns the pane draws a
+// `path.primer-band`, a column-wise min/max envelope with two vertices per
+// column: 668 vertices over the SVG's own 334 columns while nothing has been
+// measured, 500 at a reported width of 250. At 1000 there is a column per
+// sample and the pane draws the samples themselves, a
+// `polyline.plot-trace.applied` of 1411 vertices. Exactly one of the two is
+// present at each width. A pane that keeps a polyline and thins it draws no
+// band at all; one that takes its column count from the SVG's coordinate
+// system draws 668 at all three.
 
-test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
+test("test_output_shape_and_vertex_count_follow_the_reported_plot_width", () => {
   rate.value = 44100;
   outputRate.value = 176400;
   phase.value = "linear";
@@ -383,9 +440,16 @@ test("test_output_trace_vertex_count_follows_the_reported_plot_width", () => {
   transientUs.value = 3;
   const drawn = (/** @type {number} */ px) => {
     plotPx.value = px;
-    return vertices(impulsePane(), ["applied"]).length;
+    return outputShape(impulsePane());
   };
-  assert.deepEqual([drawn(0), drawn(250), drawn(1000)], [830, 726, 1411]);
+  assert.deepEqual(
+    [drawn(0), drawn(250), drawn(1000)],
+    [
+      ["band", 668],
+      ["band", 500],
+      ["polyline", 1411],
+    ],
+  );
 });
 
 /**
