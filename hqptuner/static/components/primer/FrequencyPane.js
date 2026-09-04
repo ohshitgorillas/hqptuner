@@ -105,17 +105,19 @@ const chainMode = (identity, out, fs) => (identity ? "identity" : out !== null &
  * Where on the grid each band begins and ends. `half` is the first point above
  * source Nyquist: where the axis stops at the source's own Nyquist, as it does
  * when the chain decimates, the grid holds no frequency above it and the image
- * band is empty. `carried` is the first point above the output's Nyquist:
+ * band is empty. `carried` is the first point at or above the output's Nyquist:
  * above it the fold repeats the band below, a copy of what is already drawn
- * that no stream carries, so the copy stops there.
+ * that no stream carries, and on the mark itself the only copy that lands is
+ * the frequency's own, so the alias reading there is the floor and a curve
+ * drawn to it would end in a drop down the mark; the copy stops short of it.
  * @param {number[]} freqsHz
  * @param {number} fs
  * @param {number} out
  */
 function bands(freqsHz, fs, out) {
   const above = freqsHz.findIndex((f) => f > fs / 2);
-  const pastOut = freqsHz.findIndex((f) => f > out / 2);
-  return { half: above < 0 ? freqsHz.length : above, carried: pastOut < 0 ? freqsHz.length : pastOut };
+  const atOut = freqsHz.findIndex((f) => f >= out / 2);
+  return { half: above < 0 ? freqsHz.length : above, carried: atOut < 0 ? freqsHz.length : atOut };
 }
 
 /**
