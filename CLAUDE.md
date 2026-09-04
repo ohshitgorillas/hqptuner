@@ -96,6 +96,7 @@ Rules:
 ## Repo rules
 
 - Docs: design + normative rules `docs/architecture.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`.
+- **Markdown is written with `Write`/`Edit`, never from the shell.** The markdown gates (soft-wrap, changelog style, trivia judge) hang off those tools' `PostToolUse` payload and a shell write (`sed -i`, redirect, heredoc, script) skips all of them; `.claude/hooks/md-by-tool.py` denies such a command. Reads, `git`, `rm`, `make` and the gate scripts pass.
 - **Markdown soft-wrapped, enforced.** One paragraph, list item, or blockquote = one logical line — never break prose at any column. `PostToolUse` hook (`.claude/hooks/md-softwrap.py`) rejects hard-wrapped writes; repair with `--fix`, check with `--check`. Blank lines, fenced code, tables, headings, explicit two-space breaks exempt.
 - **HQPlayer's own docs live in working dir** — `hqplayer6desktop-manual.pdf` and `hqplayerd-readme.txt` (every config-XML element, attribute, plugin parameter). Authority for HQPlayer behavior, config attributes, enum meanings — **reference before inferring anything about wire/config behavior**; guessing routes and attributes ships bugs.
 - **Testing policy binding: `docs/testing.md`.** Behavior only, one assertion per test, public API only, fakes speak wire protocol. Read before writing or modifying any test.

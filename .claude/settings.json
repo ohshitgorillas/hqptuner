@@ -11,6 +11,10 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/no-version-bumps.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/md-by-tool.py"
           }
         ]
       }
