@@ -7,8 +7,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. Rule 9: the elements are found by their classes and their
-// `data-pane` markings, both wire identifiers; the only text read is the numeric
-// value of an amplitude tick label.
+// `data-pane` markings, both wire identifiers; no text is read.
 //
 // GEOMETRY READ. Inside the pane carrying `data-pane="frequency"` (viewBox
 // 0 0 800 240): the filter magnitude is `polyline.plot-trace.applied`, the
@@ -19,9 +18,10 @@
 // 176.4 kHz.
 //
 // Inside the pane carrying `data-pane="impulse"` (viewBox 0 0 400 240): the
-// output band is `path.primer-band`; the amplitude tick labels are the `text`
-// elements in the gutter left of the plot, reading 1, 0.5, 0, -0.5, -1, and the
-// horizontal `line.plot-zero` is level 0. Larger y is lower on screen.
+// output band is `path.primer-band`, the input trace `polyline.plot-trace.ghost`
+// (unit input, so its highest vertex is level 1 on the pane's fixed amplitude
+// axis), and the horizontal `line.plot-zero` is level 0. Larger y is lower on
+// screen.
 //
 // A path's vertices are the x,y pairs after its M and L commands; Z is ignored.
 //
@@ -39,7 +39,7 @@ const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../hqptuner/static/components/primer/Graph.js");
 const { rate, outputRate, phase, lengthMs, rolloff, transientUs, spectrum, design, freqPx, plotPx, showMe } =
   await import("../../../hqptuner/static/store/primergraph.js");
-const { elements, classes, attr, text } = await import("../support/markup.js");
+const { elements, classes, attr } = await import("../support/markup.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -181,8 +181,11 @@ const PLOT_WIDTH = 734;
 const hzOf = (x) => ((x - PLOT_LEFT) / PLOT_WIDTH) * AXIS_HZ;
 
 /**
- * The impulse pane's level reading of a y, off its amplitude axis: the
- * horizontal zero line is level 0 and the tick labelled 1 is level 1.
+ * The impulse pane's level reading of a y, off its fixed amplitude axis: the
+ * horizontal zero line is level 0 and the input's drawn peak, the highest
+ * vertex of `polyline.plot-trace.ghost`, is level 1, the input being unit
+ * input. (A tick label's `y` is its text baseline, a few units below the tick
+ * it names, so the label is not read.)
  *
  * @param {MarkupElement} box
  * @returns {(y: number) => number}
@@ -191,10 +194,10 @@ function levelReader(box) {
   const flat = inside(box, "line", ["plot-zero"]).find((el) => attr(el, "y1") === attr(el, "y2"));
   if (!flat) throw new Error("the impulse pane lacks a horizontal zero line");
   const zeroY = num(flat, "y1");
-  const left = num(flat, "x1");
-  const one = inside(box, "text", []).find((el) => num(el, "x") < left && Number(text(el)) === 1);
-  if (!one) throw new Error("the impulse pane has no amplitude tick label reading 1");
-  const oneY = num(one, "y");
+  const ghost = pointsOf(only(box, "polyline", ["plot-trace", "ghost"]));
+  if (ghost.length < 2) throw new Error("the input trace has fewer than two vertices");
+  const oneY = Math.min(...ghost.map(([, y]) => y));
+  if (oneY === zeroY) throw new Error("the input trace never rises above the zero line");
   return (y) => (zeroY - y) / (zeroY - oneY);
 }
 
