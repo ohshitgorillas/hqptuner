@@ -142,8 +142,17 @@ def live_restore(client: httpx.Client, before: dict[str, Any], after: dict[str, 
     return problems
 
 
+def drop_descriptions(client: httpx.Client, before: dict[str, Any]) -> None:
+    """Remove every description the run added: the route turns an empty text into a removal."""
+    was = set(before["/api/descriptions"].get("profiles", {}))
+    now = set(snapshot(client, ["/api/descriptions"])["/api/descriptions"].get("profiles", {}))
+    for name in now - was:
+        client.put("/api/descriptions", json={"name": name, "text": ""})
+
+
 def store_restore(client: httpx.Client, before: dict[str, Any]) -> list[str]:
     """Put the whole-set store surfaces back, and report the ones with no route that can undo a write."""
+    drop_descriptions(client, before)
     client.put("/api/favorites", json=before["/api/favorites"])
     client.put("/api/narrowing", json={"facets": before["/api/narrowing"].get("facets", {})})
     client.post("/api/autopilot", json={"enabled": bool(before["/api/autopilot"].get("enabled"))})
