@@ -262,7 +262,7 @@ test("test_delay_pane_paints_the_selected_phase_as_the_applied_trace", () => {
 function delayFreqLabels() {
   return inside(pane("delay"), "text", ["plot-lbl"])
     .filter((el) => attr(el, "text-anchor") === "middle")
-    .map((el) => Number(el.html.replace(/<[^>]*>/g, "")));
+    .map((el) => Number(el.html.slice(el.html.indexOf(">") + 1, el.html.lastIndexOf("<"))));
 }
 
 // Spec line 1. The delay pane's frequency axis labels read over two chains:
