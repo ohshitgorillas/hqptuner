@@ -1,0 +1,37 @@
+[
+  {
+    "taps": 17,
+    "widthHz": 2700,
+    "rate": 176400,
+    "attenDb": 21.0,
+    "bandHz": 10021.28
+  },
+  {
+    "taps": 33,
+    "widthHz": 2700,
+    "rate": 176400,
+    "attenDb": 21.0,
+    "bandHz": 5010.64
+  },
+  {
+    "taps": 101,
+    "widthHz": 2700,
+    "rate": 176400,
+    "attenDb": 29.9251,
+    "bandHz": 2700.0
+  },
+  {
+    "taps": 1411,
+    "widthHz": 2646,
+    "rate": 176400,
+    "attenDb": 120.0,
+    "bandHz": 976.39
+  },
+  {
+    "taps": 203,
+    "widthHz": 1500,
+    "rate": 88200,
+    "attenDb": 57.2719,
+    "bandHz": 1500.0
+  }
+]

@@ -9,8 +9,15 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import { kaiserWindow, kaiserAttenuation, designLowpass, minimumPhase } from "../../../hqptuner/static/lib/dsp/fir.js";
+import {
+  kaiserWindow,
+  kaiserAttenuation,
+  designLowpass,
+  designPoint,
+  minimumPhase,
+} from "../../../hqptuner/static/lib/dsp/fir.js";
 import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/pulse.js";
 import { magnitudeDb, groupDelaySamples } from "../../../hqptuner/static/lib/dsp/spectrum.js";
 
@@ -71,6 +78,24 @@ test("test_kaiser_window_matches_the_published_values_for_beta_four", () => {
 // 6. the Kaiser attenuation relation with the width taken in hertz.
 test("test_kaiser_attenuation_follows_the_published_relation_in_hertz", () => {
   assert.ok(...near(kaiserAttenuation(211, 826.875, 44100), 64.48, 0.01));
+});
+
+// The design point against an external oracle: for every row of the scipy-made
+// fixture (tests/support/fixtures/kaiser-oracle.json, scripts/probes/
+// gen_kaiser_oracle.py), the depth and band designPoint reports match the
+// row within 0.01 dB and 1 Hz. Rows sit below the relation's 21 dB floor, at
+// its 120 dB cap and inside its range, so echoing the prediction or the asked
+// band fails here.
+test("test_design_point_matches_the_scipy_oracle_at_every_row", () => {
+  /** @type {{ taps: number, widthHz: number, rate: number, attenDb: number, bandHz: number }[]} */
+  const rows = JSON.parse(readFileSync(new URL("../../support/fixtures/kaiser-oracle.json", import.meta.url), "utf8"));
+  const misses = rows
+    .map((row) => ({ row, got: designPoint(row.taps, row.widthHz, row.rate) }))
+    .filter(({ row, got }) => Math.abs(got.attenDb - row.attenDb) > 0.01 || Math.abs(got.widthHz - row.bandHz) > 1)
+    .map(
+      ({ row, got }) => `${row.taps} taps ${row.widthHz} Hz at ${row.rate}: got ${got.attenDb} dB / ${got.widthHz} Hz`,
+    );
+  assert.deepEqual(misses, []);
 });
 
 // Group delay of a minimum-phase filter rises towards the corner: the delay in
