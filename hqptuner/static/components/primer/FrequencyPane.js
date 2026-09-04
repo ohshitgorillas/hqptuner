@@ -19,7 +19,22 @@ import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
 import { peakColumns } from "../../lib/dsp/render.js";
 import { axisHz, freqPx, outputRate, rate, spectrum } from "../../store/primergraph.js";
-import { AXIS_Y, FULL_W as W, H, PADR, PADT, PLOT_H, fmtKhz, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
+import {
+  AXIS_Y,
+  FULL_W as W,
+  H,
+  NAME_GAP,
+  PADR,
+  PADT,
+  PLOT_H,
+  cornerNames,
+  fmtKhz,
+  niceStep,
+  r1,
+  ticks,
+  xAxis,
+  yAxis,
+} from "./frame.js";
 import { useMeasuredPlot } from "./measure.js";
 
 const PADL = 30;
@@ -30,6 +45,31 @@ const DB_MAX = 6;
 const DB_STEP = 30;
 // Frequency ticks across the axis, at most; the step rounds up to a round figure.
 const FREQ_TICKS = 8;
+/**
+ * The legend, one row per layer the pane draws, in the order they are painted.
+ * A fill has no line for the eye to follow, so it carries a swatch in its own
+ * colour; the filter is a trace and is named in the accent it is drawn in. A
+ * layer the state does not draw takes no row: a legend naming a filter where
+ * none exists teaches the reader something untrue.
+ */
+const LAYERS = [
+  { key: "wash", layer: "music", kind: "ghost", swatch: "music", text: "Music" },
+  { key: "images", layer: "images", kind: "ghost", swatch: "images", text: "Images" },
+  { key: "filter", layer: "filter", kind: "applied", text: "Filter" },
+  { key: "leak", layer: "output", kind: "applied", swatch: "output", text: "Output" },
+];
+/**
+ * The legend stacks up from the plot's bottom left corner. Every other corner
+ * carries a curve in some state: the passband runs along the top, and one
+ * Nyquist mark always sits on the right frame edge. Low frequency at the bottom
+ * of the dB axis is the one region no state paints.
+ */
+const LEGEND_X = PADL + 4;
+const LEGEND_BOTTOM = PADT + PLOT_H - 4;
+/** A mark's name sits at the top of its own dashed line, under the top band. */
+const MARK_Y = PADT + 10;
+/** A name this close to a frame edge is anchored to it rather than centred over it. */
+const MARK_EDGE = 40;
 
 /**
  * The pane's curves from the store's spectrum on its grid from 0 to the axis
@@ -74,17 +114,32 @@ function frequency() {
     xMarks: ticks(step, top, step).map((f) => ({ x: xOf(f), label: fmtKhz(f) })),
     yMarks: ticks(0, -DB_MIN, DB_STEP).map((db) => ({ y: yOf(-db), label: `${-db}` })),
     marks: [
-      { mark: "source", x: xOf(fs / 2), hz: fs / 2 },
-      ...(out !== null && out !== fs ? [{ mark: "output", x: xOf(out / 2), hz: out / 2 }] : []),
+      { mark: "source", x: xOf(fs / 2), hz: fs / 2, name: "Source Nyquist" },
+      ...(out !== null && out !== fs ? [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }] : []),
     ],
   };
 }
+
+/**
+ * The rows the legend carries in this state: one per layer the pane drew, in
+ * painting order.
+ * @param {Record<string, string | null>} drawn
+ */
+const legend = (drawn) => LAYERS.filter(({ key }) => drawn[key] !== null);
+
+/**
+ * A mark name's anchor. A mark on the axis top sits on the right frame edge and
+ * one at DC on the left, so a centred name would hang outside the plot.
+ * @param {number} x
+ */
+const markAnchor = (x) => (x > PADL + PLOT_W - MARK_EDGE ? "end" : x < PADL + MARK_EDGE ? "start" : "middle");
 
 /** The frequency pane: source wash, images, filter trace, Nyquist marks and the output fill. */
 export function FrequencyPane() {
   const svg = useRef(/** @type {SVGSVGElement | null} */ (null));
   useMeasuredPlot(svg, freqPx, PLOT_W / W);
   const { wash, images, leak, filter, xMarks, yMarks, marks } = frequency();
+  const rows = legend({ wash, images, leak, filter });
   return html`
     <div class="plot" data-pane="frequency">
       <div class="t-label">Frequency</div>
@@ -103,6 +158,10 @@ export function FrequencyPane() {
         })}
         ${filter ? html`<polyline class="plot-trace applied" points=${filter} />` : null}
         ${xAxis(W, xMarks, "kHz")}
+        ${marks.map(({ mark, x, name }) =>
+          cornerNames([{ kind: "ghost", mark, text: name }], { x, y: MARK_Y, anchor: markAnchor(x) }),
+        )}
+        ${cornerNames(rows, { x: LEGEND_X, y: LEGEND_BOTTOM - (rows.length - 1) * NAME_GAP, anchor: "start" })}
       </svg>
     </div>
   `;

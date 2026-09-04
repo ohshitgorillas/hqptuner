@@ -27,7 +27,7 @@ import { useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { traceColumns } from "../../lib/dsp/render.js";
 import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primergraph.js";
-import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
+import { HALF_W as W, H, PADR, PADT, PLOT_H, cornerNames, fmt3, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
 import { useMeasuredPlot } from "./measure.js";
 
 const PADL = 30;
@@ -50,9 +50,7 @@ const TIME_TICKS = 5;
  */
 const AMP_TICKS = [1, 0.5, 0, -0.5, -1];
 /** Trace names sit in the plot's top right corner, one line apart. */
-const NAME_X = W - PADR - 2;
-const NAME_Y = PADT + 10;
-const NAME_GAP = 11;
+const NAMES = { x: W - PADR - 2, y: PADT + 10, anchor: "end" };
 /** A tick label within this many units of a plot edge is anchored to it. */
 const EDGE = 1;
 
@@ -142,15 +140,13 @@ function impulse() {
  * one array and two names would sit on the same pixels claiming two traces.
  * @param {boolean} identity
  */
-function names(identity) {
-  const named = identity
+const names = (/** @type {boolean} */ identity) =>
+  identity
     ? [{ kind: "applied", text: "Output" }]
     : [
         { kind: "applied", text: "Output" },
         { kind: "ghost", text: "Input" },
       ];
-  return named.map((n, i) => ({ ...n, y: NAME_Y + i * NAME_GAP }));
-}
 
 /** The impulse pane: the filtered output as the accent trace, the input's dashed ghost over it. */
 export function ImpulsePane() {
@@ -169,9 +165,7 @@ export function ImpulsePane() {
           <polyline class="plot-trace applied" points=${out} />
           <polyline class="plot-trace ghost" points=${ghost} />
         </g>
-        ${names(identity).map(
-          (n) => html`<text class="plot-tlbl ${n.kind}" x=${NAME_X} y=${n.y} text-anchor="end">${n.text}</text>`,
-        )}
+        ${cornerNames(names(identity), NAMES)}
       </svg>
     </div>
   `;

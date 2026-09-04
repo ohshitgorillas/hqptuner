@@ -6,7 +6,21 @@
 // the pen lifts across it.
 import { html } from "../../lib/dom.js";
 import { delay, phase, rate } from "../../store/primergraph.js";
-import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, fmtKhz, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
+import {
+  HALF_W as W,
+  H,
+  PADR,
+  PADT,
+  PLOT_H,
+  cornerNames,
+  fmt3,
+  fmtKhz,
+  niceStep,
+  r1,
+  ticks,
+  xAxis,
+  yAxis,
+} from "./frame.js";
 
 const PADL = 30;
 const PLOT_W = W - PADL - PADR;
@@ -16,6 +30,21 @@ const MS_TICKS = 4;
 // many milliseconds, so a unit tap still draws on a readable scale.
 const HEADROOM = 1.1;
 const MIN_TOP_MS = 0.1;
+/** Both phases are drawn at once, so both are named; the stack sits in the plot's top right corner. */
+const NAMES = { x: W - PADR - 2, y: PADT + 10, anchor: "end" };
+const LINEAR = { trace: "linear", text: "Linear phase" };
+const MINIMUM = { trace: "minimum", text: "Minimum phase" };
+
+/**
+ * The trace names, accent first: the selected phase is the accent trace and the
+ * other its ghost, so the pair of names carries the same reading as the pair of
+ * curves and a reader can tell which is which without toggling.
+ * @param {boolean} minimumSelected
+ */
+const names = (minimumSelected) => [
+  { kind: "applied", ...(minimumSelected ? MINIMUM : LINEAR) },
+  { kind: "ghost", ...(minimumSelected ? LINEAR : MINIMUM) },
+];
 
 /**
  * A path through the finite points, lifting the pen where a point is blanked.
@@ -72,6 +101,7 @@ export function DelayPane() {
         ${xAxis(W, xMarks, "kHz")}
         <path class="plot-trace ghost" d=${minimumSelected ? linear : minimum} />
         <path class="plot-trace applied" d=${minimumSelected ? minimum : linear} />
+        ${cornerNames(names(minimumSelected), NAMES)}
       </svg>
     </div>
   `;
