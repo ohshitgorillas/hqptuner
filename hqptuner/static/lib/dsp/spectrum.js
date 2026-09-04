@@ -10,12 +10,16 @@ const MAG_FLOOR = 1e-10;
 const MIN_NFFT = 1 << 14;
 
 /**
- * The FFT size a reading of `taps` is taken on: at least MIN_NFFT, and at
- * least twice the filter so the taps sit in the first half.
+ * The FFT size a reading of `taps` is taken on: at least MIN_NFFT, at least
+ * twice the filter so the taps sit in the first half, and at least twice the
+ * grid's intervals, so a grid that steps a power of two across half the rate
+ * lands every point on a bin and the reading is the transform itself rather
+ * than a chord between two bins, which near a null sits decibels above it.
  * @param {Float64Array} taps
+ * @param {number} points on the grid the reading is taken at
  * @returns {number}
  */
-const readSize = (taps) => Math.max(MIN_NFFT, 1 << Math.ceil(Math.log2(2 * taps.length)));
+const readSize = (taps, points) => Math.max(MIN_NFFT, 1 << Math.ceil(Math.log2(2 * Math.max(taps.length, points - 1))));
 
 /**
  * A per-bin quantity read at each requested frequency, interpolated between
@@ -49,7 +53,7 @@ function readBins(bins, rate, freqsHz) {
  * @returns {Float64Array}
  */
 export function magnitudeDb(taps, rate, freqsHz) {
-  const nfft = readSize(taps);
+  const nfft = readSize(taps, freqsHz.length);
   const re = new Float64Array(nfft);
   const im = new Float64Array(nfft);
   re.set(taps);
@@ -71,7 +75,7 @@ export function magnitudeDb(taps, rate, freqsHz) {
  * @returns {Float64Array}
  */
 export function groupDelaySamples(taps, rate, freqsHz) {
-  const nfft = readSize(taps);
+  const nfft = readSize(taps, freqsHz.length);
   const re = new Float64Array(nfft);
   const im = new Float64Array(nfft);
   const rampRe = new Float64Array(nfft);

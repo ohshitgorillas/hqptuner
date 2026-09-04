@@ -70,9 +70,22 @@
 .primer-leak {
   fill: var(--accent);
   fill-opacity: var(--o-back);
+}
+/* The fill's edge is its own element, the curve alone: a stroke on the closed
+   fill would also outline the floor, the left frame edge and the cutoff wall. */
+.primer-leak-edge {
+  fill: none;
   stroke: var(--accent);
   stroke-opacity: var(--o-mid);
   stroke-width: 0.8;
+}
+
+/* The impulse pane's output where it rings faster than the columns can draw
+   a line: the excursion per column as a filled band on the fill rung, so a
+   ring that would draw as a hash reads as the envelope it is. */
+.primer-band {
+  fill: var(--accent);
+  fill-opacity: var(--o-fore);
 }
 
 /* Layer names, and the legend's swatches. A name is drawn after everything it

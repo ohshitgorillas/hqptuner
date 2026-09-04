@@ -69,31 +69,78 @@ export function traceColumns(y, from, to, columns) {
     });
   }
   /** @type {[number, number][]} */
-  const out = [];
+  const out = from < 0 ? [[from, 0]] : [];
   for (let c = 0; c < columns; c += 1) {
     const lo = Math.max(0, Math.ceil(from + c * per));
     const hi = Math.min(y.length - 1, Math.floor(from + (c + 1) * per - 1e-9));
     if (lo > hi) continue;
-    let min = lo;
-    let max = lo;
-    for (let i = lo + 1; i <= hi; i += 1) {
-      if (y[i] < y[min]) min = i;
-      if (y[i] > y[max]) max = i;
-    }
-    const keep = [...new Set([lo, Math.min(min, max), Math.max(min, max), hi])];
-    for (const i of keep) out.push([i, y[i]]);
+    for (const i of extremes(y, lo, hi)) out.push([i, y[i]]);
   }
+  if (to > y.length - 1) out.push([to, 0]);
+  return out;
+}
+
+/**
+ * The M4 indices of one column, `[lo, hi]` inclusive: first, min, max and
+ * last in index order, duplicates dropped.
+ * @param {Float64Array} y
+ * @param {number} lo
+ * @param {number} hi
+ * @returns {number[]}
+ */
+function extremes(y, lo, hi) {
+  let min = lo;
+  let max = lo;
+  for (let i = lo + 1; i <= hi; i += 1) {
+    if (y[i] < y[min]) min = i;
+    if (y[i] > y[max]) max = i;
+  }
+  return [...new Set([lo, Math.min(min, max), Math.max(min, max), hi])];
+}
+
+/**
+ * The band a dense signal fills, one `[index, max, min]` per column over the
+ * index window `[from, to]` across `columns` columns, the index being the
+ * column's centre. Where the samples outrun the columns by more than a ring
+ * cycle a polyline through them is a hash, and the picture the reader needs is
+ * the excursion: peak hold both ways (section 5.4 rule 2, min for a band).
+ * Indices outside the samples read as zero; an empty column is skipped.
+ * @param {Float64Array} y
+ * @param {number} from
+ * @param {number} to
+ * @param {number} columns
+ * @returns {[number, number, number][]}
+ */
+export function bandColumns(y, from, to, columns) {
+  const per = (to - from) / columns;
+  /** @type {[number, number, number][]} */
+  const out = from < 0 ? [[from, 0, 0]] : [];
+  for (let c = 0; c < columns; c += 1) {
+    const lo = Math.max(0, Math.ceil(from + c * per));
+    const hi = Math.min(y.length - 1, Math.floor(from + (c + 1) * per - 1e-9));
+    if (lo > hi) continue;
+    let max = y[lo];
+    let min = y[lo];
+    for (let i = lo + 1; i <= hi; i += 1) {
+      if (y[i] > max) max = y[i];
+      if (y[i] < min) min = y[i];
+    }
+    out.push([from + (c + 0.5) * per, max, min]);
+  }
+  if (to > y.length - 1) out.push([to, 0, 0]);
   return out;
 }
 
 /**
  * The indices a spectrum's polyline keeps over the index window `[from, to)`
- * across `columns` columns: first, the column's maximum, and last, in index
- * order (section 5.4 rules 2 and 3). A spectrum is a level, so the picture the
- * reader needs is the peak of what fell in the column, not its excursion;
- * where a column holds one sample or fewer every index is kept and the
- * reduction is a no-op. Indices, not values, so every curve sharing a grid
- * stays on one x mapping.
+ * across `columns` columns: the column's maximum alone, in index order
+ * (section 5.4 rule 2). A spectrum is a level, so the picture the reader needs
+ * is the peak of what fell in the column, not its excursion, and a comb's
+ * first and last point in a column are arbitrary points on it, in a null as
+ * often as not; where a column holds one sample or fewer every index is kept
+ * and the reduction is a no-op. The window's own two ends are always kept, so
+ * the curve reaches both edges of the plot. Indices, not values, so every
+ * curve sharing a grid stays on one x mapping.
  * @param {ArrayLike<number>} values
  * @param {number} from
  * @param {number} to
@@ -104,14 +151,15 @@ export function peakColumns(values, from, to, columns) {
   const per = (to - from) / columns;
   if (per <= 1) return Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
   /** @type {number[]} */
-  const out = [];
+  const out = [from];
   for (let c = 0; c < columns; c += 1) {
     const lo = Math.max(from, Math.ceil(from + c * per));
     const hi = Math.min(to - 1, Math.floor(from + (c + 1) * per - 1e-9));
     if (lo > hi) continue;
     let max = lo;
     for (let i = lo + 1; i <= hi; i += 1) if (values[i] > values[max]) max = i;
-    for (const i of new Set([lo, max, hi])) out.push(i);
+    if (max !== out[out.length - 1]) out.push(max);
   }
+  if (out[out.length - 1] !== to - 1) out.push(to - 1);
   return out;
 }
