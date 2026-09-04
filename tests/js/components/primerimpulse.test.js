@@ -32,6 +32,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
+import { applyState, matrixStates } from "../support/primermatrix.js";
+
 const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../hqptuner/static/components/primer/Graph.js");
 const {
@@ -281,20 +283,27 @@ test("test_minimum_phase_output_peak_trails_input_peak_by_the_peak_tap_delay", (
   );
 });
 
-// 2. The time axis spans exactly the filter's length: a 12 ms filter draws a
-// 12 ms axis. A span rounded up to a round figure (1, 2, 5 or 10 times a power
-// of ten) would draw this filter on a 20 ms axis, and the frame would jump as
-// the Length slider crossed each round figure.
+// 2. The time axis spans exactly the filter's length: a 2 ms filter draws a 2 ms
+// axis. A span rounded up to a round figure (1, 2, 5 or 10 times a power of ten)
+// would draw a 12 ms filter on a 20 ms axis, and the frame would jump as the
+// Length slider crossed each round figure.
+//
+// Asked over every linear-phase state whose chain resamples (support/
+// primermatrix.js) rather than at one 12 ms state: same reading, same 0.1 ms
+// tolerance, 243 states. The swept count is asserted alongside the failures so
+// that a filter matching nothing fails here instead of passing on an empty
+// sweep. Minimum phase and the unresampled chains are deliberately out: the axis
+// legitimately differs there, which is what this test's name has always said.
 
 test("test_axis_span_equals_the_filter_length_at_linear_phase", () => {
-  rate.value = 44100;
-  outputRate.value = 176400;
-  phase.value = "linear";
-  lengthMs.value = 12;
-  rolloff.value = 0.5;
-  transientUs.value = 3;
-  const span = spanMs(impulsePane());
-  assert.ok(Math.abs(span - lengthMs.value) < 0.1, `axis spans ${span} ms, wanted ${lengthMs.value}`);
+  const swept = matrixStates().filter((s) => s.ph === "linear" && s.outHz !== null);
+  const off = swept
+    .filter((s) => {
+      applyState(s);
+      return Math.abs(spanMs(impulsePane()) - s.len) >= 0.1;
+    })
+    .map((s) => s.name);
+  assert.deepEqual({ swept: swept.length, off }, { swept: 243, off: [] });
 });
 
 // 3. Amplitude is drawn to scale with headroom: the output's peak height is the
