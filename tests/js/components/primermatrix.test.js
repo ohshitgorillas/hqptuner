@@ -13,20 +13,22 @@
 // WHAT A SWEEP IS AND IS NOT. These two tests sweep predicates that the existing
 // primer point tests — primerfrequency, primerimpulse, primerrates, primerlabels
 // and the store's own primergraph suite — pin one state at a time. Those point
-// tests stay. A sweep says every state satisfies a shape, or that the ones that
-// do not are the ones already known; it says nothing whatever about whether any
-// single state draws the right curve. Only a point test does that, so the two
-// kinds are complements and neither replaces the other.
+// tests stay. A sweep says every state satisfies a shape; it says nothing
+// whatever about whether any single state draws the right curve. Only a point
+// test does that, so the two kinds are complements and neither replaces the
+// other.
 //
-// Each behavior is a predicate over states, and each test asserts a MAP KEYED BY
-// PANE NAME — the failing state names per pane — against the quarantine ledger
-// (tests/js/support/primermatrix-known.json). Keyed by pane rather than a bare
-// set of names on purpose: the keys come from what the render actually carried,
-// so a component that renders no panes produces an empty map and fails on the
-// key set alone, with no "for each pane" quantifier left to be vacuous over.
-// Equality is asserted both directions, so a new failure and a stale ledger
-// entry break the test alike. Quarantined states are still swept and still
-// evaluated.
+// Each behavior is a predicate over states, and each test asserts that NO state
+// fails it, as a MAP KEYED BY PANE NAME — the failing state names per pane —
+// compared against the empty map. Keyed by pane rather than a bare set of names
+// on purpose: the keys come from what the render actually carried, so a
+// component that renders no panes produces an empty map and fails on the key
+// set alone, with no "for each pane" quantifier left to be vacuous over, and a
+// failure names the pane it happened in.
+//
+// These tests assert the invariant, not the current behavior. Where the code
+// breaks one, the test is red until the code is fixed; a list of known-failing
+// states is not an expected value and does not belong in an assertion.
 //
 // The sweep is cached at module scope by the fixture, so the store is restored
 // once, in a single `after` hook, rather than per test.
@@ -35,33 +37,15 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
-import { expandCombos, failingByPane, restore } from "../support/primermatrix.js";
-
-const ledgerFile = new URL("../support/primermatrix-known.json", import.meta.url);
-const ledger = JSON.parse(readFileSync(ledgerFile, "utf8"));
+import { failingByPane, restore } from "../support/primermatrix.js";
 
 test.after(() => {
   restore();
 });
 
-/**
- * A ledger entry whose panes hold whole chips, written as (rate, factor, length
- * chip, roll-off) rows and expanded across both phases and every transient.
- *
- * @param {Record<string, [number, number | string, string, number][]>} rows
- * @returns {Record<string, string[]>}
- */
-const fromCombos = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, expandCombos(v)]));
-
-/**
- * A ledger entry whose panes hold state names outright.
- *
- * @param {Record<string, string[]>} names
- * @returns {Record<string, string[]>}
- */
-const fromNames = (names) => Object.fromEntries(Object.entries(names).map(([k, v]) => [k, v.slice().sort()]));
+/** The three panes, each drawing nothing that fails the predicate. */
+const NONE = { delay: [], frequency: [], impulse: [] };
 
 // --- the cases ------------------------------------------------------------------
 
@@ -73,21 +57,21 @@ const fromNames = (names) => Object.fromEntries(Object.entries(names).map(([k, v
 test("test_no_pane_draws_a_vertex_outside_its_plot_rectangle", () => {
   assert.deepEqual(
     failingByPane((p) => p.outside > 0),
-    fromCombos(ledger["1"].combos),
+    NONE,
   );
 });
 
 // 2. A filter-derived trace is drawn edge to edge. In every state, a pane that
 // draws an `applied` trace draws it reaching both edges of its plot rectangle,
-// within one plot column. The impulse pane is excluded where the chain resamples
-// nothing: what it draws there is the source's own samples rather than a filter
-// output, so covering only the pulse is correct. That exclusion is fixed — a
-// state that starts failing goes in the ledger, never into a second condition
-// appended here.
+// within the edge tolerance the fixture allows that pane. The impulse pane is
+// excluded where the chain resamples nothing: what it draws there is the
+// source's own samples rather than a filter output, so covering only the pulse
+// is correct. That exclusion is fixed — a state that starts failing is a defect
+// in the code, never a second condition appended here.
 
 test("test_an_applied_trace_reaches_both_edges_of_its_plot", () => {
   assert.deepEqual(
     failingByPane((p, s, pane) => p.applied > 0 && p.short > 0 && !(pane === "impulse" && s.outHz === null)),
-    fromNames(ledger["2"].names),
+    NONE,
   );
 });

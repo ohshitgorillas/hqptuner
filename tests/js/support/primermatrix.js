@@ -363,26 +363,6 @@ const states = () =>
 const stateName = (s) => `${s.hz}/${s.factor}/${s.ph}/${s.len}/${s.roll}/${s.tr}`;
 
 /**
- * The state names of a quarantine row — source rate, output factor, length chip
- * key, roll-off — crossed with both phases and every transient chip, which is
- * how a ledger entry that holds whole chips is written as four fields instead of
- * thirty strings.
- *
- * @param {[number, number | string, string, number][]} rows
- * @returns {string[]}
- */
-export const expandCombos = (rows) =>
-  rows
-    .flatMap(([hz, factor, chip, roll]) => {
-      const len = LENGTH_CHIPS[/** @type {keyof typeof LENGTH_CHIPS} */ (chip)];
-      if (len === undefined) throw new Error(`no length chip "${chip}"`);
-      return PHASES.flatMap((ph) =>
-        Object.values(TRANSIENT_CHIPS).map((tr) => stateName({ hz, factor, ph, len, roll, tr })),
-      );
-    })
-    .sort();
-
-/**
  * Every state of the matrix as inputs, without rendering any of them: for a
  * suite that reads something this fixture does not reduce and drives the render
  * itself.
