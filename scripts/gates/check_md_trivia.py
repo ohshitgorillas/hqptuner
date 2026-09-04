@@ -37,13 +37,17 @@ Usage:
   diff against HEAD for tracked files, every line of an untracked one. Exit 2
   on a flag, which keeps the turn open until the prose is fixed, once: a
   payload with ``stop_hook_active`` set has already been through this and
-  passes without a call. One call per turn, not one per edit: a call costs
-  around fifteen seconds of CLI start-up whatever it carries.
+  passes without a call. A line the judge has passed is remembered by hash in
+  ``.claude/logs/md-trivia-clean.json`` and never sent again, so a turn that
+  adds no new markdown line makes no call at all, and one that adds a few sends
+  a few: the CLI costs about five seconds to start and the model's time grows
+  with the lines. The commit and HEAD modes take no cache; they are the gate.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -263,10 +267,44 @@ def stop_already_ran() -> bool:
     return bool(payload.get("stop_hook_active"))
 
 
+CACHE = ROOT / ".claude" / "logs" / "md-trivia-clean.json"
+CACHE_CAP = 20000
+
+
+def digest(line: Line) -> str:
+    """Hash of the line's text alone, so a passed line stays passed wherever it moves."""
+    return hashlib.sha1(line.text.strip().encode("utf-8"), usedforsecurity=False).hexdigest()
+
+
+def clean_cache() -> list[str]:
+    """Digests of lines the judge has already passed, oldest first; empty when there is no cache."""
+    try:
+        seen = json.loads(CACHE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [str(item) for item in seen] if isinstance(seen, list) else []
+
+
+def remember_clean(lines: list[Line], flags: list[dict[str, str]]) -> None:
+    """Append every line the judge passed to the cache, capped at the newest ``CACHE_CAP``."""
+    flagged = {str(flag.get("id")) for flag in flags}
+    seen = clean_cache()
+    known = set(seen)
+    for line in lines:
+        if line.id not in flagged and digest(line) not in known:
+            seen.append(digest(line))
+            known.add(digest(line))
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
+    CACHE.write_text(json.dumps(seen[-CACHE_CAP:]) + "\n", encoding="utf-8")
+
+
 def collect(args: argparse.Namespace) -> list[Line]:
     """Lines to judge, from whichever input mode the arguments name."""
     if args.stop:
-        return [] if stop_already_ran() else prose_only(worktree_lines())
+        if stop_already_ran():
+            return []
+        seen = set(clean_cache())
+        return [line for line in prose_only(worktree_lines()) if digest(line) not in seen]
     if args.lines:
         return prose_only(from_records(Path(args.lines)))
     if args.head:
@@ -300,6 +338,8 @@ def main() -> int:
         return fail
     if args.out:
         Path(args.out).write_text(json.dumps(flags, indent=2) + "\n", encoding="utf-8")
+    if args.stop:
+        remember_clean(lines, flags)
     return fail if report(lines, flags, out) else 0
 
 
