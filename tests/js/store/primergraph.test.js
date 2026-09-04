@@ -166,14 +166,14 @@ test("test_downsampling_filter_cuts_above_output_nyquist", () => {
   assert.ok(pass - stop > 40, `expected 40 kHz (${pass}) to exceed 60 kHz (${stop}) by more than 40 dB`);
 });
 
-// 5. upsampling images repeat at the output rate: 44.1k to 176.4k puts an image
-// of the 20 kHz content at 156.4 kHz, and nothing at 100 kHz.
-test("test_upsampled_result_has_an_image_at_the_output_rate_minus_the_content", () => {
+// 5. upsampling suppresses the first image: at 44.1k to 176.4k the image of the
+// 20 kHz content, at 24.1 kHz, sits far below the content itself.
+test("test_upsampled_result_puts_the_first_image_far_below_the_content", () => {
   configure({ rate: 44100, lengthMs: 2, outputRate: 176400 });
   const { freqsHz, resultDb } = spectrum.value;
-  const image = levelAt(resultDb, freqsHz, 156400);
-  const gap = levelAt(resultDb, freqsHz, 100000);
-  assert.ok(image - gap > 40, `expected 156.4 kHz (${image}) to exceed 100 kHz (${gap}) by more than 40 dB`);
+  const music = levelAt(resultDb, freqsHz, 20000);
+  const image = levelAt(resultDb, freqsHz, 24100);
+  assert.ok(music - image > 40, `expected 20 kHz (${music}) to exceed its 24.1 kHz image (${image}) by more than 40 dB`);
 });
 
 // Line 3. the fattest transient chip still rings above the readout floor at the
