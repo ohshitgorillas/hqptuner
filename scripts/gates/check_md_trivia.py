@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: markdown a commit adds states what holds now, not what happened.
+"""Gate: markdown a commit or an edit adds states what holds now, not what happened.
 
 The design docs collect trivia faster than any regex can name it: dated
 approvals, hand-back receipts, resolved to-do items kept struck through,
@@ -32,6 +32,10 @@ Usage:
   HEAD added (Makefile)
 * ``python scripts/gates/check_md_trivia.py --lines FILE [--out FILE]`` judges
   ``path:line<TAB>text`` records from a file, for calibration
+* ``python scripts/gates/check_md_trivia.py --hook`` reads a PostToolUse payload
+  on stdin and judges what the edit added to the working tree: the diff against
+  HEAD for a tracked file, every line for an untracked one. Exit 2 on a flag,
+  so a doc an agent edits meets the judge at the edit and not only at commit.
 """
 
 from __future__ import annotations
@@ -45,6 +49,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -133,10 +138,15 @@ def binary(name: str) -> str:
     return path
 
 
+def git(*args: str) -> str:
+    """Stdout of a read-only git command run at the repo root."""
+    cmd = [binary("git"), *args]
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=ROOT).stdout  # noqa: S603
+
+
 def git_diff(*args: str) -> str:
     """Zero-context diff, so every ``+`` line is an added line."""
-    cmd = [binary("git"), "diff", "-U0", "--no-color", *args]
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=ROOT).stdout  # noqa: S603
+    return git("diff", "-U0", "--no-color", *args)
 
 
 def added_lines(diff: str) -> list[Line]:
@@ -185,6 +195,20 @@ def from_records(path: Path) -> list[Line]:
     return out
 
 
+def worktree_lines(target: str) -> list[Line]:
+    """Collect what the working tree adds at ``target``: diff against HEAD, or every line if untracked."""
+    path = Path(target)
+    if not path.is_absolute():
+        path = ROOT / path
+    if path.suffix.lower() != ".md" or not path.is_file() or not path.is_relative_to(ROOT):
+        return []
+    rel = path.relative_to(ROOT).as_posix()
+    if git("ls-files", "--", rel).strip():
+        return added_lines(git_diff("HEAD", "--", rel))
+    text = path.read_text(encoding="utf-8").splitlines()
+    return [Line(rel, number, line) for number, line in enumerate(text, start=1)]
+
+
 def ask(lines: list[Line]) -> list[dict[str, str]]:
     """One CLI call for every line; the parsed JSON array it answers with."""
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
@@ -216,24 +240,35 @@ def ask(lines: list[Line]) -> list[dict[str, str]]:
     return [dict(item) for item in flags]
 
 
-def report(lines: list[Line], flags: list[dict[str, str]]) -> int:
-    """Print every flag against its line; the count is the exit status."""
+def report(lines: list[Line], flags: list[dict[str, str]], out: TextIO) -> bool:
+    """Print every flag against its line; whether anything was flagged."""
     by_id = {line.id: line for line in lines}
     for flag in flags:
         line = by_id.get(str(flag.get("id")))
         where = line.id if line else f"?:{flag.get('id')}"
-        print(f"{where}: {flag.get('reason', '').strip()}")
+        print(f"{where}: {flag.get('reason', '').strip()}", file=out)
         if line:
-            print(f"    {line.text.strip()}")
+            print(f"    {line.text.strip()}", file=out)
     if flags:
-        print(f"\n{len(flags)} line(s) narrate history. State what holds now, or delete the remark.")
+        print(f"\n{len(flags)} line(s) narrate history. State what holds now, or delete the remark.", file=out)
     else:
-        print(f"[ok] {len(lines)} markdown line(s) state what holds now")
-    return 1 if flags else 0
+        print(f"[ok] {len(lines)} markdown line(s) state what holds now", file=out)
+    return bool(flags)
+
+
+def hook_target() -> str:
+    """Read the file a PostToolUse payload on stdin names, or empty when there is none."""
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        return ""
+    return str((payload.get("tool_input") or {}).get("file_path") or "")
 
 
 def collect(args: argparse.Namespace) -> list[Line]:
     """Lines to judge, from whichever input mode the arguments name."""
+    if args.hook:
+        return prose_only(worktree_lines(hook_target()))
     if args.lines:
         return prose_only(from_records(Path(args.lines)))
     if args.head:
@@ -248,22 +283,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("files", nargs="*", help="staged markdown files (pre-commit)")
     parser.add_argument("--head", action="store_true", help="judge the markdown HEAD added")
+    parser.add_argument("--hook", action="store_true", help="judge the file a PostToolUse payload on stdin names")
     parser.add_argument("--lines", help="calibration records, path:line<TAB>text")
     parser.add_argument("--out", help="write the judge's raw answer here")
     args = parser.parse_args()
+    fail = 2 if args.hook else 1
+    out = sys.stderr if args.hook else sys.stdout
 
     lines = collect(args)
     if not lines:
-        print("[ok] no markdown prose added")
+        if not args.hook:
+            print("[ok] no markdown prose added")
         return 0
     try:
         flags = ask(lines)
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"check_md_trivia: judge unavailable, refusing to pass: {exc}", file=sys.stderr)
-        return 1
+        return fail
     if args.out:
         Path(args.out).write_text(json.dumps(flags, indent=2) + "\n", encoding="utf-8")
-    return report(lines, flags)
+    return fail if report(lines, flags, out) else 0
 
 
 if __name__ == "__main__":
