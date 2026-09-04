@@ -20,8 +20,13 @@ export const TRANSIENT_CHIPS = { click: 3, snap: 10, thud: 30 };
 
 /** Source rates the graph offers, in Hz. */
 export const RATES = [44100, 96000, 192000];
-/** Oversampling factors the output rate segment offers, over the source's family base; 8x on 48 is the 384 kHz ceiling. */
-export const FACTORS = [2, 4, 8];
+/** The output rate segment's no-conversion value: output is the source, no filter. */
+export const NOS = "nos";
+/** Slowest and fastest output rate the segment offers, in Hz. */
+const FLOOR_HZ = 48000;
+const CEIL_HZ = 384000;
+/** Furthest the ladder is walked either way; three doublings covers every rate the graph offers. */
+const MAX_STEP = 3;
 
 // The transition band asked for, as a fraction of the cutoff Nyquist at each
 // end of the roll-off slider, geometric between them; the band narrows and
@@ -54,11 +59,71 @@ const DELAY_MASK_DB = -60;
 const QUIET = { spurs: false, fakeHires: false, risingNoise: false };
 
 /**
- * The base of a source rate's family: 44.1 for 44.1, 48 for 96 and 192.
- * @param {number} hz
+ * Every factor is read against the source rate the reader picked, never against
+ * the family base: 2x of 96 kHz is 192 kHz, and the same button at 44.1 kHz is
+ * 88.2. A negative factor divides, so the segment carries the decimating end of
+ * the chain as well, and the ladder is bounded at both ends: nothing slower than
+ * 48 kHz and nothing past the 384 kHz ceiling.
+ *
+ * A factor's rank is where it sits on that ladder in doublings, 0 being no
+ * conversion, so a rank survives a change of source rate even where the factor
+ * itself is not offered at the new one.
+ * @param {number | string} factor
  * @returns {number}
  */
-export const familyBase = (hz) => (hz % 44100 === 0 ? 44100 : 48000);
+const rankOf = (factor) => {
+  if (factor === NOS) return 0;
+  const f = Number(factor);
+  return f > 0 ? Math.log2(f) : -Math.log2(-f);
+};
+
+/**
+ * The factor at a rank on that ladder.
+ * @param {number} k
+ * @returns {number | string}
+ */
+const factorAtRank = (k) => (k === 0 ? NOS : k > 0 ? 2 ** k : -(2 ** -k));
+
+/**
+ * The output rate a factor produces at a source rate, or null for no conversion.
+ * @param {number} hz
+ * @param {number | string} factor
+ * @returns {number | null}
+ */
+export function outputRateFor(hz, factor) {
+  if (factor === NOS) return null;
+  const f = Number(factor);
+  return f > 0 ? hz * f : hz / -f;
+}
+
+/**
+ * The factors the output rate segment offers at a source rate, ascending by the
+ * rate they produce. No conversion is always offered; every other rung is in
+ * only where the rate it produces sits inside the ladder's bounds.
+ * @param {number} hz
+ * @returns {(number | string)[]}
+ */
+export function outputFactors(hz) {
+  /** @type {(number | string)[]} */
+  const out = [];
+  for (let k = -MAX_STEP; k <= MAX_STEP; k += 1) {
+    const f = factorAtRank(k);
+    const produced = outputRateFor(hz, f);
+    if (produced === null || (produced >= FLOOR_HZ && produced <= CEIL_HZ)) out.push(f);
+  }
+  return out;
+}
+
+/**
+ * The factor an output rate stands at over a source rate, as the segment reads it.
+ * @param {number} hz
+ * @param {number | null} out
+ * @returns {number | string}
+ */
+export function outputFactorOf(hz, out) {
+  if (out === null) return NOS;
+  return out >= hz ? Math.round(out / hz) : -Math.round(hz / out);
+}
 
 /** @type {Record<string, Row>} */
 const SHOW_ME = {
@@ -82,7 +147,7 @@ const SHOW_ME = {
   },
   "roll-off": {
     rate: 96000,
-    outputRate: 2 * 48000,
+    outputRate: 2 * 96000,
     phase: "linear",
     lengthMs: LENGTH_CHIPS.medium,
     rolloff: ROLLOFF_CHIPS.fast,
@@ -127,16 +192,19 @@ export function showMe(id) {
 }
 
 /**
- * Change the source rate, keeping the output rate at the same factor over the
- * new rate's family base (4x of 44.1 becomes 4x of 48).
+ * Change the source rate, holding the output rate at the same factor over the
+ * new source rate: 2x of 192 kHz stays 2x at 44.1. Where the held factor is off
+ * the new rate's ladder it lands on the nearest rung that rate offers.
  * @param {number} hz
  * @returns {void}
  */
 export function setRate(hz) {
-  const out = outputRate.value;
-  const factor = out === null ? null : Math.round(out / familyBase(rate.value));
+  const held = rankOf(outputFactorOf(rate.value, outputRate.value));
+  const offered = outputFactors(hz);
+  const lo = rankOf(offered[0]);
+  const hi = rankOf(offered[offered.length - 1]);
   rate.value = hz;
-  outputRate.value = factor === null ? null : factor * familyBase(hz);
+  outputRate.value = outputRateFor(hz, factorAtRank(Math.min(hi, Math.max(lo, held))));
 }
 
 /** No oversampling, or an output rate equal to the source (a ratio of one): the chain is identity. */

@@ -10,14 +10,16 @@
 import { html } from "../../lib/dom.js";
 import { Checkbox, Segment, SliderNumber } from "../controls/index.js";
 import {
-  FACTORS,
   LENGTH_CHIPS,
+  NOS,
   RATES,
   ROLLOFF_CHIPS,
   TRANSIENT_CHIPS,
   content,
-  familyBase,
   lengthMs,
+  outputFactorOf,
+  outputFactors,
+  outputRateFor,
   outputRate,
   phase,
   rate,
@@ -29,10 +31,15 @@ import {
 
 /** Below this source rate there is no band above 20 kHz for content to sit in. */
 const CONTENT_MIN_RATE = 96000;
-const NOS = "nos";
 
-const RATE_OPTIONS = RATES.map((hz) => ({ value: hz, label: `${hz / 1000}` }));
-const OUTPUT_OPTIONS = [{ value: NOS, label: "NOS" }, ...FACTORS.map((n) => ({ value: n, label: `${n}x` }))];
+const RATE_OPTIONS = RATES.map((hz) => ({ value: hz, label: `${hz / 1000}k` }));
+
+/**
+ * The output rate segment's options at a source rate. The factors are the
+ * source rate's own, so the segment is rebuilt as the rate changes.
+ * @param {number} hz
+ */
+const outputOptions = (hz) => outputFactors(hz).map((f) => ({ value: f, label: f === NOS ? "NOS" : `${f}x` }));
 const PHASE_OPTIONS = [
   { value: "linear", label: "Linear" },
   { value: "minimum", label: "Minimum" },
@@ -101,16 +108,15 @@ function SliderRow({ id, label, value, onSet, chips, min, max, step, boxStep, un
 }
 
 function OutputRateControl() {
-  const out = outputRate.value;
-  const value = out === null ? NOS : Math.round(out / familyBase(rate.value));
+  const hz = rate.value;
   return html`
     <div class="primer-control" data-control="output">
       <label class="t-label">Output rate</label>
       <${Segment}
-        value=${value}
-        options=${OUTPUT_OPTIONS}
+        value=${outputFactorOf(hz, outputRate.value)}
+        options=${outputOptions(hz)}
         onChange=${(/** @type {string | number} */ v) => {
-          outputRate.value = v === NOS ? null : Number(v) * familyBase(rate.value);
+          outputRate.value = outputRateFor(hz, v);
         }}
       />
     </div>
@@ -170,7 +176,7 @@ function Segments() {
   return html`
     <div class="primer-segments">
       <div class="primer-control" data-control="rate">
-        <label class="t-label">Rate</label>
+        <label class="t-label">Source rate (Hz)</label>
         <${Segment}
           value=${rate.value}
           options=${RATE_OPTIONS}
