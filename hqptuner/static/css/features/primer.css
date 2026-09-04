@@ -48,11 +48,13 @@
    wash and its images furthest back, then the result fill, then the Nyquist
    mark as a reference line over both, and the accent trace on top. The fill
    above the Nyquist mark is the leak, and it is the one thing painted in the
-   accent besides the traces. Its fill sits at the wash's own opacity and its
-   edge a step up the ladder, so the passband, where the two overlap, reads as
-   the wash seen through a tint under a curve rather than as one slab: a fill
-   opaque enough to be read as a layer of its own is opaque enough to hide the
-   source underneath it. */
+   accent besides the traces. In the passband the output is the music to a
+   hundredth of a decibel, so the two fills share one area, and accent over
+   muted at the same rung composited to a slab that buried the wash. The fill
+   therefore sits under the wash's rung, a third of it, so the music reads
+   first and the tint says only that the output covers it; the edge, a step up
+   the ladder, carries the output's shape, and where the cliff cuts, the wash
+   standing above the diving edge is the music the filter removed. */
 .primer-wash,
 .primer-images {
   fill: var(--muted);
@@ -69,7 +71,7 @@
 }
 .primer-leak {
   fill: var(--accent);
-  fill-opacity: var(--o-back);
+  fill-opacity: calc(var(--o-back) / 3);
 }
 /* The fill's edge is its own element, the curve alone: a stroke on the closed
    fill would also outline the floor, the left frame edge and the cutoff wall. */
