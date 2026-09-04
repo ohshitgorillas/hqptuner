@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate
+.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate md-trivia
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -95,6 +95,13 @@ test-js:
 	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js
 
 check: lint lint-js test test-js
+
+# Asks a model whether the markdown HEAD added narrates history instead of
+# stating what holds now. Needs a logged-in `claude` CLI and the network, so it
+# stays out of `check`, which is offline by contract; pre-commit runs it on
+# every markdown commit.
+md-trivia:
+	$(VENV)/python scripts/gates/check_md_trivia.py --head
 
 # Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs

@@ -58,6 +58,13 @@ repos:
         entry: .venv/bin/python scripts/gates/check_changelog.py
         language: system
         files: ^CHANGELOG\.md$
+      - id: md-trivia
+        name: markdown states what holds now (LLM judge)
+        entry: .venv/bin/python scripts/gates/check_md_trivia.py
+        language: system
+        files: \.md$
+        exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
+
       - id: single-assertion
         name: one assertion per test
         entry: .venv/bin/python scripts/gates/check_test_assertions.py
