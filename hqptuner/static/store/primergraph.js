@@ -374,8 +374,9 @@ const spectrumGrid = computed(() => {
  * The frequency pane's curves on a uniform grid from 0 to the axis top: the
  * source and its images (periodic in the source rate), the filter (periodic in
  * the design rate), the output stream (their product folded into the output
- * rate), and `aliasDb`, the source's own copies landing on each frequency,
- * unfiltered, read apart since a power sum buries them under the music.
+ * rate), and what the fold brings in, read apart since a power sum buries it
+ * under the music: `aliasDb` the source's copies landing on each frequency,
+ * unfiltered; `leakDb` what the output carries that the music did not put there.
  */
 export const spectrum = computed(() => {
   const fs = rate.value;
@@ -393,5 +394,7 @@ export const spectrum = computed(() => {
   const product = sourceDb.map((v, i) => v + filterDb[i]);
   const resultDb = foldSpectrumDb(product, freqsHz, designRate, out);
   const aliasDb = aliasSpectrumDb(sourceDb, freqsHz, fs, out);
-  return { freqsHz, sourceDb, filterDb, resultDb, aliasDb };
+  const survived = aliasSpectrumDb(product, freqsHz, designRate, out);
+  const leakDb = resultDb.map((v, i) => (freqsHz[i] > fs / 2 ? v : survived[i]));
+  return { freqsHz, sourceDb, filterDb, resultDb, aliasDb, leakDb };
 });

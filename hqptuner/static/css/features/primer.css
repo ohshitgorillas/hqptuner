@@ -61,18 +61,6 @@
 .primer-images {
   opacity: calc(var(--o-back) / 2);
 }
-/* Where decimation folds the source's top band down under the music, the copy
-   is drawn as the dashed ghost every other pane uses, its edge alone: a second
-   fill under the wash reads as a shading step, a line reads as "the copy would
-   land here". */
-.primer-images.primer-copy {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.8;
-  stroke-dasharray: 4 3;
-  vector-effect: non-scaling-stroke;
-  opacity: var(--o-fore);
-}
 .primer-nyquist {
   stroke: var(--muted);
   stroke-width: 0.8;
