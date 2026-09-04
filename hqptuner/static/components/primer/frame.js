@@ -17,7 +17,7 @@ export const PADR = 36;
 export const PADT = 24;
 export const AXIS_Y = 9;
 /** A name row's height, so a stack of them clears itself. */
-export const NAME_GAP = 11;
+const NAME_GAP = 11;
 /** The side of a legend swatch, and the gap between it and the word it marks. */
 const SWATCH = 6;
 const SWATCH_GAP = 4;
@@ -93,32 +93,36 @@ export function xAxis(w, marks, word) {
 }
 
 /**
- * A stack of names inside the plot, one row per line, each in its own trace's
- * style: the accent name in `applied`, a reference in `ghost`. A layer that is
- * a fill rather than a trace has no line for the eye to follow, so it may carry
- * a swatch, a small square in the fill's own class, on the anchor's side of the
- * word. Rows are given top down and the first row's y is `y`; a caller stacking
- * upward from a bottom edge computes that y from the row count.
+ * Names, each in its own trace's style: the accent name in `applied`, a
+ * reference in `ghost`. A layer that is a fill rather than a trace has no line
+ * for the eye to follow, so it may carry a swatch, a small square in its own
+ * colour, on the anchor's side of the word.
  *
- * Names are drawn last and carry their own halo (`primer-name`), so a row that
- * lands over a trace stays readable rather than being placed around one.
+ * Rows run down the page by default, one `NAME_GAP` apart, which is the shape a
+ * corner stack wants; a caller passing `dx` runs them across it instead, which
+ * is the shape a band above the plot wants. Every fill in these panes closes to
+ * the floor, so a stack placed inside the plot rectangle always lands on paint:
+ * names are drawn last and carry their own halo (`primer-name`) so they stay
+ * readable where they land, and a legend, which is a block rather than a label
+ * on a curve, is given a band of its own instead.
  *
  * @param {{ kind: string, text: string, layer?: string, mark?: string, trace?: string, swatch?: string }[]} rows
- * @param {{ x: number, y: number, anchor: string }} place
+ * @param {{ x: number, y: number, anchor: string, dx?: number }} place
  */
 export function cornerNames(rows, place) {
-  const { x, y, anchor } = place;
+  const { x, y, anchor, dx = 0 } = place;
   const back = anchor === "end";
   return rows.map((row, i) => {
-    const ry = y + i * NAME_GAP;
+    const rx = x + i * dx;
+    const ry = y + (dx ? 0 : i * NAME_GAP);
     const offset = row.swatch ? SWATCH + SWATCH_GAP : 0;
-    const tx = back ? x - offset : x + offset;
+    const tx = back ? rx - offset : rx + offset;
     return html`
       ${
         row.swatch
           ? html`<rect
             class=${`primer-swatch ${row.swatch}`}
-            x=${r1(back ? x - SWATCH : x)}
+            x=${r1(back ? rx - SWATCH : rx)}
             y=${r1(ry - SWATCH + 1)}
             width=${SWATCH}
             height=${SWATCH}

@@ -23,7 +23,6 @@ import {
   AXIS_Y,
   FULL_W as W,
   H,
-  NAME_GAP,
   PADR,
   PADT,
   PLOT_H,
@@ -59,15 +58,21 @@ const LAYERS = [
   { key: "leak", layer: "output", kind: "applied", swatch: "output", text: "Output" },
 ];
 /**
- * The legend stacks up from the plot's bottom left corner. Every other corner
- * carries a curve in some state: the passband runs along the top, and one
- * Nyquist mark always sits on the right frame edge. Low frequency at the bottom
- * of the dB axis is the one region no state paints.
+ * The legend gets a band of its own between the top band and the plot, and the
+ * plot gives up its height rather than the pane growing, so the bottom edge and
+ * its labels stay where the shared frame puts them. There is no clear space
+ * inside the plot to put it in: every fill closes to the floor, so a corner
+ * stack of four rows lands on the wash whichever corner it picks.
  */
-const LEGEND_X = PADL + 4;
-const LEGEND_BOTTOM = PADT + PLOT_H - 4;
-/** A mark's name sits at the top of its own dashed line, under the top band. */
-const MARK_Y = PADT + 10;
+const BAND = 15;
+const TOP = PADT + BAND;
+const PLOT_HH = PLOT_H - BAND;
+const LEGEND_X = PADL;
+const LEGEND_Y = PADT + 10;
+/** One legend entry's width: the longest of the four words plus its swatch. */
+const LEGEND_STEP = 92;
+/** A mark's name sits at the top of its own dashed line, under the legend band. */
+const MARK_Y = TOP + 10;
 /** A name this close to a frame edge is anchored to it rather than centred over it. */
 const MARK_EDGE = 40;
 
@@ -84,7 +89,7 @@ function frequency() {
   const out = outputRate.value;
   const columns = freqPx.value || PLOT_W;
   const xOf = (/** @type {number} */ f) => PADL + (f / top) * PLOT_W;
-  const yOf = (/** @type {number} */ db) => PADT + ((DB_MAX - clamp(db, DB_MIN, DB_MAX)) / (DB_MAX - DB_MIN)) * PLOT_H;
+  const yOf = (/** @type {number} */ db) => TOP + ((DB_MAX - clamp(db, DB_MIN, DB_MAX)) / (DB_MAX - DB_MIN)) * PLOT_HH;
   const pt = (/** @type {number} */ i, /** @type {number} */ db) => `${r1(xOf(freqsHz[i]))},${r1(yOf(db))}`;
   const drawn = (/** @type {Float64Array} */ at, /** @type {number} */ from, /** @type {number} */ to) =>
     peakColumns(at, from, to, columns);
@@ -152,7 +157,7 @@ export function FrequencyPane() {
         ${marks.map(({ mark, x, hz }) => {
           const sx = r1(x);
           return html`
-            <line class="primer-nyquist" data-mark=${mark} x1=${sx} y1=${PADT} x2=${sx} y2=${PADT + PLOT_H} />
+            <line class="primer-nyquist" data-mark=${mark} x1=${sx} y1=${TOP} x2=${sx} y2=${TOP + PLOT_HH} />
             <text class="plot-lbl plot-axis" x=${sx} y=${AXIS_Y} text-anchor="middle">${fmtKhz(hz)}k</text>
           `;
         })}
@@ -161,7 +166,7 @@ export function FrequencyPane() {
         ${marks.map(({ mark, x, name }) =>
           cornerNames([{ kind: "ghost", mark, text: name }], { x, y: MARK_Y, anchor: markAnchor(x) }),
         )}
-        ${cornerNames(rows, { x: LEGEND_X, y: LEGEND_BOTTOM - (rows.length - 1) * NAME_GAP, anchor: "start" })}
+        ${cornerNames(rows, { x: LEGEND_X, y: LEGEND_Y, anchor: "start", dx: LEGEND_STEP })}
       </svg>
     </div>
   `;
