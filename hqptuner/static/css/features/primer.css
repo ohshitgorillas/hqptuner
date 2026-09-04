@@ -131,6 +131,19 @@
 .primer-control .range-wrap {
   max-width: none;
 }
+/* A control's name takes the muted treatment the crossfeed card gives the same
+   widget's rows (.xfs-label): these are instrument rows, not form fields. */
+.primer-control > .t-label {
+  color: var(--muted);
+}
+/* The snap chips are a shorthand for the track above them, not a control in
+   their own right, so they sit a tier under the segments row that picks rate and
+   phase: same scoped treatment .seg-stack and .seg-box give a segment whose
+   place in the layout is not the page's master switch. */
+.primer-chips .segment .seg {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-label);
+}
 .primer-toggles {
   display: flex;
   flex-wrap: wrap;
@@ -141,26 +154,30 @@
   align-items: center;
   gap: var(--sp-2);
 }
-/* The readouts: a content-sized grid of key and value pairs, keys secondary,
-   values in the mono value role. */
+/* The readouts: key and value pairs, keys secondary, values in the mono value
+   role. A WRAPPING row of pairs, not one grid over all of them: `auto-flow:
+   column` forced every reading onto a single line whatever the width, so the
+   row's min-content was the sum of seven columns and it measured 381px inside a
+   272px card at 320px wide, values wrapping mid-unit. Each pair now stacks its
+   own key over its own value and the row wraps between pairs. */
 .primer-readouts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, max-content));
-  grid-auto-flow: column;
-  column-gap: var(--sp-4);
-  row-gap: var(--sp-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
   margin: 0;
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--line);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+.primer-readout {
+  display: grid;
+  gap: var(--sp-1);
 }
 .primer-readouts dt {
-  grid-row: 1;
   font-family: var(--font-ui);
   font-size: var(--fs-caption);
   color: var(--fg-2);
 }
 .primer-readouts dd {
-  grid-row: 2;
   margin: 0;
 }
 /* The prose below the graph, at the reading measure. */
