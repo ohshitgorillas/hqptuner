@@ -173,7 +173,10 @@ test("test_upsampled_result_puts_the_first_image_far_below_the_content", () => {
   const { freqsHz, resultDb } = spectrum.value;
   const music = levelAt(resultDb, freqsHz, 20000);
   const image = levelAt(resultDb, freqsHz, 24100);
-  assert.ok(music - image > 40, `expected 20 kHz (${music}) to exceed its 24.1 kHz image (${image}) by more than 40 dB`);
+  assert.ok(
+    music - image > 40,
+    `expected 20 kHz (${music}) to exceed its 24.1 kHz image (${image}) by more than 40 dB`,
+  );
 });
 
 // Line 3. the fattest transient chip still rings above the readout floor at the
