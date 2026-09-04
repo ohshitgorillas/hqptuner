@@ -13,6 +13,13 @@ import { fftRadix2, ifftRadix2 } from "./fft.js";
  * window shape stays put and length buys transition width instead (§1.5).
  */
 const ATTENUATION_CAP_DB = 120;
+/**
+ * Floor on the attenuation a design is given: where the Kaiser shape parameter
+ * reaches zero (math §1.3, §1.4). Under it every design is the same rectangular
+ * window, so the deficit in length widens the band instead, the mirror of the
+ * cap. Pinned against scipy in tests/support/fixtures/kaiser-oracle.json.
+ */
+const ATTENUATION_FLOOR_DB = 21;
 /** How far under the peak bin the cepstral conversion floors the magnitude. */
 const CEPSTRUM_FLOOR_DB = -160;
 // The cepstral FFT: sixteen times the taps between a floor and a ceiling. With
@@ -111,10 +118,11 @@ export function kaiserAttenuation(taps, widthHz, rate) {
 /**
  * The point a Kaiser design of `taps` taps lands on when asked for a
  * transition band `widthHz` wide at `rate`: the attenuation the relation
- * predicts, capped at ATTENUATION_CAP_DB, and the band the design then has.
- * Below the cap the band is the one asked for; at the cap the window shape
- * is fixed and the surplus length narrows the band instead, by the inverse
- * of the same relation. An even `taps` is rounded up as `designLowpass` does.
+ * predicts, held between ATTENUATION_FLOOR_DB and ATTENUATION_CAP_DB, and the
+ * band the design then has. Between the two the band is the one asked for;
+ * at either the window shape is fixed and the length sets the band instead,
+ * by the inverse of the same relation: surplus narrows it at the cap, deficit
+ * widens it at the floor. An even `taps` is rounded up as `designLowpass` does.
  * @param {number} taps
  * @param {number} widthHz
  * @param {number} rate
@@ -122,7 +130,7 @@ export function kaiserAttenuation(taps, widthHz, rate) {
  */
 export function designPoint(taps, widthHz, rate) {
   const n = oddTaps(taps);
-  const attenDb = Math.min(ATTENUATION_CAP_DB, kaiserAttenuation(n, widthHz, rate));
+  const attenDb = Math.min(ATTENUATION_CAP_DB, Math.max(ATTENUATION_FLOOR_DB, kaiserAttenuation(n, widthHz, rate)));
   return { attenDb, widthHz: ((attenDb - 7.95) / (2.285 * (n - 1) * Math.PI)) * (rate / 2) };
 }
 
