@@ -23,11 +23,12 @@
 // level drop it is instead of filling the frame, and each trace carries its own
 // name in the plot's top corner. Where the design is the identity the output is
 // the input's own array and one name is drawn, not two on the same pixels.
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { traceColumns } from "../../lib/dsp/render.js";
 import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primergraph.js";
 import { HALF_W as W, H, PADR, PADT, PLOT_H, fmt3, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
+import { useMeasuredPlot } from "./measure.js";
 
 const PADL = 30;
 const PLOT_W = W - PADL - PADR;
@@ -136,33 +137,6 @@ function impulse() {
 }
 
 /**
- * Report the plot rectangle's rendered width, in CSS pixels, for as long as the
- * pane is mounted, and again whenever the layout moves it. The SVG scales its
- * viewBox to whatever width the card gives it, so the drawing's own units say
- * nothing about how many pixels the trace has to live in; only the laid out
- * element does. A render with no layout behind it leaves the figure at zero and
- * the pane falls back to its viewBox width.
- * @param {{ current: SVGSVGElement | null }} ref
- * @returns {void}
- */
-function useMeasuredPlot(ref) {
-  useEffect(() => {
-    const svg = ref.current;
-    if (!svg || typeof ResizeObserver !== "function") return undefined;
-    const ro = new ResizeObserver((entries) => {
-      const box = entries[0];
-      if (!box) return;
-      plotPx.value = Math.round(box.contentRect.width * (PLOT_W / W));
-    });
-    ro.observe(svg);
-    return () => {
-      ro.disconnect();
-      plotPx.value = 0;
-    };
-  }, [ref]);
-}
-
-/**
  * The trace names, top down. The output is named in every state; the input only
  * where it is a second curve, since where the design is the identity the two are
  * one array and two names would sit on the same pixels claiming two traces.
@@ -181,7 +155,7 @@ function names(identity) {
 /** The impulse pane: the filtered output as the accent trace, the input's dashed ghost over it. */
 export function ImpulsePane() {
   const svg = useRef(/** @type {SVGSVGElement | null} */ (null));
-  useMeasuredPlot(svg);
+  useMeasuredPlot(svg, plotPx, PLOT_W / W);
   const { out, ghost, cx, cy, marks, yMarks, identity } = impulse();
   return html`
     <div class="plot" data-pane="impulse">
