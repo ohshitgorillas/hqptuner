@@ -104,12 +104,17 @@ function frequency() {
   // decimates, the grid holds no frequency above it and the image band is empty.
   const above = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
   const half = above < 0 ? freqsHz.length : above;
+  // Above the output's Nyquist the fold repeats the band below it, so the
+  // result fill stops there: what it would draw past the mark is a copy of what
+  // it already drew, and no stream carries it.
+  const pastOut = freqsHz.findIndex((/** @type {number} */ f) => f > (out ?? fs) / 2);
+  const carried = pastOut < 0 ? freqsHz.length : pastOut;
   const step = niceStep(top / 1000 / FREQ_TICKS) * 1000;
   const identity = out === null || out === fs;
   return {
     wash: filled(sourceDb, 0, half),
     images: filled(sourceDb, half, freqsHz.length),
-    leak: identity ? null : filled(resultDb, 0, freqsHz.length),
+    leak: identity ? null : filled(resultDb, 0, carried),
     filter:
       out === null
         ? null
