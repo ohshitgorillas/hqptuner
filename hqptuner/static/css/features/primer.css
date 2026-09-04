@@ -75,6 +75,30 @@
   stroke-width: 0.8;
 }
 
+/* Layer names, and the legend's swatches. A name is drawn after everything it
+   names, so it carries the halo the drag readout uses and stays readable where
+   it lands over a trace rather than being placed around one. A swatch takes its
+   layer's colour but not its opacity: a fill spread across the plot reads at an
+   opacity a six-unit square would disappear at, so the pair keeps the ordering
+   the fills have, images under music, one rung higher. */
+.primer-name {
+  paint-order: stroke;
+  stroke: var(--surface-card);
+  stroke-width: 3px;
+}
+.primer-swatch.music,
+.primer-swatch.images {
+  fill: var(--muted);
+  opacity: var(--o-mid);
+}
+.primer-swatch.images {
+  opacity: calc(var(--o-mid) / 2);
+}
+.primer-swatch.output {
+  fill: var(--accent);
+  opacity: var(--o-mid);
+}
+
 /* The graph block: the panes, then the controls beneath them, spaced by the
    card body's field rhythm. Both rows take the card's width: a grid row's
    automatic minimum is its min-content, so without this the readouts row, which

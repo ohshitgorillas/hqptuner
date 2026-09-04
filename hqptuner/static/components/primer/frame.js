@@ -16,6 +16,11 @@ export const PADR = 36;
 /** Top band: the y-axis unit word's own row, one text height clear of the first tick label. */
 export const PADT = 24;
 export const AXIS_Y = 9;
+/** A name row's height, so a stack of them clears itself. */
+export const NAME_GAP = 11;
+/** The side of a legend swatch, and the gap between it and the word it marks. */
+const SWATCH = 6;
+const SWATCH_GAP = 4;
 const PADB = 20;
 export const PLOT_H = H - PADT - PADB;
 /** Baseline of the tick labels and the unit word along the bottom edge. */
@@ -85,6 +90,54 @@ export function xAxis(w, marks, word) {
     )}
     <text class="plot-lbl plot-axis" x=${w - PADR + 12} y=${LABEL_Y}>${word}</text>
   `;
+}
+
+/**
+ * A stack of names inside the plot, one row per line, each in its own trace's
+ * style: the accent name in `applied`, a reference in `ghost`. A layer that is
+ * a fill rather than a trace has no line for the eye to follow, so it may carry
+ * a swatch, a small square in the fill's own class, on the anchor's side of the
+ * word. Rows are given top down and the first row's y is `y`; a caller stacking
+ * upward from a bottom edge computes that y from the row count.
+ *
+ * Names are drawn last and carry their own halo (`primer-name`), so a row that
+ * lands over a trace stays readable rather than being placed around one.
+ *
+ * @param {{ kind: string, text: string, layer?: string, mark?: string, trace?: string, swatch?: string }[]} rows
+ * @param {{ x: number, y: number, anchor: string }} place
+ */
+export function cornerNames(rows, place) {
+  const { x, y, anchor } = place;
+  const back = anchor === "end";
+  return rows.map((row, i) => {
+    const ry = y + i * NAME_GAP;
+    const offset = row.swatch ? SWATCH + SWATCH_GAP : 0;
+    const tx = back ? x - offset : x + offset;
+    return html`
+      ${
+        row.swatch
+          ? html`<rect
+            class=${`primer-swatch ${row.swatch}`}
+            x=${r1(back ? x - SWATCH : x)}
+            y=${r1(ry - SWATCH + 1)}
+            width=${SWATCH}
+            height=${SWATCH}
+          />`
+          : null
+      }
+      <text
+        class=${`plot-tlbl primer-name ${row.kind}`}
+        data-layer=${row.layer}
+        data-mark=${row.mark}
+        data-trace=${row.trace}
+        x=${r1(tx)}
+        y=${r1(ry)}
+        text-anchor=${anchor}
+      >
+        ${row.text}
+      </text>
+    `;
+  });
 }
 
 /**
