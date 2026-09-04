@@ -32,10 +32,13 @@ Usage:
   HEAD added (Makefile)
 * ``python scripts/gates/check_md_trivia.py --lines FILE [--out FILE]`` judges
   ``path:line<TAB>text`` records from a file, for calibration
-* ``python scripts/gates/check_md_trivia.py --hook`` reads a PostToolUse payload
-  on stdin and judges what the edit added to the working tree: the diff against
-  HEAD for a tracked file, every line for an untracked one. Exit 2 on a flag,
-  so a doc an agent edits meets the judge at the edit and not only at commit.
+* ``python scripts/gates/check_md_trivia.py --stop`` reads a Stop or SubagentStop
+  payload on stdin and judges every markdown line the working tree adds: the
+  diff against HEAD for tracked files, every line of an untracked one. Exit 2
+  on a flag, which keeps the turn open until the prose is fixed, once: a
+  payload with ``stop_hook_active`` set has already been through this and
+  passes without a call. One call per turn, not one per edit: a call costs
+  around fifteen seconds of CLI start-up whatever it carries.
 """
 
 from __future__ import annotations
@@ -195,18 +198,13 @@ def from_records(path: Path) -> list[Line]:
     return out
 
 
-def worktree_lines(target: str) -> list[Line]:
-    """Collect what the working tree adds at ``target``: diff against HEAD, or every line if untracked."""
-    path = Path(target)
-    if not path.is_absolute():
-        path = ROOT / path
-    if path.suffix.lower() != ".md" or not path.is_file() or not path.is_relative_to(ROOT):
-        return []
-    rel = path.relative_to(ROOT).as_posix()
-    if git("ls-files", "--", rel).strip():
-        return added_lines(git_diff("HEAD", "--", rel))
-    text = path.read_text(encoding="utf-8").splitlines()
-    return [Line(rel, number, line) for number, line in enumerate(text, start=1)]
+def worktree_lines() -> list[Line]:
+    """Collect every markdown line the working tree adds: diffs against HEAD, plus untracked files whole."""
+    out = added_lines(git_diff("HEAD", "--", "*.md"))
+    for rel in git("ls-files", "--others", "--exclude-standard", "--", "*.md").split():
+        text = (ROOT / rel).read_text(encoding="utf-8").splitlines()
+        out.extend(Line(rel, number, line) for number, line in enumerate(text, start=1))
+    return out
 
 
 def ask(lines: list[Line]) -> list[dict[str, str]]:
@@ -256,19 +254,19 @@ def report(lines: list[Line], flags: list[dict[str, str]], out: TextIO) -> bool:
     return bool(flags)
 
 
-def hook_target() -> str:
-    """Read the file a PostToolUse payload on stdin names, or empty when there is none."""
+def stop_already_ran() -> bool:
+    """Read whether the Stop payload on stdin says this hook has already blocked this turn."""
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        return ""
-    return str((payload.get("tool_input") or {}).get("file_path") or "")
+        return False
+    return bool(payload.get("stop_hook_active"))
 
 
 def collect(args: argparse.Namespace) -> list[Line]:
     """Lines to judge, from whichever input mode the arguments name."""
-    if args.hook:
-        return prose_only(worktree_lines(hook_target()))
+    if args.stop:
+        return [] if stop_already_ran() else prose_only(worktree_lines())
     if args.lines:
         return prose_only(from_records(Path(args.lines)))
     if args.head:
@@ -283,16 +281,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("files", nargs="*", help="staged markdown files (pre-commit)")
     parser.add_argument("--head", action="store_true", help="judge the markdown HEAD added")
-    parser.add_argument("--hook", action="store_true", help="judge the file a PostToolUse payload on stdin names")
+    parser.add_argument("--stop", action="store_true", help="judge the working tree; reads a Stop payload on stdin")
     parser.add_argument("--lines", help="calibration records, path:line<TAB>text")
     parser.add_argument("--out", help="write the judge's raw answer here")
     args = parser.parse_args()
-    fail = 2 if args.hook else 1
-    out = sys.stderr if args.hook else sys.stdout
+    fail = 2 if args.stop else 1
+    out = sys.stderr if args.stop else sys.stdout
 
     lines = collect(args)
     if not lines:
-        if not args.hook:
+        if not args.stop:
             print("[ok] no markdown prose added")
         return 0
     try:

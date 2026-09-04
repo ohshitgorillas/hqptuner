@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """PreToolUse hook: markdown is written with Write/Edit, never from the shell.
 
-The markdown gates hang off the Write/Edit tools: md-softwrap.py, changelog-style.py
-and `check_md_trivia.py --hook` all read a PostToolUse payload naming the file.
-A `sed -i`, a `>` redirect, a heredoc or a script that lands prose in a `.md`
-file fires none of them, and the doc meets its first gate at commit, or never
-if it stays untracked. Wired session-wide, so it binds every agent and
-subagent without anyone being reminded.
+The soft-wrap and changelog-style gates hang off the Write/Edit tools:
+md-softwrap.py and changelog-style.py read a PostToolUse payload naming the
+file. A `sed -i`, a `>` redirect, a heredoc or a script that lands prose in a
+`.md` file fires neither, and the doc meets its first gate at commit, or never
+if it stays untracked. (The trivia judge is the exception: it runs at Stop over
+the whole working tree and sees shell writes too.) Wired session-wide, so it
+binds every agent and subagent without anyone being reminded.
 
 Blocked: a Bash command that meters under free_bash.py and names a `.md` path
 outside quotes. Read-only commands (`cat`, `grep`, `sed -n`, `diff`) are free
@@ -36,9 +37,9 @@ EXEMPT_HEADS = {"git", "rm", "make", "pre-commit"}
 EXEMPT_SCRIPTS = ("scripts/gates/", "md-softwrap.py")
 
 _WHY = (
-    "Markdown is written with the Write or Edit tool, never from the shell. The markdown "
-    "gates (soft-wrap, changelog style, the trivia judge) run from those tools' PostToolUse "
-    "payload; a shell write to a .md file skips all three. Make the edit with Write or Edit."
+    "Markdown is written with the Write or Edit tool, never from the shell. The soft-wrap "
+    "and changelog-style gates run from those tools' PostToolUse payload; a shell write to "
+    "a .md file skips both. Make the edit with Write or Edit."
 )
 
 
