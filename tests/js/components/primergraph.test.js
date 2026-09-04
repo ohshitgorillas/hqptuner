@@ -213,10 +213,23 @@ function delayTraceStartY(want) {
   return first[1];
 }
 
-// The delay pane paints the selected phase as the accent trace and the other
-// as the ghost: with minimum phase selected the applied trace starts lower on
-// the milliseconds axis (larger y) than the ghost; with linear selected the
-// order reverses.
+/**
+ * Which phase the delay pane's accent name is marked for: the `data-trace`
+ * value of the `text.plot-tlbl` name carrying `applied`. The word inside the
+ * name is copy; the marking is contract (docs/testing.md rule 9).
+ *
+ * @returns {string | undefined}
+ */
+function appliedTraceName() {
+  const names = inside(pane("delay"), "text", ["plot-tlbl", "applied"]).map((el) => attr(el, "data-trace"));
+  if (names.length !== 1) throw new Error(`the delay pane carries ${names.length} applied trace names`);
+  return names[0];
+}
+
+// The delay pane paints the selected phase as the accent trace and names both
+// phases: with minimum phase selected the applied trace starts lower on the
+// milliseconds axis (larger y) than the ghost and the accent name is the one
+// marked `minimum`; with linear selected both readings reverse.
 
 test("test_delay_pane_paints_the_selected_phase_as_the_applied_trace", () => {
   baseline();
@@ -225,7 +238,10 @@ test("test_delay_pane_paints_the_selected_phase_as_the_applied_trace", () => {
   lengthMs.value = 8;
   const sweep = ["minimum", "linear"].map((p) => {
     phase.value = p;
-    return delayTraceStartY(["applied"]) > delayTraceStartY(["ghost"]);
+    return [delayTraceStartY(["applied"]) > delayTraceStartY(["ghost"]), appliedTraceName()];
   });
-  assert.deepEqual(sweep, [true, false]);
+  assert.deepEqual(sweep, [
+    [true, "minimum"],
+    [false, "linear"],
+  ]);
 });
