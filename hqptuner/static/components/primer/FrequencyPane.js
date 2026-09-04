@@ -18,7 +18,7 @@ import { useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
 import { peakColumns } from "../../lib/dsp/render.js";
-import { axisHz, freqPx, outputRate, rate, spectrum } from "../../store/primergraph.js";
+import { axisHz, freqPx, noFilter, outputRate, rate, spectrum } from "../../store/primergraph.js";
 import {
   AXIS_Y,
   FULL_W as W,
@@ -110,22 +110,23 @@ function frequency() {
   const pastOut = freqsHz.findIndex((/** @type {number} */ f) => f > (out ?? fs) / 2);
   const carried = pastOut < 0 ? freqsHz.length : pastOut;
   const step = niceStep(top / 1000 / FREQ_TICKS) * 1000;
-  const identity = out === null || out === fs;
+  // The store's one identity rule, no oversampling or a ratio of one: no
+  // filter, no output stream, and no second Nyquist mark.
+  const identity = noFilter.value;
   return {
     wash: filled(sourceDb, 0, half),
     images: filled(sourceDb, half, freqsHz.length),
     leak: identity ? null : filled(resultDb, 0, carried),
-    filter:
-      out === null
-        ? null
-        : drawn(filterDb, 0, freqsHz.length)
-            .map((i) => pt(i, filterDb[i]))
-            .join(" "),
+    filter: identity
+      ? null
+      : drawn(filterDb, 0, freqsHz.length)
+          .map((i) => pt(i, filterDb[i]))
+          .join(" "),
     xMarks: ticks(step, top, step).map((f) => ({ x: xOf(f), label: fmtKhz(f) })),
     yMarks: ticks(0, -DB_MIN, DB_STEP).map((db) => ({ y: yOf(-db), label: `${-db}` })),
     marks: [
       { mark: "source", x: xOf(fs / 2), hz: fs / 2, name: "Source Nyquist" },
-      ...(out !== null && out !== fs ? [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }] : []),
+      ...(identity || out === null ? [] : [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }]),
     ],
   };
 }

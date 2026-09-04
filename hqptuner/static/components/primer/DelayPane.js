@@ -6,7 +6,7 @@
 // blanked by the store, and the pen lifts across it.
 import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
-import { delay, phase } from "../../store/primergraph.js";
+import { delay, noFilter, phase } from "../../store/primergraph.js";
 import {
   HALF_W as W,
   H,
@@ -95,10 +95,16 @@ function curves() {
   };
 }
 
-/** The delay pane: both phases' group delay, the selected one as the accent trace. */
+/**
+ * The delay pane: both phases' group delay, the selected one as the accent
+ * trace. Where the chain is the identity the unit tap has no phase to choose,
+ * both curves are the same flat line on 0 ms, and two traces named for two
+ * phases would claim a comparison that does not exist: one trace, no names.
+ */
 export function DelayPane() {
   const { linear, minimum, xMarks, yMarks } = curves();
   const minimumSelected = phase.value === "minimum";
+  const identity = noFilter.value;
   return html`
     <div class="plot" data-pane="delay">
       <div class="t-label">Delay</div>
@@ -106,9 +112,9 @@ export function DelayPane() {
         ${yMarks.map((m) => html`<line class="plot-grid" x1=${PADL} y1=${r1(m.y)} x2=${W - PADR} y2=${r1(m.y)} />`)}
         ${yAxis(PADL, yMarks, "ms")}
         ${xAxis(W, xMarks, "kHz")}
-        <path class="plot-trace ghost" d=${minimumSelected ? linear : minimum} />
+        ${identity ? null : html`<path class="plot-trace ghost" d=${minimumSelected ? linear : minimum} />`}
         <path class="plot-trace applied" d=${minimumSelected ? minimum : linear} />
-        ${cornerNames(names(minimumSelected), NAMES)}
+        ${identity ? null : cornerNames(names(minimumSelected), NAMES)}
       </svg>
     </div>
   `;

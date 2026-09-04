@@ -207,8 +207,11 @@ export function setRate(hz) {
   outputRate.value = outputRateFor(hz, factorAtRank(Math.min(hi, Math.max(lo, held))));
 }
 
-/** No oversampling, or an output rate equal to the source (a ratio of one): the chain is identity. */
-const noFilter = computed(() => outputRate.value === null || outputRate.value === rate.value);
+/**
+ * No oversampling, or an output rate equal to the source (a ratio of one): the
+ * chain is the identity, a single unit tap, and the panes draw no filter.
+ */
+export const noFilter = computed(() => outputRate.value === null || outputRate.value === rate.value);
 
 /**
  * Top of the frequency axis: the Nyquist of the faster of the two streams,
