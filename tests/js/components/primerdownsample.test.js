@@ -28,9 +28,8 @@ import assert from "node:assert/strict";
 const { render } = await import("preact-render-to-string");
 const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../hqptuner/static/components/primer/Graph.js");
-const { rate, outputRate, phase, lengthMs, rolloff, showMe } = await import(
-  "../../../hqptuner/static/store/primergraph.js"
-);
+const { rate, outputRate, phase, lengthMs, rolloff, showMe } =
+  await import("../../../hqptuner/static/store/primergraph.js");
 const { elements, classes, attr, text } = await import("../support/markup.js");
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
