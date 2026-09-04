@@ -17,8 +17,6 @@
 //     the default `text-anchor="middle"`; the amplitude labels down the left
 //     gutter are anchored `end`. That anchor is what separates the two axes
 //     here, the delay pane's frequency marks naming no anchor of their own.
-//   - The output stream's fill is `path.primer-leak`, whose `d` is a move/line
-//     list of absolute `x,y` pairs.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/primerdownsample.test.js
 
@@ -76,23 +74,6 @@ function delayFrequencyLabels() {
   return labels.map(text);
 }
 
-/**
- * The largest x the output stream's fill reaches.
- *
- * @returns {number}
- */
-function leakRightX() {
-  const [leak] = pane("frequency").filter((el) => el.name === "path" && has(el, "primer-leak"));
-  if (!leak) throw new Error("the frequency pane lacks an output fill");
-  const xs = (attr(leak, "d") || "")
-    .replace(/[MLZ]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t !== "")
-    .map((pair) => Number(pair.split(",")[0]));
-  if (xs.length === 0 || xs.some((v) => !Number.isFinite(v))) throw new Error("the output fill carries no x,y pairs");
-  return Math.max(...xs);
-}
-
 /** The inputs every case fixes unless it names them. */
 function baseline() {
   phase.value = "linear";
@@ -121,23 +102,4 @@ test("test_delay_frequency_axis_follows_the_slower_of_the_two_rates", () => {
     ["5", "10", "15", "20"],
     ["10", "20", "30", "40"],
   ]);
-});
-
-// 2. The output stream's fill stops at the output Nyquist, because above it the
-// fold repeats the band below and no stream carries anything. At 192 kHz in and
-// 48 kHz out that is x 213.5, and at 96 kHz in and 192 kHz out, where the output
-// Nyquist is the axis top, it is the plot's right edge at x 764. A fill drawn
-// across the whole grid reaches 764 in both.
-
-test("test_output_fill_stops_at_the_output_nyquist", () => {
-  baseline();
-  const sweep = [
-    [192000, 48000],
-    [96000, 192000],
-  ].map(([source, out]) => {
-    rate.value = source;
-    outputRate.value = out;
-    return leakRightX();
-  });
-  assert.deepEqual(sweep, [213.5, 764]);
 });

@@ -83,10 +83,10 @@ function baseline() {
 // --- the cases ------------------------------------------------------------------
 
 // 1. The legend names exactly the layers the pane draws, so it shrinks with the
-// chain: upsampling and downsampling name all four, the copies sitting above
-// source Nyquist in the one and folded under the music in the other, and no
-// oversampling at all leaves only the source and its images. A fixed four-row
-// legend names a filter and an output stream at NOS where neither is drawn.
+// chain: upsampling names all four, downsampling drops the output, whose copies
+// fold under the music and are named as images, and no oversampling at all
+// leaves only the source and its images. A fixed four-row legend names a filter
+// and an output stream at NOS where neither is drawn.
 
 test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
   baseline();
@@ -104,16 +104,17 @@ test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
   });
   assert.deepEqual(sweep, [
     ["filter", "images", "music", "output"],
-    ["filter", "images", "music", "output"],
-    ["filter", "images", "music", "output"],
+    ["filter", "images", "music"],
+    ["filter", "images", "music"],
     ["images", "music"],
     ["images", "music"],
   ]);
 });
 
-// 2. Each Nyquist mark carries its own name, so a reader can tell the source
-// limit from the output limit: two names when the chain oversamples, one when
-// it does not. A single shared name for the pair reads the same in both states.
+// 2. Each mark carries its own name, so a reader can tell the source limit from
+// the output limit and both from the ear's: three names when the chain
+// oversamples, two when it does not. A single shared name for the Nyquist pair
+// reads the same in both states.
 
 test("test_each_nyquist_mark_carries_its_own_name", () => {
   baseline();
@@ -122,5 +123,8 @@ test("test_each_nyquist_mark_carries_its_own_name", () => {
     outputRate.value = out;
     return namedBy("data-mark");
   });
-  assert.deepEqual(sweep, [["output", "source"], ["source"]]);
+  assert.deepEqual(sweep, [
+    ["audible", "output", "source"],
+    ["audible", "source"],
+  ]);
 });
