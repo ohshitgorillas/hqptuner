@@ -93,13 +93,18 @@ function frequency() {
   const pt = (/** @type {number} */ i, /** @type {number} */ db) => `${r1(xOf(freqsHz[i]))},${r1(yOf(db))}`;
   const drawn = (/** @type {Float64Array} */ at, /** @type {number} */ from, /** @type {number} */ to) =>
     peakColumns(at, from, to, columns);
+  // A fill closes to the floor at its two ends; its edge is the curve alone,
+  // the same vertices without the two feet, so a stroke on it never outlines
+  // the floor or the frame edge.
   const filled = (/** @type {Float64Array} */ at, /** @type {number} */ from, /** @type {number} */ to) => {
     const keep = drawn(at, from, to);
     if (keep.length === 0) return null;
     const pts = keep.map((i) => pt(i, at[i]));
     const foot = (/** @type {number} */ i) => `${r1(xOf(freqsHz[i]))},${r1(yOf(DB_MIN))}`;
-    return `M${foot(keep[0])} L${pts.join(" L")} L${foot(keep[keep.length - 1])} Z`;
+    return { fill: `M${foot(keep[0])} L${pts.join(" L")} L${foot(keep[keep.length - 1])} Z`, edge: pts.join(" ") };
   };
+  const fillOf = (/** @type {Float64Array} */ at, /** @type {number} */ from, /** @type {number} */ to) =>
+    filled(at, from, to)?.fill ?? null;
   // Where the axis stops at the source's own Nyquist, as it does when the chain
   // decimates, the grid holds no frequency above it and the image band is empty.
   const above = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
@@ -114,8 +119,8 @@ function frequency() {
   // filter, no output stream, and no second Nyquist mark.
   const identity = noFilter.value;
   return {
-    wash: filled(sourceDb, 0, half),
-    images: filled(sourceDb, half, freqsHz.length),
+    wash: fillOf(sourceDb, 0, half),
+    images: fillOf(sourceDb, half, freqsHz.length),
     leak: identity ? null : filled(resultDb, 0, carried),
     filter: identity
       ? null
@@ -134,7 +139,7 @@ function frequency() {
 /**
  * The rows the legend carries in this state: one per layer the pane drew, in
  * painting order.
- * @param {Record<string, string | null>} drawn
+ * @param {Record<string, unknown>} drawn
  */
 const legend = (drawn) => LAYERS.filter(({ key }) => drawn[key] !== null);
 
@@ -159,7 +164,7 @@ export function FrequencyPane() {
         ${yAxis(PADL, yMarks, "dB")}
         ${wash ? html`<path class="primer-wash" d=${wash} />` : null}
         ${images ? html`<path class="primer-images" d=${images} />` : null}
-        ${leak ? html`<path class="primer-leak" d=${leak} />` : null}
+        ${leak ? html`<path class="primer-leak" d=${leak.fill} /><polyline class="primer-leak-edge" points=${leak.edge} />` : null}
         ${marks.map(({ mark, x, hz }) => {
           const sx = r1(x);
           return html`

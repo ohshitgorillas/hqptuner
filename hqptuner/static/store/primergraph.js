@@ -349,15 +349,16 @@ export const readouts = computed(() => {
  * rate, so lobe spacing follows Length and nothing else, while the pixel floor
  * follows the window and nothing else; the grid takes whichever is denser, and
  * before the page has measured anything there is no floor to take. The
- * interval count is even, which puts both the axis top and the
+ * interval count rounds up to a power of two, which puts the axis top and the
  * source rate on grid points, so an alias reading lands on a sample instead of
- * between two.
+ * between two, and puts every grid point on a bin of the magnitude reading's
+ * FFT, so the filter's level is read exactly rather than chorded between bins.
  */
 const spectrumGrid = computed(() => {
   const lobeHz = 1000 / lengthMs.value;
   const perLobe = Math.ceil((axisHz.value * POINTS_PER_LOBE) / lobeHz);
-  const wanted = Math.max(perLobe, POINTS_PER_PIXEL * freqPx.value);
-  const intervals = wanted + (wanted % 2);
+  const wanted = Math.max(2, perLobe, POINTS_PER_PIXEL * freqPx.value);
+  const intervals = 1 << Math.ceil(Math.log2(wanted));
   /** @type {number[]} */
   const grid = Array.from({ length: intervals + 1 }, (_, i) => (i / intervals) * axisHz.value);
   return grid;
