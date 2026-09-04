@@ -267,7 +267,9 @@ const spectrumGrid = computed(() => {
   const lobeHz = 1000 / lengthMs.value;
   const wanted = Math.ceil((axisHz.value * POINTS_PER_LOBE) / lobeHz);
   const intervals = wanted + (wanted % 2);
-  return Array.from({ length: intervals + 1 }, (_, i) => (i / intervals) * axisHz.value);
+  /** @type {number[]} */
+  const grid = Array.from({ length: intervals + 1 }, (_, i) => (i / intervals) * axisHz.value);
+  return grid;
 });
 
 /**
@@ -279,6 +281,7 @@ const spectrumGrid = computed(() => {
 export const spectrum = computed(() => {
   const fs = rate.value;
   const { designRate, h } = design.value;
+  /** @type {number[]} */
   const freqsHz = spectrumGrid.value;
   // Every image of the source is the source folded about a multiple of Nyquist.
   const folded = freqsHz.map((f) => {
