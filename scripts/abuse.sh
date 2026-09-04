@@ -13,12 +13,14 @@
 #
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
-#           snapshot of the config form; record the newest audit seq; write
-#           state/abuse/current.
+#           snapshot of the config form and of the live State; record the
+#           newest audit seq; write state/abuse/current.
 #   close   DELETE /api/config/pending; read the audit records the run added;
-#           if an apply landed, POST /api/restore with the baseline (the daemon
-#           reloads on it) and poll the config form until every field the run
-#           applied reads its baseline value again; print the run's records
+#           if an apply or a live write landed, POST /api/restore with the
+#           baseline (the daemon reloads on it) and poll until every field the
+#           run applied reads its baseline form value and every live State
+#           field reads its snapshot value; put the volume back by POST
+#           /api/volume when a live write moved it; print the run's records
 #           either way. current is removed only on success, so a failed close
 #           can be re-run.
 #
@@ -46,6 +48,9 @@ pending_of() { get /api/config/pending | jq -c '{http, live}'; }
 top_seq()    { get "/api/audit?limit=1" | jq -r '.records[-1].seq // 0'; }
 # The config form as {field: value}, the shape open snapshots and close reads back.
 form_of() { get /api/config | jq -c '[.data.fields[] | {key: .name, value: .value}] | from_entries'; }
+# The live State fields a live write can move and the restore reload resets.
+LIVE_KEYS='["mode","filter1x","filterNx","shaper","filter_junk","adaptive"]'
+live_of() { get /api/state | jq -c --argjson k "$LIVE_KEYS" '.data | with_entries(select(.key as $x | $k + ["volume"] | index($x)))'; }
 idle_or_die() {
   local s
   s=$(state_of) || die "GET /api/state failed: daemon unreachable or not loaded"
@@ -63,6 +68,7 @@ case "$CMD" in
     mkdir -p "$DIR/$stamp"
     get /api/backup > "$DIR/$stamp/settings.zip" || die "GET /api/backup failed"
     form_of > "$DIR/$stamp/form.json" || die "GET /api/config failed"
+    live_of > "$DIR/$stamp/live.json" || die "GET /api/state failed"
     since=$(top_seq)
     printf '%s %s\n' "$stamp" "$since" > "$CURRENT"
     say "open"
@@ -75,8 +81,10 @@ case "$CMD" in
     read -r stamp since < "$CURRENT"
     zip=$DIR/$stamp/settings.zip
     base=$DIR/$stamp/form.json
+    livebase=$DIR/$stamp/live.json
     [ -s "$zip" ] || die "baseline missing: $zip"
     [ -s "$base" ] || die "form snapshot missing: $base"
+    [ -s "$livebase" ] || die "live snapshot missing: $livebase"
     say "discard"
     curl -sf -X DELETE "$API/api/config/pending" | jq -c . || die "DELETE /api/config/pending failed"
     say "audit since seq $since"
@@ -85,7 +93,9 @@ case "$CMD" in
     echo "$records" | jq -c '.[] | {seq, event, http, live, ok}'
     applied=$(echo "$records" | jq '[.[] | select(.event == "apply" and .ok == true)] | length')
     echo "  applies landed: $applied"
-    if [ "$applied" -gt 0 ]; then
+    lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .ok == true)] | length')
+    echo "  live writes landed: $lived"
+    if [ "$applied" -gt 0 ] || [ "$lived" -gt 0 ]; then
       say "restore baseline"
       s=$(state_of) || s="?"
       if [ "$s" != "0" ]; then
@@ -113,13 +123,21 @@ case "$CMD" in
         # The polled form is the copy taken at connect; refresh refetches it
         # from the daemon (and rescans devices, which is what the route is for).
         curl -sf -X POST "$API/api/config/refresh" >/dev/null 2>&1 || true
-        if now=$(form_of) && [ "$(jq -n --argjson k "$keys" --argjson b "$baseline" --argjson n "$now" '[$k[] | $b[.] == $n[.]] | all')" = "true" ]; then
+        if now=$(form_of) && livenow=$(live_of) \
+          && [ "$(jq -n --argjson k "$keys" --argjson b "$baseline" --argjson n "$now" '[$k[] | $b[.] == $n[.]] | all')" = "true" ] \
+          && [ "$(jq -n --argjson k "$LIVE_KEYS" --argjson b "$(cat "$livebase")" --argjson n "$livenow" '[$k[] | $b[.] == $n[.]] | all')" = "true" ]; then
           settled=1; break
         fi
         sleep 2
       done
-      [ -n "$settled" ] || die "applied fields never read back at baseline; baseline kept at $zip"
+      [ -n "$settled" ] || die "applied fields or live State never read back at baseline; baseline kept at $zip"
       echo "  readback: $(jq -nc --argjson k "$keys" --argjson n "$now" '[$k[] | {(.): $n[.]}] | add')"
+      echo "  live:     $livenow"
+      want=$(jq -r .volume "$livebase"); have=$(echo "$livenow" | jq -r .volume)
+      if [ "$want" != "$have" ]; then
+        curl -sf -X POST -H 'Content-Type: application/json' -d "{\"level\":\"$want\"}" "$API/api/volume" >/dev/null || die "POST /api/volume failed; volume left at $have, was $want"
+        echo "  volume:   $have -> $want"
+      fi
     fi
     say "readback"
     echo "  pending: $(pending_of)"
