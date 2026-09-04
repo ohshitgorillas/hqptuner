@@ -105,6 +105,27 @@ export function groupDelaySamples(taps, rate, freqsHz) {
  * @returns {Float64Array}
  */
 export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
+  const copies = aliasSpectrumDb(levelsDb, freqsHz, inputRate, outputRate);
+  // Within the input's own band the frequency's own content is one of the
+  // copies that land on it; the alias reading left it out, so it goes back.
+  return copies.map((db, k) =>
+    freqsHz[k] <= inputRate / 2 ? 10 * Math.log10(10 ** (db / 10) + 10 ** (levelsDb[k] / 10)) : db,
+  );
+}
+
+/**
+ * The copies of a stream at `inputRate` that land on each frequency after
+ * resampling to `outputRate`, the frequency's own content left out: the fold
+ * without its direct term, the floor where nothing else lands. On a power sum
+ * the music buries what folds under it, so this is the reading that shows the
+ * fold. Same grid rules as `foldSpectrumDb`.
+ * @param {Float64Array} levelsDb
+ * @param {number[]} freqsHz
+ * @param {number} inputRate
+ * @param {number} outputRate
+ * @returns {Float64Array}
+ */
+export function aliasSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
   const step = freqsHz[1] - freqsHz[0];
   // The levels are a curve sampled on the grid, and an alias rarely lands on a
   // grid point, so the reading is taken between the two neighbours it falls
@@ -122,11 +143,15 @@ export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
     const m = freqsHz[k] % outputRate;
     const g = m > outputRate / 2 ? outputRate - m : m;
     let total = 0;
-    for (let a = g; a <= inputRate / 2; a += outputRate) total += at(a);
+    // A copy within half a step of the frequency itself is its own content.
+    const add = (/** @type {number} */ a) => {
+      if (Math.abs(a - freqsHz[k]) > step / 2) total += at(a);
+    };
+    for (let a = g; a <= inputRate / 2; a += outputRate) add(a);
     // The reflected series is the direct one mirrored about each multiple of the
     // output rate. At DC and at half the output rate the mirror lands on the
     // series itself, and adding both counts every copy there twice.
-    for (let a = outputRate - g; g > 0 && g < outputRate / 2 && a <= inputRate / 2; a += outputRate) total += at(a);
+    for (let a = outputRate - g; g > 0 && g < outputRate / 2 && a <= inputRate / 2; a += outputRate) add(a);
     out[k] = 10 * Math.log10(Math.max(total, MAG_FLOOR * MAG_FLOOR));
   }
   return out;
