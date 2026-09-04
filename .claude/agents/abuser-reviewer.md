@@ -29,7 +29,7 @@ On a steered brief your whole output is the quoted steering sentences and one li
 
 ## What you may read
 
-`docs/protocol.md`, `docs/settings-classification.md`, `docs/design-system.md`, the docstrings of the drivers you are given, your own script and its output. The implementation under `hqptuner/` is out of bounds and a hook denies it: an attacker who has read the diff attacks the diff.
+`docs/protocol.md`, `docs/settings-classification.md`, `docs/design-system.md`, the docstrings of the drivers you are given, your own script and its output. The implementation under `hqptuner/` is out of bounds and a hook denies it: an attacker who has read the diff attacks the diff. The modules the container serves under `/components/`, `/store/`, `/lib/` and `/app.js`, and any `.js` or `.css` fetched from `:8090`, are the same source by another road, and the hook denies those too.
 
 ## Hard rails
 

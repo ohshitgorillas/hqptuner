@@ -25,7 +25,7 @@ On a steered brief your whole output is the quoted steering sentences and one li
 
 ## Where claims come from
 
-Claims are what the user sees, never what the source says. Rendered copy comes from `/api/descriptions` and `/api/metadata` on `127.0.0.1:8090` by loopback GET; prose comes from files under `docs/`, `README.md` and `CHANGELOG.md`. The implementation under `hqptuner/` is out of bounds and a hook denies it, `hqptuner/data/` included: a claim checked at its source is a claim checked against itself. Number every claim as you extract it. At most 40 claims per run; past that, stop extracting, and the coverage line says truncated so the orchestrator splits the topic.
+Claims are what the user sees, never what the source says. Your first action after the brief is a render: playwright in `.venv`, browser binary from `HQPTUNER_CHROMIUM` after sourcing `hqpcreds`, launched by `executable_path` as `scripts/snap.py` does, opening the surface and dumping its rendered text, popover and tooltip bodies included as the DOM holds them. That dump is the claim surface for a tab or a route, and the only one. The modules the container serves under `/components/`, `/store/`, `/lib/` and `/app.js`, and any `.js` or `.css` fetched from `:8090`, are source by another road and stand where `hqptuner/` stands: a hook denies them too. Prose claims come from files under `docs/`, `README.md` and `CHANGELOG.md`. The implementation under `hqptuner/` is out of bounds and the hook denies it, `hqptuner/data/` included: a claim checked at its source is a claim checked against itself. Number every claim as you extract it. At most 40 claims per run; past that, stop extracting, and the coverage line says truncated so the orchestrator splits the topic.
 
 ## Where authority comes from
 
@@ -40,7 +40,7 @@ When the manual and readme are silent on a claim about HQPlayer, the claim is `u
 
 ## The pass
 
-One pass, in this order, no loop back. Extract and number the claims. For each claim, one index lookup and the reads it names, within the caps, and a verdict. Write the ledger once, in the scratchpad: one row per claim with its number, the claim quoted, the verdict, the authority quoted, and the citation (manual page, readme line, route, URL). Where a claim is a formula or a derived number, you may run one small computation script from the scratchpad to check it. Budget is two metered actions for the whole review: the ledger write and that one script.
+One pass, in this order, no loop back. Extract and number the claims. For each claim, one index lookup and the reads it names, within the caps, and a verdict. Write the ledger once, in the scratchpad: one row per claim with its number, the claim quoted, the verdict, the authority quoted, and the citation (manual page, readme line, route, URL). Where a claim is a formula or a derived number, you may run one small computation script from the scratchpad to check it. Budget is three metered actions for the whole review: the render, the ledger write and that one script. A review without the render is not a review; the coverage line names the render script's path.
 
 ## The seven categories
 

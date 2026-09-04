@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """PreToolUse hook: keep a blind test-author or spec-reviewer out of the implementation.
 
-Wired from the `hooks:` frontmatter of `.claude/agents/test-writer.md` and
-`.claude/agents/spec-reviewer.md`, so it binds those subagents only — the
+Wired from the `hooks:` frontmatter of `.claude/agents/test-writer.md`,
+`spec-reviewer.md`, `user-reviewer.md`, `abuser-reviewer.md` and
+`pedant-reviewer.md`, so it binds those subagents only — the
 orchestrator and every other agent are untouched. A session-wide
 `permissions.deny` would have blinded the orchestrator too, which is the one
 agent that has to read the implementation to adjudicate a failure.
@@ -21,6 +22,9 @@ Blocked for those agents:
     (an unrooted search sweeps the package and prints matching source lines)
   * a Bash command naming a `hqptuner/` path — `cat`, `sed -n`, `less`, and
     every other reader the Bash tool can reach
+  * a Bash command fetching a served module or stylesheet from :8090
+    (`/components/`, `/store/`, `/lib/`, any `.js`/`.css`/`.map`) — the same
+    source by another road; `/api/` GETs pass
 
 Allowed, because they are the spec's own sources: `docs/`, `tests/`,
 `hqplayerd-readme.txt`, the HQPlayer manual, and the test runners (`make test`,
@@ -39,6 +43,8 @@ import sys
 PACKAGE = "hqptuner"
 #: a `hqptuner/...` path token anywhere in a shell command
 BASH_PATH = re.compile(r"(?:^|[\s\"'=(:])\.?/?hqptuner/")
+#: the same source served by the dev container: modules and stylesheets on :8090
+SERVED = re.compile(r":8090/(?:components|store|lib)/|:8090/[^\s\"']*\.(?:js|css|map)\b")
 
 _WHY = (
     "Blind agent: the implementation is out of bounds. Work from the spec block, "
@@ -85,7 +91,7 @@ def _verdict(name: str, tool_input: dict, root: str | None, cwd: str) -> str | N
         return _WHY if _in_package(target, root, cwd) else None
     if name == "Bash":
         command = tool_input.get("command", "")
-        if BASH_PATH.search(command) or _names_package(command, root, cwd):
+        if BASH_PATH.search(command) or SERVED.search(command) or _names_package(command, root, cwd):
             return _WHY
     return None
 
@@ -128,14 +134,19 @@ def main() -> None:
 
 
 def self_test() -> int:
-    """Pin the verdicts on a docs path and an absolute package path."""
+    """Pin the verdicts on a docs path, an absolute package path, and a served module."""
     root = _repo_root(os.path.dirname(os.path.abspath(__file__))) or "/repo"
     pair = (
         _verdict("Bash", {"command": f"cat {root}/docs/testing.md"}, root, root),
         _verdict("Bash", {"command": f"cat {root}/hqptuner/core/manager.py"}, root, root),
     )
-    passed = pair[0] is None and isinstance(pair[1], str)
+    served = (
+        _verdict("Bash", {"command": "curl -s http://127.0.0.1:8090/api/state"}, root, root),
+        _verdict("Bash", {"command": "curl -s http://127.0.0.1:8090/components/primer/copy.js"}, root, root),
+    )
+    passed = pair[0] is None and isinstance(pair[1], str) and served[0] is None and isinstance(served[1], str)
     print(f"  {'PASS' if passed else 'FAIL'}  docs path allowed, absolute package path denied: {pair}")
+    print(f"  {'PASS' if passed else 'FAIL'}  api GET allowed, served module denied: {served}")
     return 0 if passed else 1
 
 
