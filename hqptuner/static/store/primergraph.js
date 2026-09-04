@@ -30,8 +30,10 @@ export const FACTORS = [2, 4, 8];
 // band is narrower than asked.
 const WIDTH_SLOW = 0.5;
 const WIDTH_FAST = 0.03;
-/** Points on the frequency grid the spectrum is computed on. */
+/** Points on the frequency grid the group delay is computed on. */
 const FREQ_POINTS = 1024;
+/** Points the spectrum grid spends on each sidelobe of the filter's comb. */
+const POINTS_PER_LOBE = 4;
 /** Below this magnitude the group delay reading is blanked: a stop band arrives nowhere. */
 const DELAY_MASK_DB = -60;
 
@@ -127,11 +129,20 @@ export function setRate(hz) {
   outputRate.value = factor === null ? null : factor * familyBase(hz);
 }
 
-/** Top of the frequency axis: the larger of twice the source rate and the output rate. */
-export const axisHz = computed(() => Math.max(2 * rate.value, outputRate.value ?? 0));
-
 /** No oversampling, or an output rate equal to the source (a ratio of one): the chain is identity. */
 const noFilter = computed(() => outputRate.value === null || outputRate.value === rate.value);
+
+/**
+ * Top of the frequency axis: the Nyquist of the faster of the two streams,
+ * which is as far as anything the chain carries reaches. Past it the filter
+ * repeats its own passband and the fold repeats the result, neither of which
+ * any stream holds (docs/plans/filter-primer-math.md section 6.4). Where the
+ * chain is the identity there is no second stream, and the axis runs to twice
+ * the source rate so the images the source would have keep their place.
+ */
+export const axisHz = computed(() =>
+  noFilter.value ? 2 * rate.value : Math.max(rate.value, outputRate.value ?? rate.value) / 2,
+);
 
 /**
  * The linear-phase oversampling filter the state describes, on the
@@ -244,6 +255,22 @@ export const readouts = computed(() => {
 });
 
 /**
+ * The grid the spectrum is read on: uniform from 0 to the axis top, stepping a
+ * quarter of the sidelobe spacing so the comb is resolved rather than sampled
+ * at random depth (math section 5.4 rule 1). The nulls of a filter sit
+ * 1 / length apart whatever the rate, so the step follows Length and nothing
+ * else. The interval count is even, which puts both the axis top and the
+ * source rate on grid points, so an alias reading lands on a sample instead of
+ * between two.
+ */
+const spectrumGrid = computed(() => {
+  const lobeHz = 1000 / lengthMs.value;
+  const wanted = Math.ceil((axisHz.value * POINTS_PER_LOBE) / lobeHz);
+  const intervals = wanted + (wanted % 2);
+  return Array.from({ length: intervals + 1 }, (_, i) => (i / intervals) * axisHz.value);
+});
+
+/**
  * The frequency pane's curves on a uniform grid from 0 to the axis top: the
  * source and its images (periodic in the source rate), the filter (periodic in
  * the design rate), and the output stream, their product folded into the
@@ -251,10 +278,8 @@ export const readouts = computed(() => {
  */
 export const spectrum = computed(() => {
   const fs = rate.value;
-  const top = axisHz.value;
   const { designRate, h } = design.value;
-  /** @type {number[]} */
-  const freqsHz = Array.from({ length: FREQ_POINTS }, (_, i) => (i / (FREQ_POINTS - 1)) * top);
+  const freqsHz = spectrumGrid.value;
   // Every image of the source is the source folded about a multiple of Nyquist.
   const folded = freqsHz.map((f) => {
     const m = f % fs;
