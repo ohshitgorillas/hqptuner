@@ -10,7 +10,8 @@ state machine and a measurement blob every run.
 Tabs come from the DOM (``.tab-nav button``), accents from ``/store/theme.js``
 and hero MODE positions from the ``output_mode`` segment, so a dimension that
 grows in the app grows here without an edit. ``--viewport`` is repeatable and
-defaults to 1280x900.
+defaults to 1280x900. ``--tab`` is repeatable and keeps only the named tabs,
+by id or label; without it every tab is swept.
 
 Each state writes ``OUTDIR/<tab>-<accent>-<mode>-<WxH>.png`` and a ``.json``
 holding the state, the seven instruments (fonts by text role, alignment edges
@@ -195,6 +196,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("url")
     ap.add_argument("outdir", type=Path)
     ap.add_argument("--viewport", action="append", default=[], metavar="WxH")
+    ap.add_argument("--tab", action="append", default=[], metavar="NAME", help="sweep only this tab (id or label)")
     args = ap.parse_args(argv)
     if not args.viewport:
         args.viewport = [DEFAULT_VIEWPORT]
@@ -238,6 +240,17 @@ def attach_console(page: Page, sink: list[dict[str, Any]]) -> None:
     page.on("pageerror", on_pageerror)
     page.on("requestfailed", on_requestfailed)
     page.on("response", on_response)
+
+
+def keep_tabs(tabs: list[dict[str, Any]], wanted: list[str]) -> list[dict[str, Any]]:
+    """Keep the tabs named by ``--tab``, by id or label, case-insensitively; no names keeps all."""
+    if not wanted:
+        return tabs
+    names = {w.strip().lower() for w in wanted}
+    kept = [t for t in tabs if t["id"].lower() in names or t["label"].lower() in names]
+    if not kept:
+        raise SystemExit(f"--tab matched nothing among {[t['id'] for t in tabs]}")
+    return kept
 
 
 def slug(value: str) -> str:
@@ -347,7 +360,7 @@ def sweep(browser: Browser, args: argparse.Namespace) -> None:
     page.goto(args.url, wait_until="networkidle")
     page.wait_for_selector(".tab-nav button")
     page.wait_for_timeout(SETTLE_MS)
-    run.tabs = page.evaluate(TABS_JS)
+    run.tabs = keep_tabs(page.evaluate(TABS_JS), args.tab)
     accents: list[str] = page.evaluate(ACCENTS_JS)
     pending = read_pending(page)
     modes, start = plan_modes(page, dirty=any(pending.values()))
