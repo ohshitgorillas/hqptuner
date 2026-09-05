@@ -1050,7 +1050,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Return daemon reachability, the current connection's age, alarm/info/license, and HQPTuner's own version.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
+        "description": "Return daemon reachability, connection age, alarm/info/license, HQPTuner's version, and the credential verdict.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
