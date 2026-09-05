@@ -9,8 +9,7 @@ traces moved, and whether that move is a jump against the pass as a whole.
 
 Every capture here is built by hand from the shapes above so the expected number can be
 written down rather than computed: a 400-vertex trace across 1000 px is 0.4 vertices
-per px, an alternating trace reverses at every interior vertex, two boxes at 0..50 and
-40..90 overlap by 10 px. The module is loaded by path, the way the gate tests load
+per px, two boxes at 0..50 and 40..90 overlap by 10 px. The module is loaded by path, the way the gate tests load
 ``scripts/gates/``: it lives at the repo root's ``scripts/`` and is not a package.
 """
 
@@ -90,16 +89,6 @@ def flat(count: int, width: float, y: float = 100.0) -> list[list[float]]:
     return [[x, y] for x in even_xs(count, width)]
 
 
-def alternating(count: int, width: float, swing: float) -> list[list[float]]:
-    """y toggles by ``swing`` on every vertex, so dy changes sign at each interior vertex."""
-    return [[x, 100.0 + (swing if i % 2 else 0.0)] for i, x in enumerate(even_xs(count, width))]
-
-
-def ramp(count: int, width: float, step: float) -> list[list[float]]:
-    """y climbs by ``step`` per vertex: monotone, never a reversal."""
-    return [[x, 100.0 + i * step] for i, x in enumerate(even_xs(count, width))]
-
-
 def sweep(moves: list[float]) -> list[dict[str, Any]]:
     """One slider pass: frame ``k`` sits ``moves[k]`` px below frame ``k - 1``.
 
@@ -120,7 +109,7 @@ def sweep(moves: list[float]) -> list[dict[str, Any]]:
     return frames
 
 
-def of_kind(findings: list[dict[str, Any]], kind: str) -> list[tuple[str, float]]:
+def of_kind(findings: list[dict[str, Any]], kind: str) -> list[tuple[str, Any]]:
     """``(selector, value)`` of every finding of ``kind``, sorted by selector so order is not pinned."""
     return sorted((f["selector"], f["value"]) for f in findings if f["kind"] == kind)
 
