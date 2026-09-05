@@ -68,9 +68,9 @@ digest_of() {
   local p=$1
   if [ -d "$p" ]; then
     find "$p" -type f -exec sha256sum {} + 2>/dev/null | sed "s| $p/| |" \
-      | jq -SRn '[inputs | capture("^(?<d>[0-9a-f]+) +(?<f>.*)$") | {(.f): .d}] | add // {}'
+      | jq -SRnc '[inputs | capture("^(?<d>[0-9a-f]+) +(?<f>.*)$") | {(.f): .d}] | add // {}'
   elif [ -f "$p" ]; then
-    sha256sum "$p" | jq -SRn '[inputs | capture("^(?<d>[0-9a-f]+) ") | {".": .d}] | add'
+    sha256sum "$p" | jq -SRnc '[inputs | capture("^(?<d>[0-9a-f]+) ") | {".": .d}] | add'
   else
     echo null
   fi
@@ -219,7 +219,7 @@ case "$CMD" in
         echo "  $s: restored"
       fi
       back=$(digest_of "$STATE/$s")
-      [ "$back" = "$want" ] || die "$STATE/$s does not read back at its snapshot; snapshot kept at $DIR/$stamp/stores"
+      [ "$back" = "$want" ] || die "$STATE/$s does not read back at its snapshot: $back vs $want; snapshot kept at $DIR/$stamp/stores"
     done
     say "readback"
     echo "  pending: $(pending_of)"
