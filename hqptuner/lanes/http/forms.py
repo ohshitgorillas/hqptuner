@@ -8,9 +8,15 @@ lane the manager polls on every tick.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 import httpx
+
+from hqptuner.conf import httpconf
+from hqptuner.conf.httpconf import AuthRefused
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -46,8 +52,33 @@ async def refresh(mgr: ConnectionManager) -> None:
     for form_attr, error_attr, getter in forms:
         try:
             form = await getter()
-        except httpx.HTTPError as exc:
+        except AuthRefused as exc:
+            _record_credentials(mgr, accepted=False)
             setattr(mgr.readings, error_attr, str(exc))
             continue
+        except httpx.HTTPError as exc:
+            # NOT a credential verdict, and deliberately does not touch the
+            # recorded one: a daemon that is not answering is no evidence either
+            # way, and a restore restarts it on every apply — clearing the
+            # rejection here would drop the report and put it back a poll later,
+            # flapping the alert row on a config the user cannot fix by waiting.
+            setattr(mgr.readings, error_attr, str(exc))
+            continue
+        _record_credentials(mgr, accepted=True)
         setattr(mgr.readings, form_attr, form)
         setattr(mgr.readings, error_attr, None)
+
+
+def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
+    """Record what the 8088 lane just proved about the credentials, logging only the transition.
+
+    Per poll would put the same line in the log every two seconds for as long as
+    the install stays broken, which is how a real report gets scrolled past.
+    """
+    if mgr.readings.credentials_ok is accepted:
+        return
+    mgr.readings.credentials_ok = accepted
+    if accepted:
+        log.info("hqplayerd management credentials accepted")
+    else:
+        log.warning("%s", httpconf.AUTH_REFUSED_MESSAGE)

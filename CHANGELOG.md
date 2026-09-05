@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rejected hqplayerd credentials are now reported.** An install whose management credentials the daemon refuses showed a connected status and empty settings, then quoted a raw HTTP error at the end of a long apply. The refusal is now named on the alert strip, in the apply caption and in the log, and the apply fails immediately.
+
 ## [1.14.0] — 2026-09-01
 
 ### Added

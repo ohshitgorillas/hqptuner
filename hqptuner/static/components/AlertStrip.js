@@ -11,16 +11,26 @@
 // they are faults like the health alerts rather than advice, but they are a
 // property of the settings rather than of playback, so unlike the health alerts
 // they show with the engine stopped.
+// The rejected-credentials row (store/alerts/credentials.js) leads the strip: a
+// refused credential explains the whole broken half of the app, so it outranks a
+// per-track health warning.
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
 import { shaperAlerts } from "../store/alerts/shaperfit.js";
 import { roonIdleAlert } from "../store/alerts/roonidle.js";
+import { credentialsAlert } from "../store/alerts/credentials.js";
 import { junkAdvice } from "../store/alerts/junkadvice.js";
 
 /** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {
   const roon = roonIdleAlert.value;
-  const alerts = [...engineAlerts.value, ...shaperAlerts.value, ...(roon ? [roon] : [])];
+  const creds = credentialsAlert.value;
+  const alerts = [
+    ...(creds ? [creds] : []),
+    ...engineAlerts.value,
+    ...shaperAlerts.value,
+    ...(roon ? [roon] : []),
+  ];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`

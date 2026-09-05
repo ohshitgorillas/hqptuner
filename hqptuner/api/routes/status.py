@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 def health(manager: Mgr) -> dict[str, Any]:
-    """Return daemon reachability, the current connection's age, alarm/info/license, and HQPTuner's own version.
+    """Return daemon reachability, connection age, alarm/info/license, HQPTuner's version, and the credential verdict.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
     """
@@ -43,6 +43,10 @@ def health(manager: Mgr) -> dict[str, Any]:
         # HQPTuner's own version, not the engine's: the About HQPTuner card reads
         # it from here so the package is the single source of truth.
         "app_version": __version__,
+        # The 4321 handshake that decides `reachable` carries no authentication, so
+        # `reachable` cannot speak for the 8088 configuration lane; this is that
+        # lane's own verdict on the configured management credentials.
+        "credentials_ok": manager.readings.credentials_ok,
     }
 
 

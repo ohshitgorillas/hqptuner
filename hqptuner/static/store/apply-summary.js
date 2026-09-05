@@ -50,7 +50,7 @@
  *   The config lane's outcome (http.restore).
  * @property {boolean} [submitted]
  * @property {boolean} [applied]
- * @property {string} [reason] unconverged | unavailable
+ * @property {string} [reason] unconverged | unavailable | credentials
  * @property {string} [error]
  * @property {Record<string, unknown>} [diff] the fields that did not converge
  * @property {{ net_device?: { want: string } }} [unfixable]
@@ -110,6 +110,14 @@ function persistentFailure(p) {
     return failure("endpoint-missing", `Endpoint "${nd.want}" not present — config not applied`, {
       endpoint: nd.want,
     });
+  // A refused credential arrives with the backend's own sentence, which is already
+  // the owner-approved copy: it replaces the whole caption rather than being
+  // interpolated into "Config not applied: ...", the way the other branches read.
+  // `error` is optional on the report generally, so the guard reads it here
+  // rather than asserting it: a credentials refusal that somehow arrived without
+  // its sentence falls through to the generic paths below, which is a worse
+  // caption but never an empty one.
+  if (p.reason === "credentials" && p.error) return failure("persist-credentials", p.error);
   if (p.error) return failure("persist-error", `Config not applied: ${p.error}`);
   // Name the fields that didn't converge. "unconverged" alone is undebuggable —
   // it says a setting the daemon kept refusing exists, but not which one, and

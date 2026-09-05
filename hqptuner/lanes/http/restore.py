@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
+from hqptuner.conf import engineconf, httpconf, presetconf, presetzip, xmledit
 from hqptuner.conf.matrixconf import (
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
@@ -87,6 +87,13 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     """
     if mgr.http_client is None:
         return {"submitted": False, "error": "no credentials for HTTP config lane"}
+    if mgr.readings.credentials_ok is False:
+        # Ahead of the wait, not inside it. Every pass below opens with
+        # await_http_ready, which polls /config to the alarm deadline before it
+        # gives up — against a daemon that has already refused us, three passes
+        # of that is ~45 s spent proving something the poll loop established two
+        # seconds after startup.
+        return {"submitted": False, "reason": "credentials", "error": httpconf.AUTH_REFUSED_MESSAGE}
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
     # along (store as fallback), under the staged edits, which win (presetfields)
