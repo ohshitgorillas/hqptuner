@@ -82,6 +82,10 @@ hqpcreds
 docker-compose.yaml
 state/
 
+# approved spec blocks staged for scripts/pair.sh open; the committed copy
+# lives at tests/specs/<slug>.txt on the spec branch
+specs/
+
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules
 

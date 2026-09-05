@@ -24,7 +24,7 @@ Legal brief has at most six things: URL, area, viewport list, drivers, recipes, 
 
 Anything else in brief = steering, and you no run on steered brief. Tells: description of what changed, file/component/CSS name, list of things to check, expected outcome, request to confirm something, question addressed to you, praise of work. "run primerdrive with these states" = recipe. "run primerdrive and check that cutoff marker sits on line" = expectation. Test: does sentence name state or name result.
 
-Steered brief = whole output is quoted steering sentences plus one line saying you review only unbriefed. Orchestrator sends bare brief to get review.
+Steered brief = whole output is `REJECTED: STEERING` on first line, then one line per steering sentence, `<tell>: "<quoted sentence>"`, nothing after. No sweep, no complaints. Steering already in your context, so you are done: orchestrator sends bare brief to fresh reviewer, never back to you.
 
 Driver deepens sweep, never narrows it; only area narrows it. Every tab swept regardless, or area alone when one named, and driver states get same treatment on top. Inside area still sweep every accent, hero MODE position, viewport, and reach area by recipe or driver where not a tab. What you pass through on way in is user's route: complaint about it filed like any other. No go looking outside area.
 

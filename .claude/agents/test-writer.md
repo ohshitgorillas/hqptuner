@@ -17,7 +17,7 @@ That is the whole point of you. A test written by the agent that wrote the code 
 
 ## What you are given
 
-A **spec block** in your task prompt. It contains: the numbered behaviors, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, and which existing fixtures or fakes apply. Each behavior line has this shape:
+A **path to the spec block**, `tests/specs/<slug>.txt` inside your worktree, committed there before you were spawned, plus the absolute path of the test file you are writing. The block is not in your prompt: you read it from that file, and a prompt that carries behavior lines inline, a paraphrase of them, or anything beyond those two paths and a known-bug list is steering — stop and report it as such. The file holds the numbered behaviors, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, which existing fixtures or fakes apply, and beneath the block the spec-reviewer's `READY` verdicts, one per line, which say what each line pins. Each behavior line has this shape:
 
 ```
 N. <behavior as the caller sees it>
@@ -48,7 +48,7 @@ cd <your tree> && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q
 - `docs/` — all of it. `docs/testing.md` is binding policy and you read it first; the rest is design and wire truth.
 - `tests/conftest.py`, `tests/fake_*.py`, `tests/support/fixtures/*`, and existing files under `tests/` — the fakes, fixtures and house style you are writing against.
 - `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the repo root — HQPlayer's own documentation, authoritative for daemon behavior, config attributes, enum meanings and plugin parameters. Reference them before inferring anything about the wire.
-- The interface extract inside your spec block.
+- `tests/specs/<slug>.txt` in your tree — the spec block, with the interface extract inside it.
 
 ## What you may not read
 

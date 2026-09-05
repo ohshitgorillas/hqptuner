@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # pair — the two worktrees a /tests run needs, opened and converged in one action each.
 #
-#   scripts/pair.sh open  <slug>
+#   scripts/pair.sh open  <slug> <specfile> [--dry-run]
+#   scripts/pair.sh red   <slug> [--dry-run]
 #   scripts/pair.sh merge <slug> [-m "<subject>"] [--dry-run]
 #   scripts/pair.sh abort <slug>
 #   scripts/pair.sh list
@@ -18,8 +19,19 @@
 # The main checkout is never an agent workspace — it is the user's.
 #
 # Like ship.sh, each subcommand is one shell invocation on purpose: the budget
-# hook meters tool calls, not work, so open+merge costs two actions for a chain
-# that would otherwise spend four or five on git alone.
+# hook meters tool calls, not work, so open+red+merge costs three actions for a
+# chain that would otherwise spend six or more on git alone.
+#
+# open commits the approved spec block, with the spec-reviewer's READY output,
+# as tests/specs/<slug>.txt — the first commit on the spec branch, made before
+# any implementation exists. The orchestrator stages it at specs/<slug>.txt
+# (gitignored, in-tree, so the write is free) and passes that path. The writer reads the block from that path and a
+# reviewer spawned later reads it from git, so neither depends on a brief.
+#
+# red commits the tests as written, then runs only the files that commit
+# added or changed and saves the output. The red commit is the object the
+# post-merge test check diffs against: an assertion that differs from it
+# after the merge was softened after the bite proof.
 #
 # merge, in order, touching dev only at the very end:
 #   1. lane check   spec tree confined to tests/, impl tree kept out of it
@@ -28,6 +40,11 @@
 #   4. combine      impl/<slug> merged into the SPEC tree — tests + code
 #   5. make check   in that combined tree; red stops here and dev never sees it
 #   6. land         dev fast-forwarded to it, branches and trees removed
+#
+# Both exits of step 5 print the test-check brief: the test files the spec
+# tree wrote, their diff from the red commit, and the saved red output. The
+# orchestrator forwards it verbatim to the spec-reviewer; nothing is typed
+# into it.
 #
 # Steps 3-6 hold a lock, so two sessions merging at once queue instead of
 # racing the dev tip. Every merge is --ff-only; nothing is ever force-pushed.
@@ -48,7 +65,7 @@ run()  { if [ "$DRY" = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
 
 usage() {
-  echo "usage: scripts/pair.sh open <slug> | merge <slug> [-m subj] [--dry-run] | abort <slug> | list" >&2
+  echo "usage: scripts/pair.sh open <slug> <specfile> | red <slug> | merge <slug> [-m subj] | abort <slug> | list   [--dry-run]" >&2
   exit 2
 }
 
@@ -57,18 +74,22 @@ usage() {
 [ $# -ge 1 ] || usage
 CMD=$1; shift
 SLUG=""
+SPECFILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     -m)        shift; [ $# -gt 0 ] || usage; SUBJECT=$1 ;;
     -*)        usage ;;
-    *)         [ -z "$SLUG" ] || usage; SLUG=$1 ;;
+    *)         if [ -z "$SLUG" ]; then SLUG=$1
+               elif [ "$CMD" = open ] && [ -z "$SPECFILE" ]; then SPECFILE=$1
+               else usage; fi ;;
   esac
   shift
 done
 
 case "$CMD" in
-  open|merge|abort) [ -n "$SLUG" ] || usage ;;
+  open)             [ -n "$SLUG" ] && [ -n "$SPECFILE" ] || usage ;;
+  red|merge|abort)  [ -n "$SLUG" ] || usage ;;
   list)             [ -z "$SLUG" ] || usage ;;
   *)                usage ;;
 esac
@@ -83,6 +104,10 @@ IMPL_DIR="$WT/$SLUG-impl"
 SPEC_BR="spec/$SLUG"
 IMPL_BR="impl/$SLUG"
 BASE_FILE="$STATE/$SLUG.base"
+RED_FILE="$STATE/$SLUG.red"
+SPEC_PATH="tests/specs/$SLUG.txt"
+SPEC_MSG="spec: $SLUG"
+RED_MSG="test: $SLUG red"
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -174,12 +199,29 @@ commit_tree() {   # commit_tree <tree> <message>
   in_tree "$tree" git commit -m "$msg"
 }
 
+# The spec and red commits are found by their subjects, latest first: a
+# stage-2 return mid-run lands a second spec commit and then a second red
+# commit, and the check diffs against the newest of each.
+find_commit() {   # find_commit <tree> <subject>
+  git -C "$1" log --first-parent --format=%H --fixed-strings --grep="$2" -1
+}
+
+# The test files the spec tree wrote, as its latest red commit holds them:
+# every path under tests/ that commit added or changed relative to the spec
+# commit, restricted to what a runner can execute. tests/specs/<slug>.txt is
+# on that diff after a second spec commit and belongs to neither runner.
+red_files() {   # red_files <tree> <spec-commit> <red-commit>
+  git -C "$1" diff "$2" "$3" --name-only --diff-filter=AM -- tests/ \
+    | grep -E '\.(py|test\.js)$' || true
+}
+
 # ---- open -------------------------------------------------------------------
 
 do_open() {
   say "open $SLUG"
 
   git rev-parse -q --verify dev >/dev/null || die "no dev branch here."
+  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — write the approved block and the reviewer's READY output there first."
   local d b
   for d in "$SPEC_DIR" "$IMPL_DIR"; do
     if [ -e "$d" ]; then die "$d already exists — pick another slug, or abort that pair."; fi
@@ -206,6 +248,12 @@ do_open() {
     link_tooling "$IMPL_DIR"
   fi
 
+  # The approved block lands before anything else does, so the writer and any
+  # reviewer spawned later read it from git rather than from a brief.
+  run mkdir -p "$SPEC_DIR/tests/specs"
+  run cp "$SPECFILE" "$SPEC_DIR/$SPEC_PATH"
+  if [ "$DRY" = 1 ]; then echo "  would commit: $SPEC_DIR — $SPEC_MSG"; else commit_tree "$SPEC_DIR" "$SPEC_MSG"; fi
+
   cat <<EOF
 
   base        $(git rev-parse --short "$base") (dev)
@@ -214,6 +262,7 @@ do_open() {
               branch $SPEC_BR — tests are written here, tests/ only.
               No implementation lands here before the merge, so the red run
               in this tree is the bite proof.
+              spec block committed at $SPEC_PATH — the writer reads it there.
 
   impl tree   $IMPL_DIR
               branch $IMPL_BR — implementation, docs, CHANGELOG. Never tests/.
@@ -223,8 +272,87 @@ do_open() {
 
       cd $SPEC_DIR && PYTHONPATH=\$(pwd) .venv/bin/pytest tests/<file> -q
 
+  Red run:        scripts/pair.sh red $SLUG      (commits the tests, then runs them)
   Converge with:  scripts/pair.sh merge $SLUG
 EOF
+}
+
+# ---- red --------------------------------------------------------------------
+
+# Commit first, then run: the saved output then describes exactly the tests
+# the red commit holds, and "differs from the red run" and "differs from the
+# red commit" are one claim. Runner exit codes are not the point — red is the
+# expected result — so both are captured and neither stops the script.
+do_red() {
+  say "red $SLUG"
+
+  [ -d "$SPEC_DIR" ] || die "no spec tree at $SPEC_DIR — was this pair opened?"
+  local spec_commit
+  spec_commit=$(find_commit "$SPEC_DIR" "$SPEC_MSG")
+  [ -n "$spec_commit" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
+
+  lane_check "$SPEC_DIR" spec || die "the spec tree writes tests/ only."
+  commit_tree "$SPEC_DIR" "$RED_MSG"
+
+  if [ "$DRY" = 1 ]; then
+    echo "  would run the test files the red commit adds or changes and save the output to $RED_FILE"
+    return 0
+  fi
+
+  local red_commit files py js
+  red_commit=$(find_commit "$SPEC_DIR" "$RED_MSG")
+  files=$(red_files "$SPEC_DIR" "$spec_commit" "$red_commit")
+  [ -n "$files" ] || die "the red commit adds or changes no test file under tests/."
+  py=$(printf '%s\n' "$files" | grep '\.py$' || true)
+  js=$(printf '%s\n' "$files" | grep '\.test\.js$' || true)
+
+  {
+    echo "red run for $SLUG at $(git -C "$SPEC_DIR" rev-parse --short "$red_commit")"
+    printf '%s\n' "$files"
+    echo
+    if [ -n "$py" ]; then
+      # shellcheck disable=SC2086
+      in_tree "$SPEC_DIR" .venv/bin/pytest -q --no-cov $py 2>&1 || true
+    fi
+    if [ -n "$js" ]; then
+      # The loader hook resolves the bare vendor specifiers; without it every
+      # store-layer test fails to load and the run proves nothing.
+      # shellcheck disable=SC2086
+      in_tree "$SPEC_DIR" node --import ./tests/js/support/vendor-resolve.js --test $js 2>&1 || true
+    fi
+  } > "$RED_FILE"
+
+  echo "  red commit  $(git -C "$SPEC_DIR" rev-parse --short "$red_commit")"
+  echo "  output      $RED_FILE"
+  echo
+  tail -n 20 "$RED_FILE"
+  echo
+  echo "  Read the whole file; an import or collection error there proves nothing."
+}
+
+# The brief the spec-reviewer's post-merge test check consumes. Generated, not
+# typed: paths, the diff from the red commit, and the saved red output.
+test_check_brief() {   # test_check_brief <tree>
+  local tree=$1 spec_commit red_commit
+  spec_commit=$(find_commit "$tree" "$SPEC_MSG")
+  red_commit=$(find_commit "$tree" "$RED_MSG")
+  if [ -z "$red_commit" ]; then
+    echo "  no '$RED_MSG' commit on $SPEC_BR — no test check brief; run scripts/pair.sh red first next time." >&2
+    return 0
+  fi
+  echo
+  echo "TEST CHECK $SLUG"
+  echo "spec  $SPEC_PATH at $(git -C "$tree" rev-parse --short "$spec_commit")"
+  echo "red   $(git -C "$tree" rev-parse --short "$red_commit")"
+  echo "files"
+  red_files "$tree" "$spec_commit" "$red_commit" | sed 's/^/  /'
+  echo
+  echo "diff from red"
+  git -C "$tree" diff "$red_commit" HEAD -- tests/
+  echo
+  echo "red output"
+  cat "$RED_FILE" 2>/dev/null || echo "  (missing: $RED_FILE)"
+  echo "END TEST CHECK"
 }
 
 # ---- merge ------------------------------------------------------------------
@@ -304,11 +432,18 @@ are left exactly as they are.
 
   combined tree   $SPEC_DIR
 
-A failing test here means the spec and the code disagree. Adjudicate it — say
-which of the three it is before editing anything — then rerun this merge.
+A failing test here means the spec and the code disagree. Two ways out, and
+you say which before editing anything: the code is wrong, and the fix lands
+in $IMPL_DIR; or the spec is wrong, and it goes back to stage 1 with the
+same plan reviewer. Tests are not edited to pass. Then rerun this merge.
 EOF
+    test_check_brief "$SPEC_DIR" >&2
     exit 1
   fi
+
+  # Printed here, while the spec tree still exists; the diff is the same one
+  # dev will carry once step 6 fast-forwards to it.
+  test_check_brief "$SPEC_DIR"
 
   say "[6/6] land on dev"
   git merge --ff-only "$SPEC_BR" \
@@ -316,11 +451,12 @@ EOF
   git worktree remove "$SPEC_DIR"
   git worktree remove "$IMPL_DIR"
   git branch -d "$SPEC_BR" "$IMPL_BR" >/dev/null
-  rm -f "$BASE_FILE"
+  rm -f "$BASE_FILE" "$RED_FILE"
 
   echo
   echo "  dev is now $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
-  echo "  both worktrees removed. Next: /task-check, from here."
+  echo "  both worktrees removed. Next: forward the TEST CHECK block above to the"
+  echo "  spec-reviewer verbatim, then /task-check, from here."
 }
 
 # ---- abort ------------------------------------------------------------------
@@ -338,7 +474,7 @@ do_abort() {
     run git branch -D "$b"
     gone=1
   done
-  run rm -f "$BASE_FILE"
+  run rm -f "$BASE_FILE" "$RED_FILE"
   [ "$gone" = 1 ] || echo "  nothing to abort — no trees or branches for $SLUG"
 }
 
@@ -363,6 +499,7 @@ do_list() {
 
 case "$CMD" in
   open)  do_open ;;
+  red)   do_red ;;
   merge) do_merge ;;
   abort) do_abort ;;
   list)  do_list ;;
