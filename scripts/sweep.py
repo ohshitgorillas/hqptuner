@@ -52,7 +52,8 @@ from pathlib import Path
 from typing import Any
 
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
-from sweepplots import PLOTS_JS, SETTLE_MS, PlotPass, attach_console, derive_plots, slider_pass
+from sweepplots import PLOTS_JS, derive_plots
+from sweepslide import SETTLE_MS, PlotPass, attach_console, slider_pass
 
 DEFAULT_VIEWPORT = "1280x900"
 MODE_SEL = '[data-k="output_mode"] .segment button'
