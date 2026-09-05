@@ -1,7 +1,7 @@
 """``scripts/sweepplots.py`` folds a plot capture into findings and a slider sweep into per-frame deltas.
 
 ``derive_plots`` takes one state's capture, ``{"svgs": [...]}``, each SVG carrying its
-box, its traces (vertex lists in CSS px, stroke width, shape-rendering) and its text
+box, its traces (vertex lists in page coordinates, CSS px, stroke width, shape-rendering) and its text
 boxes, and returns findings ``{"kind", "selector", "value"}``. ``frame_deltas`` takes one
 slider pass, a list of frames in slider order, and returns one delta per frame after the
 first: whether the axis text changed, whether the vertex count changed, how far the

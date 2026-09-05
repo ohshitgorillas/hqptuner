@@ -56,6 +56,8 @@ Every complaint filed under exactly one. Each category has instrument (measured 
 
 - Complaint describes symptom in user words. Fixes, CSS values, tokens, rewordings belong to people who read code. You have not.
 - Every complaint carries number or screenshot path. One without either dropped.
+- Finding the instrument produced is a complaint. Filed with its number; judgment sets its severity and its wording, never its absence. State the app can reach that draws badly is the page's fault whatever the physics says: user sees the drawing, not the physics. One finding left out: one matching a known bug in brief, counted as skipped in coverage line. Leaving any other measured finding out is a defect in the review.
+- Finding on the route in, LIVE view included, is filed like any other. Area rule bounds where sweep goes, never which of its findings are filed.
 - Severity one of three words: `blocks` (cannot do thing), `annoys` (can, but grumble), `nitpick`. Categories one through five and seven uncapped; category six capped at five.
 - You know page as it is now. Speculation about what changed stays out of list.
 
@@ -67,4 +69,4 @@ Complaints first, sorted `blocks`, `annoys`, `nitpick`, one per line:
 <severity>  <category>  <tab>/<theme>/<hero>/<viewport>: <one sentence in a user's words>; <numbers> | seen: <screenshot path>
 ```
 
-Then one coverage line: area if one named plus that nothing outside it swept, tabs swept, states per tab, sliders stepped and corner states per tab and any printed `uncovered`, drivers run, screenshot directory. That whole report.
+Then one coverage line: area if one named plus that nothing outside it swept, tabs swept, states per tab, sliders stepped and corner states per tab and any printed `uncovered`, per finding kind the distinct kind-plus-selector pairs the run produced and how many of those filed or skipped as known bugs (one complaint over a frame or state range files every frame the pair fired on; zero pairs said in words), drivers run, screenshot directory. That whole report.

@@ -2,8 +2,10 @@
 """Derived plot findings for the visual sweep: the browser capture and the numbers folded out of it.
 
 ``PLOTS_JS`` captures every SVG on the page (box, clip rectangle when it has
-one, ``shape-rendering``, traces as screen-space vertices with stroke width,
-text boxes) and every canvas (CSS size, backing size, DPR). ``derive_plots``
+one, ``shape-rendering``, traces as vertices in page coordinates with stroke
+width, text boxes) and every canvas (CSS size, backing size, DPR). Boxes and
+vertices are page coordinates, CSS px, so a capture reads the same wherever
+the page is scrolled. ``derive_plots``
 folds one such capture into findings, and ``frame_deltas`` folds one slider
 pass's frames into adjacent-frame deltas. ``scripts/sweep.py`` runs the first
 on every static state, ``scripts/sweepslide.py`` runs both per slider frame
@@ -53,12 +55,16 @@ JUMP_FLOOR_PX = 6.0
 JUMP_MEDIAN_FACTOR = 3.0
 ALIASED = {"crispedges", "optimizespeed"}
 
-# Per SVG: box, clip rect, shape-rendering, traces as screen-space vertices, text boxes; per canvas: backing size.
+# Per SVG: box, clip rect, shape-rendering, traces as page-coordinate vertices, text boxes; per canvas: backing size.
 PLOTS_JS = """
 () => {
+  // Page coordinates: an element screenshot between two captures scrolls the
+  // page, and viewport coordinates would move every vertex with it.
+  const sx = window.scrollX, sy = window.scrollY;
   const box = (el) => {
     const r = el.getBoundingClientRect();
-    return {left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height};
+    return {left: r.left + sx, top: r.top + sy, right: r.right + sx, bottom: r.bottom + sy,
+            width: r.width, height: r.height};
   };
   const tag = (el) => {
     const cls = typeof el.className === 'string' ? el.className.trim()
@@ -68,7 +74,7 @@ PLOTS_JS = """
   const toScreen = (el, pts) => {
     const m = el.getScreenCTM();
     if (!m) return [];
-    return pts.map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+    return pts.map(([x, y]) => [m.a * x + m.c * y + m.e + sx, m.b * x + m.d * y + m.f + sy]);
   };
   // A clipPath's content is never rendered and has no CTM of its own, so the
   // rect's attributes are mapped through the SVG's CTM instead.
