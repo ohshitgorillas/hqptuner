@@ -1,9 +1,7 @@
 """What the 8088 lane does when hqplayerd will not accept who we say we are.
 
-Split out of ``httpconf`` rather than sitting beside the form parsers: a
-refused credential is answered identically by every route on that lane, and the
-one sentence the whole app reports it with belongs somewhere a reader can find
-without paging through the HTML parsing.
+A refused credential is answered identically by every route on that lane, and
+the one sentence the whole app reports it with lives here.
 
 ``raise_for_status`` is the lane's single choke point — ``HttpConfigClient``'s
 own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
