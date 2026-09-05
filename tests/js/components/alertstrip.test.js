@@ -73,10 +73,13 @@ function idleStrip(credentialsOk) {
   return render(html`<${AlertStrip} />`);
 }
 
-for (const [credentialsOk, kinds] of [
+/** @type {[boolean, string[]][]} */
+const CREDENTIAL_CASES = [
   [false, ["credentials-rejected"]],
   [true, []],
-]) {
+];
+
+for (const [credentialsOk, kinds] of CREDENTIAL_CASES) {
   test(`test_an_idle_engine_shows_the_credential_row_when_credentials_ok_is_${credentialsOk}`, () => {
     assert.deepEqual(alertKinds(idleStrip(credentialsOk)), kinds);
   });
