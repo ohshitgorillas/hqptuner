@@ -41,24 +41,24 @@ import sys
 THRESHOLD = 25_600      # bytes of free reading per leash period, per advisory
 
 HOOK_DIR = os.path.dirname(os.path.abspath(__file__))
-BUDGET = os.path.join(HOOK_DIR, "change-budget.py")
 
 
-def _load_budget():
-    """The change budget hook, for its classifier and its period boundaries.
+def _load_hook(filename, name):
+    """A sibling hook module, imported by path.
 
-    Imported rather than reimplemented: "this leash period" has to mean exactly
-    what the budget means by it, and "a free read" exactly what the budget
-    prices at zero. Two copies of that would drift, and the advisory would then
-    be describing a rule nobody enforces.
+    The budget is imported rather than reimplemented: "this leash period" has to
+    mean exactly what the budget means by it, and "a free read" exactly what the
+    budget prices at zero. Two copies of that would drift, and the advisory
+    would then be describing a rule nobody enforces.
     """
-    spec = importlib.util.spec_from_file_location("change_budget", BUDGET)
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HOOK_DIR, filename))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-budget = _load_budget()
+budget = _load_hook("change-budget.py", "change_budget")
+rules = _load_hook("metered_rules.py", "metered_rules")
 
 # ---- path extraction --------------------------------------------------------
 # Kept here rather than imported from scripts/: a hook must run without the repo
@@ -227,23 +227,6 @@ def _batch_follower(rows, tool_id, sizes):
     return False
 
 
-def why_metered(name, tool_input):
-    """A few words naming what made this call cost an action.
-
-    For Bash the allowlist parser answers; for the other tools the class itself
-    is the answer, and naming the tool is what makes the charge legible — an
-    agent that reads "Agent(general-purpose)" knows to reach for Explore next
-    time, where a bare count teaches nothing.
-    """
-    if name == "Bash":
-        return budget.reason_metered(tool_input.get("command", ""))
-    if name == "Agent":
-        return f"Agent({tool_input.get('subagent_type')}) not a read-only type"
-    if name in budget.EDIT_TOOLS:
-        return f"{name} outside the working tree"
-    return f"{name} not on the free list"
-
-
 def count_metered(data, rows, root, cwd):
     """This call's ordinal among the metered actions since the user last spoke.
 
@@ -270,8 +253,10 @@ def advise(data, rows):
     kind = budget.classify(name, tool_input, root, cwd)
     if kind == budget.CHANGE:
         count = count_metered(data, rows, root, cwd)
-        return (f"Budget: {count}/{budget.CHANGE_LIMIT} "
-                f"(metered: {why_metered(name, tool_input)})")
+        line = (f"Budget: {count}/{budget.CHANGE_LIMIT} "
+                f"(metered: {rules.why_metered(name, tool_input, budget)})")
+        rule = rules.rule_for(name, tool_input)
+        return f"{line}\nRule: {rule}" if rule else line
     if kind != budget.FREE:
         return None
 
@@ -424,6 +409,11 @@ def self_test():
     ok.append(_check("a metered Agent spawn is counted too",
                      "3/8" in (advise(_post("Agent", {"subagent_type": "general-purpose"}, 10),
                                       two) or "")))
+    merge = advise(_post("Bash", {"command": "scripts/pair.sh merge eqfix"}, 10), two)
+    ok.append(_check("a metered pair.sh merge carries the standing rule with its count",
+                     "Rule:" in (merge or "") and "3/8" in (merge or "")))
+    ok.append(_check("a metered call matching no rule carries the count alone",
+                     "Rule:" not in (advise(_post("Bash", {"command": "sudo ls"}, 10), two) or "")))
     full = [_said("go"), *_metered(budget.CHANGE_LIMIT - 1)]
     ok.append(_check("the counter at the limit includes the call that just completed",
                      f"{budget.CHANGE_LIMIT}/{budget.CHANGE_LIMIT}"

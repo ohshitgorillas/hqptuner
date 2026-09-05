@@ -127,6 +127,9 @@ ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
     ("sed -E 's/x/y/' f", False, "-n"),
     ("black --diff x", False, "--check"),
+    # ruff: `check` reads, `format` rewrites unless it is only reporting
+    ("ruff format --check hqptuner", True),
+    ("ruff format hqptuner", False, "--check"),
     # cd: a free segment head, but it frees only itself
     ("cd /tmp && ls", True),
     ("cd /tmp && sudo ls", False, "sudo"),

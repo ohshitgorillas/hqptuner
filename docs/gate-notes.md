@@ -54,4 +54,20 @@ The denial now names the calls it charged: `evaluate()` collects a `Tool(first 7
 
 Cases are pinned in `ALLOWLIST_CASES` in `.claude/hooks/budget_selftest.py`, which is where the hook's self-test moved so `change-budget.py` stays under the 500-line gate; run it with `python3 .claude/hooks/budget_selftest.py`.
 
-The host's own budget hook (`~/.claude/hooks/command-burst-guard.py`) loads a separate copy of `free_bash.py` and did not get these changes.
+The host's own budget hook (`~/.claude/hooks/command-burst-guard.py`) loads a separate copy of `free_bash.py`. `project_owns_budget()` there stands that guard down for any project shipping `.claude/hooks/change-budget.py`, so exactly one hook meters a call in this repo.
+
+## 2026-09-05
+
+`ruff format --check` reports and writes nothing:
+
+```
+ruff format --check hqptuner
+```
+
+## Resolution — 2026-09-05
+
+`ruff` and `black` share one branch, free when `--check` is present, plus `ruff check` in its own right. `ruff format --diff` and `black --diff` meter, `--check` being the free form throughout. Pinned in `ALLOWLIST_CASES` as `ruff format --check` free and `ruff format` metered.
+
+`read-volume.py`'s counter line carries a `Rule:` clause naming the standing ruling a metered call walks into. One entry: a `pair.sh merge`, whose failure `make check` in the combined tree answers for free. The table is `.claude/hooks/metered_rules.py`; run it with `python3 .claude/hooks/read-volume.py --self-test`.
+
+Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` returns `edit` and they are free, which is why no rule covers them.

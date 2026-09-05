@@ -361,12 +361,10 @@ def _stage_ok(mstage, ostage, is_head, note=None):
         # noEmit); a bare `tsc file.js` writes JS next to the source
         return (any(a in ("-p", "--project", "--noEmit") for a in rest)
                 or _no(note, "`tsc` lacking `-p` or `--noEmit`"))
-    if name == "ruff":
-        # `ruff format` mutates
-        return (bool(rest) and rest[0] == "check") or _no(note, "`ruff` lacking `check`")
-    if name == "black":
-        # bare black reformats
-        return "--check" in rest or _no(note, "`black` lacking `--check`")
+    if name in ("ruff", "black"):
+        # bare `black` and bare `ruff format` rewrite; `--check` only reports
+        ok = "--check" in rest or (name == "ruff" and bool(rest) and rest[0] == "check")
+        return ok or _no(note, f"`{name}` lacking `--check`")
     if name == "pdftotext":
         # output must be stdout (`-`) or a scratchpad file; never a repo path
         pos = [a for a in rest if a == "-" or not a.startswith("-")]
