@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from e2e.support import stack as stack_support
 
 #: Repo root — tests/e2e/test_abuse_bracket.py, so three parents up.
@@ -102,10 +103,11 @@ def _abuse(command: str, state: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _open_bracket(state: Path) -> subprocess.CompletedProcess[str]:
-    result = _abuse("open", state)
+def _bracket(command: str, state: Path) -> subprocess.CompletedProcess[str]:
+    """Run one end of the bracket, raising with the script's own output when it refuses."""
+    result = _abuse(command, state)
     if result.returncode != 0:
-        raise RuntimeError(f"abuse.sh open failed:\n{result.stdout}\n{result.stderr}")
+        raise RuntimeError(f"abuse.sh {command} failed:\n{result.stdout}\n{result.stderr}")
     return result
 
 
@@ -148,15 +150,15 @@ def test_close_leaves_every_store_as_open_found_it(app: stack_support.Stack, sta
     _call(app, "PUT", "/api/livepresets/keep", {})
     _call(app, "PUT", "/api/descriptions", {"name": "keep", "text": "kept"})
     before = _snapshot(state)
-    _open_bracket(state)
+    _bracket("open", state)
     _write_into_every_store(app)
-    _abuse("close", state)
+    _bracket("close", state)
     assert _snapshot(state) == before
 
 
 def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Stack, state: Path) -> None:
     """Without the manifest the bracket cannot tell an empty store from a lost snapshot, so it refuses."""
-    _open_bracket(state)
+    _bracket("open", state)
     _call(app, "PUT", "/api/livepresets/junk", {})
     for manifest in (state / "abuse").rglob("manifest.json"):
         manifest.unlink()
