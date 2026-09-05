@@ -13,6 +13,8 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup, Tag
 
+from hqptuner.conf.httpauth import raise_for_status
+
 
 def _attr(el: Tag, name: str) -> str | None:
     value = el.get(name)
@@ -285,10 +287,8 @@ def _submitted_value(el: Tag) -> str | None:
     return _attr(el, "value") or ""
 
 
-# The CRUD verbs both profile subsystems take: /matrix/{action} for matrix
-# profiles, /config/profile/{action} for preset mirrors. Different routes, same
-# three verbs — one tuple, so a route that grows a fourth verb is a deliberate
-# split rather than a copy that silently fell behind.
+# The CRUD verbs /config/profile/{action} takes for the preset mirrors. The
+# matrix half of this pair is gone (see post_profile's neighbours below).
 _ACTIONS = ("load", "save", "delete")
 
 
@@ -314,7 +314,7 @@ class HttpConfigClient:
         the status and parse an error page as if it were a form.
         """
         resp = await self._client.get(path)
-        resp.raise_for_status()
+        raise_for_status(resp)
         return resp
 
     async def _post(self, path: str, **kwargs: Any) -> None:
@@ -325,7 +325,7 @@ class HttpConfigClient:
         response.
         """
         resp = await self._client.post(path, **kwargs)
-        resp.raise_for_status()
+        raise_for_status(resp)
 
     async def get_config(self) -> dict[str, Any]:
         """GET /config — the persistent-settings form, parsed into fields plus the preset select."""

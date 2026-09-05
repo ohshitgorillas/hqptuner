@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
+from hqptuner.conf import engineconf, httpauth, presetconf, presetzip, xmledit
 from hqptuner.conf.matrixconf import (
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
@@ -70,6 +70,34 @@ def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[st
     return {k: {"want": intended.get(k), "got": realized.get(k)} for k in keys if realized.get(k) != intended.get(k)}
 
 
+def _credentials_refusal() -> dict[str, Any]:
+    """Return the lane's answer to a refused credential, wherever it was established.
+
+    One builder for both sites — the guard that reads the recorded verdict and
+    the pass that meets the refusal on the wire — so the two cannot drift into
+    reporting the same fault two ways. ``error`` rides beside ``reason``
+    because the caption branch reads both, and a reason alone falls through to
+    the generic wording and loses the sentence.
+    """
+    return {"submitted": False, "reason": "credentials", "error": httpauth.AUTH_REFUSED_MESSAGE}
+
+
+def _declined_before_starting(mgr: ConnectionManager) -> dict[str, Any] | None:
+    """Return the lane's answer when there is no point starting, or None to go ahead.
+
+    Both cases are settled before the first pass rather than discovered inside
+    it: every pass opens with ``await_http_ready``, which polls /config to the
+    alarm deadline before giving up, so a daemon that has already refused us
+    costs three deadlines to tell the user something the poll loop established
+    seconds after startup.
+    """
+    if mgr.http_client is None:
+        return {"submitted": False, "error": "no credentials for HTTP config lane"}
+    if mgr.readings.credentials_ok is False:
+        return _credentials_refusal()
+    return None
+
+
 async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
@@ -85,8 +113,9 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     no longer offers (endpoint gone) → unfixable: surface and stop, since no
     restart conjures absent hardware.
     """
-    if mgr.http_client is None:
-        return {"submitted": False, "error": "no credentials for HTTP config lane"}
+    declined = _declined_before_starting(mgr)
+    if declined is not None:
+        return declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
     # along (store as fallback), under the staged edits, which win (presetfields)
@@ -142,6 +171,15 @@ async def _one_pass(
         intended = await _restore_once(mgr, merged, active_profile)
     except xmledit.GroundingError as exc:
         return {"submitted": False, "error": str(exc)}, {}, None
+    except httpauth.AuthRefused:
+        # Terminal, not retryable: the clause below exists for a daemon that
+        # dropped mid-write, and two more passes of that cannot turn a refused
+        # password into an accepted one. Reached only when the refusal began
+        # inside the window between two polls — with it recorded, the guard in
+        # `apply` answered before this pass started. Carries `error` as well as
+        # `reason` because the caption branch reads both, and a reason alone
+        # falls through to the generic wording and loses the sentence.
+        return _credentials_refusal(), {}, None
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)

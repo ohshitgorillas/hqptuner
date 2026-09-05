@@ -50,7 +50,7 @@
  *   The config lane's outcome (http.restore).
  * @property {boolean} [submitted]
  * @property {boolean} [applied]
- * @property {string} [reason] unconverged | unavailable
+ * @property {string} [reason] unconverged | unavailable | credentials
  * @property {string} [error]
  * @property {Record<string, unknown>} [diff] the fields that did not converge
  * @property {{ net_device?: { want: string } }} [unfixable]
@@ -96,20 +96,39 @@ function liveFailure(report) {
   return failure("live-failed", `Engine refused: ${settings.join(", ")}`, { settings });
 }
 
-// The persistent lane declined. A missing output endpoint is named rather than
-// folded into the generic message: it is the one cause with an obvious remedy
-// (power the NAA back on), so it earns its own wording.
+// The causes that carry their own wording, each because the generic "Config not
+// applied" sentence would bury the one thing the reader can act on: which
+// endpoint went missing, or that the password is what is wrong. Held apart from
+// the fall-through below so that adding a third named cause does not keep
+// growing one function.
+/**
+ * @param {PersistentResult} p
+ * @returns {Verdict | null} null when no named cause applies
+ */
+function namedCause(p) {
+  const nd = p.unfixable && p.unfixable.net_device;
+  if (nd)
+    return failure("endpoint-missing", `Endpoint "${nd.want}" not present — config not applied`, {
+      endpoint: nd.want,
+    });
+  // A refused credential arrives with the backend's own sentence, which is already
+  // the owner-approved copy: it replaces the whole caption rather than being
+  // interpolated into "Config not applied: ...", the way the other branches read.
+  // `error` is optional on the report generally, so this reads it rather than
+  // asserting it: a refusal that somehow arrived without its sentence falls
+  // through to the generic paths, which is a worse caption but never an empty one.
+  if (p.reason === "credentials" && p.error) return failure("persist-credentials", p.error);
+  return null;
+}
+
 /**
  * @param {PersistentResult} [p] absent when the apply carried no persistent lane
  * @returns {Verdict | null}
  */
 function persistentFailure(p) {
   if (!p || p.applied) return null;
-  const nd = p.unfixable && p.unfixable.net_device;
-  if (nd)
-    return failure("endpoint-missing", `Endpoint "${nd.want}" not present — config not applied`, {
-      endpoint: nd.want,
-    });
+  const named = namedCause(p);
+  if (named) return named;
   if (p.error) return failure("persist-error", `Config not applied: ${p.error}`);
   // Name the fields that didn't converge. "unconverged" alone is undebuggable —
   // it says a setting the daemon kept refusing exists, but not which one, and

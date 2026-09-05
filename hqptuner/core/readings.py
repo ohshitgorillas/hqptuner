@@ -40,6 +40,11 @@ class Readings:
     # from /config — polled over the 8088 lane like /matrix, best-effort.
     speakers_form: dict[str, Any] | None = None
     speakers_error: str | None = None
+    # Whether the daemon accepts the configured management credentials: None until
+    # the 8088 lane has answered at all, True once a /config read succeeded, False
+    # once the daemon refused them. A daemon that merely stops answering leaves it
+    # alone — an unreachable daemon is no evidence either way.
+    credentials_ok: bool | None = None
     # Saved matrix profile names from the live 4321 lane (MatrixListProfiles —
     # unauthenticated, no reload). The active one is State.matrix_profile.
     matrix_profiles: list[str] | None = None
