@@ -1,22 +1,30 @@
 #!/usr/bin/env python3
 """Derived plot findings for the visual sweep: the browser capture and the numbers folded out of it.
 
-``PLOTS_JS`` captures every SVG on the page (box, ``shape-rendering``, traces
-as screen-space vertices with stroke width, text boxes) and every canvas
-(CSS size, backing size, DPR). ``derive_plots`` folds one such capture into
-findings, and ``frame_deltas`` folds one slider pass's frames into
-adjacent-frame deltas. ``scripts/sweep.py`` runs the first on every static
-state, ``scripts/sweepslide.py`` runs both per slider frame.
+``PLOTS_JS`` captures every SVG on the page (box, clip rectangle when it has
+one, ``shape-rendering``, traces as screen-space vertices with stroke width,
+text boxes) and every canvas (CSS size, backing size, DPR). ``derive_plots``
+folds one such capture into findings, and ``frame_deltas`` folds one slider
+pass's frames into adjacent-frame deltas. ``scripts/sweep.py`` runs the first
+on every static state, ``scripts/sweepslide.py`` runs both per slider frame
+and the first per corner state.
 
 Findings (``kind``, ``selector``, ``value``):
 
 - ``few-points``   vertices per px of drawn width under 0.5, on 3+ vertices
 - ``long-segment`` a segment over 4 px whose neighbour turns more than 15 degrees
-- ``hash``         direction reversals of dy per 100 px of width over 40
+- ``hash``         direction reversals of dy inside the densest 100 px stretch
+                   of the trace, over 30
+- ``narrow``       px width of the span holding every vertex that departs from
+                   the trace's median y by more than half its greatest
+                   departure, under 4 px: a feature drawn as a needle
+- ``sparse``       a trace of 3 to 5 vertices, value the vertex count
 - ``aliased``      ``shape-rendering`` crispEdges or optimizeSpeed on 3+ vertices
 - ``hairline``     computed stroke width under 1 CSS px
 - ``collision``    two ``<text>`` boxes in one SVG overlapping, value the overlap width
-- ``escape``       a ``<text>`` box outside its SVG's box, value the px outside
+- ``escape``       a ``<text>`` box outside its SVG's box, or a trace vertex
+                   outside the SVG's clip rectangle (its box when it has no
+                   clip), value the px outside
 - ``blurry``       a canvas whose backing width is not its CSS width times DPR
 - ``jump``         a slider frame whose plot moved more than the larger of 3x the
                    pass median displacement and 6 px
@@ -33,13 +41,18 @@ MIN_TRACE = 3
 FEW_POINTS_PER_PX = 0.5
 LONG_SEGMENT_PX = 4.0
 TURN_DEG = 15.0
-HASH_PER_100PX = 40.0
+HASH_PER_100PX = 30.0
+HASH_WINDOW_PX = 100.0
+NARROW_PX = 4.0
+SPARSE_MAX = 5
 HAIRLINE_PX = 1.0
+# A vertex this far past the clip is sub-pixel rounding of a point drawn on the edge.
+ESCAPE_EPS_PX = 0.5
 JUMP_FLOOR_PX = 6.0
 JUMP_MEDIAN_FACTOR = 3.0
 ALIASED = {"crispedges", "optimizespeed"}
 
-# Per SVG: box, shape-rendering, traces as screen-space vertices, text boxes; per canvas: backing size.
+# Per SVG: box, clip rect, shape-rendering, traces as screen-space vertices, text boxes; per canvas: backing size.
 PLOTS_JS = """
 () => {
   const box = (el) => {
@@ -55,6 +68,17 @@ PLOTS_JS = """
     const m = el.getScreenCTM();
     if (!m) return [];
     return pts.map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+  };
+  // A clipPath's content is never rendered and has no CTM of its own, so the
+  // rect's attributes are mapped through the SVG's CTM instead.
+  const clipBox = (svg) => {
+    const rect = svg.querySelector('clipPath rect');
+    const m = svg.getScreenCTM();
+    if (!rect || !m) return null;
+    const x = Number(rect.getAttribute('x') || 0), y = Number(rect.getAttribute('y') || 0);
+    const w = Number(rect.getAttribute('width') || 0), h = Number(rect.getAttribute('height') || 0);
+    const [[left, top], [right, bottom]] = toScreen(svg, [[x, y], [x + w, y + h]]);
+    return {left, top, right, bottom, width: right - left, height: bottom - top};
   };
   const pathVertices = (d) => {
     const out = [];
@@ -79,6 +103,7 @@ PLOTS_JS = """
     if (!b.width || !b.height) continue;
     const traces = [];
     for (const el of svg.querySelectorAll('polyline, polygon, path')) {
+      if (el.closest('clipPath')) continue;
       const raw = el.tagName.toLowerCase() === 'path'
         ? pathVertices(el.getAttribute('d'))
         : Array.from(el.points || []).map(p => [p.x, p.y]);
@@ -89,8 +114,8 @@ PLOTS_JS = """
     }
     const texts = Array.from(svg.querySelectorAll('text')).map(t => ({
       text: (t.textContent || '').trim(), ...box(t)}));
-    svgs.push({selector: tag(svg), box: b, shapeRendering: getComputedStyle(svg).shapeRendering,
-               traces, texts});
+    svgs.push({selector: tag(svg), box: b, clip: clipBox(svg),
+               shapeRendering: getComputedStyle(svg).shapeRendering, traces, texts});
   }
   const dpr = window.devicePixelRatio;
   const canvases = Array.from(document.querySelectorAll('canvas')).map(c => {
@@ -123,21 +148,78 @@ def _turn_deg(a: tuple[float, float, float], b: tuple[float, float, float]) -> f
     return math.degrees(math.acos(max(-1.0, min(1.0, cos))))
 
 
-def _reversals(segments: list[tuple[float, float, float]]) -> int:
-    """Count sign changes of dy between one segment and the next, zero dy carrying no sign."""
-    count = 0
+def _reversal_xs(vertices: list[list[float]]) -> list[float]:
+    """List the x of every vertex at which dy changes sign from the segment before, zero dy carrying no sign."""
+    out: list[float] = []
     last = 0
-    for _, dy, _ in segments:
+    for (_, y0), (x1, y1) in pairwise(vertices):
+        dy = y1 - y0
         sign = (dy > 0) - (dy < 0)
         if sign and last and sign != last:
-            count += 1
+            out.append(x1)
         if sign:
             last = sign
-    return count
+    return out
 
 
-def _trace_findings(trace: dict[str, Any], svg_rendering: str) -> list[dict[str, Any]]:
-    """Derive one polyline, polygon or path's findings: few points, long segment, hash, aliased, hairline."""
+def _hash(vertices: list[list[float]]) -> int:
+    """Reversals inside the densest window of ``HASH_WINDOW_PX`` along the trace."""
+    xs = sorted(_reversal_xs(vertices))
+    worst = 0
+    start = 0
+    for end, x in enumerate(xs):
+        while x - xs[start] > HASH_WINDOW_PX:
+            start += 1
+        worst = max(worst, end - start + 1)
+    return worst
+
+
+def _narrow(vertices: list[list[float]]) -> float | None:
+    """Px span of the vertices departing from the median y by more than half the greatest departure."""
+    median = statistics.median(v[1] for v in vertices)
+    departures = [abs(v[1] - median) for v in vertices]
+    peak = max(departures)
+    if peak <= 0:
+        return None
+    xs = [v[0] for v, d in zip(vertices, departures, strict=True) if d > peak / 2]
+    return max(xs) - min(xs)
+
+
+def _outside(box: dict[str, Any], a: dict[str, Any]) -> float:
+    edges = (box["left"] - a["left"], a["right"] - box["right"], box["top"] - a["top"], a["bottom"] - box["bottom"])
+    return float(max(edges))
+
+
+def _escape(bounds: dict[str, Any], vertices: list[list[float]]) -> float:
+    """Px the farthest vertex sits outside ``bounds``."""
+    worst = 0.0
+    for x, y in vertices:
+        worst = max(worst, _outside(bounds, {"left": x, "right": x, "top": y, "bottom": y}))
+    return worst
+
+
+def _shape_findings(sel: str, vertices: list[list[float]], width: float) -> list[dict[str, Any]]:
+    """Derive the findings read off a trace's vertices alone: few points, sparse, long segment, hash, narrow."""
+    out: list[dict[str, Any]] = []
+    per_px = len(vertices) / width
+    if per_px < FEW_POINTS_PER_PX:
+        out.append(_finding("few-points", sel, per_px))
+    if len(vertices) <= SPARSE_MAX:
+        out.append(_finding("sparse", sel, len(vertices)))
+    longest = _long_segment(_segments(vertices))
+    if longest:
+        out.append(_finding("long-segment", sel, longest))
+    dense = _hash(vertices)
+    if dense > HASH_PER_100PX:
+        out.append(_finding("hash", sel, dense))
+    span = _narrow(vertices)
+    if span is not None and span < NARROW_PX:
+        out.append(_finding("narrow", sel, span))
+    return out
+
+
+def _trace_findings(trace: dict[str, Any], svg_rendering: str, bounds: dict[str, Any]) -> list[dict[str, Any]]:
+    """Derive one polyline, polygon or path's findings, ``bounds`` being the box its vertices must stay inside."""
     sel = str(trace["selector"])
     vertices: list[list[float]] = trace["vertices"]
     out: list[dict[str, Any]] = []
@@ -153,16 +235,10 @@ def _trace_findings(trace: dict[str, Any], svg_rendering: str) -> list[dict[str,
     width = max(xs) - min(xs)
     if width <= 0:
         return out
-    per_px = len(vertices) / width
-    if per_px < FEW_POINTS_PER_PX:
-        out.append(_finding("few-points", sel, per_px))
-    segs = _segments(vertices)
-    longest = _long_segment(segs)
-    if longest:
-        out.append(_finding("long-segment", sel, longest))
-    per_100 = _reversals(segs) / width * 100
-    if per_100 > HASH_PER_100PX:
-        out.append(_finding("hash", sel, per_100))
+    out.extend(_shape_findings(sel, vertices, width))
+    outside = _escape(bounds, vertices)
+    if outside > ESCAPE_EPS_PX:
+        out.append(_finding("escape", sel, outside))
     return out
 
 
@@ -185,11 +261,6 @@ def _overlap(a: dict[str, Any], b: dict[str, Any]) -> tuple[float, float]:
     return ow, oh
 
 
-def _outside(box: dict[str, Any], a: dict[str, Any]) -> float:
-    edges = (box["left"] - a["left"], a["right"] - box["right"], box["top"] - a["top"], a["bottom"] - box["bottom"])
-    return float(max(edges))
-
-
 def _text_findings(svg: dict[str, Any]) -> list[dict[str, Any]]:
     """Derive collisions between text boxes of one SVG, and text boxes escaping the SVG's box."""
     out: list[dict[str, Any]] = []
@@ -210,8 +281,9 @@ def derive_plots(raw: dict[str, Any]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for svg in raw.get("svgs", []):
         rendering = str(svg.get("shapeRendering") or "")
+        bounds: dict[str, Any] = svg.get("clip") or svg["box"]
         for trace in svg.get("traces", []):
-            out.extend(_trace_findings(trace, rendering))
+            out.extend(_trace_findings(trace, rendering, bounds))
         out.extend(_text_findings(svg))
     for canvas in raw.get("canvases", []):
         expected = canvas["cssWidth"] * canvas["dpr"]

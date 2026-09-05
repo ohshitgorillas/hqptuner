@@ -11,7 +11,10 @@ Tabs come from the DOM (``.tab-nav button``), accents from ``/store/theme.js``
 and hero MODE positions from the ``output_mode`` segment, so a dimension that
 grows in the app grows here without an edit. ``--viewport`` is repeatable and
 defaults to 1280x900. ``--tab`` is repeatable and keeps only the named tabs,
-by id or label; without it every tab is swept.
+by id or label; without it every tab is swept. A fragment on the URL stays
+on it through the whole sweep: the page opens on it and every tab click keeps
+it, so a view the app shows only under a hash is swept by passing that hash
+here, on the tab whose body it replaces.
 
 Each state writes ``OUTDIR/<tab>-<accent>-<mode>-<WxH>.png`` and a ``.json``
 holding the state, the seven instruments (fonts by text role, alignment edges
@@ -23,12 +26,14 @@ seen since the previous state. The plot findings are numbers a review quotes:
 
 After the static states, every viewport gets a plot pass in a second browser
 context at device scale factor 3: one crop per SVG or canvas per tab
-(``OUTDIR/<tab>-<n>-crop.png``), and every visible enabled range slider on the
+(``OUTDIR/<tab>-<n>-crop.png``), every visible enabled range slider on the
 tab stepped across its whole range by keyboard, about twenty frames, each with
-a crop, its plot findings and the adjacent-frame deltas (``jump`` among them)
-in ``OUTDIR/<tab>-slider<n>-frames.json``. Each slider is restored to its
-starting value and the readback printed; a slider keys do not move is printed
-as uncovered.
+a crop per plot in the slider's card, its plot findings and the adjacent-frame
+deltas (``jump`` among them) in ``OUTDIR/<tab>-slider<n>-frames.json``, and
+then every combination of the tab's sliders at minimum and maximum, one frame
+each with a crop per plot, in ``OUTDIR/<tab>-corners.json``
+(``scripts/sweepslide.py``). Each slider is restored to its starting value and
+the readback printed; a slider keys do not move is printed as uncovered.
 
 The MODE dimension stages one field through the app's own UI, and the slider
 pass stages through the sliders that stage. The staged buffer is read before
