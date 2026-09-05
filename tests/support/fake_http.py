@@ -32,6 +32,52 @@ from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 #: bookkeeping of threading a lock through every module-level helper.
 _STATE = threading.Lock()
 
+#: The challenge 6.0.4 sends with its 401, verbatim in shape: httpx.DigestAuth
+#: parses it, builds a digest and re-sends, so a caller with the wrong password
+#: never sees this status — it sees the 403 the re-send earns.
+_DIGEST_CHALLENGE = (
+    'Digest realm="com.signalyst.hqplayer.embedded", qop="auth", algorithm=MD5, '
+    'nonce="1f3a9c2b4d5e6f70", opaque="0a1b2c3d4e5f6071", charset=UTF-8'
+)
+
+#: The 40-byte body the daemon serves with both the 401 and the 403.
+_AUTH_BODY = b"Authentication is required for this page"
+
+
+def _count_request(st: dict[str, Any], path: str) -> None:
+    """Bookkeeping on arrivals, the same shape as `_restore_attempts`.
+
+    `_requests` counts every arrival at the lane, any method, any path, refused
+    or served, so a caller can be tested for how much traffic it spent.
+    `_backup_reads` narrows that to the settings archive: the poll cycle never
+    fetches it, so it is the arrival that says a caller reached the write path
+    rather than merely polled."""
+    with _STATE:
+        st["_requests"] = st.get("_requests", 0) + 1
+        if path == "/backup/settings.zip":
+            st["_backup_reads"] = st.get("_backup_reads", 0) + 1
+
+
+def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[int, str, bytes] | None:
+    """The credential wire on 8088, verified against hqplayerd 6.0.4.
+
+    Every page needs authentication: with no `Authorization` header the daemon
+    answers 401 and a digest challenge, and a digest built from a WRONG password
+    answers 403 `Forbidden` with the same 40-byte body. `httpx.DigestAuth`
+    consumes the 401 internally and re-sends, so 403 is the status that surfaces
+    to a caller carrying bad credentials.
+
+    A daemon that is down answers 503 first, on every path: a restart window is
+    not a credential verdict, so `_down` and `_fail_paths` outrank `_refuse_auth`
+    exactly as they do on the real thing."""
+    if not st.get("_refuse_auth"):
+        return None
+    if st.get("_down") or path in st.get("_fail_paths", ()):
+        return None
+    if not authorization:
+        return 401, _DIGEST_CHALLENGE, _AUTH_BODY
+    return 403, "", _AUTH_BODY
+
 
 def _backup_zip(st: dict[str, Any]) -> bytes:
     xml = cfg_xml(st)
@@ -332,9 +378,28 @@ def _save_profile(st: dict[str, Any], raw: bytes) -> None:
         st.setdefault("_saved", {})[name] = cfg_xml(st)
 
 
+def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
+    """Answer the request with the daemon's authentication refusal if the state
+    calls for one, reporting whether it did."""
+    refusal = _auth_refusal(st, handler.path, handler.headers.get("Authorization", ""))
+    if refusal is None:
+        return False
+    status, challenge, body = refusal
+    handler.send_response(status)
+    if challenge:
+        handler.send_header("WWW-Authenticate", challenge)
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+    return True
+
+
 def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
+            _count_request(st, self.path)
+            if _serve_refusal(self, st):
+                return
             status, body = _http_get_response(st, self.path)
             self.send_response(status)
             self.end_headers()
@@ -342,8 +407,11 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 self.wfile.write(body)
 
         def do_POST(self) -> None:
+            _count_request(st, self.path)
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
+            if _serve_refusal(self, st):
+                return
             status = 200  # /config POST is unused by the restore lane
             if self.path == "/restore":
                 status = _restore_post(st, self.headers.get("Content-Type", ""), raw)
@@ -516,5 +584,13 @@ def state(**extra: Any) -> dict[str, Any]:
         "_restore_attempts": 0,
         # Running count of GET /log arrivals, same bookkeeping shape.
         "_log_reads": 0,
+        # Refuse authentication on every page (401 challenge, then 403 to the
+        # digest), and the running count of arrivals at the lane. Both default to
+        # the healthy daemon: credentials are accepted and the count is
+        # bookkeeping no existing test reads.
+        "_refuse_auth": False,
+        "_requests": 0,
+        # Running count of GET /backup/settings.zip arrivals, refused or served.
+        "_backup_reads": 0,
         **extra,
     }

@@ -19,7 +19,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { AlertStrip } from "../../../hqptuner/static/components/AlertStrip.js";
-import { engineStatus } from "../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../hqptuner/static/store/signals.js";
 
 // One status frame — always a fresh object (writing the same reference to a
 // signal does not notify), then the rendered strip.
@@ -60,3 +60,24 @@ test("test_a_clip_alert_renders_at_warning_severity", () => {
 test("test_the_alert_list_renders_inside_the_strip_row", () => {
   assert.ok(strip({ ...PLAYING, clips: "13" }).includes('class="alert-strip"'));
 });
+
+// A refused management credential is not a playback fault: the 8088 configuration
+// lane is dead while the 4321 control lane answers normally, so the app looks
+// connected and an install in this state is typically sitting idle. The row
+// therefore has to render with NO status frame at all — the state every other
+// alert in this strip is silent in — which is what these cases pin.
+/** @param {boolean | null} credentialsOk */
+function idleStrip(credentialsOk) {
+  engineStatus.value = null;
+  health.value = { reachable: true, credentials_ok: credentialsOk };
+  return render(html`<${AlertStrip} />`);
+}
+
+for (const [credentialsOk, kinds] of [
+  [false, ["credentials-rejected"]],
+  [true, []],
+]) {
+  test(`test_an_idle_engine_shows_the_credential_row_when_credentials_ok_is_${credentialsOk}`, () => {
+    assert.deepEqual(alertKinds(idleStrip(credentialsOk)), kinds);
+  });
+}
