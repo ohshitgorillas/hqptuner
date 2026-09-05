@@ -68,10 +68,13 @@ def svg(
     traces: list[dict[str, Any]],
     texts: list[dict[str, Any]] | None = None,
     width: float = 1000.0,
+    clip: dict[str, float] | None = None,
 ) -> dict[str, Any]:
+    """``clip`` is the clip rectangle's box when the SVG clips its traces, else ``None``."""
     return {
         "selector": selector,
         "box": box(0.0, 0.0, width, 400.0),
+        "clip": clip,
         "shapeRendering": "auto",
         "traces": traces,
         "texts": texts or [],
@@ -117,6 +120,11 @@ def sweep(moves: list[float]) -> list[dict[str, Any]]:
     return frames
 
 
+def of_kind(findings: list[dict[str, Any]], kind: str) -> list[tuple[str, float]]:
+    """``(selector, value)`` of every finding of ``kind``, sorted by selector so order is not pinned."""
+    return sorted((f["selector"], f["value"]) for f in findings if f["kind"] == kind)
+
+
 def jump_frames(deltas: list[dict[str, Any]]) -> set[int]:
     """Frame indices flagged ``jump``; delta ``j`` describes frame ``j + 1``."""
     return {j + 1 for j, delta in enumerate(deltas) if delta["jump"]}
@@ -132,18 +140,68 @@ def test_few_points_names_only_the_trace_whose_vertices_per_drawn_px_is_low(swee
     ]
 
 
-def test_hash_counts_dy_sign_reversals_per_100_px_and_ignores_a_monotone_trace_of_equal_density(
+def test_hash_reports_the_densest_100_px_stretch_of_a_trace_not_its_whole_width_average(
     sweepplots: ModuleType,
 ) -> None:
+    # 501 vertices at 2 px spacing. ``mid`` toggles y on every vertex from x 402 to 600 only:
+    # 100 non-zero segments there, so 99 reversals inside 200 px (about 50 per 100 px), and
+    # about 10 per 100 px averaged over the full 1000 px. ``spread`` flips y every fifth
+    # vertex across the whole width: one reversal per 10 px everywhere, 10 per 100 px.
+    mid = [[x, 103.0 if 402.0 <= x <= 600.0 and i % 2 else 100.0] for i, x in enumerate(even_xs(501, 1000.0))]
+    spread = [[x, 103.0 if (i // 5) % 2 else 100.0] for i, x in enumerate(even_xs(501, 1000.0))]
+    raw = {"svgs": [svg("svg:1", [trace("path:mid", mid), trace("path:spread", spread)])]}
+    assert of_kind(sweepplots.derive_plots(raw), "hash") == [("path:mid", pytest.approx(50.0, abs=2.0))]
+
+
+def test_narrow_measures_the_px_span_of_the_vertices_past_half_the_greatest_departure(
+    sweepplots: ModuleType,
+) -> None:
+    # 1001 vertices at 1 px spacing, median y 100, greatest departure 100 (y 0). The lone
+    # x 100 vertex at y 60 departs by 40, under half, so it is outside the measured span on
+    # both traces. ``spike`` holds y 0 at x 499..501 (span 2 px); ``bump`` at x 496..504 (8 px).
+    spike = [[x, 0.0 if 499.0 <= x <= 501.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(1001, 1000.0)]
+    bump = [[x, 0.0 if 496.0 <= x <= 504.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(1001, 1000.0)]
+    raw = {"svgs": [svg("svg:1", [trace("path:spike", spike), trace("path:bump", bump)])]}
+    assert of_kind(sweepplots.derive_plots(raw), "narrow") == [("path:spike", pytest.approx(2.0))]
+
+
+def test_sparse_reports_the_vertex_count_of_a_three_to_five_vertex_trace(sweepplots: ModuleType) -> None:
     raw = {
         "svgs": [
             svg(
                 "svg:1",
-                [trace("path:zigzag", alternating(600, 1000.0, 3.0)), trace("path:ramp", ramp(600, 1000.0, 0.1))],
+                [
+                    trace("path:three", flat(3, 100.0)),
+                    trace("path:five", flat(5, 100.0)),
+                    trace("path:six", flat(6, 100.0)),
+                ],
             )
         ]
     }
-    assert sweepplots.derive_plots(raw) == [{"kind": "hash", "selector": "path:zigzag", "value": pytest.approx(59.8)}]
+    assert of_kind(sweepplots.derive_plots(raw), "sparse") == [
+        ("path:five", pytest.approx(5)),
+        ("path:three", pytest.approx(3)),
+    ]
+
+
+def test_escape_measures_against_the_clip_rectangle_when_present_else_the_svg_box(
+    sweepplots: ModuleType,
+) -> None:
+    # Both SVG boxes span y 0..400. ``clipped`` has a clip spanning y 50..350 and one vertex
+    # at y 20: 30 px above the clip, inside the box. ``open`` has no clip and one vertex at
+    # y -10: 10 px above the box.
+    clipped = [[x, 20.0 if x == 500.0 else 100.0] for x in even_xs(501, 1000.0)]
+    unclipped = [[x, -10.0 if x == 500.0 else 100.0] for x in even_xs(501, 1000.0)]
+    raw = {
+        "svgs": [
+            svg("svg:1", [trace("path:clipped", clipped)], clip=box(0.0, 50.0, 1000.0, 350.0)),
+            svg("svg:2", [trace("path:open", unclipped)], clip=None),
+        ]
+    }
+    assert of_kind(sweepplots.derive_plots(raw), "escape") == [
+        ("path:clipped", pytest.approx(30.0)),
+        ("path:open", pytest.approx(10.0)),
+    ]
 
 
 def test_collision_names_only_the_overlapping_text_pair_within_one_svg(sweepplots: ModuleType) -> None:
