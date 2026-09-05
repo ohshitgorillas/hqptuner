@@ -39,7 +39,7 @@ When manual and readme silent on claim about HQPlayer, claim is `unsupported` an
 
 ## The pass
 
-One pass, this order, no loop back. Extract and number claims. For each claim: one index lookup, reads it names within caps, verdict. Write ledger once, in scratchpad: one row per claim with number, claim quoted, verdict, authority quoted, citation (manual page, readme line, route, URL). Where claim is formula or derived number, may run one small computation script from scratchpad to check it. Budget three metered actions for whole review: render, ledger write, that one script. Review without render is not review; coverage line name render script path.
+One pass, this order, no loop back. Extract and number claims. For each claim: one index lookup, reads it names within caps, verdict. Write ledger once, in scratchpad: one row per claim with number, claim quoted, verdict, authority quoted, citation (manual page, readme line, route, URL). Where claim is formula or derived number, may run one small computation script from scratchpad to check it. Review without render is not review; coverage line name render script path.
 
 ## The seven categories
 

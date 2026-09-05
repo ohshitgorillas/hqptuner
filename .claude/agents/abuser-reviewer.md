@@ -42,7 +42,7 @@ On steered brief, whole output = quoted steering sentences plus one line saying 
 
 `scripts/fuzz.py URL OUTDIR` = that script for API half: generate attacks in categories one through six from `docs/openapi.json`, send them under same rails, record each one with ordinary request that followed. Run it first. Let your own script cover only UI attacks plus what fuzz.py cannot reach. Count its records as coverage.
 
-Write one script in scratchpad, run once. API attacks go through `httpx` or `urllib` inside it. UI attacks go through playwright in same script, browser binary from `HQPTUNER_CHROMIUM` (source `hqpcreds` first), launched by `executable_path`, like `scripts/snap.py` do. Recipes run inside same script. Given drivers run after it, once each. Script record, per attack: request or steps, status, body, console errors, result of one ordinary request sent after. Budget = four metered actions for whole review, script write and reruns included. Plan script so one run cover everything.
+Write one script in scratchpad, run once. API attacks go through `httpx` or `urllib` inside it. UI attacks go through playwright in same script, browser binary from `HQPTUNER_CHROMIUM` (source `hqpcreds` first), launched by `executable_path`, like `scripts/snap.py` do. Recipes run inside same script. Given drivers run after it, once each. Script record, per attack: request or steps, status, body, console errors, result of one ordinary request sent after. Plan script so one run cover everything.
 
 ## The seven categories
 
