@@ -15,9 +15,10 @@ Findings (``kind``, ``selector``, ``value``):
 - ``long-segment`` a segment over 4 px whose neighbour turns more than 15 degrees
 - ``hash``         direction reversals of dy inside the densest 100 px stretch
                    of the trace, over 30
-- ``narrow``       px width of the span holding every vertex that departs from
-                   the trace's median y by more than half its greatest
-                   departure, under 4 px: a feature drawn as a needle
+- ``narrow``       px width of the drawn line where it stands more than halfway
+                   from the trace's median y to its farthest point, following
+                   each segment to where it crosses that level, under 4 px: a
+                   feature drawn as a needle
 - ``sparse``       a trace of 3 to 5 vertices, value the vertex count
 - ``aliased``      ``shape-rendering`` crispEdges or optimizeSpeed on 3+ vertices
 - ``hairline``     computed stroke width under 1 CSS px
@@ -174,14 +175,23 @@ def _hash(vertices: list[list[float]]) -> int:
     return worst
 
 
+def _crossing(a: list[float], b: list[float], level: float) -> float:
+    """Return the x at which the segment from ``a`` to ``b`` crosses ``level`` in departure."""
+    return a[0] + (b[0] - a[0]) * (level - a[2]) / (b[2] - a[2])
+
+
 def _narrow(vertices: list[list[float]]) -> float | None:
-    """Px span of the vertices departing from the median y by more than half the greatest departure."""
+    """Px width of the drawn line where it stands more than halfway from the median y to its farthest point."""
     median = statistics.median(v[1] for v in vertices)
-    departures = [abs(v[1] - median) for v in vertices]
-    peak = max(departures)
+    marked = [[v[0], v[1], abs(v[1] - median)] for v in vertices]
+    peak = max(m[2] for m in marked)
     if peak <= 0:
         return None
-    xs = [v[0] for v, d in zip(vertices, departures, strict=True) if d > peak / 2]
+    half = peak / 2
+    xs: list[float] = [m[0] for m in marked if m[2] > half]
+    for a, b in pairwise(marked):
+        if (a[2] > half) != (b[2] > half):
+            xs.append(_crossing(a, b, half))
     return max(xs) - min(xs)
 
 
