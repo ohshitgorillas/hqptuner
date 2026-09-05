@@ -132,6 +132,31 @@ export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
   return out;
 }
 
+/** Order of the primer's assumed analog reconstruction low-pass (math section 9.2). */
+const ANALOG_ORDER = 2;
+/** Corner of that low-pass in hertz, anchored on the 50 kHz figure math section 7.4 cites. */
+const ANALOG_CORNER_HZ = 50000;
+
+/**
+ * The DAC's analog reconstruction stage in dB at each frequency: a zero-order
+ * hold at `outputRate`, sinc droop with a null at every multiple of the rate,
+ * times a Butterworth low-pass of ANALOG_ORDER at ANALOG_CORNER_HZ (math
+ * section 9). Floored like the magnitude reading so a hold null stays finite.
+ * @param {number} outputRate
+ * @param {number[]} freqsHz
+ * @returns {Float64Array}
+ */
+export function analogStageDb(outputRate, freqsHz) {
+  const out = new Float64Array(freqsHz.length);
+  for (let k = 0; k < freqsHz.length; k += 1) {
+    const x = Math.PI * (freqsHz[k] / outputRate);
+    const hold = x === 0 ? 1 : Math.abs(Math.sin(x) / x);
+    const lowpass = 1 / Math.sqrt(1 + (freqsHz[k] / ANALOG_CORNER_HZ) ** (2 * ANALOG_ORDER));
+    out[k] = 20 * Math.log10(Math.max(hold * lowpass, MAG_FLOOR));
+  }
+  return out;
+}
+
 /** Level the fake hi-res band and out-of-band queries sit at. */
 const SOURCE_FLOOR_DB = -110;
 
