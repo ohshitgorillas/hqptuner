@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from hqptuner.conf import engineconf, httpconf
+from hqptuner.conf import engineconf, httpauth
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.http import engineattrs, restore
 from hqptuner.lanes.live import lane
@@ -119,7 +119,7 @@ class ApplyOps:
             return {"submitted": False, "error": "no credentials for HTTP config lane"}
         if mgr.readings.credentials_ok is False:
             # same guard, same reason as the staged-apply lane (http.restore.apply)
-            return {"submitted": False, "reason": "credentials", "error": httpconf.AUTH_REFUSED_MESSAGE}
+            return {"submitted": False, "reason": "credentials", "error": httpauth.AUTH_REFUSED_MESSAGE}
         try:
             backup = await mgr.presetops.backup_or_cached()
             mgr.presetops.persist_backup(backup)

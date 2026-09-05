@@ -25,12 +25,7 @@ import { junkAdvice } from "../store/alerts/junkadvice.js";
 export function AlertStrip() {
   const roon = roonIdleAlert.value;
   const creds = credentialsAlert.value;
-  const alerts = [
-    ...(creds ? [creds] : []),
-    ...engineAlerts.value,
-    ...shaperAlerts.value,
-    ...(roon ? [roon] : []),
-  ];
+  const alerts = [...(creds ? [creds] : []), ...engineAlerts.value, ...shaperAlerts.value, ...(roon ? [roon] : [])];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`

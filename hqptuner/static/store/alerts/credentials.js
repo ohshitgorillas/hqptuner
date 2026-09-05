@@ -17,8 +17,7 @@ import { health } from "../signals.js";
 // (`AUTH_REFUSED_MESSAGE`) — /api/health carries a boolean rather than a
 // sentence, so the frontend has nothing to render but its own copy.
 const AUTH_REFUSED_MESSAGE =
-  "Authentication rejected: username and password are bad. " +
-  "Fix and restart HQPTuner with the correct credentials.";
+  "Authentication rejected: username and password are bad. " + "Fix and restart HQPTuner with the correct credentials.";
 
 /** The rejected-credentials alert row for the strip, or null when the daemon has not refused them. */
 export const credentialsAlert = computed(() => {

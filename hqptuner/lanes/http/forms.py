@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from hqptuner.conf import httpconf
-from hqptuner.conf.httpconf import AuthRefused
+from hqptuner.conf import httpauth
+from hqptuner.conf.httpauth import AuthRefused
 
 log = logging.getLogger(__name__)
 
@@ -81,4 +81,4 @@ def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
     if accepted:
         log.info("hqplayerd management credentials accepted")
     else:
-        log.warning("%s", httpconf.AUTH_REFUSED_MESSAGE)
+        log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
