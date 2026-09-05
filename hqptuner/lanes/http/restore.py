@@ -70,6 +70,22 @@ def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[st
     return {k: {"want": intended.get(k), "got": realized.get(k)} for k in keys if realized.get(k) != intended.get(k)}
 
 
+def _declined_before_starting(mgr: ConnectionManager) -> dict[str, Any] | None:
+    """Return the lane's answer when there is no point starting, or None to go ahead.
+
+    Both cases are settled before the first pass rather than discovered inside
+    it: every pass opens with ``await_http_ready``, which polls /config to the
+    alarm deadline before giving up, so a daemon that has already refused us
+    costs three deadlines to tell the user something the poll loop established
+    seconds after startup.
+    """
+    if mgr.http_client is None:
+        return {"submitted": False, "error": "no credentials for HTTP config lane"}
+    if mgr.readings.credentials_ok is False:
+        return {"submitted": False, "reason": "credentials", "error": httpconf.AUTH_REFUSED_MESSAGE}
+    return None
+
+
 async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
@@ -85,15 +101,9 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     no longer offers (endpoint gone) → unfixable: surface and stop, since no
     restart conjures absent hardware.
     """
-    if mgr.http_client is None:
-        return {"submitted": False, "error": "no credentials for HTTP config lane"}
-    if mgr.readings.credentials_ok is False:
-        # Ahead of the wait, not inside it. Every pass below opens with
-        # await_http_ready, which polls /config to the alarm deadline before it
-        # gives up — against a daemon that has already refused us, three passes
-        # of that is ~45 s spent proving something the poll loop established two
-        # seconds after startup.
-        return {"submitted": False, "reason": "credentials", "error": httpconf.AUTH_REFUSED_MESSAGE}
+    declined = _declined_before_starting(mgr)
+    if declined is not None:
+        return declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
     # along (store as fallback), under the staged edits, which win (presetfields)
