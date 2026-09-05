@@ -15,15 +15,29 @@ by id or label; without it every tab is swept.
 
 Each state writes ``OUTDIR/<tab>-<accent>-<mode>-<WxH>.png`` and a ``.json``
 holding the state, the seven instruments (fonts by text role, alignment edges
-and gaps, control kinds, canvas and SVG checks, hit-target boxes, overflow and
-intersecting rects) and the console errors and failed requests seen since the
-previous state.
+and gaps, control kinds, plots with their derived findings, hit-target boxes,
+overflow and intersecting rects) and the console errors and failed requests
+seen since the previous state. The plot findings are numbers a review quotes:
+``few-points``, ``long-segment``, ``hash``, ``aliased``, ``hairline``,
+``collision``, ``escape``, ``blurry`` (``scripts/sweepplots.py``).
 
-The MODE dimension stages one field through the app's own UI. The staged buffer
-is read before anything is touched: when it is not empty the dimension is
-dropped and nothing is staged, and MODE is clicked back to its starting position
-at the end either way. Nothing is applied, the LIVE toggle is never touched, and
-no port but the URL's is contacted. The buffer is read back and printed last.
+After the static states, every viewport gets a plot pass in a second browser
+context at device scale factor 3: one crop per SVG or canvas per tab
+(``OUTDIR/<tab>-<n>-crop.png``), and every visible enabled range slider on the
+tab stepped across its whole range by keyboard, about twenty frames, each with
+a crop, its plot findings and the adjacent-frame deltas (``jump`` among them)
+in ``OUTDIR/<tab>-slider<n>-frames.json``. Each slider is restored to its
+starting value and the readback printed; a slider keys do not move is printed
+as uncovered.
+
+The MODE dimension stages one field through the app's own UI, and the slider
+pass stages through the sliders that stage. The staged buffer is read before
+anything is touched: when it is not empty the MODE dimension and the slider
+pass are dropped and nothing is staged, and MODE is clicked back to its
+starting position at the end either way. Nothing is applied, the LIVE toggle is
+never touched, and no port but the URL's is contacted. The buffer is read back
+and printed last; outside an ``abuse.sh`` bracket, a non-empty readback is put
+back by the app's own Discard.
 
 Browser binary from ``HQPTUNER_CHROMIUM`` when set, as scripts/snap.py.
 """
@@ -37,13 +51,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Playwright, Request, Response, sync_playwright
+from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+from sweepplots import PLOTS_JS, SETTLE_MS, PlotPass, attach_console, derive_plots, slider_pass
 
-# Status at or above which a response counts as a failed request rather than a served one.
-HTTP_ERROR_STATUS = 400
 DEFAULT_VIEWPORT = "1280x900"
-# Long enough for a tab body to paint and a staged edit to settle through the store.
-SETTLE_MS = 350
 MODE_SEL = '[data-k="output_mode"] .segment button'
 
 TABS_JS = """
@@ -77,8 +88,9 @@ async () => {
 }
 """
 
-INSTRUMENTS_JS = """
-() => {
+INSTRUMENTS_JS = (
+    """
+(plotsFn) => {
   const box = (el) => {
     const r = el.getBoundingClientRect();
     return {x: r.x, y: r.y, width: r.width, height: r.height,
@@ -122,22 +134,9 @@ INSTRUMENTS_JS = """
     }
   }
 
-  const dpr = window.devicePixelRatio;
-  const plots = {canvases: [], svgs: []};
-  for (const c of all('canvas')) {
-    const b = box(c);
-    plots.canvases.push({selector: tag(c), cssWidth: b.width, cssHeight: b.height,
-                         backingWidth: c.width, backingHeight: c.height, dpr});
-  }
-  for (const svg of all('svg')) {
-    const card = svg.closest('[data-card]');
-    plots.svgs.push({
-      selector: tag(svg), box: box(svg), cardBox: card ? box(card) : null,
-      shapeRendering: cs(svg).shapeRendering,
-      strokes: all('[stroke]', svg).map(n => ({selector: tag(n), strokeWidth: cs(n).strokeWidth})),
-      texts: all('text', svg).map(t => ({text: (t.textContent || '').trim(), ...box(t)})),
-    });
-  }
+  const plots = ("""
+    + PLOTS_JS
+    + """)();
 
   // A control the layout never painted (a collapsed dropdown's rows, an inactive
   // tab's body) has a zero box, and a zero box is under every threshold there is.
@@ -175,6 +174,7 @@ INSTRUMENTS_JS = """
   return {fonts, alignment, controls, plots, hitTargets, overflow};
 }
 """
+)
 
 
 @dataclass
@@ -217,29 +217,6 @@ def launch(pw: Playwright) -> Browser:
     if binary:
         return pw.chromium.launch(executable_path=binary)
     return pw.chromium.launch()
-
-
-def attach_console(page: Page, sink: list[dict[str, Any]]) -> None:
-    """Record console errors, uncaught page errors and failed requests into ``sink`` in arrival order."""
-
-    def on_console(msg: ConsoleMessage) -> None:
-        if msg.type == "error":
-            sink.append({"kind": "console", "text": msg.text, "location": msg.location})
-
-    def on_pageerror(err: Error) -> None:
-        sink.append({"kind": "pageerror", "text": err.message})
-
-    def on_requestfailed(req: Request) -> None:
-        sink.append({"kind": "requestfailed", "url": req.url, "method": req.method, "failure": req.failure})
-
-    def on_response(res: Response) -> None:
-        if res.status >= HTTP_ERROR_STATUS:
-            sink.append({"kind": "httperror", "url": res.url, "method": res.request.method, "status": res.status})
-
-    page.on("console", on_console)
-    page.on("pageerror", on_pageerror)
-    page.on("requestfailed", on_requestfailed)
-    page.on("response", on_response)
 
 
 def keep_tabs(tabs: list[dict[str, Any]], wanted: list[str]) -> list[dict[str, Any]]:
@@ -289,6 +266,7 @@ def capture(run: Run, tab: dict[str, str]) -> None:
     page = run.page
     page.wait_for_timeout(SETTLE_MS)
     data: dict[str, Any] = page.evaluate(INSTRUMENTS_JS)
+    data["plots"]["findings"] = derive_plots(data["plots"])
     data["state"] = {
         "url": page.url,
         "tab": tab["id"],
@@ -306,7 +284,7 @@ def capture(run: Run, tab: dict[str, str]) -> None:
     small = [h for h in hits if h["under24"]]
     print(
         f"{name}  fonts={fonts} controls={len(data['controls'])} "
-        f"hits={len(hits)} small={len(small)} console={len(data['console'])}"
+        f"hits={len(hits)} small={len(small)} plots={len(data['plots']['findings'])} console={len(data['console'])}"
     )
 
 
@@ -352,7 +330,7 @@ def plan_modes(page: Page, *, dirty: bool) -> tuple[list[dict[str, Any] | None],
 
 
 def sweep(browser: Browser, args: argparse.Namespace) -> None:
-    """Open the app once, sweep every state, put the hero MODE back, and print the staged buffer as it stands."""
+    """Open the app once, sweep every state, run the plot pass, put the hero MODE back, and print the staged buffer."""
     width, height = parse_viewport(args.viewport[0])
     page = browser.new_page(viewport={"width": width, "height": height})
     run = Run(page=page, outdir=args.outdir, tabs=[])
@@ -363,11 +341,16 @@ def sweep(browser: Browser, args: argparse.Namespace) -> None:
     run.tabs = keep_tabs(page.evaluate(TABS_JS), args.tab)
     accents: list[str] = page.evaluate(ACCENTS_JS)
     pending = read_pending(page)
-    modes, start = plan_modes(page, dirty=any(pending.values()))
+    dirty = any(pending.values())
+    modes, start = plan_modes(page, dirty=dirty)
     for viewport in args.viewport:
         sweep_viewport(run, accents, modes, viewport)
     if start:
         select_mode(page, start)
+    plan = PlotPass(url=args.url, tabs=run.tabs, outdir=args.outdir, dirty=dirty)
+    for viewport in args.viewport:
+        print(f"plot pass at {viewport}, device scale factor 3:")
+        slider_pass(browser, plan, parse_viewport(viewport))
     print("pending after sweep:", json.dumps(read_pending(page)))
 
 
