@@ -13,16 +13,19 @@
 #
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
-#           snapshot of the config form and of the live State; record the
-#           newest audit seq; write state/abuse/current.
+#           snapshot of the config form and of the live State; copy HQPTuner's
+#           seven own stores beside those, with a manifest saying which existed
+#           and what each held; record the newest audit seq; write
+#           state/abuse/current.
 #   close   DELETE /api/config/pending; read the audit records the run added;
-#           if an apply or a live write landed, POST /api/restore with the
-#           baseline (the daemon reloads on it) and poll until every field the
-#           run applied reads its baseline form value and every live State
-#           field reads its snapshot value; put the volume back by POST
-#           /api/volume when a live write moved it; print the run's records
-#           either way. current is removed only on success, so a failed close
-#           can be re-run.
+#           if an apply, a live write or a preset store write landed, POST
+#           /api/restore with the baseline (the daemon reloads on it) and poll
+#           until every field the run applied reads its baseline form value and
+#           every live State field reads its snapshot value; put the volume back
+#           by POST /api/volume when a live write moved it; then put the seven
+#           stores back from the manifest, last, because the baseline upload
+#           writes one of them. Print the run's records either way. current is
+#           removed only on success, so a failed close can be re-run.
 #
 # Everything goes through HQPTuner's own routes on 127.0.0.1:8090, never
 # hqplayerd directly. The pre-apply zip HQPTuner writes on every apply is not
@@ -30,8 +33,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
 API=${HQPTUNER_ABUSE_API:-http://127.0.0.1:8090}
-DIR=state/abuse
+# Where HQPTuner keeps everything it writes — the bind mount's host side.
+STATE=${HQPTUNER_ABUSE_STATE:-state}
+DIR=$STATE/abuse
 CURRENT=$DIR/current
+# HQPTuner's own stores, the seven user-owned paths Dockerfile's ENV block names.
+# state/backups holds the rolling pre-apply zip HQPTuner writes for itself, and
+# the two .jsonl files are append-only records close itself reads — neither is a
+# store a run can damage, and rewinding a log would erase what the run did.
+STORES="presets live-presets.json favorites.json descriptions.json narrowing.json matrixmodes.json autopilot.json"
 # Upload retries and readback polls, 2 s apart: two minutes each, well past the
 # half minute a reload takes.
 TRIES=60
@@ -51,6 +61,20 @@ form_of() { get /api/config | jq -c '[.data.fields[] | {key: .name, value: .valu
 # The live State fields a live write can move and the restore reload resets.
 LIVE_KEYS='["mode","filter1x","filterNx","shaper","filter_junk","adaptive"]'
 live_of() { get /api/state | jq -c --argjson k "$LIVE_KEYS" '.data | with_entries(select(.key as $x | $k + ["volume"] | index($x)))'; }
+# One store's contents as {relative path: sha256}, or null when it is not there.
+# A directory is a per-file map rather than one aggregate, so close can name the
+# file that moved; a plain file answers under ".".
+digest_of() {
+  local p=$1
+  if [ -d "$p" ]; then
+    find "$p" -type f -exec sha256sum {} + 2>/dev/null | sed "s| $p/| |" \
+      | jq -SRn '[inputs | capture("^(?<d>[0-9a-f]+) +(?<f>.*)$") | {(.f): .d}] | add // {}'
+  elif [ -f "$p" ]; then
+    sha256sum "$p" | jq -SRn '[inputs | capture("^(?<d>[0-9a-f]+) ") | {".": .d}] | add'
+  else
+    echo null
+  fi
+}
 idle_or_die() {
   local s
   s=$(state_of) || die "GET /api/state failed: daemon unreachable or not loaded"
@@ -69,11 +93,31 @@ case "$CMD" in
     get /api/backup > "$DIR/$stamp/settings.zip" || die "GET /api/backup failed"
     form_of > "$DIR/$stamp/form.json" || die "GET /api/config failed"
     live_of > "$DIR/$stamp/live.json" || die "GET /api/state failed"
+    # HQPTuner's own stores, which no daemon backup carries: a run writing live
+    # fields folds them into the active preset when auto-save is on, and every
+    # other store has a write route of its own. A store that does not exist is a
+    # legitimate empty install, recorded as absent rather than refused.
+    mkdir -p "$DIR/$stamp/stores"
+    man='{}'
+    kept=0; missing=0
+    for s in $STORES; do
+      if [ -e "$STATE/$s" ]; then
+        cp -a "$STATE/$s" "$DIR/$stamp/stores/$s" || die "snapshot of $STATE/$s failed"
+        d=$(digest_of "$STATE/$s") || die "digest of $STATE/$s failed"
+        man=$(echo "$man" | jq -c --arg s "$s" --argjson d "$d" '.[$s] = {present: true, files: $d}')
+        kept=$((kept + 1))
+      else
+        man=$(echo "$man" | jq -c --arg s "$s" '.[$s] = {present: false}')
+        missing=$((missing + 1))
+      fi
+    done
+    echo "$man" > "$DIR/$stamp/stores/manifest.json"
     since=$(top_seq)
     printf '%s %s\n' "$stamp" "$since" > "$CURRENT"
     say "open"
     echo "  state:    idle"
     echo "  baseline: $DIR/$stamp/settings.zip ($(stat -c %s "$DIR/$stamp/settings.zip") bytes)"
+    echo "  stores:   $kept snapshotted, $missing absent"
     echo "  seq:      $since"
     ;;
   close)
@@ -95,7 +139,12 @@ case "$CMD" in
     echo "  applies landed: $applied"
     lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .ok == true)] | length')
     echo "  live writes landed: $lived"
-    if [ "$applied" -gt 0 ] || [ "$lived" -gt 0 ]; then
+    # A preset write, load or delete mirrors into the daemon's own data/cfgs, so
+    # it needs the baseline upload too. Those records carry no ok field, unlike
+    # apply and live.write, so they are counted by event name alone.
+    presetted=$(echo "$records" | jq '[.[] | select(.event == "preset.write" or .event == "preset.load" or .event == "preset.delete")] | length')
+    echo "  preset store writes landed: $presetted"
+    if [ "$applied" -gt 0 ] || [ "$lived" -gt 0 ] || [ "$presetted" -gt 0 ]; then
       say "restore baseline"
       s=$(state_of) || s="?"
       if [ "$s" != "0" ]; then
@@ -139,6 +188,39 @@ case "$CMD" in
         echo "  volume:   $have -> $want"
       fi
     fi
+    # Last writing step, deliberately: the baseline upload above is itself a
+    # writer of one of these stores. POST /api/restore takes HQPTuner's own
+    # descriptions member out of the archive and folds it into this install's
+    # store, and the fold is a merge, so a name the run added under a name the
+    # baseline does not carry outlives it. Putting the stores back afterwards is
+    # what removes it.
+    say "stores"
+    manfile=$DIR/$stamp/stores/manifest.json
+    # Without the manifest there is no telling an install whose stores were empty
+    # at open from a snapshot that went missing, and those want opposite actions.
+    [ -s "$manfile" ] || die "store manifest missing: $manfile; stores left untouched"
+    for s in $STORES; do
+      want=$(jq -Sc --arg s "$s" '.[$s].files // null' "$manfile")
+      now=$(digest_of "$STATE/$s")
+      if [ "$now" = "$want" ]; then
+        echo "  $s: unchanged"
+      elif [ "$want" = "null" ]; then
+        rm -rf "$STATE/$s"
+        echo "  $s: deleted (absent at open)"
+      else
+        # Build beside the store and swap it in: an interrupted close leaves
+        # either the old store or the new one, never half of either. Wholesale,
+        # which is what takes out the files the run added.
+        rm -rf "$STATE/$s.abuse-new" "$STATE/$s.abuse-old"
+        cp -a "$DIR/$stamp/stores/$s" "$STATE/$s.abuse-new" || die "restore of $STATE/$s failed"
+        [ ! -e "$STATE/$s" ] || mv "$STATE/$s" "$STATE/$s.abuse-old"
+        mv "$STATE/$s.abuse-new" "$STATE/$s"
+        rm -rf "$STATE/$s.abuse-old"
+        echo "  $s: restored"
+      fi
+      back=$(digest_of "$STATE/$s")
+      [ "$back" = "$want" ] || die "$STATE/$s does not read back at its snapshot; snapshot kept at $DIR/$stamp/stores"
+    done
     say "readback"
     echo "  pending: $(pending_of)"
     echo "  health:  $(get /api/health | jq -c '{reachable, connected_at}')"
