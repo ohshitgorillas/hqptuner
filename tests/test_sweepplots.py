@@ -142,16 +142,18 @@ def test_hash_reports_the_densest_100_px_stretch_of_a_trace_not_its_whole_width_
     assert of_kind(sweepplots.derive_plots(raw), "hash") == [("path:mid", pytest.approx(50.0, abs=2.0))]
 
 
-def test_narrow_measures_the_px_span_of_the_vertices_past_half_the_greatest_departure(
+def test_narrow_measures_the_px_width_of_the_trace_above_half_level_following_segments_to_the_crossings(
     sweepplots: ModuleType,
 ) -> None:
-    # 1001 vertices at 1 px spacing, median y 100, greatest departure 100 (y 0). The lone
-    # x 100 vertex at y 60 departs by 40, under half, so it is outside the measured span on
-    # both traces. ``spike`` holds y 0 at x 499..501 (span 2 px); ``bump`` at x 496..504 (8 px).
-    spike = [[x, 0.0 if 499.0 <= x <= 501.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(1001, 1000.0)]
-    bump = [[x, 0.0 if 496.0 <= x <= 504.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(1001, 1000.0)]
+    # 2001 vertices at 0.5 px spacing, median y 100, farthest point y 0, so the half level is
+    # y 50. The lone x 100 vertex at y 60 never reaches it on either trace. ``spike`` holds y 0
+    # at x 499.5 and 500: its segments cross y 50 at x 499.25 and 500.25, a width of 1 px,
+    # not the 0.5 px between the two vertices. ``bump`` holds y 0 at x 496..504: crossings at
+    # x 495.75 and 504.25, 8.5 px wide.
+    spike = [[x, 0.0 if 499.5 <= x <= 500.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(2001, 1000.0)]
+    bump = [[x, 0.0 if 496.0 <= x <= 504.0 else 60.0 if x == 100.0 else 100.0] for x in even_xs(2001, 1000.0)]
     raw = {"svgs": [svg("svg:1", [trace("path:spike", spike), trace("path:bump", bump)])]}
-    assert of_kind(sweepplots.derive_plots(raw), "narrow") == [("path:spike", pytest.approx(2.0))]
+    assert of_kind(sweepplots.derive_plots(raw), "narrow") == [("path:spike", pytest.approx(1.0))]
 
 
 def test_sparse_reports_the_vertex_count_of_a_three_to_five_vertex_trace(sweepplots: ModuleType) -> None:
