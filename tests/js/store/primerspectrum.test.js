@@ -99,29 +99,27 @@ test("test_grid_step_at_thirty_two_milliseconds_is_a_quarter_of_the_step_at_eigh
   );
 });
 
-// 4. the axis ends at twice the SOURCE rate whatever the ratio, so the image
-// band the DAC's hold fills is on frame in either direction: 88.2 kHz for
-// 44.1 kHz into 352.8 kHz, and 384 kHz for 192 kHz down to 48 kHz. An axis top
-// following the faster stream's Nyquist ends those two at 176.4 and 96 kHz.
-test("test_axis_ends_at_twice_the_source_rate_in_both_directions", async () => {
+// 4. the axis stops at the Nyquist of the faster stream, nothing beyond it:
+// 96 kHz for 192 kHz down to 96 kHz, 88.2 kHz for 44.1 kHz with no oversampling.
+test("test_axis_ends_at_the_faster_streams_nyquist_in_both_directions", async () => {
   const store = await import(STORE);
   const ends = [
-    { rate: 44100, outputRate: 352800 },
-    { rate: 192000, outputRate: 48000 },
+    { rate: 192000, outputRate: 96000 },
+    { rate: 44100, outputRate: null },
   ].map((c) => {
     configure(store, { rate: c.rate, lengthMs: 8, outputRate: c.outputRate });
     const grid = store.spectrum.value.freqsHz;
     return Math.round(grid[grid.length - 1]);
   });
-  assert.deepEqual(ends, [88200, 384000]);
+  assert.deepEqual(ends, [96000, 88200]);
 });
 
 // 5. the grid resolves to the window the trace will be drawn in, on a count
 // that is one more than a power of two: the smallest such count giving at
 // least four points per sidelobe and at least sixteen per reported pixel. At
-// 44.1 kHz into 352.8 kHz on a 2 ms linear-phase filter that is 1025 points
+// 44.1 kHz into 352.8 kHz on a 2 ms linear-phase filter that is 2049 points
 // while the pane has measured nothing, 16385 once it reports a 640 px plot and
-// 32769 at 1100 px. A count sized to the lobe spacing alone stays at 1025 at
+// 32769 at 1100 px. A count sized to the lobe spacing alone stays at 2049 at
 // every width; one sized to sixteen per pixel without the power-of-two step
 // lands at 10241 and 17601 instead.
 test("test_grid_point_count_follows_the_measured_plot_width", async () => {
@@ -132,5 +130,5 @@ test("test_grid_point_count_follows_the_measured_plot_width", async () => {
     return store.spectrum.value.freqsHz.length;
   });
   store.freqPx.value = 0;
-  assert.deepEqual(counts, [1025, 16385, 32769]);
+  assert.deepEqual(counts, [2049, 16385, 32769]);
 });

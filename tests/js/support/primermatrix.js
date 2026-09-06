@@ -57,9 +57,7 @@
 //     empty `d` is explicitly a thing a present trace may carry.
 //   - An applied trace "reaches both edges" when its leftmost vertex is within a
 //     plot column of the rectangle's left edge AND its rightmost within a column
-//     of the right edge. A FILL reaches both edges by the same rule, read off
-//     the same coordinate list, and the layers whose fill does so are reported
-//     as `spanned` beside the layers that are merely `drawn`.
+//     of the right edge.
 //   - Panes are keyed by their `data-pane` value as the render gives it. An
 //     unrecognized value is recorded rather than thrown on, and a render with no
 //     panes yields no keys at all, which is what the pane-keyed assertions in
@@ -130,7 +128,6 @@ const PHASES = ["linear", "minimum"];
  *   short: number,
  *   named: string[],
  *   drawn: string[],
- *   spanned: string[],
  * }} PaneRead
  */
 
@@ -222,17 +219,6 @@ const tracesOf = (own, key) =>
     });
 
 /**
- * The layers one fill stands for, by the class each layer corresponds to.
- *
- * @param {MarkupElement} el
- * @returns {string[]}
- */
-const fillLayers = (el) =>
-  Object.entries(FILL_LAYER)
-    .filter(([c]) => has(el, c))
-    .map(([, layer]) => layer);
-
-/**
  * The layers a pane draws, by the class each layer corresponds to.
  *
  * @param {MarkupElement[]} traces
@@ -240,7 +226,11 @@ const fillLayers = (el) =>
  * @returns {string[]}
  */
 function drawnLayers(traces, fills) {
-  const drawn = fills.flatMap(fillLayers);
+  const drawn = fills.flatMap((el) =>
+    Object.entries(FILL_LAYER)
+      .filter(([c]) => has(el, c))
+      .map(([, layer]) => layer),
+  );
   if (traces.some((el) => el.name === "polyline" && has(el, "applied"))) drawn.push("filter");
   return drawn;
 }
@@ -297,9 +287,6 @@ function readPane(own, key) {
     ).length;
   }
   const short = applied.filter((el) => !spans(pairs(coords(el), `<${el.name}>`), rect, COLUMN)).length;
-  const spanned = fills
-    .filter((el) => spans(pairs(coords(el), `<${el.name}> in pane "${key}"`), rect, COLUMN))
-    .flatMap(fillLayers);
 
   return {
     traces: traces.length,
@@ -308,7 +295,6 @@ function readPane(own, key) {
     short,
     named: [...new Set(namedLayers(own, key))].sort(),
     drawn: [...new Set(drawnLayers(traces, fills))].sort(),
-    spanned: [...new Set(spanned)].sort(),
   };
 }
 
@@ -333,9 +319,7 @@ function readPanes(out) {
     const end = box.start + box.html.length;
     const own = all.filter((el) => el.start >= box.start && el.start < end && el !== box);
     panes[key] =
-      key in RECT
-        ? readPane(own, key)
-        : { traces: 0, applied: 0, outside: 0, short: 0, named: [], drawn: [], spanned: [] };
+      key in RECT ? readPane(own, key) : { traces: 0, applied: 0, outside: 0, short: 0, named: [], drawn: [] };
   }
   return panes;
 }

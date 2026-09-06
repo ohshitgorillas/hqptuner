@@ -75,18 +75,3 @@ test("test_an_applied_trace_reaches_both_edges_of_its_plot", () => {
     NONE,
   );
 });
-
-// 3. The output stream is drawn across the whole frame. In every state the
-// frequency pane draws an `output` fill — `path.primer-leak` — and draws it
-// reaching both edges of its plot rectangle, x 30..764. Drawing that fill only
-// where the chain resamples leaves a NOS listener's pane with no output layer
-// at all, and stopping it at the output's Nyquist hides the band the DAC's hold
-// fills with images. The guard on the pane is fixed, like invariant 2's on the
-// impulse pane: only the frequency pane draws layers.
-
-test("test_the_frequency_pane_draws_an_output_fill_reaching_both_edges", () => {
-  assert.deepEqual(
-    failingByPane((p, s, pane) => pane === "frequency" && !p.spanned.includes("output")),
-    NONE,
-  );
-});

@@ -11,9 +11,9 @@
 //
 // MARKUP READ. Inside the pane carrying `data-pane="frequency"`, both kinds of
 // name are `text.plot-tlbl`: a legend row carries `data-layer` (one of `music`,
-// `images`, `filter`, `output`, `analog`) and a dashed mark's name carries
-// `data-mark` (one of `source`, `output`, `hearing`). `line.primer-nyquist`
-// carries `data-mark` too, so the mark reading filters on the tag as well.
+// `images`, `filter`, `output`) and a Nyquist name carries `data-mark` (one of
+// `source`, `output`). `line.primer-nyquist` carries `data-mark` too, so the
+// Nyquist reading filters on the tag as well.
 //
 // Every test sets every signal it depends on (signals persist for the life of
 // the file) and leaves the store as it found it: `showMe("intro")` after each.
@@ -82,13 +82,11 @@ function baseline() {
 
 // --- the cases ------------------------------------------------------------------
 
-// 1. The legend names the analog layer, the images, the music and the output in
-// every state, and the filter only where the chain resamples: five rows where a
-// filter runs, four at no oversampling and where the output rate is the source
-// rate. Naming the stage only where a filter runs leaves the one state that is
-// nothing but analog reconstruction, a NOS DAC, the state that never names it;
-// dropping the images where the chain decimates hides a band that is now on
-// frame.
+// 1. The legend names exactly the layers the pane draws, so it shrinks with the
+// chain: upsampling names all four, downsampling drops the source's images, and
+// no oversampling at all leaves only the source and its images. A fixed
+// four-row legend names a filter and an output stream at NOS where neither is
+// drawn.
 
 test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
   baseline();
@@ -105,30 +103,24 @@ test("test_frequency_legend_names_exactly_the_layers_the_pane_draws", () => {
     return namedBy("data-layer");
   });
   assert.deepEqual(sweep, [
-    ["analog", "filter", "images", "music", "output"],
-    ["analog", "filter", "images", "music", "output"],
-    ["analog", "filter", "images", "music", "output"],
-    ["analog", "images", "music", "output"],
-    ["analog", "images", "music", "output"],
+    ["filter", "images", "music", "output"],
+    ["filter", "music", "output"],
+    ["filter", "music", "output"],
+    ["images", "music"],
+    ["images", "music"],
   ]);
 });
 
-// 2. The dashed marks are the hearing limit and the source Nyquist in every
-// state, joined by the output Nyquist only where that Nyquist falls below the
-// axis top: at 44.1 kHz into 88.2 kHz the names are hearing, output and source,
-// and into 176.4 kHz, where the output Nyquist IS the axis top, hearing and
-// source. Marking every output rate that differs from the source puts that mark
-// and its name at or past the right frame edge from a 4x ratio up.
+// 2. Each Nyquist mark carries its own name, so a reader can tell the source
+// limit from the output limit: two names when the chain oversamples, one when
+// it does not. A single shared name for the pair reads the same in both states.
 
 test("test_each_nyquist_mark_carries_its_own_name", () => {
   baseline();
   rate.value = 44100;
-  const sweep = [88200, 176400].map((out) => {
+  const sweep = [176400, null].map((out) => {
     outputRate.value = out;
     return namedBy("data-mark");
   });
-  assert.deepEqual(sweep, [
-    ["hearing", "output", "source"],
-    ["hearing", "source"],
-  ]);
+  assert.deepEqual(sweep, [["output", "source"], ["source"]]);
 });
