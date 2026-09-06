@@ -32,6 +32,10 @@ dev = [
     # measurement, and mypy covers scripts/ — an undeclared playwright reds the
     # gate on any freshly built venv.
     "playwright",
+    # scripts/probes/gen_kaiser_oracle.py imports scipy.signal and mypy covers
+    # scripts/ — without the stubs a freshly built venv reds the gate.
+    "scipy",
+    "scipy-stubs",
 ]
 
 [tool.pytest.ini_options]
