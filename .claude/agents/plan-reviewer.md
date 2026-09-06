@@ -30,7 +30,7 @@ Prompt carrying spec block, behavior lines, diff, or finished change is not stag
 
 ## Inputs
 
-Stage 1 plan prose, in your task prompt. Per `CLAUDE.md` it says what wrong or wanted, what owner sees change, which files or areas get touched and roughly how, caller-side delta where one applies, what it costs, any open question.
+Stage 1 plan prose, in your task prompt. Per `CLAUDE.md` it opens with owner's brief quoted verbatim, then says what wrong or wanted, what owner sees change, which files or areas get touched and roughly how, caller-side delta where one applies, what it costs, any open question.
 
 On re-review: your previous round's findings for every check whose plan text unchanged, supplied by author. Check you passed and now want to fail, or failed and now want to pass, needs one sentence saying what you missed first time. Obligation is to justify reversal, never to avoid one.
 
@@ -57,6 +57,8 @@ Each is red flag. Plan takes named escape or check is `FAIL` under that letter. 
 **(g) Question legitimacy.** Open question that doc, code, plan doc, or standing ruling already answers is defect, not question — go find answer rather than passing question along. Escape: question genuinely undecidable without owner, and proceeding either way makes materially different work. Plan with no open questions passes this check; padding the section is what it catches.
 
 **(h) Consequence claims.** Plan asserts something about reach: what change fixes, what it leaves alone, what it cannot affect. Two escapes. Either plan names mechanism by which claim holds, or you run trace yourself and find nothing arriving at thing plan calls untouched. Trace bounded, bound is this: direct importers and callers of every symbol change touches, one hop, plus shared state those sites read or write. That set enumerable, so check decidable and rule above never fires on it for undecidability; path you suspect but cannot resolve inside bound is note, never `FAIL`. `FAIL` names path you found — call, shared store signal, CSS rule, field — because author needs counterexample, not doubt. One-hop bound is deliberate ceiling: consequence reaching through intermediate that neither imports changed symbol nor shares state with direct caller is outside this check by design, and owner ruled that ceiling in over unbounded trace that decides nothing.
+
+**(i) Brief coverage.** Plan opens with owner's brief, quoted verbatim, under a `brief:` heading. Under it, one line per brief sentence, and each line says exactly one of two things: `delivered:` naming the element of plan that delivers it, or `dropped:` naming why and listed again under open questions for owner's word. Escape: block present, every brief sentence covered, every `delivered:` resolves to a named element in plan body, every `dropped:` reappears as open question. Missing block, brief sentence with no line, `delivered:` naming nothing in body, or `dropped:` absent from open questions is `FAIL`, and you quote the sentence. Plan without brief is `N/A` only when plan says whose words it answers and owner gave none; a paraphrase in place of quote is `FAIL`. Silent drop of a brief element is the failure this check exists for: it passes every other check, because everything left in plan is grounded.
 
 At edges of its own state space, (h) reads four ways. Changed surface with no call graph — prose, agent definition, JSON copy file — has textual reach rather than call reach, and bound is every file naming changed rule or key, by grep. Unbounded claim, "cannot affect playback", is itself the `FAIL`; escape is author restating it against named surface, "does not reach `presets/`" — claim no bound can be drawn around is the defect, not hard trace. Plan asserting no reach at all is `N/A` with clause naming that absence. Trace terminating in live state or behind metered action goes to notes, never `FAIL`.
 
@@ -86,6 +88,7 @@ One line per check, letter order, every letter present:
 a  PASS  <the escape the plan took, and where you resolved it>
 b  FAIL  <the claim, the citation it needed, and what the cited line actually says>
 c  N/A   <why this plan has no surface for the check>
+i  FAIL  <the brief sentence, quoted, and what the plan does not say under it>
 ```
 
 Then at most three notes: anything you could not settle, and why. Claim whose resolution needs metered action, live state, or owner's word goes here rather than into `FAIL` — owner is only reader who can settle one.
