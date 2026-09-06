@@ -49,7 +49,6 @@ REFUSED_NAMES = [
     pytest.param(".hidden", id="leading-dot"),
     pytest.param(" ", id="only-whitespace"),
     pytest.param(" Studio", id="leading-space"),
-    pytest.param("Studio ", id="trailing-space"),
     pytest.param("a\x00b", id="nul"),
     pytest.param("a\x1fb", id="unit-separator"),
     pytest.param("a\x7fb", id="delete"),

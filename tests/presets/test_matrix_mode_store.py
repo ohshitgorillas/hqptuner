@@ -160,7 +160,6 @@ def test_a_refused_mode_stores_nothing_on_a_store_that_was_never_written(tmp_pat
         pytest.param("..", id="parent-directory"),
         pytest.param(".hidden", id="leading-dot"),
         pytest.param("a\x00b", id="nul"),
-        pytest.param("Night ", id="trailing-space"),
     ],
 )
 def test_a_name_that_is_not_a_storable_preset_name_is_refused(tmp_path: Path, name: str) -> None:

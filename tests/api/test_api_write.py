@@ -162,4 +162,6 @@ def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
 
 
 def test_profile_action_requires_a_name(api_client: TestClient) -> None:
-    assert api_client.post("/api/profile/load", json={"name": ""}).status_code == 422
+    # the empty name is refused by the shared name rule, so it carries that rule's code
+    resp = api_client.post("/api/profile/load", json={"name": ""})
+    assert (resp.status_code, resp.json()["code"]) == (422, "name_invalid")
