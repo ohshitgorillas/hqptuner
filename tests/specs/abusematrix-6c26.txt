@@ -1,0 +1,50 @@
+kind: new
+
+1. A bracketed run that switches the matrix profile ends with the daemon back on the profile it was on when the bracket opened: opened with the daemon on "Default" and closed after the run switched to "Mch-to-Stereo mixdown", State reads "Default"; opened with the daemon on the empty [Default] name and closed after the same switch, State reads "".
+   kills: a close that puts back only the six live keys and the volume it snapshots today, leaving the profile wherever the run left it.
+   bite: HEAD leaves the run's profile in place at both inputs — `grep -c "api/matrix" scripts/abuse.sh` answers 0, so close issues no switch, and `jq 'has("matrix_profile")' state/abuse/20260905T181014Z/live.json` answers false, so open records no baseline to switch back to.
+   existing: none, `grep -rn "matrix_profile" tests/e2e/` returns nothing and `grep -rln "abuse" tests/` returns only tests/e2e/test_abuse_bracket.py, whose two cases are the seven stores and the missing manifest.
+
+2. A close whose recorded profile is no longer one the daemon has refuses, exiting nonzero, rather than switching to it: opened with the daemon reporting a profile absent from its own profile list, close fails.
+   kills: a close that switches back to the recorded name without checking it, which reinstates the dangling-profile state whose only symptom is that the engine resets on its next reinit.
+   bite: HEAD exits 0 on that run — `grep -c "api/matrix" scripts/abuse.sh` answers 0, so close neither reads the profile list nor writes a profile, and its only failure paths are the discard, the audit read, the baseline upload, the settle poll and the store readback.
+   existing: none, same two greps as line 1; `grep -rn "def test_" tests/matrix/test_matrix_switch.py` returns three cases, all on the lane's own readback and form resync, none on the bracket.
+
+Public entry points (the script's operator surface, unchanged by this spec):
+
+  scripts/abuse.sh open      # exit 0, writes state/abuse/<stamp>/ and state/abuse/current
+  scripts/abuse.sh close     # exit 0 on success, nonzero on refusal; removes current only on success
+  scripts/abuse.sh status    # exit 0
+  env: HQPTUNER_ABUSE_API (default http://127.0.0.1:8090), HQPTUNER_ABUSE_STATE (default state)
+  state/abuse/<stamp>/live.json  # one JSON object, State field name to value
+
+Wire and protocol facts:
+
+  - State carries the active matrix profile as `matrix_profile` (docs/protocol.md:192, "active matrix profile name").
+  - 4321 MatrixSetProfile is unauthenticated, live, zero reload, and State.matrix_profile tracks the switch; it is memory-only and reverts on daemon restart (docs/matrix-spec.md:31).
+  - The daemon registers profiles only at process start, so a profile written into the config becomes switchable at the next start and a list read taken right after a restart is stale (docs/matrix-spec.md:182).
+  - The profile list reaches HTTP as `.data.live_profiles` from `GET /api/matrix`, sourced from MatrixListProfiles.
+  - The empty profile name is the unnamed [Default] and is always a valid switch target.
+
+Applicable fixtures:
+
+  - tests/e2e/support/stack.py `stack` — the three in-process wire fakes plus the real app as a subprocess, with the base URL the bracket's API knob is pointed at.
+  - tests/e2e/test_abuse_bracket.py `state` — the state directory the bracket is pointed at, with the debug log the bracket's open refuses to run without.
+  - tests/e2e/test_abuse_bracket.py `app` — a function-scoped server of the test's own with HQPTUNER_ABUSE_API set to it.
+  - tests/e2e/test_abuse_bracket.py `_abuse` / `_bracket` / `_call` — run one subcommand and capture it, run one and raise on refusal, drive one app write route.
+  - tests/support/fake_control.py DEFAULTS — `matrix_profile` starts "", `_profile_names` answers MatrixListProfiles with "Default" and "Mch-to-Stereo mixdown", and MatrixSetProfile writes the value State reports back.
+
+Changelog: no entry. `scripts/abuse.sh` is agent tooling that no user runs and no shipped image carries.
+
+--- spec-reviewer, final round ---
+
+READY
+discriminates: sweep on State.matrix_profile after `abuse.sh close` (two distinct expected restores, "Default" and "", plus a refusal edge)
+
+1  KEEP  bracket opened at baseline "Default" / at baseline "", run switches to "Mch-to-Stereo mixdown", then close -> State.matrix_profile reads "Default" / "" respectively; a close that restores only the seven file stores and the volume fails it at both (State reads "Mch-to-Stereo mixdown"); bite: HEAD's close issues no profile write, `grep -c "api/matrix" scripts/abuse.sh` = 0 (verified), and open records no baseline (`jq 'has("matrix_profile")' .../live.json` false) -- null stub fails at baseline "Default"
+2  KEEP  open with daemon reporting a profile absent from MatrixListProfiles, then close -> exit nonzero; a close that posts the recorded name back unchecked fails it at that input by exiting 0 and reinstating the dangling profile; bite: null stub (close does no profile work, grep verified 0) exits 0 at that input
+
+null stub: `close` restores the seven file stores and the volume and touches no profile, so the run's profile survives the bracket -- fails line 1 at both baselines and fails line 2 by exiting 0.
+hard-coded stub: `close` posts a constant profile name (either "Default" or "") whatever the recording says -- fails whichever of line 1's two baselines it did not hard-code, and fails line 2.
+
+survives: 2
