@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """The read-only Bash allowlist — verification and investigation.
 
-change-budget.py owns the accounting; this owns the one
-question "is this shell command purely read-only?". The parser is most of the
-hook by volume and none of it by policy, and keeping it here is what puts the
-budget's own file back under the repo's 500-line gate.
+change-budget.py owns the accounting; this owns the one question "is this shell
+command purely read-only?", kept apart so the budget's file stays under the gate.
 
 A command qualifies only when EVERY &&/;-segment and EVERY pipe-stage is a
 recognized read-only command, output goes only to /dev/null / an fd-dup / the
@@ -66,6 +64,8 @@ SOURCEABLE = "hqpcreds"
 # Command substitutions that cannot run anything but themselves. Rewritten to a
 # plain word before the `$(` ban is applied, so every other substitution meters.
 SAFE_SUBST = re.compile(r'\$\((?:pwd|git rev-parse --show-toplevel)\)')
+# the one script a bare `python` head may run free: a gate, by relative path
+GATE_SCRIPT = re.compile(r'^scripts/gates/check_[a-z0-9_]+\.py$')
 
 # substrings that can never appear benignly OUTSIDE quotes in a read-only command
 BANNED_SUBSTR = ("`", "$(", "<(", ">(", "||", "--fix", "--write", "--in-place",
@@ -80,13 +80,8 @@ def _cmd_name(tok):
 
 
 def _no(note, reason):
-    """Record why this command meters, then reject it.
-
-    Every reason echoes a token from the command itself — the head that isn't on
-    the list, the flag that decided it, the option that was missing. The counter
-    in read-volume.py shows this back, and a reason that named nothing from the
-    command would leave the agent guessing which part to change.
-    """
+    """Record why this command meters, then reject it. Every reason echoes a
+    token from the command itself, so read-volume.py's counter can name it."""
     if note is not None and not note:
         note.append(reason)
     return False
@@ -199,10 +194,8 @@ def _analyze_redirects(mstage, ostage):
 
 
 def _curl_ok(rest):
-    """A read-only curl: loopback URL only, GET/HEAD only, no data/upload/output
-    flags. Blocks POSTs, uploads, and file-writes; a side-effecting GET to a
-    local dev service is the accepted residual (can't tell read path from write
-    path by URL)."""
+    """A read-only curl: loopback URL, GET/HEAD, no data/upload/output flags.
+    A side-effecting GET to a local dev service is the accepted residual."""
     for a in rest:
         short = a.startswith("-") and not a.startswith("--")
         if short and a[:2] in ("-d", "-F", "-T", "-o", "-O"):
@@ -287,6 +280,11 @@ def _stage_ok(mstage, ostage, is_head, note=None):
         return _no(note, f"`{_cmd_name(raw[0])}` with nothing to run")
     name = _cmd_name(toks[0])
     rest = toks[1:]
+
+    # `python scripts/gates/check_<x>.py …` — the repo's own verifiers, the ones
+    # `make check` runs free. Relative path only; any other script meters.
+    if is_head and re.match(r'^python[0-9.]*$', name) and rest and GATE_SCRIPT.match(rest[0]):
+        return True
 
     # readers with read-only restrictions (valid head or downstream)
     if name == "sed":

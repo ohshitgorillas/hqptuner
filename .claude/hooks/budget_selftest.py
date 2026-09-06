@@ -88,6 +88,21 @@ def _budget_checks():
              "tool_input": {"subagent_type": "test-writer", "prompt": "spec"}}
     ok.append(_check("a /tests agent spawn is free past the limit",
                      evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
+    review = dict(spawn, tool_input={"subagent_type": "plan-reviewer", "prompt": "plan"})
+    ok.append(_check("a plan-reviewer spawn is free past the limit",
+                     evaluate(review, [_said("hi"), *_ran(limit + 5)]) is None))
+
+    rounds = [_said("do it")]
+    for i in range(limit):
+        rounds += [_call(f"s{i}", f"ts{i}", "SendMessage", {"to": "r", "message": "again"}),
+                   _done(f"ts{i}")]
+    ok.append(_check("messages to a running agent do not count toward the limit",
+                     _verdict(rounds) is None))
+
+    note = ("<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n"
+            "<result>READY</result>\n</task-notification>")
+    noted = [_said("do it"), *_ran(3), _said(note), *_ran(limit - 2, start=3)]
+    ok.append(_check("a task notification mid-burst does not reset the count", bool(_verdict(noted))))
 
     mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"),
            *_ran(limit - 2, start=3)]
@@ -125,6 +140,12 @@ def _budget_checks():
 # decided the verdict without pinning a word of the diagnostic's prose.
 ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
+    # python: a gate under scripts/gates/ by its relative path is a verifier;
+    # any other script, or the same suffix somewhere else, is arbitrary code
+    (".venv/bin/python scripts/gates/check_test_assertions.py tests/*.py", True),
+    ("cd /srv/x/.claude/worktrees/y-spec && .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/a.py", True),
+    ("python scripts/other.py", False, "python"),
+    ("python /tmp/x/scripts/gates/check_x.py", False, "python"),
     ("sed -E 's/x/y/' f", False, "-n"),
     ("black --diff x", False, "--check"),
     # ruff: `check` reads, `format` rewrites unless it is only reporting

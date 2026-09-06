@@ -6,8 +6,7 @@ speaks, then forces it to stop and report in words. A genuine human reply
 resets the counters, so the agent may continue after surfacing — it just
 can't run a long silent burst the user has to interrupt to stop.
 
-Enforcement is self-tripping: it does NOT depend on the user noticing the
-spam and interrupting. The counters are the tripwire.
+Enforcement is self-tripping: the counters are the tripwire, not the user.
 
 ONE LEASH — CHANGE_LIMIT, counting metered actions: anything that escapes the
 working tree or can't be undone from it. sudo, docker, git commit/push,
@@ -15,39 +14,34 @@ mutating curl, rm, `python -c` / `python script.py`, writes outside the repo.
 These are the ones the user cannot cheaply take back, so they are the ones
 priced.
 
-In-tree Write/Edit/NotebookEdit classify as EDIT and are never denied.
-Recoverable by `git restore`, visible in `git diff`, gated by `make check`,
-reviewed before commit — and the plan gate already rules on the change before
-an edit is written, which is where a runaway edit burst actually gets caught.
-The class survives because the analyzers under scripts/budget/ measure edits
-per leash period through it; only the limit is gone.
+In-tree Write/Edit/NotebookEdit classify as EDIT and are never denied:
+recoverable by `git restore`, visible in `git diff`, gated by `make check`, and
+ruled on by the plan gate before they are written, which is where a runaway
+edit burst actually gets caught. The class survives because the analyzers under
+scripts/budget/ measure edits per leash period through it; only the limit is gone.
 
-Deliberate asymmetry: Bash mutations always meter, even in-tree. Deciding
-whether a shell command only touches the working tree is not tractable —
-is_free_bash() is a conservative parser and will not be extended that far. Only
-the structured tools get the free lane, because their target is a known field
-rather than a string to parse. That asymmetry is a feature: it prices the
-reviewable path (nine Edit calls) below the opaque one (one `python -c` that
-rewrites nine files), which is the opposite of what a flat counter does.
+Deliberate asymmetry: Bash mutations always meter, even in-tree. Whether a
+shell string only touches the working tree is not tractable; a structured
+tool's target is a known field. So the reviewable path (nine Edit calls) is
+priced below the opaque one (one `python -c` rewriting nine files).
 
 WHAT COUNTS AS THE USER SPEAKING. Only prose the user typed — see
-is_genuine_reply(). A slash command, a /clear, or a local command's stdout is
-the harness talking to itself and buys nothing. One exception,
-window(): the first human row after one of this hook's own denials always
-resets, so answering a trip with a slash command cannot wedge the session.
+is_genuine_reply(). A slash command, a /clear, a task notification or a local
+command's stdout is the harness talking to itself and buys nothing. One
+exception, window(): the first human row after one of this hook's own denials
+always resets, so answering a trip with a slash command cannot wedge the session.
 
 WHAT COUNTS AS THIS CALL. The pending call's assistant row is usually NOT in
-the transcript yet when PreToolUse fires, so counting whatever the file holds
-allows one action past the limit. _pending_present() finds it if it is there and counts it exactly
-once either way, which makes the counts the pending call's ordinal.
+the transcript yet when PreToolUse fires; _pending_present() finds it if it is
+and it is counted exactly once either way, so the count is its ordinal.
 
 Free (never counted, never blocked):
   - the read-only tools in FREE_TOOLS (Read/Grep/Glob/WebFetch/WebSearch)
   - Bash calls that are purely read-only — grounding, not mutation. The
     allowlist and its parser live in free_bash.py; see that file for the rules.
-  - spawns of the read-only agent types, and of the /tests chain's own agents
-    whose tool calls these hooks already meter — READ_ONLY_AGENTS,
-    FREE_SPAWN_AGENTS.
+  - spawns of the read-only agent types and of the project's own chain agents
+    (READ_ONLY_AGENTS, FREE_SPAWN_AGENTS), and messages to a running agent
+    (HARNESS_TOOLS): the recipient's own calls are metered in its context.
 """
 import os
 import sys
@@ -57,8 +51,8 @@ import importlib.util
 
 CHANGE_LIMIT = 8   # metered actions since the user last spoke; the next blocks
 # read-only tools, plus the harness's own bookkeeping: none of these reach the
-# filesystem, the daemon or another agent. AskUserQuestion is here because it is
-# how a trip gets answered — pricing it makes the escape cost an action.
+# filesystem, the daemon or another agent. AskUserQuestion is how a trip gets
+# answered, so pricing it would make the escape cost an action.
 FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch",
               "ToolSearch", "ListAgents", "TaskOutput", "AskUserQuestion",
               "EnterPlanMode", "ExitPlanMode"}
@@ -71,12 +65,17 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 # can't see the agent registry, so a guessed name is an unmetered write.
 READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
 
-# Agent types whose *spawn* is free even though they may write. These run inside
-# the /tests chain, and their own tool calls are metered by these same hooks in
-# the subagent's context — so charging the spawn as well double-counts, and the
-# double charge is what trips the leash in the middle of a chain the project
-# requires. Freeing the spawn unmeters no write. Exact names only, as above.
-FREE_SPAWN_AGENTS = {"test-writer", "spec-reviewer"}
+# Agent types whose *spawn* is free even though they may write: the project's
+# own chain agents, writer and reviewers. Their tool calls are metered by these
+# same hooks in the subagent's context, so charging the spawn double-counts and
+# trips the leash mid-chain. Unmeters no write. Exact names only, as above.
+FREE_SPAWN_AGENTS = {"test-writer", "spec-reviewer", "plan-reviewer",
+                     "user-reviewer", "abuser-reviewer", "pedant-reviewer"}
+
+# Harness tools that move text or control between agents already running. They
+# do reach an agent, so not FREE_TOOLS; free on the FREE_SPAWN_AGENTS reasoning:
+# the recipient's response is metered in its own context, the message is not.
+HARNESS_TOOLS = {"SendMessage", "Skill", "Monitor", "TaskStop"}
 
 
 def _load(name):
@@ -134,7 +133,8 @@ def is_human_row(ev):
 # Wrappers the harness puts around, or instead of, what the user typed. A row
 # made only of these is the harness talking to itself, not the user speaking.
 TAGS = ("system-reminder", "local-command-caveat", "local-command-stdout",
-        "command-name", "command-message", "command-args", "command-contents")
+        "command-name", "command-message", "command-args", "command-contents",
+        "task-notification")
 HOOK_CONTEXT = re.compile(r"^.*hook additional context:.*$", re.M)
 
 
@@ -228,7 +228,7 @@ def classify(name, tool_input, root, cwd):
     """Which leash a tool call pulls: FREE, EDIT, or CHANGE. Anything
     unrecognized is a CHANGE — the bias stays toward metering."""
     tool_input = tool_input or {}
-    if name in FREE_TOOLS:
+    if name in FREE_TOOLS or name in HARNESS_TOOLS:
         return FREE
     if name == "Agent":
         # delegating a read-only search costs the user less than running it

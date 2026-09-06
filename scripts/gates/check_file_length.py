@@ -53,7 +53,7 @@ ALLOWANCE: dict[str, int] = {
     "scripts/eqlab/search.js": 442,
     "scripts/eqlab/render.js": 441,
     "hqptuner/conf/httpconf.py": 431,
-    ".claude/hooks/free_bash.py": 436,
+    ".claude/hooks/free_bash.py": 434,
     ".claude/hooks/read-volume.py": 430,
     "scripts/probes/probe_absent_plugin.py": 430,
     ".claude/hooks/change-budget.py": 425,

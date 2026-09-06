@@ -71,3 +71,20 @@ ruff format --check hqptuner
 `read-volume.py`'s counter line carries a `Rule:` clause naming the standing ruling a metered call walks into. One entry: a `pair.sh merge`, whose failure `make check` in the combined tree answers for free. The table is `.claude/hooks/metered_rules.py`; run it with `python3 .claude/hooks/read-volume.py --self-test`.
 
 Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` returns `edit` and they are free, which is why no rule covers them.
+
+## 2026-09-05, second pass
+
+The test-writer's instructed gate commands metered, and the lane hook then read them as shell writes naming `tests/`:
+
+```
+.venv/bin/python scripts/gates/check_test_assertions.py tests/*.py
+.venv/bin/python scripts/gates/check_no_copy_assertions.py tests/*.py
+```
+
+`SendMessage` rounds to a reviewer counted toward the leash, a background task notification reset it, and a `plan-reviewer` spawn cost an action while a `spec-reviewer` spawn did not.
+
+## Resolution — 2026-09-05, second pass
+
+A `python` head is free when its first argument is the literal relative path `scripts/gates/check_<name>.py` (`GATE_SCRIPT` in `free_bash.py`): the repo's own verifiers, the same scripts `make check` runs. Relative only, so it resolves against the command's cwd; an absolute or out-of-tree path ending in that suffix meters. The judgment is syntactic, so a script planted under a scratch cwd at that path would run free, the same edge `cd <path> &&` and `make -C <dir>` already carry. `check_md_trivia.py` comes along, which frees its `claude` CLI call and cache write from any agent's shell.
+
+`HARNESS_TOOLS` (`SendMessage`, `Skill`, `Monitor`, `TaskStop`) classify free beside `FREE_TOOLS`, on the `FREE_SPAWN_AGENTS` reasoning: the recipient's tool calls are metered in its own context. `FREE_SPAWN_AGENTS` now holds all six chain agents. `task-notification` is stripped with the other harness wrappers, so a notification row is not the user speaking. Pinned in `budget_selftest.py`.

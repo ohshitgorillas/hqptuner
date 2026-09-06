@@ -253,6 +253,13 @@ do_open() {
   run mkdir -p "$SPEC_DIR/tests/specs"
   run cp "$SPECFILE" "$SPEC_DIR/$SPEC_PATH"
   if [ "$DRY" = 1 ]; then echo "  would commit: $SPEC_DIR — $SPEC_MSG"; else commit_tree "$SPEC_DIR" "$SPEC_MSG"; fi
+  # commit_tree returns 0 with nothing to commit, which is what an ignore rule
+  # swallowing tests/specs/ looks like from here. The writer and every later
+  # reviewer read the block from that commit, so its absence is fatal now, not
+  # at `red`.
+  if [ "$DRY" = 0 ] && [ -z "$(find_commit "$SPEC_DIR" "$SPEC_MSG")" ]; then
+    die "no '$SPEC_MSG' commit landed on $SPEC_BR — is $SPEC_PATH ignored? (check \`git check-ignore -v $SPEC_DIR/$SPEC_PATH\`)"
+  fi
 
   cat <<EOF
 
