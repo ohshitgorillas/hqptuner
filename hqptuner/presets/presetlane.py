@@ -276,9 +276,13 @@ async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror via ``profile/delete``.
 
     Restore is additive and cannot remove a member.
+
+    Takes the preset's Matrix-tab mode with it, after the store delete has succeeded: a mode keyed to a preset that is
+    gone is read by nothing, and the next preset saved under the same name would otherwise inherit it.
     """
     name = canonical_name(name)  # the mirror was written under the trimmed name
     mgr.presetops.store.delete(name)
+    mgr.presetops.matrix_modes.forget(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
         await mgr.require_http().post_profile("delete", profile=name)
     return {"name": name, "ok": True}

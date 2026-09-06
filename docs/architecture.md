@@ -117,7 +117,7 @@ Five operations, all built on that one primitive (`presets/store/presets.py` plu
 
 - **Load** — restore preset's config as `hqplayerd.xml` (so it runs on `[default]`) and mirror to `data/cfgs/<name>.xml`. Never `profile/load`.
 - **Save / Save-as-new** — snapshot current running config into store *and* mirror to `data/cfgs/<name>.xml` via restore. Never `profile/save`. Auto-pilot's state is recorded under the preset's name in `state/autopilot.json` rather than in the XML, because hqplayerd's config carries no junk-filter field for it to sit beside; a load restores it, and auto-pilot settles the filter itself from the next tick.
-- **Delete** — remove from store, plus `profile/delete` for daemon's mirror (one native profile route that works cleanly).
+- **Delete** — remove from store, plus `profile/delete` for daemon's mirror (one native profile route that works cleanly). The preset's Matrix-tab mode goes with it, from `state/matrixmodes.json`: that store is keyed by preset name, so an entry left behind is read by nothing and would be inherited by the next preset saved under the same name.
 - **Ephemeral Apply** — edit running config and restore it, touching neither store nor snapshot, so change reverts on next preset load. Lets user experiment freely without spending preset.
 - **Migration** — on first connect, import daemon's existing `data/cfgs/*.xml` into store. Idempotent, store presets win on name collision, active pointer seeded from daemon's reported active config.
 
