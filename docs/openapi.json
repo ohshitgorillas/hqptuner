@@ -1433,7 +1433,7 @@
         "summary": "Matrix Modes"
       },
       "put": {
-        "description": "Store one preset's Matrix-tab mode and answer with the whole map.\n\nOne preset per write rather than the whole map: two browsers looking at different presets is ordinary, and a\nwhole-map replace would make one of them undo the other's choice.",
+        "description": "Store one preset's Matrix-tab mode and answer with the whole map.\n\nOne preset per write rather than the whole map: two browsers looking at different presets is ordinary, and a\nwhole-map replace would make one of them undo the other's choice.\n\n404 on a name the preset store does not carry: a mode keyed to no preset is one nothing will ever read back. The\nmode is judged before the name, so a request that is wrong in both ways is still told what is storable.",
         "operationId": "save_matrix_mode_api_matrixmodes_put",
         "requestBody": {
           "content": {

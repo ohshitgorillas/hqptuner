@@ -31,7 +31,6 @@ from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
 from hqptuner.presets.store.live import LivePresetStore
-from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.narrowing import NarrowingStore
 
 log = logging.getLogger(__name__)
@@ -64,7 +63,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.favorites = FavoriteStore(cfg.favorites_file)
     app.state.descriptions = DescriptionStore(cfg.description_file)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
-    app.state.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
+    # One instance, not two: the prune on preset delete lives with the preset
+    # operations, so the routes read the store that delete writes.
+    app.state.matrix_modes = manager.presetops.matrix_modes
     # Registration order is load-bearing: config's `GET /preset/{name:path}`
     # must stay ahead of preset's `DELETE /preset/{name}`, as it was when both
     # lived on one router.
