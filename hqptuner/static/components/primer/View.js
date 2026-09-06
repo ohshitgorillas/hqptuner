@@ -23,7 +23,7 @@ import { PrimerGraph } from "./Graph.js";
 
 /** The card's explanation, owner copy verbatim. */
 const SUBTITLE =
-  "The Filter Playground features textbook-standard filter mathematics, similar but not equivalent to HQPlayer's FIR filters. HQPlayer's actual filter mathematics are proprietary and strictly off-limits under the terms and conditions. Analog reconstruction here is illustrative; actual results vary with hardware.";
+  "The Filter Playground features textbook-standard filter mathematics, similar but not equivalent to HQPlayer's FIR filters. HQPlayer's actual filter mathematics are proprietary and strictly off-limits under the terms and conditions.";
 
 /** Matches a strong or stressed run and captures it, so a split keeps the pieces. */
 const SPLIT = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;

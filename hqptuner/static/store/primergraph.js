@@ -9,13 +9,7 @@
 import { computed, signal } from "@preact/signals";
 import { designLowpass, designPoint, minimumPhase } from "../lib/dsp/fir.js";
 import { filterPulse, gaussianPulse, ringing, upsampledPulse } from "../lib/dsp/pulse.js";
-import {
-  analogStageDb,
-  foldSpectrumDb,
-  groupDelaySamples,
-  magnitudeDb,
-  sourceSpectrumDb,
-} from "../lib/dsp/spectrum.js";
+import { foldSpectrumDb, groupDelaySamples, magnitudeDb, sourceSpectrumDb } from "../lib/dsp/spectrum.js";
 
 /** Length chips, in milliseconds of filter. */
 export const LENGTH_CHIPS = { short: 0.5, medium: 2, long: 8 };
@@ -220,15 +214,16 @@ export function setRate(hz) {
 export const noFilter = computed(() => outputRate.value === null || outputRate.value === rate.value);
 
 /**
- * Top of the frequency axis: twice the source rate, in every state. What the
- * reader is being shown after the filter is the DAC's own reconstruction, and
- * the images it acts on sit above the output's Nyquist, so an axis stopping
- * there would put the whole lesson off frame. Holding the top still while the
- * output rate moves is also what makes the ratios comparable: at twice the
- * source rate the first image octave is on frame, and at eight times it is
- * past the right edge, which is the lesson stated the other way round.
+ * Top of the frequency axis: the Nyquist of the faster of the two streams,
+ * which is as far as anything the chain carries reaches. Past it the filter
+ * repeats its own passband and the fold repeats the result, neither of which
+ * any stream holds (docs/plans/filter-primer-math.md section 6.4). Where the
+ * chain is the identity there is no second stream, and the axis runs to twice
+ * the source rate so the images the source would have keep their place.
  */
-export const axisHz = computed(() => 2 * rate.value);
+export const axisHz = computed(() =>
+  noFilter.value ? 2 * rate.value : Math.max(rate.value, outputRate.value ?? rate.value) / 2,
+);
 
 /**
  * The linear-phase oversampling filter the state describes, on the
@@ -372,11 +367,8 @@ const spectrumGrid = computed(() => {
 /**
  * The frequency pane's curves on a uniform grid from 0 to the axis top: the
  * source and its images (periodic in the source rate), the filter (periodic in
- * the design rate), the stream entering the DAC, their product folded into the
- * output rate, and the stream the reader hears, that one through the DAC's
- * analog reconstruction. The stage is on in every state, no oversampling
- * included: a NOS DAC holds and filters its samples like any other, and that
- * state is the one where nothing else is acting.
+ * the design rate), and the output stream, their product folded into the
+ * output rate.
  */
 export const spectrum = computed(() => {
   const fs = rate.value;
@@ -392,7 +384,5 @@ export const spectrum = computed(() => {
   const filterDb = magnitudeDb(h, designRate, freqsHz);
   const product = sourceDb.map((v, i) => v + filterDb[i]);
   const resultDb = foldSpectrumDb(product, freqsHz, designRate, outputRate.value ?? fs);
-  const stageDb = analogStageDb(freqsHz, outputRate.value ?? fs);
-  const heardDb = resultDb.map((v, i) => v + stageDb[i]);
-  return { freqsHz, sourceDb, filterDb, resultDb, heardDb };
+  return { freqsHz, sourceDb, filterDb, resultDb };
 });

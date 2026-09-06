@@ -78,7 +78,6 @@ async (s) => {
       sourceDb: Array.from(sp.sourceDb),
       filterDb: Array.from(sp.filterDb),
       resultDb: Array.from(sp.resultDb),
-      heardDb: Array.from(sp.heardDb),
     },
     delay: {
       freqsHz: st.delay.value.freqsHz,

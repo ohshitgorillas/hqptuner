@@ -132,39 +132,6 @@ export function foldSpectrumDb(levelsDb, freqsHz, inputRate, outputRate) {
   return out;
 }
 
-/** Order of the analog low-pass the primer assumes for a NOS DAC's output stage. */
-const ANALOG_ORDER = 2;
-/** Corner of that low-pass in Hz; unsourced, the primer's stated assumption. */
-const ANALOG_CORNER_HZ = 50000;
-
-/**
- * The DAC's analog reconstruction in dB at each frequency: a zero-order hold at
- * the output rate times a low-order analog low-pass, the two cascaded, so their
- * dB add exactly (docs/plans/filter-primer-math.md section 9).
- *
- * The hold is |sinc(f / fs_out)|, which nulls at every multiple of the output
- * rate and is 3.92 dB down at half of it; that droop is the whole reason a
- * slower output rate loses the top of its band and a faster one does not. The
- * low-pass is the same at every output rate, so it shapes the picture without
- * separating the ratios. Neither the order nor the corner of a real NOS DAC's
- * output stage is published, so both are the primer's assumption and the card
- * says so.
- * @param {number[]} freqsHz
- * @param {number} outputRateHz
- * @returns {Float64Array}
- */
-export function analogStageDb(freqsHz, outputRateHz) {
-  const out = new Float64Array(freqsHz.length);
-  for (let k = 0; k < freqsHz.length; k += 1) {
-    const f = freqsHz[k];
-    const x = Math.PI * (f / outputRateHz);
-    const hold = x === 0 ? 1 : Math.abs(Math.sin(x) / x);
-    const lowpass = 10 * Math.log10(1 + (f / ANALOG_CORNER_HZ) ** (2 * ANALOG_ORDER));
-    out[k] = 20 * Math.log10(Math.max(hold, MAG_FLOOR)) - lowpass;
-  }
-  return out;
-}
-
 /** Level the fake hi-res band and out-of-band queries sit at. */
 const SOURCE_FLOOR_DB = -110;
 
