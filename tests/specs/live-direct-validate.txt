@@ -1,0 +1,41 @@
+slug: live-direct-validate
+
+kind: new
+
+1. With the engine's adaptive flag at "0", `POST /api/config/live` with `adaptive_volume` set to each of five values answers `(status, adaptive flag afterwards)` as: "1" gives (200, "1"); each of "1.5", "true", "", "01" gives (409, "0").
+   kills: forwarding the string to the daemon unvalidated, which answers 200 and leaves the flag at "1.5"; parsing it as a number, which lets "01" and "1.5" through.
+   bite: HEAD answers 200 with `live: [{setting: adaptive_volume, ok: true}]` for every one of "1.5", "true", "", "01", and `GET /api/state` then reports `adaptive: "1.5"` (scratch pytest over the `live_api` fixture, `PYTHONPATH=tests:tests/support .venv/bin/pytest -p conftest -s`).
+   existing: none for the sweep, `grep -rn 'adaptive_volume' tests/api/` prints nothing; the all-or-nothing half of the batch is pinned at tests/api/test_api_routes.py::test_a_refused_batch_applies_nothing and takes the delta below.
+
+delta: tests/api/test_api_routes.py:170 `test_a_refused_batch_applies_nothing`: parametrize the refused field; existing case `oversampling: "9999"` on `chain_api(mode="2")`, new case `adaptive_volume: "1.5"` beside `junk_filter: "1"`, both asserting `filter_junk == "0"` afterwards.
+
+Public entry points (unchanged):
+hqptuner/api/routes/apply.py:89   async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]
+hqptuner/lanes/live/routing.py:327 def resolve_live(mgr: ConnectionManager, fields: dict[str, str]) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]
+
+Wire facts:
+- SetAdaptiveVolume writes the `adaptive` flag, 0/1, read back on State (docs/settings-classification.md:72, hqplayerd-readme.txt:242).
+- A refused live batch answers 409 `route_refused`, per-field reasons in `detail` (docs/architecture.md:81).
+
+Fixtures:
+- live_api: REST app over the threaded fake control daemon, State defaults adaptive "0", filter_junk "0".
+- chain_api: same, factory taking State overrides; mode="2" for the delta case.
+- tests/support/fake_control.py:145 stores SetAdaptiveVolume verbatim.
+
+Changelog: no entry, API-only hardening with no UI-visible change (owner ruling).
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `(status, adaptive flag afterwards)` over POST /api/config/live `adaptive_volume`, two distinct expected values: (200, "1") at "1"; (409, "0") at each of "1.5", "true", "", "01".
+
+Round 2 findings against the return: none were outstanding (READY). Only the `existing:` field of line 1 changed, now carrying both the grep and the delta target by `::test` name; (l) satisfied. Under (b) the cited test asserts `filter_junk` after a refused batch, not the adaptive readback, so line 1 is not that test plus one case and stays its own sweep; round 2 KEEP stands on unchanged line text.
+
+1  KEEP  adaptive flag "0", POST /api/config/live `adaptive_volume` in {"1", "1.5", "true", "", "01"} -> (200, "1") for "1", (409, "0") for the other four; unvalidated forwarding fails it at "1.5" (200, readback "1.5"), numeric parsing fails it at "01" (200, readback "1"); bite: HEAD measured 200 with `ok: true` for all four refused inputs and `GET /api/state` reporting `adaptive: "1.5"` (scratch pytest over `live_api`, command quoted in the block; fake stores SetAdaptiveVolume verbatim, tests/support/fake_control.py:145-146).
+delta  tests/api/test_api_routes.py:170 `test_a_refused_batch_applies_nothing`: parametrize the refused field, `oversampling: "9999"` and `adaptive_volume: "1.5"` each beside `junk_filter: "1"` on `chain_api(mode="2")`, asserting `filter_junk == "0"`; the new case is red at HEAD per the round 1 bite (`filter_junk: "1"`).
+
+null stub: validation absent, string forwarded as HEAD does; line 1 fails at "1.5" (200, readback "1.5"); the delta's new case fails (readback `filter_junk: "1"`).
+hard-coded stub: refuse `adaptive_volume` on exactly the four literals and forward the rest; passes the block only by implementing the 409 refusal and all-or-nothing paths, hard-coding the membership set that is the contract itself; unchanged from rounds 1 and 2, no restatement closes it on a two-value domain, not a cut.
+
+survives: 1
+
+notes: none.
