@@ -11,8 +11,11 @@ typed, slashes and all, and a path segment would make the route's shape depend o
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import refuse
+from hqptuner.presets import names
 from hqptuner.presets.store.matrixmode import MatrixModeError, MatrixModeSchemaError, MatrixModeStore
+from hqptuner.presets.store.presets import PresetError
 
 router = APIRouter(prefix="/api")
 
@@ -47,15 +50,25 @@ def matrix_modes(request: Request) -> dict[str, dict[str, str]]:
 
 
 @router.put("/matrixmodes")
-def save_matrix_mode(body: MatrixModeBody, request: Request) -> dict[str, dict[str, str]]:
+def save_matrix_mode(body: MatrixModeBody, request: Request, manager: Mgr) -> dict[str, dict[str, str]]:
     """Store one preset's Matrix-tab mode and answer with the whole map.
 
     One preset per write rather than the whole map: two browsers looking at different presets is ordinary, and a
     whole-map replace would make one of them undo the other's choice.
+
+    404 on a name the preset store does not carry: a mode keyed to no preset is one nothing will ever read back. The
+    mode is judged before the name, so a request that is wrong in both ways is still told what is storable.
     """
+    store = _store(request)
     try:
-        return {"presets": _store(request).write(body.name, body.mode)}
+        store.validate_mode(body.mode)
+        name = names.validate_name(body.name, MatrixModeError, "preset")
+        if name not in manager.presetops.store.names():
+            raise refuse("not_found", f"no such preset: {name!r}")
+        return {"presets": store.write(name, body.mode)}
     except MatrixModeSchemaError as exc:
         raise refuse(exc) from exc
     except MatrixModeError as exc:
+        raise refuse(exc) from exc
+    except PresetError as exc:
         raise refuse(exc) from exc

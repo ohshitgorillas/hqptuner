@@ -115,6 +115,41 @@ class MatrixModeStore:
         """Every stored mode, keyed by preset name. Empty when nothing is stored."""
         return _clean(self._read_file().get("presets"))
 
+    def validate_mode(self, mode: str) -> str:
+        """Return the mode as it will be stored, raising ``MatrixModeError`` when it is not one of the two.
+
+        The same rule ``write`` applies, exposed so a caller that must judge the mode BEFORE it judges the name can do
+        so: a request carrying both an unstorable mode and a name nothing will accept is answered by whichever of the
+        two the caller asks about first, and the mode is the more useful answer.
+        """
+        return _validate_mode(mode)
+
+    def _save(self, presets: dict[str, str]) -> None:
+        """Write ``presets`` out as the whole file, creating the directory on the way."""
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
+
+    def forget(self, name: str) -> bool:
+        """Drop ``name``'s stored mode, answering whether there was one to drop.
+
+        What a preset delete calls, so it complains about nothing: a name with no entry here, and a name this store
+        would refuse to write, are both simply not present. Writes only when something changed, so a delete on an
+        install that never chose a mode leaves no file behind.
+
+        A store stamped newer than this HQPTuner keeps its entry. ``write`` refuses to overwrite such a file, and
+        rewriting it here would stamp it back down and destroy what the newer version put in — one orphan is cheaper
+        than that, and deleting a preset must not fail because a store beside it is unreadable.
+        """
+        try:
+            presets = _clean(self._read_file().get("presets"))
+        except MatrixModeSchemaError:
+            return False
+        if name not in presets:
+            return False
+        del presets[name]
+        self._save(presets)
+        return True
+
     def write(self, name: str, mode: str) -> dict[str, str]:
         """Store ``mode`` against preset ``name`` and return the whole map.
 
@@ -128,6 +163,5 @@ class MatrixModeStore:
         presets[key] = value
         if len(presets) > _MAX_PRESETS:
             raise MatrixModeError(f"too many presets with a stored mode: {len(presets)} (limit {_MAX_PRESETS})")
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
+        self._save(presets)
         return presets

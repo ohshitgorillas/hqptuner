@@ -16,6 +16,7 @@ from hqptuner.conf import engineconf, matrixconf, presetconf, xmledit
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import FilterPark
+from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -40,6 +41,10 @@ class PresetOps:
         # because half of what it stores is per-preset — which saved preset carries
         # it — and a preset save and load are what put that half in and take it out.
         self.autopilot = AutopilotStore(cfg.autopilot_file)
+        # Which half of the Matrix tab each preset is listened through
+        # (store.matrixmode). Here for the same reason auto-pilot's state is: it
+        # is keyed by preset name, so a preset delete is what takes an entry out.
+        self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
