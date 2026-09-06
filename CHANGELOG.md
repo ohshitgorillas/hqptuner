@@ -6,6 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **A refused preset name now says why.** An invalid live snapshot or config preset name is refused with a reason stated in plain English.
 - **Convolution filter uploads are checked before they are kept.** An upload is refused unless it is a WAV container or a text file, is under the size limit, and has a plain filename; before, any bytes under a .wav or .txt name were parked and shipped to the daemon on the next apply.
 - **A setting is no longer reported applied when the daemon has stopped answering.** A daemon that went quiet mid-write could leave HQPTuner reporting an unapplied setting as applied, or showing a value that was never the one it asked for. It now reports the daemon unavailable until the connection is back.
 - **Rejected hqplayerd credentials are now reported.** An install whose management credentials the daemon refuses showed a connected status and empty settings, then quoted a raw HTTP error at the end of a long apply. The refusal is now named on the alert strip, in the apply caption and in the log, and the apply fails immediately.
