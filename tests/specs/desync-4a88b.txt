@@ -1,0 +1,73 @@
+kind: new
+
+BEHAVIORS
+
+1. Of the commands a daemon records after the one it failed, calling `get_state()` on that same connected client adds none when the failed command was one the daemon never answered, and adds `State` when it was one the daemon answered `result="Error"`.
+   kills: treating every failed command alike — keeping the connection after both kinds of failure, or dropping it after both. Keeping it after a stall lets the daemon's late reply be read as the answer to the next command; dropping it after a refusal turns an ordinary refused setting into a dropped connection.
+   bite: one-sided by construction — the refusal arm is the anchor and HEAD already matches it, so only the stall arm is red. Measured with `.venv/bin/python scripts/probes/probe_stall_desync.py` against the suite's fake daemon, reading the log from the point the failed command was recorded: after a stalled `SetShaping` HEAD adds `State` where this line requires nothing added; after a refused `SetShaping` HEAD adds `State`, which this line also requires.
+   existing: none. `grep -rln "_stall" --include="*.py" .` returns `tests/engine/test_control_stall.py` and `tests/support/fake_control.py` only; the test module was read in full and no case asserts what the daemon received after a fault.
+
+2. In one `apply_live` batch carrying two fields whose first setter the daemon receives and never answers, the second field comes back reported not applied.
+   kills: sending the rest of the batch over the same connection after the stall, which reports a value applied that the daemon may never have received and that no readback could have verified honestly.
+   bite: HEAD reports it applied. Measured with the same probe: `apply_live` over `{"shaper": "1", "junk_filter": "2"}` on a daemon stalling `SetShaping` returns `shaper: ok=False code=daemon_unavailable` and `junk_filter: ok=True`.
+   existing: none. `grep -rn "apply_live" --include="*.py" .` returns four test modules; `tests/apply/test_apply.py::test_one_failure_does_not_abort_the_rest` is the same batch shape with a refused first setter rather than a stalled one, and asserts the opposite outcome.
+
+PUBLIC ENTRY POINTS
+
+hqptuner/engine/control.py:
+
+    class ControlError(HQPTunerError)      # code = "daemon_unavailable"
+    class CommandError(ControlError)       # code = "daemon_refused"
+
+    class ControlClient:
+        def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0)
+        async def connect(self) -> None
+        async def close(self) -> None
+        async def request(self, element: str) -> ET.Element
+        async def get_state(self) -> dict[str, str]
+        async def set_command(self, element_name: str, **attrs: str) -> ET.Element
+
+`request` docstring: "Send one XML command document, return the parsed response root."
+`set_command` docstring: "Setter with result check. result="OK" or absent (SetAdaptiveVolume quirk, protocol.md §6) passes; result="Error" raises with the reason. Note result="OK" is not proof of application — callers verify by State readback (protocol.md §6 caveat)."
+
+hqptuner/lanes/writer.py:
+
+    async def apply_live(client: ControlClient, edits: dict[str, dict[str, str]], audit: AuditLog | None = None) -> list[dict[str, Any]]
+
+`apply_live` docstring: "Apply each live edit in the safe order, verifying by readback. One edit failing does not abort the rest — each reports its own outcome."
+
+WIRE AND PROTOCOL FACTS
+
+- One TCP connection to port 4321, each request a complete XML document, responses newline-flushed XML documents read until one parses (docs/protocol.md §1, "Transport and framing").
+- The daemon echoes the command element it received, with a `result` attribute of "OK" or "Error", and on error the element text carries the reason (docs/protocol.md §4, lines 125-134).
+- "The connection is never dropped on an error — even unknown command elements get an echoed error response" (docs/protocol.md:134). A command the daemon accepts is therefore answered eventually, so a reply given up on is a reply still to come.
+- The stall is a field observation, not a hypothetical: hqplayerd 6.0.4 accepted `SetMode` and never answered it while the mode switch took the audio engine down (2026-07-29, quoted in the header of tests/engine/test_control_stall.py).
+- `result="OK"` is not proof of application; a live setting is verified by a `State` readback (docs/protocol.md §6 caveat).
+
+APPLICABLE FIXTURES
+
+- `daemon` (tests/support/fixtures_daemons.py:44) — a fake daemon per call, returning its port, its command log and its live State dict; State overrides are keyword arguments.
+- `fake_control._stall` — space-separated commands the fake receives, logs and never answers, keeping the connection open, so the client's own deadline ends the wait.
+- `fake_control._error` — space-separated commands the fake answers `result="Error"` with `_error_text` as the element's text.
+- `fake_control.CommandLog` — every command the fake was asked, in order, as (name, attrs); the only way to say whether a command reached the daemon at all.
+- `live_client` (tests/support/fixtures_daemons.py:71) — a connected client on a healthy fake at a 2 s deadline, for the batch line's healthy fields.
+- `tests/engine/test_control_stall.py::STALL_TIMEOUT` — the existing 0.5 s deadline convention for cases that wait a stall out in real wall clock.
+
+CHANGELOG ENTRY
+
+Under `## [Unreleased]`:
+
+- **Control connection** — a command the daemon never answers now ends the connection, so its late reply cannot be read as the answer to the next command.
+
+SPEC-REVIEWER, ROUND 3
+
+READY
+discriminates: differential on the fake daemon's received-command log after a fault (`get_state()` adding nothing vs adding `State`), with line 2 pinning the batch-report consequence on a second surface.
+
+1  KEEP  `get_state()` on a connected client after a stalled `SetShaping` vs after a refused `SetShaping` -> the log tail recorded past the failed command gains nothing in the first case and `State` in the second; the kills implementation fails it at one arm or the other (keep-the-connection-always gains `State` after the stall, drop-always gains nothing after the refusal); bite: HEAD adds `State` after the stall where the line requires nothing, refusal arm anchored at HEAD.
+2  KEEP  `apply_live` over `{"shaper": "1", "junk_filter": "2"}` on a daemon stalling `SetShaping` -> the `junk_filter` entry comes back `ok: False`; the kills implementation (continue the batch over the same connection after the stall) fails it at that input by reporting `junk_filter ok=True`; bite: HEAD reports `junk_filter: ok=True`. Unchanged text, unchanged verdict from rounds 1 and 2.
+
+null stub: feature absent — nothing drops or reconnects on a fault and the batch runs on over the same connection exactly as HEAD does, so line 1's stall arm and all of line 2 fail it.
+hard-coded stub: canned `ok: False` for every field following a setter that did not verify takes line 2 by itself, but the log surface is written by the fake from real traffic and no stub inside the unit can fabricate it, so line 1 holds the block.
+
+survives: 2
