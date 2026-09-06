@@ -14,7 +14,10 @@ and a control lane pointed at a closed port, and a route that answers at all
 answered without the daemon.
 
 Every store file lands under pytest's ``tmp_path``, never in the repo's state
-dir. The on-disk layout — ``{"schema": N, "presets": {name: mode}}`` — is the
+dir, and that goes for the preset store the mode map joins against as well as
+for the mode file itself: nothing here reads the host's presets.
+
+The on-disk layout — ``{"schema": N, "presets": {name: mode}}`` — is the
 contract a DIFFERENT HQPTuner version reads, so the case about a foreign file
 hand-writes one.
 """
@@ -44,21 +47,37 @@ def seed(tmp_path: Path, content: str) -> Path:
     return path
 
 
-@pytest.fixture
-def matrixmodes_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a matrix-mode file in ``tmp_path``, daemonless.
+#: Opaque bytes; the preset store never parses a payload (test_presetstore.py).
+PRESET_PAYLOAD = b"<hqplayerd/>"
 
-    A factory rather than a plain client so a case can hand-write a file another
-    HQPTuner version stamped and then open the app over it."""
+
+@pytest.fixture
+def preset_dir(tmp_path: Path) -> Path:
+    """Where the preset store the mode map joins against lives."""
+    return tmp_path / "presets"
+
+
+@pytest.fixture
+def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[Callable[..., TestClient]]:
+    """The REST surface over a mode file AND a preset store, both in ``tmp_path``.
+
+    A factory taking the preset names to seed, so a case can decide what exists
+    before the app opens — including nothing at all, over a preset store
+    directory the case hand-wrote itself, or over a mode file another HQPTuner
+    version stamped."""
     clients: list[TestClient] = []
 
-    def build() -> TestClient:
+    def build(names: Sequence[str] = ()) -> TestClient:
+        store = PresetStore(preset_dir)
+        for name in names:
+            store.save(name, PRESET_PAYLOAD)
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=closed_port,
             hqp_username="",
             hqp_password="",
             matrix_mode_file=tmp_path / "matrixmodes.json",
+            preset_dir=preset_dir,
         )
         client = TestClient(create_app(cfg))
         clients.append(client)
@@ -71,8 +90,12 @@ def matrixmodes_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], T
 
 
 @pytest.fixture
-def modes_client(matrixmodes_api: Callable[[], TestClient]) -> TestClient:
-    return matrixmodes_api()
+def modes_client(joined_api: Callable[..., TestClient]) -> TestClient:
+    """A client whose preset store already carries the two names these cases PUT.
+
+    A mode is keyed by preset name (docs/architecture.md §2), so every case that
+    stores one names a preset that exists."""
+    return joined_api([NAME, OTHER])
 
 
 # --- an install that has stored nothing ------------------------------------------
@@ -161,65 +184,21 @@ def test_a_refused_put_stores_nothing(modes_client: TestClient) -> None:
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
-    tmp_path: Path, matrixmodes_api: Callable[[], TestClient]
+    tmp_path: Path, joined_api: Callable[..., TestClient]
 ) -> None:
     seed(tmp_path, json.dumps(TOO_NEW))
-    assert matrixmodes_api().get(PATH).status_code == 409
+    assert joined_api().get(PATH).status_code == 409
 
 
-# --- the mode map against the preset store it joins to -----------------------------------
-# The cases above build an app over a matrix-mode file alone, so the preset
-# store behind them is whatever the host happened to leave lying around. The
-# fixture below pins both halves under ``tmp_path``: a preset store this file
-# seeds by name, and the mode file beside it. Preset names are the join key
-# (docs/architecture.md §2), so a mode for a name no preset carries is an orphan
-# nothing can ever display.
-
-#: Opaque bytes; the preset store never parses a payload (test_presetstore.py).
-PRESET_PAYLOAD = b"<hqplayerd/>"
+# --- a name no preset carries --------------------------------------------------------
+# Preset names are the join key (docs/architecture.md §2), so a mode stored for
+# a name no preset carries is an orphan nothing can ever display.
 
 #: The preset store's own on-disk layout stamp, in a version this build cannot read.
 TOO_NEW_PRESET_STORE = {"schema": 99}
 
 GHOST = "Ghost"
 DELETE_PATH = "/api/profile/delete"
-
-
-@pytest.fixture
-def preset_dir(tmp_path: Path) -> Path:
-    """Where the preset store the mode map joins against lives."""
-    return tmp_path / "presets"
-
-
-@pytest.fixture
-def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[Callable[..., TestClient]]:
-    """The REST surface over a mode file AND a preset store, both in ``tmp_path``.
-
-    A factory taking the preset names to seed, so a case can decide what exists
-    before the app opens — including nothing at all, over a preset store
-    directory the case hand-wrote itself."""
-    clients: list[TestClient] = []
-
-    def build(names: Sequence[str] = ()) -> TestClient:
-        store = PresetStore(preset_dir)
-        for name in names:
-            store.save(name, PRESET_PAYLOAD)
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            matrix_mode_file=tmp_path / "matrixmodes.json",
-            preset_dir=preset_dir,
-        )
-        client = TestClient(create_app(cfg))
-        clients.append(client)
-        client.__enter__()
-        return client
-
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
 
 
 def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real_one(
