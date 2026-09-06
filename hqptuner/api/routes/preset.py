@@ -30,8 +30,6 @@ async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any
     }
     if action not in methods:
         raise refuse("not_found", f"unknown profile action: {action}")
-    if not body.name:
-        raise refuse("invalid_input", "profile name required")
     try:
         return await methods[action](body.name)
     except PresetError as exc:

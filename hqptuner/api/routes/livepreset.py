@@ -16,7 +16,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import chain, lane, routing, snapshot
 from hqptuner.presets import presetlane
-from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
+from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore, canonical_name
 
 router = APIRouter(prefix="/api")
 
@@ -123,6 +123,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     """
     record = _record(manager, _selected(None if body is None else body.fields))
     try:
+        name = canonical_name(name)  # the response names the key the store holds
         _store(request).save(name, record)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
@@ -172,6 +173,7 @@ def delete_live_preset(name: str, request: Request) -> dict[str, Any]:
     404 when no preset is saved under the name.
     """
     try:
+        name = canonical_name(name)  # the response names the key the store held
         _store(request).delete(name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc

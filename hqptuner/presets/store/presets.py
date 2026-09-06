@@ -49,7 +49,12 @@ class PresetError(HQPTunerError, ValueError):
     code = "invalid_input"
 
 
-def _validate(name: str) -> str:
+def canonical_name(name: str) -> str:
+    """Return the name the store keys ``name`` under, raising ``PresetError`` when it is not a preset name.
+
+    Trailing whitespace is trimmed, so a caller that goes on to use the name
+    (mirror, pointer, audit, response) uses this value, never its argument.
+    """
     return names.validate_name(name, PresetError, "preset")
 
 
@@ -67,7 +72,7 @@ class PresetStore:
         self._audit = audit or AuditLog(None)
 
     def _path(self, name: str) -> Path:
-        return self._dir / f"{_validate(name)}.xml"
+        return self._dir / f"{canonical_name(name)}.xml"
 
     def _meta(self) -> dict[str, Any]:
         """``store.json`` as a dict, empty when absent or unreadable.
@@ -139,8 +144,13 @@ class PresetStore:
         asks.
         """
         self._ensure_dir()
+        name = canonical_name(name)
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
+        if not overwrote and trigger != "migration":
+            # A first save takes the stricter rule; a migration copies a name the
+            # daemon already holds rather than creating one, so it is exempt.
+            names.validate_new_name(name, PresetError, "preset")
         path.write_bytes(xml)
         self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
@@ -149,6 +159,7 @@ class PresetStore:
 
         Raises ``PresetError`` if absent; clears the active pointer when the deleted preset was the active one.
         """
+        name = canonical_name(name)
         path = self._path(name)
         if not path.is_file():
             raise PresetError(f"no such preset: {name!r}", code="not_found")
@@ -202,7 +213,7 @@ class PresetStore:
         The name is validated but not required to exist.
         """
         if name is not None:
-            _validate(name)
+            name = canonical_name(name)
         previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
         (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
@@ -218,7 +229,7 @@ class PresetStore:
         imported: list[str] = []
         for name, xml in snapshots.items():
             try:
-                valid = _validate(name)
+                valid = canonical_name(name)
             except PresetError:
                 continue
             if not self.exists(valid):
