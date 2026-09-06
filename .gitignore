@@ -83,8 +83,10 @@ docker-compose.yaml
 state/
 
 # approved spec blocks staged for scripts/pair.sh open; the committed copy
-# lives at tests/specs/<slug>.txt on the spec branch
-specs/
+# lives at tests/specs/<slug>.txt on the spec branch. Anchored to the repo root:
+# a bare `specs/` matches at any depth and swallows that committed copy, so
+# `pair.sh open` commits nothing and `pair.sh red` refuses for want of a spec.
+/specs/
 
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules
