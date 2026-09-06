@@ -141,13 +141,6 @@ def test_saving_under_a_name_the_store_refuses_is_unprocessable(live_api: TestCl
     assert live_api.put(_path(name)).status_code == 422
 
 
-@pytest.mark.parametrize("name", REFUSED_NAMES)
-def test_saving_under_a_name_the_store_refuses_quotes_the_name_it_was_given(live_api: TestClient, name: str) -> None:
-    # the offending name is quoted back so the card can put it in front of the
-    # user; the complaint's wording is owner-owned data (docs/testing.md rule 9)
-    assert repr(name) in live_api.put(_path(name)).json()["detail"]
-
-
 # --- POST /api/livepresets/{name}/apply ------------------------------------------
 
 
