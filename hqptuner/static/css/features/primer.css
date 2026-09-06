@@ -82,6 +82,18 @@
   stroke-width: 0.8;
 }
 
+/* The stream entering the DAC: an edge with no fill, on the reference rung
+   rather than the accent, because what it is there for is the space between it
+   and the heard fill under it. Dashed so it reads as a boundary the reader is
+   meant to look under, not as a second trace competing with the filter's. */
+.primer-predac {
+  fill: none;
+  stroke: var(--muted);
+  stroke-opacity: var(--o-mid);
+  stroke-width: 0.8;
+  stroke-dasharray: 3 2;
+}
+
 /* The impulse pane's output where it rings faster than the columns can draw
    a line: the excursion per column as a filled band on the fill rung, so a
    ring that would draw as a hash reads as the envelope it is. */

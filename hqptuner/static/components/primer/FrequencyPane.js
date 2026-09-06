@@ -1,11 +1,13 @@
-// The frequency pane: linear frequency from 0 to the larger of twice the
-// source rate and the output rate, the source music as a wash below source
-// Nyquist, its images mirrored above, the filter magnitude as the accent
-// trace, and the output stream as a fill: above source Nyquist it is the leak,
-// and when downsampling what folds into the passband. No oversampling draws no
-// filter and no leak: the output is the source's own curve, and a fill painted
-// over the wash and its images at one opacity would flatten the two into one
-// slab.
+// The frequency pane: linear frequency from 0 to twice the source rate in every
+// state, the source music as a wash below source Nyquist, its images mirrored
+// above, the filter magnitude as the accent trace, the stream entering the DAC
+// as a dashed edge, and the stream the reader hears as a fill under it. The gap
+// between those last two is the DAC's analog reconstruction, and it is the only
+// place the pane shows what a high output rate buys: the digital filter kills
+// the images to the same depth at every ratio, so the ratios differ after the
+// filter or not at all. Both are drawn in every state including no oversampling,
+// which is a NOS DAC and the state where the hold's droop and the unfiltered
+// images meet the analog filter with nothing in front of them.
 //
 // Every curve is drawn through `peakColumns`, one column per pixel the page
 // reports and the column's peak within it, so a comb finer than the window can
@@ -55,7 +57,8 @@ const LAYERS = [
   { key: "wash", layer: "music", kind: "ghost", swatch: "music", text: "Music" },
   { key: "images", layer: "images", kind: "ghost", swatch: "images", text: "Images" },
   { key: "filter", layer: "filter", kind: "applied", text: "Filter" },
-  { key: "leak", layer: "output", kind: "applied", swatch: "output", text: "Output" },
+  { key: "analog", layer: "analog", kind: "ghost", text: "Analog reconstruction" },
+  { key: "heard", layer: "output", kind: "applied", swatch: "output", text: "What you hear" },
 ];
 /**
  * The legend gets a band of its own between the top band and the plot, and the
@@ -75,6 +78,17 @@ const LEGEND_STEP = 92;
 const MARK_Y = TOP + 10;
 /** A name this close to a frame edge is anchored to it rather than centred over it. */
 const MARK_EDGE = 40;
+/** The top of hearing, marked in every state. */
+const HEARING_HZ = 22000;
+/**
+ * Two centred mark names this close together overlap, so the second drops to
+ * the row below rather than printing over the first. The pairs that need it are
+ * Hearing limit against the source Nyquist at 44.1 kHz, 0.4 units apart, and
+ * against the output Nyquist wherever the ladder floors at 48 kHz, 3.9 and 7.7
+ * units apart.
+ */
+const NAME_GAP = 90;
+const NAME_ROW = 11;
 
 /**
  * The pane's curves from the store's spectrum on its grid from 0 to the axis
@@ -83,7 +97,7 @@ const MARK_EDGE = 40;
  * width where the page has measured nothing.
  */
 function frequency() {
-  const { freqsHz, sourceDb, filterDb, resultDb } = spectrum.value;
+  const { freqsHz, sourceDb, filterDb, resultDb, heardDb } = spectrum.value;
   const fs = rate.value;
   const top = axisHz.value;
   const out = outputRate.value;
@@ -109,19 +123,24 @@ function frequency() {
   // decimates, the grid holds no frequency above it and the image band is empty.
   const above = freqsHz.findIndex((/** @type {number} */ f) => f > fs / 2);
   const half = above < 0 ? freqsHz.length : above;
-  // Above the output's Nyquist the fold repeats the band below it, so the
-  // result fill stops there: what it would draw past the mark is a copy of what
-  // it already drew, and no stream carries it.
-  const pastOut = freqsHz.findIndex((/** @type {number} */ f) => f > (out ?? fs) / 2);
-  const carried = pastOut < 0 ? freqsHz.length : pastOut;
   const step = niceStep(top / 1000 / FREQ_TICKS) * 1000;
-  // The store's one identity rule, no oversampling or a ratio of one: no
-  // filter, no output stream, and no second Nyquist mark.
+  // The store's one identity rule, no oversampling or a ratio of one: no filter
+  // and no output Nyquist mark. The heard stream is drawn here as everywhere.
   const identity = noFilter.value;
   return {
     wash: fillOf(sourceDb, 0, half),
     images: fillOf(sourceDb, half, freqsHz.length),
-    leak: identity ? null : filled(resultDb, 0, carried),
+    // The stream entering the DAC, drawn as an edge with no fill of its own:
+    // what the reader is meant to read is the space between it and the heard
+    // stream under it, which is what the analog reconstruction took away.
+    analog: drawn(resultDb, 0, freqsHz.length)
+      .map((i) => pt(i, resultDb[i]))
+      .join(" "),
+    // The heard stream runs the whole axis, the identity included. Above the
+    // output's Nyquist sit the images the DAC's hold puts there, and pulling
+    // those down is the stage's whole visible job; a fill stopping at the mark
+    // would cut the lesson off at its edge.
+    heard: filled(heardDb, 0, freqsHz.length),
     filter: identity
       ? null
       : drawn(filterDb, 0, freqsHz.length)
@@ -129,9 +148,18 @@ function frequency() {
           .join(" "),
     xMarks: ticks(step, top, step).map((f) => ({ x: xOf(f), label: fmtKhz(f) })),
     yMarks: ticks(0, -DB_MIN, DB_STEP).map((db) => ({ y: yOf(-db), label: `${-db}` })),
+    // The hearing limit is marked in every state and carries no axis figure: at
+    // 44.1 kHz it sits 50 Hz from the source Nyquist, and two numbers that close
+    // together on the axis read as one smudged number. The output's own mark is
+    // drawn only while its Nyquist is inside the frame; from a 4x ratio up the
+    // axis top has passed it, and a mark placed off the plot is a line painted
+    // on the frame edge or outside the viewBox altogether.
     marks: [
+      { mark: "hearing", x: xOf(HEARING_HZ), hz: null, name: "Hearing limit" },
       { mark: "source", x: xOf(fs / 2), hz: fs / 2, name: "Source Nyquist" },
-      ...(identity || out === null ? [] : [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }]),
+      ...(identity || out === null || out / 2 >= top
+        ? []
+        : [{ mark: "output", x: xOf(out / 2), hz: out / 2, name: "Output Nyquist" }]),
     ],
   };
 }
@@ -150,12 +178,33 @@ const legend = (drawn) => LAYERS.filter(({ key }) => drawn[key] !== null);
  */
 const markAnchor = (x) => (x > PADL + PLOT_W - MARK_EDGE ? "end" : x < PADL + MARK_EDGE ? "start" : "middle");
 
+/**
+ * A y for each mark's name, in the order the marks are given: a name that would
+ * land within a name's width of one already placed on a row drops to the row
+ * beneath it, so two marks a few units apart read as two lines rather than one
+ * smudge. The rows grow downward into the plot, where the top of the band is
+ * clear in every state.
+ * @param {{ x: number }[]} at
+ * @returns {number[]}
+ */
+function nameRows(at) {
+  /** @type {number[]} */
+  const taken = [];
+  return at.map(({ x }) => {
+    let row = 0;
+    while (taken[row] !== undefined && Math.abs(x - taken[row]) < NAME_GAP) row += 1;
+    taken[row] = x;
+    return MARK_Y + row * NAME_ROW;
+  });
+}
+
 /** The frequency pane: source wash, images, filter trace, Nyquist marks and the output fill. */
 export function FrequencyPane() {
   const svg = useRef(/** @type {SVGSVGElement | null} */ (null));
   useMeasuredPlot(svg, freqPx, PLOT_W / W);
-  const { wash, images, leak, filter, xMarks, yMarks, marks } = frequency();
-  const rows = legend({ wash, images, leak, filter });
+  const { wash, images, analog, heard, filter, xMarks, yMarks, marks } = frequency();
+  const rows = legend({ wash, images, analog, heard, filter });
+  const nameY = nameRows(marks);
   return html`
     <div class="plot" data-pane="frequency">
       <div class="t-label">Frequency</div>
@@ -164,18 +213,23 @@ export function FrequencyPane() {
         ${yAxis(PADL, yMarks, "dB")}
         ${wash ? html`<path class="primer-wash" d=${wash} />` : null}
         ${images ? html`<path class="primer-images" d=${images} />` : null}
-        ${leak ? html`<path class="primer-leak" d=${leak.fill} /><polyline class="primer-leak-edge" points=${leak.edge} />` : null}
+        ${heard ? html`<path class="primer-leak" d=${heard.fill} /><polyline class="primer-leak-edge" points=${heard.edge} />` : null}
+        ${analog ? html`<polyline class="primer-predac" points=${analog} />` : null}
         ${marks.map(({ mark, x, hz }) => {
           const sx = r1(x);
           return html`
             <line class="primer-nyquist" data-mark=${mark} x1=${sx} y1=${TOP} x2=${sx} y2=${TOP + PLOT_HH} />
-            <text class="plot-lbl plot-axis" x=${sx} y=${AXIS_Y} text-anchor="middle">${fmtKhz(hz)}k</text>
+            ${
+              hz === null
+                ? null
+                : html`<text class="plot-lbl plot-axis" x=${sx} y=${AXIS_Y} text-anchor="middle">${fmtKhz(hz)}k</text>`
+            }
           `;
         })}
         ${filter ? html`<polyline class="plot-trace applied" points=${filter} />` : null}
         ${xAxis(W, xMarks, "kHz")}
-        ${marks.map(({ mark, x, name }) =>
-          cornerNames([{ kind: "ghost", mark, text: name }], { x, y: MARK_Y, anchor: markAnchor(x) }),
+        ${marks.map(({ mark, x, name }, i) =>
+          cornerNames([{ kind: "ghost", mark, text: name }], { x, y: nameY[i], anchor: markAnchor(x) }),
         )}
         ${cornerNames(rows, { x: LEGEND_X, y: LEGEND_Y, anchor: "start", dx: LEGEND_STEP })}
       </svg>
