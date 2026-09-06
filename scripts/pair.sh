@@ -217,11 +217,34 @@ red_files() {   # red_files <tree> <spec-commit> <red-commit>
 
 # ---- open -------------------------------------------------------------------
 
+# The reviewer section of the spec file is the reviewer's own text. Every
+# spec-reviewer round is written by that agent to state/reviews/<slug>.<N>.txt
+# (.claude/hooks/reviews-lane.py keeps every other hand off it), and the
+# section after the separator has to match the newest one, which has to
+# start with READY. A READY the orchestrator typed does not open a pair.
+# Trailing whitespace and blank lines are the only tolerated difference.
+VERDICT_SEP='--- spec-reviewer READY ---'
+
+verdict_check() {
+  local vfile
+  grep -qxF "$VERDICT_SEP" "$SPECFILE" \
+    || die "no '$VERDICT_SEP' line in $SPECFILE — the reviewer's output goes beneath that separator."
+  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1)
+  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the spec-reviewer writes its verdict there itself, every round."
+  [ "$(head -1 "$vfile")" = "READY" ] || die "${vfile#"$ROOT"/} does not start with READY — the reviewer has not passed this block."
+  if ! diff -qB <(sed -n "/^$VERDICT_SEP\$/,\$p" "$SPECFILE" | sed '1d;s/[[:space:]]*$//') \
+                <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
+    die "reviewer section of $SPECFILE differs from ${vfile#"$ROOT"/} — paste the reviewer's file, not a transcription."
+  fi
+  echo "  verdict     ${vfile#"$ROOT"/} matches the spec file's reviewer section"
+}
+
 do_open() {
   say "open $SLUG"
 
   git rev-parse -q --verify dev >/dev/null || die "no dev branch here."
   [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — write the approved block and the reviewer's READY output there first."
+  verdict_check
   local d b
   for d in "$SPEC_DIR" "$IMPL_DIR"; do
     if [ -e "$d" ]; then die "$d already exists — pick another slug, or abort that pair."; fi
