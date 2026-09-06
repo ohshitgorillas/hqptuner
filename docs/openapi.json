@@ -60,9 +60,16 @@
       "Body_matrix_filter_api_matrix_filter_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "File"
           }
         },
         "required": [
@@ -1318,7 +1325,7 @@
     },
     "/api/matrix/filter": {
       "post": {
-        "description": "Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.\n\nReturns the daemon-side absolute path the pipeline process string should reference (matrix-spec.md\n\"Filter upload\").",
+        "description": "Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.\n\nRefuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on\nthe part's byte count so an oversize body is never read into the route. A part with an empty filename reaches\nthe handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline\nprocess string should reference (matrix-spec.md \"Filter upload\").",
         "operationId": "matrix_filter_api_matrix_filter_post",
         "requestBody": {
           "content": {

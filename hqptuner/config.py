@@ -120,6 +120,11 @@ class Config:
     # (probe-verified on 6.0.4: data/impulse_0-0.wav <-> /var/lib/hqplayer/home/…).
     # Overridable for non-standard installs.
     hqp_home: str = field(default_factory=lambda: _env("HQP_HOME", "/var/lib/hqplayer/home"))
+    # Largest convolution filter upload accepted, in bytes (api/routes/matrix.py).
+    # A million-tap float32 mono impulse is 4 MiB; the default leaves room for
+    # 24 s at 352.8 kHz and keeps a LAN client from filling the backup volume
+    # one upload at a time.
+    filter_max_bytes: int = field(default_factory=lambda: int(_env("FILTER_MAX_BYTES", str(32 * 1024 * 1024))))
     # Append-only event log (audit.py) — every durable write, as it was handed
     # to us. Unset means the subsystem is inert: no file, no records, no cost.
     # There is deliberately no UI for it; it is an operator's tool, set on the
