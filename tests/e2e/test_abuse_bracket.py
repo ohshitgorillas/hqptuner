@@ -4,6 +4,11 @@
 pinned here is what the bracket leaves behind on disk: a run writes into every
 store HQPTuner owns, and `close` has to leave those stores as `open` found them.
 
+The engine's live matrix profile is bracketed the same way: a run is free to
+switch it, and `close` has to put back the profile the daemon was on when `open`
+ran — unless the daemon no longer offers that profile, in which case `close`
+refuses rather than installing a name the engine cannot resolve.
+
 Policy notes (docs/testing.md):
 
 - One assertion per test.
@@ -23,6 +28,7 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
@@ -53,6 +59,20 @@ STORES = (
     "matrixmodes.json",
     "autopilot.json",
 )
+
+
+#: A profile the control fake answers MatrixListProfiles with, so it is a switch
+#: target the daemon resolves. Stands for wherever a hostile run leaves the engine.
+RUN_PROFILE = "Mch-to-Stereo mixdown"
+
+#: A name the control fake's profile list does not carry, so a baseline recorded
+#: while the daemon reports it is dangling and cannot be switched back to.
+ABSENT_PROFILE = "Profile The Engine Does Not Have"
+
+#: Ceiling on the app noticing a State the fake already reports. Bounded poll on a
+#: condition, not a duration anything is expected to take.
+OBSERVE_TIMEOUT = 30.0
+OBSERVE_POLL = 0.05
 
 
 def _digest(path: Path) -> str:
@@ -87,6 +107,42 @@ def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, An
     )
     with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
         response.read()
+
+
+def _live_active(app: stack_support.Stack) -> str:
+    """The active matrix profile as the app serves it, `.data.live_active` of `GET /api/matrix`."""
+    request = urllib.request.Request(f"{app.base_url}/api/matrix", method="GET")  # noqa: S310 — loopback http URL
+    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
+        payload = json.loads(response.read())
+    return str(payload["data"]["live_active"])
+
+
+def _await_active(app: stack_support.Stack, name: str) -> None:
+    """Wait until the app reports `name` as the active profile, so `open` records that baseline."""
+    deadline = time.monotonic() + OBSERVE_TIMEOUT
+    while time.monotonic() < deadline:
+        if _live_active(app) == name:
+            return
+        time.sleep(OBSERVE_POLL)
+    raise RuntimeError(f"app still reports {_live_active(app)!r} as the active profile, not {name!r}")
+
+
+def _switch(app: stack_support.Stack, name: str) -> None:
+    """Move the engine's live profile through the app's own switch route, and wait for it to land."""
+    _call(app, "POST", "/api/matrix/profile", {"action": "switch", "name": name})
+    _await_active(app, name)
+
+
+def _put_daemon_on(app: stack_support.Stack, name: str) -> None:
+    """Park the engine on `name` before the bracket opens.
+
+    The unnamed [Default] is the empty name the fake already starts on, so there
+    is nothing to switch; anything else is reached the way a user reaches it.
+    """
+    if name:
+        _switch(app, name)
+    else:
+        _await_active(app, name)
 
 
 def _abuse(command: str, state: Path) -> subprocess.CompletedProcess[str]:
@@ -163,3 +219,24 @@ def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Sta
     for manifest in (state / "abuse").rglob("manifest.json"):
         manifest.unlink()
     assert _abuse("close", state).returncode == 1
+
+
+@pytest.mark.parametrize("baseline", ["Default", ""])
+def test_close_puts_the_engine_back_on_the_profile_open_found(
+    app: stack_support.Stack, state: Path, baseline: str
+) -> None:
+    """A run that switches the live matrix profile leaves the engine where `open` found it."""
+    _put_daemon_on(app, baseline)
+    _bracket("open", state)
+    _switch(app, RUN_PROFILE)
+    _bracket("close", state)
+    assert app.control_state["matrix_profile"] == baseline
+
+
+def test_close_refuses_when_the_recorded_profile_is_no_longer_offered(app: stack_support.Stack, state: Path) -> None:
+    """A baseline the daemon no longer lists is refused, never switched back to."""
+    app.control_state["matrix_profile"] = ABSENT_PROFILE
+    _await_active(app, ABSENT_PROFILE)
+    _bracket("open", state)
+    _switch(app, RUN_PROFILE)
+    assert _abuse("close", state).returncode != 0
