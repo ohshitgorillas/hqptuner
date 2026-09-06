@@ -13,19 +13,22 @@
 #
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
-#           snapshot of the config form and of the live State; copy HQPTuner's
-#           seven own stores beside those, with a manifest saying which existed
-#           and what each held; record the newest audit seq; write
-#           state/abuse/current.
+#           snapshot of the config form and of the live State, the running
+#           matrix profile included; copy HQPTuner's seven own stores beside
+#           those, with a manifest saying which existed and what each held;
+#           record the newest audit seq; write state/abuse/current.
 #   close   DELETE /api/config/pending; read the audit records the run added;
 #           if an apply, a live write or a preset store write landed, POST
 #           /api/restore with the baseline (the daemon reloads on it) and poll
 #           until every field the run applied reads its baseline form value and
 #           every live State field reads its snapshot value; put the volume back
-#           by POST /api/volume when a live write moved it; then put the seven
-#           stores back from the manifest, last, because the baseline upload
-#           writes one of them. Print the run's records either way. current is
-#           removed only on success, so a failed close can be re-run.
+#           by POST /api/volume when a live write moved it; put the matrix
+#           profile back by POST /api/matrix/profile when the run switched it,
+#           refusing instead when the daemon no longer has the recorded one;
+#           then put the seven stores back from the manifest, last, because the
+#           baseline upload writes one of them. Print the run's records either
+#           way. current is removed only on success, so a failed close can be
+#           re-run.
 #
 # Everything goes through HQPTuner's own routes on 127.0.0.1:8090, never
 # hqplayerd directly. The pre-apply zip HQPTuner writes on every apply is not
@@ -59,8 +62,12 @@ top_seq()    { get "/api/audit?limit=1" | jq -r '.records[-1].seq // 0'; }
 # The config form as {field: value}, the shape open snapshots and close reads back.
 form_of() { get /api/config | jq -c '[.data.fields[] | {key: .name, value: .value}] | from_entries'; }
 # The live State fields a live write can move and the restore reload resets.
+# The snapshot is wider than this list: volume and the matrix profile are taken
+# too, and both are kept OUT of LIVE_KEYS because nothing puts them back before
+# close's settle poll, which compares against this list alone. Each is restored
+# by its own call afterwards.
 LIVE_KEYS='["mode","filter1x","filterNx","shaper","filter_junk","adaptive"]'
-live_of() { get /api/state | jq -c --argjson k "$LIVE_KEYS" '.data | with_entries(select(.key as $x | $k + ["volume"] | index($x)))'; }
+live_of() { get /api/state | jq -c --argjson k "$LIVE_KEYS" '.data | with_entries(select(.key as $x | $k + ["volume","matrix_profile"] | index($x)))'; }
 # One store's contents as {relative path: sha256}, or null when it is not there.
 # A directory is a per-file map rather than one aggregate, so close can name the
 # file that moved; a plain file answers under ".".
@@ -186,6 +193,38 @@ case "$CMD" in
       if [ "$want" != "$have" ]; then
         curl -sf -X POST -H 'Content-Type: application/json' -d "{\"level\":\"$want\"}" "$API/api/volume" >/dev/null || die "POST /api/volume failed; volume left at $have, was $want"
         echo "  volume:   $have -> $want"
+      fi
+    fi
+    # The running matrix profile, outside the block above on purpose. A run that
+    # only switched the profile writes no audit record, so it trips none of the
+    # three counters and the whole restore block is skipped for it — which is
+    # exactly the run that once left a fuzz name active and hqplayerd resetting
+    # on every engine reinit, InitMatrix() unable to find it.
+    #
+    # A readback cannot tell a good restore from a bad one here: MatrixSetProfile
+    # takes any string and State reports it back, which is how that name read
+    # clean all along. So the recorded name is checked against the daemon's own
+    # list first, and a name the daemon no longer has is a refusal, never a
+    # switch. The switch itself is live — no reload, playback undisturbed — so
+    # it needs no idle daemon, unlike the config restore above.
+    say "matrix profile"
+    if [ "$(jq 'has("matrix_profile")' "$livebase")" != "true" ]; then
+      echo "  not recorded at open (snapshot predates the profile joining the bracket); left where the run put it"
+    else
+      pwant=$(jq -r .matrix_profile "$livebase")
+      phave=$(get /api/state | jq -r '.data.matrix_profile') || die "GET /api/state failed"
+      if [ "$pwant" = "$phave" ]; then
+        echo "  unchanged: ${pwant:-[Default]}"
+      else
+        known=$(get /api/matrix | jq -c '.data.live_profiles // []') || die "GET /api/matrix failed"
+        if [ -n "$pwant" ] && [ "$(echo "$known" | jq -r --arg w "$pwant" 'index($w) != null')" != "true" ]; then
+          die "open recorded profile \"$pwant\", which the daemon no longer has ($known); switching to it would leave the engine resetting on its next reinit. Put that profile back or switch by hand, then re-run close"
+        fi
+        curl -sf -X POST -H 'Content-Type: application/json' -d "$(jq -nc --arg n "$pwant" '{action: "switch", name: $n}')" "$API/api/matrix/profile" >/dev/null \
+          || die "POST /api/matrix/profile failed; profile left at ${phave:-[Default]}, was ${pwant:-[Default]}"
+        pback=$(get /api/state | jq -r '.data.matrix_profile')
+        [ "$pback" = "$pwant" ] || die "matrix profile reads \"$pback\" after the switch, wanted \"$pwant\""
+        echo "  profile:  ${phave:-[Default]} -> ${pwant:-[Default]}"
       fi
     fi
     # Last writing step, deliberately: the baseline upload above is itself a
