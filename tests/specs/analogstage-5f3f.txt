@@ -1,0 +1,87 @@
+Bin O: the analog reconstruction stage in the primer's frequency pane
+
+Behaviors:
+
+1. The analog reconstruction stage reads lower for an 88.2 kHz output rate than for a 352.8 kHz one by 0.70 dB at 20 kHz and by 1.62 dB at 30 kHz.
+   kills: a stage that is the analog low-pass alone with no zero-order hold, which reads the same at both output rates and so gives 0.00 dB of difference at every frequency.
+   bite: null stub fails at 20000 Hz and 30000 Hz with output rates 88200 and 352800 (surface new) — no such export exists; a stub returning zeros gives a 0.00 dB difference at both frequencies.
+   existing: none. `grep -rn 'lib/dsp/spectrum' tests/js` returns five hits in four files — tests/js/lib/fir.test.js:22 and tests/js/store/primergraph.test.js:18 import magnitudeDb and groupDelaySamples, tests/js/lib/spectrum.test.js:11 imports sourceSpectrumDb and foldSpectrumDb, tests/js/store/primerspectrum.test.js:17 holds the module path as a constant. No file imports or names the new export.
+
+2. In every state of the shared matrix sweep the frequency pane draws an output fill reaching both edges of its plot rectangle.
+   kills: drawing the output stream only where the chain resamples and stopping it at the output's Nyquist, which leaves a NOS listener's pane with no output layer at all and elsewhere hides the band the DAC's hold fills with images, the one thing the stage is drawn to show.
+   bite: HEAD fails in both directions — `node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/primerfrequency.test.js tests/js/components/primerdownsample.test.js` passes, the former's fourth case asserting fill counts [1, 0] at 96 kHz into 192 kHz and 96 kHz into no oversampling, the latter's second case asserting a right edge of [213.5, 764] at 192 kHz into 48 kHz and 96 kHz into 192 kHz.
+   existing: tests/js/components/primerfrequency.test.js::test_result_fill_is_drawn_only_where_the_chain_resamples and tests/js/components/primerdownsample.test.js::test_output_fill_stops_at_the_output_nyquist, both of which pin the rule this line replaces and neither of which survives it.
+
+3. The frequency grid ends at twice the source rate whatever the ratio: 88200 Hz at 44.1 kHz into 352.8 kHz, and 384000 Hz at 192 kHz into 48 kHz.
+   kills: an axis top that follows the faster stream's Nyquist, which ends those two grids at 176400 Hz and 96000 Hz and leaves no image band on frame at all when the output rate is twice the source.
+   bite: HEAD gives 176400 and 96000 — `node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/primerspectrum.test.js` passes, its `test_axis_ends_at_the_faster_streams_nyquist_in_both_directions` asserting [96000, 88200] at 192 kHz into 96 kHz and at 44.1 kHz with no oversampling.
+   existing: two, both in tests/js/store/primerspectrum.test.js. `grep -rln '176400\|88200\|384000\|axisHz' tests/js` returns twenty files. `test_axis_ends_at_the_faster_streams_nyquist_in_both_directions` reads the grid's last point. `test_grid_point_count_follows_the_measured_plot_width` at line 125 reads the grid's size at 44.1 kHz into 352.8 kHz across freqPx 0, 640 and 1100 and expects [2049, 16385, 32769]; that chain's grid top halves under this line, so the first reading becomes 1025 while the other two and the property the test pins are unchanged. Of the remaining eighteen files, tests/js/components/primerextremes.test.js:171 hard-codes `AXIS_HZ = 88200` for the 44.1 kHz into 176.4 kHz chain it runs at line 212, a figure both the old rule and this one give, so it survives unchanged; the rest match on rate and output-rate values rather than on an axis top.
+
+4. The frequency pane names the analog layer, the images, the music and the output in every state, and the filter only where the chain resamples: the keys are analog, filter, images, music and output at 44.1 kHz into 176.4 kHz, at 192 kHz into 96 kHz and at 96 kHz into 48 kHz, and analog, images, music and output at 44.1 kHz with no oversampling and at 96 kHz into 96 kHz.
+   kills: naming the stage only in the states that run a filter, so the one state that is nothing but analog reconstruction, a NOS DAC, is the state that never names it. It also rejects a legend that drops the images where the chain decimates, which is what the four-row legend does today because the axis stopped at the source's own Nyquist there and no image band was on frame.
+   bite: HEAD names ["filter", "images", "music", "output"] at 44.1 kHz into 176.4 kHz, ["filter", "music", "output"] at 192 kHz into 96 kHz and at 96 kHz into 48 kHz, and ["images", "music"] at 44.1 kHz with no oversampling and at 96 kHz into 96 kHz — `node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/primerlabels.test.js` passes, its first case asserting all five rows.
+   existing: tests/js/components/primerlabels.test.js::test_frequency_legend_names_exactly_the_layers_the_pane_draws
+
+5. The frequency pane's dashed marks are the hearing limit and the source Nyquist in every state, joined by the output Nyquist only where the output's Nyquist falls below the axis top: at 44.1 kHz the marks are hearing, output and source into 88.2 kHz, and hearing and source into 176.4 kHz.
+   kills: drawing an output mark for any output rate that differs from the source, which from a 4x ratio up puts that mark and its name at or past the right frame edge, x 764 at 176.4 kHz and x 1498 on an 800 unit frame at 352.8 kHz, where it reads as part of the frame or does not render at all.
+   bite: HEAD draws source and output only, the output mark at x 764 in all three of 44.1 kHz into 88.2, 176.4 and 352.8 kHz, measured by rendering the pane at each and reading `line.primer-nyquist`; and `node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/primerlabels.test.js` passes, its second case asserting the mark sets [["output", "source"], ["source"]].
+   existing: tests/js/components/primerlabels.test.js::test_each_nyquist_mark_carries_its_own_name
+
+6. At 44.1 kHz the frequency pane's output edge sits below its analog edge near 20 kHz, and the separation shrinks strictly as the output rate rises across no oversampling, 88.2, 176.4 and 352.8 kHz.
+   kills: drawing the output layer from the stream that enters the DAC, so the two edges coincide in every state and the pane shows a reconstruction stage that changes nothing, which is the whole claim the layer is drawn to make.
+   bite: HEAD draws no analog edge at all, so the separation is undefined — `grep -rn 'primer-predac' hqptuner/static tests/js` returns no files; a stub whose stage returns zeros draws both edges and gives 0.00 units at all four output rates (surface new). The separations measured at the drawn vertex nearest 20 kHz are 4.70, 1.20, 0.40 and 0.20 plot units.
+   existing: none. `grep -rln 'primer-predac\|primer-leak-edge' tests/js` returns one file, tests/js/components/primerextremes.test.js, whose `test_result_edge_runs_the_result_fills_vertices_between_its_two_feet` at line 228 counts the edge polyline's vertices against the fill's and reads no y from it; the neighbouring `leakTop()` at tests/js/components/primergraph.test.js:102 reads the leak fill's own top y, not the edge, and compares one state's filter length against another's. Neither pins a separation between the two edges.
+
+Two lines past the default four. Line 5 cannot fold into line 4 because the legend and the marks are different elements read under different attributes, and an implementation that names the analog layer while leaving the mark rule alone passes line 4 and fails line 5. Line 6 cannot fold into line 2 because line 2 is a shape predicate that a full-width fill at any level satisfies, so an implementation with the export correct and the pane drawing its output layer without it passes lines 1 through 5 and fails only line 6.
+
+Public entry points, planned:
+
+    // hqptuner/static/lib/dsp/spectrum.js
+    /**
+     * The DAC's analog reconstruction in dB at each frequency: a zero-order
+     * hold at the output rate times a low-order analog low-pass.
+     * @param {number[]} freqsHz
+     * @param {number} outputRateHz
+     * @returns {Float64Array}
+     */
+    export function analogStageDb(freqsHz, outputRateHz)
+
+Existing exports whose readings change, signatures unchanged:
+
+    // hqptuner/static/store/primergraph.js
+    export const axisHz            // computed<number>
+    export const spectrum          // computed<{ freqsHz, sourceDb, filterDb, resultDb }>, gaining the heard stream
+
+Wire facts:
+
+- Zero-order hold: magnitude |sinc(f / fs_out)|, nulls at every multiple of fs_out, 3.9224 dB down at fs_out / 2, gain 2/pi. docs/plans/filter-primer-math.md:184, sourced to the zero-order hold article cited there.
+- Analog low-pass: n-th order Butterworth, gain squared 1 / (1 + (f / fc)^(2n)), 6n dB per octave. docs/plans/filter-primer-math.md:188. Order and corner of a NOS DAC's output stage are unsourced and listed among the figures not to use at docs/plans/filter-primer-math.md:199; the primer's stated assumption is n = 2, fc = 50 kHz, and the card names the stage as illustrative.
+- Cascaded linear stages multiply, so the stage in dB is the sum of the two, exact. Same reference. The low-pass term depends on frequency alone, so it cancels from line 1's differential and the 0.70 and 1.62 dB figures there are the hold's alone. It does not cancel from line 6, which reads one frequency across four output rates, but it is the same constant -0.110 dB at 20 kHz in all four and so does not affect the ordering.
+- The frequency plot is 734 units wide from x 30 to x 764 and 181 units tall from y 39 to y 220, over a dB span of +6 to -120, so it is 1.4365 plot units per dB. hqptuner/static/components/primer/frame.js:12,15,17,24,25; the same rectangle is encoded at tests/js/support/primermatrix.js:105.
+- The source rates offered are 44100, 96000 and 192000 Hz and the output ladder floors at 48000 Hz and ceils at 384000 Hz. hqptuner/static/store/primergraph.js:22,26,27.
+- HQPlayer's own documentation says nothing about DAC-side analog reconstruction; no filter specification is read out of the engine for this.
+
+Fixtures:
+
+- tests/js/support/vendor-resolve.js — the loader that resolves bare specifiers, required on every node --test run in this suite.
+- tests/js/support/markup.js — elements, classes, attr, inside, only: reads rendered SVG as markup so a pane's paths, polylines and text can be counted and keyed; line 6 reads two polylines through it.
+- tests/js/support/primermatrix.js — the shared state sweep, its FILL_LAYER map from fill class to layer key, its `spans` edge predicate and `failingByPane`, which reports the states in which one pane fails a predicate; line 2 is a row in that shape, needing a fill-span field on `readPane` and a frequency-pane guard like the one invariant 2 already uses for the impulse pane.
+
+Changelog: no entry. The primer's route is hidden behind a flag, so nothing here is user-visible on any shipped path.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: sweep on analogStageDb (line 1, two frequencies), monotone sweep on the rendered edge separation (line 6, four output rates), whole-matrix predicate (line 2), per-state rows (3, 4, 5)
+
+1  KEEP  20000 Hz and 30000 Hz at output rates 88200 and 352800 -> gaps of 0.70 dB and 1.62 dB (checked by hand: 0.7015 and 1.616); the analog-low-pass-only stage gives 0.00 at both; null stub fails at both frequencies
+2  KEEP  every state of the matrix sweep -> the frequency pane's primer-leak fill spans x 30..764; the fill-only-where-resampling-and-clamped-at-output-Nyquist implementation fails at 44.1 kHz with no oversampling (no fill) and at 192 kHz into 48 kHz (right edge 213.5); bite: HEAD asserts [1, 0] and [213.5, 764]. (Round 2 verdict, text unchanged, carried.)
+3  DELTA tests/js/store/primerspectrum.test.js:104 and :125, both in one file: the axis test's expected goes [96000, 88200] -> [384000, 88200] on its own two chains, and the grid-count test's expected goes [2049, 16385, 32769] -> [1025, 16385, 32769], the unmeasured-width reading halving with the axis span while the two pixel-bound readings stand.
+4  DELTA tests/js/components/primerlabels.test.js:91: all five rows change - rows 1 to 3 become ["analog","filter","images","music","output"] and rows 4 and 5 ["analog","images","music","output"], so the two decimating rows gain both "analog" and "images". Not a sibling of line 3 though the old axis rule fails both: an implementation with the new axis that still suppresses the images key while decimating passes 3 and fails 4, and one with the old axis whose legend names images anyway fails 3 and passes 4.
+5  DELTA tests/js/components/primerlabels.test.js:118: sweep gains the 88.2 kHz row and every row gains "hearing". (Carried.)
+6  KEEP  44.1 kHz source, the drawn vertex nearest 20 kHz, across output rates none/88200/176400/352800 -> the output edge sits below the analog edge and the separation strictly shrinks; the output-layer-drawn-from-the-pre-DAC-stream implementation gives coincident edges and 0.00 in all four; null stub with a zero-returning stage gives 0.00 in all four
+
+null stub: analogStageDb absent or returning zeros with the pane rendered exactly as HEAD - no analog key, no hearing mark, no fill at NOS, fill clamped at 213.5, axis at 176400, no predac edge - which fails all six lines.
+hard-coded stub: return the two gaps at the two frequencies, draw a full-width leak fill, key the axis, layer and mark lists off the state, and offset the analog edge by a constant - refused by line 2, whose states come from the store's own enumeration rather than a list a table could key on, and by line 6, whose four separations must strictly decrease.
+
+survives: 3
