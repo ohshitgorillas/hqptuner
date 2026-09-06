@@ -6,6 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **A setting is no longer reported applied when the daemon has stopped answering.** A daemon that went quiet mid-write could leave HQPTuner reporting an unapplied setting as applied, or showing a value that was never the one it asked for. It now reports the daemon unavailable until the connection is back.
 - **Rejected hqplayerd credentials are now reported.** An install whose management credentials the daemon refuses showed a connected status and empty settings, then quoted a raw HTTP error at the end of a long apply. The refusal is now named on the alert strip, in the apply caption and in the log, and the apply fails immediately.
 
 ## [1.14.0] — 2026-09-01

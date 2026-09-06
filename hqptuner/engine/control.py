@@ -169,9 +169,22 @@ class ControlClient:
             # one a stalled command trips, and it is this command's name that says
             # which command stalled
             with _as_control_error(_element_name(element), self._timeout):
-                self._writer.write((XML_HDR + element).encode())
-                await asyncio.wait_for(self._writer.drain(), self._timeout)
-                return await self._recv_document()
+                try:
+                    self._writer.write((XML_HDR + element).encode())
+                    await asyncio.wait_for(self._writer.drain(), self._timeout)
+                    return await self._recv_document()
+                except (TimeoutError, OSError, ControlError):
+                    # The daemon answers every command it accepts, unknown ones
+                    # included (protocol.md §4), so a reply given up on is a reply
+                    # still to come. Left on an open socket it becomes the answer
+                    # the NEXT command reads: `set_command` checks the root's
+                    # `result` and not which element it is, so a stale OK passes
+                    # for a setter that was never acknowledged. Drop the
+                    # connection instead and let the poll loop reconnect. A
+                    # `CommandError` is not raised here — a refusal is a complete,
+                    # correctly paired document, and that connection stays.
+                    await self.close()
+                    raise
 
     async def _recv_document(self) -> ET.Element:
         reader = self._reader
