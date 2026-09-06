@@ -71,6 +71,11 @@ MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 # the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
 DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
 
+# The whole domain of a DIRECT field: the flag as the config form and State both
+# spell it. String equality, deliberately: a numeric parse would wave "01" and
+# "1.5" through to a daemon that then refuses or misreads them.
+_FLAG_VALUES = frozenset({"0", "1"})
+
 
 def _index_for_enum_id(items: EnumItems, enum_id: str) -> str | None:
     """Return the list index of the item carrying this enum ID (the ID↔index join)."""
@@ -304,8 +309,15 @@ def _route_live(
     for field, value in fields.items():
         if field in DIRECT:
             # both sides are the same 0/1 flag, so there is nothing to translate,
-            # and the form field's name is already the writer's setting key
-            edits[field] = {"value": value}
+            # and the form field's name is already the writer's setting key. Not
+            # nothing to validate, though: the daemon is otherwise the first thing
+            # to refuse a value outside that domain, and its refusal comes back as
+            # a per-item failure inside a 200 rather than the batch refusal every
+            # other unresolvable field gets.
+            if value not in _FLAG_VALUES:
+                reasons[field] = f"{value!r} is not a 0/1 flag"
+            else:
+                edits[field] = {"value": value}
             continue
         if _off_chain(field, chain):
             # No enumeration exists to resolve it against — GetFilters/GetShapers
