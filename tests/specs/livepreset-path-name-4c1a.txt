@@ -1,0 +1,72 @@
+slug: livepreset-path-name-4c1a
+kind: new
+
+## Behaviors
+
+1. A live snapshot name carrying a path separator is refused 422 with code `name_invalid` on every live-snapshot verb, whatever the shape of the name: sweeping the names `a/b` and `a/b/c` across `PUT /api/livepresets/{name}`, `POST /api/livepresets/{name}/apply` and `DELETE /api/livepresets/{name}`, all six answer (422, `name_invalid`).
+   kills: declaring the name as one path segment that cannot contain a separator, so a slashed name matches no route, reaches no handler, and is answered by the static-asset mount instead of by the name rule.
+   bite: HEAD answers 405 to all six, body `{"detail": "Method Not Allowed"}` with no `code` field: `PUT /api/livepresets/a/b`, `POST /api/livepresets/a/b/apply`, `DELETE /api/livepresets/a/b`, `PUT /api/livepresets/a/b/c`, `POST /api/livepresets/a/b/c/apply`, `DELETE /api/livepresets/a/b/c`, each path reaching the app as written. Measured on `live_api` at its default empty store: `PYTHONPATH=/srv/hqptuner:/srv/hqptuner/tests:/srv/hqptuner/tests/support /srv/hqptuner/.venv/bin/pytest -q -s -p no:cacheprovider -p conftest -p fixtures_clients -p fixtures_daemons <throwaway>`, each request issued as `client.request(method, path, follow_redirects=False)`.
+   existing: none. `grep -rn "405" tests/` prints nothing. The name-refusal cases that do exist percent-encode the whole name before sending it (`tests/api/test_livepreset_errors.py:62-68`, `tests/api/test_api_error_codes.py:24`), which is what lets those names reach the rule at all.
+
+2. A save refuses an unusable name before it reads the engine: on an engine whose loaded chain cannot be determined, `PUT /api/livepresets/a/b` is 422 with code `name_invalid`, while `PUT /api/livepresets/Warm` on that same engine is 409 with code `chain_unknown`.
+   kills: taking the engine snapshot first and validating the name afterwards, so an unusable name is answered by whatever the engine's state refuses rather than by the name rule.
+   bite: HEAD answers 405 with no `code` field to `PUT /api/livepresets/a/b`, and 409 `chain_unknown` to `PUT /api/livepresets/Warm`, on a client built as `chain_api(mode="0", _active_mode="")`. Same command as line 1.
+   existing: the 409 half only, at `tests/api/test_livepreset_errors.py::test_saving_with_the_engines_chain_unknown_is_a_conflict`. `grep -rn "chainless_api" tests/` returns eight lines, all in that file (90, 114, 115, 119, 123, 126, 127, 128); every one of them sends the name `Warm`, and none sends a name the rule refuses.
+
+3. Deleting a config preset refuses a name the store's rule rejects instead of answering as a wrong method: `DELETE /api/preset/a/b` and `DELETE /api/preset/` are both 422 with code `name_invalid`.
+   kills: declaring the delete route's name as one path segment that can be neither empty nor separator-bearing, so a slashed or empty name is answered by the static-asset mount and never reaches the store rule.
+   bite: HEAD answers 405 with no `code` field to both, each path reaching the app as written. Measured on the `http_client` fixture, same command as line 1.
+   existing: none for either input. `grep -rn "405" tests/` prints nothing, and `grep -rn "api/preset/" tests/` returns no DELETE of a slashed or empty name; the DELETE cases there are `tests/api/test_api_config_ops.py:117` (`Kept`) and `:121` (`Nope`).
+
+## Public entry points
+
+    @router.put("/livepresets/{name}")
+    def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody | None = None) -> dict[str, Any]
+
+    @router.post("/livepresets/{name}/apply")
+    async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any]
+
+    @router.delete("/livepresets/{name}")
+    def delete_live_preset(name: str, request: Request) -> dict[str, Any]
+
+    @router.delete("/preset/{name}")
+    async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]
+
+Shipping form: identical, with `{name}` becoming `{name:path}` on all four.
+
+## Wire and protocol facts
+
+No daemon behavior bears on this. The binding reference is the refusal envelope and code table at `docs/architecture.md:64-81`: every refusal is `{"detail": ..., "code": ...}`, `name_invalid` maps to 422, and `detail` is user-facing prose no test asserts (`docs/testing.md` rule 9).
+
+One quirk the tests must survive: httpx normalises dot segments before sending, so a literal `../..` name never reaches the app. The traversal shape is reachable only percent-encoded, and that is already pinned at `tests/api/test_api_error_codes.py:24`.
+
+## Applicable fixtures
+
+- `live_api` — the REST app over an empty live-snapshot store at `tmp_path`.
+- `chain_api(mode=..., _active_mode=...)` — the app over an engine with a chosen chain state; `chainless_api` (`tests/api/test_livepreset_errors.py:88-91`) is its no-chain construction.
+- `http_client` — the wired app with hqplayerd credentials, which `DELETE /api/preset` requires.
+
+## Changelog entry
+
+Under `### Fixed` in `[Unreleased]`:
+
+- **A preset name with a slash in it is now refused by name.** A live snapshot or config preset name carrying a path separator was answered as though the request itself were the wrong kind. It is now refused as an invalid name, with the reason stated.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on PUT /api/livepresets/{name} (name rule at a/b vs engine state at Warm, line 2), beside a two-shape sweep on the livepresets verbs
+
+return check, round 1 findings:
+- "line 3: drop the GET clause" -> repaired, line 3 is now the two DELETE inputs alone.
+- "line 1: restate as a sweep over a name class" -> repaired, `a/b` and `a/b/c` across three verbs, six observations.
+- "structure line missing" -> repaired, `kind: new`.
+- "line 2 existing cites by line, not ::test" -> repaired, cites ::test_saving_with_the_engines_chain_unknown_is_a_conflict.
+No finding answered by disagreement, silence, or a weakened line.
+
+1  KEEP  {a/b, a/b/c} x {PUT /api/livepresets/{name}, POST .../apply, DELETE ...} -> all six (422, "name_invalid"); name-as-one-path-segment fails all six at the static-asset mount (405, no `code`); bite: HEAD 405 `{"detail": "Method Not Allowed"}` with no `code` at all six (measured)
+2  KEEP  carried from round 1, text unchanged: PUT /api/livepresets/a/b and PUT /api/livepresets/Warm on chain_api(mode="0", _active_mode="") -> (422, "name_invalid") and (409, "chain_unknown"); snapshot-the-engine-then-validate fails it at a/b (answers 409 chain_unknown); bite: HEAD 405 with no `code` at a/b, 409 chain_unknown at Warm (measured)
+3  KEEP  DELETE /api/preset/a/b and DELETE /api/preset/ -> both (422, "name_invalid"); delete-name-as-one-non-empty-segment fails both at the static-asset mount (405, no `code`); bite: HEAD 405 with no `code` at both (measured). Verified `existing: none`: tests/api/test_api_config_ops.py:117 and :121 delete `Kept` and `Nope` only, and the separator refusal at :103 is a GET.
+
+null stub: routes and rule absent - every named path answers as at HEAD (405 Method Not Allowed, no `code` key), so all three lines fail on both status and the missing `code`.
+hard-coded stub: 422 {"code": "name_invalid"} at exactly the eight named paths - now has to enumerate two name shapes at two path depths across three verbs and two route families while still answering 409 chain_unknown at Warm off the engine's state, which is the name rule written as a table rather than a cheat that skips it.
+survives: 3
