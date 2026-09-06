@@ -1,0 +1,84 @@
+slug: matrix-profile-combobox
+
+kind: new
+
+1. With Night and Day saved, the Matrix tab's saved-profile picker renders one option row per saved profile carrying that profile's name as its `data-v` wire value, on a button carrying class `dd-box` and `role="combobox"`.
+   kills: keeping the native `<select>` and hanging a `title` attribute on each option, which surfaces nothing on macOS and leaves the description invisible at pick time.
+   bite: measured — `node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/matrixtab.test.js` passes 62/62 at HEAD, including :170 asserting `'<option value="Day">Day</option>'` and :175 asserting `'<option selected value="Night">Night</option>'`.
+   existing: tests/js/components/matrixtab.test.js::test_a_saved_profile_is_offered_in_the_picker (:169) and ::test_the_picker_follows_the_active_profile (:174). DELTA applied: this line folds into those two as a rewrite to the `dd-opt` row carrying `data-v`, and the `<select>`-absence clause is dropped rather than becoming its own assertion.
+
+2. With Night saved and active the closed picker button reads `Night`; with Night's delete staged — which drops it from the saved list while the config still names it the active profile — the same button reads `[Default]`.
+   kills: passing the selection straight through as the combobox value, which leaves the trigger naming a profile that is no longer on the list.
+   bite: null stub fails at both states (surface new) — a picker whose closed button text is always `""` reads neither `Night` nor `[Default]`.
+   existing: none — `grep -rn "Default" tests/js/components/matrixtab.test.js` returns :161 and :166 only, both on the `t-value` active-profile readout.
+
+3. In a real browser, with the picker open and the pointer taken over the rows of a two-profile fixture in which one profile carries a description the test wrote, the set of rows showing a tip is exactly the described one, and that tip carries the description's text.
+   kills: building the tip from the profile's name, so the tip beside a described profile repeats the row instead of stating the description; and mounting a tip for every row, which puts an empty popover beside every profile nobody has described.
+   bite: null stub fails at the described profile (surface new) — no tip element mounts, so no tip carries the text.
+   existing: none — `grep -rln "dd-tip" tests/` returns tests/e2e/test_combotip.py, which drives the LIVE `pcm_filter_nx` field (:57-:83), and tests/js/components/plaindesc-truename.test.js; neither renders the Matrix tab.
+   DELTA applied: former line 4 (the undescribed profile showing no tip) is folded here as one positive value over the open picker, rather than a second assertion on the undescribed row.
+
+public entry points
+
+No new exports; the planned public surface is unchanged.
+
+  hqptuner/static/components/matrix/ProfileCard.js
+    export function ProfileCard()
+      Renders the Profile card: the active matrix profile, the saved-profile picker
+      with its load/delete actions, and the save-as row.
+    export async function loadProfile(name)
+      Switches the running engine to saved matrix profile `name` and refreshes config;
+      a profile the daemon has never read is staged instead.
+
+  hqptuner/static/components/controls/Combobox.js
+    export function Combobox(props)
+      Renders a dropdown as a button and an owned listbox popover, so each option
+      row can show its own tip from `tips` and, where `fav` is passed, a favorite
+      star. Reports a value on commit only.
+
+  hqptuner/static/store/matrix/profiles.js
+    export const savedProfiles           // computed, string[] of saved profile names
+    export const matrixActiveProfile     // computed, the active profile name or "[Default]"
+    export const stageProfileDelete = (name, presets = []) =>   // the seam line 2 drives
+
+  hqptuner/static/store/matrix/descriptions.js
+    export function descriptionFor(name)
+      The stored description for a profile name, or null when it has none.
+
+wire and protocol facts
+
+- Saved profile names come from the running engine's own enumeration, served by GET /api/matrix (`hqptuner/api/routes/matrix.py`), which is the authority for names and ordering; static data joins by name (docs/architecture.md §2).
+- A profile is a whole matrix context, `<post_process>` included (hqplayerd-readme.txt §1.11.2); loading one is the live 4321 lane and undisturbs playback. Nothing in this change reaches that lane.
+- Descriptions are HQPTuner's own store, GET/PUT /api/descriptions, keyed by profile NAME because `<matrix_profile>` carries only `name` (hqplayerd-readme.txt §1.12) and hqplayerd's config has nowhere to hold the text.
+- `[Default]` is wire data, not copy: it is the name the daemon's own page carries for the unnamed profile (tests/support/fixtures/matrix-6.0.4.html:42, served by tests/support/fake_http.py:546).
+
+applicable fixtures
+
+- tests/js/support/wire.js::stagingWire — a staging-capable fake wire; gives the staged-delete state line 2 needs, and records what reached the store.
+- The `config` and `matrixConfig` signals from hqptuner/static/store/signals.js, set directly as tests/js/components/matrixtab.test.js already sets them; give the saved list and the active profile.
+- hqptuner/static/store/actions.js::discardAll — clears staged state between cases, as the matrix suite already uses it.
+- tests/e2e/support/stack.py::Stack — a real `python -m hqptuner` subprocess with a headless chromium against it, for line 3.
+- tests/support/fake_control.py and tests/support/fake_http.py — the wire fakes that stack runs on; nothing there touches the production daemon.
+
+changelog entry
+
+Under a new `### Changed` heading in `[Unreleased]`, above the existing `### Fixed`:
+
+- **Matrix profile descriptions show while picking a profile.** The saved-profile picker on the Matrix tab is now the app's own dropdown, and highlighting a profile that carries a description pops that text beside the row.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the closed picker button's text (line 2: `Night` vs `[Default]` on the same surface, two distinct expected values); line 3 against line 4 is a second contrast on the tip, once folded
+
+round-2 findings, both answered by citation and withdrawn:
+- note "name the exported action that stages a profile delete" -> answered with `stageProfileDelete` at hqptuner/static/store/matrix/profiles.js:129; line 2's input is deliverable, (j) satisfied, KEEP carried.
+- CUT 3 (j) "the pointer is unreachable from the SSR harness and no resolver is named" -> answered with `grep -rn "^export" .../Combobox.js` returning `Combobox` only (no resolver exists), and the line moved into the browser lane, which is the second of the two repairs I named. Withdrawn: e2e drives a real chromium and fires a real hover (docs/testing.md, Markers), so the input is deliverable there.
+
+1  DELTA tests/js/components/matrixtab.test.js:169,:174: `test_a_saved_profile_is_offered_in_the_picker` and `test_the_picker_follows_the_active_profile` change from `<option value="Day">Day</option>` / `<option selected value="Night">Night</option>` to the `dd-opt` row carrying `data-v="Day"` / `data-v="Night"` on the `dd-box` `role="combobox"` button; the `<select>`-absence clause is dropped, as applied.
+2  KEEP  Night saved + active, then Night's delete staged via `stageProfileDelete` with the config still naming Night active -> closed picker button reads `Night`, then `[Default]`; "pass the selection straight through as the combobox value" fails it at the delete-staged state, where the button reads `Night`; null stub (button text always `""`) fails at both states.
+3  KEEP  browser, picker open, pointer on a saved profile whose description the test wrote -> a tip carries that description's text; "build the tip from the profile's name" fails it at that row, where the tip repeats the row's name; null stub fails there (no tip element mounts). existing: none confirmed — tests/e2e/test_combotip.py drives the LIVE `pcm_filter_nx` field (:57-:83), not the Matrix profile picker, so this is not a case of those parametrize sets.
+4  DELTA sibling 3: pure absence ("no tip appears"), and its own `bite:` field concedes the null stub fails vacuously, so (k) is unfilled and (h') applies with a positive sibling present. Fold it into line 3 as one comparable positive value over the open picker — a two-profile fixture where the set of rows carrying a `.dd-tip` equals the described one — rather than a second assertion on the undescribed row. The cited `test_combotip.py` contrast pairs are the same shape read the other way and are not this surface.
+
+null stub: the Matrix profile card renders no picker - the module exists with `Combobox` exported and returning its zero value, no button, no rows, no tip; it satisfies no line here.
+hard-coded stub: a `dd-box` button whose text is wired to the fixture's `active` field plus one `dd-opt` row per name in `profiles`, no tip logic; it satisfies line 1's rows but fails line 2's delete-staged state and line 3's tip, so the block is not a lookup table.
+survives: 2
