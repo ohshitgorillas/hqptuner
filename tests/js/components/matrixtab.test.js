@@ -30,7 +30,10 @@ import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actio
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { plottedRows, togglePlotted } from "../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
+import { stageProfileDelete } from "../../../hqptuner/static/store/matrix/profiles.js";
 import { stagingWire } from "../support/wire.js";
+import { rows as optionRows, boxText } from "../support/comborows.js";
+import { elements, classes, attr } from "../support/markup.js";
 
 function wire() {
   stagingWire();
@@ -129,6 +132,25 @@ const profileButtons = (out) =>
     .slice(1)
     .map((s) => s.split("</button>")[0]);
 
+// The saved-profile picker: the app's own dropdown, read the way every other
+// combobox suite reads one (tests/js/support/comborows.js). The wire value each
+// option row carries is the profile's NAME, so rows are addressed by `data-v`
+// and never by the words on them (docs/testing.md rule 9).
+/** @param {string} out */
+const pickerValues = (out) => optionRows(profileCard(out)).map((el) => attr(el, "data-v"));
+// The role the picker's trigger reports, or null when nothing in the card is a
+// `dd-box` button at all — which is what a native `<select>` renders.
+/** @param {string} out */
+const pickerRole = (out) => {
+  const box = elements(profileCard(out)).find((el) => classes(el).includes("dd-box"));
+  return box ? attr(box, "role") : null;
+};
+// Text a user reads off the CLOSED picker, empty when the card puts up no such
+// button at all — so a card without one fails the case that reads it instead of
+// throwing out of the helper.
+/** @param {string} out */
+const pickerText = (out) => (pickerRole(out) === null ? "" : boxText(profileCard(out)));
+
 // A card found by the schema key of a field it carries, and the schema keys a
 // fragment carries. Both are wire identifiers, so neither the card's heading nor
 // the field's label is ever used as a selector.
@@ -166,13 +188,35 @@ test("test_the_unnamed_profile_is_shown_as_default", async () => {
 });
 
 test("test_a_saved_profile_is_offered_in_the_picker", async () => {
+  // One option row per saved profile, in the order the engine enumerated them
+  // (architecture §2). Filtered to the two the fixture saved, so a row the
+  // picker offers for the unnamed profile does not decide this case.
   await reset([ROW({})], { active: "[Default]", profiles: ["Night", "Day"] });
-  assert.ok(tab().includes('<option value="Day">Day</option>'));
+  assert.deepEqual(
+    pickerValues(tab()).filter((v) => v === "Night" || v === "Day"),
+    ["Night", "Day"],
+  );
 });
 
 test("test_the_picker_follows_the_active_profile", async () => {
   await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.ok(tab().includes('<option selected value="Night">Night</option>'));
+  assert.deepEqual([pickerRole(tab()), pickerValues(tab()).filter((v) => v === "Night")], ["combobox", ["Night"]]);
+});
+
+// The trigger names the profile the picker is actually sitting on, which is not
+// the same thing as the config's active field: a staged delete drops Night from
+// the saved list while the config still names it active, and a trigger that
+// passed the selection straight through would go on naming a profile no row
+// offers.
+test("test_the_picker_button_stops_naming_a_profile_whose_delete_is_staged", async () => {
+  await reset([ROW({})], {
+    active: "Night",
+    profiles: ["Night"],
+    saved: { Night: { rows: [ROW({})], post: {} } },
+  });
+  const saved = pickerText(tab());
+  await stageProfileDelete("Night");
+  assert.deepEqual([saved, pickerText(tab())], ["Night", "[Default]"]);
 });
 
 test("test_delete_is_disabled_while_the_unnamed_default_is_selected", async () => {
