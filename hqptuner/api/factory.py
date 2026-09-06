@@ -66,9 +66,11 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
-    # Registration order is load-bearing: config's `GET /preset/{name:path}`
-    # must stay ahead of preset's `DELETE /preset/{name}`, as it was when both
-    # lived on one router.
+    # Both `/preset/{name:path}` routes are greedy so that an empty or
+    # separator-bearing name reaches the store's name rule instead of falling
+    # past every route into the SPA mount. Their registration order carries
+    # nothing: they differ by method, and a route whose path matches but whose
+    # method does not is a partial match, never a full one.
     app.include_router(status.router)
     app.include_router(config.router)
     app.include_router(apply.router)

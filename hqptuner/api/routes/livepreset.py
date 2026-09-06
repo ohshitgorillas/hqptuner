@@ -113,7 +113,7 @@ def live_presets(request: Request) -> dict[str, Any]:
     return {"presets": [{"name": name, **record} for name, record in presets.items()]}
 
 
-@router.put("/livepresets/{name}")
+@router.put("/livepresets/{name:path}")
 def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody | None = None) -> dict[str, Any]:
     """Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.
 
@@ -121,9 +121,15 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     where the engine has them. 409 when the loaded chain is unknowable — the record would claim a chain it never
     captured. 422 when a named field is not a live snapshot setting.
     """
-    record = _record(manager, _selected(None if body is None else body.fields))
+    # Name first, engine second: a name the rule refuses is refused as one whatever
+    # the engine is doing, rather than being answered by whatever the snapshot
+    # refuses first.
     try:
         name = canonical_name(name)  # the response names the key the store holds
+    except LivePresetError as exc:
+        raise refuse(exc) from exc
+    record = _record(manager, _selected(None if body is None else body.fields))
+    try:
         _store(request).save(name, record)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
@@ -132,7 +138,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     return {"name": name, **record}
 
 
-@router.post("/livepresets/{name}/apply")
+@router.post("/livepresets/{name:path}/apply")
 async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any]:
     """Apply a saved preset, readback-verified.
 
@@ -166,7 +172,7 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
         raise refuse(exc) from exc
 
 
-@router.delete("/livepresets/{name}")
+@router.delete("/livepresets/{name:path}")
 def delete_live_preset(name: str, request: Request) -> dict[str, Any]:
     """Remove a saved live snapshot from the store, leaving the running engine untouched.
 

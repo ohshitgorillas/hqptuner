@@ -40,7 +40,7 @@ async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any
         raise refuse("daemon_read_failed", str(exc)) from exc
 
 
-@router.delete("/preset/{name}")
+@router.delete("/preset/{name:path}")
 async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror.
 
