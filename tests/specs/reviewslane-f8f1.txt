@@ -1,0 +1,61 @@
+kind: new
+
+Behaviors of `.claude/hooks/reviews-lane.py`, PreToolUse. Verdict function `verdict(name, tool_input, payload) -> str | None`: a reason string denies, `None` allows. `payload` is the hook's stdin JSON; `agent_type` is read from it and an absent key is the orchestrator. Paths below are absolute under a repo root `R`; `R/.claude/worktrees/x-spec` is a worktree of it.
+
+1. A `Write`/`Edit`/`NotebookEdit` whose target resolves under `state/reviews/` of a checkout is denied for every caller except `agent_type` `spec-reviewer` or `plan-reviewer`: with no `agent_type`, `R/state/reviews/x.1.txt` is denied; with `agent_type` `caveman:cavecrew-builder`, `R/state/reviews/x.1.txt` is denied; with `agent_type` `test-writer`, `R/.claude/worktrees/x-spec/state/reviews/x.1.txt` is denied; with `agent_type` `spec-reviewer`, `R/state/reviews/x.1.txt` is allowed; with `agent_type` `plan-reviewer`, `R/state/reviews/x.2.txt` is allowed.
+   kills: a hook keyed on the path alone, which allows `R/state/reviews/x.1.txt` for every caller; fails at the first input.
+   existing: none (`grep -rln "reviews-lane\|reviews_lane\|state/reviews" tests/` finds nothing)
+   bite: null stub returns `None` for every input; fails at the first input, `R/state/reviews/x.1.txt` with no `agent_type`.
+
+2. With `agent_type` `spec-reviewer` or `plan-reviewer`, a `Write`/`Edit` whose target is not under `state/reviews/` is denied: `R/hqptuner/core/m.py`, `R/tests/specs/x.txt`, `R/docs/testing.md`, `R/state/abuse/current` and `R/specs/x.txt` are denied with `spec-reviewer`, `R/CLAUDE.md` is denied with `plan-reviewer`.
+   kills: a hook that only guards `state/reviews/`, which lets a reviewer write `R/hqptuner/core/m.py`; fails at that input.
+   existing: none (same grep)
+   bite: null stub fails at `R/hqptuner/core/m.py` with `agent_type` `spec-reviewer`.
+
+3. With `agent_type` `spec-reviewer` or `plan-reviewer`, a `Bash` command that `free_bash.is_free_bash` meters is denied and one it frees is allowed, whatever path it names: `sed -i 's/a/b/' hqptuner/x.py` is denied; `echo x > state/reviews/x.1.txt` is denied; `git commit -m x` is denied; `make check` is allowed; `cat state/reviews/x.1.txt` is allowed; `grep -n READY state/reviews/x.1.txt` is allowed.
+   kills: a hook that denies a reviewer's Bash only when it names `state/reviews/`, which allows `sed -i 's/a/b/' hqptuner/x.py`; fails at that input.
+   existing: none (same grep)
+   bite: null stub fails at `sed -i 's/a/b/' hqptuner/x.py` with `agent_type` `spec-reviewer`.
+
+4. With no `agent_type`, a `Bash` command is denied when `free_bash.is_free_bash` meters it and it names a `state/reviews/` path, and allowed otherwise: `echo x > state/reviews/x.1.txt` is denied; `sed -i 's/a/b/' state/reviews/x.1.txt` is denied; `rm state/reviews/x.1.txt` is denied; `cat state/reviews/x.1.txt` is allowed; `sed -i 's/a/b/' hqptuner/x.py` is allowed; `git commit -m "state/reviews"` is allowed.
+   kills: a hook that denies every command naming `state/reviews/`, which denies `cat state/reviews/x.1.txt`; fails at that input.
+   existing: none (same grep)
+   bite: null stub fails at `echo x > state/reviews/x.1.txt` with no `agent_type`.
+
+Public entry points
+
+- `verdict(name: str, tool_input: dict, payload: dict) -> str | None` in `.claude/hooks/reviews-lane.py`. `name` is the tool name; `tool_input` carries `file_path` for `Write`/`Edit`/`NotebookEdit` (`notebook_path` for `NotebookEdit`) and `command` for `Bash`; `payload` is the full hook stdin object and supplies `cwd` and, for subagents, `agent_type`.
+- `free_bash.is_free_bash(cmd: str, note=None) -> bool` in `.claude/hooks/free_bash.py`; read-only commands return `True`.
+
+Wire facts
+
+- The hook payload's `agent_type` key is present only for subagent calls; an absent key is the orchestrator (`.claude/hooks/tests-lane.py:30-33`).
+- A checkout root is the nearest ancestor holding `.git`, a directory in a clone and a file in a worktree; `.claude/worktrees/<slug>-spec` is a root by name whether or not it exists (`.claude/hooks/tests-lane.py:76-97`).
+- `state/` is gitignored (`.gitignore:83`).
+
+Fixtures
+
+- None from `tests/conftest.py`. The hook is loaded by path with `importlib.util.spec_from_file_location`, the pattern at `tests/gates/test_changelog_style.py:26-30` for a script outside the package. `R` is `tmp_path` with an empty `.git` directory created in it, and `R/.claude/worktrees/x-spec` is a path under it that need not exist.
+
+Changelog
+
+- None. Agent tooling, not user-visible.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: differential on `verdict` — same target with `agent_type` varied (line 1), same agent with target varied (line 2), same command with `agent_type` present vs absent (`sed -i 's/a/b/' hqptuner/x.py` denied in 3, allowed in 4), same `state/reviews/` path in metered and free commands (line 4)
+
+Framing: none. Round 1's struck scope sentence is gone; the remaining `.gitignore:83` clause is a bare wire fact.
+
+1  KEEP  unchanged text, round 1 verdict stands: `R/state/reviews/x.1.txt` with no `agent_type` / `caveman:cavecrew-builder`, `R/.claude/worktrees/x-spec/state/reviews/x.1.txt` with `test-writer` -> reason string; `spec-reviewer` at `x.1.txt`, `plan-reviewer` at `x.2.txt` -> `None`; path-only hook fails it at `R/state/reviews/x.1.txt` with no `agent_type`; bite: null stub fails at that input
+2  KEEP  `spec-reviewer` at `R/hqptuner/core/m.py`, `R/tests/specs/x.txt`, `R/docs/testing.md`, `R/state/abuse/current`, `R/specs/x.txt`, `plan-reviewer` at `R/CLAUDE.md` -> reason string; reviews-only hook fails it at `R/hqptuner/core/m.py`; bite: null stub fails at `R/hqptuner/core/m.py` with `spec-reviewer`. The duplicated allowed case is gone; the line is now deny-only and its allowed half lives in line 1, where it belongs
+3  KEEP  unchanged text, round 1 verdict stands: `spec-reviewer` Bash `sed -i 's/a/b/' hqptuner/x.py`, `echo x > state/reviews/x.1.txt`, `git commit -m x` -> reason string; `make check`, `cat state/reviews/x.1.txt`, `grep -n READY state/reviews/x.1.txt` -> `None`; reviews-path-only hook fails it at `sed -i 's/a/b/' hqptuner/x.py`; bite: null stub fails there
+4  KEEP  unchanged text, round 1 verdict stands: no `agent_type`, `echo x > state/reviews/x.1.txt`, `sed -i 's/a/b/' state/reviews/x.1.txt`, `rm state/reviews/x.1.txt` -> reason string; `cat state/reviews/x.1.txt`, `sed -i 's/a/b/' hqptuner/x.py`, `git commit -m "state/reviews"` -> `None`; substring hook fails it at `cat state/reviews/x.1.txt`; bite: null stub fails at `echo x > state/reviews/x.1.txt`
+
+null stub: `verdict` returns `None` for every input; fails line 1 at the first no-agent write, line 2 at `R/hqptuner/core/m.py`, line 3 at `sed -i ... hqptuner/x.py`, line 4 at `echo x > state/reviews/x.1.txt` — satisfies nothing.
+hard-coded stub: a table keyed on (`agent_type` present-or-name, literal command string) covers the twelve Bash cases of lines 3 and 4 without calling `free_bash`; it cannot cover lines 1 and 2 because `R` is `tmp_path` and the worktree root is read off the path, so the stub must resolve `state/reviews/` under a checkout, which is the feature. No line is cut under it: within each Bash line the same command flips verdict on the agent key, and the table is the block's own size.
+
+survives: 4
+
+Note for the owner: the round 1 rule-3 concern is closed by the rename to `verdict`; no deviation from `docs/testing.md` remains in the block. `existing: none` still holds at HEAD (`grep -rln "reviews-lane\|reviews_lane\|state/reviews\|free_bash\|tests-lane" tests/` returns nothing).
