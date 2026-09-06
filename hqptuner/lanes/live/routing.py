@@ -71,9 +71,8 @@ MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 # the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
 DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
 
-# The whole domain of a DIRECT field: the flag as the config form and State both
-# spell it. String equality, deliberately: a numeric parse would wave "01" and
-# "1.5" through to a daemon that then refuses or misreads them.
+# The whole domain of a DIRECT field, by string equality: a numeric parse would
+# wave "01" and "1.5" through to a daemon that then refuses or misreads them.
 _FLAG_VALUES = frozenset({"0", "1"})
 
 
@@ -309,11 +308,10 @@ def _route_live(
     for field, value in fields.items():
         if field in DIRECT:
             # both sides are the same 0/1 flag, so there is nothing to translate,
-            # and the form field's name is already the writer's setting key. Not
-            # nothing to validate, though: the daemon is otherwise the first thing
-            # to refuse a value outside that domain, and its refusal comes back as
-            # a per-item failure inside a 200 rather than the batch refusal every
-            # other unresolvable field gets.
+            # and the form field's name is already the writer's setting key. Still
+            # validated: otherwise the daemon is the first to refuse, as a per-item
+            # failure inside a 200 rather than the batch refusal every other
+            # unresolvable field gets.
             if value not in _FLAG_VALUES:
                 reasons[field] = f"{value!r} is not a 0/1 flag"
             else:
