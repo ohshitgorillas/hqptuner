@@ -5,7 +5,8 @@ kind: new
 1. With preset `Night` stored and no preset `Ghost`, `PUT /api/matrixmodes` for `Night` with mode `speakers` then for `Ghost` with mode `speakers` leaves `GET /api/matrixmodes` reading `{'Night': 'speakers'}`.
    kills: a guard that keys the refusal off the mode store's own existing entries instead of the preset store, so the first mode ever stored for a real preset is refused too and the map reads `{}`.
    bite: HEAD leaves the map reading `{'Ghost': 'speakers', 'Night': 'speakers'}` (scratchpad probe over `create_app` with `preset_dir` seeded, `.venv/bin/python bite.py`, case "1 sequence")
-   existing: none — `grep -rn matrixmodes tests/` returns fixture path lines plus `tests/presets/test_matrix_mode_routes.py`, whose PUT cases (`:87-110`) assert 200 for names with no preset behind them, and `tests/js/store/matrixmode-preset.test.js`, which fakes the wire and holds its own map
+   existing: contrary, not covering — `tests/presets/test_matrix_mode_routes.py::test_put_then_get_answers_with_the_stored_mode[speakers]`, `[headphones]`, `::test_a_put_that_stores_a_mode_answers_200`, `::test_put_answers_with_the_mode_it_just_stored`, `::test_put_answers_with_the_whole_map_so_no_follow_up_get_is_needed` and `::test_a_put_leaves_another_presets_mode_alone` each PUT `Night` or `Studio` at an app whose fixture overrides no `preset_dir` and assert the PUT stores and answers 200. They pin the rule this line overturns, at the same input, so they fail against it: measured `6 failed, 19 passed` with `PYTHONPATH=$(pwd) .venv/bin/pytest tests/presets/test_matrix_mode_routes.py -q` in the tree holding both the new tests and the implementation. `grep -rn matrixmodes tests/` finds no other test of this route beyond fixture path lines and `tests/js/store/matrixmode-preset.test.js`, which fakes the wire and holds its own map.
+   With line 1 approved, those six move onto a fixture that seeds a preset under the name each one PUTs, and each keeps the assertion it makes today: the PUT stores the mode and answers 200, and the map reads back what was stored.
 
 2. With no preset `Ghost` stored, `PUT /api/matrixmodes` for `Ghost` answers 422 when the mode is `stereo` and 404 when the mode is `speakers`.
    kills: judging the name before the mode, which answers 404 to both and loses the message naming what is storable.
@@ -63,6 +64,8 @@ Changelog entry: no entry. The 404 is unreachable from the UI, which only ever s
 --- spec-reviewer READY ---
 READY
 discriminates: differential on GET/PUT /api/matrixmodes — line 1 is one map value over a two-PUT sequence, and line 4 answers the same request as line 1 differently on store state alone
+
+Line 1's corrected `existing:` does not move its verdict. The six named cases assert the opposite rule at the same input (a PUT for an unstored name stores and answers 200) and each keeps that assertion once its fixture seeds a preset, so none of them can carry line 1's content — the refusal has no home among tests that all assert storage. They are edits to an existing writer's file, not a fold, and line 1 stays a new test. The `:113-128` parametrize passing unchanged in the same measured run leaves line 2's `existing: none` standing.
 
 1  KEEP  PUT `Night`/speakers then PUT `Ghost`/speakers with `Night` a stored preset -> map reads `{'Night': 'speakers'}`; a guard keyed off the mode store's own entries fails it at the `Night` PUT, leaving `{}`; bite: HEAD leaves `{'Ghost': 'speakers', 'Night': 'speakers'}`
 2  KEEP  unknown preset `Ghost`, mode `stereo` -> 422 and mode `speakers` -> 404; "judge the name before the mode" fails it at `Ghost`/`stereo` by answering 404; bite: HEAD answers 200 at `Ghost`/`speakers`
