@@ -229,7 +229,7 @@ verdict_check() {
   local vfile
   grep -qxF -- "$VERDICT_SEP" "$SPECFILE" \
     || die "no '$VERDICT_SEP' line in $SPECFILE — the reviewer's output goes beneath that separator."
-  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1)
+  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1 || true)
   [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the spec-reviewer writes its verdict there itself, every round."
   [ "$(head -1 "$vfile")" = "READY" ] || die "${vfile#"$ROOT"/} does not start with READY — the reviewer has not passed this block."
   if ! diff -qB <(sed -n "/^$VERDICT_SEP\$/,\$p" "$SPECFILE" | sed '1d;s/[[:space:]]*$//') \
