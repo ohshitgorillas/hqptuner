@@ -20,7 +20,7 @@ hand-writes one.
 """
 
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import pytest
@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.presets.store.presets import PresetStore
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "presets": {"Night": "headphones"}}
@@ -164,3 +165,96 @@ def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 ) -> None:
     seed(tmp_path, json.dumps(TOO_NEW))
     assert matrixmodes_api().get(PATH).status_code == 409
+
+
+# --- the mode map against the preset store it joins to -----------------------------------
+# The cases above build an app over a matrix-mode file alone, so the preset
+# store behind them is whatever the host happened to leave lying around. The
+# fixture below pins both halves under ``tmp_path``: a preset store this file
+# seeds by name, and the mode file beside it. Preset names are the join key
+# (docs/architecture.md §2), so a mode for a name no preset carries is an orphan
+# nothing can ever display.
+
+#: Opaque bytes; the preset store never parses a payload (test_presetstore.py).
+PRESET_PAYLOAD = b"<hqplayerd/>"
+
+#: The preset store's own on-disk layout stamp, in a version this build cannot read.
+TOO_NEW_PRESET_STORE = {"schema": 99}
+
+GHOST = "Ghost"
+DELETE_PATH = "/api/profile/delete"
+
+
+@pytest.fixture
+def preset_dir(tmp_path: Path) -> Path:
+    """Where the preset store the mode map joins against lives."""
+    return tmp_path / "presets"
+
+
+@pytest.fixture
+def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[Callable[..., TestClient]]:
+    """The REST surface over a mode file AND a preset store, both in ``tmp_path``.
+
+    A factory taking the preset names to seed, so a case can decide what exists
+    before the app opens — including nothing at all, over a preset store
+    directory the case hand-wrote itself."""
+    clients: list[TestClient] = []
+
+    def build(names: Sequence[str] = ()) -> TestClient:
+        store = PresetStore(preset_dir)
+        for name in names:
+            store.save(name, PRESET_PAYLOAD)
+        cfg = Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=closed_port,
+            hqp_username="",
+            hqp_password="",
+            matrix_mode_file=tmp_path / "matrixmodes.json",
+            preset_dir=preset_dir,
+        )
+        client = TestClient(create_app(cfg))
+        clients.append(client)
+        client.__enter__()
+        return client
+
+    yield build
+    for client in clients:
+        client.__exit__(None, None, None)
+
+
+def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real_one(
+    joined_api: Callable[..., TestClient],
+) -> None:
+    client = joined_api([NAME])
+    client.put(PATH, json={"name": NAME, "mode": "speakers"})
+    client.put(PATH, json={"name": GHOST, "mode": "speakers"})
+    assert client.get(PATH).json()["presets"] == {NAME: "speakers"}
+
+
+@pytest.mark.parametrize(
+    ("mode", "status"),
+    [pytest.param("stereo", 422, id="unstorable-mode"), pytest.param("speakers", 404, id="storable-mode")],
+)
+def test_a_put_for_a_name_no_preset_carries_answers_on_the_mode_before_the_name(
+    joined_api: Callable[..., TestClient], mode: str, status: int
+) -> None:
+    client = joined_api([NAME])
+    assert client.put(PATH, json={"name": GHOST, "mode": mode}).status_code == status
+
+
+def test_deleting_a_preset_drops_its_mode_and_leaves_the_other_presets_mode(
+    joined_api: Callable[..., TestClient],
+) -> None:
+    client = joined_api([NAME, OTHER])
+    client.put(PATH, json={"name": NAME, "mode": "speakers"})
+    client.put(PATH, json={"name": OTHER, "mode": "headphones"})
+    client.post(DELETE_PATH, json={"name": NAME})
+    assert client.get(PATH).json()["presets"] == {OTHER: "headphones"}
+
+
+def test_a_put_against_a_preset_store_stamped_by_a_newer_hqptuner_answers_422(
+    preset_dir: Path, joined_api: Callable[..., TestClient]
+) -> None:
+    preset_dir.mkdir()
+    (preset_dir / "store.json").write_text(json.dumps(TOO_NEW_PRESET_STORE))
+    assert joined_api().put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 422
