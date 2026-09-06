@@ -66,11 +66,13 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
 
 # Agent types whose *spawn* is free even though they may write: the project's
-# own chain agents, writer and reviewers. Their tool calls are metered by these
-# same hooks in the subagent's context, so charging the spawn double-counts and
-# trips the leash mid-chain. Unmeters no write. Exact names only, as above.
+# own chain agents, writer, reviewers and the bite prober. Their tool calls are
+# metered by these same hooks in the subagent's context, so charging the spawn
+# double-counts and trips the leash mid-chain. Unmeters no write. Exact names
+# only, as above.
 FREE_SPAWN_AGENTS = {"test-writer", "spec-reviewer", "plan-reviewer",
-                     "user-reviewer", "abuser-reviewer", "pedant-reviewer"}
+                     "user-reviewer", "abuser-reviewer", "pedant-reviewer",
+                     "bite-prober"}
 
 # Harness tools that move text or control between agents already running. They
 # do reach an agent, so not FREE_TOOLS; free on the FREE_SPAWN_AGENTS reasoning:
