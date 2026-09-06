@@ -10,9 +10,10 @@
 //
 // GEOMETRY READ. Inside the pane carrying `data-pane="frequency"`: the filter
 // magnitude is `polyline.plot-trace.applied`, the result fill is
-// `path.primer-leak`, the dB tick lines are `line.plot-grid` (the topmost being
-// 0 dB). Larger y is lower on screen, so the highest point of a trace is its
-// smallest y.
+// `path.primer-leak` with its top edge `polyline.primer-leak-edge`, the stream
+// entering the DAC is `polyline.primer-predac`, and the dB tick lines are
+// `line.plot-grid` (the topmost being 0 dB). Larger y is lower on screen, so
+// the highest point of a trace is its smallest y.
 //
 // The pane reports the width of its plot rectangle in CSS pixels through the
 // store's `freqPx` signal, 0 until the page has measured it; the tests below
@@ -121,6 +122,61 @@ function zeroDbY() {
   return Math.min(...ticks);
 }
 
+/** The frequency pane's plot rectangle: its left edge and its width, in viewBox units. */
+const PLOT_LEFT = 30;
+const PLOT_WIDTH = 734;
+
+/**
+ * The vertices of one edge polyline of the frequency pane. The output stream's
+ * edge is `polyline.primer-leak-edge`; the stream entering the DAC, which the
+ * analog layer hangs below, is `polyline.primer-predac`.
+ *
+ * @param {string} klass
+ * @returns {[number, number][]}
+ */
+function edgeVertices(klass) {
+  const [edge] = inside(frequencyPane(), "polyline", [klass]);
+  if (!edge) throw new Error(`the frequency pane lacks a ${klass} edge`);
+  const pts = pairs(attr(edge, "points") || "");
+  if (pts.length < 2) throw new Error(`the ${klass} edge has fewer than two vertices`);
+  return pts;
+}
+
+/**
+ * The vertex of a list whose x is nearest a given x.
+ *
+ * @param {[number, number][]} pts
+ * @param {number} at
+ * @returns {[number, number]}
+ */
+const nearestX = (pts, at) => pts.reduce((a, b) => (Math.abs(a[0] - at) <= Math.abs(b[0] - at) ? a : b));
+
+/**
+ * How far below the analog edge the output edge sits at the drawn vertex
+ * nearest 20 kHz, in plot units. The axis runs to twice the source rate, so at
+ * 44.1 kHz the x standing for 20 kHz is the same whatever the output rate.
+ *
+ * @returns {number}
+ */
+function separationAtTwentyKilohertz() {
+  const at = PLOT_LEFT + (PLOT_WIDTH * 20000) / (2 * 44100);
+  const [ax, ay] = nearestX(edgeVertices("primer-predac"), at);
+  const [, oy] = nearestX(edgeVertices("primer-leak-edge"), ax);
+  return oy - ay;
+}
+
+/**
+ * [ok, message] for spreading into ONE assert.ok: every reading positive and
+ * strictly smaller than the one before it.
+ *
+ * @param {number[]} gaps
+ * @returns {[boolean, string]}
+ */
+const shrinkingAndPositive = (gaps) => [
+  gaps.every((g, i) => g > 0 && (i === 0 || g < gaps[i - 1])),
+  `expected each separation above 0 and strictly under the one before, got ${gaps.join(", ")}`,
+];
+
 /**
  * The inputs the spec fixes for every line below unless the line says otherwise.
  *
@@ -164,18 +220,21 @@ test("test_passband_ripple_draws_above_the_zero_db_tick", () => {
   assert.ok(top < zeroDbY(), `the trace tops out at y ${top}, the 0 dB tick sits at y ${zeroDbY()}`);
 });
 
-// 4. The result fill is drawn only where the chain resamples: one
-// `path.primer-leak` at 96 kHz into 192 kHz, none at 96 kHz with no
-// oversampling, where the result is the source itself and painting it over the
-// wash and its images would flatten the two to one opacity.
+// 4. The DAC's reconstruction is drawn as the gap between two edges: the output
+// edge sits BELOW the analog edge near 20 kHz (larger y is lower on screen),
+// and the gap shrinks strictly as the output rate rises through no
+// oversampling, 88.2, 176.4 and 352.8 kHz, because the hold's first null walks
+// up with the rate. Drawing the output layer from the stream that enters the
+// DAC puts the two edges on top of each other, so the gap is 0 at every rate
+// and the pane shows a reconstruction stage that changes nothing.
 
-test("test_result_fill_is_drawn_only_where_the_chain_resamples", () => {
+test("test_the_output_edge_sits_below_the_analog_edge_by_less_as_the_output_rate_rises", () => {
   baseline();
-  rate.value = 96000;
+  rate.value = 44100;
   freqPx.value = 640;
-  const counts = [192000, null].map((hz) => {
+  const gaps = [null, 88200, 176400, 352800].map((hz) => {
     outputRate.value = hz;
-    return inside(frequencyPane(), "path", ["primer-leak"]).length;
+    return separationAtTwentyKilohertz();
   });
-  assert.deepEqual(counts, [1, 0]);
+  assert.ok(...shrinkingAndPositive(gaps));
 });

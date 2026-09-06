@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { sourceSpectrumDb, foldSpectrumDb } from "../../../hqptuner/static/lib/dsp/spectrum.js";
+import { sourceSpectrumDb, foldSpectrumDb, analogStageDb } from "../../../hqptuner/static/lib/dsp/spectrum.js";
 
 // [ok, message] for spreading into ONE assert.ok — see dsp.test.js.
 /**
@@ -27,6 +27,16 @@ const near = (actual, expected, tol) => [
  * @returns {[boolean, string]}
  */
 const atMost = (actual, ceiling) => [actual <= ceiling, `expected <= ${ceiling}, got ${actual}`];
+/**
+ * @param {number[]} actual
+ * @param {number[]} expected
+ * @param {number} tol
+ * @returns {[boolean, string]}
+ */
+const nearAll = (actual, expected, tol) => [
+  actual.length === expected.length && actual.every((v, i) => Math.abs(v - expected[i]) <= tol),
+  `expected ${expected.join(", ")} ± ${tol}, got ${actual.join(", ")}`,
+];
 
 /**
  * @param {number} lo
@@ -42,6 +52,16 @@ test("test_fake_hires_source_has_no_content_at_thirty_kilohertz", () => {
   const fake = sourceSpectrumDb(96000, [30000], { ...flags, fakeHires: true })[0];
   const real = sourceSpectrumDb(96000, [30000], { ...flags, fakeHires: false })[0];
   assert.ok(...atMost(fake, real - 60));
+});
+
+// 1. the analog reconstruction stage is a zero-order hold at the OUTPUT rate on
+// top of an analog low-pass, so it reads lower the lower that rate is: at
+// 20 kHz an 88.2 kHz output sits 0.70 dB under a 352.8 kHz one, and at 30 kHz
+// 1.62 dB under. A stage that is the low-pass alone depends on frequency and
+// not on the output rate, so it gives 0.00 dB of difference at both.
+test("test_analog_stage_reads_lower_at_a_lower_output_rate", () => {
+  const gaps = [20000, 30000].map((f) => analogStageDb([f], 352800)[0] - analogStageDb([f], 88200)[0]);
+  assert.ok(...nearAll(gaps, [0.7, 1.62], 0.03));
 });
 
 // 7. the fold keeps what survives the filter above output Nyquist: a tone at
