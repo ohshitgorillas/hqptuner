@@ -122,18 +122,22 @@ def test_active_is_none_when_nothing_was_made_active(tmp_path: Path) -> None:
     assert store_at(tmp_path).active is None
 
 
-def test_the_active_preset_survives_a_new_store_over_the_same_directory(tmp_path: Path) -> None:
+# The pointer is written and compared under the stored name: a caller handing in
+# the name with trailing whitespace points at, and clears, the same preset.
+@pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
+def test_the_active_preset_survives_a_new_store_over_the_same_directory(tmp_path: Path, name: str) -> None:
     first = store_at(tmp_path)
     first.save("alpha", PAYLOAD)
-    first.set_active("alpha")
+    first.set_active(name)
     assert PresetStore(tmp_path / "presets").active == "alpha"
 
 
-def test_deleting_the_active_preset_clears_the_active_pointer(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
+def test_deleting_the_active_preset_clears_the_active_pointer(tmp_path: Path, name: str) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
     store.set_active("alpha")
-    store.delete("alpha")
+    store.delete(name)
     assert store.active is None
 
 

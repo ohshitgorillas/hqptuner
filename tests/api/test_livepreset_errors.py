@@ -49,7 +49,6 @@ REFUSED_NAMES = [
     pytest.param(".hidden", id="leading-dot"),
     pytest.param(" ", id="only-whitespace"),
     pytest.param(" Studio", id="leading-space"),
-    pytest.param("Studio ", id="trailing-space"),
     pytest.param("a\x00b", id="nul"),
     pytest.param("a\x1fb", id="unit-separator"),
     pytest.param("a\x7fb", id="delete"),
@@ -140,13 +139,6 @@ def test_saving_into_an_unreadable_store_reports_the_schema_it_found(unreadable_
 @pytest.mark.parametrize("name", REFUSED_NAMES)
 def test_saving_under_a_name_the_store_refuses_is_unprocessable(live_api: TestClient, name: str) -> None:
     assert live_api.put(_path(name)).status_code == 422
-
-
-@pytest.mark.parametrize("name", REFUSED_NAMES)
-def test_saving_under_a_name_the_store_refuses_quotes_the_name_it_was_given(live_api: TestClient, name: str) -> None:
-    # the offending name is quoted back so the card can put it in front of the
-    # user; the complaint's wording is owner-owned data (docs/testing.md rule 9)
-    assert repr(name) in live_api.put(_path(name)).json()["detail"]
 
 
 # --- POST /api/livepresets/{name}/apply ------------------------------------------

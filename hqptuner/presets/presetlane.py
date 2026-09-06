@@ -26,7 +26,7 @@ from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets.store.autopilot import AutopilotError
-from hqptuner.presets.store.presets import PresetError
+from hqptuner.presets.store.presets import PresetError, canonical_name
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -71,6 +71,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     Restores its config as the ``[default]`` working config (the reliable primitive) and marks it active, mirroring
     it into the daemon's ``data/cfgs`` so the native UI stays populated. Never ``profile/load``.
     """
+    name = canonical_name(name)  # the store keys on the trimmed name; so must the mirror, the pointer and the audit
     xml = mgr.presetops.store.read(name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
@@ -178,6 +179,9 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     come back as ``ok: False``, which is what sent a user looking for a preset
     that was already there.
     """
+    # Outside the try: a name the rule refuses is the caller's 422, not a save
+    # that failed. Everything after keys on the trimmed name.
+    name = canonical_name(name)
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
         backup = await mgr.presetops.backup_or_cached(for_write=True)
@@ -276,6 +280,7 @@ async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     Takes the preset's Matrix-tab mode with it, after the store delete has succeeded: a mode keyed to a preset that is
     gone is read by nothing, and the next preset saved under the same name would otherwise inherit it.
     """
+    name = canonical_name(name)  # the mirror was written under the trimmed name
     mgr.presetops.store.delete(name)
     mgr.presetops.matrix_modes.forget(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):

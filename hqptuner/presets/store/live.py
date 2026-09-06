@@ -79,10 +79,13 @@ class LivePresetSchemaError(LivePresetError):
     code = "store_too_new"
 
 
-def _validate(name: str) -> str:
-    # A live snapshot is a JSON key, never a filename, but it shares the config
-    # store's rule so a name that saves on one surface saves on the other.
-    return names.validate_name(name, LivePresetError, "live snapshot")
+def canonical_name(name: str) -> str:
+    """Return the key the store files ``name`` under, raising ``LivePresetError`` when it is not a snapshot name.
+
+    A live snapshot is a JSON key, never a filename, but it shares the config
+    store's rule so a name that saves on one surface saves on the other.
+    """
+    return names.validate_name(name, LivePresetError, "snapshot")
 
 
 class LivePresetStore:
@@ -137,21 +140,25 @@ class LivePresetStore:
 
     def read(self, name: str) -> dict[str, Any]:
         """One preset's record. Raises ``LivePresetError`` if absent."""
-        record = self._presets().get(_validate(name))
+        record = self._presets().get(canonical_name(name))
         if not isinstance(record, dict):
             raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
         return record
 
     def save(self, name: str, record: dict[str, Any]) -> None:
-        """Write (or overwrite) a preset."""
+        """Write (or overwrite) a preset. A name new to the store takes the stricter first-save rule."""
         presets = self._presets()
-        presets[_validate(name)] = record
+        key = canonical_name(name)
+        if key not in presets:
+            names.validate_new_name(key, LivePresetError, "snapshot")
+        presets[key] = record
         self._write(presets)
 
     def delete(self, name: str) -> None:
         """Remove a preset. Raises ``LivePresetError`` if absent."""
         presets = self._presets()
-        if _validate(name) not in presets:
+        key = canonical_name(name)
+        if key not in presets:
             raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
-        del presets[name]
+        del presets[key]
         self._write(presets)

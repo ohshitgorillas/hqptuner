@@ -166,7 +166,6 @@ def test_a_put_carrying_a_mode_that_is_not_a_half_of_the_tab_answers_422(modes_c
         pytest.param("a/b", id="forward-slash"),
         pytest.param("..", id="parent-directory"),
         pytest.param(".hidden", id="leading-dot"),
-        pytest.param("Night ", id="trailing-space"),
     ],
 )
 def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestClient, name: str) -> None:
