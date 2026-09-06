@@ -1,0 +1,95 @@
+slug: filter-upload-bdfd
+kind: new
+
+1. With the per-file limit configured at N bytes (Config field `filter_max_bytes`, env `HQPTUNER_FILTER_MAX_BYTES`), `POST /api/matrix/filter` with a minimal WAVE body padded to exactly N bytes answers `(resp.status_code, resp.json().get("code")) == (200, None)`, and the same body one byte longer answers `(422, "invalid_input")`.
+   kills: a cap that refuses at "size >= limit" (the N-byte file bounces), or a knob that is read but never compared (the N+1 file parks).
+   bite: HEAD has no `filter_max_bytes` field, so `Config(filter_max_bytes=...)` raises TypeError; with the default config HEAD parks a 6 MiB `.wav` body of `RIFF` plus nulls with 200 (scratchpad `bite_probe.py`, TestClient over `create_app`). Null stub (field present, route never compares) parks the N+1 body with 200.
+   existing: none. `grep -rn "matrix/filter\|park_filter" tests` finds `tests/api/test_api_config_ops.py:211,216` and `tests/matrix/test_filter_upload.py:28,34,38,39,43,47,51,57`; none sends a body over any size or configures a limit.
+
+2. With the files already under `<backup_dir>/pending-filters` totaling 256 MiB minus k bytes, a k-byte upload (a minimal WAVE padded to k, k at least 46) answers `(200, None)`; with the park again at 256 MiB minus k, a k+1-byte upload answers `(422, "invalid_input")`.
+   kills: a per-file cap only, under which a client fills the volume one file at a time; or a ceiling that refuses whenever the park is non-empty.
+   bite: HEAD parks a 15-byte `.txt` with 200 after a 256 MiB file is placed in the park directory (scratchpad `bite_probe.py`, sparse file via `truncate`). The pre-filled file may be sparse: the park total is read by file size, not by content.
+   existing: none (same grep as line 1; no test pre-populates the park directory).
+
+3. Through `park_filter`, the names `../../etc/evil.wav`, `a,b.wav`, `ctrl\x00null.wav` and `.hidden.wav` each raise `ValueError`; the name `Left (v2) 'final'.wav` returns `name` equal to that string unchanged.
+   kills: the sanitizer, which rewrites and stores (`../../etc/evil.wav` parks as `evil.wav`, `a,b.wav` as `a_b.wav`, `Left (v2) 'final'.wav` as `Left _v2_ _final_.wav`); or a refusal of every non-alphanumeric character, which bounces the parenthesized name.
+   bite: HEAD returns `{'name': 'evil.wav'}`, `{'name': 'a_b.wav'}`, `{'name': 'ctrl_null.wav'}`, `{'name': '.hidden.wav'}`, `{'name': 'Left _v2_ _final_.wav'}` for those five names through `FilterPark.park` (scratchpad `bite_probe.py`).
+   existing: `tests/matrix/test_filter_upload.py::test_path_components_are_stripped_from_upload_names` (lines 42-43) pins the opposite for `../../etc/evil.wav`; this line is a delta inverting that test into the sweep above. The route answers a `ValueError` from `park_filter` as `(422, "invalid_input")` (`hqptuner/api/routes/matrix.py:165-166`), the shape line 5 pins.
+
+4. Through `POST /api/matrix/filter`, a `.wav` body of `RIFF` followed by 40 null bytes, a `.txt` body of `Pre\x00amp`, and an empty `.txt` body each answer `(422, "invalid_input")`; a `.wav` body that is a minimal WAVE container (RIFF/WAVE header, `fmt ` chunk with one channel at 44100 Hz, `data` chunk of two bytes) and a `.txt` body of `Preamp: -6.4 dB` each answer `(200, None)`.
+   kills: an extension-only check (every body parks), or a magic-bytes check on `RIFF` alone (the `RIFF` plus nulls body parks).
+   bite: HEAD answers 200 for `RIFF` plus 40 nulls as `junk.wav`, 200 for `Pre\x00amp` as `junk.txt`, 200 for an empty `empty.txt` (scratchpad `bite_probe.py`).
+   existing: `tests/api/test_api_config_ops.py::test_filter_upload_returns_the_daemon_home_path` (lines 210-212) sends a bare `RIFF` body under `probe.wav` and flips red under this line; its body becomes the minimal WAVE container above, a delta. `tests/matrix/test_filter_upload.py:28,34,38,39,51,57` park `RIFFxxxx`, `RIFF`, `a` and `b` under `.wav` through `park_filter` and flip red the same way; each body becomes the minimal WAVE container, a delta. `tests/api/test_api_config_ops.py:215-217` refuses `payload.exe` by extension only and `tests/matrix/test_filter_upload.py:46-47` accepts `Preamp: -6.4 dB` as `.txt`; both stay green.
+
+5. A multipart part named `file` with an empty filename answers 422 whose body carries `code` equal to `invalid_input`.
+   kills: framework validation answering first, whose 422 body is a pydantic error list with no `code` key.
+   bite: HEAD answers 422 with body `{'detail': [{'type': 'value_error', 'loc': ['body', 'file'], 'msg': "Value error, Expected UploadFile, received: <class 'str'>", ...}]}` and no `code` key (scratchpad `bite_probe.py`).
+   existing: none (same grep as line 1; no test sends an empty filename).
+   Fifth line: the framework-versus-route boundary is a surface none of lines 1 to 4 touches, since each of those sends a real filename and reaches the route.
+
+Public entry points (planned):
+
+```
+# hqptuner/api/routes/matrix.py
+@router.post("/matrix/filter")
+async def matrix_filter(file: Annotated[UploadFile | str, File()], manager: Mgr) -> dict[str, str]:
+    """Park an uploaded convolution filter (wav/txt) for the next apply, refusing an oversize, misnamed or malformed one."""
+
+# hqptuner/presets/presetops.py
+class PresetOps:
+    def park_filter(self, name: str, data: bytes) -> dict[str, str]:
+        """Park one uploaded filter, returning its stored name and the daemon-side path a process string should use."""
+    @property
+    def filter_max_bytes(self) -> int:
+        """Per-file byte limit an upload must not exceed."""
+
+# hqptuner/presets/store/filterpark.py
+class FilterPark:
+    def __init__(self, directory: Path, hqp_home: str) -> None:
+    def park(self, name: str, data: bytes) -> dict[str, str]:
+        """Store one upload. Refuses a name with path or separator characters, a body that is not a WAVE container or text, and a park at its ceiling."""
+
+# hqptuner/config.py
+class Config:
+    filter_max_bytes: int  # HQPTUNER_FILTER_MAX_BYTES, default 32 MiB
+```
+
+Wire and protocol facts:
+
+- Refusals answer the shared `{"detail": <sentence>, "code": "invalid_input"}` shape with status 422 (`docs/architecture.md` API errors; `hqptuner/api/errors.py` maps `invalid_input` to 422). Error text is copy; assert the code.
+- A parked file is reported as `{"name": <stored name>, "path": "<hqp_home>/<stored name>"}`; the fixture pins `hqp_home` to `/x/home`.
+- Parked files live at `<backup_dir>/pending-filters/<name>`; the fixtures put `backup_dir` in `tmp_path` (`tests/support/fixtures_clients.py:60-85`, `tests/conftest.py:275-303`).
+- The daemon's `process` attribute is a comma-separated list where `:` and `;` introduce plugin syntax (`hqplayerd-readme.txt:824-828`), which is why a comma in a name is refused.
+- HQPlayer's matrix `process` accepts a WAV impulse file or a Room EQ Wizard text export (manual, "Matrix" section); a WAV is a RIFF form of type `WAVE` with a `fmt ` and a `data` chunk.
+
+Applicable fixtures:
+
+- `http_client` (`tests/support/fixtures_clients.py:60`): TestClient over the app on the fake 8088 daemon, `backup_dir` in `tmp_path`, `hqp_home=/x/home`, default `filter_max_bytes`. Line 1 needs a client whose Config sets `filter_max_bytes` small; build one the same way with `create_app(Config(...))` and the fake daemon's port, as that fixture does.
+- `http_manager_factory` (`tests/conftest.py:275`): `ConnectionManager` with keyword Config overrides, for lines exercised through `manager.presetops.park_filter` as `tests/matrix/test_filter_upload.py` does.
+- `http_daemon`: the fake 8088 daemon dict, `_port` for the client.
+
+Changelog entry, under `[Unreleased]` / `### Fixed`:
+
+- **Convolution filter uploads are checked before they are kept.** An upload is refused unless it is a WAV container or a text file, is under the size limit, and has a plain filename; before, any bytes under a .wav or .txt name were parked and shipped to the daemon on the next apply.
+
+--- spec-reviewer READY ---
+READY
+discriminates: anchor+edges on per-file size (line 1: N -> (200, None), N+1 -> (422, "invalid_input"), N a runtime knob) and on park total (line 2: k fits, k+1 refused); sweeps with two distinct values on name (3) and body (4)
+
+return, finding by finding: line 1 (i) repaired (tuple, path dropped); line 2 input check repaired (edge pair at 256 MiB minus k); line 3 (h') repaired ("parks nothing" gone, folded into the :42 test); line 4 (b) repaired (flipping tests cited with their new bodies); round 1 note answered with `hqptuner/presets/store/filterpark.py` and `hqptuner/api/routes/matrix.py:164-166`, withdrawn. Struck one framing sentence, "the per-file size check is in the route before the read": a conclusion about an implementation that does not exist at HEAD, outside any measured `bite:`; reviewed as absent.
+
+1  KEEP  Config `filter_max_bytes` = N, minimal WAVE padded to N bytes -> `(200, None)`; N+1 bytes -> `(422, "invalid_input")`; `size >= limit` cap fails it at N, knob read but never compared fails it at N+1; bite: HEAD `Config(filter_max_bytes=...)` raises TypeError and default config parks a 6 MiB body with 200 (measured); null stub (field present, never compared) fails at N+1
+2  KEEP  park at 256 MiB minus k, k-byte upload -> `(200, None)`; same park, k+1 bytes -> `(422, "invalid_input")`; per-file-only cap fails it at k+1, refuse-when-non-empty fails it at k; bite: HEAD parks a 15-byte `.txt` with 200 beside a 256 MiB sparse file (measured)
+3  DELTA tests/matrix/test_filter_upload.py:42: test_path_components_are_stripped_from_upload_names inverts into a parametrized sweep at `park_filter`: `../../etc/evil.wav`, `a,b.wav`, `ctrl\x00null.wav`, `.hidden.wav` raise `ValueError`; `Left (v2) 'final'.wav` returns `name` unchanged.
+4  KEEP  `RIFF` + 40 nulls as `.wav`, `Pre\x00amp` as `.txt`, empty `.txt` -> `(422, "invalid_input")`; minimal WAVE container as `.wav`, `Preamp: -6.4 dB` as `.txt` -> `(200, None)`; extension-only check fails it at `RIFF` + nulls, RIFF-magic-only check fails it at the same input; bite: HEAD answers 200 for all three refused bodies (measured); the seven existing non-WAVE bodies (test_api_config_ops.py:211, test_filter_upload.py:28,34,38,39,51,57) become the minimal container, plumbing deltas not new tests
+5  KEEP  carried from round 1: multipart part `file` with empty filename -> `resp.json()["code"] == "invalid_input"` at 422; framework-first validation fails it (pydantic `detail` list, no `code`); bite: HEAD answers 422 with `{'detail': [...]}` and no `code` key (measured)
+
+null stub: `filter_max_bytes` on Config, route never compares, no name/body/total check, sanitizer as HEAD: fails line 1 at N+1, line 2 at k+1, line 3 at every name (evil.wav parks, parenthesized name rewritten), line 4 at `RIFF` + nulls, line 5 on the missing `code`; takes no line.
+hard-coded stub: refuse at size == N+1 for the configured N, refuse at park total + size == 256 MiB + 1, blocklist the four literal names and three literal bodies, `{"code": "invalid_input"}` on an empty filename: takes lines 3 and 4 literal-for-literal, the ceiling any policy sweep reaches and sweep is an accepted shape; takes lines 1 and 2 only by reading the knob and the park and comparing, which is the feature.
+
+survives: 4
+
+notes:
+- Line 1's "padded to exactly N bytes": the writer pads inside the `data` chunk with the RIFF and `data` sizes updated, the one form a strict and a lax container check both accept; trailing bytes after the chunk would make the N-byte case fail for a reason the line does not pin.
+- Line 2 delivers its input by writing under `<backup_dir>/pending-filters`, a directory name the writer learns from the spec rather than the wire; coupling to layout is the owner's call and was not raised in round 1, so not a cut here.
+- tests/api/test_api_error_codes.py:24 pins `name_invalid` for a bad live-preset name; `invalid_input` for a bad filter name is the owner's wire choice.
