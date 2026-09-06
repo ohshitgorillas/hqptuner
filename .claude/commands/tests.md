@@ -1,12 +1,12 @@
 ---
-description: Author tests for new or changed behavior from an approved spec block, through the blind test-writer when the spec is large enough to earn one. Argument: what changed (module, behavior, or "the working tree").
+description: Author tests for new or changed behavior from an approved spec block, through the blind test-writer, always. Argument: what changed (module, behavior, or "the working tree").
 ---
 
 Cover this with tests: $ARGUMENTS
 
 You are the orchestrator. Run the chain below end to end without stopping to re-ask between steps.
 
-The chain is tests-first in every mode: the spec is approved at stage 2 of the plan gate, the tests are written from the spec in a tree that holds no implementation, the red run in that tree proves they bite (`docs/testing.md` rule 8), and only then does the implementation land beside them. Blindness is a bonus where it is cheap; the red run is the invariant. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
+The chain is tests-first: the spec is approved at stage 2 of the plan gate, the tests are written from the spec by the blind `test-writer` in a tree that holds no implementation, the red run in that tree proves they bite (`docs/testing.md` rule 8) and the writer certifies it, and only then does the implementation land beside them. You never write under `tests/`, in any tree, and `.claude/hooks/tests-lane.py` denies the attempt; the writer is the only hand on a test file, and it moves only on a committed spec line. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
 
 The pair costs two metered actions end to end (`open` and `merge`), so there is no size threshold worth arguing about: anything carrying a spec block uses it. Implement in the main checkout only for a change too small to have one.
 
@@ -14,7 +14,9 @@ The pair costs two metered actions end to end (`open` and `merge`), so there is 
 
 For a change that adds or alters observable behavior, the spec block is authored **at stage 2 of the plan gate**, after the plain English plan has been approved, and presented for its own approval — the grounding gate already forces the reading it requires. When `/tests` is invoked over code that already exists — characterization tests, retrofitting an untested module — build the spec here instead.
 
-Read whatever you need of the implementation — that is your job, not the writer's — and distil it into a **spec block**. Five parts:
+Read whatever you need of the implementation — that is your job, not the writer's — and distil it into a **spec block**. Six parts, the first one line:
+
+**Kind.** The block's first line is `kind: new`, `kind: characterization` or `kind: refactor`. It says what the red run in section 3 expects: red for new behavior, green for the other two. The spec-reviewer reads it as structure and rules on nothing in it; the writer reads it from the committed file and grades the red run by it. Written here, in the draft, so it is approved with the block.
 
 **Derive each line before you phrase it.** The failure mode this ordering exists to prevent is writing the line from the fix you already have in mind, which yields a line the fix satisfies by construction and nothing else rules out. Work in this order, and do not skip to the phrasing:
 
@@ -76,32 +78,30 @@ The spec file is the approved block verbatim, with the reviewer's last `READY` o
 
 Both are cut from dev's committed tip. The main checkout is the user's and is never an agent workspace.
 
-**Mode is decided by the approved spec, before anything is written:**
+**Every spec goes to the writer, whatever its size.** In a single message: spawn the `test-writer` with two absolute paths inside the spec tree — the committed spec, `.claude/worktrees/<slug>-spec/tests/specs/<slug>.txt`, and its target file, `.claude/worktrees/<slug>-spec/tests/<file>` — those two paths and nothing else, never the block inline; and enter the impl tree and start implementing (section 4). Writer and implementation run concurrently; blindness holds by construction, because the implementation does not exist yet and when it does it is in a tree the writer never opens. A one-line spec spawns the writer like a six-line one: the writer's cost is a spawn that runs beside you, and the alternative is the implementer's hand on the test.
 
-- **Writer mode — three or more behavior lines, or any characterization/retrofit spec regardless of size.** Characterization has no red run, so blindness is the only defense it has. In a single message: spawn the `test-writer` with two absolute paths inside the spec tree — the committed spec, `.claude/worktrees/<slug>-spec/tests/specs/<slug>.txt`, and its target file, `.claude/worktrees/<slug>-spec/tests/<file>` — those two paths and nothing else, never the block inline; and enter the impl tree and start implementing (section 4). Writer and implementation run concurrently; blindness holds by construction, because the implementation does not exist yet and when it does it is in a tree the writer never opens.
-- **Solo mode — one or two behavior lines, new behavior.** You write the tests yourself, **in the spec tree, from the approved spec only, before opening the impl tree or writing anything else.** That ordering is the rule: you are as blind as you will ever be at that moment, and the red run costs nothing. Then move to the impl tree (section 4).
+The writer refuses a brief that carries anything beyond those paths and a known-bug list, a spec that is not committed and clean at its tree's HEAD, a delta that names no newer `spec:` commit, and a delta naming a test no `existing:` clause names. A refusal is reported to the user as a refusal, like a reviewer's `ANOTHER PASS`; it is never worked around. A line the writer returns as `UNTESTABLE N` goes back to the same spec-reviewer before the red run: the line is rewritten or cut, the re-approved file re-committed as `spec: <slug>`, and the writer sent the delta naming that commit.
 
-**The lanes are enforced, not trusted.** `pair.sh merge` refuses if the spec tree wrote outside `tests/` or the impl tree wrote inside it. That rule is what makes the two branches combine without conflict, so treat a lane failure as a misplaced file, never as something to argue with.
+**The lanes are enforced, not trusted.** `.claude/hooks/tests-lane.py` denies a write under `tests/` by anyone but the writer, and by the writer anywhere but its spec tree's `tests/`, at the write; `pair.sh merge` refuses again if the spec tree wrote outside `tests/` or the impl tree wrote inside it. That rule is what makes the two branches combine without conflict, so treat a lane denial as a misplaced file, never as something to argue with.
 
 ## 3. Red run — prove the tests bite
 
-When the tests exist (writer returned, or you finished them in solo mode), run them in the spec tree — one action:
+When the writer has returned, run its tests in the spec tree — one action:
 
 ```
 scripts/pair.sh red <slug>
 ```
 
-It commits the spec tree first, as `test: <slug> red`, then runs only the test files that commit added or changed, Python through pytest and JS through `node --test` with the vendor loader hook, and saves the output beside the pair state. The commit is the point: it is the red-run version as a git object, and the post-merge test check in section 5 diffs the landed tests against it. That tree has no implementation in it and will not until section 5. Rerunning a file by hand afterwards is fine and free (`cd .claude/worktrees/<slug>-spec && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q`; the `PYTHONPATH` is not optional, since a worktree borrows the main checkout's `.venv` with `hqptuner` installed editable against the main checkout), but the saved output is what the reviewer sees.
+It commits the spec tree first, as `test: <slug> red`, then runs only the test files that commit added or changed, Python through pytest and JS through `node --test` with the vendor loader hook, and saves the output beside the pair state, printing only the red commit and the output path. The commit is the point: it is the red-run version as a git object, and the post-merge test check in section 5 diffs the landed tests against it. That tree has no implementation in it and will not until section 5.
 
-Expected result is **red**. That is the bite proof (`docs/testing.md` rule 8), and it is the strongest form available: nothing has been written anywhere in this tree for the tests to have been shaped around, and no revert is involved.
+**The verdict is the writer's, not yours.** Send the writer the output path by `SendMessage`, that path and nothing else. It returns one verdict per spec line, and you relay them:
 
-Read the result:
+- **`RED N`, with the assertion quoted — bite confirmed.** The result this run exists to produce, and the strongest form available: nothing has been written anywhere in this tree for the tests to have been shaped around.
+- **`ERROR N`, collection or import — nothing proved.** Expected where the surface is new, and it says nothing about whether the tests constrain it: every test of a symbol that does not exist yet errors this way regardless of what it asserts. Do not report it as a weak bite. Report that the bite rests on the null-stub argument in the approved spec block, and name the stub.
+- **`GREEN N` on `kind: new` — bite failure.** The test passes against a tree that lacks the change, so it constrains nothing. Its `kills:` clause named an implementation the test does not actually distinguish, which means the approved line is wrong, and an approved line is not yours to tighten. Return to stage 2: the corrected block goes to the same spec-reviewer, then to the user for a new approval word, and the approved file is re-committed by hand as `spec: <slug>` before the writer is sent the delta naming that commit and `pair.sh red` run again. Stage 1 instead, with the same plan reviewer, if the plan itself is what was wrong. Implementation keeps running in its own tree while you do.
+- **`GREEN N (expected)` on `kind: characterization` or `refactor`** — there is no pre-change state to fail against, and green is the result. Say so in the report instead of passing over it.
 
-- **Red with assertion failures — bite confirmed.** That is the result this run exists to produce, and it is the strongest form available: nothing has been written anywhere in this tree for the tests to have been shaped around.
-- **Red with only collection or import errors — nothing proved.** Expected where the surface is new, and it says nothing about whether the tests constrain it: every test of a symbol that does not exist yet errors this way regardless of what it asserts. Do not report it as a weak bite. Report that the bite rests on the null-stub argument in the approved spec block, and name the stub.
-- **Green — bite failure.** The test passes against a tree that lacks the change, so it constrains nothing. Its `kills:` clause named an implementation the test does not actually distinguish, which means the approved line is wrong, and an approved line is not yours to tighten. Return to stage 2: the corrected block goes to the same spec-reviewer, then to the user for a new approval word, and the approved file is re-committed by hand as `spec: <slug>` before the test is redone (writer mode as a delta to the writer, solo mode by your own hand) and `pair.sh red` run again. Stage 1 instead, with the same plan reviewer, if the plan itself is what was wrong. Implementation keeps running in its own tree while you do.
-
-Skip the check only when there is no pre-change state to fail against — characterization tests of existing behavior, tests accompanying a pure refactor, both expected green here — and say so in the report instead of skipping silently.
+You do not read the saved output yourself; you will see it once, at the merge, inside the test-check brief that goes verbatim to the spec-reviewer.
 
 ## 4. Implement — in the impl tree
 
@@ -123,7 +123,7 @@ scripts/pair.sh merge <slug>
 
 It lane-checks both trees, commits them, rebases onto dev if dev moved underneath, merges `impl/<slug>` into the spec tree so that tree holds tests plus implementation, runs `make check` there, and only then fast-forwards dev and removes both worktrees. A red gate stops it with dev untouched and both trees left standing — the combined tree is where you adjudicate.
 
-**Green** — the merge has printed a `TEST CHECK <slug>` block: the test files, their diff from the red commit, and the saved red output. Forward it verbatim, by `SendMessage`, to the spec-reviewer that printed `READY` for this block — the whole block from `TEST CHECK` to `END TEST CHECK` and not one sentence of yours around it, because any sentence is steering and the reviewer rejects on it. If that reviewer is gone (it rejected a brief, or the session lost it), spawn a fresh `spec-reviewer` with the same block; it reads the spec and the verdicts from `tests/specs/<slug>.txt` in git and needs nothing from you. It returns `PIN`, `SOFT`, `MISSING` or `EXTRA` per line. All `PIN` — run `/task-check` from the main checkout. It binds the one container and `:8090`, host-wide, which the worktrees do not isolate, so it stays post-merge and stays in the main checkout. Anything else — dev already carries a test that no longer pins its line. Report it to the user before `/task-check`; the repair is a follow-up commit on dev restoring the test from the red commit (`git show <red-commit>:tests/<file>`), or a return to stage 1 if the spec is what has to move. Never a silent green.
+**Green** — the merge has printed a `TEST CHECK <slug>` block: the test files, their diff from the red commit, and the saved red output. Forward it verbatim, by `SendMessage`, to the spec-reviewer that printed `READY` for this block — the whole block from `TEST CHECK` to `END TEST CHECK` and not one sentence of yours around it, because any sentence is steering and the reviewer rejects on it. If that reviewer is gone (it rejected a brief, or the session lost it), spawn a fresh `spec-reviewer` with the same block; it reads the spec and the verdicts from `tests/specs/<slug>.txt` in git and needs nothing from you. It returns `PIN`, `SOFT`, `MISSING` or `EXTRA` per line. All `PIN` — run `/task-check` from the main checkout. It binds the one container and `:8090`, host-wide, which the worktrees do not isolate, so it stays post-merge and stays in the main checkout. Anything else — dev already carries a test that no longer pins its line. Report it to the user before `/task-check`; the repair is a follow-up commit on dev restoring the test from the red commit (`git restore --source <red-commit> -- tests/<file>`, the one shell write onto `tests/` the lane hook passes, because it copies a git object and types nothing), or a return to stage 1 if the spec is what has to move. Never a silent green.
 
 Abandoning the work instead: `scripts/pair.sh abort <slug>` removes both trees and branches. `scripts/pair.sh list` shows the open pairs and is free.
 
@@ -140,4 +140,4 @@ There is no third option. A test that misreads a correct spec is a spec line tha
 
 **Spec discoveries made mid-implementation take this same path.** Report which spec line was wrong and return to stage 1; do not diverge from the approved line in the impl tree while you wait.
 
-Plumbing changes to a landed test — a fixture leaking into a shared store, a `tmp_path` where a real path was — are not softening, as long as the test's input and assertion stay byte-identical. Make them by the mode's edit path, and expect the test check to mark the line `PIN` with a note naming what moved.
+Plumbing changes to a landed test — a fixture leaking into a shared store, a `tmp_path` where a real path was — are not softening, as long as the test's input and assertion stay byte-identical. They are still the writer's to make, and still in a spec tree: open a pair with the same block re-staged under `kind: refactor`, brief the writer with the spec path, the target, and the failure as a known bug, let the red run come back `GREEN N (expected)`, since dev now carries the implementation, and merge; expect the test check to mark the line `PIN` with a note naming what moved.

@@ -7,9 +7,9 @@
 #   scripts/pair.sh abort <slug>
 #   scripts/pair.sh list
 #
-# The /tests chain writes tests first — by the blind test-writer for larger
-# specs, by the orchestrator for one- or two-line ones — and implements beside
-# them. They cannot share a tree: the tests tree must contain no implementation
+# The /tests chain writes tests first — by the blind test-writer, for every
+# spec, since .claude/hooks/tests-lane.py keeps every other hand off tests/ —
+# and implements beside them. They cannot share a tree: the tests tree must contain no implementation
 # for the red run to prove anything, and several sessions may be doing this at
 # once. So each session gets a PAIR of worktrees off dev's tip:
 #
@@ -325,9 +325,8 @@ do_red() {
   echo "  red commit  $(git -C "$SPEC_DIR" rev-parse --short "$red_commit")"
   echo "  output      $RED_FILE"
   echo
-  tail -n 20 "$RED_FILE"
-  echo
-  echo "  Read the whole file; an import or collection error there proves nothing."
+  echo "  Send that path to the test-writer; its RED/ERROR/GREEN verdict per line is the"
+  echo "  bite proof. The output is not printed here on purpose."
 }
 
 # The brief the spec-reviewer's post-merge test check consumes. Generated, not

@@ -28,7 +28,7 @@ Inside block that pass count, rules still hold: claim about what code do that no
 
 ## Inputs
 
-**Behavior lines** of draft spec, in your task prompt, each in this shape:
+**Behavior lines** of draft spec, in your task prompt. Block open with one structure line, `kind: new | characterization | refactor`, which say what red run expect (new = red; characterization or refactor = green, per `/tests` §3). Structure, not framing: never count it as tell, never rule on it. Then each line in this shape:
 
 ```
 N. <behavior as the caller sees it>
