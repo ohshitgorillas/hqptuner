@@ -108,7 +108,7 @@ Row count follows `channels` (2 on Opal). Source/mixdown selects span wire 0–1
 
 ### Filter upload
 
-Daemon renames upload to `impulse_<pipeline>-<n>.wav`, stores under `/var/lib/hqplayer/home/` (configurable as `HQPTUNER_HQP_HOME`), writes **absolute path** into pipeline's `process` attribute; form shows basename. File also appears in `/backup/settings.zip` as `data/impulse_0-0.wav`, so **restore lane can carry filter files as archive members** — upload doesn't require form lane. HQPTuner's route: `POST /api/matrix/filter` → `filterpark` → restore-archive `data/` members.
+Daemon renames upload to `impulse_<pipeline>-<n>.wav`, stores under `/var/lib/hqplayer/home/` (configurable as `HQPTUNER_HQP_HOME`), writes **absolute path** into pipeline's `process` attribute; form shows basename. File also appears in `/backup/settings.zip` as `data/impulse_0-0.wav`, so **restore lane can carry filter files as archive members** — upload doesn't require form lane. HQPTuner's route: `POST /api/matrix/filter` → `filterpark` → restore-archive `data/` members. The route refuses (422 `invalid_input`) an upload over `HQPTUNER_FILTER_MAX_BYTES`, a name that is not a plain `.wav`/`.txt` filename (no path, no `, : ;` since `process` parses those, no control bytes), a `.wav` that is not a RIFF/WAVE container with `fmt ` and `data` chunks, a `.txt` that is not UTF-8 text, and any upload that would take the park over 256 MiB between applies.
 
 ## Probe findings — form lane, checkbox encoding and the live lane
 

@@ -153,13 +153,26 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
         raise refuse("daemon_write_failed", f"speakers apply failed: {exc}") from exc
 
 
+def _limit_text(limit: int) -> str:
+    """Spell the configured per-file limit as a reader would: whole MiB when it is one, bytes otherwise."""
+    mib = 1024 * 1024
+    return f"{limit // mib} MiB" if limit % mib == 0 else f"{limit} byte"
+
+
 @router.post("/matrix/filter")
-async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> dict[str, str]:
+async def matrix_filter(file: Annotated[UploadFile | str, File()], manager: Mgr) -> dict[str, str]:
     """Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.
 
-    Returns the daemon-side absolute path the pipeline process string should reference (matrix-spec.md
-    "Filter upload").
+    Refuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on
+    the part's byte count so an oversize body is never read into the route. A part with an empty filename reaches
+    the handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline
+    process string should reference (matrix-spec.md "Filter upload").
     """
+    if isinstance(file, str):
+        raise refuse("invalid_input", "filter upload must be a .wav or .txt file")
+    limit = manager.presetops.filter_max_bytes
+    if file.size is not None and file.size > limit:
+        raise refuse("invalid_input", f"filter upload is larger than the {_limit_text(limit)} limit")
     try:
         return manager.presetops.park_filter(file.filename or "", await file.read())
     except ValueError as exc:

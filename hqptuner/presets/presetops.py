@@ -46,6 +46,11 @@ class PresetOps:
 
     # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
 
+    @property
+    def filter_max_bytes(self) -> int:
+        """Per-file byte limit an upload must not exceed (``Config.filter_max_bytes``), read by the upload route."""
+        return self._cfg.filter_max_bytes
+
     def park_filter(self, name: str, data: bytes) -> dict[str, str]:
         """Park one uploaded filter, returning its stored name and the daemon-side path a process string should use."""
         return self._filters.park(name, data)
