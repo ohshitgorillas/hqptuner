@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Matrix profile descriptions show while picking a profile.** The saved-profile picker on the Matrix tab is now the app's own dropdown, and highlighting a profile that carries a description pops that text beside the row.
+
 ### Fixed
 
 - **Convolution filter uploads are checked before they are kept.** An upload is refused unless it is a WAV container or a text file, is under the size limit, and has a plain filename; before, any bytes under a .wav or .txt name were parked and shipped to the daemon on the next apply.
