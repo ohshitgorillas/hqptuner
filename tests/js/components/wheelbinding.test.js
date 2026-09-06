@@ -23,14 +23,15 @@
 // dropdown with no second option witnesses nothing), and a count — every case
 // states how many controls it drove and how many values it is comparing.
 //
-// COVERAGE against the seventeen specified sites: fourteen driven, three not.
+// COVERAGE against the sixteen specified sites: thirteen driven, three not.
 //
 //   driven — controls/index.js Select (via Field) and NumberBox (via Field,
 //   store reading only); Knob's range slider; VolumeRangeBar's range input;
 //   MatrixFlowRow's gain box, channel select and gain-unit select (via
 //   MatrixTab); MatrixStageEditor's kind, stage-type and subsonic selects;
-//   MatrixProfileCard's profile select (via MatrixTab); SpeakersCard's
-//   speaker-set select; Header's select; Crossfeed's select.
+//   SpeakersCard's speaker-set select; Header's select; Crossfeed's select.
+//   The matrix profile card's picker is no longer among them: it is the app's
+//   own dropdown, a button, and a wheel over a button moves no value.
 //
 //   NOT driven, and reported as gaps rather than faked — `Slider`, `ReadBox`'s
 //   number input and `SliderNumber`'s range input of components/controls/index.js.
@@ -38,10 +39,9 @@
 //   is known to this file without reading the module under test.
 //
 // Also not driven: four further selects in the MatrixTab fixture that render
-// with no options at all. They are not any of the four sites MatrixTab hosts —
+// with no options at all. They are not any of the three sites MatrixTab hosts —
 // those are identified positively (the dB/Lin unit picker, the mtx-ch channel
-// pickers, the gain box, the profile picker offering Day/Night) and all four are
-// driven. What the option-less four are cannot be established without reading
+// pickers, the gain box) and all three are driven. What the option-less four are cannot be established without reading
 // the component, so they are named as undriven rather than assumed harmless.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/wheelbinding.test.js
@@ -242,12 +242,13 @@ const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", 
 
 // What this fixture renders, stated so a shrunken render fails the case rather
 // than covering less of it: the two pipeline rows bring a gain box, a unit
-// picker and two channel pickers each, the profile card brings its picker, the
-// card's dials bring their sliders, and the Pipelines card head brings the
-// channel-count box moved in from the Output tab. Four further selects render
-// with no options at all and are not driven (see the header).
-const MATRIX_CONTROLS = 15;
-const MATRIX_VALUES = 9;
+// picker and two channel pickers each, the card's dials bring their sliders, and
+// the Pipelines card head brings the channel-count box moved in from the Output
+// tab. The profile card's picker is not among them — it is a button now, not a
+// select. Four further selects render with no options at all and are not driven
+// (see the header).
+const MATRIX_CONTROLS = 14;
+const MATRIX_VALUES = 8;
 
 /** @returns {Promise<StagingWire>} */
 async function matrixTab() {

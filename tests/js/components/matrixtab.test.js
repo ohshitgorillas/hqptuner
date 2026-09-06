@@ -33,7 +33,7 @@ import { selectedStage } from "../../../hqptuner/static/components/matrix/BandSt
 import { stageProfileDelete } from "../../../hqptuner/static/store/matrix/profiles.js";
 import { stagingWire } from "../support/wire.js";
 import { rows as optionRows, boxText } from "../support/comborows.js";
-import { elements, classes, attr } from "../support/markup.js";
+import { elements, classes, attr, hasAttr } from "../support/markup.js";
 
 function wire() {
   stagingWire();
@@ -114,9 +114,10 @@ const tool = (out, rowIndex, i) => toolsOf(rowsOf(out)[rowIndex])[i];
 /** @param {string} btn */
 const isDisabled = (btn) => btn.slice(0, btn.indexOf(">")).includes("disabled");
 // The profile card's buttons, in render order. Switch and Load collapsed into one
-// live Load in round 5 — a load is the live lane AND stages so it persists.
-const DELETE = 1;
-const SAVE = 2;
+// live Load in round 5 — a load is the live lane AND stages so it persists. The
+// picker's own trigger is a button too, and it renders ahead of them.
+const DELETE = 2;
+const SAVE = 3;
 // The profile card runs from the element carrying its own class to the close of
 // the section it sits in — a class and a tag, never a neighbor's heading
 // (docs/testing.md rule 9).
@@ -136,8 +137,12 @@ const profileButtons = (out) =>
 // combobox suite reads one (tests/js/support/comborows.js). The wire value each
 // option row carries is the profile's NAME, so rows are addressed by `data-v`
 // and never by the words on them (docs/testing.md rule 9).
+// SSR emits an empty-string attribute BARE (docs/testing.md, harness facts), so
+// the unnamed profile's empty wire value arrives as `data-v` with no quoted
+// pair; a row carrying no `data-v` at all still reads undefined.
 /** @param {string} out */
-const pickerValues = (out) => optionRows(profileCard(out)).map((el) => attr(el, "data-v"));
+const pickerValues = (out) =>
+  optionRows(profileCard(out)).map((el) => attr(el, "data-v") ?? (hasAttr(el, "data-v") ? "" : undefined));
 // The role the picker's trigger reports, or null when nothing in the card is a
 // `dd-box` button at all — which is what a native `<select>` renders.
 /** @param {string} out */
@@ -188,14 +193,10 @@ test("test_the_unnamed_profile_is_shown_as_default", async () => {
 });
 
 test("test_a_saved_profile_is_offered_in_the_picker", async () => {
-  // One option row per saved profile, in the order the engine enumerated them
-  // (architecture §2). Filtered to the two the fixture saved, so a row the
-  // picker offers for the unnamed profile does not decide this case.
+  // The unnamed profile's empty wire value plus one row per saved profile, as a
+  // set: which rows are offered is the contract, the sequence is not.
   await reset([ROW({})], { active: "[Default]", profiles: ["Night", "Day"] });
-  assert.deepEqual(
-    pickerValues(tab()).filter((v) => v === "Night" || v === "Day"),
-    ["Night", "Day"],
-  );
+  assert.deepEqual(pickerValues(tab()).sort(), ["", "Day", "Night"]);
 });
 
 test("test_the_picker_follows_the_active_profile", async () => {
@@ -236,7 +237,7 @@ test("test_save_is_disabled_until_a_name_is_typed", async () => {
 
 test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async () => {
   await reset([ROW({})], { active: "[Default]", profiles: [], saved: { Night: { rows: [ROW({})], post: {} } } });
-  assert.ok(tab().includes('<option value="Night">Night</option>'));
+  assert.deepEqual(pickerValues(tab()).sort(), ["", "Night"]);
 });
 
 // Load and save each carry a caption of their own; which sentence is in which is
