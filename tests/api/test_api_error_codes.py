@@ -9,6 +9,7 @@ rule 9): `code` values are wire identifiers, `detail` is copy.
 """
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -46,3 +47,59 @@ def test_config_without_credentials_is_unavailable_with_code_no_credentials(live
 def test_a_live_batch_the_lane_refuses_carries_code_route_refused(live_api: TestClient) -> None:
     # 409 and the per-field reasons dict are pinned elsewhere; this pins the code
     assert live_api.post("/api/config/live", json={"fields": {"filter": "9999"}}).json()["code"] == "route_refused"
+
+
+#: Every live-snapshot verb, paired with the path it is reached at for a given
+#: name. A name carrying a separator is refused by the same rule whatever verb
+#: carries it, so the promise is a table over the verbs, not a property of one.
+LIVE_VERBS = [
+    ("PUT", "/api/livepresets/{name}"),
+    ("POST", "/api/livepresets/{name}/apply"),
+    ("DELETE", "/api/livepresets/{name}"),
+]
+
+#: Two depths of the same wrong shape: one separator and two. A rule that sees
+#: only the single-separator case leaves the deeper one to some other layer.
+SLASHED_NAMES = ["a/b", "a/b/c"]
+
+SLASHED_LIVE_REQUESTS = [
+    pytest.param(method, template.format(name=name), id=f"{method}-{name}")
+    for name in SLASHED_NAMES
+    for method, template in LIVE_VERBS
+]
+
+
+def _refusal(client: TestClient, method: str, path: str) -> tuple[int, object]:
+    """The status and `code` of a request sent exactly as written.
+
+    Redirects are not followed and the name is not percent-encoded: the point is
+    what the app answers to the literal slashed path a caller types, so anything
+    rewriting it before the app sees it would hide the behavior under test. A
+    body carrying no `code` reads as `None` rather than raising, so a refusal
+    from the wrong layer fails the assertion instead of erroring out of it."""
+    resp = client.request(method, path, follow_redirects=False)
+    body = resp.json()
+    return resp.status_code, body.get("code") if isinstance(body, dict) else None
+
+
+@pytest.mark.parametrize(("method", "path"), SLASHED_LIVE_REQUESTS)
+def test_a_slashed_live_snapshot_name_is_refused_by_the_name_rule(live_api: TestClient, method: str, path: str) -> None:
+    assert _refusal(live_api, method, path) == (422, "name_invalid")
+
+
+def test_an_unusable_live_snapshot_name_is_refused_before_the_engine_is_read(
+    chain_api: Callable[..., TestClient],
+) -> None:
+    # one engine, two names: the slashed name is answered by the name rule and
+    # the ordinary one by the engine's own state, so a save that snapshots the
+    # engine first and validates the name second gives both the same answer
+    chainless = chain_api(mode="0", _active_mode="")
+    assert [_refusal(chainless, "PUT", f"/api/livepresets/{name}") for name in ("a/b", "Warm")] == [
+        (422, "name_invalid"),
+        (409, "chain_unknown"),
+    ]
+
+
+@pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
+def test_a_config_preset_delete_refuses_an_unusable_name_by_the_name_rule(http_client: TestClient, path: str) -> None:
+    assert _refusal(http_client, "DELETE", path) == (422, "name_invalid")
