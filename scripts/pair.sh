@@ -2,6 +2,7 @@
 # pair — the two worktrees a /tests run needs, opened and converged in one action each.
 #
 #   scripts/pair.sh open  <slug> <specfile> [--dry-run]
+#   scripts/pair.sh respec <slug> <specfile> [--dry-run]
 #   scripts/pair.sh red   <slug> [--dry-run]
 #   scripts/pair.sh merge <slug> [-m "<subject>"] [--dry-run]
 #   scripts/pair.sh abort <slug>
@@ -27,6 +28,12 @@
 # any implementation exists. The orchestrator stages it at specs/<slug>.txt
 # (gitignored, in-tree, so the write is free) and passes that path. The writer reads the block from that path and a
 # reviewer spawned later reads it from git, so neither depends on a brief.
+#
+# respec lands a re-approved block on the open spec branch as a second
+# `spec: <slug>` commit, the one the writer's delta names. Same verdict check
+# as open, plus a check that the reviewer section is a new round and not the
+# last one pasted under a changed block. It stages the spec file alone, so
+# tests the writer has not committed yet stay out of the spec commit.
 #
 # red commits the tests as written, then runs only the files that commit
 # added or changed and saves the output. The red commit is the object the
@@ -65,7 +72,7 @@ run()  { if [ "$DRY" = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
 
 usage() {
-  echo "usage: scripts/pair.sh open <slug> <specfile> | red <slug> | merge <slug> [-m subj] | abort <slug> | list   [--dry-run]" >&2
+  echo "usage: scripts/pair.sh open <slug> <specfile> | respec <slug> <specfile> | red <slug> | merge <slug> [-m subj] | abort <slug> | list   [--dry-run]" >&2
   exit 2
 }
 
@@ -81,14 +88,14 @@ while [ $# -gt 0 ]; do
     -m)        shift; [ $# -gt 0 ] || usage; SUBJECT=$1 ;;
     -*)        usage ;;
     *)         if [ -z "$SLUG" ]; then SLUG=$1
-               elif [ "$CMD" = open ] && [ -z "$SPECFILE" ]; then SPECFILE=$1
+               elif { [ "$CMD" = open ] || [ "$CMD" = respec ]; } && [ -z "$SPECFILE" ]; then SPECFILE=$1
                else usage; fi ;;
   esac
   shift
 done
 
 case "$CMD" in
-  open)             [ -n "$SLUG" ] && [ -n "$SPECFILE" ] || usage ;;
+  open|respec)      [ -n "$SLUG" ] && [ -n "$SPECFILE" ] || usage ;;
   red|merge|abort)  [ -n "$SLUG" ] || usage ;;
   list)             [ -z "$SLUG" ] || usage ;;
   *)                usage ;;
@@ -305,6 +312,56 @@ do_open() {
   Red run:        scripts/pair.sh red $SLUG      (commits the tests, then runs them)
   Converge with:  scripts/pair.sh merge $SLUG
 EOF
+}
+
+# ---- respec -----------------------------------------------------------------
+
+# The reviewer section of the spec file as the spec branch last committed it.
+# verdict_check only proves the newest reviews file is pasted verbatim; it
+# cannot tell that file from the round that already landed, so a changed block
+# with the old READY beneath it would pass. Comparing HEAD's section against
+# the reviews file closes that: equal means no new round.
+committed_verdict() {   # committed_verdict <tree>
+  git -C "$1" show "HEAD:$SPEC_PATH" 2>/dev/null \
+    | sed -n "/^$VERDICT_SEP\$/,\$p" | sed '1d;s/[[:space:]]*$//'
+}
+
+do_respec() {
+  say "respec $SLUG"
+
+  [ -d "$SPEC_DIR" ] || die "no spec tree at $SPEC_DIR — was this pair opened?"
+  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — write the re-approved block and the reviewer's READY output there first."
+  [ -n "$(find_commit "$SPEC_DIR" "$SPEC_MSG")" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
+  verdict_check
+
+  local vfile
+  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt | sort -t. -k2,2n | tail -1)
+  if diff -qB <(committed_verdict "$SPEC_DIR") <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
+    die "${vfile#"$ROOT"/} is the round already committed on $SPEC_BR — a re-approved block carries a new spec-reviewer round, not the last READY pasted under a changed block."
+  fi
+  echo "  round       ${vfile#"$ROOT"/} is newer than the committed spec"
+
+  if [ "$DRY" = 1 ]; then
+    echo "  would copy $SPECFILE to $SPEC_DIR/$SPEC_PATH and commit it as '$SPEC_MSG'"
+    return 0
+  fi
+
+  cp "$SPECFILE" "$SPEC_DIR/$SPEC_PATH"
+  if git -C "$SPEC_DIR" diff --quiet HEAD -- "$SPEC_PATH"; then
+    die "$SPECFILE matches $SPEC_PATH at HEAD — nothing for the writer's delta to read."
+  fi
+  # The spec file alone. The writer may hold uncommitted tests in this tree,
+  # and a spec commit that swept them in would hide them from the next red run.
+  git -C "$SPEC_DIR" add -- "$SPEC_PATH"
+  in_tree "$SPEC_DIR" git commit -m "$SPEC_MSG"
+
+  local spec_commit
+  spec_commit=$(find_commit "$SPEC_DIR" "$SPEC_MSG")
+  echo
+  echo "  spec commit $(git -C "$SPEC_DIR" rev-parse --short "$spec_commit") on $SPEC_BR"
+  echo
+  echo "  Send the test-writer a delta naming that commit; it reads the changed lines"
+  echo "  from $SPEC_PATH there. Then:  scripts/pair.sh red $SLUG"
 }
 
 # ---- red --------------------------------------------------------------------
@@ -527,8 +584,9 @@ do_list() {
 }
 
 case "$CMD" in
-  open)  do_open ;;
-  red)   do_red ;;
+  open)   do_open ;;
+  respec) do_respec ;;
+  red)    do_red ;;
   merge) do_merge ;;
   abort) do_abort ;;
   list)  do_list ;;

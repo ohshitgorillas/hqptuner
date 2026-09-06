@@ -7,7 +7,7 @@ description: The change-budget hook's free list, the command shapes that meter b
 
 `.claude/hooks/change-budget.py` meters what you change between turns where the user speaks, on one leash of 8 actions you cannot take back: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside the repo. In-tree `Write`/`Edit`/`NotebookEdit` are free and uncapped: `git restore` undoes them, `make check` gates them, the plan gate ruled on them first. Only prose the user typed resets the leash; a slash command, `/clear` or local-command output buys nothing, except that the first human row after a trip always resets.
 
-`scripts/pair.sh open|red|merge|abort` is one metered action each; `list` is free. A `/tests` run costs open plus merge; edits in either worktree are free (a worktree path resolves inside the repo root).
+`scripts/pair.sh open|respec|red|merge|abort` is one metered action each; `list` is free. A `/tests` run costs open plus merge; edits in either worktree are free (a worktree path resolves inside the repo root).
 
 ## Free list
 

@@ -373,7 +373,7 @@ def _stage_ok(mstage, ostage, is_head, note=None):
         return True
     if name == "pair.sh":
         # `list` prints the open /tests worktree pairs and touches nothing;
-        # open / red / merge / abort move branches and are meant to cost an action.
+        # open / respec / red / merge / abort move branches and are meant to cost an action.
         if rest and rest[0] == "list":
             return True
         return _no(note, f"`pair.sh {rest[0]}`" if rest else "`pair.sh` with no subcommand")

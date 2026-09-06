@@ -197,6 +197,7 @@ ALLOWLIST_CASES = [
     # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
     ("scripts/pair.sh list", True),
     ("scripts/pair.sh open eqfix", False, "open"),
+    ("scripts/pair.sh respec eqfix specs/eqfix.txt", False, "respec"),
     ("scripts/pair.sh merge eqfix", False, "merge"),
     ("scripts/pair.sh abort eqfix", False, "abort"),
     ("bash scripts/pair.sh list", False, "bash"),   # `bash` is not a recognized head
