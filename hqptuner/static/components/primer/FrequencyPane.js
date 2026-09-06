@@ -72,13 +72,8 @@ const TOP = PADT + BAND;
 const PLOT_HH = PLOT_H - BAND;
 const LEGEND_X = PADL;
 const LEGEND_Y = PADT + 10;
-/**
- * One legend entry's width: the longest name plus the next entry's swatch.
- * Analog reconstruction is the long one and measures 111 units in the rendered
- * pane, so the step has to clear that and the swatch after it. Five entries at
- * 125 end at x 655, inside the plot's right edge at 764.
- */
-const LEGEND_STEP = 125;
+/** One legend entry's width: the longest of the four words plus its swatch. */
+const LEGEND_STEP = 92;
 /** A mark's name sits at the top of its own dashed line, under the legend band. */
 const MARK_Y = TOP + 10;
 /** A name this close to a frame edge is anchored to it rather than centred over it. */
@@ -193,15 +188,12 @@ const markAnchor = (x) => (x > PADL + PLOT_W - MARK_EDGE ? "end" : x < PADL + MA
  * @returns {number[]}
  */
 function nameRows(at) {
-  // Every x already on a row, not just the last: a row holding 72 and then 213
-  // still has no space at 76, and comparing against the latest alone would put
-  // the third name back on top of the first.
-  /** @type {number[][]} */
+  /** @type {number[]} */
   const taken = [];
   return at.map(({ x }) => {
     let row = 0;
-    while ((taken[row] ?? []).some((seen) => Math.abs(x - seen) < NAME_GAP)) row += 1;
-    (taken[row] ??= []).push(x);
+    while (taken[row] !== undefined && Math.abs(x - taken[row]) < NAME_GAP) row += 1;
+    taken[row] = x;
     return MARK_Y + row * NAME_ROW;
   });
 }
