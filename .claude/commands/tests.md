@@ -61,6 +61,16 @@ Once the draft is written, spawn the `spec-reviewer` with a `slug:` line, the sl
 
 **The approved spec is closed.** The numbered lines are the whole spec: no additions in the writer brief, no "may also cover", no entry-point tests on top. The test count equals the behavior count, parametrize sweeps counting as one. A behavior discovered later takes section 6's path.
 
+### Every spec fact is checked before the reviewer sees it
+
+The writer and the reviewer are both blind to `hqptuner/`, so nothing between you and the red run catches a wrong fact in the block; an ASSUMED route or example is a guaranteed false red and a delta round trip.
+
+- **The interface extract is grepped.** `grep -n "@router\." <route file>` for every route and method named, `grep -n "^export" <module>` for every JS entry point, and example inputs taken from values the existing suite already uses. A route that exists only as PUT, an export that is not there, and an example the router answers with 405 have each cost a round.
+- **An `existing:` clause carries the command and the output it actually printed**, run over all of `tests/`, never scoped to one file and never written from memory. A rule change (grid density, frame lead, reduction shape, axis top) greps the old rule's numbers as well as its names: store-level pins live under `tests/js/store/` and in matrix sweeps even when the line is phrased about a pane, and a helper can hard-code `AXIS_HZ = 88200` with no signal name near it. A pin the spec did not list fails only at `pair.sh merge`.
+- **Rendered geometry is measured, never inferred from source constants.** ViewBox sizes, plot rectangles, which pane carries which attribute, whether a trace spans its plot, whether a state is reachable: one throwaway probe renders the whole state space and prints every number the block will assert, counts before lists, deleted in the same command that runs it. Sanity-check any count that comes back as all states or zero states. Every measured number becomes a `bite:` field.
+- **A `docs/plans/` defect bullet may describe an uncommitted tree, not HEAD.** Name the commit or dirty file each bullet was observed on; a mechanism you cannot find in the committed tree is fixed already or lives in someone's uncommitted work, and it earns no `kills:` clause.
+- **Three shapes that are rule 9 defects.** A spec line quoting user-facing wording ("carries title exactly: <sentence>") hands the writer the violation; spec "carries a title" and let presence versus absence carry the distinction. A test naming a preset to stand for a property ("perfect-ten" for "has an emphasis knob") is defective: select by property from `presetsFor()` and sweep, and no matching preset means zero generated cases, never `skip`. A census counting `read() == DEFAULTS` against a named table as a duplicate pin is wrong: a symbolic comparison is one pin, only a retyped literal duplicates it.
+
 ## 2. Open the pair, pick the mode, start
 
 On stage-2 approval, write the approved block to a file, then open the two worktrees this run needs — one action:
