@@ -1,0 +1,75 @@
+slug: matrixmode-orphan-07b8
+
+kind: new
+
+1. With preset `Night` stored and no preset `Ghost`, `PUT /api/matrixmodes` for `Night` with mode `speakers` then for `Ghost` with mode `speakers` leaves `GET /api/matrixmodes` reading `{'Night': 'speakers'}`.
+   kills: a guard that keys the refusal off the mode store's own existing entries instead of the preset store, so the first mode ever stored for a real preset is refused too and the map reads `{}`.
+   bite: HEAD leaves the map reading `{'Ghost': 'speakers', 'Night': 'speakers'}` (scratchpad probe over `create_app` with `preset_dir` seeded, `.venv/bin/python bite.py`, case "1 sequence")
+   existing: none — `grep -rn matrixmodes tests/` returns fixture path lines plus `tests/presets/test_matrix_mode_routes.py`, whose PUT cases (`:87-110`) assert 200 for names with no preset behind them, and `tests/js/store/matrixmode-preset.test.js`, which fakes the wire and holds its own map
+
+2. With no preset `Ghost` stored, `PUT /api/matrixmodes` for `Ghost` answers 422 when the mode is `stereo` and 404 when the mode is `speakers`.
+   kills: judging the name before the mode, which answers 404 to both and loses the message naming what is storable.
+   bite: HEAD answers 422 for `stereo` and 200 for `speakers` (same probe, cases "2 unknown preset + bad mode" and "1b unknown preset")
+   existing: none — same grep; `tests/presets/test_matrix_mode_routes.py:113-128` parametrizes unstorable modes and asserts only the 422 half, never a storable mode at the same name
+
+3. With modes stored for presets `Night` and `Studio`, deleting preset `Night` leaves `GET /api/matrixmodes` reading `{'Studio': 'headphones'}`.
+   kills: a prune that empties the whole map rather than the one key.
+   bite: HEAD answers 200 to `POST /api/profile/delete` for `Night` and the map still reads `{'Night': 'speakers', 'Studio': 'headphones'}` (same probe, case "3 delete prunes")
+   existing: none — `grep -rn forget tests/` and `grep -rln delete tests/presets/` return no case that reads a matrix mode after a preset delete
+
+4. With `store.json` in the preset store's directory reading `{"schema": 99}`, `PUT /api/matrixmodes` for `Night` with mode `speakers` answers 422.
+   kills: an existence lookup with no refusal path for an unreadable preset store, which answers 500 and gives the browser nothing to render.
+   bite: HEAD answers 200 (same probe, case "4 too-new preset store", which writes exactly that literal)
+   existing: none — same grep; no test puts a foreign schema stamp on the preset store against this route
+
+Public entry points (planned surface):
+
+    hqptuner/api/routes/matrixmodes.py
+        @router.get("/matrixmodes")
+        def matrix_modes(request: Request) -> dict[str, dict[str, str]]
+        @router.put("/matrixmodes")
+        def save_matrix_mode(body: MatrixModeBody, request: Request, manager: Mgr) -> dict[str, dict[str, str]]
+        class MatrixModeBody(BaseModel):  # name: str, mode: str
+
+    hqptuner/presets/store/matrixmode.py
+        class MatrixModeStore:
+            def read(self) -> dict[str, str]
+            def write(self, name: str, mode: str) -> dict[str, str]
+            def validate_mode(self, mode: str) -> str        # new
+            def forget(self, name: str) -> bool              # new
+
+    hqptuner/presets/presetops.py
+        class PresetOps:
+            matrix_modes: MatrixModeStore                    # new attribute
+
+    hqptuner/presets/presetlane.py
+        async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]
+
+Wire and protocol facts:
+
+- The preset store keeps its layout version in `store.json` beside the preset XMLs; the file this HQPTuner writes reads `{"schema": 1}` (`hqptuner/presets/store/presets.py:32` names the file, `:40` the number). `{"schema": 99}` is a stamp it does not understand. The mode store keeps its own stamp in its own file, and a too-new mode store is a different refusal (409) from a too-new preset store.
+- Preset names are the join key between the mode store and the preset store (`docs/architecture.md` §2).
+- `docs/architecture.md` §7's Delete bullet (`:120`) is "remove from store, plus `profile/delete` for daemon's mirror"; the daemon half is wrapped in `contextlib.suppress` (`hqptuner/presets/presetlane.py:277-278`), so `POST /api/profile/delete` answers 200 with no daemon reachable. `DELETE /api/preset/{name}` needs credentials (`HttpMgr`) and answers 503 without them; the credential-free delete route is the one the probe used.
+- The API error vocabulary is `hqptuner/api/errors.py:22-37`: `not_found` renders 404, `invalid_input` 422, `store_too_new` 409.
+
+Applicable fixtures:
+
+- `matrixmodes_api` / `modes_client` (`tests/presets/test_matrix_mode_routes.py:46-73`) — the REST surface over a matrix-mode file in `tmp_path`, daemonless, a factory so a case can hand-write a store file before the app opens. It overrides no `preset_dir` today, so cases built on it currently read whatever preset store the host has.
+- `closed_port` (`tests/conftest.py:361`) — a port nothing listens on, which is what makes that app daemonless.
+- `_state_never_touches_the_repo` (`tests/conftest.py:51-65`) — session autouse, redirects every state path env into a session tmp dir so an omitted override cannot reach the repo's live state.
+
+Changelog entry: no entry. The 404 is unreachable from the UI, which only ever sends a preset it has just read back, and the prune removes a key no surface displays.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on GET/PUT /api/matrixmodes — line 1 is one map value over a two-PUT sequence, and line 4 answers the same request as line 1 differently on store state alone
+
+1  KEEP  PUT `Night`/speakers then PUT `Ghost`/speakers with `Night` a stored preset -> map reads `{'Night': 'speakers'}`; a guard keyed off the mode store's own entries fails it at the `Night` PUT, leaving `{}`; bite: HEAD leaves `{'Ghost': 'speakers', 'Night': 'speakers'}`
+2  KEEP  unknown preset `Ghost`, mode `stereo` -> 422 and mode `speakers` -> 404; "judge the name before the mode" fails it at `Ghost`/`stereo` by answering 404; bite: HEAD answers 200 at `Ghost`/`speakers`
+3  KEEP  modes stored for `Night` and `Studio`, delete preset `Night` -> map reads `{'Studio': 'headphones'}`; a prune that empties the map fails it by leaving `{}`; bite: HEAD leaves `{'Night': 'speakers', 'Studio': 'headphones'}`
+4  KEEP  `store.json` reading `{"schema": 99}`, PUT `Night`/speakers -> 422; an existence lookup with no refusal path fails it at that input with 500; bite: HEAD answers 200
+
+null stub: no preset-existence guard, no prune, no unreadable-store refusal — every PUT stores and answers 200; fails 1 (map gains `Ghost`), 2 (200 not 404), 3 (map keeps `Night`), 4 (200 not 422).
+hard-coded stub: 404 for the name `Ghost`, 422 for `Ghost`/`stereo`, drop key `Night` on delete — takes 2 and 3 by literal, but 1 and 4 are the same request with opposite answers, so it must read `store.json` and the preset names to satisfy both.
+
+survives: 4
