@@ -1,0 +1,96 @@
+slug: name-mixed-script-6363
+
+kind: new
+
+1. Saving under a name with trailing whitespace stores it under the name with all trailing whitespace removed: sweep [("Studio ", "Studio"), ("Night\t ", "Night")], save(raw, payload) then the store's listed names equal [trimmed], through PresetStore (names()) and LivePresetStore (all() keys) alike.
+   kills: refusing trailing whitespace outright; storing under the raw key; trimming one space only, which leaves "Night\t" for the second case.
+   bite: HEAD: validate_name("Studio ", E, "preset") -> refused name_invalid (`.venv/bin/python -` probe over hqptuner.presets.names, output `'Studio ' -> refused name_invalid`); a tab-and-space tail is refused by the same strip compare (names.py:66).
+   existing: `grep -rn "trailing-space" tests` -> four hits. tests/api/test_livepreset_errors.py:52 ("Studio ", drives :140 status 422 and :145 repr in detail): delta, drop the param from that REFUSED_NAMES. tests/presets/test_matrix_mode_store.py:163 and tests/presets/test_matrix_mode_routes.py:145 ("Night ", refused through the same rule): trimming lands in the shared rule, so both go red; delta, drop the param from each. tests/presets/test_preset_names.py:61: sits in a REFUSED_NAMES list no test references (`grep -c REFUSED_NAMES` -> 1, the definition; the "--- refusals ---" section at :134 is empty), so it feeds no test and needs no delta.
+
+2. DELTA tests/presets/test_presetstore.py:135 test_deleting_the_active_preset_clears_the_active_pointer: parametrize the name handed to delete over ["alpha", "alpha "]; save("alpha"), set_active("alpha"), delete(name), then active is None.
+   kills: delete comparing the raw "alpha " with the pointer "alpha", unlinking the file and leaving the pointer dangling.
+   bite: HEAD: delete("alpha ") refused name_invalid before any store method runs (same probe, trailing whitespace refused).
+   existing: the named test, exact-name case only.
+
+3. DELTA tests/presets/test_presetstore.py:128 test_the_active_preset_survives_a_new_store_over_the_same_directory: parametrize the name handed to set_active over ["alpha", "alpha "], readback "alpha" for both.
+   kills: writing the raw name into the pointer, so the next auto-save keys a name the store does not hold.
+   bite: HEAD: set_active("alpha ") refused name_invalid (same probe).
+   existing: the named test, exact-name case only.
+
+4. The first save of a name mixing Latin and Cyrillic letters is refused with code name_invalid, while a pure Cyrillic name and a Latin name with a micro sign save and read back: sweep [("аdmin" with Cyrillic U+0430, refused), ("админ", saved), ("µ-law", saved)] through PresetStore and LivePresetStore.
+   kills: accepting all three (HEAD); a Latin-only allowlist refusing "админ"; a letter-category check that reads the micro sign as a foreign letter and refuses "µ-law".
+   bite: HEAD: validate_name("аdmin") -> 'аdmin' accepted (probe output `'аdmin' -> 'аdmin'`); "админ" and "µ-law" also accepted, so the sweep fails on its first case.
+   existing: `grep -rln "аdmin\|Cyrillic\|админ\|µ-law\|mixed-script" tests` -> no files.
+
+5. With "аdmin" already stored, saving under "аdmin" again succeeds and a different new mixed name "аdmin2" is refused: seed the store with the key (config store: write аdmin.xml into the directory; live store: write the JSON file with that key), then the pair of outcomes is [saved, refused].
+   kills: running the mixed-script check on every save or inside the shared rule, which strands a name an older build stored (first outcome refused); no check at all (second outcome saved).
+   bite: HEAD: both saves succeed (probe: "аdmin" accepted; nothing in names.py distinguishes a first save).
+   existing: same grep as line 4 -> no files.
+   beyond four: line 4 passes an implementation that refuses on every save; this is the only line that tells first-save from every-save.
+
+6. import_missing({"аdmin": xml}) on an empty store imports it, and a later save("аdmin2", xml) into that store is refused: the pair of outcomes is [["аdmin"], refused].
+   kills: applying the mixed-script check to migration, which silently drops a daemon profile the user owns (first outcome []); no check (second outcome saved).
+   bite: HEAD: import returns ["аdmin"] and the save succeeds (probe: no first-save distinction in names.py; presets.py:221 validates with the shared rule only).
+   existing: `grep -rn "import_missing" tests` -> tests/presets/test_presetstore.py:154-175, ASCII names only.
+   beyond four: line 5 seeds the file directly, so it says nothing about the migration path, which also creates a name the store does not yet hold.
+
+7. DELTA tests/api/test_api_write.py:165 test_profile_action_requires_a_name: POST /api/profile/load with {"name": ""} answers (status, code) == (422, "name_invalid") instead of status alone.
+   kills: a route pre-check answering code invalid_input for an empty name before the name rule runs (HEAD).
+   bite: HEAD: `grep -n "profile name required" hqptuner/api/routes/preset.py` -> :34 `raise refuse("invalid_input", "profile name required")`; the pre-check at :33 sits before the dispatch at :36 and so is shared by load, save and delete, which is why the delta on load pins the route.
+   existing: the named test, status only; tests/api/test_api_error_codes.py:24 pins name_invalid for a live preset delete of "..", a different route.
+
+Public entry points.
+  hqptuner/presets/names.py
+    def validate_name(name: str, error: type[HQPTunerError], label: str) -> str
+        Unchanged signature; returns the name with trailing whitespace removed; raises error with code name_invalid.
+    def validate_new_name(name: str, error: type[HQPTunerError], label: str) -> str
+        Planned. The shared rule plus the mixed Latin/Cyrillic refusal, for a name entering a store for the first time.
+  hqptuner/presets/store/presets.py  class PresetStore(directory: Path, audit: AuditLog | None = None)
+    def names(self) -> list[str]
+    def exists(self, name: str) -> bool
+    def read(self, name: str) -> bytes
+    def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None
+    def delete(self, name: str) -> None
+    def active(self) -> str | None   (property)
+    def set_active(self, name: str | None) -> None
+    def import_missing(self, snapshots: dict[str, bytes]) -> list[str]
+    class PresetError(HQPTunerError, ValueError)
+  hqptuner/presets/store/live.py  class LivePresetStore(path: Path)
+    def all(self) -> dict[str, Any]
+    def read(self, name: str) -> dict[str, Any]
+    def save(self, name: str, record: dict[str, Any]) -> None
+    def delete(self, name: str) -> None
+    class LivePresetError(HQPTunerError, ValueError)
+  routes: POST /api/profile/{action} (body {"name": ...}); DELETE /api/preset/{name}; PUT /api/livepresets/{name}; DELETE /api/livepresets/{name}; PUT /api/matrixmodes (body {"name", "mode"})
+
+Wire and protocol facts.
+  Configuration names are unconstrained text on the wire (docs/protocol.md:66).
+  name_invalid answers 422 (docs/architecture.md:75).
+  Live snapshots are HQPTuner's own JSON store and share the config store's name rule (docs/architecture.md:124).
+
+Applicable fixtures.
+  tmp_path: both stores are rooted under it, the pattern of tests/presets/test_preset_names.py (store_at / live_store_at).
+  api_client (tests/support/fixtures_clients.py:50): control lane only, no credentials; serves POST /api/profile/{action}.
+  live_api (tests/conftest.py _live_app): live-snapshot store under tmp_path; serves /api/livepresets.
+
+Changelog entry, under [Unreleased] / ### Fixed:
+- **A refused preset name now says why.** An invalid live snapshot or config preset name is refused with a reason stated in plain English.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the stored key of a trailing-whitespace save (line 1: "Studio " -> "Studio", "Night\t " -> "Night"), sweep on mixed-script first save (line 4: refused/saved/saved), differential first-save-vs-held (lines 5, 6)
+return, finding by finding: repair 1 done (line 1 restated as a two-name sweep observing names()/all() keys); repair 2 done (all four trailing-space hits listed with fates; test_preset_names.py:61 confirmed dead by `grep -c REFUSED_NAMES` -> 1); repair 3 done (2, 3, 7 as the named deltas); note 1 settled by citation (preset.py:33 pre-check before dispatch at :36, shared by load/save/delete); note 2 settled by citation (trimming in the shared rule, names.py:66; matrix-mode params become deltas). Nothing evaded.
+
+1  KEEP  save(raw, payload) over [("Studio ", "Studio"), ("Night\t ", "Night")] through PresetStore and LivePresetStore -> names() / all() keys == [trimmed]; refuse-outright fails it at "Studio " (raises), store-raw fails it at "Studio " (["Studio "]), single-space rstrip fails it at "Night\t " (["Night\t"]); bite: HEAD validate_name("Studio ") -> refused name_invalid (measured, probe output quoted)
+2  DELTA tests/presets/test_presetstore.py:135: parametrize the delete name over ["alpha", "alpha "], active is None for both; raw pointer compare fails the second case.
+3  DELTA tests/presets/test_presetstore.py:128: parametrize the set_active name over ["alpha", "alpha "], readback "alpha" for both; raw pointer write fails the second case.
+4  KEEP  carried from round 1, text unchanged: ["аdmin" (U+0430), "админ", "µ-law"] first save through both stores -> [refused name_invalid, saved, saved]; no check fails at "аdmin", Latin allowlist at "админ", letter-category check at "µ-law"; bite: HEAD validate_name("аdmin") accepted (measured)
+5  KEEP  carried from round 1, text unchanged: store seeded with key "аdmin", save("аdmin") then save("аdmin2") -> [saved, refused]; every-save check fails at "аdmin", no check fails at "аdmin2"; bite: null stub (no check at HEAD) fails at "аdmin2" -> saved
+6  KEEP  carried from round 1, text unchanged: import_missing({"аdmin": xml}) on empty PresetStore then save("аdmin2") -> [["аdmin"], refused]; check inside import fails at [], no check fails at "аdmin2"; bite: null stub fails at "аdmin2" -> saved
+7  DELTA tests/api/test_api_write.py:165: assert (status, code) == (422, "name_invalid") for POST /api/profile/load {"name": ""}; HEAD pre-check (preset.py:34, invalid_input, measured) fails it on code.
+
+null stub: HEAD as it stands, name rule refusing any trailing whitespace and accepting every mixed-script name, route answering invalid_input for "": fails 1 (raises at "Studio "), 2 and 3 (raise at "alpha "), 4 ("аdmin" saved), 5 and 6 ("аdmin2" saved), 7 (code invalid_input); satisfies nothing.
+hard-coded stub: map {"Studio ": "Studio", "Night\t ": "Night"} in the name rule, refuse the literal "аdmin" when the store holds no such key and "аdmin2" always, answer name_invalid for "" at the route: takes 1 and 4 literal-for-literal, the ceiling a two-value sweep reaches and an accepted shape; takes 2 and 3 only through the same map plus real pointer bookkeeping; takes 5 and 6 only by consulting what the store holds, which is the feature; takes 7 because that one mapping is the feature.
+
+survives: 4
+new tests: 4 (lines 1, 4, 5, 6), at cap; deltas 2, 3, 7 do not count.
