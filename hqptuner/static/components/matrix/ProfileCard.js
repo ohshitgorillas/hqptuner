@@ -13,7 +13,7 @@
 // playback state.
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { html, wheelGuard } from "../../lib/dom.js";
+import { html } from "../../lib/dom.js";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { config } from "../../store/signals.js";
@@ -41,6 +41,7 @@ import { askChoices } from "../../store/ask.js";
 import { notesVisible } from "../../store/prefs.js";
 import { Ask } from "../Ask.js";
 import { Card } from "../common.js";
+import { Combobox } from "../controls/Combobox.js";
 
 const OWNER = "matrix-profile";
 
@@ -272,8 +273,32 @@ function DescriptionField({ sel }) {
   `;
 }
 
+// The picker's rows: the unnamed profile first, then every saved name. `[Default]`
+// is the daemon's own name for the profile that has none (readme §1.12), not a
+// label this card invented, so it rides as a row value like any other.
+/** @param {string[]} saved */
+const profileOptions = (saved) => [{ value: "", label: "[Default]" }, ...saved.map((n) => ({ value: n, label: n }))];
+
+// One row's tip: the description the user wrote about that profile, and nothing
+// else. A profile nobody has described yields empty text, which the widget reads
+// as no tip at all rather than an empty popover. The stored text is what shows —
+// the box's in-flight draft is the typist's, and it reaches the store on the
+// pause the editor already flushes on.
+/**
+ * @param {import("../controls/comborows.js").RenderOption} o
+ * @returns {import("../controls/Combobox.js").TipContent}
+ */
+const profileTips = (o) => ({
+  name: "",
+  text: (descriptionFor(String(o.value))?.text || "").trim(),
+  rows: [],
+  chips: [],
+});
+
 // The saved-profile picker and its two actions. Load runs live; Delete asks
-// which presets the removal should reach before it touches anything.
+// which presets the removal should reach before it touches anything. The picker
+// is the app's own combobox rather than a native select, because a native option
+// row has no surface a description can show on (components/binder.js).
 /**
  * @param {{ saved: string[], sel: string, busy: string }} props
  */
@@ -282,15 +307,13 @@ function SavedProfilesField({ saved, sel, busy }) {
         <div class="field">
           <label>Saved profiles</label>
           <div class="control">
-          <select
-            value=${sel}
+          <${Combobox}
+            value=${saved.includes(sel) ? sel : ""}
+            options=${profileOptions(saved)}
+            tips=${profileTips}
             disabled=${!!busy}
-            onWheel=${wheelGuard}
-            onChange=${(/** @type {{ target: HTMLSelectElement }} */ e) => (profileSel.value = e.target.value)}
-          >
-            <option value="">[Default]</option>
-            ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
-          </select>
+            onChange=${(/** @type {string | number} */ v) => (profileSel.value = String(v))}
+          />
           <button
             type="button"
             class="mtx-tool mtx-primary"
