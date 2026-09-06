@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import functools
 import socket
+import struct
 import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
@@ -96,6 +97,35 @@ def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:
 #: Invented metadata for the app under test: join and lookup mechanics run on
 #: this, never on the shipped prose (docs/testing.md rule 9).
 METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
+
+#: Bytes of a WAVE container before its samples: RIFF form header, a 16-byte
+#: PCM `fmt ` chunk, and the `data` chunk header.
+WAVE_HEADER_BYTES = 44
+
+
+def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
+    """A minimal PCM WAVE container, one 16-bit channel at 44100 Hz, whose
+    `data` chunk is padded with null samples so the whole file is exactly
+    ``size`` bytes (46 at least: the header plus one sample). The RIFF form and
+    `data` sizes are kept in step with the padding, so a strict and a lax
+    container check accept the same bytes."""
+    data_len = size - WAVE_HEADER_BYTES
+    if data_len < 2:
+        raise ValueError("a WAVE container needs at least one sample")
+    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+    return b"".join(
+        [
+            b"RIFF",
+            struct.pack("<I", 4 + 8 + len(fmt) + 8 + data_len),
+            b"WAVE",
+            b"fmt ",
+            struct.pack("<I", len(fmt)),
+            fmt,
+            b"data",
+            struct.pack("<I", data_len),
+            bytes(data_len),
+        ]
+    )
 
 
 def _reachable(client: TestClient) -> bool:

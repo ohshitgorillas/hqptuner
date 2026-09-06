@@ -8,6 +8,7 @@ import io
 import zipfile
 from typing import Any
 
+from conftest import minimal_wave
 from fastapi.testclient import TestClient
 
 # --- backup / restore ---------------------------------------------------------
@@ -208,7 +209,7 @@ def test_speakers_apply_rejects_an_out_of_range_level(http_client: TestClient) -
 
 
 def test_filter_upload_returns_the_daemon_home_path(http_client: TestClient) -> None:
-    resp = http_client.post("/api/matrix/filter", files={"file": ("probe.wav", b"RIFF", "audio/wav")})
+    resp = http_client.post("/api/matrix/filter", files={"file": ("probe.wav", minimal_wave(), "audio/wav")})
     assert resp.json()["path"] == "/x/home/probe.wav"
 
 
