@@ -64,9 +64,12 @@ lint-js:
 
 # The coverage floor is per file and lives in the gate below, not in
 # --cov-fail-under. Second recipe line, so a failing suite reports first.
+# The junit report carries the suite's wall time; the third line holds it to
+# the last green run's (scripts/gates/check_suite_time.py).
 test:
-	$(VENV)/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
+	$(VENV)/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
 	$(VENV)/python scripts/gates/check_coverage_floor.py
+	$(VENV)/python scripts/gates/check_suite_time.py
 
 test-live:
 	$(VENV)/pytest -m "not e2e" -q

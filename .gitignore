@@ -8,6 +8,9 @@ __pycache__/
 .ruff_cache/
 .coverage
 .coverage.json
+.pytest-junit.xml
+# last green run's wall time, the bar scripts/gates/check_suite_time.py holds the suite to
+.suite-time.json
 htmlcov/
 
 # editor scratch — vim swap files for anything open in the tree
