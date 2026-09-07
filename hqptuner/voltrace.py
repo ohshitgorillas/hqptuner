@@ -68,6 +68,17 @@ def _text(value: Any) -> str | None:
     return None if value is None else str(value)
 
 
+def form_subset(form: Mapping[str, Any] | None) -> dict[str, str | None]:
+    """Return ``subset`` of a parsed 8088 form, which is a field LIST rather than a mapping.
+
+    ``config_form`` is ``{"fields": [{"name": …, "value": …}, …]}`` as the daemon's page parses (``conf/httpconf``),
+    so reading a field name off it as a key finds nothing at all — every value would read null and the change test
+    behind it would never fire. Same flattening ``engine/devicecaps`` does for the selected device.
+    """
+    fields = (form or {}).get("fields", [])
+    return subset({field.get("name"): field.get("value") for field in fields})
+
+
 def live_volume(mgr: ConnectionManager) -> dict[str, str | None]:
     """Return the playing volume the engine is currently reporting, as a one-field mapping.
 
