@@ -7,7 +7,9 @@ flags the daemon reachable before the 8088 lane's loads run (conftest's
 `settled` says so), and `POST /restore` restarts hqplayerd underneath both lanes
 (docs/architecture.md:17) while the 4321 lane never restarts anything itself
 (docs/architecture.md:16). An install with no management credentials has no 8088
-lane at all (docs/architecture.md:37), so for it the two moments coincide.
+lane at all (docs/architecture.md:37), but the connect still fetches the daemon's
+release from the ungated `/about` page (docs/protocol.md:165), so for it too
+`ready` is a later moment than `reachable`.
 
 The restart window is modeled on the control fake's own socket rather than on a
 knob inside the manager: a daemon that restarts drops every open connection and
@@ -24,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import DaemonFactory, LiveManager, StartManager, eventually, settled
+from conftest import DaemonFactory, StartManager, eventually, settled
 from fake_control import DEFAULTS, CommandLog, serve
 from fake_control import serve as fake_serve
 
@@ -78,12 +80,38 @@ async def test_health_reads_not_ready_at_the_moment_the_daemon_turns_reachable(
 # --- an install with no 8088 lane has nothing to wait for --------------------
 
 
-async def test_health_reads_ready_with_no_management_credentials_configured(live_manager: LiveManager) -> None:
-    # the fixture's manager is built with no HTTP config client at all, which is
-    # what a credential-less install runs as: read-only use and the live
-    # settings work without them, and no lane ever loads
-    manager, _log, _state = await live_manager()
-    assert health(manager)["ready"] is True
+@pytest.fixture
+async def credential_less_manager(daemon: DaemonFactory) -> AsyncIterator[ConnectionManager]:
+    """A manager built the way ``live_manager`` builds one, with no HTTP config
+    client at all, which is what a credential-less install runs as: read-only
+    use and the live settings work without them, and no lane ever loads.
+    Production poll pacing. Yielded the moment it is started, before
+    ``reachable`` turns, so a case picks the moment it reads."""
+    port, _log, _state = await daemon()
+    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port))
+    task = asyncio.create_task(manager.run())
+    yield manager
+    manager.stop()
+    await task
+    await manager.aclose()
+
+
+async def test_health_reads_ready_with_no_management_credentials_configured(
+    credential_less_manager: ConnectionManager,
+) -> None:
+    # no 8088 lane to gate on, yet the connect is still not instantaneous: the
+    # moment the daemon turns reachable is not yet the moment the app is ready
+    manager = credential_less_manager
+    await _at_the_first_pass_where(lambda: manager.reachable)
+    turned_reachable = health(manager)
+    await settled(manager)
+    loaded = health(manager)
+    assert (turned_reachable["reachable"], turned_reachable["ready"], loaded["reachable"], loaded["ready"]) == (
+        True,
+        False,
+        True,
+        True,
+    )
 
 
 # --- a restore takes the control connection with it --------------------------
