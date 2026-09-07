@@ -13,7 +13,9 @@ from __future__ import annotations
 from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hqptuner.errors import HQPTunerError
 
@@ -34,7 +36,15 @@ STATUS: dict[str, int] = {
     "store_too_new": 409,
     "chain_unknown": 409,
     "route_refused": 409,
+    "route_unknown": 404,
+    "method_not_allowed": 405,
 }
+
+# The two refusals the framework raises on its own, before any route runs: no
+# route at that path, and a real path hit with the wrong method. Keyed by the
+# status the router raised, since that is all it says; STATUS still owns the
+# status of each code.
+_FRAMEWORK_CODES: dict[int, str] = {404: "route_unknown", 405: "method_not_allowed"}
 
 
 class ApiError(HTTPException):
@@ -63,6 +73,17 @@ async def _render(_: Request, exc: Exception) -> Response:
     return JSONResponse({"detail": err.detail, "code": err.code}, status_code=err.status_code)
 
 
+async def _render_framework(request: Request, exc: Exception) -> Response:
+    # Registered for starlette's HTTPException: the router's own 404 and 405
+    # get the shared shape and their code; anything else keeps FastAPI's default.
+    err = cast("StarletteHTTPException", exc)
+    code = _FRAMEWORK_CODES.get(err.status_code)
+    if code is None:
+        return await http_exception_handler(request, err)
+    return JSONResponse({"detail": err.detail, "code": code}, status_code=err.status_code, headers=err.headers)
+
+
 def install(app: FastAPI) -> None:
-    """Register the renderer so every ``ApiError`` answers in the shared shape."""
+    """Register the renderers so every refusal, the framework's own included, answers in the shared shape."""
     app.add_exception_handler(ApiError, _render)
+    app.add_exception_handler(StarletteHTTPException, _render_framework)

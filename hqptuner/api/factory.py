@@ -68,7 +68,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.matrix_modes = manager.presetops.matrix_modes
     # Both `/preset/{name:path}` routes are greedy so that an empty or
     # separator-bearing name reaches the store's name rule instead of falling
-    # past every route into the SPA mount. Their registration order carries
+    # past every route to the router's own 404. Their registration order carries
     # nothing: they differ by method, and a route whose path matches but whose
     # method does not is a partial match, never a full one.
     app.include_router(status.router)
