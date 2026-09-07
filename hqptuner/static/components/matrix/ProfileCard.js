@@ -171,7 +171,6 @@ function ProfileSaveRow({ saved, busy }) {
       />
       <button
         type="button"
-        class="mtx-tool"
         disabled=${!!busy || !newName}
         title=${exists ? `Replace "${newName}" with the current matrix` : "Save the current matrix under this name"}
         onClick=${() =>
@@ -300,7 +299,9 @@ const profileTips = (o) => ({
 // is the app's own combobox rather than a native select, because a native option
 // row has no surface a description can show on (components/binder.js). Load and
 // Delete sit on their own row under the trigger, so the trigger takes the whole
-// control track.
+// control track, and wear the app's default button chrome like the Live presets
+// actions: .mtx-tool is the chip for inline pipeline-row tools, not a standalone
+// action under a full-width control.
 /**
  * @param {{ saved: string[], sel: string, busy: string }} props
  */
@@ -320,7 +321,6 @@ function SavedProfilesField({ saved, sel, busy }) {
         <div class="mtx-profile-actions">
           <button
             type="button"
-            class="mtx-tool mtx-primary"
             disabled=${!!busy}
             title="Load this profile into the running matrix"
             onClick=${() => act("load", () => loadProfile(sel))}
@@ -329,7 +329,6 @@ function SavedProfilesField({ saved, sel, busy }) {
           </button>
           <button
             type="button"
-            class="mtx-tool mtx-remove"
             disabled=${!!busy || !sel}
             title="Delete this saved profile"
             onClick=${() =>
