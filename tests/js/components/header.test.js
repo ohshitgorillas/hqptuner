@@ -58,7 +58,7 @@ const PROFILES = {
  * @typedef {{ value: string, options: { value: string, label: string }[] }} ProfilesField
  *
  * @typedef {{
- *   health?: { reachable: boolean, info?: Record<string, string> } | null,
+ *   health?: { reachable: boolean, ready?: boolean, info?: Record<string, string> } | null,
  *   engine?: Record<string, string>,
  *   config?: { fields: unknown[], active: string, profiles: ProfilesField | null } | null,
  *   active?: string,
@@ -251,3 +251,23 @@ test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {
 test("test_the_header_carries_the_connection_pill", () => {
   assert.ok(head().includes('class="pill pill-'));
 });
+
+// The pill's state, read as its own class — `pill-green` / `pill-red` are wire
+// identifiers, the word inside the span is copy.
+/** @param {string} out */
+const pillState = (out) => (/class="pill (pill-[a-z]+)"/.exec(out) || ["", ""])[1];
+
+// A daemon that answers the control lane is not a daemon the app has finished
+// loading from: `reachable` is true across a restart the configuration lane has
+// not come back from, and `ready` is the flag that is not.
+/** @type {[boolean, string][]} */
+const PILL_STATES = [
+  [false, "pill-red"],
+  [true, "pill-green"],
+];
+
+for (const [ready, state] of PILL_STATES) {
+  test(`test_a_reachable_daemon_with_ready_${ready}_wears_the_${state}_pill`, () => {
+    assert.equal(pillState(head({ health: { reachable: true, ready, info: {} } })), state);
+  });
+}

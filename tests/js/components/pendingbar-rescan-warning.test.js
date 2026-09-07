@@ -62,7 +62,7 @@ async function reset(warning) {
   applying.value = false;
   lastApply.value = null;
   pendingPreset.value = null;
-  health.value = { reachable: true };
+  health.value = { reachable: true, ready: true };
   engineState.value = {};
   matrixConfig.value = { fields: [] };
   config.value = { fields: [{ name: "volume_max", value: "-3" }], file: {}, active: "", profiles: null };

@@ -243,10 +243,14 @@ async def settled(manager: ConnectionManager) -> None:
 @pytest.fixture
 async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[StartManager]:
     """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``,
-    waiting until it has settled; everything is torn down at exit."""
+    waiting until it has settled; everything is torn down at exit.
+
+    ``settle=False`` hands the manager back before its connect body has run,
+    which is the only way a case can watch the app cross that window from
+    outside; every other caller wants the default."""
     started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
 
-    async def start(http_port: int, **overrides: Any) -> ConnectionManager:
+    async def start(http_port: int, *, settle: bool = True, **overrides: Any) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", http_port, "u", "p")
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
@@ -258,7 +262,8 @@ async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[
         manager = ConnectionManager(Config(**{**defaults, **overrides}), http)
         task = asyncio.create_task(manager.run())
         started.append((manager, task, http))
-        await settled(manager)
+        if settle:
+            await settled(manager)
         return manager
 
     yield start

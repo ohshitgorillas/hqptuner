@@ -61,7 +61,7 @@ async function reset({ reachable = true, active = "", profiles = null } = {}) {
   applying.value = false;
   lastApply.value = null;
   pendingPreset.value = null;
-  health.value = { reachable };
+  health.value = { reachable, ready: reachable };
   engineState.value = {};
   config.value = { fields: [{ name: "volume_max", value: "-3" }], file: {}, active, profiles };
   await discardAll();

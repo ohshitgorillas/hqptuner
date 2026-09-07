@@ -4,7 +4,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test. The only
 // branch App takes on its own is the unreachable gate — the `offline` class
-// off the exported `reachable` computed (itself a pure function of the
+// off the exported `ready` computed (itself a pure function of the
 // exported `health` signal). That gate, plus the fact that the chrome still
 // stands while offline, is the whole contract asserted here: everything else
 // App renders belongs to its children's own suites (header.test.js,
@@ -31,9 +31,16 @@ import {
 
 // Full reset on every call: module signals outlive a test, and every child of
 // App reads the store, so each case states the whole world it renders in.
-/** @param {boolean} reachable */
-function app(reachable) {
-  health.value = { reachable, info: {} };
+//
+// `ready` follows `reachable` unless a case says otherwise: the ordinary world
+// is a daemon that is either both or neither, and the window between them is
+// what the third case below is about.
+/**
+ * @param {boolean} reachable
+ * @param {boolean} [ready]
+ */
+function app(reachable, ready = reachable) {
+  health.value = { reachable, ready, info: {} };
   engineState.value = {};
   engineStatus.value = null;
   config.value = null;
@@ -48,6 +55,10 @@ test("test_an_unreachable_daemon_marks_the_app_offline", () => {
 
 test("test_a_reachable_daemon_leaves_the_offline_mark_off", () => {
   assert.equal(app(true).includes("offline"), false);
+});
+
+test("test_a_reachable_daemon_the_app_is_not_ready_for_stays_marked_offline", () => {
+  assert.ok(app(true, false).includes('class="app offline"'));
 });
 
 test("test_the_tab_bar_still_stands_while_offline", () => {
