@@ -123,10 +123,6 @@ def _allow_tokens(resp: Response) -> set[str]:
 
 
 def test_a_wrong_method_on_a_real_api_path_names_the_methods_it_takes(api_client: TestClient) -> None:
-    # /api/health is GET-only; the framework pairs HEAD with every GET route
+    # /api/health is GET-only, so the methods it takes are exactly that one
     resp = api_client.request("POST", "/api/health", follow_redirects=False)
-    assert (resp.status_code, resp.json().get("code"), _allow_tokens(resp)) == (
-        405,
-        "method_not_allowed",
-        {"GET", "HEAD"},
-    )
+    assert (resp.status_code, resp.json().get("code"), _allow_tokens(resp)) == (405, "method_not_allowed", {"GET"})
