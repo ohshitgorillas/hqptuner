@@ -1,12 +1,14 @@
-"""The pair driver's merge, on what its brief says about the spec tree's tests.
+"""The pair driver's merge, on what it tells the operator to do next.
 
 ``scripts/pair.sh merge <slug>`` lands a pair on ``dev`` and, on either exit
-of its ``make check`` step, prints the test-check brief the orchestrator
-forwards to the spec-reviewer. The brief is reduced here to which of two
-marker lines it carries: ``PIN by construction`` when the spec tree's tests
-are byte-identical to the ``test: <slug> red`` commit, so the reviewer has
-nothing to diff, and ``diff from red`` when they are not. Both markers are
-tokens the review chain keys on, not prose.
+of its ``make check`` step, prints a test-check brief and then closes by
+telling the operator what to do with it. The run is reduced here to which of
+three instruction markers its output carries: ``forward the TEST CHECK
+block`` when the spec tree's tests differ from the ``test: <slug> red``
+commit, so a reviewer has something to diff; ``no reviewer round`` when they
+are byte-identical, so there is nothing to review; and ``no brief to
+forward`` when the pair has no red commit at all. All three are tokens the
+review chain keys on, not prose.
 
 Every case builds a throwaway git checkout under ``tmp_path`` with the driver
 copied in and a ``Makefile`` whose ``check`` target is ``true``, opens a pair
@@ -29,13 +31,16 @@ DRIVER = REPO_ROOT / "scripts" / "pair.sh"
 
 GIT = shutil.which("git") or "/usr/bin/git"
 
-#: The marker line the brief carries when the spec tree's tests match the red commit.
-PIN_MARK = "PIN by construction"
+#: The instruction marker for a run whose brief a reviewer must see.
+FORWARD_MARK = "forward the TEST CHECK block"
 
-#: The marker line the brief carries when they do not.
-DIFF_MARK = "diff from red"
+#: The instruction marker for a run that needs no reviewer.
+NO_ROUND_MARK = "no reviewer round"
 
-MARKS = (PIN_MARK, DIFF_MARK)
+#: The instruction marker for a run that printed no brief to forward.
+NO_BRIEF_MARK = "no brief to forward"
+
+MARKS = (FORWARD_MARK, NO_ROUND_MARK, NO_BRIEF_MARK)
 
 #: The test file the writer adds in the spec tree before the red run.
 WRITTEN = "tests/test_probe_written.py"
@@ -111,37 +116,42 @@ def _checkout(tmp_path: Path, slug: str) -> Path:
     return root
 
 
-def _red_pair(root: Path, slug: str) -> Path:
-    """Open the pair, write one test file in its spec tree, land the red commit, hand back the spec tree."""
+def _opened_pair(root: Path, slug: str, steps: tuple[str, ...]) -> Path:
+    """Open the pair, write one test file in its spec tree, run the driver steps named after it."""
     opened = _pair(root, "open", slug, f"specs/{slug}.txt")
     if opened.returncode != 0:
         raise AssertionError(f"the fixture could not open a pair: {opened.stdout}{opened.stderr}")
     spec_tree = root / ".claude" / "worktrees" / f"{slug}-spec"
     _put(spec_tree, WRITTEN, _FIRST_TEST)
-    _pair(root, "red", slug)
+    for step in steps:
+        _pair(root, step, slug)
     return spec_tree
 
 
 def _markers(finished: subprocess.CompletedProcess[str]) -> set[str]:
-    """Which of the two marker lines the driver's combined output carries."""
+    """Which of the three instruction markers the driver's combined output carries."""
     output = finished.stdout + finished.stderr
     return {mark for mark in MARKS if mark in output}
 
 
-# --- 3. the brief's marker, by whether the tests still match the red commit ---
+# --- 3. the closing instruction, by the brief the same run printed ---
 
 
 @pytest.mark.parametrize(
-    ("appended", "expected"),
-    [("", {PIN_MARK}), (_SECOND_TEST, {DIFF_MARK})],
-    ids=["identical-to-red", "appended-after-red"],
+    ("steps", "appended", "expected"),
+    [
+        (("red",), "", {NO_ROUND_MARK}),
+        (("red",), _SECOND_TEST, {FORWARD_MARK}),
+        ((), "", {NO_ROUND_MARK, NO_BRIEF_MARK}),
+    ],
+    ids=["identical-to-red", "appended-after-red", "no-red-commit"],
 )
-def test_the_merge_brief_pins_by_construction_only_when_the_tests_match_the_red_commit(
-    tmp_path: Path, appended: str, expected: set[str]
+def test_the_merge_closing_instruction_follows_the_brief_the_same_run_printed(
+    tmp_path: Path, steps: tuple[str, ...], appended: str, expected: set[str]
 ) -> None:
     slug = "probe-merge"
     root = _checkout(tmp_path, slug)
-    spec_tree = _red_pair(root, slug)
+    spec_tree = _opened_pair(root, slug, steps)
     (spec_tree / WRITTEN).write_text(_FIRST_TEST + appended, encoding="utf-8")
     merged = _pair(root, "merge", slug)
     assert _markers(merged) == expected
