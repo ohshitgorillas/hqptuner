@@ -11,7 +11,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Fixed
 
 - **A refused preset name now says why.** An invalid live snapshot or config preset name is refused with a reason stated in plain English.
-- **A preset name with a slash in it is now refused by name.** A live snapshot or config preset name carrying a path separator was answered as though the request itself were the wrong kind. It is now refused as an invalid name, with the reason stated.
 - **Convolution filter uploads are checked before they are kept.** An upload is refused unless it is a WAV container or a text file, is under the size limit, and has a plain filename; before, any bytes under a .wav or .txt name were parked and shipped to the daemon on the next apply.
 - **A setting is no longer reported applied when the daemon has stopped answering.** A daemon that went quiet mid-write could leave HQPTuner reporting an unapplied setting as applied, or showing a value that was never the one it asked for. It now reports the daemon unavailable until the connection is back.
 - **The app reports itself connected only once both daemon lanes are up.** A preset change flashed Connected, then Unreachable, then Connected while the daemon restarted, and a fresh start showed a connected, undimmed page while it was still loading. The status pill and the page dim now stay unavailable until both the control and the configuration lane answer.
