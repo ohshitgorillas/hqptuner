@@ -36,7 +36,7 @@ import rule from "../../../eslint-rules/assertion-shape.js";
  */
 function recording(sink) {
   return {
-    meta: rule.meta,
+    meta: /** @type {import("eslint").Rule.RuleMetaData} */ (rule.meta),
     create(context) {
       const seen = new Proxy(context, {
         get(target, key) {
@@ -44,8 +44,8 @@ function recording(sink) {
             return Reflect.get(target, key);
           }
           return (/** @type {import("eslint").Rule.ReportDescriptor} */ descriptor) => {
-            const data = /** @type {{ data?: { count?: unknown } }} */ (descriptor).data;
-            sink.push({ messageId: descriptor.messageId, count: data?.count });
+            const { messageId, data } = /** @type {{ messageId?: string, data?: { count?: unknown } }} */ (descriptor);
+            sink.push({ messageId, count: data?.count });
             target.report(descriptor);
           };
         },
