@@ -204,14 +204,13 @@ STALE_TEXT = (
 
 
 def _batch_follower(rows, tool_id, sizes):
-    """True when this call sits behind another unfinished free call in its own
-    assistant row.
+    """True when this call must defer: another unfinished free call precedes it
+    in its own assistant row, or that row is not in the transcript yet.
 
-    A parallel batch fires one PostToolUse per call, and the siblings' results
-    are not in the transcript yet when each fires, so every sibling would
-    compute the same crossing and speak. Only the batch's first unfinished free
-    call speaks; the rest defer to it.
-    """
+    A parallel batch fires one PostToolUse per call before the siblings' results
+    land, so only the first unfinished free call speaks. A call whose row is
+    absent cannot tell whether it has siblings; silence is the safe direction for
+    an advisory, and the crossing is absorbed into the next multiple."""
     for row in rows:
         message = budget._msg(row)
         if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
@@ -224,7 +223,7 @@ def _batch_follower(rows, tool_id, sizes):
         pending = [b["id"] for b in blocks if b.get("id") not in sizes
                    and budget.classify(b.get("name"), b.get("input"), root, cwd) == budget.FREE]
         return bool(pending) and pending[0] != tool_id
-    return False
+    return True
 
 
 def count_metered(data, rows, root, cwd):
@@ -361,11 +360,10 @@ def _check(label, condition):
 
 def self_test():
     one, two = os.path.join(HOOK_DIR, "one.py"), os.path.join(HOOK_DIR, "two.py")
-    small = 1000        # well inside one threshold multiple, so the byte
-    #                     advisory cannot fire and mask the re-read checks
+    small = 1000  # inside one threshold multiple, so the byte advisory cannot fire and mask the re-read checks
 
-    rows = [_said("go"), *_read(0, one, THRESHOLD - 1000)]
-    fired = advise(_post("Read", {"file_path": two}, 5000), rows)
+    rows = [_said("go"), *_read(0, one, THRESHOLD - 1000), _call("c", "tc", "Read", {"file_path": two})]
+    fired = advise(_post("Read", {"file_path": two}, 5000, "tc"), rows)
     ok = [_check("byte advisory fires on crossing the threshold", bool(fired))]
     ok.append(_check("byte advisory names the read-only agent types", "Explore" in (fired or "")))
     rows += [*_read(1, two, 5000)]
@@ -379,6 +377,8 @@ def self_test():
             advise(_post("Read", {"file_path": three}, 5000, "t2"), batch))
     ok.append(_check("a parallel batch crossing the threshold speaks once, from its first call",
                      bool(pair[0]) and pair[1] is None))
+    ok.append(_check("a call whose assistant row is not in the transcript yet stays silent",
+                     advise(_post("Read", {"file_path": two}, 5000, "absent"), batch[:-1]) is None))
 
     edited = [_said("go"), *_read(0, one, small),
               _call("w", "tw", "Edit", {"file_path": one}), _result("tw", 10)]

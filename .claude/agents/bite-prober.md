@@ -1,6 +1,6 @@
 ---
 name: bite-prober
-description: Measures what HEAD does at the inputs a draft spec block names, so every `bite:` clause carries a value the orchestrator did not type. Brief is the slug, the numbered behavior lines with their inputs, and the surface under test, nothing else; an expected value, a `kills:` reading or a diff in the brief is refused as steering. Runs offline against the checkout it is pointed at and returns one line per behavior.
+description: Measures what HEAD does at the inputs a draft spec block names where the measurement needs a throwaway script or a rendered state space, so those `bite:` clauses carry a value the orchestrator did not type; a one-command measurement is the orchestrator's own. Brief is the slug, the numbered behavior lines with their inputs, and the surface under test, nothing else; an expected value, a `kills:` reading or a diff in the brief is refused as steering. Runs offline against the checkout it is pointed at and returns one line per behavior.
 tools: Read, Grep, Glob, Bash, Write
 model: inherit
 hooks:

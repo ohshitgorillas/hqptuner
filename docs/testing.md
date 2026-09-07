@@ -65,6 +65,18 @@ Violations rejected in review even if tests pass.
 
 16. **No environment coupling.** No test reads hostname, locale, timezone, cwd, HOME or a fixed port. Rule 7 covers the clock; this covers the rest.
 
+## Excision blocks
+
+Rule 9 orders a copy-pinning test deleted, and no hand edits `tests/` directly, so a deletion travels the `/tests` chain as a spec block whose first line is `kind: excision`. The block carries excision lines in place of behavior lines, never both:
+
+```
+N. excise <target>
+   rule: docs/testing.md rule <n>
+   assertion: <the offending assertion, quoted from the test file>
+```
+
+The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `test-writer` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh red` before it commits, since the lane hook denies every agent that shell. An excision line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
+
 ## Markers
 
 - Default suite offline and deterministic; must pass on machine with no hqplayerd.
