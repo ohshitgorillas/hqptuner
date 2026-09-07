@@ -1,0 +1,154 @@
+kind: refactor
+
+slug: testrules-sweep-9ecc
+
+The target list is the gate's own output on dev at 2f824f8b: `make lint` runs `scripts/gates/check_test_assertions.py --report` and prints one line per finding; `make lint-js` runs `eslint-rules/assertion-shape.js` at warn and prints one warning per site. Both are pasted verbatim under each line's `existing:`. Every reshaped test keeps its name, its fixture and its input; the writer's return names the surviving comparison per site. A site where no value from the fixture discriminates is not reshaped and not deleted here: the writer lists it in its return and it becomes a target of a separate `kind: excision` block citing docs/testing.md rule 10.
+
+1. Every test the Python gate reports as `N assertions (want 1)` or the JS shape rule reports as `N assertions in one call`, with a boolean conjunction as its one assert, asserts once. A `None` or null guard becomes the empty value of the declared type, `(x or {})["k"]` for a mapping and `(x or [])[i]` for a sequence in Python, `(x || {}).k` in JS, so strict mypy passes without an ignore. A conjunction of two conditions on the same fixture output becomes one comparison of a collected or tuple value: `[sits_at(f, path, line_of(2)) for f in findings] == [True]`, `([l for l in lines if ABSENT_FILTER in l] != [], [l for l in lines if TWO_STAGE_FILTER in l]) == (True, [])`, `(type(err), err == "") == (str, False)`. An ordering chain such as `a >= 0 && a < b && b < c` becomes one `deepEqual` of the sequence against its sorted copy, with the `>= 0` bound as its own test where the fixture makes it matter. Otherwise the assertion is on the operand that names the behavior.
+   kills: a reshape that keeps the guard operand and drops the value; a reshape that keeps one of two pinned conditions and drops the other; a reshape that binds the conjunction to a name and asserts the name.
+   bite: green expected (refactor); the gate's report line or the rule's warning for the site disappears.
+   existing: 33 Python sites, gate output verbatim:
+   tests/engine/test_filter_join.py:27 test_a_2s_name_answers_the_base_prose_extended_by_the_two_stage_note
+   tests/engine/test_junk_advisor.py:97 test_fake_hires_recommends_the_20k_filter
+   tests/engine/test_junk_advisor.py:102 test_fake_hires_reason_names_the_filter
+   tests/engine/test_junk_advisor.py:107 test_fake_hires_reports_the_content_ceiling
+   tests/engine/test_junk_advisor.py:130 test_persistent_hf_tone_recommends_a_rolloff_above_the_tone
+   tests/engine/test_junk_advisor.py:135 test_spur_reason_names_the_filter
+   tests/engine/test_junk_advisor.py:140 test_spur_reports_the_tone_ceiling
+   tests/engine/test_junk_advisor.py:155 test_noise_shaping_ramp_recommends_the_50k_filter
+   tests/engine/test_junk_advisor.py:168 test_fake_hires_stream_yields_20k_advice
+   tests/engine/test_junk_advisor.py:292 test_sdm_metadata_marks_the_context_sdm
+   tests/engine/test_junk_advisor.py:353 test_spur_reason_names_the_corner_and_the_hires_alternative
+   tests/engine/test_junk_advisor.py:358 test_spur_reason_tracks_the_recommended_corner
+   tests/engine/test_junk_advisor.py:364 test_spur_verdict_offers_the_hires_families
+   tests/engine/test_junk_advisor.py:369 test_brickwall_verdict_offers_no_families
+   tests/engine/test_junk_advisor.py:374 test_shaping_ramp_verdict_offers_no_families
+   tests/engine/test_junk_advisor.py:402 test_treats_reads_the_spur_verdict_against_the_engine_settings
+   tests/engine/test_junk_advisor.py:409 test_family_filter_does_not_treat_the_brickwall_verdict
+   tests/engine/test_junk_advisor.py:414 test_engaged_corner_above_the_recommendation_does_not_treat_the_brickwall_verdict
+   tests/engine/test_junk_advisor.py:419 test_engaged_20k_corner_treats_the_brickwall_verdict
+   tests/engine/test_junk_advisor.py:427 test_context_reports_the_active_main_filter
+   tests/engine/test_junk_advisor.py:439 test_context_filter_is_none_when_status_omits_the_attribute
+   tests/engine/test_junk_persistence.py:75 test_a_bin_fed_the_same_power_reports_that_level
+   tests/engine/test_junk_persistence.py:80 test_an_intermittent_bin_reports_its_low_level
+   tests/engine/test_junk_persistence.py:108 test_silent_frames_never_lower_the_window_min
+   tests/engine/test_junk_persistence.py:141 test_a_verdict_latches_for_the_rest_of_the_track
+   tests/engine/test_junk_persistence.py:184 test_disengaging_brings_the_latched_verdict_back_without_new_frames
+   tests/engine/test_junk_persistence.py:209 test_wire_silent_frames_do_not_erase_a_persistent_tone
+   tests/engine/test_metering_idle.py:172 test_the_idle_close_keeps_the_verdict_earned_before_the_pause
+   tests/gates/test_check_metadata.py:86 test_an_enumerated_modulator_missing_from_shapers_is_the_only_thing_reported
+   tests/gates/test_check_metadata.py:92 test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported
+   tests/gates/test_check_no_copy_assertions.py:97 test_a_literal_handed_to_a_plain_call_is_input_while_a_method_call_argument_is_reported
+   tests/gates/test_check_no_copy_assertions.py:111 test_support_seeds_cover_verbatim_composed_and_skeleton_literals_but_not_an_extra_word
+   tests/presets/test_autosave.py:223 test_failed_autosave_carries_an_error_string
+   43 JS sites, eslint output verbatim (path under tests/js/, line:column):
+   components/card-gates.test.js 368:3, 393:3
+   components/combobox-blurbs.test.js 236:3, 244:3, 250:3
+   components/conversioncards.test.js 114:3
+   components/crossfeed.test.js 378:3
+   components/enginehealth-strip.test.js 567:3
+   components/fftlength.test.js 146:3, 163:3, 171:3, 185:3
+   components/field-rescan-caption.test.js 77:3
+   components/loudness-strip.test.js 214:3
+   components/matrix-bypass-note.test.js 334:3
+   components/matrix-postprocess-gating.test.js 433:5, 478:5, 489:5, 504:5, 529:5, 569:3, 578:3
+   components/matrixtab.test.js 300:3
+   components/narrowbar-favchip.test.js 96:3
+   components/outputtab.test.js 320:3, 329:3, 338:3, 347:3, 435:3
+   components/primerextremes.test.js 280:3
+   components/primerimpulse.test.js 372:3
+   components/volumetab.test.js 165:3, 183:3
+   eqlab/eqlab-guidance.test.js 94:3
+   eqlab/eqlab-refine.test.js 175:3, 330:3
+   eqlab/eqlab-replace.test.js 409:3
+   eqlab/render-io.test.js 62:3
+   store/primergraph.test.js 78:3, 128:3
+   store/tabmap.test.js 261:5, 268:3
+   store/xfmode.test.js 292:3
+
+2. Every Python test the gate reports as `loop` for an `all()` or `any()` over a generator asserts once on a collected value: a `@pytest.mark.parametrize` case per element where the elements are the fixture's, one comparison of the collected list or set against the value the fixture supplied, or one comparison stating the relation the sweep claimed, `sorted(set(seqs)) == seqs` for strict increase.
+   kills: a reshape to `assert True`-shaped truthiness of the collected value; a reshape that keeps the generator behind a name.
+   bite: green expected (refactor); the gate's `loop` line for the site disappears.
+   existing: 9 sites, gate output verbatim:
+   tests/apply/test_form_parse.py:65 test_profile_list_includes_the_default_base_configuration
+   tests/apply/test_manager_apply.py:158 test_a_mode_batch_with_a_leftover_field_keeps_the_mode_off_the_live_lane
+   tests/apply/test_manager_apply.py:165 test_a_mode_batch_with_a_leftover_field_keeps_the_chain_field_off_the_live_lane
+   tests/apply/test_staged_mode_reenum.py:76 test_a_mode_apply_matching_the_running_mode_sends_no_mode_setter
+   tests/audit/test_audit_log.py:128 test_seq_strictly_increases_across_successive_records
+   tests/engine/test_control_stall.py:333 test_a_housekeeping_failure_after_a_write_names_the_command_that_failed
+   tests/engine/test_control_stall.py:342 test_a_housekeeping_failure_after_a_write_is_logged_at_warning
+   tests/matrix/test_profile_backfill.py:206 test_after_an_apply_every_profile_reads_back_with_a_non_empty_post
+   tests/test_autoeq.py:12 test_autoeq_blob_decodes_to_profiles_with_verbatim_filter_text
+
+3. Every `assert` the gate reports as `outside` moves out of its module-level function. The twelve loader helpers (eleven `_load_gate_module`, one `_load_hook_module`) raise `ImportError` when the import spec or its loader is missing, so the precondition stays without an assert. Two asserts drop: `_a_shipped_exemption_key` at tests/gates/test_coverage_floor.py:65, whose `keys[0]` already raises on the empty case and whose caller is the module constant at :70, and the fixture `understood_schema` at tests/presets/test_live_preset_store.py:81, whose every consumer compares the returned schema. `line_naming` and `refusal` return the evidence and their calling tests assert it. Every calling test keeps its single assertion.
+   kills: a reshape that moves the helper's assert into the test as a second assertion; a reshape that drops the loader precondition.
+   bite: green expected (refactor); the gate's `outside` line for the site disappears.
+   existing: 16 sites, gate output verbatim:
+   tests/gates/test_check_archaeology.py:36 _load_gate_module
+   tests/gates/test_check_commit_msg.py:34 _load_gate_module
+   tests/gates/test_check_metadata.py:52 _load_gate_module
+   tests/gates/test_check_no_copy_assertions.py:47 _load_gate_module
+   tests/gates/test_container_env.py:38 _load_gate_module
+   tests/gates/test_coverage_floor.py:41 _load_gate_module
+   tests/gates/test_coverage_floor.py:65 _a_shipped_exemption_key
+   tests/gates/test_coverage_floor.py:75 line_naming
+   tests/gates/test_file_length_ratchet.py:48 _load_gate_module
+   tests/gates/test_gates_wired.py:36 _load_gate_module
+   tests/gates/test_nesting.py:51 _load_gate_module
+   tests/gates/test_no_barrels.py:57 _load_gate_module
+   tests/gates/test_openapi_snapshot.py:39 _load_gate_module
+   tests/gates/test_reviews_lane.py:37 _load_hook_module
+   tests/presets/test_description_routes.py:199 refusal
+   tests/presets/test_live_preset_store.py:81 understood_schema
+
+4. Every test the Python gate reports as `existence` or the JS shape rule reports as `existence pinned` asserts, in place of `is not None`, `len(x) > 0`, `!== null`, `!== undefined` or `notEqual(x, null)`, a value the fixture supplied, the value's relation to one, or a state-bearing attribute of the rendered node; a site where no such value exists is listed in the writer's return for the excision block and left as it is.
+   kills: a reshape to `assert x` or `assert.ok(x)` truthiness; a reshape to `x == x`; a reshape that invents the expected value from the implementation.
+   bite: green expected (refactor); the gate's `existence` line or the rule's warning for the site disappears.
+   existing: 7 Python sites, gate output verbatim:
+   tests/apply/test_fault_narrowing.py:62 test_a_refusing_form_route_records_that_forms_error
+   tests/apply/test_manager_connect_load.py:43 test_a_dead_http_lane_records_the_form_error
+   tests/apply/test_manager_connection.py:81 test_a_poll_failure_records_when_the_outage_began
+   tests/engine/test_devicecaps.py:110 test_a_device_with_no_dsd_path_is_still_a_capability
+   tests/engine/test_junk_persistence.py:58 test_window_min_appears_once_the_window_is_earned
+   tests/engine/test_metering_idle.py:319 test_a_metering_enabled_app_serves_a_junk_recommendation
+   tests/presets/test_backup_workaround.py:54 test_a_healthy_backup_is_cached_for_the_outage
+   44 JS sites, eslint output verbatim (path under tests/js/, line:column):
+   components/card-gates.test.js 342:3
+   components/combobox.test.js 68:3
+   components/crossfeed.test.js 158:3, 163:3
+   components/easytiles-tips.test.js 111:5
+   components/field-advice.test.js 55:3, 60:3, 65:3, 70:3
+   components/field.test.js 333:3, 369:3
+   components/livecombobox.test.js 206:3, 221:3, 235:3
+   components/matrixtab-mirror.test.js 114:3, 119:3
+   components/playbackvolume.test.js 173:3, 178:3, 257:3
+   components/volumerangebar-axis.test.js 309:5, 595:3, 600:3
+   components/xfeedcomp.test.js 165:3
+   lib/binaural.test.js 81:3, 135:5, 140:3, 239:3, 289:3, 314:3
+   lib/eqimport.test.js 245:3, 348:3
+   lib/xfeed.test.js 96:3, 110:3, 223:3
+   store/applyguard.test.js 604:3, 617:3, 636:3
+   store/easyview.test.js 137:3
+   store/snrguard.test.js 172:3, 180:3, 289:3, 369:5, 409:3
+   store/xfmode-refusal.test.js 130:3
+
+Public entry points: none change; every reshaped test exercises the surface it already exercised.
+
+Wire and protocol facts: none new.
+
+Applicable fixtures: whatever each target already uses; no fixture changes.
+
+Changelog entry: no entry; test-suite work, nothing user-visible.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on scripts/gates/check_test_assertions.py --report and eslint-rules/assertion-shape.js: 33+43, 9, 16 and 7+44 report lines, each line's outcome one report line vanishing while `make lint` / `make lint-js` stay green, targets enumerated by the gate rather than by grep, and every reshape that clears the gate without pinning (bound name, dropped second condition, truthiness) named in a `kills:` clause for the post-merge read.
+
+1  KEEP  76 conjunction sites (33 Python `N assertions (want 1)`, 43 JS `N assertions in one call`) -> one assertion: guard becomes `(x or {})["k"]` / `(x or [])[i]` / `(x || {}).k`, two conditions on one fixture output become one collected or tuple comparison, an ordering chain becomes `deepEqual` against its sorted copy; `assert verdict is not None` at tests/engine/test_junk_advisor.py:97 fails "keeps the guard operand and drops the value", `assert len(findings) == 1` at tests/gates/test_check_no_copy_assertions.py:97 fails "keeps one of two pinned conditions", `ok = a and b; assert ok` fails "binds the conjunction to a name"; bite: refactor exempt (rule 8, stated), the site's gate report line or eslint warning disappears.
+2  KEEP  9 `loop` sites -> one parametrize case per fixture element, one comparison of the collected list/set against a fixture value, or one relation comparison (`sorted(set(seqs)) == seqs` at tests/audit/test_audit_log.py:128); `assert bool([...])` fails the comparison clause at tests/apply/test_manager_apply.py:158, `found = any(...); assert found` fails "keeps the generator behind a name"; bite: refactor exempt (rule 8, stated), the site's `loop` line disappears. Carried from round 2, text changed only by the added relation clause.
+3  KEEP  16 `outside` sites -> twelve loaders raise `ImportError` on a missing spec or loader, `_a_shipped_exemption_key` (:65) and the fixture `understood_schema` (tests/presets/test_live_preset_store.py:81) drop their assert, `line_naming` and `refusal` return the evidence to the calling test's single assertion; a second `assert` in a caller fails "Every calling test keeps its single assertion", `spec.loader.exec_module(...)` with the None check removed fails "drops the loader precondition"; bite: refactor exempt (rule 8, stated), the site's `outside` line disappears.
+4  KEEP  51 existence sites (7 Python `existence`, 44 JS `existence pinned`) -> a fixture-supplied value, its relation to one, or a state-bearing attribute of the rendered node (tests/engine/test_devicecaps.py:110 `["device"] == "naa-pi2aes/hw:CARD=Pi2AES,DEV=0"`, tests/apply/test_manager_connection.py:81 `unreachable_since` against the virtual clock reading); `assert x` / `assert.ok(x)` fails the value clause, `x == x` fails it, a value copied from the implementation fails the third kills; bite: refactor exempt (rule 8, stated), the site's `existence` line or warning disappears. Carried from round 2, text changed only by the folded JS forms. Note: each of the seven Python sites has a fixture value in its test file; the "left as it is" escape is expected at none of them, and any JS site the writer leaves is named in its return for the excision block.
+
+null stub: the writer touches nothing; `check_test_assertions.py --report` and the eslint warn output still print every one of the 152 sites, so every line fails on its own `bite:` observation.
+hard-coded stub: `ok = a and b; assert ok`, `const ok = a && b; assert.ok(ok)`, `found = any(...); assert found`, `assert x != None` and `assert.ok(x !== void 0)` all clear the gate and the rule while pinning nothing; each is named by a `kills:` clause on lines 1, 2 or 4 and is caught at the post-merge read, since no gate sees through a bound name or a rewritten comparator; line 3's `raise ImportError` is the line's own repair and passes.
+survives: 4
