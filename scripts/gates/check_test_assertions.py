@@ -169,11 +169,20 @@ def _is_private_reach(node: ast.Attribute) -> bool:
     return not (isinstance(node.value, ast.Name) and node.value.id in _SELVES)
 
 
+def _private_reaches(path: Path, scope: ast.AST, name: str) -> list[Finding]:
+    reaches = (node for node in _own_nodes(scope) if isinstance(node, ast.Attribute) and _is_private_reach(node))
+    return [("private", f"{path}:{node.lineno} {name}", 0) for node in reaches]
+
+
 def _private_findings(path: Path, tree: ast.Module) -> list[Finding]:
+    """Private reaches per enclosing function, module-level code under ``<module>``."""
     if "support" in path.parts:
         return []
-    attributes = (node for node in ast.walk(tree) if isinstance(node, ast.Attribute))
-    return [("private", f"{path}:{node.lineno} {node.attr}", 0) for node in attributes if _is_private_reach(node)]
+    findings = _private_reaches(path, tree, "<module>")
+    for node in ast.walk(tree):
+        if isinstance(node, _FUNCS):
+            findings.extend(_private_reaches(path, node, node.name))
+    return findings
 
 
 def _line_of(finding: Finding) -> int:

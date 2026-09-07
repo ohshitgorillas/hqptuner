@@ -13,15 +13,30 @@
 // invisible here. That is deliberate — the fix is to keep the assert at the
 // call site, not to teach the gate about helpers, since a gate defeated by
 // wrapping the assert in a function is not a gate.
+
+/** @typedef {import("estree").Node} Node */
+/** @typedef {import("estree").CallExpression} CallExpression */
+/** @typedef {{ count: number, looped: boolean }} Tally */
+
 const FN = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 const LOOP = new Set(["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement"]);
 const RUNNERS = new Set(["test", "it"]);
 
 /**
+ * @param {unknown} value
+ * @returns {value is Node}
+ */
+function isNode(value) {
+  return (
+    typeof value === "object" && value !== null && typeof (/** @type {{ type?: unknown }} */ (value).type) === "string"
+  );
+}
+
+/**
  * `assert(...)` or `assert.<anything>(...)`, node:assert/strict in either form.
  * Shared with assertion-shape.js, which reads the shape of what this rule counts.
- * @param {import("estree").Node} node
- * @returns {boolean}
+ * @param {Node} node
+ * @returns {node is CallExpression}
  */
 export function isAssertion(node) {
   if (node.type !== "CallExpression") return false;
@@ -30,23 +45,27 @@ export function isAssertion(node) {
   return callee.type === "MemberExpression" && callee.object.type === "Identifier" && callee.object.name === "assert";
 }
 
+/**
+ * @param {unknown} node
+ * @param {boolean} inLoop
+ * @param {Tally} acc
+ */
 function walk(node, inLoop, acc) {
-  if (!node || typeof node.type !== "string" || FN.has(node.type)) return;
+  if (!isNode(node) || FN.has(node.type)) return;
   if (isAssertion(node)) {
     acc.count += 1;
     if (inLoop) acc.looped = true;
     return;
   }
   const loop = inLoop || LOOP.has(node.type);
-  for (const key of Object.keys(node)) {
+  for (const [key, value] of Object.entries(node)) {
     if (key === "parent") continue;
-    const value = node[key];
     if (Array.isArray(value)) value.forEach((child) => walk(child, loop, acc));
     else walk(value, loop, acc);
   }
 }
 
-export default {
+export default /** @type {import("eslint").Rule.RuleModule} */ ({
   meta: {
     type: "problem",
     docs: { description: "require exactly one assertion per test (docs/testing.md)" },
@@ -61,7 +80,8 @@ export default {
       CallExpression(node) {
         if (node.callee.type !== "Identifier" || !RUNNERS.has(node.callee.name)) return;
         const body = node.arguments.find((arg) => FN.has(arg.type));
-        if (!body) return;
+        if (!body || !("body" in body)) return;
+        /** @type {Tally} */
         const acc = { count: 0, looped: false };
         walk(body.body, false, acc);
         if (acc.count !== 1) context.report({ node, messageId: "count", data: { count: acc.count } });
@@ -69,4 +89,4 @@ export default {
       },
     };
   },
-};
+});

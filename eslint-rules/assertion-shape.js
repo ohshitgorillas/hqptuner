@@ -15,48 +15,86 @@
 // test body are not scanned, mirroring the count rule.
 import { isAssertion } from "./one-assertion-per-test.js";
 
+/** @typedef {import("estree").Node} Node */
+/** @typedef {import("estree").CallExpression} CallExpression */
+
 const FN = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 const RUNNERS = new Set(["test", "it"]);
 const SKIPS = new Set(["skip", "todo"]);
 const NOT_EQUAL = new Set(["!==", "!="]);
 const NOT_EQUAL_CALLS = new Set(["notEqual", "notStrictEqual", "notDeepEqual", "notDeepStrictEqual"]);
 
+/**
+ * @param {unknown} value
+ * @returns {value is Node}
+ */
+function isNode(value) {
+  return (
+    typeof value === "object" && value !== null && typeof (/** @type {{ type?: unknown }} */ (value).type) === "string"
+  );
+}
+
+/**
+ * Every assertion call under `node`, not descending into nested functions.
+ * @param {unknown} node
+ * @param {CallExpression[]} acc
+ */
 function collectAssertions(node, acc) {
-  if (!node || typeof node.type !== "string" || FN.has(node.type)) return;
+  if (!isNode(node) || FN.has(node.type)) return;
   if (isAssertion(node)) {
     acc.push(node);
     return;
   }
-  for (const key of Object.keys(node)) {
+  for (const [key, value] of Object.entries(node)) {
     if (key === "parent") continue;
-    const value = node[key];
     if (Array.isArray(value)) value.forEach((child) => collectAssertions(child, acc));
     else collectAssertions(value, acc);
   }
 }
 
+/**
+ * The expression under any leading `!`.
+ * @param {Node | undefined} expr
+ * @returns {Node | undefined}
+ */
 function stripNot(expr) {
   let root = expr;
   while (root && root.type === "UnaryExpression" && root.operator === "!") root = root.argument;
   return root;
 }
 
+/**
+ * @param {Node | undefined} expr
+ * @returns {number}
+ */
 function operandCount(expr) {
   if (!expr || expr.type !== "LogicalExpression") return 1;
   return operandCount(expr.left) + operandCount(expr.right);
 }
 
+/**
+ * @param {Node | undefined} expr
+ * @returns {boolean}
+ */
 function isNullish(expr) {
   if (!expr) return false;
   if (expr.type === "Literal") return expr.value === null;
   return expr.type === "Identifier" && expr.name === "undefined";
 }
 
+/**
+ * @param {CallExpression} call
+ * @returns {string}
+ */
 function methodName(call) {
   const callee = call.callee;
   return callee.type === "MemberExpression" && callee.property.type === "Identifier" ? callee.property.name : "";
 }
 
+/**
+ * @param {CallExpression} call
+ * @returns {boolean}
+ */
 function isExistence(call) {
   const [first, second] = call.arguments;
   if (NOT_EQUAL_CALLS.has(methodName(call))) return isNullish(second);
@@ -65,6 +103,10 @@ function isExistence(call) {
   return isNullish(root.left) || isNullish(root.right);
 }
 
+/**
+ * @param {CallExpression} call
+ * @returns {boolean}
+ */
 function isSkip(call) {
   const callee = call.callee;
   return (
@@ -76,7 +118,7 @@ function isSkip(call) {
   );
 }
 
-export default {
+export default /** @type {import("eslint").Rule.RuleModule} */ ({
   meta: {
     type: "problem",
     docs: { description: "require the one assertion per test to have a shape a test may take (docs/testing.md)" },
@@ -97,7 +139,8 @@ export default {
         }
         if (node.callee.type !== "Identifier" || !RUNNERS.has(node.callee.name)) return;
         const body = node.arguments.find((arg) => FN.has(arg.type));
-        if (!body) return;
+        if (!body || !("body" in body)) return;
+        /** @type {CallExpression[]} */
         const assertions = [];
         collectAssertions(body.body, assertions);
         for (const call of assertions) {
@@ -108,4 +151,4 @@ export default {
       },
     };
   },
-};
+});
