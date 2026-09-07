@@ -1,0 +1,21 @@
+kind: excision
+
+brief:
+> Both lanes must be available, and on a connection established after the write, before the app reports Connected. The control lane (4321) and the HTTP configuration lane (8088) each count.
+> Unreachable — a lane did not come back as expected. This includes a refused or absent credential leaving the 8088 lane unavailable.
+> No new pill states. Missing credentials are not a special case: HQPTuner substitutes the stock defaults, so the credential-less path is reached only by explicitly emptying the env vars, and it reads Unreachable like any other unavailable lane.
+> we do not leave useless tautologies behind in the testing codebase for the sake of pinning behavior that no longer exists
+
+1. excise tests/api/test_health_ready.py::test_health_reads_ready_with_no_management_credentials_configured
+   rule: docs/testing.md rule 11
+   assertion: assert (turned_reachable["reachable"], turned_reachable["ready"], loaded["reachable"], loaded["ready"]) == (True, False, True, True)
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, the block pins nothing; the excision checks (target, rule fit, visibility) run instead
+
+1  KEEP  target tests/api/test_health_ready.py::test_health_reads_ready_with_no_management_credentials_configured is under tests/ and exists at line 99; rule 11 is real (docs/testing.md:49) and fits: the quoted assertion pins the decision that a credential-less install turns ready at all, and the only thing that turns it red is the owner deciding a missing 8088 lane reads Unreachable - the brief's decision; violation visible in the test file alone (the fixture docstring at :83 declares "no HTTP config client at all" and the assertion at :109 reads ready True)
+
+null stub: N/A for an excision block - no new surface is introduced, so a feature-absent implementation has nothing to satisfy.
+hard-coded stub: N/A for an excision block - no expected outcome is stated for a stub to return.
+survives: 1
