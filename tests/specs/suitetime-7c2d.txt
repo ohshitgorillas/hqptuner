@@ -1,0 +1,63 @@
+kind: new
+
+Behaviors. `check(report, baseline, accept=False)` reads a pytest junit XML report and a JSON baseline file holding the last green run's wall time in seconds, and returns the gate's exit code. A green report has failures="0" and errors="0".
+
+1. With a baseline of 50.0 s and a green report, the exit code over (report time, accept) is: (53.0, False) 0, (55.0, False) 0, (57.5, False) 1, (57.5, True) 0, (59.9, True) 0, (60.0, True) 1, (61.0, False) 1.
+   kills: a gate that compares by ratio (57.5 is 1.15x and passes), or one where accept clears a run at or over 10 s.
+   bite: null stub fails at (57.5, False) (surface new); null stub `scripts/gates/check_suite_time.py`, export `check(report: Path, baseline: Path, *, accept: bool = False) -> int`
+   existing: none, `grep -rln 'suite_time\|suite-time\|junit' tests scripts` prints nothing (exit 1)
+
+2. With a baseline of 50.0 s, the exit codes over consecutive green runs (57.5, False) then (62.0, False) are [1, 1].
+   kills: a gate that records every judged run's time whatever its verdict, so two 7 s steps pass as one 5 s step each.
+   bite: null stub fails at the second run (surface new); same stub as line 1
+   existing: none, same grep as line 1
+
+3. With a baseline of 50.0 s, the exit codes over consecutive runs (20.0, failures="1") then (53.0, green) are [1, 0].
+   kills: a gate that judges a red run's time, so a fast aborted run passes and pulls the baseline down to 20.0, after which 53.0 is rejected.
+   bite: null stub fails at the red run (surface new); same stub as line 1
+   existing: none, same grep as line 1
+
+4. With no baseline file, the exit codes over consecutive green runs without accept (57.5, 62.0, 68.0) are [0, 0, 1].
+   kills: a gate that fails on a missing baseline (fresh checkout red on first run), one that seeds without recording so the third run also passes, and one that never reads the baseline at all (62.0 passes here and is refused in line 2).
+   bite: null stub fails at the third run (surface new); same stub as line 1
+   existing: none, same grep as line 1
+
+Public entry points (planned, scripts/gates/check_suite_time.py):
+
+    ESCALATE = 5.0   #: seconds over the baseline past which the run needs the owner's accept
+    REJECT = 10.0    #: seconds over the baseline at or past which no accept is taken
+
+    def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
+        """Refuse a run slower than the last green run by more than ESCALATE seconds.
+
+        Reads the junit report pytest wrote and the baseline file. Exit 0 records the report's time as the new baseline. A red report (failures or errors non-zero) is not judged and not recorded, exit 1. A missing report exits 1. A missing baseline is seeded from the report, exit 0. `accept` records a run in the escalate band as the new baseline; a run at or past REJECT over the baseline is refused with or without it.
+        """
+
+    def main(argv: list[str] | None = None) -> int:
+        """CLI: optional `--accept`; report and baseline resolved to the main checkout."""
+
+Wire and protocol facts (no daemon involved; the report format is pytest's):
+- pytest's `--junitxml` writes `<testsuites name="pytest tests"><testsuite ... errors="N" failures="N" ... time="S.SSS" .../></testsuites>`; `time` is the session's elapsed wall time in seconds (.venv/lib/python3.14/site-packages/_pytest/junitxml.py:653, 664-682).
+- Baseline file is JSON `{"seconds": <float>}`.
+- Owner rulings: "an increase of more than 5s is cause for escalation to me, 10s increase rejected outright"; baseline is the last green run.
+
+Applicable fixtures: `tmp_path` only. Tests hand-build the report XML and the baseline JSON under `tmp_path` and call `check` with those paths, the pattern of tests/gates/test_coverage_floor.py. Nothing runs pytest or coverage.
+
+Changelog entry: no entry; developer gate, nothing user-visible in the shipped product.
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on check() exit code (line 1: 55.0 -> 0 beside 57.5 -> 1, 59.9/True -> 0 beside 60.0/True -> 1) plus differential on report time 62.0 (line 2 -> 1 under baseline 50.0, line 4 -> 0 after seeding at 57.5)
+
+round 1 findings, resolved: block-level differential on line 4 taken (57.5, 62.0, 68.0 -> [0, 0, 1]; author's 68.0 corrects my 64.0, which sits 2.0 s over a recorded 62.0 and would pass); (i) on lines 2, 3, 4 taken, each now one sequence value. Line 1 unchanged, verdict carried.
+
+1  KEEP  baseline 50.0, green report, (time, accept) sweep -> exit [53.0/F 0, 55.0/F 0, 57.5/F 1, 57.5/T 0, 59.9/T 0, 60.0/T 1, 61.0/F 1]; ratio gate at 10% fails it at (55.0, False) -> 1; accept-clears-at-10s gate fails it at (60.0, True) -> 0; bite: null stub returning 0 fails at (57.5, False)
+2  KEEP  baseline 50.0, runs (57.5, False) then (62.0, False) -> [1, 1]; record-every-run gate fails it at the second run (baseline 57.5, 62.0 is +4.5 -> 0); bite: null stub fails at the first run
+3  KEEP  baseline 50.0, runs (20.0, failures="1") then (53.0, green) -> [1, 0]; judge-red-run gate fails it at the first run (20.0 under 55.0 -> 0); exit-1-but-record-red gate fails it at the second run (baseline 20.0, 53.0 -> 1); bite: null stub fails at the first run
+4  KEEP  no baseline file, green runs (57.5, 62.0, 68.0) -> [0, 0, 1]; fail-on-missing gate fails it at the first run; seed-without-recording gate fails it at the third run (still no baseline -> 0); hard-coded-50.0 gate fails it at the first run (57.5 -> 1); bite: null stub fails at the third run
+
+null stub: check() parses nothing, writes nothing, returns 0 - fails line 1 at (57.5, False), line 2 at the first run, line 3 at the first run, line 4 at the third run; every line discharges (k).
+hard-coded stub: parse the report, stat the baseline path, never read or write it; return 1 iff failures != "0", or (baseline exists and time in {57.5 without accept, 60.0, 61.0, 62.0}), or time == 68.0 - satisfies the four lines only by carrying every literal in the block plus baseline presence; the edge pairs in line 1 and the 62.0 differential are the shapes that make that table cost as much as the threshold and the file read, which is what the discrimination check asks for.
+
+survives: 4
+
+note: `existing:` grep reproduced, `grep -rln 'suite_time\|suite-time\|junit' tests scripts` exits 1; `tests/gates/` has no module touching junit or suite time, so (b) holds for every line. No fact under `hqptuner/` was needed.
