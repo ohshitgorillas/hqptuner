@@ -1,9 +1,10 @@
 // A preset pick or delete that failed — one alert-strip row.
 //
-// The header used to print this beside the picker, where the text appeared and
-// disappeared under the status pill and shifted every element in that cluster.
-// The strip is already the app's fault surface and already carries the lane
-// faults this sits beside, and it costs the header no width at all.
+// It belongs on the strip rather than beside the picker: nothing in the header's
+// right cluster renders conditionally, because text appearing and disappearing
+// there shifts the status pill and every element around it. The strip is the
+// app's fault surface, already carries the lane faults this sits beside, and
+// costs the header no width.
 //
 // The failure is transient rather than polled, so unlike the other rows in this
 // directory it has a signal behind it: the header writes it on a rejected pick
