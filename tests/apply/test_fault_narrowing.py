@@ -64,7 +64,8 @@ async def test_a_refusing_form_route_records_that_forms_error(
 ) -> None:
     http_daemon["_fail_paths"] = [f"/{form}"]
     await forms.refresh(http_manager)
-    assert getattr(http_manager.readings, f"{form}_error") is not None
+    # the refused route's own path rides in the recorded error: that form's, not another's
+    assert f"/{form}" in str(getattr(http_manager.readings, f"{form}_error"))
 
 
 @pytest.mark.parametrize(("broken", "intact"), SURVIVORS)

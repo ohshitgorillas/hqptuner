@@ -35,6 +35,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { applyState, matrixStates } from "../support/primermatrix.js";
+import { ascending } from "../support/order.js";
 
 const { html } = await import("../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../hqptuner/static/components/primer/Graph.js");
@@ -369,8 +370,10 @@ test("test_output_peak_height_scales_with_filter_gain_and_stays_below_the_title_
   const gain = peakAbs(filterPulse(design.value.h, pulse.value).y) / peakAbs(sourcePulse.value);
   const R = inputPeak * gain;
   const ceiling = Math.min(1.02 * R, zero.y - 0.1 * viewBoxHeight(box));
-  assert.ok(
-    outputPeak >= 0.98 * R && outputPeak <= ceiling,
+  const span = [0.98 * R, outputPeak, ceiling];
+  assert.deepEqual(
+    span,
+    ascending(span),
     `output peak height ${outputPeak}, wanted between ${0.98 * R} and ${ceiling}`,
   );
 });

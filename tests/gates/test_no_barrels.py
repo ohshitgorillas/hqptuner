@@ -54,7 +54,8 @@ GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_no_barrels.py"
 
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_no_barrels_under_test", GATE_PATH)
-    assert spec is not None and spec.loader is not None, f"no importable module at {GATE_PATH}"
+    if spec is None or spec.loader is None:
+        raise ImportError(f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

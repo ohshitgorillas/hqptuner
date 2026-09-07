@@ -331,10 +331,10 @@ test("test_a_bypassed_matrix_engine_leaves_row_control_disabled_states_unchanged
   const bypassed = rowControlStates(tab());
   await reset({ on: "1" });
   const engaged = rowControlStates(tab());
-  assert.ok(
-    bypassed.length === ROWS.length &&
-      bypassed.every((row) => row.length > 0) &&
-      JSON.stringify(bypassed) === JSON.stringify(engaged),
+  // row count, rows with no controls, and the states themselves against the engaged ones
+  assert.deepEqual(
+    [bypassed.length, bypassed.filter((row) => row.length === 0), bypassed],
+    [ROWS.length, [], engaged],
     `bypassed rows ${JSON.stringify(bypassed)} vs engaged rows ${JSON.stringify(engaged)}`,
   );
 });

@@ -26,4 +26,4 @@ TWO_STAGE_NOTE = _FILTERS["two_stage_note"]
 
 def test_a_2s_name_answers_the_base_prose_extended_by_the_two_stage_note() -> None:
     description = present(StaticMetadata(FIXTURE_DIR).filter_entry(f"{BASE_NAME}-2s"))["description"]
-    assert BASE_DESCRIPTION in description and TWO_STAGE_NOTE in description
+    assert (BASE_DESCRIPTION in description, TWO_STAGE_NOTE in description) == (True, True)

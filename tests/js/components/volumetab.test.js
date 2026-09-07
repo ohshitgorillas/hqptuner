@@ -44,6 +44,7 @@ import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/stat
 import { stagingWire } from "../support/wire.js";
 import { cardHeadAt, section } from "../support/tabform.js";
 import { attr, classes, elements } from "../support/markup.js";
+import { placed } from "../support/order.js";
 
 // The daemon's own forms, keyed by FORM FIELD name — the volume range is
 // volume_min / volume_max, loudness is post_loudness_enabled on /matrix.
@@ -162,7 +163,7 @@ test("test_the_fixed_volume_gate_and_level_share_one_row_gate_first", async () =
   const body = card(tab(), FIXED_VOLUME);
   const marks = ['<div class="fxv-row">', '<span class="segment">', '<span class="unit">dBFS</span>', AUTO_HEADROOM];
   const at = marks.map((m) => body.indexOf(m));
-  assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2] && at[2] < at[3]);
+  assert.deepEqual(at, placed(at));
 });
 
 // DELETED: "the fixed volume row is named fixed level". The name column's
@@ -180,7 +181,7 @@ test("test_the_auto_headroom_row_follows_the_shared_fixed_level_row", async () =
   await reset();
   const body = card(tab(), FIXED_VOLUME);
   const at = ['<div class="fxv-row">', AUTO_HEADROOM].map((m) => body.indexOf(m));
-  assert.ok(at[0] >= 0 && at[0] < at[1]);
+  assert.deepEqual(at, placed(at));
 });
 
 // The old indented layout is gone from this card entirely.

@@ -35,6 +35,7 @@ import { stagingWire, quiesce } from "../support/wire.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";
 import { attr, classes, elements, keyed } from "../support/markup.js";
+import { placed } from "../support/order.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -110,8 +111,10 @@ const PREP = { junk_filter: "0", pre_before_meter: false };
 test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
   const out = tab();
-  const at = cardHeadAt(out, PREPROCESS);
-  assert.ok(at >= 0 && at < cardHeadAt(out, NARROW) && at < cardHeadAt(out, PCM));
+  // the pre-process head, then whichever of the two follows first; a head that
+  // never rendered is a -1 that `placed` drops, failing the order
+  const at = [cardHeadAt(out, PREPROCESS), Math.min(cardHeadAt(out, NARROW), cardHeadAt(out, PCM))];
+  assert.deepEqual(at, placed(at));
 });
 
 test("test_the_pre_process_card_carries_exactly_its_three_controls_in_order", async () => {

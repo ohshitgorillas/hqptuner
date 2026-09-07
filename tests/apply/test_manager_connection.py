@@ -80,9 +80,10 @@ async def test_a_poll_failure_closes_the_control_client(outage_manager: OutageMa
 
 async def test_a_poll_failure_records_when_the_outage_began(outage_manager: OutageManager) -> None:
     manager, kill = outage_manager
+    before = manager.monotonic()
     await kill()
     await eventually(lambda: not manager.reachable)
-    assert manager.unreachable_since is not None
+    assert before <= present(manager.unreachable_since)
 
 
 async def test_a_connected_manager_reports_no_outage(outage_manager: OutageManager) -> None:

@@ -38,7 +38,8 @@ GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_c
 
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_coverage_floor_under_test", GATE_PATH)
-    assert spec is not None and spec.loader is not None, f"no importable module at {GATE_PATH}"
+    if spec is None or spec.loader is None:
+        raise ImportError(f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -62,18 +63,15 @@ def _a_shipped_exemption_key() -> str:
         for key in value
         if isinstance(key, str) and key.endswith(".py")
     ]
-    assert keys, "the gate ships no exemption mapping for `exempt=None` to fall back to"
-    return keys[0]
+    return keys[0]  # an empty list raises here: the gate ships no exemption mapping to fall back to
 
 
 SHIPPED_EXEMPTION = _a_shipped_exemption_key()
 
 
-def line_naming(out: str, path: str) -> str:
-    """The single stdout line that names ``path``."""
-    lines = [line for line in out.splitlines() if path in line]
-    assert len(lines) == 1, f"expected exactly one line naming {path}, got {lines!r}"
-    return lines[0]
+def lines_naming(out: str, path: str) -> list[str]:
+    """Every stdout line that names ``path``; the caller pins how many and what they say."""
+    return [line for line in out.splitlines() if path in line]
 
 
 def without_the_report_path(text: str, report: Path) -> str:
@@ -113,7 +111,7 @@ def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
     report = write_report(tmp_path, {"hqptuner/thin.py": 71.5})
     CHECK(report, 90, {})
     out = without_the_report_path(capsys.readouterr().out, report)
-    assert expected in line_naming(out, "hqptuner/thin.py")
+    assert [expected in line for line in lines_naming(out, "hqptuner/thin.py")] == [True]
 
 
 def test_one_file_below_the_floor_fails_a_report_whose_other_files_pass(tmp_path: Path) -> None:

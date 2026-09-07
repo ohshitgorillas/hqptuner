@@ -59,7 +59,7 @@ def test_window_min_appears_once_the_window_is_earned() -> None:
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
     for _ in range(WINDOW_BLOCKS):  # exactly the 30 s window, to the block
         aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
-    assert aggregate.window_min_db() is not None
+    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 def _earned_alternating() -> SpectralAggregate:
@@ -73,13 +73,11 @@ def _earned_alternating() -> SpectralAggregate:
 
 
 def test_a_bin_fed_the_same_power_reports_that_level() -> None:
-    minimum = _earned_alternating().window_min_db()
-    assert minimum is not None and minimum[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+    assert (_earned_alternating().window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 def test_an_intermittent_bin_reports_its_low_level() -> None:
-    minimum = _earned_alternating().window_min_db()
-    assert minimum is not None and minimum[_VARYING_BIN] == pytest.approx(-90.0, abs=0.5)
+    assert (_earned_alternating().window_min_db() or [])[_VARYING_BIN] == pytest.approx(-90.0, abs=0.5)
 
 
 # --- SpectralAggregate: silent frames ---------------------------------------------
@@ -110,8 +108,7 @@ def test_silent_frames_never_lower_the_window_min() -> None:
     for _ in range(WINDOW_BLOCKS + 1):  # tone coverage alone earns the window
         aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
         aggregate.add(SILENT_FRAME, BLOCK_SECONDS, silent=True)
-    minimum = aggregate.window_min_db()
-    assert minimum is not None and minimum[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 # --- MeteringReader: the per-track latch ------------------------------------------
@@ -145,8 +142,7 @@ async def test_a_verdict_latches_for_the_rest_of_the_track(metering_stream: Call
         await _latched_20k(stream, reader)
         stream.send(FLAT_FULLBAND_FRAME, count=60)  # ≈ 42 s erasing the cliff
         await _digest(stream)
-        verdict = reader.recommendation()
-        assert verdict is not None and verdict["filter"] == "20k"
+        assert (reader.recommendation() or {})["filter"] == "20k"
 
 
 async def test_track_change_clears_the_latched_verdict(metering_stream: Callable[..., Any]) -> None:
@@ -192,8 +188,7 @@ async def test_disengaging_brings_the_latched_verdict_back_without_new_frames(
         await eventually(lambda: reader.recommendation() is None)
         cell[0] = replace(PLAYING, junk_filter="none")  # no frames sent since
         await eventually(lambda: reader.recommendation() is not None)
-        verdict = reader.recommendation()
-        assert verdict is not None and verdict["filter"] == "20k"
+        assert (reader.recommendation() or {})["filter"] == "20k"
 
 
 # --- MeteringReader: wire-level silence -------------------------------------------
@@ -218,5 +213,4 @@ async def test_wire_silent_frames_do_not_erase_a_persistent_tone(metering_stream
             stream.send(SPUR_FRAME, count=DECIMATE)
             stream.send(SILENT_WIRE_FRAME)
         await eventually(lambda: reader.recommendation() is not None)
-        verdict = reader.recommendation()
-        assert verdict is not None and verdict["filter"] == "30k"
+        assert (reader.recommendation() or {})["filter"] == "30k"

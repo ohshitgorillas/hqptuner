@@ -92,6 +92,5 @@ test("test_the_favorites_chip_carries_a_hover_explainer", async () => {
   // with no quoted pair at all (docs/testing.md harness facts), so a chip that
   // explains nothing reads back as undefined here rather than as "".
   await reset();
-  const explainer = attr(favChip(), "title");
-  assert.ok(explainer !== undefined && explainer.trim() !== "", "the chip offers the reader no hover explainer");
+  assert.notEqual((attr(favChip(), "title") || "").trim(), "", "the chip offers the reader no hover explainer");
 });

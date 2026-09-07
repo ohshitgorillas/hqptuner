@@ -49,7 +49,8 @@ PLAIN_NAMES_FILE = "filter-plain-names.json"
 
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_metadata_under_test", GATE_PATH)
-    assert spec is not None and spec.loader is not None, f"no importable module at {GATE_PATH}"
+    if spec is None or spec.loader is None:
+        raise ImportError(f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -86,7 +87,7 @@ def uncovered_modulator_copy(tmp_path: Path) -> Path:
 def test_an_enumerated_modulator_missing_from_shapers_is_the_only_thing_reported(tmp_path: Path) -> None:
     """Every line names the uncovered modulator, so covered names produce no line."""
     lines = GATE.check(uncovered_modulator_copy(tmp_path))
-    assert lines and all(ABSENT_MODULATOR in line for line in lines)
+    assert (lines != [], [line for line in lines if ABSENT_MODULATOR not in line]) == (True, [])
 
 
 def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(tmp_path: Path) -> None:
@@ -94,9 +95,9 @@ def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(
     copy = copy_fixture(tmp_path)
     add_enum_names(copy, "filters_sdm", [TWO_STAGE_FILTER, ABSENT_FILTER])
     lines = GATE.check(copy)
-    assert [line for line in lines if ABSENT_FILTER in line] and not [
-        line for line in lines if TWO_STAGE_FILTER in line
-    ]
+    reported = [line for line in lines if ABSENT_FILTER in line]
+    covered = [line for line in lines if TWO_STAGE_FILTER in line]
+    assert (reported != [], covered) == (True, [])
 
 
 def test_a_plain_names_file_without_its_key_is_reported_by_filename_not_raised(tmp_path: Path) -> None:

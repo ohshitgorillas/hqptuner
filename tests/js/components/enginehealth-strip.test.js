@@ -564,7 +564,7 @@ test("test_the_strip_carries_a_heading_of_its_own", () => {
   // owner-owned copy and moves without any behavior moving with it.
   shown([1]);
   const [subhead] = byClass(heading(card()).html, "subhead");
-  assert.ok(subhead !== undefined && text(subhead) !== "", "the strip's heading row announces nothing");
+  assert.notEqual(subhead === undefined ? "" : text(subhead), "", "the strip's heading row announces nothing");
 });
 
 test("test_the_picker_shows_the_window_in_force", () => {

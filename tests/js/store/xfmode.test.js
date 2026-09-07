@@ -289,7 +289,7 @@ test("test_reengaging_after_a_removal_uses_the_angle_on_screen", async () => {
   removeStructural(live(), installedBlock(live()));
   stageStructural(live(), { ...DEFAULTS, angle: 45 });
   const back = structuralBlock(live());
-  assert.ok(back && Math.abs(back.angle - 45) < 1e-3, `block came back as ${JSON.stringify(back)}`);
+  assert.ok(Math.abs((back ? back.angle : NaN) - 45) < 1e-3, `block came back as ${JSON.stringify(back)}`);
 });
 
 // The mode segment is the other way off: leaving the view removes the block, and

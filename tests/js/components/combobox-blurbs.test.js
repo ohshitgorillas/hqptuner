@@ -40,6 +40,7 @@ import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.j
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { staticWire } from "../support/wire.js";
+import { ascending } from "../support/order.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -232,22 +233,34 @@ const offered = (out) =>
 // subheader; the family blurb caption renders between the two.
 test("test_a_family_blurb_renders_between_the_family_header_and_its_first_content", async () => {
   const out = await filterField();
-  const cap = smallestReading(out, GAUSS_BLURB);
-  assert.equal(smallestReading(out, GAUSS).start < cap.start && cap.start < smallestReading(out, ZED).start, true);
+  const at = [
+    smallestReading(out, GAUSS).start,
+    smallestReading(out, GAUSS_BLURB).start,
+    smallestReading(out, ZED).start,
+  ];
+  assert.deepEqual(at, ascending(at));
 });
 
 // Sinc holds a single null-variant option; its blurb still renders between the
 // header and that first option row.
 test("test_a_null_variant_familys_blurb_renders_before_its_first_option_row", async () => {
   const out = await filterField();
-  const cap = smallestReading(out, SINC_BLURB);
-  assert.equal(smallestReading(out, SINC).start < cap.start && cap.start < rowReading(out, "Classic M").start, true);
+  const at = [
+    smallestReading(out, SINC).start,
+    smallestReading(out, SINC_BLURB).start,
+    rowReading(out, "Classic M").start,
+  ];
+  assert.deepEqual(at, ascending(at));
 });
 
 test("test_a_variant_blurb_renders_between_the_subheader_and_the_variants_first_row", async () => {
   const out = await filterField();
-  const cap = smallestReading(out, ZED_BLURB);
-  assert.equal(smallestReading(out, ZED).start < cap.start && cap.start < rowReading(out, "Zeta pick").start, true);
+  const at = [
+    smallestReading(out, ZED).start,
+    smallestReading(out, ZED_BLURB).start,
+    rowReading(out, "Zeta pick").start,
+  ];
+  assert.deepEqual(at, ascending(at));
 });
 
 test("test_a_family_blurb_caption_is_not_an_option_row", async () => {

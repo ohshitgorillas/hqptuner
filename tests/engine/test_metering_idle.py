@@ -181,8 +181,7 @@ async def test_the_idle_close_keeps_the_verdict_earned_before_the_pause(
         await eventually(lambda: stream.connected == 0)
         cell[0] = PLAYING  # same track_serial: the evidence is still this track's
         await eventually(lambda: stream.connected == 1)
-        verdict = reader.recommendation()
-        assert verdict is not None and verdict["filter"] == "20k"
+        assert (reader.recommendation() or {})["filter"] == "20k"
 
 
 async def test_a_stream_that_ends_while_playing_discards_the_verdict(
@@ -322,7 +321,7 @@ def test_a_metering_enabled_app_serves_a_junk_recommendation(metering_on_app: Ap
     client, _listener = metering_on_app
     wait_for_api(client, _loaded, tries=READY_PASSES)
     _pumped([client], lambda: _junk(client) is not None)
-    assert _junk(client) is not None
+    assert (_junk(client) or {})["filter"] == "20k"  # the fake-hi-res stream's verdict
 
 
 def test_a_metering_disabled_app_never_connects_to_the_metering_port(

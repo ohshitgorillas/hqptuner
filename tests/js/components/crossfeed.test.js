@@ -46,6 +46,7 @@ import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { staticWire, stagingWire } from "../support/wire.js";
 import { hasLabel } from "../support/markup.js";
+import { placed } from "../support/order.js";
 
 /**
  * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
@@ -374,8 +375,8 @@ test("test_structural_view_opens_with_the_same_gate_stack", async () => {
 test("test_the_top_stack_orders_the_gate_before_the_view_switch", async () => {
   await reset({ mode: "bauer" });
   const out = card();
-  const [g, v] = [out.indexOf("xfs-gate"), out.indexOf('data-v="bauer"')];
-  assert.ok(g > -1 && v > -1 && g < v, `order gate=${g} switch=${v}`);
+  const at = [out.indexOf("xfs-gate"), out.indexOf('data-v="bauer"')];
+  assert.deepEqual(at, placed(at), `order gate=${at[0]} switch=${at[1]}`);
 });
 
 test("test_bauer_gate_lights_engage_while_crossfeed_is_enabled", async () => {

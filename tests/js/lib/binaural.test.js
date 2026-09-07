@@ -132,12 +132,13 @@ test("test_a_scalar_eq_is_reported_per_ear", () => {
 
 for (const preset of PRESETS) {
   test(`test_preset_round_trips: ${presetName(preset)}`, () => {
-    assert.notEqual(rt(preset), null);
+    assert.ok(...near(got(preset).angle, preset.angle, 1e-9));
   });
 }
 
 test("test_any_distinct_channel_pair_is_recognized", () => {
-  assert.notEqual(rt({ srcA: 2, srcB: 3 }), null);
+  // the pair is not part of what is recognized: the block reads back as the default pair's does
+  assert.deepEqual(rt({ srcA: 2, srcB: 3 }), got({}));
 });
 
 // --- the snap grids are admission requirements -------------------------------
@@ -236,7 +237,7 @@ test("test_a_perturbed_gain_is_not_recognized", () => {
 
 test("test_a_gain_perturbed_below_tolerance_is_still_recognized", () => {
   const rows = compileRows().map((r, i) => (i === 12 ? { ...r, gain: String(Number(r.gain) + 5e-7) } : r));
-  assert.notEqual(recognizeRows(rows), null);
+  assert.deepEqual(recognizeRows(rows), recognizeRows(compileRows()));
 });
 
 test("test_reordered_rows_are_not_recognized", () => {
@@ -286,7 +287,8 @@ test("test_an_eq_beginning_with_a_delay_is_not_recognized", () => {
 });
 
 test("test_an_eq_with_a_first_order_lowpass_later_in_the_chain_is_recognized", () => {
-  assert.notEqual(rt({ eqProcess: "iir:type=peak;f=1000;q=1;g=-3,iir:type=lp1;f=50" }), null);
+  const eq = "iir:type=peak;f=1000;q=1;g=-3,iir:type=lp1;f=50";
+  assert.equal(got({ eqProcess: eq }).eqProcess.left, eq);
 });
 
 // --- malformed rows decline rather than throw --------------------------------
@@ -311,7 +313,7 @@ test("test_a_missing_row_is_not_recognized", () => {
 test("test_a_row_whose_process_is_absent_is_still_legal", () => {
   // a bare flat row carries no chain; that is not malformed
   const rows = compileRows().map((r) => (r.process === "" ? { ...r, process: null } : r));
-  assert.notEqual(recognizeRows(asRows(rows)), null);
+  assert.deepEqual(recognizeRows(asRows(rows)), recognizeRows(compileRows()));
 });
 
 // --- defaults ---------------------------------------------------------------

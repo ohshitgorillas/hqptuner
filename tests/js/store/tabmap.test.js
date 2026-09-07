@@ -258,12 +258,12 @@ for (const key of HTTP_MOVED) {
   test(`a staged ${key.replaceAll("_", " ")} still rides the http lane under its own field name`, async () => {
     const w = await reset();
     await edit(key, "1");
-    assert.ok(key in w.staged.http && !(key in w.staged.live));
+    assert.deepEqual([key in w.staged.http, key in w.staged.live], [true, false]);
   });
 }
 
 test("a staged high-frequency filter still rides the live lane under its own key", async () => {
   const w = await reset();
   await edit("junk_filter", "3");
-  assert.ok("junk_filter" in w.staged.live && !("junk_filter" in w.staged.http));
+  assert.deepEqual(["junk_filter" in w.staged.live, "junk_filter" in w.staged.http], [true, false]);
 });

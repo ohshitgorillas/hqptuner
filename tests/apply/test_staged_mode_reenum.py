@@ -77,7 +77,7 @@ async def test_a_mode_apply_matching_the_running_mode_sends_no_mode_setter(live_
     manager, log, _ = await live_manager(mode="1")
     log.clear()
     await manager.applyops.apply({}, {"mode": "pcm"})
-    assert not any(command == "SetMode" for command, _attrs in log)
+    assert "SetMode" not in [command for command, _attrs in log]
 
 
 # --- a filter-only apply re-reads too -----------------------------------------

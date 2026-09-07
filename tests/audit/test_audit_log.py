@@ -13,7 +13,6 @@ import hashlib
 import json
 import logging
 from collections.abc import Callable
-from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -130,7 +129,7 @@ def test_seq_strictly_increases_across_successive_records(tmp_path: Path) -> Non
     for index in range(3):
         log.preset_write(f"preset-{index}", "save", 10, "abc123", overwrote=False)
     seqs = [record["seq"] for record in log.records()]
-    assert all(later > earlier for earlier, later in pairwise(seqs))
+    assert sorted(set(seqs)) == seqs
 
 
 def test_the_first_record_is_seq_one(tmp_path: Path) -> None:

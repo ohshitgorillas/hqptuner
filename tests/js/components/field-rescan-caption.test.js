@@ -25,6 +25,7 @@ import assert from "node:assert/strict";
 import { reset, field, META } from "../support/field-harness.js";
 import { config } from "../../../hqptuner/static/store/signals.js";
 import { elements, classes } from "../support/markup.js";
+import { placed } from "../support/order.js";
 
 // The caption and the manual note are each identified by the class their own
 // element wears. What either SAYS is the owner's wording and is not asserted
@@ -72,9 +73,8 @@ test("test_a_rescan_field_carries_the_engine_stop_caption_when_autosave_is_on", 
 test("test_a_rescan_fields_engine_stop_caption_follows_its_manual_note", async () => {
   await withAutosave(true);
   const out = field("alsa_device");
-  const noteAt = startOf(out, NOTE_CLASS);
-  const captionAt = startOf(out, CAPTION_CLASS);
-  assert.ok(noteAt >= 0 && captionAt > noteAt, `manual note at ${noteAt}, caption at ${captionAt}`);
+  const at = [startOf(out, NOTE_CLASS), startOf(out, CAPTION_CLASS)];
+  assert.deepEqual(at, placed(at), `manual note at ${at[0]}, caption at ${at[1]}`);
 });
 
 test("test_a_rescan_field_carries_no_engine_stop_caption_when_autosave_is_off", async () => {

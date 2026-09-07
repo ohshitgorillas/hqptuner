@@ -159,14 +159,14 @@ async def test_a_mode_batch_with_a_leftover_field_keeps_the_mode_off_the_live_la
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert all(r["setting"] != "mode" for r in report["live"])
+    assert "mode" not in [r["setting"] for r in report["live"]]
 
 
 async def test_a_mode_batch_with_a_leftover_field_keeps_the_chain_field_off_the_live_lane(
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert all(r["setting"] != "shaper" for r in report["live"])
+    assert "shaper" not in [r["setting"] for r in report["live"]]
 
 
 async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:

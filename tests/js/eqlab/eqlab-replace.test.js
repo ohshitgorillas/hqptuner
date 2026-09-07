@@ -17,6 +17,7 @@ import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
 import { guidanceFlags } from "../../../scripts/eqlab/guidance.js";
 import { residualFit, fitOfEdits } from "../../../scripts/eqlab/fit.js";
 import { near, below, band, argNum } from "../support/eqlab-helpers.js";
+import { ascending } from "../support/order.js";
 
 const FS = 44100;
 
@@ -406,8 +407,10 @@ test("test_refining_a_multi_valued_with_band_frequency_stays_within_its_declared
   );
   const w = res.top[0];
   const f = argNum(applyChanges(QBASE, w.changes).stages[0], "f");
-  assert.ok(
-    "refined" in w && f >= 925 - 1e-6 && f <= 1075 + 1e-6,
+  const span = [925 - 1e-6, f, 1075 + 1e-6];
+  assert.deepEqual(
+    ["refined" in w, span],
+    [true, ascending(span)],
     `expected a refined winner with f in [925, 1075], got f=${f}, keys=${Object.keys(w)}`,
   );
 });

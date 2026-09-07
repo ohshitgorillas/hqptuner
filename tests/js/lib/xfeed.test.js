@@ -93,7 +93,8 @@ test("test_a_compiled_block_is_eight_rows", () => {
 });
 
 test("test_a_compiled_block_is_recognized", () => {
-  assert.notEqual(rec(block()), null);
+  // read back as the whole-strength block it was compiled as (s = 1)
+  assert.equal(found(rec(block())).sFraction, 1);
 });
 
 test("test_every_compiled_row_carries_a_linear_gain", () => {
@@ -107,7 +108,8 @@ test("test_an_eq_chain_round_trips_byte_identical", () => {
 });
 
 test("test_a_block_with_no_eq_is_recognized", () => {
-  assert.notEqual(rec(block("")), null);
+  // compiled against the fit it is read against, so it reads back current
+  assert.equal(found(rec(block(""))).stale, false);
 });
 
 test("test_a_block_with_no_eq_reports_an_empty_chain", () => {
@@ -220,7 +222,8 @@ test("test_a_perturbed_gain_is_not_recognized", () => {
 });
 
 test("test_a_gain_perturbed_below_tolerance_is_still_recognized", () => {
-  assert.notEqual(rec(block().map((r, i) => (i === 4 ? { ...r, gain: String(Number(r.gain) + 5e-7) } : r))), null);
+  const perturbed = block().map((r, i) => (i === 4 ? { ...r, gain: String(Number(r.gain) + 5e-7) } : r));
+  assert.deepEqual(rec(perturbed), rec(block()));
 });
 
 test("test_an_edited_source_channel_is_not_recognized", () => {

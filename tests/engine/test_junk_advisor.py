@@ -31,6 +31,7 @@ from junk_spectra import (
     spectrum,
     spur_min_176,
 )
+from narrow import present
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -95,18 +96,15 @@ def test_narrow_bandwidth_gets_no_verdict() -> None:
 
 
 def test_fake_hires_recommends_the_20k_filter() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and verdict["filter"] == "20k"
+    assert (_classify(fake_hires_96k(), 48000.0) or {})["filter"] == "20k"
 
 
 def test_fake_hires_reason_names_the_filter() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and "20k" in verdict["reason"]
+    assert "20k" in (_classify(fake_hires_96k(), 48000.0) or {})["reason"]
 
 
 def test_fake_hires_reports_the_content_ceiling() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and abs(verdict["ceiling_khz"] - 22.0) <= 1.5
+    assert abs((_classify(fake_hires_96k(), 48000.0) or {})["ceiling_khz"] - 22.0) <= 1.5
 
 
 def test_genuine_hires_gets_no_verdict() -> None:
@@ -128,18 +126,15 @@ def test_hf_tone_in_the_mean_alone_earns_no_spur_verdict() -> None:
     ],
 )
 def test_persistent_hf_tone_recommends_a_rolloff_above_the_tone(tone_hz: float, expected: str) -> None:
-    verdict = _classify_spur(tone_hz)
-    assert verdict is not None and verdict["filter"] == expected
+    assert (_classify_spur(tone_hz) or {})["filter"] == expected
 
 
 def test_spur_reason_names_the_filter() -> None:
-    verdict = _classify_spur(40000.0)
-    assert verdict is not None and "30k" in verdict["reason"]
+    assert "30k" in (_classify_spur(40000.0) or {})["reason"]
 
 
 def test_spur_reports_the_tone_ceiling() -> None:
-    verdict = _classify_spur(40000.0)
-    assert verdict is not None and abs(verdict["ceiling_khz"] - 40.0) <= 1.5
+    assert abs((_classify_spur(40000.0) or {})["ceiling_khz"] - 40.0) <= 1.5
 
 
 def test_tone_below_25_khz_earns_no_spur_verdict() -> None:
@@ -153,8 +148,7 @@ def test_tone_under_15_db_above_the_minimum_baseline_earns_no_verdict() -> None:
 
 
 def test_noise_shaping_ramp_recommends_the_50k_filter() -> None:
-    verdict = _classify(shaping_ramp_176(), 88200.0, samplerate=176400)
-    assert verdict is not None and verdict["filter"] == "50k"
+    assert (_classify(shaping_ramp_176(), 88200.0, samplerate=176400) or {})["filter"] == "50k"
 
 
 # Suppression is no longer `classify`'s business: it detects the signature and
@@ -170,8 +164,7 @@ async def test_fake_hires_stream_yields_20k_advice(metering_stream: Callable[...
     cell: list[TrackContext | None] = [PLAYING]
     async with running_reader(port, cell) as (reader, _):
         await eventually(lambda: reader.recommendation() is not None)
-        verdict = reader.recommendation()
-        assert verdict is not None and verdict["filter"] == "20k"
+        assert (reader.recommendation() or {})["filter"] == "20k"
 
 
 async def test_a_paused_engine_buys_no_coverage(metering_stream: Callable[..., Any]) -> None:
@@ -293,8 +286,7 @@ async def test_sdm_metadata_marks_the_context_sdm(live_manager: Any) -> None:
     sdm_metadata = '<metadata samplerate="96000" sdm="1"/>'
     manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=sdm_metadata)
     await eventually(lambda: _settled(manager))
-    context = context_from(manager)
-    assert context is not None and context.sdm is True
+    assert present(context_from(manager)).sdm is True
 
 
 # --- /api/status payload --------------------------------------------------------
@@ -351,29 +343,24 @@ SPUR_FAMILIES = ["poly-sinc-gauss-hires", "poly-sinc-ext2-hires"]
 
 @pytest.mark.parametrize("needle", ["30k", "hires"])
 def test_spur_reason_names_the_corner_and_the_hires_alternative(needle: str) -> None:
-    verdict = _classify_spur(40000.0)
-    assert verdict is not None and needle in verdict["reason"]
+    assert needle in (_classify_spur(40000.0) or {})["reason"]
 
 
 def test_spur_reason_tracks_the_recommended_corner() -> None:
     # a tone above the corner split earns 40k — the reason must follow, not hardcode 30k
-    verdict = _classify_spur(60000.0)
-    assert verdict is not None and "40k" in verdict["reason"]
+    assert "40k" in (_classify_spur(60000.0) or {})["reason"]
 
 
 def test_spur_verdict_offers_the_hires_families() -> None:
-    verdict = _classify_spur(40000.0)
-    assert verdict is not None and verdict["families"] == SPUR_FAMILIES
+    assert (_classify_spur(40000.0) or {})["families"] == SPUR_FAMILIES
 
 
 def test_brickwall_verdict_offers_no_families() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and not verdict.get("families")
+    assert not present(_classify(fake_hires_96k(), 48000.0)).get("families")
 
 
 def test_shaping_ramp_verdict_offers_no_families() -> None:
-    verdict = _classify(shaping_ramp_176(), 88200.0, samplerate=176400)
-    assert verdict is not None and not verdict.get("families")
+    assert not present(_classify(shaping_ramp_176(), 88200.0, samplerate=176400)).get("families")
 
 
 # --- treats -----------------------------------------------------------------------
@@ -402,23 +389,19 @@ def test_shaping_ramp_verdict_offers_no_families() -> None:
 def test_treats_reads_the_spur_verdict_against_the_engine_settings(
     engaged: str | None, filter_name: str | None, *, expected: bool
 ) -> None:
-    verdict = _classify_spur(40000.0)
-    assert verdict is not None and treats(verdict, engaged, filter_name) is expected
+    assert treats(present(_classify_spur(40000.0)), engaged, filter_name) is expected
 
 
 def test_family_filter_does_not_treat_the_brickwall_verdict() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and treats(verdict, "none", "poly-sinc-gauss-hires-lp") is False
+    assert treats(present(_classify(fake_hires_96k(), 48000.0)), "none", "poly-sinc-gauss-hires-lp") is False
 
 
 def test_engaged_corner_above_the_recommendation_does_not_treat_the_brickwall_verdict() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and treats(verdict, "50k", None) is False
+    assert treats(present(_classify(fake_hires_96k(), 48000.0)), "50k", None) is False
 
 
 def test_engaged_20k_corner_treats_the_brickwall_verdict() -> None:
-    verdict = _classify(fake_hires_96k(), 48000.0)
-    assert verdict is not None and treats(verdict, "20k", None) is True
+    assert treats(present(_classify(fake_hires_96k(), 48000.0)), "20k", None) is True
 
 
 # --- context_from: the active main filter ----------------------------------------
@@ -432,12 +415,10 @@ async def test_context_reports_the_active_main_filter(live_manager: Any) -> None
         _active_filter="poly-sinc-gauss-hires-lp",
     )
     await eventually(lambda: _settled(manager))
-    context = context_from(manager)
-    assert context is not None and context.filter == "poly-sinc-gauss-hires-lp"
+    assert present(context_from(manager)).filter == "poly-sinc-gauss-hires-lp"
 
 
 async def test_context_filter_is_none_when_status_omits_the_attribute(live_manager: Any) -> None:
     manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=METADATA_96K_PCM, _active_filter="")
     await eventually(lambda: _settled(manager))
-    context = context_from(manager)
-    assert context is not None and context.filter is None
+    assert present(context_from(manager)).filter is None

@@ -242,7 +242,8 @@ test("test_an_import_into_a_recognized_block_keeps_its_eight_rows", async () => 
 });
 
 test("test_an_import_into_a_recognized_block_stays_recognizable", async () => {
-  assert.ok(recognized(staged(intoBlock(block("", 0), 0, {}))) !== null);
+  // still the whole-strength block it was compiled as (s = 1)
+  assert.equal(recognized(staged(intoBlock(block("", 0), 0, {})))?.sFraction, 1);
 });
 
 test("test_an_import_into_a_recognized_block_lands_in_its_shared_eq_chain", async () => {
@@ -345,7 +346,9 @@ test("test_an_import_into_a_structural_block_keeps_its_sixteen_rows", async () =
 });
 
 test("test_an_import_into_a_structural_block_stays_recognizable", async () => {
-  assert.ok(recognizeRows(staged(intoStructural(structural(""), 0, {})), 0) !== null);
+  // still the 30-degree block it was compiled as; a declined recognition reads NaN
+  const found = recognizeRows(staged(intoStructural(structural(""), 0, {})), 0);
+  assert.ok(Math.abs((found?.angle ?? NaN) - 30) <= 1e-6, `recognized as ${JSON.stringify(found)}`);
 });
 
 test("test_an_import_into_a_structural_block_lands_in_its_ear_chains", async () => {

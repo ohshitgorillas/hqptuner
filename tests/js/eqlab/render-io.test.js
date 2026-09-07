@@ -59,7 +59,11 @@ test("test_a_matched_band_row_lists_its_non_zero_deltas", () => {
 test("test_a_matched_band_whose_deltas_are_all_zero_lists_none_of_them", () => {
   const bands = { matched: [{ f: 444, deltas: { zzalpha: 0 } }], only_a: [], only_b: [] };
   const row = lineWith(show(rep("diff", diffBody({ bands }))), "444");
-  assert.ok(row !== "" && !row.includes("zzalpha"), `expected a band row naming no delta, got: ${row}`);
+  assert.deepEqual(
+    [row === "", row.includes("zzalpha")],
+    [false, false],
+    `expected a band row naming no delta, got: ${row}`,
+  );
 });
 
 test("test_a_diff_lists_the_bands_present_only_in_a_and_those_present_only_in_b", () => {

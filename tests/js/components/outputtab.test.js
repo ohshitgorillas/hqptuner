@@ -41,6 +41,7 @@ import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
 import { attr, classes, elements, hasLabel } from "../support/markup.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
+import { placed } from "../support/order.js";
 
 /** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
 
@@ -316,8 +317,8 @@ for (const key of MOVED_AWAY) {
 test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
   const frag = cardTitled(tab(), CORRECTION);
-  const gate = frag.indexOf('<span class="segment">');
-  assert.ok(gate >= 0 && gate < frag.indexOf('<div class="dsp-body') && dspBody(frag).includes(DAC_MODEL));
+  const at = [frag.indexOf('<span class="segment">'), frag.indexOf('<div class="dsp-body')];
+  assert.deepEqual([at, dspBody(frag).includes(DAC_MODEL)], [placed(at), true]);
 });
 
 // Off state: the body wrapper carries the `off` class AND the DAC model row sits
@@ -326,7 +327,7 @@ test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async ()
 test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
   const body = dspBody(cardTitled(tab(), CORRECTION));
-  assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes(DAC_MODEL));
+  assert.deepEqual([body.startsWith('<div class="dsp-body off">'), body.includes(DAC_MODEL)], [true, true]);
 });
 
 // On state: the body wrapper is rendered AND carries no dimming mark. A card
@@ -335,7 +336,7 @@ test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async 
 test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
   const cls = bodyClasses(cardTitled(tab(), CORRECTION));
-  assert.ok(cls !== null && !cls.includes("off"));
+  assert.deepEqual([cls === null, (cls || []).includes("off")], [false, false]);
 });
 
 // The old indented layout is gone from this card entirely. The card must be
@@ -344,7 +345,10 @@ test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () =
 test("test_the_dac_correction_card_has_no_indented_layout", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
   const out = tab();
-  assert.ok(cardHeadAt(out, CORRECTION) >= 0 && !cardTitled(out, CORRECTION).includes('<div class="indent'));
+  assert.deepEqual(
+    [cardHeadAt(out, CORRECTION) >= 0, cardTitled(out, CORRECTION).includes('<div class="indent')],
+    [true, false],
+  );
 });
 
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {
@@ -432,5 +436,6 @@ test("test_a_missing_device_still_warns_above_the_top_row", async () => {
   await reset({ cfg: { ...FULL, alsa_device: alsaDev("") } });
   const out = tab();
   const alert = deviceAlert(out);
-  assert.ok(alert !== undefined && alert.start < cardHeadAt(out, BACKEND));
+  const at = [alert === undefined ? -1 : alert.start, cardHeadAt(out, BACKEND)];
+  assert.deepEqual(at, placed(at));
 });

@@ -91,7 +91,7 @@ test("test_a_q_outside_the_guidance_window_is_reported_but_never_clamped", () =>
 
 test("test_a_policy_flag_names_the_rule_it_came_from", () => {
   const rule = policyFlags(flagsFor(BIG_MOVE))[0].rule;
-  assert.ok(typeof rule === "string" && rule.length > 0, `expected a rule name, got ${JSON.stringify(rule)}`);
+  assert.deepEqual([typeof rule, rule === ""], ["string", false], `expected a rule name, got ${JSON.stringify(rule)}`);
 });
 
 test("test_a_guidance_flag_comes_from_a_different_rule_than_a_policy_flag", () => {

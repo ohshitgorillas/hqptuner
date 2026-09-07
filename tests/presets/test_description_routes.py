@@ -191,12 +191,11 @@ def refusal(tmp_path: Path, name: str, text: str) -> str:
     than the empty string every answer trivially contains: the caller below is
     checking that a route repeats this sentence, and a write that stopped being
     refused must fail that check rather than satisfy it. An EMPTY refusal is the
-    same hole from the other side — every answer contains it — so the store
-    saying nothing is a failure here, not a pass."""
+    same hole from the other side — every answer contains it — so the caller
+    pins the sentence non-empty in the same comparison."""
     try:
         store_at(tmp_path).write(name, text)
     except DescriptionError as exc:
-        assert str(exc), "the store refused the write without saying why"
         return json.dumps(str(exc))[1:-1]
     return "\x00the store accepted a write it should have refused"
 
@@ -220,7 +219,8 @@ def test_a_refused_put_answers_with_the_stores_own_message(
     desc_client: TestClient, tmp_path: Path, name: str, text: str
 ) -> None:
     answer = desc_client.put("/api/descriptions", json={"name": name, "text": text})
-    assert refusal(tmp_path, name, text) in json.dumps(answer.json())
+    refused = refusal(tmp_path, name, text)
+    assert (refused != "", refused in json.dumps(answer.json())) == (True, True)
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(

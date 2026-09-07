@@ -208,7 +208,8 @@ async def test_after_an_apply_every_profile_reads_back_with_a_non_empty_post(
 ) -> None:
     # the fake daemon ships "Stock", a profile saved before chains were stored
     await http_manager.applyops.apply({}, {"title": "Renamed"})
-    assert all(p["post"] for p in (await running_profiles(http_manager)).values())
+    profiles = await running_profiles(http_manager)
+    assert [name for name, p in profiles.items() if not p["post"]] == []
 
 
 async def test_an_apply_keeps_every_profile_the_config_carried(http_manager: ConnectionManager) -> None:

@@ -34,7 +34,8 @@ HOOK_PATH = HOOKS_DIR / "reviews-lane.py"
 
 def _load_hook_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("reviews_lane_under_test", HOOK_PATH)
-    assert spec is not None and spec.loader is not None, f"no importable module at {HOOK_PATH}"
+    if spec is None or spec.loader is None:
+        raise ImportError(f"no importable module at {HOOK_PATH}")
     module = importlib.util.module_from_spec(spec)
     # A hook runs as a script from its own directory, where ``free_bash`` is a
     # plain sibling import; loading it by path here reproduces that.

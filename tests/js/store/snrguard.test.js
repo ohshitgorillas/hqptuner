@@ -169,7 +169,7 @@ async function stage(w, key, value) {
 test("test_staging_a_flagged_modulator_with_a_live_volume_opens_a_question", async () => {
   const w = await fixture({ modulator: PLAIN_V });
   const { held } = await stage(w, "sdm_modulator", AHM5_V);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "sdm_modulator");
   cancel();
   await held;
 });
@@ -177,7 +177,7 @@ test("test_staging_a_flagged_modulator_with_a_live_volume_opens_a_question", asy
 test("test_staging_the_other_flagged_modulator_with_a_live_volume_opens_a_question", async () => {
   const w = await fixture({ modulator: PLAIN_V });
   const { held } = await stage(w, "sdm_modulator", AHM7_V);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "sdm_modulator");
   cancel();
   await held;
 });
@@ -286,7 +286,7 @@ test("test_staging_a_flagged_modulator_over_a_staged_un_pinning_edit_opens_a_que
   const { held: pre } = await stage(w, "volume_max", "-3");
   await pre;
   const { held } = await stage(w, "sdm_modulator", AHM5_V);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "sdm_modulator");
   cancel();
   await held;
 });
@@ -366,7 +366,7 @@ for (const { what, volume, key, value } of UNPINNING) {
   test(`test_${what}_under_a_flagged_modulator_opens_a_question`, async () => {
     const w = await fixture({ modulator: AHM5_V, volume });
     const { held } = await stage(w, key, value);
-    assert.notEqual(question.value, null);
+    assert.equal(question.value?.owner, key);
     cancel();
     await held;
   });
@@ -406,7 +406,7 @@ test("test_un_pinning_the_volume_under_a_staged_flagged_modulator_opens_a_questi
   const { held: pre } = await stage(w, "sdm_modulator", AHM5_V);
   await pre;
   const { held } = await stage(w, "volume_max", "-3");
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "volume_max");
   cancel();
   await held;
 });

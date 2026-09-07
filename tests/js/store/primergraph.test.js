@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 
 import { gaussianPulse, ringing } from "../../../hqptuner/static/lib/dsp/pulse.js";
 import { magnitudeDb } from "../../../hqptuner/static/lib/dsp/spectrum.js";
+import { ascending } from "../support/order.js";
 import {
   rate,
   outputRate,
@@ -75,10 +76,8 @@ test("test_tap_count_at_eight_times_is_four_times_the_count_at_two_times", () =>
   const twoX = readouts.value.taps;
   configure({ rate: 44100, lengthMs: 2, outputRate: 352800 });
   const eightX = readouts.value.taps;
-  assert.ok(
-    twoX !== null && eightX !== null && Math.abs(eightX - 4 * twoX) <= 1,
-    `expected 4 x ${twoX} within 1, got ${eightX}`,
-  );
+  // a null readout becomes NaN, which no tolerance admits
+  assert.ok(Math.abs((eightX ?? NaN) - 4 * (twoX ?? NaN)) <= 1, `expected 4 x ${twoX} within 1, got ${eightX}`);
 });
 
 // 2. no oversampling means no filter: the design stops ringing once the
@@ -125,7 +124,8 @@ test("test_fast_rolloff_at_long_leaves_the_band_just_above_nyquist_between_minus
   const band = Array.from({ length: 36 }, (_, i) => 22500 + i * 100);
   configure({ rate: 44100, lengthMs: 8, outputRate: 176400, rolloff: 1 });
   const peak = Math.max(...designDb(band));
-  assert.ok(peak >= -110 && peak <= -60, `expected 22.5..26 kHz peak between -110 and -60 dB, got ${peak}`);
+  const span = [-110, peak, -60];
+  assert.deepEqual(span, ascending(span), `expected 22.5..26 kHz peak between -110 and -60 dB, got ${peak}`);
 });
 
 /**

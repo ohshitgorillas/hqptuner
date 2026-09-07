@@ -210,8 +210,7 @@ test("test_the_level_slider_steps_at_a_fixed_quantum", async () => {
   await reset();
   // bound first: a missing level knob or a step-less slider must fail here,
   // not slide through as undefined !== "any" (reviewer finding)
-  const step = sliderStep(knobAt(card(), "-9"));
-  assert.ok(step !== undefined && step !== "any");
+  assert.equal([undefined, "any"].includes(sliderStep(knobAt(card(), "-9"))), false);
 });
 
 // --- hidden-side staged edits stay visible ----------------------------------------

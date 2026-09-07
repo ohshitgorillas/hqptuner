@@ -38,6 +38,7 @@ import { isDirty, stagedCount } from "../../../hqptuner/static/store/resolve.js"
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { reset, field, titleOf, grayReason, activeSegment } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
+import { placed } from "../support/order.js";
 
 /** @typedef {import("../support/field-harness.js").ConfigField} ConfigField */
 
@@ -365,7 +366,8 @@ const SUB = "Blends the channels the way a room would.";
 
 test("test_a_card_subtitle_renders_at_the_top_of_the_body_before_the_children", async () => {
   const body = bodyOf(card({ subtitle: SUB }));
-  assert.ok(body.indexOf(SUB) >= 0 && body.indexOf(SUB) < body.indexOf("<p>kid</p>"));
+  const at = [body.indexOf(SUB), body.indexOf("<p>kid</p>")];
+  assert.deepEqual(at, placed(at));
 });
 
 test("test_a_card_subtitle_is_not_rendered_in_the_head", async () => {
@@ -390,7 +392,8 @@ const disclosure = (open) =>
 
 test("test_an_open_collapsible_card_shows_its_subtitle_at_the_top_of_its_body", () => {
   const body = bodyOf(disclosure(true));
-  assert.ok(body.indexOf(SUB) >= 0 && body.indexOf(SUB) < body.indexOf("<p>kid</p>"));
+  const at = [body.indexOf(SUB), body.indexOf("<p>kid</p>")];
+  assert.deepEqual(at, placed(at));
 });
 
 test("test_a_closed_collapsible_card_shows_no_subtitle", () => {

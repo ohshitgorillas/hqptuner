@@ -108,7 +108,8 @@ def test_a_device_with_no_dsd_path_reports_an_empty_dsd_list() -> None:
 
 
 def test_a_device_with_no_dsd_path_is_still_a_capability() -> None:
-    assert devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY)) is not None
+    caps = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
+    assert (caps or {})["device"] == "naa-pi2aes/hw:CARD=Pi2AES,DEV=0"
 
 
 def test_log_without_any_announcement_yields_nothing() -> None:

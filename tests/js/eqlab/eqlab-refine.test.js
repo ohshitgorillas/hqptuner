@@ -18,6 +18,7 @@ import { coordinateDescent, nelderMead, refinePoint } from "../../../scripts/eql
 import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
 import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { FS, near, below, band, argNum } from "../support/eqlab-helpers.js";
+import { ascending } from "../support/order.js";
 
 /** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
 /** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
@@ -172,7 +173,7 @@ test("test_the_refined_winner_lands_off_the_grid", () => {
 
 test("test_the_refined_winner_stays_inside_the_declared_bounds", () => {
   const g = gOf(WINNER.changes);
-  assert.ok(g >= -1 && g <= 1, `expected g in [-1, 1], got ${g}`);
+  assert.deepEqual([-1, g, 1], ascending([-1, g, 1]), `expected g in [-1, 1], got ${g}`);
 });
 
 test("test_a_refined_entry_carries_the_refinement_record_keys", () => {
@@ -327,7 +328,7 @@ test("test_refine_job_best_never_scores_worse_than_the_seed", () => {
 
 test("test_refine_job_best_stays_inside_the_declared_bounds", () => {
   const g = gOf(RJ.best.changes);
-  assert.ok(g >= -1 && g <= 1, `expected g in [-1, 1], got ${g}`);
+  assert.deepEqual([-1, g, 1], ascending([-1, g, 1]), `expected g in [-1, 1], got ${g}`);
 });
 
 test("test_refine_job_rejects_pareto_objectives", () => {

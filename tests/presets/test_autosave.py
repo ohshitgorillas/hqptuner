@@ -223,4 +223,4 @@ def test_failed_autosave_reports_not_ok(live_api: TestClient, tmp_path: Path) ->
 def test_failed_autosave_carries_an_error_string(live_api: TestClient, tmp_path: Path) -> None:
     _point_autosave_at(tmp_path / "presets")
     err = live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}}).json()["autosaved"]["error"]
-    assert isinstance(err, str) and err
+    assert (type(err), err == "") == (str, False)

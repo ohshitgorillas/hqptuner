@@ -430,8 +430,9 @@ for (const key of POST_PROCESS) {
     await reset({ matrix: "1" });
     await edit("matrix_enabled", "0");
     const reason = reasonOf(key);
-    assert.ok(
-      isDisabled(field(key)) && reason === null,
+    assert.deepEqual(
+      [isDisabled(field(key)), reason],
+      [true, null],
       `under a staged bypass ${key} renders disabled=${isDisabled(field(key))} with caption ${JSON.stringify(reason)}`,
     );
   });
@@ -475,10 +476,7 @@ for (const key of SUB_CONTROLS) {
   test(`test_a_bypassed_matrix_puts_its_sentence_on_the_hover_title_of_${key}`, async () => {
     await reset({ matrix: "0" });
     const title = titleOf(field(key));
-    assert.ok(
-      title !== undefined && title.includes(NOTE),
-      `hover title under a bypassed matrix: ${JSON.stringify(title)}`,
-    );
+    assert.equal((title || "").includes(NOTE), true, `hover title under a bypassed matrix: ${JSON.stringify(title)}`);
   });
 
   // And under a STAGED bypass — same sentence, same title, no apply.
@@ -486,10 +484,7 @@ for (const key of SUB_CONTROLS) {
     await reset({ matrix: "1" });
     await edit("matrix_enabled", "0");
     const title = titleOf(field(key));
-    assert.ok(
-      title !== undefined && title.includes(NOTE),
-      `hover title under a staged bypass: ${JSON.stringify(title)}`,
-    );
+    assert.equal((title || "").includes(NOTE), true, `hover title under a staged bypass: ${JSON.stringify(title)}`);
   });
 
   // Both gates shut at once: the matrix is the outer one and the hover title the
@@ -501,8 +496,9 @@ for (const key of SUB_CONTROLS) {
     const bothShut = titleOf(field(key));
     await reset({ matrix: "0", crossfeed: "1", correction: "1", loudness: "1" });
     const matrixOnly = titleOf(field(key));
-    assert.ok(
-      bothShut !== undefined && bothShut === matrixOnly && bothShut.includes(NOTE),
+    assert.deepEqual(
+      [bothShut, (bothShut || "").includes(NOTE)],
+      [matrixOnly, true],
       `hover title with the own gate shut ${JSON.stringify(bothShut)} vs with it engaged ${JSON.stringify(matrixOnly)}`,
     );
   });
@@ -526,8 +522,9 @@ for (const key of OWN_GATED) {
   test(`test_an_engaged_matrix_leaves_a_gated_${key}_a_reason_of_its_own_on_hover`, async () => {
     await reset({ matrix: "1", ...ownGateShut(key) });
     const title = titleOf(field(key));
-    assert.ok(
-      title !== undefined && title.trim() !== "" && !namesMatrix(title),
+    assert.deepEqual(
+      [(title || "").trim() === "", namesMatrix(title)],
+      [false, false],
       `gated ${key} offers no reason of its own on hover: ${JSON.stringify(title)}`,
     );
   });
@@ -566,8 +563,10 @@ for (const key of REPRESENTATIVE) {
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", async () => {
   await reset({ matrix: "0", view: "bauer" });
   const engage = segmentValued(crossfeed(), "1");
-  assert.ok(
-    engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
+  // attrsOf answers "" for a control never rendered, which carries no disabled mark
+  assert.equal(
+    /\sdisabled\b/.test(attrsOf(engage)),
+    true,
     engage === undefined ? "no ENGAGE control was rendered in the Bauer view" : "ENGAGE rendered enabled",
   );
 });
@@ -575,8 +574,9 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", asy
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view", async () => {
   await reset({ matrix: "0", view: "structural" });
   const engage = segmentValued(crossfeed(), "1");
-  assert.ok(
-    engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
+  assert.equal(
+    /\sdisabled\b/.test(attrsOf(engage)),
+    true,
     engage === undefined ? "no ENGAGE control was rendered in the Structural view" : "ENGAGE rendered enabled",
   );
 });

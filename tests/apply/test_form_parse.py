@@ -63,7 +63,7 @@ def test_text_field_reports_current_value() -> None:
 
 
 def test_profile_list_includes_the_default_base_configuration() -> None:
-    assert any(o["value"] == "" for o in _PARSED["profiles"]["options"])
+    assert "" in [o["value"] for o in _PARSED["profiles"]["options"]]
 
 
 def _raw_wire_value(name: str, ftype: str) -> object:

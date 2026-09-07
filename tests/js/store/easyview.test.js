@@ -134,7 +134,10 @@ test("test_turning_easy_mode_off_lowers_the_flag", () => {
 test("test_the_easy_mode_flag_is_kept_under_the_hqptuner_easy_mode_key_name", () => {
   storage.removeItem(MODE_KEY);
   view.setEasyMode(true);
-  assert.notEqual(storage.getItem(MODE_KEY), null);
+  const on = storage.getItem(MODE_KEY);
+  view.setEasyMode(false);
+  // written under that key, and written differently for each choice
+  assert.notEqual(on, storage.getItem(MODE_KEY));
 });
 
 // And the key that is no longer written. The card has one set of tiles and

@@ -278,7 +278,7 @@ test("test_output_band_spans_the_outputs_peak_and_deepest_ring", () => {
   const hi = Math.max(...levels);
   const lo = Math.min(...levels);
   assert.ok(
-    Math.abs(hi - 0.99) <= 0.02 && Math.abs(lo + 0.21) <= 0.02,
+    Math.max(Math.abs(hi - 0.99), Math.abs(lo + 0.21)) <= 0.02,
     `the band spans levels [${hi}, ${lo}], wanted [0.99, -0.21] each within 0.02`,
   );
 });

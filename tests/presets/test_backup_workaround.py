@@ -52,8 +52,8 @@ async def test_a_read_with_no_cache_passes_the_archive_through(
 
 
 async def test_a_healthy_backup_is_cached_for_the_outage(http_manager: ConnectionManager) -> None:
-    await http_manager.presetops.backup_or_cached()
-    assert http_manager.presetops.last_healthy_backup is not None
+    healthy = await http_manager.presetops.backup_or_cached()
+    assert http_manager.presetops.last_healthy_backup == healthy
 
 
 # --- apply with switch_to: load the previewed preset, then the edits ----------

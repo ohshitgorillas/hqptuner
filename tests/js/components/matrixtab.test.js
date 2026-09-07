@@ -34,6 +34,7 @@ import { stageProfileDelete } from "../../../hqptuner/static/store/matrix/profil
 import { stagingWire } from "../support/wire.js";
 import { rows as optionRows, boxText } from "../support/comborows.js";
 import { elements, classes, attr, hasAttr } from "../support/markup.js";
+import { placed } from "../support/order.js";
 
 function wire() {
   stagingWire();
@@ -296,8 +297,8 @@ test("test_the_open_pipelines_card_carries_no_channel_count", async () => {
 test("test_the_channels_card_stands_below_the_profile_card_in_its_stack", async () => {
   await resetWithChannels([ROW({})]);
   const stack = tab().slice(tab().indexOf('<div class="card-stack'));
-  const profile = stack.indexOf("mtx-profile");
-  assert.ok(profile >= 0 && profile < stack.indexOf('data-k="channels"'));
+  const at = [stack.indexOf("mtx-profile"), stack.indexOf('data-k="channels"')];
+  assert.deepEqual(at, placed(at));
 });
 
 // --- flow rows ---------------------------------------------------------------

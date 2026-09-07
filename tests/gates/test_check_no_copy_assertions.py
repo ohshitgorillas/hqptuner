@@ -44,7 +44,8 @@ UNCOVERED = f"{PY_SEED} drifts"
 
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_no_copy_assertions_under_test", GATE_PATH)
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise ImportError(f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -105,7 +106,7 @@ def test_a_literal_handed_to_a_plain_call_is_input_while_a_method_call_argument_
     ]
     path = write_checked_file(tmp_path, body)
     findings = GATE.check_file(path)
-    assert len(findings) == 1 and sits_at(findings[0], path, line_of(2))
+    assert [sits_at(finding, path, line_of(2)) for finding in findings] == [True]
 
 
 def test_support_seeds_cover_verbatim_composed_and_skeleton_literals_but_not_an_extra_word(
@@ -123,4 +124,4 @@ def test_support_seeds_cover_verbatim_composed_and_skeleton_literals_but_not_an_
     ]
     path = write_checked_file(tmp_path, body)
     findings = GATE.check_file(path)
-    assert len(findings) == 1 and sits_at(findings[0], path, line_of(5))
+    assert [sits_at(finding, path, line_of(5)) for finding in findings] == [True]

@@ -601,7 +601,7 @@ test("test_leaving_a_hazard_and_reaching_it_again_asks_again_at_edit_time", asyn
   await stageAcknowledged(w, "sdm_modulator", AHM5_V);
   await stageQuietly(w, "sdm_modulator", PLAIN_V);
   const { held } = await startEdit(w, "sdm_modulator", AHM5_V);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "sdm_modulator");
   cancel();
   await held.catch(() => {});
 });
@@ -614,7 +614,7 @@ test("test_discarding_after_acknowledging_a_hazard_asks_again_when_it_is_reached
   await discardAll();
   await quiesce(w);
   const { held } = await startEdit(w, "sdm_modulator", AHM5_V);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "sdm_modulator");
   cancel();
   await held.catch(() => {});
 });
@@ -633,7 +633,7 @@ test("test_leaving_a_hazard_acknowledged_at_apply_time_and_reaching_it_again_ask
   await quiesce(w);
   await preview(w, FLAGGED_MODULATOR_PRESET);
   const { held } = await startApply(w);
-  assert.notEqual(question.value, null);
+  assert.equal(question.value?.owner, "pending");
   cancel();
   await held.catch(() => {});
 });

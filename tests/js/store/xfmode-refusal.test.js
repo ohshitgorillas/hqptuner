@@ -127,7 +127,7 @@ test("test_install_over_a_straight_db_pair_stages_sixteen_rows", async () => {
 test("test_install_over_a_straight_db_pair_is_recognized_as_a_block", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
-  assert.notEqual(structuralBlock(live()), null);
+  assert.equal(structuralBlock(live())?.angle, DEFAULTS.angle);
 });
 
 test("test_a_successful_install_returns_no_note", async () => {

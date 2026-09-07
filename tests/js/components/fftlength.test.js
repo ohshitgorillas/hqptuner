@@ -143,7 +143,7 @@ test("test_an_fft_filter_on_the_pcm_1x_slot_puts_the_control_in_the_pcm_chain", 
 
 test("test_an_fft_filter_on_a_pcm_slot_leaves_the_sdm_chain_without_the_control", async () => {
   const frag = section(await outputWith({ filter1x: FFT }), SDM);
-  assert.ok(frag.length > 0 && !carriesFftSize(frag));
+  assert.deepEqual([frag === "", carriesFftSize(frag)], [false, false]);
 });
 
 test("test_an_fft_filter_on_the_pcm_nx_slot_puts_the_control_in_the_pcm_chain", async () => {
@@ -160,7 +160,7 @@ test("test_an_fft_filter_on_the_sdm_nx_slot_puts_the_control_in_the_sdm_chain", 
 
 test("test_an_fft_filter_in_each_chain_puts_a_control_in_both_chains", async () => {
   const out = await outputWith({ filter1x: FFT, oversampling: FFT });
-  assert.ok(carriesFftSize(section(out, PCM)) && carriesFftSize(section(out, SDM)));
+  assert.deepEqual([carriesFftSize(section(out, PCM)), carriesFftSize(section(out, SDM))], [true, true]);
 });
 
 test("test_an_fft_filter_merely_offered_places_no_control_in_either_chain", async () => {
@@ -168,7 +168,7 @@ test("test_an_fft_filter_merely_offered_places_no_control_in_either_chain", asyn
   // unchosen. Neither chain may take that for a reason to show the control.
   const out = await outputWith({ filter1x: { value: "1", options: FFT_LIST } });
   const [pcm, sdm] = [section(out, PCM), section(out, SDM)];
-  assert.ok(pcm.length > 0 && sdm.length > 0 && !carriesFftSize(pcm) && !carriesFftSize(sdm));
+  assert.deepEqual([pcm === "", sdm === "", carriesFftSize(pcm), carriesFftSize(sdm)], [false, false, false, false]);
 });
 
 // The enum id domain is the engine's and shifts between versions; the engine
@@ -182,7 +182,7 @@ test("test_an_fft_name_under_an_unfamiliar_enum_id_still_places_the_control", as
 
 test("test_a_familiar_enum_id_with_a_non_fft_name_places_no_control", async () => {
   const frag = section(await outputWith({ filter1x: opt("7", "poly-sinc-gauss-short") }), PCM);
-  assert.ok(frag.length > 0 && !carriesFftSize(frag));
+  assert.deepEqual([frag === "", carriesFftSize(frag)], [false, false]);
 });
 
 // --- the detented slider ------------------------------------------------------

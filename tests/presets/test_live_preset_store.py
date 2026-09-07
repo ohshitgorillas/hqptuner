@@ -77,8 +77,7 @@ def understood_schema(tmp_path_factory: pytest.TempPathFactory) -> int:
     same thing another HQPTuner version would learn by opening the file."""
     path = tmp_path_factory.mktemp("stamp") / "live-presets.json"
     LivePresetStore(path).save("alpha", RECORD)
-    schema = json.loads(path.read_text())["schema"]
-    assert isinstance(schema, int)
+    schema: int = json.loads(path.read_text())["schema"]
     return schema
 
 

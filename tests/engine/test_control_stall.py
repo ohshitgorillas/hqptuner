@@ -336,7 +336,7 @@ def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
     client, _ = closing_api
     with caplog.at_level(logging.WARNING):
         client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert any(HOUSEKEEPING_COMMAND in record.getMessage() for record in caplog.records)
+    assert [record for record in caplog.records if HOUSEKEEPING_COMMAND in record.getMessage()] != []
 
 
 def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
@@ -346,7 +346,7 @@ def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
     with caplog.at_level(logging.WARNING):
         client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
     # Only that it is not swallowed silently; which command died is the test above.
-    assert any(record.levelno == logging.WARNING for record in caplog.records)
+    assert logging.WARNING in [record.levelno for record in caplog.records]
 
 
 # --- nothing written at all ----------------------------------------------------

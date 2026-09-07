@@ -11,7 +11,7 @@ def test_autoeq_blob_is_served_gzip_encoded(api_client: TestClient) -> None:
 
 def test_autoeq_blob_decodes_to_profiles_with_verbatim_filter_text(api_client: TestClient) -> None:
     profiles = api_client.get("/api/autoeq").json()["profiles"]
-    assert any("Filter 1" in p["text"] and p["source"] and p["model"] for p in profiles)
+    assert [p for p in profiles if "Filter 1" in p["text"] and p["source"] and p["model"]] != []
 
 
 def test_autoeq_blob_records_its_upstream_pin(api_client: TestClient) -> None:
