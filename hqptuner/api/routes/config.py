@@ -17,6 +17,7 @@ from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
 from hqptuner.core import engineread
 from hqptuner.engine.control import ControlError
+from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
@@ -173,7 +174,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
     try:
-        await manager.require_http().restore(data)
+        await settle.restore(manager, data)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse("daemon_write_failed", f"restore failed: {exc}") from exc
     return {"restored": True, "bytes": len(data)}

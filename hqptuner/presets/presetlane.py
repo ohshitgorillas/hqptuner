@@ -74,14 +74,15 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     name = canonical_name(name)  # the store keys on the trimmed name; so must the mirror, the pointer and the audit
     xml = mgr.presetops.store.read(name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
-    await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
+    await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
-    await mgr.require_http().restore(archive, scope="system")
+    mark = settle.mark_connect(mgr)
+    await settle.restore(mgr, archive, scope="system")
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
-    await mgr.await_ready()
+    await settle.await_ready(mgr, mark)
     # the restore restarted the daemon: every live reading we hold is the previous
     # engine's, and an auto-save riding this load would fold those into the preset
     # it just loaded (ConnectionManager.resync_engine_state)
@@ -183,7 +184,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     # that failed. Everything after keys on the trimmed name.
     name = canonical_name(name)
     try:
-        await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
+        await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
         backup = await mgr.presetops.backup_or_cached(for_write=True)
         working = engineconf.base_config_xml(backup, mgr.readings.active_config)
         if not working:
@@ -262,11 +263,12 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
     async def push() -> bool:
-        await mgr.require_http().restore(archive, scope="system")
+        await settle.restore(mgr, archive, scope="system")
         return True
 
+    mark = settle.mark_connect(mgr)
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
-        await mgr.await_ready()
+        await settle.await_ready(mgr, mark)
         return None
     log.warning("preset %r saved, but its daemon mirror did not land", name)
     return "hqplayerd's own profile list was not updated"

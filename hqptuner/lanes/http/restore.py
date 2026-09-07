@@ -126,6 +126,9 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     active_profile = "" if switched else _active_profile(mgr, edits)
     diff: dict[str, dict[str, str | None]] = {}
     last_error: str | None = None
+    # taken before the first pass, not inside it: a pass refused with 503 and the
+    # next one adopted are one restore the caller has to outlast
+    mark = settle.mark_connect(mgr)
     for attempt in range(_PERSIST_RETRIES + 1):
         final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile)
         if final is not None:
@@ -133,7 +136,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
                 # the restore restarted the daemon and `verify` proves only that the
                 # 8088 lane serves the new config; the 4321 control connection is still
                 # the dead one, so wait for the reconnect before answering the user
-                await mgr.await_ready()
+                await settle.await_ready(mgr, mark)
             return final
         # a transient write failure must not erase the divergence an earlier pass
         # found: a daemon that accepts the restore and then dies is unconverged,
@@ -171,7 +174,7 @@ async def _one_pass(
     # a preset switch (or a prior attempt) just restarted the daemon and the
     # active label flips before the restart finishes — wait for the HTTP lane
     # to actually serve before writing, rather than racing it
-    await mgr.await_http_ready()
+    await settle.await_http_ready(mgr)
     try:
         intended = await _restore_once(mgr, merged, active_profile)
     except xmledit.GroundingError as exc:
@@ -238,7 +241,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await mgr.require_http().restore(restore_zip, scope="system")
+    await settle.restore(mgr, restore_zip, scope="system")
     return presetconf.read_config(intended_xml)
 
 
