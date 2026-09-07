@@ -67,7 +67,7 @@ repos:
 
       - id: single-assertion
         name: one assertion per test
-        entry: .venv/bin/python scripts/gates/check_test_assertions.py
+        entry: .venv/bin/python scripts/gates/check_test_assertions.py --report
         language: system
         types: [python]
         files: ^tests/
