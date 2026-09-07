@@ -64,6 +64,10 @@ class ConnectionManager:
         # drop, the thing a post-restore wait (lanes.settle.await_ready) sleeps on.
         self._wake = asyncio.Event()
         self.connected = asyncio.Event()
+        # Set on every edge of `connected`, both directions, and cleared by whoever
+        # waits on it. `connected` alone cannot wake a waiter on a drop, and a
+        # post-restore wait needs the drop as much as the connect that follows it.
+        self.changed = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
         # file, so a second copy would hand out numbers the first already used.
@@ -74,13 +78,14 @@ class ConnectionManager:
         self.applyops = ApplyOps(self)
 
         self.reachable = False
-        # `reachable` is the 4321 handshake alone, published before the 8088 half of
-        # the connect has run; `ready` is the whole connect body having returned, which
-        # is what the UI and the write lanes actually need to know.
-        self.ready = False
         # Whole connects completed since construction: a post-restore wait's mark, so
         # it waits for a connect that completed after its restore began.
         self.connects = 0
+        # Drops that were evidence the daemon went away, since construction. The
+        # forced drop `restarting` takes is not one: it is our own doing, ahead of a
+        # restart the daemon has not performed yet, so counting it would let a
+        # post-restore wait mistake it for the restart landing.
+        self.drops = 0
         self.unreachable_since: float | None = time.time()
         # Stamped through `monotonic()`, the seam `alarm` reads it back through, so
         # both sides of that subtraction run on one clock (virtual in the suite).
@@ -92,6 +97,16 @@ class ConnectionManager:
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
         self.metering: MeteringReader | None = None
+
+    @property
+    def ready(self) -> bool:
+        """Report whether both daemon lanes are up: the connect body completed and stands, and 8088 answered.
+
+        Not a flag anyone sets. `reachable` is the 4321 handshake alone, published before
+        the 8088 half of the connect has run, and a flag set at the end of the connect body
+        went on reading true for a configuration lane that was refused or never built.
+        """
+        return self.connected.is_set() and self.readings.http_ok
 
     @property
     def alarm(self) -> bool:
@@ -172,15 +187,24 @@ class ConnectionManager:
             await asyncio.wait_for(self._wake.wait(), seconds)
         self._wake.clear()
 
-    async def _drop(self, reason: str) -> None:
+    async def _drop(self, reason: str, *, counts: bool = True) -> None:
+        """Tear the control connection down.
+
+        ``counts`` is False for the one drop that is not evidence the daemon went away:
+        ``restarting`` takes the connection down itself, ahead of a restart the daemon has
+        not begun, and a post-restore wait that counted it would return on the connection
+        the restart is about to kill.
+        """
         if self.reachable or self._client is not None:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
             self.unreachable_since = time.time()
             self._unreachable_mono = self.monotonic()
+        if counts and self.connected.is_set():
+            self.drops += 1
         self.reachable = False
-        self.ready = False
         self.connected.clear()
+        self.changed.set()
         if self._client is not None:
             await self._client.close()
             self._client = None
@@ -237,11 +261,16 @@ class ConnectionManager:
         the loop's own retries carry it through the restart window. The post-restore wait itself is
         ``lanes.settle.await_ready``.
 
-        Only a whole connection is dropped: with ``ready`` False there is either no client, or a
-        connect body mid-flight that must finish on its own client rather than one closed under it.
+        Only a whole connection is dropped: with ``connected`` clear there is either no client, or
+        a connect body mid-flight that must finish on its own client rather than one closed under
+        it. It reads ``connected`` rather than ``ready`` because the configuration lane has no say
+        in whether there is a control connection here to take down.
+
+        The drop does not count: it is ours, taken ahead of a restart the daemon has not performed,
+        and ``await_ready`` waits for a counting drop to prove the restart actually landed.
         """
-        if self.ready:
-            await self._drop("restore restarts the daemon")
+        if self.connected.is_set():
+            await self._drop("restore restarts the daemon", counts=False)
             self._wake.set()
 
     @property

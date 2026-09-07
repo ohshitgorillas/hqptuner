@@ -164,13 +164,6 @@
   gap: var(--sp-2);
   align-items: center;
 }
-.preset-status {
-  font-size: var(--fs-caption);
-}
-.preset-status.pending-apply {
-  color: var(--accent);
-  font-weight: var(--fw-medium);
-}
 .preset-del {
   font-size: var(--fs-body);
   padding: var(--sp-1) var(--sp-2);

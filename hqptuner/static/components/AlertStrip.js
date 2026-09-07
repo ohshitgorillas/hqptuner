@@ -19,13 +19,21 @@ import { engineAlerts } from "../store/health.js";
 import { shaperAlerts } from "../store/alerts/shaperfit.js";
 import { roonIdleAlert } from "../store/alerts/roonidle.js";
 import { credentialsAlert } from "../store/alerts/credentials.js";
+import { presetPickAlert } from "../store/alerts/presetpick.js";
 import { junkAdvice } from "../store/alerts/junkadvice.js";
 
 /** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {
   const roon = roonIdleAlert.value;
   const creds = credentialsAlert.value;
-  const alerts = [...(creds ? [creds] : []), ...engineAlerts.value, ...shaperAlerts.value, ...(roon ? [roon] : [])];
+  const pick = presetPickAlert.value;
+  const alerts = [
+    ...(creds ? [creds] : []),
+    ...(pick ? [pick] : []),
+    ...engineAlerts.value,
+    ...shaperAlerts.value,
+    ...(roon ? [roon] : []),
+  ];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`
