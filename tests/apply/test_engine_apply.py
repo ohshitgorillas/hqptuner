@@ -8,6 +8,7 @@ import io
 import zipfile
 
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import fileconfig
 
 
 def _archive_with_nblocks(value: str) -> bytes:
@@ -20,19 +21,19 @@ def _archive_with_nblocks(value: str) -> bytes:
 
 async def test_applied_engine_attribute_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply_engine({"cuda": "convolution"})
-    assert (await http_manager.read_engine())["cuda"] == "convolution"
+    assert (await fileconfig.read_engine(http_manager))["cuda"] == "convolution"
 
 
 async def test_apply_engine_preserves_unrelated_attribute(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply_engine({"cuda": "0"})
-    assert (await http_manager.read_engine())["multicore"] == "1"
+    assert (await fileconfig.read_engine(http_manager))["multicore"] == "1"
 
 
 async def test_applied_cuda_device_id_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply_engine({"cuda_dev": "1"})
-    assert (await http_manager.read_engine())["cuda_dev"] == "1"
+    assert (await fileconfig.read_engine(http_manager))["cuda_dev"] == "1"
 
 
 async def test_restored_archive_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
     await http_manager.require_http().restore(_archive_with_nblocks("4"))
-    assert (await http_manager.read_engine())["nblocks"] == "4"
+    assert (await fileconfig.read_engine(http_manager))["nblocks"] == "4"

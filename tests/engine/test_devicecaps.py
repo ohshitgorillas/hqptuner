@@ -22,6 +22,7 @@ from hqptuner.config import Config
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
+from hqptuner.presets import fileconfig
 
 PREAMBLE = "2026/08/01 02:03:30 Engine started\n2026/08/01 02:03:31 Opening output device\n"
 
@@ -365,7 +366,7 @@ async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> Connec
     """A manager holding both config views: the file read and the forms loaded,
     which is the state every ordinary poll leaves it in."""
     manager = _manager(factory, daemon)
-    await manager.load_file_config()
+    await fileconfig.load_file_config(manager)
     await engineread.refresh_devices(manager)
     return manager
 

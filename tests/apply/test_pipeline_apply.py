@@ -9,6 +9,7 @@ daemon would store round-trips."""
 import json
 
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "0", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -19,7 +20,7 @@ def rows_json(*rows: dict[str, str]) -> str:
 
 
 async def applied_rows(http_manager: ConnectionManager) -> list[dict[str, str]]:
-    cfg = await http_manager.load_file_config()
+    cfg = await fileconfig.load_file_config(http_manager)
     rows: list[dict[str, str]] = json.loads(cfg["matrix_pipelines"])
     return rows
 
@@ -66,7 +67,7 @@ async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -
 
 async def test_pipeline_apply_leaves_other_settings_untouched(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "-3"}, ROW1)})
-    assert (await http_manager.load_file_config())["channels"] == "2"
+    assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
 
 
 async def test_invalid_gain_is_refused_before_any_write(http_manager: ConnectionManager) -> None:
@@ -81,4 +82,4 @@ async def test_out_of_range_channel_is_refused_before_any_write(http_manager: Co
 
 async def test_matrix_engine_field_reaches_the_running_config(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"matrix_engine": "0"})
-    assert (await http_manager.load_file_config())["matrix_engine"] == "0"
+    assert (await fileconfig.load_file_config(http_manager))["matrix_engine"] == "0"

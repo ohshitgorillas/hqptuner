@@ -23,6 +23,7 @@ from fake_http import state
 
 from hqptuner.conf import matrixconf, presetconf
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -78,7 +79,7 @@ def without_profile(xml: bytes, name: str) -> bytes:
 
 async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
     """The saved profiles of the running config, read back from the daemon."""
-    cfg_fields = await manager.load_file_config()
+    cfg_fields = await fileconfig.load_file_config(manager)
     profiles: dict[str, dict[str, Any]] = json.loads(cfg_fields["matrix_profiles"])
     return profiles
 

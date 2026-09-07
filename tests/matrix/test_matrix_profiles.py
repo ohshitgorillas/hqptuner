@@ -17,6 +17,7 @@ from typing import Any
 
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlClient
+from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -30,7 +31,7 @@ def save(name: str, *rows: dict[str, str]) -> dict[str, str]:
 async def saved_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
     """The profiles the running config carries, read back from the daemon: each
     one ``{"rows": [...], "post": {...}}``."""
-    cfg = await manager.load_file_config()
+    cfg = await fileconfig.load_file_config(manager)
     profiles: dict[str, dict[str, Any]] = json.loads(cfg["matrix_profiles"])
     return profiles
 
@@ -78,7 +79,7 @@ async def test_save_to_an_existing_name_does_not_duplicate_it(http_manager: Conn
 
 async def test_save_leaves_the_live_pipelines_untouched(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save("Crossfeed EQ", {**ROW0, "gain": "-9"}, ROW1))
-    assert json.loads((await http_manager.load_file_config())["matrix_pipelines"])[0]["gain"] == "0"
+    assert json.loads((await fileconfig.load_file_config(http_manager))["matrix_pipelines"])[0]["gain"] == "0"
 
 
 async def test_save_leaves_post_process_untouched(http_manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:

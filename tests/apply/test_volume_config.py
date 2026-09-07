@@ -17,7 +17,7 @@ from typing import Any
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.presets import presetlane
+from hqptuner.presets import fileconfig, presetlane
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
 # top-level line, and that comment is its memory. HQPTuner used to delete the
@@ -41,33 +41,33 @@ _NEVER_FIXED_XML = (
 
 async def test_max_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert (await http_manager.load_file_config())["volume_max"] == "-6"
+    assert (await fileconfig.load_file_config(http_manager))["volume_max"] == "-6"
 
 
 async def test_min_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_min": "-40"})
-    assert (await http_manager.load_file_config())["volume_min"] == "-40"
+    assert (await fileconfig.load_file_config(http_manager))["volume_min"] == "-40"
 
 
 async def test_startup_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"defaults_volume": "-12"})
-    assert (await http_manager.load_file_config())["defaults_volume"] == "-12"
+    assert (await fileconfig.load_file_config(http_manager))["defaults_volume"] == "-12"
 
 
 async def test_enabling_fixed_volume_reads_back_as_enabled(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "1"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "1"
 
 
 async def test_enabling_fixed_volume_stores_the_level(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    assert (await http_manager.load_file_config())["fixed_volume"] == "-6"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-6"
 
 
 async def test_disabling_fixed_volume_reads_back_as_disabled(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0"})
-    assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "0"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
 
 
 # --- fixed volume: presence is the flag, and the comment is the memory --------
@@ -85,33 +85,33 @@ async def test_disabling_fixed_volume_keeps_a_level_staged_with_it(http_manager:
     # the core regression: level and untick in ONE apply
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await http_manager.load_file_config())["fixed_volume"] == "-20"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-20"
 
 
 async def test_disabling_fixed_volume_with_a_level_still_reports_it_off(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "0"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
 
 
 async def test_a_level_staged_alone_switches_fixed_volume_on(http_manager: ConnectionManager) -> None:
     # there is nowhere to park a level for a disabled feature, so setting one
     # means turning it on — otherwise the edit is silently discarded
     await http_manager.applyops.apply({}, {"fixed_volume": "-12"})
-    assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "1"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "1"
 
 
 async def test_an_explicit_untick_beats_a_level_staged_beside_it(http_manager: ConnectionManager) -> None:
     # "turn it off" must never be resurrected by the level traveling with it
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "0"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
 
 
 async def test_re_enabling_fixed_volume_restores_the_remembered_level(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0"})
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1"})
-    assert (await http_manager.load_file_config())["fixed_volume"] == "-6"
+    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-6"
 
 
 def test_toggling_fixed_volume_leaves_exactly_one_parked_line() -> None:
@@ -164,9 +164,9 @@ async def test_the_daemon_really_did_rewrite_the_untouched_field(clamping_manage
     # the precondition of the test above: without this divergence it would pass
     # for the wrong reason
     await clamping_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert (await clamping_manager.load_file_config())["defaults_volume"] == "-40"
+    assert (await fileconfig.load_file_config(clamping_manager))["defaults_volume"] == "-40"
 
 
 async def test_the_field_the_apply_wrote_is_still_verified(clamping_manager: ConnectionManager) -> None:
     await clamping_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert (await clamping_manager.load_file_config())["volume_max"] == "-6"
+    assert (await fileconfig.load_file_config(clamping_manager))["volume_max"] == "-6"

@@ -22,6 +22,7 @@ from fake_http import state
 from fastapi.testclient import TestClient
 
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import PresetStore
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
@@ -73,7 +74,7 @@ def without_profile(xml: bytes, name: str) -> bytes:
 async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
     """The profiles the running config carries, read back from the daemon: each
     one its rows and its own post-process settings."""
-    cfg = await manager.load_file_config()
+    cfg = await fileconfig.load_file_config(manager)
     profiles: dict[str, dict[str, Any]] = json.loads(cfg["matrix_profiles"])
     return profiles
 

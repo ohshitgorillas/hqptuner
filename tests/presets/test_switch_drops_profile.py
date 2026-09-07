@@ -32,6 +32,7 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes import matrixlane
+from hqptuner.presets import fileconfig
 
 #: Night's stored matrix: one row at a gain no live matrix here has, and a
 #: bauer stage at a frequency no live chain here has.
@@ -115,7 +116,7 @@ async def night_manager(
 
 async def rows(manager: ConnectionManager) -> list[dict[str, str]]:
     """The running config's live ``<matrix>`` rows, read back from the daemon."""
-    pipelines: list[dict[str, str]] = json.loads((await manager.load_file_config())["matrix_pipelines"])
+    pipelines: list[dict[str, str]] = json.loads((await fileconfig.load_file_config(manager))["matrix_pipelines"])
     return pipelines
 
 
@@ -140,7 +141,7 @@ async def test_a_preset_switch_apply_does_not_install_the_profiles_chain(
     plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
     await matrixlane.switch_profile(plain_manager, "Night")
     await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
-    assert (await plain_manager.load_file_config()).get("post_bauer_frequency") == "850"
+    assert (await fileconfig.load_file_config(plain_manager)).get("post_bauer_frequency") == "850"
 
 
 # --- no switch_to: adoption across the apply restart is preserved --------------

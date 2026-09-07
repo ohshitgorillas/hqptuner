@@ -11,6 +11,7 @@ form POST. If that lane ever goes back to posting the form, these fail.
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import fileconfig
 
 
 def test_fixed_volume_headroom_level_is_read_from_the_engine_element() -> None:
@@ -66,9 +67,9 @@ def test_an_apostrophe_in_a_process_string_survives_a_round_trip() -> None:
 
 async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_fixed": "2"})
-    assert (await http_manager.load_file_config())["volume_fixed"] == "2"
+    assert (await fileconfig.load_file_config(http_manager))["volume_fixed"] == "2"
 
 
 async def test_headroom_apply_preserves_unrelated_settings(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_fixed": "2"})
-    assert (await http_manager.load_file_config())["channels"] == "2"
+    assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
