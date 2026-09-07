@@ -10,7 +10,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **An unknown API address is now answered as unknown.** A request to an `/api` path that does not exist was answered by the page server, which called anything but a plain read the wrong kind of request. It is now refused as not found, and both that refusal and a wrong kind of request on a real path now carry a code.
 - **A refused preset name now says why.** An invalid live snapshot or config preset name is refused with a reason stated in plain English.
 - **A preset name with a slash in it is now refused by name.** A live snapshot or config preset name carrying a path separator was answered as though the request itself were the wrong kind. It is now refused as an invalid name, with the reason stated.
 - **Convolution filter uploads are checked before they are kept.** An upload is refused unless it is a WAV container or a text file, is under the size limit, and has a plain filename; before, any bytes under a .wav or .txt name were parked and shipped to the daemon on the next apply.
