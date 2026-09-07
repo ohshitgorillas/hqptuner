@@ -1,0 +1,48 @@
+kind: characterization
+
+slug: readywait-2c9e
+
+Behaviors:
+
+1. With no management credentials configured, a manager on a 4321 control fake alone, at production poll pacing: the pair (`ready` at the first event-loop pass where `reachable` turns true, `ready` once the connect has settled with a first poll completed) equals (False, True), with `reachable` True at both reads.
+   kills: publishing `ready` at the moment `reachable` is set on a credential-less install, so the app reports itself ready while the connect is still fetching the daemon's release; and gating `ready` on an 8088 lane load that a credential-less install never performs, leaving it not-ready for as long as it runs.
+   bite: `ready` False at the first event-loop pass where `reachable` is True, True once `settled(manager)` returns; wall time from `reachable` True to `ready` True 0.0019 s, 0.0015 s, 0.0012 s over three trials (`STATE_DIR=<scratch>/readywait-2c9e-state /srv/hqptuner/.venv/bin/python <scratch>/readywait-2c9e-probe.py` from /srv/hqptuner, probe deleted in the same command; manager built as `live_manager` builds one, `ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=<port>))`, no `http_client`, default `poll_interval` 2.0, first moment read by yielding one `asyncio.sleep(0)` pass at a time until `manager.reachable`). The landed test reads `ready` at the instant `live_manager` returns instead: `.venv/bin/pytest -c pyproject.toml -p no:cacheprovider --no-cov -o addopts="" -q tests/api/test_health_ready.py::test_health_reads_ready_with_no_management_credentials_configured` prints `assert False is True` at tests/api/test_health_ready.py:86, `1 failed in 0.04s`.
+   existing: tests/api/test_health_ready.py::test_health_reads_ready_with_no_management_credentials_configured asserts `health(manager)["ready"] is True` at the instant `live_manager()` returns, which is the instant `reachable` turns true (tests/conftest.py:216), with no settle; `grep -rn 'no_management_credentials\|\["ready"\] is True' tests --include='*.py'` finds tests/api/test_health_ready.py:81, :86 and :179 (`across_a_restart`, a dual-lane manager), nothing else.
+
+Public entry points, existing and unchanged (hqptuner/api/routes/status.py):
+
+    @router.get("/health")
+    def health(manager: Mgr) -> dict[str, Any]:
+        """Return daemon reachability, connection age, alarm/info/license, HQPTuner's version, and the credential verdict."""
+
+    hqptuner/core/manager.py: class ConnectionManager: reachable: bool; ready: bool
+
+Wire facts:
+
+- 4321 is unauthenticated and never restarts the daemon (docs/architecture.md:16).
+- Read-only use and all live settings work with no credentials (docs/architecture.md:37), so an install without them has no 8088 configuration lane to wait for.
+- The handshake that defines "reachable" is `GetInfo` (tests/support/fake_control.py:334 answers it; one per connection).
+- The connect also fetches the daemon's installed release from the ungated `/about` page on 8088, credentials or not (docs/protocol.md:165; hqptuner/engine/release.py:19-27 answers any HTTP failure with "").
+
+Applicable fixtures:
+
+- `live_manager` (tests/conftest.py:197-224): a manager on a 4321 fake with no 8088 client, returned the instant `reachable` turns true; production poll pacing unless `poll_interval` is passed.
+- `settled` (tests/conftest.py:234-240): a full connect plus one completed poll, the moment after which `ready` is true.
+- `_at_the_first_pass_where` (tests/api/test_health_ready.py:44-56): the first event-loop pass where a condition holds, the way the file's first test reads the moment `reachable` turns.
+- `daemon` (tests/conftest.py): the 4321 fake on a free port, returning (port, command log, shared State).
+
+Changelog entry: no entry. Test-only change; nothing a user sees moves.
+--- spec-reviewer READY ---
+READY
+discriminates: differential on health(manager)["ready"] for a credential-less manager (first pass where reachable turns true vs. after settled), one 4-tuple comparison
+
+1  DELTA tests/api/test_health_ready.py:81: rewrite the body so the manager is built inline as live_manager builds one (ConnectionManager(Config(hqp_host, hqp_control_port)), no http_client, default poll_interval) and started before `reachable` turns, spin with `_at_the_first_pass_where(lambda: manager.reachable)`, read health, `await settled(manager)`, read health again, and replace the single `["ready"] is True` at :86 with the 4-tuple (reachable, ready, reachable, ready) == (True, False, True, True); no new test. The line is this test with the read moment corrected and a second observation added, on the surface it already owns; the sibling at :62 runs a dual-lane manager and cannot see either wrong implementation this line names (a credential-less install has no 8088 lane to gate on, tests/conftest.py live_manager builds with no http client). Bite is filled as measured: ready False at the first reachable pass, True once settled(manager) returns, three trials; and the test as it stands prints `assert False is True` at :86.
+
+null stub: `ready` always False (zero value) satisfies the first read and fails the second (True expected after settled); `ready` mirroring `reachable` fails the first read.
+hard-coded stub: return (True, False, True, True) requires knowing which read is the pre-settle one, i.e. tracking a completed first poll, which is the behavior; a stub returning a constant fails one of the two reads.
+
+survives: 0
+
+notes:
+- The module docstring at tests/api/test_health_ready.py:9-10 ("for it the two moments coincide") states the opposite of this line; the delta should correct that sentence in the same edit, or it will misdescribe the test beneath it.
+- Whether `readings.loaded_at` advances on a credential-less manager at production pacing within `settled`'s 5 s (needed for the second read) rests on hqptuner/core/manager.py, which I cannot read; the measured bite (settle in ~0.002 s) says it does, so nothing here holds the gate on it.
