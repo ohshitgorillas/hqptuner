@@ -12,16 +12,16 @@ a following line whose stripped text starts with ``kills:``, ``bite:``,
 clause before it, or into the item's outcome sentence when no clause has
 started yet, so a soft-wrapped item is one item.
 
-Draft mode (default), per behavior item: an outcome carrying one of the words
+Both modes, per item: the first clause is ``kills:`` (behavior) or ``rule:``
+(excision). Draft mode (default) adds, per behavior item: an outcome carrying one of the words
 the spec-reviewer cuts under (h) and (i); a missing ``kills:``, ``bite:`` or
 ``existing:``; an ``existing:`` naming a ``tests/`` path with no ``::`` (an
 ``existing: none (<grep>)`` is exempt, the grep being the evidence); a
-``bite:`` with neither a parenthesised command nor a null stub. Per excision
+``bite:`` that names neither a parenthesised command nor a stub. Per excision
 item: a missing ``rule:`` or ``assertion:``. One report line per flagged
 source line, ``<file>:<line>: <reasons>``.
 
-Committed mode (``--committed``), structural only: every item's first clause is
-``kills:`` (behavior) or ``rule:`` (excision). Wired over ``tests/specs/`` in
+Committed mode (``--committed``) runs the clause-order check alone. Wired over ``tests/specs/`` in
 the Makefile and pre-commit; the word checks stay in draft mode because an
 approved block may legitimately carry them.
 
@@ -110,8 +110,8 @@ def _behavior_flags(item: Item) -> list[Flag]:
     if existing and not existing[2].startswith("none") and TEST_PATH.search(existing[2]) and "::" not in existing[2]:
         flags.append((existing[0], "existing: names a file, not a test"))
     bite = item.clause("bite:")
-    if bite and "(" not in bite[2] and "null stub" not in bite[2].lower():
-        flags.append((bite[0], "bite: carries no command"))
+    if bite and "(" not in bite[2] and "stub" not in bite[2].lower():
+        flags.append((bite[0], "bite: names neither a command nor a stub"))
     return flags
 
 
@@ -131,12 +131,10 @@ def check(text: str, *, committed: bool) -> list[Flag]:
         return [(0, "no lines")]
     flags: list[Flag] = []
     for item in parse(text):
+        flags += _committed_flags(item)
         if committed:
-            flags += _committed_flags(item)
-        elif item.excision:
-            flags += _excision_flags(item)
-        else:
-            flags += _behavior_flags(item)
+            continue
+        flags += _excision_flags(item) if item.excision else _behavior_flags(item)
     return flags
 
 

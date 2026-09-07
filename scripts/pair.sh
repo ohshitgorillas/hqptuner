@@ -496,7 +496,7 @@ test_check_brief() {   # test_check_brief <tree>
   # Tests byte-identical to the red commit are PIN by the reviewer's own
   # definition, so the round is skipped and the one line says why.
   if git -C "$tree" diff --quiet "$red_commit" HEAD -- tests/; then
-    echo "TEST CHECK $SLUG: no test diff from red; PIN by construction; END TEST CHECK"
+    echo "TEST CHECK $SLUG: tests identical to the red commit; PIN by construction; END TEST CHECK"
     return 0
   fi
   echo "TEST CHECK $SLUG"
