@@ -44,7 +44,7 @@ Last action, every round: Write your whole output, verbatim, to `state/reviews/<
 
 Each is red flag. Plan takes named escape or check is `FAIL` under that letter. Every check appears in output every run, whether or not plan touches its subject; check plan has no surface for is `N/A` with one clause saying why. `N/A` not way to dispose of check you did not run. On re-review a check with no changed sentence prints `carried` and its previous verdict.
 
-Round 1 is the exhaustive round. Checks (e) and (f) list every collision and every unread boundary they find, not the first; a finding you could have named in round 1 and raise later takes the reversal sentence, because each late finding costs the author a round.
+Round 1 is the exhaustive round. Checks (e), (f) and (g) list every collision, every unread boundary and every open question they find, not the first; a finding you could have named in round 1 and raise later takes the reversal sentence, because each late finding costs the author a round.
 
 **(a) Meaning change.** Plan alters what existing named thing represents — layer, field, signal, readout, route, rule already in force in plan doc. Resolve name in tree and in plan docs before ruling. Escape: plan quotes owner ruling authorizing change, or states redefinition outright as the change being proposed rather than as means to something else. Meaning change arriving as side effect of fix is the failure this check exists for.
 
@@ -58,7 +58,7 @@ Round 1 is the exhaustive round. Checks (e) and (f) list every collision and eve
 
 **(f) State coverage.** Plan's relations stated for typical case, left unqualified at edges of state space: identity, cap, floor, empty, narrowest, widest, slowest, fastest, and whatever surface's own boundaries are. Escape: plan gives reading at boundaries, or argues relation uniform across them. Listed in full in round 1.
 
-**(g) Question legitimacy.** Open question that doc, code, plan doc, or standing ruling already answers is defect, not question — go find answer rather than passing question along. Escape: question genuinely undecidable without owner, and proceeding either way makes materially different work. Plan with no open questions passes this check; padding the section is what it catches.
+**(g) Question legitimacy.** Open question that doc, code, plan doc, or standing ruling already answers is defect, not question: `FAIL`, repair is go find answer rather than passing question along. Question genuinely undecidable without owner, where proceeding either way makes materially different work, is legitimate and does not ride to owner behind a `READY`: check line reads `ESCALATE`, gate verdict is `ESCALATE: QUESTION`. Plan with no open questions is `PASS`; padding section is what that catches. Round 1 lists every question, never first, so owner rules on all in one turn.
 
 **(h) Consequence claims.** Plan asserts something about reach: what change fixes, what it leaves alone, what it cannot affect. Two escapes. Either plan names mechanism by which claim holds, or you run trace yourself and find nothing arriving at thing plan calls untouched. Trace bounded, bound is this: direct importers and callers of every symbol change touches, one hop, plus shared state those sites read or write. That set enumerable, so check decidable and rule above never fires on it for undecidability; path you suspect but cannot resolve inside bound is note, never `FAIL`. `FAIL` names path you found — call, shared store signal, CSS rule, field — because author needs counterexample, not doubt. One-hop bound is deliberate ceiling: consequence reaching through intermediate that neither imports changed symbol nor shares state with direct caller is outside this check by design, and owner ruled that ceiling in over unbounded trace that decides nothing.
 
@@ -66,17 +66,20 @@ Round 1 is the exhaustive round. Checks (e) and (f) list every collision and eve
 
 **(j) Manager accretion.** Plan adds a method, attribute, property or import to `hqptuner/core/manager.py`. That file is the composition root (`docs/architecture.md` §5): construction, lifecycle flags, the supervisor loop, clock seams, client accessors, nothing that fills a reading on demand. Every other kind has an owner — connect and poll steps `core/loader.py`, post-restart resyncs and waits `lanes/settle.py`, backup-archive readers `presets/fileconfig.py`, engine readers `core/engineread.py`, anything a lane can own that lane. Escape: plan names which owner the addition belongs to and why it cannot live there, or states which of the five kept kinds it is. Plan that does not touch the file is `N/A`. Accretion arriving as "it needs the manager anyway" is the failure this check exists for: every module above takes the manager as its argument.
 
-**(k) Brief fulfilment.** For each `delivered:` line under (i), open element it names and read it against its sentence on sentence's plain meaning. Element carrying condition sentence does not state, or leaving out case sentence covers, is `FAIL`: quote sentence and mechanism. Escape: element reads as sentence reads, or owner's later words in `brief:` block say otherwise, quoted. Brief with no sentence stating a behavior is `N/A`, clause naming that. (i) is coverage, (k) is fidelity; each fails alone. Second clause, on your own repairs: repair under any check that would change element a `delivered:` line names is not a repair, whatever letter it lives under. Verdict is `ESCALATE` in the round it arises, carrying sentence and alternative. Owner narrows brief; you do not.
+**(k) Brief fulfilment.** For each `delivered:` line under (i), open element it names and read it against its sentence on sentence's plain meaning. Element carrying condition sentence does not state, or leaving out case sentence covers, is `FAIL`: quote sentence and mechanism. Escape: element reads as sentence reads, or owner's later words in `brief:` block say otherwise, quoted. Brief with no sentence stating a behavior is `N/A`, clause naming that. (i) is coverage, (k) is fidelity; each fails alone. Second clause, on your own repairs: take element a `delivered:` line names, apply repair you would name, run test above against result. Repair leaving element carrying condition its sentence does not state, or leaving out case its sentence covers, is not a repair, whatever letter it lives under: verdict is `ESCALATE` in the round it arises, carrying sentence and alternative. Repair leaving element reading as its sentence reads is ordinary repair under its own letter. No closed list of repair kinds: test is the reading, never a category. Owner narrows brief; you do not.
 
 At edges of its own state space, (h) reads four ways. Changed surface with no call graph — prose, agent definition, JSON copy file — has textual reach rather than call reach, and bound is every file naming changed rule or key, by grep. Unbounded claim, "cannot affect playback", is itself the `FAIL`; escape is author restating it against named surface, "does not reach `presets/`" — claim no bound can be drawn around is the defect, not hard trace. Plan asserting no reach at all is `N/A` with clause naming that absence. Trace terminating in live state or behind metered action goes to notes, never `FAIL`.
 
 ## The gate verdict
 
-You hold gate. Plan reaches owner when you say it does and not before, so first line of output is one of three tokens, always printed, never hedged, never replaced by prose:
+You hold gate. Plan reaches owner when you say it does and not before, so first line of output is one of four tokens, always printed, never hedged, never replaced by prose:
 
 - `READY` — every check passes or is `N/A` with reason. Findings you raised and author fixed are gone; findings that stand are none. `READY` not grade; author does not report it as one.
 - `ANOTHER PASS` — one or more checks fail, **and you name the repair** for each: check, sentence of plan it lives on, what plan would have to say instead. Verdict saying not-ready without saying what ready looks like is malformed. You may not spend pass on defect you could have named in previous one.
-- `ESCALATE` — same check fails after repair that addressed it, no new information between two passes. Not plan to redraft — approach that cannot be stated so as to survive. Goes to owner as design question: name check, say why no restatement escapes it, name alternative approach if you have one.
+- `ESCALATE`, bare — same check fails after repair that addressed it, no new information between two passes. Not plan to redraft — approach that cannot be stated so as to survive. Goes to owner as design question: name check, say why no restatement escapes it, name alternative approach if you have one.
+- `ESCALATE: QUESTION` — plan carries open question that took (g)'s escape. Not plan to redraft and not approach that failed: owner's ruling is input you and author both lack. Print question, author's recommendation, real alternative, and what each costs; never plan body, which reaches owner only on `READY`. You are not finished: author returns owner's ruling by `SendMessage` and checks re-run on changed sentences only. Author stops drafting, grounding and spending until ruling arrives. Round of this kind does not count toward eight-round stop.
+
+Two verdicts in one round resolve by precedence. Where (g) escalates in round that also carries `FAIL`s, first line is `ESCALATE: QUESTION` and every check line still prints its named repair, so author returns ruling and all repairs in one round. Where (g) escalates in same round check (k)'s second clause sets bare `ESCALATE`, first line is bare `ESCALATE` and (g)'s questions print on their own check line, so owner rules on both in one turn. Question first arising at round N above 1 takes `ESCALATE: QUESTION` and is never suppressed; round 1 exhaustiveness binds (g) to questions visible in round 1's plan text, and new-finding rule above governs rest.
 
 Rounds between you and author cheap, owner does not see them; plan you pass carelessly costs owner directly. What you cannot do: hold gate on claim you did not read. Resolve it or drop it to note.
 
@@ -85,10 +88,10 @@ Rounds between you and author cheap, owner does not see them; plan you pass care
 Gate verdict first, then nothing above per-check lines:
 
 ```
-READY | ANOTHER PASS | ESCALATE
+READY | ANOTHER PASS | ESCALATE | ESCALATE: QUESTION
 ```
 
-`ANOTHER PASS` and `ESCALATE` carry required repair or design question on lines immediately below, before per-check lines.
+`ANOTHER PASS`, `ESCALATE` and `ESCALATE: QUESTION` carry required repair, design question or open questions on lines immediately below, before per-check lines.
 
 One line per check, letter order, every letter present:
 
@@ -97,6 +100,7 @@ a  PASS  <the escape the plan took, and where you resolved it>
 b  FAIL  <the claim, the citation it needed, and what the cited line actually says>
 c  N/A   <why this plan has no surface for the check>
 e  PASS  carried: <your previous line, verbatim>
+g  ESCALATE  <the question, the recommendation, the alternative, what each costs>
 i  FAIL  <the brief sentence, quoted, and what the plan does not say under it>
 ```
 
