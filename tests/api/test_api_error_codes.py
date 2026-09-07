@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 
 #: A live-snapshot store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
@@ -103,3 +104,29 @@ def test_an_unusable_live_snapshot_name_is_refused_before_the_engine_is_read(
 @pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
 def test_a_config_preset_delete_refuses_an_unusable_name_by_the_name_rule(http_client: TestClient, path: str) -> None:
     assert _refusal(http_client, "DELETE", path) == (422, "name_invalid")
+
+
+#: Both verbs at a path under `/api` that no route claims. A page server mounted
+#: at `/` that still catches unrouted `/api` paths answers the GET as a missing
+#: file and the POST as the wrong verb, with a code on neither.
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_an_unrouted_api_path_is_unknown_whatever_the_method(api_client: TestClient, method: str) -> None:
+    assert _refusal(api_client, method, "/api/nowhere") == (404, "route_unknown")
+
+
+def _allow_tokens(resp: Response) -> set[str]:
+    """The methods an `Allow` header offers, as a set: the framework joins them in
+    no fixed order, so the comparable literal is the set, not the string. A missing
+    header reads as the set of one empty token, so it fails a comparison rather
+    than raising out of it."""
+    return {token.strip() for token in resp.headers.get("allow", "").split(",")}
+
+
+def test_a_wrong_method_on_a_real_api_path_names_the_methods_it_takes(api_client: TestClient) -> None:
+    # /api/health is GET-only; the framework pairs HEAD with every GET route
+    resp = api_client.request("POST", "/api/health", follow_redirects=False)
+    assert (resp.status_code, resp.json().get("code"), _allow_tokens(resp)) == (
+        405,
+        "method_not_allowed",
+        {"GET", "HEAD"},
+    )
