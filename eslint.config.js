@@ -197,12 +197,12 @@ export default [
     },
     // no-copy-assertions is the JS peer of scripts/gates/check_no_copy_assertions.py
     // (docs/testing.md rule 9), same semantics, blocking on both sides.
-    // assertion-shape is the JS peer of the shape checks in the same Python gate;
-    // it runs at warn while the existing suite is swept, then flips to error.
+    // assertion-shape is the JS peer of the shape checks in the same Python gate,
+    // blocking on both sides.
     rules: {
       ...RULES,
       "hqptuner/one-assertion-per-test": "error",
-      "hqptuner/assertion-shape": "warn",
+      "hqptuner/assertion-shape": "error",
       "hqptuner/no-copy-assertions": "error",
     },
   },
