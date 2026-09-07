@@ -1,0 +1,37 @@
+slug: pinfooter-7c31
+kind: new
+
+brief:
+
+> pair.sh merge prints a one-line test-check block that the spec-reviewer rejects as steering every time, so each merge costs an extra reviewer spawn to re-send with the commits and diff attached
+> YES, DO IT FUCKING PROPERLY
+> Fix the footer only
+
+1. A green `scripts/pair.sh merge <slug>` closes by telling the operator what to do next; reduced to which of the three instruction markers `forward the TEST CHECK block`, `no reviewer round`, `no brief to forward` its output carries, that closing text follows the brief the same run printed: on a pair whose spec-tree tests are byte-identical to the `test: <slug> red` commit, exactly {`no reviewer round`}; on a pair whose spec tree appended a test to a file after the red commit, exactly {`forward the TEST CHECK block`}; on a pair merged with no `test: <slug> red` commit on its spec branch, exactly {`no reviewer round`, `no brief to forward`}.
+   kills: a footer that prints the forward instruction on every green merge, which sends the operator to the reviewer with a one-line brief the reviewer rejects; or one branching on whether a red commit exists rather than on which brief was printed, which gives the identical-tests pair the forward instruction because that pair has a red commit.
+   bite: measured at HEAD, all three pairs give {`forward the TEST CHECK block`}; the identical-tests pair, the appended-test pair and the no-red-commit pair alike (bite-prober; throwaway checkout under the scratchpad with the driver copied in, `Makefile` `check:` -> `true`, `pair.sh open`, `pair.sh red` in cases a and b only, `pair.sh merge probe-merge`, stdout+stderr reduced to the three markers, run as `/srv/hqptuner/.venv/bin/python "$SCRATCH/pinfooter-7c31-probe.py" "$SCRATCH"` and deleted in the same command). The no-red-commit pair reaches the closing text rather than exiting early: the merge returns 0, prints `== [6/6] land on dev ==` and fast-forwards dev, `test_check_brief` having returned 0 after one stderr line.
+   existing: tests/gates/test_pair_merge_brief.py::test_the_merge_brief_pins_by_construction_only_when_the_tests_match_the_red_commit (spec-reviewer DELTA: that parametrize gains the third case, its marker constants become the three footer instruction markers, same fixture and same reduction; no new test file. The three marker strings themselves were unpinned: `grep -rn 'forward the TEST CHECK\|no reviewer round\|no brief to forward' tests/` -> no output, exit 1)
+
+Public entry points:
+- `scripts/pair.sh merge <slug> [-m subj] [--dry-run]` (existing; header lines 45-56 describe the merge and the brief). No signature change; the closing text is the surface.
+
+Wire and protocol facts: none; no daemon traffic on this surface.
+
+Applicable fixtures: `tmp_path` (pytest builtin) for the throwaway checkout; the subprocess-driven pattern of `tests/gates/test_pair_merge_brief.py`, which already builds a checkout with the driver copied in and a `Makefile` whose `check` target is `true`, opens a pair, lands a red commit and merges, and reduces the driver's combined output to a marker set.
+
+Changelog entry: no entry; dev tooling under `scripts/`, nothing a shipped release shows.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `scripts/pair.sh merge` combined output, three cases with three distinct expected marker sets
+
+1  DELTA tests/gates/test_pair_merge_brief.py:141: the existing parametrize gains a third case (pair merged with no `test: <slug> red` commit) and its marker constants extend from {PIN_MARK, DIFF_MARK} to the three footer instruction markers, with the expected sets becoming {`no reviewer round`}, {`forward the TEST CHECK block`}, {`no reviewer round`, `no brief to forward`}; same fixture, same `_markers` reduction, same subprocess drive, no new test file.
+
+null stub: `merge` closes with no footer at all, so every pair reduces to the empty marker set and all three cases differ from their expected sets.
+hard-coded stub: return a fixed marker set per pair; it cannot tell case a from case b without diffing the spec tree against the red commit, which is the behavior itself, so it fails one of the two.
+survives: 0
+
+notes:
+- `existing:` was grepped only for the three new marker strings, which by construction return nothing. The surface grep (`pair.sh merge` brief/footer under tests/) lands on tests/gates/test_pair_merge_brief.py, which already builds the throwaway checkout, already parametrizes cases a and b, and already reduces stdout+stderr to a marker set. That is the delta above, not a defect in the behavior.
+- (c) checked and cleared: the three markers are strings born in `scripts/pair.sh` (line 617 today), not in `hqptuner/`, and the same file's markers at scripts/pair.sh:499 and :509 are already pinned by the existing test. Rule 9's copy scope does not reach them. They remain reword-fragile, and a rewording of the footer is a delta to this same test, never a new one.
+- One sentence in `bite:` reports an internal shell function's return (`test_check_brief` having returned 0), which is not observable output. It sits inside the measured field and changes no verdict; the observable part of that case (exit 0, `== [6/6] land on dev ==`, dev fast-forwarded) is what the case rests on.
