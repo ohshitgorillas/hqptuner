@@ -29,9 +29,8 @@ def health(manager: Mgr) -> dict[str, Any]:
     return {
         "reachable": manager.reachable,
         # `reachable` is the 4321 handshake alone and turns true before the rest of the
-        # connect has run. `ready` is the whole load having finished AND, while a restore
-        # is restarting the daemon, a connection newer than that restore with the
-        # configuration lane answering — which is what the pill and the page dim key on.
+        # connect has run. `ready` is that whole load having finished, which is what the
+        # frontend keys the pill and the page dim on.
         "ready": manager.ready,
         "unreachable_since": manager.unreachable_since,
         # When the CURRENT control connection was established. A brief drop can be

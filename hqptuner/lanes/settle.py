@@ -63,48 +63,38 @@ def mark_connect(mgr: ConnectionManager) -> int | None:
     None says there is no whole control connection for the restart to kill, so
     ``await_ready`` has nothing to wait for and returns at once.
     """
-    return mgr.readiness.connects if mgr.ready else None
+    return mgr.connects if mgr.ready else None
 
 
 async def await_ready(mgr: ConnectionManager, mark: int | None) -> bool:
-    """Wait until the app is whole again after ``mark``, or the alarm window passes.
+    """Wait until a connect completes after ``mark``, or the alarm window passes.
 
     ``await_http_ready`` proves only that the 8088 lane answers; after a restore
     the 4321 connection is the dead one the restart left behind and the readings
     on it are the previous engine's. This waits for the reconnect ``restore`` set
-    in motion AND for the configuration lane to answer on it, so the caller
-    returns to a manager whole on both lanes (``mgr.ready``, core/readiness). The
-    count dates the connect: a flag alone cannot say whether the readiness it
-    reports predates this caller's restore.
+    in motion, so the caller returns to a manager whole on both lanes. The count
+    dates the connect: a flag alone cannot say whether the readiness it reports
+    predates this caller's restore.
 
     The deadline runs on the real clock, not the lanes' virtualized seams
     (docs/testing.md rule 7, owner-approved for this site): what it waits for is
     a reconnect the poll loop physically has to perform, so a virtual clock would
-    run the deadline out with no chance for it to happen. The wake is the
-    manager's progress pulse, fired at the end of every connect and every poll,
-    so a reconnect landing 50 ms in returns 50 ms in, and a lane that comes back
-    a poll later returns on that poll.
+    run the deadline out with no chance for it to happen. The wake is the connect
+    itself (``mgr.connected``), so a reconnect landing 50 ms in returns 50 ms in.
 
     Best-effort: False means the deadline passed or there was nothing to wait
-    for, which the caller reports rather than papers over. Either way the restart
-    mark is dropped on exit: held past its deadline it would dim the app for a
-    restart nobody can prove happened.
+    for, which the caller reports rather than papers over.
     """
     if mark is None:
         return False
-    readiness = mgr.readiness
     end = time.monotonic() + mgr.alarm_threshold
-    try:
-        while not (readiness.connects > mark and mgr.ready):
-            remaining = end - time.monotonic()
-            if remaining <= 0:
-                return False
-            readiness.progress.clear()
-            with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(readiness.progress.wait(), remaining)
-        return True
-    finally:
-        readiness.forget_restart()
+    while mgr.connects <= mark:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(mgr.connected.wait(), remaining)
+    return True
 
 
 async def resync_engine_state(mgr: ConnectionManager) -> None:

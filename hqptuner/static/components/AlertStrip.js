@@ -14,29 +14,18 @@
 // The rejected-credentials row (store/alerts/credentials.js) leads the strip: a
 // refused credential explains the whole broken half of the app, so it outranks a
 // per-track health warning.
-// The failed-preset-action row (store/alerts/presetpick.js) follows it and outranks
-// the rest for the same reason the header shows nothing: it is the only report a
-// failed pick gets, and in LIVE this strip is the only surface that can carry one.
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
 import { shaperAlerts } from "../store/alerts/shaperfit.js";
 import { roonIdleAlert } from "../store/alerts/roonidle.js";
 import { credentialsAlert } from "../store/alerts/credentials.js";
 import { junkAdvice } from "../store/alerts/junkadvice.js";
-import { presetPickAlert } from "../store/alerts/presetpick.js";
 
 /** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {
   const roon = roonIdleAlert.value;
   const creds = credentialsAlert.value;
-  const pick = presetPickAlert.value;
-  const alerts = [
-    ...(creds ? [creds] : []),
-    ...(pick ? [pick] : []),
-    ...engineAlerts.value,
-    ...shaperAlerts.value,
-    ...(roon ? [roon] : []),
-  ];
+  const alerts = [...(creds ? [creds] : []), ...engineAlerts.value, ...shaperAlerts.value, ...(roon ? [roon] : [])];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`

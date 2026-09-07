@@ -1,14 +1,14 @@
 // Global header: daemon identity + live state, presets dropdown, status pill.
 // Outside LIVE, picking a preset does NOT touch the daemon — it previews that
 // preset's saved settings into the editor so they can be tweaked first, and the
-// picker holds that name until Apply commits the switch. LIVE has no
+// header shows "(pending apply)" until Apply commits the switch. LIVE has no
 // Apply button, so there the pick loads the preset on the spot (pickPreset).
 // The active preset comes from config.active (the truly-loaded
 // ConfigurationGet name).
+import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { health, config, pendingPreset } from "../store/signals.js";
 import { pickPreset, deletePreset } from "../store/actions.js";
-import { presetPickFailure } from "../store/alerts/presetpick.js";
 import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
@@ -18,20 +18,19 @@ import { ApodLamp } from "./ApodLamp.js";
 // Questions this header asks render beside the picker, not in a native dialog.
 const OWNER = "header";
 
-// Nothing about a preset action is reported here. Text beside the picker sits one
-// gap from the status pill, repeats what the pill already says, and moves every
-// element in the row as it comes and goes; a failure goes to the alert strip
-// instead (store/alerts/presetpick.js), which is on screen in LIVE too.
+const pickStatus = signal(""); // "", "Loading…", or an error line
+
 /**
  * @param {{ target: HTMLSelectElement }} e the picker's change event
  */
 async function onPick(e) {
   const name = e.target.value;
-  presetPickFailure.value = null;
+  pickStatus.value = "Loading…";
   try {
     await pickPreset(name);
+    pickStatus.value = "";
   } catch (err) {
-    presetPickFailure.value = String(err);
+    pickStatus.value = `Failed: ${err}`;
   }
 }
 
@@ -41,11 +40,12 @@ async function onPick(e) {
 async function onDelete(name) {
   // a destructive action wants an explicit OK, asked inline beside the picker
   if (!name || !(await askConfirm(OWNER, `Delete preset "${name}"? This cannot be undone.`))) return;
-  presetPickFailure.value = null;
+  pickStatus.value = "Deleting…";
   try {
     await deletePreset(name);
+    pickStatus.value = "";
   } catch (err) {
-    presetPickFailure.value = String(err);
+    pickStatus.value = `Failed: ${err}`;
   }
 }
 
@@ -100,6 +100,17 @@ function deleteButton(name) {
   </button>`;
 }
 
+// One trailing note at most: a previewed preset's pending marker outranks the
+// pick status, which is what the "&& !pending" guard said when they were siblings.
+/**
+ * @param {string | null} pending the previewed preset, or null when nothing is previewed
+ */
+function presetNote(pending) {
+  if (pending !== null) return html`<span class="preset-status pending-apply">(pending apply)</span>`;
+  if (!pickStatus.value) return null;
+  return html`<span class="preset-status muted">${pickStatus.value}</span>`;
+}
+
 function presetPicker() {
   const cfg = config.value || {};
   const profiles = cfg.profiles;
@@ -112,16 +123,13 @@ function presetPicker() {
   const shown = pending !== null ? pending : cfg.active || profiles.value || "";
   return html`
     <label class="t-eyebrow">Preset</label>
-    <!-- never disabled while a pick is in flight: a pick now waits out the daemon
-         restart, and a control held shut for that long is the disabled button the
-         product rules ban. Overlapping picks are safe — each restore supersedes the
-         last, and both waits settle on the later one. -->
-    <select value=${shown} onWheel=${wheelGuard} onChange=${onPick}>
+    <select value=${shown} onWheel=${wheelGuard} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
       ${(profiles.options || []).map(
         (/** @type {SchemaOption} */ o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`,
       )}
     </select>
     ${deleteButton(shown)}
+    ${presetNote(pending)}
   `;
 }
 

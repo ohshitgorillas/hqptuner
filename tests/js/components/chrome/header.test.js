@@ -234,12 +234,12 @@ test("test_withdrawing_dismisses_the_delete_question", () => {
 
 // --- pending apply ----------------------------------------------------------
 
-test("test_a_previewed_preset_is_not_marked_pending_apply", () => {
-  assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), false);
+test("test_a_previewed_preset_is_marked_pending_apply", () => {
+  assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), true);
 });
 
-test("test_a_previewed_no_preset_option_is_not_marked_pending_apply", () => {
-  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), false);
+test("test_a_previewed_no_preset_option_is_marked_pending_apply", () => {
+  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), true);
 });
 
 test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {

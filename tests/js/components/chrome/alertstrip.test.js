@@ -20,7 +20,6 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { AlertStrip } from "../../../../hqptuner/static/components/AlertStrip.js";
 import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
-import { presetPickFailure } from "../../../../hqptuner/static/store/alerts/presetpick.js";
 
 // One status frame — always a fresh object (writing the same reference to a
 // signal does not notify), then the rendered strip.
@@ -83,30 +82,5 @@ const CREDENTIAL_CASES = [
 for (const [credentialsOk, kinds] of CREDENTIAL_CASES) {
   test(`test_an_idle_engine_shows_the_credential_row_when_credentials_ok_is_${credentialsOk}`, () => {
     assert.deepEqual(alertKinds(idleStrip(credentialsOk)), kinds);
-  });
-}
-
-// A preset pick or delete that failed is reported here, not on the pending
-// bar's result line, because LIVE never puts that bar on screen. The strip is
-// rendered in the same idle, credentials-accepted state as above, so the only
-// row that can appear is the one `presetPickFailure` drives. The reason string
-// is the test's own, never asserted; the row's `data-alert` kind is.
-/** @param {string | null} reason */
-function pickStrip(reason) {
-  engineStatus.value = null;
-  health.value = { reachable: true, credentials_ok: true };
-  presetPickFailure.value = reason;
-  return render(html`<${AlertStrip} />`);
-}
-
-/** @type {[string | null, string, string[]][]} */
-const PRESET_PICK_CASES = [
-  ["the daemon refused the profile switch", "failed", ["preset-pick"]],
-  [null, "succeeded", []],
-];
-
-for (const [reason, outcome, kinds] of PRESET_PICK_CASES) {
-  test(`test_an_idle_engine_shows_the_preset_pick_row_only_when_the_last_pick_${outcome}`, () => {
-    assert.deepEqual(alertKinds(pickStrip(reason)), kinds);
   });
 }
