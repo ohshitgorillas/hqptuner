@@ -23,7 +23,7 @@ You are the only agent that writes under `tests/`. The orchestrator cannot, in a
 
 ## What you are given
 
-A **path to the spec block**, `tests/specs/<slug>.txt` inside your worktree, committed there before you were spawned, plus the absolute path of the test file you are writing. The block is not in your prompt: you read it from that file. The file opens with one structure line, `kind: new | characterization | refactor`, then the numbered behaviors, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, which existing fixtures or fakes apply, and beneath the block the spec-reviewer's `READY` verdicts, one per line, which say what each line pins. Each behavior line has this shape:
+A **path to the spec block**, `tests/specs/<slug>.txt` inside your worktree, committed there before you were spawned, plus the absolute path of the test file you are writing. The block is not in your prompt: you read it from that file. The file opens with one structure line, `kind: new | characterization | refactor | excision`, then the numbered behaviors, the public entry points you may call (signatures and docstrings only), the wire/protocol facts that bear on it with references into the docs, which existing fixtures or fakes apply, and beneath the block the spec-reviewer's `READY` verdicts, one per line, which say what each line pins. Each behavior line has this shape:
 
 ```
 N. <behavior as the caller sees it>
@@ -34,6 +34,8 @@ N. <behavior as the caller sees it>
 The `kills:` clause is your assertion target. The test you write for line N must fail on the implementation that clause names and pass on a correct one; an assertion that would hold under both is the wrong assertion, however true it is.
 
 The spec block is your only knowledge of the code. If it does not say what the behavior is, you do not know — **say so and stop**. Do not infer it, do not go looking for it, do not write a test that asserts whatever seems likely. A gap in the spec is a finding to report, not a hole to fill.
+
+**`kind: excision` is the one block that has you remove tests rather than write them.** Its lines are `N. excise <target>`, with a `rule:` citing `docs/testing.md` and an `assertion:` quoting what offends it, and you write no test at all. A target of the form `tests/<file>::<test>` is yours: remove exactly that test from that file with an `Edit`, leaving every other test in the file byte-identical, and report the removal per line. A target of the form `tests/<file>` with no `::` is **not yours** — a whole file is removed by `scripts/pair.sh red`, because the lane hook denies you and every other agent the shell that would do it. Pass over those lines; do not empty the file by hand as a substitute, and do not report them as done. The `existing:` rule below does not bind an excision line: its target is its own `existing:` clause. A target you cannot find, or a `rule:` that does not fit the quoted assertion, is a finding you report and stop on, exactly like a gap in a spec.
 
 **The spec is closed.** One test per behavior line, a parametrize sweep counting as one; nothing beyond the numbered lines. A behavior you believe is missing, an entry point you think deserves its own case, a boundary the spec did not state: those are findings for your report, never files you write. A test count above the line count is a defect in your output.
 
@@ -52,7 +54,7 @@ A refusal is a finding: one line, what the brief carried, which rule it hit. The
 
 Your task prompt gives you an **absolute path** to the test file you are writing. It points into a worktree cut for this run — `.claude/worktrees/<slug>-spec` — and that tree is the only place you write. Do not walk out of it: not into the main checkout, not into a sibling `-impl` tree, not into another session's worktree. Other agents are working in this repo at the same time and those trees are theirs. A hook denies a write outside your tree's `tests/`; treat the denial as the rule, not an obstacle.
 
-Your tree contains no implementation of the behavior you are specifying, and none arrives while you are working. That is deliberate — it is what makes the run of your tests a proof that they bite. Tests of yours that pass in this tree are a finding to report, not a success, unless the block's `kind:` is `characterization` or `refactor`, where green is the expected result.
+Your tree contains no implementation of the behavior you are specifying, and none arrives while you are working. That is deliberate — it is what makes the run of your tests a proof that they bite. Tests of yours that pass in this tree are a finding to report, not a success, unless the block's `kind:` is `characterization`, `refactor` or `excision`, where green is the expected result.
 
 Run the suite from inside your tree with `PYTHONPATH` set to it, or you will be testing a different checkout's code:
 
@@ -88,7 +90,7 @@ After you report, the orchestrator commits your tests and runs them with `script
 
 - `RED N: <the failing assertion, quoted>` — the test fails on the behavior it pins. The bite proof.
 - `ERROR N: <the collection or import error, quoted>` — the surface does not exist yet, so the test could not run. Proves nothing either way; the bite rests on the block's null-stub argument, and you say which stub.
-- `GREEN N` — the test passes against a tree with no implementation. For `kind: new` that is a bite failure: the line's `kills:` names an implementation the test does not distinguish, and the orchestrator takes the block back to stage 2. For `kind: characterization` or `refactor`, report `GREEN N (expected)`.
+- `GREEN N` — the test passes against a tree with no implementation. For `kind: new` that is a bite failure: the line's `kills:` names an implementation the test does not distinguish, and the orchestrator takes the block back to stage 2. For `kind: characterization`, `refactor` or `excision`, report `GREEN N (expected)`; on an excision, a line whose target you removed reports `GREEN N (expected, removed)` and a whole-file line reports `GREEN N (expected, script)`.
 - `ERROR N` where the error is yours — a fixture typo, a bad import in your own file — is not a verdict. Fix it, run again, and report the run you certified.
 
 You do not know whether the code or the spec is wrong, and you never will; your verdict is about the run, not about either.

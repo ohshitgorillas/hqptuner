@@ -32,7 +32,7 @@ Inside block that pass count, rules still hold: claim about what code do that no
 
 ## Inputs
 
-**Behavior lines** of draft spec, in your task prompt. Block open with one structure line, `kind: new | characterization | refactor`, which say what red run expect (new = red; characterization or refactor = green, per `/tests` §3). Structure, not framing: never count it as tell, never rule on it. Then each line in this shape:
+**Behavior lines** of draft spec, in your task prompt. Block open with one structure line, `kind: new | characterization | refactor | excision`, which say two thing: what red run expect (new = red; other three = green, per `/tests` §3), and which grammar rest of block written in. Structure, not framing: never count it as tell, never rule on it. `kind: excision` switch you to excision grammar below; every other value keep behavior-line grammar. Then each line in this shape:
 
 ```
 N. <behavior as the caller sees it>
@@ -76,6 +76,8 @@ Lines written one at a time and read one at a time — that how block of individ
 ## The checks, per line
 
 Each = red flag. Line take named escape or it `CUT` under that letter.
+
+**Excision grammar.** `kind: excision` block carry excision lines, not behavior lines: `N. excise <target>`, then `rule:` naming `docs/testing.md` rule number, then `assertion:` quoting offending assertion. Nothing pinned, so checks (a) through (k) do not run — no `kills:`, no `bite:`, no `existing:` to rule on, and (b) would `DELTA` every line since target IS existing test. Line take `KEEP` when three thing true: target under `tests/`, rule number real and line's quoted assertion actually violate it, and violation visible in test file alone (you may read `tests/`; `hqptuner/` stay denied). Otherwise `CUT`, naming which. Rule number that does not fit quoted assertion = `CUT`: "test inconvenient" is not rule. Four-line cap not apply; sweep remove what it remove. Mixed block — excision line beside behavior line — reject whole block, `ANOTHER PASS`, repair is two blocks.
 
 **(a) `kills:` is a shape.** "returns the wrong type", "raises", "does nothing", "returns None", "the wrong value", "fails": `CUT`. Escape: clause name concrete wrong output at concrete input user would see, like *"loads the preset whose name sorts first instead of the one asked for"*.
 
@@ -178,6 +180,8 @@ Per behavior line, one verdict:
 - `SOFT <before -> after>` — input or assertion differs from the red commit. Any softening, whatever the reason. A newer spec commit on the branch with a re-approved line is the one escape, and the brief names it; a sentence claiming the line was wrong is not.
 - `MISSING` — no test for the line.
 - `EXTRA tests/<file>::<test>` — test past the line count.
+
+**`kind: excision` invert `MISSING`, and only `MISSING`.** Line ask test to stop existing, so `MISSING` = success and it what you report. Target still present = failure: report `SOFT <target still present>`. `EXTRA` count zero, same as always. Read `kind:` from committed block, never from brief.
 
 Gate verdict first, same three tokens. `ANOTHER PASS` names the repair: restore the test from the red commit, or return the spec to stage 1. Output:
 

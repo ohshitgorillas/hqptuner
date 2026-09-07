@@ -36,7 +36,9 @@
 # tests the writer has not committed yet stay out of the spec commit.
 #
 # red commits the tests as written, then runs only the files that commit
-# added or changed and saves the output. The red commit is the object the
+# added or changed and saves the output. On a `kind: excision` block it first
+# removes the whole-file targets that block names — the half of an excision
+# no writer can perform, since the lane hook denies it the shell. The red commit is the object the
 # post-merge test check diffs against: an assertion that differs from it
 # after the merge was softened after the bite proof.
 #
@@ -222,6 +224,59 @@ red_files() {   # red_files <tree> <spec-commit> <red-commit>
     | grep -E '\.(py|test\.js)$' || true
 }
 
+# The test files that commit REMOVED. A `kind: excision` run whose targets are
+# all whole files adds and changes nothing, so red_files comes back empty and
+# the guard in do_red would end the run; these are what makes such a red commit
+# legitimate work rather than an empty one.
+red_removed() {   # red_removed <tree> <spec-commit> <red-commit>
+  git -C "$1" diff "$2" "$3" --name-only --diff-filter=D -- tests/ \
+    | grep -E '\.(py|test\.js)$' || true
+}
+
+# ---- excision ---------------------------------------------------------------
+
+# A `kind: excision` block removes tests instead of adding them, and its lines
+# name one target each: `tests/<file>::<test>` is a single test, which the
+# writer removes with an Edit in its own tree, and `tests/<file>` with no `::`
+# is a whole file, which no writer can remove — .claude/hooks/tests-lane.py
+# denies it the shell, deliberately. That half is this script's, and it runs
+# before the lane check so the deletion is inside the red commit like every
+# other change the spec tree makes.
+spec_kind() {   # spec_kind <tree> <spec-commit>
+  # `sed -n 1p` rather than `head -1`: head exits early, git takes SIGPIPE, and
+  # `set -o pipefail` would end the run on a block that parsed perfectly well.
+  git -C "$1" show "$2:$SPEC_PATH" | sed -n 's/^kind:[[:space:]]*//p' | sed -n '1p'
+}
+
+# Whole-file targets only: the `::` forms belong to the writer and are skipped.
+excision_files() {   # excision_files <tree> <spec-commit>
+  git -C "$1" show "$2:$SPEC_PATH" \
+    | sed -n 's/^[0-9]\{1,\}\. excise[[:space:]]\{1,\}//p' \
+    | grep -v '::' || true
+}
+
+# Two passes on purpose: every target is validated before any file is removed,
+# so a block whose third line names source leaves the first two files standing.
+excise_whole_files() {   # excise_whole_files <tree> <spec-commit>
+  local tree=$1 commit=$2 target targets
+  targets=$(excision_files "$tree" "$commit")
+  [ -n "$targets" ] || return 0
+  for target in $targets; do
+    case "$target" in
+      tests/*) ;;
+      *) die "excision target '$target' is not under tests/ — an excision block removes tests, never source." ;;
+    esac
+    case "$target" in
+      *..*) die "excision target '$target' contains '..' — name the path as it sits under tests/." ;;
+    esac
+    [ -e "$tree/$target" ] || die "excision target '$target' names no file in $tree — the block is stale."
+  done
+  for target in $targets; do
+    run git -C "$tree" rm -q -- "$target"
+    echo "  excised     $target"
+  done
+}
+
 # ---- open -------------------------------------------------------------------
 
 # The reviewer section of the spec file is the reviewer's own text. Every
@@ -378,6 +433,12 @@ do_red() {
   spec_commit=$(find_commit "$SPEC_DIR" "$SPEC_MSG")
   [ -n "$spec_commit" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
 
+  # Before the lane check, not merely before the commit: the removal is work
+  # the spec tree is doing, so the lane check has to see it and rule on it.
+  if [ "$(spec_kind "$SPEC_DIR" "$spec_commit")" = excision ]; then
+    excise_whole_files "$SPEC_DIR" "$spec_commit"
+  fi
+
   lane_check "$SPEC_DIR" spec || die "the spec tree writes tests/ only."
   commit_tree "$SPEC_DIR" "$RED_MSG"
 
@@ -386,16 +447,21 @@ do_red() {
     return 0
   fi
 
-  local red_commit files py js
+  local red_commit files removed py js
   red_commit=$(find_commit "$SPEC_DIR" "$RED_MSG")
   files=$(red_files "$SPEC_DIR" "$spec_commit" "$red_commit")
-  [ -n "$files" ] || die "the red commit adds or changes no test file under tests/."
+  removed=$(red_removed "$SPEC_DIR" "$spec_commit" "$red_commit")
+  # A removal is work; an excision run whose targets are all whole files adds
+  # and changes nothing and still has everything it came for in that commit.
+  [ -n "$files" ] || [ -n "$removed" ] \
+    || die "the red commit adds, changes or removes no test file under tests/."
   py=$(printf '%s\n' "$files" | grep '\.py$' || true)
   js=$(printf '%s\n' "$files" | grep '\.test\.js$' || true)
 
   {
     echo "red run for $SLUG at $(git -C "$SPEC_DIR" rev-parse --short "$red_commit")"
-    printf '%s\n' "$files"
+    if [ -n "$files" ]; then printf '%s\n' "$files"; fi
+    if [ -n "$removed" ]; then printf '%s\n' "$removed" | sed 's/^/removed /'; fi
     echo
     if [ -n "$py" ]; then
       # shellcheck disable=SC2086
@@ -432,6 +498,7 @@ test_check_brief() {   # test_check_brief <tree>
   echo "red   $(git -C "$tree" rev-parse --short "$red_commit")"
   echo "files"
   red_files "$tree" "$spec_commit" "$red_commit" | sed 's/^/  /'
+  red_removed "$tree" "$spec_commit" "$red_commit" | sed 's/^/  removed /'
   echo
   echo "diff from red"
   git -C "$tree" diff "$red_commit" HEAD -- tests/
