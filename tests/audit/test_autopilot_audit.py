@@ -59,6 +59,11 @@ RECOMMENDED = "20k"
 #: it — neither the resting `none` nor the filter the verdict asks for.
 FIXED_CORNER = "30k"
 
+#: The volume trace's records all carry a `volume.`-prefixed event, and it takes
+#: its observations on checkpoints across the app rather than on this suite's
+#: subject.
+VOLUME_EVENT_PREFIX = "volume."
+
 
 async def _instant(_seconds: float) -> None:
     """The reader's idle re-check, paced by the loop instead of the clock."""
@@ -82,6 +87,14 @@ def events_after(path: Path, mark: int) -> list[str]:
     """Every event recorded after the mark. Switching auto-pilot on records too,
     so a case about switching it off has to look past that."""
     return [str(record.get("event")) for record in records(path) if int(record["seq"]) > mark]
+
+
+def events_after_excluding_volume(path: Path, mark: int) -> list[str]:
+    """``events_after`` with the volume trace's own records dropped. The trace
+    observes the volume at checkpoints of its own choosing, on paths that have
+    nothing to do with auto-pilot's off-switches; a case about those switches
+    sets its records aside rather than pinning where it happens to fire."""
+    return [event for event in events_after(path, mark) if not event.startswith(VOLUME_EVENT_PREFIX)]
 
 
 def first_after(path: Path, mark: int, event: str) -> dict[str, Any]:
@@ -221,11 +234,13 @@ def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(
     # auto-pilot survives a main-filter write, so there is nothing to record;
     # a log that recorded one anyway would name a change that never happened.
     # Asserted as the write's own record ALONE rather than as an absence: a
-    # write the daemon never accepted would satisfy an absence for free.
+    # write the daemon never accepted would satisfy an absence for free. The
+    # volume trace's records are set aside first, so the list stays positive
+    # without pinning a second subsystem's checkpoints.
     switch_on(autopilot_client)
     mark = highest_seq(audit_log)
     autopilot_client.post("/api/config/live", json={"fields": {"filter": "25"}})
-    assert events_after(audit_log, mark) == ["live.write"]
+    assert events_after_excluding_volume(audit_log, mark) == ["live.write"]
 
 
 # --- applying a live snapshot saved without auto-pilot -------------------------
