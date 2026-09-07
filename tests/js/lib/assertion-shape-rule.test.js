@@ -38,18 +38,22 @@ function recording(sink) {
   return {
     meta: /** @type {import("eslint").Rule.RuleMetaData} */ (rule.meta),
     create(context) {
-      const seen = new Proxy(context, {
-        get(target, key) {
-          if (key !== "report") {
-            return Reflect.get(target, key);
-          }
-          return (/** @type {import("eslint").Rule.ReportDescriptor} */ descriptor) => {
-            const { messageId, data } = /** @type {{ messageId?: string, data?: { count?: unknown } }} */ (descriptor);
-            sink.push({ messageId, count: data?.count });
-            target.report(descriptor);
-          };
-        },
-      });
+      // ESLint freezes the context, so a Proxy get trap may not substitute
+      // `report`; an object inheriting from the context with its own `report`
+      // leaves every other property to the real context.
+      const seen = /** @type {import("eslint").Rule.RuleContext} */ (
+        Object.create(context, {
+          report: {
+            value: (/** @type {import("eslint").Rule.ReportDescriptor} */ descriptor) => {
+              const { messageId, data } = /** @type {{ messageId?: string, data?: { count?: unknown } }} */ (
+                descriptor
+              );
+              sink.push({ messageId, count: data?.count });
+              context.report(descriptor);
+            },
+          },
+        })
+      );
       return rule.create(seen);
     },
   };
