@@ -25,6 +25,7 @@ from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
+from hqptuner.presets import fileconfig
 from hqptuner.presets.store.autopilot import AutopilotError
 from hqptuner.presets.store.presets import PresetError, canonical_name
 
@@ -61,7 +62,7 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     A named preset reads from the store; the empty ("(no preset)") selection reads the current running config.
     """
     if not name:
-        return dict(mgr.readings.file_config or await mgr.load_file_config())
+        return dict(mgr.readings.file_config or await fileconfig.load_file_config(mgr))
     return presetconf.read_config(mgr.presetops.store.read(name))
 
 
@@ -85,9 +86,9 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     await settle.await_ready(mgr, mark)
     # the restore restarted the daemon: every live reading we hold is the previous
     # engine's, and an auto-save riding this load would fold those into the preset
-    # it just loaded (ConnectionManager.resync_engine_state)
-    await mgr.resync_engine_state()
-    await mgr.load_file_config()
+    # it just loaded (settle.resync_engine_state)
+    await settle.resync_engine_state(mgr)
+    await fileconfig.load_file_config(mgr)
     await mgr.refresh_http_forms()
     _restore_autopilot(mgr, name)
     return {"name": name, "active": True}

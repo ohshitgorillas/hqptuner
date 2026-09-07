@@ -19,7 +19,7 @@ from hqptuner.core import engineread
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
-from hqptuner.presets import presetlane
+from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
 from hqptuner.presets.store.presets import PresetError
 
@@ -55,7 +55,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             "autosave": presets["autosave"],
             "file": {**(manager.readings.file_config or {}), **overrides.live_overrides(manager)},
             # What the selected output device announced it can carry, or null when
-            # nothing is known about it (core/manager.refresh_device_caps). The rate
+            # nothing is known about it (core/engineread.refresh_device_caps). The rate
             # menus gray against this; null grays nothing.
             "device_caps": manager.readings.device_caps,
         },
@@ -127,7 +127,7 @@ async def engine_get(manager: HttpMgr) -> dict[str, Any]:
     They are not on any form, so this costs a backup fetch — read on demand, never per poll.
     """
     try:
-        return {"engine": await manager.read_engine(), "active_config": manager.readings.active_config}
+        return {"engine": await fileconfig.read_engine(manager), "active_config": manager.readings.active_config}
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse("daemon_read_failed", f"read engine failed: {exc}") from exc
 
