@@ -27,6 +27,14 @@ Denied:
 Allowed: every read-only command naming `tests/` (`pytest`, `cat`, `sed -n`,
 `grep`), and every write elsewhere.
 
+One lane is the script's rather than the writer's. A `kind: excision` block
+names tests to remove; a single test is an `Edit` and the writer's, but a whole
+file cannot be, because this hook denies every hand the shell it would take. So
+`scripts/pair.sh red` removes the whole-file targets itself, from the committed
+block, inside the red commit. This hook does not see that removal and is not
+meant to: it governs what an agent types, and the script is bounded by the
+block it reads from git rather than by anything here.
+
 `agent_type` is present in the payload only for subagent calls; an absent key
 is the orchestrator. If a build omits the key for subagents too, the writer is
 over-denied, which is the safe direction: nothing leaks, and the denial names
