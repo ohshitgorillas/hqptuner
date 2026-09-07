@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe whether `GetRates` can be made to answer truthfully ON DEMAND.
 
-`core/manager._poll` re-enumerates only when `mode` or `state` moves, on the
+`core/loader.poll` re-enumerates only when `mode` or `state` moves, on the
 reading that an idle backend answers `GetRates` with auto alone and the same
 daemon serves the full ladder "once asked again". Which of the two that hangs on
 decides the whole live-rate design:

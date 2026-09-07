@@ -168,7 +168,7 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
     enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
     the NEXT write resolves its value against, and refreshing State alone also
     consumes the mode transition the poll loop watches to re-enumerate on its own
-    (``manager._poll``) — so a caller that skipped this left both the cache and
+    (``core/loader.poll``) — so a caller that skipped this left both the cache and
     the fallback stale. Every live-routing caller runs it, staged lane included.
     """
     mgr.readings.state = await client.get_state()
@@ -188,7 +188,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     logged, not raised. `SetFilter` and `SetMode` reload the engine and the daemon
     can drop the connection under the refresh that follows; raising turned a change
     the user watched land into an error on the control they just touched. The poll
-    loop reconnects and reloads state and enumerations (`manager._connect_and_load`).
+    loop reconnects and reloads state and enumerations (`core/loader.connect_and_load`).
     """
     client = mgr.control
     if client is None:

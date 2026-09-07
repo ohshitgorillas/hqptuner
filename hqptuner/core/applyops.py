@@ -15,6 +15,7 @@ import httpx
 
 from hqptuner.conf import engineconf, httpauth
 from hqptuner.engine.control import ControlError
+from hqptuner.lanes import settle
 from hqptuner.lanes.http import engineattrs, restore
 from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import apply_live
@@ -85,8 +86,8 @@ class ApplyOps:
         if persistent is not None and persistent.get("applied"):
             # the restore restarted the daemon, so every live reading we hold belongs
             # to the process it replaced — and the auto-save that follows this apply
-            # reads exactly those (ConnectionManager.resync_engine_state)
-            await mgr.resync_engine_state()
+            # reads exactly those (settle.resync_engine_state)
+            await settle.resync_engine_state(mgr)
             # the restore that just applied carried the parked filter files —
             # they live on the daemon now, so the parking area is done with them
             mgr.presetops.clear_parked_filters()
@@ -129,7 +130,7 @@ class ApplyOps:
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         # same restart, same stale readings as the staged-apply path above
-        await mgr.resync_engine_state()
+        await settle.resync_engine_state(mgr)
         engine = result["verified"].get("engine")
         if engine:
             mgr.readings.engine = engine
