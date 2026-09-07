@@ -1,0 +1,108 @@
+kind: new
+
+brief:
+> A bug in the program intermittently causes my headphones preset to load with the volume at maximum (-3dB) instead of its startup volume of -30dB.
+> Several agents have attempted to identify the cause in the past and failed. Your task is not to investigate the source of the bug itself, but rather to develop debug logging around the volume loading and setting that helps future agents identify the issue after it recurs.
+> it's likely that the preset loads its volume correctly, and then HQPTuner does something after the preset is loaded to set the volume at its maximum. your plan instead validates that the preset loads with its startup volume correctly, and nothing about what happens afterwards
+
+1. Two calls to POST /api/config/refresh, where the daemon serves one /config form both times, record one `config_form` observation; a third call, the daemon now serving a form whose defaults_volume reads -12, records a second; two calls to POST /api/profile/load naming one stored preset record two `preset.stored` observations.
+   kills: change-tests every source, so a preset load repeating the previous load's values exactly records nothing — the recurrence the brief asks about
+   bite: null stub records 0 and 0 rather than 1 and 2 (surface new) — stub is hqptuner/voltrace.py present with VOLUME_FIELDS empty, subset returning {}, observe/observe_change/write returning None without emitting or setting last_volume_write, and AuditLog.volume_write/volume_observe present and returning None without writing
+   existing: none, `grep -rn "voltrace\|volume_observe\|volume\.observe" /srv/hqptuner/tests` -> rc=1, no matches
+
+2. Loading a preset saved off a daemon whose config carried defaults_volume -30 records `preset.stored` reading defaults_volume -30; loading one saved at -12 reads -12.
+   kills: records the checkpoint's name with no volume behind it, so the three records of a load say a load happened rather than what it carried
+   bite: null stub records no observation at either value (surface new) — under the stub named in line 1 the load appends its existing preset.load record alone
+   existing: none, `grep -rn "post_restart_state\|preset\.stored\|post_restart_file" /srv/hqptuner/tests` -> rc=1, no matches
+
+3. An apply of a staged live volume edit of -18, its staged set holding no config-file field, records a `post_apply` observation reading -18; the same apply staging -33 reads -33.
+   kills: records the post-apply checkpoint only where a persistent apply landed, so an apply that moved the volume over the live lane without touching the config file records nothing after it — the window the brief's third sentence points at
+   bite: null stub records no post_apply observation at either value (surface new) — under the stub named in line 1 the apply appends its existing apply record alone
+   existing: none, `grep -rn "post_apply" /srv/hqptuner/tests` -> rc=1, no matches
+
+4. POST /api/volume at level -24.5 against an engine that takes it records readback -24.5; the same post against an engine whose volume control is disabled records readback null.
+   kills: records the level asked for as the readback, so a write the engine refused reads in the log as -24.5 landed
+   bite: null stub fails at POST /api/volume level -24.5 (surface new) — under the stub named in line 1 the write appends no record at all, in either case
+   existing: none, `grep -rn "volume_write\|volume\.write" /srv/hqptuner/tests` -> tests/api/test_api_routes.py:128,132, tests/api/test_api_errors.py:126, all three asserting the route's own JSON response and none of them the audit log
+
+5. A volume observation taken before any volume write records last_write null; one taken after a write of -24.5 records last_write -24.5, whatever level the engine is reporting.
+   kills: reports the observed volume back as last_write, so every move reads as one HQPTuner asked for and the field answers nothing
+   bite: null stub fails at an observation before a write, then a write of -24.5, then a second observation (surface new) — under the stub named in line 1 last_volume_write is never set and no record is appended, so neither observation reads back
+   existing: none, `grep -rn "last_volume_write\|last_write" /srv/hqptuner/tests` -> rc=1, no matches
+   fifth line: this is the one field that separates a volume HQPTuner moved from one that moved under it, which is the distinction the brief's third sentence turns on; lines 1-4 record values and none of them records who asked for one.
+
+6. A volume observation against a debug-log path that cannot be written, followed by one against a writable path, records one volume observation in the writable log.
+   kills: lets the write error out of the emitter, which never reaches the second observation — and which on the two per-tick checkpoints raises out of the poll before the readings are replaced, stalling every reading for as long as the path stays unwritable
+   bite: null stub fails at the two observations in sequence (surface new) — under the stub named in line 1 neither observation is recorded, so the writable log holds 0 records rather than 1
+   existing: none, `grep -rn "voltrace\|volume_observe\|volume\.observe" /srv/hqptuner/tests` -> rc=1, no matches
+   sixth line: the five above all run against a writable log, so none of them observes the emitter when the write itself fails; a user notices its absence as every reading in the app freezing, which is a different surface from anything lines 1-5 touch.
+
+public entry points (planned):
+
+hqptuner/voltrace.py
+    VOLUME_FIELDS: frozenset[str]
+    def subset(mapping: Mapping[str, Any] | None) -> dict[str, str | None]
+    def observe(mgr: ConnectionManager, source: str, fields: dict[str, str | None], *, name: str | None = None) -> None
+    def observe_change(mgr: ConnectionManager, source: str, fields: dict[str, str | None], previous: dict[str, str | None]) -> None
+    def write(mgr: ConnectionManager, source: str, want: str, readback: str | None, *, ok: bool) -> None
+
+hqptuner/audit.py (added to the existing AuditLog)
+    def volume_write(self, source: str, want: str, readback: str | None, *, ok: bool) -> None
+    def volume_observe(self, source: str, name: str | None, fields: dict[str, str | None], last_write: str | None) -> None
+
+hqptuner/core/readings.py (added to the existing Readings)
+    last_volume_write: str | None = None
+
+existing surface the lines drive:
+    POST /api/profile/save   {"name": <str>}
+    POST /api/profile/load   {"name": <str>}
+    POST /api/config/stage   {"live": {...}}
+    POST /api/config/apply   {}
+    POST /api/volume         {"level": <str>}
+    grep -n "@router\." hqptuner/api/routes/volume.py -> 18:@router.get("/volume"), 34:@router.post("/volume")
+    grep -n "@router\." hqptuner/api/routes/preset.py -> 20:@router.post("/profile/{action}"), 43:@router.delete("/preset/{name:path}") — save and load are the `action` segment of the one route, not two routes
+    grep -n "@router\." hqptuner/api/routes/apply.py -> 47:@router.post("/config/apply"), 88:@router.post("/config/live")
+    grep -n "@router\." hqptuner/api/routes/pending.py -> 93:@router.post("/config/stage")
+
+wire and protocol facts:
+
+- The playing volume is a live 4321 value: `<Volume value="dB"/>` sets it and State reports it back under the `volume` attribute (docs/protocol.md §6; hqplayerd-readme.txt §1.13 for the fixed-volume element that suppresses it). result="OK" is not proof of application — the State readback is, which is why the level asked for and the level reported back are two values and not one.
+- Volume control can be absent: VolumeRange reports enabled="0" on the fixed-volume and no-volume paths, and State then carries no `volume` attribute at all (docs/protocol.md §6). The fake answers `<Volume result="Error"/>` on that path (tests/support/fake_control.py:393-394).
+- The startup volume is a different mechanism: the config-file field `<defaults volume="..."/>`, which reaches the daemon only over the restore lane and takes effect at boot (hqplayerd-readme.txt §1.3). A preset load restores the whole config and restarts the daemon (docs/architecture.md §7, restore-only preset model), so the engine's answers and the config file are two separate readings taken after that restart.
+- A fully routable edit set applies over the 4321 control lane and never restarts the daemon or writes the config file; one restore-lane field sends the whole batch to the restore lane instead (docs/settings-classification.md; hqptuner/lanes/writer.py module docstring). So a live-only apply and a persistent apply are two different paths through one route.
+- The event log is append-only JSON Lines, one record per line under a ts/seq/event envelope, off unless HQPTUNER_DEBUG_LOG names a path; a disabled instance is AuditLog(None) and its emitters are no-ops (docs/architecture.md §8). The vocabulary is the contract and is what tests assert; log *text* stays off-limits per docs/testing.md rule 1.
+
+applicable fixtures:
+
+- `tests/audit/test_audit_wiring.py::audit_log` — the tmp_path JSONL the app under test is pointed at.
+- `tests/audit/test_audit_wiring.py::audit_client` — the REST surface on the fake 8088 daemon with the audit log enabled; drives the preset save and load of line 2.
+- `tests/audit/test_audit_wiring.py::dual_lane_client` — both lanes at once, control on the threaded fake 4321 daemon and http on the fake 8088 one, which a live volume write needs before it can happen at all; drives lines 3, 4 and 5.
+- `tests/support/audit_records.py::records` / `::last` — read the log back with a plain json.loads per line, never through the audit module's own reader.
+- `tests/support/fake_control.py` — the fake 4321 daemon; `Volume` sets State's volume attribute at line 148, and refuses with `<Volume result="Error"/>` at 393-394 when volume control is disabled.
+- `tests/conftest.py::virtual_clock` (autouse) — virtualizes ConnectionManager.sleep and .monotonic so the restart wait in a preset load costs no wall clock.
+- `tests/conftest.py::http_daemon`, `::threaded_daemon_port`, `::closed_port` — the fakes the two clients above are built on.
+
+changelog: no entry. Internal-only: the audit subsystem has no UI by design (docs/architecture.md §8) and no user-facing surface moves.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the volume record's counts and fields (line 1: 1 then 2 config_form, 2 preset.stored; line 2: -30 vs -12; line 4: readback -24.5 vs null; line 5: last_write null vs -24.5)
+
+return check, finding by finding:
+- note on line 1 (dedup arm had only the identical-form case, free repair named): taken verbatim as the third arm. The ordinality stub I named — "emit on the first refresh" — now records 1 config_form where the line demands 2, so it is dead.
+- note on line 3 (emitter echoing the request body): not a CUT, not a DELTA, no repair named by me and no file named, so the author's answer is legal and I accept it. Lines 4 and 5 exclude that emitter block-wide, which is what I wrote; a second engine level under one staged level is not available on the live lane. Closed.
+
+1  KEEP  two POST /api/config/refresh serving one form -> 1 config_form record, a third serving a form with defaults_volume -12 -> a second, two POST /api/profile/load of one preset -> 2 preset.stored records; "change-tests every source" fails it at the second load, which records nothing; null stub fails at every arm, recording none.
+2  KEEP  carried
+3  KEEP  carried
+4  KEEP  carried
+5  KEEP  carried
+6  KEEP  carried
+
+null stub: hqptuner/voltrace.py present, VOLUME_FIELDS empty, subset returning {}, observe/observe_change/write returning None without emitting or setting last_volume_write, AuditLog.volume_write/volume_observe returning None without writing.
+hard-coded stub: emit a config_form record on the first refresh only, a preset.stored record on every load echoing the stored preset's defaults_volume, a post_apply record echoing the staged level, and a write record of -24.5 for the enabled fixture and null for the disabled one; it is now defeated by line 1's third arm (a changed form must record again), by 5 (last_write must survive a write and differ from the observed level) and by 6 (a real file write that tolerates its own failure).
+
+survives: 6
+
+notes:
+- Line 1's bite text still reads "records 0 and 0 rather than 1 and 2", written for the two-arm version; the third arm makes it 0 where the line demands a second config_form. The null stub fails every arm either way, so the bite obligation is discharged and this is wording, not a defect.
