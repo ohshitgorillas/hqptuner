@@ -1,0 +1,93 @@
+kind: new
+
+slug: testrules-gate-9ecc
+
+1. `check_file` on a test file whose four tests each hold exactly one assert, `assert a and b`, `assert a and b and c`, `assert not any(v for v in vs)`, `assert (d or {})["k"] == 1`, reports the first three tests and not the fourth: the first with 2 assertions, the second with 3, the third as an assert in a loop.
+   kills: a gate that walks the whole expression and reports the `or` inside the fourth test's subscript; a gate that reports every conjunction as 2 whatever its operand count.
+   bite: `[]`, no problems (driver importing scripts/gates/check_test_assertions.py and calling `check_file(Path(<fixture with the four tests>))`; a two-assert control file returned `['<path>:1 test_two: 2 assertions (want 1)']`, so the empty result is real)
+   existing: none, `ls tests/gates/ | grep test_assertions` prints nothing; `grep -rn "and b and c" tests/` prints nothing.
+
+2. `check_file` on a file holding a module-level helper that asserts on one line, a `@pytest.fixture` function that asserts on another, and a test whose nested `def` asserts on a third beside the test's own single assert, reports the helper's line and the fixture's line and not the nested function's.
+   kills: a gate that exempts fixtures; a gate that scans functions nested inside a test.
+   bite: `[]` (same driver, `check_file(Path(<fixture: module-level helper asserting, @pytest.fixture asserting, test_one with nested def inner asserting beside one assert>))`; re-checked, same value)
+   existing: none, as line 1.
+
+3. `check_file` on a file whose five tests each assert once, `assert x is not None`, `assert len(xs) > 0`, `assert x == 3`, `assert x is None`, and `assert y is not None` in a test whose `<path>::<name>` is a key in the exempt table passed, reports the first two tests and not the last three.
+   kills: a gate that reports every `is` comparison; a gate that reports every `len` call; a gate whose exempt table covers skip decorators only.
+   bite: `[]` (same driver, `check_file(Path(<fixture: assert x is not None / assert len(xs) > 0 / assert x == 3 / assert x is None>))`; re-checked, same value)
+   existing: none, as line 1.
+
+4. `check_file` on a file holding, in order, a test decorated `@pytest.mark.skip(reason=...)`, a test decorated `@pytest.mark.xfail(reason=...)` whose `<path>::<name>` is a key in the gate's `EXEMPT` table, a test calling `pytest.skip(...)` in its body, a test reading `obj._hidden`, and a test calling `obj.__enter__()`, reports the first and the fourth only.
+   kills: a gate that reports the exempted decorator; a gate that reports a `pytest.skip` call; a gate that reports dunder attributes.
+   bite: `[]` (same driver, `check_file(Path(<fixture: @pytest.mark.skip test, @pytest.mark.xfail test, pytest.skip("r") body test, obj._hidden test, obj.__enter__() test, one assert each>))`; re-checked, same value)
+   existing: none, as line 1.
+
+5. `main` over a file carrying one line-1 finding returns 1 when the file is the only argument and 0 when `--report` precedes it.
+   kills: a CLI that reads `--report` as a path.
+   bite: with `sys.argv = ["check_test_assertions.py", "--report", <file>]` `main()` raises `FileNotFoundError: [Errno 2] No such file or directory: '--report'`, stdout empty; with `["check_test_assertions.py", <file>]` `main()` returns `0`, stdout empty (same driver under `contextlib.redirect_stdout`)
+   existing: none, as line 1.
+   Fifth line: the CLI is the surface the Makefile and pre-commit call, distinct from `check_file`, and the report mode is what the sweep is driven from.
+
+6. The eslint shape rule, driven through `Linter` on a test file whose three `test()` bodies assert once each, `assert.ok(a && b)`, `assert.ok(a && b && c)`, `assert.equal((x || {}).k, 1)`, reports the first with 2 assertions, the second with 3, and not the third.
+   kills: a rule that walks the whole argument and reports the `||` inside the third; a rule that reports every logical expression as 2.
+   bite: null stub fails at the first body (surface new: eslint-rules/assertion-shape.js does not exist at HEAD; a rule registered as `hqptuner/assertion-shape` that reports nothing is the stub). Measured for the record: HEAD's one-assertion-per-test rule returns 0 messages on the same input (`node <driver>` building `new Linter({configType: "flat", cwd: "/srv/hqptuner"})`, `linter.verify(<three test() bodies>, CONFIG, {filename: "/srv/hqptuner/x.test.js"})`).
+   existing: none, `ls tests/js/lib/ | grep assertion` prints nothing.
+   Sixth line: the JS peer is a separate parser with its own root-only edge; line 1 says nothing about it.
+
+7. The eslint shape rule on a file holding a `test()` asserting `assert.ok(x !== null)`, a `test.skip(...)`, a `test.todo(...)`, and a `test()` asserting `assert.equal(x, 3)`, reports the first three and not the fourth.
+   kills: a rule that reports every inequality; a rule blind to `test.skip` and `test.todo`.
+   bite: null stub fails at the first test() (surface new, as line 6). Measured for the record: HEAD's one-assertion-per-test rule returns 0 messages on the same input (same driver, `linter.verify(<test() asserting x !== null; test.skip("t", () => { assert.ok(1); }); test.todo("t"); test() asserting assert.equal(x, 3)>)`).
+   existing: none, as line 6.
+   Seventh line: the JS peers of the existence and skip checks share one line because both are presence checks with one exclusion each, and neither is covered by line 6.
+
+Public entry points (planned):
+
+scripts/gates/check_test_assertions.py
+  Finding = tuple[str, str, int]
+      """(category, location, count): category is one of the wire identifiers "count", "loop", "outside", "existence", "skip", "private"; location is "<path>:<line> <function>"; count is the assertion count for "count" and 0 otherwise."""
+  def check_file(path: Path, exempt: dict[str, str] | None = None) -> list[Finding]
+      """Return one finding per test function without exactly one assertion outside a loop, per assertion whose shape docs/testing.md rules 2, 3, 10 and the Markers clause forbid, and per assert outside a test function. `exempt` defaults to EXEMPT; a "skip" or "existence" finding whose "<path>::<name>" is a key is not returned."""
+  def main() -> int
+      """Refuse on any finding; with --report as the first argument print the findings and return 0."""
+  EXEMPT: dict[str, str]
+      """`<path>::<test name>` to the owner-approved reason a skip or xfail decorator, or an existence-only assertion under rule 10's escape, stands."""
+
+  Today check_file(path) -> list[str] returns formatted strings only (scripts/gates/check_test_assertions.py:50-61) and takes no exempt argument; the structured tuple and the argument are the planned surface, on the pattern of check_no_copy_assertions.py's (category, location) tuples and test_gates_wired.py's PRECOMMIT_EXEMPT argument.
+
+eslint-rules/one-assertion-per-test.js
+  export default { meta, create }  unchanged in shape and behavior.
+
+eslint-rules/assertion-shape.js (new, the shape rule, registered as `hqptuner/assertion-shape`)
+  export default { meta, create }
+  messageIds: `count` (with `data.count`, the operand count of a root conjunction), `existence`, `skip`. A test asserts a message's `messageId` and its `data.count`, both wire identifiers, never its text.
+
+Applicable fixtures for the JS lines: the rule is driven through `Linter` with a flat config registering `hqptuner/assertion-shape` as `error`, as tests/js/lib/no-copy-assertions-rule.test.js does for its rule.
+
+Wire and protocol facts: none; the surface is the gate script and the eslint rule on invented source text.
+
+Applicable fixtures: `tmp_path` for the invented test files; the gate is loaded by path as tests/gates/test_check_no_copy_assertions.py does; the eslint rule is driven through `Linter` as tests/js/lib/no-copy-assertions-rule.test.js does.
+
+Changelog entry: no entry; gate and test-suite work, nothing user-visible.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on check_file / eslint shape rule report counts (2 vs 3 operands on the same conjunction surface, lines 1 and 6, beside not-reported controls in the same file), plus differential on main's exit code (line 5, file-only vs --report)
+
+return, finding by finding: no finding of mine outstanding from round 2 (READY, no cuts, no notes naming a file); the round 3 changes come from the stage 1 plan, lines 3, 6 and 7 re-checked in full below, carried verdicts for 1, 2, 4, 5 match round 2.
+
+1  KEEP  file with four one-assert tests (a and b / a and b and c / not any(...) in a loop / (d or {})["k"] == 1) -> check_file returns exactly three findings: ("count", test one, 2), ("count", test two, 3), ("loop", test three), test four absent; "walks the whole expression" fails it at test four (reports the or); "every conjunction is 2" fails it at test two; bite: [] measured at HEAD, control two-assert file returned one finding so the surface exists
+2  KEEP  file with module-level asserting helper, asserting @pytest.fixture, test with one assert plus nested def asserting -> check_file returns exactly the helper's line and the fixture's line; "exempts fixtures" fails it at the fixture line; "scans nested functions" fails it at the nested def's line; bite: [] measured at HEAD
+3  KEEP  five one-assert tests (x is not None / len(xs) > 0 / x == 3 / x is None / y is not None in a test keyed in the exempt table the test passes) -> check_file reports the first two only; "reports every is comparison" fails it at test four; "exempt table covers skip decorators only" fails it at test five, and that implementation passes line 4 so the two lines are not siblings; bite: [] measured at HEAD, and the exempt keyword is new so null stub check_file(path, exempt=None) -> [] fails it at test one
+4  KEEP  five one-assert tests (@pytest.mark.skip / @pytest.mark.xfail keyed in the exempt table the test passes / pytest.skip(...) body / obj._hidden / obj.__enter__()) -> check_file reports the first and fourth only; "reports the exempted decorator" fails it at test two; "reports pytest.skip calls" fails it at test three; "reports dunder attributes" fails it at test five; bite: [] measured at HEAD; null stub check_file(path, exempt=None) -> [] fails it at test one
+5  KEEP  file carrying one line-1 finding -> main([f]) == 1 beside main(["--report", f]) == 0; "reads --report as a path" fails it at the --report invocation; bite: main([f]) returned 0 at HEAD and main(["--report", f]) raised FileNotFoundError, measured
+6  KEEP  three test() bodies (assert.ok(a && b) / assert.ok(a && b && c) / assert.equal((x || {}).k, 1)) under hqptuner/assertion-shape -> Linter.verify returns exactly two messages, messageId count with data.count 2 on the first and 3 on the second; "walks the whole argument" fails it at the third body (reports the ||); "every logical expression is 2" fails it at the second; bite: surface is new (eslint-rules/assertion-shape.js), null stub rule registered and reporting nothing fails it at the first body
+7  KEEP  test() asserting x !== null / test.skip(...) / test.todo(...) / test() asserting assert.equal(x, 3) under hqptuner/assertion-shape -> Linter.verify returns messages on the first three only (existence, skip, skip); "reports every inequality" fails it at the fourth; "blind to test.skip and test.todo" fails it at the second and third; bite: surface is new, null stub fails it at the first test()
+
+null stub: check_file(path, exempt=None) returns [] for every path, main returns 0, assertion-shape rule registered and reports nothing; fails lines 1, 2, 3, 4, 6, 7 at their first expected finding and line 5 at main([f]) == 1.
+hard-coded stub: return the named findings for the named fixtures; it cannot key on the writer's fixture paths and line numbers, and lines 1 and 6 demand count 2 on one conjunction and 3 on its three-operand neighbour in the same file, so it fails at test two of line 1 and body two of line 6 unless it counts operands, which is the work.
+
+survives: 7
+
+notes:
+- Cap: lines 5, 6 and 7 each carry their sentence and they hold under the new rule split (6 and 7 now pin a rule file that does not exist at HEAD, so neither is covered by any Python line).
+- Lines 6 and 7 replace the measured control bite with the null stub; that is the correct form for a new surface under rule 8, and the two-assert control from round 1 belongs to one-assertion-per-test.js, not to the rule these lines pin.
