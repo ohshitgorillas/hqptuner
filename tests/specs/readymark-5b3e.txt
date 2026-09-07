@@ -1,0 +1,74 @@
+kind: new
+
+slug: readymark-5b3e
+
+Behaviors:
+
+1. A preset save through a manager whose control lane is whole, against a control fake that keeps listening through the restore, returns with the control lane on a fresh connection: the control fake's command log holds two `GetInfo` handshakes when `save_preset` returns, where it held one before the call; the manager polls at the production 2.0 s interval, so the second handshake cannot be the poll loop's.
+   kills: a restore that leaves the control connection for the next poll to find dead (one handshake at return, the reconnect arriving up to 2 s later).
+   bite: GetInfo count 1 before the call and 1 after (`PYTHONPATH=/srv/hqptuner .venv/bin/pytest -c pyproject.toml -p no:cacheprovider --no-cov -o addopts="" -q -s <scratch>/readymark-probe.py -k test_1`; manager built as `start_manager` does with `poll_interval=2.0`, settled via `settled()`, log from `daemon()`; `save_preset` returned with no new handshake)
+   existing: none; `grep -rn 'GetInfo' tests --include='*.py' | grep -v support/` finds tests/engine/test_control.py:27-28 (a fake answering it) and tests/presets/test_rescan_replay.py:382 (a command-order string), no test counting handshakes at a return.
+
+2. Loading a stored preset through a manager whose control fake severs every connection on the restore and refuses new ones for 0.6 s returns with the control lane on a connection made after the restore: two `GetInfo` handshakes served in total when `load` returns, where the fake had served one; production poll pacing, default alarm.
+   kills: a wait satisfied by the readiness the manager held before the restore (returns with one handshake, `ready` still True from the connection the restart killed).
+   bite: GetInfo total 1 across all connections of the severing fake, `manager.ready` True at the moment `load` returns (`... readymark-probe.py -k test_3`; `restarting_daemon` reproduced with `log=` passed to `serve`, `across_a_restart` shape, `http_daemon["_on_restore"] = box["restart"]`; re-checked once, same: `dropped=1`, `reachable=True`, `manager.control is not None`, i.e. the drop landed but no reconnect handshake had happened and `ready` was never cleared)
+   existing: tests/api/test_health_ready.py::test_a_preset_load_returns_only_once_health_reads_ready_again asserts `health(across_a_restart)["ready"] is True` at return, which the bite shows HEAD satisfies on the pre-restart flag; it does not count connections. `grep -rln 'across_a_restart\|restarting_daemon' tests` finds only that file.
+
+3. After a manager's control connection is severed under a virtual clock already advanced 50 s past its construction, with `alarm_threshold=1.0`, the pair (alarm at the moment `reachable` turns False, alarm after a further `sleep(2.0)` of virtual time) equals (False, True).
+   kills: an outage stamped on the wall clock while the alarm reads the virtual one, which counts the 50 s of virtual time as outage and trips the alarm at the drop, giving (True, True).
+   bite: `manager.alarm` True at the moment `reachable` turns False, True after a further `sleep(2.0)` (`... readymark-probe.py -k test_4`; `outage_manager` shape with `alarm_threshold=1.0`, `poll_interval=0.02`, settled by `eventually(reachable)`, virtual `sleep(50.0)` before `kill()`; re-checked once, same)
+   existing: none; `grep -rn 'manager.alarm\|\.alarm is' tests --include='*.py'` finds tests/apply/test_manager_connection.py:99, :106, :112, none of which advances the virtual clock before a drop (:102-106 advances it on a never-connected manager whose stamp is its construction).
+
+Public entry points, planned (hqptuner/core/manager.py):
+
+    class ConnectionManager:
+        connects: int
+            """Completed connects since construction: a whole connect body, both lanes loaded."""
+        def mark_connect(self) -> int | None:
+            """The connect count while the manager is ready, else None: None says there is no whole control connection a restart can kill."""
+        async def await_ready(self, mark: int | None) -> bool:
+            """Wait until a connect completes after ``mark``, or the alarm window passes. None returns False at once."""
+        async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
+            """POST the archive to the daemon's /restore, then treat the control lane as restarting and reconnect it."""
+
+Existing surfaces whose behavior changes, signatures unchanged:
+
+    hqptuner/presets/presetlane.py: async def load(mgr, name) -> dict[str, Any]
+    hqptuner/presets/presetops.py: async def save_preset(self, name) -> dict[str, Any]
+    hqptuner/core/manager.py: @property def alarm(self) -> bool
+
+Wire facts:
+
+- A restore self-restarts the daemon in about 5.6 s (docs/architecture.md:18; docs/protocol.md:69, `POST /restore` "self-restarts the daemon").
+- After a restart port 4321 refuses connections for a window, then accepts and answers `GetInfo` at once; there is no accept-then-hang window (docs/protocol.md:21, :80).
+- Control API state is memory-only; a restart reverts it to the config file (docs/protocol.md:22).
+- The handshake that defines "reachable" is `GetInfo` (tests/support/fake_control.py:334 answers it; one per connection).
+
+Applicable fixtures:
+
+- `daemon` (tests/conftest.py): a 4321 fake on a free port, returning (port, command log, shared State); the log is a list of (name, attrs) per command, one `GetInfo` per connection.
+- `start_manager` (tests/conftest.py): a manager on the `live_daemon_port` fake plus an 8088 fake, settled; keyword overrides reach Config (`poll_interval`, `hqp_control_port`, `alarm_threshold`).
+- `settled` and `eventually` (tests/conftest.py): a full connect plus one completed poll; a real-clock condition poll with a ceiling.
+- `http_daemon` (tests/support/fixtures_daemons.py, fake in tests/support/fake_http.py): the 8088 fake; its `_on_restore` callable fires inside `POST /restore`.
+- `restarting_daemon` and `across_a_restart` (tests/api/test_health_ready.py:90-155): a 4321 fake that severs live connections and refuses new ones for `RESTART_WINDOW` 0.6 s when its `restart` fires, and a settled dual-lane manager on it with the hook wired; line 2 needs a command log attached to that fake's `serve`, a fixture change.
+- `killable_daemon` and `outage_manager` (tests/apply/test_manager_connection.py:27-66): a 4321 fake whose `kill` severs and closes the listener, and a settled manager on it.
+- `virtual_clock` (tests/conftest.py:70, autouse): `manager.sleep` advances a virtual offset that `manager.monotonic` reads back; `run()` stays on the real clock.
+
+Changelog entry: no entry. The readysync feature already carries its line under [Unreleased] (CHANGELOG.md:16) and a fix to an unreleased feature gets none.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the control fake's GetInfo count (1: before/after one save; 2: served total across a severing fake) and on `manager.alarm` at two virtual instants (3)
+framing struck: "The owner approved that at stage 1." - ruling on approval, not an input; reviewed as if absent.
+return, finding by finding: CUT 2 (h) - restatement measured (accepts 1 before and 1 at return at both thresholds), does not discriminate, line dropped; that was the named third route, accepted. CUT 4 (i) - restated as one tuple comparison, text changed; accepted. Note on line 3 pacing - citation supplied (manager.py:374-378 docstring, docs/testing.md:23 verified); withdrawn, check re-run below. Note on line 1 premise - answered as a design statement, no file; it was advisory and asked no fact, so it stands as answered.
+
+1  KEEP  save_preset on a settled dual-lane manager, control fake listening throughout, poll_interval=2.0 -> control log holds 2 GetInfo at return, 1 before; a restore that leaves the dead connection for the next poll fails it at return (count 1); bite: 1 before, 1 after (measured) [carried from round 1, text unchanged]
+2  KEEP  presetlane.load of a stored preset through `across_a_restart` with the severing fake logging -> 2 GetInfo served in total at return; a wait satisfied by the pre-restore `ready` flag fails it at return (1 served); bite: 1 total, `ready` True at return (measured). Satisfiability re-checked against the citation: a reconnect wait whose deadline runs on the real clock rides the fake's 0.6 s real-clock refusal window, so a correct implementation can serve the second handshake before `load` returns. Not a delta of tests/api/test_health_ready.py::test_a_preset_load_returns_only_once_health_reads_ready_again (its `ready` True assertion holds at HEAD and after); the `restarting_daemon` fixture gains `log=` on `serve`, a fixture change. [carried from round 1, text unchanged]
+3  KEEP  outage_manager settled, virtual sleep(50.0), kill(), alarm_threshold=1.0 -> (alarm at the moment reachable turns False, alarm after a further virtual sleep(2.0)) == (False, True); a wall-clock stamp read against the virtual clock fails it at the drop with (True, True); bite: (True, True) measured
+
+null stub: feature absent = HEAD: no reconnect inside the restore call, wait satisfied by the pre-restore flag, outage stamped on the wall clock; fails 1 (count 1), fails 2 (1 served), fails 3 ((True, True)).
+hard-coded stub: after any POST /restore open exactly one new control connection and send GetInfo once, ignoring refusals; stamp the drop on `monotonic()`; satisfies 1 (2 handshakes on a listening fake) and 3, fails 2 (the single attempt inside the 0.6 s refusal window is refused, 1 served).
+survives: 3
+
+notes:
+- The cited wait paces a lane on `_sleep` and `time.monotonic`, which docs/testing.md rule 7 names as a review flag for lanes (only `run()` is carved out at :23). That is a deviation from the testing policy and therefore an owner-approved exemption under the project rules; the return asserts the approval, this review does not verify it, and it does not bear on whether the three lines pin the contract. Consequence for the suite: line 2's test spends the fake's 0.6 s window on the wall clock by design.
