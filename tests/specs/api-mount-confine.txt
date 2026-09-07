@@ -1,0 +1,54 @@
+kind: new
+
+1. A request to an `/api` path no route claims answers 404 with body `code` `route_unknown` whatever the method: `GET /api/nowhere` and `POST /api/nowhere` both answer 404 `route_unknown`.
+   kills: a static-asset mount at `/` that still claims every unrouted `/api` path, which answers the POST 405 and gives neither body a `code`.
+   bite: `GET /api/nowhere` answers 404, body `{"detail": "Not Found"}`, `code` key absent; `POST /api/nowhere` answers 405, body `{"detail": "Method Not Allowed"}`, `code` key absent (`PYTHONPATH=/srv/hqptuner .venv/bin/python <scratch>/probe_mount.py`, a throwaway script building `TestClient(create_app(Config(hqp_host="127.0.0.1", hqp_control_port=<closed port>)))` exactly as `tests/support/fixtures_clients.py:50` does, then `client.request(method, path, follow_redirects=False)`).
+   existing: none, `grep -rn 'route_unknown\|method_not_allowed' tests/ hqptuner/` prints nothing; `grep -rln '405' tests/` excluding tests/specs prints nothing.
+
+2. A request with the wrong method to a real `/api` path answers (405, `method_not_allowed`, Allow) where Allow's comma-separated tokens are exactly the set {GET, HEAD}: `POST /api/health`, whose only route is GET, answers 405 with body `code` `method_not_allowed` and an `Allow` header whose tokens, split on comma and stripped, form exactly the set {"GET", "HEAD"}.
+   kills: a handler that tags every framework refusal `route_unknown` without reading its status, or that renders the body and drops the response headers, or that emits an Allow listing every method.
+   bite: `POST /api/health` answers 405, body `{"detail": "Method Not Allowed"}`, `code` key absent, `Allow` header absent (same command as line 1).
+   existing: none, same greps as line 1; `grep -rn 'api/health' tests/` outside tests/specs returns five GET calls used as readiness probes (tests/conftest.py:132, tests/engine/test_control_stall.py:72, tests/audit/test_autopilot_audit.py:129, tests/audit/test_audit_wiring.py:103, tests/presets/test_autopilot_stamp.py:54), none asserting on a non-GET.
+
+Public entry points (planned):
+
+  hqptuner/api/spa.py
+    def mount_spa(app: FastAPI) -> None
+        """Mount the bundled SPA at "/", if it was built into the package; a source checkout has no such directory."""
+        # unchanged signature; the mount declines `/api` and every path under `/api/`
+
+  hqptuner/api/errors.py
+    STATUS: dict[str, int]
+        # gains "route_unknown": 404 and "method_not_allowed": 405
+    def install(app: FastAPI) -> None
+        """Register the renderer so every ``ApiError`` answers in the shared shape."""
+        # unchanged signature; also registers the framework 404/405 renderer
+
+Wire and protocol facts:
+
+  - None from the daemon; hqplayerd is not on this path.
+  - Every refusal the REST API sends is `{"detail": ..., "code": ...}`, and the status is a property of the code (docs/architecture.md "API errors").
+
+Applicable fixtures:
+
+  - `api_client` (tests/support/fixtures_clients.py:50): the REST surface with no daemon behind it; requests as `client.request(method, path, follow_redirects=False)`.
+
+Changelog entry, under [Unreleased] / Fixed:
+
+- **An unknown API address is now answered as unknown.** A request to an `/api` path that does not exist was answered by the page server, which called anything but a plain read the wrong kind of request. It is now refused as not found, and both that refusal and a wrong kind of request on a real path now carry a code.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the refusal (status, code) of a wrong /api request: (404, route_unknown) at GET and POST /api/nowhere vs (405, method_not_allowed, {GET, HEAD}) at POST /api/health
+
+round 1 findings: line 2 CUT (h) on "an Allow header naming GET" -> repaired, line text now states the Allow token set {"GET", "HEAD"} inside one (status, code, Allow) tuple; the citation for the exact value checks out (.venv/lib/python3.14/site-packages/starlette/routing.py:232-233 adds HEAD to any GET route, :269 joins the set with ", " in unspecified order), so a token set is the right comparable literal. Withdrawn. Line 1 unchanged, KEEP carried.
+
+1  KEEP  GET /api/nowhere and POST /api/nowhere -> [(404, "route_unknown"), (404, "route_unknown")]; the `/` static mount still claiming unrouted /api paths fails it at POST /api/nowhere (405, no code); bite: measured at HEAD, GET 404 body {"detail": "Not Found"} no code, POST 405 body {"detail": "Method Not Allowed"} no code
+2  KEEP  POST /api/health -> (405, "method_not_allowed", {"GET", "HEAD"} as the comma-split stripped Allow tokens); a handler tagging every refusal route_unknown fails it on code, one dropping response headers fails it on the missing Allow, one emitting Allow for every method fails it on the set; bite: measured at HEAD, 405 body {"detail": "Method Not Allowed"} no code, Allow absent
+
+null stub: mount left at `/`, no exception handler added: GET /api/nowhere 404 {"detail": "Not Found"}, POST /api/nowhere 405 {"detail": "Method Not Allowed"}, POST /api/health 405 no code no Allow; fails line 1 (code absent on both) and line 2 (code and Allow absent).
+hard-coded stub: exception handler mapping any 404 to route_unknown and any 405 to method_not_allowed with Allow copied from the framework, mount still at `/`: passes line 2, fails line 1 at POST /api/nowhere (405 method_not_allowed instead of 404 route_unknown); the confined-mount variant that hardcodes Allow "GET, HEAD" on every 405 passes both, a defect this reviewer could have named in round 1 and so does not hold the gate on.
+
+survives: 2
+
+note for owner: line 2's single input cannot tell a route-derived Allow from a hardcoded "GET, HEAD"; a second wrong-method input on a POST-only route (e.g. GET /api/config/stage) as one more parametrize case in the same test would make Allow a sweep. Optional, owner's call, not a gate condition.
