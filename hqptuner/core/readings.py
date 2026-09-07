@@ -15,7 +15,12 @@ from hqptuner.lanes.live import lane
 
 @dataclass
 class Readings:
-    """The daemon's last answers, plus the LIVE set the engine cannot hold on to by itself."""
+    """The daemon's last answers, the LIVE set it cannot hold on to itself, and the last level we asked it for.
+
+    That third part is one field, ``last_volume_write``, and it is deliberately not one of the daemon's answers:
+    attribution needs somewhere to live, and a reading of the volume says nothing about who moved it. Written only by
+    ``hqptuner/voltrace.py``, read only by the same, and reaching no response.
+    """
 
     info: dict[str, str] | None = None
     # installed release string off the 8088 /about page (engine/release.py);
@@ -32,6 +37,11 @@ class Readings:
     # What LIVE set that the engine cannot hold on to by itself — the dormant
     # family's rate pin and the dormant chain's filters (`lanes/live/lane`).
     live: lane.LiveMemory = field(default_factory=lane.LiveMemory)
+    # The level of the most recent volume write HQPTuner issued, down either
+    # path (voltrace.write) — the attribution every volume observation carries.
+    # None until we have asked for one, which is different from having asked for
+    # a level the engine is no longer reporting.
+    last_volume_write: str | None = None
     config_form: dict[str, Any] | None = None
     config_error: str | None = None
     matrix_form: dict[str, Any] | None = None

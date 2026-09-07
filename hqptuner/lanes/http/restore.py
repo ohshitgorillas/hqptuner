@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth, presetconf, presetzip, xmledit
 from hqptuner.conf.matrixconf import (
     MATRIX_PROFILE_DELETE,
@@ -192,7 +193,13 @@ async def _one_pass(
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)
     keys = verified_keys(merged, intended)
-    diff = config_diff(intended, await verify(mgr, intended, keys), keys)
+    # both sides of the persistent apply, recorded whether or not it converged: a
+    # pass that converges on every key it verified can still have carried the wrong
+    # startup volume, and the prose warning below only fires when it does not
+    voltrace.observe(mgr, "apply_intended", voltrace.subset(intended))
+    realized = await verify(mgr, intended, keys)
+    voltrace.observe(mgr, "apply_realized", voltrace.subset(realized))
+    diff = config_diff(intended, realized, keys)
     if not diff:
         final: dict[str, Any] = {
             "submitted": True,

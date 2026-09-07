@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
@@ -23,6 +24,26 @@ from hqptuner.presets import presetlane
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
+
+
+def _trace_live_volume(
+    mgr: "ConnectionManager",
+    live_edits: dict[str, dict[str, str]],
+    report: list[dict[str, Any]],
+) -> None:
+    """Record a volume the live lane just set, where this batch carried one.
+
+    The second of the two paths that reach the playing volume. Emitted here rather than inside ``lanes/writer`` for
+    two reasons: ``_apply_one`` is handed an ``AuditLog`` and not the manager, and the attribution field lives on the
+    manager's readings — so emitting from the caller leaves every existing signature alone. A setter that returns
+    without raising has had its readback matched (``lanes/writer``), so the value sent is the value confirmed.
+    """
+    want = live_edits.get("volume", {}).get("value")
+    if want is None:
+        return
+    entry = next((row for row in report if row.get("setting") == "volume"), {})
+    ok = bool(entry.get("ok"))
+    voltrace.write(mgr, "live_lane", want, want if ok else None, ok=ok)
 
 
 class ApplyOps:
@@ -41,9 +62,17 @@ class ApplyOps:
         client = self._mgr.control
         if client is None:
             raise ControlError("daemon not connected")
-        await client.set_volume(db)
+        try:
+            await client.set_volume(db)
+        except ControlError:
+            # recorded before it propagates: a refused write is exactly the one a
+            # later reading cannot be told from a write that never happened
+            voltrace.write(self._mgr, "api.volume", db, None, ok=False)
+            raise
         self._mgr.readings.state = await client.get_state()
-        return {"volume": self._mgr.readings.state.get("volume")}
+        readback = self._mgr.readings.state.get("volume")
+        voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
+        return {"volume": readback}
 
     # --- write path (Phase 3) -----------------------------------------
 
@@ -80,6 +109,7 @@ class ApplyOps:
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
+            _trace_live_volume(mgr, live_edits, live_report)
             await lane.refresh_after_live(mgr, client, live_edits)
             lane.remember_routed(mgr, live_report, staged)
         persistent = await restore.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
@@ -106,6 +136,12 @@ class ApplyOps:
             fanout = mgr.presetops.fanout_profiles(http_fields)
             if fanout:
                 persistent["profile_fanout"] = fanout
+        # OUTSIDE the branch above: a preset load is the FIRST step of an apply, so
+        # every checkpoint inside `presetlane.load` reads state the live setters and
+        # the restore have not touched yet. This one reads after all of it, and it
+        # reads on a live-only apply too — which is the apply that can move the
+        # volume without the config file ever hearing about it.
+        voltrace.observe(mgr, "post_apply", {**voltrace.subset(mgr.readings.file_config), **voltrace.live_volume(mgr)})
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
