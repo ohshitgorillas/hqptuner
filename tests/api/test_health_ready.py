@@ -19,13 +19,14 @@ concludes, never on how long it took.
 
 import asyncio
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import LiveManager, StartManager, settled
-from fake_control import DEFAULTS, serve
+from conftest import DaemonFactory, LiveManager, StartManager, eventually, settled
+from fake_control import DEFAULTS, CommandLog, serve
+from fake_control import serve as fake_serve
 
 from hqptuner.api.routes.status import health
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -97,8 +98,11 @@ async def restarting_daemon() -> AsyncIterator[dict[str, Any]]:
     ``restart`` is safe to hand to the 8088 fake's ``_on_restore``, which fires
     on that fake's own handler thread. ``dropped`` counts the connections the
     restart killed, so a case can say the control connection really died rather
-    than assuming the hook ran."""
-    box: dict[str, Any] = {"state": {**DEFAULTS}, "down_until": 0.0, "dropped": 0}
+    than assuming the hook ran. ``log`` is the fake's command log across every
+    connection it served, one ``GetInfo`` per connection, so a case can count
+    the connections the manager made rather than trusting a flag."""
+    log: CommandLog = []
+    box: dict[str, Any] = {"state": {**DEFAULTS}, "down_until": 0.0, "dropped": 0, "log": log}
     live: set[asyncio.StreamWriter] = set()
 
     async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -107,7 +111,7 @@ async def restarting_daemon() -> AsyncIterator[dict[str, Any]]:
             return
         live.add(writer)
         try:
-            await serve(reader, writer, state=box["state"])
+            await serve(reader, writer, state=box["state"], log=log)
         finally:
             live.discard(writer)
 
@@ -173,3 +177,105 @@ async def test_a_preset_load_returns_only_once_health_reads_ready_again(
     await presetlane.load(across_a_restart, "Stored")
     _died(restarting_daemon)
     assert health(across_a_restart)["ready"] is True
+
+
+# --- a restore hands back the control lane on a fresh connection --------------
+#
+# A restore self-restarts hqplayerd (docs/protocol.md, `POST /restore`), and the
+# control connection it held goes with it. What a caller sees at return is
+# counted on the control fake's own wire: one `GetInfo` handshake per connection
+# (docs/protocol.md, tests/support/fake_control.py), so the number of handshakes
+# served is the number of connections the manager made. Production poll pacing
+# throughout, so a second handshake inside the call cannot be the poll loop's.
+
+
+def _handshakes(log: CommandLog) -> int:
+    """How many connections the fake has answered a `GetInfo` on."""
+    return sum(1 for name, _attrs in log if name == "GetInfo")
+
+
+async def test_a_preset_save_returns_with_the_control_lane_on_a_fresh_connection(
+    daemon: DaemonFactory, http_daemon: dict[str, Any], start_manager: StartManager
+) -> None:
+    # fakes before the manager, so the manager is torn down while both are
+    # still answering
+    # the control fake keeps listening through the restore: nothing severs the
+    # old connection from outside, so a second handshake at return is the
+    # manager's own doing, not a repair of a connection the next poll found dead
+    port, log, _state = await daemon()
+    manager = await start_manager(http_daemon["_port"], poll_interval=2.0, hqp_control_port=port)
+    before = _handshakes(log)
+    await manager.presetops.save_preset("Stored")
+    assert (before, _handshakes(log)) == (1, 2)
+
+
+async def test_a_preset_load_returns_on_a_connection_made_after_the_restart(
+    across_a_restart: ConnectionManager, restarting_daemon: dict[str, Any]
+) -> None:
+    # the fake severs every connection on the restore and refuses new ones for
+    # a window; the flag the manager held before the restart is not evidence
+    # that it came back, a handshake served after the restart is
+    await across_a_restart.presetops.save_preset("Stored")
+    before = _handshakes(restarting_daemon["log"])
+    await presetlane.load(across_a_restart, "Stored")
+    _died(restarting_daemon)
+    assert _handshakes(restarting_daemon["log"]) == before + 1
+
+
+# --- the alarm counts outage time on the same clock it reads ------------------
+
+
+@pytest.fixture
+async def killable_daemon() -> AsyncIterator[tuple[int, Callable[[], Awaitable[None]]]]:
+    """The 4321 fake behind a server a test can take down mid-poll: ``kill``
+    severs every live connection and closes the listener."""
+    writers: list[asyncio.StreamWriter] = []
+
+    async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        writers.append(writer)
+        await fake_serve(reader, writer)
+
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
+    port: int = server.sockets[0].getsockname()[1]
+
+    async def kill() -> None:
+        server.close()
+        for writer in writers:
+            writer.close()
+        await server.wait_closed()
+
+    yield port, kill
+    if server.is_serving():
+        await kill()
+
+
+@pytest.fixture
+async def outage_manager(
+    killable_daemon: tuple[int, Callable[[], Awaitable[None]]],
+) -> AsyncIterator[tuple[ConnectionManager, Callable[[], Awaitable[None]]]]:
+    """A manager on the killable fake, reachable, with a one-second alarm
+    threshold and a poll loop paced fast enough to notice the kill."""
+    port, kill = killable_daemon
+    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=port, poll_interval=0.02, alarm_threshold=1.0)
+    manager = ConnectionManager(cfg)
+    task = asyncio.create_task(manager.run())
+    await eventually(lambda: manager.reachable)
+    yield manager, kill
+    manager.stop()
+    await task
+    await manager.aclose()
+
+
+async def test_alarm_counts_the_outage_from_the_drop_not_from_construction(
+    outage_manager: tuple[ConnectionManager, Callable[[], Awaitable[None]]],
+) -> None:
+    # fifty seconds of virtual time pass while the daemon is fine; the outage
+    # begins at the drop, so the alarm is quiet at that moment and trips only
+    # once the threshold has passed from there
+    manager, kill = outage_manager
+    await manager.sleep(50.0)
+    await kill()
+    await eventually(lambda: not manager.reachable)
+    at_the_drop = manager.alarm
+    await manager.sleep(2.0)
+    assert (at_the_drop, manager.alarm) == (False, True)
