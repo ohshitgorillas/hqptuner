@@ -1,0 +1,48 @@
+kind: excision
+
+slug: testrules-excise2-9ecc
+
+1. excise tests/js/components/volumerangebar-axis.test.js::"test_the_lower_bound_handle_is_labeled_for_assistive_technology"
+   rule: docs/testing.md rule 10
+   assertion: assert.notEqual(attrOf(bound(bar(), LOW), "aria-label"), undefined);
+
+2. excise tests/js/components/volumerangebar-axis.test.js::"test_the_upper_bound_handle_is_labeled_for_assistive_technology"
+   rule: docs/testing.md rule 10
+   assertion: assert.notEqual(attrOf(bound(bar(), HIGH), "aria-label"), undefined);
+
+3. excise tests/js/components/matrixtab-mirror.test.js::"test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_speakers_mode"
+   rule: docs/testing.md rule 10
+   assertion: assert.notEqual(mirrorBox(tab()), null);
+
+4. excise tests/js/components/matrixtab-mirror.test.js::"test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_headphones_mode"
+   rule: docs/testing.md rule 10
+   assertion: assert.notEqual(mirrorBox(tab()), null);
+
+5. excise tests/apply/test_manager_connect_load.py::test_a_dead_http_lane_records_the_form_error
+   rule: docs/testing.md rule 10
+   assertion: assert manager.readings.config_error is not None
+
+6. excise tests/js/components/playbackvolume.test.js::"test_a_disabled_control_explains_itself"
+   rule: docs/testing.md rule 12
+   assertion: assert.equal(cause(card()), "no-stream");
+
+7. excise tests/js/components/xfeedcomp.test.js::"test_a_symmetric_stereo_pair_offers_to_turn_the_correction_on"
+   rule: docs/testing.md rule 12
+   assertion: assert.equal(issue(strip()), "");
+
+--- spec-reviewer READY ---
+READY
+discriminates: n/a (kind: excision; nothing pinned, checks (a)-(k) do not run)
+
+1  KEEP  excise tests/js/components/volumerangebar-axis.test.js::"test_the_lower_bound_handle_is_labeled_for_assistive_technology"; rule 10 "asserting existence instead of value" fits: line 601 `assert.notEqual(attrOf(bound(bar(), LOW), "aria-label"), undefined)` asserts attribute presence only, no EXEMPT entry, visible in the test file alone
+2  KEEP  excise tests/js/components/volumerangebar-axis.test.js::"test_the_upper_bound_handle_is_labeled_for_assistive_technology"; rule 10 same bullet: line 606 `assert.notEqual(attrOf(bound(bar(), HIGH), "aria-label"), undefined)` is presence-only
+3  KEEP  excise tests/js/components/matrixtab-mirror.test.js::"test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_speakers_mode"; rule 10 existence bullet: line 114 `assert.notEqual(mirrorBox(tab()), null)` asserts the checkbox exists, and the sibling at 127-130 (`mirrorChecked` throws on a missing box, then pins `false`) already fails on absence with a value
+4  KEEP  excise tests/js/components/matrixtab-mirror.test.js::"test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_headphones_mode"; rule 10 existence bullet: line 119 `assert.notEqual(mirrorBox(tab()), null)`, sibling at 122-125 already fails on absence and pins `true`
+5  KEEP  excise tests/apply/test_manager_connect_load.py::test_a_dead_http_lane_records_the_form_error; rule 10 names `is not None` verbatim: line 45 `assert manager.readings.config_error is not None`, no EXEMPT entry
+6  KEEP  excise tests/js/components/playbackvolume.test.js::"test_a_disabled_control_explains_itself"; rule 12 "two tests where one cannot fail without the other are one test": lines 258-261 (`reset({ range: OFF })`, `cause(card()) == "no-stream"`) are byte-for-byte the same input and assertion as test_an_unexplained_disable_reads_as_no_active_stream at 322-325
+7  KEEP  excise tests/js/components/xfeedcomp.test.js::"test_a_symmetric_stereo_pair_offers_to_turn_the_correction_on"; rule 12 same clause: lines 166-169 (`reset({ rows: pair() })`, `issue(strip()) == ""`) duplicate test_a_symmetric_stereo_pair_reports_no_issue at 176-179 exactly
+
+null stub: excision block pins nothing; with every target removed the null stub is unaffected, which is the point, and each surviving sibling named above already carries the value the removed test only asserted the existence of.
+hard-coded stub: no expected values in the block; nothing for a table to satisfy.
+
+survives: 7
