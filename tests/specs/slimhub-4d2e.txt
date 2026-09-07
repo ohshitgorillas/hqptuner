@@ -1,0 +1,85 @@
+kind: refactor
+
+slug: slimhub-4d2e
+
+The on-demand readers leave `ConnectionManager` for module functions that take the manager: `read_engine` and `load_file_config` to `hqptuner.presets.fileconfig`. Every reshaped test keeps its name, its fixture, its input and its assertion; only the call shape changes. The target list is `grep -rnE "\.(load_file_config|read_engine)\(" tests` on dev at 3612e949, 30 lines, pasted verbatim under line 1; the comment sites under line 2 are `grep -rnE '_connect_and_load|_poll`' tests`, 2 lines.
+
+1. Every test calling `await <fixture>.load_file_config()` calls `await fileconfig.load_file_config(<fixture>)`, and every test calling `await <fixture>.read_engine()` calls `await fileconfig.read_engine(<fixture>)`, with `fileconfig` imported from `hqptuner.presets`; the fixture, the subscript and the compared value at each site are byte-identical to what stands there.
+   kills: a reshape that keeps a method call on the manager; a reshape that changes the asserted key or value at a site; a reshape that swaps the fixture at a site.
+   bite: green expected (refactor); `grep -rnE "\.(load_file_config|read_engine)\(" tests` returns no line.
+   existing: 30 sites, grep output verbatim:
+   tests/apply/test_engine_apply.py:23 read_engine ["cuda"] == "convolution"
+   tests/apply/test_engine_apply.py:28 read_engine ["multicore"] == "1"
+   tests/apply/test_engine_apply.py:33 read_engine ["cuda_dev"] == "1"
+   tests/apply/test_engine_apply.py:38 read_engine ["nblocks"] == "4"
+   tests/apply/test_file_config.py:69 load_file_config ["volume_fixed"] == "2"
+   tests/apply/test_file_config.py:74 load_file_config ["channels"] == "2"
+   tests/apply/test_pipeline_apply.py:22 load_file_config (bound to cfg)
+   tests/apply/test_pipeline_apply.py:69 load_file_config ["channels"] == "2"
+   tests/apply/test_pipeline_apply.py:84 load_file_config ["matrix_engine"] == "0"
+   tests/apply/test_volume_config.py:44 load_file_config ["volume_max"] == "-6"
+   tests/apply/test_volume_config.py:49 load_file_config ["volume_min"] == "-40"
+   tests/apply/test_volume_config.py:54 load_file_config ["defaults_volume"] == "-12"
+   tests/apply/test_volume_config.py:59 load_file_config ["fixed_volume_enabled"] == "1"
+   tests/apply/test_volume_config.py:64 load_file_config ["fixed_volume"] == "-6"
+   tests/apply/test_volume_config.py:70 load_file_config ["fixed_volume_enabled"] == "0"
+   tests/apply/test_volume_config.py:88 load_file_config ["fixed_volume"] == "-20"
+   tests/apply/test_volume_config.py:94 load_file_config ["fixed_volume_enabled"] == "0"
+   tests/apply/test_volume_config.py:101 load_file_config ["fixed_volume_enabled"] == "1"
+   tests/apply/test_volume_config.py:107 load_file_config ["fixed_volume_enabled"] == "0"
+   tests/apply/test_volume_config.py:114 load_file_config ["fixed_volume"] == "-6"
+   tests/apply/test_volume_config.py:167 load_file_config (clamping_manager) ["defaults_volume"] == "-40"
+   tests/apply/test_volume_config.py:172 load_file_config (clamping_manager) ["volume_max"] == "-6"
+   tests/engine/test_devicecaps.py:368 load_file_config (awaited, unbound)
+   tests/matrix/test_matrix_profiles.py:33 load_file_config (bound to cfg)
+   tests/matrix/test_matrix_profiles.py:81 load_file_config ["matrix_pipelines"] json [0]["gain"] == "0"
+   tests/matrix/test_profile_backfill.py:100 load_file_config (bound to cfg_fields)
+   tests/matrix/test_profile_fanout.py:76 load_file_config (bound to cfg)
+   tests/matrix/test_profile_post_process.py:81 load_file_config (bound to cfg_fields)
+   tests/presets/test_switch_drops_profile.py:118 load_file_config ["matrix_pipelines"] json
+   tests/presets/test_switch_drops_profile.py:143 load_file_config (plain_manager) .get("post_bauer_frequency") == "850"
+
+2. The two test comments naming the manager's private connect and poll methods name their new homes, `core/loader.connect_and_load` and `core/loader.poll`; no code line at either site changes.
+   kills: a reshape that leaves a comment pointing at a method that no longer exists; a reshape that touches the assertion beside the comment.
+   bite: green expected (refactor); `grep -rnE '_connect_and_load|_poll`' tests` returns no line (2 lines at 3612e949, both below).
+   existing: tests/live/test_live_chain.py:289 (`manager._connect_and_load`), tests/engine/test_control_stall.py:56 (`_connect_and_load` and `_poll`).
+
+Public entry points (planned):
+hqptuner/presets/fileconfig.py
+   async def read_engine(mgr: ConnectionManager) -> dict[str, str]
+       """Return current hardware-accel engine attributes, parsed from a fresh backup's base config."""
+   async def load_file_config(mgr: ConnectionManager) -> dict[str, str]
+       """Read running config from the backup archive's working hqplayerd.xml, in form-field terms."""
+hqptuner/core/loader.py
+   async def connect_and_load(mgr: ConnectionManager) -> None
+   async def poll(mgr: ConnectionManager) -> None
+hqptuner/lanes/settle.py
+   async def resync_engine_state(mgr: ConnectionManager) -> None
+hqptuner/core/manager.py
+   ConnectionManager.cfg: Config (was private)
+   ConnectionManager.control: property gains a setter
+   removed: ConnectionManager._connect_and_load, ._poll, .resync_engine_state, .read_engine, .load_file_config
+
+Wire and protocol facts: none new; no daemon call moves or changes.
+
+Applicable fixtures: whatever each target already uses (`manager`, `http_manager`, `plain_manager`, `clamping_manager` from tests/conftest.py and the matrix/preset conftests); no new fixture.
+
+Changelog entry: no entry; internal split, nothing user-visible.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the file-config surface, carried by the existing tests the deltas fold into - `fixed_volume` "-6" (test_volume_config.py:64) vs "-20" (:88), `fixed_volume_enabled` "1" (:59) vs "0" (:70), `defaults_volume` "-12" (:54) vs "-40" (:167) on the clamping manager; two deltas, zero new tests
+
+return, finding by finding: (1) line 2 bite grep missing control_stall:56 - repaired, grep changed to `_connect_and_load|_poll\`` and rerun here at 3612e949: exactly the two named sites, so the post-change "no line" expectation now covers both; (2) line 2 target grep returning 12 not 2 - repaired, preamble carries the backtick grep, 2 lines, reproduced; (3) stray `tests/live/test_live_chain.py: none` - struck from line 1's list, the 30 remaining lines reproduce byte-identical; (4) removal-list note was informational, nothing owed. Line 1 text unchanged, round 1 verdict carried.
+
+1  DELTA tests/apply/test_engine_apply.py:23,28,33,38; tests/apply/test_file_config.py:69,74; tests/apply/test_pipeline_apply.py:22,69,84; tests/apply/test_volume_config.py:44,49,54,59,64,70,88,94,101,107,114,167,172; tests/engine/test_devicecaps.py:368; tests/matrix/test_matrix_profiles.py:33,81; tests/matrix/test_profile_backfill.py:100; tests/matrix/test_profile_fanout.py:76; tests/matrix/test_profile_post_process.py:81; tests/presets/test_switch_drops_profile.py:118,143: `await <fixture>.load_file_config()` -> `await fileconfig.load_file_config(<fixture>)` and `await <fixture>.read_engine()` -> `await fileconfig.read_engine(<fixture>)`, `from hqptuner.presets import fileconfig` added per file, fixture, subscript and compared literal untouched at every site; grep reproduced at 3612e949, 30 lines.
+2  DELTA tests/live/test_live_chain.py:289; tests/engine/test_control_stall.py:56: comment text only, `manager._connect_and_load` -> `loader.connect_and_load`, `` `_connect_and_load` and `_poll` `` -> `` `loader.connect_and_load` and `loader.poll` ``; no assertion or code line moves; bite grep now names both sites.
+
+null stub: `fileconfig.load_file_config` and `fileconfig.read_engine` present and returning `{}` - every subscripting site in line 1 raises KeyError (test_volume_config.py:44 `["volume_max"]` first), test_switch_drops_profile.py:143 `.get(...)` compares None to "850"; the bound-only sites (pipeline_apply:22, matrix_profiles:33, profile_backfill:100, profile_fanout:76, profile_post_process:81) fail on their own downstream assertions or not at all, and were never this block's to pin. Line 2 is satisfied by the null stub, as any comment edit is; it is a delta to two test files, not a behavior.
+hard-coded stub: `load_file_config` returning a fixed dict of the 30 literals - fails at test_volume_config.py:64 vs :88 (`fixed_volume` "-6" vs "-20" from the same fake under two fixture states) and at :59/:70/:94/:101/:107 (`fixed_volume_enabled` flips within one file); the existing tests carry the two-value sweep, so the deltas inherit discrimination.
+
+survives: 0
+
+notes:
+- Refactor exemption under docs/testing.md rule 8 is stated in the block (`green expected`); the hand-back must restate it.
+- A comment naming `core/loader.connect_and_load` rots on the next move as the current one did; naming the event would not. Writer's call, not a cut.
