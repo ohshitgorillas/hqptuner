@@ -1,0 +1,66 @@
+kind: new
+
+brief:
+> I WANT YOU TO RESOLVE ALL SIMILAR ISSUES IN THE TESTING SUITE. DO NOT FOCUS ON ONE FAILING TEST. FIND THE PATTERN AND RESOLVE.
+
+slug: lockednull-bfe9
+
+Behaviors:
+
+1. On one connected control client, two `State` reads started in the same event-loop pass (the second queued behind the first), swept over the daemon's knob: with `_close="State"` (the daemon drops the connection under `State` without answering) the ordered gather result is `[ControlError, ControlError]` by type; with no knob (`DEFAULTS`) the ordered result is two `State` documents, each carrying the `mode` attribute the fake holds, compared as one list.
+   kills: a client that checks for a connection before queueing behind the request in flight and dereferences it after, so the queued read raises `AttributeError` once the first read has dropped the connection, an error no caller handles and the API answers with a bodiless 500; and a client that raises `ControlError` on every call, which fails the healthy case.
+   bite: `_close="State"` case, trial 1: [["ControlError", "State: connection closed by daemon"], ["AttributeError", "'NoneType' object has no attribute 'write'"]]; trials 2 and 3 identical; daemon log per trial ["State"], the second read never reached the wire (`PYTHONPATH=/srv/hqptuner .venv/bin/python <scratch>/lockednull-bfe9-probe.py` from /srv/hqptuner, probe deleted in the same command; fake built as `functools.partial(fake_control.serve, log=log, state={**DEFAULTS, "_close": "State"})` on `127.0.0.1:0`, one `ControlClient("127.0.0.1", port, timeout=1.0)` freshly connected per trial, then `await asyncio.gather(client.get_state(), client.get_state(), return_exceptions=True)`, three trials on fresh server and client). The healthy case is characterization and carries no bite.
+   existing: none; `grep -rn 'gather(.*get_state\|AttributeError\|not connected' tests --include='*.py' | grep -v support/` finds only the comment at tests/engine/test_control_stall.py:38 and the docstring at tests/matrix/test_matrix_switch.py:4, no test.
+
+Public entry points, existing and unchanged (hqptuner/engine/control.py):
+
+    class ControlError(HQPTunerError):
+        """Base for every Control API failure: not connected, timed out, socket died, response would not parse."""
+
+    class ControlClient:
+        """One Control API connection, with a lock serializing request/response round trips over it."""
+
+        def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0):
+            """Record where to dial and how long to wait; no socket is opened until ``connect``."""
+
+        async def connect(self) -> None:
+            """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
+
+        async def close(self) -> None:
+            """Close the connection and forget the streams, ignoring a transport that has already failed."""
+
+        async def request(self, element: str) -> ET.Element:
+            """Send one XML command document, return the parsed response root."""
+
+        async def get_state(self) -> dict[str, str]:
+            """Run `<State/>` for the settings snapshot — the primary readback, settings as list indices (protocol.md §6)."""
+
+Wire facts:
+
+- A request that fails after its bytes went out drops the connection; the poll loop reconnects (docs/architecture.md:31).
+- The daemon answers every command it accepts, unknown ones included (docs/protocol.md §4), so a reply given up on is a reply still to come, and the client drops the connection rather than read it as the next command's answer.
+- `ControlError` is the documented answer for "4321 not connected" (docs/architecture.md:72, code `daemon_unavailable`).
+- The fake's `State` frame emits every non-underscore key of its State dict as an attribute (tests/support/fake_control.py:347); `DEFAULTS` holds `mode: "1"` (:28).
+
+Applicable fixtures:
+
+- `daemon` (tests/conftest.py plugin): the 4321 fake on a free port, returning (port, command log, shared State); accepts State knobs as keyword arguments, `_close="State"` drops the socket without answering that command (tests/support/fake_control.py:383); tests/engine/test_control_desync.py:73 already passes a knob as `daemon(**{knob: ...})`.
+- `ControlClient` built directly, as tests/engine/test_control_stall.py:72-78 (`stalling_client`) builds one against `daemon(...)`.
+
+Changelog entry: no entry, by owner ruling; internal concurrency fix in the control client.
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on ControlClient.get_state queued twice in one event-loop pass: `_close="State"` -> `[ControlError, ControlError]`, DEFAULTS -> two State documents carrying `mode`; two distinct expected values on one surface
+
+Return read finding by finding: repair 1 (kind/brief) applied, `kind: new` and the owner's brief present; repair 2 (rule 9 prose) applied, line 1 now names exception types and the `mode` wire attribute only; repair 3 (sweep) applied, the healthy case added with its characterization exemption stated; CUT c on line 1 resolved by the same text change. Nothing dropped or reworded.
+
+1  KEEP  two `get_state()` in one `asyncio.gather` on one connected client, parametrized on the daemon knob -> `_close="State"`: ordered result types `[ControlError, ControlError]`; DEFAULTS: two State documents each carrying `mode` (the fake's State frame emits every non-underscore key, tests/support/fake_control.py:347, and DEFAULTS holds `mode: "1"`, :28), compared as one list per case; the connection-check-then-dereference client fails it at the second element of the `_close` case (AttributeError), and the raise-ControlError-always client fails it at the DEFAULTS case; bite: measured at HEAD, `_close` case second element `["AttributeError", "'NoneType' object has no attribute 'write'"]`, three trials identical, daemon log ["State"]; DEFAULTS case characterization, exemption stated.
+
+null stub: the fix absent, so the queued second read dereferences the connection the first read dropped and raises AttributeError (the measured HEAD value); fails line 1 at the second element of the `_close` case.
+hard-coded stub: a client whose get_state raises ControlError twice on one daemon and returns two `mode="1"` documents on the other cannot tell the two daemons apart without reading the wire, which is the work; a stub that picks either answer blindly fails one of the two cases.
+survives: 1
+
+(m): the brief names a scope ("resolve the pattern, not one failing test") and no observable behavior beyond the one the line pins; the line contradicts no sentence of it. (c): `ControlError` is a public type, `mode` a wire attribute; no prose asserted. (b): `existing: none` carried from round 1, grep matched mine, no test drives two reads in one pass. (i): one list comparison per parametrized case. (j): `asyncio.gather` on the client is harness-driven. (f): one line.
+
+notes:
+- Whether the brief's "ALL SIMILAR ISSUES" has a second surface beyond `ControlClient.request` (the plan review named manager.py `_drop` closing without the lock) is a question about hqptuner/ I cannot read; the block pins the client surface the plan names, and the owner settles whether that is the whole pattern.
