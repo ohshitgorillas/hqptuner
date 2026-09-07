@@ -19,7 +19,7 @@ concludes, never on how long it took.
 
 import asyncio
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from pathlib import Path
 from typing import Any
 
@@ -170,13 +170,37 @@ def _died(restarting_daemon: dict[str, Any]) -> None:
         raise AssertionError("the restore never dropped a control connection: there was no restart to wait out")
 
 
+async def _ready_across(manager: ConnectionManager, work: Coroutine[Any, Any, Any]) -> tuple[bool, bool]:
+    """What /api/health says about readiness across an awaited call.
+
+    Two observations: whether any event-loop pass INSIDE the call read
+    `ready: false`, and what `ready` reads at the moment the call returns. The
+    sampler rides the same `asyncio.sleep(0)` idiom `_at_the_first_pass_where`
+    does — every pass the call yields on, and no wall-clock wait of its own."""
+    samples: list[bool] = []
+    running = True
+
+    async def sample() -> None:
+        while running:
+            samples.append(bool(health(manager)["ready"]))
+            await asyncio.sleep(0)
+
+    sampler = asyncio.create_task(sample())
+    try:
+        await work
+    finally:
+        running = False
+        await sampler
+    return (False in samples, bool(health(manager)["ready"]))
+
+
 async def test_a_preset_load_returns_only_once_health_reads_ready_again(
     across_a_restart: ConnectionManager, restarting_daemon: dict[str, Any]
 ) -> None:
     await across_a_restart.presetops.save_preset("Stored")
-    await presetlane.load(across_a_restart, "Stored")
+    across_the_load = await _ready_across(across_a_restart, presetlane.load(across_a_restart, "Stored"))
     _died(restarting_daemon)
-    assert health(across_a_restart)["ready"] is True
+    assert across_the_load == (True, True)
 
 
 # --- a restore hands back the control lane on a fresh connection --------------
@@ -279,3 +303,75 @@ async def test_alarm_counts_the_outage_from_the_drop_not_from_construction(
     at_the_drop = manager.alarm
     await manager.sleep(2.0)
     assert (at_the_drop, manager.alarm) == (False, True)
+
+
+# --- the configuration lane counts too, but only under a write ----------------
+# A refused /config is an ordinary wire fault the polled pass records and rides
+# on (tests/apply/test_fault_narrowing.py). What it costs is readiness, and only
+# while a write is out: the same refusal with nothing in flight leaves the app
+# reporting itself ready.
+#
+# The in-flight observation is taken at a named pass, not at "some pass inside
+# the load": the restart's own control outage reads `ready: false` on every
+# implementation, so the moment that tells the lanes apart is AFTER the control
+# connection has come back and polled again, with /config still refused. Health's
+# `connected_at` is rewritten at the end of every connect and every poll, so it
+# is the wire-visible marker for both moments.
+
+
+async def _the_first_poll_on_the_connection_that_came_back(
+    manager: ConnectionManager, restarting_daemon: dict[str, Any], dropped_before: int, connected_before: Any
+) -> dict[str, Any]:
+    """Health at the first pass where a poll has completed on the control
+    connection that came back after the restore's restart: the restart fired
+    (`dropped` advanced), the daemon reads reachable again with `connected_at`
+    moved off its pre-load value, and then `connected_at` moved once more."""
+    await _at_the_first_pass_where(
+        lambda: restarting_daemon["dropped"] > dropped_before
+        and manager.reachable
+        and health(manager)["connected_at"] != connected_before
+    )
+    came_back_at = health(manager)["connected_at"]
+    await _at_the_first_pass_where(lambda: health(manager)["connected_at"] != came_back_at)
+    return health(manager)
+
+
+async def test_a_refusing_configuration_read_costs_readiness_only_under_a_write(
+    across_a_restart: ConnectionManager,
+    restarting_daemon: dict[str, Any],
+    http_daemon: dict[str, Any],
+    start_manager: StartManager,
+) -> None:
+    # the settled half: a manager with nothing in flight, /config refused
+    idle = await start_manager(http_daemon["_port"])
+    http_daemon["_fail_paths"] = ["/config"]
+    await settled(idle)
+    with_no_write_in_flight = health(idle)["ready"]
+    http_daemon["_fail_paths"] = []
+
+    # the in-flight half: /config refused from the moment the load's restore is
+    # posted, which is when the daemon restarts underneath both lanes. The save's
+    # own restore restarts it too, so the load waits until the control connection
+    # is back and has polled: the restart under observation is the load's own,
+    # and `dropped` counts a connection that was live when it landed.
+    await across_a_restart.presetops.save_preset("Stored")
+    connected_after_save = health(across_a_restart)["connected_at"]
+    await _at_the_first_pass_where(
+        lambda: across_a_restart.reachable and health(across_a_restart)["connected_at"] != connected_after_save
+    )
+
+    def refuse_config_then_restart() -> None:
+        http_daemon["_fail_paths"] = ["/config"]
+        restarting_daemon["restart"]()
+
+    http_daemon["_on_restore"] = refuse_config_then_restart
+    dropped_before = int(restarting_daemon["dropped"])
+    connected_before = health(across_a_restart)["connected_at"]
+    load = asyncio.create_task(presetlane.load(across_a_restart, "Stored"))
+    polled_again = await _the_first_poll_on_the_connection_that_came_back(
+        across_a_restart, restarting_daemon, dropped_before, connected_before
+    )
+    ready_at_that_pass, load_done_at_that_pass = polled_again["ready"], load.done()
+    http_daemon["_fail_paths"] = []
+    await asyncio.wait_for(load, timeout=5.0)
+    assert (ready_at_that_pass, load_done_at_that_pass, with_no_write_in_flight) == (False, False, True)
