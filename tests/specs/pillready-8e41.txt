@@ -7,36 +7,28 @@ brief:
 > Unreachable — a lane did not come back as expected. This includes a refused or absent credential leaving the 8088 lane unavailable.
 > The Attention status is deleted. Its only input is the outage alarm, which comes out of the frontend and out of /api/health; ConnectionManager keeps its own alarm for reconnect backoff.
 > No new pill states. Missing credentials are not a special case: HQPTuner substitutes the stock defaults, so the credential-less path is reached only by explicitly emptying the env vars, and it reads Unreachable like any other unavailable lane.
-> The wait must require a new connection, proven, not merely a completed one.
+> HOW IS THAT NOT A FUCKING TAUTOLOGY
+> EXCISE
+> CUT THE FUCKING TEST
+> 4,5 rejected as copy/design decisions. a forker wants to add a new pill status, this test blocks them for what reason? what bug is it protecting us from?
 
 Behaviors:
 
-1. Two reads of `GET /api/health` taken across the 8088 configuration lane being taken down, under a settled manager whose two lanes were both answering at the first read, return the pair (`ready` at the first read, `ready` at a second read taken once the manager has completed a poll with that lane refusing) as (true, false), the first read's payload carrying the key set `app_version, connected, connected_at, credentials_ok, info, license, reachable, ready, release, unreachable_since`.
+1. Two reads of `GET /api/health` taken across the 8088 configuration lane being taken down, under a settled manager whose two lanes were both answering at the first read, return the pair (`ready` at the first read, `ready` at a second read taken once the manager has completed a poll with that lane refusing) as (true, false).
    kills: publishing `ready` from the control lane alone, so an install whose configuration lane has died goes on reporting itself ready while every persistent write it offers is impossible.
-   bite: first read `ready=True, reachable=True`; read after the 8088 fake's listener was closed and the manager completed a further poll `ready=True, reachable=True`, rechecked one poll later, same; payload key set `alarm, app_version, connected_at, credentials_ok, info, license, reachable, ready, release, unreachable_since`, no `connected` key (`PYTHONPATH=/srv/hqptuner:/srv/hqptuner/tests:/srv/hqptuner/tests/support /srv/hqptuner/.venv/bin/pytest -c /srv/hqptuner/pyproject.toml --rootdir=/srv/hqptuner -p conftest -p no:cacheprovider -s -q --no-header <scratch>/measure_pillready_test.py`, case `test_behavior_1`)
-   existing: none; `grep -rn '\["ready"\]' tests --include='*.py'` finds tests/api/test_health_ready.py:72, :109 and :207, none of which takes a second read across a lane going down.
+   bite: first read `ready=True, reachable=True`; read after the 8088 fake's listener was closed and the manager completed a further poll `ready=True, reachable=True`, rechecked one poll later, same (`PYTHONPATH=/srv/hqptuner:/srv/hqptuner/tests:/srv/hqptuner/tests/support /srv/hqptuner/.venv/bin/pytest -c /srv/hqptuner/pyproject.toml --rootdir=/srv/hqptuner -p conftest -p no:cacheprovider -s -q --no-header <scratch>/measure_pillready_test.py`, case `test_behavior_1`)
+   existing: none; `grep -rn '\["ready"\]' tests --include='*.py'` on dev at 909b911c returns tests/api/test_health_ready.py:69 and :167, neither of which takes a second read across a lane going down.
 
 2. With no management credentials configured, `GET /api/health` answers `ready` false once the connect has settled.
    kills: reporting an install that never had a configuration lane as ready, which is the state the control handshake alone cannot speak for.
    bite: `ready=True, reachable=True` (same command as line 1, case `test_behavior_3`; manager built with `ConnectionManager(Config(hqp_host=..., hqp_control_port=...))`, `manager.http_client is None`, production pacing 2.0, after `settled`)
    existing: none; `grep -rn '"connected"' tests --include='*.py'` finds nothing, and the credential-less case at tests/api/test_health_ready.py:99 is excised under kind: excision block credready-2a90.
-   Beyond the four-line cap because line 1 covers a lane that answered and then stopped, while this covers a lane that was never built, which is a different branch of the connect body.
 
-3. Loading a stored preset through a control fake that severs its live connections at the twelfth command frame it serves after the restore POST, then refuses the next three connection attempts before accepting again, returns with the fake having served a further `GetInfo` handshake after that severance.
-   kills: counting the reconnect that completed before the severance as the new connection, so the call returns on the connection the restart killed.
-   bite: `GetInfo` served before the call 2, at the moment of the in-call severance 3, at the moment `load` returned 3, `manager.ready` False at return, severance landed before the return, 30 of 30 runs identical, no error raised (`MEASURE_K=12 PYTHONPATH=/srv/hqptuner:/srv/hqptuner/tests:/srv/hqptuner/tests/support /srv/hqptuner/.venv/bin/pytest -c /srv/hqptuner/pyproject.toml --rootdir=/srv/hqptuner -p conftest -p no:cacheprovider -s -q --no-header <scratch>/measure_b2d_test.py`)
-   existing: tests/api/test_health_ready.py::test_a_preset_load_returns_on_a_connection_made_after_the_restart counts one further handshake against a fake that severs on the restore hook itself; `grep -rn 'GetInfo' tests --include='*.py'` finds that file's counter at :221 and no other test counting handshakes across a severance.
-
-4. With one staged edit pending, the pair (Apply's `disabled` attribute at health reporting the connect complete with the configuration lane down, Apply's `disabled` attribute at health reporting no completed connect) reads (absent, present).
+3. With one staged edit pending, the pair (Apply's `disabled` attribute at health `{reachable: true, ready: false, connected: true}`, Apply's `disabled` attribute at health `{reachable: false, ready: false, connected: false}`) reads (absent, present).
    kills: gating the write buttons on both lanes, so an install whose configuration lane is down cannot apply a live setting the control lane would have taken.
-   bite: Apply carries `disabled` in both cases, rendering `<button data-testid="apply" class="primary" disabled>Apply</button>` at each (`node --import ./tests/js/support/vendor-resolve.js --test <scratch>/pill.test.mjs`; one restart-lane edit staged via `edit("volume_max","-6")`, `stagedCount` 1 in both). The enabled half fails the null stub, whose `connected` computed returns false.
-   existing: tests/js/components/chrome/pendingbar.test.js::test_apply_is_enabled_with_a_staged_edit_and_a_reachable_daemon and ::test_apply_is_disabled_while_the_daemon_is_unreachable set health as `{reachable, ready: reachable}` at :64, so no case separates the two lanes.
+   bite: Apply carries `disabled` in both cases, rendering `<button data-testid="apply" class="primary" disabled>Apply</button>` at each (`node --import ./tests/js/support/vendor-resolve.js --test <scratch>/pill.test.mjs`; one restart-lane edit staged via `edit("volume_max","-6")`, `stagedCount` 1 in both).
+   existing: DELTA to tests/js/components/chrome/pendingbar.test.js::test_apply_is_enabled_with_a_staged_edit_and_a_reachable_daemon at :380, adding the configuration-lane-down enabled case; the disabled half stays at :386. Both set health as `{reachable, ready: reachable}` through the reset helper at :64, so no case separates the two lanes today.
 
-5. With no apply in flight, the connection pill wears its green state at health reporting ready together with an outage alarm.
-   kills: keying the pill on the outage alarm, so a daemon that is reachable and loaded but has been out past the alarm threshold wears a state of its own instead of Connected.
-   bite: `class="pill pill-amber"` at health `{reachable: true, ready: true, alarm: true}` with no apply in flight, against `class="pill pill-green"` at the same health without the alarm (same command as line 4).
-   existing: DELTA to tests/js/components/chrome/header.test.js::"test_a_reachable_daemon_with_ready_true_wears_the_pill-green_pill", the `PILL_STATES` sweep case at :264-267 that carries no alarm reading; `grep -rn 'alarm' tests/js` finds only fixture values at tests/js/store/polling.test.js:92 and tests/js/store/livereconnect.test.js:38, :88.
-   Beyond the four-line cap because the alarm is the one input that produced a pill state the brief removes, and no other line in this block observes the pill at all.
 
 Public entry points, planned:
 
@@ -82,7 +74,7 @@ Applicable fixtures:
 - `start_manager` (tests/conftest.py): a manager on the control fake plus an 8088 fake, settled; keyword overrides reach Config.
 - `settled` and `eventually` (tests/conftest.py): a full connect plus one completed poll; a condition poll with a ceiling.
 - `http_daemon` (tests/support/fixtures_daemons.py, fake in tests/support/fake_http.py): the 8088 fake; its `_on_restore` callable fires inside `POST /restore`, and its listener can be closed to model the lane going down.
-- `restarting_daemon` and `across_a_restart` (tests/api/test_health_ready.py:90-155): a 4321 fake that severs on the restore hook, and a settled dual-lane manager on it. Line 3 needs a fake that severs on a served-frame count rather than on the hook, so that the severance lands later in the call than the reconnect does.
+- `restarting_daemon` and `across_a_restart` (tests/api/test_health_ready.py:90-155): a 4321 fake that severs on the restore hook, and a settled dual-lane manager on it.
 - `virtual_clock` (tests/conftest.py:70, autouse): `manager.sleep` advances an offset `manager.monotonic` reads back; `run()` stays on the real clock.
 - Frontend: `tests/js/support/vendor-resolve.js` loader, the `reset` helper at tests/js/components/chrome/pendingbar.test.js:58 and the `head` helper at tests/js/components/chrome/header.test.js.
 
@@ -92,17 +84,27 @@ Changelog entry, replacing CHANGELOG.md:16 under [Unreleased]:
 
 --- spec-reviewer READY ---
 READY
-discriminates: differential on GET /api/health `ready` (line 1: true at the first read, false at a read taken after a poll with the 8088 lane refusing, on the same settled manager)
+discriminates: differential on GET /api/health `ready` across the 8088 lane going down (line 1), and a second differential on Apply's `disabled` across the two lanes (line 3)
 
-1  KEEP  two reads of GET /api/health across the 8088 lane being taken down under a settled two-lane manager -> (`ready`, `ready`) reads (true, false) with the first read's payload key set `app_version, connected, connected_at, credentials_ok, info, license, reachable, ready, release, unreachable_since`; publishing `ready` from the control lane alone fails it at the second read, where a dead configuration lane still reports ready; bite: second read measured `ready=True, reachable=True`, rechecked one poll later same, and the measured key set carries `alarm` and no `connected`. Round 1's block-level (m) finding is withdrawn: the wire half of "the outage alarm ... comes out of /api/health" is now a positive value on this line.
-2  KEEP  a manager with no management credentials (`http_client is None`), read after `settled` -> `ready` false; reporting a never-built configuration lane as ready fails it at exactly that input; bite: measured `ready=True, reachable=True`. Round 1's (m) cut is withdrawn: the `connected` claim that contradicted "it reads Unreachable like any other unavailable lane" is gone, and the line now says only what the brief says. (b) holds only because the one test on this surface, tests/api/test_health_ready.py::test_health_reads_ready_with_no_management_credentials_configured, is the target of excision block credready-2a90, marked READY at state/reviews/credready-2a90.1.txt; if that excision does not land ahead of this block, line 2 is a DELTA flipping that test's expected `ready` from True to False, not a new test.
-3  DELTA tests/api/test_health_ready.py:240 (carried): move the severance from the `_on_restore` hook to the twelfth served command frame and compare handshakes at the severance against handshakes at return.
-4  DELTA tests/js/components/chrome/pendingbar.test.js:380 (carried): add the configuration-lane-down enabled case to the apply-enabled test, the disabled half staying at :386.
-5  DELTA tests/js/components/chrome/header.test.js:264 (carried): add health {reachable: true, ready: true, alarm: true} -> pill-green as one more PILL_STATES sweep case.
+return check: the brief changed, so (m) re-ran on every line and every other check carried. The owner's added
+  sentence - "4,5 rejected as copy/design decisions. a forker wants to add a new pill status, this test blocks
+  them for what reason? what bug is it protecting us from?" - is the (m) escape in its own terms: owner's later
+  words in the same section. It withdraws my round-6 repair, and I withdraw the finding with it. The pill
+  states and the /api/health key set are no longer behaviors this block owes a line, so the brief's "The
+  Attention status is deleted... out of the frontend and out of /api/health", "No new pill states" and the
+  "Applying > Connected" sequence carry no outstanding (m) against the block. The one remaining brief clause
+  with no line of its own, "on a connection established after the write", is pinned already by
+  tests/api/test_health_ready.py:200 test_a_preset_load_returns_on_a_connection_made_after_the_restart, which
+  counts handshakes on the control fake's own wire. Nothing outstanding.
 
-null stub: /api/health keeps today's payload (key set carrying `alarm`, no `connected`) with `ready` off the control handshake, preset load returns on whatever connection it holds, pill and PendingBar compute from `reachable`/`ready` as now - fails 1 on both halves, 2, 3, 4 and 5.
-hard-coded stub: serve `ready` as "the last 8088 request did not raise and a config client exists", serve the key set with `connected` and without `alarm`, render the pill green whenever `ready`, enable Apply whenever `connected` - satisfies 1, 2, 4 and 5, fails 3, the only line requiring a connection proven new after the severance.
+1  KEEP two reads of GET /api/health across the 8088 lane being taken down, settled manager, both lanes answering at the first read -> (`ready`, `ready`) = (true, false); publishing `ready` off the control handshake alone passes the first read and fails the second; bite: `ready=True, reachable=True` at both reads, rechecked one poll later, measured at HEAD.
+2  KEEP carried: no management credentials configured, after settled -> GET /api/health `ready` false; bite `ready=True, reachable=True` at HEAD, and no test under tests/ reads `ready` with no http client (my own greps in rounds 5 and 6).
+3  DELTA carried tests/js/components/chrome/pendingbar.test.js:380: the enabled case gains the configuration-lane-down health `{reachable: true, ready: false, connected: true}`, which the reset helper at :64 cannot express; the disabled half at :386 unchanged.
+
+null stub: /api/health keeps HEAD's payload with `ready` never consulting the 8088 lane and PendingBar keeps its present gating - line 1's second read stays true, line 2 stays true, line 3's enabled half fails, so the stub takes no line.
+hard-coded stub: answer `ready=False` whenever the 8088 port is shut or absent and enable Apply on `reachable` - line 1's two reads of one surface disagree and line 3's pair disagrees across the two lanes, so there is no single value to return on either surface; the stub takes no line.
 survives: 2
 
 notes:
-- line 3's "twelfth command frame" is a tuned constant: stable at 30/30 by the measurement, but the number of command frames a load issues is not a contract, so the folded test asserts the ordering it names (severance before return, handshake after severance) and not the number 12.
+- line 3 sets `connected` on the health signal, and with line 5 withdrawn no line pins that key onto the /api/health payload. The owner has ruled the payload shape out of this block, so it is not a finding; it is the one place where a green suite would not notice the two sides disagreeing about the key's name.
+- lines 1 and 2 are the whole of "BOTH LANES MUST BE AVAILABLE BEFORE THE APP REPORTS CONNECTED": a lane that dies and a lane that was never there. Two counted lines and one delta, against a cap of four.
