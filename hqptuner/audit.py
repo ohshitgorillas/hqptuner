@@ -307,6 +307,34 @@ class AuditLog:
         """
         self._write("restore.upload", {"filename": filename, "size": size, "digest": digest})
 
+    def volume_write(self, source: str, want: str, readback: str | None, *, ok: bool) -> None:
+        """Record one volume write, naming the ``source`` that made it.
+
+        Two paths set the playing volume — the volume knob and the live lane's own setter — and they were
+        indistinguishable in the log: the knob recorded nothing at all, and the lane's ``live.write`` is one row of a
+        table of settings, identical in shape to a filter write. ``readback`` is what State said afterwards, None
+        where the write raised.
+        """
+        self._write("volume.write", {"source": source, "want": want, "readback": readback, "ok": ok})
+
+    def volume_observe(
+        self,
+        source: str,
+        name: str | None,
+        fields: dict[str, str | None],
+        last_write: str | None,
+    ) -> None:
+        """Record one volume-bearing reading at the checkpoint ``source`` names.
+
+        ``name`` is the preset where the checkpoint has one, which is what joins the three records of a single load.
+        ``last_write`` is the level HQPTuner most recently asked for: a reading that has moved to something other
+        than that is a move HQPTuner did not make, which is otherwise unanswerable from a log of readings alone.
+        """
+        self._write(
+            "volume.observe",
+            {"source": source, "name": name, "fields": fields, "last_write": last_write},
+        )
+
     def live_write(self, field: str, value: str, readback: str | None, *, ok: bool) -> None:
         """Record one live-lane setting write against the running engine, and what came back.
 

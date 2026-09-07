@@ -130,7 +130,7 @@ Record holds output **mode**, both chain filters, dither/modulator, junk filter 
 
 ## 8. The event log
 
-**Every durable write records what it was handed** (`hqptuner/audit.py`). Append-only JSON Lines, off unless `HQPTUNER_DEBUG_LOG` names a path; disabled instance is `AuditLog(None)` and its emitters are no-ops, so no call site ever guards on `enabled`.
+**Every durable write records what it was handed, and the volume trace records what was read** (`hqptuner/audit.py`). Append-only JSON Lines, off unless `HQPTUNER_DEBUG_LOG` names a path; disabled instance is `AuditLog(None)` and its emitters are no-ops, so no call site ever guards on `enabled`. Writes were the whole subject until the volume trace; readings joined it because a volume that moved is a fact no write recorded.
 
 **Success path is the point.** Staged edits live in server-side buffer and the apply that drains it clears it in same request (`api/routes/apply.py` `/config/apply`), so a write that landed wrong has no evidence left unless it was recorded as it happened. Failure-only logging answers nothing here.
 
@@ -141,6 +141,7 @@ Normative rules:
 - **Emitters are typed per event, never free-form.** Vocabulary is the contract, and it is what tests assert; log *text* stays off-limits per `docs/testing.md` rule 1. New durable write path gets an emitter, or reuses one — silent write is defect.
 - **Values captured whole to 128 KB**, so a payload is recoverable from log rather than merely described by it; larger truncates, and record carries `truncated` plus `full_digests` keyed by dotted field path. File rolls to `<path>.1` past `max_bytes`.
 - **`password` / `secret` / `token` never reach a record**, at any depth.
+- **The volume trace is the one reader in the vocabulary** (`hqptuner/voltrace.py`). Volume rides two mechanisms — the config file's `defaults_volume`, which the daemon boots on, and the live 4321 value — and two write paths reach the second, so `volume.write` names which path, and `volume.observe` records a checkpoint's reading. Every observation carries `last_write`, the level HQPTuner most recently asked for: a reading that has moved to something else is a move HQPTuner did not make. The trace's own entry points suppress `OSError` around the emitter, because two checkpoints sit inside the poll tick and an unwritable log path would otherwise stall every reading in the app.
 - **No UI, deliberately.** Operator's tool — set on container, read with `jq`, or over `GET /api/audit`, which exists only while the var is set.
 
 ## Provenance

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hqptuner import voltrace
 from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
@@ -74,6 +75,10 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """
     name = canonical_name(name)  # the store keys on the trimmed name; so must the mirror, the pointer and the audit
     xml = mgr.presetops.store.read(name)
+    # what the preset actually carries, off the same XML the restore is about to
+    # push — the first of three checkpoints under one name, and the only one taken
+    # before the daemon has been told anything
+    voltrace.observe(mgr, "preset.stored", voltrace.subset(presetconf.read_config(xml)), name=name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
     await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
     backup = await mgr.presetops.backup_or_cached(for_write=True)
@@ -88,7 +93,13 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     # engine's, and an auto-save riding this load would fold those into the preset
     # it just loaded (settle.resync_engine_state)
     await settle.resync_engine_state(mgr)
+    # what the daemon came back on. Null means resync could not reach the engine,
+    # which is itself the answer to "what was it running after the restart".
+    voltrace.observe(mgr, "post_restart_state", voltrace.live_volume(mgr), name=name)
     await fileconfig.load_file_config(mgr)
+    # and what the config file says once the restart settled — the pair that
+    # answers which of the two came back wrong
+    voltrace.observe(mgr, "post_restart_file", voltrace.subset(mgr.readings.file_config), name=name)
     await mgr.refresh_http_forms()
     _restore_autopilot(mgr, name)
     return {"name": name, "active": True}

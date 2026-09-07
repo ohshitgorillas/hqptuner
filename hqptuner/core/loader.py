@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hqptuner import voltrace
 from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
@@ -125,6 +126,10 @@ async def poll(mgr: "ConnectionManager") -> None:
         readings.enums = await client.get_all_enumerations()
     status, meta = await client.get_status()
     before = chain.active_chain(mgr)
+    # BEFORE the assignment below, which is what still leaves the previous tick's
+    # volume in hand: the readings are the trace's memory for this comparison, so
+    # a volume that is not moving writes nothing at all.
+    voltrace.observe_change(mgr, "state", {"volume": state.get("volume")}, {"volume": previous.get("volume")})
     readings.state, readings.status, readings.status_metadata = state, status, meta
     await lane.chain_entered(mgr, client, before, reenumerated=moved)
     readings.volume_range = await client.get_volume_range()
