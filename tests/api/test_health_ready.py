@@ -74,6 +74,62 @@ async def test_health_reads_not_ready_at_the_moment_the_daemon_turns_reachable(
     )
 
 
+# --- `ready` needs BOTH lanes, not the control handshake alone ----------------
+
+
+async def _after_another_poll(manager: ConnectionManager) -> None:
+    """Come back once the manager has been round its poll loop again.
+
+    A lane that goes down between two reads is invisible to a caller until the
+    manager has polled since: the first read is the picture it already had.
+    Paced on the same public seam `conftest.settled` uses — a completed load —
+    never on the wall clock."""
+    before = manager.readings.loaded_at
+    await eventually(lambda: manager.readings.loaded_at != before, timeout=5.0)
+
+
+async def test_health_stops_reading_ready_once_the_configuration_lane_goes_down(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    # the 4321 handshake that decides `reachable` is unauthenticated and cannot
+    # speak for the Digest-authenticated 8088 lane (docs/architecture.md §2), so
+    # a settled install whose configuration lane has since died is an install
+    # every persistent write it offers is now impossible on
+    manager = await start_manager(http_daemon["_port"])
+    with_both_lanes = health(manager)
+    http_daemon["_take_lane_down"]()
+    await _after_another_poll(manager)
+    assert (with_both_lanes["ready"], health(manager)["ready"]) == (True, False)
+
+
+async def test_health_reads_not_ready_with_no_management_credentials_configured(
+    daemon: DaemonFactory, tmp_path: Path
+) -> None:
+    # nothing built the 8088 lane at all, so the control handshake is the only
+    # thing answering — and a lane that is absent has never answered
+    port, _log, _state = await daemon()
+    manager = ConnectionManager(
+        Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=port,
+            poll_interval=0.02,
+            backup_dir=tmp_path / "backups",
+            preset_dir=tmp_path / "presets",
+            live_preset_file=tmp_path / "live-presets.json",
+            autopilot_file=tmp_path / "autopilot.json",
+        )
+    )
+    task = asyncio.create_task(manager.run())
+    try:
+        await settled(manager)
+        reading = health(manager)
+        assert (reading["reachable"], reading["ready"]) == (True, False)
+    finally:
+        manager.stop()
+        await task
+        await manager.aclose()
+
+
 # --- a restore takes the control connection with it --------------------------
 
 

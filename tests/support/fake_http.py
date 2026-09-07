@@ -11,8 +11,10 @@ restore archive the real daemon would accept.
 `spawn` and `state` are the entry points; conftest wraps them as fixtures.
 """
 
+import contextlib
 import io
 import re
+import socket
 import threading
 import zipfile
 from collections.abc import Iterator
@@ -398,6 +400,21 @@ def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
     return True
 
 
+def _sever_open_connections(st: dict[str, Any]) -> None:
+    """Close every connection the fake is currently holding, the way a daemon
+    that has gone away drops the sockets it was serving on. A client parked on
+    one of them sees the same end of stream a dead daemon gives it, so the lane
+    is unreachable on the connection it already had as well as on the ones it
+    can no longer open."""
+    with _STATE:
+        held = list(st.get("_open_connections", ()))
+        st["_open_connections"] = set()
+    for conn in held:
+        with contextlib.suppress(OSError):  # already gone: nothing left to sever
+            conn.shutdown(socket.SHUT_RDWR)
+        conn.close()
+
+
 def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -462,19 +479,51 @@ class _Server(ThreadingHTTPServer):
     daemon_threads = True
     block_on_close = False
 
+    #: The state this server is serving, so the sockets it is holding can be
+    #: registered on it and severed on demand.
+    st: dict[str, Any]
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        # A keep-alive connection is held for as long as its handler thread runs,
+        # so that thread's lifetime is the socket's: registering here is what
+        # lets `_take_lane_down` drop the connections a dead daemon would.
+        with _STATE:
+            self.st.setdefault("_open_connections", set()).add(request)
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            with _STATE:
+                self.st.get("_open_connections", set()).discard(request)
+
 
 def spawn(st: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
-    state dict with `_port` filled in — tests read and mutate it directly."""
+    state dict with `_port` filled in — tests read and mutate it directly.
+
+    `_take_lane_down` is the whole 8088 lane going away: the listener stops
+    accepting, so a new connection is refused, and every connection the fake was
+    holding is severed. It is idempotent and teardown calls it, so a case that
+    takes the lane down mid-test costs nothing extra at the end."""
     server = _Server(("127.0.0.1", 0), _http_handler(st))
+    server.st = st
     # poll_interval is what `shutdown()` waits on, so it is per-test teardown
     # cost: the 0.5 s default charged every fixture half a second for nothing.
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     st["_port"] = server.server_address[1]
+    st["_listening"] = True
+
+    def take_lane_down() -> None:
+        if st.get("_listening"):
+            st["_listening"] = False
+            server.shutdown()
+            thread.join()
+            server.server_close()
+        _sever_open_connections(st)
+
+    st["_take_lane_down"] = take_lane_down
     yield st
-    server.shutdown()
-    thread.join()
+    take_lane_down()
 
 
 def state(**extra: Any) -> dict[str, Any]:
