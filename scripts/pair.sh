@@ -484,8 +484,14 @@ do_red() {
 
 # The brief the spec-reviewer's post-merge test check consumes. Generated, not
 # typed: paths, the diff from the red commit, and the saved red output.
+# Which of the three exits below was taken, for the closing instruction step 6
+# prints: the operator is told to forward a brief only when one was printed, and
+# a forward on the one-line form costs a rejected reviewer round.
+BRIEF_FORM=none
+
 test_check_brief() {   # test_check_brief <tree>
   local tree=$1 spec_commit red_commit
+  BRIEF_FORM=none
   spec_commit=$(find_commit "$tree" "$SPEC_MSG")
   red_commit=$(find_commit "$tree" "$RED_MSG")
   if [ -z "$red_commit" ]; then
@@ -496,9 +502,11 @@ test_check_brief() {   # test_check_brief <tree>
   # Tests byte-identical to the red commit are PIN by the reviewer's own
   # definition, so the round is skipped and the one line says why.
   if git -C "$tree" diff --quiet "$red_commit" HEAD -- tests/; then
+    BRIEF_FORM=short
     echo "TEST CHECK $SLUG: tests identical to the red commit; PIN by construction; END TEST CHECK"
     return 0
   fi
+  BRIEF_FORM=block
   echo "TEST CHECK $SLUG"
   echo "spec  $SPEC_PATH at $(git -C "$tree" rev-parse --short "$spec_commit")"
   echo "red   $(git -C "$tree" rev-parse --short "$red_commit")"
@@ -614,8 +622,23 @@ EOF
 
   echo
   echo "  dev is now $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
-  echo "  both worktrees removed. Next: forward the TEST CHECK block above to the"
-  echo "  spec-reviewer verbatim, then /task-check, from here."
+  # The closing instruction follows the brief this run printed. Forwarding the
+  # one-line form costs a rejected round: it carries a verdict and none of the
+  # inputs the reviewer's brief is defined to hold.
+  case "$BRIEF_FORM" in
+    block)
+      echo "  both worktrees removed. Next: forward the TEST CHECK block above to the"
+      echo "  spec-reviewer verbatim, then /task-check, from here."
+      ;;
+    short)
+      echo "  both worktrees removed. The tests are identical to the red commit, so"
+      echo "  there is no reviewer round to run. Next: /task-check, from here."
+      ;;
+    *)
+      echo "  both worktrees removed. There is no brief to forward and no reviewer"
+      echo "  round to run: the warning above says why. Next: /task-check, from here."
+      ;;
+  esac
 }
 
 # ---- abort ------------------------------------------------------------------
