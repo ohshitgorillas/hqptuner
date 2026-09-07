@@ -23,6 +23,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
@@ -41,7 +42,15 @@ ZIP_MAGIC = b"PK\x03\x04"
 HTTP_READY_INTERVAL = 1.0
 
 
-async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: int | None, scope: str = "system") -> None:
+@dataclass(frozen=True)
+class Mark:
+    """Where the manager's connection history stood when a write began."""
+
+    connects: int
+    drops: int
+
+
+async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None, scope: str = "system") -> None:
     """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
 
     Every restore the app submits goes through here, so every one of them reports
@@ -57,30 +66,40 @@ async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: int | None, s
         await mgr.restarting()
 
 
-def mark_connect(mgr: ConnectionManager) -> int | None:
-    """Return the manager's connect count while it is ready, else None.
+def mark_connect(mgr: ConnectionManager) -> Mark | None:
+    """Return the manager's connect and drop counts while it holds a whole control connection, else None.
 
     None says there is no whole control connection for the restart to kill, so
-    ``await_ready`` has nothing to wait for and returns at once.
+    ``await_ready`` has nothing to wait for and returns at once. It reads
+    ``connected`` rather than ``ready``: an install whose configuration lane is
+    down still has a control connection the restart will take, and a caller that
+    marked None there would return without waiting for the restart at all.
     """
-    return mgr.connects if mgr.ready else None
+    return Mark(mgr.connects, mgr.drops) if mgr.connected.is_set() else None
 
 
-async def await_ready(mgr: ConnectionManager, mark: int | None) -> bool:
-    """Wait until a connect completes after ``mark``, or the alarm window passes.
+async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
+    """Wait until a drop and a connect have both landed after ``mark``, or the alarm window passes.
 
     ``await_http_ready`` proves only that the 8088 lane answers; after a restore
     the 4321 connection is the dead one the restart left behind and the readings
     on it are the previous engine's. This waits for the reconnect ``restore`` set
-    in motion, so the caller returns to a manager whole on both lanes. The count
-    dates the connect: a flag alone cannot say whether the readiness it reports
+    in motion, so the caller returns to a manager whole on both lanes. The counts
+    date the connect: a flag alone cannot say whether the readiness it reports
     predates this caller's restore.
+
+    A connect alone is not enough. ``restarting`` drops the control lane the instant the
+    POST returns, but hqplayerd goes on answering on 4321 for a moment yet (protocol.md
+    "POST /restore"), so the reconnect can land on the daemon instance that has not
+    restarted; the real restart then drops it, and that drop is the Unreachable a user
+    sees after a Connected they should never have been shown. The counting drop is what
+    proves the restart happened, so this waits for a drop and then a connect after it.
 
     The deadline runs on the real clock, not the lanes' virtualized seams
     (docs/testing.md rule 7, owner-approved for this site): what it waits for is
     a reconnect the poll loop physically has to perform, so a virtual clock would
-    run the deadline out with no chance for it to happen. The wake is the connect
-    itself (``mgr.connected``), so a reconnect landing 50 ms in returns 50 ms in.
+    run the deadline out with no chance for it to happen. The wake is every edge of the
+    connection itself (``mgr.changed``), so a reconnect landing 50 ms in returns 50 ms in.
 
     Best-effort: False means the deadline passed or there was nothing to wait
     for, which the caller reports rather than papers over.
@@ -88,12 +107,13 @@ async def await_ready(mgr: ConnectionManager, mark: int | None) -> bool:
     if mark is None:
         return False
     end = time.monotonic() + mgr.alarm_threshold
-    while mgr.connects <= mark:
+    while mgr.drops <= mark.drops or mgr.connects <= mark.connects:
         remaining = end - time.monotonic()
         if remaining <= 0:
             return False
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(mgr.connected.wait(), remaining)
+            await asyncio.wait_for(mgr.changed.wait(), remaining)
+        mgr.changed.clear()
     return True
 
 

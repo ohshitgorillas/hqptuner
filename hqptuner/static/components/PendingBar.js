@@ -10,7 +10,7 @@
 import { html } from "../lib/dom.js";
 import { Ask } from "./Ask.js";
 import { askName, askConfirm } from "../store/ask.js";
-import { pendingPreset, ready, config } from "../store/signals.js";
+import { pendingPreset, connected, config } from "../store/signals.js";
 import { stagedCount, hasPending, split } from "../store/resolve.js";
 import { discardAll, applyAll, savePresetOnly, applying, lastApply, autosave, setAutosave } from "../store/actions.js";
 
@@ -207,7 +207,9 @@ function saveTitle(target, pend) {
 export function PendingBar() {
   const n = stagedCount.value;
   const busy = applying.value;
-  const reach = ready.value;
+  // The control connection, not `ready`: a configuration lane that is down leaves
+  // every live setting writable, and the buttons stay live for them.
+  const reach = connected.value;
   const pend = hasPending.value;
   const switchName = switchLabel(pendingPreset.value);
   const target = saveTarget();

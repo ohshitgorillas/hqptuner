@@ -18,7 +18,7 @@
 import { signal, computed } from "@preact/signals";
 
 // --- source signals ---
-export const health = signal(null); // {reachable, ready, alarm, unreachable_since, info}
+export const health = signal(null); // {reachable, ready, connected, unreachable_since, info}
 export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null); // /api/enumerations data (merged w/ static)
@@ -62,5 +62,8 @@ export const liveOverride = signal({});
 // yet. `ready` is that whole connect having finished, which is the fact every
 // reader here actually wants.
 export const ready = computed(() => !!(health.value && health.value.ready));
-export const alarm = computed(() => !!(health.value && health.value.alarm));
+// The control connection alone, without the 8088 configuration lane `ready` also
+// waits for. The write buttons read this: an install whose configuration lane is
+// down still applies a live setting over the control lane.
+export const connected = computed(() => !!(health.value && health.value.connected));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");

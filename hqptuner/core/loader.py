@@ -30,8 +30,8 @@ log = logging.getLogger(__name__)
 async def connect_and_load(mgr: "ConnectionManager") -> None:
     """Open the 4321 lane, take the handshake, and refill every reading from scratch.
 
-    ``reachable`` is published as soon as the handshake answers; ``ready`` only once this
-    body has run to its end, 8088 half included where credentials exist.
+    ``reachable`` is published as soon as the handshake answers; ``ready`` turns true only
+    once this body has run to its end and the 8088 configuration lane answered inside it.
     """
     cfg = mgr.cfg
     client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout)
@@ -42,12 +42,14 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     mgr.readings.release = await release.fetch_release(mgr.http_base_url)
     if mgr.http_client is not None:
         await _load_http_lane(mgr)
-    # Last statement on purpose: `ready` means this body ran to its end. An install
-    # with no credentials has no 8088 lane to wait for and arrives here just the same
-    # (architecture §"Authentication"), so it is ready as soon as the handshake is.
-    mgr.ready = True
+    # Last statements on purpose: the connect body has run to its end. `ready` is no
+    # longer a flag set here — it is read off this pair, the connect standing and the
+    # 8088 lane having answered, so an install whose configuration lane is refused or
+    # absent reports itself unready rather than ready on the handshake alone.
+    stamp_http_ok(mgr)
     mgr.connects += 1
     mgr.connected.set()
+    mgr.changed.set()
     log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
 
@@ -77,6 +79,18 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     mgr.reachable = True
     mgr.unreachable_since = None
     return info
+
+
+def stamp_http_ok(mgr: "ConnectionManager") -> None:
+    """Record whether the 8088 configuration lane just answered.
+
+    Called at the end of each of the two lifecycle refreshes, the connect body's and
+    the poll's, and nowhere else: ``forms.refresh`` has off-lifecycle callers that run
+    mid-apply, and a stamp inside it would report the app unready while a write is in
+    flight. ``/config`` is the lane's own verdict — ``config_error`` is None only when it
+    answered and parsed, and an install with no client never asks at all.
+    """
+    mgr.readings.http_ok = mgr.http_client is not None and mgr.readings.config_error is None
 
 
 async def _load_http_lane(mgr: "ConnectionManager") -> None:
@@ -139,4 +153,5 @@ async def poll(mgr: "ConnectionManager") -> None:
     # rewrite the http forms without any HQPTuner apply — refetch each poll so
     # the config/matrix snapshots track reality instead of only connect-time.
     await mgr.refresh_http_forms()
+    stamp_http_ok(mgr)
     readings.loaded_at = time.time()
