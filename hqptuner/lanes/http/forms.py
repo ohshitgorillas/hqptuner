@@ -45,9 +45,6 @@ async def refresh(mgr: ConnectionManager) -> None:
     http = mgr.http_client
     if http is None:
         return
-    # taken before the loop lands the new forms, so the comparison at the end has
-    # something to compare against; the readings are the trace's only memory here
-    was = voltrace.form_subset(mgr.readings.config_form)
     forms: tuple[tuple[str, str, Callable[[], Awaitable[dict[str, Any]]]], ...] = (
         ("config_form", "config_error", http.get_config),
         ("matrix_form", "matrix_error", http.get_matrix),
@@ -69,14 +66,19 @@ async def refresh(mgr: ConnectionManager) -> None:
             setattr(mgr.readings, error_attr, str(exc))
             continue
         _record_credentials(mgr, accepted=True)
+        if form_attr == "config_form":
+            # Against the form as it stands at THIS instant, never a snapshot taken
+            # when the refresh began: the poll loop and a route can both be inside
+            # this function at once, and a comparison against the pre-fetch value
+            # then records the same landing once per caller. Read and write with no
+            # await between them, which is what makes the pair atomic. The startup
+            # volume's baseline in the browser is this form rather than the config
+            # file, so a form that reported the wrong number for one tick is
+            # otherwise untraceable.
+            landing = voltrace.form_subset(form)
+            voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(mgr.readings.config_form))
         setattr(mgr.readings, form_attr, form)
         setattr(mgr.readings, error_attr, None)
-    # after the loop rather than inside it: the setattr above lands all three forms
-    # under a name the loop chose, and reading the landed /config form once here is
-    # what keeps a form_attr branch out of the loop body. The startup volume's
-    # baseline in the browser is this form, not the config file, so a form that
-    # reported the wrong number for one tick is otherwise untraceable.
-    voltrace.observe_change(mgr, "config_form", voltrace.form_subset(mgr.readings.config_form), was)
 
 
 def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
