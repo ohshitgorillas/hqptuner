@@ -154,19 +154,19 @@ test("test_the_card_opens_expanded_by_default", async () => {
   assert.ok(card().includes('<div class="card-body">'));
 });
 
-test("test_the_card_offers_the_bauer_view", async () => {
-  await reset();
-  assert.notEqual(seg(card(), "bauer"), undefined);
-});
+// The class words of a segment button. `attrs` raises on a missing button, so
+// a view the card does not offer fails here rather than reading as unlit.
+/** @param {string | undefined} b */
+const segWords = (b) => ((/\sclass="([^"]*)"/.exec(attrs(b)) || [])[1] || "").split(/\s+/);
 
-test("test_the_card_offers_the_structural_view", async () => {
-  await reset();
-  assert.notEqual(seg(card(), "structural"), undefined);
-});
-
-test("test_the_selected_view_lights_its_segment_button", async () => {
+// Both views are offered and exactly the selected one is lit: at the
+// structural view the two segments carry [plain, active], read as one relation
+// so that a card lighting both, neither, or the wrong one fails the same
+// comparison.
+test("test_the_selected_view_lights_its_segment_button_and_the_other_stays_plain", async () => {
   await reset({ mode: "structural" });
-  assert.ok(attrs(seg(card(), "structural")).includes('class="seg active"'));
+  const out = card();
+  assert.deepEqual([segWords(seg(out, "bauer")), segWords(seg(out, "structural"))], [["seg"], ["seg", "active"]]);
 });
 
 test("test_plain_rows_open_on_the_bauer_view_when_nothing_is_stored", async () => {

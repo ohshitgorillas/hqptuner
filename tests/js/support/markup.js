@@ -104,6 +104,37 @@ export const hasAttr = (el, name) => new RegExp(`(^|\\s)${name}(\\s|=|$)`).test(
  */
 const same = (a, b) => a.start === b.start && a.html.length === b.html.length;
 
+/**
+ * Whether `outer` encloses `inner` in the fragment and is not `inner` itself.
+ *
+ * @param {MarkupElement} outer
+ * @param {MarkupElement} inner
+ */
+const encloses = (outer, inner) =>
+  !same(outer, inner) &&
+  outer.start <= inner.start &&
+  outer.start + outer.html.length >= inner.start + inner.html.length;
+
+// The one control element a fragment carries at its top level: the `input` or
+// `button` no other element of the fragment encloses. Located by structure
+// alone, so a case can go on to assert the role or type that control carries
+// without the locator having matched on it. Controls nested inside the
+// fragment's own children (a row affordance inside an option list) are not
+// the fragment's control. Anything but exactly one raises: "no control" and
+// "several controls" are both broken fixtures rather than a value to compare.
+/**
+ * @param {string} fragment
+ * @returns {MarkupElement}
+ */
+export function soleControl(fragment) {
+  const all = elements(fragment);
+  const top = all.filter(
+    (el) => (el.name === "input" || el.name === "button") && !all.some((other) => encloses(other, el)),
+  );
+  if (top.length !== 1) throw new Error(`the fragment carries ${top.length} top-level controls, not one`);
+  return top[0];
+}
+
 // The smallest element of the fragment that encloses `el` and is not `el`
 // itself: the row, region or card a control is wrapped in, named by what it
 // contains rather than by the class the component happens to give it.

@@ -101,14 +101,23 @@ const untipped = (preset, knob) => ({ [preset]: { knobs: { [knob]: { label: KNOB
 //
 // Named for the wiring, not for a shipped knob: what these read is that a knob
 // handed a tip renders it and points at it, and the tip they meet is the
-// stand-in seeded above.
+// stand-in seeded above. The description is read on the tipped knob AND on the
+// same knob handed no tip, as one relation: resolving in the first state and
+// not in the second, so a card describing every knob whatever the payload
+// says, or none, fails the same comparison.
 
 for (const { preset, knob } of RESTING) {
   const knobId = String(knob.id);
 
-  test(`test_the_${preset}_${knobId}_knob_given_a_tip_names_a_description_resolving_to_an_element_inside_that_knob`, async () => {
+  test(`test_the_${preset}_${knobId}_knob_given_a_tip_names_a_description_inside_that_knob_which_the_untipped_knob_lacks`, async () => {
     await resetTab({ mode: "pcm", copy: tipped(preset, knobId) });
-    assert.notEqual(knobTip(tabs(), preset, knobId), undefined);
+    const withTip = knobTip(tabs(), preset, knobId);
+    await resetTab({ mode: "pcm", copy: untipped(preset, knobId) });
+    const withoutTip = knobTip(tabs(), preset, knobId);
+    assert.deepEqual(
+      [withTip, withoutTip].map((tip) => tip === undefined),
+      [false, true],
+    );
   });
 
   test(`test_the_${preset}_${knobId}_knob_given_a_tip_renders_the_words_it_was_given`, async () => {

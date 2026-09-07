@@ -168,14 +168,17 @@ test("test_an_unrecognized_enabled_value_disables_the_volume_control", async () 
   assert.ok(classes(knob(card())).includes("off"));
 });
 
+// The hint is read INSIDE the disabled region, and what is read is the cause it
+// names — the code the state selects, never that some hint is there.
+
 test("test_a_zero_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset({ range: OFF });
-  assert.notEqual(hintEl(disabledRegion(card())), undefined);
+  assert.equal(cause(disabledRegion(card())), "no-stream");
 });
 
 test("test_a_missing_volume_range_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset();
-  assert.notEqual(hintEl(disabledRegion(card())), undefined);
+  assert.equal(cause(disabledRegion(card())), "no-stream");
 });
 
 test("test_a_disabled_control_grays_the_knob", async () => {
@@ -254,7 +257,7 @@ test("test_an_enabled_control_shows_no_hint", async () => {
 
 test("test_a_disabled_control_explains_itself", async () => {
   await reset({ range: OFF });
-  assert.notEqual(cause(card()), null);
+  assert.equal(cause(card()), "no-stream");
 });
 
 test("test_direct_sdm_is_named_as_the_cause", async () => {

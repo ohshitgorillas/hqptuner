@@ -47,55 +47,59 @@ const row = (out) => {
 };
 
 // ============================================================================
-// the note appears in the mode the setting does not serve
-// ============================================================================
-
-test("test_bit_depth_advises_while_the_output_mode_is_sdm", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.notEqual(advice(row(field("alsa_bits"))), null);
-});
-
-test("test_network_bit_depth_advises_while_the_output_mode_is_sdm", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.notEqual(advice(row(field("net_bits"))), null);
-});
-
-test("test_48k_dsd_advises_while_the_output_mode_is_pcm", async () => {
-  await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.notEqual(advice(row(field("alsa_anydsd"))), null);
-});
-
-test("test_network_48k_dsd_advises_while_the_output_mode_is_pcm", async () => {
-  await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.notEqual(advice(row(field("net_anydsd"))), null);
-});
-
-// ============================================================================
-// the note is absent in the mode the setting does serve
+// the note appears in the mode the setting does not serve, and only there
 //
-// The other half of each pairing above: every one of the four controls is
-// pinned in BOTH modes, so which note a control raises is fixed by the mode
-// that raises it rather than by anything either note says.
+// Every one of the four controls is read in BOTH modes as one relation: the
+// advice is inside the control row in the mode the setting does not serve and
+// absent from the whole field in the mode it does. So which note a control
+// raises is fixed by the mode that raises it rather than by anything either
+// note says, and a field that advises in both modes, or in neither, fails the
+// same comparison.
 // ============================================================================
 
-test("test_bit_depth_falls_silent_while_the_output_mode_is_pcm", async () => {
-  await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(field("alsa_bits")), null);
+/**
+ * The advisory read in two output modes: inside the control row in the first,
+ * anywhere in the field in the second.
+ *
+ * @param {string} key
+ * @param {string} advising
+ * @param {string} silent
+ * @returns {Promise<[string | null, string | null]>}
+ */
+async function acrossModes(key, advising, silent) {
+  await reset({ fields: [{ name: "mode", value: advising }] });
+  const raised = advice(row(field(key)));
+  await reset({ fields: [{ name: "mode", value: silent }] });
+  const quiet = advice(field(key));
+  return [raised, quiet];
+}
+
+test("test_bit_depth_advises_while_the_output_mode_is_sdm_and_falls_silent_under_pcm", async () => {
+  assert.deepEqual(
+    (await acrossModes("alsa_bits", "sdm", "pcm")).map((note) => note === null),
+    [false, true],
+  );
 });
 
-test("test_network_bit_depth_falls_silent_while_the_output_mode_is_pcm", async () => {
-  await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(field("net_bits")), null);
+test("test_network_bit_depth_advises_while_the_output_mode_is_sdm_and_falls_silent_under_pcm", async () => {
+  assert.deepEqual(
+    (await acrossModes("net_bits", "sdm", "pcm")).map((note) => note === null),
+    [false, true],
+  );
 });
 
-test("test_48k_dsd_falls_silent_while_the_output_mode_is_sdm", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(field("alsa_anydsd")), null);
+test("test_48k_dsd_advises_while_the_output_mode_is_pcm_and_falls_silent_under_sdm", async () => {
+  assert.deepEqual(
+    (await acrossModes("alsa_anydsd", "pcm", "sdm")).map((note) => note === null),
+    [false, true],
+  );
 });
 
-test("test_network_48k_dsd_falls_silent_while_the_output_mode_is_sdm", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(field("net_anydsd")), null);
+test("test_network_48k_dsd_advises_while_the_output_mode_is_pcm_and_falls_silent_under_sdm", async () => {
+  assert.deepEqual(
+    (await acrossModes("net_anydsd", "pcm", "sdm")).map((note) => note === null),
+    [false, true],
+  );
 });
 
 // ============================================================================

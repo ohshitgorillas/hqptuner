@@ -328,14 +328,18 @@ test("test_a_field_with_no_gray_reason_is_enabled", async () => {
   assert.equal(isDisabled(field("volume_max")), false);
 });
 
-test("test_a_gray_reason_is_shown_as_a_visible_caption", async () => {
+// The caption follows the gray reason: present on the grayed field, absent on
+// the same field once its cause is gone. One relation over the two states, so a
+// field captioned always, or never, fails the same comparison.
+test("test_a_gray_reason_is_shown_as_a_visible_caption_that_the_enabled_field_lacks", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.notEqual(line(field("volume_max"), "field-gray-reason"), null);
-});
-
-test("test_an_enabled_field_shows_no_gray_caption", async () => {
+  const grayed = line(field("volume_max"), "field-gray-reason");
   await reset({ fields: [{ name: "direct_sdm", value: false }] });
-  assert.equal(line(field("volume_max"), "field-gray-reason"), null);
+  const enabled = line(field("volume_max"), "field-gray-reason");
+  assert.deepEqual(
+    [grayed, enabled].map((caption) => caption === null),
+    [false, true],
+  );
 });
 
 test("test_a_quiet_gray_field_shows_no_caption", async () => {
@@ -364,9 +368,15 @@ test("test_a_quiet_gray_field_is_still_disabled", async () => {
 // contract that alsa_bits and net_bits used to carry.
 // ============================================================================
 
-test("test_inline_gray_adaptive_volume_puts_its_reason_inside_the_control_row", async () => {
+test("test_inline_gray_adaptive_volume_puts_its_reason_inside_the_control_row_only_while_grayed", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.notEqual(grayReason(row(field("adaptive_volume"))), null);
+  const grayed = grayReason(row(field("adaptive_volume")));
+  await reset({ fields: [{ name: "direct_sdm", value: false }] });
+  const live = grayReason(row(field("adaptive_volume")));
+  assert.deepEqual(
+    [grayed, live].map((reason) => reason === null),
+    [false, true],
+  );
 });
 
 // Loudness is grayed by the same cause but adds a clause of its own, so the two

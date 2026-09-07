@@ -41,7 +41,8 @@ import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { staticWire } from "../support/wire.js";
 import { rec } from "../support/livepresetwire.js";
-import { attr, elements, labeled } from "../support/markup.js";
+import { attr, elements, labeled, soleControl } from "../support/markup.js";
+import { controlRow } from "../support/field-harness.js";
 import { section } from "../support/tabform.js";
 
 // The two chains number the same filters differently, so each column's options
@@ -169,16 +170,11 @@ function card(out, id) {
   return frag;
 }
 
-// Opening tag of the first element in `out` whose attributes match `needle`.
-/**
- * @param {string} out
- * @param {string} needle
- * @returns {string | null}
- */
-const openTag = (out, needle) => {
-  const m = new RegExp(`<[a-zA-Z][^>]*${needle}[^>]*>`).exec(out || "");
-  return m ? m[0] : null;
-};
+// The one control a field's control row carries at its top level, found by
+// that place alone (support/markup.js soleControl), so the role a case then
+// reads off it is a value the locator never matched on.
+/** @param {string} fragment */
+const control = (fragment) => soleControl(controlRow(fragment) || "");
 
 /** @param {string} out */
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
@@ -203,7 +199,7 @@ function preset(out) {
 
 test("test_a_live_filter_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(page(), "pcm_filter_nx"), 'role="combobox"'), null);
+  assert.equal(attr(control(row(page(), "pcm_filter_nx")), "role"), "combobox");
 });
 
 test("test_a_live_filter_controls_combobox_carries_the_dd_box_class", async () => {
@@ -218,7 +214,7 @@ test("test_a_live_filter_controls_row_carries_no_native_select", async () => {
 
 test("test_a_live_modulator_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(card(page(), "live-sdm-chain"), "sdm_modulator"), 'role="combobox"'), null);
+  assert.equal(attr(control(row(card(page(), "live-sdm-chain"), "sdm_modulator")), "role"), "combobox");
 });
 
 // --- the two pickers that are not schema entries ------------------------------
@@ -232,7 +228,7 @@ test("test_the_matrix_profile_picker_stays_a_native_select", async () => {
 
 test("test_the_live_preset_picker_renders_a_combobox", async () => {
   await reset({ presets: [rec("Living Room", "pcm")] });
-  assert.notEqual(openTag(preset(page()), 'role="combobox"'), null);
+  assert.equal(attr(control(preset(page())), "role"), "combobox");
 });
 
 test("test_the_live_preset_picker_carries_no_native_select", async () => {

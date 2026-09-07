@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 
 import { reset, field, controlRow, attrOf } from "../support/field-harness.js";
 import { rows, rowIncluding } from "../support/comborows.js";
-import { attr } from "../support/markup.js";
+import { attr, soleControl } from "../support/markup.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
@@ -63,9 +63,12 @@ const GRAYED_MODULATOR_FIELDS = [
   },
 ];
 
+// The control is found by its place — the control row's one top-level control —
+// and its role is what is asserted, so a locator that matched on the role could
+// not have answered for it.
 test("test_a_desc_dropdowns_control_row_contains_a_combobox", async () => {
   await reset({ fields: FILTER_FIELDS });
-  assert.notEqual(openTag(controlRow(field("pcm_filter_1x")), 'role="combobox"'), null);
+  assert.equal(attr(soleControl(controlRow(field("pcm_filter_1x")) || ""), "role"), "combobox");
 });
 
 test("test_a_desc_dropdowns_control_row_contains_no_native_select", async () => {

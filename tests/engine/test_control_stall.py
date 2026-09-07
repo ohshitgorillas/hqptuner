@@ -336,7 +336,10 @@ def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
     client, _ = closing_api
     with caplog.at_level(logging.WARNING):
         client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert [record for record in caplog.records if HOUSEKEEPING_COMMAND in record.getMessage()] != []
+    # the warning is found by its level, and the command it names is what is
+    # compared — the sentence around the name is copy (docs/testing.md rule 9)
+    warnings = [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
+    assert HOUSEKEEPING_COMMAND in (warnings or [""])[0]
 
 
 def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(

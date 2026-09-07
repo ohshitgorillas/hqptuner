@@ -296,19 +296,25 @@ const anchorCount = (out, anchor) => labels(out).filter((l) => modifier(l, "vr-t
 
 // One line every 10 dB from -120 through 0 (13), plus the gain ceiling at +12
 // and the resampling ceiling at -3: fifteen in all, and nothing above 0 other
-// than +12. The count alone cannot see a line in the wrong place, so the
-// decades are pinned by position as well.
-test("test_the_axis_draws_fifteen_gridlines", async () => {
-  await reset();
-  assert.equal(ticks(bar()).length, 15);
-});
+// than +12. The axis is fixed, so the whole set is one ordered sweep: the
+// gridlines' track positions, sorted, are the positions of exactly these
+// levels — a missing line, an extra one, or one in the wrong place all fail
+// the same comparison. Positions are rounded to the precision the card prints,
+// since the contract is where a mark sits and not how many decimals it carries.
+const GRIDLINE_DB = [-120, -110, -100, -90, -80, -70, -60, -50, -40, -30, -20, -10, -3, 0, 12];
+/** @param {number | undefined} pct */
+const printed = (pct) => (pct === undefined ? undefined : Number(pct.toFixed(2)));
 
-for (let db = -110; db <= -10; db += 10) {
-  test(`test_a_gridline_sits_at_${String(db).replace("-", "minus_")}_db`, async () => {
-    await reset();
-    assert.ok(tickAt(bar(), db) !== undefined);
-  });
-}
+test("test_the_gridlines_sit_at_every_documented_level_and_nowhere_else", async () => {
+  await reset();
+  assert.deepEqual(
+    ticks(bar())
+      .map((t) => t.left)
+      .sort((a, b) => (a ?? 0) - (b ?? 0))
+      .map(printed),
+    GRIDLINE_DB.map((db) => printed(pos(db))),
+  );
+});
 
 test("test_nothing_is_drawn_at_plus_10_db", async () => {
   // the only mark above the limiter threshold is the gain ceiling at +12; a

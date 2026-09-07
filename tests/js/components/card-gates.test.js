@@ -335,16 +335,20 @@ for (const key of GATES) {
 // ============================================================================
 
 // Volume-adaptive loudness cannot adapt to a pinned volume, so a fixed volume
-// grays the loudness gate WITH a caption. What the caption says is the owner's
-// wording (docs/testing.md rule 9); that one renders at all is the behavior.
+// grays the loudness gate WITH a caption, and a live volume control leaves it
+// captionless. What the caption says is the owner's wording (docs/testing.md
+// rule 9); that it appears in the one state and not the other is the behavior,
+// read as one relation over the two states so that a gate captioned always, or
+// never, fails the same comparison.
 const PINNED = [{ name: "fixed_volume_enabled", value: true }];
 
-test("test_a_gate_grayed_by_a_bypassed_volume_control_carries_a_caption", async () => {
-  assert.notEqual(grayReason(await gate("loudness_enabled", { config: PINNED })), null);
-});
-
-test("test_a_gate_with_a_live_volume_control_carries_no_gray_caption", async () => {
-  assert.equal(grayReason(await gate("loudness_enabled")), null);
+test("test_a_gate_grayed_by_a_bypassed_volume_control_carries_a_caption_that_a_live_one_does_not", async () => {
+  const bypassed = grayReason(await gate("loudness_enabled", { config: PINNED }));
+  const live = grayReason(await gate("loudness_enabled"));
+  assert.deepEqual(
+    [bypassed, live].map((reason) => reason === null),
+    [false, true],
+  );
 });
 
 // ============================================================================

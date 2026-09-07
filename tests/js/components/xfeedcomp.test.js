@@ -160,9 +160,12 @@ test("test_crossfeed_off_with_a_correction_installed_still_renders_the_controls"
 
 // --- eligibility of the stereo pair (pairInfo) -------------------------------
 
+// The Turn on control is read by the verdict it carries: an eligible pair's is
+// the empty code, and the asymmetric pair further down carries a different one
+// on the same surface. `issue` answers null for a strip with no such button.
 test("test_a_symmetric_stereo_pair_offers_to_turn_the_correction_on", async () => {
   await reset({ rows: pair() });
-  assert.notEqual(turnOn(strip()), undefined);
+  assert.equal(issue(strip()), "");
 });
 
 test("test_a_symmetric_stereo_pair_enables_turn_on", async () => {
