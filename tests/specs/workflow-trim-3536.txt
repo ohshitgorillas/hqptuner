@@ -1,0 +1,45 @@
+slug: workflow-trim-3536
+kind: new
+
+1. `scripts/gates/check_spec_draft.py <file>` on a draft block returns the (exit code, flagged line numbers) pair the sweep names: a clean two-item block, items at lines 3 and 7, each with `kills:`, `bite:`, `existing: none (grep)`, item 1's `kills:` clause reading "storing the raw key and trimming one space only" -> (0, []); the same block with item 2's outcome reading "stores the name and leaves the pointer unchanged" -> (1, [7]); the same block with item 1's `kills:` line deleted -> (1, [3]); the same block with item 2's clause reading `existing: tests/api/test_x.py` -> (1, [10]); the clean block with item 1's outcome wrapped over three lines so its `kills:` sits at line 6 -> (0, []).
+   kills: a checker that reads only the one line after each item, which passes the deleted-kills case when `bite:` follows and flags the wrapped case; or one that greps the whole file for " and ", which flags a `kills:` clause containing " and ".
+   bite: surface new; null stub `scripts/gates/check_spec_draft.py` with `main()` returning 0 for every input fails at the " and leaves " case.
+   existing: none (`grep -rn 'check_spec_draft' tests/` -> no output, exit 1)
+
+2. For one file whose single item's outcome carries " and " and whose first clause is `kills:`, the (draft exit, `--committed` exit) pair is (1, 0); for a file whose single item's first clause is `bite:` with `kills:` second, the pair is (1, 1).
+   kills: a `--committed` mode that returns 0 for every file; or one that runs the word checks, giving (1, 1) on the first file.
+   bite: surface new; the null stub above fails at the `bite:`-first file.
+   existing: none (same grep as line 1)
+
+3. `scripts/pair.sh merge <slug>` output, reduced to which of the two marker lines `PIN by construction` and `diff from red` it contains: on a pair whose spec-tree tests are byte-identical to the `test: <slug> red` commit, exactly {`PIN by construction`}; on a pair whose spec tree appended a test to a file after the red commit, exactly {`diff from red`}.
+   kills: a merge that prints the full brief regardless of the diff (HEAD); or one that prints the short line whenever a red commit exists.
+   bite: identical-tests pair: `PIN by construction` 0 lines, `diff from red` 1 line; changed-tests pair: `PIN by construction` 0 lines, `diff from red` 1 line (bite-prober; throwaway checkout under the scratchpad with the driver copied in, `Makefile` `check:` -> `true`, `pair.sh open`, `red`, `merge`, `2>&1 | grep -c 'PIN by construction'` and `| grep -c 'diff from red'`)
+   existing: none (`grep -rn 'test_check_brief\|PIN by construction' tests/` -> no output, exit 1; `tests/gates/test_pair_excision.py` drives `pair.sh red` only, its docstring lines 1-17)
+
+Public entry points:
+- `scripts/gates/check_spec_draft.py [--committed] FILE...` (new). Docstring: "Gate: a spec block's items carry their clauses; in draft mode, the string shapes the spec-reviewer cuts on sight are reported before the reviewer is spawned." Prints `<file>:<line>: <reason>` per flag to stdout, exits 1 on any flag, 0 otherwise; no files -> 0; an empty file -> 1 with `<file>:0: no lines`.
+- `scripts/pair.sh merge <slug> [-m subj] [--dry-run]` (existing; header lines 45-56 describe the merge and the brief).
+
+Wire and protocol facts: none; no daemon traffic on either surface.
+
+Applicable fixtures: `tmp_path` (pytest builtin) for the throwaway checkout and draft files; the subprocess-driven pattern in `tests/gates/test_pair_excision.py` (git init, driver copied in, `pair.sh` run as an operator would) for line 3.
+
+Changelog entry: no entry; dev tooling under `scripts/` and `.claude/`, nothing a shipped release shows.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on check_spec_draft.py (exit, flagged lines) with values (0, []), (1, [7]), (1, [3]), (1, [10]); differential on draft vs --committed exit (line 2); sweep on pair.sh merge marker set (line 3)
+
+round 1 finding, line 1 CUT g: repaired as named. The clean block's item 1 `kills:` now reads "storing the raw key and trimming one space only", so the whole-file " and " grep returns (1, [4]) on the clean case against the expected (0, []) and is rejected; withdrawn.
+
+1  KEEP  clean block (item 1 `kills:` containing " and ") -> (0, []), " and leaves " outcome -> (1, [7]), deleted `kills:` -> (1, [3]), `existing: tests/api/test_x.py` -> (1, [10]), wrapped outcome with `kills:` at line 6 -> (0, []); one-line-after-item checker fails at the deleted-kills case ((0, []) vs (1, [3])) and the wrapped case ((1, [3]) vs (0, [])), whole-file " and " grep fails at the clean case ((1, [4]) vs (0, [])); bite: null stub (main() returning 0, flagging nothing) fails at the " and leaves " case
+2  KEEP  " and "-outcome file with `kills:` first -> (1, 0), `bite:`-first file -> (1, 1); `--committed` returning 0 for every file fails at the `bite:`-first file, `--committed` running the word checks fails at the " and " file with (1, 1); bite: null stub fails at the `bite:`-first file (carried, text unchanged)
+3  KEEP  identical-tests pair -> {`PIN by construction`}, appended-test pair -> {`diff from red`}; full-brief-regardless fails at the identical pair, short-line-whenever-red-exists fails at the appended-test pair; bite: measured at HEAD, identical pair gives `PIN by construction` 0 lines / `diff from red` 1 line (carried, text unchanged)
+
+null stub: `check_spec_draft.py` present with `main()` returning 0 and flagging nothing, `pair.sh merge` unchanged from HEAD; fails line 1 at the " and leaves " case, line 2 at both files ((0, 0) vs (1, 0)), line 3 at the identical pair ({diff from red} vs {PIN by construction}).
+hard-coded stub: checker returning [7] when " and leaves " is present, [3] when the file's second line lacks `kills:`, [10] when `existing: tests/` is present, else [], with `--committed` returning 1 iff `bite:` precedes `kills:`; merge printing `PIN by construction` iff the spec tree matches the red commit. Passes all three lines, but only by doing per-item clause scanning across wrapped lines, the outcome-word check scoped to outcome text, and the red-commit diff, which is the work; the (g) hole it slipped through in round 1 is closed by the clean case.
+
+survives: 3
+
+notes:
+- Line 3 asserts the marker strings `PIN by construction` and `diff from red`; kept under the wire-identifier escape of (c) as tokens the review chain keys on, same standing as `TEST CHECK <slug>`. Owner's call if they are read as driver prose instead; the restatement is the count of `TEST CHECK` lines (0 on the identical pair, 1 on the appended pair).
