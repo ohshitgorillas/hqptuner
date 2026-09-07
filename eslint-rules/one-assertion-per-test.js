@@ -17,8 +17,13 @@ const FN = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionE
 const LOOP = new Set(["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement"]);
 const RUNNERS = new Set(["test", "it"]);
 
-// `assert(...)` or `assert.<anything>(...)` — node:assert/strict in either form.
-function isAssertion(node) {
+/**
+ * `assert(...)` or `assert.<anything>(...)`, node:assert/strict in either form.
+ * Shared with assertion-shape.js, which reads the shape of what this rule counts.
+ * @param {import("estree").Node} node
+ * @returns {boolean}
+ */
+export function isAssertion(node) {
   if (node.type !== "CallExpression") return false;
   const callee = node.callee;
   if (callee.type === "Identifier") return callee.name === "assert";
