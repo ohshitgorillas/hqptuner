@@ -32,7 +32,6 @@ from hqptuner.core.applyops import ApplyOps
 from hqptuner.core.readings import Readings
 from hqptuner.engine import release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import settle
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets.presetops import PresetOps
@@ -61,6 +60,11 @@ class ConnectionManager:
         self._http = http_client
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
+        # `_wake` pulls the poll loop out of its wait early (see `restarting`);
+        # `connected` is set at the end of every connect body and cleared on every
+        # drop, the thing a post-restore wait (lanes.settle.await_ready) sleeps on.
+        self._wake = asyncio.Event()
+        self.connected = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
         # file, so a second copy would hand out numbers the first already used.
@@ -75,8 +79,13 @@ class ConnectionManager:
         # the connect has run; `ready` is the whole connect body having returned, which
         # is what the UI and the write lanes actually need to know.
         self.ready = False
+        # Whole connects completed since construction: a post-restore wait's mark, so
+        # it waits for a connect that completed after its restore began.
+        self.connects = 0
         self.unreachable_since: float | None = time.time()
-        self._unreachable_mono: float = time.monotonic()
+        # Stamped through `monotonic()`, the seam `alarm` reads it back through, so
+        # both sides of that subtraction run on one clock (virtual in the suite).
+        self._unreachable_mono: float = self.monotonic()
 
         # Everything the daemon last told us (core/readings). Refilled from scratch
         # on every fresh connection; read by every route and lane.
@@ -93,6 +102,7 @@ class ConnectionManager:
     def stop(self) -> None:
         """Signal the poll loop to leave its next wait and finish; does not close the socket (see ``aclose``)."""
         self._stop.set()
+        self._wake.set()
 
     async def aclose(self) -> None:
         """Shut down cleanly: stop the loop and close the control connection so no socket dangles.
@@ -155,18 +165,23 @@ class ConnectionManager:
         NOT a duplicate of the public ``sleep``: the test suite virtualizes ``sleep``
         (docs/testing.md §7) so lane deadlines cost no wall clock, and deliberately leaves this one
         alone so a running manager polls at its real interval instead of spinning.
+
+        ``_wake`` cuts the wait short: ``restore`` sets it after dropping the control lane so the
+        reconnect starts at once, and ``stop`` sets it so shutdown never waits out a poll interval.
         """
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(self._stop.wait(), seconds)
+            await asyncio.wait_for(self._wake.wait(), seconds)
+        self._wake.clear()
 
     async def _drop(self, reason: str) -> None:
         if self.reachable or self._client is not None:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
             self.unreachable_since = time.time()
-            self._unreachable_mono = time.monotonic()
+            self._unreachable_mono = self.monotonic()
         self.reachable = False
         self.ready = False
+        self.connected.clear()
         if self._client is not None:
             await self._client.close()
             self._client = None
@@ -223,6 +238,8 @@ class ConnectionManager:
         # with no credentials has no 8088 lane to wait for and arrives here just the same
         # (architecture §"Authentication"), so it is ready as soon as the handshake is.
         self.ready = True
+        self.connects += 1
+        self.connected.set()
         log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
     async def _poll(self) -> None:
@@ -351,39 +368,21 @@ class ConnectionManager:
         """
         await self._sleep(seconds)
 
-    async def await_http_ready(self) -> bool:
-        """Wait until the HTTP config lane serves again.
+    async def restarting(self) -> None:
+        """Drop the control lane a restore just killed and start the reconnect now.
 
-        The daemon restarts on a preset load and on every restore, and its active label flips before
-        the restart completes — so callers must not assume 'label switched' means 'ready to write'.
+        The daemon self-restarts on every adopted restore (architecture §1 lane 2), so the 4321
+        socket is dead the moment the POST returns. Waiting for the poll loop to find that out costs
+        up to a poll interval; dropping here and waking the loop starts the reconnect at once, and
+        the loop's own retries carry it through the restart window. The post-restore wait itself is
+        ``lanes.settle.await_ready``.
+
+        Only a whole connection is dropped: with ``ready`` False there is either no client, or a
+        connect body mid-flight that must finish on its own client rather than one closed under it.
         """
-
-        async def probe() -> bool:
-            await self.require_http().get_config()
-            return True
-
-        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
-
-    async def await_ready(self) -> bool:
-        """Wait until a whole connect has completed since the last drop.
-
-        ``await_http_ready`` proves only that the 8088 lane answers; after a restore the 4321
-        control connection is still the dead one the restart left behind, and the readings hanging
-        off it are the previous engine's. This waits for the reconnect the poll loop drives, so the
-        caller returns to a manager that is whole on both lanes.
-
-        Paced on the poll loop's own clock (``_sleep`` and ``time.monotonic``), not on the lanes'
-        virtualized seams: what this waits for is a reconnect the loop physically has to perform, so
-        a virtual clock would run the deadline out without the reconnect having had any chance to
-        happen. Every other settle wait polls the daemon itself and is right to pace virtually.
-
-        Best-effort like those: a False answer means the deadline passed, which the caller reports
-        rather than papers over. Reads an in-process flag and touches no socket.
-        """
-        end = time.monotonic() + self.alarm_threshold
-        while not self.ready and not self._stop.is_set() and time.monotonic() < end:
-            await self._sleep(RECONNECT_FAST)
-        return self.ready
+        if self.ready:
+            await self._drop("restore restarts the daemon")
+            self._wake.set()
 
     @property
     def control(self) -> ControlClient | None:

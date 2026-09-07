@@ -19,7 +19,9 @@ clock seams the suite virtualizes (docs/testing.md §7). A lane that reaches for
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import time
 from typing import TYPE_CHECKING
 
 import httpx
@@ -30,6 +32,74 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
 
 ZIP_MAGIC = b"PK\x03\x04"
+#: How often the 8088 readiness probe re-asks inside the restart window.
+HTTP_READY_INTERVAL = 1.0
+
+
+async def restore(mgr: ConnectionManager, cfgfile: bytes, scope: str = "system") -> None:
+    """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
+
+    Every restore the app submits goes through here, so every one of them reports
+    its restart at once (``ConnectionManager.restarting``) instead of at the next
+    poll. Take ``mark_connect`` before calling and hand it to ``await_ready`` after.
+    """
+    await mgr.require_http().restore(cfgfile, scope=scope)
+    await mgr.restarting()
+
+
+def mark_connect(mgr: ConnectionManager) -> int | None:
+    """Return the manager's connect count while it is ready, else None.
+
+    None says there is no whole control connection for the restart to kill, so
+    ``await_ready`` has nothing to wait for and returns at once.
+    """
+    return mgr.connects if mgr.ready else None
+
+
+async def await_ready(mgr: ConnectionManager, mark: int | None) -> bool:
+    """Wait until a connect completes after ``mark``, or the alarm window passes.
+
+    ``await_http_ready`` proves only that the 8088 lane answers; after a restore
+    the 4321 connection is the dead one the restart left behind and the readings
+    on it are the previous engine's. This waits for the reconnect ``restore`` set
+    in motion, so the caller returns to a manager whole on both lanes. The count
+    dates the connect: a flag alone cannot say whether the readiness it reports
+    predates this caller's restore.
+
+    The deadline runs on the real clock, not the lanes' virtualized seams
+    (docs/testing.md rule 7, owner-approved for this site): what it waits for is
+    a reconnect the poll loop physically has to perform, so a virtual clock would
+    run the deadline out with no chance for it to happen. The wake is the connect
+    itself (``mgr.connected``), so a reconnect landing 50 ms in returns 50 ms in.
+
+    Best-effort: False means the deadline passed or there was nothing to wait
+    for, which the caller reports rather than papers over.
+    """
+    if mark is None:
+        return False
+    end = time.monotonic() + mgr.alarm_threshold
+    while mgr.connects <= mark:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(mgr.connected.wait(), remaining)
+    return True
+
+
+async def await_http_ready(mgr: ConnectionManager) -> bool:
+    """Wait until the HTTP config lane serves again.
+
+    The daemon restarts on a preset load and on every restore, and its active
+    label flips before the restart completes, so a caller must not read 'label
+    switched' as 'ready to write'.
+    """
+
+    async def probe() -> bool:
+        await mgr.require_http().get_config()
+        return True
+
+    return bool(await poll_until(mgr, probe, interval=HTTP_READY_INTERVAL))
 
 
 async def poll_until[T](
