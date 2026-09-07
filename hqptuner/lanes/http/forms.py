@@ -47,7 +47,7 @@ async def refresh(mgr: ConnectionManager) -> None:
         return
     # taken before the loop lands the new forms, so the comparison at the end has
     # something to compare against; the readings are the trace's only memory here
-    was = voltrace.subset(mgr.readings.config_form)
+    was = voltrace.form_subset(mgr.readings.config_form)
     forms: tuple[tuple[str, str, Callable[[], Awaitable[dict[str, Any]]]], ...] = (
         ("config_form", "config_error", http.get_config),
         ("matrix_form", "matrix_error", http.get_matrix),
@@ -76,7 +76,7 @@ async def refresh(mgr: ConnectionManager) -> None:
     # what keeps a form_attr branch out of the loop body. The startup volume's
     # baseline in the browser is this form, not the config file, so a form that
     # reported the wrong number for one tick is otherwise untraceable.
-    voltrace.observe_change(mgr, "config_form", voltrace.subset(mgr.readings.config_form), was)
+    voltrace.observe_change(mgr, "config_form", voltrace.form_subset(mgr.readings.config_form), was)
 
 
 def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
