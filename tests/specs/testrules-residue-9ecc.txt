@@ -1,0 +1,53 @@
+kind: refactor
+
+slug: testrules-residue-9ecc
+
+The sites the gate still reports on dev at 0b50b778 (`check_test_assertions.py --report`: one line; `eslint tests/js`: 24 `assertion-shape` warnings) less the two that go to the excision block `testrules-excise-9ecc` (tests/js/lib/binaural.test.js:81, tests/test_autoeq.py:14), plus one site from the previous sweep that replaced `any()` with a presence comparator. Each line names the locator and the value per site, because a reshape that asserts the attribute the locator itself matched on silences the gate and pins nothing. A site where the named reshape does not hold is listed in the writer's return for excision, never left as it is.
+
+1. Every site asserting that an attribute exists asserts the attribute's value on a node located by something other than that attribute. The four combobox sites locate the control row's sole control element (its one `input` or `button`) by structure and assert its `role` equals `combobox`. The three playbackvolume sites assert the `data-hint` code of the disabled region's hint (:173, :178) and of the disabled control's cause (:257) against the code the fixture's state selects, the OFF state at :173 and :257 and the missing range at :178 giving two distinct codes. The two volumerangebar-axis sites assert that the bound handle's `aria-label` contains the bound's dB value the fixture PAIR set, low -54 at :595 and high -21 at :600.
+   kills: a reshape that locates the combobox by `role="combobox"` and asserts role; a reshape to `attr !== undefined`; a reshape comparing the label to a sentence; a reshape asserting one hint code at every state.
+   bite: green expected (refactor); the site's warning disappears.
+   existing: tests/js/components/combobox.test.js:68; tests/js/components/livecombobox.test.js:206, :221, :235; tests/js/components/playbackvolume.test.js:173, :178, :257; tests/js/components/volumerangebar-axis.test.js:595, :600.
+
+2. Every site asserting that an element exists asserts a differential across two fixture states as one comparison of the pair, and its negative sibling folds into the pair and goes. The advice node and the gray-reason node carry no attribute beyond the class the harness locates by (hqptuner/static/components/Field.js:252, :279, :280), so those pairs are the two-state existence relation [non-null, null]: the gray caption at card-gates :342 with :346 folded, bypassed versus live volume control; the stacked gray reason at field :333 with :338 folded, and the inline reason at :369, bypassed versus live adaptive volume; the four advice sites at field-advice :55, :60, :65, :70 with :82, :87, :92, :97 folded, SDM versus PCM output mode; the mirror checkbox at matrixtab-mirror :114 and :119, the pipeline card with versus without a stereo pair; the knob tip at easytiles-tips :111 against the untipped knob at :96. The crossfeed pair at :158 and :163 folds into :166 as the pair of the two segments' state classes at the structural view, [bauer plain, structural active]. The xfeedcomp turn-on control at :165 asserts its `data-issue` value at the symmetric pair, the asymmetric value at :207 being the second value on that surface. The gridline site at volumerangebar-axis :309 leaves the differential: the axis is fixed (:120, :298-302), so :304 and the :309 loop become one sweep, the sorted left positions of `ticks(bar())` equal `pos()` of the documented dB values.
+   kills: a reshape to `node !== null` in one state; a reshape whose two states are the same fixture; a reshape that keeps the negative sibling beside the pair; a reshape that reads the node's text.
+   bite: green expected (refactor); the site's warning disappears.
+   existing: tests/js/components/card-gates.test.js:342, :346; tests/js/components/crossfeed.test.js:158, :163, :166; tests/js/components/easytiles-tips.test.js:111; tests/js/components/field-advice.test.js:55, :60, :65, :70, :82, :87, :92, :97; tests/js/components/field.test.js:333, :338, :369; tests/js/components/matrixtab-mirror.test.js:114, :119; tests/js/components/volumerangebar-axis.test.js:304, :309; tests/js/components/xfeedcomp.test.js:165.
+
+3. The dead-HTTP-lane site asserts the recorded config error against the fixture's numeric closed port, or its refused path, whichever the error carries; if it carries neither, the site is listed for excision.
+   kills: a reshape to `x is not None`; a reshape to `isinstance(x, Exception)`; a reshape comparing against a sentence.
+   bite: green expected (refactor); the site's report line disappears.
+   existing: tests/apply/test_manager_connect_load.py:45 test_a_dead_http_lane_records_the_form_error.
+
+4. The housekeeping-failure site compares the warning record's command name against `HOUSEKEEPING_COMMAND` (tests/engine/test_control_stall.py:238) in place of `collected != []`.
+   kills: a reshape to `collected != []` or `len(collected) > 0`; a reshape comparing against the whole message.
+   bite: green expected (refactor); no gate line changes, the post-merge read is the check.
+   existing: tests/engine/test_control_stall.py::test_a_housekeeping_failure_after_a_write_names_the_command_that_failed.
+
+Public entry points: none change.
+
+Wire and protocol facts: none new.
+
+Applicable fixtures: whatever each target already uses; the second state on line 2 is the same fixture with the one field toggled, as its folded negative sibling already builds it.
+
+Changelog entry: no entry; test-suite work, nothing user-visible.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on line 2 (one comparison of a two-state pair per surface, negatives folded) plus sweep with distinct values on line 1 (two data-hint codes across :173/:178, two dB labels -54/-21) and on the gridline positions (:304 + :309 as one ordered sweep); the laundering reshape is named in line 1's kills and locked out by the structural locator
+
+round 1 findings, read against the return: line 1 locator - repaired (sole control element by structure, role-then-role in kills); line 2 gridline - repaired (leaves the differential, one sweep with :304); line 2 xfeedcomp null side - repaired (data-issue value, :207 as second value); line 2 folded negatives - repaired (every one named in text and existing:); line 3 split, binaural:81 to testrules-excise-9ecc - repaired; line 4 split, autoeq:14 to testrules-excise-9ecc - repaired; note on advice/gray-reason attributes - cited (Field.js:252,:279,:280), relation restated as [non-null, null], withdrawn; note on distinct hint codes - cited (Playback.js:42-64, four codes by cause), withdrawn
+
+1  DELTA tests/js/components/combobox.test.js:68, livecombobox.test.js:206/:221/:235, playbackvolume.test.js:173/:178/:257, volumerangebar-axis.test.js:595/:600: each existence check becomes a value assertion on a node located by structure (control row's sole input/button -> role "combobox"; hint element -> data-hint equals the code its state selects, two codes across OFF and missing range; bound handle -> aria-label contains -54 at LOW, -21 at HIGH per PAIR at :443)
+2  DELTA tests/js/components/card-gates.test.js:342 (346 folded), field.test.js:333 (338 folded) and :369, field-advice.test.js:55/:60/:65/:70 (82/87/92/97 folded), matrixtab-mirror.test.js:114/:119 (with vs without pair), easytiles-tips.test.js:111 (vs untipped :96), crossfeed.test.js:166 (158/163 folded as [seg, seg active] at structural), xfeedcomp.test.js:165 (data-issue value at symmetric; :207 second value), volumerangebar-axis.test.js:304 (:309 loop folded into one ordered-positions sweep): each positive/negative sibling pair becomes one comparison over two fixture states, the negative test removed
+3  DELTA tests/apply/test_manager_connect_load.py:45 test_a_dead_http_lane_records_the_form_error: `is not None` becomes a comparison of the recorded error against the fixture's closed_port number or the refused path; neither present -> writer lists it for excision
+4  DELTA tests/engine/test_control_stall.py::test_a_housekeeping_failure_after_a_write_names_the_command_that_failed: `!= []` becomes a comparison of the warning record's message content to HOUSEKEEPING_COMMAND (:238)
+
+null stub: tests left as at 0b50b778 - the report line and the 24 warnings persist, so lines 1-3 fail at the gate; line 4 has no gate observable and fails only on its own text still reading `!= []`.
+hard-coded stub: locate each node by the attribute or class then assert that attribute, and write each line-2 pair as a self-comparison ([grayReason(a), null] against [grayReason(a), null]) - line 1's kills names the first shape and its structural locator forbids it; line 2's pair is against the literal relation [non-null, null] over two named fixture states, so the self-comparison is "two states are the same fixture" or "node !== null in one state", both in kills; lines 3 and 4 compare to fixture-supplied values. No line survives it.
+survives: 0
+
+notes:
+- Framing: none counted; the trailing "Round 1 findings answered" paragraph is the re-review return the protocol requires and carried the two citations.
+- Gridline sweep plumbing: `near` at volumerangebar-axis.test.js:130 tolerates 0.5, so rendered `left` values are not exact `pos()` floats; the ordered sweep compares positions rounded to the precision the render emits, one `deepEqual`, never a per-element `near` loop (rule 2).
+- Line 1's combobox sites hold only if the control row's sole control is an `input` or `button`; a different element makes the site a writer's excision listing under the block's own preamble, not a spec change.
