@@ -1,0 +1,722 @@
+// Behavioral suite for components/SignalPath.js — the front-panel chain bar.
+// Written BEFORE the complexity refactor of SignalPath (19).
+//
+// Rendered through preact-render-to-string against the VENDORED preact bundle
+// (tests/js/vendor-resolve.js maps the importmap specifiers), so this exercises
+// the code that ships rather than an npm substitute.
+//
+// Every assertion is on rendered output — which chips exist, in what order, and
+// what they read. None touches a private helper, and the component exports only
+// itself, so the whole contract is observable exactly as a user sees it.
+//
+// A chip is addressed by the `data-stage` code it carries, never by its label:
+// the labels are the owner's copy (docs/testing.md rule 9), and one of them —
+// the shaper slot's — is relabelled by output mode while the code stays put.
+//
+// State is driven through the store's exported source signals. `panel()`
+// reassigns all four it drives — engineState, engineStatus, config,
+// matrixConfig — on every call rather than only the ones a given case cares
+// about: module-level signals persist for the life of the process, so a partial
+// reset makes tests pass alone and fail in sequence. Any source signal this
+// suite never writes keeps whatever the store module initialized it to.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { SignalPath } from "../../../../hqptuner/static/components/SignalPath.js";
+import { engineState, engineStatus, matrixConfig, config } from "../../../../hqptuner/static/store/signals.js";
+import { elements, classes, attr, text } from "../../support/markup.js";
+
+const PLAYING = 2;
+
+/**
+ * The DSP form values a case overrides. Each is the raw option value the form
+ * carries, except `directSdm`, which is the form's own bool.
+ *
+ * @typedef {{
+ *   directSdm?: boolean,
+ *   integrator?: string,
+ *   sdmConversion?: string,
+ *   noiseFilter?: string,
+ *   pcmConversion?: string,
+ * }} DspCase
+ */
+
+/**
+ * The volume fields a case overrides: the two fixed-volume switches and the ends
+ * of the adjustable range, spelled as the /config form spells them.
+ *
+ * @typedef {{ fixedVolume?: boolean, volumeFixed?: boolean, min?: string, max?: string }} VolumeCase
+ */
+
+/**
+ * The matrix state a case overrides: the three enable switches, and the profile
+ * name on either carrier or on both at once.
+ *
+ * @typedef {{
+ *   enabled?: boolean,
+ *   crossfeed?: boolean,
+ *   loudness?: boolean,
+ *   profile?: string,
+ *   liveProfile?: string,
+ *   storedProfile?: string,
+ * }} MatrixCase
+ */
+
+/**
+ * One panel render's inputs. `status` and `metadata` are the engine's own
+ * digit-string fields, `file` the working config XML's, so all three are string
+ * bags; `state` is the numeric transport state a case names by number.
+ *
+ * @typedef {{
+ *   state?: number,
+ *   status?: Record<string, string>,
+ *   metadata?: Record<string, string>,
+ *   matrix?: MatrixCase,
+ *   dsp?: DspCase,
+ *   volume?: VolumeCase,
+ *   file?: Record<string, string>,
+ * }} PanelCase
+ */
+
+// The DSD-source chips read the /config form the same way the DSP tab's own
+// selects do — a raw option value joined to its label — so the fake carries real
+// option lists rather than pre-resolved display strings.
+/**
+ * @param {string} name
+ * @param {string} value
+ * @param {string[]} options
+ */
+function dspField(name, value, options) {
+  return { name, value, options: options.map((label, i) => ({ value: String(i), label })) };
+}
+
+/** @param {DspCase} dsp */
+function configFields(dsp) {
+  return [
+    { name: "direct_sdm", value: dsp.directSdm ?? false },
+    dspField("integrator", dsp.integrator ?? "0", ["IIR", "IIR2", "FIR-bw"]),
+    dspField("sdm_conversion", dsp.sdmConversion ?? "0", ["wide", "narrow", "XFi"]),
+    dspField("noise_filter", dsp.noiseFilter ?? "0", ["standard", "low", "brickwall"]),
+    dspField("pcm_conversion", dsp.pcmConversion ?? "0", ["traditional", "poly-short-lp", "none"]),
+  ];
+}
+
+// The /config form's volume fields, defaulted to a NOT-pinned volume — an
+// adjustable -60..0 dB range with neither fixed-volume switch engaged — so
+// every case that never mentions volume keeps its pre-existing meaning.
+/** @param {VolumeCase} volume */
+function volumeFields(volume) {
+  return [
+    { name: "fixed_volume_enabled", value: volume.fixedVolume ?? false },
+    { name: "volume_fixed", value: volume.volumeFixed ?? false },
+    { name: "volume_min", value: volume.min ?? "-60" },
+    { name: "volume_max", value: volume.max ?? "0" },
+  ];
+}
+
+// The active profile name reaches the app on two carriers: `live_active`, the
+// memory-only 4321 MatrixSetProfile switch, and `active`, the name in the
+// working config XML. A live load is reflected on both (docs/matrix-spec.md),
+// and the store falls back from live_active to active when live_active is
+// empty. `matrix.profile` therefore drives BOTH — a case naming only one
+// carrier could not tell a chip that renders the other from one that renders
+// nothing. `liveProfile` / `storedProfile` drive a single carrier on purpose.
+/** @param {MatrixCase} matrix */
+function profileCarriers(matrix) {
+  return {
+    live_active: matrix.liveProfile ?? matrix.profile ?? "",
+    active: matrix.storedProfile ?? matrix.profile ?? "[Default]",
+  };
+}
+
+/** @param {MatrixCase} matrix */
+function matrixFields(matrix) {
+  return [
+    { name: "enabled", value: matrix.enabled ?? false },
+    { name: "post_bauer_enabled", value: matrix.crossfeed ?? false },
+    { name: "post_loudness_enabled", value: matrix.loudness ?? false },
+  ];
+}
+
+/**
+ * @param {PanelCase} [caseState]
+ * @returns {string}
+ */
+function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {}, volume = {}, file } = {}) {
+  engineState.value = { state: String(state) };
+  engineStatus.value = { status, metadata };
+  config.value = { fields: [...configFields(dsp), ...volumeFields(volume)], file };
+  matrixConfig.value = { fields: matrixFields(matrix), ...profileCarriers(matrix) };
+  return render(html`<${SignalPath} />`);
+}
+
+// Every chip of a panel, in chain order: the elements carrying a `data-stage`.
+// That code is the chip's contract identity and is what every case below
+// addresses a stage by — never the label a reader sees, which is the owner's
+// wording (docs/testing.md rule 9). The shaper slot is deliberately one code:
+// the same chip is relabelled "Modulator" for an SDM output and "Dither"
+// otherwise, and `shaper` names it in both.
+/**
+ * @param {string} out
+ * @returns {import("../../support/markup.js").MarkupElement[]}
+ */
+const chipElements = (out) =>
+  elements(out)
+    .filter((el) => attr(el, "data-stage") !== undefined)
+    .sort((a, b) => a.start - b.start);
+
+/**
+ * The value one chip renders, empty when it renders none.
+ *
+ * @param {import("../../support/markup.js").MarkupElement} el
+ * @returns {string}
+ */
+const valueOf = (el) => {
+  const val = elements(el.html).find((k) => classes(k).includes("chip-val"));
+  return val ? text(val) : "";
+};
+
+/**
+ * stage code -> the value that chip renders. A stage the panel does not render
+ * is an absent key, so `"matrix" in chips(out)` asks whether the chip is there.
+ *
+ * @param {string} out
+ * @returns {Record<string, string>}
+ */
+function chips(out) {
+  /** @type {Record<string, string>} */
+  const found = {};
+  for (const el of chipElements(out)) found[attr(el, "data-stage") ?? ""] = valueOf(el);
+  return found;
+}
+
+/**
+ * The stage codes a panel renders, in chain order — the handle a case uses when
+ * the behavior is WHICH stages run and in what sequence.
+ *
+ * @param {string} out
+ * @returns {(string | undefined)[]}
+ */
+const stages = (out) => chipElements(out).map((el) => attr(el, "data-stage"));
+
+/**
+ * The VALUES a panel renders, in render order — the handle a case uses when the
+ * behavior is which raw engine name a stage carries.
+ *
+ * @param {string} out
+ * @returns {string[]}
+ */
+const values = (out) => chipElements(out).map(valueOf);
+
+/**
+ * @param {string} out
+ * @param {string} stage
+ */
+const has = (out, stage) => stages(out).includes(stage);
+
+// stage code -> that chip's own class attribute, verbatim.
+/**
+ * @param {string} out
+ * @param {string} stage
+ */
+const chipClass = (out, stage) => {
+  const hit = chipElements(out).find((el) => attr(el, "data-stage") === stage);
+  return hit ? (attr(hit, "class") ?? "") : "no such chip";
+};
+
+const PLAY = { state: PLAYING, metadata: { samplerate: "44100", bits: "24" }, status: { active_rate: "705600" } };
+// A DSD bitstream into a DSD output — the SDM→SDM remodulation path.
+const DSD_TO_SDM = {
+  state: PLAYING,
+  metadata: { samplerate: "2822400", bits: "1" },
+  status: { active_rate: "22579200", active_filter: "poly-sinc-ext2-xla", active_shaper: "AMSDM7EC 512+fs" },
+};
+// The same bitstream decoded out to a PCM device.
+const DSD_TO_PCM = {
+  state: PLAYING,
+  metadata: { samplerate: "2822400", bits: "1" },
+  status: { active_rate: "705600", active_filter: "sinc-M", active_shaper: "LNS15" },
+};
+// PCM oversampled up to a DSD output — the modulator's own path.
+const PCM_TO_SDM = {
+  state: PLAYING,
+  metadata: { samplerate: "44100", bits: "24" },
+  status: { active_rate: "22579200", active_filter: "poly-sinc-ext2-xla", active_shaper: "ASDM7EC-super" },
+};
+
+// --- playing vs idle --------------------------------------------------------
+
+test("test_an_idle_engine_renders_the_bar_dimmed", () => {
+  assert.ok(panel().includes('class="signal-path idle"'));
+});
+
+test("test_a_playing_engine_renders_the_bar_live", () => {
+  assert.ok(panel(PLAY).includes('class="signal-path live"'));
+});
+
+test("test_a_paused_engine_is_not_live", () => {
+  assert.ok(panel({ ...PLAY, state: 1 }).includes('class="signal-path idle"'));
+});
+
+// --- source -----------------------------------------------------------------
+
+test("test_an_idle_source_reads_as_a_dash", () => {
+  assert.equal(chips(panel())["source"], "—");
+});
+
+test("test_a_playing_source_shows_rate_and_bit_depth", () => {
+  assert.equal(chips(panel(PLAY))["source"], "44.1 kHz / 24bit");
+});
+
+test("test_a_source_with_no_bit_depth_marks_it_unknown", () => {
+  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "44100" } }))["source"], "44.1 kHz / ?bit");
+});
+
+test("test_a_source_with_no_rate_reads_as_a_dash", () => {
+  assert.equal(chips(panel({ ...PLAY, metadata: {} }))["source"], "—");
+});
+
+test("test_a_dsd_source_is_shown_in_megahertz", () => {
+  const out = panel({ ...PLAY, metadata: { samplerate: "2822400", bits: "1" } });
+  assert.equal(chips(out)["source"], "2.822 MHz / 1bit");
+});
+
+test("test_a_sub_kilohertz_source_is_shown_in_hertz", () => {
+  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "800", bits: "16" } }))["source"], "800 Hz / 16bit");
+});
+
+// --- output -----------------------------------------------------------------
+
+test("test_an_idle_output_reads_as_a_dash", () => {
+  assert.equal(chips(panel())["output"], "—");
+});
+
+test("test_an_unreported_bit_depth_below_the_dsd_floor_shows_the_bare_rate", () => {
+  assert.equal(chips(panel(PLAY))["output"], "705.6 kHz");
+});
+
+test("test_a_dsd_output_rate_is_shown_in_megahertz_and_one_bit", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "24576000" } });
+  assert.equal(chips(out)["output"], "24.576 MHz / 1bit");
+});
+
+test("test_a_zero_output_rate_reads_as_a_dash", () => {
+  assert.equal(chips(panel({ ...PLAY, status: { active_rate: "0" } }))["output"], "—");
+});
+
+test("test_the_output_chip_is_the_hero_chip", () => {
+  assert.ok(panel(PLAY).includes('class="chip chip-hero"'));
+});
+
+// --- output bit depth -------------------------------------------------------
+// The engine reports the negotiated output word length as status.active_bits,
+// a digit string like every other Status field. When it is there it is the
+// authority; when it is absent or "0" the chip falls back to inferring 1bit
+// from a rate at or above the DSD64 floor (2822400 Hz).
+
+// PLAY's source is 24bit, so the reported depth here is deliberately 32: a chip
+// rendering the SOURCE word length would pass a 24 and fail this.
+test("test_a_pcm_output_shows_the_reported_bit_depth", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "32" } });
+  assert.equal(chips(out)["output"], "705.6 kHz / 32bit");
+});
+
+test("test_a_dsd_rate_output_reads_as_one_bit", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "1" } });
+  assert.equal(chips(out)["output"], "22.579 MHz / 1bit");
+});
+
+test("test_a_reported_bit_depth_of_zero_falls_back_to_the_dsd_rate_floor", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "0" } });
+  assert.equal(chips(out)["output"], "22.579 MHz / 1bit");
+});
+
+test("test_a_reported_bit_depth_of_zero_below_the_dsd_floor_shows_no_depth", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "0" } });
+  assert.equal(chips(out)["output"], "705.6 kHz");
+});
+
+test("test_an_unreported_bit_depth_at_the_dsd_floor_infers_one_bit", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "2822400" } });
+  assert.equal(chips(out)["output"], "2.822 MHz / 1bit");
+});
+
+test("test_a_zero_output_rate_with_a_reported_bit_depth_still_reads_as_a_dash", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "0", active_bits: "24" } });
+  assert.equal(chips(out)["output"], "—");
+});
+
+test("test_a_missing_output_rate_with_a_reported_bit_depth_reads_as_a_dash", () => {
+  assert.equal(chips(panel({ ...PLAY, status: { active_bits: "24" } }))["output"], "—");
+});
+
+test("test_a_paused_engine_shows_a_dash_whatever_bit_depth_is_reported", () => {
+  const out = panel({ ...PLAY, state: 1, status: { active_rate: "705600", active_bits: "24" } });
+  assert.equal(chips(out)["output"], "—");
+});
+
+// --- PCM source -> PCM output -----------------------------------------------
+// The <pcm filter> + <pcm dither> pair, both reported live by the engine.
+
+test("test_the_active_filter_is_shown", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
+  assert.equal(chips(out)["filter"], "sinc-M");
+});
+
+test("test_an_absent_filter_reads_as_a_dash", () => {
+  assert.equal(chips(panel(PLAY))["filter"], "—");
+});
+
+// --- PCM source -> SDM output -----------------------------------------------
+// <sdm oversampling> + <sdm modulator> (manual §4.5). This is the ONE path the
+// modulator serves, so it is the one path that fills the shaper slot from it.
+
+test("test_a_pcm_source_into_a_dsd_output_shows_the_modulator_in_the_shaper_slot", () => {
+  assert.equal(chips(panel(PCM_TO_SDM))["shaper"], "ASDM7EC-super");
+});
+
+test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", () => {
+  assert.equal(chips(panel(PCM_TO_SDM))["filter"], "poly-sinc-ext2-xla");
+});
+
+// --- DSD source -> SDM output (SDM->SDM remodulation) ------------------------
+// Reconstruction filter + source bandwidth, and neither an oversampling filter nor a
+// modulator: the converter carries its own noise shaping (manual §4.5). The
+// engine keeps reporting active_filter/active_shaper here regardless, which is
+// exactly the stale modulator this path must stop showing.
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_modulator_chip", () => {
+  assert.equal(has(panel(DSD_TO_SDM), "shaper"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_shaper_value_at_all", () => {
+  assert.equal(panel(DSD_TO_SDM).includes("AMSDM7EC"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_filter_chip", () => {
+  assert.equal(has(panel(DSD_TO_SDM), "filter"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_the_integrators_engine_name", () => {
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } })).includes("FIR-bw"), true);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_the_sdm_conversions_engine_name", () => {
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } })).includes("XFi"), true);
+});
+
+test("test_the_remodulation_chain_runs_source_integrator_conversion_output", () => {
+  assert.deepEqual(stages(panel(DSD_TO_SDM)), ["source", "sdm-integrator", "sdm-conversion", "output"]);
+});
+
+test("test_a_dsd_source_is_recognized_from_the_metadata_sdm_flag_alone", () => {
+  const out = panel({ ...DSD_TO_SDM, metadata: { sdm: "1" } });
+  assert.equal(values(out).includes("IIR"), true);
+});
+
+test("test_an_unmatched_conversion_value_falls_back_to_the_raw_value", () => {
+  assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } })).includes("9"), true);
+});
+
+// --- DirectSDM ---------------------------------------------------------------
+// "Disables all processing when source is DSD content and output format is SDM
+// to a DSD-device or file" (manual §4.5) — so the bar shows a bare pass-through.
+
+test("test_direct_sdm_collapses_the_chain_to_a_bit_perfect_pass_through", () => {
+  const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true } });
+  assert.deepEqual(stages(out), ["source", "direct-sdm", "output"]);
+});
+
+test("test_direct_sdm_suppresses_the_matrix_chip", () => {
+  const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true }, matrix: { enabled: true } });
+  assert.equal(has(out, "matrix"), false);
+});
+
+test("test_direct_sdm_suppresses_dac_correction", () => {
+  const out = panel({
+    ...DSD_TO_SDM,
+    status: { ...DSD_TO_SDM.status, correction: "1" },
+    dsp: { directSdm: true },
+  });
+  assert.equal(has(out, "correction"), false);
+});
+
+test("test_direct_sdm_is_inert_while_a_pcm_source_plays", () => {
+  assert.equal(has(panel({ ...PCM_TO_SDM, dsp: { directSdm: true } }), "shaper"), true);
+});
+
+// --- DSD source -> PCM output ------------------------------------------------
+// pdm_filt + pdm_conv decode to PCM, then the ordinary <pcm filter> + dither
+// carry it to the target rate (manual §4.4).
+
+test("test_a_dsd_source_into_a_pcm_output_shows_the_noise_filter", () => {
+  assert.equal(chips(panel({ ...DSD_TO_PCM, dsp: { noiseFilter: "2" } }))["noise-filter"], "brickwall");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_shows_the_decimation_filter", () => {
+  assert.equal(chips(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }))["pcm-conversion"], "poly-short-lp");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_still_shows_the_resampling_filter", () => {
+  assert.equal(chips(panel(DSD_TO_PCM))["filter"], "sinc-M");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_fills_the_shaper_slot_from_the_active_shaper", () => {
+  assert.equal(chips(panel(DSD_TO_PCM))["shaper"], "LNS15");
+});
+
+test("test_the_dsd_to_pcm_chain_runs_decode_then_resample", () => {
+  const expected = ["source", "noise-filter", "pcm-conversion", "filter", "shaper", "output"];
+  assert.deepEqual(stages(panel(DSD_TO_PCM)), expected);
+});
+
+// --- matrix chip ------------------------------------------------------------
+
+test("test_a_disabled_matrix_shows_no_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, profile: "Blackwood" } });
+  assert.equal("matrix" in chips(out), false);
+});
+
+test("test_an_enabled_matrix_on_the_default_profile_reads_as_on", () => {
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true } }))["matrix"], "On");
+});
+
+// The Matrix stage is a stage indicator, not a profile readout: an enabled
+// matrix reads "On" whatever profile is active, on either carrier, so no name
+// reaches the chip and there is nothing for a length limit to truncate.
+
+const LONG_PROFILE = "Wintermute Reference Curve, Revision 12";
+
+test("test_an_enabled_matrix_on_a_custom_profile_reads_on_rather_than_the_profile_name", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "Blackwood" } });
+  assert.equal(chips(out)["matrix"], "On");
+});
+
+test("test_an_enabled_matrix_named_only_by_the_stored_config_reads_on", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, storedProfile: "Blackwood" } });
+  assert.equal(chips(out)["matrix"], "On");
+});
+
+test("test_a_custom_profile_name_appears_nowhere_in_the_chain_bar", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "Blackwood" } });
+  assert.equal(out.includes("Blackwood"), false);
+});
+
+test("test_a_long_profile_name_reads_on_with_no_truncation", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: LONG_PROFILE } });
+  assert.equal(chips(out)["matrix"], "On");
+});
+
+test("test_no_fragment_of_a_long_profile_name_survives_into_the_chain_bar", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: LONG_PROFILE } });
+  assert.equal(out.includes("Wintermute"), false);
+});
+
+// --- post-process slot ------------------------------------------------------
+// Crossfeed and loudness share one slot: both on collapses to a single "DSP"
+// chip rather than crowding the panel with two. The slot's labels are observed
+// under an ENGAGED matrix — <post_process> nests inside <matrix>
+// (hqplayerd-readme.txt §1.11.2), so a bypassed matrix carrying an enabled
+// post-process plugin is not a state the daemon can be in.
+
+test("test_crossfeed_alone_shows_a_crossfeed_chip", () => {
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true } }))["crossfeed"], "On");
+});
+
+test("test_loudness_alone_shows_a_loudness_chip", () => {
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, loudness: true } }))["loudness"], "On");
+});
+
+test("test_crossfeed_and_loudness_together_collapse_to_one_dsp_chip", () => {
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } }))["dsp"], "On");
+});
+
+test("test_the_collapsed_slot_replaces_the_individual_crossfeed_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } });
+  assert.equal(has(out, "crossfeed"), false);
+});
+
+test("test_neither_post_process_shows_no_dsp_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "dsp"), false);
+});
+
+test("test_neither_post_process_shows_no_crossfeed_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "crossfeed"), false);
+});
+
+test("test_neither_post_process_shows_no_loudness_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "loudness"), false);
+});
+
+// --- DAC correction ---------------------------------------------------------
+
+test("test_active_dac_correction_shows_a_chip", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", correction: "1" } });
+  assert.equal(chips(out)["correction"], "On");
+});
+
+test("test_inactive_dac_correction_shows_no_chip", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", correction: "0" } });
+  assert.equal("correction" in chips(out), false);
+});
+
+// --- chain assembly ---------------------------------------------------------
+
+test("test_the_bare_chain_is_source_filter_shaper_output", () => {
+  assert.deepEqual(stages(panel(PLAY)), ["source", "filter", "shaper", "output"]);
+});
+
+test("test_the_full_chain_runs_in_processing_order", () => {
+  // matrix and crossfeed are input-side; correction is output-rate and follows
+  // the shaper — the ordering docs/architecture.md §3 originally got wrong
+  const out = panel({
+    ...PLAY,
+    status: { active_rate: "705600", correction: "1" },
+    matrix: { enabled: true, crossfeed: true },
+  });
+  assert.deepEqual(stages(out), ["source", "matrix", "crossfeed", "filter", "shaper", "correction", "output"]);
+});
+
+test("test_the_chain_carries_one_connector_between_each_pair_of_chips", () => {
+  const out = panel(PLAY);
+  const links = [...out.matchAll(/<span class="link">/g)].length;
+  assert.equal(links, stages(out).length - 1);
+});
+
+// --- placeholder chips ------------------------------------------------------
+// A chip standing in for a figure the engine is not reporting reads "—", and
+// says so in its class as well as its text, so the placeholder can be drawn in
+// the readout face rather than as ordinary chip text. The mark follows the
+// VALUE, not the transport: a stopped engine dashes every chip, but a chip can
+// read "—" mid-playback too (an engine reporting no filter) and is marked the
+// same.
+
+test("test_a_stopped_sources_placeholder_chip_is_marked_as_a_dash", () => {
+  assert.ok(chipClass(panel(), "source").split(" ").includes("chip-dash"));
+});
+
+test("test_a_placeholder_chip_is_marked_as_a_dash_while_playing_too", () => {
+  // PLAY reports no active_filter, so the Filter chip reads "—" mid-playback
+  assert.ok(chipClass(panel(PLAY), "filter").split(" ").includes("chip-dash"));
+});
+
+test("test_a_chip_carrying_a_real_value_is_not_marked_as_a_dash", () => {
+  assert.equal(chipClass(panel(PLAY), "source"), "chip");
+});
+
+test("test_the_stopped_output_chip_is_both_the_hero_and_a_dash", () => {
+  const cls = chipClass(panel(), "output").split(" ");
+  assert.deepEqual({ hero: cls.includes("chip-hero"), dash: cls.includes("chip-dash") }, { hero: true, dash: true });
+});
+
+test("test_a_chip_that_is_neither_hero_nor_placeholder_carries_no_empty_class_slots", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
+  assert.equal(chipClass(out, "filter"), "chip");
+});
+
+// --- post-process runs only inside an engaged matrix -------------------------
+// <post_process> nests inside <matrix> (hqplayerd-readme.txt §1.11 / §1.11.2)
+// and the matrix `enabled` switch is the whole matrix processing switch, so a
+// bypassed matrix runs no post-process plugin whatever the plugin enables say.
+// The bar must not advertise a stage the daemon is not running.
+
+test("test_a_bypassed_matrix_shows_no_loudness_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, loudness: true } });
+  assert.equal(has(out, "loudness"), false);
+});
+
+test("test_a_bypassed_matrix_shows_no_crossfeed_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true } });
+  assert.equal(has(out, "crossfeed"), false);
+});
+
+test("test_a_bypassed_matrix_shows_no_dsp_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true, loudness: true } });
+  assert.equal(has(out, "dsp"), false);
+});
+
+// The gate must remove one chip, not empty the bar or drop the chain into the
+// bit-perfect pass-through: the rest of the conversion chain still renders.
+test("test_a_bypassed_matrix_with_loudness_still_shows_the_rest_of_the_chain", () => {
+  const out = panel({
+    ...PLAY,
+    status: { active_rate: "705600", active_filter: "sinc-M" },
+    matrix: { loudness: true },
+  });
+  assert.equal(chips(out)["filter"], "sinc-M");
+});
+
+// --- loudness is volume-adaptive ---------------------------------------------
+// Loudness compensation scales with how far the volume sits below reference
+// (manual §7): with the volume pinned, 0% of the loudness curve is applied, so
+// an engaged-but-pinned loudness stage is inaudible and the bar must not
+// advertise it. The volume is pinned by ANY of: `fixed_volume_enabled` on; Auto
+// headroom / Optimal ISO — the `volume_fixed` field, "0"/"1"/"2" in the config
+// XML (hqplayerd-readme.txt §1.9) when file truth rides `config.value.file`,
+// but a lossy bool on the /config form, and BOTH encodings gate; or a
+// volume_min/volume_max range collapsed to 0/0. Crossfeed is NOT
+// volume-adaptive, so its chip is untouched — and the combined "DSP" chip
+// exists only when both individual chips would show, so crossfeed plus a
+// pinned-volume loudness reads "Crossfeed", never "DSP".
+
+const LOUD = { ...PLAY, matrix: { enabled: true, loudness: true } };
+
+test("test_loudness_with_an_adjustable_volume_shows_the_loudness_chip", () => {
+  const out = panel({
+    ...LOUD,
+    volume: { fixedVolume: false, volumeFixed: false, min: "-60", max: "0" },
+    file: { volume_fixed: "0" },
+  });
+  assert.equal(chips(out)["loudness"], "On");
+});
+
+test("test_fixed_volume_enabled_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, volume: { fixedVolume: true } }), "loudness"), false);
+});
+
+test("test_file_truth_auto_headroom_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "1" } }), "loudness"), false);
+});
+
+test("test_file_truth_optimal_iso_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "2" } }), "loudness"), false);
+});
+
+test("test_the_form_volume_fixed_bool_true_suppresses_the_loudness_chip", () => {
+  // no `file` carrier: the lossy /config form checkbox is all there is to read
+  assert.equal(has(panel({ ...LOUD, volume: { volumeFixed: true } }), "loudness"), false);
+});
+
+test("test_the_form_volume_fixed_bool_false_leaves_the_loudness_chip", () => {
+  assert.equal(chips(panel({ ...LOUD, volume: { volumeFixed: false } }))["loudness"], "On");
+});
+
+test("test_a_zero_zero_volume_range_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, volume: { min: "0", max: "0" } }), "loudness"), false);
+});
+
+test("test_crossfeed_survives_a_pinned_volume", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true }, volume: { fixedVolume: true } });
+  assert.equal(chips(out)["crossfeed"], "On");
+});
+
+test("test_both_post_processes_with_a_pinned_volume_read_crossfeed", () => {
+  const out = panel({
+    ...PLAY,
+    matrix: { enabled: true, crossfeed: true, loudness: true },
+    volume: { fixedVolume: true },
+  });
+  assert.equal(chips(out)["crossfeed"], "On");
+});
+
+test("test_both_post_processes_with_a_pinned_volume_show_no_dsp_chip", () => {
+  const out = panel({
+    ...PLAY,
+    matrix: { enabled: true, crossfeed: true, loudness: true },
+    volume: { fixedVolume: true },
+  });
+  assert.equal(has(out, "dsp"), false);
+});

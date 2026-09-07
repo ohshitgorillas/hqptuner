@@ -1,0 +1,339 @@
+// Behavioral suite for the modulator dropdown's two new row markings: the
+// favorite heart every option row carries, and the RATE TIER badge a modulator
+// with a minimum-rate floor wears.
+//
+// The floor is the shaper overlay's `min_rate_hz`, joined to the engine's own
+// modulator name (docs/architecture.md §2) and reaching the client through
+// /api/metadata under `shapers.sdm_modulators` — the same record that already
+// grays a row below its floor. The badge names the DSD tier that floor admits:
+// 10240000 -> 256+, 20480000 and 22579200 -> 512+, 40960000 -> 1024+. A
+// modulator whose record carries no floor wears none, and a filter dropdown
+// never wears one at all — the filter fixture below is handed a `min_rate_hz`
+// in its own overlay record for exactly that reason, so the absence is the
+// dropdown-type rule at work rather than a fixture with nothing to badge.
+//
+// Every case renders at 49152000 bits/s, above every floor in the fixture, so
+// no row is rate-grayed and the markings are read off ordinary rows.
+//
+// A badge is found by the `dd-tier` class it wears and the heart by `dd-fav`,
+// the markings the combobox suites already pin (tests/js/components/
+// combobox-fav.test.js, which the click helpers here are lifted from); rows are
+// addressed by the `data-v` wire value they carry, never by the words in them
+// (docs/testing.md rule 9). The heart is clicked through the onClick its vnode
+// carries, collected via preact's own `options.vnode` creation hook: the
+// renderer's public seam, nothing of HQPTuner's stubbed.
+//
+// Behavior 26 is Standard option style, where no plain-names overlay text
+// applies: the ` 512+fs` rate suffix an engine name carries is dropped from the
+// ROW, while the closed control still reads the full raw name the config holds.
+// The row's name is read with its own markings (heart, tier badge) excised, so
+// the badge reading "512+" cannot be mistaken for the trimmed suffix.
+//
+// NOT covered here (SSR reaches the closed state only, and the open flag is a
+// module private written by pointer handlers): that a heart click leaves the
+// pop OPEN. Same gap combobox-fav.test.js documents; it belongs to the browser
+// hand-back protocol.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/combobox-tier.test.js
+
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { reset, field, META } from "../../support/field-harness.js";
+import { renderField } from "../../support/vnodeseam.js";
+import { elements, classes, attr, text } from "../../support/markup.js";
+import {
+  encloses,
+  rows,
+  rowIncluding,
+  boxText,
+  classTokens,
+  vnodeRows,
+  clickablesIn,
+  click,
+} from "../../support/comborows.js";
+import { staticWire, stagingWire, quiesce } from "../../support/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+import {
+  favoriteFilters,
+  favoriteModulators,
+  favoritesError,
+  isFavoriteModulator,
+  nFavOnly,
+} from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
+import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../../support/wheel.js").VNode} VNode */
+/** @typedef {import("../../support/field-harness.js").ConfigField} ConfigField */
+
+// --- the fixtures -------------------------------------------------------------
+// One modulator per real floor the shipped overlay carries, plus a floorless
+// one. Names are raw engine names; three of them carry the engine's own rate
+// suffix, which Standard style trims off the row.
+
+/** @type {[name: string, floor: number | null][]} */
+const MODULATORS = [
+  ["DSD7 256+fs", 10240000],
+  ["AMSDM7 512+fs", 20480000],
+  ["ASDM7EC-super 512+fs", 22579200],
+  ["AHM5EC5L", 40960000],
+  ["ASDM7", null],
+];
+
+const BITRATE = "49152000";
+
+/** @type {ConfigField[]} */
+const MODULATOR_FIELDS = [
+  { name: "defaults_bitrate", value: BITRATE },
+  {
+    name: "modulator",
+    value: "0",
+    options: MODULATORS.map(([label], i) => ({ value: String(i), label })),
+  },
+];
+
+const META_TIERS = {
+  ...META,
+  shapers: {
+    ...META.shapers,
+    sdm_modulators: Object.fromEntries(
+      MODULATORS.map(([name, floor]) => [
+        name,
+        floor === null ? { description: "A modulator." } : { min_rate_hz: floor },
+      ]),
+    ),
+  },
+  // A filter overlay record carrying a floor of its own: a component reading
+  // `min_rate_hz` off any overlay rather than off the modulator dropdown's
+  // would badge this row, so the filter cases below fail loudly instead of
+  // passing on a fixture with nothing to badge.
+  filters: {
+    ...META.filters,
+    filters: {
+      ...META.filters.filters,
+      "sinc-M": { description: "A very long sinc.", min_rate_hz: 22579200 },
+      "poly-sinc-xtr-mp": { description: "Extra transient.", min_rate_hz: 40960000 },
+    },
+  },
+};
+
+/** @type {ConfigField[]} */
+// The third option is a FLOORED MODULATOR'S NAME offered as a filter. It is not
+// a filter anyone ships; it is the fixture that makes the filter cases bite. A
+// badge helper that looks every row's label up in `shapers.sdm_modulators` with
+// no gate on which dropdown it is decorating finds 10240000 here and badges the
+// row, and the two filter overlay floors below catch the other wrong lookup.
+const FILTER_FIELDS = [
+  {
+    name: "filter1x",
+    value: "0",
+    options: [
+      { value: "0", label: "sinc-M" },
+      { value: "1", label: "poly-sinc-xtr-mp" },
+      { value: "2", label: "DSD7 256+fs" },
+    ],
+  },
+];
+
+// The favorites set is server-backed, so the harness's own wire has to keep
+// answering /api/favorites: an unanswered PUT from a heart click would leave a
+// promise nothing settles. Both sets and the error line are emptied by
+// assigning the exported signals, the way every source signal is driven.
+/** @param {ConfigField[]} fields */
+async function start(fields) {
+  await reset({ fields, meta: META_TIERS });
+  plainNames.value = false;
+  favoriteFilters.value = new Set();
+  favoriteModulators.value = new Set();
+  favoritesError.value = "";
+  staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
+}
+
+async function modulatorField() {
+  await start(MODULATOR_FIELDS);
+  return field("sdm_modulator");
+}
+
+// The 1x stage narrows to apodizing and a 3/5 quality floor by default, and
+// neither spares the fixture's rows; these cases are about the markings.
+async function filterField() {
+  await start(FILTER_FIELDS);
+  nApod1x.value = "all";
+  nQuality.value = 0;
+  return field("pcm_filter_1x");
+}
+
+// --- markup readers ------------------------------------------------------------
+
+// The class the rate-tier badge wears. Class tokens are contract; the reading
+// inside the badge is the DSD tier the floor admits, which is the number this
+// suite is about (docs/testing.md rule 9).
+const TIER_CLASS = "dd-tier";
+
+/**
+ * The distinct tier readings rendered inside a region. Distinct rather than
+ * raw, so a badge that wraps its own text in a span is one badge rather than
+ * two.
+ *
+ * @param {string} out
+ * @param {MarkupElement} box
+ * @returns {string[]}
+ */
+const tiersIn = (out, box) => [
+  ...new Set(
+    elements(out)
+      .filter((el) => encloses(box, el) && classes(el).includes(TIER_CLASS))
+      .map(text),
+  ),
+];
+
+/**
+ * @param {string} out
+ * @param {MarkupElement} row
+ * @returns {MarkupElement[]}
+ */
+const heartsIn = (out, row) => elements(out).filter((el) => classes(el).includes("dd-fav") && encloses(row, el));
+
+/**
+ * A row's NAME: its text with its own markings — the favorite heart and the
+ * tier badge — excised whole, so neither can be read as part of the name.
+ *
+ * @param {string} out
+ * @param {MarkupElement} row
+ * @returns {string}
+ */
+function nameOf(out, row) {
+  const markings = elements(out).filter(
+    (el) => encloses(row, el) && (classes(el).includes("dd-fav") || classes(el).includes(TIER_CLASS)),
+  );
+  const bare = markings.reduce((markup, el) => markup.replace(el.html, " "), row.html);
+  return text({ ...row, html: bare });
+}
+
+// --- vnode readers, for the one affordance SSR cannot click ---------------------
+
+/** @param {VNode} vnode */
+const favMarked = (vnode) => classTokens(vnode).includes("dd-fav");
+
+/**
+ * The heart of the row offering wire value `value`; anything but exactly one
+ * match throws rather than clicking something else.
+ *
+ * @param {VNode[]} seen
+ * @param {string} value
+ * @returns {VNode}
+ */
+function heart(seen, value) {
+  const row = vnodeRows(seen).find((r) => r.props["data-v"] === value);
+  if (!row) throw new Error(`no dd-opt row carries data-v="${value}"`);
+  const hearts = clickablesIn(row.props.children).filter(favMarked);
+  if (hearts.length !== 1) throw new Error(`expected one heart on ${value}, found ${hearts.length}`);
+  return hearts[0];
+}
+
+// --- the favorite heart on a modulator row --------------------------------------
+
+test("test_each_modulator_row_carries_one_favorite_heart", async () => {
+  const out = await modulatorField();
+  assert.deepEqual(
+    rows(out).map((r) => heartsIn(out, r).length),
+    MODULATORS.map(() => 1),
+  );
+});
+
+test("test_clicking_a_modulator_rows_heart_marks_that_modulator_favorite", async () => {
+  await start(MODULATOR_FIELDS);
+  click(heart(renderField("sdm_modulator").seen, "2"));
+  assert.equal(isFavoriteModulator("ASDM7EC-super 512+fs"), true);
+});
+
+test("test_clicking_one_modulator_heart_leaves_the_other_modulators_unstarred", async () => {
+  await start(MODULATOR_FIELDS);
+  click(heart(renderField("sdm_modulator").seen, "2"));
+  assert.equal(isFavoriteModulator("ASDM7"), false);
+});
+
+// A row's own click commits the option; the heart's must not — no stage request
+// may reach the wire. The heart's OWN request (PUT /api/favorites) is routed and
+// answered, so `quiesce` sees a wire that went quiet rather than one still
+// waiting.
+test("test_clicking_a_modulator_rows_heart_commits_no_value", async () => {
+  await start(MODULATOR_FIELDS);
+  const w = stagingWire({ routes: favoritesRoutes(favoritesState()) });
+  click(heart(renderField("sdm_modulator").seen, "2"));
+  await quiesce(w);
+  assert.equal(w.stages.length, 0);
+});
+
+// --- the rate tier badge -----------------------------------------------------------
+// One case per floor the shipped overlay carries. Rows are located by the part
+// of the name before the rate suffix, which Standard style keeps.
+
+// Rows are located by the `data-v` each carries: the fixture offers its
+// modulators under their index in MODULATORS.
+/** @type {[value: string, floor: number, tier: string][]} */
+const TIERS = [
+  ["0", 10240000, "256+"],
+  ["1", 20480000, "512+"],
+  ["2", 22579200, "512+"],
+  ["3", 40960000, "1024+"],
+];
+
+const FLOORLESS_VALUE = "4";
+
+for (const [value, floor, tier] of TIERS) {
+  test(`test_a_modulator_floored_at_${floor}_wears_the_${tier.replace("+", "plus")}_tier_badge`, async () => {
+    const out = await modulatorField();
+    assert.deepEqual(tiersIn(out, rowIncluding(out, value)), [tier]);
+  });
+}
+
+test("test_a_modulator_with_no_minimum_rate_wears_no_tier_badge", async () => {
+  const out = await modulatorField();
+  assert.deepEqual(tiersIn(out, rowIncluding(out, FLOORLESS_VALUE)), []);
+});
+
+test("test_no_filter_row_wears_a_tier_badge", async () => {
+  const out = await filterField();
+  assert.deepEqual(
+    rows(out).map((r) => tiersIn(out, r).length),
+    [0, 0, 0],
+  );
+});
+
+// --- favorites-only narrowing reaches the modulator dropdown -----------------------
+// The store-side rule is pinned in tests/js/store/modulator-favorites.test.js;
+// this is the case that fails when the dropdown never asks. A component that
+// renders its option list untouched offers all five rows here.
+
+test("test_favorites_only_leaves_the_modulator_dropdown_offering_the_starred_rows", async () => {
+  await start(MODULATOR_FIELDS);
+  favoriteModulators.value = new Set(["ASDM7"]);
+  nFavOnly.value = true;
+  const out = field("sdm_modulator");
+  assert.deepEqual(
+    rows(out).map((r) => attr(r, "data-v")),
+    [FLOORLESS_VALUE],
+  );
+});
+
+// --- Standard style trims the engine's rate suffix off the ROW ---------------------
+
+test("test_standard_style_drops_the_rate_suffix_from_a_modulator_rows_name", async () => {
+  const out = await modulatorField();
+  assert.equal(nameOf(out, rowIncluding(out, "2")), "ASDM7EC-super");
+});
+
+test("test_standard_style_keeps_the_full_raw_name_on_the_closed_control", async () => {
+  await start([
+    { name: "defaults_bitrate", value: BITRATE },
+    {
+      name: "modulator",
+      value: "2",
+      options: MODULATORS.map(([label], i) => ({ value: String(i), label })),
+    },
+  ]);
+  assert.equal(boxText(field("sdm_modulator")), "ASDM7EC-super 512+fs");
+});

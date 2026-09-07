@@ -1,0 +1,273 @@
+// Behavioral suite for components/Header.js — the chrome header.
+// Written BEFORE the complexity refactor of Header (20).
+//
+// The header is a pure function of exported store signals (health, config,
+// pendingPreset), so every branch it takes on its own data is reachable from
+// outside. `head()` reassigns them ALL on every call: module signals outlive a
+// test, and a partial reset passes alone and fails in sequence. engineState is
+// reset alongside them so a case can prove the header ignores it.
+//
+// NOT reachable, deliberately untested: the module-private `pickStatus` signal
+// ("Loading…" / "Deleting…" / "Failed: …"). It is written only by the select's
+// onChange and the Delete button's onClick, and render-to-string fires no
+// events, so its two consumers — the select's disabled attribute and the
+// `.preset-status.muted` line — cannot be driven from the public surface.
+// Exporting the signal to reach them would be testing the implementation.
+//
+// Same limit, same treatment for the delete confirmation (store/ask.js, inline
+// instead of a native confirm()): the chain Delete-click → confirm →
+// deletePreset, and the wire silence that must follow a cancel, needs real event
+// dispatch and belongs to the playwright hand-back protocol. What is asserted
+// here is only that a question the test itself supplied is on screen, and that
+// it leaves the screen when answered or withdrawn — never the wording of the
+// product's own question, the resolved value, or the markup's class names.
+//
+// Assertions read the rendered markup as a user sees it. Note that
+// preact-render-to-string does NOT emit `value` on a <select>: it marks the
+// matching <option selected> instead, so the picker's current value is asserted
+// through `selected()`.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Header } from "../../../../hqptuner/static/components/Header.js";
+import { askConfirm, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { health, engineState, config, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
+
+// The contract is the text a user reads — `Delete preset "Night"` — not its
+// HTML encoding.
+/** @param {string} out */
+const decode = (out) => out.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+// As the backend serves it (lanes/presetlane.py): the empty option carries the
+// name "" and the label "(no preset)", then every stored preset.
+const PROFILES = {
+  value: "",
+  options: [
+    { value: "", label: "(no preset)" },
+    { value: "Day", label: "Day" },
+    { value: "Night", label: "Night" },
+  ],
+};
+
+// Full reset every time. `"key" in o` rather than a default so a case can pass
+// an explicitly absent snapshot (health: null) and still hit the fallbacks.
+/**
+ * @typedef {{ value: string, options: { value: string, label: string }[] }} ProfilesField
+ *
+ * @typedef {{
+ *   health?: { reachable: boolean, ready?: boolean, info?: Record<string, string> } | null,
+ *   engine?: Record<string, string>,
+ *   config?: { fields: unknown[], active: string, profiles: ProfilesField | null } | null,
+ *   active?: string,
+ *   profiles?: ProfilesField,
+ *   pending?: string | null,
+ * }} HeadFixture
+ */
+
+/** @param {HeadFixture} [o] */
+function head(o = {}) {
+  cancel();
+  health.value = "health" in o ? o.health : { reachable: true, ready: true, info: {} };
+  engineState.value = "engine" in o ? o.engine : {};
+  config.value = "config" in o ? o.config : { fields: [], active: o.active || "", profiles: o.profiles || null };
+  // `in`, not `||`: the "(no preset)" option's name is the empty string — a real
+  // previewed target — and `||` would flatten it back into "nothing previewed".
+  pendingPreset.value = "pending" in o ? o.pending : null;
+  return decode(render(html`<${Header} />`));
+}
+
+// Re-render without resetting, for the cases that ask a question first.
+const again = () => decode(render(html`<${Header} />`));
+
+// The identity spans, in render order.
+const NAME = 0;
+
+/** @param {string} out */
+const daemon = (out) => out.split('<div class="daemon">')[1].split("</div>")[0];
+/** @param {string} out */
+const idents = (out) => [...daemon(out).matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
+
+// An empty value renders as the bare attribute `<option value>`, and `selected`
+// is emitted ahead of it, so the attributes are parsed rather than positional.
+// Only the wire-level value is read: an option's label is owner copy.
+/** @param {string} out */
+const options = (out) =>
+  [...out.matchAll(/<option([^>]*)>([^<]*)<\/option>/g)].map((m) => {
+    const named = / value="([^"]*)"/.exec(m[1]);
+    return { value: named ? named[1] : "", selected: m[1].includes("selected") };
+  });
+
+/** @param {string} out */
+const selected = (out) => (options(out).find((o) => o.selected) || { value: undefined }).value;
+
+// The delete button, found by its own class. Which preset it targets is DATA —
+// the name the picker is sitting on — so the name is read out of the button
+// while the sentence carrying it is not asserted.
+/** @param {string} out */
+const delButton = (out) => {
+  const i = out.indexOf('class="preset-del"');
+  return i < 0 ? "" : out.slice(i, out.indexOf("</button>", i));
+};
+
+// The pending-apply marker, read as a class rather than as its wording.
+/** @param {string} out */
+const pendingMarked = (out) =>
+  [...out.matchAll(/class="([^"]*)"/g)].some((m) => m[1].split(/\s+/).includes("pending-apply"));
+
+// --- daemon identity --------------------------------------------------------
+
+test("test_a_missing_health_snapshot_falls_back_to_the_default_daemon_name", () => {
+  assert.equal(idents(head({ health: null }))[NAME], "hqplayerd");
+});
+
+test("test_a_health_snapshot_carrying_no_info_falls_back_to_the_default_daemon_name", () => {
+  assert.equal(idents(head({ health: { reachable: true } }))[NAME], "hqplayerd");
+});
+
+test("test_the_reported_daemon_name_is_shown", () => {
+  const out = head({ health: { reachable: true, info: { name: "hqplayerd6" } } });
+  assert.equal(idents(out)[NAME], "hqplayerd6");
+});
+
+// --- play state -------------------------------------------------------------
+
+// The header prints neither the transport state nor the daemon's release: the
+// signal path's chips carry the first, and the System tab's About card states
+// the second. So the identity line is the name and nothing else, and an engine
+// in any state adds no second span to it.
+test("test_a_playing_engine_adds_no_state_label_to_the_identity", () => {
+  assert.equal(idents(head({ engine: { state: "2" } })).length, 1);
+});
+
+test("test_a_stopped_engine_adds_no_state_label_to_the_identity", () => {
+  assert.equal(idents(head({ engine: { state: "0" } })).length, 1);
+});
+
+// --- the preset picker ------------------------------------------------------
+
+test("test_a_header_with_no_config_yet_shows_no_preset_picker", () => {
+  assert.equal(head({ config: null }).includes("<select"), false);
+});
+
+test("test_a_config_carrying_no_profiles_shows_no_preset_picker", () => {
+  assert.equal(head().includes("<select"), false);
+});
+
+test("test_every_stored_profile_gets_an_option", () => {
+  assert.equal(options(head({ profiles: PROFILES })).length, 3);
+});
+
+// The empty preset is a real, selectable target, not a placeholder: what a
+// caller can pin is its wire value, the empty string. Its label is owner copy.
+test("test_the_empty_preset_is_offered_as_an_option_carrying_the_empty_value", () => {
+  assert.equal(options(head({ profiles: PROFILES }))[0].value, "");
+});
+
+test("test_the_active_preset_is_the_selected_option", () => {
+  assert.equal(selected(head({ profiles: PROFILES, active: "Night" })), "Night");
+});
+
+test("test_the_form_default_is_selected_when_the_config_names_no_active_preset", () => {
+  const profiles = { ...PROFILES, value: "Day" };
+  assert.equal(selected(head({ profiles })), "Day");
+});
+
+test("test_a_previewed_preset_is_selected_over_the_active_one", () => {
+  assert.equal(selected(head({ profiles: PROFILES, active: "Night", pending: "Day" })), "Day");
+});
+
+// Previewing "(no preset)" is a preview like any other; its name just happens to
+// be the empty string. Falling through to the active preset here snapped the
+// picker straight back to the preset the user had just left.
+test("test_previewing_the_no_preset_option_keeps_the_picker_on_it", () => {
+  assert.equal(selected(head({ profiles: PROFILES, active: "Night", pending: "" })), "");
+});
+
+// --- delete -----------------------------------------------------------------
+
+test("test_an_active_preset_offers_a_delete_button", () => {
+  assert.ok(head({ profiles: PROFILES, active: "Night" }).includes('class="preset-del"'));
+});
+
+test("test_the_delete_button_targets_the_active_preset", () => {
+  assert.ok(delButton(head({ profiles: PROFILES, active: "Night" })).includes("Night"));
+});
+
+test("test_the_delete_button_targets_the_previewed_preset_over_the_active_one", () => {
+  assert.ok(delButton(head({ profiles: PROFILES, active: "Night", pending: "Day" })).includes("Day"));
+});
+
+test("test_the_default_preset_offers_no_delete_button", () => {
+  assert.equal(head({ profiles: PROFILES }).includes('class="preset-del"'), false);
+});
+
+// --- confirming the delete, in the header instead of a native dialog --------
+
+// The question the header carries is whatever the caller asked, so the tests
+// supply their own sentinel rather than pinning the product's wording: the
+// behavior is that a pending confirmation is on screen and that answering or
+// withdrawing takes it off again.
+const QUESTION = "sentinel-question-abc";
+
+test("test_the_header_shows_the_confirmation_it_is_asking_for", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", QUESTION);
+  assert.ok(again().includes(QUESTION));
+});
+
+test("test_confirming_dismisses_the_delete_question", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", QUESTION);
+  answer();
+  assert.equal(again().includes(QUESTION), false);
+});
+
+test("test_withdrawing_dismisses_the_delete_question", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", QUESTION);
+  cancel();
+  assert.equal(again().includes(QUESTION), false);
+});
+
+// --- pending apply ----------------------------------------------------------
+
+test("test_a_previewed_preset_is_marked_pending_apply", () => {
+  assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), true);
+});
+
+test("test_a_previewed_no_preset_option_is_marked_pending_apply", () => {
+  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), true);
+});
+
+test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {
+  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night" })), false);
+});
+
+// --- status pill ------------------------------------------------------------
+
+test("test_the_header_carries_the_connection_pill", () => {
+  assert.ok(head().includes('class="pill pill-'));
+});
+
+// The pill's state, read as its own class — `pill-green` / `pill-red` are wire
+// identifiers, the word inside the span is copy.
+/** @param {string} out */
+const pillState = (out) => (/class="pill (pill-[a-z]+)"/.exec(out) || ["", ""])[1];
+
+// A daemon that answers the control lane is not a daemon the app has finished
+// loading from: `reachable` is true across a restart the configuration lane has
+// not come back from, and `ready` is the flag that is not.
+/** @type {[boolean, string][]} */
+const PILL_STATES = [
+  [false, "pill-red"],
+  [true, "pill-green"],
+];
+
+for (const [ready, state] of PILL_STATES) {
+  test(`test_a_reachable_daemon_with_ready_${ready}_wears_the_${state}_pill`, () => {
+    assert.equal(pillState(head({ health: { reachable: true, ready, info: {} } })), state);
+  });
+}

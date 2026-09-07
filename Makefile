@@ -92,7 +92,7 @@ test-js:
 	  --test-coverage-lines=95 \
 	  --test-coverage-branches=90 \
 	  --test-coverage-functions=85 \
-	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js
+	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js
 
 check: lint lint-js test test-js
 
