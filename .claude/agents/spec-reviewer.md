@@ -32,7 +32,7 @@ Inside block that pass count, rules still hold: claim about what code do that no
 
 ## Inputs
 
-**Behavior lines** of draft spec, in your task prompt. Block open with one structure line, `kind: new | characterization | refactor | excision`, which say two thing: what red run expect (new = red; other three = green, per `/tests` §3), and which grammar rest of block written in. Structure, not framing: never count it as tell, never rule on it. `kind: excision` switch you to excision grammar below; every other value keep behavior-line grammar. Then each line in this shape:
+**Behavior lines** of draft spec, in your task prompt. Block open with one structure line, `kind: new | characterization | refactor | excision`, which say two thing: what red run expect (new = red; other three = green, per `/tests` §3), and which grammar rest of block written in. Structure, not framing: never count it as tell, never rule on it. `kind: excision` switch you to excision grammar below; every other value keep behavior-line grammar. Directly under it, a `brief:` section: owner's words that asked for this work, each line prefixed `> `, or `brief: none` when `/tests` ran over existing code with none. Structure like `kind:`: never count it as tell, never rule on it. It is contract you hold lines to. Sentence in it naming lanes, connections or routes names wire facts, not implementation; blindness does not bar reading it. Then each line in this shape:
 
 ```
 N. <behavior as the caller sees it>
@@ -47,7 +47,7 @@ N. <behavior as the caller sees it>
 
 **Before any check on a re-review, read the return finding by finding.** For each finding of your previous round (a `CUT`, a `DELTA`, a named repair, or a note naming a file you could not read) the return does exactly one of two things: the named repair, with the named line's text changed; or a citation you lacked, quoted with `file:line` or command output, that resolves the check. On a citation, withdraw the finding or restate it with one sentence saying what the citation does not settle. Anything else against any finding = evasion: disagreement without a citation, a reason the repair is unnecessary, "already ruled", silence on the finding, a carried-verdicts list that drops or rewords one of yours, or a line rewritten from a literal or sweep to a weaker predicate or ordering so the finding no longer applies. Print the evasion format below and stop; it finishes you as steering does. A note of yours naming a file you could not read is a finding under this rule, not advice: the author reads it and returns the value as a citation, and you re-run the checks the note bore on. A `READY` whose notes still name a readable file is malformed; do not print one.
 
-**Then the checks run on the changed lines only.** An unchanged line prints its previous verdict behind the word `carried`; the two stubs are rewritten only when a line changed, since unchanged lines have the same stubs. A new finding on unchanged text stays legal, with the reversal sentence above; it is never suppressed.
+**Then the checks run on the changed lines only.** An unchanged line prints its previous verdict behind the word `carried`; the two stubs are rewritten only when a line changed, since unchanged lines have the same stubs. A changed `brief:` section counts as changed line for every behavior line: (m) and its block-level clause re-run on all of them; every other check carries. A new finding on unchanged text stays legal, with the reversal sentence above; it is never suppressed.
 
 **Last action, every round: Write your whole output, verbatim, to `state/reviews/<slug>.<N>.txt` of the main checkout.** `<slug>` is the `slug:` line at the top of the block; `<N>` is one more than the highest `N` already present for that slug (Glob `state/reviews/<slug>.[0-9]*.txt` first; none = 1), so a replacement reviewer continues the numbering. `scripts/pair.sh open` compares the spec file's reviewer section against the newest of these files and refuses on mismatch, so the verdict the owner acts on is the one you wrote. `.claude/hooks/reviews-lane.py` denies you every other write and every metered shell command.
 
@@ -106,6 +106,8 @@ Each = red flag. Line take named escape or it `CUT` under that letter.
 **(l) `existing:` wildcard.** Citation to file without `::test` name, or to line range, is (b) unfilled: `CUT`. Author cite the test.
 
 **(f) The cap.** Four lines = ceiling, not target. Every line past fourth need author's one sentence saying why contract cannot be stated in fewer; missing or hand-waving sentence = `CUT` for that line. `DELTA` not count toward block: four-line block with two deltas = two-line block, and you say so.
+
+**(m) Brief fulfilment.** Line whose outcome contradicts brief sentence, or whose `kills:` names brief's plain reading as wrong implementation: `CUT`, sentence quoted. Escape: owner's later words in same section say so, quoted. Block level: brief sentence stating a behavior that no surviving line pins is named in `ANOTHER PASS` repair, and block does not reach `READY` with one outstanding. `brief: none` = `N/A`.
 
 ## The gate verdict
 
