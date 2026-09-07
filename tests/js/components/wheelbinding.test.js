@@ -399,7 +399,7 @@ const PROFILES = {
 function header() {
   cancel();
   const w = stagingWire();
-  health.value = { reachable: true, info: {} };
+  health.value = { reachable: true, ready: true, info: {} };
   engineState.value = {};
   config.value = { fields: [], active: "Day", profiles: PROFILES };
   pendingPreset.value = null;

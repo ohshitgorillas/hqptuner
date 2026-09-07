@@ -70,7 +70,7 @@ const PROFILES = {
 /** @param {HeadFixture} [o] */
 function head(o = {}) {
   cancel();
-  health.value = "health" in o ? o.health : { reachable: true, info: {} };
+  health.value = "health" in o ? o.health : { reachable: true, ready: true, info: {} };
   engineState.value = "engine" in o ? o.engine : {};
   config.value = "config" in o ? o.config : { fields: [], active: o.active || "", profiles: o.profiles || null };
   // `in`, not `||`: the "(no preset)" option's name is the empty string — a real

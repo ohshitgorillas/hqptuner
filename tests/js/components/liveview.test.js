@@ -108,7 +108,7 @@ const STATE = (chain, mode = "1") => ({
 // whatever the faked /api/config/pending answers, via discardAll().
 async function reset({ chain = "pcm", staged = { live: {}, http: {} }, mtx = {} } = {}) {
   staticWire(staged);
-  health.value = { reachable: true, info: {} };
+  health.value = { reachable: true, ready: true, info: {} };
   engineState.value = STATE(chain);
   engineStatus.value = null;
   enums.value = ENUMS;
