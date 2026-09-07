@@ -1,7 +1,7 @@
 slug: bothlanes-7d3c
 kind: new
-discriminates: differential on /api/health `ready` (same surface, two observations: during the
-restart-wait vs at return / with vs without a write in flight); line 3 is a second differential on
+discriminates: differential on /api/health `ready` (same surface, two observations: at the first poll after
+the reconnect vs at return / with vs without a write in flight); line 3 is a second differential on
 AlertStrip's rendered kind set.
 
 behaviors
@@ -20,72 +20,91 @@ behaviors
      `await asyncio.sleep(0)` for the whole load call). Re-checked once: 819 samples / 0 false /
      0 false / True at return / 0.014 s. `restarting_daemon["dropped"]` was 1 in both runs, so the
      restart did fire, but only after the load had returned.
-   existing: none. `grep -rn '"ready"' tests/` returns tests/api/test_health_ready.py:64-70,
-     :81, :174 and tests/e2e/support/stack.py:162; :174 asserts `ready` at the moment the load
-     returns and nothing during it, :64-70 is two reads across a connect with no write in flight,
-     :81 is the credential-less read, and stack.py:162 is a readiness gate, not an assertion.
+   existing: tests/api/test_health_ready.py::test_a_preset_load_returns_only_once_health_reads_ready_again
+     in the spec tree (.claude/worktrees/bothlanes-7d3c-spec), the writer's own test from the
+     committed block, unchanged by this round. `grep -rn '"ready"' tests/` over the main checkout
+     returns tests/api/test_health_ready.py:64-70, :81, :174 and tests/e2e/support/stack.py:162; :174
+     asserts `ready` at the moment the load returns and nothing during it.
 
-2. A failing configuration-lane read makes /api/health read `ready: false` while a preset load is
-   still waiting out the daemon restart, and leaves it reading `ready: true` when no such write is
-   in flight.
+2. With the configuration lane refusing `/config` from the moment a stored-preset load's restore is
+   posted, /api/health reads `ready: false`, and the load has not yet returned, at the first pass
+   where a poll has completed on the control connection that came back after the restart
+   (`reachable` true again, `connected_at` advanced past the value it took when that connection
+   came back). With no write in flight, the same refusal leaves health reading `ready: true`.
    kills: two wrong implementations at once. Waiting only for the control connection to come back,
-     so the app reports itself ready with the configuration lane still down and the next write
-     fails against a lane nobody said was missing. And consulting the configuration lane at all
-     times, so an ordinary form-read blip during a live matrix profile switch dims the whole page
-     and takes the pill off green on a write that never restarted anything.
-   bite: both halves read the same value at HEAD, which is what makes the pair discriminate.
-     Load-in-flight half: failing state `ready: True`, `reachable: True`, `readings.config_error`
-     "Server error '503 Service Unavailable' for url 'http://127.0.0.1:<port>/config'"; answering
-     state `ready: True`, `reachable: True`, `config_error: None` (same command as line 1,
-     `::test_probe_line_2`; the `across_a_restart` manager after a completed
-     `presetlane.load(mgr, "Stored")` with `dropped == 1` and `reachable is True`, then
-     `http_daemon["_fail_paths"] = ["/config"]` and a full poll, then `_fail_paths = []` and
-     another full poll). No-write-in-flight half: `ready: True`, `reachable: True`, same
-     `config_error` 503 string (same command, `::test_probe_line_3`;
-     `start_manager(http_daemon["_port"])` settled, `_fail_paths = ["/config"]`, one full poll).
-   existing: none. `grep -rn config_error tests/` returns one hit,
+     so the app reports itself ready and the load returns with the configuration lane still down,
+     and the next write fails against a lane nobody said was missing. And consulting the
+     configuration lane at all times, so an ordinary form-read blip during a live matrix profile
+     switch dims the whole page and takes the pill off green on a write that never restarted
+     anything.
+   bite: in-flight half: at the first pass where `restarting_daemon["dropped"]` had advanced,
+     `reachable` was True and `connected_at` was greater than its pre-load value: `ready=False`,
+     `reachable=True`, load task done=True (already returned); at the first pass after that where
+     `connected_at` moved again (a poll completed on the new connection): `ready=True`, load
+     done=True; after clearing `_fail_paths` and awaiting the load: `ready=True`, result
+     `{'name': 'Stored', 'active': True}`, load wall clock ~0.014 s from task start;
+     `readings.config_error` held "Server error '503 Service Unavailable' for url
+     'http://127.0.0.1:<port>/config' ..." throughout
+     (`PYTHONPATH=/srv/hqptuner:tests:tests/support:tests/api .venv/bin/pytest -c pyproject.toml
+     --rootdir=. -p conftest -s -q <scratchpad>/bothlanes-7d3c-probe.py`, HEAD 0b50b778;
+     re-checked once with a timestamped variant, same values). Settled half: `ready=True`,
+     `reachable=True`, `readings.config_error` the same 503 string (same command, `test_settled`
+     in the same probe file; `start_manager(http_daemon["_port"])` settled, `_fail_paths =
+     ["/config"]`, one `settled(manager)`).
+   existing: tests/api/test_health_ready.py::test_a_refusing_configuration_read_costs_readiness_only_under_a_write
+     in the spec tree (.claude/worktrees/bothlanes-7d3c-spec), the writer's own test from the
+     committed block; it asserts `ready: false` at some pass inside the load, which the restart's
+     own control outage satisfies, and it is the test this line's delta rewrites. `grep -rn
+     config_error tests/` over the main checkout returns one hit,
      tests/apply/test_manager_connect_load.py:45, which asserts `config_error is not None` after a
-     connect with a dead 8088 lane and asserts nothing about `ready`; the two neighbouring tests at
-     :32-40 pin `file_config` and `reachable` for the same input.
+     connect with a dead 8088 lane and asserts nothing about `ready`.
 
-3. When a preset pick has failed, the alert strip renders one row carrying the failure; with no
-   failure recorded it renders none.
+3. With `presetPickFailure` holding a failure reason, the alert strip renders exactly one row whose
+   `data-alert` is `preset-pick`; with it holding null, the strip renders no row of that kind.
    kills: reporting the failure only through the pending bar's result line, which the LIVE page
      never puts on screen, so a pick that failed in LIVE tells the user nothing at all.
    bite: surface new. Null stub hqptuner/static/store/alerts/presetpick.js exporting
-     `presetPickAlert`, a computed returning `{kind, sev, text}` or null, the shape
-     `credentialsAlert` and `roonIdleAlert` already return and that AlertStrip spreads; the stub
-     returns null always and fails the first half. No module in the checkout carries a preset-pick
-     failure: hqptuner/static/store/alerts/ holds only credentials.js, junkadvice.js, roonidle.js
-     and shaperfit.js, and AlertStrip imports exactly those four plus store/health.js. Rendered
-     output of AlertStrip today with no alert conditions set: "" — zero rows, zero characters
-     (`node --import <scratchpad>/resolve.mjs <scratchpad>/probe_strip2.mjs`). Re-checked in the
-     same run: "" before any signal write, one row after one clipping status frame, "" again after
-     clearing.
-   existing: none. `grep -rn "alert-strip\|AlertStrip" tests/js` returns
-     tests/js/components/alertstrip.test.js, tests/js/components/shaperfit-strip.test.js,
-     tests/js/components/junkadvice.test.js and tests/js/store/roonidle.test.js; all four drive the
-     strip from engine health, shaper fit, junk advice and Roon idle, and none mentions a preset,
-     a pick or a delete.
+     `presetPickFailure`, a signal, and `presetPickAlert`, a computed returning `{kind, sev, text}`
+     or null, the shape `credentialsAlert` and `roonIdleAlert` already return and that AlertStrip
+     spreads; the stub's computed returns null always and fails the first half. No module in the
+     checkout carries a preset-pick failure: hqptuner/static/store/alerts/ holds only
+     credentials.js, junkadvice.js, roonidle.js and shaperfit.js, and AlertStrip imports exactly
+     those four plus store/health.js. Rendered output of AlertStrip today with no alert conditions
+     set: "" — zero rows, zero characters (`node --import <scratchpad>/resolve.mjs
+     <scratchpad>/probe_strip2.mjs`). Re-checked in the same run: "" before any signal write, one
+     row after one clipping status frame, "" again after clearing.
+   existing: tests/js/components/alertstrip.test.js, which pins the strip's rendered `data-alert`
+     kind set through `alertKinds` (:37) and the `CREDENTIAL_CASES` pair (:79-87); this line folds
+     in as one more parametrized pair beside it. `grep -rn "alert-strip\|AlertStrip\|preset-pick\|presetPick"
+     tests/js` returns that file plus tests/js/components/shaperfit-strip.test.js,
+     tests/js/components/junkadvice.test.js and tests/js/store/roonidle.test.js; none mentions a
+     preset, a pick or a delete.
 
 folded delta (not a numbered line)
 
 tests/js/components/header.test.js:238, :242 and :246 pin the "(pending apply)" marker through the
 `pendingMarked` helper at :117-118, asserting it present for a previewed preset, present for a
 previewed "(no preset)", and absent for an active preset alone. The marker is being removed, so the
-first two invert to absent and the third stands as it is; the helper is unchanged.
+first two invert to absent and the third stands as it is; the helper is unchanged. Already applied
+in the spec tree by the writer's round-1 pass; unchanged by this round.
 
 public entry points
 
   # hqptuner/core/manager.py - ConnectionManager
-  ready: bool                            # was a plain attribute; the name and what it means to a
-                                         # caller are unchanged
-  async def restore(self, archive: bytes, *, scope: str = "system") -> None   # new
-  async def await_ready(self) -> bool          # unchanged signature
-  async def await_http_ready(self) -> bool     # unchanged, stays
+  ready: bool                                  # property; the name and what it means to a caller
+                                               # are unchanged
+  readiness: Readiness                         # new attribute, constructed with the manager
+  async def await_ready(self) -> bool          # unchanged signature, stays on the manager
+  # `restore` and `await_http_ready` are no longer manager methods; see Readiness
+
+  # hqptuner/core/readiness.py - Readiness (new module)
+  class Readiness:
+      def __init__(self, mgr: ConnectionManager) -> None
+      async def await_http_ready(self) -> bool                                     # moved from the manager, same signature
+      async def restore(self, archive: bytes, *, scope: str = "system") -> None   # new
 
   # hqptuner/api/routes/status.py
-  def health(manager: Mgr) -> dict[str, Any]   # the "ready" key is unchanged
+  def health(manager: Mgr) -> dict[str, Any]   # the "ready" and "connected_at" keys are unchanged
 
   # hqptuner/presets/presetlane.py  (unchanged signatures)
   async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]
@@ -95,11 +114,11 @@ public entry points
   async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]
 
   // hqptuner/static/store/alerts/presetpick.js          (new module)
-  export const presetPickFailure = signal(null)   // the last failed pick or delete, or null
-  export const presetPickAlert = computed(...)    // {kind, sev, text} or null
+  export const presetPickFailure = signal(null)   // string: the reason the last pick or delete failed; null when it succeeded
+  export const presetPickAlert = computed(...)    // {kind: "preset-pick", sev, text} or null
 
   // hqptuner/static/components/AlertStrip.js
-  export function AlertStrip()                    // unchanged signature; one more row in the list
+  export function AlertStrip()                    // unchanged signature; one more row in the list, data-alert="preset-pick"
 
   // hqptuner/static/components/Header.js
   export function Header()                        // unchanged signature
@@ -108,21 +127,30 @@ wire facts
 
 - 4321 is unauthenticated and never restarts the daemon (docs/architecture.md:16).
 - Persistent writes ride POST /restore, on which hqplayerd self-restarts in ~5.6 s
-  (docs/architecture.md:17). Every path that restarts the daemon goes through that POST.
+  (docs/architecture.md:17). Every path that restarts the daemon goes through that POST, and a
+  preset save is one of them (hqptuner/presets/presetlane.py:265), so `restarting_daemon["dropped"]`
+  is already 1 after `save_preset` and a case reads it before the load and waits for it to advance.
 - Read-only use and all live settings work with no credentials (docs/architecture.md:37), so an
   install without them has no 8088 lane to wait for, ever.
 - result="OK" is not proof; readback verifies (docs/architecture.md:26).
 - The default poll interval is 2.0 s and the alarm threshold 15.0 s (hqptuner/config.py:49-50).
+- /api/health `connected_at` is the manager's `readings.loaded_at` (hqptuner/api/routes/status.py:40),
+  rewritten at the end of every connect and every poll; it is the wire-visible "a poll has
+  completed" in line 2.
 
 fixtures
 
 - across_a_restart (tests/api/test_health_ready.py:131) and restarting_daemon
   (tests/api/test_health_ready.py:91) - a manager whose 8088 restore actually drops the control
   connection, with a `dropped` counter; lines 1 and 2's in-flight half.
+- http_daemon (tests/support/fixtures_daemons.py:158) - the 8088 fake; `_fail_paths` makes one
+  path answer 503 (tests/support/fake_http.py:75, :237) and `_on_restore` is the callable it fires
+  on a restore (fake_http.py:296), which is where line 2's refusal starts: wrap the fixture's
+  restart so the wrapper sets `_fail_paths` and then restarts.
+- _at_the_first_pass_where (tests/api/test_health_ready.py:43) - come back on the first event-loop
+  pass where a condition holds, no wall-clock wait; line 2's observation pass.
 - start_manager (tests/conftest.py:244) - 4321 fake plus an 8088 lane; line 2's settled half.
 - settled (tests/conftest.py:234) - full connect plus one completed poll.
-- http_daemon (tests/support/fixtures_daemons.py:158) - the 8088 fake, with `_fail_paths` to make
-  one path answer 503; both halves of line 2.
 - alertKinds (tests/js/components/alertstrip.test.js:37) and the CREDENTIAL_CASES shape at :79-87 -
   the strip's rendered `data-alert` identifiers; line 3.
 - head() in tests/js/components/header.test.js:71-73 - per-call health and config overrides; the
@@ -141,18 +169,20 @@ in the same unreleased window. This work is what makes it true, not a second cha
 --- spec-reviewer READY ---
 
 READY
-discriminates: differential on /api/health `ready` (same surface, two observations: during the restart-wait vs at return / with vs without a write in flight); line 3 is a second differential on AlertStrip's rendered kind set.
+discriminates: differential on /api/health `ready` (line 1: false inside the load vs true at return; line 2: false at the first post-reconnect poll with /config refused under a load vs true with the same refusal and no write in flight); line 3 a second differential on AlertStrip's `data-alert` kind set (["preset-pick"] vs []).
 
-1  DELTA tests/api/test_health_ready.py:169: that test already drives this exact input (save_preset + presetlane.load across_a_restart, _died) and already asserts the second half at :175; fold the in-flight observation into it — a concurrent sampler on the existing `_at_the_first_pass_where`/`asyncio.sleep(0)` idiom at :43-55, one assertion on the pair `(saw_not_ready_during, ready_at_return) == (True, True)`. No new file, no new fixture: `restarting_daemon` and `across_a_restart` are at :91 and :131.
-2  KEEP  config lane returning 503 on /config while a stored-preset load is waiting out the restart -> health `ready` False; same 503 with no write in flight -> `ready` True; "wait only for the 4321 connection" fails it at the in-flight input (reports ready with 8088 still down) and "consult the config lane always" fails it at the settled input (ready False on a blip that restarted nothing); bite: measured `ready: True` / `config_error` 503 at the settled input, and line 1's own measurement at HEAD (0 of 807, 0 of 819 samples read `ready: false` anywhere inside the load) is the HEAD value for the in-flight input.
-3  DELTA tests/js/components/alertstrip.test.js:79-87: same shape as `CREDENTIAL_CASES` — add the preset-pick condition as a parametrized pair over `alertKinds` (:37), failure -> `["<kind>"]`, no failure -> `[]`, driven off the exported signal the same way `idleStrip` (:70) drives `health`. The assertion is on the row's `data-alert` identifier, never on the row's sentence (rule 9); a line asserting "a row carrying the failure" without naming the kind string would be CUT under (c)/(h).
+1  DELTA tests/api/test_health_ready.py:169 (`test_a_preset_load_returns_only_once_health_reads_ready_again`; already folded in the spec tree's uncommitted working copy as `_ready_across` + `assert across_the_load == (True, True)`): nothing further changes; round-1 finding applied as named, stands.
+2  DELTA .claude/worktrees/bothlanes-7d3c-spec/tests/api/test_health_ready.py:209 (`test_a_refusing_configuration_read_costs_readiness_only_under_a_write`, uncommitted): replace the any-pass sampler with a read at the first pass where `health(across_a_restart)["connected_at"]` has advanced past the value it took when `reachable` first turned true again after `restarting_daemon["dropped"]` moved, and assert one state tuple `(ready_at_that_pass, load_done_at_that_pass, ready_with_no_write_in_flight) == (False, False, True)`; drop the at-return clause from the line, it is line 1's second half. "wait only for the 4321 connection" fails it at that pass (load already done, ready True); "consult the config lane always" fails it at the settled input (ready False). bite: measured at HEAD 0b50b778 at that pass `ready=False, load done=True` (line says False/not done), then `ready=True, done=True` at the next connected_at move; settled half `ready=True` with the 503 in `config_error`.
+3  DELTA tests/js/components/alertstrip.test.js:79-87: one more parametrized pair beside `CREDENTIAL_CASES` over `alertKinds` (:37), `presetPickFailure.value = "<any non-null string>"` -> `["preset-pick"]`, `null` -> `[]`, rendered the way `idleStrip` (:70) renders with `engineStatus` null; `existing: none` on this line is wrong on its own grep, alertstrip.test.js pins the same kind-set surface and the pair folds there, no new file. Not yet written in the spec tree.
 
-null stub: no preset-pick alert module, no readiness change — health.ready never leaves True and AlertStrip renders "" — fails line 1's in-flight half, line 2's in-flight half, and line 3's failure half; satisfies nothing in the block.
-hard-coded stub: returning `ready: False` for the literal restart-load input and `["presetpick"]` for the literal failure input still has to know a load is in flight and that a pick failed, which is the feature; it cannot satisfy line 2's second half and line 3's second half at the same time without tracking both conditions.
-survives: 1
+null stub: no preset-pick module, no readiness change, HEAD's load returning in 0.015 s before the restart lands: ready never reads false inside the load (fails 1), ready reads True at line 2's pass with the load already done (fails 2), AlertStrip renders "" with `presetPickFailure` set (fails 3); satisfies only the settled half of 2 and the null half of 3, neither of which stands alone.
+hard-coded stub: ready = not(load in flight), load returning once 4321 reconnects, kind ["preset-pick"] whenever a load is running: passes 1, fails 2 at the named pass because the load has returned while /config still refuses (load-done True, ready True), fails 3's null half only if the stub keys on the wrong signal; to pass 2 it must hold the load open on /config, which is the feature.
+survives: 0
 
 notes:
-- Framing struck, reviewed as absent: "folded delta (not a numbered line)" is the author ruling on how the block is counted. Deltas do not count toward the cap by rule, not by the author's say-so. One tell only; no rejection.
-- The header.test.js fold (:238, :242, :246 via `pendingMarked` at :117-118) is a legitimate delta and reads correctly against the file: two assertions invert to absent, the third stands. It carries no `kills:`/`bite:` and needs none.
-- Unread by me (hqptuner/ denied), for the owner: that hqptuner/static/store/alerts/ holds only credentials.js, junkadvice.js, roonidle.js and shaperfit.js and that AlertStrip imports exactly those four plus store/health.js — line 3's `existing: none` claim rests on it. The tests side is consistent: alertstrip.test.js pins clipping and credentials only.
-- Line 2's in-flight bite was measured at a substitute input (after a completed load, not during one). Accepted only because line 1's HEAD measurement covers the in-flight window directly and reads True throughout; if line 1 is dropped, line 2's bite becomes unfilled.
+- Framing struck, reviewed as absent: "folded delta (not a numbered line)" is the author counting the block; deltas do not count by rule, not by say-so. One tell; no rejection.
+- Round-1 findings, one by one: line 1 DELTA applied (spec-tree diff shows the fold at :169); line 2's substitute-input bite replaced by an in-flight measurement at the named pass, withdrawn; line 3 DELTA neither applied nor argued, restated above, the block's `existing: none` on that line contradicts its own grep. Line 2's text changed this round so its verdict moving from KEEP to DELTA is a new line, not a reversal.
+- Line 3 text repaired per round-1's note: the kind string `preset-pick` and the driving signal `presetPickFailure` are now named; `data-alert` is an identifier on the pattern of `credentials-rejected`, not copy.
+- The header.test.js fold (:238, :242 -> false, :246 unchanged) is applied in the spec tree's working copy and reads correctly.
+- Unread by me (hqptuner/ denied), for the owner, unchanged from round 1: that hqptuner/static/store/alerts/ holds only credentials.js, junkadvice.js, roonidle.js and shaperfit.js and AlertStrip imports exactly those plus store/health.js; and that `connected_at` on /api/health advances when a poll completes on the reconnected connection (the block's reading of its own probe). Line 2's chosen pass rests on the second; if `connected_at` only moves on connect, the writer's pass marker is "the first pass after `reachable` turns true again where a poll has completed", i.e. `readings.loaded_at` moved, and the line's outcome tuple is the same.
+- Every verdict is a delta, so the spec tree's working copy already carries two of the three tests and no new file lands; `pair.sh` should see three deltas and zero new tests.
