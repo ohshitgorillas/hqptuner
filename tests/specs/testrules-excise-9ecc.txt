@@ -1,0 +1,22 @@
+kind: excision
+
+slug: testrules-excise-9ecc
+
+1. excise tests/js/lib/binaural.test.js::"test_a_default_block_is_recognized"
+   rule: docs/testing.md rule 10
+   assertion: assert.notEqual(rt({}), null);
+
+2. excise tests/test_autoeq.py::test_autoeq_blob_decodes_to_profiles_with_verbatim_filter_text
+   rule: docs/testing.md rule 9
+   assertion: assert [p for p in profiles if "Filter 1" in p["text"] and p["source"] and p["model"]] != []
+
+--- spec-reviewer READY ---
+READY
+discriminates: n/a (kind: excision, nothing pinned)
+
+1  KEEP  excise tests/js/lib/binaural.test.js::"test_a_default_block_is_recognized"; rule 10 fits: `assert.notEqual(rt({}), null)` is existence-only (not-null) and round-trips compileRows through recognizeRows (tests/js/lib/binaural.test.js:49,80-82); any recognizer returning a non-null object passes it.
+2  KEEP  excise tests/test_autoeq.py::test_autoeq_blob_decodes_to_profiles_with_verbatim_filter_text; rule 9 fits: "Filter 1" and truthy source/model are expected values drawn from the vendored blob the app serves (test docstring tests/test_autoeq.py:1-3; no fixture under tests/ supplies it, grep -ri autoeq tests/conftest.py tests/support/ = none), and rule 9 says a vendored or built blob never supplies an expected value.
+
+null stub: n/a, excision block pins nothing.
+hard-coded stub: n/a, excision block pins nothing.
+survives: 2
