@@ -1,0 +1,52 @@
+slug: excise-route-fbd9
+kind: new
+
+1. Running `scripts/pair.sh red <slug>` on a pair whose committed block declares `kind: excision` and carries a whole-file target naming a test file that exists removes that file from the spec tree, and the removal is inside the `test: <slug> red` commit.
+   kills: a red run that commits the writer's edits and leaves whole-file targets in place, so the file half of a sweep silently never happens.
+   bite: the named target file is still present in the spec tree after the run; the red commit `4c45b48f` contains only the separately modified file (`1 file changed, 21 insertions(+), 1 deletion(-)`); exit 0 (`scripts/pair.sh red probe-one`)
+   existing: none, `grep -rln "pair\.sh\|pair_sh" tests/` printed no output
+
+2. A pair whose committed block declares `kind: excision` and carries a whole-file target naming a path under `tests/` that no file in the spec tree carries ends with the run exiting nonzero and the spec branch carrying zero `test: <slug> red` commits.
+   kills: a run that passes over a target it cannot find and commits anyway, so a stale name in the block removes nothing while the reviewer's post-merge reading of that line as `MISSING` reports it as done.
+   bite: the run exits 0 and the spec branch carries one `test: <slug> red` commit, `e07c8ad5` (`scripts/pair.sh red probe-two`)
+   existing: none, `grep -rln "pair\.sh\|pair_sh" tests/` printed no output
+
+3. A whole-file target that does not begin `tests/` stops the run before any file is removed, and the path it names is still present afterwards.
+   kills: a run that resolves whatever path the block names, so a block line reading `hqptuner/config.py` deletes source.
+   bite: the run exits 0, creates red commit `8602b644`, and `hqptuner/config.py` is present in the spec tree afterwards (`scripts/pair.sh red probe-three`)
+   existing: none, `grep -rln "pair\.sh\|pair_sh" tests/` printed no output
+
+4. A pair whose spec tree's only change under `tests/` is the deletion of a tracked test file ends with the run exiting 0 and the spec branch carrying a `test: <slug> red` commit whose file list is that deletion.
+   kills: the current guard, which ends such a run nonzero and leaves the pair unable to proceed whenever every target in the block is a whole file.
+   bite: the run exits 1, with the spec branch carrying `test: probe-four red` (`1 file changed, 69 deletions(-)`) (`scripts/pair.sh red probe-four`)
+   existing: none, `grep -rln "pair\.sh\|pair_sh" tests/` printed no output
+
+Public entry point:
+
+    scripts/pair.sh red <slug>
+
+No path argument; SPECFILE is accepted only by `open` and `respec`.
+
+Wire and protocol facts: none. No daemon, no protocol surface.
+
+Applicable fixtures: none existing. `tests/gates/` drives Python gates by subprocess and carries no git-repo harness. These behaviors need a throwaway repo with a pair opened in it; building that fixture is the writer's, `tests/conftest.py` and `tests/support/fixtures/*` already being inside its lane.
+
+Changelog entry: no entry. Agent tooling only, nothing a HQPTuner user sees.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `scripts/pair.sh red` (exit status paired with the spec branch's red-commit file list) - four distinct expected values on one surface
+
+round-1 findings, resolved: CUT i on line 2 took the named repair (the second outcome, the message naming the target, is gone; what remains is the one abort state I named as acceptable: exit status plus the branch's red-commit count). CUT e on line 4 took the named repair (the internal "file-selection check" and "run list" are gone; the outcome is now exit status and the red commit's file list).
+
+1  KEEP  committed block with kind: excision and a whole-file target naming an existing test file -> the `test: <slug> red` commit's file list contains the deletion of that file; "red run commits the writer's edits and leaves whole-file targets in place" fails it at that same pair; bite: target file still present after the run, red commit 4c45b48f is `1 file changed, 21 insertions(+), 1 deletion(-)`, exit 0
+2  KEEP  whole-file target under `tests/` that no file in the spec tree carries -> run exits nonzero and the spec branch carries zero `test: <slug> red` commits; "passes over a target it cannot find and commits anyway" fails it at that pair; bite: exit 0 with one red commit `e07c8ad5` (measured)
+3  KEEP  whole-file target not beginning `tests/` (`hqptuner/config.py`) -> that path is still present in the spec tree after the run; "resolves whatever path the block names" fails it by deleting `hqptuner/config.py`; bite: exit 0, red commit 8602b644 created (measured)
+4  KEEP  spec tree whose only change under `tests/` is the deletion of a tracked test file -> run exits 0 and the red commit's file list is that deletion; "the guard that ends such a run nonzero" fails it at that pair; bite: exit 1 with `test: probe-four red`, `1 file changed, 69 deletions(-)` (measured)
+
+sibling check: 1 and 4 are not one behavior - an implementation that stages and commits the deletion and then still exits nonzero on the all-whole-file case passes 1 and fails 4. 2 and 3 are not one behavior - an implementation that validates the `tests/` prefix but never checks existence passes 3 and fails 2.
+
+null stub: `scripts/pair.sh` unchanged - no excision handling, whole-file targets ignored; all four measured bites are this stub's behavior, so no line survives it.
+hard-coded stub: a `pair.sh` branching on the literal probe slugs and exiting as named - it can take 2 and 3, which are pure aborts, but not 1 or 4, which each demand a real commit whose file list is the deletion.
+
+survives: 4
