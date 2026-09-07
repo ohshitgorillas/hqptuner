@@ -635,8 +635,9 @@ EOF
       echo "  there is no reviewer round to run. Next: /task-check, from here."
       ;;
     *)
-      echo "  both worktrees removed. There is no brief to forward and no reviewer"
-      echo "  round to run: the warning above says why. Next: /task-check, from here."
+      echo "  both worktrees removed. There is no brief to forward, so there is"
+      echo "  no reviewer round to run: the warning above says why. Next:"
+      echo "  /task-check, from here."
       ;;
   esac
 }
