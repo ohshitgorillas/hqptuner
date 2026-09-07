@@ -31,6 +31,7 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
+from hqptuner.core.readiness import Readiness
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
 from hqptuner.lanes.http import forms
@@ -59,11 +60,8 @@ class ConnectionManager:
         self._http = http_client
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
-        # `_wake` pulls the poll loop out of its wait early (see `restarting`);
-        # `connected` is set at the end of every connect body and cleared on every
-        # drop, the thing a post-restore wait (lanes.settle.await_ready) sleeps on.
+        # `_wake` pulls the poll loop out of its wait early (see `restarting`)
         self._wake = asyncio.Event()
-        self.connected = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
         # file, so a second copy would hand out numbers the first already used.
@@ -74,13 +72,6 @@ class ConnectionManager:
         self.applyops = ApplyOps(self)
 
         self.reachable = False
-        # `reachable` is the 4321 handshake alone, published before the 8088 half of
-        # the connect has run; `ready` is the whole connect body having returned, which
-        # is what the UI and the write lanes actually need to know.
-        self.ready = False
-        # Whole connects completed since construction: a post-restore wait's mark, so
-        # it waits for a connect that completed after its restore began.
-        self.connects = 0
         self.unreachable_since: float | None = time.time()
         # Stamped through `monotonic()`, the seam `alarm` reads it back through, so
         # both sides of that subtraction run on one clock (virtual in the suite).
@@ -89,9 +80,17 @@ class ConnectionManager:
         # Everything the daemon last told us (core/readings). Refilled from scratch
         # on every fresh connection; read by every route and lane.
         self.readings = Readings()
+        # `reachable` is the 4321 handshake alone; `ready` (below) is what the UI and
+        # the write lanes need, and core/readiness owns the facts it comes off.
+        self.readiness = Readiness(self.readings, has_http_lane=http_client is not None)
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
         self.metering: MeteringReader | None = None
+
+    @property
+    def ready(self) -> bool:
+        """Report whether the app is whole on both lanes, past any restore in flight (core/readiness)."""
+        return self.readiness.ready
 
     @property
     def alarm(self) -> bool:
@@ -179,8 +178,7 @@ class ConnectionManager:
             self.unreachable_since = time.time()
             self._unreachable_mono = self.monotonic()
         self.reachable = False
-        self.ready = False
-        self.connected.clear()
+        self.readiness.dropped()
         if self._client is not None:
             await self._client.close()
             self._client = None
@@ -235,11 +233,13 @@ class ConnectionManager:
         socket is dead the moment the POST returns. Waiting for the poll loop to find that out costs
         up to a poll interval; dropping here and waking the loop starts the reconnect at once, and
         the loop's own retries carry it through the restart window. The post-restore wait itself is
-        ``lanes.settle.await_ready``.
+        ``lanes.settle.await_ready``; the generation it has to outlive is recorded here first
+        (core/readiness), which is what keeps ``ready`` False until both lanes answer past it.
 
         Only a whole connection is dropped: with ``ready`` False there is either no client, or a
         connect body mid-flight that must finish on its own client rather than one closed under it.
         """
+        self.readiness.restarting()
         if self.ready:
             await self._drop("restore restarts the daemon")
             self._wake.set()

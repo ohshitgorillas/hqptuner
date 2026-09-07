@@ -41,12 +41,10 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     mgr.readings.release = await release.fetch_release(mgr.http_base_url)
     if mgr.http_client is not None:
         await _load_http_lane(mgr)
-    # Last statement on purpose: `ready` means this body ran to its end. An install
-    # with no credentials has no 8088 lane to wait for and arrives here just the same
-    # (architecture §"Authentication"), so it is ready as soon as the handshake is.
-    mgr.ready = True
-    mgr.connects += 1
-    mgr.connected.set()
+    # Last statement on purpose: a connect counts once this body has run to its end
+    # (core/readiness). An install with no credentials has no 8088 lane to wait for and
+    # arrives here just the same (architecture §"Authentication").
+    mgr.readiness.connected()
     log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
 
@@ -135,3 +133,6 @@ async def poll(mgr: "ConnectionManager") -> None:
     # the config/matrix snapshots track reality instead of only connect-time.
     await mgr.refresh_http_forms()
     readings.loaded_at = time.time()
+    # the form refresh above is the 8088 half of the restore wait: this is where a
+    # lane that came back after a restart is first seen to have come back
+    mgr.readiness.polled()
