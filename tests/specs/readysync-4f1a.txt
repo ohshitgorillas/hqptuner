@@ -86,9 +86,20 @@ also landing through the writer, not behavior lines
 
 - tests/e2e/support/stack.py:162 - the readiness gate gains the `ready` key beside its two
   200s.
-- Three JS fixtures set health.value = { reachable } and need the new key added to stay
-  meaningful: tests/js/components/app.test.js:35, tests/js/components/pendingbar.test.js:64,
-  tests/js/components/pendingbar-rescan-warning.test.js:65.
+- Six JS fixture sites set health.value in a file that renders one of the three components
+  now reading the new key, and each needs the key added to keep meaning "connected". Three
+  shapes, not one: pendingbar.test.js:64 sets { reachable } from a fixture parameter,
+  pendingbar-rescan-warning.test.js:65 sets { reachable: true } with no info, and the other
+  four set { reachable: true, info: {} }. No new tests, no assertion changes:
+    tests/js/components/app.test.js:36            (renders App)
+    tests/js/components/pendingbar.test.js:64     (renders PendingBar)
+    tests/js/components/pendingbar-rescan-warning.test.js:65  (renders PendingBar)
+    tests/js/components/header.test.js:73         (renders Header, hence StatusPill)
+    tests/js/components/liveview.test.js:111      (renders App)
+    tests/js/components/wheelbinding.test.js:402  (renders Header)
+  The list is the intersection of `grep -rl health.value tests/js` (22 files) with the files
+  importing App.js, Header.js, PendingBar.js or StatusPill.js (6 files); the other 16 set
+  health for surfaces that do not read the key. No sweep beyond this list.
 
 changelog (lands verbatim, under [Unreleased] -> ### Fixed)
 
@@ -103,7 +114,9 @@ changelog (lands verbatim, under [Unreleased] -> ### Fixed)
 READY
 discriminates: differential on /api/health (line 1: ready false then true across one connect, reachable true in both)
 
-round 1 findings, each answered: `kind: new` added; line 4 split to a single surface; App-root half folded as a DELTA to tests/js/components/app.test.js:45-50 (not a numbered line); the pill `existing:` re-grepped and returned with citations I checked — tests/js/components/header.test.js:71-73 takes a per-call `health` override and :122-131 already parametrizes health across three cases, so the color differential is a parametrize-style addition on that surface. No finding outstanding.
+Round 3. The four behavior lines, their kills/bite/existing clauses, the discriminates line and the folded app.test.js delta are byte-identical to the text I passed in round 2; round 2 carried no outstanding finding, so nothing to answer. Verdicts carried unchanged.
+
+The only edit is in "also landing through the writer, not behavior lines", which pins nothing and takes no per-line verdict. I checked its claim anyway, since it is all greppable: `grep -rl health.value tests/js` returns 22 files, `grep -rlE '(App|Header|PendingBar|StatusPill)\.js' tests/js` returns exactly the six named, and all six appear in the 22, so the intersection is the six sites listed and the six line numbers are right. One inaccuracy in the prose, not a defect in the list: the sentence says all six set `health.value = { reachable: true, info: {} }`, but pendingbar.test.js:64 sets `{ reachable }` from a fixture parameter and pendingbar-rescan-warning.test.js:65 sets `{ reachable: true }` with no `info`. The writer adds the key at three shapes, not one. No assertion changes either way, so the block still lands as three new lines plus two deltas.
 
 1  KEEP  two /api/health reads across one connect, both lanes configured -> ready false at the first read where reachable turns true, true after the load finishes; publishing ready from the reachable set point fails it at the first read; bite: no `ready` key in either read (nine keys listed), null stub fails at both
 2  KEEP  /api/health with no management credentials, after reachable turns true -> ready true; gating ready on the 8088 lane having loaded fails it at that read; bite: `ready` absent, reachable True, null stub fails at that read
