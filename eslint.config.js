@@ -9,6 +9,7 @@ import globals from "globals";
 import jsdoc from "eslint-plugin-jsdoc";
 import sonarjs from "eslint-plugin-sonarjs";
 import oneAssertionPerTest from "./eslint-rules/one-assertion-per-test.js";
+import assertionShape from "./eslint-rules/assertion-shape.js";
 import noHandRolledCard from "./eslint-rules/no-hand-rolled-card.js";
 import noCopyAssertions from "./eslint-rules/no-copy-assertions.js";
 
@@ -186,11 +187,24 @@ export default [
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
     plugins: {
       ...PLUGINS,
-      hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest, "no-copy-assertions": noCopyAssertions } },
+      hqptuner: {
+        rules: {
+          "one-assertion-per-test": oneAssertionPerTest,
+          "assertion-shape": assertionShape,
+          "no-copy-assertions": noCopyAssertions,
+        },
+      },
     },
     // no-copy-assertions is the JS peer of scripts/gates/check_no_copy_assertions.py
     // (docs/testing.md rule 9), same semantics, blocking on both sides.
-    rules: { ...RULES, "hqptuner/one-assertion-per-test": "error", "hqptuner/no-copy-assertions": "error" },
+    // assertion-shape is the JS peer of the shape checks in the same Python gate;
+    // it runs at warn while the existing suite is swept, then flips to error.
+    rules: {
+      ...RULES,
+      "hqptuner/one-assertion-per-test": "error",
+      "hqptuner/assertion-shape": "warn",
+      "hqptuner/no-copy-assertions": "error",
+    },
   },
   {
     // scripts/eqlab is a node CLI, not browser code: it imports the same
