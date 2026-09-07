@@ -79,6 +79,8 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |
+| `route_unknown` | 404 | no route at that path |
+| `method_not_allowed` | 405 | a real path, wrong method |
 
 Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`).
 
