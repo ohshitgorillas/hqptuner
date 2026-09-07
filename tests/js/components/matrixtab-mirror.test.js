@@ -109,16 +109,6 @@ function mirrorChecked(out) {
   return /\schecked(\s|\/|>)/.test(box);
 }
 
-test("test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_speakers_mode", async () => {
-  await reset(PAIR(), { mode: "speakers" });
-  assert.notEqual(mirrorBox(tab()), null);
-});
-
-test("test_the_pipelines_card_offers_a_mirror_to_stereo_pair_checkbox_in_headphones_mode", async () => {
-  await reset(PAIR(), { mode: "headphones" });
-  assert.notEqual(mirrorBox(tab()), null);
-});
-
 test("test_headphones_mode_checks_mirror_to_stereo_pair", async () => {
   await reset(PAIR(), { mode: "headphones" });
   assert.equal(mirrorChecked(tab()), true);

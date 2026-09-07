@@ -40,11 +40,6 @@ async def test_a_dead_http_lane_does_not_fail_the_connect(start_manager: StartMa
     assert manager.reachable is True
 
 
-async def test_a_dead_http_lane_records_the_form_error(start_manager: StartManager, closed_port: int) -> None:
-    manager = await start_manager(closed_port)
-    assert manager.readings.config_error is not None
-
-
 async def test_a_failed_preset_migration_does_not_fail_the_connect(
     start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:

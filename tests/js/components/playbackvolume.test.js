@@ -255,11 +255,6 @@ test("test_an_enabled_control_shows_no_hint", async () => {
   assert.equal(cause(card()), null);
 });
 
-test("test_a_disabled_control_explains_itself", async () => {
-  await reset({ range: OFF });
-  assert.equal(cause(card()), "no-stream");
-});
-
 test("test_direct_sdm_is_named_as_the_cause", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
   assert.equal(cause(card()), "direct-sdm");

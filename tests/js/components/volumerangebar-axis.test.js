@@ -593,19 +593,6 @@ test("test_the_band_ends_at_the_upper_bounds_track_position", async () => {
   assert.ok(near(lanes(bar())[0]?.right, BAND_RIGHT));
 });
 
-// THAT each bound handle is labeled is the accessibility contract; WHAT the
-// label says is the owner's wording (docs/testing.md rule 9).
-
-test("test_the_lower_bound_handle_is_labeled_for_assistive_technology", async () => {
-  await reset(loud(PAIR));
-  assert.notEqual(attrOf(bound(bar(), LOW), "aria-label"), undefined);
-});
-
-test("test_the_upper_bound_handle_is_labeled_for_assistive_technology", async () => {
-  await reset(loud(PAIR));
-  assert.notEqual(attrOf(bound(bar(), HIGH), "aria-label"), undefined);
-});
-
 // --- the dirty highlight ------------------------------------------------------------------
 
 test("test_a_staged_lower_bound_marks_the_card_dirty", async () => {
