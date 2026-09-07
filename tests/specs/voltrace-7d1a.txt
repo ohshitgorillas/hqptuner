@@ -22,7 +22,7 @@ brief:
 
 4. POST /api/volume at level -24.5 against an engine that takes it records readback -24.5; the same post against an engine whose volume control is disabled records readback null.
    kills: records the level asked for as the readback, so a write the engine refused reads in the log as -24.5 landed
-   bite: null stub fails at POST /api/volume level -24.5 (surface new) — under the stub named in line 1 the write appends no record at all, in either case
+   bite: null stub records no record at all, in either case (surface new)
    existing: none, `grep -rn "volume_write\|volume\.write" /srv/hqptuner/tests` -> tests/api/test_api_routes.py:128,132, tests/api/test_api_errors.py:126, all three asserting the route's own JSON response and none of them the audit log
 
 5. A volume observation taken before any volume write records last_write null; one taken after a write of -24.5 records last_write -24.5, whatever level the engine is reporting.
@@ -36,6 +36,11 @@ brief:
    bite: null stub fails at the two observations in sequence (surface new) — under the stub named in line 1 neither observation is recorded, so the writable log holds 0 records rather than 1
    existing: none, `grep -rn "voltrace\|volume_observe\|volume\.observe" /srv/hqptuner/tests` -> rc=1, no matches
    sixth line: the five above all run against a writable log, so none of them observes the emitter when the write itself fails; a user notices its absence as every reading in the app freezing, which is a different surface from anything lines 1-5 touch.
+
+7. The record kinds after a live write of a field other than the junk filter, with this block's volume observations set aside, are exactly ["live.write"].
+   kills: records an `autopilot.set` for a write auto-pilot survives, naming a change that never happened
+   bite: `PYTHONPATH=/srv/hqptuner/.claude/worktrees/voltrace-7d1a-impl:$(pwd) .venv/bin/pytest "tests/audit/test_autopilot_audit.py::test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set" -q --no-cov` -> `AssertionError: assert ['volume.obse... 'live.write'] == ['live.write']`, 1 failed
+   existing: tests/audit/test_autopilot_audit.py::test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set
 
 public entry points (planned):
 
@@ -89,20 +94,22 @@ READY
 discriminates: differential on the volume record's counts and fields (line 1: 1 then 2 config_form, 2 preset.stored; line 2: -30 vs -12; line 4: readback -24.5 vs null; line 5: last_write null vs -24.5)
 
 return check, finding by finding:
-- note on line 1 (dedup arm had only the identical-form case, free repair named): taken verbatim as the third arm. The ordinality stub I named — "emit on the first refresh" — now records 1 config_form where the line demands 2, so it is dead.
-- note on line 3 (emitter echoing the request body): not a CUT, not a DELTA, no repair named by me and no file named, so the author's answer is legal and I accept it. Lines 4 and 5 exclude that emitter block-wide, which is what I wrote; a second engine level under one staged level is not available on the live lane. Closed.
+- my only finding was line 7's absence outcome, with the repair named: restate as the record kinds after the mark, this block's volume observations excluded, still equal ["live.write"], landing as a delta at tests/audit/test_autopilot_audit.py:228. The return makes exactly that change and the line's text is changed. Finding withdrawn.
+- verdict list for lines 1-6 supplied, none dropped or reworded; those lines carry.
 
-1  KEEP  two POST /api/config/refresh serving one form -> 1 config_form record, a third serving a form with defaults_volume -12 -> a second, two POST /api/profile/load of one preset -> 2 preset.stored records; "change-tests every source" fails it at the second load, which records nothing; null stub fails at every arm, recording none.
+1  KEEP  carried
 2  KEEP  carried
 3  KEEP  carried
 4  KEEP  carried
 5  KEEP  carried
 6  KEEP  carried
+7  DELTA tests/audit/test_autopilot_audit.py:228: the comparison in `events_after(audit_log, mark) == ["live.write"]` sets this block's volume observations aside before comparing; the write's own record stays pinned as a positive list, so a write the daemon never accepted still fails the case, and the "records an autopilot.set for a write auto-pilot survives" implementation still fails it with ["live.write", "autopilot.set"]. Measured bite quoted at the impl worktree. No new test.
 
 null stub: hqptuner/voltrace.py present, VOLUME_FIELDS empty, subset returning {}, observe/observe_change/write returning None without emitting or setting last_volume_write, AuditLog.volume_write/volume_observe returning None without writing.
-hard-coded stub: emit a config_form record on the first refresh only, a preset.stored record on every load echoing the stored preset's defaults_volume, a post_apply record echoing the staged level, and a write record of -24.5 for the enabled fixture and null for the disabled one; it is now defeated by line 1's third arm (a changed form must record again), by 5 (last_write must survive a write and differ from the observed level) and by 6 (a real file write that tolerates its own failure).
+hard-coded stub: emit a config_form record on the first refresh only, a preset.stored record on every load echoing the stored preset's defaults_volume, a post_apply record echoing the staged level, and a write record of -24.5 for the enabled fixture and null for the disabled one; defeated by line 1's third arm (a changed form must record again), by 5 (last_write must survive a write and differ from the observed level) and by 6 (a real file write that tolerates its own failure).
 
 survives: 6
 
 notes:
-- Line 1's bite text still reads "records 0 and 0 rather than 1 and 2", written for the two-arm version; the third arm makes it 0 where the line demands a second config_form. The null stub fails every arm either way, so the bite obligation is discharged and this is wording, not a defect.
+- Cap: six new lines, 5 and 6 carrying their justification sentences; line 7 is a delta and does not count.
+- Brief: every sentence has a surviving line behind it - the load's own volume (2), the window after the load (3, 5), the write path (4).
