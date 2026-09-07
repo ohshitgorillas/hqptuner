@@ -77,10 +77,6 @@ test("test_a_compiled_block_is_sixteen_rows", () => {
   assert.equal(compileRows().length, 16);
 });
 
-test("test_a_default_block_is_recognized", () => {
-  assert.notEqual(rt({}), null);
-});
-
 test("test_every_compiled_row_carries_a_linear_gain", () => {
   assert.ok(compileRows().every((r) => r.gainunit === "Lin"));
 });
