@@ -81,7 +81,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     await mgr.require_http().restore(archive, scope="system")
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
-    await mgr.await_http_ready()
+    await mgr.await_ready()
     # the restore restarted the daemon: every live reading we hold is the previous
     # engine's, and an auto-save riding this load would fold those into the preset
     # it just loaded (ConnectionManager.resync_engine_state)
@@ -266,7 +266,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
         return True
 
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
-        await mgr.await_http_ready()
+        await mgr.await_ready()
         return None
     log.warning("preset %r saved, but its daemon mirror did not land", name)
     return "hqplayerd's own profile list was not updated"

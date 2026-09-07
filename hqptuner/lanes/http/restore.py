@@ -129,6 +129,11 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     for attempt in range(_PERSIST_RETRIES + 1):
         final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile)
         if final is not None:
+            if final.get("submitted"):
+                # the restore restarted the daemon and `verify` proves only that the
+                # 8088 lane serves the new config; the 4321 control connection is still
+                # the dead one, so wait for the reconnect before answering the user
+                await mgr.await_ready()
             return final
         # a transient write failure must not erase the divergence an earlier pass
         # found: a daemon that accepts the restore and then dies is unconverged,
