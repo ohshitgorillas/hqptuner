@@ -1,0 +1,116 @@
+slug: readysync-4f1a
+kind: new
+discriminates: differential on /api/health (line 1: ready false then true across one connect, reachable true in both)
+
+behaviors
+
+1. With both daemon lanes configured, two reads of /api/health taken across one connect
+   return different values for `ready` while `reachable` reads true in both: `ready` is
+   false at the moment `reachable` first turns true, and true once the load has finished.
+   kills: publishing `ready` from the same set point as `reachable`, so the app reports
+     itself ready while it is still writing its preset store.
+   bite: no `ready` key in either read; nine keys ['alarm','app_version','connected_at',
+     'credentials_ok','info','license','reachable','release','unreachable_since'];
+     reachable True in both reads. Null stub fails at both reads.
+   existing: none.
+
+2. With no management credentials configured, /api/health answers `ready: true` once the
+   daemon is reachable.
+   kills: gating `ready` on the 8088 lane having loaded, leaving a credential-less install
+     reporting not-ready for as long as it runs.
+   bite: `ready` absent, reachable True, same nine keys. Null stub fails at that read.
+   existing: none.
+
+3. Loading a stored preset returns only once /api/health answers `ready: true` again.
+   kills: returning as soon as the 8088 configuration lane answers again, while the 4321
+     control connection is still the dead one the restart left behind.
+   bite: load returns 0.419 s past a 0.6 s restart window, total 1.03 s; across 30
+     in-window health samples reachable is True throughout and no sample carries a `ready`
+     key. Null stub fails at the return read.
+   existing: none.
+
+4. Health carrying `reachable: true` with `ready: false` renders the status pill in its red
+   state; with `ready: true` it renders green.
+   kills: keying pill color on `reachable`, so the pill stays green through a restart the
+     daemon has not come back from.
+   bite: both states render byte-identical <span class="pill pill-green">Connected</span>.
+   existing: DELTA to tests/js/components/header.test.js:251 - the existing pill case gains
+     a health-override differential beside the bare head() case; no new test file.
+
+folded delta (not a numbered line)
+
+tests/js/components/app.test.js:45-50 gains a case at
+health = {reachable: true, ready: false, info: {}} asserting the `offline` class stands,
+beside the two `reachable` cases already there.
+
+public entry points
+
+  # hqptuner/core/manager.py - ConnectionManager
+  self.ready: bool                      # new attribute, false until the connect body completes
+  async def await_ready(self) -> bool   # new; existing await_http_ready() -> bool stays
+
+  # hqptuner/api/routes/status.py
+  def health(manager: Mgr) -> dict[str, Any]   # gains "ready": manager.ready
+
+  # hqptuner/presets/presetlane.py  (unchanged signatures)
+  async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]
+  async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]
+
+  # hqptuner/lanes/http/restore.py  (unchanged signature)
+  async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]
+
+  // hqptuner/static/store/signals.js
+  export const ready = computed(...)      // added
+  export const reachable = computed(...)  // removed, no importers left (knip)
+
+wire facts
+
+- 4321 is unauthenticated and never restarts the daemon (docs/architecture.md:16).
+- Persistent writes ride POST /restore, on which hqplayerd self-restarts in ~5.6 s
+  (docs/architecture.md:17).
+- Read-only use and all live settings work with no credentials (docs/architecture.md:37),
+  so an install without them has no 8088 lane to wait for, ever.
+- result="OK" is not proof; readback verifies (docs/architecture.md:26).
+
+fixtures
+
+- start_manager (tests/conftest.py:244) - 4321 fake plus an 8088 lane, settled before
+  return; lines 1 and 3.
+- live_manager (tests/conftest.py:197) - 4321 only, no HTTP client; line 2.
+- settled (tests/conftest.py:234) - full connect plus one completed poll.
+- head() in tests/js/components/header.test.js:71-73 and app() in
+  tests/js/components/app.test.js:34-36 - both take a per-call health override; line 4 and
+  the folded case.
+
+also landing through the writer, not behavior lines
+
+- tests/e2e/support/stack.py:162 - the readiness gate gains the `ready` key beside its two
+  200s.
+- Three JS fixtures set health.value = { reachable } and need the new key added to stay
+  meaningful: tests/js/components/app.test.js:35, tests/js/components/pendingbar.test.js:64,
+  tests/js/components/pendingbar-rescan-warning.test.js:65.
+
+changelog (lands verbatim, under [Unreleased] -> ### Fixed)
+
+- **The app reports itself connected only once both daemon lanes are up.** A preset change
+  flashed Connected, then Unreachable, then Connected while the daemon restarted, and a
+  fresh start showed a connected, undimmed page while it was still loading. The status pill
+  and the page dim now stay unavailable until both the control and the configuration lane
+  answer.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: differential on /api/health (line 1: ready false then true across one connect, reachable true in both)
+
+round 1 findings, each answered: `kind: new` added; line 4 split to a single surface; App-root half folded as a DELTA to tests/js/components/app.test.js:45-50 (not a numbered line); the pill `existing:` re-grepped and returned with citations I checked — tests/js/components/header.test.js:71-73 takes a per-call `health` override and :122-131 already parametrizes health across three cases, so the color differential is a parametrize-style addition on that surface. No finding outstanding.
+
+1  KEEP  two /api/health reads across one connect, both lanes configured -> ready false at the first read where reachable turns true, true after the load finishes; publishing ready from the reachable set point fails it at the first read; bite: no `ready` key in either read (nine keys listed), null stub fails at both
+2  KEEP  /api/health with no management credentials, after reachable turns true -> ready true; gating ready on the 8088 lane having loaded fails it at that read; bite: `ready` absent, reachable True, null stub fails at that read
+3  KEEP  PresetLane.load of a stored preset -> health at the moment load returns answers ready true; returning as soon as the 8088 lane answers with the control connection still dead fails it at the return read; bite: no `ready` key in any of the 30 in-window samples, reachable True throughout, null stub fails at the return read
+4  DELTA tests/js/components/header.test.js:251: the pill case gains a health override differential — `{reachable: true, ready: false}` renders `pill-red`, `{reachable: true, ready: true}` renders `pill-green`, beside the existing bare-`head()` case; no new test file
+
+null stub: /api/health keeps returning today's nine keys with no `ready`, no new await in the preset load path, StatusPill and App render exactly as they do now — fails lines 1, 2, 3, 4 and the folded app.test.js case.
+hard-coded stub: health returns `ready: reachable` (true whenever reachable) and the pill keys off `ready` — passes line 2 and line 4's green half, fails line 1's first read and line 3's return read, so the block is not a lookup table.
+
+survives: 3 (three new lines plus two deltas: header.test.js:251 and app.test.js:45-50)
