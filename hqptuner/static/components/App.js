@@ -14,14 +14,14 @@ import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
-import { reachable } from "../store/signals.js";
+import { ready } from "../store/signals.js";
 import { liveMode } from "../store/prefs.js";
 
 /** Root layout: header, signal path and alert strip over either the tab bar and body or the LIVE page, with the pending bar below. */
 export function App() {
   const live = liveMode.value;
   return html`
-    <div class="app ${reachable.value ? "" : "offline"}">
+    <div class="app ${ready.value ? "" : "offline"}">
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />

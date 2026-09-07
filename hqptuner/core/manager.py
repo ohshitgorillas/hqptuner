@@ -71,6 +71,10 @@ class ConnectionManager:
         self.applyops = ApplyOps(self)
 
         self.reachable = False
+        # `reachable` is the 4321 handshake alone, published before the 8088 half of
+        # the connect has run; `ready` is the whole connect body having returned, which
+        # is what the UI and the write lanes actually need to know.
+        self.ready = False
         self.unreachable_since: float | None = time.time()
         self._unreachable_mono: float = time.monotonic()
 
@@ -162,6 +166,7 @@ class ConnectionManager:
             self.unreachable_since = time.time()
             self._unreachable_mono = time.monotonic()
         self.reachable = False
+        self.ready = False
         if self._client is not None:
             await self._client.close()
             self._client = None
@@ -214,6 +219,10 @@ class ConnectionManager:
                 # BadZipFile belongs here and not above: presetzip.snapshot_members opens the
                 # archive itself, with no empty-bytes fallback under it.
                 log.warning("preset migration skipped: %s", exc)
+        # Last statement on purpose: `ready` means this body ran to its end. An install
+        # with no credentials has no 8088 lane to wait for and arrives here just the same
+        # (architecture §"Authentication"), so it is ready as soon as the handshake is.
+        self.ready = True
         log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
     async def _poll(self) -> None:
@@ -354,6 +363,27 @@ class ConnectionManager:
             return True
 
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
+
+    async def await_ready(self) -> bool:
+        """Wait until a whole connect has completed since the last drop.
+
+        ``await_http_ready`` proves only that the 8088 lane answers; after a restore the 4321
+        control connection is still the dead one the restart left behind, and the readings hanging
+        off it are the previous engine's. This waits for the reconnect the poll loop drives, so the
+        caller returns to a manager that is whole on both lanes.
+
+        Paced on the poll loop's own clock (``_sleep`` and ``time.monotonic``), not on the lanes'
+        virtualized seams: what this waits for is a reconnect the loop physically has to perform, so
+        a virtual clock would run the deadline out without the reconnect having had any chance to
+        happen. Every other settle wait polls the daemon itself and is right to pace virtually.
+
+        Best-effort like those: a False answer means the deadline passed, which the caller reports
+        rather than papers over. Reads an in-process flag and touches no socket.
+        """
+        end = time.monotonic() + self.alarm_threshold
+        while not self.ready and not self._stop.is_set() and time.monotonic() < end:
+            await self._sleep(RECONNECT_FAST)
+        return self.ready
 
     @property
     def control(self) -> ControlClient | None:

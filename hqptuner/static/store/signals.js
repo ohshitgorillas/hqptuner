@@ -18,7 +18,7 @@
 import { signal, computed } from "@preact/signals";
 
 // --- source signals ---
-export const health = signal(null); // {reachable, alarm, unreachable_since, info}
+export const health = signal(null); // {reachable, ready, alarm, unreachable_since, info}
 export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null); // /api/enumerations data (merged w/ static)
@@ -57,6 +57,10 @@ export const staged = signal({ live: {}, http: {} }); // mirrors server pending
 export const liveOverride = signal({});
 
 // --- derived: connection ---
-export const reachable = computed(() => !!(health.value && health.value.reachable));
+// The backend publishes `reachable` at the 4321 handshake, before the rest of its
+// connect has run, so it is true through the window where nothing else is loaded
+// yet. `ready` is that whole connect having finished, which is the fact every
+// reader here actually wants.
+export const ready = computed(() => !!(health.value && health.value.ready));
 export const alarm = computed(() => !!(health.value && health.value.alarm));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");

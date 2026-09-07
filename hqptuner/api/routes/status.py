@@ -28,6 +28,10 @@ def health(manager: Mgr) -> dict[str, Any]:
     """
     return {
         "reachable": manager.reachable,
+        # `reachable` is the 4321 handshake alone and turns true before the rest of the
+        # connect has run. `ready` is that whole load having finished, which is what the
+        # frontend keys the pill and the page dim on.
+        "ready": manager.ready,
         "unreachable_since": manager.unreachable_since,
         # When the CURRENT control connection was established. A brief drop can be
         # shorter than the frontend's health poll, so `reachable` never visibly goes
