@@ -105,12 +105,14 @@ button.card-head {
 }
 /* controls inside a half-width card-grid card must fit that half — the 28rem
    select token overflows a 12rem-label + half-container row (same math as the
-   packs), so the column is the cap here too. */
+   packs), so the column is the cap here too. The combobox trigger (.dd-box)
+   carries the same 28rem and takes the same cap. */
 .card-grid .field {
   min-width: 0;
 }
 .card-grid .field select,
-.card-grid .field input[type="text"] {
+.card-grid .field input[type="text"],
+.card-grid .field .dd-box {
   width: 100%;
   max-width: 100%;
   min-width: 0;

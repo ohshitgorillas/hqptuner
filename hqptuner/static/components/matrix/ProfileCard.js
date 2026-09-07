@@ -298,7 +298,9 @@ const profileTips = (o) => ({
 // The saved-profile picker and its two actions. Load runs live; Delete asks
 // which presets the removal should reach before it touches anything. The picker
 // is the app's own combobox rather than a native select, because a native option
-// row has no surface a description can show on (components/binder.js).
+// row has no surface a description can show on (components/binder.js). Load and
+// Delete sit on their own row under the trigger, so the trigger takes the whole
+// control track.
 /**
  * @param {{ saved: string[], sel: string, busy: string }} props
  */
@@ -314,6 +316,8 @@ function SavedProfilesField({ saved, sel, busy }) {
             disabled=${!!busy}
             onChange=${(/** @type {string | number} */ v) => (profileSel.value = String(v))}
           />
+        </div>
+        <div class="mtx-profile-actions">
           <button
             type="button"
             class="mtx-tool mtx-primary"
