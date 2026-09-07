@@ -239,8 +239,9 @@ class ConnectionManager:
         Only a whole connection is dropped: with ``ready`` False there is either no client, or a
         connect body mid-flight that must finish on its own client rather than one closed under it.
         """
+        whole = self.ready  # read BEFORE the mark: recording it is what turns `ready` False
         self.readiness.restarting()
-        if self.ready:
+        if whole:
             await self._drop("restore restarts the daemon")
             self._wake.set()
 
