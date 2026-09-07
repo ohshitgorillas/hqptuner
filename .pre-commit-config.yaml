@@ -250,6 +250,12 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: spec-structure
+        name: approved spec blocks carry their clauses
+        entry: .venv/bin/python scripts/gates/check_spec_draft.py --committed
+        language: system
+        files: ^tests/specs/.*\.txt$
+
       # Both drive the real modules through node and read the whole lib dir, so
       # they take no filenames and trigger on any lib JS.
       - id: binaural

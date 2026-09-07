@@ -29,7 +29,7 @@ Never edit `hqptuner/` in the owner's checkout to run an experiment, even restor
 
 Every stage 1 plan goes to `plan-reviewer` before the owner reads one, whatever its size. The brief is the bare plan prose: it counts framing before it runs a check, and a spec block, a diff or a finished change is rejected on sight. It reads the implementation deliberately, because its checks are claim resolution: the plan cites `file:line` and the reviewer opens it. It returns `READY`, `ANOTHER PASS` or `ESCALATE`, one line per fixed check, and writes every round to `state/reviews/<slug>.plan.<N>.txt` itself.
 
-- `ANOTHER PASS`: repair against the named repair and return to the **same** agent by `SendMessage`, carrying the previous round's findings for every check whose plan text is unchanged. A fresh `Agent` call for a plan that already has a reviewer is a defect on the same footing as skipping the review.
+- `ANOTHER PASS`: repair against the named repair and return to the **same** agent by `SendMessage`. The return names each changed sentence by its first words and carries the previous round's findings for every check whose plan text is unchanged; the reviewer re-runs only the changed sentences and prints `carried` for the rest. A fresh `Agent` call for a plan that already has a reviewer is a defect on the same footing as skipping the review.
 - `REJECTED: STEERING` or `REJECTED: EVASION`: that reviewer is finished, printed no checks, and the bare plan goes to a fresh one, named as abandoned in the report.
 - `ESCALATE`: stop redrafting and put the design question to the owner inside the plan, with the reviewer's alternative.
 - No round limit, but past eight rounds stop and report: what the reviewer keeps failing, what each repair changed, why it is not converging.
@@ -44,7 +44,7 @@ Only after stage 1 is approved. The finished spec block per `/tests`: public ent
 
 ## Approval
 
-A stage advances on go / approved / continue / proceed / yes or a plain equivalent, once per stage; stage 1's word does not carry to stage 2. Everything else is discussion: questions, refinements, corrections, tradeoff talk, "that looks right", "makes sense", partial agreement. Discussion is answered in words and ends there. Re-present a revised plan and ask again rather than reading agreement into commentary; a revision at either stage is re-reviewed and re-approved.
+A stage advances on go / approved / continue / proceed / yes or a plain equivalent, once per stage; stage 1's word does not carry to stage 2. Everything else is discussion: questions, refinements, corrections, tradeoff talk, "that looks right", "makes sense", partial agreement. Discussion is answered in words and ends there. Re-present a revised plan and ask again rather than reading agreement into commentary; a revision at either stage is re-approved, and re-reviewed on its changed sentences only. One exception to the re-review: a revision made at the owner's dictation, in the owner's words, that adds no citation and no touched file, goes straight to the approval word, marked on its sentence as `revised at owner's word: <quoted>`. The reviewer checks disclosure, and the owner already has those words. A dictated revision that adds a citation or a touched file takes the scoped re-review like any other.
 
 ## What needs no permission
 
