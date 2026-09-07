@@ -121,6 +121,10 @@ def _http_render(st: dict[str, Any]) -> str:
         f'<input type="text" name="samplerate" value="{st["samplerate"]}"/>',
         f'<input type="text" name="bitrate" value="{st["bitrate"]}"/>',
         f'<input type="text" name="channels" value="{st["channels"]}"/>',
+        # the startup volume, as the real 6.0.4 page renders it
+        # (tests/support/fixtures/config-form-6.0.4.html: a number input bounded
+        # by the volume range) — the form carries it as well as the config file
+        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" min="-60" max="0"/>',
         f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
         f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
         # the daemon renders 0/1/2 as a bare checkbox: -3 dB and -6 dB are
