@@ -79,7 +79,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     mgr.presetops.persist_backup(backup)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, archive, scope="system")
+    await settle.restore(mgr, archive, mark=mark, scope="system")
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
     await settle.await_ready(mgr, mark)
@@ -262,11 +262,12 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     """
     archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
+    mark = settle.mark_connect(mgr)
+
     async def push() -> bool:
-        await settle.restore(mgr, archive, scope="system")
+        await settle.restore(mgr, archive, mark=mark, scope="system")
         return True
 
-    mark = settle.mark_connect(mgr)
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
         await settle.await_ready(mgr, mark)
         return None

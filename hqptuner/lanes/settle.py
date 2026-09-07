@@ -36,15 +36,20 @@ ZIP_MAGIC = b"PK\x03\x04"
 HTTP_READY_INTERVAL = 1.0
 
 
-async def restore(mgr: ConnectionManager, cfgfile: bytes, scope: str = "system") -> None:
+async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: int | None, scope: str = "system") -> None:
     """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
 
     Every restore the app submits goes through here, so every one of them reports
     its restart at once (``ConnectionManager.restarting``) instead of at the next
-    poll. Take ``mark_connect`` before calling and hand it to ``await_ready`` after.
+    poll. ``mark`` is the caller's ``mark_connect``, taken before the restore and
+    handed to ``await_ready`` after: the drop follows the mark, not a fresh read
+    of ``ready``, so a connect body that finishes during the POST is neither
+    dropped from under the caller nor waited for by it. Those two decisions are
+    one decision, made once.
     """
     await mgr.require_http().restore(cfgfile, scope=scope)
-    await mgr.restarting()
+    if mark is not None:
+        await mgr.restarting()
 
 
 def mark_connect(mgr: ConnectionManager) -> int | None:

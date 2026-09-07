@@ -174,7 +174,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
     try:
-        await settle.restore(manager, data)
+        await settle.restore(manager, data, mark=settle.mark_connect(manager))
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse("daemon_write_failed", f"restore failed: {exc}") from exc
     return {"restored": True, "bytes": len(data)}

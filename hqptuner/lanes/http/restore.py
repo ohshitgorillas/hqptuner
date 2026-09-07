@@ -130,7 +130,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     # next one adopted are one restore the caller has to outlast
     mark = settle.mark_connect(mgr)
     for attempt in range(_PERSIST_RETRIES + 1):
-        final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile)
+        final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile, mark=mark)
         if final is not None:
             if final.get("submitted"):
                 # the restore restarted the daemon and `verify` proves only that the
@@ -164,19 +164,19 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
 
 
 async def _one_pass(
-    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = ""
+    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = "", *, mark: int | None
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
     """One restore+verify pass.
 
     Returns ``(final, diff, error)`` — a non-None ``final`` is a terminal answer for the caller; otherwise the pass is
-    retryable and ``diff``/``error`` describe why.
+    retryable and ``diff``/``error`` describe why. ``mark`` is the caller's connect mark, handed to the restore.
     """
     # a preset switch (or a prior attempt) just restarted the daemon and the
     # active label flips before the restart finishes — wait for the HTTP lane
     # to actually serve before writing, rather than racing it
     await settle.await_http_ready(mgr)
     try:
-        intended = await _restore_once(mgr, merged, active_profile)
+        intended = await _restore_once(mgr, merged, active_profile, mark=mark)
     except xmledit.GroundingError as exc:
         return {"submitted": False, "error": str(exc)}, {}, None
     except httpauth.AuthRefused:
@@ -211,10 +211,12 @@ async def _one_pass(
     return None, diff, None
 
 
-async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "") -> dict[str, str]:
+async def _restore_once(
+    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: int | None
+) -> dict[str, str]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
-    The archive's working config is the running config ⊕ edits.
+    The archive's working config is the running config ⊕ edits. ``mark`` is the caller's connect mark.
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
@@ -241,7 +243,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await settle.restore(mgr, restore_zip, scope="system")
+    await settle.restore(mgr, restore_zip, mark=mark, scope="system")
     return presetconf.read_config(intended_xml)
 
 
