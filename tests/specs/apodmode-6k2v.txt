@@ -16,7 +16,7 @@ behaviors:
    bite: at {ms: 2000, n: 10} = 5 events/s, `--lamp` 0.522 at arg "0" and 0.522 at arg "2"; at {ms: 2000, n: 24} = 12 events/s, 0.747 at arg "0" and 0.747 at arg "2", both at preference "uncorrected" (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`, second density `.../probe24.mjs`)
    existing: none, `grep -rn "apodLight" tests/` returns only tests/js/components/chrome/apodlamp.test.js:7,48,121,162, none of which names a running filter; `grep -rln "active_filter" tests/js` returns signalpath.test.js, store/health.test.js, store/filter-narrowing.test.js, none of which renders the lamp.
 
-2. With a half-apodizing filter running, at each of two bins (5 events/s, 12 events/s), the lamp on "On for uncorrected events" stands at exactly half the brightness that same bin stands at on "On for all events".
+2. With a half-apodizing filter running, at each of two bins (5 events/s, 12 events/s), the lamp on "On for uncorrected events" stands at half the brightness that same bin stands at on "On for all events", to within 0.001.
    kills: reads the two class flags full-first, so a record carrying both bits scores as fully corrected, taking the lamp dark where the owner asked for half.
    bite: at 5 events/s, `--lamp` 0.522 at preference "all" and 0.522 at "uncorrected"; at 12 events/s, 0.747 at "all" and 0.747 at "uncorrected", running filter at arg "2" (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`, second density `.../probe24.mjs`)
    existing: none, same grep as line 1.
@@ -64,17 +64,17 @@ Under `## [Unreleased]` / `### Changed`:
 READY
 discriminates: sweep on the --lamp brightness of data-testid="apod-lamp", two distinct rates (5 and 12 events/s) crossed with preference and running-filter class
 
-1  KEEP  bins {ms: 2000, n: 10} and {ms: 2000, n: 24} at preference "uncorrected", running filter arg "0" vs arg "2" -> the arg "0" render stands strictly brighter at each bin; "dims every stream by the same correction whatever the class" fails it at either bin, where the two args come out equal; bite: 0.522 vs 0.522 at 5 events/s, 0.747 vs 0.747 at 12 events/s at HEAD, so the strict inequality is false at both rates today.
-2  KEEP  same two bins, running filter arg "2", preference "all" vs "uncorrected" -> the uncorrected render is exactly half the all render at each bin; "reads the two class flags full-first" fails it at both bins by taking the uncorrected render to 0 rather than to half; bite: 0.522 vs 0.522 and 0.747 vs 0.747 at HEAD, ratio 1 where the line demands 0.5.
-3  KEEP  same two bins, running filter arg "1", preference "all" vs "uncorrected" -> uncorrected stands at 0 while all stands above 0 at each bin; "keeps publishing the density the bin scored whatever the mode" fails it at both bins, leaving uncorrected equal to all; bite: 0.522 vs 0.522 and 0.747 vs 0.747 at HEAD, uncorrected nonzero.
-4  DELTA tests/js/components/chrome/apodlamp.test.js:162 (carried): `apodLight.value = false` becomes the "off" member of the tri-state, with the `lit()` helper at line 121 writing "all" instead of `true`. No new test.
+1  KEEP  carried
+2  KEEP  bins {ms: 2000, n: 10} and {ms: 2000, n: 24}, running filter arg "2", preference "all" vs "uncorrected" -> the uncorrected render sits within 0.001 of half the all render at each bin (0.261 against 0.522, 0.373 against 0.747); "reads the two class flags full-first" fails it at both bins by publishing 0.000 on the uncorrected arm, off the target by 0.261 and 0.3735; bite: 0.522 vs 0.522 and 0.747 vs 0.747 at HEAD, gap 0.261 and 0.3735 against the 0.001 the line allows.
+3  KEEP  carried
+4  DELTA tests/js/components/chrome/apodlamp.test.js:162 (carried)
 
-null stub: ApodLamp renders nothing and the preference setter is a no-op - satisfies line 4 only, which is why line 4 is a delta and never a new test; lines 1, 2 and 3 each demand a positive --lamp on at least one arm and fail.
-hard-coded stub: a table from (preference, filter class arg) to a fixed --lamp number, ignoring the history - it now fails all three lines, because each states its relation at two rates whose HEAD magnitudes differ (0.522 at n=10, 0.747 at n=24) and a per-mode constant cannot be both the full value at one rate and half the other rate's value.
+null stub: ApodLamp renders nothing and the preference setter is a no-op - satisfies line 4 only; lines 1, 2 and 3 each demand a positive --lamp on at least one arm and fail.
+hard-coded stub: a table from (preference, filter class arg) to a fixed --lamp number, ignoring the history - fails all three lines, since each states its relation at two rates whose HEAD magnitudes differ (0.522 at n=10, 0.747 at n=24) and a per-mode constant cannot be both the full value at one rate and half the other rate's value.
 
 survives: 3
 
 notes:
-- One sentence struck from the return before review and not weighed: "so the two rates are distinct values on that axis rather than two cells of one table" - argument attached to a measurement. The measurement itself (n=10 -> 0.522, n=24 -> 0.747, n=40 -> 0.887) is bite data and was weighed.
-- Round 1's block-level repair was the named one and was taken as named: the sweep on the density axis, no line weakened to reach it. Lines 1-3 keep the strict inequality, the exact-half ratio and the exact-zero they carried in round 1.
-- Cap: three new tests plus one delta, under the four-line ceiling with the delta not counting.
+- The tolerance on line 2 is not a softening and was checked as new text, not carried: at three published decimals the exact-half target 0.3735 is unrepresentable, and 0.001 is that quantum, while the distance the line must reject - HEAD's 0.261 and 0.3735, and the kills implementation's 0.261 and 0.3735 - is two orders of magnitude larger. Nothing the block cares about fits inside the band.
+- The fact under that change rests on a file I am barred from reading: hqptuner/static/components/ApodLamp.js:52 publishing through toFixed(3), supplied by the author as a citation. It is the only reason the band exists; if the owner finds the observable is published at full precision, line 2 returns to the round 2 wording with no tolerance.
+- Cap: three new tests plus one delta, under the four-line ceiling.
