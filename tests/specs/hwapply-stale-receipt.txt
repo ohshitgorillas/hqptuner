@@ -1,0 +1,62 @@
+kind: new
+
+brief:
+> 1
+> it sounds like A would still leave the suite red, no?
+> then I genuinely don't care
+> what effect does this have on the test suite runtime? the timing gate will fail at an increase of more than 10s, and escalate to me at 5s (which I will reject)
+> Approved, stage 2
+
+1. On one loaded Hardware acceleration card with a setting already moved, two apply clicks in sequence — the first having a second setting moved while its round trip is still out, the second having nothing moved while its round trip is out — end their round trips on the `hw-status` class token list pair `([], ["ok"])`.
+   kills: a card that speaks its confirmed receipt on resolve without regard to what moved since the apply was sent, and equally one that has stopped speaking the receipt at all.
+   bite: HEAD produces the pair `(["ok"], ["ok"])` at this input, identical on both runs, the first apply concluding on `hw-status ok` / "Applied." 1.6 s after its click while the card is still dirty from the mid-flight edit. Measured with `stack.http_state["_lag"] = 4` over the first apply, `0` over the second, through an in-page `MutationObserver` on the status element; drive cost 1.85 / 1.90 s from card-loaded to the second conclusion, plus 0.40 / 0.37 s navigation, about 2.3 s per case on top of the session stack and browser an existing e2e module already pays for. Command: `SCRATCH=<scratchpad>; cat > $SCRATCH/probe_ab.py <<'PY' … PY` then `PYTHONPATH=/srv/hqptuner /srv/hqptuner/.venv/bin/python $SCRATCH/probe_ab.py $SCRATCH u1; PYTHONPATH=/srv/hqptuner /srv/hqptuner/.venv/bin/python $SCRATCH/probe_ab.py $SCRATCH u2; rm -f $SCRATCH/probe_ab.py; rm -rf $SCRATCH/stku1 $SCRATCH/stku2`. The already-moved setting is load-bearing: on a clean card the same apply concludes in ~70 ms, its verify matching on the first read, so `_lag` never lengthens it, leaving no window an edit can land inside.
+   existing: none. `grep -rn "in_flight\|mid-flight\|while the round trip\|during the round trip" tests/` returns `tests/e2e/test_hwapply.py:358,359,473,487,491` (the busy-outcome case and the message-changes helper), `tests/js/components/chrome/pendingbar.test.js:277,302,371`, `tests/js/components/live/live-enumbusy.test.js:248,255,290,311`, `tests/e2e/test_livepreset_repick.py:196`, `tests/js/store/livepresets.test.js:162`, `tests/js/store/narrowing-persist.test.js:181` — none on the hardware card's status line against an edit made during its own apply. `tests/e2e/test_hwapply.py::test_a_confirmed_apply_carries_the_ok_outcome` pins the `ok` outcome for an apply with nothing moved during it, on its own, at a card that was clean at the click; nothing pins the pair this line reads over two applies on one card, whose first half is the empty reading.
+
+public entry points
+
+hqptuner/static/components/SystemHardware.js, unchanged by this work:
+
+  /** Renders the Hardware acceleration card — CUDA offload and devices, multicore DSP, E-cores, blocks per cycle, apply. */
+  export function HardwareCard()
+
+  /** Renders the About card's maintenance row — download a config backup, upload one to restore, and the restore status. */
+  export function BackupRestoreRow()
+
+The observable surface is the rendered card, not either function: the status line is the element carrying the `hw-status` class, its outcome is a class token beside it (`""`, `busy`, `ok`, `warn`, `err`), and both buttons carry `data-testid="hw-apply"` and `data-testid="hw-revert"`. Each of the six settings carries its own `data-k`: `cuda_offload`, `cuda_dev`, `cuda_cdev`, `multicore_dsp`, `ecore_allocation`, `blocks_per_cycle`.
+
+wire and protocol facts
+
+- The card's apply is `POST /api/engine`, which goes out as a backup-edit-restore on the HTTP config lane and self-restarts the daemon (docs/architecture.md §1 lane 2). It is not a live setter: the four engine attributes have no `/config` field.
+- After a restore the daemon serves the pre-restart archive for a read or two before catching up, so the apply's verify rides through a stale window rather than trusting the first read (hqptuner/lanes/settle.py:172-198, paced through the injectable `mgr.sleep`; `tests/apply/test_http_apply.py:98` is an existing case over that window).
+- A confirmed apply is the one that answers with `verified.applied`; a submission the verify never confirmed is reported as unconfirmed rather than as success.
+
+applicable fixtures
+
+- `tests/e2e/conftest.py::stack` (session-scoped) — the app under a real HTTP server with the daemon fakes behind it; `stack.http_state` is the fake's mutable state, and a case that edits it puts it back.
+- `tests/e2e/conftest.py::page` — a Playwright page against that stack.
+- `tests/support/fake_config_xml.py:59-63` — serves `<engine cuda="1" multicore="1" nblocks="16" cuda_dev="-1">`, so the card loads non-default values and every control is live.
+- `stack.http_state["_lag"]` (`tests/support/fake_http.py:293`, read at `_backup_response`, :263-273) — how many reads of `/backup/settings.zip` serve the pre-restore archive before the fresh one, which is how long the apply's verify keeps polling. The knob that makes "during the round trip" a state rather than a race; put it back afterwards like any other `http_state` edit.
+- `tests/e2e/test_hwapply.py` module helpers — `loaded_card`, `change_setting`, `saw_outcome`, `status_text`, `settled`, `flush_frames`.
+
+changelog entry
+
+No entry. Owner ruling: an entry that cannot be written without naming the mechanism does not go in, and this one cannot, because what changes is only reachable inside a single apply the user interrupts with another edit.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the hardware card's `hw-status` token list — `[]` for the apply with a setting moved mid-flight, `["ok"]` for the apply with nothing moved, one pair, one card, one drive
+
+Round-2 finding repaired as named: the differential is back inside the block as a single comparable pair, so the null stub no longer passes and both halves of `kills:` are now rejected by the line as written. The runtime number and the anchor answer arrived with their citations; I checked the two junit writers and the gate that reads the report, and the exclusion of the e2e lane is as stated.
+
+1  KEEP  loaded Hardware acceleration card, one setting already moved, two apply clicks in sequence, a second setting moved during the first round trip and nothing moved during the second -> the `hw-status` token list pair is `([], ["ok"])`; a card that speaks its receipt on resolve without regard to what moved fails it at the first click, reading `["ok"]` where the pair wants `[]`; bite: HEAD produces `(["ok"], ["ok"])` at this input, measured twice at `_lag = 4` over the first apply
+
+null stub: the card renders no `hw-status` element and no outcome token; apply posts nothing and resolves silently, so the pair reads `([], [])`.
+  satisfies: none   fails: 1
+hard-coded stub: resolve every apply to the `ok` token whatever moved (or, in the mirror form, clear the status on every resolve and never speak `ok`); either way one member of the pair is wrong.
+  satisfies: none   fails: 1
+
+survives: 1
+
+for the owner: the case adds about 2.3 s of browser drive. His 5 s sentence names the timing gate, and that gate reads a report written by two runs that both deselect the e2e lane, so the number is real wall time no gate will judge — it is his call, not the gate's.
+
+on the ordinal objection, recorded rather than acted on: a table keyed on "first apply of the page reads `[]`, second reads `ok`" would satisfy this line. It is not grounds for a cut, because it satisfies EVERY possible two-observation line, including the differential the discrimination check names as the sanctioned repair, and no reordering or third observation escapes it. A stub that passes every line in a category separates nothing.
