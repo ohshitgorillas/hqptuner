@@ -1,0 +1,23 @@
+kind: excision
+brief:
+> ruling: no more skipped tests. investigate the skipped test in the suite and either repair or excise.
+> Excise.
+
+1. excise tests/gates/test_no_barrels.py::test_omitting_the_module_exemption_mapping_falls_back_to_the_shipped_one
+   rule: docs/testing.md rule 12
+   assertion: assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, nothing pinned
+
+1  KEEP  target tests/gates/test_no_barrels.py::test_omitting_the_module_exemption_mapping_falls_back_to_the_shipped_one is under tests/; rule 12 is real and fits: MODULE_EXEMPT is empty (scripts/gates/check_no_barrels.py:63), so a_shipped_key calls pytest.skip and the quoted assertion never runs, constraining nothing while costing every reader's time.
+
+null stub: n/a for kind: excision - no behavior line pins anything for a stub to satisfy.
+  satisfies: none   fails: none
+hard-coded stub: n/a for kind: excision - no behavior line pins anything for a stub to satisfy.
+  satisfies: none   fails: none
+survives: 1
+
+notes:
+- The quoted assertion is byte-identical to the sibling test_omitting_the_forwarder_exemption_mapping_falls_back_to_the_shipped_one's assertion; the target is disambiguated by the ::test name, and the sibling stays (FORWARDER_EXEMPT is non-empty at check_no_barrels.py:66, so it runs).
