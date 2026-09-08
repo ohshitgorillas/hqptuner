@@ -122,7 +122,7 @@ def test_a_reviewer_write_outside_state_reviews_is_denied(
     assert outcome(tool, edit_input(tool, root / relative), root, agent_type) == "denied"
 
 
-# --- 3. a reviewer's shell is read-only, whatever it names --------------------
+# --- 3. a reviewer's shell is read-only, and never reaches the lane -----------
 
 
 @pytest.mark.parametrize(
@@ -132,15 +132,15 @@ def test_a_reviewer_write_outside_state_reviews_is_denied(
         ("spec-reviewer", "echo x > state/reviews/x.1.txt", "denied"),
         ("plan-reviewer", "git commit -m x", "denied"),
         ("spec-reviewer", "make check", "allowed"),
-        ("plan-reviewer", "cat state/reviews/x.1.txt", "allowed"),
-        ("spec-reviewer", "grep -n READY state/reviews/x.1.txt", "allowed"),
+        ("plan-reviewer", "cat state/reviews/x.1.txt", "denied"),
+        ("spec-reviewer", "grep -n READY state/reviews/x.1.txt", "denied"),
     ],
     ids=["sed-in-place-elsewhere", "redirect-into-lane", "git-commit", "make-check", "cat-lane", "grep-lane"],
 )
 def test_a_reviewer_bash_is_denied_when_metered_and_allowed_when_free(
     tmp_path: Path, agent_type: str, command: str, expected: str
 ) -> None:
-    """The path a command names is not the test; whether it can change anything is."""
+    """A free command still dies on naming the lane; only one naming nothing there survives."""
     root = checkout(tmp_path)
     assert outcome("Bash", {"command": command}, root, agent_type) == expected
 
@@ -173,3 +173,48 @@ def test_an_orchestrator_bash_is_denied_only_when_it_is_metered_and_names_state_
     """Naming the lane is not enough to deny: a read of it is allowed, and a write elsewhere is not its business."""
     root = checkout(tmp_path)
     assert outcome("Bash", {"command": command}, root, ORCHESTRATOR) == expected
+
+
+# --- 5. a reviewer's Read cannot reach a verdict file -------------------------
+
+
+@pytest.mark.parametrize(
+    ("agent_type", "relative", "expected"),
+    [
+        ("spec-reviewer", "state/reviews/x.1.txt", "denied"),
+        ("plan-reviewer", ".claude/worktrees/x-spec/state/reviews/x.2.txt", "denied"),
+        ("spec-reviewer", "docs/testing.md", "allowed"),
+        (ORCHESTRATOR, "state/reviews/x.1.txt", "allowed"),
+    ],
+    ids=["spec-reviewer-lane", "plan-reviewer-lane-in-worktree", "spec-reviewer-docs", "orchestrator-lane"],
+)
+def test_a_read_under_state_reviews_is_denied_only_for_a_reviewer(
+    tmp_path: Path, agent_type: str | None, relative: str, expected: str
+) -> None:
+    """The same verdict file flips on the caller: a reviewer is kept out, the orchestrator reads its own lane."""
+    root = checkout(tmp_path)
+    assert outcome("Read", {"file_path": str(root / relative)}, root, agent_type) == expected
+
+
+# --- 6. a reviewer's Grep cannot reach the lane through either field ----------
+
+
+@pytest.mark.parametrize(
+    ("agent_type", "pattern", "field", "expected"),
+    [
+        ("spec-reviewer", "READY", ("path", "state/reviews"), "denied"),
+        ("spec-reviewer", "READY", ("glob", "state/reviews/*.txt"), "denied"),
+        ("spec-reviewer", "def verdict", ("path", "hqptuner"), "allowed"),
+        (ORCHESTRATOR, "READY", ("path", "state/reviews"), "allowed"),
+    ],
+    ids=["spec-reviewer-path", "spec-reviewer-glob", "spec-reviewer-package", "orchestrator-path"],
+)
+def test_a_grep_that_resolves_under_state_reviews_is_denied_only_for_a_reviewer(
+    tmp_path: Path, agent_type: str | None, pattern: str, field: tuple[str, str], expected: str
+) -> None:
+    """A ``path`` into the lane and a ``glob`` over it are one reach, and the caller decides whether it lands."""
+    root = checkout(tmp_path)
+    key, value = field
+    # A ``path`` is an absolute location in the checkout; a ``glob`` is the relative pattern the caller typed.
+    grep_input = {"pattern": pattern, key: str(root / value) if key == "path" else value}
+    assert outcome("Grep", grep_input, root, agent_type) == expected

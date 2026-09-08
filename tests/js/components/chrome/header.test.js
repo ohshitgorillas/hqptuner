@@ -112,11 +112,6 @@ const delButton = (out) => {
   return i < 0 ? "" : out.slice(i, out.indexOf("</button>", i));
 };
 
-// The pending-apply marker, read as a class rather than as its wording.
-/** @param {string} out */
-const pendingMarked = (out) =>
-  [...out.matchAll(/class="([^"]*)"/g)].some((m) => m[1].split(/\s+/).includes("pending-apply"));
-
 // --- daemon identity --------------------------------------------------------
 
 test("test_a_missing_health_snapshot_falls_back_to_the_default_daemon_name", () => {
@@ -230,20 +225,6 @@ test("test_withdrawing_dismisses_the_delete_question", () => {
   askConfirm("header", QUESTION);
   cancel();
   assert.equal(again().includes(QUESTION), false);
-});
-
-// --- pending apply ----------------------------------------------------------
-
-test("test_a_previewed_preset_is_marked_pending_apply", () => {
-  assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), true);
-});
-
-test("test_a_previewed_no_preset_option_is_marked_pending_apply", () => {
-  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), true);
-});
-
-test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {
-  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night" })), false);
 });
 
 // --- status pill ------------------------------------------------------------

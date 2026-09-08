@@ -59,6 +59,15 @@
 .knob-dial:focus-visible {
   box-shadow: 0 0 0 2px var(--accent);
 }
+/* The playback dial takes its focus from the press itself (Knob.js cancels the
+   pointerdown, so it moves focus by hand), and the browser draws the keyboard
+   ring on that. Accent on a control means staged edit and nothing else
+   (base/marks.css), and this is the one knob that writes live and never stages
+   — so a mouse grab marks nothing here. Keyboard focus keeps the accent ring,
+   which is the app's focus language everywhere (base/aesthetic.css). */
+.knob-lg .knob-dial:focus-visible.pointer-focus {
+  box-shadow: none;
+}
 .knob-face {
   fill: var(--surface-raised);
   stroke: var(--line);

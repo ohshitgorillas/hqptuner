@@ -1,0 +1,43 @@
+kind: excision
+
+brief:
+> Any text appearing next to the status pill conditionally must be excised, as it causes UI elements to jump. Our UI is nice and pretty and coherent; it does not jump.
+> we do not leave useless tautologies behind in the testing codebase for the sake of pinning behavior that no longer exists.
+> 4,5 rejected as copy/design decisions. a forker wants to add a new pill status, this test blocks them for what reason? what bug is it protecting us from?
+
+1. excise tests/js/components/chrome/header.test.js::"test_a_previewed_preset_is_marked_pending_apply"
+   rule: docs/testing.md rule 9
+   assertion: assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), true);
+
+2. excise tests/js/components/chrome/header.test.js::"test_a_previewed_no_preset_option_is_marked_pending_apply"
+   rule: docs/testing.md rule 9
+   assertion: assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), true);
+
+3. excise tests/js/components/chrome/header.test.js::"test_an_active_preset_alone_is_not_marked_pending_apply"
+   rule: docs/testing.md rule 10
+   assertion: assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night" })), false);
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, nothing pinned
+
+return handling: my round-1 note named hqptuner/static/components/Header.js as the
+fact I could not read; the return quotes it at :109 with its stylesheet peer at
+hqptuner/static/css/base/header.css:170, and re-cites lines 1 and 2 under rule 9.
+Finding withdrawn on the citation. No evasion.
+
+1  KEEP tests/js/components/chrome/header.test.js::"test_a_previewed_preset_is_marked_pending_apply"
+      is under tests/, rule 9 is real, and its last bullet fits the quoted
+      assertion: `pendingMarked` selects a span by class only to keep the span's
+      only content -- the sentence -- out of the assertion, so nothing survives
+      removing the wording and the rule orders deletion, not a data-testid.
+2  KEEP same shape at pending "": the assertion detects the presence of the same
+      copy-only span, and rule 9's last bullet orders it deleted rather than
+      reshaped.
+3  KEEP carried. Rule 10, "asserting a value the absent feature also produces":
+      `false` is the zero value of `pendingMarked`, so an implementation that
+      never emits the class passes it.
+
+null stub: N/A - kind: excision block pins nothing, so no stub can satisfy a line.
+hard-coded stub: N/A - same.
+survives: 3

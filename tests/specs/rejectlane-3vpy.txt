@@ -1,0 +1,58 @@
+kind: new
+
+brief:
+> Why are fresh review agents reading old slugs that were rejected for steering? That defeats the purpose, which is to keep the poisoned content out of the reviewer's context.
+> c also sounds like it would save me some tokens, so fold it in as well. a,b,c go to stage 1 now.
+> quarantine, why would you redefine it? that's falsifying the fucking record. give it the original definition that you gave me.
+> keep c, drop a
+
+1. A `Read` is denied exactly when its `file_path` resolves under `state/reviews/` of a checkout while the caller is `agent_type` `spec-reviewer` or `plan-reviewer`: with `spec-reviewer`, `R/state/reviews/x.1.txt` is denied, `R/docs/testing.md` is allowed; with `plan-reviewer`, `R/.claude/worktrees/x-spec/state/reviews/x.2.txt` is denied; with no `agent_type` key, `R/state/reviews/x.1.txt` is allowed.
+   kills: a hook keyed on the path alone, which denies `R/state/reviews/x.1.txt` for every caller and takes the orchestrator's own reads of the lane with it; fails at the last input.
+   bite: allowed, allowed, allowed, allowed at those four inputs (`/srv/hqptuner/.venv/bin/python /tmp/rejectlane-3vpy-probe.py`, throwaway, deleted in the same command)
+   existing: none (`grep -rn "outcome(\"Read\"" tests/` prints nothing)
+
+2. With `agent_type` `spec-reviewer` or `plan-reviewer`, a `Grep` is denied exactly when its `path` or its `glob` resolves under `state/reviews/`: `{"pattern": "READY", "path": "R/state/reviews"}` is denied with `spec-reviewer`; `{"pattern": "READY", "glob": "state/reviews/*.txt"}` is denied with `spec-reviewer`; `{"pattern": "def verdict", "path": "R/hqptuner"}` is allowed with `spec-reviewer`; `{"pattern": "READY", "path": "R/state/reviews"}` is allowed with no `agent_type`.
+   kills: a hook that handles only the `path` key, which allows the `glob` form and leaves the whole lane readable through one field; fails at the second input.
+   bite: allowed, allowed, allowed, allowed at those four inputs (same probe and command as line 1)
+   existing: none (`grep -rn "outcome(\"Grep\"" tests/` prints nothing)
+
+3. With `agent_type` `spec-reviewer` or `plan-reviewer`, a `Bash` command that `free_bash.is_free_bash` frees is denied once it names a `state/reviews/` path: `cat state/reviews/x.1.txt` is denied; `grep -n READY state/reviews/x.1.txt` is denied; `make check` is allowed; `sed -i 's/a/b/' hqptuner/x.py` is denied.
+   kills: a hook that keeps the reviewer's shell keyed on metering alone, which allows `cat state/reviews/x.1.txt`; fails at the first input.
+   bite: allowed, allowed, allowed, denied at those four inputs (same probe and command as line 1)
+   existing: tests/gates/test_reviews_lane.py::test_a_reviewer_bash_is_denied_when_metered_and_allowed_when_free, whose `cat-lane` and `grep-lane` cases assert the first two inputs allowed and are what this line reverses
+
+Public entry points
+
+- `verdict(name: str, tool_input: dict, payload: dict, free=None, lane=None) -> str | None` in `.claude/hooks/reviews-lane.py`, line 114. `name` is the tool name; `tool_input` carries `file_path` for `Write`/`Edit`/`Read` (`notebook_path` for `NotebookEdit`), `command` for `Bash`, and `pattern` with an optional `path` or `glob` for `Grep`; `payload` is the full hook stdin object and supplies `cwd` and, for subagents, `agent_type`. A reason string denies, `None` allows.
+- `free_bash.is_free_bash(cmd: str, note=None) -> bool` in `.claude/hooks/free_bash.py`; read-only commands return `True`.
+
+Wire and protocol facts
+
+- No daemon traffic. The wire here is the `PreToolUse` hook payload: `cwd` always, `agent_type` only for subagent calls, an absent key meaning the orchestrator. That shape is already stated in `tests/specs/reviewslane-f8f1.txt` and pinned by `tests/gates/test_reviews_lane.py`.
+- The hook fires for a tool only where a matcher names it: `.claude/settings.json:5` matches `Bash|Write|Edit|NotebookEdit|Agent` session-wide, and the `hooks:` frontmatter of `.claude/agents/spec-reviewer.md` and `.claude/agents/plan-reviewer.md` matches `Write|Edit|NotebookEdit|Bash`. `Read` and `Grep` reach no hook today, so the frontmatter matchers gain them; `Glob` is deliberately left unmatched, because the round-file numbering needs it and it returns filenames only.
+- `state/` is gitignored (`.gitignore:86`), so no verdict file is a git object and there is nothing to restore one from.
+
+Applicable fixtures
+
+- No `tests/conftest.py` fixture applies. `tests/gates/test_reviews_lane.py` builds its own checkout root from pytest's `tmp_path` and loads the hook by path, since `.claude/hooks/` is outside any package; that file's existing helpers are the ones this block's cases use.
+
+Changelog entry
+
+No entry. The change is agent-infrastructure: it alters which tool calls two subagent types may make, and nothing a user of HQPTuner can observe.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on `verdict` — line 1 holds the same target `R/state/reviews/x.1.txt` fixed and varies the caller across `spec-reviewer`, `plan-reviewer` and no `agent_type`, with two distinct verdicts; line 2 does the same for `Grep` across the `path` and `glob` fields
+
+1  KEEP  `spec-reviewer` Read `R/state/reviews/x.1.txt` and `plan-reviewer` Read `R/.claude/worktrees/x-spec/state/reviews/x.2.txt` -> denied, `spec-reviewer` Read `R/docs/testing.md` and no-`agent_type` Read `R/state/reviews/x.1.txt` -> allowed; the path-only hook fails it at the no-`agent_type` lane read; bite: allowed at all four inputs at HEAD, so the two denied arms are red
+2  KEEP  carried: `spec-reviewer` Grep `{"path": "R/state/reviews"}` and `{"glob": "state/reviews/*.txt"}` -> denied, `{"path": "R/hqptuner"}` -> allowed, and the same lane `path` with no `agent_type` -> allowed; the path-key-only hook fails it at the `glob` input; bite: allowed at all four inputs at HEAD
+3  DELTA carried: tests/gates/test_reviews_lane.py:135-136 — the `cat-lane` and `grep-lane` cases of test_a_reviewer_bash_is_denied_when_metered_and_allowed_when_free flip from "allowed" to "denied"; no new test.
+
+null stub: `verdict` leaves `Read` and `Grep` unhandled and returns the allow verdict — fails line 1 at `spec-reviewer` + `R/state/reviews/x.1.txt`, line 2 at both the `path` and `glob` lane forms, line 3 at `cat state/reviews/x.1.txt`. Satisfies nothing.
+hard-coded stub: a table keyed on (`agent_type`, tool, literal path or command) returning the named verdicts. It covers line 3's fixed command strings, but lines 1 and 2 hand it paths under a `tmp_path` checkout root and inside a worktree, so the table must resolve `state/reviews/` under a variable root — which is the feature. No line cut under it.
+survives: 2
+
+notes:
+- One framing tell in the return, struck and reviewed as absent: "the unhandled-`Read` implementation is covered by your null stub line and no longer needs a clause of its own" recites my own output back as justification. It changed nothing: the `kills:` clause line 1 now carries is concrete, names its failing input, and the line fails under it, so it passes (a) and (g) on its own text.
+- I have not read `.claude/hooks/reviews-lane.py`; it is denied to me. Every verdict rests on the block, `tests/gates/test_reviews_lane.py` and `docs/testing.md`. The four `bite:` values are author-measured and taken as given — the only fact in this review I could not check myself.
+- Brief items settled by the return: `b` is the hook change these lines pin, `c` (a steering rejection writes no round file) and dropped `a` are not behaviors of `verdict`, so no line owes them one.

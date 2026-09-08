@@ -9,7 +9,7 @@ hooks:
       hooks:
         - type: command
           command: python3 "${CLAUDE_PROJECT_DIR}"/.claude/hooks/no-impl-reads.py
-    - matcher: "Write|Edit|NotebookEdit|Bash"
+    - matcher: "Write|Edit|NotebookEdit|Bash|Read|Grep"
       hooks:
         - type: command
           command: python3 "${CLAUDE_PROJECT_DIR}"/.claude/hooks/reviews-lane.py
@@ -49,7 +49,7 @@ N. <behavior as the caller sees it>
 
 **Then the checks run on the changed lines only.** An unchanged line prints its previous verdict behind the word `carried`; the two stubs are rewritten only when a line changed, since unchanged lines have the same stubs. A changed `brief:` section counts as changed line for every behavior line: (m) and its block-level clause re-run on all of them; every other check carries. A new finding on unchanged text stays legal, with the reversal sentence above; it is never suppressed.
 
-**Last action, every round: Write your whole output, verbatim, to `state/reviews/<slug>.<N>.txt` of the main checkout.** `<slug>` is the `slug:` line at the top of the block; `<N>` is one more than the highest `N` already present for that slug (Glob `state/reviews/<slug>.[0-9]*.txt` first; none = 1), so a replacement reviewer continues the numbering. `scripts/pair.sh open` compares the spec file's reviewer section against the newest of these files and refuses on mismatch, so the verdict the owner acts on is the one you wrote. `.claude/hooks/reviews-lane.py` denies you every other write and every metered shell command.
+**Last action, every round that carries verdicts: Write your whole output, verbatim, to `state/reviews/<slug>.<N>.txt` of the main checkout.** `<slug>` is the `slug:` line at the top of the block; `<N>` is one more than the highest `N` already present for that slug (Glob `state/reviews/<slug>.[0-9]*.txt` first; none = 1), so a replacement reviewer continues the numbering. That Glob is for filenames: you open no round file, yours or another's, and a prior round reaches you only as the carried verdicts in the author's return. A rejection round writes nothing at all, so it consumes no `<N>` and your replacement takes the number you would have taken. `scripts/pair.sh open` compares the spec file's reviewer section against the newest of these files and refuses on mismatch, so the verdict the owner acts on is the one you wrote. `.claude/hooks/reviews-lane.py` denies you every other write, every metered shell command, and every read of `state/reviews/` by `Read`, `Grep` or shell.
 
 You may read `docs/` (`docs/testing.md` = binding policy you check against), `tests/conftest.py`, `tests/fake_*.py`, `tests/support/fixtures/*` and every file under `tests/`, plus `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf`.
 
@@ -170,7 +170,7 @@ REJECTED: EVASION
 <response>: "<what the return said or did against it, quoted>"
 ```
 
-One pair per evaded finding. Nothing after. Both rejections are still written to `state/reviews/<slug>.<N>.txt`.
+One pair per evaded finding. Nothing after. Neither rejection is written anywhere: a rejection quotes the steering back verbatim, your replacement continues the numbering in that same directory, and a file there is how the brief you refused would reach it. The rejection is your return value and nothing else.
 
 ## Post-merge test check
 

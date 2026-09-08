@@ -280,7 +280,8 @@ excise_whole_files() {   # excise_whole_files <tree> <spec-commit>
 # ---- open -------------------------------------------------------------------
 
 # The reviewer section of the spec file is the reviewer's own text. Every
-# spec-reviewer round is written by that agent to state/reviews/<slug>.<N>.txt
+# spec-reviewer round that carries verdicts is written by that agent to
+# state/reviews/<slug>.<N>.txt (a round that rejected a brief writes nothing)
 # (.claude/hooks/reviews-lane.py keeps every other hand off it), and the
 # section after the separator has to match the newest one, which has to
 # start with READY. A READY the orchestrator typed does not open a pair.
@@ -292,7 +293,7 @@ verdict_check() {
   grep -qxF -- "$VERDICT_SEP" "$SPECFILE" \
     || die "no '$VERDICT_SEP' line in $SPECFILE — the reviewer's output goes beneath that separator."
   vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1 || true)
-  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the spec-reviewer writes its verdict there itself, every round."
+  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the spec-reviewer writes its verdict there itself, every round that carries one."
   [ "$(head -1 "$vfile")" = "READY" ] || die "${vfile#"$ROOT"/} does not start with READY — the reviewer has not passed this block."
   if ! diff -qB <(sed -n "/^$VERDICT_SEP\$/,\$p" "$SPECFILE" | sed '1d;s/[[:space:]]*$//') \
                 <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then

@@ -14,9 +14,29 @@
 // no server hit); onCommit(v) fires on release / key / dbl-click / box edit and
 // persists through the store's optimistic edit.
 
+import { signal } from "@preact/signals";
 import { useRef, useEffect, useCallback } from "preact/hooks";
 import { html, wheelGuard, userEdit } from "../lib/dom.js";
 import { clamp, num } from "../lib/coerce.js";
+
+// Whether the focus a dial currently holds arrived from a press rather than the
+// keyboard. The playback dial reads it to drop its focus ring on a mouse grab:
+// that ring is drawn in the accent, and accent on a control means staged edit
+// and nothing else (css/base/marks.css) — a claim the live-writing playback
+// volume can never make (components/volume/Playback.js). Every other knob is a
+// schema control that does stage, so its ring keeps its meaning and this flag
+// never reaches it.
+//
+// Page-global rather than per-knob because focus modality is: there is one
+// pointer, and an unfocused dial paints no ring whatever this says.
+//
+// COVERAGE GAP, stated rather than papered over: what a user sees here is a
+// painted ring, which needs a browser — no offline case asserts it, and one
+// asserting the marker class instead would pin this mechanism rather than the
+// behavior (docs/testing.md rule 9 and the playwright note at its "Branches
+// that cannot be reached"). It is verified by eye at hand-back. What would
+// close it is a rendering harness that reconciles.
+const pointerFocus = signal(false);
 
 /**
  * @typedef {{ target: HTMLInputElement }} InputEv
@@ -190,6 +210,9 @@ function useKnobGestures({ disabled, val, st, fine, lo, hi, log, def, snap, live
       // dial takes focus itself or every keyboard gesture dies after a click.
       e.preventDefault();
       e.currentTarget.focus();
+      // the focus above is this press's, not the keyboard's — say so before the
+      // dial renders with it, or the ring reads as a staged edit on a grab
+      pointerFocus.value = true;
       e.currentTarget.setPointerCapture(e.pointerId);
       drag.current = { y: e.clientY, v: val, last: val };
     },
@@ -255,10 +278,16 @@ function useKnobGestures({ disabled, val, st, fine, lo, hi, log, def, snap, live
  */
 function useKnobKeys({ disabled, val, st, fine, lo, hi, log, commit, focused }) {
   const onFocus = useCallback(() => (focused.current = true), []);
-  const onBlur = useCallback(() => (focused.current = false), []);
+  const onBlur = useCallback(() => {
+    focused.current = false;
+    pointerFocus.value = false;
+  }, []);
   const onKeyDown = useCallback(
     (/** @type {KeyEv} */ e) => {
       if (disabled || !focused.current) return;
+      // a key on a dial the user clicked into: the focus is being driven from
+      // the keyboard now, so the ring the press suppressed comes back
+      pointerFocus.value = false;
       const q = e.shiftKey ? fine : st;
       // linear keys step by `step`; log keys sweep 1% of the track per arrow —
       // a fixed real-unit step is useless across a decades-wide range
@@ -317,7 +346,7 @@ function KnobBody({ view, g, angle }) {
   return html`
     <div class="knob ${size === "lg" ? "knob-lg" : ""} ${disabled ? "off" : ""}">
       <svg
-        class="knob-dial"
+        class="knob-dial${size === "lg" && pointerFocus.value ? " pointer-focus" : ""}"
         viewBox="0 0 100 100"
         role="slider"
         tabindex=${disabled ? -1 : 0}

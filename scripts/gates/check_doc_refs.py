@@ -81,7 +81,7 @@ DECORATION = re.compile(r"[`*_]+")
 #: the heading — `(OUT / "INDEX.md").write_text(` was reported as citing a
 #: heading called `).write_text(`. A real citation delimits the name with a
 #: backtick or nothing at all; only a string literal wraps it in quotes.
-QUOTED = re.compile(r"(?<!\")\b([\w-]+)\.md[`\s]*[\"“]([^\"”\n]+)[\"”]")
+QUOTED = re.compile(r"(?<!\")\b([\w-]+)\.md[`\s]+[\"“]([^\"”\n]+)[\"”]")
 
 
 def normalise(text: str) -> str:
