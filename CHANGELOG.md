@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.14.1] — 2026-09-07
+
 ### Changed
 
 - **The apodizing indicator can flash on uncorrected events only.** The System tab's Apodizing indicator is now Off, On for all events, or On for uncorrected events. On the new setting the light stays dark while a full apodizing filter is running, and flashes at half brightness while a half-apodizing filter is.
