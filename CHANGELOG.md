@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **System tab rearrangement** lets the UPnP card soak up the dead space caused by expanding the HQPTuner card. Engine Health now sits at the top of the page.
+
 ### Fixed
 
 - **The LIVE Mode buttons fill their card.** PCM, SDM (DSD) and Auto sat in the middle of the Mode card with a band of empty space above and below the stack. They now divide the card's height between them.

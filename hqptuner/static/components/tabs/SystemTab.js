@@ -1,5 +1,6 @@
-// System tab: engine identity + backup/restore, HQPTuner preferences, timing and
-// UPnP cards, hardware acceleration, the logging card, and the About HQPTuner card.
+// System tab: engine health at the top, then engine identity + backup/restore
+// over UPnP beside the HQPTuner preferences, timing, hardware acceleration, the
+// logging card, and the About HQPTuner card.
 import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -242,14 +243,27 @@ const LoggingCard = () =>
     <${LogTail} />
   <//>`;
 
-/** System tab: about and HQPTuner preference cards, engine health, timing, UPnP, hardware, and the logging card with the log tail. */
+/** System tab: engine health, the about-over-UPnP column beside the HQPTuner preferences, timing, hardware, and the logging card with the log tail. */
 export const System = () =>
   html`<${Section}>
+    <${Card} id="engine-health" title="Engine health">
+      <${EngineHealth} />
+    <//>
     <div class="card-grid">
-      <${Card} id="about" title="About">
-        <${About} />
-        <${BackupRestoreRow} />
-      <//>
+      <!-- About over UPnP in one column: About is short against a five-row
+           HQPTuner, and the grid's align-items:stretch turned that mismatch into
+           dead space. .card-stack gives the FIRST child the stretch, so About
+           keeps absorbing what is left and UPnP — one checkbox, never worth a
+           full page row — sits tight beneath it. -->
+      <div class="card-stack">
+        <${Card} id="about" title="About">
+          <${About} />
+          <${BackupRestoreRow} />
+        <//>
+        <${Card} id="upnp" title="UPnP">
+          <${Field} k="upnp_freewheel" />
+        <//>
+      </div>
       <${Card} id="hqptuner" title="HQPTuner">
         <!-- single column, no .pack: a half-width card's track is ~558px, and the
              12rem label + control of these rows overflows the ~267px half-track a
@@ -260,18 +274,12 @@ export const System = () =>
         <${AccentPicker} />
       <//>
     </div>
-    <${Card} id="engine-health" title="Engine health">
-      <${EngineHealth} />
-    <//>
     <${Card} id="timing" title="Timing">
       <div class="pack">
         <${Field} k="idle_time" />
         <${Field} k="quick_pause" />
         <${Field} k="short_buffer" />
       </div>
-    <//>
-    <${Card} id="upnp" title="UPnP">
-      <${Field} k="upnp_freewheel" />
     <//>
     <${HardwareCard} />
     <${LoggingCard} />
