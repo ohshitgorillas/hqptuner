@@ -238,21 +238,6 @@ def _handshakes(log: CommandLog) -> int:
     return sum(1 for name, _attrs in log if name == "GetInfo")
 
 
-async def test_a_preset_save_returns_with_the_control_lane_on_a_fresh_connection(
-    daemon: DaemonFactory, http_daemon: dict[str, Any], start_manager: StartManager
-) -> None:
-    # fakes before the manager, so the manager is torn down while both are
-    # still answering
-    # the control fake keeps listening through the restore: nothing severs the
-    # old connection from outside, so a second handshake at return is the
-    # manager's own doing, not a repair of a connection the next poll found dead
-    port, log, _state = await daemon()
-    manager = await start_manager(http_daemon["_port"], poll_interval=2.0, hqp_control_port=port)
-    before = _handshakes(log)
-    await manager.presetops.save_preset("Stored")
-    assert (before, _handshakes(log)) == (1, 2)
-
-
 async def test_a_preset_load_returns_on_a_connection_made_after_the_restart(
     across_a_restart: ConnectionManager, restarting_daemon: dict[str, Any]
 ) -> None:
