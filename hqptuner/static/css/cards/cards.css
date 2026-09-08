@@ -357,6 +357,13 @@ button.subhead {
   display: inline-flex;
   gap: var(--sp-3);
 }
+/* the apodizing indicator's three options are sentences, not the two-word
+   settings the hardware card's groups carry, so they stack instead of running
+   the width of the card */
+.field[data-k="apodLight"] .radio-group {
+  flex-direction: column;
+  gap: var(--sp-2);
+}
 /* each radio + its label on one baseline-aligned row */
 .radio-group label {
   display: inline-flex;
