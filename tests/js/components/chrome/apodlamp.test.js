@@ -243,11 +243,23 @@ for (const perSecond of [5, 12]) {
 // Half-apodizing carries BOTH class bits' worth of meaning to a reader that
 // checks full first, and such a reader takes this render dark. The owner asked
 // for half of what the same bin stands at on "On for all events".
+//
+// Read to within a thousandth, the quantum the brightness is published at: half
+// of a bin standing at three decimals need not itself be representable at three.
+// The band is two orders of magnitude tighter than what the case must reject —
+// a lamp taking the half-apodizing render dark misses by half the "all" value
+// itself.
+const HALF_TOLERANCE = 0.001;
+
 for (const perSecond of [5, 12]) {
   test(`test_a_half_apodizing_filter_stands_at_half_the_all_events_brightness: ${perSecond}/s`, () => {
     const all = standing(perSecond, HALF, "all");
     if (all <= 0) throw new Error(`this case needs the "all" render lit at ${perSecond}/s; it stands at ${all}`);
-    assert.equal(standing(perSecond, HALF, "uncorrected"), all / 2);
+    const uncorrected = standing(perSecond, HALF, "uncorrected");
+    assert.ok(
+      Math.abs(uncorrected - all / 2) <= HALF_TOLERANCE,
+      `at ${perSecond}/s the uncorrected render ${uncorrected} must sit within ${HALF_TOLERANCE} of half of ${all}`,
+    );
   });
 }
 
