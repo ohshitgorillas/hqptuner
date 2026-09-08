@@ -242,126 +242,126 @@
       "family": "Polyphase sinc",
       "variant": "Extended frequency response",
       "leaf": "Linear phase",
-      "short": "Poly-sinc · Ext · Linear",
+      "short": "Poly-sinc · Extended · Linear",
       "apod": "half"
     },
     "poly-sinc-ext2": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Linear phase",
-      "short": "Poly-sinc · Ext2 · Linear",
+      "short": "Poly-sinc · Extended v2 · Linear",
       "apod": "full"
     },
     "poly-sinc-ext2-short": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Short linear phase",
-      "short": "Poly-sinc · Ext2 · Short linear",
+      "short": "Poly-sinc · Extended v2 · Short linear",
       "apod": "half"
     },
     "poly-sinc-ext2-medium": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Medium linear phase",
-      "short": "Poly-sinc · Ext2 · Medium linear",
+      "short": "Poly-sinc · Extended v2 · Medium linear",
       "apod": "full"
     },
     "poly-sinc-ext2-long": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Long linear phase",
-      "short": "Poly-sinc · Ext2 · Long linear",
+      "short": "Poly-sinc · Extended v2 · Long linear",
       "apod": "full"
     },
     "poly-sinc-ext2-xl": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Extra-long linear phase",
-      "short": "Poly-sinc · Ext2 · X-long linear",
+      "short": "Poly-sinc · Extended v2 · X-long linear",
       "apod": "none"
     },
     "poly-sinc-ext2-xla": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Extra-long linear phase",
-      "short": "Poly-sinc · Ext2 · X-long linear, apod",
+      "short": "Poly-sinc · Extended v2 · X-long linear, apod",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-mp": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Minimum phase, hi-res",
-      "short": "Poly-sinc · Ext2 · Hi-res minimum",
+      "short": "Poly-sinc · Extended v2 · Hi-res minimum",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-ip": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Intermediate phase, hi-res",
-      "short": "Poly-sinc · Ext2 · Hi-res intermediate",
+      "short": "Poly-sinc · Extended v2 · Hi-res intermediate",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-lp": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Linear phase, hi-res",
-      "short": "Poly-sinc · Ext2 · Hi-res linear",
+      "short": "Poly-sinc · Extended v2 · Hi-res linear",
       "apod": "full"
     },
     "poly-sinc-xtr-mp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Minimum phase",
-      "short": "Poly-sinc · Xtr · Minimum",
+      "short": "Poly-sinc · Extreme · Minimum",
       "apod": "half"
     },
     "poly-sinc-xtr-lp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Linear phase",
-      "short": "Poly-sinc · Xtr · Linear",
+      "short": "Poly-sinc · Extreme · Linear",
       "apod": "half"
     },
     "poly-sinc-xtr-short-mp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Short minimum phase",
-      "short": "Poly-sinc · Xtr · Short minimum",
+      "short": "Poly-sinc · Extreme · Short minimum",
       "apod": "full"
     },
     "poly-sinc-xtr-short-lp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Short linear phase",
-      "short": "Poly-sinc · Xtr · Short linear",
+      "short": "Poly-sinc · Extreme · Short linear",
       "apod": "full"
     },
     "poly-sinc-xtr-mp-2s": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Minimum phase, two-stage",
-      "short": "Poly-sinc · Xtr · Minimum, 2-stage",
+      "short": "Poly-sinc · Extreme · Minimum, 2-stage",
       "apod": "half"
     },
     "poly-sinc-xtr-lp-2s": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Linear phase, two-stage",
-      "short": "Poly-sinc · Xtr · Linear, 2-stage",
+      "short": "Poly-sinc · Extreme · Linear, 2-stage",
       "apod": "half"
     },
     "poly-sinc-xtr-short-mp-2s": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Short minimum phase, two-stage",
-      "short": "Poly-sinc · Xtr · Short minimum, 2-stage",
+      "short": "Poly-sinc · Extreme · Short minimum, 2-stage",
       "apod": "full"
     },
     "poly-sinc-xtr-short-lp-2s": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Short linear phase, two-stage",
-      "short": "Poly-sinc · Xtr · Short linear, 2-stage",
+      "short": "Poly-sinc · Extreme · Short linear, 2-stage",
       "apod": "full"
     },
     "poly-sinc-hb": {
@@ -585,21 +585,21 @@
       "family": "Pure sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Short",
-      "short": "Sinc · Ext2 · Short",
+      "short": "Sinc · Extended v2 · Short",
       "apod": "full"
     },
     "sinc-M": {
       "family": "Pure sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Constant length",
-      "short": "Sinc · Ext2 · Constant length",
+      "short": "Sinc · Extended v2 · Constant length",
       "apod": "full"
     },
     "sinc-Mx": {
       "family": "Pure sinc",
       "variant": "Extended frequency response v2",
       "leaf": "Constant time",
-      "short": "Sinc · Ext2 · Constant time",
+      "short": "Sinc · Extended v2 · Constant time",
       "apod": "full"
     },
     "none": {
