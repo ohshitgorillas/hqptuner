@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.14.2] — 2026-09-08
+
 ### Changed
 
 - **System tab rearrangement** lets the UPnP card soak up the dead space caused by expanding the HQPTuner card. Engine Health now sits at the top of the page.
