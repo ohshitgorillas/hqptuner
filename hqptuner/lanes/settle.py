@@ -79,27 +79,36 @@ def mark_connect(mgr: ConnectionManager) -> Mark | None:
 
 
 async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
-    """Wait until a drop and a connect have both landed after ``mark``, or the alarm window passes.
+    """Wait until BOTH lanes are up on a control connection made after ``mark``, or the alarm window passes.
 
-    ``await_http_ready`` proves only that the 8088 lane answers; after a restore
-    the 4321 connection is the dead one the restart left behind and the readings
-    on it are the previous engine's. This waits for the reconnect ``restore`` set
-    in motion, so the caller returns to a manager whole on both lanes. The counts
-    date the connect: a flag alone cannot say whether the readiness it reports
-    predates this caller's restore.
+    Three things have to be true together, and each clause is one of them.
 
-    A connect alone is not enough. ``restarting`` drops the control lane the instant the
-    POST returns, but hqplayerd goes on answering on 4321 for a moment yet (protocol.md
-    "POST /restore"), so the reconnect can land on the daemon instance that has not
-    restarted; the real restart then drops it, and that drop is the Unreachable a user
-    sees after a Connected they should never have been shown. The counting drop is what
-    proves the restart happened, so this waits for a drop and then a connect after it.
+    ``mgr.connects > mark.connects`` is a control connection established after the
+    write. ``mgr.drops_at_connect > mark.drops`` is that connection having been made
+    after the manager had already seen the daemon go away: ``restarting`` drops the
+    control lane the instant the POST returns, but hqplayerd goes on answering on 4321
+    for a moment yet (protocol.md "POST /restore"), so a reconnect can land on the
+    instance that has not restarted, and returning on it is the Unreachable a user sees
+    after a Connected they should never have been shown. ``mgr.ready`` is both lanes
+    standing now — the control connection whole and the 8088 configuration lane having
+    answered. The control port and the web server do not come back together, and a
+    connect completing while the web server is still starting would otherwise release
+    this wait with the configuration lane down.
+
+    ``http_ok`` is stamped only by the connect body and the poll (``core.loader``), and
+    the connect body stamps it immediately before advancing ``connects`` — so once the
+    first clause holds, any ``http_ok`` read here was stamped at or after that
+    qualifying connect. A value carried over from before the write cannot satisfy it.
 
     The deadline runs on the real clock, not the lanes' virtualized seams
     (docs/testing.md rule 7, owner-approved for this site): what it waits for is
     a reconnect the poll loop physically has to perform, so a virtual clock would
-    run the deadline out with no chance for it to happen. The wake is every edge of the
-    connection itself (``mgr.changed``), so a reconnect landing 50 ms in returns 50 ms in.
+    run the deadline out with no chance for it to happen. The wake is every edge either
+    lane reports (``mgr.changed``), so a lane returning 50 ms in returns 50 ms in.
+
+    Only a caller whose write restarts the daemon belongs here. A reload that leaves the
+    control connection standing never produces a qualifying connect, so this would spend
+    the whole window and then report failure on a write that worked.
 
     Best-effort: False means the deadline passed or there was nothing to wait
     for, which the caller reports rather than papers over.
@@ -107,7 +116,7 @@ async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
     if mark is None:
         return False
     end = time.monotonic() + mgr.alarm_threshold
-    while mgr.drops <= mark.drops or mgr.connects <= mark.connects:
+    while not (mgr.connects > mark.connects and mgr.drops_at_connect > mark.drops and mgr.ready):
         remaining = end - time.monotonic()
         if remaining <= 0:
             return False

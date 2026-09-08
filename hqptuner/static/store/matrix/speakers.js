@@ -9,6 +9,7 @@ import { signal } from "@preact/signals";
 
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
+import { duringEngineWrite } from "../actions.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
 export const speakersStale = signal(false);
@@ -53,7 +54,9 @@ export async function applySpeakers(enabled, channels) {
   speakersBusy.value = true;
   speakersError.value = "";
   try {
-    const r = await api.applySpeakers({ enabled: !!enabled, channels });
+    // The form POST reloads the engine (~3 s), and the pill read Unreachable across it
+    // whenever that cost the poll loop a tick. Same lifecycle as every other engine write.
+    const r = await duringEngineWrite(() => api.applySpeakers({ enabled: !!enabled, channels }));
     if (r.speakers) speakers.value = r.speakers;
     speakersStale.value = false;
     // The lane verifies by reading /speakers back past the reload; an unverified

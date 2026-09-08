@@ -64,9 +64,13 @@ class ConnectionManager:
         # drop, the thing a post-restore wait (lanes.settle.await_ready) sleeps on.
         self._wake = asyncio.Event()
         self.connected = asyncio.Event()
-        # Set on every edge of `connected`, both directions, and cleared by whoever
-        # waits on it. `connected` alone cannot wake a waiter on a drop, and a
-        # post-restore wait needs the drop as much as the connect that follows it.
+        # Set on every edge of what EITHER lane reports — both directions of
+        # `connected`, and the poll's 8088 stamp — and cleared by whoever waits on it.
+        # `connected` alone cannot wake a waiter on a drop, and a post-restore wait
+        # needs the drop as much as the connect that follows it; it cannot wake one on
+        # the configuration lane coming back a poll later either, which a wait for both
+        # lanes would otherwise sleep through to its deadline. A wake, never a verdict:
+        # waiters re-read the counters and `ready` themselves.
         self.changed = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
@@ -84,8 +88,15 @@ class ConnectionManager:
         # Drops that were evidence the daemon went away, since construction. The
         # forced drop `restarting` takes is not one: it is our own doing, ahead of a
         # restart the daemon has not performed yet, so counting it would let a
-        # post-restore wait mistake it for the restart landing.
+        # post-restore wait mistake it for the restart landing. A refused reconnect IS
+        # one — it is the daemon not being there, and after `restarting` has cleared
+        # `connected` it is the only evidence a restart window produces.
         self.drops = 0
+        # `drops` as of the most recently completed connect: the ordering token a
+        # post-restore wait needs. Two counters compared separately cannot say which
+        # came first, and a connect that landed on the not-yet-restarted daemon has to
+        # be told from one made after the daemon actually went away.
+        self.drops_at_connect = 0
         self.unreachable_since: float | None = time.time()
         # Stamped through `monotonic()`, the seam `alarm` reads it back through, so
         # both sides of that subtraction run on one clock (virtual in the suite).
@@ -194,13 +205,21 @@ class ConnectionManager:
         ``restarting`` takes the connection down itself, ahead of a restart the daemon has
         not begun, and a post-restore wait that counted it would return on the connection
         the restart is about to kill.
+
+        Every other drop counts, including a reconnect the daemon refused. That is not a
+        widening of the field's meaning but the rest of it: a refused connect is the
+        daemon not being there. It also has to count, because ``restarting`` leaves
+        `connected` clear, so in the ordinary restart — where the reconnect is refused
+        throughout the window rather than landing on the pre-restart daemon — a drop
+        requiring a live connection never arrives and a wait for one spends its whole
+        deadline on a restart that worked.
         """
         if self.reachable or self._client is not None:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
             self.unreachable_since = time.time()
             self._unreachable_mono = self.monotonic()
-        if counts and self.connected.is_set():
+        if counts:
             self.drops += 1
         self.reachable = False
         self.connected.clear()

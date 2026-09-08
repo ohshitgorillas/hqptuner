@@ -173,8 +173,13 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a 4xx
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
+    mark = settle.mark_connect(manager)
     try:
-        await settle.restore(manager, data, mark=settle.mark_connect(manager))
+        await settle.restore(manager, data, mark=mark)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse("daemon_write_failed", f"restore failed: {exc}") from exc
+    # The restore restarted the daemon under us. Answering here would report a restore
+    # done while both lanes are still down, and the page would read Unreachable a moment
+    # after being told it succeeded; the answer waits for the daemon to come back whole.
+    await settle.await_ready(manager, mark)
     return {"restored": True, "bytes": len(data)}

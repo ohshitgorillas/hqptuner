@@ -47,6 +47,10 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     # 8088 lane having answered, so an install whose configuration lane is refused or
     # absent reports itself unready rather than ready on the handshake alone.
     stamp_http_ok(mgr)
+    # Both written before `connects`, which is the counter a post-restore wait tests
+    # first: once it sees this connect, `http_ok` and `drops_at_connect` already
+    # describe THIS connect and not the one before it.
+    mgr.drops_at_connect = mgr.drops
     mgr.connects += 1
     mgr.connected.set()
     mgr.changed.set()
@@ -154,4 +158,8 @@ async def poll(mgr: "ConnectionManager") -> None:
     # the config/matrix snapshots track reality instead of only connect-time.
     await mgr.refresh_http_forms()
     stamp_http_ok(mgr)
+    # The 8088 lane can come back a poll after the control lane did, and a wait for both
+    # lanes sleeps on `changed`. Without an edge here that wait would be satisfied in
+    # fact and slept through to its deadline.
+    mgr.changed.set()
     readings.loaded_at = time.time()
