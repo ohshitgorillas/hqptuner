@@ -576,3 +576,126 @@ def test_the_revert_button_is_enabled_on_a_clean_card(page: Page, stack: Stack) 
     """Nothing disables revert, not even having nothing to revert."""
     loaded_card(page, stack)
     assert page.locator(REVERT).is_disabled() is False
+
+
+# --- a receipt that went stale while its round trip was still out -------------
+
+#: The status line's other two outcomes, named so the reading below can be the
+#: WHOLE outcome token list rather than a question about one token: a card that
+#: answered `warn` or `err` where the pair wants nothing said is as wrong as one
+#: that answered `ok`.
+WARN = "warn"
+OUTCOMES = (BUSY, OK, WARN, ERR)
+
+#: The card's second GPU setting, by the `data-k` its control carries — which is
+#: also the engine attribute the daemon fake stores it under
+#: (`<engine cuda_cdev=…>`, `tests/support/fake_config_xml.py`), so one name
+#: serves both the edit and putting the fake back afterwards.
+CUDA_CDEV = "cuda_cdev"
+
+#: How many reads of `/backup/settings.zip` the daemon fake answers with the
+#: PRE-restore archive before the fresh one (`_lag`, `tests/support/fake_http.py`).
+#: Not a duration, and nothing here asserts one: it is how many passes the
+#: apply's verify makes before it can match, which is what makes "while the round
+#: trip is still out" a state a second edit can be made inside rather than a race
+#: to click into. Put back with everything else this case moves.
+STALE_READS = 4
+
+#: Counts the app's own applies AS THEY CONCLUDE — every `POST /api/engine`
+#: whose response its `fetch` has resolved on. The apply's verify runs inside
+#: that one request, paced by the stale window above, so the count going up is
+#: the round trip ENDING, which is the moment this case reads the status line
+#: at. A pass-through wrapper on the wire, not a stub of anything in the app:
+#: the same request goes out and the same response comes back.
+#:
+#: Needed because the conclusion of an apply is not otherwise observable in the
+#: DOM under both of the implementations this case tells apart — one of them
+#: says nothing at all when it resolves, so there is no element to wait on, and
+#: a bounded poll for a thing that never comes would read the card at a moment
+#: of the ceiling's choosing.
+COUNT_ENGINE_APPLIES = """
+(() => {
+  var original = window.fetch;
+  window.__engine_applies = 0;
+  window.fetch = function (...args) {
+    return original.apply(window, args).then(function (response) {
+      var target = args[0];
+      var url = typeof target === 'string' ? target : (target && target.url) || '';
+      var init = args[1] || {};
+      var method = (init.method || (target && target.method) || 'GET').toUpperCase();
+      if (method === 'POST' && url.indexOf('/api/engine') !== -1) {
+        window.__engine_applies += 1;
+      }
+      return response;
+    });
+  };
+})()
+"""
+
+
+def watch_engine_applies(page: Page) -> None:
+    """Start counting concluded applies, before anything is loaded.
+
+    An init script, so it is in place for the navigation `loaded_card` makes.
+    """
+    page.add_init_script(COUNT_ENGINE_APPLIES)
+
+
+def concluded_applies(page: Page) -> int:
+    """How many of the card's applies have had their round trip come back so far."""
+    return int(page.evaluate("() => window.__engine_applies || 0"))
+
+
+def outcome_tokens(page: Page) -> list[str]:
+    """Which machine-readable outcomes the status line carries right now.
+
+    The whole outcome token list, not one token's presence: `[]` is the card
+    saying nothing about an apply, and any of `busy` / `ok` / `warn` / `err` is
+    it saying something. Styling classes beside them are design, not contract
+    (docs/testing.md rule 11), so they are filtered out rather than read back.
+    """
+    classes = (page.locator(STATUS).get_attribute("class") or "").split()
+    return [token for token in classes if token in OUTCOMES]
+
+
+def test_an_apply_edited_mid_flight_ends_saying_nothing_while_an_undisturbed_one_reads_ok(
+    page: Page, stack: Stack
+) -> None:
+    """A receipt describes what was sent, so an edit made while it was out makes it stale and it goes unsaid.
+
+    Two applies in sequence on one loaded card that already had a setting moved,
+    told apart by one thing only: whether a setting moved while the round trip
+    was out. The first is interrupted by a second setting being changed and must
+    end its round trip with the status line carrying no outcome at all; the
+    second, with nothing moved during it, must end reading `ok`. Read as one
+    pair, so a card that speaks its receipt on resolve regardless of what moved
+    since fails on the first member, and a card that has stopped speaking
+    receipts at all fails on the second.
+
+    The stale window (`_lag`) is what makes "during the round trip" a state
+    rather than a race: it lengthens the first apply's verify so the mid-flight
+    edit lands inside it. It is put back, along with both engine attributes this
+    case moves, before the session-scoped stack carries any of it onward.
+    """
+    watch_engine_applies(page)
+    loaded_card(page, stack)
+    engine_was = {key: stack.http_state[key] for key in (CUDA_DEV_ATTR, CUDA_CDEV)}
+    lag_was = stack.http_state.get("_lag", 0)
+    try:
+        change_setting(page, CUDA_DEV, NUMBER)
+        stack.http_state["_lag"] = STALE_READS
+        page.locator(APPLY).click()
+        saw_outcome(page, BUSY)
+        change_setting(page, CUDA_CDEV, NUMBER)
+        settled(lambda: concluded_applies(page) >= 1, timeout_ms=APPLY_MS)
+        flush_frames(page)
+        interrupted = outcome_tokens(page)
+        stack.http_state["_lag"] = 0
+        page.locator(APPLY).click()
+        settled(lambda: concluded_applies(page) >= 2, timeout_ms=APPLY_MS)
+        flush_frames(page)
+        undisturbed = outcome_tokens(page)
+    finally:
+        stack.http_state["_lag"] = lag_was
+        stack.http_state.update(engine_was)
+    assert (interrupted, undisturbed) == ([], [OK])
