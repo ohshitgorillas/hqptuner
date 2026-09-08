@@ -9,7 +9,7 @@ import { signal } from "@preact/signals";
 
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { duringEngineWrite } from "../actions.js";
+import { duringEngineWrite } from "../enginewrite.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
 export const speakersStale = signal(false);

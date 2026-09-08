@@ -10,7 +10,7 @@ import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { metadata } from "../store/signals.js";
-import { duringEngineWrite } from "../store/actions.js";
+import { duringEngineWrite } from "../store/enginewrite.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 import { Card } from "./common.js";

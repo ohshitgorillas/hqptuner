@@ -5,7 +5,8 @@
 //   red    — a lane did not come back: unreachable, or the connect still loading
 import { html } from "../lib/dom.js";
 import { ready } from "../store/signals.js";
-import { applying, engineBusy } from "../store/actions.js";
+import { applying } from "../store/actions.js";
+import { engineBusy } from "../store/enginewrite.js";
 
 /** Connection pill reading Applying…, Connected or Unreachable off the ready and apply signals. */
 export function StatusPill() {

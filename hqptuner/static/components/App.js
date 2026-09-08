@@ -15,17 +15,18 @@ import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { ready } from "../store/signals.js";
-import { applying, engineBusy } from "../store/actions.js";
+import { engineRestarting } from "../store/enginewrite.js";
 import { liveMode } from "../store/prefs.js";
 
 /** Root layout: header, signal path and alert strip over either the tab bar and body or the LIVE page, with the pending bar below. */
 export function App() {
   const live = liveMode.value;
   return html`
-    <!-- An apply restarts the daemon under us, so readiness goes false for the length
-         of one: the guard keeps the page from dimming through a routine apply, which
-         the pill already reports as Applying…. -->
-    <div class="app ${ready.value || applying.value || engineBusy.value ? "" : "offline"}">
+    <!-- The dim says one thing: the engine is not there right now. That is true when a
+         health reading says so, and it is true from the click of a write that takes the
+         daemon down — readiness only learns that a poll later, and a short restart can pass
+         between two polls unseen. A write the engine never leaves for raises neither. -->
+    <div class="app ${ready.value && !engineRestarting.value ? "" : "offline"}">
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />

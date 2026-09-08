@@ -9,8 +9,9 @@ import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus } from "./signals.js";
-import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
-import { mirror, refreshConfig, refreshHealth } from "./sync.js";
+import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
+import { duringEngineWrite } from "./enginewrite.js";
+import { mirror, refreshConfig } from "./sync.js";
 import { liveMode } from "./prefs.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
@@ -267,47 +268,18 @@ export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdic
  * @template T
  * @param {() => Promise<T>} run
  * @param {string} what lane name, for the failure sentence
+ * @param {boolean} restarts whether this lane takes the daemon down — the page dims for it
  * @returns {Promise<T>}
  */
-async function applyLane(run, what) {
+async function applyLane(run, what, restarts) {
   applying.value = true;
   try {
-    return await duringEngineWrite(run);
+    return await duringEngineWrite(run, restarts);
   } catch (e) {
     lastApply.value = { ok: false, code: "lane-failed", text: `${what} failed: ${errText(e)}` };
     throw e;
   } finally {
     applying.value = false;
-  }
-}
-
-// Every write that restarts or reloads the daemon, whichever page started it. The pill
-// and the page dim read this; the pending bar does NOT, and that is the point — it reads
-// `applying`, which also disables its four buttons, and a write started on the System
-// page has no business disabling them.
-export const engineBusy = signal(false);
-
-/**
- * Hold the pill in its Applying… state for the length of a write, and read health back
- * before releasing it.
- *
- * The backend's own wait returns only once both daemon lanes are up on a connection made
- * after the write, so the reading taken here is the true one; without it the pill would
- * clear onto a snapshot up to a poll interval old, taken while the daemon was down.
- *
- * @template T
- * @param {() => Promise<T>} run
- * @returns {Promise<T>}
- */
-export async function duringEngineWrite(run) {
-  engineBusy.value = true;
-  try {
-    return await run();
-  } finally {
-    // `mirror` leaves the last good value in place on a failed fetch, so a health
-    // endpoint that is itself down cannot blank the UI here.
-    await refreshHealth();
-    engineBusy.value = false;
   }
 }
 
@@ -348,17 +320,28 @@ async function commitApply(save) {
   // the picker showing a switch Apply would never send.
   const previewed = pendingPreset.value;
   const switchTo = previewed !== null && previewed !== activePreset.value ? previewed : null;
-  return applyLane(async () => {
-    /** @type {{ save?: { name: string }, switch_to?: string }} */
-    const body = {};
-    if (save) body.save = save;
-    if (switchTo !== null) body.switch_to = switchTo;
-    const report = await api.apply(Object.keys(body).length ? body : undefined);
-    await refreshConfig(); // re-mirror pending + fresh values (dropdown picks up a new preset)
-    lastApply.value = summarize(report, count);
-    if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
-    return report;
-  }, "Apply");
+  // Whether this apply takes the daemon down, decided before the await because the
+  // apply clears the staged set. Three ways it does: a restart-required field in the
+  // batch (which sends the whole batch down the restore lane), a preset switch that is
+  // actually sent, and a save target — the save lane POSTs /restore like any other.
+  // An all-live batch with none of the three never leaves the Control API, and the
+  // page must not dim for it.
+  const restarts = split.value.restart > 0 || switchTo !== null || !!save;
+  return applyLane(
+    async () => {
+      /** @type {{ save?: { name: string }, switch_to?: string }} */
+      const body = {};
+      if (save) body.save = save;
+      if (switchTo !== null) body.switch_to = switchTo;
+      const report = await api.apply(Object.keys(body).length ? body : undefined);
+      await refreshConfig(); // re-mirror pending + fresh values (dropdown picks up a new preset)
+      lastApply.value = summarize(report, count);
+      if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
+      return report;
+    },
+    "Apply",
+    restarts,
+  );
 }
 
 // Standalone save — persist the CURRENT running config to a named preset with
@@ -371,14 +354,18 @@ async function commitApply(save) {
  * @returns {Promise<import("./apply-summary.js").SaveResult>}
  */
 export async function savePresetOnly(name) {
-  return applyLane(async () => {
-    const r = await api.profile("save", name);
-    lastApply.value = r.ok
-      ? { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" }
-      : { ok: false, code: "saved", text: `Save to "${r.name}" failed: ${r.error}`, preset: r.name, save: "failed" };
-    await refreshConfig();
-    return r;
-  }, "Save");
+  return applyLane(
+    async () => {
+      const r = await api.profile("save", name);
+      lastApply.value = r.ok
+        ? { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" }
+        : { ok: false, code: "saved", text: `Save to "${r.name}" failed: ${r.error}`, preset: r.name, save: "failed" };
+      await refreshConfig();
+      return r;
+    },
+    "Save",
+    true,
+  );
 }
 
 // Auto-save: with this preset-store flag on, the backend folds every successful apply/live write into the active preset.
