@@ -87,7 +87,7 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         hqp_http_port=pcm_file_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
-        alarm_threshold=1.0,
+        alarm_threshold=0.05,
         # the restore's self-restart is only visible to the manager on its next
         # State poll (the fake cannot sever the 4321 socket the way a real
         # restart does), so the poll runs at test pace rather than production's

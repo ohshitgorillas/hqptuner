@@ -1,5 +1,5 @@
 {
-  "_scope": "The GET /config form's pcm_conversion select (14 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family vocabulary follows the main filter overlay (Conventional, Polyphase sinc, Pure sinc); `none` sits alone in a Bypass family carrying its own blurb. A fourth field, `short`, is the closed-dropdown title, following the filter overlay's abbreviations: Poly-sinc and Sinc for the sinc families, Xtr/Ext2/Gauss segments, the word 'phase' dropped; `none` shows its leaf alone (same license as the dither overlay's none entry). Leaf labels unique within their family; short titles unique across the list. No entry carries `rec`: the manual flags only poly-short-lp Recommended, and a lone recommended option is the default, not a recommendation among peers.",
+  "_scope": "The GET /config form's pcm_conversion select (14 options), in curated display order rather than form order. Raw name -> family label, variant label (null throughout: no subgroup would hold more than one member), leaf label. Family vocabulary follows the main filter overlay (Conventional, Polyphase sinc, Pure sinc); `none` sits alone in a Bypass family carrying its own blurb. A fourth field, `short`, is the closed-dropdown title, following the filter overlay's abbreviations: Poly-sinc and Sinc for the sinc families, Extreme/Extended v2/Gauss segments, the word 'phase' dropped; `none` shows its leaf alone (same license as the dither overlay's none entry). Leaf labels unique within their family; short titles unique across the list. No entry carries `rec`: the manual flags only poly-short-lp Recommended, and a lone recommended option is the default, not a recommendation among peers.",
   "families": {
     "Conventional": "Simple, efficient single-pass conversion filters",
     "Polyphase sinc": "The most variety and flexibility",
@@ -53,19 +53,19 @@
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extreme roll-off and attenuation",
-      "short": "Poly-sinc · Xtr"
+      "short": "Poly-sinc · Extreme"
     },
     "poly-xtr-short": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extreme roll-off and attenuation, short",
-      "short": "Poly-sinc · Xtr · Short"
+      "short": "Poly-sinc · Extreme · Short"
     },
     "poly-ext2": {
       "family": "Polyphase sinc",
       "variant": null,
       "leaf": "Extended frequency response v2",
-      "short": "Poly-sinc · Ext2"
+      "short": "Poly-sinc · Extended v2"
     },
     "poly-gauss-long": {
       "family": "Polyphase sinc",

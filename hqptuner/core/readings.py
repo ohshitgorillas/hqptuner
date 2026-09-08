@@ -55,6 +55,14 @@ class Readings:
     # once the daemon refused them. A daemon that merely stops answering leaves it
     # alone — an unreachable daemon is no evidence either way.
     credentials_ok: bool | None = None
+    # Whether the 8088 configuration lane answered on the most recent connect or
+    # poll. False until it has, and False again the moment /config stops
+    # answering, whatever the reason — refused credentials, a daemon that is not
+    # listening, or an install that has no HTTP client to ask with. Stamped at
+    # the two lifecycle refreshes only (core/loader), never inside forms.refresh:
+    # the off-lifecycle callers refresh the same forms mid-apply, and a stamp
+    # there would turn the app unready in the middle of a write.
+    http_ok: bool = False
     # Saved matrix profile names from the live 4321 lane (MatrixListProfiles —
     # unauthenticated, no reload). The active one is State.matrix_profile.
     matrix_profiles: list[str] | None = None

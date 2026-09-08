@@ -10,7 +10,7 @@ import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
-import { mirror, refreshConfig } from "./sync.js";
+import { mirror, refreshConfig, refreshHealth } from "./sync.js";
 import { liveMode } from "./prefs.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
@@ -272,12 +272,42 @@ export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdic
 async function applyLane(run, what) {
   applying.value = true;
   try {
-    return await run();
+    return await duringEngineWrite(run);
   } catch (e) {
     lastApply.value = { ok: false, code: "lane-failed", text: `${what} failed: ${errText(e)}` };
     throw e;
   } finally {
     applying.value = false;
+  }
+}
+
+// Every write that restarts or reloads the daemon, whichever page started it. The pill
+// and the page dim read this; the pending bar does NOT, and that is the point — it reads
+// `applying`, which also disables its four buttons, and a write started on the System
+// page has no business disabling them.
+export const engineBusy = signal(false);
+
+/**
+ * Hold the pill in its Applying… state for the length of a write, and read health back
+ * before releasing it.
+ *
+ * The backend's own wait returns only once both daemon lanes are up on a connection made
+ * after the write, so the reading taken here is the true one; without it the pill would
+ * clear onto a snapshot up to a poll interval old, taken while the daemon was down.
+ *
+ * @template T
+ * @param {() => Promise<T>} run
+ * @returns {Promise<T>}
+ */
+export async function duringEngineWrite(run) {
+  engineBusy.value = true;
+  try {
+    return await run();
+  } finally {
+    // `mirror` leaves the last good value in place on a failed fetch, so a health
+    // endpoint that is itself down cannot blank the UI here.
+    await refreshHealth();
+    engineBusy.value = false;
   }
 }
 

@@ -22,23 +22,27 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 def health(manager: Mgr) -> dict[str, Any]:
-    """Return daemon reachability, connection age, alarm/info/license, HQPTuner's version, and the credential verdict.
+    """Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
     """
     return {
         "reachable": manager.reachable,
         # `reachable` is the 4321 handshake alone and turns true before the rest of the
-        # connect has run. `ready` is that whole load having finished, which is what the
-        # frontend keys the pill and the page dim on.
+        # connect has run. `ready` is that whole load having finished with the 8088
+        # configuration lane answering inside it, which is what the frontend keys the
+        # pill and the page dim on.
         "ready": manager.ready,
+        # The control connection the connect body completed on, still standing. The write
+        # buttons key on this rather than on `ready`: an install whose configuration lane
+        # is down can still apply a live setting the control lane takes.
+        "connected": manager.connected.is_set(),
         "unreachable_since": manager.unreachable_since,
         # When the CURRENT control connection was established. A brief drop can be
         # shorter than the frontend's health poll, so `reachable` never visibly goes
         # false and an edge on it cannot be seen; this changes on every reconnect,
         # which is what the LIVE page keys its stale-error clearing on.
         "connected_at": manager.readings.loaded_at,
-        "alarm": manager.alarm,
         "info": manager.readings.info,
         # installed release ("6.0.2") off the daemon's /about page — GetInfo's
         # `engine` is the separately-numbered DSP engine, not this.

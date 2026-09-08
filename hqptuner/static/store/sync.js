@@ -57,8 +57,21 @@ export async function mirror(fn, sig, unwrap = (r) => r.data) {
   if (r) sig.value = unwrap(r);
 }
 
-async function refreshFast() {
+/**
+ * Take one health reading now, off the poll timer.
+ *
+ * The pill and the page dim read `health`, and the fast poll refreshes it every 1-2 s.
+ * A write that restarts the daemon finishes well inside that, so without a reading here
+ * the pill leaves its Applying… state onto whatever health said mid-restart.
+ *
+ * @returns {Promise<void>}
+ */
+export async function refreshHealth() {
   await mirror(api.health, health, raw);
+}
+
+async function refreshFast() {
+  await refreshHealth();
   await mirror(api.state, engineState);
   await mirror(api.status, engineStatus);
   // the one endpoint feeding two signals: the level and the range it sits in

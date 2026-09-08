@@ -15,13 +15,17 @@ import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { ready } from "../store/signals.js";
+import { applying, engineBusy } from "../store/actions.js";
 import { liveMode } from "../store/prefs.js";
 
 /** Root layout: header, signal path and alert strip over either the tab bar and body or the LIVE page, with the pending bar below. */
 export function App() {
   const live = liveMode.value;
   return html`
-    <div class="app ${ready.value ? "" : "offline"}">
+    <!-- An apply restarts the daemon under us, so readiness goes false for the length
+         of one: the guard keeps the page from dimming through a routine apply, which
+         the pill already reports as Applying…. -->
+    <div class="app ${ready.value || applying.value || engineBusy.value ? "" : "offline"}">
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />
