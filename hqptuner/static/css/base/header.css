@@ -91,10 +91,12 @@
   box-shadow: inset 0 0 0 1px var(--line);
 }
 /* the light itself, mixed toward the ramp's hot stop by --lit rather than faded
-   with opacity: brightness here is a reading, and mixing is what the density
-   strip does with the same scale. The outer glow grows with it, because a real
-   lamp driven harder spills further, and the two channels moving together are
-   what separate a jewel from a flat dot. */
+   with opacity: brightness here is a reading — the density the strip paints,
+   times the correction the running filter is already applying (components/
+   ApodLamp.js) — and mixing is what the density strip does with the same scale.
+   The outer glow grows with it, because a real lamp driven harder spills
+   further, and the two channels moving together are what separate a jewel from
+   a flat dot. */
 .apod-jewel::after {
   content: "";
   position: absolute;

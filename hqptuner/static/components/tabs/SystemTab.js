@@ -8,7 +8,7 @@ import { health } from "../../store/signals.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
 import { LogTail } from "../LogTail.js";
-import { Checkbox } from "../controls/index.js";
+import { Checkbox, RadioGroup } from "../controls/index.js";
 import {
   accent,
   accentHex,
@@ -125,16 +125,27 @@ const DescriptionPrefs = () => html`
 // in the Engine health card beside the strip it mirrors: what the switch governs
 // is whether a thing appears in the chrome, and the chrome is what this card is
 // for.
+const APOD_LIGHT_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "all", label: "On for all events" },
+  { value: "uncorrected", label: "On for uncorrected events" },
+];
+
 const ApodLightPref = () => html`
   <div class="field" data-k="apodLight">
     <label>Apodizing indicator</label>
     <div class="control">
-      <${Checkbox}
-        value=${apodLight.value ? "1" : "0"}
-        onChange=${(/** @type {string | number} */ v) => setApodLight(v === "1")}
+      <${RadioGroup}
+        value=${apodLight.value}
+        options=${APOD_LIGHT_OPTIONS}
+        onChange=${(/** @type {string | number} */ v) => setApodLight(String(v))}
       />
     </div>
-    <div class="field-note">flashes red on every apodizing event, always visible from header</div>
+    <div class="field-note">
+      An indicator light in the top bar flashes to indicate apodizing events. Brighter flashes indicate higher event
+      density. When "On for uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at
+      half-brightness.
+    </div>
   </div>
 `;
 

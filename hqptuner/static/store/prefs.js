@@ -128,20 +128,50 @@ export function setQuickSystemUpdates(on) {
   persist(K_QUICK_SYS, quickSystemUpdates.value);
 }
 
-// The header's apodizing indicator. Off by default: it is a monitor for a
-// question most listening does not ask, and an indicator nobody switched on has
-// no business flashing in the chrome. Consumed by components/ApodLamp.js.
-export const apodLight = signal(loadBool(K_APOD_LIGHT, false));
+// The header's apodizing indicator, in three states: dark, lit by every
+// apodizing event, or lit only by what the running filter left uncorrected.
+// Off by default: it is a monitor for a question most listening does not ask,
+// and an indicator nobody switched on has no business flashing in the chrome.
+// Consumed by components/ApodLamp.js.
+export const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
+
+// The pref was a boolean before the third state existed, on the same key, so
+// what an existing install has stored is persist()'s "1" or "0". "1" was the
+// lamp on for every event, which is "all"; everything else, junk and unset
+// included, is the default.
+/**
+ * @param {string} key
+ * @returns {string}
+ */
+function loadApodLight(key) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === "1") return "all";
+    return v != null && APOD_LIGHT_MODES.includes(v) ? v : "off";
+  } catch {
+    warnStorage("read");
+    return "off";
+  }
+}
+
+export const apodLight = signal(loadApodLight(K_APOD_LIGHT));
 
 /**
- * Set the header apodizing indicator's opt-in and persist it.
+ * Set the header apodizing indicator's mode and persist it. A value outside
+ * APOD_LIGHT_MODES is ignored: the signal and the stored value both stand.
  *
- * @param {boolean} on
+ * @param {string} mode
  * @returns {void}
  */
-export function setApodLight(on) {
-  apodLight.value = !!on;
-  persist(K_APOD_LIGHT, apodLight.value);
+export function setApodLight(mode) {
+  if (!APOD_LIGHT_MODES.includes(mode)) return;
+  apodLight.value = mode;
+  try {
+    localStorage.setItem(K_APOD_LIGHT, mode);
+  } catch {
+    // storage disabled (private mode) — keep the in-memory value
+    warnStorage("written");
+  }
 }
 
 // Time window of the Engine health card's apodizing-events density strip: how

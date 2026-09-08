@@ -6,6 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The apodizing indicator can flash on uncorrected events only.** The System tab's Apodizing indicator is now Off, On for all events, or On for uncorrected events. On the new setting the light stays dark while a full apodizing filter is running, and flashes at half brightness while a half-apodizing filter is.
 - **Matrix profile descriptions show while picking a profile.** The saved-profile picker on the Matrix tab is now the app's own dropdown, and highlighting a profile that carries a description pops that text beside the row.
 
 ### Fixed
