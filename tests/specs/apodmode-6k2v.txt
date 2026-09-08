@@ -1,0 +1,80 @@
+kind: new
+
+brief:
+> Apod light tweak option: apod light only flashes with UNCORRECTED apod events. currently it flashes with all events, corrected or not.
+> when a half apodizing filter is used, the light flashes at half brightness
+> Apodizing indicator
+> o Off
+> o On for all events
+> o On for uncorrected events
+> An indicator light in the top bar flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "On for uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.
+
+behaviors:
+
+1. On "On for uncorrected events", at each of two bins (5 events/s, 12 events/s), a filter that is neither apodizing nor half-apodizing stands brighter than a half-apodizing filter at the same bin.
+   kills: dims every stream by the same correction whatever the running filter's class, so the mode reads as a brightness trim rather than as a reading of what went uncorrected.
+   bite: at {ms: 2000, n: 10} = 5 events/s, `--lamp` 0.522 at arg "0" and 0.522 at arg "2"; at {ms: 2000, n: 24} = 12 events/s, 0.747 at arg "0" and 0.747 at arg "2", both at preference "uncorrected" (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`, second density `.../probe24.mjs`)
+   existing: none, `grep -rn "apodLight" tests/` returns only tests/js/components/chrome/apodlamp.test.js:7,48,121,162, none of which names a running filter; `grep -rln "active_filter" tests/js` returns signalpath.test.js, store/health.test.js, store/filter-narrowing.test.js, none of which renders the lamp.
+
+2. With a half-apodizing filter running, at each of two bins (5 events/s, 12 events/s), the lamp on "On for uncorrected events" stands at exactly half the brightness that same bin stands at on "On for all events".
+   kills: reads the two class flags full-first, so a record carrying both bits scores as fully corrected, taking the lamp dark where the owner asked for half.
+   bite: at 5 events/s, `--lamp` 0.522 at preference "all" and 0.522 at "uncorrected"; at 12 events/s, 0.747 at "all" and 0.747 at "uncorrected", running filter at arg "2" (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`, second density `.../probe24.mjs`)
+   existing: none, same grep as line 1.
+
+3. With a full apodizing filter running, at each of two bins (5 events/s, 12 events/s), the lamp stands fully dark on "On for uncorrected events" while standing above dark on "On for all events".
+   kills: keeps publishing the density the bin scored whatever the mode, so a fully corrected stream flashes as brightly as an uncorrected one.
+   bite: at 5 events/s, `--lamp` 0.522 at preference "all" and 0.522 at "uncorrected"; at 12 events/s, 0.747 at "all" and 0.747 at "uncorrected", running filter at arg "1" (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`, second density `.../probe24.mjs`)
+   existing: none, same grep as line 1.
+
+4. On "Off" the rendered chrome carries zero lamp elements, whatever the current track has apodized.
+   kills: treats any stored preference value as on, so the mode that switches the indicator off leaves it in the chrome.
+   bite: element `data-testid="apod-lamp"` present carrying `--lamp` 0.522 at preference "off", one bin of {ms: 2000, n: 10} = 5 events/s (`node --import ./tests/js/support/vendor-resolve.js --test /tmp/claude-1000/-srv-hqptuner/d1ad76b1-0091-4351-bbed-fcf443727c75/scratchpad/probe.mjs`)
+   existing: tests/js/components/chrome/apodlamp.test.js::test_the_lamp_does_not_render_when_the_preference_is_off
+
+public entry points (planned):
+
+hqptuner/static/store/prefs.js
+  export const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
+  export const apodLight  // signal<string>, one of APOD_LIGHT_MODES; "off" when nothing is stored
+  export function setApodLight(mode)  // @param {string} mode  @returns {void}; a value outside APOD_LIGHT_MODES is ignored
+
+hqptuner/static/components/ApodLamp.js
+  export function ApodLamp()  // the header's apodizing jewel lamp, or nothing at all when the preference is "off"
+
+wire and protocol facts:
+
+- `<GetFilters/>` returns `<FiltersItem index name value arg description/>`; `arg` is a flags bitfield, bit 0 (`0x00000001`) = apodizing (docs/protocol.md:228). Bit 1 is half-apodizing; the live daemon serves the field as a string, full "1", half "2", neither "0" (tests/js/components/controls/combobox-apod.test.js:15-17, the convention the existing apodizing-badge fixtures already serve).
+- The Status frame carries `apod`, a cumulative apodizing-event counter, and `active_filter`, the running filter's raw engine name (docs/protocol.md:203). Filter facts join to it by that name (docs/architecture.md §2, running engine is enumeration authority).
+- The lamp's brightness is a rate, not a count: a bin covers 1 s in LIVE and 2 s elsewhere, and the same music must read the same at both cadences (already pinned by tests/js/components/chrome/apodlamp.test.js:128).
+
+applicable fixtures:
+
+- tests/js/support/apodpolls.js — `readCadences()` gives the two poll cadences the app itself produces; `feed(deltas)` writes a fresh track and one poll per delta into engineStatus, the seam apodlamp.test.js and enginehealth-strip.test.js already drive.
+- tests/js/support/markup.js — `elements`/`attr`, how the lamp's `data-testid="apod-lamp"` element and its `style` are read.
+- `enums` from hqptuner/static/store/signals.js — the live enumeration, written directly the way tests/js/components/controls/combobox-apod.test.js:54-58 writes one filter per class with its `arg` string.
+- No pytest fixture applies: the change is frontend only.
+
+changelog entry:
+
+Under `## [Unreleased]` / `### Changed`:
+
+- **The apodizing indicator can flash on uncorrected events only.** The System tab's Apodizing indicator is now Off, On for all events, or On for uncorrected events. On the new setting the light stays dark while a full apodizing filter is running, and flashes at half brightness while a half-apodizing filter is.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the --lamp brightness of data-testid="apod-lamp", two distinct rates (5 and 12 events/s) crossed with preference and running-filter class
+
+1  KEEP  bins {ms: 2000, n: 10} and {ms: 2000, n: 24} at preference "uncorrected", running filter arg "0" vs arg "2" -> the arg "0" render stands strictly brighter at each bin; "dims every stream by the same correction whatever the class" fails it at either bin, where the two args come out equal; bite: 0.522 vs 0.522 at 5 events/s, 0.747 vs 0.747 at 12 events/s at HEAD, so the strict inequality is false at both rates today.
+2  KEEP  same two bins, running filter arg "2", preference "all" vs "uncorrected" -> the uncorrected render is exactly half the all render at each bin; "reads the two class flags full-first" fails it at both bins by taking the uncorrected render to 0 rather than to half; bite: 0.522 vs 0.522 and 0.747 vs 0.747 at HEAD, ratio 1 where the line demands 0.5.
+3  KEEP  same two bins, running filter arg "1", preference "all" vs "uncorrected" -> uncorrected stands at 0 while all stands above 0 at each bin; "keeps publishing the density the bin scored whatever the mode" fails it at both bins, leaving uncorrected equal to all; bite: 0.522 vs 0.522 and 0.747 vs 0.747 at HEAD, uncorrected nonzero.
+4  DELTA tests/js/components/chrome/apodlamp.test.js:162 (carried): `apodLight.value = false` becomes the "off" member of the tri-state, with the `lit()` helper at line 121 writing "all" instead of `true`. No new test.
+
+null stub: ApodLamp renders nothing and the preference setter is a no-op - satisfies line 4 only, which is why line 4 is a delta and never a new test; lines 1, 2 and 3 each demand a positive --lamp on at least one arm and fail.
+hard-coded stub: a table from (preference, filter class arg) to a fixed --lamp number, ignoring the history - it now fails all three lines, because each states its relation at two rates whose HEAD magnitudes differ (0.522 at n=10, 0.747 at n=24) and a per-mode constant cannot be both the full value at one rate and half the other rate's value.
+
+survives: 3
+
+notes:
+- One sentence struck from the return before review and not weighed: "so the two rates are distinct values on that axis rather than two cells of one table" - argument attached to a measurement. The measurement itself (n=10 -> 0.522, n=24 -> 0.747, n=40 -> 0.887) is bite data and was weighed.
+- Round 1's block-level repair was the named one and was taken as named: the sweep on the density axis, no line weakened to reach it. Lines 1-3 keep the strict inequality, the exact-half ratio and the exact-zero they carried in round 1.
+- Cap: three new tests plus one delta, under the four-line ceiling with the delta not counting.
