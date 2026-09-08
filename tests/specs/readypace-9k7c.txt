@@ -1,0 +1,88 @@
+kind: refactor
+
+brief:
+> GATE RED, LAST AGENT CAUSED TESTING REGRESSIONS THAT ADDED OVER 30 SECONDS TO THE TESTING SUITE ACROSS ALL TESTS THAT CALL THE MANAGER
+> IMPLEMENTATION IS CORRECT AND MUST NOT BE REMOVED
+> FIX THE FUCKING TESTS
+> continue to stage 1 and let me see the plan when you're done
+> 54 x 0.1 sec = 0.54 sec, we'll be fine unless they're extremely poorly written and need excised
+> no duration for any test to depend on is the correct path
+> if we can't test it properly, we don't test it. excise.
+> try the seam, if the reviewer will accept it. I defer to the reviewer's judgment on the seam. otherwise, excise.
+> rejected. I am so fucking sick of this. excise.
+> Proceed
+> approved, proceed
+
+The change is one literal, `alarm_threshold`, from 1.0 to 0.05 in six fixtures, plus `"HQPTUNER_ALARM_THRESHOLD": "0.05"` added to the e2e stack's app environment. Every assertion in every affected case stays byte-identical. `settle.await_ready` continues to reach its deadline and return False in all of them, in 0.05 s instead of 1.0 s.
+
+1. A restore boots the daemon on the engine's own value rather than the stored one.
+   kills: reading the preset store's snapshot instead of the engine's live State when a restore restarts the daemon, so a user who restores after changing a setting outside HQPTuner boots on the stale stored value.
+   bite: 3 passed, 1 warning in 6.38s (`/srv/hqptuner/.venv/bin/pytest -q tests/presets/test_restore_carries_the_engine.py`)
+   existing: tests/presets/test_restore_carries_the_engine.py::test_the_restore_boots_the_daemon_on_the_engines_value_not_the_stored_one
+
+2. A dither staged beside a restart field lands exactly one restore.
+   kills: sending both the live setter and the restore for a field that the restore already carries, so the engine takes two writes and the second lands against enumerations the first was still moving.
+   bite: 12 passed, 1 warning in 9.09s (`/srv/hqptuner/.venv/bin/pytest -q tests/apply/test_live_routed_batches.py`)
+   existing: tests/apply/test_live_routed_batches.py::test_a_dither_beside_a_restart_field_lands_exactly_one_restore
+
+3. A rescan whose control lane never returns warns the user.
+   kills: letting the settle wait's expiry throw away the rescan's result, so a user whose daemon went quiet mid-rescan gets an error instead of the enumeration plus a warning.
+   bite: 34 passed, 1 warning in 5.84s (`/srv/hqptuner/.venv/bin/pytest -q tests/presets/test_rescan_replay.py`)
+   existing: tests/presets/test_rescan_replay.py::test_a_rescan_the_control_lane_never_returns_from_warns_the_user
+
+4. The config view reports the store's active preset rather than the daemon's last-seen name.
+   kills: reporting the daemon's last-seen preset name as active, so a user who saved a preset sees the engine's stale name until the next poll.
+   bite: 41 passed, 1 warning in 3.79s (`/srv/hqptuner/.venv/bin/pytest -q tests/api/test_api_routes.py tests/presets/test_autopilot_stamp.py`)
+   existing: tests/api/test_api_routes.py::test_config_active_preset_is_the_stores_truth
+
+Public entry points: none added or changed. No production file is touched.
+
+Wire and protocol facts: a restore self-restarts hqplayerd (docs/protocol.md, `POST /restore`); `settle.await_ready` waits for the control lane to come back and gives up at `alarm_threshold`. Against these fakes the daemon never goes away, so the wait always reaches its deadline; only how long that takes changes.
+
+Applicable fixtures: the six `Config` sites carrying `alarm_threshold=1.0` — tests/api/test_api_routes.py:40, tests/apply/test_live_routed_batches.py:90, tests/presets/test_restore_carries_the_engine.py:79, tests/presets/test_rescan_replay.py:122 and :443, tests/presets/test_autopilot_stamp.py:46 — and `_app_env` in tests/e2e/support/stack.py:118-136, which sets no such knob today and so runs the production 15.0 default.
+
+Changelog entry: no entry. Test-only change; no user-visible behavior moves and no configuration surface changes.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the restore path - line 2 relates two observations of the
+same surface (`_restore_attempts` before the apply vs after: before + 1), and line 1 is
+parametrized over two fields whose stored and running values differ, so the assertion
+picks a source rather than a literal.
+
+reversal, round 1 -> round 2: I cut all four lines under (b) for naming a landed test as
+their own `existing:`, and called the block a lookup table. `.claude/commands/tests.md:161`
+is verbatim as quoted and is exactly on point: a plumbing change to a landed test rides a
+re-stage of the same block under `kind: refactor`, writing no new test, with input and
+assertion byte-identical and a `GREEN N (expected)` red run. Under that kind, `existing:`
+naming the landed test is the grammar, not the (b) defect, and the discrimination question
+was answered when those lines were first approved. Both findings withdrawn. I read the
+four cited assertions and each line states its test faithfully:
+test_restore_carries_the_engine.py:142 (`pcm_file_daemon[case.field] == case.running`),
+test_live_routed_batches.py:153 (`== before + 1`),
+test_rescan_replay.py:446 (`["warning"] == rescan.NO_DAEMON`),
+test_api_routes.py:241 (`["data"]["active"] == "Mine"`).
+
+1  KEEP  restore with a stored value differing from the engine's live State, two fields -> the daemon boots on the engine's value (mode "sdm", modulator "3"); reading the store's snapshot instead of live State fails it at the modulator case, booting on "7"; bite: 3 passed in 6.38s at HEAD, refactor exemption (docs/testing.md rule 8, tests accompanying a pure refactor)
+2  KEEP  apply staging dither "5" beside the restart field title -> `_restore_attempts` == before + 1; sending the live setter as well as the restore fails it at that batch with before + 2 writes; bite: 12 passed in 9.09s at HEAD, refactor exemption
+3  KEEP  rescan whose control lane never returns -> refresh_devices returns `warning` == rescan.NO_DAEMON; letting the settle wait's expiry discard the result fails it at that input with an error and no enumeration; bite: 34 passed in 5.84s at HEAD, refactor exemption
+4  KEEP  POST /api/profile/save "Mine", then GET /api/config -> `data.active` == "Mine"; reporting the daemon's last-seen name fails it immediately after the save with the pre-save name; bite: 41 passed in 3.79s at HEAD, refactor exemption
+
+null stub: feature absent - restore writes nothing, apply routes nothing, refresh_devices returns {}, config view returns its zero value.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return the named value for the named input - the engine's value per field, NO_DAEMON for the parked rescan, "Mine" for the config view - doing no restore, no settle wait and no store read.
+  satisfies: 1, 3, 4   fails: 2 (the count is read from the fixture before the call, so the stub must actually perform exactly one restore)
+
+survives: 4
+
+note (owner only, not a gate hold): I cannot settle that the owner's "excise" ruling is
+carried elsewhere. `tests/specs/readyexcise-4m2p.txt` is not on disk in this checkout, and
+`state/reviews/readyexcise-4m2p.*.txt` - where that block's READY would be - is denied to
+me by `.claude/hooks/reviews-lane.py`. The four tests in this block do not assert readiness
+(`tests/api/test_health_ready.py` holds those), which is consistent with the author's
+account, but the existence and approval of the excision block is the owner's to confirm.
+
+note: the change this block licenses is a fixture literal only. At the post-merge test
+check I will mark `SOFT` on any line whose input or assertion moved by so much as a byte;
+`alarm_threshold` 1.0 -> 0.05 at the fixture sites and `HQPTUNER_ALARM_THRESHOLD` in
+tests/e2e/support/stack.py are plumbing and mark `PIN` with a note.
