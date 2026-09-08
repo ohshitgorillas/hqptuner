@@ -1,0 +1,58 @@
+kind: excision
+
+brief:
+> GATE RED, LAST AGENT CAUSED TESTING REGRESSIONS THAT ADDED OVER 30 SECONDS TO THE TESTING SUITE ACROSS ALL TESTS THAT CALL THE MANAGER
+> IMPLEMENTATION IS CORRECT AND MUST NOT BE REMOVED
+> FIX THE FUCKING TESTS
+> continue to stage 1 and let me see the plan when you're done
+> 54 x 0.1 sec = 0.54 sec, we'll be fine unless they're extremely poorly written and need excised
+> no duration for any test to depend on is the correct path
+> if we can't test it properly, we don't test it. excise.
+> try the seam, if the reviewer will accept it. I defer to the reviewer's judgment on the seam. otherwise, excise.
+> rejected. I am so fucking sick of this. excise.
+> Proceed
+> approved, proceed
+
+1. excise tests/api/test_health_ready.py::test_a_preset_load_returns_only_once_health_reads_ready_again
+   rule: docs/testing.md rule 7
+   assertion: assert health(across_a_restart)["ready"] is True
+
+2. excise tests/api/test_health_ready.py::test_a_preset_load_returns_on_a_connection_made_after_the_restart
+   rule: docs/testing.md rule 7
+   assertion: assert _handshakes(restarting_daemon["log"]) == before + 1
+
+Both cases reach `settle.await_ready`'s satisfied branch, and that branch cannot be reached without unvirtualized real clock. The satisfying condition needs a counted drop, which needs a refused reconnect, which lands on the connect arm's `await self._sleep(self._reconnect_delay())` — `RECONNECT_FAST = 1.0` on the one sleep the suite deliberately does not virtualize. The two cases cost 2.361 s and 2.270 s in the gated report for that reason. Rule 7's own remedy, an injectable seam for that delay, was put to the owner and rejected.
+
+Dead with them, in the same file, each with its only reference inside an excised case or fixture:
+
+- the `restarting_daemon` fixture (tests/api/test_health_ready.py:136-176)
+- the `across_a_restart` fixture (:180-203)
+- the `_died` helper (:207-212)
+- the `_handshakes` helper (:236)
+- `RESTART_WINDOW` (:40)
+- `import time` (:20)
+- the whole import line :27, `from fake_control import DEFAULTS, CommandLog, serve`; line :28's `serve as fake_serve` stays, used by `killable_daemon` at :265
+- `from hqptuner.conf.httpconf import HttpConfigClient` (:31)
+- `from hqptuner.presets import presetlane` (:34)
+- the module docstring's third paragraph (:11-17), which describes the restart window being deleted
+
+Public entry points: none added or changed. No production file is touched.
+
+Wire and protocol facts: a restore self-restarts hqplayerd (docs/protocol.md, `POST /restore`), and the control connection it held goes with it. That fact is unchanged and still stated in the file's surviving docstring; what goes is the machinery that modeled it.
+
+Applicable fixtures: `restarting_daemon` and `across_a_restart` are excised. `killable_daemon` (:257-270), `http_daemon`, `start_manager` and `settled` are untouched and keep every other case in the file running.
+
+Changelog entry: no entry. Test-only change; no user-visible behavior moves and no configuration surface changes.
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, nothing is pinned
+
+1  KEEP  tests/api/test_health_ready.py::test_a_preset_load_returns_only_once_health_reads_ready_again; rule 7 is real and fits: the assertion `health(across_a_restart)["ready"] is True` is true only after the call waits out the file's own real-clock window (RESTART_WINDOW = 0.6 s, gated in `restarting_daemon` on `time.monotonic()`), so the test's conclusion is a wall-clock wait; violation visible in tests/api/test_health_ready.py alone.
+2  KEEP  tests/api/test_health_ready.py::test_a_preset_load_returns_on_a_connection_made_after_the_restart; same rule 7 apparatus - `_handshakes(...) == before + 1` counts a reconnect that can only occur once the same real 0.6 s refusal window has elapsed, and the window, the fixture and the assertion are all in that one file.
+
+null stub: not applicable to an excision block - no surface is pinned, so there is no implementation for a stub to satisfy.
+  satisfies: none   fails: none
+hard-coded stub: not applicable to an excision block - the lines remove tests rather than assert values.
+  satisfies: none   fails: none
+survives: 2
