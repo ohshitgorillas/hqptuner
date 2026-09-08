@@ -37,7 +37,7 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
-        alarm_threshold=1.0,
+        alarm_threshold=0.05,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
