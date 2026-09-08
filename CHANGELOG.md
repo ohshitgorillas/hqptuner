@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The LIVE Mode buttons fill their card.** PCM, SDM (DSD) and Auto sat in the middle of the Mode card with a band of empty space above and below the stack. They now divide the card's height between them.
+
 ## [1.14.1] — 2026-09-07
 
 ### Changed

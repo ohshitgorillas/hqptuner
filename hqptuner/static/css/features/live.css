@@ -28,7 +28,10 @@
 }
 
 /* LIVE's Mode card: the segment stacks vertically, one full-width row per mode,
-   the stack centered in the height the locked row hands the card. The modifier
+   the buttons dividing the height the locked row hands the card between them —
+   equal shares, flush top and bottom, no band of dead space at either end. The
+   base rule already grows a .seg-box button to fill its segment, so the stack
+   takes that behavior on the vertical axis rather than restating it. The modifier
    rides beside .seg-box (base sizing, hero.css), but the hero card's stretch
    chain is scoped .top-row and this card now lives in a card-grid — so the
    body-to-segment flex chain is rebuilt here; the divider between buttons
@@ -57,11 +60,10 @@
 .seg-stack .segment {
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
   max-width: none;
 }
 .seg-stack .segment .seg {
-  flex: 0 0 auto;
+  flex: 1;
   width: 100%;
   border-left: none;
   border-top: 1px solid var(--line);
