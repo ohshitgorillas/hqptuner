@@ -25,6 +25,16 @@
 // mechanism is not this file's subject — it is pinned in
 // tests/js/store/plainnames-pref*.test.js and apodwindow-pref*.test.js.
 //
+// The preference is a tri-state — "off", "all", "uncorrected" — and on the
+// last of the three the lamp reads what went UNCORRECTED, so the running
+// filter's class becomes an input. That class joins by the raw engine name the
+// Status frame reports as `active_filter` (docs/protocol.md) to the live
+// enumeration's `arg` flags bitfield, bit 0 apodizing and bit 1 half-apodizing,
+// which the daemon serves as a string: full "1", half "2", neither "0". The
+// fixture below serves one filter of each class, with the `apodizing` field the
+// backend derives from bit 0 alongside the raw `arg`, the way
+// tests/js/components/controls/combobox-apod.test.js serves the same three.
+//
 // BRIGHTNESS IS READ AS A NUMBER AND NOTHING ELSE. The lamp carries a legend
 // beside it and a hover title; both are owner-owned copy, so no case here
 // names, counts or selects on a word of either (docs/testing.md rule 9). The
@@ -47,6 +57,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { ApodLamp } from "../../../../hqptuner/static/components/ApodLamp.js";
 import { liveMode, apodLight } from "../../../../hqptuner/static/store/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { enums } from "../../../../hqptuner/static/store/signals.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -118,7 +129,7 @@ function brightness(out) {
  * @param {boolean} [live]
  */
 function lit(deltas, live = false) {
-  apodLight.value = true;
+  apodLight.value = "all";
   liveMode.value = live;
   feed(deltas);
 }
@@ -159,6 +170,95 @@ test("test_an_interval_that_counted_no_apodizing_events_leaves_the_lamp_fully_da
 
 test("test_the_lamp_does_not_render_when_the_preference_is_off", () => {
   lit([5]); // a track bright enough that only the preference can account for this
-  apodLight.value = false;
+  apodLight.value = "off";
   assert.equal(elements(lamp()).filter((el) => attr(el, "data-testid") === "apod-lamp").length, 0);
 });
+
+// --- "On for uncorrected events" reads the running filter's class -----------------
+//
+// The three cases below are all COMPARISONS between two renders of the SAME bin,
+// so no case names the brightness any given rate reaches — and each is swept
+// across two rates that stand at different brightnesses, so a table keyed on
+// (preference, filter class) alone cannot satisfy any of them.
+//
+// Both rates are recorded at the default cadence and stay well under the strip's
+// thirty-per-second saturation, so neither arm of a comparison is pinned against
+// a ceiling that would flatten the two apart.
+
+// One filter of each class, named by the fixture and joined by that name. `arg`
+// is the raw flags bitfield as a string; `apodizing` is bit 0, which the backend
+// decodes and ships alongside it.
+/** @type {[string, string][]} raw engine name, arg */
+const CLASSES = [
+  ["plain-a", "0"],
+  ["full-a", "1"],
+  ["half-a", "2"],
+];
+
+const [NEITHER, FULL, HALF] = CLASSES.map(([name]) => name);
+
+function enumerate() {
+  enums.value = {
+    filters: CLASSES.map(([name, arg], i) => ({
+      index: String(i),
+      name,
+      value: String(i),
+      arg,
+      description: "5/5 ⥮ Any",
+      apodizing: arg === "1",
+    })),
+  };
+}
+
+/**
+ * How bright the lamp stands for one bin of `perSecond` events, with `name` the
+ * filter the daemon reports running and the preference at `mode`. A fresh track
+ * each call, at the default cadence.
+ *
+ * @param {number} perSecond
+ * @param {string} name
+ * @param {string} mode
+ * @returns {number}
+ */
+function standing(perSecond, name, mode) {
+  enumerate();
+  liveMode.value = false;
+  apodLight.value = mode;
+  feed([inOneBin(CADENCE, perSecond)], { active_filter: name });
+  return brightness(lamp());
+}
+
+// A filter that corrects NOTHING leaves every event of the bin uncorrected; a
+// half-apodizing one leaves half of each. So on "uncorrected" the first stands
+// brighter than the second at the same rate — a mode that dimmed every stream by
+// one flat correction, whatever was running, draws the two identically.
+for (const perSecond of [5, 12]) {
+  test(`test_on_uncorrected_a_non_apodizing_filter_outshines_a_half_apodizing_one: ${perSecond}/s`, () => {
+    const plain = standing(perSecond, NEITHER, "uncorrected");
+    const half = standing(perSecond, HALF, "uncorrected");
+    assert.ok(plain > half, `at ${perSecond}/s a non-apodizing filter must outshine a half-apodizing one`);
+  });
+}
+
+// Half-apodizing carries BOTH class bits' worth of meaning to a reader that
+// checks full first, and such a reader takes this render dark. The owner asked
+// for half of what the same bin stands at on "On for all events".
+for (const perSecond of [5, 12]) {
+  test(`test_a_half_apodizing_filter_stands_at_half_the_all_events_brightness: ${perSecond}/s`, () => {
+    const all = standing(perSecond, HALF, "all");
+    if (all <= 0) throw new Error(`this case needs the "all" render lit at ${perSecond}/s; it stands at ${all}`);
+    assert.equal(standing(perSecond, HALF, "uncorrected"), all / 2);
+  });
+}
+
+// A full apodizing filter corrects the lot, so "uncorrected" has nothing to
+// report and the lamp is dark — while the same bin, on "all", is lit. Both are
+// read, so a lamp publishing the bin's density whatever the mode fails on the
+// dark half and a lamp that never lights fails on the lit one.
+for (const perSecond of [5, 12]) {
+  test(`test_a_full_apodizing_filter_stands_dark_on_uncorrected_while_lit_on_all: ${perSecond}/s`, () => {
+    const all = standing(perSecond, FULL, "all");
+    const uncorrected = standing(perSecond, FULL, "uncorrected");
+    assert.deepEqual([uncorrected, all > 0], [0, true]);
+  });
+}
