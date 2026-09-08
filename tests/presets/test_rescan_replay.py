@@ -119,7 +119,7 @@ async def _rescanning(
     the rescan wired to stop that engine. Hands back the manager, the control
     daemon's command log and its live State."""
     port, log, state = await daemon(**{**ENGINE_HELD, **overrides})
-    manager = await start_manager(http_daemon["_port"], hqp_control_port=port, alarm_threshold=1.0)
+    manager = await start_manager(http_daemon["_port"], hqp_control_port=port, alarm_threshold=0.05)
     if autosave:
         PresetStore(tmp_path / "presets").set_autosave(enabled=True)
     http_daemon["_on_refresh"] = lambda: state.update(ENGINE_AFTER_RESCAN)
@@ -440,7 +440,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
 ) -> None:
     # the poll is parked past the case so the replay is the only traffic on the lane
     port, _log, state = await daemon(**ENGINE_HELD)
-    manager = await start_manager(http_daemon["_port"], hqp_control_port=port, alarm_threshold=1.0, poll_interval=60.0)
+    manager = await start_manager(http_daemon["_port"], hqp_control_port=port, alarm_threshold=0.05, poll_interval=60.0)
     PresetStore(tmp_path / "presets").set_autosave(enabled=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
     assert (await engineread.refresh_devices(manager))["warning"] == rescan.NO_DAEMON
