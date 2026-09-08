@@ -10,6 +10,7 @@ import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { metadata } from "../store/signals.js";
+import { duringEngineWrite } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 import { Card } from "./common.js";
@@ -162,7 +163,9 @@ async function apply() {
   say("applying", "busy");
   try {
     const overrides = current();
-    const r = await api.applyEngine({ overrides, all_presets: allPresets.value });
+    // This write restarts the daemon, so it rides the same pill lifecycle every other
+    // engine write does — without it the pill reads Unreachable for the whole restart.
+    const r = await duringEngineWrite(() => api.applyEngine({ overrides, all_presets: allPresets.value }));
     // The lane answers `submitted: false` with an `error` and no `verified` at
     // all when the restore itself was refused. Nothing reached the daemon, so
     // this is a failure to act on, not a submission waiting to be confirmed.
@@ -319,7 +322,7 @@ async function onRestore(e) {
   if (!file) return;
   restoreStatus.value = "restoring…";
   try {
-    await api.restore(file);
+    await duringEngineWrite(() => api.restore(file));
     restoreStatus.value = "Restored — daemon restarting.";
   } catch (err) {
     restoreStatus.value = `Failed: ${err}`;

@@ -165,7 +165,7 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
 
 
 async def _one_pass(
-    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = "", *, mark: int | None
+    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = "", *, mark: settle.Mark | None
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
     """One restore+verify pass.
 
@@ -219,7 +219,7 @@ async def _one_pass(
 
 
 async def _restore_once(
-    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: int | None
+    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: settle.Mark | None
 ) -> dict[str, str]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 

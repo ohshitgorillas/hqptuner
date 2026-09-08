@@ -92,6 +92,11 @@ async def apply(
     backup = _with_carried_live_fields(mgr, backup, active)
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
-    await settle.restore(mgr, modified, mark=settle.mark_connect(mgr), scope="system")
+    mark = settle.mark_connect(mgr)
+    await settle.restore(mgr, modified, mark=mark, scope="system")
     verified = await verify(mgr, overrides)
+    # `verify` reads the 8088 lane back and cannot speak for the 4321 control connection,
+    # which is still the dead one the restart left behind. After it rather than before,
+    # so verify's own window is unchanged and this only adds the lane it cannot see.
+    await settle.await_ready(mgr, mark)
     return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}

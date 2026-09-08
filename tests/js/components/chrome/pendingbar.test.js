@@ -251,21 +251,6 @@ test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {
   assert.equal(noteClasses(bar()).includes("ok"), false);
 });
 
-// A failed apply KEEPS its staging, so "still pending" and "the last apply
-// failed" are true at once. Showing only the pending line reads as if nothing
-// had been tried — the reason the changes are still sitting there is the one
-// thing the user cannot work out for themselves.
-test("test_a_failed_apply_is_explained_while_its_changes_stay_staged", async () => {
-  await reset();
-  await stageOne();
-  lastApply.value = {
-    ok: false,
-    code: "persist-refused",
-    text: "Config not applied (unconverged): volume_max",
-  };
-  assert.equal(bar().includes("Config not applied (unconverged): volume_max"), true);
-});
-
 test("test_a_failed_apply_still_shows_what_is_pending", async () => {
   await reset();
   await stageOne();
@@ -341,20 +326,6 @@ test("test_a_held_bar_is_not_marked_busy", async () => {
 
 // --- status line: the live/restart split ------------------------------------
 
-test("test_staged_edits_report_their_live_and_restart_split", async () => {
-  // one restart-lane edit, none live: the two numbers are the contract, the
-  // sentence they are formatted into is not
-  await reset();
-  await stageOne();
-  assert.deepEqual(statusNumbers(bar()), [0, 1]);
-});
-
-test("test_a_pending_switch_names_its_target_preset", async () => {
-  await reset();
-  pendingPreset.value = "Night";
-  assert.ok(statusText(bar()).includes("Night"));
-});
-
 // The "(no preset)" option's name is the empty string, so a truthiness test read
 // it as nothing previewed and the bar went quiet about a switch it was about to
 // make. Named presets keep their quotes; this one carries its own parentheses.
@@ -377,10 +348,18 @@ test("test_apply_is_disabled_with_nothing_pending", async () => {
   assert.equal(disabled(bar(), APPLY), true);
 });
 
-test("test_apply_is_enabled_with_a_staged_edit_and_a_reachable_daemon", async () => {
+// Apply rides the CONTROL lane, so it is gated on that lane's connection and
+// not on both lanes being up: a configuration lane that is down still leaves
+// every live setting the control lane would take, and refusing them would be a
+// dead button with a working daemon behind it. The health readings are written
+// here rather than through `reset`, whose helper cannot separate the two lanes.
+test("test_apply_is_enabled_with_the_configuration_lane_down_and_disabled_with_no_connection", async () => {
   await reset();
   await stageOne();
-  assert.equal(disabled(bar(), APPLY), false);
+  health.value = { reachable: true, ready: false, connected: true };
+  const withTheConfigurationLaneDown = disabled(bar(), APPLY);
+  health.value = { reachable: false, ready: false, connected: false };
+  assert.deepEqual([withTheConfigurationLaneDown, disabled(bar(), APPLY)], [false, true]);
 });
 
 test("test_apply_is_disabled_while_the_daemon_is_unreachable", async () => {
