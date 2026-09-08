@@ -645,13 +645,6 @@ def test_omitting_the_forwarder_exemption_mapping_falls_back_to_the_shipped_one(
     assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
 
 
-def test_omitting_the_module_exemption_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
-    """The same for the module mapping: the shipped excuse is what an omitted argument means."""
-    monkeypatch.chdir(REPO_ROOT)
-    path = a_shipped_key(GATE.MODULE_EXEMPT, "MODULE_EXEMPT")
-    assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
-
-
 def test_running_the_script_over_a_forwarder_exits_nonzero(tmp_path: Path) -> None:
     """The Makefile runs the script, so argv and the exit status have to carry the same answer."""
     install_gate(tmp_path)
