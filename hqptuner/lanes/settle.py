@@ -87,7 +87,7 @@ async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
     write. ``mgr.drops_at_connect > mark.drops`` is that connection having been made
     after the manager had already seen the daemon go away: ``restarting`` drops the
     control lane the instant the POST returns, but hqplayerd goes on answering on 4321
-    for a moment yet (protocol.md "POST /restore"), so a reconnect can land on the
+    for a moment yet (docs/protocol.md:88), so a reconnect can land on the
     instance that has not restarted, and returning on it is the Unreachable a user sees
     after a Connected they should never have been shown. ``mgr.ready`` is both lanes
     standing now — the control connection whole and the 8088 configuration lane having
