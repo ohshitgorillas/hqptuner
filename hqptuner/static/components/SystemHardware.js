@@ -102,6 +102,12 @@ const say = (text, kind) => {
 // bar never counts it and nothing else would mark it as changed.
 const base = signal({ ...DEFAULTS });
 
+// Every move of the card since it loaded: an edit, a revert, an apply going out.
+// An apply reads it on the way out and again when it resolves, which is how a
+// receipt that arrived after the card moved on knows to keep quiet. Not a
+// signal: nothing renders from it, so a change of it must not re-render.
+let edits = 0;
+
 /** @type {(keyof typeof DEFAULTS)[]} */
 const KEYS = ["cuda", "multicore", "ecores", "nblocks", "cuda_dev", "cuda_cdev"];
 
@@ -132,6 +138,7 @@ const dirty = () => {
  */
 const set = (sig, v) => {
   sig.value = v;
+  edits += 1;
   say("", "");
 };
 
@@ -143,6 +150,7 @@ function revert() {
   nblocks.value = was.nblocks;
   cudaDev.value = was.cuda_dev;
   cudaCdev.value = was.cuda_cdev;
+  edits += 1;
   say("", "");
 }
 
@@ -161,6 +169,8 @@ async function load() {
 
 async function apply() {
   say("applying", "busy");
+  edits += 1;
+  const sent = edits;
   try {
     const overrides = current();
     // This write restarts the daemon, so it rides the same pill lifecycle every other
@@ -177,8 +187,12 @@ async function apply() {
     // Only a confirmed apply re-snapshots: an unconfirmed one leaves the card
     // marked, which is the honest reading of a submission nothing verified.
     if (applied) base.value = overrides;
-    if (applied) say("Applied.", "ok");
-    else say("Submitted — not confirmed.", "warn");
+    // A receipt describes the card as it stands, so anything moved since this
+    // apply went out makes it a statement about a value that was never sent.
+    // The re-snapshot above still happens: those values did reach the daemon.
+    if (applied) {
+      if (edits === sent) say("Applied.", "ok");
+    } else say("Submitted — not confirmed.", "warn");
   } catch (err) {
     say(`Failed: ${err}`, "err");
   }
