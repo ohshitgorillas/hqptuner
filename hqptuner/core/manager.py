@@ -232,16 +232,20 @@ class ConnectionManager:
             await self._client.close()
             self._client = None
 
-    async def refresh_http_forms(self) -> None:
+    async def refresh_http_forms(self) -> str:
         """Refresh the three polled 8088 form snapshots (lanes/http/forms) and the device capability.
 
         The capability hangs off those forms: it is read for whichever device the config form says
         is selected, so it belongs wherever that form is refreshed — the poll loop, connect, and the
         rescan route alike — rather than at the poll loop alone, which leaves every other path
         serving a stale answer or none.
+
+        Answers what the refresh did on /config (``lanes/http/forms``'s four outcomes), for the one
+        caller that reports it to a browser. Every other caller wants the snapshots filled and drops it.
         """
-        await forms.refresh(self)
+        outcome = await forms.refresh(self)
         await engineread.refresh_device_caps(self)
+        return outcome
 
     # --- accessors for the extracted write lanes --------------------------
 

@@ -93,7 +93,7 @@
         "type": "object"
       },
       "ConnectionBody": {
-        "description": "One saved connection for ``POST /api/connection``.\n\nEvery field is optional and defaults to what HQPTuner is using now, so a client changing the host alone need not\nsend the credentials back. ``remember`` false saves the host and the username and stores no password, which is the\n\"log in every time\" the user asked for: the pair lives in this process until it stops.",
+        "description": "One saved connection for ``POST /api/connection``.\n\nEvery field is optional and defaults to what HQPTuner is using now, so a client changing the host alone need not\nsend the credentials back. ``remember`` false saves the host and the username and stores no password, which is the\n\"log in every time\" the user asked for: the pair lives in this process until it stops. Omitting ``remember``\nkeeps the choice the stored record holds, and an install that has never made one is not asked to store anything.",
         "properties": {
           "host": {
             "anyOf": [
@@ -118,9 +118,15 @@
             "title": "Password"
           },
           "remember": {
-            "default": true,
-            "title": "Remember",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remember"
           },
           "username": {
             "anyOf": [

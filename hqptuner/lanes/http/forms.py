@@ -19,14 +19,25 @@ from hqptuner.conf.httpauth import AuthRefused
 
 log = logging.getLogger(__name__)
 
+#: What a refresh did on /config, the credential-bearing form. The other two forms
+#: report their own errors into `readings` and are not part of this answer: a daemon
+#: answering /config while /matrix is unhappy is not a connection fault. Callers that
+#: only want the snapshots filled ignore it; POST /api/connection reports it to the
+#: browser, because a refusal recorded in `readings` cannot be told apart from one
+#: recorded a poll earlier (see _record_credentials, which logs the transition only).
+NO_CREDENTIALS = "no_credentials"
+REFUSED = "refused"
+OK = "ok"
+NO_ANSWER = "no_answer"
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from hqptuner.core.manager import ConnectionManager
 
 
-async def refresh(mgr: ConnectionManager) -> None:
-    """Best-effort refresh of the /config, /matrix and /speakers snapshots.
+async def refresh(mgr: ConnectionManager) -> str:
+    """Best-effort refresh of the /config, /matrix and /speakers snapshots, answering what /config did.
 
     A wire failure on the 8088 lane must never fail the 4321 poll — the last-good form is
     kept and only that form's error is recorded. That tolerance is for the daemon being
@@ -44,7 +55,8 @@ async def refresh(mgr: ConnectionManager) -> None:
     """
     http = mgr.http_client
     if http is None:
-        return
+        return NO_CREDENTIALS
+    outcome = NO_ANSWER
     forms: tuple[tuple[str, str, Callable[[], Awaitable[dict[str, Any]]]], ...] = (
         ("config_form", "config_error", http.get_config),
         ("matrix_form", "matrix_error", http.get_matrix),
@@ -56,6 +68,8 @@ async def refresh(mgr: ConnectionManager) -> None:
         except AuthRefused as exc:
             _record_credentials(mgr, accepted=False)
             setattr(mgr.readings, error_attr, str(exc))
+            if form_attr == "config_form":
+                outcome = REFUSED
             continue
         except httpx.HTTPError as exc:
             # NOT a credential verdict, and deliberately does not touch the
@@ -67,6 +81,7 @@ async def refresh(mgr: ConnectionManager) -> None:
             continue
         _record_credentials(mgr, accepted=True)
         if form_attr == "config_form":
+            outcome = OK
             # Against the form as it stands at THIS instant, never a snapshot taken
             # when the refresh began: the poll loop and a route can both be inside
             # this function at once, and a comparison against the pre-fetch value
@@ -79,6 +94,7 @@ async def refresh(mgr: ConnectionManager) -> None:
             voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(mgr.readings.config_form))
         setattr(mgr.readings, form_attr, form)
         setattr(mgr.readings, error_attr, None)
+    return outcome
 
 
 def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
