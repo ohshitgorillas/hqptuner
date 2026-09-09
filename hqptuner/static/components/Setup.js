@@ -222,7 +222,12 @@ export function Setup() {
           </p>
           ${textRow("host", "Host", "text")} ${report()} ${hostHelp()} ${found()}
           ${textRow("username", "Username", "text")}
-          ${textRow("password", "Password", "password", form.value.hasPassword ? "Leave blank to keep the stored password" : "")}
+          ${textRow(
+            "password",
+            "Password",
+            "password",
+            form.value.hasPassword ? "Leave blank to keep the stored password" : "Leave empty to keep the default",
+          )}
           <div class="setup-remember">
             ${rememberRow(true, "Let HQPTuner store my password")}
             ${rememberRow(false, "Ask every time HQPTuner starts")}

@@ -12,6 +12,12 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(f"HQPTUNER_{name}", default)
 
 
+# hqplayerd's stock management password, as its own docs publish it. It is what
+# ``hqp_password`` falls back to, so it is also the one value in that field that
+# nobody chose: an install running on it has configured nothing.
+STOCK_CREDENTIAL = "password"
+
+
 def _store(name: str) -> Path:
     """Default location of one store file: the user's data directory when frozen, the repo's ``state/`` otherwise.
 
@@ -69,7 +75,7 @@ class Config:
     # keep what the user typed.
     connection_file: Path = field(default_factory=lambda: Path(_env("CONNECTION_FILE", str(_store("connection.json")))))
     hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
-    hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", "password"))
+    hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", STOCK_CREDENTIAL))
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
     listen_port: int = field(default_factory=lambda: int(_env("LISTEN_PORT", "8090")))
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
@@ -144,3 +150,14 @@ class Config:
     # number; anything unparseable falls back to INFO rather than refusing to
     # start (audit.resolve_level).
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
+
+    @property
+    def hqp_password_chosen(self) -> bool:
+        """Whether the password in force was chosen rather than defaulted.
+
+        ``hqp_password`` is never empty on a stock install, so its emptiness cannot answer "has this install been
+        configured": the field holds the published default until somebody replaces it. Asking whether the value is
+        that default answers it instead, and it follows the field wherever the value comes from — a variable, the
+        saved record layered in at ``core/connection.py``, or a save made while HQPTuner is running.
+        """
+        return bool(self.hqp_password) and self.hqp_password != STOCK_CREDENTIAL

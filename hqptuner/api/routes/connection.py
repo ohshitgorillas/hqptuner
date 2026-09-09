@@ -51,12 +51,17 @@ def _config(request: Request) -> Config:
 
 
 def _answer(cfg: Config, *, remembered: bool) -> dict[str, Any]:
-    """Return the connection as a client may see it: where we dial, who we are, and whether a password is held."""
+    """Return the connection as a client may see it: where we dial, who we are, and whether a password is held.
+
+    ``has_password`` is whether one was CHOSEN, not whether the field is filled: the field carries hqplayerd's
+    published default until somebody replaces it, and reporting that as a held password tells a fresh install it
+    holds a credential nobody typed.
+    """
     return {
         "host": cfg.hqp_host,
         "username": cfg.hqp_username,
         "remember": remembered,
-        "has_password": bool(cfg.hqp_password),
+        "has_password": cfg.hqp_password_chosen,
     }
 
 

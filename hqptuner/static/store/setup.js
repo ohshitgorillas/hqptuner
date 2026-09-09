@@ -269,10 +269,10 @@ export async function submitConnection(andClose = false) {
   awaitingVerdict = true;
   /** @type {Record<string, unknown>} */
   const body = { host, username: f.username, remember: f.remember };
-  // A blank field over a stored password is the user leaving it alone, so the key is
-  // omitted and the route keeps what it has. A blank field over no stored password is
-  // a save that genuinely carries none, and goes as the empty string.
-  if (f.password || !f.hasPassword) body.password = f.password;
+  // A blank field is the user leaving the password alone, whichever one is in force —
+  // stored, or the daemon's published default — so the key is omitted and the route
+  // keeps what it has. Clearing a password is not something this panel does.
+  if (f.password) body.password = f.password;
   const answer = await api.saveConnection(body);
   savedAt = clock();
   savedLane = answer && answer.lane;
