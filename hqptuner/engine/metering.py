@@ -202,6 +202,15 @@ class MeteringReader:
         self._serial: str | None = None
         self._verdict: dict[str, Any] | None = None
 
+    def retarget(self, host: str, port: int) -> None:
+        """Point the reader at another daemon; the next dial uses it.
+
+        The address is read at ``open_connection`` time rather than latched at construction, so a connection setting
+        the user changed at runtime reaches the metering side channel with the reconnect the manager already forces.
+        """
+        self._host = host
+        self._port = port
+
     def stop(self) -> None:
         """Ask the reader to shut down: the stream loop and the backoff wait both end at the next check."""
         self._stop.set()

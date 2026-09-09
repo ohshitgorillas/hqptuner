@@ -1,0 +1,162 @@
+"""Where the daemon is and who we are to it, settable at runtime and kept for the install.
+
+Until this store existed, ``hqp_host``, ``hqp_username`` and ``hqp_password`` were read from ``HQPTUNER_*`` at
+construction and never moved again (``config.py``). That is fine on the container, where an operator writes a compose
+file, and useless on a Windows install, where nobody sets an environment variable and there is no place to type a
+credential.
+
+The store holds one record — host, username, password, ``remember`` — written whole on every save. ``remember`` false
+still writes a record: the host and the username belong to the install either way, and the password is written as the
+empty string, which is how "log in every time" survives a restart without leaving the password on disk.
+
+Layering, in order, per start:
+
+1. a non-empty ``HQPTUNER_HQP_HOST`` / ``_USERNAME`` / ``_PASSWORD`` wins, so a container's pins keep their meaning
+2. otherwise a stored record is the whole answer for all three fields, never field by field: an omitted password
+   falling back to the stock pair at ``config.py`` would hand a configured install a credential it never chose
+3. otherwise the defaults in ``config.py`` stand, which is a fresh install with nothing configured
+
+An empty variable counts as absent, on the reading ``_optional_path`` already takes in ``config.py``: an empty value
+is not a value, it is the absence of one.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.errors import HQPTunerError
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from hqptuner.config import Config
+
+# The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
+# refused rather than guessed at, on the conventions the preset stores already keep.
+SCHEMA = 1
+
+# The three fields this store layers over, each with the variable that outranks it.
+_ENV_HOST = "HQPTUNER_HQP_HOST"
+_ENV_USERNAME = "HQPTUNER_HQP_USERNAME"
+_ENV_CREDENTIAL = "HQPTUNER_HQP_PASSWORD"
+
+
+class ConnectionStoreError(HQPTunerError, ValueError):
+    """A connection record that cannot be read or stored."""
+
+    code = "invalid_input"
+
+
+class ConnectionSchemaError(ConnectionStoreError):
+    """The stored record is stamped newer than this HQPTuner understands."""
+
+    code = "store_too_new"
+
+
+@dataclass(frozen=True)
+class ConnectionRecord:
+    """One install's daemon address and management credentials, as they were last saved.
+
+    ``password`` is the empty string whenever ``remember`` is false — the record is written whole, so there is no
+    state in which a stale password survives the user turning remembering off.
+    """
+
+    host: str
+    username: str
+    password: str
+    remember: bool
+
+
+class ConnectionStore:
+    """The connection record in one JSON file, created lazily on the first save."""
+
+    def __init__(self, path: Path) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+        self._path = path
+
+    def read(self) -> ConnectionRecord | None:
+        """Return the stored record, or None when nothing has been saved.
+
+        A file that is absent, unreadable or malformed reads as nothing saved: the fallback is the defaults, which is
+        exactly the state a fresh install is in. A file stamped newer raises, because answering with defaults would be
+        a lie about a file that is there and full.
+        """
+        if not self._path.is_file():
+            return None
+        try:
+            data = json.loads(self._path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        schema = data.get("schema")
+        if isinstance(schema, int) and schema > SCHEMA:
+            raise ConnectionSchemaError(
+                f"connection store is schema {schema}, this HQPTuner understands {SCHEMA} — upgrade HQPTuner"
+            )
+        host = data.get("host")
+        username = data.get("username")
+        password = data.get("password")
+        remember = data.get("remember")
+        if not isinstance(host, str) or not isinstance(username, str):
+            return None
+        return ConnectionRecord(
+            host=host,
+            username=username,
+            password=password if isinstance(password, str) else "",
+            remember=remember if isinstance(remember, bool) else False,
+        )
+
+    def write(self, record: ConnectionRecord) -> None:
+        """Replace the record with ``record``, whole.
+
+        ``remember`` false writes the password as the empty string rather than leaving the field out: a reader that
+        found no password would have to fall back somewhere, and the only honest fallback is "no password".
+        """
+        payload: dict[str, Any] = {
+            "schema": SCHEMA,
+            "host": record.host,
+            "username": record.username,
+            "password": record.password if record.remember else "",
+            "remember": record.remember,
+        }
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(self._path)
+
+
+def _pinned(name: str) -> bool:
+    """Report whether the environment pins this field, an empty value counting as absent."""
+    return bool(os.environ.get(name, "").strip())
+
+
+def layer_onto_config(cfg: Config, record: ConnectionRecord | None) -> None:
+    """Move the stored host and credentials into ``cfg``, leaving every field the environment pins alone.
+
+    Mutates the config in place because it is the object every lane already holds: the control lane re-reads
+    ``cfg.hqp_host`` on each reconnect (``core/loader``), so a new address needs no wiring beyond this.
+    """
+    if record is None:
+        return
+    if not _pinned(_ENV_HOST):
+        cfg.hqp_host = record.host
+    if not _pinned(_ENV_USERNAME):
+        cfg.hqp_username = record.username
+    if not _pinned(_ENV_CREDENTIAL):
+        cfg.hqp_password = record.password
+
+
+def build_http_client(cfg: Config) -> HttpConfigClient | None:
+    """Build the 8088 configuration client for ``cfg``, or None when either credential is missing.
+
+    One builder for both paths — app construction and a runtime save — so the rule "no credentials, no 8088 lane"
+    (architecture §3) is stated once.
+    """
+    if not cfg.hqp_username or not cfg.hqp_password:
+        return None
+    return HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password)

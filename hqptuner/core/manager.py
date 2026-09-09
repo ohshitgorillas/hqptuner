@@ -57,6 +57,8 @@ class ConnectionManager:
         """Build the audit log, preset and apply collaborators, and start unreachable with every snapshot empty."""
         self.cfg = cfg
         self._http = http_client
+        # 8088 clients a runtime credential change replaced, closed at shutdown. See the `http_client` setter.
+        self._retired: list[HttpConfigClient] = []
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
         # `_wake` pulls the poll loop out of its wait early (see `restarting`);
@@ -138,6 +140,8 @@ class ConnectionManager:
         if self._client is not None:
             await self._client.close()
             self._client = None
+        while self._retired:
+            await self._retired.pop().aclose()
 
     async def run(self) -> None:
         """Run the connect-load-poll loop until stopped, dropping the connection and retrying on any failure.
@@ -246,6 +250,20 @@ class ConnectionManager:
         """Return the 8088 config client, or None when no management credentials were configured."""
         return self._http
 
+    @http_client.setter
+    def http_client(self, client: HttpConfigClient | None) -> None:
+        """Attach the 8088 client built for the credentials just saved, retiring the one it replaces.
+
+        Retired, not closed: five write lanes hold the client across an await (``lanes/settle``,
+        ``presets/presetops``, ``lanes/http/restore``), so closing it here would abort a restore in flight. The
+        retired clients are closed at shutdown, where nothing is mid-request.
+        """
+        if client is self._http:
+            return
+        if self._http is not None:
+            self._retired.append(self._http)
+        self._http = client
+
     @property
     def http_base_url(self) -> str:
         """Return the daemon's 8088 web root, which the ungated readers (/about, /log) fetch from."""
@@ -291,6 +309,20 @@ class ConnectionManager:
         if self.connected.is_set():
             await self._drop("restore restarts the daemon", counts=False)
             self._wake.set()
+
+    async def retarget(self) -> None:
+        """Take the daemon lanes down so they come back on the address the config now names.
+
+        The control lane needs no wiring beyond this: ``core/loader`` reads ``cfg.hqp_host`` on every connect, so a
+        drop plus a wake is the whole reconnect. The metering reader dials its own socket, so it is told separately.
+
+        The drop counts as evidence: from the poll loop's side the old daemon really did go away, and a post-restore
+        wait must not mistake the connection it is about to lose for the one it is waiting on.
+        """
+        await self._drop("connection settings changed")
+        self._wake.set()
+        if self.metering is not None:
+            self.metering.retarget(self.cfg.hqp_host, self.cfg.hqp_metering_port)
 
     @property
     def control(self) -> ControlClient | None:

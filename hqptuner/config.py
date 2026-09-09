@@ -63,6 +63,11 @@ class Config:
     metering_enabled: bool = field(default_factory=lambda: _env_flag("METERING_ENABLED", "1"))
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
     # override only if the daemon's auth was re-provisioned.
+    # Where the daemon address and management credentials the user saved at runtime live (core/connection.py) — one
+    # JSON file beside the other install-owned stores. The three fields it carries are layered UNDER the variables
+    # above, so a container's pins keep their meaning and an install with no variables at all still has somewhere to
+    # keep what the user typed.
+    connection_file: Path = field(default_factory=lambda: Path(_env("CONNECTION_FILE", str(_store("connection.json")))))
     hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
     hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", "password"))
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
