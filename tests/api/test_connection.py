@@ -107,16 +107,17 @@ def test_posted_credentials_open_the_config_route_with_no_restart(app_factory: A
     assert (before, client.get("/api/config").status_code) == (503, 200)
 
 
+@pytest.mark.parametrize(("configured", "started_holds"), [("", False), ("password", False), ("p", True)])
 def test_the_connection_view_reports_whether_a_password_is_held_and_never_the_password(
-    app_factory: AppFactory,
+    app_factory: AppFactory, configured: str, *, started_holds: bool
 ) -> None:
-    client = app_factory(hqp_username="u", hqp_password="p")
+    client = app_factory(hqp_username="u", hqp_password=configured)
     started = client.get("/api/connection").json()
     post_connection(client, password="", remember=False)
     cleared = client.get("/api/connection").json()
     assert [sorted(started), started["has_password"], sorted(cleared), cleared["has_password"]] == [
         CONNECTION_KEYS,
-        True,
+        started_holds,
         CONNECTION_KEYS,
         False,
     ]

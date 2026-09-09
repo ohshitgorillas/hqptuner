@@ -146,10 +146,10 @@ const SAVES = [
     sent: "s3cret",
   },
   {
-    name: "test_a_blank_password_field_over_an_install_holding_none_sends_the_empty_password",
+    name: "test_a_blank_password_field_over_an_install_holding_none_also_sends_no_password_at_all",
     held: false,
     typed: "",
-    sent: "",
+    sent: undefined,
   },
 ];
 
