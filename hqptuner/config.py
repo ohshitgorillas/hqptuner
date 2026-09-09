@@ -89,6 +89,11 @@ class Config:
     # default; a plain host address for a network that drops multicast, which
     # takes the same path and answers the same way.
     discovery_target: str = field(default_factory=lambda: _env("DISCOVERY_TARGET", "239.192.0.199"))
+    # The address a container reaches its own host on. Asked directly when a
+    # discovery sweep finds nothing, and at startup when neither a saved record
+    # nor HQPTUNER_HQP_HOST has named a daemon. Settable because the name
+    # resolves inside a container only.
+    container_host_alias: str = field(default_factory=lambda: _env("CONTAINER_HOST_ALIAS", "host.docker.internal"))
     data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", str(bundled("data")))))
     backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", str(_store_dir("backups")))))
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we

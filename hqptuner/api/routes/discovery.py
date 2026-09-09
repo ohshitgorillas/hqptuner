@@ -21,5 +21,5 @@ async def discover_daemons(request: Request) -> list[dict[str, Any]]:
     # Target, wait and control port all come off the app's own Config, so an
     # install pointed at one host searches that host rather than the group.
     cfg = request.app.state.config
-    found = await discover(cfg.discovery_timeout, cfg.hqp_control_port, cfg.discovery_target)
+    found = await discover(cfg.discovery_timeout, cfg.hqp_control_port, cfg.discovery_target, cfg.container_host_alias)
     return [asdict(daemon) for daemon in found]

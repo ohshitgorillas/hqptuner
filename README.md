@@ -131,19 +131,7 @@ Next, copy [`compose.yaml`](compose.yaml) into the `hqptuner` folder:
 curl -fLO https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/compose.yaml
 ```
 
-Put your hqplayerd credentials into a `.env` file: run `nano .env` and enter your username and password.
-
-```
-HQPTUNER_HQP_USERNAME="username"
-HQPTUNER_HQP_PASSWORD="password"
-```
-
-The default `compose.yaml` configuration assumes that HQPTuner is running on the same host as HQPlayer/hqplayerd; if HQPTuner is on a separate machine, you'll need to edit the compose file to:
-
-* set `HQPTUNER_HQP_HOST` to the IP address of the hqplayerd host.
-* delete the `extra_hosts` lines.
-
-Once the compose file is correct, bring the container up with:
+Bring the container up with:
 
 ```sh
 # must be run from within the same folder as compose.yaml
@@ -151,6 +139,8 @@ sudo docker compose up -d
 ```
 
 Then open `http://yourserverIP:8090` in your favorite browser, and enjoy HQPTuner!
+
+If HQPlayer runs on the same machine as HQPTuner, the Connection panel finds it by itself. If it runs on another machine, the panel asks for its address and the management username and password. What you enter is kept in `./state` and survives a container recreate.
 
 Images are published to `ohshitgorillas/hqptuner` on Docker Hub (amd64 + arm64) in two channels:
 
@@ -198,6 +188,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |
 | `HQPTUNER_REQUEST_TIMEOUT` | `5.0` | Per-request timeout (s) |
 | `HQPTUNER_DISCOVERY_TIMEOUT` | `3.0` | How long `GET /api/discover` waits for daemons to answer (s) |
+| `HQPTUNER_CONTAINER_HOST_ALIAS` | `host.docker.internal` | Address tried at startup and by discovery when nothing else has named the daemon's host |
 | `HQPTUNER_DISCOVERY_TARGET` | `239.192.0.199` | Where discovery sends its datagram; HQPlayer's multicast group by default, or a host address on a network that drops multicast. `host:port` overrides the port |
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
