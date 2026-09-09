@@ -30,11 +30,17 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 **2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
 
-**3. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
+**3. Easy Mode.** Jargon-free filter selection. Nine curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play. Tiles name and describe their filters, error correction levels, and relative resource consumption ("cost").
 
-**4. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modeling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
+![Easy Mode with the Lifelike preset selected](docs/images/hqptuner-easy-amber.png)
 
-The above three features are my flagships, but the following benefits are offered as well:
+*Easy Mode, with the Lifelike preset selected. The Lossless/Lossy switch at the top swaps in filters optimized for lossy sources, and the Emphasis knob on a tile chooses between linear and minimum phase.*
+
+**4. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
+
+**5. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modeling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
+
+The above five features are my flagships, but the following benefits are offered as well:
 
 * **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
 * **More sensible organization**: Settings are organized into four tabs: Output, Volume, Matrix, and System. Stop wondering where to find a certain feature.
