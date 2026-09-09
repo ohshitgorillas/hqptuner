@@ -13,11 +13,12 @@ import { computed } from "@preact/signals";
 import { health } from "../signals.js";
 
 // Owner-approved copy, verbatim (CLAUDE.md): reworded only with its own
-// approval. It deliberately duplicates the same sentence in conf/httpconf.py
+// approval. It deliberately duplicates the same sentence in conf/httpauth.py
 // (`AUTH_REFUSED_MESSAGE`) — /api/health carries a boolean rather than a
 // sentence, so the frontend has nothing to render but its own copy.
 const AUTH_REFUSED_MESSAGE =
-  "Authentication rejected: username and password are bad. " + "Open the Connection panel from the status pill and try again.";
+  "Authentication rejected: username and password are bad. " +
+  "Open the Connection panel from the status pill and try again.";
 
 /** The rejected-credentials alert row for the strip, or null when the daemon has not refused them. */
 export const credentialsAlert = computed(() => {

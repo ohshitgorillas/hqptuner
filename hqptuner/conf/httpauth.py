@@ -14,7 +14,8 @@ import httpx
 # row, the apply caption and the log line all carry exactly this. Owner-approved
 # copy, verbatim (CLAUDE.md): reworded only with its own approval.
 AUTH_REFUSED_MESSAGE = (
-    "Authentication rejected: username and password are bad. Open the Connection panel from the status pill and try again."
+    "Authentication rejected: username and password are bad. "
+    "Open the Connection panel from the status pill and try again."
 )
 
 # What the daemon answers when it will not accept who we say we are. 401 is the

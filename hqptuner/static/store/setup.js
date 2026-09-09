@@ -84,26 +84,37 @@ export function closeSetup() {
   awaitingVerdict = false;
 }
 
-// One reading of the health signal: the auto-open decision, and the verdict on
-// a save that is waiting for one.
+// What one reading says about the save that is waiting on it. A good reading
+// is the save having worked, and the panel has nothing left to do.
+/** @param {Record<string, unknown>} h */
+function judgeSave(h) {
+  if (h.ready) {
+    verdict.value = "saved";
+    closeSetup();
+    return;
+  }
+  if (h.credentials_ok === false) verdict.value = "refused";
+  else if (h.reachable === false) verdict.value = "unreachable";
+}
+
+// Whether this reading is an install that cannot use its daemon: a refusal at
+// once, silence only once the grace has run out.
+/** @param {Record<string, unknown>} h */
+function cannotUseDaemon(h) {
+  if (h.credentials_ok === false) return true;
+  return h.reachable === false && clock() - watchingSince >= GRACE_MS;
+}
+
 /** @param {Record<string, unknown> | null} h */
 function judge(h) {
   if (!h) return;
   if (h.connected) everConnected = true;
   if (awaitingVerdict) {
-    if (h.ready) {
-      verdict.value = "saved";
-      closeSetup();
-      return;
-    }
-    if (h.credentials_ok === false) verdict.value = "refused";
-    else if (h.reachable === false) verdict.value = "unreachable";
+    judgeSave(h);
     return;
   }
   if (everConnected || autoOpened || setupOpen.value) return;
-  const refused = h.credentials_ok === false;
-  const silent = h.reachable === false && clock() - watchingSince >= GRACE_MS;
-  if (refused || silent) {
+  if (cannotUseDaemon(h)) {
     autoOpened = true;
     openSetup();
   }
@@ -152,8 +163,8 @@ export async function runDiscovery() {
   }
 }
 
-/** Seed the panel from what HQPTuner is dialling now, and start a discovery sweep. */
-export async function loadConnection() {
+/** Seed the panel from what HQPTuner is dialling now. */
+async function loadConnection() {
   hostTouched.value = false;
   verdict.value = null;
   try {
