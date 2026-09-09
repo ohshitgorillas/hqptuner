@@ -92,6 +92,51 @@
         "title": "Body_restore_api_restore_post",
         "type": "object"
       },
+      "ConnectionBody": {
+        "description": "One saved connection for ``POST /api/connection``.\n\nEvery field is optional and defaults to what HQPTuner is using now, so a client changing the host alone need not\nsend the credentials back. ``remember`` false saves the host and the username and stores no password, which is the\n\"log in every time\" the user asked for: the pair lives in this process until it stops.",
+        "properties": {
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "remember": {
+            "default": true,
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "title": "ConnectionBody",
+        "type": "object"
+      },
       "DescriptionBody": {
         "description": "One profile's description for ``PUT /api/descriptions``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). Empty text is a legal body and means the\nuser cleared the description \u2014 the store turns that into a removal.",
         "properties": {
@@ -826,6 +871,66 @@
           }
         },
         "summary": "Stage"
+      }
+    },
+    "/api/connection": {
+      "get": {
+        "description": "Answer with the daemon address and username in force, and whether a password is held.\n\n409 when the stored record is stamped newer than this HQPTuner reads \u2014 answering with the running values would\nhide a file that is there and full.",
+        "operationId": "read_connection_api_connection_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Read Connection Api Connection Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Connection"
+      },
+      "post": {
+        "description": "Save the connection, then move HQPTuner onto it without a restart.\n\nThe record is saved whatever the daemon says: verifying first would mean refusing to record a host the user is\nabout to switch on, and a credential that cannot be saved while the daemon is down is a credential the user\ncannot fix an outage with.",
+        "operationId": "write_connection_api_connection_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Write Connection Api Connection Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Connection"
       }
     },
     "/api/descriptions": {
