@@ -23,9 +23,9 @@ dropped: "It also needs a way to gather credentials from the user." No line pins
    bite: null stub returns [] at both inputs (surface new) — (a) 0 records, tuples [], (b) 0 records, tuples [], expected one five-field record in each case. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
    existing: none, same grep as line 1
 
-4. Asking the running API for discovered daemons answers with one entry per record found, each entry stating that daemon's address, name, version, product, operating system: where discovery finds the Opal record alone, the answered addresses read ["10.0.0.238"]; where discovery finds Opal beside a daemon at "10.0.0.99", the answered addresses read ["10.0.0.238", "10.0.0.99"].
-   kills: answers with a bare list of addresses, so a caller sees that something is out there while staying blind to whether it is HQPlayer Embedded, or which operating system it runs on, which is the whole question discovery was added to answer.
-   bite: null stub answers 200 with [] at both inputs (surface new) — (a) 200, 0 records, addresses [], expected ["10.0.0.238"]; (b) 200, 0 records, addresses [], expected ["10.0.0.238", "10.0.0.99"]. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
+4. Asking the running API for discovered daemons, with the discovery target naming a daemon on the loopback address that answers the datagram, with the control port naming a port nothing listens on, answers with one entry stating that daemon's address, name, version, product, operating system as five fields, taking the name plus the version from the reply that daemon sent: a daemon answering `<discover name="Opal" result="OK" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>` reads as the single entry ("127.0.0.1", "Opal", "Signalyst HQPlayer Embedded 6", None, None); a daemon answering `<discover name="Sapphire" result="OK" version="Signalyst HQPlayer Embedded 5">hqplayer</discover>` reads as the single entry ("127.0.0.1", "Sapphire", "Signalyst HQPlayer Embedded 5", None, None).
+   kills: answers with a bare list of addresses, so a caller sees that something is out there while staying blind to what it calls itself, which build it is, whether it is HQPlayer Embedded, which is the whole question discovery was added to answer.
+   bite: null stub answers 200 with [] at both inputs (surface new) — (a) 200, 0 records, addresses [], expected the single Opal entry; (b) 200, 0 records, addresses [], expected the single Sapphire entry. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
    existing: none, grep -rln "api/discover" /home/atom/dev/hqptuner/tests/ returns nothing
 
 public entry points:
@@ -50,8 +50,8 @@ def dedupe(daemons: Iterable[Daemon]) -> list[Daemon]:
 async def enrich(daemons: Iterable[Daemon], get_info: Callable[[str], Awaitable[dict[str, str]]]) -> list[Daemon]:
     """Fill product and platform from each daemon's own report, leaving them unset where that exchange fails."""
 
-async def discover(timeout: float = 3.0) -> list[Daemon]:
-    """Send one discovery datagram, collect replies until the timeout, return the enriched records."""
+async def discover(wait_seconds: float = 3.0, control_port: int = PORT, target: str = GROUP) -> list[Daemon]:
+    """Send one discovery datagram to the target, collect replies until the wait is up, return enriched records."""
 
 hqptuner/api/routes/discovery.py — planned surface
 
@@ -77,28 +77,30 @@ applicable fixtures:
 - tests/conftest.py `virtual_clock` (autouse) — removes real sleeping, so a timeout in a test costs no wall clock.
 - tests/support/fixtures_clients.py `api_client` — a TestClient over an app built with no daemon behind it, which is the shape line 4 needs.
 - tests/conftest.py `_never_the_hosts_metering_port` (session, autouse) — keeps the suite off the host daemon's ports.
-- No new fake is needed: lines 1 to 3 are pure functions over bytes, records, a supplied callable, and line 4 supplies its own records.
+- Lines 1 to 3 are pure functions over bytes, records, a supplied callable, so they need no fake at all.
+- Line 4 needs one new fake, a UDP responder bound to 127.0.0.1 on an ephemeral port, answering the reply datagram the case names. It is an asyncio datagram endpoint closed in its fixture teardown, so it carries no poll interval.
+- tests/conftest.py `closed_port` — a port nothing listens on, which is how line 4 leaves product and platform empty without a control server in the picture.
+- `HQPTUNER_DISCOVERY_TARGET` and `HQPTUNER_DISCOVERY_TIMEOUT` are ordinary Config fields: line 4's app is built over a Config naming the responder's address with the wait set to 50 ms, so nothing in the suite sends to the multicast group.
 
 changelog entry: no entry — nothing in the interface reaches this slice, so a reader of the shipped release notices nothing; the onboarding entry lands with the screen that uses this route.
 
 --- spec-reviewer READY ---
 READY
-discriminates: sweep on all four surfaces, two distinct expected values each, plus a differential on line 1 (sender address vs body address at two datagrams)
+discriminates: sweep on all four surfaces, two distinct expected values each, plus the differential on line 1 - line 4's pair now differs in the name and the version the responder sent
 
-round 1 findings, each answered by the named repair:
-- credentials brief sentence: the brief section now carries the `dropped:` record my repair named. Closed.
-- line 1: both "yields no record" clauses gone; one comparable triple at two datagrams, the second body naming "10.0.0.99" while arriving from "10.0.0.7". Closed.
-- line 2: length replaced by the surviving addresses. Closed.
-- line 3: one comparable five-field record per input, two inputs on one invariant, "second exchange" restated as the daemon that refuses the connection. Closed.
-- line 4: two distinct expected values on the route. Closed.
+round 4 note discharged. It said line 4 was legal only if the discovery collaborator is taken at construction; the target is now an ordinary `Config` field and the test drives the real socket, so nothing substitutes our own code and no `app.state` assignment is needed. Both citations offered check out and I read them: tests/support/fake_control.py:334 answers GetInfo with name, engine and version only, no product and no platform attribute; tests/conftest.py:365-367 is the `closed_port` fixture. So the two None fields at the route are what a closed control port actually yields, not a softening.
 
-1  KEEP  `<discover name="Opal" ... version="Signalyst HQPlayer Embedded 6">` from "10.0.0.238" and `<discover name="Sapphire" ... address="10.0.0.99">` from "10.0.0.7" -> ("10.0.0.238","Opal","Signalyst HQPlayer Embedded 6") and ("10.0.0.7","Sapphire","Signalyst HQPlayer Embedded 6"); taking the host from the body fails it at the second datagram, which reads "10.0.0.99"; bite: null stub returns None at both, both triples fail
-2  KEEP  records at "10.0.0.238","10.0.0.238" and records at "10.0.0.238","10.0.0.99" both named "Opal" -> ["10.0.0.238"] and ["10.0.0.238","10.0.0.99"]; collapsing by name fails it at the second input, yielding one address; bite: null stub returns [] at both, expected the two address lists
-3  KEEP  ("10.0.0.238","Opal","Signalyst HQPlayer Embedded 6") against an answering daemon and against one refusing the connection -> the five-field record with ("Signalyst HQPlayer Embedded","Linux") and with (None, None); dropping the record on refusal fails it at the refusing daemon; bite: null stub returns [] at both, expected one record each
-4  KEEP  discovery finding the Opal record alone, and finding it beside a daemon at "10.0.0.99" -> one entry per record, each stating address, name, version, product, operating system, addresses ["10.0.0.238"] and ["10.0.0.238","10.0.0.99"]; a bare address list fails it on the product and operating-system fields of every entry; bite: null stub answers 200 with [] at both
+1  KEEP  carried
+2  KEEP  carried
+3  KEEP  carried
+4  KEEP  a loopback responder answering `<discover name="Opal" ... version="Signalyst HQPlayer Embedded 6">` and one answering `<discover name="Sapphire" ... version="Signalyst HQPlayer Embedded 5">`, control port closed -> the single entries ("127.0.0.1","Opal","Signalyst HQPlayer Embedded 6",None,None) and ("127.0.0.1","Sapphire","Signalyst HQPlayer Embedded 5",None,None); a bare address list fails it at both inputs on the name and version fields; bite: null stub answers 200 with [] at both
 
 null stub: module present, exports named, the parse returns None, the collapse and the enrich return [], the route answers 200 with [].
   satisfies: none   fails: 1, 2, 3, 4
 hard-coded stub: return the named values for the named inputs, extracting no sender address, keying no dedupe on address, running no second exchange, serialising no per-record fields.
-  satisfies: none   fails: 1, 2, 3, 4 - each line states two distinct expected values on one surface, so the table has to key on the part of the input that is the work (the sender address, the address set, the daemon's answer, the record set)
+  satisfies: none   fails: 1, 2, 3, 4 - line 4's two responders differ only in what they said, so the table has to read the reply
 survives: 4
+
+two notes for the owner, neither a gate:
+- Wall clock. The search's signature carries `wait_seconds: float = 3.0` and line 4 drives the real socket, so what the test costs turns on whether that wait is a seam the suite can virtualise or a real sleep. `tests/conftest.py`'s autouse `virtual_clock` virtualises `ConnectionManager.sleep` and `ConnectionManager.monotonic` and nothing else, and this search is not the manager. The deciding fact is in `hqptuner/` and denied to me. If it sleeps real time, docs/testing.md rule 7 bites and check_suite_time.py is what reports it, twice over since line 4 has two cases.
+- Coverage of the two fields the line was written for. At the route, product and operating system are now pinned only at their zero value, and the filled pair ("Signalyst HQPlayer Embedded", "Linux") is pinned at line 3 alone. That is the correct division given the fake answers no product attribute, but it means no line pins those two fields travelling the route filled. The block is at its four-line cap, so the alternative is an owner call, not a fifth line.
