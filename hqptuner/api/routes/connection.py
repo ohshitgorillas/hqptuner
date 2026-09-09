@@ -9,8 +9,10 @@ surface is reachable by any browser that reaches HQPTuner's own port, and a cred
 reason to be readable afterwards (architecture section 3 keeps credentials server-side).
 """
 
+import contextlib
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
@@ -109,5 +111,11 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     layer_onto_config(cfg, record)
     manager.http_client = build_http_client(cfg)
     await manager.retarget()
+    if manager.http_client is not None:
+        # Fill the 8088 snapshots the new pair just unlocked, here rather than at the next poll: the user typed a
+        # credential to make the configuration surface work, and a route that keeps answering 503 for a poll interval
+        # afterwards reads as the credential having been refused.
+        with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
+            await manager.refresh_http_forms()
     manager.audit.connection_set(cfg.hqp_host, cfg.hqp_username, remember=record.remember)
     return _answer(cfg, remembered=record.remember)
