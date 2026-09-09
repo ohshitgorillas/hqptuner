@@ -10,6 +10,7 @@ from hqptuner.api.routes import (
     apply,
     autopilot,
     config,
+    connection,
     descriptions,
     discovery,
     favorites,
@@ -25,8 +26,8 @@ from hqptuner.api.routes import (
 from hqptuner.api.routes.audit import audit_router
 from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
+from hqptuner.core.connection import ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
@@ -44,19 +45,21 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     """
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
-    http_client = None
-    if cfg.hqp_username and cfg.hqp_password:
-        http_client = HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password)
-    else:
-        log.warning("no HQPTUNER_HQP_USERNAME/PASSWORD — /api/config unavailable")
+    # The saved connection record layers under the environment, so this runs before anything reads the three fields
+    # it can move (core/connection.py).
+    connections = ConnectionStore(cfg.connection_file)
+    layer_onto_config(cfg, connections.read())
+    http_client = build_http_client(cfg)
+    if http_client is None:
+        log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
     manager = ConnectionManager(cfg, http_client)
 
-    app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager, http_client))
+    app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
     errors.install(app)
     app.state.manager = manager
     app.state.config = cfg
     app.state.static = static
-    app.state.http_client = http_client
+    app.state.connections = connections
     app.state.pending = PendingStore()
     app.state.audit = manager.audit
     if manager.audit.enabled:
@@ -87,5 +90,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(matrixmodes.router)
     app.include_router(autopilot.router)
     app.include_router(discovery.router)
+    app.include_router(connection.router)
     mount_spa(app)
     return app

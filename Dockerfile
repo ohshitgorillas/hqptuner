@@ -21,6 +21,7 @@ ENV HQPTUNER_BACKUP_DIR=/state/backups \
     HQPTUNER_NARROWING_FILE=/state/narrowing.json \
     HQPTUNER_MATRIX_MODE_FILE=/state/matrixmodes.json \
     HQPTUNER_AUTOPILOT_FILE=/state/autopilot.json \
+    HQPTUNER_CONNECTION_FILE=/state/connection.json \
     HQPTUNER_LISTEN_HOST=0.0.0.0
 
 USER hqptuner

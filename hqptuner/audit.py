@@ -291,6 +291,17 @@ class AuditLog:
         """
         self._write("autopilot.set", {"source": source, "enabled": enabled, "previous": previous})
 
+    def connection_set(self, host: str, username: str, *, remember: bool) -> None:
+        """Record the daemon address and management username being changed while HQPTuner runs.
+
+        A durable write like any other, and the only one that changes which daemon every later record is about, so a
+        log read afterwards can tell "the daemon stopped answering" from "we started asking a different one".
+
+        There is no password field, at any depth: the record says a pair was saved and whether it was kept, never
+        what it was.
+        """
+        self._write("connection.set", {"host": host, "username": username, "remember": remember})
+
     def autopilot_act(self, want: str, engaged: str | None) -> None:
         """Record auto-pilot deciding to move the junk filter, before the write that carries it out.
 

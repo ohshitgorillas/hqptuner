@@ -31,8 +31,12 @@ def require_credentials(request: Request) -> None:
 
     Without them the 8088 lane does not exist, so every route that reads or writes persistent config is unavailable
     rather than broken.
+
+    Asked of the manager rather than of ``app.state``, because the manager is where a credential saved at runtime
+    installs the new client (``POST /api/connection``); a copy on the app state would still read "no credentials"
+    after the pair arrived.
     """
-    if request.app.state.http_client is None:
+    if manager_of(request).http_client is None:
         raise refuse("no_credentials", "no hqplayerd credentials configured")
 
 

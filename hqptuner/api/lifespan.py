@@ -7,7 +7,6 @@ from contextlib import AbstractAsyncContextManager
 
 from fastapi import FastAPI
 
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core import autopilotops
 from hqptuner.core.manager import ConnectionManager
@@ -29,9 +28,12 @@ async def _finish(task: asyncio.Task[None], grace: float) -> None:
 def make_lifespan(
     cfg: Config,
     manager: ConnectionManager,
-    http_client: HttpConfigClient | None,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
-    """Build the lifespan handler bound to the app's manager, config, and 8088 client."""
+    """Build the lifespan handler bound to the app's manager and config.
+
+    The 8088 client is read off the manager at shutdown rather than captured here: a runtime credential change
+    installs a new one, and a captured client would leave the live one open and close one nobody is using.
+    """
 
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -60,8 +62,10 @@ def make_lifespan(
             # cannot interrupt, so waiting on it always costs the full grace
             await _finish(metering_task, 0)
         await _finish(task, SHUTDOWN_GRACE)
+        live = manager.http_client
+        # `aclose` closes the control lane and every retired 8088 client; the one still in service is ours.
         await manager.aclose()
-        if http_client is not None:
-            await http_client.aclose()
+        if live is not None:
+            await live.aclose()
 
     return lifespan
