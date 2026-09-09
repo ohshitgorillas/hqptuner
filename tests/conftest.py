@@ -38,6 +38,7 @@ pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 #: name to the filename the guard parks it under.
 _REPO_PATH_ENVS = {
     "HQPTUNER_AUTOPILOT_FILE": "autopilot.json",
+    "HQPTUNER_CONNECTION_FILE": "connection.json",
     "HQPTUNER_LIVE_PRESET_FILE": "live-presets.json",
     "HQPTUNER_FAVORITES_FILE": "favorites.json",
     "HQPTUNER_NARROWING_FILE": "narrowing.json",
