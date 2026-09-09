@@ -74,6 +74,29 @@
   border-color: var(--accent);
 }
 
+/* ── What the last press of Connect said ─────────────────────────────────
+   Sits directly above the buttons, so the answer is beside the control that
+   asked the question. The address links are inline in their sentence, so they
+   are buttons stripped back to text rather than a control in their own right. */
+.setup-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.setup-report p {
+  max-width: var(--measure);
+  margin: 0;
+}
+.setup-fill {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+}
+
 /* ── The storage choice and the buttons ──────────────────────────────── */
 .setup-remember {
   display: flex;

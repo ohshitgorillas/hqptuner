@@ -20,6 +20,7 @@ import {
   hostTouched,
   verdict,
   closeSetup,
+  fillHost,
   submitConnection,
 } from "../store/setup.js";
 
@@ -62,13 +63,15 @@ function found() {
  * @param {string} key
  * @param {string} label
  * @param {string} type
+ * @param {string} [placeholder]
  */
-function textRow(key, label, type) {
+function textRow(key, label, type, placeholder) {
   return html`
     <label class="setup-row">
       <span class="t-label">${label}</span>
       <input
         type=${type}
+        placeholder=${placeholder || ""}
         value=${/** @type {Record<string, string>} */ (form.value)[key]}
         onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => {
           if (key === "host") hostTouched.value = true;
@@ -77,6 +80,42 @@ function textRow(key, label, type) {
       />
     </label>
   `;
+}
+
+// What the last press of Connect had to say. The empty-address case is the one that
+// carries links: the address is the only field the user can be told what to put in,
+// and only when the daemon is on the machine they are already looking at.
+/** @type {Record<string, string>} */
+const VERDICTS = {
+  connecting: "Connecting…",
+  refused: "HQPlayer refused that username and password.",
+  unreachable: "Nothing is answering at that address. Start HQPlayer Embedded, then press Connect again.",
+  "no-8088":
+    "HQPTuner needs HQPlayer's management username and password. " +
+    "Set them with hqplayerd -u <username> <password>, or on HQPlayer's own web page at port 8088.",
+  "no-answer":
+    "HQPlayer answered, but its settings page at port 8088 did not. Restart HQPlayer Embedded, then press Connect again.",
+};
+
+/** One "(enter it for me)" link: the address it names goes straight into the host field. */
+function hostLink(/** @type {string} */ address) {
+  return html`<button type="button" class="setup-fill" data-host=${address} onClick=${() => fillHost(address)}>
+    ${"(enter it for me)"}
+  </button>`;
+}
+
+/** The report on the last press of Connect, or nothing before the first one. */
+function report() {
+  const v = verdict.value;
+  if (!v || v === "saved") return null;
+  if (v === "no-host") {
+    return html`<div class="setup-report">
+      <p class="t-caption">${"Enter the address of your HQPlayer Embedded machine. If HQPlayer is running on the same machine you're using now..."}</p>
+      <p class="t-caption">${'If running HQPTuner in Docker, enter "host.docker.internal" '}${hostLink("host.docker.internal")}</p>
+      <p class="t-caption">${'Otherwise, enter "127.0.0.1" '}${hostLink("127.0.0.1")}</p>
+    </div>`;
+  }
+  return html`<div class="setup-report"><p class="t-caption">${VERDICTS[v] || ""}</p></div>`;
 }
 
 /** @param {boolean} remember which option this radio is */
@@ -141,13 +180,14 @@ export function Setup() {
             }
           </p>
           ${textRow("host", "Host", "text")} ${found()} ${textRow("username", "Username", "text")}
-          ${textRow("password", "Password", "password")}
+          ${textRow("password", "Password", "password", form.value.hasPassword ? "Leave blank to keep the stored password" : "")}
           <div class="setup-remember">
             ${rememberRow(true, "Let HQPTuner store my password")}
             ${rememberRow(false, "Ask every time HQPTuner starts")}
           </div>
+          ${report()}
           <div class="setup-buttons">
-            <button type="button" onClick=${() => submitConnection()}>Save</button>
+            <button type="button" onClick=${() => submitConnection()}>Connect</button>
             <button type="button" onClick=${closeSetup}>Close</button>
           </div>
         <//>

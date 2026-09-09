@@ -20,6 +20,7 @@ from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import refuse
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.lanes.http import forms
 
 router = APIRouter(prefix="/api")
 
@@ -29,13 +30,14 @@ class ConnectionBody(BaseModel):
 
     Every field is optional and defaults to what HQPTuner is using now, so a client changing the host alone need not
     send the credentials back. ``remember`` false saves the host and the username and stores no password, which is the
-    "log in every time" the user asked for: the pair lives in this process until it stops.
+    "log in every time" the user asked for: the pair lives in this process until it stops. Omitting ``remember``
+    keeps the choice the stored record holds, and an install that has never made one is not asked to store anything.
     """
 
     host: str | None = None
     username: str | None = None
     password: str | None = None
-    remember: bool = True
+    remember: bool | None = None
 
 
 def _store(request: Request) -> ConnectionStore:
@@ -59,12 +61,13 @@ def _answer(cfg: Config, *, remembered: bool) -> dict[str, Any]:
 
 
 def _remembered(store: ConnectionStore) -> bool:
-    """Whether the stored record asks for the password to be kept; nothing saved yet reads as yes.
+    """Whether the stored record asks for the password to be kept; nothing saved yet reads as no.
 
-    Yes is the default because it is the setting a first save arrives with unless the user says otherwise.
+    No is the default because storing a password is the choice with the consequence, and an install that
+    has never made it has not asked for it.
     """
     record = store.read()
-    return True if record is None else record.remember
+    return False if record is None else record.remember
 
 
 @router.get("/connection")
@@ -90,7 +93,9 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
         host=body.host if body.host is not None else cfg.hqp_host,
         username=body.username if body.username is not None else cfg.hqp_username,
         password=body.password if body.password is not None else cfg.hqp_password,
-        remember=body.remember,
+        # Silence about the choice is not a request to change it: a client correcting the address alone
+        # would otherwise flip an install that asked to be asked every time into one that stores the pair.
+        remember=body.remember if body.remember is not None else _remembered(store),
     )
     try:
         store.write(record)
@@ -101,11 +106,18 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     layer_onto_config(cfg, record)
     manager.http_client = build_http_client(cfg)
     await manager.retarget()
+    lane = forms.NO_CREDENTIALS
     if manager.http_client is not None:
         # Fill the 8088 snapshots the new pair just unlocked, here rather than at the next poll: the user typed a
         # credential to make the configuration surface work, and a route that keeps answering 503 for a poll interval
         # afterwards reads as the credential having been refused.
+        #
+        # The refresh's own answer, not `readings.credentials_ok`: that field is written only on a refusal, so it
+        # still holds the previous pair's verdict when this attempt failed on the wire, and a browser reading it
+        # would report a rejection of a pair the daemon never saw. `lane` starts at the silence a capability read
+        # that raises into the suppression leaves behind, which is the truthful reading of a half-finished refresh.
+        lane = forms.NO_ANSWER
         with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
-            await manager.refresh_http_forms()
+            lane = await manager.refresh_http_forms()
     manager.audit.connection_set(cfg.hqp_host, cfg.hqp_username, remember=record.remember)
-    return _answer(cfg, remembered=record.remember)
+    return _answer(cfg, remembered=record.remember) | {"lane": lane}

@@ -40,8 +40,14 @@ export const setupOpen = signal(false);
 export const daemons = signal([]);
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
 export const discovering = signal(false);
-/** The panel's staged values, seeded from GET /api/connection when it opens. */
-export const form = signal({ host: "", username: "", password: "", remember: true });
+/**
+ * The panel's staged values, seeded from GET /api/connection when it opens.
+ *
+ * `hasPassword` is the wire's `has_password`, not a value the user types: the read
+ * route never answers the password itself, so it is the only way to tell a blank
+ * field over a stored password from a blank field over none.
+ */
+export const form = signal({ host: "", username: "", password: "", remember: true, hasPassword: false });
 /**
  * Whether the host field has been edited since the panel opened.
  *
@@ -49,7 +55,18 @@ export const form = signal({ host: "", username: "", password: "", remember: tru
  * address the user has already started typing.
  */
 export const hostTouched = signal(false);
-/** What the health readings after a save said: null, "saved", "refused" or "unreachable". */
+/**
+ * What the panel has to say about the last press of Connect. Eight members:
+ *
+ *   null          nothing pressed yet, or the panel has just been opened
+ *   "no-host"     the address field was empty, so nothing was sent
+ *   "connecting"  sent, and the readings that judge it have not settled
+ *   "saved"       the daemon came up on it; the panel closes on this one
+ *   "refused"     the daemon rejected the username and password
+ *   "no-8088"     saved with no management credentials to try
+ *   "no-answer"   the daemon answered, its settings port at 8088 did not
+ *   "unreachable" nothing answered at the address
+ */
 export const verdict = signal(null);
 
 // The page's own clock, swapped by initSetup so a test can drive it.
@@ -65,6 +82,17 @@ let everConnected = false;
 let autoOpened = false;
 // Whether a save is waiting on the health readings that judge it.
 let awaitingVerdict = false;
+// When the last save's POST answered, on the page's own clock. The reconnect that
+// save triggered has to be given the same grace a cold page gets, and it is measured
+// from here rather than from `watchingSince`, which belongs to the auto-open rule and
+// must not move when a user presses Connect.
+let savedAt = 0;
+// What the last save's POST said its own 8088 attempt did. The health poll cannot
+// answer this: `credentials_ok` is written only on a refusal, so it still holds the
+// previous pair's verdict whenever this attempt failed on the wire or had no
+// credentials to try.
+/** @type {string | null} */
+let savedLane = null;
 
 /**
  * Open the panel, seed it from what HQPTuner is dialling now, and sweep for
@@ -84,8 +112,13 @@ export function closeSetup() {
   awaitingVerdict = false;
 }
 
-// What one reading says about the save that is waiting on it. A good reading
-// is the save having worked, and the panel has nothing left to do.
+// What one reading says about the save that is waiting on it. A good reading is the
+// save having worked, and the panel has nothing left to do.
+//
+// The credential question is answered by the POST's own `lane` and never by the
+// reading; the reading answers reachability and `ready`. `reachable` false is what
+// every correct save looks like for about a second, because the save drops the
+// control lane on purpose, so it is believed only once it has held for the grace.
 /** @param {Record<string, unknown>} h */
 function judgeSave(h) {
   if (h.ready) {
@@ -93,8 +126,11 @@ function judgeSave(h) {
     closeSetup();
     return;
   }
-  if (h.credentials_ok === false) verdict.value = "refused";
-  else if (h.reachable === false) verdict.value = "unreachable";
+  if (savedLane === "refused") verdict.value = "refused";
+  else if (h.reachable === false && clock() - savedAt >= GRACE_MS) verdict.value = "unreachable";
+  else if (h.reachable && savedLane === "no_credentials") verdict.value = "no-8088";
+  else if (h.reachable && savedLane === "no_answer") verdict.value = "no-answer";
+  else verdict.value = "connecting";
 }
 
 // Whether this reading is an install that cannot use its daemon: a refusal at
@@ -149,6 +185,8 @@ export function initSetup(now) {
   everConnected = false;
   autoOpened = false;
   awaitingVerdict = false;
+  savedAt = 0;
+  savedLane = null;
   verdict.value = null;
   dispose();
   dispose = watch();
@@ -184,7 +222,13 @@ async function loadConnection() {
   verdict.value = null;
   try {
     const c = await api.connection();
-    form.value = { host: c.host || "", username: c.username || "", password: "", remember: c.remember !== false };
+    form.value = {
+      host: c.host || "",
+      username: c.username || "",
+      password: "",
+      remember: c.remember === true,
+      hasPassword: c.has_password === true,
+    };
   } catch {
     /* an install whose own backend will not answer still gets a panel to type into */
   }
@@ -204,12 +248,37 @@ async function loadConnection() {
  */
 export async function submitConnection() {
   const f = form.value;
-  verdict.value = null;
+  const host = f.host.trim();
+  if (!host) {
+    verdict.value = "no-host";
+    return;
+  }
+  verdict.value = "connecting";
   awaitingVerdict = true;
-  await api.saveConnection({
-    host: f.host,
-    username: f.username,
-    password: f.password,
-    remember: f.remember,
-  });
+  /** @type {Record<string, unknown>} */
+  const body = { host, username: f.username, remember: f.remember };
+  // A blank field over a stored password is the user leaving it alone, so the key is
+  // omitted and the route keeps what it has. A blank field over no stored password is
+  // a save that genuinely carries none, and goes as the empty string.
+  if (f.password || !f.hasPassword) body.password = f.password;
+  const answer = await api.saveConnection(body);
+  savedAt = clock();
+  savedLane = answer && answer.lane;
+  // Judge the reading already in hand rather than waiting for the next poll: the
+  // credential outcome is in `answer`, and a user who typed a wrong password should
+  // not read "Connecting" for a poll interval before being told.
+  judgeSave(/** @type {Record<string, unknown>} */ (health.value) || {});
+}
+
+/**
+ * Write `address` into the host field, as the same-machine links do.
+ *
+ * Marks the field touched, so a discovery answer landing afterwards cannot overwrite
+ * an address the user has just chosen.
+ *
+ * @param {string} address
+ */
+export function fillHost(address) {
+  hostTouched.value = true;
+  form.value = { ...form.value, host: address };
 }
