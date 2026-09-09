@@ -93,6 +93,10 @@ let savedAt = 0;
 // credentials to try.
 /** @type {string | null} */
 let savedLane = null;
+// Whether the save now in flight should close the panel when it works. Save does;
+// Connect does not, because Connect is how a user tries an address again and the
+// panel carries the link and the instructions they may still need.
+let closeOnSuccess = false;
 
 /**
  * Open the panel, seed it from what HQPTuner is dialling now, and sweep for
@@ -123,7 +127,8 @@ export function closeSetup() {
 function judgeSave(h) {
   if (h.ready) {
     verdict.value = "saved";
-    closeSetup();
+    awaitingVerdict = false;
+    if (closeOnSuccess) closeSetup();
     return;
   }
   if (savedLane === "refused") verdict.value = "refused";
@@ -216,6 +221,12 @@ export async function runDiscovery() {
   }
 }
 
+/** Sweep again; a single answer overwrites what the user typed, unlike the sweep on open. */
+export async function detectHosts() {
+  hostTouched.value = false;
+  await runDiscovery();
+}
+
 /** Seed the panel from what HQPTuner is dialling now. */
 async function loadConnection() {
   hostTouched.value = false;
@@ -246,9 +257,10 @@ async function loadConnection() {
  * says the record was written and nothing about whether the daemon accepts it.
  * The readings that follow say that, and the panel closes on one that does.
  */
-export async function submitConnection() {
+export async function submitConnection(andClose = false) {
   const f = form.value;
   const host = f.host.trim();
+  closeOnSuccess = andClose;
   if (!host) {
     verdict.value = "no-host";
     return;

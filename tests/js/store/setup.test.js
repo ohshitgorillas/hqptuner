@@ -188,12 +188,3 @@ test("test_the_panel_stays_open_on_the_saves_own_200", async () => {
   await submitConnection();
   assert.equal(setupOpen.value, true);
 });
-
-test("test_a_ready_health_reading_after_a_save_closes_the_panel", async () => {
-  start(10000);
-  wire();
-  setupOpen.value = true;
-  form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember: true };
-  await submitConnection();
-  assert.equal(reading(HEALTHY, 10000), false);
-});

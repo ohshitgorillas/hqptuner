@@ -49,6 +49,17 @@
 .setup-row input {
   width: 100%;
 }
+/* The host row's field and its Connect button share one line, the field taking
+   whatever the button leaves. */
+.setup-input {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-2);
+}
+.setup-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 /* ── What discovery found ────────────────────────────────────────────────
    Rows sit ON the card, so they are --surface-raised and take the edge light
@@ -86,6 +97,15 @@
 .setup-report p {
   max-width: var(--measure);
   margin: 0;
+}
+/* The two same-machine options, indented under the sentence that introduces them. */
+.setup-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  max-width: var(--measure);
+  margin: 0;
+  padding-left: var(--sp-4);
 }
 .setup-fill {
   display: inline;
