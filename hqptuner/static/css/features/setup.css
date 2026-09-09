@@ -1,0 +1,88 @@
+/* setup — the connection panel: address, credentials, storage choice.
+   Cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* ── The overlay ─────────────────────────────────────────────────────────
+   A page-level surface over the whole app, so it paints --surface-page: the
+   app behind it is dimmed by .app.offline exactly when this panel is open,
+   and a translucent scrim over a dimmed page reads as a rendering fault. */
+.setup-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40; /* token-exempt: stacking order, not a layout length */
+  background: var(--surface-page);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: var(--sp-5) var(--sp-3);
+}
+.setup-panel {
+  width: 100%;
+  max-width: var(--w-select-wide);
+}
+.setup-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-field);
+}
+.setup-card p {
+  max-width: var(--measure);
+  margin: 0;
+}
+.setup-card code {
+  color: var(--fg);
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────
+   One label above its box rather than the shared 12rem label column: this
+   panel is read before anything else in the app, and a column that wide
+   pushes three short values off to the right of an otherwise empty card. */
+.setup-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.setup-row input {
+  width: 100%;
+}
+
+/* ── What discovery found ────────────────────────────────────────────────
+   Rows sit ON the card, so they are --surface-raised and take the edge light
+   from the single rule in base/aesthetic.css. Each is a button: picking one
+   is picking the host. */
+.setup-found {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.setup-daemon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-2);
+  text-align: left;
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+}
+.setup-daemon.on {
+  border-color: var(--accent);
+}
+
+/* ── The storage choice and the buttons ──────────────────────────────── */
+.setup-remember {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.setup-radio {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.setup-buttons {
+  display: flex;
+  gap: var(--sp-2);
+}
