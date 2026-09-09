@@ -1,11 +1,11 @@
 """SPA static-asset mount — the bundled frontend, served with revalidation forced."""
 
-from pathlib import Path
-
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import Match, Mount
 from starlette.types import Scope
+
+from hqptuner.paths import bundled
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -45,6 +45,6 @@ def mount_spa(app: FastAPI) -> None:
     # Appended last, so the /api routes win; the SPA's static assets and
     # index.html fall through to here. app.mount builds a plain Mount, so the
     # subclass goes onto the route table by hand.
-    static_dir = Path(__file__).resolve().parent.parent / "static"
+    static_dir = bundled("static")
     if static_dir.is_dir():
         app.router.routes.append(SpaMount("/", app=NoCacheStaticFiles(directory=static_dir, html=True), name="spa"))
