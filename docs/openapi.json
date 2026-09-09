@@ -904,6 +904,30 @@
         "summary": "Save Description"
       }
     },
+    "/api/discover": {
+      "get": {
+        "description": "Answer with every hqplayerd that answers discovery on this network, each with what it says it is.",
+        "operationId": "discover_daemons_api_discover_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Discover Daemons Api Discover Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Discover Daemons"
+      }
+    },
     "/api/engine": {
       "get": {
         "description": "Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.\n\nThey are not on any form, so this costs a backup fetch \u2014 read on demand, never per poll.",

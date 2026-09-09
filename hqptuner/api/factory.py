@@ -11,6 +11,7 @@ from hqptuner.api.routes import (
     autopilot,
     config,
     descriptions,
+    discovery,
     favorites,
     livepreset,
     matrix,
@@ -53,6 +54,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager, http_client))
     errors.install(app)
     app.state.manager = manager
+    app.state.config = cfg
     app.state.static = static
     app.state.http_client = http_client
     app.state.pending = PendingStore()
@@ -84,5 +86,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(narrowing.router)
     app.include_router(matrixmodes.router)
     app.include_router(autopilot.router)
+    app.include_router(discovery.router)
     mount_spa(app)
     return app

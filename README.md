@@ -191,6 +191,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_POLL_INTERVAL` | `2.0` | Status poll cadence (s) |
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |
 | `HQPTUNER_REQUEST_TIMEOUT` | `5.0` | Per-request timeout (s) |
+| `HQPTUNER_DISCOVERY_TIMEOUT` | `3.0` | How long `GET /api/discover` waits for daemons to answer (s) |
+| `HQPTUNER_DISCOVERY_TARGET` | `239.192.0.199` | Where discovery sends its datagram; HQPlayer's multicast group by default, or a host address on a network that drops multicast. `host:port` overrides the port |
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
 | `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
