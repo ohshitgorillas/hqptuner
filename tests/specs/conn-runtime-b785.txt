@@ -1,0 +1,96 @@
+kind: new
+
+brief:
+> this is an HQPTuner executable that would install HQPTuner as a server on a Windows box. HQPlayer Embedded may be running on that Windows box, or on a separate Linux box. The app needs to recognize which one the user has, preferably automatically. It also needs a way to gather credentials from the user.
+> Runtime host+credentials only
+> No first-run UI, no ASIO classifier work, no hqp_home platform fix
+> No Windows box
+> give the user the option: store creds, or login every time
+> Every HQPTuner restart
+> never return the password
+
+1. Against a stored record naming host 10.0.0.5, the host HQPTuner uses is 10.0.0.5 with HQPTUNER_HQP_HOST unset, 192.168.1.9 with HQPTUNER_HQP_HOST set to 192.168.1.9, 10.0.0.5 again with HQPTUNER_HQP_HOST set to the empty string.
+   kills: an implementation that treats any variable the environment defines as a value, which answers the empty string in the third case and leaves HQPTuner dialling nothing on a host that exports an empty override.
+   bite: null stub fails at record host 10.0.0.5 with HQPTUNER_HQP_HOST unset (surface new)
+   existing: none, `grep -rn -- 'connection_file' tests/ | grep -v '^tests/specs/' | wc -l` -> 0
+2. Once POST /api/connection has carried password p, with no HQPTUNER_HQP_PASSWORD in the environment, a freshly started HQPTuner resolves the password to p where the POST carried remember true, to the empty string where it carried remember false.
+   kills: an implementation that ignores the flag, which answers p in both cases where it always persists, the empty string in both where it never does, or the stock password at hqptuner/config.py:67 where it layers field by field under the record and lets an absent password fall through.
+   bite: null stub fails at POST /api/connection carrying password p with remember true (surface new)
+   existing: none, `grep -rn -- 'ConnectionStore' tests/ | grep -v '^tests/specs/' | wc -l` -> 0
+3. On a running HQPTuner started with no username, no password, GET /api/config answers 503 before POST /api/connection carries username u with password p, 200 after it.
+   kills: an implementation that writes the record to disk and leaves the process holding the clients it started with, so every 8088 route keeps answering 503 until HQPTuner is restarted.
+   bite: null stub fails at POST /api/connection with username u and password p (surface new)
+   existing: none, `grep -rn -- 'api/connection' tests/ | grep -v '^tests/specs/' | wc -l` -> 0
+4. GET /api/connection answers exactly the four keys host, username, remember, has_password with has_password true on a HQPTuner started with password p, exactly those same four keys with has_password false once POST /api/connection has carried an empty password with remember false.
+   kills: an implementation that answers the stored record as it stands, putting the password itself in a response any browser that reaches port 8090 can read.
+   bite: null stub fails at GET /api/connection on a HQPTuner started with password p (surface new)
+   existing: none, `grep -rn -- 'has_password' tests/ | grep -v '^tests/specs/' | wc -l` -> 0
+
+public entry points (planned):
+
+hqptuner/core/connection.py
+    SCHEMA: int
+    @dataclass(frozen=True)
+    class ConnectionRecord:
+        host: str
+        username: str
+        password: str
+        remember: bool
+    class ConnectionStore:
+        def __init__(self, path: Path) -> None
+        def read(self) -> ConnectionRecord | None
+        def write(self, record: ConnectionRecord) -> None
+    def layer_onto_config(cfg: Config, record: ConnectionRecord | None) -> None
+    def build_http_client(cfg: Config) -> HttpConfigClient | None
+
+hqptuner/api/routes/connection.py
+    router: APIRouter  # prefix="/api"
+    async def read_connection(request: Request) -> dict[str, Any]      # GET /connection
+    async def write_connection(request: Request, body: ConnectionBody) -> dict[str, Any]   # POST /connection
+
+hqptuner/config.py
+    connection_file: Path
+
+hqptuner/core/manager.py
+    @http_client.setter
+    def http_client(self, client: HttpConfigClient | None) -> None
+    async def retarget(self) -> None
+
+hqptuner/engine/metering.py
+    class MeteringReader:
+        def __init__(self, address: Callable[[], tuple[str, int]], context: Callable[[], TrackContext | None], *, sleep: Callable[[float], Awaitable[None]] | None = None) -> None
+
+wire and protocol facts:
+
+- The 8088 configuration interface takes HTTP Digest auth in realm com.signalyst.hqplayer.embedded; read-only use and every live 4321 setting work without credentials, and only persistent writes and preset switching need them (docs/architecture.md section 3).
+- An install with no credentials has no 8088 lane, so `ready` never turns true and the page runs dimmed, the same reading a refused credential gets (docs/architecture.md section 3).
+- A refused credential arrives as 401 or 403 and is raised as AuthRefused, a subclass of httpx.HTTPStatusError, so every lane already catching httpx.HTTPError catches it unchanged (docs/architecture.md section 3, hqptuner/conf/httpauth.py).
+- hqplayerd's management pair is not a secret: the daemon is LAN-only and the stock pair is published in its own documentation (CLAUDE.md, hqplayerd-readme.txt section 1.0).
+- The 4321 control lane carries no authentication at all; SessionAuthentication is not used and the daemon rejects self-generated client keys (docs/architecture.md section 3, docs/protocol.md sections 3.5-3.6).
+
+applicable fixtures:
+
+- `api_client` (tests/support/fixtures_clients.py:50) — the REST surface with no daemon behind it, control lane at a closed port and no credentials. The starting state behavior 3 needs.
+- `http_client` (tests/support/fixtures_clients.py:59) — the REST surface wired to the fake 8088 daemon with username u and password p, every state file under tmp_path. The credentialled starting state behavior 4 needs.
+- `http_daemon` (tests/support/fixtures_daemons.py) — the faithful fake 8088 daemon and its port, so a rebuilt client has something to answer it.
+- `_state_never_touches_the_repo` (tests/conftest.py:51, session autouse) — redirects every state default away from the checkout, so a store file written by a test cannot land in the repo.
+- `monkeypatch` — sets and deletes HQPTUNER_HQP_HOST, HQPTUNER_HQP_USERNAME and HQPTUNER_HQP_PASSWORD per case in behaviors 1 and 2.
+
+changelog entry:
+
+no entry. The two routes have no UI in this change, so nothing a user of the app can see moves; the entry lands with the first-run screen that makes them reachable.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the resolved password across a restart (remember true -> p, remember false -> "") on line 2, beside the host sweep on line 1 and the 503/200 differential on line 3
+
+1  KEEP  carried
+2  KEEP  POST /api/connection with password p and remember true / remember false, then a fresh start with no HQPTUNER_HQP_PASSWORD -> p / ""; "ignores the flag" fails it at the remember-false start, answering p; bite: null stub fails at POST carrying password p with remember true
+3  KEEP  carried
+4  KEEP  GET /api/connection on a HQPTuner started with password p, and again after POST /api/connection carried an empty password with remember false -> the same four keys host, username, remember, has_password with has_password true then false; "answers the stored record as it stands" fails it at the first GET, whose body carries a password key; bite: null stub fails at GET /api/connection on a HQPTuner started with password p
+
+null stub: module present, ConnectionStore and the /api/connection routes exported, every function returning its zero value - nothing persisted, no client rebuilt, host and password resolving to "", GET /api/connection answering {}.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: a table returning the exact value each line names for the exact input it gives, nothing written to disk and no client rebuilt.
+  satisfies: none   fails: 1 (the third case makes the table encode the precedence relation itself), 2 (no in-process state survives the restart), 3, 4 (both depend on request history, not on the input given)
+survives: 4
