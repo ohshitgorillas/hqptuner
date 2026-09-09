@@ -19,13 +19,7 @@ from pydantic import BaseModel
 from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import refuse
 from hqptuner.config import Config
-from hqptuner.core.connection import (
-    ConnectionRecord,
-    ConnectionSchemaError,
-    ConnectionStore,
-    build_http_client,
-    layer_onto_config,
-)
+from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 
 router = APIRouter(prefix="/api")
 
@@ -77,13 +71,9 @@ def _remembered(store: ConnectionStore) -> bool:
 def read_connection(request: Request) -> dict[str, Any]:
     """Answer with the daemon address and username in force, and whether a password is held.
 
-    409 when the stored record is stamped newer than this HQPTuner reads — answering with the running values would
-    hide a file that is there and full.
+    Never the password itself: this surface is reachable by anything that reaches HQPTuner's own port.
     """
-    try:
-        return _answer(_config(request), remembered=_remembered(_store(request)))
-    except ConnectionSchemaError as exc:
-        raise refuse(exc) from exc
+    return _answer(_config(request), remembered=_remembered(_store(request)))
 
 
 @router.post("/connection")

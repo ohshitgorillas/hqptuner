@@ -875,7 +875,7 @@
     },
     "/api/connection": {
       "get": {
-        "description": "Answer with the daemon address and username in force, and whether a password is held.\n\n409 when the stored record is stamped newer than this HQPTuner reads \u2014 answering with the running values would\nhide a file that is there and full.",
+        "description": "Answer with the daemon address and username in force, and whether a password is held.\n\nNever the password itself: this surface is reachable by anything that reaches HQPTuner's own port.",
         "operationId": "read_connection_api_connection_get",
         "responses": {
           "200": {

@@ -23,38 +23,28 @@ is not a value, it is the absence of one.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from hqptuner.config import Config
 
-# The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
-# refused rather than guessed at, on the conventions the preset stores already keep.
+log = logging.getLogger(__name__)
+
+# The record's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. Stamped on every write so a
+# later layout can tell the shapes apart.
 SCHEMA = 1
 
-# The three fields this store layers over, each with the variable that outranks it.
+# The three fields this store layers under, each named by the variable that outranks it.
 _ENV_HOST = "HQPTUNER_HQP_HOST"
 _ENV_USERNAME = "HQPTUNER_HQP_USERNAME"
 _ENV_CREDENTIAL = "HQPTUNER_HQP_PASSWORD"
-
-
-class ConnectionStoreError(HQPTunerError, ValueError):
-    """A connection record that cannot be read or stored."""
-
-    code = "invalid_input"
-
-
-class ConnectionSchemaError(ConnectionStoreError):
-    """The stored record is stamped newer than this HQPTuner understands."""
-
-    code = "store_too_new"
 
 
 @dataclass(frozen=True)
@@ -81,35 +71,23 @@ class ConnectionStore:
     def read(self) -> ConnectionRecord | None:
         """Return the stored record, or None when nothing has been saved.
 
-        A file that is absent, unreadable or malformed reads as nothing saved: the fallback is the defaults, which is
-        exactly the state a fresh install is in. A file stamped newer raises, because answering with defaults would be
-        a lie about a file that is there and full.
+        A file that is absent, unreadable or malformed reads as nothing saved, which puts HQPTuner in the state a
+        fresh install is in: the defaults, and a surface the user can save a working connection over. Refusing to
+        start over a damaged record would leave them nowhere to type one.
         """
         if not self._path.is_file():
             return None
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            return None
-        if not isinstance(data, dict):
-            return None
-        schema = data.get("schema")
-        if isinstance(schema, int) and schema > SCHEMA:
-            raise ConnectionSchemaError(
-                f"connection store is schema {schema}, this HQPTuner understands {SCHEMA} — upgrade HQPTuner"
+            return ConnectionRecord(
+                host=str(data["host"]),
+                username=str(data["username"]),
+                password=str(data.get("password", "")),
+                remember=bool(data.get("remember")),
             )
-        host = data.get("host")
-        username = data.get("username")
-        password = data.get("password")
-        remember = data.get("remember")
-        if not isinstance(host, str) or not isinstance(username, str):
+        except (ValueError, OSError, TypeError, KeyError):
+            log.warning("connection store at %s is unreadable — starting on the defaults", self._path)
             return None
-        return ConnectionRecord(
-            host=host,
-            username=username,
-            password=password if isinstance(password, str) else "",
-            remember=remember if isinstance(remember, bool) else False,
-        )
 
     def write(self, record: ConnectionRecord) -> None:
         """Replace the record with ``record``, whole.
@@ -155,7 +133,7 @@ def build_http_client(cfg: Config) -> HttpConfigClient | None:
     """Build the 8088 configuration client for ``cfg``, or None when either credential is missing.
 
     One builder for both paths — app construction and a runtime save — so the rule "no credentials, no 8088 lane"
-    (architecture §3) is stated once.
+    (architecture section 3) is stated once.
     """
     if not cfg.hqp_username or not cfg.hqp_password:
         return None
