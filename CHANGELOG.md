@@ -7,6 +7,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Added
 
 - **Setting Switcher** swaps two settings (filters, dithers, or modulators) on-the-fly for quick comparisons. LIVE mode only.
+- **Connection panel.** HQPTuner now finds hqplayerd on the network and takes the daemon address and management credentials in the browser, so an install no longer needs environment variables set before it can talk to the daemon. It opens by itself when the daemon cannot be reached or the credentials are refused, and from the status pill at any time.
 
 ## [1.14.2] — 2026-09-08
 

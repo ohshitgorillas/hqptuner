@@ -14,6 +14,7 @@ import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
+import { Setup } from "./Setup.js";
 import { ready } from "../store/signals.js";
 import { engineRestarting } from "../store/enginewrite.js";
 import { liveMode } from "../store/prefs.js";
@@ -40,5 +41,9 @@ export function App() {
       <main>${live ? html`<${LiveView} />` : html`<${TabBody} />`}</main>
       ${live ? null : html`<${PendingBar} />`}
     </div>
+    <!-- Outside .app deliberately: .app.offline dims the whole tree at --o-dim,
+         and the panel opens on exactly the condition that sets that class. A
+         child would be dimmed along with the page it is there to fix. -->
+    <${Setup} />
   `;
 }

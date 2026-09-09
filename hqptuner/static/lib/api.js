@@ -133,6 +133,14 @@ export const api = {
     send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields ? { fields } : undefined),
   applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
   deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
+  // Where HQPTuner dials and who it says it is. The read never answers the
+  // password, only whether one is held; the write saves before it verifies, so
+  // its 200 says the record landed and nothing about what the daemon makes of it.
+  connection: () => getJSON("/api/connection"),
+  saveConnection: (/** @type {unknown} */ body) => send("/api/connection", "POST", body),
+  // Which hqplayerds answer discovery. On demand only: the call waits on the
+  // daemons for `discovery_timeout`, and nothing polls it.
+  discoverDaemons: () => getJSON("/api/discover"),
   // Favorites — starred filter and modulator NAMES, stored for the install
   // rather than for one browser. Whole-set replace per kind: unstarring is a PUT
   // without the name, and a kind the body leaves out is left as it stands.
