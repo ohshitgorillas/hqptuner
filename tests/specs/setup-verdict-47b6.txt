@@ -1,0 +1,133 @@
+kind: new
+
+brief:
+
+> choose a chunk of tasks reasonable to tackle within your context
+
+> needs "connect" button: user installs HQPTuner, forgets to start HQP Embedded, needs to let HQPT know HQP is up now, try again
+
+> default "Ask every time" do not assume security for user
+
+> needs explanation of what to put when on the same device (my copy)
+
+> 4. Enter the address of your HQPlayer Embedded machine. If HQPlayer is running on the same machine you're using now...
+> 4a. If running HQPTuner in Docker, enter "docker.host.internal" (enter it for me)
+> 4b. Otherwise, enter "127.0.0.1" (enter it for me)
+>
+> where (enter it for me) is a link that auto populates the field
+
+> 5,6. rejected as written/proposed. if the HTTP page is down, the daemon may respond, but the app is fucked--nothing's playing music. same behavior for daemon and http: one or the other down, nothing happens. also, the case where the daemon is up and http down is extremely rare and means that something is utterly fucked... solution is a restart of the daemon, not "use these features, but not those" same with 5, no credentials case. fuck off with this partial functionality pitch.
+
+> approved
+
+1. `submitConnection()` sends the password the user meant. With `form` holding host 10.0.0.9, username tuner, discovery answering nobody: opened over a connection answering `has_password` true, an empty password field sends a POST body whose keys are `host`, `username`, `remember`; the same state with password s3cret sends a body whose `password` is `"s3cret"`; opened over a connection answering `has_password` false, an empty password field sends a body whose `password` is `""`.
+   kills: sending the form as it stands every time, which overwrites the held password with `""` whenever the user opens the panel to correct the address alone.
+   bite: (command: `node --import ./tests/js/support/vendor-resolve.js --test $SCRATCH/m1.test.mjs`) -> 1b POST `{"host":"10.0.0.9","username":"tuner","password":"","remember":false}`, password key true; 1c POST `{"host":"10.0.0.9","username":"tuner","password":"s3cret","remember":false}`, password key true; 1d POST `{"host":"10.0.0.9","username":"tuner","password":"","remember":false}`, password key true
+   existing: none, `grep -rn 'no-host\|password key\|hasOwnProperty' tests/ --exclude-dir=specs | wc -l` -> 0
+
+2. `POST /api/connection` answers a `lane` field naming what its own 8088 attempt did: `"no_credentials"` over saved credentials that are incomplete; `"refused"` over a daemon rejecting the pair on /config; `"ok"` over a daemon whose /config answers; `"no_answer"` over a daemon whose /config fails on the wire.
+   kills: answering the refusal HQPTuner already held, which reports `"refused"` for a pair the daemon never saw whenever the previous pair was rejected while the daemon is now silent.
+   bite: (command: `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python $SCRATCH/m2.py`) -> 2a-2d key set `["has_password","host","remember","username"]` in every state, carrying no `lane` key, body `{"has_password":true,"host":"127.0.0.1","remember":true,"username":"u"}` at 2b, 2c, 2d; the four states were confirmed distinct by a GET /api/health readback answering credentials_ok null, false, true, null
+   existing: none, `grep -rn '"lane"' tests/ --exclude-dir=specs | wc -l` -> 0
+
+3. `verdict.value` names what the save did, at four inputs. `submitConnection()` over a `form` whose host is empty sets it to `"no-host"`. After a save the route answered `lane` `"ok"`: a health reading `{reachable:false,connected:false,ready:false,credentials_ok:null}` one second later sets it to `"connecting"`; that same reading four seconds later sets it to `"unreachable"`. After a save the route answered `lane` `"refused"`: a reading `{reachable:true,connected:true,ready:false,credentials_ok:null}` sets it to `"refused"`.
+   kills: judging the first reading after the save, which reports `"unreachable"` for every correct save, because saving drops HQPTuner's own control lane, whose reconnect takes about a second.
+   bite: (command: `node --import ./tests/js/support/vendor-resolve.js --test $SCRATCH/m1.test.mjs`) -> verdict null over an empty host field; verdict "unreachable" at 1000 ms; verdict "unreachable" at 4000 ms; verdict null over the rejected save with `{reachable:true,connected:true,ready:false,credentials_ok:null}` at 0 ms
+   existing: none, `grep -c 'verdict' tests/js/store/setup.test.js` -> 0
+
+4. `GET /api/connection` answers `remember` false over a record that is unset; over a record whose stored `remember` is true it answers true.
+   kills: reading a missing record as a request to keep the password, which stores the password of the first install that never made a choice.
+   bite: (command: `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python $SCRATCH/m2.py`) -> GET with no record on disk `{"has_password":false,"host":"127.0.0.1","remember":true,"username":""}`
+   existing: none, `grep -rn 'remember' tests/api/test_connection.py` -> 10 lines, all four assertions passing the choice explicitly (`remember=` at :68, :82, :93, :95)
+
+5. `POST /api/connection` carrying host 10.0.0.9 while omitting `remember`, over a stored record whose `remember` is false, writes a record on disk reading host `"10.0.0.9"` with `remember` false.
+   kills: treating a body silent about the choice as a request to keep the password, which turns an install that asked to be asked every time into one that stores the password the next time the address alone is saved.
+   Fifth line: line 4 pins what the route reads, this pins what a partial write does to what is already stored. A route can answer the flipped default on every read while still overwriting the stored choice on a write that never mentioned it, and that is the case where a user loses ask-every-time without touching the setting.
+   bite: (command: `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python $SCRATCH/m2.py`) -> POST omitting the choice over a stored record whose choice is false leaves `{"schema":1,"host":"10.0.0.9","username":"tuner","password":"p","remember":true}` on disk
+   existing: none, `grep -rn 'remember' tests/api/test_connection.py` -> 10 lines, all four assertions passing the choice explicitly (`remember=` at :68, :82, :93, :95)
+
+## Public entry points
+
+Planned surface, `hqptuner/static/store/setup.js`:
+
+```
+export const setupOpen    // signal<boolean>
+export const daemons      // signal<object[]>
+export const discovering  // signal<boolean>
+export const form         // signal<{host, username, password, remember}>, gaining a hasPassword field
+export const hostTouched  // signal<boolean>
+export const verdict      // signal<null | string>, value set widening to eight members
+export function openSetup()
+export function closeSetup()
+export function initSetup(now)
+export async function runDiscovery()
+export async function submitConnection()
+```
+
+`hqptuner/api/routes/connection.py`:
+
+```
+@router.get("/connection")
+def read_connection(request: Request) -> dict[str, Any]
+@router.post("/connection")
+async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> dict[str, Any]
+class ConnectionBody(BaseModel):
+    host: str | None = None
+    username: str | None = None
+    password: str | None = None
+    remember: bool | None = None
+```
+
+`hqptuner/lanes/http/forms.py` and `hqptuner/core/manager.py`, return types widening from None:
+
+```
+async def refresh(mgr: ConnectionManager) -> str
+async def refresh_http_forms(self) -> str
+```
+
+## Wire and protocol facts
+
+- The 8088 configuration lane needs authentication on every page; the 4321 control lane needs none, so a daemon that refuses the password stays reachable throughout (`docs/architecture.md:40`, `tests/api/test_credentials_rejected.py:1-13`, wire verified on 6.0.4).
+- An install with no management credentials has no 8088 lane at all, so `ready` never turns true and the pill reads Unreachable (`docs/architecture.md:40`).
+- Saving a connection drops HQPTuner's own control lane deliberately, and the poll loop re-dials at 1.0 s, backing off to 5.0 s once in alarm (`docs/architecture.md`, section 3; `hqptuner/core/manager.py:44-45`).
+- HQPlayer's management credentials are set with `hqplayerd -u <username> <password>` or on the daemon's own page at port 8088 (`hqplayerd-readme.txt`).
+- The Docker host alias this deployment provides is `host.docker.internal` (`compose.yaml:26-30`).
+
+## Applicable fixtures
+
+- `app_factory` (`tests/api/test_connection.py:35`) — a TestClient over a real app whose connection record is parked under `tmp_path` and whose 8088 port is the fake daemon's.
+- `store_path` (`tests/api/test_connection.py:31`) — the record file under `tmp_path`, so a POST in a test cannot reach the running install's credentials.
+- `http_daemon` and `http_manager_factory` (`tests/conftest.py:311-324`) — the fake 8088 daemon and managers built on it, with the `dying`/`stale` variants the outage cases need.
+- `fake_http` (`tests/support/fake_http.py`) — the fake daemon, including the auth-refusal knob (`_auth_refusal`) that answers 401 then 403 on every page.
+- `closed_port` (`tests/conftest.py:367`) — a port nothing is listening on, for the wire-failure state.
+- `virtual_clock` (`tests/conftest.py:71`) — autouse, so no case waits on the wall clock.
+- `staticWire` / `ok` (`tests/js/store/setup.test.js:88-104` pattern) — the REST fake the existing panel cases drive discovery, the saved record and the POST through.
+
+## Changelog entry
+
+The panel's own bullet is unreleased, so this work extends it rather than adding a second one. Under `## [Unreleased]` / `### Added`, replacing the existing **Connection panel.** bullet character for character:
+
+- **Connection panel.** HQPTuner now finds hqplayerd on the network and takes the daemon address and management credentials in the browser, so an install no longer needs environment variables set before it can talk to the daemon. It opens by itself when the daemon cannot be reached or the credentials are refused, and from the status pill at any time. Connect says what happened, keeps a stored password when you leave the field blank, and asks for the password again every time HQPTuner starts unless you tell it to keep it.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on POST /api/connection's `lane` field (line 2, four values over four daemon states) and on `verdict.value` (line 3, four values over four save-and-reading inputs); lines 4 and 5 carry the record's read-default and partial-write invariants
+
+The escalation is answered by the owner: line 6 is dropped and the brief sentence `> where (enter it for me) is a link that auto populates the field` is dropped with it, by the owner's word, so (m) has no outstanding sentence. Every other brief sentence that names a behavior is pinned — the connect-and-try-again attempt by lines 2 and 3, `> default "Ask every time" do not assume security for user` by lines 4 and 5 — and `> needs explanation of what to put when on the same device (my copy)` is copy, which never earns a line (rule 9).
+
+Four new tests, one delta. At the cap, not over it: the delta does not count toward the block, and line 5's justification stands (line 4 pins what the route reads, line 5 what a partial write leaves on disk).
+
+1  DELTA tests/js/store/setup.test.js:170: widen the `for (const remember of [true, false])` save sweep with the wire's `has_password` dimension and assert the POST body's key set; no new test.
+2  KEEP  four daemon states behind the fake at /config -> `lane` "no_credentials" / "refused" / "ok" / "no_answer"; answering the refusal HQPTuner already held fails it where the previous pair was rejected and /config now fails on the wire; bite: no `lane` key at any of the four states, key set `["has_password","host","remember","username"]`
+3  KEEP  `submitConnection()` then a health reading at the injected clock -> `verdict.value` "no-host" / "connecting" / "unreachable" / "refused"; judging the first reading after the save fails it at the unreachable reading 1000 ms after an `"ok"` save; bite: verdict "unreachable" at 1000 ms
+4  KEEP  GET /api/connection over an unset record and over a record storing `remember` true -> false, then true; reading a missing record as a request to keep the password fails it at the unset record; bite: `{"has_password":false,"host":"127.0.0.1","remember":true,"username":""}` with no record on disk
+5  KEEP  POST carrying host 10.0.0.9 and omitting `remember`, over a stored record whose `remember` is false -> the record on disk reads host "10.0.0.9" with `remember` false; the silent-body-keeps-the-password implementation fails it on the choice, a route that writes nothing fails it on the host; bite: `{"schema":1,"host":"10.0.0.9","username":"tuner","password":"p","remember":true}` on disk at HEAD
+
+null stub: module present and exports named — `verdict.value` stays null, `submitConnection` puts no request on the wire, the connection route answers its zero values and carries no `lane`.
+  satisfies: none   fails: 1, 2, 3, 4, 5
+hard-coded stub: return the exact body, `lane` string, `verdict` and record each named input asks for, with no /config attempt, no clock arithmetic and no record read.
+  satisfies: none   fails: 1, 2, 3, 4, 5 (each outcome moves with a value the fixture supplies: the wire's `has_password`, whether /config answers, the injected reading, the record's stored choice, the posted host)
+
+survives: 4
+
+note: nothing here rests on a file I could not read; `hqptuner/` was not consulted.
