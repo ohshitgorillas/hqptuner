@@ -17,6 +17,7 @@ import {
   discovering,
   form,
   hostTouched,
+  verdict,
   closeSetup,
   submitConnection,
 } from "../store/setup.js";
@@ -97,7 +98,10 @@ export function Setup() {
   if (!setupOpen.value) return null;
   return html`
     <div class="setup-scrim">
-      <div class="setup-panel">
+      <!-- What the readings after a save said, as an attribute rather than a
+           sentence: the sentence is copy and copy is the owner's, and until
+           there is one this is what a reader of the DOM has to go on. -->
+      <div class="setup-panel" data-verdict=${verdict.value || ""}>
         <${Card} title="Connection" cardClass="setup-card">
           <p class="t-caption">
             HQPTuner needs two things to run: the address of your HQPlayer Embedded daemon, and its credentials.
