@@ -67,11 +67,16 @@ function revealRow(p, row) {
  */
 function placeTip(t, p, row) {
   const pr = p.getBoundingClientRect();
-  const avail = pr.left - 16; // 8px to the pop, 8px viewport margin
-  t.style.maxWidth = `${avail >= 240 ? Math.min(340, avail) : 340}px`;
+  const leftRoom = pr.left - 16; // 8px to the pop, 8px viewport margin
+  const rightRoom = window.innerWidth - pr.right - 16;
+  // The far side is not automatically roomier: a pop against the right edge of
+  // the page leaves less room there than the narrow gap on the left, and a tip
+  // sized for neither runs off the page. Take the wider side and size to it.
+  const left = leftRoom >= 240 || leftRoom >= rightRoom;
+  t.style.maxWidth = `${Math.min(340, Math.max(200, left ? leftRoom : rightRoom))}px`;
   const tr = t.getBoundingClientRect();
-  const tl = avail >= 240 ? pr.left - tr.width - 8 : pr.right + 8;
-  t.style.left = `${tl}px`;
+  const tl = left ? pr.left - tr.width - 8 : pr.right + 8;
+  t.style.left = `${Math.max(8, Math.min(tl, window.innerWidth - 8 - tr.width))}px`;
   t.style.top = `${Math.min(row.getBoundingClientRect().top, window.innerHeight - 8 - tr.height)}px`;
   t.style.visibility = "visible";
 }

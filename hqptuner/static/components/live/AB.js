@@ -26,12 +26,18 @@ import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { liveAbOpen } from "../../store/prefs.js";
 import { RadioGroup, Segment } from "../controls/index.js";
-import { widgetFor, tipsFor, badgeFor, starsFor, tierFor, collapseFor } from "../binder.js";
+import { widgetFor, tipsFor, favFor, badgeFor, starsFor, tierFor, collapseFor, FavoriteError } from "../binder.js";
 import { describe } from "../../store/prose.js";
 import { Card } from "../common.js";
 import { cardCollapse } from "./collapse.js";
 
 /** @typedef {import("./View.js").LiveControl} LiveControl */
+
+// The card's own prose, as the card subtitle. Every other subtitle on the app
+// comes through `noteFor("<gate key>")` (components/common.js), which reads the
+// manual's words for the setting that gates its card; this card is gated by no
+// setting and has no key in settings.json to read, so the line is here.
+const SUBTITLE = "Choose two settings to switch between with the A and B buttons.";
 
 // The target's control on whichever chain it belongs to — the same object the
 // chain card renders, so its list and its current value are the chain card's.
@@ -55,20 +61,41 @@ function nameOf(control, id) {
   return listed ? String(listed.label) : String(id);
 }
 
+// A comparison needs two different values, so the value the other side holds is
+// not on this side's menu. Dropped rather than disabled: a listed-but-refused
+// row invites the click it then refuses, and the pair is two picks, not one
+// setting with an exclusion rule.
+/**
+ * @param {LiveControl} control
+ * @param {import("../../store/live/ab.js").AbSlot | null} other
+ * @returns {{ value: string | number, label: string }[]}
+ */
+function slotOptions(control, other) {
+  const list = control.options || [];
+  return other ? list.filter((o) => String(o.value) !== String(other.id)) : list;
+}
+
 /** @param {{ side: "a" | "b", control: LiveControl }} props */
 function Slot({ side, control }) {
   const W = widgetFor(control.entry);
   const meta = describe(control.entry, control.key);
-  const slot = abSlots.value[side];
+  const slots = abSlots.value;
+  const slot = slots[side];
   const value = slot ? slot.id : "";
   const listed = (control.optionsRaw || control.options || []).some((o) => String(o.value) === value);
+  // The star and its toggle, the same pair the chain card's dropdown carries: a
+  // filter starred here is starred everywhere, because it is one set of stars on
+  // one list of names (store/narrow/match.js).
+  const { fav, onFav } = favFor(control.entry) || {};
   return html`
     <div class="field ab-slot">
       <label>${side.toUpperCase()}</label>
       <div class="control">
         <${W}
           value=${value}
-          options=${control.options}
+          options=${slotOptions(control, slots[side === "a" ? "b" : "a"])}
+          fav=${fav}
+          onFav=${onFav}
           valueLabel=${slot && !listed ? slot.name : undefined}
           tips=${tipsFor(control.entry, meta)}
           badge=${badgeFor(control.entry)}
@@ -79,6 +106,7 @@ function Slot({ side, control }) {
           onChange=${(/** @type {string} */ v) => setAbSlot(side, v, nameOf(control, v))}
         />
       </div>
+      <${FavoriteError} entry=${control.entry} />
     </div>
   `;
 }
@@ -141,7 +169,6 @@ function AbBody() {
           : null
       }
       ${error ? html`<div class="live-error">${error}</div>` : null}
-      <div class="field-note">Choose two settings to switch between with the A and B buttons.</div>
     </div>
   `;
 }
@@ -153,7 +180,12 @@ export function AbCard() {
   abChain.value;
   abTarget.value;
   return html`
-    <${Card} id="live-ab" title="Setting Switcher" collapse=${cardCollapse("ab", liveAbOpen)}>
+    <${Card}
+      id="live-ab"
+      title="Setting Switcher"
+      subtitle=${SUBTITLE}
+      collapse=${cardCollapse("ab", liveAbOpen)}
+    >
       <${AbBody} />
     <//>
   `;

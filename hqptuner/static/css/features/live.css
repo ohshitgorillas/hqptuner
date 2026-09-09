@@ -250,28 +250,27 @@
   gap: var(--sp-3);
 }
 
-/* The two slots sit side by side wherever there is room for two dropdowns, and
-   stack below the page's own single-column breakpoint. They are one choice made
-   twice, so they read as a pair rather than as two settings. */
+/* The two slots stack, at every width. They are one choice made twice, and one
+   above the other is how a pair reads; side by side they read as two settings
+   of a row. */
 .ab-slots {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
-@media (min-width: 1100px) {
-  .ab-slots {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-4);
-    align-items: start;
-  }
-}
 .ab-slot {
   min-width: 0;
 }
-.ab-slot .control select,
-.ab-slot .control .combobox {
-  width: 100%;
+/* A slot is a half track, so its trigger fills the column and caps there. The
+   dropdown's own width is a fixed 28rem (controls/combobox.css) or one of the
+   compact widths, each of which contributes its full size to the track and
+   pushes the card past its own right edge. Fill-then-cap, and min-width:0 down
+   the chain so the track may shrink at all. */
+.ab-slot .control {
+  min-width: 0;
+}
+.ab-slot .dd-box,
+.ab-slot select {
   max-width: 100%;
   min-width: 0;
 }
@@ -282,4 +281,10 @@
    sized to be hit without looking. */
 .ab-switch {
   display: flex;
+}
+/* The one control on this card that writes, and the one the hand goes to
+   without looking, so it stands half again as tall as the hero segment it
+   otherwise matches. */
+.ab-switch .segment .seg {
+  min-height: calc(var(--h-control) * 1.75);
 }
