@@ -1,0 +1,104 @@
+kind: new
+
+brief:
+> discovery lane
+> HQPlayer Embedded may be running on that Windows box, or on a separate Linux box.
+> The app needs to recognize which one the user has, preferably automatically.
+> It also needs a way to gather credentials from the user.
+
+dropped: "It also needs a way to gather credentials from the user." No line pins it. The owner ruled this slice stops at the wire, so credential capture, its persistence, and rebuilding the 8088 client are the following slice, with no surface in this one.
+
+1. Reading a discovery reply datagram together with the address it arrived from yields a record whose address, name, version read as one triple: the datagram `<discover name="Opal" result="OK" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>` received from "10.0.0.238" reads ("10.0.0.238", "Opal", "Signalyst HQPlayer Embedded 6"); the datagram `<discover name="Sapphire" result="OK" version="Signalyst HQPlayer Embedded 6" address="10.0.0.99">hqplayer</discover>` received from "10.0.0.7" reads ("10.0.0.7", "Sapphire", "Signalyst HQPlayer Embedded 6").
+   kills: takes the daemon host from the datagram body instead of from the sender address, so every daemon on the LAN is reported at whatever address its body happens to name.
+   bite: null stub returns None at both payloads (surface new) — (a) None, (b) None, so both triples fail. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
+   existing: none, grep -rn "discover" /home/atom/dev/hqptuner/tests/ returns three unrelated prose hits (tests/support/fake_http.py:606, tests/apply/test_http_apply.py:3, tests/js/support/primermatrix.js:54)
+
+2. Collapsing a list of daemon records yields the surviving addresses in first-seen order: records at "10.0.0.238" then "10.0.0.238" yield ["10.0.0.238"]; records at "10.0.0.238" then "10.0.0.99", both named "Opal", yield ["10.0.0.238", "10.0.0.99"].
+   kills: collapses by name rather than by address, so two daemons that ship with the same friendly name are reported as one, the second host disappearing from the list.
+   bite: null stub returns [] at both inputs (surface new) — (a) 0 records, addresses [], expected ["10.0.0.238"]; (b) 0 records, addresses [], expected ["10.0.0.238", "10.0.0.99"]. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
+   existing: none, same grep as line 1
+
+3. Enriching the record ("10.0.0.238", "Opal", "Signalyst HQPlayer Embedded 6") against a daemon that answers with its own report yields the five-field record ("10.0.0.238", "Opal", "Signalyst HQPlayer Embedded 6", "Signalyst HQPlayer Embedded", "Linux"); enriching that same record against a daemon that refuses the connection yields ("10.0.0.238", "Opal", "Signalyst HQPlayer Embedded 6", None, None).
+   kills: drops the record where the daemon refuses the connection, so a daemon that answered discovery inside the documented ten second window after a restart vanishes from a list it demonstrably belongs on.
+   bite: null stub returns [] at both inputs (surface new) — (a) 0 records, tuples [], (b) 0 records, tuples [], expected one five-field record in each case. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
+   existing: none, same grep as line 1
+
+4. Asking the running API for discovered daemons answers with one entry per record found, each entry stating that daemon's address, name, version, product, operating system: where discovery finds the Opal record alone, the answered addresses read ["10.0.0.238"]; where discovery finds Opal beside a daemon at "10.0.0.99", the answered addresses read ["10.0.0.238", "10.0.0.99"].
+   kills: answers with a bare list of addresses, so a caller sees that something is out there while staying blind to whether it is HQPlayer Embedded, or which operating system it runs on, which is the whole question discovery was added to answer.
+   bite: null stub answers 200 with [] at both inputs (surface new) — (a) 200, 0 records, addresses [], expected ["10.0.0.238"]; (b) 200, 0 records, addresses [], expected ["10.0.0.238", "10.0.0.99"]. Command: HQPTUNER_HQP_USERNAME= HQPTUNER_HQP_PASSWORD= PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/stub_probe2.py
+   existing: none, grep -rln "api/discover" /home/atom/dev/hqptuner/tests/ returns nothing
+
+public entry points:
+
+hqptuner/engine/discovery.py — planned surface
+
+@dataclass(frozen=True)
+class Daemon:
+    """One hqplayerd that answered discovery: where it is, what it calls itself, what it says it is."""
+    address: str
+    name: str
+    version: str
+    product: str | None = None
+    platform: str | None = None
+
+def parse_reply(payload: bytes, address: str) -> Daemon | None:
+    """Read one reply datagram into a record, or None where it is not a discovery reply."""
+
+def dedupe(daemons: Iterable[Daemon]) -> list[Daemon]:
+    """Keep one record per address, in first-seen order, since a multi-homed daemon answers more than once."""
+
+async def enrich(daemons: Iterable[Daemon], get_info: Callable[[str], Awaitable[dict[str, str]]]) -> list[Daemon]:
+    """Fill product and platform from each daemon's own report, leaving them unset where that exchange fails."""
+
+async def discover(timeout: float = 3.0) -> list[Daemon]:
+    """Send one discovery datagram, collect replies until the timeout, return the enriched records."""
+
+hqptuner/api/routes/discovery.py — planned surface
+
+router = APIRouter(prefix="/api")
+
+@router.get("/discover")
+async def discover_daemons() -> list[dict[str, Any]]:
+    """Answer with every hqplayerd that answers discovery on this network."""
+
+wire and protocol facts:
+
+- The request is one UDP datagram to multicast 239.192.0.199 port 4321, body exactly `<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>` (docs/protocol.md:26, :29).
+- Each daemon answers with `<discover result="OK" name="friendly name" version="...">hqplayer</discover>` (docs/protocol.md:35).
+- The sender address of the reply datagram is the daemon host (docs/protocol.md:38). The documented reply body carries no address attribute; line 1's second payload adds one to pin which source the record takes.
+- Measured against the 6.0.2 install on this host, the reply is `<?xml version="1.0" encoding="utf-8"?><discover name="Opal" result="OK" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>` from 10.0.0.238, so `version` names the product with the major and never the operating system, and the daemon answers even where it shares a host with the caller. Command: .venv/bin/python scripts/probes/probe_discover_version.py
+- The operating system is the `platform` attribute of GetInfo over TCP 4321, verified on 6.0.4 (docs/protocol.md:157).
+- Port 4321 refuses connections for about ten seconds after a daemon restart, verified (docs/protocol.md:21), so the UDP answer and the TCP exchange can disagree.
+- docs/protocol.md:26 also documents an IPv6 group, ff08::c7. This slice sends on IPv4 only.
+
+applicable fixtures:
+
+- tests/conftest.py `_state_never_touches_the_repo` (session, autouse) — redirects every store path at a temp directory, so nothing here writes into the checkout.
+- tests/conftest.py `virtual_clock` (autouse) — removes real sleeping, so a timeout in a test costs no wall clock.
+- tests/support/fixtures_clients.py `api_client` — a TestClient over an app built with no daemon behind it, which is the shape line 4 needs.
+- tests/conftest.py `_never_the_hosts_metering_port` (session, autouse) — keeps the suite off the host daemon's ports.
+- No new fake is needed: lines 1 to 3 are pure functions over bytes, records, a supplied callable, and line 4 supplies its own records.
+
+changelog entry: no entry — nothing in the interface reaches this slice, so a reader of the shipped release notices nothing; the onboarding entry lands with the screen that uses this route.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on all four surfaces, two distinct expected values each, plus a differential on line 1 (sender address vs body address at two datagrams)
+
+round 1 findings, each answered by the named repair:
+- credentials brief sentence: the brief section now carries the `dropped:` record my repair named. Closed.
+- line 1: both "yields no record" clauses gone; one comparable triple at two datagrams, the second body naming "10.0.0.99" while arriving from "10.0.0.7". Closed.
+- line 2: length replaced by the surviving addresses. Closed.
+- line 3: one comparable five-field record per input, two inputs on one invariant, "second exchange" restated as the daemon that refuses the connection. Closed.
+- line 4: two distinct expected values on the route. Closed.
+
+1  KEEP  `<discover name="Opal" ... version="Signalyst HQPlayer Embedded 6">` from "10.0.0.238" and `<discover name="Sapphire" ... address="10.0.0.99">` from "10.0.0.7" -> ("10.0.0.238","Opal","Signalyst HQPlayer Embedded 6") and ("10.0.0.7","Sapphire","Signalyst HQPlayer Embedded 6"); taking the host from the body fails it at the second datagram, which reads "10.0.0.99"; bite: null stub returns None at both, both triples fail
+2  KEEP  records at "10.0.0.238","10.0.0.238" and records at "10.0.0.238","10.0.0.99" both named "Opal" -> ["10.0.0.238"] and ["10.0.0.238","10.0.0.99"]; collapsing by name fails it at the second input, yielding one address; bite: null stub returns [] at both, expected the two address lists
+3  KEEP  ("10.0.0.238","Opal","Signalyst HQPlayer Embedded 6") against an answering daemon and against one refusing the connection -> the five-field record with ("Signalyst HQPlayer Embedded","Linux") and with (None, None); dropping the record on refusal fails it at the refusing daemon; bite: null stub returns [] at both, expected one record each
+4  KEEP  discovery finding the Opal record alone, and finding it beside a daemon at "10.0.0.99" -> one entry per record, each stating address, name, version, product, operating system, addresses ["10.0.0.238"] and ["10.0.0.238","10.0.0.99"]; a bare address list fails it on the product and operating-system fields of every entry; bite: null stub answers 200 with [] at both
+
+null stub: module present, exports named, the parse returns None, the collapse and the enrich return [], the route answers 200 with [].
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return the named values for the named inputs, extracting no sender address, keying no dedupe on address, running no second exchange, serialising no per-record fields.
+  satisfies: none   fails: 1, 2, 3, 4 - each line states two distinct expected values on one surface, so the table has to key on the part of the input that is the work (the sender address, the address set, the daemon's answer, the record set)
+survives: 4
