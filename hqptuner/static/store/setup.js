@@ -120,23 +120,38 @@ function judge(h) {
   }
 }
 
-// Installed at import rather than inside initSetup: closing the panel on a
-// good reading after a save is not the app's startup wiring, it is what
-// submitConnection is waiting for, and it has to work wherever the panel is
-// driven from.
-const dispose = effect(() => {
-  judge(/** @type {Record<string, unknown> | null} */ (health.value));
-});
+/** Subscribe to the health poll. */
+function watch() {
+  return effect(() => {
+    judge(/** @type {Record<string, unknown> | null} */ (health.value));
+  });
+}
+
+// One is installed at import, because closing the panel on a good reading after
+// a save is not the app's startup wiring: it is what submitConnection is
+// waiting for, and it has to work wherever the panel is driven from.
+let dispose = watch();
 
 /**
- * Point the panel's grace at a clock and restart it, then hand back the health
- * effect's disposer.
+ * Start this page watching: point the grace at a clock, restart it, and forget
+ * what any earlier page load had seen. Hands back the disposer for the watch it
+ * installs, and only that one.
+ *
+ * The disposer is per call rather than one shared handle. A caller that
+ * disposes must not be able to leave the module deaf to the health poll for
+ * everything that comes after it.
  *
  * @param {() => number} [now] the page's clock; the default is `performance.now`
  */
 export function initSetup(now) {
   if (now) clock = now;
   watchingSince = clock();
+  everConnected = false;
+  autoOpened = false;
+  awaitingVerdict = false;
+  verdict.value = null;
+  dispose();
+  dispose = watch();
   return dispose;
 }
 
