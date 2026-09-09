@@ -55,7 +55,7 @@ OVERRIDE = "/override/fav.json"
 
 #: The path fields, the environment each is read under, and where its value is
 #: owed to come from: the user's own directory, the bundle, or the variable.
-FROZEN_PATH_CASES = [(name, {}, "user") for name in USER_STORES] + [
+FROZEN_PATH_CASES: list[tuple[str, dict[str, str], str]] = [(name, {}, "user") for name in USER_STORES] + [
     ("data_dir", {}, "bundle"),
     ("favorites_file", {"HQPTUNER_FAVORITES_FILE": OVERRIDE}, "variable"),
 ]
