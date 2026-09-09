@@ -72,6 +72,11 @@ export async function refreshHealth() {
 
 async function refreshFast() {
   await refreshHealth();
+  // The health read above is never gated, and it is the only one on this timer, so it is
+  // what un-gates everything below on the first reading that comes back reachable. The
+  // three that follow are the control lane's loaded snapshot: a daemon that is not
+  // answering has none to give, and asking on a timer only prints refusals.
+  if (!health.value || !health.value.reachable) return;
   await mirror(api.state, engineState);
   await mirror(api.status, engineStatus);
   // the one endpoint feeding two signals: the level and the range it sits in
@@ -128,5 +133,11 @@ export function startPolling(interval = 2000) {
     if (fastTimer) clearInterval(fastTimer);
     fastTimer = setInterval(refreshFast, ms);
   });
-  setInterval(refreshConfig, interval * 2);
+  // `ready` rather than `reachable`: these four are the 8088 configuration lane, and the
+  // 4321 handshake that decides `reachable` carries no authentication, so it cannot speak
+  // for whether that lane answers (api/routes/status.py). The gate is written here rather
+  // than inside `refreshConfig`, which the write paths call directly and must keep.
+  setInterval(() => {
+    if (health.value && health.value.ready) refreshConfig();
+  }, interval * 2);
 }
