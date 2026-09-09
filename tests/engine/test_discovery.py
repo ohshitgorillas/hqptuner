@@ -22,9 +22,10 @@ itself said. Nothing here sends to the multicast group.
 
 import asyncio
 import contextlib
+import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -117,41 +118,34 @@ async def test_enriching_fills_product_and_platform_and_keeps_a_daemon_that_refu
     assert [five(record) for record in enriched] == [expected]
 
 
-class _Responder(asyncio.DatagramProtocol):
-    """A daemon on the discovery wire: whatever arrives, answer the one reply
-    datagram the case wrote. Table, not logic (docs/testing.md rule 13)."""
-
-    def __init__(self, reply: bytes) -> None:
-        self.reply = reply
-        self.transport: asyncio.DatagramTransport | None = None
-
-    def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        self.transport = cast("asyncio.DatagramTransport", transport)
-
-    def datagram_received(self, _data: bytes, addr: tuple[str | Any, ...]) -> None:
-        if self.transport is not None:
-            self.transport.sendto(self.reply, addr)
+async def _answer_discovery(sock: socket.socket, reply: bytes) -> None:
+    """A daemon on the discovery wire: for the datagram that arrives, answer the
+    one reply the case wrote. Table, not logic (docs/testing.md rule 13)."""
+    loop = asyncio.get_running_loop()
+    _datagram, sender = await loop.sock_recvfrom(sock, 4096)
+    await loop.sock_sendto(sock, reply, sender)
 
 
 @contextlib.contextmanager
 def discovery_responder(reply: bytes) -> Iterator[str]:
     """Run the responder on 127.0.0.1 at an ephemeral port for the block, and
     hand back the target a caller sends its discovery datagram to."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0)  # non-blocking, so the loop drives the reads
+    host, port = sock.getsockname()[:2]
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    endpoint = asyncio.run_coroutine_threadsafe(
-        loop.create_datagram_endpoint(lambda: _Responder(reply), local_addr=("127.0.0.1", 0)), loop
-    ).result()
-    transport = endpoint[0]
-    host, port = transport.get_extra_info("sockname")[:2]
+    answering = asyncio.run_coroutine_threadsafe(_answer_discovery(sock, reply), loop)
     try:
         yield f"{host}:{port}"
     finally:
-        loop.call_soon_threadsafe(transport.close)
+        answering.cancel()
         loop.call_soon_threadsafe(loop.stop)
         thread.join()
         loop.close()
+        sock.close()
 
 
 def entry(record: dict[str, Any]) -> tuple[Any, Any, Any, Any, Any]:
