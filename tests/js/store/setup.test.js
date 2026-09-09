@@ -48,9 +48,7 @@ const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok:
 
 // One daemon, in the shape /api/discover serves: address, name, version,
 // product, platform.
-const FOUND = [
-  { address: "10.0.0.9", name: "hqplayerd", version: "5.10.0", product: "Embedded", platform: "linux" },
-];
+const FOUND = [{ address: "10.0.0.9", name: "hqplayerd", version: "5.10.0", product: "Embedded", platform: "linux" }];
 
 /** The injected clock, in milliseconds since the page loaded. */
 let clock = 0;
