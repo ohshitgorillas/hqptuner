@@ -17,6 +17,8 @@ Two lanes reach hqplayerd:
 1. **Control API (TCP 4321)** — XML messages, unauthenticated. Runtime-switchable settings (filters, dither/modulator, mode, rate, matrix profile) and all status/metering. No restart. Changes **memory-only, never persisted** — see divergence rule below. Wire reference: `docs/protocol.md`.
 2. **HTTP interface (TCP 8088, Digest auth)** — `GET /config` is read side for persistent settings and their constraints. Persistent **writes** ride **restore lane**: fetch `/backup`, surgically edit field in config XML, push with `POST /restore` (`scope=system`), on which daemon self-restarts in ~5.6 s.
 
+Discovery (UDP 4321 multicast, `239.192.0.199`) is **not** a third lane. It is unauthenticated and read-only, carries no setting and no status, and runs on demand before a lane exists, to find out where to point one: `hqptuner/engine/discovery.py`, surfaced as `GET /api/discover`. Wire reference: `docs/protocol.md` §2.
+
 > **There is no `POST /config`.** `/config` is GET-only. Genuine form POSTs are `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (~3 s engine reload each), plus `POST /config/profile/delete` for removing preset mirror. Per-field lane assignments and full evidence base live in `docs/settings-classification.md`.
 
 Normative rules:

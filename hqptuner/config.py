@@ -70,6 +70,14 @@ class Config:
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
     alarm_threshold: float = field(default_factory=lambda: float(_env("ALARM_THRESHOLD", "15.0")))
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
+    # How long discovery waits for daemons to answer its multicast datagram
+    # (engine/discovery.py). There is no count to wait for — a daemon that is
+    # not there sends nothing — so the wait is the whole bound on the route.
+    discovery_timeout: float = field(default_factory=lambda: float(_env("DISCOVERY_TIMEOUT", "3.0")))
+    # Where discovery sends its datagram. The documented multicast group by
+    # default; a plain host address for a network that drops multicast, which
+    # takes the same path and answers the same way.
+    discovery_target: str = field(default_factory=lambda: _env("DISCOVERY_TARGET", "239.192.0.199"))
     data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", str(bundled("data")))))
     backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", str(_store_dir("backups")))))
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
