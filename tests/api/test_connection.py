@@ -69,7 +69,7 @@ def post_connection(client: TestClient, password: str, *, remember: bool, userna
     """Carry a whole connection to the app the way the first-run screen will, and
     hand back what the route answered."""
     body = {"host": "127.0.0.1", "username": username, "password": password, "remember": remember}
-    return client.post("/api/connection", json=body).status_code
+    return int(client.post("/api/connection", json=body).status_code)
 
 
 @pytest.mark.parametrize(
