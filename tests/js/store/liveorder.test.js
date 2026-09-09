@@ -43,7 +43,9 @@ const KEY = "hqptuner.liveOrder";
 
 const PREFS_MODULE = "../../../hqptuner/static/store/prefs.js";
 
-// What this browser had stored before the page ever loaded.
+// What this browser had stored before the page ever loaded: an arrangement
+// saved before the store gained the "ab" block, which is the state every
+// returning user's browser is in the first time a block is added.
 const STORED = ["chains", "matrix", "playback", "health"];
 
 const storage = useStorage();
@@ -69,12 +71,14 @@ async function loadedWith(tag, stored) {
   return [...fresh.liveOrder.value];
 }
 
-const ORDER = ["matrix", "health", "chains", "playback"];
+const ORDER = ["matrix", "health", "ab", "chains", "playback"];
 
 // --- what the browser had stored is what the page comes up in ---------------------
 
+// The stored keys keep the places the user put them in, and a block the stored
+// order never named comes up after them rather than going missing.
 test("test_an_order_stored_in_the_browser_is_the_order_the_page_loads_with", () => {
-  assert.deepEqual(AT_LOAD, STORED);
+  assert.deepEqual(AT_LOAD, [...STORED, "ab"]);
 });
 
 test("test_a_browser_that_has_stored_no_order_loads_the_default_order", async () => {

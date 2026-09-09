@@ -2,8 +2,8 @@
 // components/live/Layout.js's `LiveBlocks` stacks them in, and what layout-edit
 // mode does to each one.
 //
-// The page renders five blocks top to bottom. The first, LIVE MODE, is locked in
-// place; the other four ("health", "chains", "playback", "matrix") are
+// The page renders six blocks top to bottom. The first, LIVE MODE, is locked in
+// place; the other five ("health", "chains", "ab", "playback", "matrix") are
 // the user's to reorder, and their order lives in store/prefs.js's `liveOrder`.
 // The gesture that reorders them is a pointer drag. The POINTER half of it —
 // pointerdown, the moves, the release — is not reachable here: SSR never fires
@@ -140,10 +140,15 @@ const page = () => render(html`<${LiveView} />`);
 // The block that cannot be moved. An internal name for it, not a rendered one.
 const LOCKED = "locked";
 
-// The four blocks the user may move, in the order a browser with nothing stored
+// The blocks the user may move, in the order a browser with nothing stored
 // stacks them. Spelled out rather than read from `LIVE_BLOCK_ORDER`, so the
 // default is pinned here instead of being re-asserted from the store's own copy.
-const MOVABLE = ["health", "chains", "playback", "matrix"];
+const MOVABLE = ["health", "chains", "ab", "playback", "matrix"];
+
+// The list the two pure reorder functions are asked about: an order of block
+// keys, not the page's default one, so their arithmetic stays pinned to the same
+// inputs whatever the default stack becomes.
+const DRAGGED = ["health", "chains", "playback", "matrix"];
 
 // The name a block goes by here, over the anchor a reader finds inside it — the
 // id of a card it encloses, or the class of the group it is (docs/testing.md
@@ -155,6 +160,7 @@ const ANCHORS = [
   { key: LOCKED, card: "live-mode" },
   { key: "health", card: "live-engine-health" },
   { key: "chains", group: "live-chain-group" },
+  { key: "ab", card: "live-ab" },
   { key: "playback", card: "live-playback" },
   { key: "matrix", card: "matrix-profile" },
 ];
@@ -219,8 +225,8 @@ test("test_a_browser_with_no_stored_order_stacks_the_blocks_in_the_default_order
 
 test("test_a_stored_order_stacks_the_movable_blocks_in_that_order", async () => {
   await reset();
-  setLiveOrder(["matrix", "playback", "chains", "health"]);
-  assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "chains", "health"]);
+  setLiveOrder(["matrix", "playback", "ab", "chains", "health"]);
+  assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "ab", "chains", "health"]);
 });
 
 // Against the default order reversed, so the stored order is as hostile to LIVE
@@ -233,14 +239,18 @@ test("test_live_mode_stands_first_whatever_the_stored_order", async () => {
 
 test("test_a_stored_order_carrying_an_unknown_key_stacks_the_known_blocks_alone", async () => {
   await reset();
-  setLiveOrder(["zznosuchblock", "matrix", "health", "chains", "playback"]);
-  assert.deepEqual(stack(page()), [LOCKED, "matrix", "health", "chains", "playback"]);
+  setLiveOrder(["zznosuchblock", "matrix", "health", "ab", "chains", "playback"]);
+  assert.deepEqual(stack(page()), [LOCKED, "matrix", "health", "ab", "chains", "playback"]);
 });
 
+// The order every browser that saved a layout before a block existed is in: four
+// keys, and the block the store gained since. It stacks after the stored ones
+// rather than not at all, so a card added to the page reaches the users who
+// already have an arrangement.
 test("test_a_stored_order_missing_a_key_still_stacks_that_block_after_the_stored_ones", async () => {
   await reset();
-  setLiveOrder(["matrix"]);
-  assert.deepEqual(stack(page()), [LOCKED, "matrix", "health", "chains", "playback"]);
+  setLiveOrder(["chains", "matrix", "playback", "health"]);
+  assert.deepEqual(stack(page()), [LOCKED, "chains", "matrix", "playback", "health", "ab"]);
 });
 
 // --- what the chain block encloses ------------------------------------------------
@@ -353,23 +363,23 @@ test("test_a_pointer_over_a_page_with_no_other_blocks_drops_at_the_top", () => {
 });
 
 test("test_reorder_moves_a_block_further_down_the_list", () => {
-  assert.deepEqual(reorder([...MOVABLE], "health", 2), ["chains", "playback", "health", "matrix"]);
+  assert.deepEqual(reorder([...DRAGGED], "health", 2), ["chains", "playback", "health", "matrix"]);
 });
 
 test("test_reorder_moves_a_block_further_up_the_list", () => {
-  assert.deepEqual(reorder([...MOVABLE], "matrix", 1), ["health", "matrix", "chains", "playback"]);
+  assert.deepEqual(reorder([...DRAGGED], "matrix", 1), ["health", "matrix", "chains", "playback"]);
 });
 
 test("test_reorder_onto_a_blocks_own_place_leaves_the_order_alone", () => {
-  assert.deepEqual(reorder([...MOVABLE], "chains", 1), MOVABLE);
+  assert.deepEqual(reorder([...DRAGGED], "chains", 1), DRAGGED);
 });
 
 test("test_reorder_of_a_block_the_order_does_not_carry_leaves_the_order_alone", () => {
-  assert.deepEqual(reorder([...MOVABLE], "zznosuchblock", 1), MOVABLE);
+  assert.deepEqual(reorder([...DRAGGED], "zznosuchblock", 1), DRAGGED);
 });
 
 test("test_reorder_at_the_end_of_the_shortened_list_puts_the_block_last", () => {
-  assert.deepEqual(reorder([...MOVABLE], "health", 3), ["chains", "playback", "matrix", "health"]);
+  assert.deepEqual(reorder([...DRAGGED], "health", 3), ["chains", "playback", "matrix", "health"]);
 });
 
 // --- dragging a block: what the page shows -----------------------------------------
@@ -416,15 +426,15 @@ test("test_the_drop_indicator_stands_immediately_before_the_block_at_the_target"
   await reset();
   setLiveEditing(true);
   setDrag("matrix", 1);
-  assert.deepEqual(withDropLine(page()), [LOCKED, "health", MARK, "chains", "playback", "matrix"]);
+  assert.deepEqual(withDropLine(page()), [LOCKED, "health", MARK, "chains", "ab", "playback", "matrix"]);
 });
 
-// Three is the length of the list with the dragged block lifted out of it: the
+// Four is the length of the list with the dragged block lifted out of it: the
 // end.
 test("test_a_drag_targeting_the_end_stands_the_drop_indicator_after_the_last_block", async () => {
   await reset();
   setLiveEditing(true);
-  setDrag("health", 3);
+  setDrag("health", 4);
   assert.deepEqual(withDropLine(page()), [LOCKED, ...MOVABLE, MARK]);
 });
 
@@ -442,10 +452,10 @@ test("test_the_block_being_dragged_is_the_one_marked_as_dragging", async () => {
 
 test("test_the_blocks_keep_their_stored_order_while_a_drag_is_in_progress", async () => {
   await reset();
-  setLiveOrder(["matrix", "playback", "chains", "health"]);
+  setLiveOrder(["matrix", "playback", "ab", "chains", "health"]);
   setLiveEditing(true);
   setDrag("matrix", 3);
-  assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "chains", "health"]);
+  assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "ab", "chains", "health"]);
 });
 
 test("test_ending_a_drag_stacks_the_dragged_block_at_the_target", async () => {
@@ -453,7 +463,7 @@ test("test_ending_a_drag_stacks_the_dragged_block_at_the_target", async () => {
   setLiveEditing(true);
   setDrag("health", 2);
   endDrag();
-  assert.deepEqual(stack(page()), [LOCKED, "chains", "playback", "health", "matrix"]);
+  assert.deepEqual(stack(page()), [LOCKED, "chains", "ab", "health", "playback", "matrix"]);
 });
 
 test("test_ending_a_drag_takes_the_drop_indicator_away", async () => {
