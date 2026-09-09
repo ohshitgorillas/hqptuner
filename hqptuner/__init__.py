@@ -1,3 +1,3 @@
 """HQPTuner backend — configurator for HQPlayer Embedded."""
 
-__version__ = "1.14.2"
+__version__ = "1.15.0"
