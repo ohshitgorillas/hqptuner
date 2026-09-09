@@ -496,15 +496,21 @@ class _Server(ThreadingHTTPServer):
                 self.st.get("_open_connections", set()).discard(request)
 
 
-def spawn(st: dict[str, Any]) -> Iterator[dict[str, Any]]:
+def spawn(st: dict[str, Any], host: str = "127.0.0.1", bind_port: int = 0) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly.
+
+    `host` and `bind_port` are how a case puts two daemons at two ADDRESSES on the
+    same port number, which is what a test of address resolution needs: the
+    whole of 127/8 is loopback, so 127.0.0.2:8088 and 127.0.0.3:8088 are two
+    daemons one config can name one at a time. Everything else takes the
+    defaults and lands on an ephemeral 127.0.0.1 port as before.
 
     `_take_lane_down` is the whole 8088 lane going away: the listener stops
     accepting, so a new connection is refused, and every connection the fake was
     holding is severed. It is idempotent and teardown calls it, so a case that
     takes the lane down mid-test costs nothing extra at the end."""
-    server = _Server(("127.0.0.1", 0), _http_handler(st))
+    server = _Server((host, bind_port), _http_handler(st))
     server.st = st
     # poll_interval is what `shutdown()` waits on, so it is per-test teardown
     # cost: the 0.5 s default charged every fixture half a second for nothing.

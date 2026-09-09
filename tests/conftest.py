@@ -284,16 +284,23 @@ async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[
 
 
 def spawn_threaded_daemon(
-    overrides: dict[str, str] | None = None, state: dict[str, str] | None = None, log: CommandLog | None = None
+    overrides: dict[str, str] | None = None,
+    state: dict[str, str] | None = None,
+    log: CommandLog | None = None,
+    host: str = "127.0.0.1",
+    bind_port: int = 0,
 ) -> Iterator[int]:
     # `state` shares ONE dict across connections, as the `daemon` fixture does —
     # how a sync test moves a daemon the app has already connected to; `log`
-    # likewise, so a sync test can watch the daemon's side of the wire
+    # likewise, so a sync test can watch the daemon's side of the wire.
+    # `host`/`bind_port` put daemons at two loopback ADDRESSES on one port number,
+    # which is what a test of which address the app dials needs; the defaults
+    # keep every existing caller on an ephemeral 127.0.0.1 port.
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
     handler = functools.partial(serve, overrides=overrides, state=state, log=log)
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
+    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port
     loop.call_soon_threadsafe(server.close)

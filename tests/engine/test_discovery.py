@@ -25,9 +25,11 @@ import contextlib
 import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
+from contextlib import ExitStack
 from typing import Any
 
 import pytest
+from conftest import _closed_port, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
@@ -179,3 +181,59 @@ def test_the_route_answers_one_five_field_entry_per_daemon_that_replied(
         with TestClient(create_app(cfg)) as client:
             answered = client.get("/api/discover").json()
     assert [entry(record) for record in answered] == [expected]
+
+
+# --- the container-host alias, when the sweep itself found nothing -------------
+# A container's own host answers no multicast datagram from inside the container,
+# so the deployment hands it over as an alias name instead (`host.docker.internal`
+# via `host-gateway`, compose.yaml). The alias is an ADDRESS here, standing on
+# loopback, because that name resolves inside a container only.
+
+ALIAS_ADDRESS = "127.0.0.5"
+
+
+@contextlib.contextmanager
+def silent_target() -> Iterator[str]:
+    """A bound UDP socket that never answers: the sweep whose datagram arrives
+    somewhere and dies there, which is silence rather than an ICMP refusal."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    host, port = sock.getsockname()[:2]
+    try:
+        yield f"{host}:{port}"
+    finally:
+        sock.close()
+
+
+@pytest.fixture
+def alias_daemon_port() -> Iterator[int]:
+    """An hqplayerd answering the control protocol at the address the alias is
+    set to, and at no other address, so a record naming it can only have come
+    from asking that address."""
+    port = _closed_port()
+    served = spawn_threaded_daemon(host=ALIAS_ADDRESS, bind_port=port)
+    next(served)
+    yield port
+    next(served, None)
+
+
+@pytest.mark.parametrize(
+    ("answered", "expected"),
+    [(True, ["127.0.0.1"]), (False, [ALIAS_ADDRESS])],
+)
+def test_the_alias_address_is_listed_only_where_no_datagram_was_answered(
+    alias_daemon_port: int, expected: list[str], *, answered: bool
+) -> None:
+    with ExitStack() as stack:
+        responder = discovery_responder(OPAL_REPLY) if answered else silent_target()
+        target = stack.enter_context(responder)
+        cfg = Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=alias_daemon_port,
+            discovery_target=target,
+            discovery_timeout=0.1,
+            container_host_alias=ALIAS_ADDRESS,
+        )
+        with TestClient(create_app(cfg)) as client:
+            listed = client.get("/api/discover").json()
+    assert [record["address"] for record in listed] == expected
