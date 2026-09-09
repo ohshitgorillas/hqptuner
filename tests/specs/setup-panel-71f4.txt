@@ -1,0 +1,86 @@
+kind: new
+
+brief:
+
+> "To be clear, this is an HQPTuner executable that would install HQPTuner as a server on a Windows box. HQPlayer Embedded may be running on that Windows box, or on a separate Linux box. The app needs to recognize which one the user has, preferably automatically. It also needs a way to gather credentials from the user. Other than those two onboarding items, it should be straightforward to adapt."
+> "Investigate and report on project readiness. Several agents have already come before you, so you'll find several things already done. Choose a task from among the unfinished things you find."
+> "proceed"
+> "Approved."
+
+1. The panel starts closed on a freshly loaded page. Case A, no daemon ever connected, a health reading of reachable false with credentials_ok null at 0 ms: closed. Case B, the same page, the same reading at 3500 ms: open. Case C, no daemon ever connected, a reading of reachable true with credentials_ok false at 0 ms: open. Case D, a page that has already seen a reading with connected true, then a reading of reachable false at 10000 ms: closed.
+   kills: opening on the first reading that says unreachable, which throws the panel over every page load of a healthy install while its own control lane is still connecting.
+   bite: null stub fails at all four inputs (surface new): setupOpen.value is [false, false, false, false] at never-connected/0 ms, never-connected/3500 ms, credentials_ok false/0 ms, previously-connected then unreachable/10000 ms, so the second and third cases fail. Stub is store/setup.js exporting setupOpen as signal(false) with initSetup(now) a no-op, driven with the health reading assigned before each call; `node --import $D/resolve.js $D/drive.mjs`, $D = /tmp/claude-1000/-home-atom-dev-hqptuner/71f48b4c-ad9c-4932-86da-8cf01bda7d58/scratchpad.
+   existing: none, `grep -rln "setupOpen\|store/setup\|saveConnection\|discoverDaemons" tests/` returns nothing.
+
+2. Discovery answers exactly one daemon, at 10.0.0.9. Case A, the host field still holds the 127.0.0.1 it opened with, untouched: host becomes 10.0.0.9. Case B, the user typed 192.168.1.5 into the host field before the answer arrived: host is 192.168.1.5.
+   kills: filling the host from a single discovery answer unconditionally, which overwrites an address the user typed while the 3 s discovery wait was still running.
+   bite: null stub fails at the untouched input (surface new): with runDiscovery() returning undefined without fetching, form.value.host is ["127.0.0.1", "192.168.1.5"] across the two cases, daemons.value is [] and zero requests reach /api/discover, so the first case fails. Same stub and command as line 1.
+   existing: none, `grep -rln "discover" tests/js/` returns tests/js/support/primermatrix.js alone, a matrix render harness that names no discovery route and no found daemon.
+
+3. Saving host 10.0.0.9, username tuner, password s3cret twice over. Case A, remember true: the POST /api/connection body carries password s3cret with remember true. Case B, remember false: the body carries password s3cret with remember false.
+   kills: dropping the password from the body when remember is false, which saves a host with a username and no credential, leaves the 8088 lane down, and reads to the user as a save that did nothing.
+   bite: null stub fails at both cases (surface new): submitConnection() resolves without fetching, so the recorded POST list for /api/connection is [] at remember true and [] at remember false, with no body to read; the recorder was cleared between the cases. `node --import $D/resolve.js $D/drive2.mjs`, $D = /tmp/claude-1000/-home-atom-dev-hqptuner/71f48b4c-ad9c-4932-86da-8cf01bda7d58/scratchpad.
+   existing: none, `grep -rn "api/connection" tests/js/` returns nothing.
+
+
+4. The panel is open, a save having resolved against a 200. Case A, read on that resolution with no further health reading: open. Case B, read after a health reading of ready true: closed.
+   kills: closing on the POST's own 200, which reports success for a pair the daemon has not been asked about, since the route saves without verifying.
+   bite: null stub fails at case B (surface new): from setupOpen.value true with submitConnection() awaited against a stubbed 200, setupOpen is true on the resolution and still true after {ready: true, credentials_ok: true} is assigned, verdict.value null, zero requests made. Same command as line 3.
+   existing: none, same grep as line 1.
+
+public entry points (planned):
+
+    # hqptuner/static/store/setup.js
+    export const setupOpen        // signal<boolean> — whether the panel is showing
+    export const daemons          // signal<Array<{address, name, version, product, platform}>> — discovery's answer
+    export const discovering      // signal<boolean> — a discovery call is in flight
+    export const form             // signal<{host, username, password, remember}> — the panel's staged values
+    export const hostTouched      // signal<boolean> — the host field has been edited since the panel opened
+    export const verdict          // signal<null | "saved" | "refused" | "unreachable"> — what the health readings after a save say
+    export function initSetup(now = () => performance.now())  // installs the auto-open effect, returns its disposer
+    export function openSetup()
+    export function closeSetup()
+    export async function runDiscovery()
+    export async function submitConnection()
+
+    # hqptuner/static/components/Setup.js
+    export function Setup()
+
+    # hqptuner/static/lib/api.js — three members on the existing `api` object
+    connection: () => getJSON("/api/connection")
+    saveConnection: (body) => send("/api/connection", "POST", body)
+    discoverDaemons: () => getJSON("/api/discover")
+
+wire and protocol facts:
+
+- GET /api/health serves reachable, ready, connected, unreachable_since, connected_at, info, release, license, app_version and credentials_ok (hqptuner/api/routes/status.py:29-58).
+- credentials_ok is tri-state: null until the 8088 lane has answered, and only ever written when it has (hqptuner/core/readings.py:57, hqptuner/lanes/http/forms.py:90-92). Its false is a refusal, its null is silence.
+- GET /api/connection answers host, username, remember and has_password, never the password (hqptuner/api/routes/connection.py:52-58).
+- POST /api/connection takes host, username, password and remember, all optional, each defaulting to what HQPTuner is using now; it saves before verifying anything, and answers 400 store_unwritable when the record cannot be written (hqptuner/api/routes/connection.py:27-38, :90-98).
+- GET /api/discover answers a list of records with address, name, version, product and platform; product and platform default unset and stay unset when the per-daemon control exchange fails (hqptuner/api/routes/discovery.py:19-27, hqptuner/engine/discovery.py:33-38, :70-88).
+- HQPTuner's connection manager is constructed unreachable and connects asynchronously (hqptuner/core/manager.py:86,102), so the first health reading of a healthy install says reachable false.
+- The health poll's cadence is not fixed: it rides refreshFast, rescheduled off fastPollMs, 1 s on the volume page, in LIVE and on System with quick updates, 2 s otherwise (hqptuner/static/store/sync.js:73-74, :122-131).
+
+applicable fixtures:
+
+- tests/js/support/wire.js — installs a fake `fetch` speaking the real REST paths and response shapes, no store function stubbed.
+- No pytest fixture applies: every line is frontend.
+
+changelog entry, under `### Added` in `[Unreleased]`:
+
+- **Connection panel.** HQPTuner now finds hqplayerd on the network and takes the daemon address and management credentials in the browser, so an install no longer needs environment variables set before it can talk to the daemon. It opens by itself when the daemon cannot be reached or the credentials are refused, and from the status pill at any time.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on setupOpen (lines 1 and 4) plus differential on form.host (line 2) and on the /api/connection body (line 3)
+
+1  KEEP  carried
+2  KEEP  carried
+3  KEEP  submit {10.0.0.9, tuner, s3cret} at remember true / remember false -> POST /api/connection body carries password s3cret with remember true, and password s3cret with remember false; dropping the password when remember is false fails it at the remember-false case; bite: null stub fails at both cases (recorded POST list [] and [], no body)
+4  KEEP  read setupOpen on the 200's resolution with no further reading / after a ready-true reading -> true, false; closing on the POST's own 200 fails it at the resolution read; bite: null stub fails at case B (setupOpen still true after {ready: true, credentials_ok: true})
+
+null stub: store/setup.js present, setupOpen = signal(false), initSetup/runDiscovery/submitConnection return undefined and fetch nothing.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return the named setupOpen and form.host values for the exact tuples given and POST the named body on submit.
+  satisfies: none   fails: 1, 2, 3, 4 (1 forces a threshold on elapsed ms and a never-connected flag, 2 a read of the prior host, 3 a read of the remember field into the body, 4 a state change between the 200's resolution and the next reading)
+survives: 4
