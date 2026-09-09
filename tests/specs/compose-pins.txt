@@ -1,0 +1,106 @@
+kind: new
+
+brief:
+> A user running the published image sets host, username and password in the Connection panel and the app dials what they typed, with no file edited.
+> The same-machine default still connects out of the box; `host.docker.internal` must still resolve for the case the panel's own copy recommends.
+> `README.md`'s Docker instructions agree with whatever compose ships, in the same change.
+> `layer_onto_config`'s precedence is not reopened: a non-empty variable outranking the record is deliberate and deployments (including Opal's) depend on it.
+> The change touches `compose.yaml` and `README.md`, so it takes stage 1 of the plan gate before anything is written.
+> If the app cannot distinguish its own platform as being standalone vs container, it might need to try `host.docker.internal` alongside the LAN probe. If it can distinguish that, it should probably still try that anyway.
+> IF no `HQPTUNER_HQP_HOST` field is supplied to Docker, HQPTuner says "hmm, I don't know where HQPlayer is located."
+
+1. Starting the app with no saved connection record, `HQPTUNER_HQP_HOST` absent from the environment, a daemon answering both lanes at the address the container-host alias is set to: `GET /api/config` answers 200 carrying that daemon's settings; the same start with a record naming a second daemon's address answers 200 carrying the second daemon's settings; the same start with `HQPTUNER_HQP_HOST` naming a third daemon's address answers 200 carrying the third daemon's settings.
+   kills: a startup that adopts the alias address into the running config while the 8088 client keeps the address it was constructed with, so the control lane runs against the daemon at the alias while `GET /api/config` answers 503 `not_loaded`
+   bite: case (a), no record, no variable, a full daemon pair answering at the alias stand-in `127.0.0.2` → `503 {"detail": "not yet loaded from daemon", "code": "not_loaded"}`, `hqp_host` staying at the `config.py` default `127.0.0.1` and the pair never contacted, over the whole 8 s poll window; case (b), record naming `127.0.0.3` → `200` with form field `title` = `"PAIR-B-RECORD"`; case (c), `HQPTUNER_HQP_HOST=127.0.0.4` → `200` with `title` = `"PAIR-C-ENV"` | `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/probe_config.py` (throwaway, deleted in the same command, run twice with identical output; three `TestClient(create_app(cfg))` starts with the lifespan entered, each polling `GET /api/config` until 200 or 8 s, against three daemon pairs on `127.0.0.2`/`.3`/`.4`, each a `tests/support/fake_control.serve` at TCP 24321 beside a `tests/support/fake_http` 8088 fake at TCP 28088 whose `title` field carries the marker). Null stub for case (a): the `Config` field and its variable present, the unchosen-host path probing nothing, which answers 503 as HEAD does.
+   existing: none, `grep -rln lifespan tests` prints `tests/live/test_autopilot.py` only, which is a `live`-marked autopilot test
+
+2. A sweep whose datagram one daemon answers lists that daemon alone, while a daemon is answering at the address the container-host alias is set to as well; a sweep whose datagram nothing answers lists the daemon answering at that alias address.
+   kills: asking the alias on every sweep and adding what it answers, so one daemon on the container's own host is listed twice, once by the address its datagram came from and once by the alias
+   bite: datagram answered → `n=1`, addresses `['127.0.0.6']`, the record reading `Daemon(address='127.0.0.6', name='ANSWERING-DAEMON', version='6.0.4', product=None, platform=None)`; datagram unanswered → `n=0`, addresses `[]`; a `fake_control` hqplayerd answering `GetInfo` at the alias stand-in `127.0.0.5:24321` throughout, contacted in neither state | `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <scratchpad>/probe_discover.py` (throwaway, deleted in the same command, run twice with identical output; `discover(wait_seconds=1.0, control_port=24321, target="127.0.0.6:24399")` against a UDP responder answering the documented request, then the same call with `target="127.0.0.7:24398"` where nothing is bound). Null stub: `discover` taking the alias address and never asking it, which answers `[]` for the unanswered sweep.
+   existing: tests/engine/test_discovery.py::test_the_route_answers_one_five_field_entry_per_daemon_that_replied
+
+public entry points
+
+`hqptuner/engine/discovery.py`, today:
+
+```
+@dataclass(frozen=True)
+class Daemon:
+    address: str
+    name: str
+    version: str
+    product: str | None = None
+    platform: str | None = None
+
+def parse_reply(payload: bytes, address: str) -> Daemon | None
+def dedupe(daemons: Iterable[Daemon]) -> list[Daemon]
+async def enrich(daemons: Iterable[Daemon], get_info: Callable[[str], Awaitable[dict[str, str]]]) -> list[Daemon]
+async def discover(wait_seconds: float = 3.0, control_port: int = PORT, target: str = GROUP) -> list[Daemon]
+GROUP = "239.192.0.199"
+PORT = 4321
+```
+
+planned addition to the same module, and one widened signature:
+
+```
+async def probe(address: str, control_port: int, timeout: float) -> Daemon | None
+    """Answer the record for one address, or None where it does not answer."""
+
+async def discover(wait_seconds: float = 3.0, control_port: int = PORT, target: str = GROUP, alias: str = ALIAS) -> list[Daemon]
+```
+
+planned addition to `hqptuner/config.py`, beside `discovery_target`:
+
+```
+container_host_alias: str = field(default_factory=lambda: _env("CONTAINER_HOST_ALIAS", "host.docker.internal"))
+```
+
+`hqptuner/api/lifespan.py`, today, unchanged in signature:
+
+```
+def make_lifespan(cfg: Config, manager: ConnectionManager) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]
+```
+
+`hqptuner/api/factory.py`, today, unchanged in signature:
+
+```
+def create_app(cfg: Config | None = None) -> FastAPI
+```
+
+wire and protocol facts
+
+- Discovery is one UDP datagram to `239.192.0.199:4321`, and the answering daemon's address is the datagram's own sender address, never a field in the body (`docs/protocol.md` §2, and `hqptuner/engine/discovery.py:41-53`). A daemon that does not answer sends nothing, so an empty sweep is the deadline expiring, not an error.
+- The control port refuses connections for about ten seconds after a daemon restart (`docs/protocol.md` §1), which is why `enrich` keeps a record whose `GetInfo` failed rather than dropping it.
+- `GetInfo` over the control port is what names the product and platform; the discovery reply carries only the friendly name and version (`docs/protocol.md` §2, `hqptuner/engine/discovery.py:72-92`).
+- Discovery is not a lane: unauthenticated, read-only, carrying no setting and no status, run before a lane exists (`docs/architecture.md:20`).
+- The Docker host alias `host.docker.internal` resolves inside a container only, and only where the deployment provides it; `compose.yaml:25-26` provides it through `host-gateway`.
+
+applicable fixtures
+
+- `daemon` (`tests/support/fixtures_daemons.py:44-69`) — a factory for a fake hqplayerd on a loopback port speaking the control protocol, which is what answers `GetInfo`.
+- `fake_http` (`tests/support/fake_http.py`) and the `http_daemon` family (`tests/support/fixtures_daemons.py:157-196`) — an 8088 configuration daemon whose form fields a test sets, which is what `GET /api/config` answers off.
+- `discovery_responder` (`tests/engine/test_discovery.py:129-149`) — a UDP responder answering the documented discovery request with a chosen reply, handing back the target string to point `discovery_target` at.
+- `closed_port` (`tests/conftest.py:366-370`) — a loopback port nothing is listening on, for the lane that must find nothing.
+- `chain_api` (`tests/support/fixtures_clients.py:23-47`) — builds a `TestClient` over the real app with settings overridden and store paths under `tmp_path`, which is the surface behavior 1 observes.
+- `api_client` (`tests/support/fixtures_clients.py:49-57`) — a `TestClient` over a config pointed at a closed port, for a start with nothing answering.
+- `tmp_path` and the autouse store-isolation fixture (`tests/conftest.py:52-68`) — keep a test's connection record out of the install's own state.
+
+changelog entry
+
+no entry: `[Unreleased]` already carries the **Connection panel.** line, whose subject is that an install takes the daemon address and credentials in the browser rather than through environment variables; this change is that feature reaching the published image, and copy rules give one entry per feature.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `GET /api/config` (line 1: three starts, three fixture-supplied `title` markers) beside a differential on the discovery sweep (line 2)
+
+round 1 findings, all settled: line 1's mechanism outcome restated as a route answer; the undeliverable `host.docker.internal` input replaced by a settable alias address with loopback stand-ins (owner ruling supplied, `Config.container_host_alias`); line 2's `existing:` now cites the route test; line 3 cut. The note about a settable alias knob is withdrawn.
+
+1  KEEP  three starts against three daemon pairs at the alias address / a record address / `HQPTUNER_HQP_HOST` -> `GET /api/config` answers 200 carrying that pair's own `title` marker (`"PAIR-B-RECORD"`, `"PAIR-C-ENV"`, and the alias pair's marker in case (a)), which is the value that distinguishes the three cases and the reason this is not tests/api/test_connection.py:102's (503, 200); an adoption that leaves the 8088 client on the address it was constructed with fails it at case (a), where the alias pair answers 4321 and `GET /api/config` still answers 503 `not_loaded`; bite: case (a) `503 {"code": "not_loaded"}` with `hqp_host` at `127.0.0.1` and the pair never contacted over the 8 s window, cases (b) and (c) already 200. The cfg-level precedence axis is already pinned by tests/api/test_connection.py:79 `test_the_host_override_outranks_the_record_only_when_it_carries_a_value`, so the new test asserts the marker off the daemon and never re-asserts `cfg.hqp_host`.
+2  DELTA tests/engine/test_discovery.py:169: two more `(reply, expected)` cases on `test_the_route_answers_one_five_field_entry_per_daemon_that_replied`, with `container_host_alias` set on the `Config` it already builds and an alias daemon standing by - a sweep the responder answers expects the responder's entry alone, a sweep nothing answers expects the alias daemon's entry.
+
+null stub: the `Config` field and its variable present, the unchosen-host path probing nothing and `discover` never asking the alias address; every new function returns its zero value.
+  satisfies: none   fails: 1 (case (a) answers 503, not the alias pair's 200), 2 (the unanswered sweep lists `[]`, not the alias daemon)
+hard-coded stub: answer 200 with a canned config body for any start and return a canned record list keyed on the alias address, contacting no daemon.
+  satisfies: none   fails: 1 (each case's expected `title` is the marker that pair's own 8088 fake put on the wire, so the body cannot be canned), 2 (the two cases differ only by what the datagram found, which a table cannot key on)
+
+survives: 1
