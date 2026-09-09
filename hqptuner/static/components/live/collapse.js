@@ -1,6 +1,6 @@
 // The LIVE page's card disclosure, as a collapse handle.
 //
-// The four cards that are neither Mode, Rate nor a chain fold away, and their
+// The five cards that are neither Mode, Rate nor a chain fold away, and their
 // disclosure is a stored preference rather than an override over an automatic
 // one: nothing about the engine says whether the narrowing bar or the health
 // readout should be on screen, only the user does. A folded card leaves its head
@@ -14,7 +14,7 @@ import { setLiveCardOpen } from "../../store/prefs.js";
 /**
  * One LIVE card's collapse handle, backed by its stored disclosure pref.
  *
- * @param {"narrow" | "playback" | "health" | "matrix"} card
+ * @param {"narrow" | "playback" | "health" | "matrix" | "ab"} card
  * @param {{ value: boolean }} open
  * @returns {import("../common.js").CollapseHandle}
  */

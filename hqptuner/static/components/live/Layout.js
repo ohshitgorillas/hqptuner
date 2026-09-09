@@ -1,13 +1,13 @@
 // The LIVE page's block order and the edit mode that changes it.
 //
-// The page is a locked row over four stacked blocks. The locked row (LIVE MODE
+// The page is a locked row over five stacked blocks. The locked row (LIVE MODE
 // and Mode) stays at the top; the rest are the user's to arrange, and the
 // arrangement is a stored preference
 // (store/prefs.js liveOrder) rather than page state, so it survives a reload
 // the way every other LIVE preference does.
 //
 // Reordering happens in an explicit edit mode rather than behind always-visible
-// grips. Two of the five blocks hold more than one card, so a grip in a card
+// grips. Two of the blocks hold more than one card, so a grip in a card
 // head would be ambiguous about what moves; and a collapsible card's head IS a
 // button (components/common.js), so a grip inside one would be nested
 // interactive content. In edit mode the whole block is the drag target instead,

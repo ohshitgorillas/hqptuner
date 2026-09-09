@@ -229,7 +229,7 @@ export function setLiveMode(on) {
   persist(K_LIVE, liveMode.value);
 }
 
-// LIVE page card disclosure. Four cards on that page collapse so the page can be
+// LIVE page card disclosure. Five cards on that page collapse so the page can be
 // cut down to the controls in use: with Narrow filters, Playback and Engine
 // health folded away, the output mode switch and the matrix profile picker sit
 // on one screen and switching between them costs no scrolling. Open by default —
@@ -240,24 +240,27 @@ const K_LIVE_CARD = {
   playback: "hqptuner.liveCollapse.playback",
   health: "hqptuner.liveCollapse.health",
   matrix: "hqptuner.liveCollapse.matrix",
+  ab: "hqptuner.liveCollapse.ab",
 };
 
 export const liveNarrowOpen = signal(loadBool(K_LIVE_CARD.narrow, true));
 export const livePlaybackOpen = signal(loadBool(K_LIVE_CARD.playback, true));
 export const liveHealthOpen = signal(loadBool(K_LIVE_CARD.health, true));
 export const liveMatrixOpen = signal(loadBool(K_LIVE_CARD.matrix, true));
+export const liveAbOpen = signal(loadBool(K_LIVE_CARD.ab, true));
 
 const LIVE_CARD_SIGNAL = {
   narrow: liveNarrowOpen,
   playback: livePlaybackOpen,
   health: liveHealthOpen,
   matrix: liveMatrixOpen,
+  ab: liveAbOpen,
 };
 
 /**
  * Set one LIVE card's disclosure and persist it.
  *
- * @param {"narrow" | "playback" | "health" | "matrix"} card
+ * @param {"narrow" | "playback" | "health" | "matrix" | "ab"} card
  * @param {boolean} open
  * @returns {void}
  */
@@ -273,15 +276,15 @@ export const notesVisible = computed(() => showDescriptions.value);
 export const descVisible = computed(() => showDescriptions.value || keepOptionDescriptions.value);
 
 // The LIVE page's block order. The page is a locked top row (LIVE MODE and
-// Mode) over four movable blocks the user arranges. Stored as a
+// Mode) over five movable blocks the user arranges. Stored as a
 // JSON list of block keys rather than an index per block so that a release
 // which adds or drops a block reconciles rather than strands: an unknown key is
 // dropped and a missing one is appended in default order, both on load and on
 // every set, so the stored list can never render a block off the page.
 const K_LIVE_ORDER = "hqptuner.liveOrder";
 
-/** Default top-to-bottom order of the four movable LIVE blocks. */
-export const LIVE_BLOCK_ORDER = ["health", "chains", "playback", "matrix"];
+/** Default top-to-bottom order of the five movable LIVE blocks. */
+export const LIVE_BLOCK_ORDER = ["health", "chains", "ab", "playback", "matrix"];
 
 /**
  * @param {string[]} keys
