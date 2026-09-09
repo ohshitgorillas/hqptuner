@@ -4,7 +4,9 @@
 #   1. make check         full quality gate (ruff/black/xenon/mypy/pytest +
 #                         eslint/prettier/tsc/knip/node tests)
 #   2. rebuild            hqptuner:dev container from the working tree
-#                         (docker-compose.yaml — NOT the prod compose.yaml)
+#                         (the deployment compose file — NOT compose.yaml,
+#                         which is the distribution artifact for users
+#                         running the published image)
 #   3. health check       poll :8090 until it serves, so the user is never
 #                         handed a container that failed to come up
 #
@@ -12,13 +14,17 @@
 # container built from a tree that failed the gate. The docker step is
 # sudo-gated; that is expected and intended.
 #
-# Dev-only tooling: references docker-compose.yaml, which is gitignored (the
-# dev stack is per-host). Not shipped in the wheel.
+# Dev-only tooling. The compose file is per-host and lives outside this repo,
+# so its location comes from $HQPTUNER_DEV_COMPOSE; the fallback is a
+# docker-compose.yaml beside the repo root. Set the override in a per-machine
+# surface (.claude/settings.local.json env, or export it for a hand run) and
+# record the host's value in that host's skill — never here. Not shipped in
+# the wheel.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."   # repo root (.claude/.. )
 
-COMPOSE="docker-compose.yaml"
+COMPOSE="${HQPTUNER_DEV_COMPOSE:-docker-compose.yaml}"
 URL="http://127.0.0.1:8090/"
 
 echo "== [1/3] make check =="
