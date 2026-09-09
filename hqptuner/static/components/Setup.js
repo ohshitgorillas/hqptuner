@@ -4,17 +4,14 @@
 // `.app` div rather than a child: `.app.offline` dims at `--o-dim` on exactly
 // the condition that opens this panel, and a child would dim with it.
 //
-// Discovery runs on open, with no user action. One answer fills the host field;
-// several are listed and none is chosen, because choosing would be a guess. A
-// row prints what the daemon said about itself, and product and platform are
-// absent whenever the per-daemon control exchange failed, so the row degrades
-// to its address and name rather than to nothing.
+// Discovery runs on open, with no user action, and what it finds fills the host
+// field. There is one daemon per machine, so there is nothing to choose between
+// and nothing to list.
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
 import {
   setupOpen,
-  daemons,
   discovering,
   form,
   hostTouched,
@@ -31,33 +28,6 @@ import {
  */
 function setField(key, value) {
   form.value = { ...form.value, [key]: value };
-}
-
-/** One found daemon, as itself: address and name always, product and platform when it said them. */
-function daemonRow(/** @type {{address: string, name: string, product?: string, platform?: string}} */ d) {
-  const said = [d.product, d.platform].filter(Boolean).join(", ");
-  return html`
-    <button
-      type="button"
-      class="setup-daemon ${form.value.host === d.address ? "on" : ""}"
-      onClick=${() => {
-        hostTouched.value = true;
-        setField("host", d.address);
-      }}
-    >
-      <span class="t-value">${d.address}</span>
-      <span class="t-label">${d.name}</span>
-      ${said && html`<span class="t-caption">${said}</span>`}
-    </button>
-  `;
-}
-
-// Nothing is drawn while the sweep runs, and nothing when it found nobody: the
-// words for either state are copy, and copy is the owner's. The host field is
-// what the panel is asking for, and it is already there.
-function found() {
-  if (discovering.value || !daemons.value.length) return null;
-  return html`<div class="setup-found">${daemons.value.map(daemonRow)}</div>`;
 }
 
 /**
@@ -220,7 +190,7 @@ export function Setup() {
               ". The " + 'defaults are "hqplayer" and "password"; if they don\'t work, changing them usually will.'
             }
           </p>
-          ${textRow("host", "Host", "text")} ${report()} ${hostHelp()} ${found()}
+          ${textRow("host", "Host", "text")} ${report()} ${hostHelp()}
           ${textRow("username", "Username", "text")}
           ${textRow(
             "password",

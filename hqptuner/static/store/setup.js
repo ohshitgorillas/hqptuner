@@ -36,8 +36,6 @@ const GRACE_MS = 3000;
 
 /** Whether the connection panel is showing. */
 export const setupOpen = signal(false);
-/** What GET /api/discover last answered: [{address, name, version, product, platform}]. */
-export const daemons = signal([]);
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
 export const discovering = signal(false);
 /**
@@ -199,23 +197,22 @@ export function initSetup(now) {
 }
 
 /**
- * Ask the backend which daemons answer discovery, and take the answer when
- * there is exactly one of them.
+ * Ask the backend which daemon answers discovery, and fill the host field with it.
  *
- * A single answer is the whole question settled, so its address fills the host
- * field. Two or more is a choice, and choosing for the user would be a guess.
- * The fill is suppressed the moment the user has touched the field.
+ * One machine runs one daemon, so a single answer settles the question and its
+ * address fills the field. The fill is suppressed the moment the user has
+ * touched the field, and an answer of any other length is left alone.
  */
 export async function runDiscovery() {
   discovering.value = true;
   try {
     const found = await api.discoverDaemons();
-    daemons.value = Array.isArray(found) ? found : [];
-    if (daemons.value.length === 1 && !hostTouched.value) {
-      form.value = { ...form.value, host: daemons.value[0].address };
+    const answered = Array.isArray(found) ? found : [];
+    if (answered.length === 1 && !hostTouched.value) {
+      form.value = { ...form.value, host: answered[0].address };
     }
   } catch {
-    daemons.value = [];
+    // an unanswered sweep leaves the field as it stands
   } finally {
     discovering.value = false;
   }

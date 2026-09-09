@@ -61,30 +61,6 @@
   min-width: 0;
 }
 
-/* ── What discovery found ────────────────────────────────────────────────
-   Rows sit ON the card, so they are --surface-raised and take the edge light
-   from the single rule in base/aesthetic.css. Each is a button: picking one
-   is picking the host. */
-.setup-found {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-.setup-daemon {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-1) var(--sp-2);
-  text-align: left;
-  padding: var(--sp-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface-raised);
-}
-.setup-daemon.on {
-  border-color: var(--accent);
-}
-
 /* ── What the last press of Connect said ─────────────────────────────────
    Sits directly above the buttons, so the answer is beside the control that
    asked the question. The address links are inline in their sentence, so they

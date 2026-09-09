@@ -84,7 +84,6 @@ input[type="checkbox"],
 .plot,
 .band-strip,
 .easy-tile,
-.setup-daemon,
 .vr-bubble {
   box-shadow: var(--edge-light);
 }
