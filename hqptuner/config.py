@@ -1,12 +1,33 @@
 """Runtime configuration from environment (HQPTUNER_* variables)."""
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from hqptuner.paths import bundled, user_data_dir
 
 
 def _env(name: str, default: str) -> str:
     return os.environ.get(f"HQPTUNER_{name}", default)
+
+
+def _store(name: str) -> Path:
+    """Default location of one store file: the user's data directory when frozen, the repo's ``state/`` otherwise.
+
+    A frozen build installs where the user cannot write, or unpacks somewhere it deletes on exit, so the two
+    cases cannot share a directory.
+    """
+    if getattr(sys, "frozen", False):
+        return user_data_dir() / name
+    return Path(__file__).resolve().parent.parent / "state" / name
+
+
+def _store_dir(name: str) -> Path:
+    """Default location of one store directory, on the same split as ``_store``."""
+    if getattr(sys, "frozen", False):
+        return user_data_dir() / name
+    return Path(__file__).resolve().parent.parent / name
 
 
 def _env_flag(name: str, default: str) -> bool:
@@ -49,51 +70,33 @@ class Config:
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
     alarm_threshold: float = field(default_factory=lambda: float(_env("ALARM_THRESHOLD", "15.0")))
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
-    data_dir: Path = field(
-        default_factory=lambda: Path(_env("DATA_DIR", str(Path(__file__).resolve().parent / "data")))
-    )
-    backup_dir: Path = field(
-        default_factory=lambda: Path(_env("BACKUP_DIR", str(Path(__file__).resolve().parent.parent / "backups")))
-    )
+    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", str(bundled("data")))))
+    backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", str(_store_dir("backups")))))
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
     # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
-    preset_dir: Path = field(
-        default_factory=lambda: Path(_env("PRESET_DIR", str(Path(__file__).resolve().parent.parent / "presets")))
-    )
+    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", str(_store_dir("presets")))))
     # The LIVE view's named live snapshots (see presets/store/live.py) — one JSON file, not a
     # directory, because a live snapshot is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.
     live_preset_file: Path = field(
-        default_factory=lambda: Path(
-            _env("LIVE_PRESET_FILE", str(Path(__file__).resolve().parent.parent / "state" / "live-presets.json"))
-        )
+        default_factory=lambda: Path(_env("LIVE_PRESET_FILE", str(_store("live-presets.json"))))
     )
     # Starred filter names (see presets/store/favorites.py) — one JSON file beside the live
     # presets, in the same bind-mounted state dir, because favorites belong to
     # the install rather than to whichever browser starred them.
-    favorites_file: Path = field(
-        default_factory=lambda: Path(
-            _env("FAVORITES_FILE", str(Path(__file__).resolve().parent.parent / "state" / "favorites.json"))
-        )
-    )
+    favorites_file: Path = field(default_factory=lambda: Path(_env("FAVORITES_FILE", str(_store("favorites.json")))))
     # Narrow-bar facets (see presets/store/narrowing.py) — one JSON file beside the
     # favorites, in the same bind-mounted state dir. The narrow bar is
     # presentational and has no daemon field behind it, so the install is the
     # only place it can live; a browser that reloads picks the facets back up.
-    narrowing_file: Path = field(
-        default_factory=lambda: Path(
-            _env("NARROWING_FILE", str(Path(__file__).resolve().parent.parent / "state" / "narrowing.json"))
-        )
-    )
+    narrowing_file: Path = field(default_factory=lambda: Path(_env("NARROWING_FILE", str(_store("narrowing.json")))))
     # Matrix-profile descriptions (see presets/store/descriptions.py) — one JSON file beside
     # the favorites, in the same bind-mounted state dir. A description belongs to
     # the install for the same reason a favorite does, and there is nowhere in
     # hqplayerd's config for it: <matrix_profile> carries only `name`.
     description_file: Path = field(
-        default_factory=lambda: Path(
-            _env("DESCRIPTION_FILE", str(Path(__file__).resolve().parent.parent / "state" / "descriptions.json"))
-        )
+        default_factory=lambda: Path(_env("DESCRIPTION_FILE", str(_store("descriptions.json"))))
     )
     # Per-preset Matrix-tab modes (see presets/store/matrixmode.py) — one JSON file beside
     # the descriptions, in the same bind-mounted state dir. Which half of the
@@ -101,19 +104,13 @@ class Config:
     # outlive the browser that chose it, and hqplayerd's config has nowhere to
     # carry it.
     matrix_mode_file: Path = field(
-        default_factory=lambda: Path(
-            _env("MATRIX_MODE_FILE", str(Path(__file__).resolve().parent.parent / "state" / "matrixmodes.json"))
-        )
+        default_factory=lambda: Path(_env("MATRIX_MODE_FILE", str(_store("matrixmodes.json"))))
     )
     # Auto-pilot state (see presets/store/autopilot.py) — one JSON file beside the
     # matrix modes, in the same bind-mounted state dir. Whether the high-frequency
     # filter is being driven for the listener is a property of the install, and
     # hqplayerd's config file has no junk-filter field to carry it in.
-    autopilot_file: Path = field(
-        default_factory=lambda: Path(
-            _env("AUTOPILOT_FILE", str(Path(__file__).resolve().parent.parent / "state" / "autopilot.json"))
-        )
-    )
+    autopilot_file: Path = field(default_factory=lambda: Path(_env("AUTOPILOT_FILE", str(_store("autopilot.json")))))
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files

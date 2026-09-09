@@ -94,8 +94,10 @@ state/
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules
 
-# setuptools build dir (pip wheel / python -m build)
+# setuptools build dir (pip wheel / python -m build), and PyInstaller's own
+# output tree beside it (hqptuner.spec)
 build/
+dist/
 
 # mutmut's working copies of the tree, one per mutant (make mutate)
 mutants/

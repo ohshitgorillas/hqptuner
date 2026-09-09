@@ -25,6 +25,8 @@ dev = [
     "vulture",
     "types-beautifulsoup4",
     "mutmut",
+    # hqptuner.spec builds the desktop binary with it
+    "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
     # gate that reads it is installed
     "import-linter",

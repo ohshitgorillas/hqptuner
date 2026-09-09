@@ -4,7 +4,6 @@ A self-contained feature surface mounted alongside ``api``.
 """
 
 import json
-from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
@@ -19,14 +18,14 @@ from hqptuner.conf.matrixconf import MATRIX_PROFILES
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.http import speakerprocessing
+from hqptuner.paths import bundled
 from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
 
-# parents[2] is the hqptuner package: this file sits at hqptuner/api/routes/. A
-# module that moves between directories takes this count with it, and nothing
-# static catches the drift — only the route's own tests do.
-_AUTOEQ_BLOB = Path(__file__).resolve().parents[2] / "static" / "vendor" / "autoeq.json.gz"
+# Resolved per request rather than at import: a frozen build's bundle root is
+# only known once the process is running, and `bundled` is what knows it.
+_AUTOEQ_BLOB = ("static", "vendor", "autoeq.json.gz")
 
 
 @router.get("/autoeq")
@@ -36,10 +35,11 @@ def autoeq_db() -> FileResponse:
     Pre-gzipped on disk and served with Content-Encoding so the browser's fetch decompresses transparently;
     lazy-loaded on first picker open.
     """
-    if not _AUTOEQ_BLOB.exists():
+    blob = bundled(*_AUTOEQ_BLOB)
+    if not blob.exists():
         raise refuse("not_found", "AutoEq library not built (scripts/build_autoeq_db.py)")
     return FileResponse(
-        _AUTOEQ_BLOB,
+        blob,
         media_type="application/json",
         headers={"Content-Encoding": "gzip", "Cache-Control": "no-cache"},
     )
