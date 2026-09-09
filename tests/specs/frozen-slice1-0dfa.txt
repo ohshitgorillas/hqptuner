@@ -1,0 +1,96 @@
+kind: new
+
+brief:
+> The desktop binary should work either way.
+> Most Embedded users are on Linux, but Win/mac exist. Handle both equally.
+> Ok, let's do it.
+
+1. `user_data_dir()` names a per-user writable base directory that follows the platform it runs on, the home directory read from a `HOME` the caller sets to `/home/u`: on "win32" with `LOCALAPPDATA=/c/Users/u/AppData/Local` it is `/c/Users/u/AppData/Local/HQPTuner`; on "win32" with `LOCALAPPDATA` unset it is `/home/u/AppData/Local/HQPTuner`; on "darwin" it is `/home/u/Library/Application Support/HQPTuner`; on "linux" with `XDG_DATA_HOME=/xdg/data` it is `/xdg/data/hqptuner`; on "linux" with `XDG_DATA_HOME` unset, empty, or the relative value `sub/dir` it is `/home/u/.local/share/hqptuner`.
+   kills: one directory chosen for every platform, `~/.hqptuner`, which puts a Windows user's data outside the local profile; and honoring a relative `XDG_DATA_HOME`, which resolves `sub/dir/hqptuner` against whatever directory the process was started in.
+   bite: null stub fails at every one of those inputs (surface new) — `hqptuner/paths.py` does not exist at HEAD (`ls hqptuner/paths.py` -> No such file or directory), so the stub is that module present with a module-level callable `user_data_dir` returning its zero value.
+   existing: none, `grep -rn 'user_data_dir\|bundled(\|_MEIPASS\|sys\.frozen' tests/ --include='*.py'` -> no matches, exit 1.
+
+2. `bundled(*parts)` names a read-only asset under the unpacked bundle when the process is a frozen build, under the installed `hqptuner` package otherwise: with `sys.frozen` plus `sys._MEIPASS=/meipass` set, `bundled("static")` is `/meipass/static`; `bundled("data")` is `/meipass/data`; with neither attribute set, `bundled("static")` is `static` beside `hqptuner/config.py`; `bundled("data")` is `data` beside `hqptuner/config.py`.
+   kills: resolving assets off `__file__` in both cases, which in a frozen build points into the executable's own directory tree, which holds no `static/` and no `data/`, so the app serves no SPA and reads no metadata.
+   bite: null stub fails at both inputs (surface new) — same missing module as line 1, stub is a module-level callable `bundled` taking positional parts and returning its zero value.
+   existing: none, `grep -rn 'user_data_dir\|bundled(\|_MEIPASS\|sys\.frozen' tests/ --include='*.py'` -> no matches, exit 1.
+
+3. In a frozen build with no `HQPTUNER_*` variables set, every store a user writes has `user_data_dir()` as its parent, while the read-only `data_dir` stays with the bundled assets: the parent of `backup_dir`, of `preset_dir`, of `live_preset_file`, `favorites_file`, `narrowing_file`, `description_file`, `matrix_mode_file`, `autopilot_file` is `user_data_dir()`; `data_dir` is `bundled("data")`.
+   kills: pointing the whole set, `data_dir` included, at `user_data_dir()`, which leaves a frozen build reading the shipped metadata from an empty per-user directory and starting with no filter tables.
+   bite: `data_dir=/home/atom/dev/hqptuner/hqptuner/data`, `backup_dir=/home/atom/dev/hqptuner/backups`, `preset_dir=/home/atom/dev/hqptuner/presets`, `live_preset_file=/home/atom/dev/hqptuner/state/live-presets.json`, `favorites_file=/home/atom/dev/hqptuner/state/favorites.json`, `narrowing_file=/home/atom/dev/hqptuner/state/narrowing.json`, `description_file=/home/atom/dev/hqptuner/state/descriptions.json`, `matrix_mode_file=/home/atom/dev/hqptuner/state/matrixmodes.json`, `autopilot_file=/home/atom/dev/hqptuner/state/autopilot.json` — `PYTHONPATH=/home/atom/dev/hqptuner .venv/bin/python <script>` where the script clears every `HQPTUNER_*` var, sets `sys.frozen=True` and `sys._MEIPASS="/meipass"`, then prints each field of `hqptuner.config.Config()`; re-checked by constructing `Config()` unfrozen and frozen in one interpreter and diffing, identical, zero differing fields.
+   existing: none, `grep -rn 'Config()' tests/ --include='*.py'` -> 9 hits, three of them assertions and all three on `metering_enabled` (`tests/engine/test_metering_idle.py:218,224,231`); no hit asserts a path default.
+
+4. A `HQPTUNER_*` path variable still wins in a frozen build: with `sys.frozen` set plus `HQPTUNER_FAVORITES_FILE=/override/fav.json` in the environment, `Config().favorites_file` is `/override/fav.json`.
+   kills: computing the frozen default in place of reading the variable, which ignores every path an operator pins, the nine the container image sets among them.
+   bite: `/override/fav.json` — same script and command as line 3, second phase, with `HQPTUNER_FAVORITES_FILE=/override/fav.json` set before `Config().favorites_file` is read.
+   existing: none, `grep -rn 'Config()' tests/ --include='*.py'` -> 9 hits, no hit sets or asserts a `HQPTUNER_*` path override against a frozen process.
+
+5. In a frozen build each route that serves a bundled asset answers with the bytes that sit in the bundle: with `sys.frozen` set plus `sys._MEIPASS` at a directory the caller populated, `GET /` returns the bytes written to `<bundle>/static/index.html`; `GET /api/autoeq` returns the bytes written to `<bundle>/static/vendor/autoeq.json.gz`.
+   kills: adding the resolver and leaving these two call sites walking `__file__`, which in a frozen build serves a blank page at "/" and answers `/api/autoeq` with the "not found" refusal while the files sit in the bundle.
+   bite: `GET /` returns 200 with the package's own `hqptuner/static/index.html`, 3827 bytes starting `<!doctype html>`, which equals the bundle's `<h1>bundle</h1>`: False; `GET /api/autoeq` returns 200 with `Content-Encoding: gzip`, decoded body 5056679 bytes starting `{"meta":{"repo":"jaakkopasanen/AutoEq","sha":"7ae0f56d…`, which equals the bundle's blob: False — `PYTHONPATH=/home/atom/dev/hqptuner .venv/bin/python <script>` where the script clears every `HQPTUNER_*` var, writes `static/index.html` and `static/vendor/autoeq.json.gz` into a tempdir, sets `sys.frozen=True` and `sys._MEIPASS=<tempdir>`, then `TestClient(create_app()).get("/")` and `.get("/api/autoeq")`; run twice, same outcome.
+   existing: none, `grep -rn 'mount_spa\|autoeq' tests/ --include='*.py'` -> `tests/test_autoeq.py::test_autoeq_blob_is_served_gzip_encoded` and `tests/test_autoeq.py::test_autoeq_blob_records_its_upstream_pin` exercise the route at the repo path; no hit names `mount_spa` or any bundle path.
+
+6. Serving is something a caller asks for rather than something an import does: the number of servers started is 0 after importing `hqptuner.__main__`, 1 after calling `hqptuner.__main__.main()`.
+   kills: leaving the `uvicorn.run` call at module level beside a new `main`, which starts a server the moment a frozen bootloader, or any caller, imports the module for its entry point.
+   bite: count after import is 1, not 0; no count after `main()` exists, the module having no `main` attribute (`hasattr` False) — `PYTHONPATH=/home/atom/dev/hqptuner .venv/bin/python <script>` that rebinds `uvicorn.run` to a recorder, then `importlib.import_module("hqptuner.__main__")`.
+   existing: none, `grep -rn 'freeze_support\|uvicorn\|__main__' tests/ --include='*.py'` -> no matches, exit 1.
+
+Lines beyond the cap of four: line 5 is the only line covering the two asset call sites, and line 2 cannot reach them, because a resolver that is correct and unused fails nothing. Line 6 is the only line covering the entry point, which every caller reaches, and no other line imports it.
+
+## Public entry points
+
+Planned, `hqptuner/paths.py`:
+
+    def user_data_dir() -> Path:
+        """Per-user writable base directory for HQPTuner's own stores."""
+
+    def bundled(*parts: str) -> Path:
+        """Locate a read-only bundled asset, in a frozen build or beside the package."""
+
+Planned, `hqptuner/__main__.py`:
+
+    def main() -> None:
+        """Entry point for ``python -m hqptuner`` and for a frozen build."""
+
+Existing, unchanged signatures:
+
+    hqptuner/api/spa.py:            def mount_spa(app: FastAPI) -> None
+    hqptuner/api/routes/matrix.py:  def autoeq_db() -> FileResponse
+    hqptuner/config.py:             @dataclass class Config  (field names and types unchanged)
+
+## Wire and protocol facts
+
+None. Nothing in this block reaches hqplayerd: no control-port command, no management HTTP call, no config XML. The daemon's own paths are untouched; `hqp_home` (`/var/lib/hqplayer/home`) is a string field about the daemon host and is not one of the nine.
+
+PyInstaller facts the behavior must survive: the bootloader sets `sys.frozen`, and `sys._MEIPASS` is the unpacked-bundle root. Both attributes are absent from a normal interpreter (`grep -rn 'sys.frozen\|_MEIPASS' hqptuner/ scripts/` -> no matches), so every line above sets and clears them explicitly rather than assuming either state.
+
+## Applicable fixtures
+
+- `tests/conftest.py::_state_never_touches_the_repo` — session autouse; monkeypatches the eight `HQPTUNER_*` path variables in `_REPO_PATH_ENVS` to a session tmp dir. Any line reading a default must clear them first; that is why lines 3 and 4 state their environment.
+- `tests/conftest.py::virtual_clock` — function autouse; no bearing here beyond being unavoidable.
+- `tests/support/fixtures_clients.py::api_client` — `TestClient` over a built app with tmp-path state, the shape `tests/test_autoeq.py` uses for the `/api/autoeq` route.
+
+## Changelog entry
+
+No entry. A reader of a shipped release sees nothing: this slice ships no binary, adds no user surface, and moves no path for any install that exists, because the unfrozen defaults are unchanged. The entry lands with the slice that ships the Windows build.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on user_data_dir() (XDG_DATA_HOME=/xdg/data -> /xdg/data/hqptuner vs unset/empty/relative "sub/dir" -> /home/u/.local/share/hqptuner, HOME fixture-set: two inputs to one invariant), plus the 3/4 differential on Config().favorites_file and line 5's differential on the served bytes (bundle contents vs package contents)
+
+round-1 findings, all four repaired as named: line 1 states HOME as a caller-set value and every expected path is now a literal; line 3 asserts the parent of each field and drops the basename literals; line 5 asserts the bytes each route returns from a caller-populated bundle, with a measured non-import bite (False at HEAD on both comparisons); line 6 states one comparable value, server-start count 0 after import and 1 after main().
+
+1  KEEP  sys.platform plus LOCALAPPDATA/XDG_DATA_HOME (set, unset, empty, relative "sub/dir") with HOME=/home/u -> the per-user base directory; "one directory for every platform, ~/.hqptuner" fails it at win32 with LOCALAPPDATA=/c/Users/u/AppData/Local, "honor a relative XDG_DATA_HOME" fails it at XDG_DATA_HOME=sub/dir; bite: null stub fails at all six inputs, hqptuner/paths.py absent at HEAD (ls -> No such file or directory)
+2  KEEP  carried (round 1)
+3  KEEP  frozen, no HQPTUNER_* set -> the parent of the eight user-written store paths is user_data_dir(), while data_dir is bundled("data"); "point the whole set including data_dir at user_data_dir()" fails it at data_dir; bite: data_dir=/home/atom/dev/hqptuner/hqptuner/data, backup_dir=/home/atom/dev/hqptuner/backups, favorites_file parent /home/atom/dev/hqptuner/state, frozen and unfrozen identical, zero differing fields
+4  KEEP  carried (round 1)
+5  KEEP  frozen with sys._MEIPASS at a caller-populated bundle -> GET / returns the bytes at <bundle>/static/index.html and GET /api/autoeq the bytes at <bundle>/static/vendor/autoeq.json.gz; "leave both call sites walking __file__" fails it at that input; bite: both comparisons False at HEAD (GET / returns the package's 3827-byte index.html, GET /api/autoeq the package's 5056679-byte blob), an assertion result and not an import error
+6  KEEP  import hqptuner.__main__ vs call main() -> server-start count 0 then 1; "leave uvicorn.run at module level beside a new main" fails it at the import; bite: count after import is 1 at HEAD and the module has no main attribute
+cap: six lines, two past the cap of four, each with its sentence -- line 5 is the only line reaching the two asset call sites (line 2 pins a resolver that could be correct and unused), line 6 the only line reaching the entry point. Both sentences name a wrong implementation no other line kills; neither is hand-waving.
+
+null stub: hqptuner/paths.py present with user_data_dir() and bundled(*parts) returning "", Config's path fields left at their HEAD values, __main__ unchanged with a main() that returns None.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6
+hard-coded stub: a table keyed on the literal inputs the lines name -- /meipass/static for bundled("static") under a truthy sys.frozen, /override/fav.json for that env value, the six named directory strings for the six named platform/env pairs -- computing nothing.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6 (line 5's expected bytes are whatever the caller wrote into the bundle, so no table holds them; every other line states a relation the table cannot hold at both of its inputs without reading the input: env honored vs fallback on 1, frozen vs not on 2, user-store root vs bundled root on 3, default vs override across 3/4, start count 0 vs 1 on 6)
+
+survives: 6
