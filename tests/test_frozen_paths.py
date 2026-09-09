@@ -49,6 +49,17 @@ USER_STORES = (
     "autopilot_file",
 )
 
+#: A path an operator pins through the environment, which a frozen build must
+#: hand back untouched.
+OVERRIDE = "/override/fav.json"
+
+#: The path fields, the environment each is read under, and where its value is
+#: owed to come from: the user's own directory, the bundle, or the variable.
+FROZEN_PATH_CASES = [(name, {}, "user") for name in USER_STORES] + [
+    ("data_dir", {}, "bundle"),
+    ("favorites_file", {"HQPTUNER_FAVORITES_FILE": OVERRIDE}, "variable"),
+]
+
 #: Bytes this suite writes into the bundle it builds, so the assertion on what a
 #: route served compares against the test's own input and never the shipped
 #: asset (docs/testing.md rule 9).
@@ -71,6 +82,16 @@ def _freeze(monkeypatch: pytest.MonkeyPatch, bundle: Path | None) -> None:
         return
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+
+
+def _owed(paths: ModuleType, source: str) -> Path:
+    """Where the field's value is owed to come from, in the frozen build's own
+    terms."""
+    if source == "user":
+        return Path(paths.user_data_dir())
+    if source == "bundle":
+        return Path(paths.bundled("data"))
+    return Path(OVERRIDE)
 
 
 def _clear_hqptuner_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -141,29 +162,19 @@ def test_bundled_asset_sits_under_the_bundle_when_frozen_and_beside_the_package_
     assert _paths().bundled(part) == expected
 
 
-@pytest.mark.parametrize(
-    ("field", "root"),
-    [(name, "user") for name in USER_STORES] + [("data_dir", "bundle")],
-)
-def test_a_frozen_build_writes_user_stores_under_the_user_directory_and_reads_data_from_the_bundle(
-    monkeypatch: pytest.MonkeyPatch, field: str, root: str
+@pytest.mark.parametrize(("field", "env", "source"), FROZEN_PATH_CASES)
+def test_a_frozen_path_takes_the_environments_value_and_falls_back_to_the_user_dir_or_the_bundle(
+    monkeypatch: pytest.MonkeyPatch, field: str, env: dict[str, str], source: str
 ) -> None:
     paths = _paths()
     _clear_hqptuner_env(monkeypatch)
     _freeze(monkeypatch, Path(MEIPASS))
-    value = Path(getattr(Config(), field))
-    observed = value.parent if root == "user" else value
-    expected = paths.user_data_dir() if root == "user" else paths.bundled("data")
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    field_value = Path(getattr(Config(), field))
+    observed = field_value.parent if source == "user" else field_value
 
-    assert observed == expected
-
-
-def test_a_path_variable_still_beats_the_frozen_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_hqptuner_env(monkeypatch)
-    _freeze(monkeypatch, Path(MEIPASS))
-    monkeypatch.setenv("HQPTUNER_FAVORITES_FILE", "/override/fav.json")
-
-    assert Path(Config().favorites_file) == Path("/override/fav.json")
+    assert observed == _owed(paths, source)
 
 
 @pytest.mark.parametrize(("route", "expected"), [("/", INDEX_BYTES), ("/api/autoeq", AUTOEQ_BYTES)])
