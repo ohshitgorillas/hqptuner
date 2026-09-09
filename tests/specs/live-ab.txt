@@ -1,0 +1,92 @@
+kind: new
+
+brief:
+> A/B mode. Pick two filters, modulators, or dithers, and give the user a quick button to select between them on the fly. LIVE mode only. Discussion phase. Investigate and report with suggestions on UI shape.
+> radio buttons:
+> o Filter
+> o Modulator (Dither when PCM)
+> o Dither (both listed when Auto)
+>
+> two big buttons, e.g. a giant switch [ A | B ]
+>
+> dropdowns that pick what A means and what B means
+>
+> card collapsible and movable as with other cards in LIVE mode
+> oh for fuck's sake just have a o 1x filter and o Nx filter button god damn
+> Auto defaults to PCM except with SDM playback.
+> Card title Setting Switcher
+> radio label Setting sublabel Select the setting for fast switching.
+> card label Choose two settings to switch between with the A and B buttons.
+> changelog **Settings Switcher** allows you to swap two settings (filters, dithers, or modulators) on-the-fly for quick comparisons. LIVE mode only.
+> Setting Switcher, your version is fine, approved
+> 6 rejected for pinning design
+> 3 rejected for pinning design what the fuck
+
+1. With target filter picked, abField reads filter while /api/state reports active_chain pcm; abField reads oversampling while /api/state reports active_chain sdm.
+   kills: a fixed target-to-field table that never reads active_chain, which names the SDM field while the PCM chain is loaded and writes into the dormant chain.
+   bite: null stub fails at target filter under active_chain pcm (surface new) — a stub whose abField is the empty string returns "" where the line asks for filter.
+   existing: none, `grep -rn "abRows\|abField\|abSlots\|abLit\|live/ab.js" tests/` printed nothing.
+
+2. abLit reads a when the engine's reported value for the target field equals the ID in slot A, b when it equals the ID in slot B, the empty string when it equals neither.
+   kills: lighting whichever side was clicked last, which leaves a side lit after that setting is changed from the chain card to a third value.
+   bite: null stub fails at engine value equal to slot B's ID (surface new) — a stub whose abLit is the empty string returns "" where the line asks for b.
+   existing: none, `grep -rn "abRows\|abField\|abSlots\|abLit\|live/ab.js" tests/` printed nothing.
+
+3. With no order stored, the LIVE page stacks the movable block whose key is ab, enclosing the card whose id is live-ab, after the block whose key is chains; with an order stored naming only chains, matrix, playback, health, the page stacks that same ab block last.
+   kills: putting the card on the page without giving its key a place in the stored default, which strands it in every browser that already saved an order.
+   bite: ["health", "chains", "playback", "matrix"] (node <scratchpad>/liveab-run.mjs nothing); ["chains", "matrix", "playback", "health"] (node <scratchpad>/liveab-run.mjs stored). Throwaway probe run at dev tip, rendering LiveView and reading .live-block[data-block] in document order, deleted in the same command. Neither stack carries ab.
+   existing: every case in tests/js/components/live/liveblocks.test.js that enumerates the movable block keys, which is its MOVABLE fixture at :146 and the UNMARKED_BLOCKS and UNMARKED_MOVABLE fixtures derived from it, plus tests/js/store/liveorder.test.js::test_an_order_stored_in_the_browser_is_the_order_the_page_loads_with and tests/js/store/liveorder.test.js::test_leaving_layout_edit_mode_stores_the_current_block_order
+   third line: the other two state the switcher's own contract and none of them reaches the page's block stack, which is the one place a card that never appears is observable.
+
+public entry points (planned surface, not yet in the tree):
+
+hqptuner/static/store/live/ab.js
+  export const abTarget          // Signal<string> — the live form field the user picked, "" when none
+  export function setAbTarget(field)  // (string) => void
+  export const abChain           // computed<"pcm" | "sdm"> — the chain the card resolves
+  export const abRows            // computed<{ field: string, label: string }[]> — the three rows for that chain
+  export const abField           // computed<string> — abTarget mapped into abChain, "" when none
+  export const abSlots           // computed<{ a: { id: string, name: string } | null, b: { id: string, name: string } | null }>
+  export function setAbSlot(side, id, name)  // ("a" | "b", string, string) => void
+  export const abLit             // computed<"a" | "b" | ""> — the side the engine's current value matches
+  export function flipAb(side)   // ("a" | "b") => Promise<void> — writes that slot's ID to abField
+
+hqptuner/static/components/live/AB.js
+  export function AbCard()       // the LIVE page's Setting Switcher card
+
+wire and protocol facts:
+
+- /api/state carries active_chain: which filter/shaper chain the engine has loaded. It is the configured mode when that mode is pcm or sdm, and in auto it is resolved from the rate the engine reports playing; it is absent when auto has nothing playing (docs/architecture.md:91, "The loaded chain takes filter/shaper edits live (`active_chain`, resolved from `Status.active_rate`)").
+- The two chains carry different enumerations, and a filter or shaper value is an enum ID within its own chain's list (docs/protocol.md §4, §6). PCM's three live form fields are filter1x, filter, dither; SDM's are oversampling1x, oversampling, modulator.
+- Stored enum IDs are stored with the display name they had, values apply and names only render, because engine-built enumerations shift under a stored record (docs/architecture.md:133).
+- A live write goes out as POST /api/config/live with body {"fields": {field: value}} and is readback-verified by the backend; no daemon restart (docs/protocol.md §6, docs/architecture.md:133 on the live lane). This spec adds no line for it: the write path is store/live/write.js writeLive, already pinned by tests/js/store/live.test.js.
+
+applicable fixtures:
+
+- tests/js/support/chainenums.js — PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS give both chains' enumerations with an index that deliberately differs from the value; LISTS and FORM give the shapes /api/enumerations and the daemon's /config form serve.
+- tests/js/support/storage.js — useStorage installs a working localStorage for the suite, dropStorage removes it, useThrowingStorage makes every access throw.
+- hqptuner/static/store/signals.js — engineState, enums and config are the exported signals every live-store suite drives with the shapes the two routes serve (tests/js/store/live.test.js is the pattern).
+
+changelog entry, under [Unreleased] and a new "### Added":
+
+- **Setting Switcher** swaps two settings (filters, dithers, or modulators) on-the-fly for quick comparisons. LIVE mode only.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on abField (line 1: pcm vs sdm at one target) and a three-value sweep on abLit (line 2)
+
+previous finding:
+- my round-9 note said the two liveorder.test.js cases change no assertion. Withdrawn on the run: `node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/liveorder.test.js` fails 2 in a tree carrying the change, because reconcileOrder appends the missing default key and both four-key fixtures then meet five entries. I read :47 and :72 as arbitrary lists and missed that both are compared against a list the store reconciles against the default. The delta target widens accordingly; no line changes.
+
+1  KEEP  carried
+2  KEEP  carried
+3  DELTA tests/js/components/live/liveblocks.test.js:146 and :152, and tests/js/store/liveorder.test.js:47 and :72: one key "ab" in MOVABLE after "chains", one entry { key: "ab", card: "live-ab" } in ANCHORS, "ab" in the STORED and ORDER fixtures, and the deepEqual expectations that spell the stacks out follow; no new test.
+
+null stub: feature absent - live/ab.js exports abField="", abLit="", and no switcher block renders.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: return the literal values named for the exact inputs named and compare nothing - abField one fixed name, abLit "" always, no ab block on the page.
+  satisfies: none   fails: 1 (two chain values with different outcomes, so passing means reading active_chain), 2 (a comparison over unbounded IDs), 3
+
+survives: 2
+
+note: two new tests and one delta across two files. The A/B press writes nothing any test observes, by the owner's ruling carried from round 8.
