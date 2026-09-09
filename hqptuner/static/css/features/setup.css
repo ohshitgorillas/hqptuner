@@ -12,14 +12,17 @@
   z-index: 40; /* token-exempt: stacking order, not a layout length */
   background: var(--surface-page);
   display: flex;
-  align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
   padding: var(--sp-5) var(--sp-3);
 }
+/* `margin: auto` rather than `align-items: center`: a panel taller than the
+   window centres either way, but a centred flex item cannot be scrolled back
+   to above the top edge, and its first field would be unreachable. */
 .setup-panel {
   width: 100%;
   max-width: var(--w-select-wide);
+  margin: auto;
 }
 .setup-card .card-body {
   display: flex;

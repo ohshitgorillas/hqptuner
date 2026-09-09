@@ -124,6 +124,7 @@ button:not(:disabled):hover,
 
 /* ── Type: tabular mono numerals on every value ── */
 input[type="number"],
+input[type="password"],
 input[type="text"],
 .slidernum-box,
 .knob-box,

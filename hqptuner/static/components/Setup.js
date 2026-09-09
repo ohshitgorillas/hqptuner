@@ -9,6 +9,7 @@
 // row prints what the daemon said about itself, and product and platform are
 // absent whenever the per-daemon control exchange failed, so the row degrades
 // to its address and name rather than to nothing.
+import { useEffect, useRef } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
 import {
@@ -95,9 +96,36 @@ function rememberRow(remember, /** @type {string} */ label) {
 
 /** The connection panel, or nothing while it is closed. */
 export function Setup() {
-  if (!setupOpen.value) return null;
+  const open = setupOpen.value;
+  const panel = useRef(null);
+  // Escape closes, and the first field takes focus on open. The page behind is
+  // made inert by App while this is up, so the keyboard cannot walk out of the
+  // panel into controls the user cannot see — a Tab-and-Enter out there staged
+  // an engine change during review.
+  useEffect(() => {
+    if (!open) return undefined;
+    /** @type {HTMLElement | null} */
+    const root = panel.current;
+    const first = root && root.querySelector("input");
+    if (first) /** @type {HTMLInputElement} */ (first).focus();
+    /** @param {KeyboardEvent} e */
+    const onKey = (e) => {
+      if (e.key === "Escape") closeSetup();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  if (!open) return null;
   return html`
-    <div class="setup-scrim">
+    <div
+      class="setup-scrim"
+      ref=${panel}
+      onClick=${(/** @type {{ target: EventTarget | null, currentTarget: EventTarget | null }} */ e) => {
+        // Only the scrim itself: a click that started on the card is the user
+        // working in the panel, not asking to leave it.
+        if (e.target === e.currentTarget) closeSetup();
+      }}
+    >
       <!-- What the readings after a save said, as an attribute rather than a
            sentence: the sentence is copy and copy is the owner's, and until
            there is one this is what a reader of the DOM has to go on. -->
@@ -107,9 +135,10 @@ export function Setup() {
             HQPTuner needs two things to run: the address of your HQPlayer Embedded daemon, and its credentials.
           </p>
           <p class="t-caption">
-            If you haven't set the credentials already, do that with
-            <code>${"hqplayerd -u <username> <password>"}</code>, or from the default web page at port 8088. The
-            defaults are "hqplayer" and "password".
+            ${"If you haven't set the credentials already, do that with "}
+            <code>${"hqplayerd -u <username> <password>"}</code>${
+              ", or from the default web page at port 8088. The " + 'defaults are "hqplayer" and "password".'
+            }
           </p>
           ${textRow("host", "Host", "text")} ${found()} ${textRow("username", "Username", "text")}
           ${textRow("password", "Password", "password")}

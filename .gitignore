@@ -126,3 +126,6 @@ scripts/probes/probe_filter_cost.py
 scripts/probes/filter_cost*.json
 scripts/probes/record_apod.py
 apod-log.tsv
+
+# vendor installer kept for reference, 145 MiB and not ours to redistribute
+/HQPlayer6Embedded-setup-*.exe

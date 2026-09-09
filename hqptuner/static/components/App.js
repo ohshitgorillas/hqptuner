@@ -15,6 +15,7 @@ import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { Setup } from "./Setup.js";
+import { setupOpen } from "../store/setup.js";
 import { ready } from "../store/signals.js";
 import { engineRestarting } from "../store/enginewrite.js";
 import { liveMode } from "../store/prefs.js";
@@ -27,7 +28,10 @@ export function App() {
          health reading says so, and it is true from the click of a write that takes the
          daemon down — readiness only learns that a poll later, and a short restart can pass
          between two polls unseen. A write the engine never leaves for raises neither. -->
-    <div class="app ${ready.value && !engineRestarting.value ? "" : "offline"}">
+    <!-- inert while the panel is up: without it the keyboard walks straight
+         out of the panel into the page behind, where Enter lands on a control
+         the user cannot see. -->
+    <div inert=${setupOpen.value || null} class="app ${ready.value && !engineRestarting.value ? "" : "offline"}">
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />
