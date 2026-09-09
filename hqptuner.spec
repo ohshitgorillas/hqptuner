@@ -19,7 +19,16 @@ a = Analysis(
     binaries=[],
     datas=[
         ("hqptuner/static", "static"),
-        ("hqptuner/data", "data"),
+        # data/ member by member rather than the whole directory, matching the
+        # package-data globs in pyproject.toml: engine-enums.json is the captured
+        # engine snapshot that scripts/gates/check_metadata.py reads at
+        # development time, nothing under hqptuner/ opens it, and a wheel install
+        # does not carry it either.
+        ("hqptuner/data/filters.json", "data"),
+        ("hqptuner/data/shapers.json", "data"),
+        ("hqptuner/data/settings.json", "data"),
+        ("hqptuner/data/easy-presets.json", "data"),
+        ("hqptuner/data/*-plain-names.json", "data"),
     ],
     hiddenimports=[
         "uvicorn.loops.auto",
