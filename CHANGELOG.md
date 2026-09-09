@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Setting Switcher** swaps two settings (filters, dithers, or modulators) on-the-fly for quick comparisons. LIVE mode only.
+
 ## [1.14.2] — 2026-09-08
 
 ### Changed

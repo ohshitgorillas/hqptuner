@@ -231,3 +231,55 @@
   text-decoration: underline;
 }
 
+
+/* The Setting Switcher: the row picker, the two values it holds, and the switch
+   that puts one of them on the engine. The three parts stack in the card's own
+   field rhythm, so the card reads like every other card on the page. */
+.ab-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-field);
+}
+
+/* The row picker. Three short rows lie along one line where the card is wide
+   enough for them and wrap where it is not, so the picker costs the card one
+   row of height rather than three. */
+.ab-target .radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+/* The two slots sit side by side wherever there is room for two dropdowns, and
+   stack below the page's own single-column breakpoint. They are one choice made
+   twice, so they read as a pair rather than as two settings. */
+.ab-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (min-width: 1100px) {
+  .ab-slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+}
+.ab-slot {
+  min-width: 0;
+}
+.ab-slot .control select,
+.ab-slot .control .combobox {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The switch takes the hero segment treatment rather than a size of its own
+   (docs/design-system.md: segments have exactly one size, and .seg-box is the
+   named exemption). It is the only control on the card that writes, and it is
+   sized to be hit without looking. */
+.ab-switch {
+  display: flex;
+}

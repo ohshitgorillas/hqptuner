@@ -46,6 +46,7 @@ import { primerOpen } from "../../store/primerview.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
+import { AbCard } from "./AB.js";
 import { LiveBlocks } from "./Layout.js";
 import { MatrixProfileCard } from "./MatrixProfile.js";
 import { cardCollapse } from "./collapse.js";
@@ -319,7 +320,7 @@ function HealthCard() {
 }
 
 /**
- * LIVE page: the locked row — LIVE MODE and Mode side by side — then the four
+ * LIVE page: the locked row — LIVE MODE and Mode side by side — then the five
  * movable blocks in the user's own order (components/live/Layout.js). The keys
  * are the stored order's vocabulary — a key added here needs the same key in
  * `LIVE_BLOCK_ORDER` (store/prefs.js), which is what keeps a stored order from
@@ -333,6 +334,7 @@ export function LiveView() {
         blocks=${{
           health: html`<${HealthCard} />`,
           chains: html`<${ChainCards} />`,
+          ab: html`<${AbCard} />`,
           playback: html`<${PlaybackCard} />`,
           matrix: html`<${MatrixProfileCard} />`,
         }}
