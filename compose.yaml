@@ -1,14 +1,12 @@
 # HQPTuner — compose deployment.
 #
 # Default assumes hqplayerd runs on the SAME machine (bare metal): standard
-# bridge networking, daemon reached via the Docker host gateway. HQPTuner is a
-# plain TCP client of hqplayerd (4321 + 8088) — no multicast/discovery — so it
-# does not need host networking.
+# bridge networking, daemon reached via the Docker host gateway. HQPTuner finds
+# it there on first start. A daemon on another machine is named in the
+# Connection panel, along with the management username and password.
 #
-# Credentials: defaults match hqplayerd's stock management credential
-# (hqplayer / password). If your daemon's auth was re-provisioned, put
-# HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD in a .env file next to this
-# compose file (never commit it).
+# What the panel saves lives in ./state/connection.json. The three variables
+# below outrank it, so set one only to pin that field.
 #
 # State: ./state holds config backups and the preset store. Create it before
 # first start (`mkdir -p state`) so it's owned by you, not root — the container
@@ -26,11 +24,13 @@ services:
       - "host.docker.internal:host-gateway"
 
     environment:
-      HQPTUNER_HQP_HOST: host.docker.internal
-      HQPTUNER_HQP_USERNAME: ${HQPTUNER_HQP_USERNAME:-hqplayer}
-      HQPTUNER_HQP_PASSWORD: ${HQPTUNER_HQP_PASSWORD:-password}
-      # HQPTUNER_LISTEN_PORT: "8090"
-      # HQPTUNER_HQP_HOME: /var/lib/hqplayer/home
+      # Passed through only where the variable is actually set, in the shell or
+      # in an env file beside this one. Unset means the Connection panel governs.
+      - HQPTUNER_HQP_HOST
+      - HQPTUNER_HQP_USERNAME
+      - HQPTUNER_HQP_PASSWORD
+      # - HQPTUNER_LISTEN_PORT=8090
+      # - HQPTUNER_HQP_HOME=/var/lib/hqplayer/home
 
     volumes:
       - ./state:/state

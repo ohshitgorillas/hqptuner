@@ -26,6 +26,11 @@ PORT = 4321
 #: The request datagram, byte for byte as protocol.md §2 gives it.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
+#: The address a container reaches its own host on, where the deployment provides
+#: it. Settable through ``Config.container_host_alias`` because the name resolves
+#: inside a container only, so nothing outside one can be pointed at it.
+ALIAS = "host.docker.internal"
+
 
 @dataclass(frozen=True)
 class Daemon:
@@ -101,6 +106,25 @@ async def _describe(address: str, port: int, request_timeout: float) -> dict[str
         await client.close()
 
 
+async def probe(address: str, control_port: int, request_timeout: float) -> Daemon | None:
+    """Answer the record for one address, or None where nothing answers there.
+
+    The one path that names an address instead of waiting for a datagram, so an address that does not resolve
+    or refuses is a non-event rather than an error: it is the same "nothing there" a silent sweep reports.
+    """
+    try:
+        info = await _describe(address, control_port, request_timeout)
+    except (OSError, ControlError):
+        return None
+    return Daemon(
+        address=address,
+        name=info.get("name", ""),
+        version=info.get("version", ""),
+        product=info.get("product"),
+        platform=info.get("platform"),
+    )
+
+
 def _endpoint(target: str) -> tuple[str, int]:
     """Read the configured target as an address, with an optional ``:port`` overriding the documented 4321."""
     host, _, port = target.rpartition(":")
@@ -124,12 +148,22 @@ async def _collect(sock: socket.socket, deadline: float) -> list[tuple[bytes, st
     return replies
 
 
-async def discover(wait_seconds: float = 3.0, control_port: int = PORT, target: str = GROUP) -> list[Daemon]:
+async def discover(
+    wait_seconds: float = 3.0,
+    control_port: int = PORT,
+    target: str = GROUP,
+    alias: str = ALIAS,
+) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
     The target is an address rather than a constant because multicast is the part of this least certain to
     work: a multi-homed host sends on whichever interface its routing table picks. Naming a host instead is
     the escape, and it is the same path, so nothing about the answer changes.
+
+    A sweep that nothing answers asks the container-host alias directly, which is the case of a bridged
+    container: the bridge carries no multicast, so the datagram reaches nobody while the daemon on the
+    container's own host is one connection away. Only that case, because a daemon answering both would be
+    listed twice, once by the address its datagram came from and once by the alias.
     """
     loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -140,6 +174,9 @@ async def discover(wait_seconds: float = 3.0, control_port: int = PORT, target: 
     finally:
         sock.close()
     found = [record for payload, address in replies if (record := parse_reply(payload, address))]
+    if not found:
+        answered = await probe(alias, control_port, wait_seconds)
+        return [answered] if answered is not None else []
 
     async def describe(address: str) -> dict[str, str]:
         return await _describe(address, control_port, wait_seconds)

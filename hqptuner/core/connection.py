@@ -113,6 +113,15 @@ def _pinned(name: str) -> bool:
     return bool(os.environ.get(name, "").strip())
 
 
+def host_is_unchosen(record: ConnectionRecord | None) -> bool:
+    """Report whether nothing has named the daemon's host: no saved record, and no variable pinning it.
+
+    The one state in which HQPTuner is free to look for a daemon itself. Anything the user or the deployment
+    named outranks what a search would find, which is the same order ``layer_onto_config`` keeps.
+    """
+    return record is None and not _pinned(_ENV_HOST)
+
+
 def layer_onto_config(cfg: Config, record: ConnectionRecord | None) -> None:
     """Move the stored host and credentials into ``cfg``, leaving every field the environment pins alone.
 
