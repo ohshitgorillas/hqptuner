@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.15.2] — 2026-09-10
+
 ### Changed
 
 - **Setting Switcher's A and B button subtext weight adjusted** for better readability.
