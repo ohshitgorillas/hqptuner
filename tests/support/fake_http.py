@@ -69,16 +69,22 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
     consumes the 401 internally and re-sends, so 403 is the status that surfaces
     to a caller carrying bad credentials.
 
+    `_challenge_auth` is the same wire with the RIGHT password: the daemon still
+    answers an unauthenticated request with 401 and the challenge, and then
+    serves the digest the client builds from it. That is what every fresh
+    connection to the real 6.0.4 looks like; the default state skips the
+    challenge so cases that do not care about credentials pay nothing for it.
+
     A daemon that is down answers 503 first, on every path: a restart window is
     not a credential verdict, so `_down` and `_fail_paths` outrank `_refuse_auth`
     exactly as they do on the real thing."""
-    if not st.get("_refuse_auth"):
-        return None
     if st.get("_down") or path in st.get("_fail_paths", ()):
         return None
-    if not authorization:
+    if not authorization and (st.get("_refuse_auth") or st.get("_challenge_auth")):
         return 401, _DIGEST_CHALLENGE, _AUTH_BODY
-    return 403, "", _AUTH_BODY
+    if authorization and st.get("_refuse_auth"):
+        return 403, "", _AUTH_BODY
+    return None
 
 
 def _backup_zip(st: dict[str, Any]) -> bytes:
@@ -387,7 +393,13 @@ def _save_profile(st: dict[str, Any], raw: bytes) -> None:
 def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
     """Answer the request with the daemon's authentication refusal if the state
     calls for one, reporting whether it did."""
-    refusal = _auth_refusal(st, handler.path, handler.headers.get("Authorization", ""))
+    authorization = handler.headers.get("Authorization", "")
+    if authorization:
+        with _STATE:  # handlers run on their own threads
+            st.setdefault("_authorizations", []).append(
+                {"method": handler.command, "path": handler.path, "header": authorization}
+            )
+    refusal = _auth_refusal(st, handler.path, authorization)
     if refusal is None:
         return False
     status, challenge, body = refusal
@@ -648,6 +660,14 @@ def state(**extra: Any) -> dict[str, Any]:
         # the healthy daemon: credentials are accepted and the count is
         # bookkeeping no existing test reads.
         "_refuse_auth": False,
+        # Challenge an unauthenticated request with the 401 and serve the digest
+        # that comes back, the way the real daemon greets a fresh connection
+        # carrying the right password. Off by default: the healthy daemon here
+        # asks nothing, so no existing case pays for a handshake.
+        "_challenge_auth": False,
+        # Every `Authorization` header that arrived, in order: method, path and
+        # the header verbatim, so a case can read the credentials a caller sent.
+        "_authorizations": [],
         "_requests": 0,
         # Running count of GET /backup/settings.zip arrivals, refused or served.
         "_backup_reads": 0,
