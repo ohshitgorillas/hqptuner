@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # pair — the two worktrees a /tests run needs, opened and converged in one action each.
 #
-#   scripts/pair.sh open  <slug> <specfile> [--dry-run]
-#   scripts/pair.sh respec <slug> <specfile> [--dry-run]
+#   scripts/pair.sh open  <slug> [--dry-run]
+#   scripts/pair.sh respec <slug> [--dry-run]
 #   scripts/pair.sh red   <slug> [--dry-run]
 #   scripts/pair.sh merge <slug> [-m "<subject>"] [--dry-run]
 #   scripts/pair.sh abort <slug>
 #   scripts/pair.sh list
 #
-# The /tests chain writes tests first — by the blind test-writer, for every
+# The /tests chain writes tests first — by the blind testsmith, for every
 # spec, since .claude/hooks/tests-lane.py keeps every other hand off tests/ —
 # and implements beside them. They cannot share a tree: the tests tree must contain no implementation
 # for the red run to prove anything, and several sessions may be doing this at
@@ -23,11 +23,14 @@
 # hook meters tool calls, not work, so open+red+merge costs three actions for a
 # chain that would otherwise spend six or more on git alone.
 #
-# open commits the approved spec block, with the spec-reviewer's READY output,
+# open commits the approved spec block, with the arbiter's READY output,
 # as tests/specs/<slug>.txt — the first commit on the spec branch, made before
-# any implementation exists. The orchestrator stages it at specs/<slug>.txt
-# (gitignored, in-tree, so the write is free) and passes that path. The writer reads the block from that path and a
-# reviewer spawned later reads it from git, so neither depends on a brief.
+# any implementation exists. The arbiter writes it to specs/approved/<slug>.txt
+# (gitignored, in-tree, so the write is free), the one folder .claude/hooks/specs-lane.py
+# lets it write and lets nothing else write; open derives that path from the slug
+# rather than taking it, so no other hand can name a file there. The writer reads
+# the block from git and a reviewer spawned later reads it from git too, so
+# neither depends on a brief.
 #
 # respec lands a re-approved block on the open spec branch as a second
 # `spec: <slug>` commit, the one the writer's delta names. Same verdict check
@@ -52,7 +55,7 @@
 #
 # Both exits of step 5 print the test-check brief: the test files the spec
 # tree wrote, their diff from the red commit, and the saved red output. The
-# orchestrator forwards it verbatim to the spec-reviewer; nothing is typed
+# orchestrator forwards it verbatim to the arbiter; nothing is typed
 # into it.
 #
 # Steps 3-6 hold a lock, so two sessions merging at once queue instead of
@@ -74,7 +77,7 @@ run()  { if [ "$DRY" = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
 
 usage() {
-  echo "usage: scripts/pair.sh open <slug> <specfile> | respec <slug> <specfile> | red <slug> | merge <slug> [-m subj] | abort <slug> | list   [--dry-run]" >&2
+  echo "usage: scripts/pair.sh open <slug> | respec <slug> | red <slug> | merge <slug> [-m subj] | abort <slug> | list   [--dry-run]" >&2
   exit 2
 }
 
@@ -83,21 +86,19 @@ usage() {
 [ $# -ge 1 ] || usage
 CMD=$1; shift
 SLUG=""
-SPECFILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     -m)        shift; [ $# -gt 0 ] || usage; SUBJECT=$1 ;;
     -*)        usage ;;
     *)         if [ -z "$SLUG" ]; then SLUG=$1
-               elif { [ "$CMD" = open ] || [ "$CMD" = respec ]; } && [ -z "$SPECFILE" ]; then SPECFILE=$1
                else usage; fi ;;
   esac
   shift
 done
 
 case "$CMD" in
-  open|respec)      [ -n "$SLUG" ] && [ -n "$SPECFILE" ] || usage ;;
+  open|respec)      [ -n "$SLUG" ] || usage ;;
   red|merge|abort)  [ -n "$SLUG" ] || usage ;;
   list)             [ -z "$SLUG" ] || usage ;;
   *)                usage ;;
@@ -115,6 +116,10 @@ IMPL_BR="impl/$SLUG"
 BASE_FILE="$STATE/$SLUG.base"
 RED_FILE="$STATE/$SLUG.red"
 SPEC_PATH="tests/specs/$SLUG.txt"
+# The approved block, derived from the slug and never taken as an argument:
+# specs/approved/ is the arbiter's lane, so the file open reads is one only
+# the arbiter can have written.
+SPECFILE="$ROOT/specs/approved/$SLUG.txt"
 SPEC_MSG="spec: $SLUG"
 RED_MSG="test: $SLUG red"
 
@@ -280,7 +285,7 @@ excise_whole_files() {   # excise_whole_files <tree> <spec-commit>
 # ---- open -------------------------------------------------------------------
 
 # The reviewer section of the spec file is the reviewer's own text. Every
-# spec-reviewer round that carries verdicts is written by that agent to
+# arbiter round that carries verdicts is written by that agent to
 # state/reviews/<slug>.<N>.txt (a round that rejected a brief writes nothing)
 # (.claude/hooks/reviews-lane.py keeps every other hand off it), and the
 # section after the separator has to match the newest one, which has to
@@ -293,7 +298,7 @@ verdict_check() {
   grep -qxF -- "$VERDICT_SEP" "$SPECFILE" \
     || die "no '$VERDICT_SEP' line in $SPECFILE — the reviewer's output goes beneath that separator."
   vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1 || true)
-  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the spec-reviewer writes its verdict there itself, every round that carries one."
+  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the arbiter writes its verdict there itself, every round that carries one."
   [ "$(head -1 "$vfile")" = "READY" ] || die "${vfile#"$ROOT"/} does not start with READY — the reviewer has not passed this block."
   if ! diff -qB <(sed -n "/^$VERDICT_SEP\$/,\$p" "$SPECFILE" | sed '1d;s/[[:space:]]*$//') \
                 <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
@@ -306,7 +311,7 @@ do_open() {
   say "open $SLUG"
 
   git rev-parse -q --verify dev >/dev/null || die "no dev branch here."
-  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — write the approved block and the reviewer's READY output there first."
+  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — the arbiter writes the approved block and its READY output there on READY, and only there."
   verdict_check
   local d b
   for d in "$SPEC_DIR" "$IMPL_DIR"; do
@@ -386,14 +391,14 @@ do_respec() {
   say "respec $SLUG"
 
   [ -d "$SPEC_DIR" ] || die "no spec tree at $SPEC_DIR — was this pair opened?"
-  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — write the re-approved block and the reviewer's READY output there first."
+  [ -f "$SPECFILE" ] || die "no spec file at $SPECFILE — the arbiter writes the re-approved block and its READY output there, and only there."
   [ -n "$(find_commit "$SPEC_DIR" "$SPEC_MSG")" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
   verdict_check
 
   local vfile
   vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt | sort -t. -k2,2n | tail -1)
   if diff -qB <(committed_verdict "$SPEC_DIR") <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
-    die "${vfile#"$ROOT"/} is the round already committed on $SPEC_BR — a re-approved block carries a new spec-reviewer round, not the last READY pasted under a changed block."
+    die "${vfile#"$ROOT"/} is the round already committed on $SPEC_BR — a re-approved block carries a new arbiter round, not the last READY pasted under a changed block."
   fi
   echo "  round       ${vfile#"$ROOT"/} is newer than the committed spec"
 
@@ -416,7 +421,7 @@ do_respec() {
   echo
   echo "  spec commit $(git -C "$SPEC_DIR" rev-parse --short "$spec_commit") on $SPEC_BR"
   echo
-  echo "  Send the test-writer a delta naming that commit; it reads the changed lines"
+  echo "  Send the testsmith a delta naming that commit; it reads the changed lines"
   echo "  from $SPEC_PATH there. Then:  scripts/pair.sh red $SLUG"
 }
 
@@ -479,11 +484,11 @@ do_red() {
   echo "  red commit  $(git -C "$SPEC_DIR" rev-parse --short "$red_commit")"
   echo "  output      $RED_FILE"
   echo
-  echo "  Send that path to the test-writer; its RED/ERROR/GREEN verdict per line is the"
+  echo "  Send that path to the testsmith; its RED/ERROR/GREEN verdict per line is the"
   echo "  bite proof. The output is not printed here on purpose."
 }
 
-# The brief the spec-reviewer's post-merge test check consumes. Generated, not
+# The brief the arbiter's post-merge test check consumes. Generated, not
 # typed: paths, the diff from the red commit, and the saved red output.
 # Which of the three exits below was taken, for the closing instruction step 6
 # prints: the operator is told to forward a brief only when one was printed, and
@@ -603,7 +608,7 @@ are left exactly as they are.
 A failing test here means the spec and the code disagree. Two ways out, and
 you say which before editing anything: the code is wrong, and the fix lands
 in $IMPL_DIR; or the spec is wrong, and it goes back to stage 1 with the
-same plan reviewer. Tests are not edited to pass. Then rerun this merge.
+same prosecutor. Tests are not edited to pass. Then rerun this merge.
 EOF
     test_check_brief "$SPEC_DIR" >&2
     exit 1
@@ -629,7 +634,7 @@ EOF
   case "$BRIEF_FORM" in
     block)
       echo "  both worktrees removed. Next: forward the TEST CHECK block above to the"
-      echo "  spec-reviewer verbatim, then /task-check, from here."
+      echo "  arbiter verbatim, then /task-check, from here."
       ;;
     short)
       echo "  both worktrees removed. The tests are identical to the red commit, so"

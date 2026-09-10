@@ -75,7 +75,7 @@ N. excise <target>
    assertion: <the offending assertion, quoted from the test file>
 ```
 
-The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `test-writer` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh red` before it commits, since the lane hook denies every agent that shell. An excision line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
+The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `testsmith` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh red` before it commits, since the lane hook denies every agent that shell. An excision line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
 
 ## Markers
 

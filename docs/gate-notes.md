@@ -74,14 +74,14 @@ Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` 
 
 ## 2026-09-05, second pass
 
-The test-writer's instructed gate commands metered, and the lane hook then read them as shell writes naming `tests/`:
+The testsmith's instructed gate commands metered, and the lane hook then read them as shell writes naming `tests/`:
 
 ```
 .venv/bin/python scripts/gates/check_test_assertions.py tests/*.py
 .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/*.py
 ```
 
-`SendMessage` rounds to a reviewer counted toward the leash, a background task notification reset it, and a `plan-reviewer` spawn cost an action while a `spec-reviewer` spawn did not.
+`SendMessage` rounds to a reviewer counted toward the leash, a background task notification reset it, and a `prosecutor` spawn cost an action while an `arbiter` spawn did not.
 
 ## Resolution — 2026-09-05, second pass
 

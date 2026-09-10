@@ -3,7 +3,7 @@
 
 Wired session-wide from `.claude/settings.json`, so it binds the orchestrator
 and every subagent, and again from the `hooks:` frontmatter of
-`.claude/agents/spec-reviewer.md` and `plan-reviewer.md`, where the same
+`.claude/agents/arbiter.md` and `prosecutor.md`, where the same
 script confines those two agents to that one directory.
 
 The rule it enforces: a reviewer's verdict reaches `scripts/pair.sh open`
@@ -15,10 +15,11 @@ write relative to the main checkout, which is where `pair.sh open` looks.
 Denied:
 
   * `Write`/`Edit`/`NotebookEdit` whose target is under `state/reviews/` of
-    any checkout, unless the caller's `agent_type` is `spec-reviewer` or
-    `plan-reviewer`
+    any checkout, unless the caller's `agent_type` is `arbiter` or
+    `prosecutor`
   * for those two agents, any `Write`/`Edit`/`NotebookEdit` outside
-    `state/reviews/`, and any `Bash` command that `free_bash` meters
+    `state/reviews/`, the arbiter's own `specs/approved/` lane excepted,
+    and any `Bash` command that `free_bash` meters
   * for those two agents, a `Read` or a `Grep` aimed under `state/reviews/`,
     and a read-only `Bash` command naming such a path
   * for everyone else, a `Bash` command that `free_bash` meters and that
@@ -51,7 +52,10 @@ import re
 import shlex
 import sys
 
-REVIEWERS = frozenset({"spec-reviewer", "plan-reviewer"})
+REVIEWERS = frozenset({"arbiter", "prosecutor"})
+#: the one reviewer with a second lane, and the folder that lane is
+APPROVED_WRITER = "arbiter"
+APPROVED_LANE = os.path.join("specs", "approved")
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 #: tools that hand back a file's contents; `Glob` returns names only and is not one
 READ_TOOLS = ("Read", "Grep")
@@ -60,14 +64,15 @@ BASH_REVIEWS = re.compile(r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?state/reviews/")
 
 _LANE = (
     "state/reviews/ is the reviewers' lane: a verdict file is written by the "
-    "spec-reviewer or plan-reviewer that produced it, and scripts/pair.sh open "
+    "arbiter or prosecutor that produced it, and scripts/pair.sh open "
     "compares the spec file against it. Nothing else writes there. "
     "(.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_LANE = (
     "Reviewer: your one write is your verdict, to state/reviews/<slug>.<N>.txt "
-    "of the main checkout. Not hqptuner/, not tests/, not docs/, not specs/. "
-    "(.claude/hooks/reviews-lane.py)"
+    "of the main checkout, and for the arbiter the approved spec, to "
+    "specs/approved/. Not hqptuner/, not tests/, not docs/, not the rest of "
+    "specs/. (.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_BASH = (
     "Reviewer: a shell command that changes anything is denied; your one write "
@@ -106,10 +111,22 @@ def _in_reviews(target: str, cwd: str, lane) -> bool:
     return root is not None and rel is not None and not rel.startswith("..") and _under_reviews(rel)
 
 
+def _in_approved(target: str, cwd: str, lane) -> bool:
+    """Does this path land inside some checkout's `specs/approved/`?"""
+    root, rel = lane._split_root(target, cwd)
+    if root is None or rel is None or rel.startswith(".."):
+        return False
+    return rel == APPROVED_LANE or rel.startswith(APPROVED_LANE + os.sep)
+
+
 def _write_verdict(target: str, cwd: str, agent: str, lane) -> str | None:
     in_reviews = _in_reviews(target, cwd, lane)
     if agent in REVIEWERS:
-        return None if in_reviews else _REVIEWER_LANE
+        if in_reviews:
+            return None
+        if agent == APPROVED_WRITER and _in_approved(target, cwd, lane):
+            return None
+        return _REVIEWER_LANE
     return _LANE if in_reviews else None
 
 
