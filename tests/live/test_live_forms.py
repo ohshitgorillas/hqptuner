@@ -10,7 +10,10 @@ daemon, which is why this file exists.
 Run after any hqplayerd upgrade: ``make test-live``.
 
 Credentials come from ``HQPTUNER_HQP_USERNAME`` / ``HQPTUNER_HQP_PASSWORD`` in
-the environment, like every other knob (``hqptuner/config.py``). Without them
+the environment, like every other knob (``hqptuner/config.py``) — and since the
+suite captures the shell's ``HQPTUNER_*`` mapping at session start and then
+scrubs it, the fetch below runs inside a bracket that puts that mapping back,
+this file being the one place the shell's own values are the point. Without them
 ``Config`` falls back to hqplayerd's stock management pair, the daemon answers
 401, and these tests ERROR rather than skip — deliberately. Only an unanswered
 socket is a skip; anything else would let a misconfigured canary read as green.
@@ -73,18 +76,23 @@ async def _fetch() -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def live_forms() -> dict[str, Any]:
-    """The three real forms, fetched once.
+def live_forms(_no_inherited_environment: dict[str, str]) -> dict[str, Any]:
+    """The three real forms, fetched once, with the shell's own environment back
+    in place for the fetch: the address and credentials this canary is supposed
+    to use are the ones the operator exported, not the harness's.
 
     Skips only when nothing answers, so the suite stays green on a machine with
     no hqplayerd. A daemon that *does* answer and then refuses (401 on
     re-provisioned management credentials) or errors is a FAILURE, not a skip —
     swallowing that would turn a misconfigured canary into a silent green.
     """
-    try:
-        return asyncio.run(_fetch())
-    except (httpx.ConnectError, httpx.ConnectTimeout, OSError) as exc:
-        pytest.skip(f"no reachable hqplayerd: {exc}")
+    with pytest.MonkeyPatch.context() as mp:
+        for name, value in _no_inherited_environment.items():
+            mp.setenv(name, value)
+        try:
+            return asyncio.run(_fetch())
+        except (httpx.ConnectError, httpx.ConnectTimeout, OSError) as exc:
+            pytest.skip(f"no reachable hqplayerd: {exc}")
 
 
 @pytest.fixture(scope="module")

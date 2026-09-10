@@ -23,6 +23,11 @@ import pytest
 
 from hqptuner.config import Config
 
+#: pytest finds the hook below by name, never by reference; naming it here is
+#: what tells a static dead-code sweep it is live (the house pattern, as in
+#: tests/e2e/conftest.py).
+__all__ = ["pytest_runtest_call"]
+
 #: Path the records are appended to, one JSON object per line.
 OUT_ENV = "ENV_PROBE_OUT"
 

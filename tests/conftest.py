@@ -12,6 +12,7 @@ and the manager fixtures built on them."""
 import asyncio
 import contextlib
 import functools
+import os
 import socket
 import struct
 import threading
@@ -49,8 +50,37 @@ _REPO_PATH_ENVS = {
 }
 
 
+#: The one ``HQPTUNER_*`` name the shell keeps: it points at the host's own
+#: chromium binary, which is a fact about the machine the browser suite runs on
+#: rather than a knob the app reads. Scrubbing it would send e2e to playwright's
+#: bundled browser instead.
+_KEPT_ENVS = frozenset({"HQPTUNER_CHROMIUM"})
+
+
 @pytest.fixture(scope="session", autouse=True)
-def _state_never_touches_the_repo(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+def _no_inherited_environment() -> Iterator[dict[str, str]]:
+    """No test reads a knob the shell happened to export (docs/testing.md rule
+    16), and the suite still knows what that shell said.
+
+    The suite is run from shells carrying ``HQPTUNER_*`` variables for their own
+    reasons — sourced credentials, a hand-set store path, a daemon address — and
+    a fixture that forgets an override then reads the developer's value instead
+    of the harness's, which is a test of the machine it ran on. So every one of
+    those names is dropped for the whole session before any other fixture runs,
+    and the mapping is yielded to the two guards below and to the one place that
+    wants the shell's own values back: the live canary, which is about the real
+    daemon at the real address."""
+    captured = {name: value for name, value in os.environ.items() if name.startswith("HQPTUNER_")}
+    with pytest.MonkeyPatch.context() as mp:
+        for name in captured.keys() - _KEPT_ENVS:
+            mp.delenv(name, raising=False)
+        yield captured
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _state_never_touches_the_repo(
+    _no_inherited_environment: dict[str, str], tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[None]:
     """Backstop: a bare ``Config()`` in any test resolves its state paths into a
     session tmp dir, never the repo's own ``state/``.
 
@@ -376,7 +406,7 @@ def closed_port() -> int:
 
 
 @pytest.fixture(autouse=True, scope="session")
-def _never_the_hosts_metering_port() -> Iterator[None]:
+def _never_the_hosts_metering_port(_no_inherited_environment: dict[str, str]) -> Iterator[None]:
     """No test may open the host daemon's metering side channel. The default
     port is the running daemon's (config.py), so point the default at a hole:
     an app built without an explicit port then dials nothing. Cases that want a
