@@ -298,5 +298,6 @@
   display: block;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
   overflow-wrap: anywhere;
 }
