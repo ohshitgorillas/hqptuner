@@ -1,0 +1,100 @@
+kind: new
+brief:
+> looking at Gauntlet > HQPTuner now only. what's a reasonable chunk for an Opus-level agent to tackle in a single session?
+> want:
+> 1. rename skill "plan gate" to "gauntlet"
+> 2. rename agents
+> 3. replace cavecrew investigator with detective
+> 4. specs/approved/ hook
+> 5. accountant unmeasurable rule
+> the rest can wait
+> specs/approved/ is in scope
+> specs/ gitignored entirely
+> orchestrators and subagents use specs/ for slugs
+> only approved specs go in specs/approved/
+
+1. `verdict()` of `.claude/hooks/reviews-lane.py`, given a `Write` of `state/reviews/x.1.txt` with `cwd` at a checkout root, maps agent type to admission: `arbiter` to `None`, `prosecutor` to `None`, `spec-reviewer` to the lane denial string, `plan-reviewer` to the lane denial string.
+   kills: a rename that updates the frontmatter of `.claude/agents/*.md` while `REVIEWERS` keeps the pre-rename literals, so an agent typed `arbiter` is refused the verdict file the gate requires it to write
+   bite: all four calls return the same denial string at HEAD, none returns `None` — `'state/reviews/ is the reviewers\' lane: a verdict file is written by the spec-reviewer or plan-reviewer that produced it, and scripts/pair.sh open compares the spec file against it. Nothing else writes there. (.claude/hooks/reviews-lane.py)'` (`python3 -c "import importlib.util as u,os; s=u.spec_from_file_location('reviews-lane','.claude/hooks/reviews-lane.py'); m=u.module_from_spec(s); s.loader.exec_module(m); print(repr(m.verdict('Write',{'file_path':'state/re'+'views/x.1.txt'},{'cwd':os.getcwd(),'agent_type':'arbiter'})))"`)
+   existing: tests/gates/test_reviews_lane.py::test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer
+
+2. `.claude/hooks/tests-lane.py`, run as a process over a `PreToolUse` payload on stdin for a `Write` of `<root>/.claude/worktrees/x-spec/tests/t.py`, maps agent type to admission: `testsmith` to empty stdout, `test-writer` to a deny payload on stdout.
+   kills: a rename that updates the frontmatter of the writer's agent file while `WRITER` keeps the pre-rename literal, so the only agent permitted to author a test is refused its own lane
+   bite: at HEAD the mapping runs the other way — `agent_type` `"testsmith"` exits 0 printing `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "tests/ is the test-writer's lane, written only in its spec tree from the committed spec block. A test that must change goes back through the spec: a re-approved line, a new `spec:` commit, a delta to the writer. Never by hand, never in the impl tree, never on dev. (.claude/hooks/tests-lane.py)"}}`, and `agent_type` `"test-writer"` exits 0 printing nothing (a scratchpad script driving `subprocess.run(["python3", "<root>/.claude/hooks/tes"+"ts-lane.py"], input=payload, capture_output=True, text=True)` for each agent type, the path tokens split because the live lane hook denies a shell command naming a `tests/` path)
+   existing: none, `grep -rln 'tests-lane' tests/` returns only `tests/specs/reviewslane-f8f1.txt`, a committed spec block
+
+3. A `Write` of `specs/approved/x.txt` with `cwd` at a checkout root, put through the session-wide hook chain, maps agent type to admission: `arbiter` to empty stdout from every hook, `testsmith` to a deny payload, an absent agent-type key to a deny payload.
+   kills: a lane keyed on the path alone, which admits every caller to `specs/approved/` once it admits one, so the main agent writes the block the blind writer is generated from
+   bite: no hook denies any caller at HEAD — all five session-wide hooks print empty output for both payloads (`for h in change-budget no-version-bumps md-by-tool tests-lane reviews-lane; do echo "-- $h arbiter: [$(printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"specs/approved/x.txt"},"cwd":"/home/atom/dev/hqptuner","agent_type":"arbiter"}' | python3 .claude/hooks/$h.py)]"; done`)
+   existing: none, `grep -rn "specs/approved" . --exclude-dir=.git` returns no match anywhere in the checkout
+
+5. `.claude/hooks/change-budget.py`, run as a process over an `Agent` spawn payload at a transcript already past the change budget, maps `subagent_type` to admission: `detective` to empty stdout, `prosecutor` to empty stdout, `general-purpose` to a deny payload on stdout.
+   kills: a `detective.md` added to `.claude/agents/` while `READ_ONLY_AGENTS` keeps its pre-rename membership, so the locator the grounding gate requires spends a budget slot on every plan
+   bite: at HEAD `detective` and `prosecutor` are both denied and only the plugin locator is free — `subagent_type` `"detective"` exits 0 printing `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "14 metered actions since the user last spoke (change budget 8). ... Metered: Bash(sudo ls 5); ...; Agent(detective)"}}`, `"prosecutor"` the same line ending `Agent(prosecutor)`, `"general-purpose"` the same line ending `Agent(general-purpose)`, and `"caveman:cavecrew-investigator"` prints nothing at all (transcript built from `budget_selftest.py`'s own `_said("hi")` plus `_ran(CHANGE_LIMIT+5)` fixtures, `CHANGE_LIMIT` 8, then `printf '%s' '<payload>' | python3 .claude/hooks/change-budget.py` per subagent type)
+   existing: none, `grep -rln 'change-budget\|change_budget\|FREE_SPAWN\|READ_ONLY_AGENTS' tests/` returns no match
+
+## Public entry points
+
+`.claude/hooks/reviews-lane.py`
+    def verdict(name: str, tool_input: dict, payload: dict, free=None, lane=None) -> str | None:
+        """Why this call is refused, or None to let it through."""
+    REVIEWERS = frozenset({"spec-reviewer", "plan-reviewer"})   # becomes {"arbiter", "prosecutor"}
+
+`.claude/hooks/tests-lane.py`
+    def _verdict(name: str, tool_input: dict, payload: dict, free=None) -> str | None:
+    WRITER = "test-writer"   # becomes "testsmith"
+    # no public `verdict`; the process interface is the entry point a caller has
+
+`.claude/hooks/specs-lane.py` (planned, ported from ~/dev/gauntlet)
+    REVIEWER = "arbiter"
+    LANE = "specs/approved"
+    def main() -> None:            # reads a PreToolUse payload on stdin, prints a deny payload or nothing
+    def self_test() -> int:        # `--self-test`, one PASS/FAIL per line the lane holds
+
+`.claude/hooks/shell_shapes.py` (planned, ported from ~/dev/gauntlet)
+    def lane_pattern(lane: str) -> re.Pattern[str]:
+    def lane_write_in(command: str, pattern: re.Pattern[str], *, restore_ok: bool = True) -> bool:
+    def path_in_lane(target: str, cwd: str, lane: str) -> bool:
+    def deny(reason: str) -> str:
+
+`.claude/hooks/change-budget.py`
+    READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}   # gains "detective"
+    FREE_SPAWN_AGENTS = {"test-writer", "spec-reviewer", "plan-reviewer", "user-reviewer",
+                         "abuser-reviewer", "pedant-reviewer", "bite-prober"}   # renamed members
+
+`scripts/pair.sh`
+    scripts/pair.sh open <slug> [--dry-run]        # SPECFILE derived as specs/approved/$SLUG.txt
+    scripts/pair.sh respec <slug> [--dry-run]      # same derivation
+
+## Wire and protocol facts
+
+No daemon behavior bears on this block. The interface under test is the Claude Code `PreToolUse` hook contract: a hook receives one JSON payload on stdin carrying `tool_name`, `tool_input`, `cwd` and, on subagent calls only, `agent_type`; it prints a JSON object with `hookSpecificOutput.permissionDecision` set to `deny` to refuse the call, or prints nothing to let it through. An absent `agent_type` denotes the main agent. Session-wide wiring is `.claude/settings.json:5`; per-agent wiring is the `hooks:` frontmatter of an agent file.
+
+## Applicable fixtures
+
+`tests/gates/test_reviews_lane.py` supplies the house pattern for a lane test: the hook loaded by `importlib.util.spec_from_file_location` and its verdict function called directly, parametrized over `(agent, tool, path, expected)` tuples with `ids=`. Line 1 is a delta into its existing parametrize; lines 2, 3 and 5 need the process form instead, since `tests-lane._verdict` is module-private and `specs-lane.py` and `change-budget.py` are reached as processes. `.claude/hooks/budget_selftest.py` supplies `_said` and `_ran`, which build the transcript rows line 5 measures against.
+
+## Changelog
+
+No entry. Agent names, hook constants, lane hooks and skill files are internal tooling with no user-visible surface.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the lane hooks' agent-type keying (lines 2, 3, 5: two distinct admission values per line, each including a caller outside the new allowlist)
+
+round-1 findings, resolved: line 2's bite is now measured at the line's own input (hook as a process, deny payload on stdout) - CUT (k) withdrawn. Brief items "rename skill" and "accountant unmeasurable rule" answered with greps showing nothing in the repo observes a skill directory or an agent's prose clause; "replace cavecrew investigator with detective" is pinned by new line 5. Brief fulfilment closed. Line 4 took the sweep repair but the sweep's second value is prose; new finding below, on changed text.
+
+1  DELTA carried tests/gates/test_reviews_lane.py:85-94: the parametrize cases of test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer change - `spec-reviewer`/`plan-reviewer` flip from "allowed" to "denied" and `arbiter`/`prosecutor` cases are added with their ids; no new test.
+2  KEEP  Write of <root>/.claude/worktrees/x-spec/tests/t.py, hook run as a process, agent types `testsmith` / `test-writer` -> empty stdout / deny payload on stdout; a rename leaving `WRITER` at the pre-rename literal fails it at `testsmith`, which is denied its own lane; bite: at HEAD the mapping runs the other way, `testsmith` printing the deny payload and `test-writer` printing nothing.
+3  KEEP carried  Write of specs/approved/x.txt by arbiter / testsmith / absent agent-type key -> empty stdout, deny payload, deny payload; a path-keyed lane admitting every caller fails it at agent_type `testsmith`; null stub (no specs lane at all) fails at `testsmith` and at the absent key, both admitted.
+4  CUT  c: the sweep's second expected value is "the usage line", error prose on stderr, which no escape in (c) covers - and a stub echoing `specs/approved/$1.txt` for one argument and the usage string for two still takes both cases without doing any of the work `open` exists for. If the arity contract is worth a test, pair the one-argument run with a state change it makes (the block content the spec tree carries, fixture-supplied), not with two strings on stderr.
+5  KEEP  Agent spawn payload past the change budget, `subagent_type` `detective` / `prosecutor` / `general-purpose` -> empty stdout / empty stdout / deny payload; a `detective.md` added while `READ_ONLY_AGENTS` keeps its pre-rename membership fails it at `detective`, denied and charged a slot; bite: at HEAD `detective` and `prosecutor` are both denied and only `caveman:cavecrew-investigator` is free.
+
+null stub: no rename applied, no specs lane, agent allowlists unchanged - every hook keys on the pre-rename literals and nothing guards `specs/approved/`.
+  satisfies: none   fails: 1, 2, 3, 4, 5
+hard-coded stub: tables returning the named admission for the named agent types at the named paths, and a `pair.sh open` echoing the two named stderr strings - for lines 2, 3 and 5 the table keyed on agent type is the entire work a lane hook does, so it stops being a stub there; line 4 it takes whole.
+  satisfies: 4   fails: 1, 2, 3, 5
+
+survives: 3
+
+note for the owner: every `bite:` in this block is author-measured and taken as given; the three hook scripts and `scripts/pair.sh` are outside a reviewer's read list. No verdict above rests on their contents.
