@@ -124,7 +124,15 @@ trap 'git checkout --quiet dev 2>/dev/null || true' EXIT
 # A beta or main ship runs the full gate including the browser e2e suite;
 # `make check` alone deselects it, and that gap has shipped e2e-red promotions.
 GATE=(make check)
-[ "$TARGET" != dev ] && GATE+=(test-e2e)
+if [ "$TARGET" != dev ]; then
+  GATE+=(test-e2e)
+  # The e2e suite launches the host chromium named by HQPTUNER_CHROMIUM and
+  # talks to hqplayerd; both come from hqpcreds. Without it playwright asks for
+  # its own bundled browser, which is not installed, and every e2e test errors.
+  [ -f hqpcreds ] || die "hqpcreds is missing — the e2e gate needs HQPTUNER_CHROMIUM and the daemon credentials."
+  set -a; . ./hqpcreds; set +a
+  [ -x "${HQPTUNER_CHROMIUM:-}" ] || die "HQPTUNER_CHROMIUM is unset or not executable: '${HQPTUNER_CHROMIUM:-}'"
+fi
 say "[2/6] ${GATE[*]}"
 if [ "$DRY" = 1 ]; then
   echo "  would run: ${GATE[*]}"
