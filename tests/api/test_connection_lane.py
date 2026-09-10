@@ -50,6 +50,9 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
                     "hqp_http_port": closed_port,
                     "hqp_username": "",
                     "hqp_password": "",
+                    # the control lane points at a hole in every case here, so this
+                    # is how long a save waits to give up on it (docs/testing.md rule 7)
+                    "request_timeout": 0.05,
                     "connection_file": store_path,
                     "backup_dir": tmp_path,
                     "preset_dir": tmp_path / "presets",

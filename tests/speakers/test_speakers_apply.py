@@ -40,7 +40,8 @@ def _handler(posts: list[dict[str, list[str]]]) -> type[BaseHTTPRequestHandler]:
 def server() -> Iterator[tuple[int, list[dict[str, list[str]]]]]:
     posts: list[dict[str, list[str]]] = []
     srv = HTTPServer(("127.0.0.1", 0), _handler(posts))
-    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    # poll_interval is what shutdown() waits on — teardown cost (docs/testing.md rule 7)
+    thread = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     yield srv.server_address[1], posts
     srv.shutdown()

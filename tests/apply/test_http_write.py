@@ -43,7 +43,8 @@ def _handler(captured: list[tuple[str, str]]) -> type[BaseHTTPRequestHandler]:
 def http_server() -> Iterator[tuple[int, list[tuple[str, str]]]]:
     captured: list[tuple[str, str]] = []
     server = HTTPServer(("127.0.0.1", 0), _handler(captured))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    # poll_interval is what shutdown() waits on — teardown cost (docs/testing.md rule 7)
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     yield server.server_address[1], captured
     server.shutdown()
