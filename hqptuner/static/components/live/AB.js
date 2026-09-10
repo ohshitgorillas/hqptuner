@@ -111,6 +111,22 @@ function Slot({ side, control }) {
   `;
 }
 
+// The name a side's button wears under its letter. The same resolution the slot
+// dropdown above it takes (`valueLabel`, below): the running enumeration's label
+// while the ID is still offered, the stored name once it is not, and the bare ID
+// for a stored pair that carries no name at all. An empty side has nothing to
+// name and gets no line.
+/**
+ * @param {LiveControl} control
+ * @param {import("../../store/live/ab.js").AbSlot | null} slot
+ * @returns {string | undefined}
+ */
+function subFor(control, slot) {
+  if (!slot) return undefined;
+  const listed = (control.optionsRaw || control.options || []).some((o) => String(o.value) === String(slot.id));
+  return listed ? nameOf(control, slot.id) : slot.name || String(slot.id);
+}
+
 // The switch. A side with nothing in it takes no click, and a side whose stored
 // ID the current list no longer offers takes none either: the value it would
 // write is gone, and writing an ID the engine has dropped is not a comparison.
@@ -128,8 +144,8 @@ function Switch({ control }) {
       <${Segment}
         value=${lit}
         options=${[
-          { value: "a", label: "A", disabled: busy || !offered(a) },
-          { value: "b", label: "B", disabled: busy || !offered(b) },
+          { value: "a", label: "A", sub: subFor(control, a), disabled: busy || !offered(a) },
+          { value: "b", label: "B", sub: subFor(control, b), disabled: busy || !offered(b) },
         ]}
         onChange=${(/** @type {string} */ v) => flipAb(/** @type {"a" | "b"} */ (v))}
       />
