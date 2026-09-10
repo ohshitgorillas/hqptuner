@@ -1,0 +1,66 @@
+kind: refactor
+
+brief:
+> I do not accept the timing difference.
+> Three consecutive runs measure 70.1s, 70.7s and 71.7s against a 64.34s bar.
+> `--accept` is refused as an answer, and the baseline file is not to be edited.
+> The suite gets faster instead.
+> The offline suite runs green in under 64.34s on this host, so `make test` passes on merit.
+> No behavior loses its test. Test count and the per-file coverage floor hold.
+> Every test change goes through the spec gate and the blind `test-writer`; tests are never edited by hand.
+> A real-clock deadline that its own file documents as deliberate stays until the owner rules otherwise.
+> Time comes off by removing waits that buy nothing, never by deleting assertions or widening deselection.
+> `tests/engine/test_metering_idle.py`, `tests/engine/test_junk_advisor.py`, `tests/apply/test_fault_narrowing.py` — 1.01-1.14s per test, source not located.
+> fine, as long as my make check timing gate passes when you're done
+> Proceed
+
+scope: three fixture literals move and nothing else. All 16 cases in the three files ride those three fixtures — 2 in tests/apply/test_http_write.py on `http_server`, 7 in tests/speakers/test_speakers_apply.py on `server`, 7 in tests/api/test_connection_lane.py on `app_factory`. No test's input or assertion moves, in the three cited cases or in the other 13. The three lines below are the landed tests they cite, restated verbatim as `kind: refactor` grammar requires, each carrying the plumbing delta its fixture takes.
+
+1. Loading a saved profile posts to `/config/profile/load`.
+   delta: `http_server` shuts its background `HTTPServer` down at a 0.01s poll instead of the stdlib 0.5s default, so teardown stops charging the case up to half a second. The test's input and assertion stay byte-identical.
+   kills: posting every profile action to the config root, so a user loading a saved profile has the daemon answer 200 and load nothing.
+   bite: 2 passed, 2 warnings in 1.06s (`.venv/bin/pytest -q tests/apply/test_http_write.py`)
+   existing: tests/apply/test_http_write.py::test_post_profile_load_hits_the_load_route
+
+2. An apply with speaker processing enabled posts `enabled` as `1`.
+   delta: `server` shuts its background `HTTPServer` down at a 0.01s poll instead of the stdlib 0.5s default, the same move as line 1 in a second file. The test's input and assertion stay byte-identical.
+   kills: overlaying the desired state onto the fetched form while dropping the enable flag, so a user who switches speaker processing on has the daemon keep it off.
+   bite: 7 passed, 2 warnings in 3.63s (`.venv/bin/pytest -q tests/speakers/test_speakers_apply.py`)
+   existing: tests/speakers/test_speakers_apply.py::test_enabled_apply_sends_enabled_one
+
+3. A save carrying only a new address records host 10.0.0.9 with keep-the-password False.
+   delta: `app_factory` pins `request_timeout` at 0.05 among the Config defaults it already pins, so the app's control lane gives up on an address that never answers instead of holding the shutdown open. The test's input and assertion stay byte-identical.
+   kills: writing the keep-the-password choice from the request body's default whenever a save arrives, so a user who corrects a typo in the address is switched to storing the password.
+   bite: 7 passed, 2 warnings in 4.23s (`.venv/bin/pytest -q tests/api/test_connection_lane.py`)
+   existing: tests/api/test_connection_lane.py::test_a_save_silent_about_the_choice_leaves_the_stored_choice_alone
+
+Public entry points: none added or changed. No production file is touched.
+
+Wire and protocol facts: the 8088 configuration lane is HTML forms over HTTP with Digest auth (docs/protocol.md, hqplayerd-readme.txt) — a profile action is a POST to its own route under `/config/profile/`, and a speaker apply overlays the desired state onto a fresh GET of the complete form, so the fake serves the fixture on every GET. The 4321 control lane is a separate socket (docs/architecture.md section 3); against these fixtures it is pointed at a closed loopback port in every case, so no assertion reads an answer from it. `request_timeout` (hqptuner/config.py:83) bounds that control lane and the discovery probe only — its consumers are hqptuner/core/loader.py:37, hqptuner/api/lifespan.py:31 and hqptuner/engine/discovery.py:101, all `ControlClient`; the 8088 client carries its own 10.0s default at hqptuner/conf/httpconf.py:302, taken from no Config field.
+
+Applicable fixtures: `http_server` at tests/apply/test_http_write.py:42-49 and `server` at tests/speakers/test_speakers_apply.py:39-47, each a stdlib `HTTPServer` on an ephemeral loopback port served from a background thread and shut down at teardown; `app_factory` at tests/api/test_connection_lane.py:37-58, which builds the REST app under `TestClient` with its record file in `tmp_path` and both daemon ports pointed at a hole, taking keyword overrides onto its Config. The two conforming precedents for the `serve_forever` literal are tests/support/fake_http.py:529 and tests/speakers/test_speakers_rideout.py:82.
+
+Changelog entry: no entry. Test-only change; no user-visible behavior moves and no configuration surface changes.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep, in the landed files this block re-approves - carried from round 2 (tests/speakers/test_speakers_apply.py:60 vs :68; the parametrized sweep at tests/api/test_connection_lane.py:101).
+
+No block text changed this round; all three verdicts carried from round 2, no re-verdict. This round settles two notes.
+
+note 2, withdrawn. `request_timeout` is a real `Config` field, `hqptuner/config.py:83`, default 5.0 from `REQUEST_TIMEOUT`. The block's claim holds.
+
+note 1, withdrawn. The citations place every consumer of `request_timeout` on the 4321 control lane (`hqptuner/core/loader.py:37`, `hqptuner/api/lifespan.py:31`, `hqptuner/engine/discovery.py:101` under `probe` at :109, reached from lifespan.py:31), and the 8088 client carries its own 10.0s default instead (`hqptuner/conf/httpconf.py:302-303`). The tests/ half I verified myself rather than carrying: `app_factory` pins `hqp_control_port` to `closed_port` at tests/api/test_connection_lane.py:48, and no call site overrides it - :95 passes `hqp_http_port` alone, :110 and :123 pass nothing. So all 7 cases in the file point the control lane at a hole, and the 0.05s literal can only shorten a give-up no case waits on; the `daemon_answers_config` state at :82 answers on the 8088 lane under its own 10.0s ceiling. Not a flake ceiling. The delta on line 3 is plumbing, as the block states.
+
+note 3 stands, for the owner: the brief names tests/engine/test_metering_idle.py, tests/engine/test_junk_advisor.py and tests/apply/test_fault_narrowing.py at 1.01-1.14 s per test. This block touches none of them and cuts roughly 5 s of teardown across three other files. Whether that clears the 64.34 s bar is `scripts/gates/check_suite_time.py`'s answer on a full `make check`, not a behavior line's; rule 7 and check (t) forbid a duration as an outcome, so the brief's timing sentence is not pinnable here and its absence is not an (m) hold.
+
+1  KEEP  carried: post_profile("load", profile="Speakers") -> the recorded path is "/config/profile/load"; posting every profile action to the config root fails it at that call with "/config"; bite: 2 passed in 1.06s at HEAD, refactor exemption (docs/testing.md rule 8)
+2  KEEP  carried: apply_speakers({}, enabled=True) -> the posted form carries enabled == ["1"]; overlaying desired state onto the fetched form while dropping the enable flag fails it at that call with no `enabled` key; bite: 7 passed in 3.63s at HEAD, refactor exemption
+3  KEEP  carried: a stored record of 127.0.0.1/remember False, then POST /api/connection {"host": "10.0.0.9"} -> the store reads ("10.0.0.9", False); writing the choice from the request body's default fails it at that save by flipping the stored choice; bite: 7 passed in 4.23s at HEAD, refactor exemption
+
+null stub: feature absent - post_profile and apply_speakers put nothing on the wire, the connection save persists nothing.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: post "/config/profile/load" for every profile action, put `enabled=1` on every speakers apply, write the body's host with remember hard-coded False.
+  satisfies: 1, 2, 3   fails: none - the stub-killing siblings (test_speakers_apply.py:68, test_connection_lane.py:101) are landed beside these lines and were approved with them; this block re-approves no assertion, so the count is recorded, not charged.
+
+survives: 3
