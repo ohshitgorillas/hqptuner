@@ -85,11 +85,11 @@ def _budget_checks():
                      _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
 
     spawn = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Agent",
-             "tool_input": {"subagent_type": "test-writer", "prompt": "spec"}}
+             "tool_input": {"subagent_type": "testsmith", "prompt": "spec"}}
     ok.append(_check("a /tests agent spawn is free past the limit",
                      evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
-    review = dict(spawn, tool_input={"subagent_type": "plan-reviewer", "prompt": "plan"})
-    ok.append(_check("a plan-reviewer spawn is free past the limit",
+    review = dict(spawn, tool_input={"subagent_type": "prosecutor", "prompt": "plan"})
+    ok.append(_check("a prosecutor spawn is free past the limit",
                      evaluate(review, [_said("hi"), *_ran(limit + 5)]) is None))
 
     rounds = [_said("do it")]
@@ -197,7 +197,7 @@ ALLOWLIST_CASES = [
     # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
     ("scripts/pair.sh list", True),
     ("scripts/pair.sh open eqfix", False, "open"),
-    ("scripts/pair.sh respec eqfix specs/eqfix.txt", False, "respec"),
+    ("scripts/pair.sh respec eqfix", False, "respec"),
     ("scripts/pair.sh merge eqfix", False, "merge"),
     ("scripts/pair.sh abort eqfix", False, "abort"),
     ("bash scripts/pair.sh list", False, "bash"),   # `bash` is not a recognized head

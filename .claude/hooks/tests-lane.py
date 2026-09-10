@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: `tests/` is the test-writer's lane, and only in its spec tree.
+"""PreToolUse hook: `tests/` is the testsmith's lane, and only in its spec tree.
 
 Wired session-wide from `.claude/settings.json`, so it binds the orchestrator
 and every subagent, and again from the `hooks:` frontmatter of
-`.claude/agents/test-writer.md`, where the same script confines that agent to
+`.claude/agents/testsmith.md`, where the same script confines that agent to
 its own tree's `tests/`.
 
 The rule it enforces is the one `/tests` runs on: tests are written blind,
-from an approved spec block, by the `test-writer`, in the `*-spec` worktree
+from an approved spec block, by the `testsmith`, in the `*-spec` worktree
 `scripts/pair.sh open` cuts. Every other hand on a test file is the one the
 chain exists to keep off it: the agent that implements the change editing a
 test until it passes. `pair.sh merge` already refuses a lane crossing at merge
@@ -16,9 +16,9 @@ time; this hook refuses it at the write.
 Denied:
 
   * `Write`/`Edit`/`NotebookEdit` whose target is under `tests/` of any
-    checkout, unless the caller's `agent_type` is `test-writer` AND the
+    checkout, unless the caller's `agent_type` is `testsmith` AND the
     target is inside a `.claude/worktrees/*-spec` tree
-  * for the `test-writer`, any `Write`/`Edit` outside its spec tree's `tests/`
+  * for the `testsmith`, any `Write`/`Edit` outside its spec tree's `tests/`
   * a `Bash` command that `free_bash` meters and that names a `tests/` path,
     except a restore from a named git object (`git restore --source <rev>`
     or `git checkout <rev> --` onto the path), which copies a commit and
@@ -50,13 +50,13 @@ import re
 import shlex
 import sys
 
-WRITER = "test-writer"
+WRITER = "testsmith"
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 #: a `tests/` path token anywhere in a shell command, relative or absolute
 BASH_TESTS = re.compile(r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?tests/")
 
 _LANE = (
-    "tests/ is the test-writer's lane, written only in its spec tree from the "
+    "tests/ is the testsmith's lane, written only in its spec tree from the "
     "committed spec block. A test that must change goes back through the spec: "
     "a re-approved line, a new `spec:` commit, a delta to the writer. Never by "
     "hand, never in the impl tree, never on dev. (.claude/hooks/tests-lane.py)"

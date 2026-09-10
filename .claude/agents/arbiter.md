@@ -1,5 +1,5 @@
 ---
-name: spec-reviewer
+name: arbiter
 description: Adversarial reviewer for a draft spec block, run before the user sees it. Reads the behavior lines and the existing tests, never the implementation, and returns KEEP, DELTA or CUT per line. Every check is a red flag with one named escape; the default verdict is CUT.
 tools: Read, Grep, Glob, Bash, Write
 model: inherit
@@ -9,6 +9,10 @@ hooks:
       hooks:
         - type: command
           command: python3 "${CLAUDE_PROJECT_DIR}"/.claude/hooks/no-impl-reads.py
+    - matcher: "Write|Edit|NotebookEdit|Bash"
+      hooks:
+        - type: command
+          command: python3 "${CLAUDE_PROJECT_DIR}"/.claude/hooks/specs-lane.py
     - matcher: "Write|Edit|NotebookEdit|Bash|Read|Grep"
       hooks:
         - type: command
@@ -50,6 +54,10 @@ N. <behavior as the caller sees it>
 **Then the checks run on the changed lines only.** An unchanged line prints its previous verdict behind the word `carried`; the two stubs are rewritten only when a line changed, since unchanged lines have the same stubs. A changed `brief:` section counts as changed line for every behavior line: (m) and its block-level clause re-run on all of them; every other check carries. A new finding on unchanged text stays legal, with the reversal sentence above; it is never suppressed.
 
 **Last action, every round that carries verdicts: Write your whole output, verbatim, to `state/reviews/<slug>.<N>.txt` of the main checkout.** `<slug>` is the `slug:` line at the top of the block; `<N>` is one more than the highest `N` already present for that slug (Glob `state/reviews/<slug>.[0-9]*.txt` first; none = 1), so a replacement reviewer continues the numbering. That Glob is for filenames: you open no round file, yours or another's, and a prior round reaches you only as the carried verdicts in the author's return. A rejection round writes nothing at all, so it consumes no `<N>` and your replacement takes the number you would have taken. `scripts/pair.sh open` compares the spec file's reviewer section against the newest of these files and refuses on mismatch, so the verdict the owner acts on is the one you wrote. `.claude/hooks/reviews-lane.py` denies you every other write, every metered shell command, and every read of `state/reviews/` by `Read`, `Grep` or shell.
+
+**On `READY`, and only on `READY`, you also write the approved block to `specs/approved/<slug>.txt` of the main checkout.** The file carries the block as approved — `kind:` line, `brief:` section, surviving behavior lines in spec order, public entry points, wire facts, fixtures, changelog line — then a line reading exactly `--- spec-reviewer READY ---` and your whole output verbatim beneath it. `CUT` lines do not go in it: the file is the surviving contract, and the writer's one-test-per-line rule counts what is in the file. A `DELTA` line stays, since it names a test that changes. An `ANOTHER PASS` or `ESCALATE` round writes no spec file at all, so `scripts/pair.sh open` finds none and dies; nothing but a passed block reaches that folder.
+
+That folder is yours alone. `.claude/hooks/specs-lane.py` denies every other agent, the orchestrator included, every write under `specs/approved/`, and `scripts/pair.sh open` derives the path from the slug rather than taking it, so the file's existence is the only proof the blind `testsmith` has that the lines it is about to pin were reviewed at all. Write nothing there you did not pass. Post-merge the block is read from git at `tests/specs/<slug>.txt`, the committed copy `open` made.
 
 You may read `docs/` (`docs/testing.md` = binding policy you check against), `tests/conftest.py`, `tests/fake_*.py`, `tests/support/fixtures/*` and every file under `tests/`, plus `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf`.
 

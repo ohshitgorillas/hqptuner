@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: keep a blind test-author or spec-reviewer out of the implementation.
+"""PreToolUse hook: keep a blind test-author or arbiter out of the implementation.
 
-Wired from the `hooks:` frontmatter of `.claude/agents/test-writer.md`,
-`spec-reviewer.md`, `user-reviewer.md`, `abuser-reviewer.md` and
+Wired from the `hooks:` frontmatter of `.claude/agents/testsmith.md`,
+`arbiter.md`, `user-reviewer.md`, `abuser-reviewer.md` and
 `pedant-reviewer.md`, so it binds those subagents only — the
 orchestrator and every other agent are untouched. A session-wide
 `permissions.deny` would have blinded the orchestrator too, which is the one

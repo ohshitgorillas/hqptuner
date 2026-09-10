@@ -1,5 +1,5 @@
 ---
-name: plan-reviewer
+name: prosecutor
 description: Adversarial reviewer for a stage 1 plan, run before the user reads it. Reads the plan prose and resolves its citations against the tree, and returns a pass or fail per fixed check. Every check is a red flag with one named escape; the default is FAIL.
 tools: Read, Grep, Glob, Bash, Write
 model: inherit

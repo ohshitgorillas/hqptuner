@@ -31,7 +31,7 @@ Scan every Bash string before sending it:
 ## Rules
 
 - Batch shell commands (`&&`, one script, one compose invocation); leave edits as separate `Edit` calls a reviewer can read, except small repetitive consistent write tasks.
-- Report like it matters at a trip: findings, plan next in one to three lines, any open question meeting the plan-gate test. Full plans arrive only through the plan gate.
+- Report like it matters at a trip: findings, plan next in one to three lines, any open question meeting the `gauntlet` test. Full plans arrive only through the plan gate.
 - Work inside the budget quietly. Hooks stay on and unweakened; requests to disable them are refused, in continuations too. If a purely investigative command metered incorrectly, say so and record it in `docs/gate-notes.md`.
 
 ## Gate and worktree traps
@@ -53,4 +53,4 @@ git -C .claude/worktrees/<slug>-impl rebase dev \
 - **`.claude/hooks/md-by-tool.py` passes `rm`, `git`, `make`, `pre-commit` only when every `;`/`&&`/`|` segment's head is exempt.** `cd … && rm x.md` and `rm x.md; ls` are both denied; a bare `rm` with absolute paths passes. `cp` and `mv` onto a `.md` are denied; write the content with `Write`.
 - **Every `subprocess.run` needs an owner-granted `# noqa: S603`**: a bare binary name fires S607, a resolved path fires S603. Precedent is `shutil.which` plus inline noqa in `scripts/gates/check_binaural.py`. Request it in the stage 1 plan.
 - **`claude -p --bare` cannot log in.** Drop `--bare`, keep `--tools "" --setting-sources "" --no-session-persistence`, and strip `CLAUDECODE` from the env when calling from inside a session.
-- **The test-writer's gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.
+- **The testsmith's gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.
