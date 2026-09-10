@@ -41,12 +41,17 @@ class, card and dirty-mark gates.
 
 from __future__ import annotations
 
+import io
 import re
 import sys
 import tokenize
 from pathlib import Path
 
 PRAGMA = "history-ok:"
+
+#: The gates whose own text is the rule: each spells out the phrases it refuses, so each
+#: trips the rule it defines. Owner-approved skip list, the same three the judge skips.
+RULE_HOLDERS = frozenset({"check_archaeology.py", "check_md_trivia.py", "check_comment_trivia.py"})
 
 #: a literal length, and the past-tense verbs that turn one into a remark about
 #: a layout that is gone. A live measurement takes the present tense ("the
@@ -107,24 +112,23 @@ REDIRECT = (
 )
 
 
-def python_comment_lines(path: Path) -> list[tuple[int, str]]:
+def python_comment_lines(text: str) -> list[tuple[int, str]]:
     """(line, text) for every comment and triple-quoted string line."""
     out: list[tuple[int, str]] = []
-    with tokenize.open(path) as handle:
-        for tok in tokenize.generate_tokens(handle.readline):
-            if tok.type == tokenize.COMMENT:
-                out.append((tok.start[0], tok.string))
-            elif tok.type == tokenize.STRING and tok.string.lstrip("rbuRBU").startswith(('"""', "'''")):
-                for offset, line in enumerate(tok.string.splitlines()):
-                    out.append((tok.start[0] + offset, line))
+    for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+        if tok.type == tokenize.COMMENT:
+            out.append((tok.start[0], tok.string))
+        elif tok.type == tokenize.STRING and tok.string.lstrip("rbuRBU").startswith(('"""', "'''")):
+            for offset, line in enumerate(tok.string.splitlines()):
+                out.append((tok.start[0] + offset, line))
     return out
 
 
-def block_comment_lines(path: Path, *, line_comments: bool) -> list[tuple[int, str]]:
+def block_comment_lines(text: str, *, line_comments: bool) -> list[tuple[int, str]]:
     """(line, text) for `/* … */` blocks, plus `//` comments when asked."""
     out: list[tuple[int, str]] = []
     in_block = False
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for lineno, line in enumerate(text.splitlines(), 1):
         rest = line
         if in_block:
             head, closed, rest = rest.partition("*/")
@@ -147,13 +151,14 @@ def block_comment_lines(path: Path, *, line_comments: bool) -> list[tuple[int, s
 
 def comment_lines(path: Path) -> list[tuple[int, str]]:
     """Return (line, text) for every comment in the file, read the way its suffix demands."""
+    text = path.read_text(encoding="utf-8")
     if path.suffix == ".py":
-        return python_comment_lines(path)
+        return python_comment_lines(text)
     if path.suffix in (".js", ".mjs"):
-        return block_comment_lines(path, line_comments=True)
+        return block_comment_lines(text, line_comments=True)
     if path.suffix == ".css":
-        return block_comment_lines(path, line_comments=False)
-    return list(enumerate(path.read_text(encoding="utf-8").splitlines(), 1))
+        return block_comment_lines(text, line_comments=False)
+    return list(enumerate(text.splitlines(), 1))
 
 
 def check_file(path: Path) -> list[str]:
@@ -174,12 +179,11 @@ def check_file(path: Path) -> list[str]:
 def main() -> int:
     """Refuse a comment narrating the code's history instead of a constraint that holds now."""
     complaints: list[str] = []
-    self_path = Path(__file__).resolve()
     for name in sys.argv[1:]:
         path = Path(name)
-        # this file is the one place the blocked phrases may be spelled out —
-        # the docstring above names them as examples
-        if path.is_file() and path.resolve() != self_path:
+        # the three trivia gates are where the blocked phrases are spelled out, as
+        # the examples their rule text is made of; owner-approved skip list
+        if path.is_file() and path.resolve().name not in RULE_HOLDERS:
             complaints.extend(check_file(path))
     for complaint in complaints:
         print(complaint)

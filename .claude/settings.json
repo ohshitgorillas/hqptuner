@@ -58,6 +58,11 @@
             "type": "command",
             "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_md_trivia.py --stop",
             "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_comment_trivia.py --stop",
+            "timeout": 60
           }
         ]
       }
@@ -69,6 +74,11 @@
             "type": "command",
             "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_md_trivia.py --stop",
             "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_comment_trivia.py --stop",
+            "timeout": 60
           }
         ]
       }

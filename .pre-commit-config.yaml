@@ -232,6 +232,13 @@ repos:
         types_or: [python, javascript, css]
         exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
 
+      - id: comment-trivia
+        name: comments state what holds now (LLM judge)
+        entry: .venv/bin/python scripts/gates/check_comment_trivia.py
+        language: system
+        types_or: [python, javascript, css]
+        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
+
       # Runs at the commit-msg stage, so it gets the message file, not the staged
       # paths; `default_install_hook_types` above is what makes `pre-commit
       # install` wire that stage alongside pre-commit.

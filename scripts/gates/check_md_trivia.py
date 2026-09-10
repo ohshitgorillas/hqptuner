@@ -56,7 +56,10 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -211,10 +214,10 @@ def worktree_lines() -> list[Line]:
     return out
 
 
-def ask(lines: list[Line]) -> list[dict[str, str]]:
+def ask(lines: list[Line], prompt: str) -> list[dict[str, str]]:
     """One CLI call for every line; the parsed JSON array it answers with."""
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-    body = PROMPT + "\n\nLINES:\n" + "\n".join(f"{line.id}\t{line.text}" for line in lines)
+    body = prompt + "\n\nLINES:\n" + "\n".join(f"{line.id}\t{line.text}" for line in lines)
     cmd = [
         binary("claude"),
         "-p",
@@ -276,71 +279,100 @@ def digest(line: Line) -> str:
     return hashlib.sha1(line.text.strip().encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
-def clean_cache() -> list[str]:
+def clean_cache(cache: Path) -> list[str]:
     """Digests of lines the judge has already passed, oldest first; empty when there is no cache."""
     try:
-        seen = json.loads(CACHE.read_text(encoding="utf-8"))
+        seen = json.loads(cache.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     return [str(item) for item in seen] if isinstance(seen, list) else []
 
 
-def remember_clean(lines: list[Line], flags: list[dict[str, str]]) -> None:
+def remember_clean(lines: list[Line], flags: list[dict[str, str]], cache: Path) -> None:
     """Append every line the judge passed to the cache, capped at the newest ``CACHE_CAP``."""
     flagged = {str(flag.get("id")) for flag in flags}
-    seen = clean_cache()
+    seen = clean_cache(cache)
     known = set(seen)
     for line in lines:
         if line.id not in flagged and digest(line) not in known:
             seen.append(digest(line))
             known.add(digest(line))
-    CACHE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE.write_text(json.dumps(seen[-CACHE_CAP:]) + "\n", encoding="utf-8")
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(seen[-CACHE_CAP:]) + "\n", encoding="utf-8")
 
 
-def collect(args: argparse.Namespace) -> list[Line]:
-    """Lines to judge, from whichever input mode the arguments name."""
-    if args.stop:
-        if stop_already_ran():
-            return []
-        seen = set(clean_cache())
-        return [line for line in prose_only(worktree_lines()) if digest(line) not in seen]
-    if args.lines:
-        return prose_only(from_records(Path(args.lines)))
-    if args.head:
-        return prose_only(added_lines(git_diff("HEAD~1", "--", "*.md")))
-    if not args.files:
-        return []
-    return prose_only(added_lines(git_diff("--cached", "--", *args.files)))
+@dataclass(frozen=True)
+class Gate:
+    """What one trivia gate brings to the shared run flow: its text, its cache, its input."""
+
+    prompt: str
+    cache: Path
+    collect: Callable[[argparse.Namespace], tuple[list[Line], list[str]]]
+    empty: str
+    judge_at_stop: bool
 
 
-def main() -> int:
-    """Judge the added markdown lines; nothing to judge is a pass without a call."""
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("files", nargs="*", help="staged markdown files (pre-commit)")
-    parser.add_argument("--head", action="store_true", help="judge the markdown HEAD added")
+def parse_args(doc: str, noun: str) -> argparse.Namespace:
+    """Read the five input modes both trivia gates take."""
+    parser = argparse.ArgumentParser(description=doc, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("files", nargs="*", help=f"staged {noun} (pre-commit)")
+    parser.add_argument("--head", action="store_true", help=f"judge the {noun} HEAD added")
     parser.add_argument("--stop", action="store_true", help="judge the working tree; reads a Stop payload on stdin")
     parser.add_argument("--lines", help="calibration records, path:line<TAB>text")
     parser.add_argument("--out", help="write the judge's raw answer here")
-    args = parser.parse_args()
-    fail = 2 if args.stop else 1
-    out = sys.stderr if args.stop else sys.stdout
+    return parser.parse_args()
 
-    lines = collect(args)
+
+def run(args: argparse.Namespace, gate: Gate) -> int:
+    """Print what the screen refused, judge what it left, and answer with the exit code."""
+    out = sys.stderr if args.stop else sys.stdout
+    lines, complaints = gate.collect(args)
+    for complaint in complaints:
+        print(complaint, file=out)
+    if args.stop and not gate.judge_at_stop:
+        return 2 if complaints else 0
     if not lines:
         if not args.stop:
-            print("[ok] no markdown prose added")
+            print(gate.empty)
         return 0
+    return judged(args, gate, lines, out)
+
+
+def judged(args: argparse.Namespace, gate: Gate, lines: list[Line], out: TextIO) -> int:
+    """Ask the judge about the lines the screen left, and answer with the exit code."""
+    fail = 2 if args.stop else 1
     try:
-        flags = ask(lines)
+        flags = ask(lines, gate.prompt)
     except (RuntimeError, ValueError, OSError) as exc:
-        print(f"check_md_trivia: judge unavailable, refusing to pass: {exc}", file=sys.stderr)
+        print(f"trivia judge unavailable, refusing to pass: {exc}", file=sys.stderr)
         return fail
     if args.out:
         Path(args.out).write_text(json.dumps(flags, indent=2) + "\n", encoding="utf-8")
     if args.stop:
-        remember_clean(lines, flags)
+        remember_clean(lines, flags, gate.cache)
     return fail if report(lines, flags, out) else 0
+
+
+def collect(args: argparse.Namespace) -> tuple[list[Line], list[str]]:
+    """Lines to judge, from whichever input mode the arguments name; markdown raises no complaint of its own."""
+    if args.stop:
+        if stop_already_ran():
+            return [], []
+        seen = set(clean_cache(CACHE))
+        return [line for line in prose_only(worktree_lines()) if digest(line) not in seen], []
+    if args.lines:
+        return prose_only(from_records(Path(args.lines))), []
+    if args.head:
+        return prose_only(added_lines(git_diff("HEAD~1", "--", "*.md"))), []
+    if not args.files:
+        return [], []
+    return prose_only(added_lines(git_diff("--cached", "--", *args.files))), []
+
+
+def main() -> int:
+    """Judge the added markdown lines; nothing to judge is a pass without a call."""
+    gate = Gate(PROMPT, CACHE, collect, "[ok] no markdown prose added", judge_at_stop=True)
+    return run(parse_args(__doc__ or "", "markdown files"), gate)
 
 
 if __name__ == "__main__":

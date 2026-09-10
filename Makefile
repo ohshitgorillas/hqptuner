@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate md-trivia
+.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate trivia
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -104,8 +104,9 @@ check: lint lint-js test test-js
 # stating what holds now. Needs a logged-in `claude` CLI and the network, so it
 # stays out of `check`, which is offline by contract; pre-commit runs it on
 # every markdown commit.
-md-trivia:
+trivia:
 	$(VENV)/python scripts/gates/check_md_trivia.py --head
+	$(VENV)/python scripts/gates/check_comment_trivia.py --head
 
 # Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs
