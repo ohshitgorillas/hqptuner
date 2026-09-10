@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.15.1] — 2026-09-10
+
 ### Changed
 
 - **The Setting Switcher's A and B buttons name what they hold.** Each button now carries the value that side will put on the engine, under its letter, so the switch says what it does without reading the two dropdowns above it.
