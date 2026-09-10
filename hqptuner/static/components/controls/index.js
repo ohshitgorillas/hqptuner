@@ -11,13 +11,16 @@ import { truthy } from "../../lib/coerce.js";
  *   A control's rendered value, as store/resolve.js `effective()` hands it over:
  *   a staged edit is the string the control wrote, a /config baseline may be a
  *   real number or bool, and an unset control has none.
- * @typedef {SchemaOption & { disabled?: boolean, reason?: string, dirty?: boolean, tip?: string }} RenderOption
+ * @typedef {SchemaOption & { disabled?: boolean, reason?: string, dirty?: boolean, tip?: string, sub?: string }} RenderOption
  *   One row of an option list as it reaches these widgets. Wider than either
  *   shared type on purpose: Field.js hands over a schema literal's SchemaOption
  *   list unchanged when the entry carries `options`, and an OptionItem from the
  *   option stores when it carries `optionsFrom` — so disabled/reason are present
  *   on one path only. `dirty` is added by VolumeTab.js for the staged-edit dot,
  *   and `tip` by Easy Mode's knobs for the hover tip on a single position.
+ *   `sub` is added by the LIVE page's Setting Switcher, a second line under the
+ *   label naming the value that button holds; unset everywhere else, and the
+ *   node is not rendered at all when it is, so no other segment gains a line.
  * @typedef {(v: string | number) => void} ValueSink
  *   What every widget reports an edit through. Values leave as the DOM spelled
  *   them (strings) except where the option list carried a number.
@@ -47,6 +50,11 @@ const s = (v) => (v == null ? "" : String(v));
 // and is hidden from the tree there, so it does not join the button's name — a
 // node named by `aria-describedby` is read through that reference whether or not
 // it is hidden.
+//
+// An option may also carry a `sub`: a second line under the label, naming the
+// value that button holds. It is not hidden from the tree the way the tip is,
+// because it is not reached by a reference — it joins the button's name, which
+// is the point of it, and the name reads "A sinc-M".
 //
 // The id a description needs comes from the caller as `idBase`, never from a
 // hook: this is a plain function of its props and is called as one, and a hook
@@ -78,6 +86,7 @@ export function Segment({ value, options, disabled, idBase, onChange }) {
           >
             ${o.label}${o.dirty ? html`<span class="seg-dirty-dot" aria-label="staged edits" />` : null}
             ${o.tip ? html`<span class="seg-tip" id=${tipId} aria-hidden="true">${o.tip}</span>` : null}
+            ${o.sub ? html`<span class="seg-sub">${o.sub}</span>` : null}
           </button>
         `;
       })}

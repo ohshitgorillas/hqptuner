@@ -288,3 +288,16 @@
 .ab-switch .segment .seg {
   min-height: calc(var(--h-control) * 1.75);
 }
+/* The value each side holds, under its letter. `.seg` sets no `display` of its
+   own and lays its contents out inline, so the block here is what puts the name
+   on its own line rather than beside the letter. Monospace because it is a
+   value read off the engine's own list, and it wraps rather than truncating
+   (docs/design-system.md) — a long filter name takes a second line and the
+   button grows to hold it. */
+.ab-switch .seg-sub {
+  display: block;
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  overflow-wrap: anywhere;
+}
