@@ -85,11 +85,21 @@ def outcome(tool: str, tool_input: dict[str, str], root: Path, agent_type: str |
     [
         (ORCHESTRATOR, "Write", "state/reviews/x.1.txt", "denied"),
         ("caveman:cavecrew-builder", "Edit", "state/reviews/x.1.txt", "denied"),
-        ("test-writer", "NotebookEdit", ".claude/worktrees/x-spec/state/reviews/x.1.txt", "denied"),
-        ("spec-reviewer", "Write", "state/reviews/x.1.txt", "allowed"),
-        ("plan-reviewer", "Edit", "state/reviews/x.2.txt", "allowed"),
+        ("testsmith", "NotebookEdit", ".claude/worktrees/x-spec/state/reviews/x.1.txt", "denied"),
+        ("spec-reviewer", "Write", "state/reviews/x.1.txt", "denied"),
+        ("plan-reviewer", "Edit", "state/reviews/x.2.txt", "denied"),
+        ("arbiter", "Write", "state/reviews/x.1.txt", "allowed"),
+        ("prosecutor", "Write", "state/reviews/x.1.txt", "allowed"),
     ],
-    ids=["orchestrator", "builder", "test-writer-in-spec-tree", "spec-reviewer", "plan-reviewer"],
+    ids=[
+        "orchestrator",
+        "builder",
+        "testsmith-in-spec-tree",
+        "spec-reviewer",
+        "plan-reviewer",
+        "arbiter",
+        "prosecutor",
+    ],
 )
 def test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, tool: str, relative: str, expected: str
@@ -105,12 +115,12 @@ def test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer(
 @pytest.mark.parametrize(
     ("agent_type", "tool", "relative"),
     [
-        ("spec-reviewer", "Write", "hqptuner/core/m.py"),
-        ("spec-reviewer", "Edit", "tests/specs/x.txt"),
-        ("spec-reviewer", "Write", "docs/testing.md"),
-        ("spec-reviewer", "Edit", "state/abuse/current"),
-        ("spec-reviewer", "Write", "specs/x.txt"),
-        ("plan-reviewer", "Edit", "CLAUDE.md"),
+        ("arbiter", "Write", "hqptuner/core/m.py"),
+        ("arbiter", "Edit", "tests/specs/x.txt"),
+        ("arbiter", "Write", "docs/testing.md"),
+        ("arbiter", "Edit", "state/abuse/current"),
+        ("arbiter", "Write", "specs/x.txt"),
+        ("prosecutor", "Edit", "CLAUDE.md"),
     ],
     ids=["package", "spec-file", "docs", "sibling-state-dir", "bare-specs-dir", "claude-md"],
 )
@@ -128,12 +138,12 @@ def test_a_reviewer_write_outside_state_reviews_is_denied(
 @pytest.mark.parametrize(
     ("agent_type", "command", "expected"),
     [
-        ("spec-reviewer", "sed -i 's/a/b/' hqptuner/x.py", "denied"),
-        ("spec-reviewer", "echo x > state/reviews/x.1.txt", "denied"),
-        ("plan-reviewer", "git commit -m x", "denied"),
-        ("spec-reviewer", "make check", "allowed"),
-        ("plan-reviewer", "cat state/reviews/x.1.txt", "denied"),
-        ("spec-reviewer", "grep -n READY state/reviews/x.1.txt", "denied"),
+        ("arbiter", "sed -i 's/a/b/' hqptuner/x.py", "denied"),
+        ("arbiter", "echo x > state/reviews/x.1.txt", "denied"),
+        ("prosecutor", "git commit -m x", "denied"),
+        ("arbiter", "make check", "allowed"),
+        ("prosecutor", "cat state/reviews/x.1.txt", "denied"),
+        ("arbiter", "grep -n READY state/reviews/x.1.txt", "denied"),
     ],
     ids=["sed-in-place-elsewhere", "redirect-into-lane", "git-commit", "make-check", "cat-lane", "grep-lane"],
 )
@@ -181,12 +191,12 @@ def test_an_orchestrator_bash_is_denied_only_when_it_is_metered_and_names_state_
 @pytest.mark.parametrize(
     ("agent_type", "relative", "expected"),
     [
-        ("spec-reviewer", "state/reviews/x.1.txt", "denied"),
-        ("plan-reviewer", ".claude/worktrees/x-spec/state/reviews/x.2.txt", "denied"),
-        ("spec-reviewer", "docs/testing.md", "allowed"),
+        ("arbiter", "state/reviews/x.1.txt", "denied"),
+        ("prosecutor", ".claude/worktrees/x-spec/state/reviews/x.2.txt", "denied"),
+        ("arbiter", "docs/testing.md", "allowed"),
         (ORCHESTRATOR, "state/reviews/x.1.txt", "allowed"),
     ],
-    ids=["spec-reviewer-lane", "plan-reviewer-lane-in-worktree", "spec-reviewer-docs", "orchestrator-lane"],
+    ids=["arbiter-lane", "prosecutor-lane-in-worktree", "arbiter-docs", "orchestrator-lane"],
 )
 def test_a_read_under_state_reviews_is_denied_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, relative: str, expected: str
@@ -202,12 +212,12 @@ def test_a_read_under_state_reviews_is_denied_only_for_a_reviewer(
 @pytest.mark.parametrize(
     ("agent_type", "pattern", "field", "expected"),
     [
-        ("spec-reviewer", "READY", ("path", "state/reviews"), "denied"),
-        ("spec-reviewer", "READY", ("glob", "state/reviews/*.txt"), "denied"),
-        ("spec-reviewer", "def verdict", ("path", "hqptuner"), "allowed"),
+        ("arbiter", "READY", ("path", "state/reviews"), "denied"),
+        ("arbiter", "READY", ("glob", "state/reviews/*.txt"), "denied"),
+        ("arbiter", "def verdict", ("path", "hqptuner"), "allowed"),
         (ORCHESTRATOR, "READY", ("path", "state/reviews"), "allowed"),
     ],
-    ids=["spec-reviewer-path", "spec-reviewer-glob", "spec-reviewer-package", "orchestrator-path"],
+    ids=["arbiter-path", "arbiter-glob", "arbiter-package", "orchestrator-path"],
 )
 def test_a_grep_that_resolves_under_state_reviews_is_denied_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, pattern: str, field: tuple[str, str], expected: str

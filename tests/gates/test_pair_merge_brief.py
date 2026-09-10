@@ -107,7 +107,7 @@ def _checkout(tmp_path: Path, slug: str) -> Path:
     root = tmp_path / "checkout"
     root.mkdir()
     _put(root, "Makefile", "check:\n\ttrue\n")
-    _put(root, f"specs/{slug}.txt", _BLOCK.format(slug=slug))
+    _put(root, f"specs/approved/{slug}.txt", _BLOCK.format(slug=slug))
     _put(root, f"state/reviews/{slug}.1.txt", _VERDICT)
     (root / "scripts").mkdir()
     shutil.copy2(DRIVER, root / "scripts" / DRIVER.name)
@@ -118,7 +118,7 @@ def _checkout(tmp_path: Path, slug: str) -> Path:
 
 def _opened_pair(root: Path, slug: str, steps: tuple[str, ...]) -> Path:
     """Open the pair, write one test file in its spec tree, run the driver steps named after it."""
-    opened = _pair(root, "open", slug, f"specs/{slug}.txt")
+    opened = _pair(root, "open", slug)
     if opened.returncode != 0:
         raise AssertionError(f"the fixture could not open a pair: {opened.stdout}{opened.stderr}")
     spec_tree = root / ".claude" / "worktrees" / f"{slug}-spec"

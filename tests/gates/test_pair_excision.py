@@ -1,8 +1,8 @@
 """The pair driver's red run, on a pair whose spec tree removes test files.
 
 ``scripts/pair.sh red <slug>`` lands the writer's work on the spec branch as a
-single ``test: <slug> red`` commit. It takes no path argument: a spec file is
-accepted only by ``open`` and ``respec``.
+single ``test: <slug> red`` commit. No step takes a path argument: the block a
+pair is opened from is the one ``specs/approved/<slug>.txt`` carries.
 
 A ``kind: excision`` block carries excision lines, ``N. excise <target>`` with
 a ``rule:`` and an ``assertion:`` under it. A target with no ``::`` in it names
@@ -25,6 +25,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 DRIVER = REPO_ROOT / "scripts" / "pair.sh"
@@ -40,6 +42,12 @@ EDITED = "tests/test_probe_other.py"
 
 #: A tracked source path, the one an excision line must never resolve.
 SOURCE = "hqptuner/config.py"
+
+#: Where an approved block lives, the only place ``open`` takes one from.
+APPROVED_LANE = "specs/approved"
+
+#: The directory an unapproved draft sits in, outside that lane.
+DRAFT_LANE = "specs"
 
 _TEST_BODY = '''"""A tracked test file, here so that a pair's spec tree can remove it."""
 
@@ -116,7 +124,7 @@ def _write(root: Path, relative: str, body: str) -> None:
     (root / relative).write_text(body, encoding="utf-8")
 
 
-def _checkout(tmp_path: Path, slug: str, block: str) -> Path:
+def _checkout(tmp_path: Path, slug: str, block: str, lane: str = APPROVED_LANE) -> Path:
     """A throwaway checkout on ``dev``, carrying the driver, the tracked files and the pair's inputs."""
     root = tmp_path / "checkout"
     (root / "scripts").mkdir(parents=True)
@@ -124,7 +132,7 @@ def _checkout(tmp_path: Path, slug: str, block: str) -> Path:
     _write(root, TARGET, _TEST_BODY)
     _write(root, EDITED, _TEST_BODY)
     _write(root, SOURCE, _SOURCE_BODY)
-    _write(root, f"specs/{slug}.txt", block)
+    _write(root, f"{lane}/{slug}.txt", block)
     _write(root, f"state/reviews/{slug}.1.txt", _VERDICT)
     _git(root, "init", "-q", "-b", "dev")
     _git(root, "add", "-A")
@@ -134,7 +142,7 @@ def _checkout(tmp_path: Path, slug: str, block: str) -> Path:
 
 def _open_pair(root: Path, slug: str) -> Path:
     """Open the pair and hand back its spec tree."""
-    opened = _drive(root, "open", slug, f"specs/{slug}.txt")
+    opened = _drive(root, "open", slug)
     if opened.returncode != 0:
         raise AssertionError(f"the fixture could not open a pair: {opened.stdout}{opened.stderr}")
     return root / ".claude" / "worktrees" / f"{slug}-spec"
@@ -225,3 +233,35 @@ def test_a_spec_tree_whose_only_change_is_a_removed_test_file_lands_that_removal
     (spec_tree / TARGET).unlink()
     finished = _drive(root, "red", slug)
     assert (_outcome(finished), _red_commit_files(root, slug)) == ("clean", [f"D\t{TARGET}"])
+
+
+# --- 5. open takes its block from the approved lane, by slug alone -------------
+
+#: The pair line 5 opens, and the block it is opened from.
+OPEN_SLUG = "probe-open"
+
+_OPEN_BLOCK = _NEW_BLOCK.format(slug=OPEN_SLUG, verdict=_VERDICT)
+
+
+def _spec_tree_head(root: Path, slug: str) -> tuple[bool, str]:
+    """Whether the run left a spec tree, and what that tree's HEAD carries as the pair's spec file."""
+    spec_tree = root / ".claude" / "worktrees" / f"{slug}-spec"
+    if not spec_tree.is_dir():
+        return (False, "")
+    return (True, _git(spec_tree, "show", f"HEAD:tests/specs/{slug}.txt").stdout)
+
+
+@pytest.mark.parametrize(
+    ("lane", "expected"),
+    [
+        (APPROVED_LANE, (True, _OPEN_BLOCK)),
+        (DRAFT_LANE, (False, "")),
+    ],
+    ids=["block-in-the-approved-lane", "block-outside-the-approved-lane"],
+)
+def test_open_builds_a_spec_tree_only_from_the_block_the_approved_lane_carries(
+    tmp_path: Path, lane: str, expected: tuple[bool, str]
+) -> None:
+    root = _checkout(tmp_path, OPEN_SLUG, _OPEN_BLOCK, lane=lane)
+    _drive(root, "open", OPEN_SLUG)
+    assert _spec_tree_head(root, OPEN_SLUG) == expected
