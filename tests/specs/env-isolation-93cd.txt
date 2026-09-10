@@ -1,0 +1,62 @@
+kind: refactor
+brief:
+> Above is the tail of the conversation with the last agent describing the testing issue. Propose a solution via the plan gate.
+> Proceed
+
+1. With the shell exporting HQPTUNER_HQP_PASSWORD=shell, HQPTUNER_CHROMIUM=/shell/chromium, HQPTUNER_CONNECTION_FILE=/shell/connection.json, the `HQPTUNER_*` mapping a test body sees is exactly the names the two session guards install — the nine store paths under this session's own tmp dir, `HQPTUNER_HQP_METERING_PORT` at a closed port — plus `HQPTUNER_CHROMIUM`='/shell/chromium'.
+   kills: a guard that clears the whole `HQPTUNER_` prefix, taking the store-path guard's own names with it as well as the browser pointer, so a bare `Config()` resolves `connection.json` into the repo's own `state/` while e2e falls back to playwright's bundled chromium instead of the host's binary.
+   bite: a test body reads HQPTUNER_HQP_PASSWORD='shell', 18 of 18 tests, nothing scrubbed, while HQPTUNER_CONNECTION_FILE already reads '/tmp/pytest-of-atom/pytest-360/repo-path-guard0/connection.json' in the same 18 — the half this refactor preserves (`env HQPTUNER_HQP_PASSWORD=shell HQPTUNER_CHROMIUM=/shell/chromium HQPTUNER_CONNECTION_FILE=/shell/connection.json PYTHONPATH=/home/atom/dev/hqptuner:<scratchpad> .venv/bin/pytest -q -s -p no:cacheprovider -p envplug -k "test_a_path_field_is_mapped_to_the_env_suffix_from_its_default_factory or test_a_path_annotated_field_is_collected or health"`
+   existing: none, `grep -rn "startswith(\"HQPTUNER_\")\|HQPTUNER_CHROMIUM\|HQPTUNER_CONNECTION_FILE" tests/` returns tests/conftest.py:42 (the guard installing it), tests/test_frozen_paths.py:100 (a per-test helper, no session guard), tests/e2e/conftest.py:181, tests/e2e/support/stack.py:118, none asserting what a test inherits.
+
+2. With the shell exporting HQPTUNER_HQP_HTTP_PORT=9088, HQPTUNER_HQP_PASSWORD=shell, the pair (`hqp_http_port`, `hqp_password`) a `Config()` reads is (8088, 'password') in a plain test body, (9088, 'shell') inside the bracket the version canary runs in.
+   kills: a capture limited to `HQPTUNER_HQP_USERNAME` plus `HQPTUNER_HQP_PASSWORD`, so a shell-set port is replaced by the 8088 default inside the canary's own bracket, nothing answers, the `except (httpx.ConnectError, httpx.ConnectTimeout, OSError)` arm at tests/live/test_live_forms.py:86-87 calls `pytest.skip`, and the canary reads green while covering nothing.
+   bite: at HEAD a plain test body sees HQPTUNER_HQP_HTTP_PORT='9088' with HQPTUNER_HQP_PASSWORD='shell', 18 of 18 tests, so its `Config()` reads (9088, 'shell') where this line requires (8088, 'password') (`env HQPTUNER_HQP_HTTP_PORT=9088 HQPTUNER_HQP_PASSWORD=shell PYTHONPATH=/home/atom/dev/hqptuner:<scratchpad> .venv/bin/pytest -q -s -p no:cacheprovider -p envplug -k "test_a_path_field_is_mapped_to_the_env_suffix_from_its_default_factory or test_a_path_annotated_field_is_collected or health"`
+   existing: none, `grep -rn "hqp_http_port" tests/live/` returns no match; the canary's own `Config()` at tests/live/test_live_forms.py:63 is unasserted.
+
+public entry points (planned)
+
+tests/conftest.py — one new session fixture, autouse, and the two existing guards gain it as a parameter:
+
+    def _no_inherited_environment() -> Iterator[dict[str, str]]:
+    def _state_never_touches_the_repo(_no_inherited_environment, tmp_path_factory) -> Iterator[None]:
+    def _never_the_hosts_metering_port(_no_inherited_environment) -> Iterator[None]:
+
+tests/live/test_live_forms.py — the canary's existing fixture runs inside a bracket that reinstalls the captured mapping:
+
+    def live_forms(...) -> dict[str, Any]:
+
+wire and protocol facts
+
+None. Nothing here reaches hqplayerd, the Control API or port 8088. The one file that does, `tests/live/test_live_forms.py`, is read-only by its own docstring at :18-19 — three GETs, no POST — and this block does not change what it sends.
+
+applicable fixtures
+
+- `_state_never_touches_the_repo` (tests/conftest.py:52-69) — session, autouse; parks the nine store paths in `_REPO_PATH_ENVS` under a session tmp dir.
+- `_never_the_hosts_metering_port` (tests/conftest.py:378-387) — session, autouse; points `HQPTUNER_HQP_METERING_PORT` at a closed port.
+- `live_forms` (tests/live/test_live_forms.py:75-87) — module scope; fetches the three real forms once, skipping only on an unanswered socket.
+- `monkeypatch` — pytest's own, the mechanism both existing guards use through `pytest.MonkeyPatch.context()`.
+
+changelog entry
+
+No entry. The change is confined to the test harness: no route, no rendered surface, no wire behavior, nothing a user of HQPTuner can observe.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on both surfaces - line 1 on the HQPTUNER_* mapping a test body sees (CHROMIUM keeps '/shell/chromium', HQP_PASSWORD gone, store names under this session's tmp dir), line 2 on the (hqp_http_port, hqp_password) pair a Config() reads, (8088, 'password') scrubbed against (9088, 'shell') inside the canary's bracket
+
+round-2 finding, settled: line 2 was cut because the absent feature produced its value and a hard-coded bracket satisfied it. The rewrite is the shape I named - one comparison of two observations of the same surface at one shell input, carrying two shell-supplied values as one pair - and it now fails both stubs on the plain-body half. Finding withdrawn.
+
+1  KEEP  carried (round 2): shell exporting HQPTUNER_HQP_PASSWORD=shell, HQPTUNER_CHROMIUM=/shell/chromium, HQPTUNER_CONNECTION_FILE=/shell/connection.json -> the visible HQPTUNER_* mapping is exactly the two guards' names (nine store paths under this session's tmp dir, HQPTUNER_HQP_METERING_PORT at a closed port) plus HQPTUNER_CHROMIUM='/shell/chromium'; "a guard that clears the whole prefix" fails it, losing the browser pointer and the store paths together; bite: measured, HQPTUNER_HQP_PASSWORD='shell' visible in 18 of 18 tests at HEAD. The expected set is written out in the test, never derived from the guard's own _REPO_PATH_ENVS table.
+2  KEEP  shell exporting HQPTUNER_HQP_HTTP_PORT=9088, HQPTUNER_HQP_PASSWORD=shell -> (hqp_http_port, hqp_password) is (8088, 'password') in a plain test body and (9088, 'shell') inside the canary's bracket, which is rule 11's sanctioned default-plus-override shape rather than a default asserted absolutely; "a capture limited to HQPTUNER_HQP_USERNAME plus HQPTUNER_HQP_PASSWORD" fails it inside the bracket, reading (8088, 'shell') and sending the canary down the ConnectError arm at tests/live/test_live_forms.py:86-87 to a green skip; bite: measured, a plain test body's Config() reads (9088, 'shell') at HEAD where this line requires (8088, 'password').
+
+null stub: the two guards and the canary bracket present but every one a no-op - nothing scrubbed, nothing installed, nothing captured, so every context sees the shell's own values.
+  satisfies: none   fails: 1 (HQPTUNER_HQP_PASSWORD='shell' still visible), 2 (plain body reads (9088, 'shell'), not (8088, 'password'))
+hard-coded stub: a conftest that hands back the literal names and values the block enumerates for the inputs it gives - the prior run's /tmp/pytest-of-atom/... paths, a bracket answering (9088, 'shell') - while doing no scrubbing or capturing.
+  satisfies: none   fails: 1 (the store paths and metering port are stated relationally, this session's tmp dir and a closed port, so no prior-run literal satisfies them), 2 (the plain-body half still reads the shell's (9088, 'shell'), since a stub that scrubs is doing the feature's work)
+
+survives: 2
+
+notes:
+- hqptuner/config.py is denied me, so I cannot confirm that 'password' is character-for-character the fallback a bare Config() resolves hqp_password to with the variable absent. The writer takes that literal from a run, not from memory; if the fallback is something else the plain-body half is simply wrong, not differently shaped. Rule 11 blesses the shape either way, since the line pins the default's role against an override rather than the default alone.
+- existing: verified independently - every hqp_http_port / hqp_password hit under tests/ is a Config constructor kwarg (tests/support/fixtures_clients.py:69,71 and peers); nothing asserts the env-resolved value, and tests/live/test_live_forms.py:63-64 uses cfg unasserted.
+- brief carries no behavior sentence, so (m) is vacuous at line and block level.
