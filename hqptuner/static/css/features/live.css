@@ -296,7 +296,6 @@
    button grows to hold it. */
 .ab-switch .seg-sub {
   display: block;
-  margin-top: var(--sp-1);
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   overflow-wrap: anywhere;
