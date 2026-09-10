@@ -1,0 +1,67 @@
+kind: new
+
+brief:
+> Can we have the Trivia Judge look over code comments as well? Not just markdown files?
+> Comments + docstrings, docstrings whole-block
+> the regex gate should fire before the judge, it should only be judging what the gate didn't find
+> agreed: the hook is cheap and free, it's only the judge that we need to be restricting to finished work
+> Agreed, exemptions approved
+
+1. Over Python files whose lines are all added, the candidate count goes 2 for a file carrying one `#` comment plus one three-line docstring, 4 for a file carrying two `#` comments plus two three-line docstrings, each docstring arriving as a single candidate.
+   kills: sending each docstring line as its own candidate, the way the markdown gate sends prose lines, which counts 4 then 8
+   bite: null stub fails at both inputs (surface new) | stub is the module present with `SKIP` empty, `in_scope` returning False, `candidates` and `screen` returning empty, `main` returning 0
+   existing: none, `grep -rn "in_scope\|def candidates\|def screen\|comment_trivia" tests/ scripts/` printed nothing
+
+2. Over one file carrying a comment line naming an ISO date, a docstring block one of whose lines carries `history-ok: <reason>`, plus a clean docstring block, the candidates left for the judge are exactly the clean block.
+   kills: handing the judge every candidate and printing the pattern hits beside its answer, which leaves all three
+   bite: null stub fails at that input (surface new) | same stub as line 1
+   existing: none, `grep -rn "in_scope\|def candidates\|def screen\|comment_trivia" tests/ scripts/` printed nothing
+
+3. With PATH lacking `claude`, the exit code goes 0 for a staged file whose every candidate carries an ISO date, 1 for a staged file carrying one clean comment line, 0 for `--stop` over that second file.
+   kills: running the judge in the Stop hook, which reports the missing binary and exits 2 on the third case
+   bite: null stub fails at the second input (surface new) | same stub as line 1
+   existing: none, `grep -rn "in_scope\|def candidates\|def screen\|comment_trivia" tests/ scripts/` printed nothing
+
+public entry points (planned surface of scripts/gates/check_comment_trivia.py):
+
+    SKIP: frozenset[str]
+    PROMPT: str
+
+    def in_scope(path: str) -> bool:
+        """Whether a repo-relative path is one this gate reads at all."""
+
+    def candidates(path: str, text: str, added: set[int]) -> list[Line]:
+        """One entry per added comment line, plus one per docstring block holding an added line."""
+
+    def screen(cands: list[Line]) -> tuple[list[Line], list[str]]:
+        """The candidates the judge should see, and one complaint per pattern hit or reasonless pragma."""
+
+    def main() -> int:
+        """Judge the added comments; `--stop` screens without a judge call."""
+
+`Line` is `scripts/gates/check_md_trivia.py:126-137`, imported by bare name the way `scripts/gates/check_css_dirty.py:45-46` imports its siblings.
+
+wire and protocol facts: none. The gate reads git objects and files on disk and speaks to no daemon.
+
+applicable fixtures: none from `tests/conftest.py`; the gates lane builds its own tree. `tests/gates/test_check_archaeology.py:33-40` loads a gate by path with `importlib.util.spec_from_file_location`, and `:47-51` writes a source file under `tmp_path` and calls the gate's seam on it.
+
+changelog entry: no entry. Tooling only; nothing the product shows changes.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `candidates` (2 vs 4 over two files, docstrings grouped) plus a three-case differential on the gate's exit code
+
+round-1 findings, all three repairs performed: the `candidates` sweep with two non-zero values is line 1; the positive `screen` value replacing the two absence lines is line 2; the staged path now carries exit 0 and exit 1 in line 3. Old line 4 (zero-value outcome, excluded-path decision) removed; old line 5 folded into line 2.
+
+1  KEEP  file with one `#` comment plus one three-line docstring, and file with two of each -> candidates are [the `#` line, the three-line docstring as one item] and the four-item equivalent, counts 2 and 4; per-line docstring candidates (the markdown gate's shape) fails it at the first input, counting 4; null stub fails at both inputs, returning empty. Assert the candidate list, not `len(...)`: the grouping is the contract, the count alone is a length.
+2  KEEP  one file carrying a dated comment line, a `history-ok:` docstring block and a clean docstring block -> the candidates left for the judge are exactly the clean block; handing the judge every candidate leaves all three and fails it at that input; null stub fails there, leaving none.
+3  KEEP  PATH without `claude`; staged file whose every candidate is dated -> 0, staged file with one clean comment -> 1, `--stop` over that second file -> 0; running the judge in the Stop hook exits 2 on the third case; null stub fails at the second input, exiting 0.
+
+null stub: module present, `SKIP` empty, `in_scope` False, `candidates` and `screen` empty, `main` 0.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: a script that emits a fixed candidate list for any file, screens nothing, and branches on the `--stop` flag alone for its exit code.
+  satisfies: none   fails: 1 (two distinct counts on one surface), 2 (selection among three blocks), 3 (two exit values on the staged path)
+
+survives: 3
+
+brief: every sentence pinned - comments and docstrings scanned (1), docstrings whole-block (1), regex gate screening before the judge (2), judge restricted to staged work with the Stop hook free of it (3); "exemptions approved" pins nothing and needs no line.
