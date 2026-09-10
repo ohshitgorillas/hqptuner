@@ -1,0 +1,68 @@
+kind: new
+
+brief:
+> a little tweak to the setting switcher card in live mode: the button should state the setting below A or B e.g.
+>
+>    A        |      B
+> filter-1    |  filter-2
+>
+> use monospace font
+> monospace A and B rejected
+> When it comes to test writing, I'll save you some time: there is one, exactly one, contract being enforced here: that the selected setting appears on the appropriate button. the rest is pinning a design change, which we don't do.
+> Actually, not rendering when the box is empty might also be a second contract worth testing, but you'll have to get it past the spec reviewer. it's up to it.
+> Exemption approved, A/B switch is and should remain visually distinct from other buttons.
+
+1. With the Setting Switcher aimed at the 1x filter row while the engine reports the PCM chain loaded, the button whose data-v is a reads the name of the value side A holds: sinc-M while side A holds enum 25, side B enum 40; poly-sinc-gauss-long with those two contents exchanged, side A holding enum 40, side B enum 25.
+   kills: printing a fixed name per button position, ignoring the slots, which leaves button a reading sinc-M after the user has moved that value to side B. It also rejects naming both buttons from the setting's currently running value, where button a would read whatever the engine sits on rather than what side A holds.
+   bite: `data-v="a"` text `A` in both states (AB_CASE=1 node --import ./tests/js/support/vendor-resolve.js --test <scratchpad>/ab12.test.mjs, then node --import ./tests/js/support/vendor-resolve.js --test <scratchpad>/ab3.test.mjs, both run from the repo root; each throwaway file seeds hqptuner.abTarget and hqptuner.abSlots, drives engineState/enums/config from tests/js/support/chainenums.js with active_chain pcm, renders AbCard and prints the .seg buttons inside .ab-switch, and was deleted after the run. Store readback on the two runs: abSlots={"a":{"id":"25","name":"sinc-M"},"b":{"id":"40","name":"poly-sinc-gauss-long"}} and abSlots={"a":{"id":"40","name":"poly-sinc-gauss-long"},"b":{"id":"25","name":"sinc-M"}}, abField=filter1x on both). The button reads the same letter in both states and carries neither name.
+   existing: none, `grep -rn "seg-sub\|ab-switch\|AbCard\|Setting Switcher" tests/ | grep -v "^tests/specs/"` printed one comment line, tests/js/store/liveab.test.js:1, and no test.
+
+2. With the same card aimed at the same row while the engine reports the same chain loaded, side A holding enum 25 (sinc-M), side B holding nothing, the value names inside .ab-switch, read as (data-v, name text) pairs in document order, are exactly [("a", "sinc-M")].
+   kills: rendering the name element unconditionally, so an unfilled side carries an empty line under its letter and the switch grows before either side has been picked; that implementation reads [("a", "sinc-M"), ("b", "")] at this input.
+   bite: [] (AB_CASE=2 node --import ./tests/js/support/vendor-resolve.js --test <scratchpad>/ab12.test.mjs, the same throwaway file as line 1's first command, seeding hqptuner.abSlots={"filter1x":{"a":{"id":"25","name":"sinc-M"},"b":null}}; the two .seg buttons inside .ab-switch printed as `<button type="button" class="seg" data-v="a">A</button>` and `<button type="button" class="seg" data-v="b" disabled>B</button>`, zero child elements in either, so the pair list is empty; store readback abField=filter1x, abSlots={"a":{"id":"25","name":"sinc-M"},"b":null}, abLit="").
+   existing: none, same grep as line 1.
+   second line: line 1 states what a filled side says and cannot distinguish a card that emits a name node for every side, filled or not; the empty side is the only place that difference is observable, and it is the state the card is in before a user has picked anything.
+
+public entry points (planned surface):
+
+hqptuner/static/components/live/AB.js
+  export function AbCard()   // the LIVE page's Setting Switcher card, unchanged signature
+
+hqptuner/static/components/controls/index.js
+  export function Segment({ value, options, disabled, idBase, onChange })
+  // options gains one optional field: sub, a string rendered under the option's
+  // label inside its own button, absent when the option carries none.
+
+wire and protocol facts:
+
+- /api/state carries active_chain: which chain the engine has loaded, the configured mode outright in pcm and sdm, and the family of the playing rate in auto (docs/architecture.md:91).
+- The two chains carry different enumerations, and a filter value is an enum ID within its own chain's list (docs/protocol.md §4, §6). PCM's 1x filter live form field is filter1x.
+- An enumerated name is the engine's to change: a stored ID carries the name it was picked with, and the name the running enumeration gives that ID is what the card shows while the ID is still offered (docs/architecture.md, live snapshots).
+
+applicable fixtures:
+
+- tests/js/support/chainenums.js — the daemon's own two chain enumerations, PCM and SDM, whose enum IDs deliberately differ from their list indices.
+- tests/js/support/ — the vendor resolve loader the JS suite runs under, and the DOM and localStorage setup the existing component suites use.
+- tests/js/store/liveab.test.js — the existing store suite for this card, showing how engineState/enums/config are driven offline.
+
+changelog entry, under ## [Unreleased], ### Changed:
+
+- **The Setting Switcher's A and B buttons name what they hold.** Each button now carries the value that side will put on the engine, under its letter, so the switch says what it does without reading the two dropdowns above it.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the data-v="a" button's name text (same button, slot contents exchanged: sinc-M when side A holds 25, poly-sinc-gauss-long when side A holds 40), plus the empty-side pair list on the same switch
+
+Reversal on line 2, text unchanged: I cut it last round under the block-level lookup-table finding and said it returns once line 1 forces the names to follow the slots. Line 1 now does, the positional-literal implementation that produced that finding is dead at line 1's second observation, and line 2 is judged on its own: it kills the unconditional name node, which line 1 does not reach.
+
+1  KEEP  card on filter1x, active_chain pcm, slots (a=25, b=40) then exchanged (a=40, b=25) -> the data-v="a" button reads sinc-M, then poly-sinc-gauss-long; printing a fixed name per button position fails it at the exchanged state, where button a still reads sinc-M, and naming both buttons from the running value fails it at whichever of the two states the engine is not sitting on; bite: data-v="a" text "A" in both states, neither name present.
+2  KEEP  same card and chain, slot a = 25, slot b = null -> the (data-v, name text) pairs inside .ab-switch are exactly [("a", "sinc-M")]; rendering the name node unconditionally fails it at that input with [("a", "sinc-M"), ("b", "")]; bite: [] - both .seg buttons printed with zero child elements.
+
+null stub: AB.js renders the switch as today, Segment ignores any sub field, no name node is ever emitted, buttons read "A" and "B".
+  satisfies: none   fails: 1, 2
+hard-coded stub: print the literal "sinc-M" inside the data-v="a" button and "poly-sinc-gauss-long" inside the data-v="b" button whenever the card is on filter1x, reading nothing out of the slots.
+  satisfies: none   fails: 1 (button a must read poly-sinc-gauss-long once the contents are exchanged), 2 (button b carries a name at an unfilled side). Any implementation that separates line 1's two states, or that emits nothing for the null slot in line 2, has read the slots, which is the work the feature is for.
+
+survives: 2
+
+note for the owner, on a file I cannot read (hqptuner/static/components/live/AB.js): the block pins that a button's name follows the value its own side holds, and stops there. It does not pin which name that is when the slot's stored name and the running enumeration's label for that ID disagree - the author reports those can disagree, and that the card's choice between them is settled in AB.js. Under the brief's "exactly one contract" that is deliberate, so it is not a defect in the block; it is the one thing a reader of these two tests should not assume they cover.
