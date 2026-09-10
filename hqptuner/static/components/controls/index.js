@@ -18,9 +18,7 @@ import { truthy } from "../../lib/coerce.js";
  *   option stores when it carries `optionsFrom` — so disabled/reason are present
  *   on one path only. `dirty` is added by VolumeTab.js for the staged-edit dot,
  *   and `tip` by Easy Mode's knobs for the hover tip on a single position.
- *   `sub` is added by the LIVE page's Setting Switcher, a second line under the
- *   label naming the value that button holds; unset everywhere else, and the
- *   node is not rendered at all when it is, so no other segment gains a line.
+ *   `sub` by the LIVE Setting Switcher, naming the value that button holds.
  * @typedef {(v: string | number) => void} ValueSink
  *   What every widget reports an edit through. Values leave as the DOM spelled
  *   them (strings) except where the option list carried a number.
@@ -52,9 +50,8 @@ const s = (v) => (v == null ? "" : String(v));
 // it is hidden.
 //
 // An option may also carry a `sub`: a second line under the label, naming the
-// value that button holds. It is not hidden from the tree the way the tip is,
-// because it is not reached by a reference — it joins the button's name, which
-// is the point of it, and the name reads "A sinc-M".
+// value that button holds. Unlike the tip it is not hidden, because no
+// reference reaches it — it joins the button's name, which reads "A sinc-M".
 //
 // The id a description needs comes from the caller as `idBase`, never from a
 // hook: this is a plain function of its props and is called as one, and a hook
