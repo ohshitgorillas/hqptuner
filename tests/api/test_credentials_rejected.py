@@ -108,6 +108,27 @@ def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, passes: 
     pytest.fail("the 8088 lane took no further polls")
 
 
+def _loaded(client: TestClient, state: dict[str, Any], quiet: int = 50, passes: int = 2000) -> None:
+    """Spin on real requests — never a wall-clock sleep — until the app's startup
+    load has finished and the archive reads it spends have stopped arriving.
+
+    `reachable` is the 4321 handshake, which turns true before the 8088 lane's
+    loads have run, so a case that counts archive fetches off its own request
+    has to wait for `ready` — the app has loaded what a caller reads off it —
+    and then for the archive count to hold still across `quiet` further passes.
+    The pass bound only turns a lane that never stops fetching into a loud
+    failure."""
+    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
+    still = 0
+    for _ in range(passes):
+        seen = state["_backup_reads"]
+        client.get("/api/health")
+        still = still + 1 if state["_backup_reads"] == seen else 0
+        if still >= quiet:
+            return
+    pytest.fail("the 8088 lane never stopped fetching the archive")
+
+
 def _require_recorded_refusal(client: TestClient) -> None:
     """Stop the test unless the lane has already recorded the 403.
 
@@ -173,9 +194,13 @@ def test_a_persistent_apply_fetches_the_archive_once_at_most_when_credentials_ar
     # The recorded case lets the poll meet the 403 and checks that it did; the
     # unrecorded case parks the poll and stages before the daemon starts
     # refusing, so nothing on the lane has met the 403 when the apply begins.
+    #
+    # Both cases wait for the startup load to finish before counting: it reads
+    # the same archive, so a count taken while it is still in flight measures
+    # its reads as well as the apply's.
     recorded = case == "recorded"
     client, state = credential_client(poll_interval=0.02 if recorded else 30.0)
-    _connected(client)
+    _loaded(client, state)
     if recorded:
         state["_refuse_auth"] = True
         _settle(client, state)
