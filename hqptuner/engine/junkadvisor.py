@@ -20,7 +20,12 @@ Signatures (manual p.53, "Playback filter"):
   "excessive noise shaping" case — some ADCs, DSD-to-PCM conversions)
 
 The brick-wall and ramp rules read the track's mean spectrum — both are
-broadband shapes that only firm up under a long average. The spur rule instead
+broadband shapes that only firm up under a long average. That mean keeps moving
+as a track plays, so the brick-wall rule reads it only through statistics a
+passage cannot shift far: the highest bin standing clear of the noise floor, and
+two band means at fixed frequencies. A local slope on the same curve answers one
+way in a loud passage and another in a quiet one, for the same master. The spur
+rule instead
 reads a windowed per-bin *minimum* spectrum (the caller supplies it): a bias
 tone is present in every frame, so it survives the minimum, while music energy
 at the same frequency is intermittent and any quiet moment inside the window
@@ -51,13 +56,20 @@ MIN_BANDWIDTH_HZ = 24_000.0
 SMOOTH_BINS = 9  # median-filter width for the working curve (odd)
 FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
 
-# Brick wall: a >= BRICK_DROP_DB fall within +/- BRICK_SPAN_HZ of a candidate
-# edge inside BRICK_WINDOW_HZ, with everything above staying near the floor.
+# Brick wall: the content ceiling inside BRICK_WINDOW_HZ, everything above it
+# staying near the floor, and a >= BRICK_DROP_DB fall from BRICK_REF_HZ to that
+# near-floor band. The reference band is fixed in frequency so the reading is a
+# property of the master rather than of the passage playing.
 BRICK_WINDOW_HZ = (18_000.0, 26_000.0)
+BRICK_REF_HZ = (15_000.0, 18_000.0)
 BRICK_DROP_DB = 30.0
-BRICK_SPAN_HZ = 1_500.0
+BRICK_GUARD_HZ = 1_500.0  # gap between the ceiling and the band read above it
 ABOVE_FLOOR_DB = 8.0  # "near the floor" allowance above the cliff
 FAKE_HIRES_MIN_RATE = 88_200
+
+# Lossy sources cut far lower than any upsampled CD, and cut sharply, so a
+# ceiling down here earns the same verdict only on the steep-fall test.
+LOSSY_WINDOW_HZ = (13_000.0, 18_000.0)
 
 # Spurs: narrow smoothed curve exceeding a wide smoothed baseline.
 SPUR_MIN_HZ = 25_000.0
@@ -176,27 +188,70 @@ def _band_mean(levels: list[float], lo: int, hi: int) -> float:
     return sum(band) / len(band) if band else -200.0
 
 
-def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
-    if samplerate < FAKE_HIRES_MIN_RATE:
-        return None
+def _content_edge(smoothed: list[float], bandwidth: float, floor: float, window: tuple[float, float]) -> int | None:
+    """Highest bin in ``window`` standing clear of the floor, or None when there is no ceiling inside it.
+
+    A ceiling at the window's top bin is content that carries on past the window, which is not a ceiling at all.
+    """
     bins = len(smoothed)
-    span = max(1, _bin(BRICK_SPAN_HZ, bins, bandwidth))
-    best_drop, edge = 0.0, -1
-    for i in range(_bin(BRICK_WINDOW_HZ[0], bins, bandwidth), _bin(BRICK_WINDOW_HZ[1], bins, bandwidth) + 1):
-        drop = smoothed[max(0, i - span)] - smoothed[min(bins - 1, i + span)]
-        if drop > best_drop:
-            best_drop, edge = drop, i
-    if best_drop < BRICK_DROP_DB or edge < 0:
-        return None
-    above = _band_mean(smoothed, min(bins - 1, edge + 2 * span), bins - 1)
-    if above > floor + ABOVE_FLOOR_DB:
-        return None  # real content (or junk another rule owns) lives above the edge
+    top = _bin(window[1], bins, bandwidth)
+    limit = floor + ABOVE_FLOOR_DB
+    edge = -1
+    for i in range(_bin(window[0], bins, bandwidth), top + 1):
+        if smoothed[i] > limit:
+            edge = i
+    return None if edge < 0 or edge >= top else edge
+
+
+def _at_floor_above(smoothed: list[float], start: int, floor: float) -> bool:
+    bins = len(smoothed)
+    return _band_mean(smoothed, min(bins - 1, start), bins - 1) <= floor + ABOVE_FLOOR_DB
+
+
+def _fake_hires(edge: int, bins: int, bandwidth: float, samplerate: int) -> dict[str, Any]:
     ceiling = _hz(edge, bins, bandwidth)
     reason = (
         f"Content stops at {ceiling / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container — "
         f"consistent with fake hi-res. Recommend engaging the 20k high-frequency filter."
     )
     return {"filter": "20k", "reason": reason, "ceiling_khz": round(ceiling / 1000, 1)}
+
+
+def _ceiling_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
+    bins = len(smoothed)
+    edge = _content_edge(smoothed, bandwidth, floor, BRICK_WINDOW_HZ)
+    if edge is None:
+        return None
+    guard = max(1, _bin(BRICK_GUARD_HZ, bins, bandwidth))
+    if not _at_floor_above(smoothed, edge + guard, floor):
+        return None  # real content (or junk another rule owns) lives above the ceiling
+    above = _band_mean(smoothed, min(bins - 1, edge + guard), bins - 1)
+    ref = _band_mean(smoothed, _bin(BRICK_REF_HZ[0], bins, bandwidth), _bin(BRICK_REF_HZ[1], bins, bandwidth))
+    if ref - above < BRICK_DROP_DB:
+        return None
+    return _fake_hires(edge, bins, bandwidth, samplerate)
+
+
+def _lossy_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
+    bins = len(smoothed)
+    edge = _content_edge(smoothed, bandwidth, floor, LOSSY_WINDOW_HZ)
+    if edge is None:
+        return None
+    guard = max(1, _bin(BRICK_GUARD_HZ, bins, bandwidth))
+    # The reference band straddles a cutoff this low, so the fall itself carries the magnitude.
+    if smoothed[max(0, edge - guard)] - smoothed[min(bins - 1, edge + guard)] < BRICK_DROP_DB:
+        return None
+    if not _at_floor_above(smoothed, edge + guard, floor):
+        return None
+    return _fake_hires(edge, bins, bandwidth, samplerate)
+
+
+def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
+    if samplerate < FAKE_HIRES_MIN_RATE:
+        return None
+    return _ceiling_wall(smoothed, bandwidth, floor, samplerate) or _lossy_wall(
+        smoothed, bandwidth, floor, samplerate
+    )
 
 
 def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
