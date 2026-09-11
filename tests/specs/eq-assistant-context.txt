@@ -26,7 +26,7 @@ brief:
    bite: null stub fails at `{"kind":"vocab","terms":["aaa","bbb"]}` (surface new)
    existing: none, same grep as line 1.
 
-4. A job answers an index whose name list is every lookup name the fixture declares when no term matched, `[]` when one did; `{"kind":"vocab","terms":["qqq"]}` answers an index name list carrying `"zzz"`, `{"kind":"vocab","terms":["aaa"]}` answers an index name list of `[]`.
+4. A job answers an index whose name list is every name the fixture declares as a term, a symptom, or an alias when no term matched, `[]` when one did; `{"kind":"vocab","terms":["qqq"]}` answers an index name list carrying `"zzz"`, `{"kind":"vocab","terms":["aaa"]}` answers an index name list of `[]`.
    kills: answering a bare empty match list on a miss, which leaves the caller no cheaper next step than reading the whole vocabulary file.
    bite: null stub fails at `{"kind":"vocab","terms":["qqq"]}` (surface new)
    existing: none, `grep -rn "vocab" tests/` returns 9 lines, none naming a lookup job: 3 are the word "vocabulary" in Python comments, 4 are prose inside `tests/specs/*.txt`, 2 are JS comments in `tests/js/components` and `tests/js/support`.
@@ -37,20 +37,58 @@ brief:
    existing: none, same grep as line 1.
    why a fifth line: the approved plan deletes the cancellation rule from `PRIMER.md` on the strength of the answer carrying these rows. Without this line that deletion is unpinned.
 
+public entry points, planned:
+
+    // scripts/eqlab/vocab.js
+    export async function vocabJob(spec, ctx)
+
+    spec.terms — the words to look up, a non-empty array of strings
+    spec.path  — the vocabulary file to read; defaults to docs/eq-assistant/vocabulary.json
+    job shape on stdin: {"job":{"kind":"vocab","terms":["aaa"],"path":"/abs/path/fixture.json"}}
+
+    // scripts/eqlab/eqlab.js — registration only
+    const KINDS = { ..., vocab: vocabJob }
+
+    answer fields, all of them wire identifiers:
+      matched    — one object per hit: { group, name, matched_as, entry }
+                   group is "tonal", "spatial" or "consistency"; name is the entry's
+                   canonical key; matched_as is the name the job's term hit;
+                   entry is the stored entry verbatim, carrying its own `senses`
+      index      — array of lookup names; every declared name on a miss, [] on a hit
+      conflicts  — the `_meta.conflict_pairs` rows naming a matched term, verbatim
+      rules      — { direction_convention, named_quality_field, polysemy }
+
+wire and protocol facts:
+
+- No daemon contact. The kind reads one file and answers; it never reaches 8088, 4321 or the pending buffer, so no idle gate applies.
+- `scripts/eqlab/eqlab.js:161` records that a snapshot list is today the one job with no chain. A vocab job is the second: it answers without resolving a chain, so it runs with the daemon down.
+- A caller-named data path is existing eqlab shape: `scripts/eqlab/target-points.js:86-87` reads `String(spec.path)`; `scripts/eqlab/io.js:59`, `:79` do the same for XML rows, ParametricEQ text.
+- The shipped default file is `docs/eq-assistant/vocabulary.json`: `_meta` at `:2`, `consistency` at `:240` keyed `symptom`, `tonal` at `:344` keyed `term`, `spatial` at `:1299` keyed `term`.
+- `_meta.conflict_pairs` rows in the shipped file are objects carrying a `terms` array; a fixture may state a row as a bare array of terms. A row is answered in the shape the file stores it.
+
+applicable fixtures:
+
+- `tests/js/support/vendor-resolve.js` — the loader hook `Makefile:99` imports for every JS test run.
+- A fixture vocabulary file the test writes itself, named by `spec.path`, supplying every term, alias, symptom, sense id, conflict row the lines above name. The shipped vocabulary supplies no expected value (`docs/testing.md` rule 9).
+
+changelog entry: no entry. Internal agent tooling with no user-visible surface; `eqlab` and `eqstage` appear nowhere in `CHANGELOG.md`.
+
 --- spec-reviewer READY ---
 READY
 discriminates: differential on the vocab job's index name list (line 4, `["qqq"]` -> a list carrying `"zzz"` vs `["aaa"]` -> `[]`) and on the conflict-rows field (line 5, two inputs, two distinct fixture pairs); lines 1, 2 and 3 carry three distinct fixture-supplied values on the one match surface.
 
-return check: both round-2 findings took the named repair. Line 4's negation is gone, replaced by the same field's value at both inputs; line 5 carries the second input on the conflict-rows invariant. Carried verdicts match what I issued.
+return check: line 4's only change widens the index's stated contents to every declared term, symptom and alias name; the two-input differential and its fixture-supplied values are unchanged, so the round-2 repair stands and no verdict moves. The four non-behavior sections carry no behavior line and pin nothing on their own; they are reproduced in the approved file. `vocabJob(spec, ctx)` is an exported function the JS harness drives directly, so (j) holds for every line.
 
 1  KEEP  carried
 2  KEEP  carried
 3  KEEP  carried
 4  KEEP  `{"kind":"vocab","terms":["qqq"]}` -> index name list carrying `"zzz"`, `{"kind":"vocab","terms":["aaa"]}` -> index name list `[]`; answering a bare empty match list on a miss fails it at `["qqq"]`; bite: null stub fails at `{"kind":"vocab","terms":["qqq"]}`
-5  KEEP  `{"kind":"vocab","terms":["aaa"]}` -> `["aaa","ccc"]`, `{"kind":"vocab","terms":["ddd"]}` -> `["ddd","eee"]`, against `_meta.conflict_pairs` `[["aaa","ccc"],["ddd","eee"]]`; answering every row, or none, fails it at `["aaa"]`; bite: null stub fails at `{"kind":"vocab","terms":["aaa"]}`
+5  KEEP  carried
 
-null stub: the vocab job kind is unregistered - the dispatcher returns the zero value and no vocabulary file is read.
+null stub: the `vocab` kind is absent from `KINDS`, so the dispatcher returns the zero value and no vocabulary file is read.
   satisfies: none   fails: 1, 2, 3, 4, 5
 hard-coded stub: a table keyed on the exact term lists the lines name, returning the exact fixture entries, senses, index and conflict rows, reading no vocabulary file.
   satisfies: none   fails: 1, 2, 3, 4, 5 - 4 and 5 each pin one field at two inputs with two distinct values, and 1, 2 and 3 survive it only as the paired match-surface sweep of docs/testing.md:40, never one at a time.
 survives: 5
+
+note, for the owner, not a finding: the answer's `rules` field is pinned by no surviving line, and the block is at its five-line cap. If a caller is expected to branch on `direction_convention`, `named_quality_field` or `polysemy`, that contract is unpinned by this block.
