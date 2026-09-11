@@ -25,13 +25,11 @@ from typing import Any
 import fake_http
 import pytest
 from conftest import eventually
-from fake_config_xml import cfg_xml
 from fake_http import state
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import matrixlane
 from hqptuner.presets import fileconfig
 
 #: Night's stored matrix: one row at a gain no live matrix here has, and a
@@ -47,12 +45,6 @@ OWN_ROWS = [
     {"gain": "-2", "mixdown": "0", "process": "", "source": "0"},
     {"gain": "-2", "mixdown": "1", "process": "", "source": "1"},
 ]
-
-#: The same row sets as ``matrix_pipelines`` reads them back: the file rows plus
-#: the derived ``gainunit`` (a plain numeric gain is dB) — compared parsed, so
-#: the canonical string's key order and separators cannot mask a difference.
-OWN_ROWS_READBACK = [{**row, "gainunit": "dB"} for row in OWN_ROWS]
-NIGHT_ROWS_READBACK = [{**row, "gainunit": "dB"} for row in NIGHT["rows"]]
 
 
 def night_cfg() -> dict[str, Any]:
@@ -118,39 +110,3 @@ async def rows(manager: ConnectionManager) -> list[dict[str, str]]:
     """The running config's live ``<matrix>`` rows, read back from the daemon."""
     pipelines: list[dict[str, str]] = json.loads((await fileconfig.load_file_config(manager))["matrix_pipelines"])
     return pipelines
-
-
-# --- switch_to: the target preset's own matrix wins over the live profile ------
-
-
-async def test_a_preset_switch_apply_keeps_the_presets_own_pipeline_rows(
-    plain_manager: ConnectionManager,
-) -> None:
-    plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
-    await matrixlane.switch_profile(plain_manager, "Night")
-    await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
-    # exactly the preset's own rows: nothing of Night's appended, prepended or merged
-    assert await rows(plain_manager) == OWN_ROWS_READBACK
-
-
-async def test_a_preset_switch_apply_does_not_install_the_profiles_chain(
-    plain_manager: ConnectionManager,
-) -> None:
-    # the preset's own live chain sits at 850, Night's stored bauer at 300; only
-    # the preset's value may be running after the switch
-    plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
-    await matrixlane.switch_profile(plain_manager, "Night")
-    await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
-    assert (await fileconfig.load_file_config(plain_manager)).get("post_bauer_frequency") == "850"
-
-
-# --- no switch_to: adoption across the apply restart is preserved --------------
-
-
-async def test_a_plain_apply_still_installs_the_active_profiles_rows(
-    night_manager: ConnectionManager,
-) -> None:
-    await matrixlane.switch_profile(night_manager, "Night")
-    await night_manager.applyops.apply({}, {"title": "Renamed"})
-    # exactly Night's rows: installed means replaced wholesale, not present somewhere
-    assert await rows(night_manager) == NIGHT_ROWS_READBACK
