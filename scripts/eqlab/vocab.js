@@ -141,7 +141,9 @@ export async function vocabJob(spec, _ctx) {
   const { matched, index } = collect(data, new Set(terms.map(fold)));
 
   const meta = data._meta || {};
-  const hitNames = new Set(matched.flatMap((m) => namesOf(m.entry, m.group === "consistency" ? "symptom" : "term")).map(fold));
+  const hitNames = new Set(
+    matched.flatMap((m) => namesOf(m.entry, m.group === "consistency" ? "symptom" : "term")).map(fold),
+  );
   const pairs = Array.isArray(meta.conflict_pairs) ? meta.conflict_pairs : [];
 
   return {
