@@ -83,7 +83,8 @@ class Config:
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
     # How long discovery waits for daemons to answer its multicast datagram
     # (engine/discovery.py). There is no count to wait for — a daemon that is
-    # not there sends nothing — so the wait is the whole bound on the route.
+    # not there sends nothing — so this bounds the datagram sweep, and a sweep
+    # nobody answers is followed by one control-port ask on `request_timeout`.
     discovery_timeout: float = field(default_factory=lambda: float(_env("DISCOVERY_TIMEOUT", "3.0")))
     # Where discovery sends its datagram. The documented multicast group by
     # default; a plain host address for a network that drops multicast, which
