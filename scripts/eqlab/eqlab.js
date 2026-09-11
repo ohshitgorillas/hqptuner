@@ -112,7 +112,7 @@ import { render } from "./render.js";
 import { refineJob, searchJob } from "./search.js";
 import { MAX_COMBOS, MAX_STEPS } from "./space.js";
 import { resolveTarget } from "./target.js";
-import { vocabJob } from "./vocab.js";
+import { renderVocab, vocabJob } from "./vocab.js";
 
 // Every handler takes (spec, ctx) and answers the job's body. The spec shapes
 // differ per kind and each handler validates its own, so the table is typed by
@@ -193,7 +193,7 @@ async function main() {
   if (!text.trim()) throw new Error("no job on stdin");
   const out = await run(JSON.parse(text));
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
-  process.stderr.write(render(out));
+  process.stderr.write(out.job === "vocab" ? renderVocab(out) : render(out));
 }
 
 main().catch((err) => {

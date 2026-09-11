@@ -128,6 +128,25 @@ function rulesOf(meta, matched) {
 }
 
 /**
+ * The stderr report for a lookup. The kind renders its own answer: `render.js`
+ * is at its length allowance, and a lookup's report shares nothing with the
+ * chain reports there.
+ *
+ * @param {Awaited<ReturnType<typeof vocabJob>>} out
+ * @returns {string}
+ */
+export function renderVocab(out) {
+  if (!out.matched.length) return `no match for ${out.terms.join(", ")}\n${out.index.length} name(s) available`;
+  const hits = out.matched.map((/** @type {Match} */ m) => {
+    const senses = Array.isArray(m.entry.senses) ? m.entry.senses.length : 0;
+    return `  ${m.matched_as} -> ${m.name} (${m.group}, ${senses} sense(s))`;
+  });
+  const rows = out.conflicts.map((/** @type {any} */ c) => `  ${rowTerms(c).join(" + ")}`);
+  const conflicts = rows.length ? `\nconflicts:\n${rows.join("\n")}` : "";
+  return `matched:\n${hits.join("\n")}${conflicts}`;
+}
+
+/**
  * Answer the vocabulary entries for a list of words.
  *
  * @param {{ kind?: string, terms?: unknown, path?: unknown }} spec
