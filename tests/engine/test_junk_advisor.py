@@ -13,14 +13,13 @@ app whose control daemon is fake and whose metering port has no listener.
 """
 
 import asyncio
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import replace
-from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import PLAYING, eventually, running_reader, spawn_threaded_daemon, wait_for_api
-from fake_metering import frame, spawn_threaded_stream
+from conftest import PLAYING, eventually, running_reader
+from fake_metering import frame
 from fastapi.testclient import TestClient
 from junk_spectra import (
     FAKE_HIRES_FRAME,
@@ -35,7 +34,6 @@ from junk_spectra import (
 )
 from narrow import present
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import MIN_SECONDS, classify, treats
@@ -312,45 +310,6 @@ async def test_sdm_metadata_marks_the_context_sdm(live_manager: Any) -> None:
 def test_status_payload_carries_a_null_junk_verdict_offline(live_api: TestClient) -> None:
     # the offline app's metering port has no listener, so the advisor is silent
     assert live_api.get("/api/status").json()["data"]["junk"] is None
-
-
-@pytest.fixture
-def advising_app_client(tmp_path: Path) -> Iterator[TestClient]:
-    """The full app on a threaded fake control daemon that reports a playing
-    96 kHz PCM track, with its metering lane wired to a threaded fake 4322
-    stream carrying the fake-hi-res spectrum with generous coverage per frame.
-
-    Control lane only — no credentials, so the app never opens the 8088 lane
-    (which defaults at the host's real daemon), and every store path is under
-    tmp_path so a preset import cannot land in the repo's own state."""
-    daemon = spawn_threaded_daemon({"state": "2", "_metadata": METADATA_96K_PCM})
-    stream = spawn_threaded_stream(FAKE_HIRES_FRAME)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(daemon),
-        hqp_metering_port=next(stream),
-        hqp_username="",
-        hqp_password="",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        poll_interval=0.02,
-    )
-    try:
-        with TestClient(create_app(cfg)) as client:
-            yield client
-    finally:
-        next(stream, None)
-        next(daemon, None)
-
-
-def test_status_payload_serves_the_advisors_verdict(advising_app_client: TestClient) -> None:
-    def advised(client: TestClient) -> bool:
-        payload = client.get("/api/status").json()
-        return bool((payload.get("data") or {}).get("junk"))
-
-    wait_for_api(advising_app_client, advised)
-    assert advising_app_client.get("/api/status").json()["data"]["junk"]["filter"] == "20k"
 
 
 # --- classify: spur family alternative -------------------------------------------

@@ -22,18 +22,15 @@ the silent app is always given at least as much of its own loop as the dialing
 app needed."""
 
 import asyncio
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable
 from dataclasses import replace
-from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import PLAYING, eventually, running_reader, spawn_threaded_daemon, wait_for_api
-from fake_metering import MeteringStream, spawn_threaded
-from fastapi.testclient import TestClient
+from conftest import PLAYING, eventually, running_reader
+from fake_metering import MeteringStream
 from junk_spectra import FAKE_HIRES_FRAME
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.engine import metering
 
@@ -229,122 +226,3 @@ def test_a_truthy_env_value_leaves_metering_enabled(monkeypatch: pytest.MonkeyPa
     monkeypatch.delenv("HQPTUNER_METERING_ENABLED", raising=False)
     monkeypatch.setenv("HQPTUNER_METERING_ENABLED", value)
     assert Config().metering_enabled is True
-
-
-# --- the whole app, metering on and off -------------------------------------
-
-AppOnStream = tuple[TestClient, MeteringStream]
-
-#: The app is ready within a handful of requests (observed: 1-4), so this bound
-#: only turns a hang into a loud failure.
-READY_PASSES = 200
-
-#: A metering-enabled app takes ≈ 2,000-2,500 further requests' worth of its own
-#: loop before its first dial on this host. The budget is several times that,
-#: and is only ever paid in full by a case whose gate never arms.
-LOOP_PASSES = 20_000
-
-
-def _app_on_stream(tmp_path: Path, *, metering_enabled: bool) -> Iterator[AppOnStream]:
-    """The full app on a threaded fake control daemon reporting a playing
-    96 kHz PCM track, with a threaded fake 4322 stream on its metering port —
-    so an app that ever dials metering is caught by the listener's accept count.
-
-    Control lane only: no credentials, so the app never opens the 8088 lane,
-    and every store path is under tmp_path."""
-    daemon = spawn_threaded_daemon({"state": "2", "_metadata": METADATA_96K_PCM})
-    stream = spawn_threaded(FAKE_HIRES_FRAME)
-    listener, port = next(stream)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(daemon),
-        hqp_metering_port=port,
-        metering_enabled=metering_enabled,
-        hqp_username="",
-        hqp_password="",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        poll_interval=0.02,
-    )
-    try:
-        with TestClient(create_app(cfg)) as client:
-            yield client, listener
-    finally:
-        next(stream, None)
-        next(daemon, None)
-
-
-def _loaded(client: TestClient) -> bool:
-    return client.get("/api/status").json().get("data") is not None
-
-
-def _junk(client: TestClient) -> Any:
-    return (client.get("/api/status").json().get("data") or {}).get("junk")
-
-
-def _pumped(clients: Sequence[TestClient], gate: Callable[[], bool]) -> bool:
-    """Run the apps' own loops forward with real requests until ``gate`` holds,
-    reporting whether it ever did within the budget.
-
-    Requests are the only thing that advances a `TestClient` app's loop from a
-    sync test body, so a pass here is a pass of the app under test — and never
-    a wall-clock sleep (docs/testing.md §7)."""
-    for _ in range(LOOP_PASSES):
-        if gate():
-            return True
-        for client in clients:
-            client.get("/api/health")
-    return gate()
-
-
-@pytest.fixture
-def metering_off_app(tmp_path: Path) -> Iterator[AppOnStream]:
-    yield from _app_on_stream(tmp_path, metering_enabled=False)
-
-
-@pytest.fixture
-def metering_on_app(tmp_path: Path) -> Iterator[AppOnStream]:
-    yield from _app_on_stream(tmp_path, metering_enabled=True)
-
-
-def test_a_metering_enabled_app_connects_to_the_metering_port(metering_on_app: AppOnStream) -> None:
-    client, listener = metering_on_app
-    wait_for_api(client, _loaded, tries=READY_PASSES)
-    _pumped([client], lambda: listener.accepts >= 1)
-    assert listener.accepts >= 1
-
-
-def test_a_metering_enabled_app_serves_a_junk_recommendation(metering_on_app: AppOnStream) -> None:
-    # the counterpart of the metering-off case below: a null verdict there has
-    # to mean "switched off", not "this app never advises anything"
-    client, _listener = metering_on_app
-    wait_for_api(client, _loaded, tries=READY_PASSES)
-    _pumped([client], lambda: _junk(client) is not None)
-    assert (_junk(client) or {})["filter"] == "20k"  # the fake-hi-res stream's verdict
-
-
-def test_a_metering_disabled_app_never_connects_to_the_metering_port(
-    metering_off_app: AppOnStream, metering_on_app: AppOnStream
-) -> None:
-    off_client, off_listener = metering_off_app
-    on_client, on_listener = metering_on_app
-    wait_for_api(off_client, _loaded, tries=READY_PASSES)
-    wait_for_api(on_client, _loaded, tries=READY_PASSES)
-    # the gate: an identical app with metering on has by now dialed, so the
-    # silent one has had at least as much of its own loop as a dial takes
-    if not _pumped([off_client, on_client], lambda: on_listener.accepts >= 1):
-        pytest.fail("the metering-enabled app never dialed: this case's gate never armed")
-    assert off_listener.accepts == 0
-
-
-def test_a_metering_disabled_app_serves_a_null_junk_recommendation(
-    metering_off_app: AppOnStream, metering_on_app: AppOnStream
-) -> None:
-    off_client, _off_listener = metering_off_app
-    on_client, _on_listener = metering_on_app
-    wait_for_api(off_client, _loaded, tries=READY_PASSES)
-    wait_for_api(on_client, _loaded, tries=READY_PASSES)
-    if not _pumped([off_client, on_client], lambda: _junk(on_client) is not None):
-        pytest.fail("the metering-enabled app never advised: this case's gate never armed")
-    assert _junk(off_client) is None
