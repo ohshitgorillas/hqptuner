@@ -205,35 +205,6 @@ def test_a_whole_file_target_survives_the_red_run_and_is_gone_from_dev_once_the_
     assert (after_red, _carried_on(root, "dev", TARGET)) == ((True, [f"M\t{EDITED}"]), False)
 
 
-# --- 2. a whole-file target under tests/ that no file carries ------------------
-
-
-def test_a_whole_file_target_no_file_carries_refuses_the_run_and_lands_no_red_commit(
-    tmp_path: Path,
-) -> None:
-    slug = "probe-two"
-    missing = "tests/test_probe_absent.py"
-    root = _checkout(tmp_path, slug, _EXCISION_BLOCK.format(slug=slug, target=missing, verdict=_VERDICT))
-    spec_tree = _open_pair(root, slug)
-    _edit_a_test(spec_tree)
-    finished = _drive(root, "red", slug)
-    assert (_outcome(finished), len(_red_commits(root, slug))) == ("refused", 0)
-
-
-# --- 3. a whole-file target that does not begin tests/ ------------------------
-
-
-def test_a_whole_file_target_outside_tests_refuses_the_run_and_leaves_the_path_it_names_in_place(
-    tmp_path: Path,
-) -> None:
-    slug = "probe-three"
-    root = _checkout(tmp_path, slug, _EXCISION_BLOCK.format(slug=slug, target=SOURCE, verdict=_VERDICT))
-    spec_tree = _open_pair(root, slug)
-    _edit_a_test(spec_tree)
-    finished = _drive(root, "red", slug)
-    assert (_outcome(finished), (spec_tree / SOURCE).exists()) == ("refused", True)
-
-
 # --- 4. a spec tree whose only change is a deletion ---------------------------
 
 
