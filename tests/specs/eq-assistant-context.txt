@@ -1,0 +1,56 @@
+slug: eq-assistant-context
+
+kind: new
+
+brief:
+> Optimize the EQ assistant's context
+> make suggestions
+> Add tooling
+> 1,2,4,5,6
+> exemption for a new tool approved
+> inside eqlab
+> Approved, proceed
+
+1. A job naming an alias answers the entry whose canonical term carries that alias; against a fixture vocabulary whose tonal entry has `term` `"aaa"`, with `aliases` `["zzz"]`, `{"kind":"vocab","terms":["zzz"]}` answers the entry whose `term` is `"aaa"`.
+   kills: matching on `term` only, so every alias the fixture declares answers as a miss while its canonical term answers.
+   bite: null stub fails at `{"kind":"vocab","terms":["zzz"]}` (surface new)
+   existing: none, `grep -rn "vocab" tests/` returns 9 lines, none naming a lookup job: 3 are the word "vocabulary" in Python comments, 4 are prose inside `tests/specs/*.txt`, 2 are JS comments in `tests/js/components` and `tests/js/support`.
+
+2. A job naming a consistency row's `symptom` answers that row; against a fixture whose `consistency` array carries a row with `symptom` `"sss"`, its `tonal` array carrying none, `{"kind":"vocab","terms":["sss"]}` answers the row whose `symptom` is `"sss"`.
+   kills: reading the lookup key from `term` alone, which the fixture's tonal rows carry and its consistency rows do not, so a consistency row is unreachable by any input.
+   bite: null stub fails at `{"kind":"vocab","terms":["sss"]}` (surface new)
+   existing: none, same grep as line 1.
+
+3. A job answers the sense ids the fixture gives the term it names; against a fixture where `"aaa"` carries senses `["s1","s2"]`, `"bbb"` carrying `["s3"]`, `{"kind":"vocab","terms":["aaa","bbb"]}` answers `s1`, `s2` under `aaa`, `s3` under `bbb`.
+   kills: answering a term's first sense, which returns `s1` under `aaa` where the contract returns both, so a term whose senses disagree is acted on instead of asked about.
+   bite: null stub fails at `{"kind":"vocab","terms":["aaa","bbb"]}` (surface new)
+   existing: none, same grep as line 1.
+
+4. A job answers an index whose name list is every lookup name the fixture declares when no term matched, `[]` when one did; `{"kind":"vocab","terms":["qqq"]}` answers an index name list carrying `"zzz"`, `{"kind":"vocab","terms":["aaa"]}` answers an index name list of `[]`.
+   kills: answering a bare empty match list on a miss, which leaves the caller no cheaper next step than reading the whole vocabulary file.
+   bite: null stub fails at `{"kind":"vocab","terms":["qqq"]}` (surface new)
+   existing: none, `grep -rn "vocab" tests/` returns 9 lines, none naming a lookup job: 3 are the word "vocabulary" in Python comments, 4 are prose inside `tests/specs/*.txt`, 2 are JS comments in `tests/js/components` and `tests/js/support`.
+
+5. A job answers the conflict rows that name the term it matched; against a fixture whose `_meta.conflict_pairs` is `[["aaa","ccc"],["ddd","eee"]]`, `{"kind":"vocab","terms":["aaa"]}` answers `["aaa","ccc"]`, `{"kind":"vocab","terms":["ddd"]}` answers `["ddd","eee"]`.
+   kills: answering every conflict row in the file, or none, so the caller either re-reads the whole `_meta` block or emits a pair the fixture declares cancelling.
+   bite: null stub fails at `{"kind":"vocab","terms":["aaa"]}` (surface new)
+   existing: none, same grep as line 1.
+   why a fifth line: the approved plan deletes the cancellation rule from `PRIMER.md` on the strength of the answer carrying these rows. Without this line that deletion is unpinned.
+
+--- spec-reviewer READY ---
+READY
+discriminates: differential on the vocab job's index name list (line 4, `["qqq"]` -> a list carrying `"zzz"` vs `["aaa"]` -> `[]`) and on the conflict-rows field (line 5, two inputs, two distinct fixture pairs); lines 1, 2 and 3 carry three distinct fixture-supplied values on the one match surface.
+
+return check: both round-2 findings took the named repair. Line 4's negation is gone, replaced by the same field's value at both inputs; line 5 carries the second input on the conflict-rows invariant. Carried verdicts match what I issued.
+
+1  KEEP  carried
+2  KEEP  carried
+3  KEEP  carried
+4  KEEP  `{"kind":"vocab","terms":["qqq"]}` -> index name list carrying `"zzz"`, `{"kind":"vocab","terms":["aaa"]}` -> index name list `[]`; answering a bare empty match list on a miss fails it at `["qqq"]`; bite: null stub fails at `{"kind":"vocab","terms":["qqq"]}`
+5  KEEP  `{"kind":"vocab","terms":["aaa"]}` -> `["aaa","ccc"]`, `{"kind":"vocab","terms":["ddd"]}` -> `["ddd","eee"]`, against `_meta.conflict_pairs` `[["aaa","ccc"],["ddd","eee"]]`; answering every row, or none, fails it at `["aaa"]`; bite: null stub fails at `{"kind":"vocab","terms":["aaa"]}`
+
+null stub: the vocab job kind is unregistered - the dispatcher returns the zero value and no vocabulary file is read.
+  satisfies: none   fails: 1, 2, 3, 4, 5
+hard-coded stub: a table keyed on the exact term lists the lines name, returning the exact fixture entries, senses, index and conflict rows, reading no vocabulary file.
+  satisfies: none   fails: 1, 2, 3, 4, 5 - 4 and 5 each pin one field at two inputs with two distinct values, and 1, 2 and 3 survive it only as the paired match-surface sweep of docs/testing.md:40, never one at a time.
+survives: 5
