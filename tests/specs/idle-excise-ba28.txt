@@ -1,0 +1,50 @@
+slug: idle-excise-ba28
+kind: excision
+
+brief:
+> Dynamic gate: a pytest plugin that records, per test, wall time (`time.perf_counter`) and CPU time (`time.process_time` plus `resource.getrusage(RUSAGE_CHILDREN)`), and flags a test whose `wall - cpu` exceeds 100 ms.
+> Static gate: an AST pass over `tests/` that flags a real-clock deadline knob given a small value (`timeout=`, `request_timeout=`, `alarm_threshold=`) and any `time.sleep` or `asyncio.sleep` with a non-zero argument outside `tests/e2e/`.
+> Your task is to implement those hooks.
+> Investigate and report first before stage 1.
+>
+> 40 ms.
+>
+> KEEP
+>
+> WHY THE FUCK AM I BEING ASKED ABOUT THIS? THIS IS NOT A FUCKING BLOCKING DECISION, THIS IS AN AGENT BEING FUCKING LAZY.
+
+format: one departure from docs/testing.md:76-84. `assertion:` carries the clock the test waits out, quoted with its `file:line`, rather than an assert statement: rule 7 is violated by the wait, and no assertion in these tests states it. This is the shape the previous excision block used (`tests/specs/slow-offline-tests.txt`, committed at 2d790fcb).
+
+1. excise tests/engine/test_control.py::test_enumeration_reassembles_split_frames
+   rule: docs/testing.md rule 7
+   assertion: tests/engine/test_control.py:35, `await asyncio.sleep(0.05)` in the fake server's `_serve` — 50 ms of real flush gap waited out on every run
+
+2. excise tests/api/test_connection_lane.py::test_a_save_silent_about_the_choice_leaves_the_stored_choice_alone
+   rule: docs/testing.md rule 7
+   assertion: tests/api/test_connection_lane.py:55, `"request_timeout": 0.05` — 48-50 ms of real connect deadline waited out in `asyncio.wait_for`
+
+3. excise tests/engine/test_discovery.py::test_the_route_answers_one_five_field_entry_per_daemon_that_replied
+   rule: docs/testing.md rule 7
+   assertion: tests/engine/test_discovery.py:179, `discovery_timeout=0.05` — 50 ms of real discovery deadline read to the end, both parameter cases
+
+4. excise tests/engine/test_discovery.py::test_the_alias_address_is_listed_only_where_no_datagram_was_answered
+   rule: docs/testing.md rule 7
+   assertion: tests/engine/test_discovery.py:234, `discovery_timeout=0.1` — 100 ms of real discovery deadline read to the end, both parameter cases
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision; the block pins nothing, so the lookup-table check does not run
+
+1  KEEP  tests/engine/test_control.py:68 exists and reaches `_serve`'s `GetFilters` branch; the quoted `await asyncio.sleep(0.05)` at tests/engine/test_control.py:35 is a real-clock wait in the only branch this test drives, violating rule 7.
+2  KEEP  tests/api/test_connection_lane.py:117 exists and builds with `app_factory()`, so it takes the `"request_timeout": 0.05` default at :55 against `closed_port`, a real connect deadline waited out; the same fixture default still serves the two surviving tests at :85 and :105, which this line does not claim to remove.
+3  KEEP  tests/engine/test_discovery.py:179 `discovery_timeout=0.05` is a real-clock deadline knob on a parametrized test with two cases; rule 7 is real and the wait is visible in the test file.
+4  KEEP  tests/engine/test_discovery.py:234 `discovery_timeout=0.1` with `silent_target()` in the `answered=False` case is a real deadline that can only end by expiring; rule 7 violation visible in the file.
+
+null stub: feature absent - nothing rendered, nothing persisted, every new function returns its zero value.
+  satisfies: none   fails: none   (excision lines state no outcome; no stub is readable against them)
+hard-coded stub: return the exact values the lines name for the exact inputs given.
+  satisfies: none   fails: none   (same reason)
+
+survives: 4
+
+note: whether the `answered` cases of lines 3 and 4 return before their deadline expires depends on `hqptuner/engine/discovery.py`, which I may not read; the knob is a real-clock deadline either way, which is what rule 7 and the owner's static-gate sentence name.

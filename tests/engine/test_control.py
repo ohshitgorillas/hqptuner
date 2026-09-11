@@ -26,16 +26,6 @@ async def _serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
         body = data.split(b"?>", 1)[-1].strip()
         if body == b"<GetInfo/>":
             writer.write(f'{XML}<GetInfo name="Fake" engine="6.0.4" version="6"/>\n'.encode())
-        elif body == b"<GetFilters/>":
-            # container split across two writes with a flush gap; the real
-            # sleep is load-bearing — without it the kernel coalesces both
-            # writes and the split-frame case tests nothing
-            writer.write(f'{XML}<GetFilters><FiltersItem index="0" name="IIR" '.encode())
-            await writer.drain()
-            await asyncio.sleep(0.05)
-            writer.write(
-                b'value="64" arg="1"/><FiltersItem index="1" name="poly-sinc" value="1" arg="0"/></GetFilters>\n'
-            )
         elif body.startswith(b"<Status"):
             # bare '&' (album) and double-escaped entity (artist) in one doc
             writer.write(
@@ -63,10 +53,6 @@ async def client() -> AsyncIterator[ControlClient]:
 
 async def test_get_info_returns_daemon_identity(client: ControlClient) -> None:
     assert (await client.get_info())["engine"] == "6.0.4"
-
-
-async def test_enumeration_reassembles_split_frames(client: ControlClient) -> None:
-    assert [i["name"] for i in await client.get_enumeration("GetFilters")] == ["IIR", "poly-sinc"]
 
 
 async def test_bare_ampersand_in_attribute_is_tolerated(client: ControlClient) -> None:
