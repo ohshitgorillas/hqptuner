@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
-from hqptuner.engine.discovery import discover
+from hqptuner.engine.discovery import Search, discover
 
 router = APIRouter(prefix="/api")
 
@@ -21,5 +21,11 @@ async def discover_daemons(request: Request) -> list[dict[str, Any]]:
     # Target, wait and control port all come off the app's own Config, so an
     # install pointed at one host searches that host rather than the group.
     cfg = request.app.state.config
-    found = await discover(cfg.discovery_timeout, cfg.hqp_control_port, cfg.discovery_target, cfg.container_host_alias)
+    search = Search(
+        target=cfg.discovery_target,
+        alias=cfg.container_host_alias,
+        control_port=cfg.hqp_control_port,
+        request_timeout=cfg.request_timeout,
+    )
+    found = await discover(search, cfg.discovery_timeout)
     return [asdict(daemon) for daemon in found]

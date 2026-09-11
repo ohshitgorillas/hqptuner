@@ -139,7 +139,8 @@ export const api = {
   connection: () => getJSON("/api/connection"),
   saveConnection: (/** @type {unknown} */ body) => send("/api/connection", "POST", body),
   // Which hqplayerds answer discovery. On demand only: the call waits on the
-  // daemons for `discovery_timeout`, and nothing polls it.
+  // daemons for `discovery_timeout`, plus one `request_timeout` where nobody
+  // answered and the container host is asked directly, and nothing polls it.
   discoverDaemons: () => getJSON("/api/discover"),
   // Favorites — starred filter and modulator NAMES, stored for the install
   // rather than for one browser. Whole-set replace per kind: unstarring is a PUT

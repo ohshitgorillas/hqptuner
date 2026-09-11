@@ -9,6 +9,7 @@ more: the product string names the major but never the operating system, so each
 import asyncio
 import logging
 import socket
+import time
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree
@@ -22,6 +23,11 @@ log = logging.getLogger(__name__)
 #: only there is absent from the list rather than an error.
 GROUP = "239.192.0.199"
 PORT = 4321
+
+#: How long the sweep leaves the socket alone between reads. The waiting is paid
+#: here, through the injectable ``sleep``, so a caller can pace the sweep without
+#: a real clock.
+POLL = 0.05
 
 #: The request datagram, byte for byte as protocol.md §2 gives it.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
@@ -131,28 +137,48 @@ def _endpoint(target: str) -> tuple[str, int]:
     return (host, int(port)) if host else (target, PORT)
 
 
-async def _collect(sock: socket.socket, deadline: float) -> list[tuple[bytes, str]]:
+async def _collect(
+    sock: socket.socket,
+    deadline: float,
+    clock: Callable[[], float],
+    sleep: Callable[[float], Awaitable[None]],
+) -> list[tuple[bytes, str]]:
     """Read datagrams off one socket until the deadline, each with the address it came from.
 
     There is no count to wait for: a daemon that is not there sends nothing, so the deadline is the only thing
-    that ends the read.
+    that ends the read. The deadline is tested after every pass, on both arms, so the last thing this does
+    before it ends is read the buffer, and a socket answering without pause still ends on time.
     """
-    loop = asyncio.get_running_loop()
     replies: list[tuple[bytes, str]] = []
-    while (remaining := deadline - loop.time()) > 0:
+    while True:
         try:
-            data, addr = await asyncio.wait_for(loop.sock_recvfrom(sock, 65535), remaining)
-        except TimeoutError:
-            break
+            data, addr = sock.recvfrom(65535)
+        except BlockingIOError:
+            if clock() >= deadline:
+                return replies
+            await sleep(POLL)
+            continue
         replies.append((data, addr[0]))
-    return replies
+        if clock() >= deadline:
+            return replies
+
+
+@dataclass(frozen=True)
+class Search:
+    """Where the sweep looks and who it asks."""
+
+    target: str = GROUP
+    alias: str = ALIAS
+    control_port: int = PORT
+    request_timeout: float = 5.0
 
 
 async def discover(
+    search: Search,
     wait_seconds: float = 3.0,
-    control_port: int = PORT,
-    target: str = GROUP,
-    alias: str = ALIAS,
+    *,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
@@ -169,16 +195,16 @@ async def discover(
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(0)  # non-blocking, so the loop owns the waiting
     try:
-        await loop.sock_sendto(sock, REQUEST, _endpoint(target))
-        replies = await _collect(sock, loop.time() + wait_seconds)
+        await loop.sock_sendto(sock, REQUEST, _endpoint(search.target))
+        replies = await _collect(sock, clock() + wait_seconds, clock, sleep)
     finally:
         sock.close()
     found = [record for payload, address in replies if (record := parse_reply(payload, address))]
     if not found:
-        answered = await probe(alias, control_port, wait_seconds)
+        answered = await probe(search.alias, search.control_port, search.request_timeout)
         return [answered] if answered is not None else []
 
     async def describe(address: str) -> dict[str, str]:
-        return await _describe(address, control_port, wait_seconds)
+        return await _describe(address, search.control_port, search.request_timeout)
 
     return await enrich(dedupe(found), describe)
