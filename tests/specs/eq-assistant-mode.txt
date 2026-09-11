@@ -1,0 +1,77 @@
+slug: eq-assistant-mode
+
+kind: new
+
+brief:
+> How can we formalize the EQ Assistant as an agent type for me to call?
+> Rather than having a general agent, loaded with the repo's rules, also take on the role of the EQ Assistant, I'd like to have a dedicated EQ Assistant that I could call.
+> How would that work?
+> yeah, a subagent does not work, that's just burning fucking tokens for nothing
+> is that really the best you can do? is there not like a "mode" switch in clode settings? I can't call, e.g., "claude --type='eqassistant'"?
+> 1 suppress 2 free 3 what?
+> Exemption approved for all hooks except softwrap. md-by-tool is for the trivia judge, right? the EQ Assistant should be recording ledgers directly and verbatim. Trivia Judge would have a fit.
+
+1. `node` is permitted at `scripts/eqstage/eqstage.js` but refused at `/tmp/j.js`.
+   kills: an allowlist keyed on the interpreter, which admits any `node` command, so a script written to a scratch path carries the apply POST and runs.
+   bite: null stub fails at `node /tmp/j.js` (surface new)
+   existing: none, `grep -rn "eq_lane\|eq-lane" tests/` printed nothing and exited 1
+
+2. `Edit` is permitted at `docs/eq-assistant/sessions/ori/ori3-tuning.json` but refused at `scripts/eqstage/eqstage.js`.
+   kills: a hook that rules only on `Bash`, leaving the allowlisted script itself editable, so the apply POST is added to the very tool the allowlist names by path.
+   bite: null stub fails at the edit of `scripts/eqstage/eqstage.js` (surface new)
+   existing: none, `grep -rn "eq_lane\|eq-lane" tests/` printed nothing and exited 1
+
+3. `Write` is permitted at `docs/eq-assistant/sessions/ori/notes.md` but refused at `docs/eq-assistant/PRIMER.md`.
+   kills: a write rule keyed on the top-level directory, which admits any path under `docs/eq-assistant/` and lets the session rewrite the doctrine it reads.
+   bite: null stub fails at the write of `docs/eq-assistant/PRIMER.md` (surface new)
+   existing: none, `grep -rn "eq_lane\|eq-lane" tests/` printed nothing and exited 1
+
+4. `sed` is permitted as `sed -n '1,20p' docs/eq-assistant/PRIMER.md` but refused as `sed -i 's/x/y/' docs/eq-assistant/PRIMER.md`.
+   kills: an allowlist keyed on the binary name, which admits the mutating form of a tool it permitted for reading.
+   bite: null stub fails at `sed -i 's/x/y/' docs/eq-assistant/PRIMER.md` (surface new)
+   existing: none, `grep -rn "eq_lane\|eq-lane" tests/` printed nothing and exited 1
+
+public entry points (planned surface of `.claude/hooks/eq-lane.py`):
+
+    def verdict(name: str, tool_input: dict, payload: dict) -> str | None:
+        """Why this call is refused, or None to let it through."""
+
+    def main() -> None:
+        ...
+
+wire and protocol facts:
+
+- The hook runs as `PreToolUse`. It reads `tool_name` and `tool_input` from the payload, the command string from `tool_input["command"]` for `Bash`, and the target from `tool_input["file_path"]` for `Write` and `Edit`; `agent_type` is present only for subagent calls. Shape and JSON keys: `.claude/hooks/reviews-lane.py:165-198`.
+- A denial is emitted as `hookSpecificOutput` with `hookEventName: "PreToolUse"`, `permissionDecision: "deny"` and a `permissionDecisionReason`; a hook that fails on its own input emits nothing and lets the call through (`.claude/hooks/reviews-lane.py:181-198`).
+- The calls this lane exists to stop: `docs/eq-assistant/STAGING.md:16` — "**Forbidden either way: `POST /api/config/apply`.** … Same for `POST /api/config/live` and any write to the daemon on 8088/4321. `DELETE /api/config/pending` clears everything staged including the user's own edits — only on explicit request." The apply route is HQPTuner's own API on 8090; 8088 and 4321 are the daemon.
+- `scripts/eqstage/README.md:11` — the staging tool has no code path to apply, live or pending-delete, "and none gets added", and routing around the tool with raw `curl` writes is forbidden.
+- Ledgers are `*-tuning.json` under `docs/eq-assistant/sessions/<headphone>/` (`docs/eq-assistant/RECORD.md:3`), and the `state` block of one is rewritten in place rather than appended (`docs/eq-assistant/RECORD.md:23`).
+- The allowlist the four lines describe, stated once for the writer's reading of them: `Bash` permits `node` at `scripts/eqstage/eqstage.js` and `scripts/eqlab/eqlab.js`, plus a read-only set — `cat`, `head`, `tail`, `sed -n`, `grep`, `ls`, `wc`, `jq`, `git status|log|diff|show` — and refuses every other command. `Write` and `Edit` permit the session's job files and `docs/eq-assistant/sessions/**`, and refuse `scripts/`, `hqptuner/`, `static/`, `tests/`, `.claude/`, `docs/eq-assistant/agent/` and every path outside the repo.
+
+applicable fixtures:
+
+- None from `tests/conftest.py` applies: the hook takes a payload dict and returns a verdict, with no app, client or daemon in reach.
+- `tests/gates/test_reviews_lane.py:55-75` is the pattern for this shape — `checkout(tmp_path)` builds a checkout root with an empty `.git` inside it, `payload_for` and `edit_input` assemble the payload, and `outcome` reduces a call to allowed or denied. Nothing there asserts denial wording.
+
+changelog: no entry. The artifacts are a session's agent definition, its hook and its launcher; no HQPTuner surface, API or behavior changes for a user of the app.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: differential on the EQ-lane hook verdict -- all four lines flip permit/refuse across one varied axis with the rest held fixed: the script path under `node` (1), the tool over one path (2), the directory under `Write` with tool and suffix fixed (3), the mutating flag on one binary and one path (4).
+
+round 2 finding resolved by citation, verified here rather than taken: `docs/eq-assistant/RECORD.md:3` makes the ledger the `*-tuning.json` file under `sessions/<headphone>/`, `.gitignore:51-53` tracks only `*tuning*.json` there, and `.claude/hooks/md-softwrap.py:132` skips every path whose suffix is not `.md`. A ledger is therefore JSON, softwrap cannot reach it, and "recording ledgers directly and verbatim" names no verdict the lane returns. The observable half of that brief sentence -- the lane lets the session write where its records go and refuses it the doctrine it reads -- is pinned by line 3. No (m) finding outstanding.
+
+1  KEEP  carried
+2  KEEP  carried
+3  KEEP  `Write` at docs/eq-assistant/sessions/ori/notes.md -> permitted, `Write` at docs/eq-assistant/PRIMER.md -> refused; a write rule keyed on the top-level `docs/eq-assistant/` directory fails it at the PRIMER.md write, which it admits; null stub fails at the write of docs/eq-assistant/PRIMER.md
+4  KEEP  carried
+
+null stub: no EQ lane hook installed -- every verdict function returns its zero value, `None`, so every call is allowed.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: a table keyed on the literal (tool, command-or-path) pairs the block names, allowing everything else.
+  satisfies: none   fails: 1, 2, 3, 4
+
+survives: 4
+
+Note for the owner: the block that reached me carried `kind:`, the brief and the four behavior lines only -- no public entry point, wire facts, fixtures or changelog line. The seam the lines are written against is the one `tests/gates/test_reviews_lane.py:16` already uses for a lane hook, `verdict(name, tool_input, payload) -> str | None` loaded by path out of `.claude/hooks/`; the writer needs that named in the spec file before it writes.
