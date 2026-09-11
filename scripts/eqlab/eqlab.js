@@ -112,6 +112,7 @@ import { render } from "./render.js";
 import { refineJob, searchJob } from "./search.js";
 import { MAX_COMBOS, MAX_STEPS } from "./space.js";
 import { resolveTarget } from "./target.js";
+import { vocabJob } from "./vocab.js";
 
 // Every handler takes (spec, ctx) and answers the job's body. The spec shapes
 // differ per kind and each handler validates its own, so the table is typed by
@@ -126,6 +127,7 @@ const KINDS = {
   snapshot: snapshotJob,
   export: exportJob,
   plot: plotJob,
+  vocab: vocabJob,
 };
 
 // What this rig can and cannot do, on every run. `guards` are runaway stops to
@@ -157,9 +159,10 @@ async function run(job) {
   const spec = job.job || {};
   const handler = KINDS[spec.kind];
   if (!handler) throw new Error(`job.kind must be one of ${Object.keys(KINDS).join(" / ")}, got ${spec.kind}`);
-  // Snapshot list is the one job with no chain: it reads the store, nothing else.
-  const listOnly = spec.kind === "snapshot" && spec.list;
-  const { stages, source, consistency } = listOnly
+  // Two jobs answer without a chain: a snapshot list reads the store, and a
+  // vocab lookup reads the vocabulary file. Both run with the daemon down.
+  const chainless = (spec.kind === "snapshot" && spec.list) || spec.kind === "vocab";
+  const { stages, source, consistency } = chainless
     ? { stages: [], source: { kind: "none", stage_count: 0 }, consistency: null }
     : await resolveChain(job.chain);
   const fs = Number(job.fs || 44100);

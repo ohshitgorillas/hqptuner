@@ -71,6 +71,8 @@ Transforms in fixed order: smooth, tilt, override, align (default `mean` — pre
 - **snapshot** — `{"save":"name","overwrite":false}` writes chain JSON to `data/eqlab/`; `{"list":true}` needs no chain.
 - **export** — `{"path":"eq.txt","format":"parametric_eq","overwrite":false}`; Preamp line computed from the summed response.
 - **plot** — `{"path":"out.svg","show":["residual"],"against":{…chain spec…},"range":[20,20000],"y":[-6,6],"overwrite":false}` renders the curves to a self-contained SVG (legend, log-f and dB gridlines, distinct zero line) for the own-eyes plot check; answers `{"path","series"}`. `show` picks from `response` (summed chain dB), `target` (resolved target), `residual` (chain − target), `terrain` (0 − target, the error a no-op chain leaves), default `["residual"]` — the target-relative three need `job.target`. `against` draws a second chain's `response`/`residual` as dashed "(against)" twins for before/after. `range` defaults 20–20000 (log-x); `y` defaults auto including 0 dB; data outside `y` is clipped, never dropped. `overwrite` defaults false, matching snapshot/export.
+- **vocab** — `{"terms":["boomy","warm"],"path":"…"}`; the vocabulary entries those words reach, each with the name that matched it, plus the conflict rows naming a matched term and the `_meta` rules for reading an entry. `path` defaults to `docs/eq-assistant/vocabulary.json`. A miss answers `index`, every name the file can be looked up by, so a miss needs no read of the file. Needs no chain.
+
 ### Change semantics
 
 - `amend.select` matches an existing band's `f` EXACTLY — no nearest-match; not-found or non-unique is an error.

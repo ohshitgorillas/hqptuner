@@ -1,7 +1,7 @@
 // Guidance + confidence reporting. NOTHING here rejects, clamps, or rewrites a
 // value.
 //
-// PRIMER.md:236/:242 — the ONE policy limit is +/-6.0 dB of gain change per
+// docs/eq-assistant/PRIMER.md "Guardrails" — the ONE policy limit is +/-6.0 dB of gain change per
 // turn. No +/-12 dB gain clamp and no Q 0.18-6.0 clamp (those describe
 // AutoEq's envelope, not this project's), and a real session's root fault was
 // fixed by widening a band to Q 0.70 — a move any

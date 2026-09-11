@@ -1,6 +1,6 @@
 # TRANSDUCERS.md — what the EQ Assistant is actually EQ-ing
 
-Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (feature contract), `HEARING.md` (the listener, where the deficit is not the transducer's), `vocabulary.json` (the term map). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener, where the deficit is not the transducer's), `vocabulary.json` (the term map). Compiled 2026-07-25.
 
 The tuner does not generate a correction from nothing. It amends a chain that already carries an AutoEq profile for a specific headphone. **This document is the physical and measurement reality behind that profile**: what kind of driver made the curve, which acoustic variables move it, and above which frequency the measurement it came from stops meaning anything.
 
@@ -18,6 +18,13 @@ The operative consequence, stated up front: **a listening complaint is not alway
 Everything in this file is `[VA]` unless marked otherwise. Where a figure was computed rather than quoted, that is stated in place and the figure is labeled derived.
 
 ---
+
+This document answers four questions about the thing being EQ'd:
+
+1. What does the driver technology do, over-ear and in-ear? (§1, §2.)
+2. Which acoustic variables dominate over the driver — pads, seal, insertion depth, tips, venting? (§3.)
+3. How far can a published measurement be trusted? (§4, §5.)
+4. Which failure mode should a complaint be read against first? (§6.)
 
 ## 1. Over-ear driver technologies
 

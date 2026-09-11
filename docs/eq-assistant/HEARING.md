@@ -1,10 +1,18 @@
 # HEARING.md — the listener, not the transducer
 
-Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `PSYCHOACOUSTICS.md` (audibility thresholds), `TRANSDUCERS.md` (what is being EQ-ed). Compiled 2026-07-26.
+Companion to `SOURCES.md` (citations), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `PSYCHOACOUSTICS.md` (audibility thresholds), `TRANSDUCERS.md` (what is being EQ-ed). Compiled 2026-07-26.
 
 **Verification legend** — as `SOURCES.md`. `[VA]` throughout means a delegated research lane read the artifact and returned a verbatim quote plus a URL. Figures we computed from a quoted formula are labeled **derived** in place and are never presented as source claims. Numbers that surfaced only in search-engine summaries were **excluded, not demoted** — a summary is weaker than what `[S]` means in this project.
 
 Four sources were read in full from local PDFs, all gitignored and not committed: Benjamin & Siedenburg (2023) (§5), the Frontiers 2026 review (§5.4), Jin et al. (2024) (§1.4), and ITU-T H.870 (§6.3). **Two of them cannot be read with `pdftotext`** — Jin et al. is a Caesar −1 shift across pages 2–8 *including digits*, so `6/18` decodes to `7029` and a naive extraction yields plausible wrong numbers; Benjamin & Siedenburg is offset by one glyph and loses minus signs. Both were read as rendered pages. This is recorded because those files are still in the working directory and the failure is silent rather than obvious.
+
+This document answers five questions, in the order a complaint raises them:
+
+1. What does an audiogram say, and what does it not say? (§1.)
+2. Is a threshold shift a gain figure? (No — §2.)
+3. What does restoring audibility fail to restore? (§3.)
+4. Why is static EQ not a prescription, and what can this chain structurally not do? (§4, §5.)
+5. Where does more gain stop paying and start costing, and where is the medical boundary? (§6, §7, §8.)
 
 ## Why this document exists
 
