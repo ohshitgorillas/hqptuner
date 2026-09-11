@@ -1,0 +1,157 @@
+slug: slow-offline-tests
+kind: excision
+
+brief:
+> Excision brief — slow offline tests
+>
+> Slug: slow-offline-tests
+>
+> Rule. docs/testing.md, "Speed is a correctness property" (approved this session, not yet written to the file — it must land before this brief is actionable). Existing support: docs/testing.md:27, "Test reintroducing wall-clock wait is defective even when it passes."
+>
+> Symptom. Offline suite ~54s against the 7s the policy records. 25 tests carry ~19s of it; the other 2500 average 14ms. Durations cluster at 1.0s and 0.53s, which is a wait, not work.
+>
+> Targets, from .pytest-junit.xml on dev at a0d1ef4e, everything at or over 0.4s:
+>
+> - tests/engine/test_control_stall.py — 11 of 19 tests, 0.51–0.54s each
+> - tests/engine/test_metering_idle.py — 4 of 26, 1.01–1.13s
+> - tests/presets/test_load_resync.py — 5 of 12, 1.07–1.09s
+> - tests/engine/test_control_desync.py — 2, ~0.5s
+> - tests/engine/test_junk_advisor.py — 1, test_status_payload_serves_the_advisors_verdict, 1.13s
+> - tests/apply/test_fault_narrowing.py — 1, test_an_unexpected_poll_fault_records_no_outage, 1.04s
+> - tests/test_environment_isolation.py — 1, test_a_test_body_sees_only_the_environment_the_session_guards_install, 0.53s
+>
+> Not established, and it decides each line. Whether each test waits on a real clock or does slow work, and whether a seam exists to make it fast instead of deleting it. docs/testing.md:23 says ConnectionManager.run() stays on a real clock by design, which may excuse some — the approved wording overrides that, but which tests lean on it is unread. One read-only pass over the seven files settles it.
+>
+> Shape of the work. kind: excision block per docs/testing.md "Excision blocks": one line per target, rule: plus the offending line quoted. Whole-file excision does not apply — no file is majority-slow. Per-test removal is the testsmith's Edit in a spec tree; scripts/pair.sh red handles whole files only.
+>
+> Cost. Deleting all 25 drops pins on: stalled-setter and unanswered-command reporting, metering-enabled and disabled app startup, preset load resync, poll-fault outage recording, environment isolation. Each is re-pinned fast through the spec lane or stays unpinned.
+>
+> EXCISE. I AM 0% CONCERNED WITH COVERAGE FLOOR.
+
+format: two departures from docs/testing.md:76-84. `rule:` names the unnumbered section at docs/testing.md:68-72 by title, there being no number to give. Line 13 names one case of a parametrize, a target the grammar has no spelling for; the writer removes that parameter entry, not the test.
+
+1. excise tests/engine/test_control_stall.py::test_a_command_the_daemon_never_answers_fails_the_caller
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.50s per run, a real per-command deadline waited out
+
+2. excise tests/engine/test_control_stall.py::test_an_unanswered_command_names_itself_in_the_error
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.50s per run, a real per-command deadline waited out
+
+3. excise tests/engine/test_control_stall.py::test_a_write_whose_setter_stalls_is_still_answered
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+4. excise tests/engine/test_control_stall.py::test_a_setter_that_stalls_is_reported_as_not_applied
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+5. excise tests/engine/test_control_stall.py::test_a_setter_that_stalls_carries_a_reason
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+6. excise tests/engine/test_control_stall.py::test_a_mode_setter_that_stalls_is_reported_as_not_applied
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+7. excise tests/engine/test_control_stall.py::test_a_mode_write_whose_setter_stalls_is_still_answered
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+8. excise tests/engine/test_control_stall.py::test_a_write_whose_readback_stalls_is_still_answered
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+9. excise tests/engine/test_control_stall.py::test_a_write_whose_readback_stalls_is_reported_as_not_applied
+   rule: docs/testing.md "Speed is a correctness property"
+   assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+10. excise tests/engine/test_control_stall.py::test_a_write_whose_readback_stalls_carries_a_reason
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.50s per run, a real per-command deadline waited out
+
+11. excise tests/engine/test_control_stall.py::test_a_write_whose_readback_stalls_still_reached_the_engine
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/engine/test_control_stall.py:32, `STALL_TIMEOUT = 0.5` — 0.51s per run, a real per-command deadline waited out
+
+12. excise tests/engine/test_control_desync.py::test_a_field_behind_a_stalled_setter_is_not_reported_applied
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/engine/test_control_desync.py:31, `STALL_TIMEOUT = 0.5` — 0.50s per run, a real per-command deadline waited out
+
+13. excise tests/engine/test_control_desync.py::test_a_state_read_reaches_the_daemon_after_a_refusal_but_not_after_a_stall[_stall-recorded0]
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/engine/test_control_desync.py:31, `STALL_TIMEOUT = 0.5` — 0.50s for this case; the `_error` case of the same parametrize is fast and stays
+
+14. excise tests/presets/test_load_resync.py::test_a_preset_load_leaves_the_post_restore_state_in_the_picture
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.06s per run, a real restart-connect deadline waited out
+
+15. excise tests/presets/test_load_resync.py::test_a_preset_load_leaves_the_post_restore_enumerations_in_the_picture
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.06s per run, a real restart-connect deadline waited out
+
+16. excise tests/presets/test_load_resync.py::test_a_preset_load_clears_the_held_chain_edit
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.09s per run in fixed order, a real restart-connect deadline waited out
+
+17. excise tests/presets/test_load_resync.py::test_a_preset_load_whose_state_read_finds_the_connection_gone_still_loads
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.06s per run, a real restart-connect deadline waited out
+
+18. excise tests/presets/test_load_resync.py::test_a_preset_load_whose_state_read_finds_the_connection_gone_leaves_no_state
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.07s per run in fixed order, a real restart-connect deadline waited out
+
+19. excise tests/presets/test_load_resync.py::test_an_autosave_after_a_load_stores_the_post_restore_engine_filter
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.07s per run, a real restart-connect deadline waited out
+
+20. excise tests/presets/test_load_resync.py::test_an_autosave_after_a_load_does_not_store_the_pre_load_engine_mode
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/presets/test_load_resync.py:75, `alarm_threshold=1.0,` — 1.07s per run, a real restart-connect deadline waited out
+
+21. excise tests/apply/test_fault_narrowing.py::test_an_unexpected_poll_fault_records_no_outage
+    rule: docs/testing.md "Speed is a correctness property"
+    assertion: tests/apply/test_fault_narrowing.py:235, `task = asyncio.create_task(manager.run())` — 1.02s per run, a real reconnect delay waited out after the fixture's fault
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, nothing is pinned
+
+reversal, lines 16 and 18: I withdraw both CUTs. What I missed in round 1: I read durations out of one .pytest-junit.xml and treated them as a property of each test, when they are a property of that run's order. The restart-connect deadline is paid once by whichever member of the `dual_lane` family (tests/presets/test_load_resync.py:59-60) reaches it first, so a 0.079s sample does not show the test is fast. Checked rather than accepted - three fixed-order runs of the author's own command here:
+  $ .venv/bin/pytest tests/presets/test_load_resync.py -q -p no:randomly --durations=14 --durations-min=0.4
+  run 1 and run 2: six over 0.4s; test_a_preset_load_whose_state_read_finds_the_connection_gone_leaves_no_state 1.06-1.07s in both
+  run 3: seven over 0.4s, test_a_preset_load_clears_the_held_chain_edit 1.08s
+Line 18 reproduced slow in all three. Line 16 reproduced slow in one of three, fast in two - "1.09s per run in fixed order" overstates the stability, but the defect is the same `alarm_threshold=1.0` deadline at the same quoted line, and a test that waits it out on some runs waits on a wall clock (docs/testing.md:70).
+
+ 1  KEEP  carried
+ 2  KEEP  carried
+ 3  KEEP  carried
+ 4  KEEP  carried
+ 5  KEEP  carried
+ 6  KEEP  carried
+ 7  KEEP  carried
+ 8  KEEP  carried
+ 9  KEEP  carried
+10  KEEP  carried
+11  KEEP  carried
+12  KEEP  citation corrected; STALL_TIMEOUT = 0.5 is at tests/engine/test_control_desync.py:31 as now written
+13  KEEP  citation corrected, same line; the parametrize at :67 makes the _stall/_error split visible in the file, and only the _stall case pays the deadline
+14  KEEP  carried
+15  KEEP  carried
+16  KEEP  CUT withdrawn, see the reversal above
+17  KEEP  carried
+18  KEEP  CUT withdrawn, see the reversal above
+19  KEEP  carried
+20  KEEP  carried
+21  KEEP  carried from former line 26 (renumbered only); `asyncio.create_task(manager.run())` at :235, real clock by docs/testing.md:23, no longer excused by docs/testing.md:72
+
+null stub: N/A - an excision block pins nothing, so there is no implementation to stub.
+  satisfies: none   fails: none
+hard-coded stub: N/A - same.
+  satisfies: none   fails: none
+survives: 21
+
+notes for the owner:
+1. Three groups the brief lists are no longer in this block: tests/engine/test_metering_idle.py (4), tests/engine/test_junk_advisor.py (1), tests/test_environment_isolation.py (1). No wall-clock wait for any of them is quotable from tests/ - tests/conftest.py:449 and tests/engine/test_metering_idle.py:292 both say those helpers spin on real requests and never sleep - so the excision grammar at docs/testing.md:84 cannot be met and the spec lane cannot carry them. They are yours by the direct route at docs/testing.md:70. I am passing this block with that gap open rather than holding it, because no repair available to the author closes it.
+2. Whether those six are a wall-clock wait or slow work is settled by reading the metering reader's idle interval and the environment-isolation child pytest run under hqptuner/, which I may not read.
