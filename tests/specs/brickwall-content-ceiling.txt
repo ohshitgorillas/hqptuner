@@ -1,0 +1,46 @@
+slug: brickwall-content-ceiling
+kind: new
+
+brief:
+> Proceed with taking the fake hi-res vs brickwall fix to phase 1.
+> Issues with high frequency filter auto-pilot: current content fake hi-res with spurs, HF autopilot goes to 30k, not 20k
+> 20K BETTER THAN 30K WHEN FAKE HI RES, REGARDLESS OF SPURS. THE END.
+> I AM EXTREMELY SKEPTICAL OF THIS PLAN'S CAPACITY TO CATCH ALL FAKE HI-RES
+> Acceptable. Add the lossy hi-res check as well.
+
+The content ceiling a track is described by is the frequency where its level last stands 8 dB above its own noise floor. For every input below that frequency is 15000 plus 82000 divided by the fall rate in dB per kHz, or the cutoff itself where the level drops to the floor in one step. Each expected ceiling below is that arithmetic, not a reading taken from any implementation. Tolerance 0.2 kHz, which is four bins at this bandwidth.
+
+1. A 96 kHz track whose level is flat at -20 dB to 15 kHz, then falls at a constant rate into a -110 dB noise floor, is described by the pair (filter, ceiling_khz): `("20k", 19.6)` at a fall of 18 dB per kHz, `("20k", 22.3)` at 11.25 dB per kHz, `("20k", 25.0)` at 8.1818 dB per kHz.
+   kills: reports the centre of the steepest local slope instead of the content ceiling, so two tracks whose content ends 2.7 kHz apart are described to the user as ending at the same frequency.
+   bite: at 18 dB per kHz `{'filter': '20k', ..., 'ceiling_khz': 18.0}`; at 11.25 dB per kHz `{'filter': '20k', ..., 'ceiling_khz': 18.0}`; at 8.1818 dB per kHz `None` (PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python $SCRATCH/m.py)
+   existing: tests/engine/test_junk_advisor.py::test_fake_hires_reports_the_content_ceiling
+
+2. A 96 kHz track whose level is flat at -20 dB to 14 kHz, sitting at -110 dB above 14 kHz, is described by the pair (filter, ceiling_khz) `("20k", 14.0)`.
+   kills: reads the content ceiling only above 18 kHz, so a track cut at 14 kHz by a lossy encoder, then upsampled into a hi-res container, is described as carrying nothing to treat.
+   bite: `None` (PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python $SCRATCH/m.py)
+   existing: tests/engine/test_junk_advisor.py::test_fake_hires_reports_the_content_ceiling
+
+public entry point: hqptuner.engine.junkadvisor.classify, driven as tests/engine/test_junk_advisor.py::_classify drives it (levels, bandwidth, seconds, samplerate, sdm, min_levels_db).
+fixtures: tests/support/junk_spectra.py - spectrum() at BINS = 1025 over 48000.0 Hz bandwidth (46.875 Hz per bin), plus a new constant-fall-rate builder and a 14 kHz one-step cutoff builder.
+wire facts: bin k sits at k * bandwidth / (bins - 1) Hz (docs/protocol.md §7); ceiling_khz and filter are wire fields of the advice object already carried to the frontend.
+changelog line: not supplied to the reviewer with this block; it is owner-approved copy and is not reviewed here.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on classify(...)["ceiling_khz"] - four inputs to one stated invariant (the 8 dB-above-floor crossing) at 14.0, 19.6, 22.3, 25.0, against a HEAD that answers 18.0, 18.0 and None
+
+return, finding by finding:
+- (i) two outcomes per line: repaired. Both lines now state the pair (filter, ceiling_khz) as one comparable value.
+- (b) DELTA tests/engine/test_junk_advisor.py:107: repaired. Both lines now cite test_fake_hires_reports_the_content_ceiling and land as parametrize cases of it; no new test file, no new test.
+- rule-10 note on the provenance of 19.6 / 22.3 / 25.0: withdrawn. The preamble's arithmetic checks out without touching any implementation - 82000/18 = 4555.6, /11.25 = 7288.9, /8.1818 = 10022.2, each added to 15000 and rounded to the stated tenth - and the -102 dB crossing is fixed by the line's own -20 dB plateau and -110 dB floor.
+
+1  DELTA tests/engine/test_junk_advisor.py:107: the single fake_hires_96k assertion becomes parametrized over (spectrum, expected ceiling) with a constant-fall-rate builder in tests/support/junk_spectra.py at 18, 11.25 and 8.1818 dB/kHz, expecting 19.6, 22.3 and 25.0 within 0.2, and the filter half of the pair asserted alongside.
+2  DELTA tests/engine/test_junk_advisor.py:107: one further case in the same parametrize - a 14 kHz one-step cutoff expecting ("20k", 14.0), the below-18-kHz edge of the same rule.
+
+null stub: classify() returns None for every spectrum; nothing computed, ceiling_khz never present.
+  satisfies: none   fails: 1, 2
+hard-coded stub: return the pair each line names for the exact spectrum it names, by lookup, and None elsewhere.
+  satisfies: none   fails: 1, 2
+  reversal, round 1 said this stub satisfies line 2: I read 14.0 as an absolute design literal at a single input. It is not one. 14.0 is the cutoff the fixture itself puts in the spectrum, and the line reads the same ceiling rule as line 1's three points at its one-step edge; with all four cases in one parametrize the lookup has to reproduce the rule at four points of one continuum, which is the work the feature exists to do.
+
+survives: 0 KEEP, 2 DELTA - two changed cases in one existing test and no new test written.
