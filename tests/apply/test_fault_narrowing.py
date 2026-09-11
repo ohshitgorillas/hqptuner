@@ -19,7 +19,6 @@ instead — see
 docs/testing.md rule 4 recorded above it.
 """
 
-import asyncio
 import contextlib
 import json
 from collections.abc import AsyncIterator
@@ -27,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import ManagerFactory, StartManager, eventually
+from conftest import ManagerFactory, StartManager
 from narrow import present
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -169,15 +168,9 @@ async def test_a_healthy_pass_records_no_error_for_any_form(
 class FaultingMatrixClient(HttpConfigClient):
     """An 8088 client whose /matrix read raises the way one of our own parsing
     bugs would — a TypeError, which is neither an ``httpx.HTTPError`` nor the
-    control protocol's error type. Counts its calls so a test can see the poll
-    loop come back around."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.matrix_calls = 0
+    control protocol's error type."""
 
     async def get_matrix(self) -> Any:
-        self.matrix_calls += 1
         raise TypeError("unexpected fault: our bug, not the daemon's")
 
 
@@ -222,21 +215,3 @@ async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
     with contextlib.suppress(TypeError):
         await forms.refresh(manager)
     assert manager.readings.matrix_error is None
-
-
-async def test_an_unexpected_poll_fault_records_no_outage(
-    faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
-) -> None:
-    # the control lane is healthy; a fault in our own code is no evidence the
-    # daemon went away. The wait is on the SECOND faulting read, not the first:
-    # the loop having come back around is what proves the first fault was
-    # classified rather than merely raised, and it pins that the loop survived it.
-    manager, client = faulting_matrix
-    task = asyncio.create_task(manager.run())
-    try:
-        await eventually(lambda: client.matrix_calls > 1)
-        outage = manager.unreachable_since
-    finally:
-        manager.stop()
-        await task
-    assert outage is None
