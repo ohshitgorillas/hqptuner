@@ -10,29 +10,35 @@ alias names.
 """
 
 import asyncio
+import socket
 from collections.abc import AsyncIterator, Mapping
-from contextlib import asynccontextmanager
-from typing import Any
+from contextlib import asynccontextmanager, suppress
 
 
-class _Responder(asyncio.DatagramProtocol):
-    def __init__(self, replies: Mapping[bytes, bytes]) -> None:
-        self.replies = replies
-        self.transport: asyncio.DatagramTransport | None = None
-
-    def datagram_received(self, data: bytes, addr: tuple[str | Any, int]) -> None:
-        answer = self.replies.get(data)
-        if answer is not None and self.transport is not None:
-            self.transport.sendto(answer, addr)
+async def _answer(sock: socket.socket, replies: Mapping[bytes, bytes]) -> None:
+    """Read datagrams until cancelled, answering the ones the table knows."""
+    loop = asyncio.get_running_loop()
+    while True:
+        request, sender = await loop.sock_recvfrom(sock, 4096)
+        reply = replies.get(request)
+        if reply is not None:
+            await loop.sock_sendto(sock, reply, sender)
 
 
 @asynccontextmanager
 async def responder(replies: Mapping[bytes, bytes], host: str = "127.0.0.2") -> AsyncIterator[int]:
-    """Answer `replies` on an ephemeral UDP port at `host`, yielding the port."""
-    loop = asyncio.get_running_loop()
-    transport, protocol = await loop.create_datagram_endpoint(lambda: _Responder(replies), local_addr=(host, 0))
-    protocol.transport = transport
+    """Answer `replies` on an ephemeral UDP port at `host`, yielding the port.
+
+    The socket is bound before the port is handed out, so a request sent before
+    the reader's first pass is held by the kernel rather than lost."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(0)  # non-blocking, which is what the loop's socket calls require
+    sock.bind((host, 0))
+    reading = asyncio.create_task(_answer(sock, replies))
     try:
-        yield int(transport.get_extra_info("sockname")[1])
+        yield int(sock.getsockname()[1])
     finally:
-        transport.close()
+        reading.cancel()
+        with suppress(asyncio.CancelledError):
+            await reading
+        sock.close()
