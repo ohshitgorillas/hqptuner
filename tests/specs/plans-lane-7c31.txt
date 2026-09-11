@@ -1,0 +1,43 @@
+slug: plans-lane-7c31
+kind: new
+
+brief:
+> Adopt two more features from upstream Gauntlet (~/dev/gauntlet) into hqptuner, as two separate pairs in this order. Pair (b): port .claude/hooks/plans-lane.py so gauntlet-prosecutor writes the approved stage 1 plan to docs/gauntlet/plans/approved/<slug>.txt itself on READY and a later session reads the plan from disk instead of inheriting it — wire it in .claude/settings.json, carve out the prosecutor's second write in reviews-lane.py, and decide whether that folder must be tracked, since every gauntlet lane is gitignored today. Pair (c): the tests-only fast path — kind: repair grammar in docs/testing.md, scripts/excision-diff.py checking a landed tests-only diff against its approved block, wired into scripts/pair.sh merge, and the four-step chain replacing the plan gate and red run for a change confined to tests/.
+
+1. A `Write` under `docs/gauntlet/plans/approved/` is admitted by the session hook chain only for the caller whose `agent_type` is exactly `gauntlet-prosecutor`, whatever the file there is named; the same write is refused for the orchestrator (no `agent_type`), for `gauntlet-arbiter`, for `gauntlet-testsmith`, for the unprefixed near-miss name `prosecutor`.
+   kills: a lane hook keyed on the path alone, which refuses every caller including the one reviewer that has to write the file, so no approved plan ever reaches the folder and the later session finds nothing on disk.
+   bite: HEAD admits the orchestrator and refuses the prosecutor, both the reverse of this line — `allowed` with `agent_type` absent, `deny` (printed by `reviews-lane.py`) with `agent_type` `gauntlet-prosecutor`, `deny` (`reviews-lane.py`) for `gauntlet-arbiter`, `deny` (`tests-lane.py`) for `gauntlet-testsmith`. Command: a throwaway script replicating `session_hooks`/`chain_decision` from `tests/gates/test_specs_lane.py:147-163` over the six `PreToolUse` scripts in `.claude/settings.json`, run as `S=<scratchpad>; cat > $S/m.py <<'EOF' … EOF; .venv/bin/python $S/m.py $S/tr.jsonl; rm -f $S/m.py $S/tr.jsonl`.
+   existing: none. `grep -rn "chain_decision" tests/gates` returns `tests/gates/test_specs_lane.py:157` (the helper) with `:233` (its one caller); `grep -rn "specs/approved" tests/gates` returns `test_pair_excision.py:5,47`, `test_pair_merge_brief.py:110`, `test_specs_lane.py:196,202`. That one chain test, `test_specs_lane.py:224-233`, sweeps `docs/gauntlet/specs/approved/` under the section header at `:193`, its docstring reading "the reviewer is admitted to that lane and no other". These rows are a second hook, a second folder, a second reviewer; folding them in would make one test's failure name two broken behaviors, against `docs/testing.md` rule 2.
+
+2. In that chain, the orchestrator's own `Write` under `docs/gauntlet/plans/drafts/` stays admitted where its `Write` under `docs/gauntlet/plans/approved/` is refused, for any file name in either folder.
+   kills: the flat upstream lane `docs/gauntlet/plans`, which swallows the drafts folder with the approved one and locks the main agent out of the directory it drafts every plan in.
+   bite: HEAD admits both — `allowed` for the drafts path, `allowed` for the approved path, so the pair carries no distinction at HEAD. Command (`S=<scratchpad>; cat > $S/m.py <<'EOF' … EOF; .venv/bin/python $S/m.py $S/tr.jsonl; rm -f $S/m.py $S/tr.jsonl`), the same throwaway replication of `session_hooks`/`chain_decision` as line 1, re-run once against these two inputs with the same result.
+   existing: none, same two greps as line 1, same reason.
+
+3. In that chain, `rm docs/gauntlet/plans/approved/<f>.txt` is refused, as is `mv /tmp/x.txt docs/gauntlet/plans/approved/<f>.txt` onto the same path, where `cat docs/gauntlet/plans/approved/<f>.txt` is admitted, as is `git restore --source <rev> -- docs/gauntlet/plans/approved/<f>.txt`.
+   kills: a lane hook that refuses every command naming the lane, which would leave the approved plan unreadable from the shell and unrestorable from a git object — the later session's read is the whole point of the folder.
+   bite: HEAD admits all four shapes — `allowed` for `rm docs/gauntlet/plans/approved/plans-lane-7c31.txt`, `allowed` for `mv /tmp/x.txt docs/gauntlet/plans/approved/plans-lane-7c31.txt`, `allowed` for `cat` of that path, `allowed` for `git restore --source abc1234 --` onto it. Same command as line 1 (`S=<scratchpad>; cat > $S/m3.py <<'EOF' … EOF; .venv/bin/python $S/m3.py $S/tr3.jsonl; rm -f $S/m3.py $S/tr3.jsonl` for the `mv` shape), measured with an empty transcript (the change-budget hook's fresh state, zero metered actions); re-run once with the same result.
+   existing: none, same two greps as line 1, same reason.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on the PreToolUse chain over `docs/gauntlet/plans/` - two distinct expected values (`allowed`, `deny`) across five callers, two folders and four command shapes, with the file name quantified away on every line
+
+return, finding by finding:
+  round 2 repair on line 3 (name the write shapes as typed commands): delivered. `rm <path>` and `mv /tmp/x.txt <path>` are the two writes, `cat <path>` and `git restore --source <rev> -- <path>` the two reads, and all four are measured at HEAD in the bite. Withdrawn.
+  No other finding was outstanding.
+
+1  KEEP  carried
+2  KEEP  carried
+3  KEEP  `Bash` `rm docs/gauntlet/plans/approved/<f>.txt` -> `deny` and `mv /tmp/x.txt` onto that path -> `deny`, where `cat` of it -> `allowed` and `git restore --source <rev> --` onto it -> `allowed`; a lane hook refusing every command naming the lane fails it at `cat`, which the later session's read depends on; bite: HEAD is `allowed` for all four shapes.
+
+null stub: plans-lane.py absent, nothing wired into settings.json, reviews-lane.py unchanged - i.e. HEAD.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: branch on the exact strings the block supplies - the five named `agent_type` values, the literal `plans-lane-7c31.txt`, and the four command strings with that literal path.
+  satisfies: none   fails: 1, 2, 3
+  reading per line: 1 fails at a second file name in the lane; 2 fails at a second file name in either folder; 3 fails at a second file name on any of the four shapes, since the line quantifies the name and the stub carries one.
+
+survives: 3
+
+note: the block as handed to me carries no public entry points, wire facts, fixtures or changelog line; the approved file carries what was supplied and nothing invented. If the owner wants a `CHANGELOG.md` entry for this pair, it is not in the approved contract and no line pins it.
+note: no verdict in any round rested on anything under `hqptuner/`. The chain is read from `.claude/settings.json` and the surface from `tests/gates/`, both open to me.
