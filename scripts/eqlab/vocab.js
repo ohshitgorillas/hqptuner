@@ -26,6 +26,14 @@ const GROUPS = [
 /** @typedef {{ group: string, name: string, matched_as: string, entry: Entry }} Match */
 
 /**
+ * Case- and space-insensitive comparison key for a lookup name.
+ *
+ * @param {string} s
+ * @returns {string}
+ */
+const fold = (s) => s.trim().toLowerCase();
+
+/**
  * Every name an entry answers to: its key field plus its aliases.
  *
  * @param {Entry} entry
@@ -34,17 +42,9 @@ const GROUPS = [
  */
 function namesOf(entry, key) {
   const head = typeof entry[key] === "string" ? [entry[key]] : [];
-  const aliases = Array.isArray(entry.aliases) ? entry.aliases.filter((a) => typeof a === "string") : [];
-  return [...head, ...aliases];
+  const aliases = Array.isArray(entry.aliases) ? entry.aliases : [];
+  return [...head, ...aliases].filter((n) => typeof n === "string");
 }
-
-/**
- * Case- and space-insensitive comparison key for a lookup name.
- *
- * @param {string} s
- * @returns {string}
- */
-const fold = (s) => s.trim().toLowerCase();
 
 /**
  * The terms a conflict row names, accepting both shapes the data uses: a row
@@ -54,9 +54,77 @@ const fold = (s) => s.trim().toLowerCase();
  * @returns {string[]}
  */
 function rowTerms(row) {
-  if (Array.isArray(row)) return row.filter((t) => typeof t === "string");
-  if (row && Array.isArray(row.terms)) return row.terms.filter((/** @type {any} */ t) => typeof t === "string");
-  return [];
+  const terms = Array.isArray(row) ? row : row?.terms;
+  return Array.isArray(terms) ? terms.filter((/** @type {any} */ t) => typeof t === "string") : [];
+}
+
+/**
+ * The words the job asked for, rejected early rather than answered emptily.
+ *
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+function askedFor(raw) {
+  const terms = Array.isArray(raw) ? raw.filter((t) => typeof t === "string") : [];
+  if (!terms.length) throw new Error("vocab: job.terms must be a non-empty array of strings");
+  return terms;
+}
+
+/**
+ * Parse the vocabulary file, naming the path when it cannot be read.
+ *
+ * @param {string} path
+ * @returns {Promise<Record<string, any>>}
+ */
+async function readVocabulary(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (err) {
+    throw new Error(`vocab: cannot read ${path}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Walk the three arrays once, collecting hits and every declared lookup name.
+ *
+ * @param {Record<string, any>} data
+ * @param {Set<string>} wanted
+ * @returns {{ matched: Match[], index: string[] }}
+ */
+function collect(data, wanted) {
+  /** @type {Match[]} */
+  const matched = [];
+  /** @type {string[]} */
+  const index = [];
+  for (const [group, key] of GROUPS) {
+    const rows = Array.isArray(data[group]) ? data[group] : [];
+    for (const entry of rows) {
+      const names = namesOf(entry, key);
+      index.push(...names);
+      const hit = names.find((n) => wanted.has(fold(n)));
+      if (hit) matched.push({ group, name: String(entry[key]), matched_as: hit, entry });
+    }
+  }
+  return { matched, index };
+}
+
+/**
+ * The `_meta` rules a caller needs to read the entries it just got back:
+ * the direction convention, the wanted/unwanted polarity rule, and the
+ * sense ruling where a matched term carries more than one sense.
+ *
+ * @param {Record<string, any>} meta
+ * @param {Match[]} matched
+ * @returns {Record<string, any>}
+ */
+function rulesOf(meta, matched) {
+  const polysemous = matched.some((m) => Array.isArray(m.entry.senses) && m.entry.senses.length > 1);
+  /** @type {Record<string, any>} */
+  const rules = {};
+  if (meta.direction_convention) rules.direction_convention = meta.direction_convention;
+  if (meta.named_quality_field) rules.named_quality_field = meta.named_quality_field;
+  if (polysemous && meta.polysemy) rules.polysemy = meta.polysemy;
+  return rules;
 }
 
 /**
@@ -67,39 +135,14 @@ function rowTerms(row) {
  * @returns {Promise<Record<string, any>>}
  */
 export async function vocabJob(spec, _ctx) {
-  const terms = Array.isArray(spec.terms) ? spec.terms.filter((t) => typeof t === "string") : [];
-  if (!terms.length) throw new Error("vocab: job.terms must be a non-empty array of strings");
+  const terms = askedFor(spec.terms);
   const path = typeof spec.path === "string" && spec.path ? spec.path : DEFAULT_PATH;
-
-  let data;
-  try {
-    data = JSON.parse(await readFile(path, "utf8"));
-  } catch (err) {
-    throw new Error(`vocab: cannot read ${path}: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  const wanted = new Set(terms.map(fold));
-  /** @type {Match[]} */
-  const matched = [];
-  /** @type {string[]} */
-  const index = [];
-
-  for (const [group, key] of GROUPS) {
-    const rows = Array.isArray(data[group]) ? data[group] : [];
-    for (const entry of rows) {
-      const names = namesOf(entry, key);
-      index.push(...names);
-      const hit = names.find((n) => wanted.has(fold(n)));
-      if (hit) matched.push({ group, name: String(entry[key]), matched_as: hit, entry });
-    }
-  }
+  const data = await readVocabulary(path);
+  const { matched, index } = collect(data, new Set(terms.map(fold)));
 
   const meta = data._meta || {};
   const hitNames = new Set(matched.flatMap((m) => namesOf(m.entry, m.group === "consistency" ? "symptom" : "term")).map(fold));
-  const conflicts = (Array.isArray(meta.conflict_pairs) ? meta.conflict_pairs : []).filter((row) =>
-    rowTerms(row).some((t) => hitNames.has(fold(t))),
-  );
-  const polysemous = matched.some((m) => Array.isArray(m.entry.senses) && m.entry.senses.length > 1);
+  const pairs = Array.isArray(meta.conflict_pairs) ? meta.conflict_pairs : [];
 
   return {
     terms,
@@ -108,11 +151,7 @@ export async function vocabJob(spec, _ctx) {
     // A hit needs no index; a miss is the only turn where the caller would
     // otherwise have to read the file to find out what it could have asked.
     index: matched.length ? [] : index,
-    conflicts,
-    rules: {
-      ...(meta.direction_convention ? { direction_convention: meta.direction_convention } : {}),
-      ...(meta.named_quality_field ? { named_quality_field: meta.named_quality_field } : {}),
-      ...(polysemous && meta.polysemy ? { polysemy: meta.polysemy } : {}),
-    },
+    conflicts: pairs.filter((/** @type {any} */ row) => rowTerms(row).some((t) => hitNames.has(fold(t)))),
+    rules: rulesOf(meta, matched),
   };
 }
