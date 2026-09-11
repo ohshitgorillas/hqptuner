@@ -421,7 +421,12 @@ function renderPlot(out) {
  */
 function renderVocab(out) {
   if (!out.matched.length) return `no match for ${out.terms.join(", ")}\n${out.index.length} name(s) available`;
-  const rows = out.matched.map((/** @type {any} */ m) => [m.matched_as, m.name, m.group, String(m.entry.senses?.length ?? 0)]);
+  const rows = out.matched.map((/** @type {any} */ m) => [
+    m.matched_as,
+    m.name,
+    m.group,
+    String(m.entry.senses?.length ?? 0),
+  ]);
   const conflicts = out.conflicts.length
     ? `\nconflicts:\n${out.conflicts.map((/** @type {any} */ c) => `  ${(c.terms || c).join(" + ")}`).join("\n")}`
     : "";
