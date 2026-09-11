@@ -56,6 +56,8 @@ import sys
 REVIEWERS = frozenset({"gauntlet-arbiter", "gauntlet-prosecutor"})
 #: the one reviewer with a second lane, and the folder that lane is
 APPROVED_WRITER = "gauntlet-arbiter"
+#: the reviewers' own lane, as a repo-relative path
+REVIEWS_LANE = os.path.join("docs", "gauntlet", "reviews")
 APPROVED_LANE = os.path.join("docs", "gauntlet", "specs", "approved")
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 #: tools that hand back a file's contents; `Glob` returns names only and is not one
@@ -103,18 +105,17 @@ def _load(name: str):
 
 
 def _under_reviews(rel: str) -> bool:
-    prefix = os.path.join("state", "reviews")
-    return rel == prefix or rel.startswith(prefix + os.sep)
+    return rel == REVIEWS_LANE or rel.startswith(REVIEWS_LANE + os.sep)
 
 
 def _in_reviews(target: str, cwd: str, lane) -> bool:
-    """Does this path, or this glob, land inside some checkout's `state/reviews/`?"""
+    """Does this path, or this glob, land inside some checkout's `docs/gauntlet/reviews/`?"""
     root, rel = lane._split_root(target, cwd)
     return root is not None and rel is not None and not rel.startswith("..") and _under_reviews(rel)
 
 
 def _in_approved(target: str, cwd: str, lane) -> bool:
-    """Does this path land inside some checkout's `specs/approved/`?"""
+    """Does this path land inside some checkout's `docs/gauntlet/specs/approved/`?"""
     root, rel = lane._split_root(target, cwd)
     if root is None or rel is None or rel.startswith(".."):
         return False
