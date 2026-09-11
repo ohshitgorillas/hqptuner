@@ -153,6 +153,7 @@ ban-relative-imports = "all"
     "PLR2004",  # the remaining literals are self_checks() expectations: the number asserted IS the expectation
 ]
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
+"scripts/excision-diff.py" = ["S603"]  # the merge check compares two commits: git argv is this module's literals plus a rev and a repo-relative path, resolved binary
 
 [tool.mypy]
 python_version = "3.12"
