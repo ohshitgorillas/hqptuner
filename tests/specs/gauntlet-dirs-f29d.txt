@@ -34,7 +34,7 @@ brief:
 5. For `scripts/pair.sh open <slug>` in a repository whose approved block sits at `docs/gauntlet/specs/approved/<slug>.txt` with its reviewer round at `docs/gauntlet/reviews/<slug>.1.txt`, the pair (exit status, `.claude/worktrees/<slug>-spec` present) over the two inputs (that repository, the same repository with the approved block absent) is ((0, true), (1, false)).
    kills: changing `SPECFILE` and leaving `verdict_check`'s reviews glob on `state/reviews/`, which finds the approved block, finds no round beside it, and refuses every pair the new layout opens.
    bite: at HEAD, in a throwaway repository holding the block at `docs/gauntlet/specs/approved/<slug>.txt` and the round at `docs/gauntlet/reviews/<slug>.1.txt` and nothing at either old path, the run stops at exit 1 printing `FAIL: no spec file at <repo>/specs/approved/<slug>.txt — the arbiter writes the approved block and its READY output there on READY, and only there.`, creating no worktree and no branch (`./scripts/pair.sh open <slug>` from that repository's root). Measured on a partial fixture: a shell command creating `docs/gauntlet/specs/approved/<slug>.txt` is refused by `specs-lane.py`, so the file the run would consult second was absent. The stop above is the first check after the `dev` branch check, so the run never reached it.
-   existing: tests/gates/test_pair_excision.py::test_open_builds_a_spec_tree_only_from_the_block_the_approved_lane_carries
+   existing: tests/gates/test_pair_excision.py::test_open_builds_a_spec_tree_only_from_the_block_the_approved_lane_carries, tests/gates/test_pair_merge_brief.py::test_the_merge_closing_instruction_follows_the_brief_the_same_run_printed
 
 scope
 
@@ -59,6 +59,7 @@ applicable fixtures
 - `tmp_path` — pytest's own. `tests/gates/test_specs_lane.py:17-22` builds a checkout root `R` from it with an empty `.git` inside, and names `R/.claude/worktrees/x-spec` as a worktree of it by path. Lines 1 to 4 need that root and nothing more.
 - The `runpy`-under-redirected-stdio driver in `tests/gates/test_specs_lane.py` — runs a hook the way a hook process is run, which is the only way `tests-lane.py` and the session chain can be driven at all, having no public verdict function.
 - `tests/gates/test_pair_excision.py`'s throwaway-repository fixture — builds a git repository with a `dev` branch and the driver copied in, which line 5 needs with the two directories moved.
+- `tests/gates/test_pair_merge_brief.py`'s `_checkout` at `:105` — the same throwaway repository for the merge-brief test, whose two `_put` lines write the pair's inputs at the old paths and move with them; its assertion is untouched.
 
 The observable contract in every line is the admission — no output, or a `deny` decision — never the wording of a denial. `tests/gates/test_specs_lane.py:20-22` states that rule for this file, and no existing case asserts denial text.
 
@@ -70,15 +71,13 @@ No entry. Every surface here is agent tooling: four `PreToolUse` hooks, one deve
 READY
 discriminates: sweep on hook admission (each line flips the decision on the caller with the target held and on the target with the caller held; two distinct expected values per line)
 
-round 1 findings, resolved:
-- repair 2 (bite consistency, lines 1 and 5) withdrawn on the citation. `.claude/hooks/specs-lane.py:62-65` decides a `Write` through `sh.path_in_lane(target, cwd, LANE)`, anchored at the checkout root, so `<root>/docs/gauntlet/specs/approved/x.txt` is not under `<root>/specs/approved` and is admitted — line 1's measurement. `:68-69` decides a `Bash` through `BASH_APPROVED = sh.lane_pattern(LANE)`, whose `(?:[^\s"']*/)?` group (`shell_shapes.py:118-120`) is unanchored and matches the `docs/gauntlet/` prefix — line 5's refused shell command. Two predicates, two tools; both measurements stand, and line 5's restated parenthetical no longer asserts a predicate.
-- repair 1 (m, block level, the fast path) resolved by the `scope` section under (m)'s named escape: the owner's later words, quoted. `docs/plans/gauntlet-dirs-f29d.txt:10` carries the brief sentence with `dropped: pair (c) in the owner's sequencing ruling, "Three pairs, in order"`, and `:164` lists it again as open question 1. The section also states the observable consequence I asked for — no admission, exit status or spec-tree state changes for a tests-only session under this block — so no surviving line is owed it.
+the round 3 ruling, on line 5's `existing:` clause and nothing else: the second test belongs in that clause, not in a line of its own. Verified in the readable tree — `tests/gates/test_pair_merge_brief.py:104-111` writes the pair's inputs at `specs/approved/<slug>.txt` and `state/reviews/<slug>.1.txt`, and `_opened_pair` at `:119-122` raises `AssertionError(f"the fixture could not open a pair: ...")` when `open` returns non-zero, so the same two path constants line 5 already pins turn it red through its fixture while `assert _markers(merged) == expected` at `:156` stays byte-identical. A line of its own would be CUT under (d): the wrong implementation line 5 names — `SPECFILE` moved with `verdict_check`'s glob left on `state/reviews/` — is the one that fails both, and no wrong implementation fails one while passing the other. The clause change is the whole repair; it widens nothing, since a delta costs no line against the cap.
 
 1  DELTA tests/gates/test_specs_lane.py:209 (carried): `APPROVED_BLOCK` moves to `docs/gauntlet/specs/approved/x.txt`, the retired `specs/approved/x.txt` row flips to ALLOWED for the main agent, and a `docs/gauntlet/specs/drafts/x.txt` row is added as the main agent's admitted case.
 2  DELTA tests/gates/test_reviews_lane.py:104 (carried): the lane literal moves from `state/reviews/` to `docs/gauntlet/reviews/`, the main-agent row at `state/reviews/x.1.txt` flips to allowed, and the arbiter's out-of-lane row becomes `docs/gauntlet/specs/drafts/x.txt`.
 3  DELTA tests/gates/test_specs_lane.py:181 (carried): the two parametrize rows become (`gauntlet-testsmith`, ALLOWED) and (`testsmith`, DENY) at the same `.claude/worktrees/x-spec/tests/` target.
 4  DELTA tests/gates/test_specs_lane.py:233 (carried): the free-spawn names become `gauntlet-detective` and `gauntlet-arbiter`, with `brief-writer` as the DENY control past the leash.
-5  DELTA tests/gates/test_pair_excision.py:262: `APPROVED_LANE` and the reviewer-round path in the fixture move to `docs/gauntlet/specs/approved/` and `docs/gauntlet/reviews/`, and the asserted tuple carries exit status beside spec-tree presence. Only the `bite:` parenthetical changed this round; the input, the outcome and the killed implementation are the text I ruled on.
+5  DELTA tests/gates/test_pair_excision.py:262 and tests/gates/test_pair_merge_brief.py:105: in the first, `APPROVED_LANE` and the reviewer-round path move to `docs/gauntlet/specs/approved/` and `docs/gauntlet/reviews/` and the asserted tuple carries exit status beside spec-tree presence; in the second, `_checkout`'s two `_put` lines move to the same directories and nothing else changes — fixture plumbing, assertion untouched.
 
 null stub: the migration absent — hooks and `pair.sh` as at HEAD, every lane constant and agent name unchanged.
   satisfies: none   fails: 1, 2, 3, 4, 5
@@ -87,4 +86,4 @@ hard-coded stub: hooks and `pair.sh` that return the named admission value for t
 
 survives: 0
 
-The block writes no new test. Five deltas to four existing parametrized gate tests is the whole contract, and the cap does not bind it.
+The block writes no new test. Six deltas to five existing gate tests is the whole contract, and the cap does not bind it.
