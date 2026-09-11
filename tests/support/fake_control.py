@@ -332,7 +332,12 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     if enumerated is not None:
         return enumerated
     if name == "GetInfo":
-        return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
+        # The full attribute set of docs/protocol.md:157, in the order the
+        # verified 6.0.4 response carries them (docs/protocol.md:160).
+        return (
+            '<GetInfo engine="6.0.4" name="Fake" platform="Linux"'
+            ' product="Signalyst HQPlayer Embedded" version="6"/>'
+        )
     if name == "GetLicense":
         return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
     if name == "ConfigurationGet":
