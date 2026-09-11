@@ -1,0 +1,90 @@
+kind: refactor
+brief:
+> There are several new features from Gauntlet (~/dev/gauntlet) that I want you to adopt into this repo:
+> 1. File structure; docs/gauntlet/ and folder substructures
+> 2. The "fast path" for test-only sessions
+> 3. Any other improvements we might need
+> let's focus on 1,2,3 here only.
+> With a small tweak:
+> `docs/gauntlet/specs/` / `docs/gauntlet/specs/approved/` / `docs/gautnlet/specs/drafts/` / `docs/gauntlet/plans/` / `docs/gauntlet/plans/approved` / etc
+> Keep .md for plans
+> oh god. the softwrap thing is going to eat so many tokens over time. ok, change of mind: plans are txt
+> Oh, another thing to throw in: rename the agents `gauntlet-accountant` and etc.
+
+1. The admission `specs-lane.py` returns over the four inputs (main agent at `docs/gauntlet/specs/approved/x.txt`, main agent at `docs/gauntlet/specs/drafts/x.txt`, `gauntlet-arbiter` at `docs/gauntlet/specs/approved/x.txt`, main agent at `specs/approved/x.txt`), one slug name throughout, is (refused, admitted, admitted, admitted).
+   kills: a migration that changes `LANE` and the three self-test rule names and leaves the self-test's own path literals behind, which denies the retired `specs/approved/` to everyone and admits every agent to the lane that replaced it.
+   bite: at HEAD the main agent is admitted at `docs/gauntlet/specs/approved/x.txt`, admitted at `docs/gauntlet/specs/drafts/x.txt`, refused at `specs/approved/x.txt`; `gauntlet-arbiter` is admitted at `docs/gauntlet/specs/approved/x.txt` and refused at `specs/approved/x.txt` — three of the four observations inverted (`printf '{"tool_name":"Write","cwd":"/home/atom/dev/hqptuner","tool_input":{"file_path":"/home/atom/dev/hqptuner/docs/gauntlet/specs/approved/x.txt"}}' | python3 .claude/hooks/specs-lane.py`, once per path, with `"agent_type":"gauntlet-arbiter"` added for the arbiter rows)
+   existing: tests/gates/test_specs_lane.py::test_a_write_under_specs_approved_is_admitted_only_for_the_reviewing_agent
+
+2. The admission `reviews-lane.py` returns over the four inputs (main agent at `docs/gauntlet/reviews/x.1.txt`, main agent at `state/reviews/x.1.txt`, `gauntlet-arbiter` at `docs/gauntlet/reviews/x.1.txt`, `gauntlet-arbiter` at `docs/gauntlet/specs/drafts/x.txt`) is (refused, admitted, admitted, refused).
+   kills: a rename of `REVIEWERS` that leaves the lane regex pointed at `state/reviews/`, which admits every agent to the reviewers' new lane while still refusing the main agent a directory the chain no longer uses.
+   bite: at HEAD the main agent is admitted at `docs/gauntlet/reviews/x.1.txt` and refused at `state/reviews/x.1.txt` — both inverted — while `gauntlet-arbiter` is admitted at `docs/gauntlet/reviews/x.1.txt` and refused at `docs/gauntlet/specs/drafts/x.txt`, the two observations this line preserves (`printf '{"tool_name":"Write","cwd":"/home/atom/dev/hqptuner","tool_input":{"file_path":"/home/atom/dev/hqptuner/docs/gauntlet/reviews/x.1.txt"}}' | python3 .claude/hooks/reviews-lane.py`, once per path, with `"agent_type":"gauntlet-arbiter"` added for the arbiter rows)
+   existing: tests/gates/test_reviews_lane.py::test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer
+
+3. The admission `tests-lane.py` returns at the one path `.claude/worktrees/x-spec/tests/test_x.py`, over the two inputs (`gauntlet-testsmith`, `testsmith`), is (admitted, refused).
+   kills: renaming the writer's definition file without renaming the `WRITER` constant the hook matches, which locks the blind writer out of the only directory it may write and leaves the retired name admitted there.
+   bite: at HEAD `gauntlet-testsmith` is refused and `testsmith` is admitted, both observations inverted (`printf '{"tool_name":"Write","cwd":"/home/atom/dev/hqptuner","agent_type":"gauntlet-testsmith","tool_input":{"file_path":"/home/atom/dev/hqptuner/.claude/worktrees/x-spec/tests/test_x.py"}}' | python3 .claude/hooks/tests-lane.py`, and again with `"agent_type":"testsmith"`)
+   existing: tests/gates/test_specs_lane.py::test_a_write_under_a_spec_trees_tests_is_admitted_only_for_the_test_writing_agent
+
+4. The admission `change-budget.py` returns for an `Agent` spawn with eight metered actions already taken since the user last spoke, over the three inputs (`gauntlet-detective`, `gauntlet-arbiter`, `brief-writer`), is (admitted, admitted, refused).
+   kills: renaming the five agents while leaving `READ_ONLY_AGENTS` and `FREE_SPAWN_AGENTS` carrying the old names, which charges every chain spawn against the leash and trips it partway through a review loop.
+   bite: at HEAD `gauntlet-detective` and `gauntlet-arbiter` are both refused at eight prior actions, where `detective` and `arbiter` are admitted, and `brief-writer` is refused in the same run as the control for a name in neither set (`printf '{"tool_name":"Agent","cwd":"/home/atom/dev/hqptuner","transcript_path":"<a transcript carrying eight completed metered Bash rows>","tool_input":{"subagent_type":"gauntlet-detective","prompt":"x"}}' | python3 .claude/hooks/change-budget.py`, once per name; at zero prior actions every name is admitted, including the control, so the leash is where the observation lives)
+   existing: tests/gates/test_specs_lane.py::test_a_free_agent_spawn_is_admitted_past_the_change_budget
+
+5. For `scripts/pair.sh open <slug>` in a repository whose approved block sits at `docs/gauntlet/specs/approved/<slug>.txt` with its reviewer round at `docs/gauntlet/reviews/<slug>.1.txt`, the pair (exit status, `.claude/worktrees/<slug>-spec` present) over the two inputs (that repository, the same repository with the approved block absent) is ((0, true), (1, false)).
+   kills: changing `SPECFILE` and leaving `verdict_check`'s reviews glob on `state/reviews/`, which finds the approved block, finds no round beside it, and refuses every pair the new layout opens.
+   bite: at HEAD, in a throwaway repository holding the block at `docs/gauntlet/specs/approved/<slug>.txt` and the round at `docs/gauntlet/reviews/<slug>.1.txt` and nothing at either old path, the run stops at exit 1 printing `FAIL: no spec file at <repo>/specs/approved/<slug>.txt — the arbiter writes the approved block and its READY output there on READY, and only there.`, creating no worktree and no branch (`./scripts/pair.sh open <slug>` from that repository's root). Measured on a partial fixture: a shell command creating `docs/gauntlet/specs/approved/<slug>.txt` is refused by `specs-lane.py`, so the file the run would consult second was absent. The stop above is the first check after the `dev` branch check, so the run never reached it.
+   existing: tests/gates/test_pair_excision.py::test_open_builds_a_spec_tree_only_from_the_block_the_approved_lane_carries
+
+scope
+
+The fast path for tests-only sessions, item 2 of the owner's three, is pinned by no line here because it is not in this change. The owner ruled it into a later pair when asked how the three pieces should land, choosing "Three pairs, in order": (a) the directory migration, (b) `plans-lane.py`, (c) the fast path. That ruling is recorded in the approved stage 1 plan at `docs/plans/gauntlet-dirs-f29d.txt`, whose `brief:` block carries the sentence with a `dropped:` line reading "pair (c) in the owner's sequencing ruling", and whose Open questions section lists it again as question 1. Nothing in this block adds `kind: repair`, `scripts/excision-diff.py` or any tests-only shortcut, and no admission, exit status or spec-tree state changes for a tests-only session under it.
+
+public entry points
+
+`.claude/hooks/specs-lane.py`, `reviews-lane.py`, `tests-lane.py`, `change-budget.py` — each a `PreToolUse` hook with no importable verdict function in the contract under test. The surface is the script interface `tests/gates/test_specs_lane.py:3-16` already drives: one JSON payload on stdin carrying `tool_name`, `tool_input` and `cwd`, plus `agent_type` for a subagent call and `tool_input.subagent_type` for an `Agent` spawn; a JSON object on stdout whose `hookSpecificOutput.permissionDecision` is `deny`, or no output at all.
+
+`scripts/pair.sh` — the `open <slug>` subcommand. Its planned path constants:
+
+    SPEC_PATH="tests/specs/$SLUG.txt"                                 # unchanged
+    SPECFILE="$ROOT/docs/gauntlet/specs/approved/$SLUG.txt"           # was $ROOT/specs/approved/$SLUG.txt
+    verdict_check: "$ROOT/docs/gauntlet/reviews/$SLUG".[0-9]*.txt     # was "$ROOT/state/reviews/$SLUG".[0-9]*.txt
+
+wire and protocol facts
+
+None. Nothing in this block reaches hqplayerd, the Control API, port 8088 or the dev container on 8090. The surfaces are four hook scripts and one shell script, all offline.
+
+applicable fixtures
+
+- `tmp_path` — pytest's own. `tests/gates/test_specs_lane.py:17-22` builds a checkout root `R` from it with an empty `.git` inside, and names `R/.claude/worktrees/x-spec` as a worktree of it by path. Lines 1 to 4 need that root and nothing more.
+- The `runpy`-under-redirected-stdio driver in `tests/gates/test_specs_lane.py` — runs a hook the way a hook process is run, which is the only way `tests-lane.py` and the session chain can be driven at all, having no public verdict function.
+- `tests/gates/test_pair_excision.py`'s throwaway-repository fixture — builds a git repository with a `dev` branch and the driver copied in, which line 5 needs with the two directories moved.
+
+The observable contract in every line is the admission — no output, or a `deny` decision — never the wording of a denial. `tests/gates/test_specs_lane.py:20-22` states that rule for this file, and no existing case asserts denial text.
+
+changelog entry
+
+No entry. Every surface here is agent tooling: four `PreToolUse` hooks, one developer shell script, and the names five subagents are spawned under. No route, no rendered surface, no wire behavior, nothing a user of HQPTuner can observe.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on hook admission (each line flips the decision on the caller with the target held and on the target with the caller held; two distinct expected values per line)
+
+round 1 findings, resolved:
+- repair 2 (bite consistency, lines 1 and 5) withdrawn on the citation. `.claude/hooks/specs-lane.py:62-65` decides a `Write` through `sh.path_in_lane(target, cwd, LANE)`, anchored at the checkout root, so `<root>/docs/gauntlet/specs/approved/x.txt` is not under `<root>/specs/approved` and is admitted — line 1's measurement. `:68-69` decides a `Bash` through `BASH_APPROVED = sh.lane_pattern(LANE)`, whose `(?:[^\s"']*/)?` group (`shell_shapes.py:118-120`) is unanchored and matches the `docs/gauntlet/` prefix — line 5's refused shell command. Two predicates, two tools; both measurements stand, and line 5's restated parenthetical no longer asserts a predicate.
+- repair 1 (m, block level, the fast path) resolved by the `scope` section under (m)'s named escape: the owner's later words, quoted. `docs/plans/gauntlet-dirs-f29d.txt:10` carries the brief sentence with `dropped: pair (c) in the owner's sequencing ruling, "Three pairs, in order"`, and `:164` lists it again as open question 1. The section also states the observable consequence I asked for — no admission, exit status or spec-tree state changes for a tests-only session under this block — so no surviving line is owed it.
+
+1  DELTA tests/gates/test_specs_lane.py:209 (carried): `APPROVED_BLOCK` moves to `docs/gauntlet/specs/approved/x.txt`, the retired `specs/approved/x.txt` row flips to ALLOWED for the main agent, and a `docs/gauntlet/specs/drafts/x.txt` row is added as the main agent's admitted case.
+2  DELTA tests/gates/test_reviews_lane.py:104 (carried): the lane literal moves from `state/reviews/` to `docs/gauntlet/reviews/`, the main-agent row at `state/reviews/x.1.txt` flips to allowed, and the arbiter's out-of-lane row becomes `docs/gauntlet/specs/drafts/x.txt`.
+3  DELTA tests/gates/test_specs_lane.py:181 (carried): the two parametrize rows become (`gauntlet-testsmith`, ALLOWED) and (`testsmith`, DENY) at the same `.claude/worktrees/x-spec/tests/` target.
+4  DELTA tests/gates/test_specs_lane.py:233 (carried): the free-spawn names become `gauntlet-detective` and `gauntlet-arbiter`, with `brief-writer` as the DENY control past the leash.
+5  DELTA tests/gates/test_pair_excision.py:262: `APPROVED_LANE` and the reviewer-round path in the fixture move to `docs/gauntlet/specs/approved/` and `docs/gauntlet/reviews/`, and the asserted tuple carries exit status beside spec-tree presence. Only the `bite:` parenthetical changed this round; the input, the outcome and the killed implementation are the text I ruled on.
+
+null stub: the migration absent — hooks and `pair.sh` as at HEAD, every lane constant and agent name unchanged.
+  satisfies: none   fails: 1, 2, 3, 4, 5
+hard-coded stub: hooks and `pair.sh` that return the named admission value for the exact path and agent-name literals each line gives, doing no directory or caller classification.
+  satisfies: none   fails: 1, 2, 3, 4, 5 (each line flips the decision on both axes — caller held with the target varied, target held with the caller varied — so a stub that satisfies it has to carry the lane directory and the agent set, which is the contract under change; slug generality is not an axis any line varies and no line rests on it)
+
+survives: 0
+
+The block writes no new test. Five deltas to four existing parametrized gate tests is the whole contract, and the cap does not bind it.
