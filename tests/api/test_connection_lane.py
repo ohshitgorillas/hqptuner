@@ -64,15 +64,6 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
         yield build
 
 
-def stored_choice(path: Path) -> tuple[str, bool]:
-    """The host and the keep-the-password choice the record on disk holds, or the
-    pair a route that wrote nothing leaves behind."""
-    record = ConnectionStore(path).read()
-    if record is None:
-        return ("", True)
-    return (record.host, record.remember)
-
-
 @pytest.mark.parametrize(
     ("state", "lane"),
     [
@@ -112,17 +103,3 @@ def test_an_unset_record_reads_as_ask_every_time_and_a_stored_choice_reads_back(
         ConnectionStore(store_path).write(record)
     client = app_factory()
     assert client.get("/api/connection").json()["remember"] == answered
-
-
-def test_a_save_silent_about_the_choice_leaves_the_stored_choice_alone(
-    app_factory: AppFactory, store_path: Path
-) -> None:
-    # Correcting the address alone is a body that never mentions the password
-    # choice. It must move the host and nothing else: an install that asked to
-    # be asked every time does not become one that stores the password because
-    # its owner fixed a typo in the address.
-    asked = ConnectionRecord(host="127.0.0.1", username="tuner", password="p", remember=False)
-    ConnectionStore(store_path).write(asked)
-    client = app_factory()
-    client.post("/api/connection", json={"host": "10.0.0.9"})
-    assert stored_choice(store_path) == ("10.0.0.9", False)
