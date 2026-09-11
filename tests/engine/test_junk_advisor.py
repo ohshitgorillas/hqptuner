@@ -24,6 +24,8 @@ from fake_metering import frame, spawn_threaded_stream
 from fastapi.testclient import TestClient
 from junk_spectra import (
     FAKE_HIRES_FRAME,
+    constant_fall_96k,
+    cutoff_96k,
     decaying_176,
     fake_hires_96k,
     genuine_hires_96k,
@@ -103,8 +105,23 @@ def test_fake_hires_reason_names_the_filter() -> None:
     assert "20k" in (_classify(fake_hires_96k(), 48000.0) or {})["reason"]
 
 
-def test_fake_hires_reports_the_content_ceiling() -> None:
-    assert abs((_classify(fake_hires_96k(), 48000.0) or {})["ceiling_khz"] - 22.0) <= 1.5
+@pytest.mark.parametrize(
+    ("levels", "expected_filter", "expected_ceiling_khz"),
+    [
+        (constant_fall_96k(18.0), "20k", 19.6),
+        (constant_fall_96k(11.25), "20k", 22.3),
+        (constant_fall_96k(8.1818), "20k", 25.0),
+        (cutoff_96k(14000.0), "20k", 14.0),
+    ],
+)
+def test_fake_hires_reports_the_content_ceiling(
+    levels: list[float], expected_filter: str, expected_ceiling_khz: float
+) -> None:
+    advice = _classify(levels, 48000.0) or {}
+    assert (advice["filter"], advice["ceiling_khz"]) == (
+        expected_filter,
+        pytest.approx(expected_ceiling_khz, abs=0.2),
+    )
 
 
 def test_genuine_hires_gets_no_verdict() -> None:

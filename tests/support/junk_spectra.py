@@ -23,6 +23,24 @@ def fake_hires_96k() -> list[float]:
     return spectrum(48000.0, lambda f: -20.0 if f <= 22000.0 else -140.0)
 
 
+def constant_fall_96k(rate_db_per_khz: float) -> list[float]:
+    """96 kHz container, flat at -20 dB to 15 kHz, then falling at a constant
+    ``rate_db_per_khz`` into a -110 dB noise floor."""
+
+    def level(f: float) -> float:
+        if f <= 15000.0:
+            return -20.0
+        return max(-20.0 - rate_db_per_khz * (f - 15000.0) / 1000.0, -110.0)
+
+    return spectrum(48000.0, level)
+
+
+def cutoff_96k(cutoff_hz: float) -> list[float]:
+    """96 kHz container, flat at -20 dB to ``cutoff_hz``, sitting at the -110 dB
+    noise floor above it: one step, no transition."""
+    return spectrum(48000.0, lambda f: -20.0 if f <= cutoff_hz else -110.0)
+
+
 def genuine_hires_96k() -> list[float]:
     """Smooth gradual decay across the whole band — no cliff, no tones."""
     return spectrum(48000.0, lambda f: -20.0 - 120.0 * f / 48000.0)
