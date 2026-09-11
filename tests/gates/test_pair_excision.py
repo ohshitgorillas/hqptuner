@@ -44,10 +44,13 @@ EDITED = "tests/test_probe_other.py"
 SOURCE = "hqptuner/config.py"
 
 #: Where an approved block lives, the only place ``open`` takes one from.
-APPROVED_LANE = "specs/approved"
+APPROVED_LANE = "docs/gauntlet/specs/approved"
 
 #: The directory an unapproved draft sits in, outside that lane.
-DRAFT_LANE = "specs"
+DRAFT_LANE = "docs/gauntlet/specs/drafts"
+
+#: Where the reviewer's round for a slug sits, beside the approved lane.
+REVIEWS_LANE = "docs/gauntlet/reviews"
 
 _TEST_BODY = '''"""A tracked test file, here so that a pair's spec tree can remove it."""
 
@@ -133,7 +136,7 @@ def _checkout(tmp_path: Path, slug: str, block: str, lane: str = APPROVED_LANE) 
     _write(root, EDITED, _TEST_BODY)
     _write(root, SOURCE, _SOURCE_BODY)
     _write(root, f"{lane}/{slug}.txt", block)
-    _write(root, f"state/reviews/{slug}.1.txt", _VERDICT)
+    _write(root, f"{REVIEWS_LANE}/{slug}.1.txt", _VERDICT)
     _git(root, "init", "-q", "-b", "dev")
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "init")
@@ -243,25 +246,22 @@ OPEN_SLUG = "probe-open"
 _OPEN_BLOCK = _NEW_BLOCK.format(slug=OPEN_SLUG, verdict=_VERDICT)
 
 
-def _spec_tree_head(root: Path, slug: str) -> tuple[bool, str]:
-    """Whether the run left a spec tree, and what that tree's HEAD carries as the pair's spec file."""
-    spec_tree = root / ".claude" / "worktrees" / f"{slug}-spec"
-    if not spec_tree.is_dir():
-        return (False, "")
-    return (True, _git(spec_tree, "show", f"HEAD:tests/specs/{slug}.txt").stdout)
+def _opened(finished: subprocess.CompletedProcess[str], root: Path, slug: str) -> tuple[int, bool]:
+    """The run's exit status, and whether it left a spec tree behind."""
+    return (finished.returncode, (root / ".claude" / "worktrees" / f"{slug}-spec").is_dir())
 
 
 @pytest.mark.parametrize(
     ("lane", "expected"),
     [
-        (APPROVED_LANE, (True, _OPEN_BLOCK)),
-        (DRAFT_LANE, (False, "")),
+        (APPROVED_LANE, (0, True)),
+        (DRAFT_LANE, (1, False)),
     ],
     ids=["block-in-the-approved-lane", "block-outside-the-approved-lane"],
 )
 def test_open_builds_a_spec_tree_only_from_the_block_the_approved_lane_carries(
-    tmp_path: Path, lane: str, expected: tuple[bool, str]
+    tmp_path: Path, lane: str, expected: tuple[int, bool]
 ) -> None:
     root = _checkout(tmp_path, OPEN_SLUG, _OPEN_BLOCK, lane=lane)
-    _drive(root, "open", OPEN_SLUG)
-    assert _spec_tree_head(root, OPEN_SLUG) == expected
+    finished = _drive(root, "open", OPEN_SLUG)
+    assert _opened(finished, root, OPEN_SLUG) == expected

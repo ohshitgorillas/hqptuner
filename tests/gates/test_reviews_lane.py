@@ -1,4 +1,4 @@
-"""The hook that keeps ``state/reviews/`` the reviewers' lane, and the reviewers in it.
+"""The hook that keeps ``docs/gauntlet/reviews/`` the reviewers' lane, and the reviewers in it.
 
 ``.claude/hooks/reviews-lane.py`` is a ``PreToolUse`` hook. Its ``verdict``
 function takes the tool name, the tool input and the whole hook payload, and
@@ -77,34 +77,43 @@ def outcome(tool: str, tool_input: dict[str, str], root: Path, agent_type: str |
     return "allowed" if VERDICT(tool, tool_input, payload_for(root, agent_type)) is None else "denied"
 
 
-# --- 1. state/reviews/ is written by the two reviewers and nobody else --------
+# --- 1. the reviews lane is written by the two reviewers and nobody else ------
+
+
+#: The lane a reviewer's round is written in.
+REVIEW_ROUND = "docs/gauntlet/reviews/x.1.txt"
+
+#: The lane the rounds used to sit in, which the hook no longer guards.
+RETIRED_ROUND = "state/reviews/x.1.txt"
 
 
 @pytest.mark.parametrize(
     ("agent_type", "tool", "relative", "expected"),
     [
-        (ORCHESTRATOR, "Write", "state/reviews/x.1.txt", "denied"),
-        ("caveman:cavecrew-builder", "Edit", "state/reviews/x.1.txt", "denied"),
-        ("testsmith", "NotebookEdit", ".claude/worktrees/x-spec/state/reviews/x.1.txt", "denied"),
-        ("spec-reviewer", "Write", "state/reviews/x.1.txt", "denied"),
-        ("plan-reviewer", "Edit", "state/reviews/x.2.txt", "denied"),
-        ("arbiter", "Write", "state/reviews/x.1.txt", "allowed"),
-        ("prosecutor", "Write", "state/reviews/x.1.txt", "allowed"),
+        (ORCHESTRATOR, "Write", REVIEW_ROUND, "denied"),
+        (ORCHESTRATOR, "Write", RETIRED_ROUND, "allowed"),
+        ("caveman:cavecrew-builder", "Edit", REVIEW_ROUND, "denied"),
+        ("gauntlet-testsmith", "NotebookEdit", f".claude/worktrees/x-spec/{REVIEW_ROUND}", "denied"),
+        ("brief-writer", "Write", REVIEW_ROUND, "denied"),
+        ("gauntlet-detective", "Edit", "docs/gauntlet/reviews/x.2.txt", "denied"),
+        ("gauntlet-arbiter", "Write", REVIEW_ROUND, "allowed"),
+        ("gauntlet-prosecutor", "Write", REVIEW_ROUND, "allowed"),
     ],
     ids=[
         "orchestrator",
+        "orchestrator-in-retired-lane",
         "builder",
         "testsmith-in-spec-tree",
-        "spec-reviewer",
-        "plan-reviewer",
+        "brief-writer",
+        "detective",
         "arbiter",
         "prosecutor",
     ],
 )
-def test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer(
+def test_a_write_under_the_reviews_lane_is_allowed_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, tool: str, relative: str, expected: str
 ) -> None:
-    """The same target flips on the caller: the reviewers are let in, everyone else is kept out."""
+    """The same target flips on the caller, and the caller's own lane flips on the target."""
     root = checkout(tmp_path)
     assert outcome(tool, edit_input(tool, root / relative), root, agent_type) == expected
 
@@ -115,19 +124,19 @@ def test_a_write_under_state_reviews_is_allowed_only_for_a_reviewer(
 @pytest.mark.parametrize(
     ("agent_type", "tool", "relative"),
     [
-        ("arbiter", "Write", "hqptuner/core/m.py"),
-        ("arbiter", "Edit", "tests/specs/x.txt"),
-        ("arbiter", "Write", "docs/testing.md"),
-        ("arbiter", "Edit", "state/abuse/current"),
-        ("arbiter", "Write", "specs/x.txt"),
-        ("prosecutor", "Edit", "CLAUDE.md"),
+        ("gauntlet-arbiter", "Write", "hqptuner/core/m.py"),
+        ("gauntlet-arbiter", "Edit", "tests/specs/x.txt"),
+        ("gauntlet-arbiter", "Write", "docs/testing.md"),
+        ("gauntlet-arbiter", "Edit", "state/abuse/current"),
+        ("gauntlet-arbiter", "Write", "docs/gauntlet/specs/drafts/x.txt"),
+        ("gauntlet-prosecutor", "Edit", "CLAUDE.md"),
     ],
-    ids=["package", "spec-file", "docs", "sibling-state-dir", "bare-specs-dir", "claude-md"],
+    ids=["package", "spec-file", "docs", "sibling-state-dir", "drafts-dir", "claude-md"],
 )
-def test_a_reviewer_write_outside_state_reviews_is_denied(
+def test_a_reviewer_write_outside_the_reviews_lane_is_denied(
     tmp_path: Path, agent_type: str, tool: str, relative: str
 ) -> None:
-    """A reviewer's lane is ``state/reviews/`` alone; a sibling under ``state/`` or a bare ``specs/`` is outside it."""
+    """A reviewer's lane is the reviews directory alone; a sibling under it and a drafts directory are outside."""
     root = checkout(tmp_path)
     assert outcome(tool, edit_input(tool, root / relative), root, agent_type) == "denied"
 
@@ -138,12 +147,12 @@ def test_a_reviewer_write_outside_state_reviews_is_denied(
 @pytest.mark.parametrize(
     ("agent_type", "command", "expected"),
     [
-        ("arbiter", "sed -i 's/a/b/' hqptuner/x.py", "denied"),
-        ("arbiter", "echo x > state/reviews/x.1.txt", "denied"),
-        ("prosecutor", "git commit -m x", "denied"),
-        ("arbiter", "make check", "allowed"),
-        ("prosecutor", "cat state/reviews/x.1.txt", "denied"),
-        ("arbiter", "grep -n READY state/reviews/x.1.txt", "denied"),
+        ("gauntlet-arbiter", "sed -i 's/a/b/' hqptuner/x.py", "denied"),
+        ("gauntlet-arbiter", "echo x > docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("gauntlet-prosecutor", "git commit -m x", "denied"),
+        ("gauntlet-arbiter", "make check", "allowed"),
+        ("gauntlet-prosecutor", "cat docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("gauntlet-arbiter", "grep -n READY docs/gauntlet/reviews/x.1.txt", "denied"),
     ],
     ids=["sed-in-place-elsewhere", "redirect-into-lane", "git-commit", "make-check", "cat-lane", "grep-lane"],
 )
@@ -161,12 +170,12 @@ def test_a_reviewer_bash_is_denied_when_metered_and_allowed_when_free(
 @pytest.mark.parametrize(
     ("command", "expected"),
     [
-        ("echo x > state/reviews/x.1.txt", "denied"),
-        ("sed -i 's/a/b/' state/reviews/x.1.txt", "denied"),
-        ("rm state/reviews/x.1.txt", "denied"),
-        ("cat state/reviews/x.1.txt", "allowed"),
+        ("echo x > docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("sed -i 's/a/b/' docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("rm docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("cat docs/gauntlet/reviews/x.1.txt", "allowed"),
         ("sed -i 's/a/b/' hqptuner/x.py", "allowed"),
-        ('git commit -m "state/reviews"', "allowed"),
+        ('git commit -m "docs/gauntlet/reviews"', "allowed"),
     ],
     ids=[
         "redirect-into-lane",
@@ -177,7 +186,7 @@ def test_a_reviewer_bash_is_denied_when_metered_and_allowed_when_free(
         "commit-naming-lane",
     ],
 )
-def test_an_orchestrator_bash_is_denied_only_when_it_is_metered_and_names_state_reviews(
+def test_an_orchestrator_bash_is_denied_only_when_it_is_metered_and_names_the_reviews_lane(
     tmp_path: Path, command: str, expected: str
 ) -> None:
     """Naming the lane is not enough to deny: a read of it is allowed, and a write elsewhere is not its business."""
@@ -191,14 +200,14 @@ def test_an_orchestrator_bash_is_denied_only_when_it_is_metered_and_names_state_
 @pytest.mark.parametrize(
     ("agent_type", "relative", "expected"),
     [
-        ("arbiter", "state/reviews/x.1.txt", "denied"),
-        ("prosecutor", ".claude/worktrees/x-spec/state/reviews/x.2.txt", "denied"),
-        ("arbiter", "docs/testing.md", "allowed"),
-        (ORCHESTRATOR, "state/reviews/x.1.txt", "allowed"),
+        ("gauntlet-arbiter", "docs/gauntlet/reviews/x.1.txt", "denied"),
+        ("gauntlet-prosecutor", ".claude/worktrees/x-spec/docs/gauntlet/reviews/x.2.txt", "denied"),
+        ("gauntlet-arbiter", "docs/testing.md", "allowed"),
+        (ORCHESTRATOR, "docs/gauntlet/reviews/x.1.txt", "allowed"),
     ],
     ids=["arbiter-lane", "prosecutor-lane-in-worktree", "arbiter-docs", "orchestrator-lane"],
 )
-def test_a_read_under_state_reviews_is_denied_only_for_a_reviewer(
+def test_a_read_under_the_reviews_lane_is_denied_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, relative: str, expected: str
 ) -> None:
     """The same verdict file flips on the caller: a reviewer is kept out, the orchestrator reads its own lane."""
@@ -212,14 +221,14 @@ def test_a_read_under_state_reviews_is_denied_only_for_a_reviewer(
 @pytest.mark.parametrize(
     ("agent_type", "pattern", "field", "expected"),
     [
-        ("arbiter", "READY", ("path", "state/reviews"), "denied"),
-        ("arbiter", "READY", ("glob", "state/reviews/*.txt"), "denied"),
-        ("arbiter", "def verdict", ("path", "hqptuner"), "allowed"),
-        (ORCHESTRATOR, "READY", ("path", "state/reviews"), "allowed"),
+        ("gauntlet-arbiter", "READY", ("path", "docs/gauntlet/reviews"), "denied"),
+        ("gauntlet-arbiter", "READY", ("glob", "docs/gauntlet/reviews/*.txt"), "denied"),
+        ("gauntlet-arbiter", "def verdict", ("path", "hqptuner"), "allowed"),
+        (ORCHESTRATOR, "READY", ("path", "docs/gauntlet/reviews"), "allowed"),
     ],
     ids=["arbiter-path", "arbiter-glob", "arbiter-package", "orchestrator-path"],
 )
-def test_a_grep_that_resolves_under_state_reviews_is_denied_only_for_a_reviewer(
+def test_a_grep_that_resolves_under_the_reviews_lane_is_denied_only_for_a_reviewer(
     tmp_path: Path, agent_type: str | None, pattern: str, field: tuple[str, str], expected: str
 ) -> None:
     """A ``path`` into the lane and a ``glob`` over it are one reach, and the caller decides whether it lands."""

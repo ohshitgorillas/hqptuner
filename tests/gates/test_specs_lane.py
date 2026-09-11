@@ -166,17 +166,17 @@ def chain_decision(tool: str, payload: dict[str, str | dict[str, str]]) -> str:
 # --- 2. tests/ in a spec tree belongs to the test-writing agent ---------------
 
 
-SPEC_TREE_TEST = ".claude/worktrees/x-spec/tests/t.py"
+SPEC_TREE_TEST = ".claude/worktrees/x-spec/tests/test_x.py"
 
 
 @pytest.mark.parametrize(
     ("agent_type", "relative", "expected"),
     [
-        ("testsmith", SPEC_TREE_TEST, ALLOWED),
-        ("test-writer", SPEC_TREE_TEST, DENY),
-        ("testsmith", "hqptuner/x.py", DENY),
+        ("gauntlet-testsmith", SPEC_TREE_TEST, ALLOWED),
+        ("testsmith", SPEC_TREE_TEST, DENY),
+        ("gauntlet-testsmith", "hqptuner/x.py", DENY),
     ],
-    ids=["testsmith-in-lane", "retired-writer-name-in-lane", "testsmith-outside-lane"],
+    ids=["writer-in-lane", "retired-writer-name-in-lane", "writer-outside-lane"],
 )
 def test_a_write_under_a_spec_trees_tests_is_admitted_only_for_the_test_writing_agent(
     tmp_path: Path, agent_type: str, relative: str, expected: str
@@ -190,21 +190,36 @@ def test_a_write_under_a_spec_trees_tests_is_admitted_only_for_the_test_writing_
     assert decision(TESTS_LANE, call) == expected
 
 
-# --- 3. specs/approved/ is written by the reviewing agent and nobody else -----
+# --- 3. the approved lane is written by the reviewing agent and nobody else ---
 
 
-APPROVED_BLOCK = "specs/approved/x.txt"
+APPROVED_BLOCK = "docs/gauntlet/specs/approved/x.txt"
+
+#: Where a block sits before it is approved, which is nobody's lane.
+DRAFT_BLOCK = "docs/gauntlet/specs/drafts/x.txt"
+
+#: The lane the approved block used to sit in, which the hook no longer guards.
+RETIRED_BLOCK = "specs/approved/x.txt"
 
 
 @pytest.mark.parametrize(
     ("agent_type", "relative", "expected"),
     [
-        ("arbiter", APPROVED_BLOCK, ALLOWED),
-        ("testsmith", APPROVED_BLOCK, DENY),
+        ("gauntlet-arbiter", APPROVED_BLOCK, ALLOWED),
+        ("gauntlet-testsmith", APPROVED_BLOCK, DENY),
         (MAIN_AGENT, APPROVED_BLOCK, DENY),
-        ("arbiter", "specs/x.txt", DENY),
+        ("gauntlet-arbiter", "docs/gauntlet/specs/x.txt", DENY),
+        (MAIN_AGENT, DRAFT_BLOCK, ALLOWED),
+        (MAIN_AGENT, RETIRED_BLOCK, ALLOWED),
     ],
-    ids=["arbiter-in-lane", "testsmith-in-lane", "main-agent-in-lane", "arbiter-outside-lane"],
+    ids=[
+        "arbiter-in-lane",
+        "testsmith-in-lane",
+        "main-agent-in-lane",
+        "arbiter-outside-lane",
+        "main-agent-in-drafts",
+        "main-agent-in-retired-lane",
+    ],
 )
 def test_a_write_under_specs_approved_is_admitted_only_for_the_reviewing_agent(
     tmp_path: Path, agent_type: str | None, relative: str, expected: str
@@ -224,11 +239,11 @@ def test_a_write_under_specs_approved_is_admitted_only_for_the_reviewing_agent(
 @pytest.mark.parametrize(
     ("subagent_type", "expected"),
     [
-        ("detective", ALLOWED),
-        ("prosecutor", ALLOWED),
-        ("general-purpose", DENY),
+        ("gauntlet-detective", ALLOWED),
+        ("gauntlet-arbiter", ALLOWED),
+        ("brief-writer", DENY),
     ],
-    ids=["detective", "prosecutor", "general-purpose"],
+    ids=["detective", "arbiter", "brief-writer"],
 )
 def test_a_free_agent_spawn_is_admitted_past_the_change_budget(
     tmp_path: Path, subagent_type: str, expected: str

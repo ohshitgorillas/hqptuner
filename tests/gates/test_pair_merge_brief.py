@@ -107,8 +107,8 @@ def _checkout(tmp_path: Path, slug: str) -> Path:
     root = tmp_path / "checkout"
     root.mkdir()
     _put(root, "Makefile", "check:\n\ttrue\n")
-    _put(root, f"specs/approved/{slug}.txt", _BLOCK.format(slug=slug))
-    _put(root, f"state/reviews/{slug}.1.txt", _VERDICT)
+    _put(root, f"docs/gauntlet/specs/approved/{slug}.txt", _BLOCK.format(slug=slug))
+    _put(root, f"docs/gauntlet/reviews/{slug}.1.txt", _VERDICT)
     (root / "scripts").mkdir()
     shutil.copy2(DRIVER, root / "scripts" / DRIVER.name)
     for step in (["init", "-q", "-b", "dev"], ["add", "-A"], ["commit", "-qm", "init"]):
