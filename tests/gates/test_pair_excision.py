@@ -1,8 +1,9 @@
-"""The pair driver's red run, on a pair whose spec tree removes test files.
+"""The pair driver on a pair whose block removes test files.
 
 ``scripts/pair.sh red <slug>`` lands the writer's work on the spec branch as a
-single ``test: <slug> red`` commit. No step takes a path argument: the block a
-pair is opened from is the one ``specs/approved/<slug>.txt`` carries.
+single ``test: <slug> red`` commit, and ``scripts/pair.sh merge <slug>`` lands
+the pair on ``dev``. No step takes a path argument: the block a pair is opened
+from is the one ``specs/approved/<slug>.txt`` carries.
 
 A ``kind: excision`` block carries excision lines, ``N. excise <target>`` with
 a ``rule:`` and an ``assertion:`` under it. A target with no ``::`` in it names
@@ -17,7 +18,8 @@ the script.
 
 The observed values are the run's outcome (``clean`` for exit 0, ``refused``
 for anything else), the name-status listing of the ``test: <slug> red`` commit
-on the spec branch, and what the spec tree still carries afterwards.
+on the spec branch, what the spec tree still carries afterwards, and what the
+``dev`` branch carries once the pair is merged.
 """
 
 import os
@@ -60,6 +62,9 @@ def test_it_holds() -> None:
 '''
 
 _SOURCE_BODY = "SETTING = 1\n"
+
+#: A ``make check`` that passes, so a merge run reaches the steps after it.
+_MAKEFILE_BODY = "check:\n\ttrue\n"
 
 #: The reviewer's verdict file, which the driver requires to match the spec
 #: file's reviewer section byte for byte.
@@ -132,6 +137,7 @@ def _checkout(tmp_path: Path, slug: str, block: str, lane: str = APPROVED_LANE) 
     root = tmp_path / "checkout"
     (root / "scripts").mkdir(parents=True)
     shutil.copy2(DRIVER, root / "scripts" / DRIVER.name)
+    _write(root, "Makefile", _MAKEFILE_BODY)
     _write(root, TARGET, _TEST_BODY)
     _write(root, EDITED, _TEST_BODY)
     _write(root, SOURCE, _SOURCE_BODY)
@@ -178,10 +184,15 @@ def _red_commit_files(root: Path, slug: str) -> list[str]:
     return sorted(line for line in shown.stdout.splitlines() if line)
 
 
+def _carried_on(root: Path, branch: str, relative: str) -> bool:
+    """Whether that branch's tip carries the path."""
+    return _git(root, "cat-file", "-e", f"{branch}:{relative}").returncode == 0
+
+
 # --- 1. a whole-file target naming a test file that exists --------------------
 
 
-def test_a_whole_file_target_is_removed_from_the_spec_tree_and_the_removal_is_in_the_red_commit(
+def test_a_whole_file_target_survives_the_red_run_and_is_gone_from_dev_once_the_pair_is_merged(
     tmp_path: Path,
 ) -> None:
     slug = "probe-one"
@@ -189,10 +200,9 @@ def test_a_whole_file_target_is_removed_from_the_spec_tree_and_the_removal_is_in
     spec_tree = _open_pair(root, slug)
     _edit_a_test(spec_tree)
     _drive(root, "red", slug)
-    assert ((spec_tree / TARGET).exists(), _red_commit_files(root, slug)) == (
-        False,
-        [f"D\t{TARGET}", f"M\t{EDITED}"],
-    )
+    after_red = ((spec_tree / TARGET).exists(), _red_commit_files(root, slug))
+    _drive(root, "merge", slug)
+    assert (after_red, _carried_on(root, "dev", TARGET)) == ((True, [f"M\t{EDITED}"]), False)
 
 
 # --- 2. a whole-file target under tests/ that no file carries ------------------
