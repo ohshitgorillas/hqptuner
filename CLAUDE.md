@@ -52,6 +52,7 @@ This file is the project's rule sheet; procedure lives in the skills it names, l
 - Docs: design and normative rules `docs/architecture.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`. Decisions go in the commit message, and in `docs/architecture.md` when they change a normative rule.
 - **Markdown is written with `Write`/`Edit`, never from the shell** (`.claude/hooks/md-by-tool.py` denies it; `rm`, `git`, `make` pass). **Soft-wrapped**: one paragraph, list item or blockquote per logical line (`.claude/hooks/md-softwrap.py`, `--fix`/`--check`).
 - **HQPlayer's own docs are authority**: `hqplayer6desktop-manual.pdf` and `hqplayerd-readme.txt` in the working dir. Reference before inferring anything about wire or config behavior.
+- **Slow tests are defects.** A test that waits on a wall clock is excised on sight, coverage notwithstanding, by the owner directly if that is faster. Binding in `docs/testing.md`.
 - **Testing policy binding: `docs/testing.md`.** Read before writing or modifying any test. **Frontend layout binding: `docs/design-system.md`.** Read before any CSS or layout work.
 - **Import layering enforced**: `api > core > presets > lanes > engine > conf`, contract in `pyproject.toml` `[tool.importlinter]`, gate `lint-imports`. Absolute imports only. A move that inverts an edge is fixed by splitting the crossing function, not by loosening the contract.
 - **`make check` green before every commit**; pre-commit runs the same gates in full. `--no-verify`, `SKIP=` and hook-config edits stay off the table.

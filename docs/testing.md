@@ -65,6 +65,12 @@ Violations rejected in review even if tests pass.
 
 16. **No environment coupling.** No test reads hostname, locale, timezone, cwd, HOME or a fixed port. Rule 7 covers the clock; this covers the rest.
 
+## Speed is a correctness property
+
+The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is excised on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner excises directly and needs no spec lane to do it.
+
+No design reason survives this. Where production paces on a real clock, the test injects a seam or it does not exist.
+
 ## Excision blocks
 
 Rule 9 orders a copy-pinning test deleted, and no hand edits `tests/` directly, so a deletion travels the `/tests` chain as a spec block whose first line is `kind: excision`. The block carries excision lines in place of behavior lines, never both:
