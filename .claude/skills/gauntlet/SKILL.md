@@ -41,7 +41,7 @@ Findings reach the owner as plain English, never the report. `READY` is the revi
 
 ## Stage 2: the spec
 
-Only after stage 1 is approved. The finished spec block per `/tests`: public entry points, wire facts, fixtures, the changelog line, and the `gauntlet-arbiter` verdicts one line per behavior. Stage 1 approval authorizes writing stage 2 and nothing else; no `Write`, `Edit` or metered action happens until stage 2 is approved. A docs-only change with no behavior lines has no spec block and no gauntlet-arbiter; the deliverable to rule on is the text itself.
+Only after stage 1 is approved. The finished spec block per `/tests`: public entry points, wire facts, fixtures, the changelog line, and the `gauntlet-arbiter` verdicts one line per behavior. Stage 1 approval authorizes writing stage 2 and nothing else; no `Write`, `Edit` or metered action happens until stage 2 is approved. A docs-only change with no behavior lines has no spec block and no gauntlet-arbiter; the deliverable to rule on is the text itself. A change confined to `tests/` reaches neither stage: it takes the tests-only lane at the head of `/tests`, where a `kind: excision` or `kind: repair` block goes straight to the gauntlet-arbiter and the landed diff is checked against it at the merge, because the plan gate resolves citations into the implementation and these lines cite `tests/`.
 
 ## Approval
 
