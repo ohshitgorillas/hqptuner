@@ -373,6 +373,16 @@ do_open() {
   Red run:        scripts/pair.sh red $SLUG      (commits the tests, then runs them)
   Converge with:  scripts/pair.sh merge $SLUG
 EOF
+  case "$(spec_kind "$SPEC_DIR" HEAD)" in
+    excision | repair)
+      cat <<EOF
+
+  This block is a tests-only kind: there is no red run to make and no bite to
+  prove, so go straight to  scripts/pair.sh merge $SLUG , which checks the
+  landed tests against the block itself.
+EOF
+      ;;
+  esac
 }
 
 # ---- respec -----------------------------------------------------------------
@@ -422,7 +432,10 @@ do_respec() {
   echo "  spec commit $(git -C "$SPEC_DIR" rev-parse --short "$spec_commit") on $SPEC_BR"
   echo
   echo "  Send the testsmith a delta naming that commit; it reads the changed lines"
-  echo "  from $SPEC_PATH there. Then:  scripts/pair.sh red $SLUG"
+  case "$(spec_kind "$SPEC_DIR" "$spec_commit")" in
+    excision | repair) echo "  from $SPEC_PATH there. Then:  scripts/pair.sh merge $SLUG" ;;
+    *) echo "  from $SPEC_PATH there. Then:  scripts/pair.sh red $SLUG" ;;
+  esac
 }
 
 # ---- red --------------------------------------------------------------------
@@ -438,12 +451,6 @@ do_red() {
   local spec_commit
   spec_commit=$(find_commit "$SPEC_DIR" "$SPEC_MSG")
   [ -n "$spec_commit" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
-
-  # Before the lane check, not merely before the commit: the removal is work
-  # the spec tree is doing, so the lane check has to see it and rule on it.
-  if [ "$(spec_kind "$SPEC_DIR" "$spec_commit")" = excision ]; then
-    excise_whole_files "$SPEC_DIR" "$spec_commit"
-  fi
 
   lane_check "$SPEC_DIR" spec || die "the spec tree writes tests/ only."
   commit_tree "$SPEC_DIR" "$RED_MSG"
@@ -495,6 +502,18 @@ do_red() {
 # a forward on the one-line form costs a rejected reviewer round.
 BRIEF_FORM=none
 
+# The two tests-only kinds have no implementation phase, so there is no window
+# for a test to soften in and no reviewer round to watch one: the deletion is
+# itself the softening, and scripts/excision-diff.py catches it mechanically.
+mechanical_check() {   # mechanical_check <tree> <spec-commit>
+  local tree=$1 commit=$2
+  BRIEF_FORM=mechanical
+  echo
+  echo "MECHANICAL CHECK $SLUG"
+  in_tree "$tree" python3 scripts/excision-diff.py \
+    --spec "$SPEC_PATH" --base "$commit" --head HEAD
+}
+
 test_check_brief() {   # test_check_brief <tree>
   local tree=$1 spec_commit red_commit
   BRIEF_FORM=none
@@ -538,6 +557,19 @@ do_merge() {
   [ -f "$BASE_FILE" ] || die "no recorded base for $SLUG — open it with pair.sh so the lane check has something to diff against."
   local base
   base=$(cat "$BASE_FILE")
+
+  local spec_commit kind
+  spec_commit=$(find_commit "$SPEC_DIR" "$SPEC_MSG")
+  [ -n "$spec_commit" ] || die "no '$SPEC_MSG' commit on $SPEC_BR — open this pair with a spec file."
+  kind=$(spec_kind "$SPEC_DIR" "$spec_commit")
+
+  # Before the lane check, not merely before the commit: the removal is work
+  # the spec tree is doing, so the lane check has to see it and rule on it.
+  # It sits here rather than in the red run because a tests-only block reaches
+  # no red run at all — the lane that drops it is the one that needs this.
+  if [ "$kind" = excision ]; then
+    excise_whole_files "$SPEC_DIR" "$spec_commit"
+  fi
 
   local lane_ok=1
   lane_check "$SPEC_DIR" spec || lane_ok=0
@@ -610,13 +642,22 @@ you say which before editing anything: the code is wrong, and the fix lands
 in $IMPL_DIR; or the spec is wrong, and it goes back to stage 1 with the
 same prosecutor. Tests are not edited to pass. Then rerun this merge.
 EOF
-    test_check_brief "$SPEC_DIR" >&2
+    case "$kind" in
+      excision | repair) mechanical_check "$SPEC_DIR" "$spec_commit" >&2 || true ;;
+      *) test_check_brief "$SPEC_DIR" >&2 ;;
+    esac
     exit 1
   fi
 
   # Printed here, while the spec tree still exists; the diff is the same one
   # dev will carry once step 6 fast-forwards to it.
-  test_check_brief "$SPEC_DIR"
+  case "$kind" in
+    excision | repair)
+      mechanical_check "$SPEC_DIR" "$spec_commit" \
+        || die "the landed tests do not match the block that approved them — dev is untouched and $SPEC_DIR stands."
+      ;;
+    *) test_check_brief "$SPEC_DIR" ;;
+  esac
 
   say "[6/6] land on dev"
   git merge --ff-only "$SPEC_BR" \
@@ -639,6 +680,11 @@ EOF
     short)
       echo "  both worktrees removed. The tests are identical to the red commit, so"
       echo "  there is no reviewer round to run. Next: /task-check, from here."
+      ;;
+    mechanical)
+      echo "  both worktrees removed. The landed tests were checked against the block"
+      echo "  above, so there is no reviewer round to run: a tests-only kind has no"
+      echo "  implementation phase. Next: /task-check, from here."
       ;;
     *)
       echo "  both worktrees removed. There is no brief to forward, so there is"

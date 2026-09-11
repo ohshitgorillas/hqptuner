@@ -30,8 +30,8 @@ Allowed: every read-only command naming `tests/` (`pytest`, `cat`, `sed -n`,
 One lane is the script's rather than the writer's. A `kind: excision` block
 names tests to remove; a single test is an `Edit` and the writer's, but a whole
 file cannot be, because this hook denies every hand the shell it would take. So
-`scripts/pair.sh red` removes the whole-file targets itself, from the committed
-block, inside the red commit. This hook does not see that removal and is not
+`scripts/pair.sh merge` removes the whole-file targets itself, from the committed
+block, inside the commit it makes. This hook does not see that removal and is not
 meant to: it governs what an agent types, and the script is bounded by the
 block it reads from git rather than by anything here.
 
