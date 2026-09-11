@@ -249,9 +249,8 @@ def _lossy_wall(smoothed: list[float], bandwidth: float, floor: float, samplerat
 def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
     if samplerate < FAKE_HIRES_MIN_RATE:
         return None
-    return _ceiling_wall(smoothed, bandwidth, floor, samplerate) or _lossy_wall(
-        smoothed, bandwidth, floor, samplerate
-    )
+    ceiling = _ceiling_wall(smoothed, bandwidth, floor, samplerate)
+    return ceiling or _lossy_wall(smoothed, bandwidth, floor, samplerate)
 
 
 def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
