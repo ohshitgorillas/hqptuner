@@ -204,10 +204,9 @@ def self_test() -> int:
         "3. excise tests/not_a_line.py::ignored\n"
     )
     lines = parse_block(block)
-    survivor = (
-        "def test_one():\n    assert LABEL == 'Preset'\n\n\n" "def test_sibling():\n    assert LABEL == 'Preset'\n"
-    )
-    sibling_only = "def test_one():\n    assert other\n\n\ndef test_sibling():\n    assert LABEL == 'Preset'\n"
+    kept = "def test_sibling():\n    assert LABEL == 'Preset'\n"
+    survivor = "def test_one():\n    assert LABEL == 'Preset'\n\n\n" + kept
+    sibling_only = "def test_one():\n    assert other\n\n\n" + kept
 
     rules = {
         "1 the contract stops at the reviewer separator": (
