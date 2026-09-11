@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The junk-filter advisor names a track's real content ceiling.** A track whose content fades out gradually below the container's limit read differently from one minute of it to the next, so auto-pilot could settle on the 30k filter for a track whose content stops around 23 kHz, or swap between corners mid-track. The ceiling is now read from a fixed reference band, and cutoffs as low as 13 kHz are recognized.
+
 ## [1.15.2] — 2026-09-10
 
 ### Changed
