@@ -130,7 +130,7 @@ function rulesOf(meta, matched) {
 /**
  * Answer the vocabulary entries for a list of words.
  *
- * @param {{ terms?: unknown, path?: unknown }} spec
+ * @param {{ kind?: string, terms?: unknown, path?: unknown }} spec
  * @param {any} _ctx
  * @returns {Promise<Record<string, any>>}
  */
