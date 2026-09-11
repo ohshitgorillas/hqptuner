@@ -91,6 +91,17 @@ state/
 # `pair.sh open` commits nothing and `pair.sh red` refuses for want of a spec.
 /specs/
 
+# the gauntlet's own artifacts, all of them local: the gauntlet-arbiter's
+# approved blocks staged for scripts/pair.sh open, the gauntlet-prosecutor's
+# approved plans, the drafts behind both, and the reviewer rounds. The
+# committed copy of an approved spec lives at tests/specs/<slug>.txt on the
+# spec branch, made by pair.sh open, and it is the only one git tracks.
+# Anchored at the repo root for the reason above: a bare specs/ would match at
+# any depth and swallow that committed copy.
+/docs/gauntlet/specs/
+/docs/gauntlet/plans/
+/docs/gauntlet/reviews/
+
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules
 

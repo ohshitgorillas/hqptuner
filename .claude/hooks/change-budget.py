@@ -63,16 +63,16 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 
 # Agent types that cannot write. Exact names only, never a pattern: the hook
 # can't see the agent registry, so a guessed name is an unmetered write.
-READ_ONLY_AGENTS = {"Explore", "Plan", "detective", "caveman:cavecrew-investigator"}
+READ_ONLY_AGENTS = {"Explore", "Plan", "gauntlet-detective", "caveman:cavecrew-investigator"}
 
 # Agent types whose *spawn* is free even though they may write: the project's
 # own chain agents, writer, reviewers and the accountant. Their tool calls are
 # metered by these same hooks in the subagent's context, so charging the spawn
 # double-counts and trips the leash mid-chain. Unmeters no write. Exact names
 # only, as above.
-FREE_SPAWN_AGENTS = {"testsmith", "arbiter", "prosecutor",
+FREE_SPAWN_AGENTS = {"gauntlet-testsmith", "gauntlet-arbiter", "gauntlet-prosecutor",
                      "user-reviewer", "abuser-reviewer", "pedant-reviewer",
-                     "accountant"}
+                     "gauntlet-accountant"}
 
 # Harness tools that move text or control between agents already running. They
 # do reach an agent, so not FREE_TOOLS; free on the FREE_SPAWN_AGENTS reasoning:
