@@ -1,0 +1,110 @@
+slug: discovery-cover-restore
+
+kind: new
+
+brief:
+
+> The idle-excise-ba28 excision (combined tree at .claude/worktrees/idle-excise-ba28-spec, branch spec/idle-excise-ba28) removed four wall-clock tests, dropping hqptuner/engine/discovery.py to 65.62% and hqptuner/api/routes/discovery.py to 70.00% against the 90% per-file floor that scripts/gates/check_coverage_floor.py enforces; the deleted tests were the only cover for the /api/discover route, the per-daemon entry shape and the container-host alias rule.
+> Produce a stage 1 plan, per .claude/skills/gauntlet, that restores that cover with tests taking no real-clock deadline and no non-zero sleep, binding rule at docs/testing.md:19.
+> A coverage exemption is out of scope: the deleted tests are gone by rule and the replacement is code, not an EXEMPT entry.
+
+1. Asking the discovery route what is on the network, with the search window set to zero against a configured target nothing listens at, serves the triple the container-host alias reported over its control port where a daemon is listening there, and serves nothing where that port is a hole.
+   kills: an implementation that spends the search window on the per-daemon control exchange as well, so a zero-length search leaves the host daemon unasked and both cases come back empty.
+   bite: HEAD answers HTTP 200 with body `[]` at the listening case, zero entries, measured twice with the same result. Command: `PYTHONPATH=/home/atom/dev/hqptuner ./.venv/bin/python <scratchpad>/discovery-cover-restore-m.py`, a throwaway script spawning the control fake through `spawn_threaded_daemon()`, building `Config(discovery_timeout=0.0, discovery_target="127.0.0.1:<closed udp port>", container_host_alias="127.0.0.1", hqp_control_port=<fake port>)` with temporary store paths and `metering_enabled=False`, then `TestClient(create_app(cfg)).get("/api/discover")`. The same fake answers `Daemon(address='127.0.0.1', name='Fake', version='6', product=None, platform=None)` at `probe("127.0.0.1", <fake port>, 1.0)` in the same run, so the empty body is the zero search window reaching the control exchange, not an absent fake.
+   existing: none, grep -rn "api/discover\|discover(" tests/ --include='*.py' -l run in /home/atom/dev/hqptuner/.claude/worktrees/idle-excise-ba28-spec (branch spec/idle-excise-ba28, commit e24b9233, the committed tree this pair is cut from) exits 1 with no output; the two JS hits, tests/js/store/setup.test.js and tests/js/store/setup-verdict.test.js, fake fetch and never enter Python.
+
+2. Searching lists the container-host alias only where no datagram was answered: where one was, the list is the answering address alone.
+   kills: an implementation that asks the alias on every search and lists it beside whatever answered, so the one host running hqplayerd is offered to the user twice, once by the address its datagram came from and once by the alias.
+   bite: the injected clock and wait are new surface, so there is no value to measure and the line fails on the surface instead: HEAD raises `TypeError: discover() got an unexpected keyword argument 'clock'`. Command: `PYTHONPATH=/home/atom/dev/hqptuner ./.venv/bin/python <scratchpad>/discovery-cover-restore-m.py`, same script, calling `await discovery.discover(wait_seconds=0.05, control_port=<closed port>, target="127.0.0.1:<closed udp port>", alias="127.0.0.1", clock=<lambda: 0.0>, sleep=<async no-op>)`. Null stub: the search accepting both keywords and returning `[]` without sending anything fails the answered case, which expects the answering address rather than the empty list.
+   existing: none, same command and same result as line 1.
+
+Public entry points (planned surface; hqptuner/engine/discovery.py and hqptuner/api/routes/discovery.py):
+
+    #: seconds between reads within one search window
+    POLL = 0.05
+
+    @dataclass(frozen=True)
+    class Daemon:
+        address: str
+        name: str
+        version: str
+        product: str | None = None
+        platform: str | None = None
+
+    async def discover(
+        wait_seconds: float = 3.0,
+        control_port: int = PORT,
+        target: str = GROUP,
+        alias: str = ALIAS,
+        request_timeout: float = 5.0,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> list[Daemon]:
+        """Send one discovery datagram to the target, collect replies until the wait is up, return the records."""
+
+    @router.get("/discover")
+    async def discover_daemons(request: Request) -> list[dict[str, Any]]:
+        """Answer with every hqplayerd that answers discovery on this network, each with what it says it is."""
+
+Unchanged and public, for the writer's reference (hqptuner/engine/discovery.py):
+
+    def parse_reply(payload: bytes, address: str) -> Daemon | None
+    def dedupe(daemons: Iterable[Daemon]) -> list[Daemon]
+    async def enrich(daemons: Iterable[Daemon], get_info: Callable[[str], Awaitable[dict[str, str]]]) -> list[Daemon]
+    async def probe(address: str, control_port: int, request_timeout: float) -> Daemon | None
+
+    GROUP = "239.192.0.199"
+    PORT = 4321
+    ALIAS = "host.docker.internal"
+    REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
+
+Config knobs the route reads (hqptuner/config.py:62, :83, :87, :91, :96):
+
+    hqp_control_port: int = 4321
+    request_timeout: float = 5.0
+    discovery_timeout: float = 3.0
+    discovery_target: str = "239.192.0.199"
+    container_host_alias: str = "host.docker.internal"
+
+Wire and protocol facts:
+
+- The request is one UDP datagram, byte for byte `<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>`, sent to multicast 239.192.0.199 port 4321 (docs/protocol.md:26-29). A `:port` suffix on the configured target overrides the 4321.
+- The reply is `<discover result="OK" name="friendly name" version="...">hqplayer</discover>` (docs/protocol.md:35). The daemon's address is the datagram's own sender address, never a field of the body: the body is not documented to carry one.
+- The reply's `version` is the major only, `Signalyst HQPlayer Embedded 6`; no Control API command carries the installed release number (docs/protocol.md:165).
+- Discovery is optional and answers on IPv4 and IPv6 (`ff08::c7`); only the IPv4 group is sent on, so a daemon answering only on IPv6 is absent from the list rather than an error (docs/protocol.md:26).
+- Port 4321 refuses connections for about ten seconds after a daemon restart and answers `GetInfo` 9.3 s in (docs/protocol.md:21), so a daemon can answer the datagram and refuse the control socket in the same breath; the record stays, with product and platform unfilled.
+- `GetInfo` answers the daemon's identity attributes on the same 4321 connection (docs/protocol.md §1).
+
+Applicable fixtures:
+
+- `spawn_threaded_daemon` (tests/conftest.py:316) — the control-daemon fake served from a background thread over real loopback TCP on an ephemeral port, reachable from the loop `TestClient` runs the app on; `overrides`, `state` and `log` let a sync test steer and watch the daemon's side of the wire.
+- `fake_control.serve` / `_query` (tests/support/fake_control.py:335) — answers `GetInfo` as `<GetInfo name="Fake" engine="6.0.4" version="6"/>`, carrying no product and no platform attribute.
+- `_closed_port` (tests/conftest.py:394) — binds a loopback port, reads the number, hands back the hole, so a test can name an address that refuses at once.
+- `virtual_clock` (tests/conftest.py:100, autouse) — virtualizes `ConnectionManager.sleep` and `ConnectionManager.monotonic` and nothing else, so it does not reach the search; a test that needs virtual time here injects its own pair through the entry point.
+- No datagram fake exists anywhere under `tests/`: `SOCK_DGRAM`, `create_datagram_endpoint` and `sock_recvfrom` appear only in the production module.
+
+Changelog entry, under `## [Unreleased]`, `### Fixed`:
+
+- **Discovery finds the container's own host even with a short search window.** The per-daemon control timeout rode on the discovery wait, so a shortened `DISCOVERY_TIMEOUT` also cut the direct ask to the container host short and it answered nothing. The two timeouts are now separate.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: differential on /api/discover (line 1: control port listening vs hole, same zero window, same loopback address) beside the differential on discover()'s address list (line 2: answered vs unanswered)
+
+round 1 findings, settled:
+- Line 1 CUT (hard-coded stub), repair "two distinct expected bodies on the route surface": repaired. The second value is the control port open against a hole, not a second identity. Fact B's citation holds - tests/support/fake_control.py:335 answers GetInfo from the fixed literal '<GetInfo name="Fake" engine="6.0.4" version="6"/>' and reads nothing from state (the return cites :339, the literal is at :335) - so the two-identity form I named was unavailable. Withdrawn.
+- Block-level "merge lines 1 and 2 into one route-lane differential": withdrawn on Fact A. The route builds its discover() call from Config alone, so no clock or wait seam crosses it, and a route-lane answered case would have to let a real window elapse - the deadline docs/testing.md:19 forbids. The answered half stays in the engine lane; the route gets its own differential, which is what line 1 now is. I could not read hqptuner/api/routes/discovery.py and the citation is what settles it.
+- Line 3 CUT (n): applied, the line is gone. A cut line removed discharges the finding.
+- Round 1's note on the two trees: settled by me, not outstanding. The pair is cut from spec/idle-excise-ba28 (e24b9233), which carries the excision, so existing: none holds in this lineage.
+
+1  KEEP  GET /api/discover with discovery_timeout=0.0, discovery_target a closed UDP port on 127.0.0.1, container_host_alias=127.0.0.1 and hqp_control_port at a listening control fake -> body is one entry carrying (127.0.0.1, Fake, 6); same request with that port a hole -> body is []; the implementation that spends the search window on the control exchange too fails it at the listening case, answering [] where the line expects the triple; bite: HEAD answers HTTP 200 with body [] at the listening case, measured twice, and the same fake answers Daemon(address='127.0.0.1', name='Fake', version='6') at probe() in the same run.
+2  KEEP  carried (round 1): discover(wait_seconds=0.05, target=<responder> | <closed udp port>, alias, clock, sleep) -> the answering address alone where a datagram was answered, the alias where none was; the implementation that asks the alias on every search and lists it beside the answerer fails it at the answered target, returning two addresses where the line expects one; bite: null stub (discover accepting clock and sleep, returning []) fails the answered case, which expects the answering address, not [].
+
+null stub: the module present, discover() accepting clock and sleep and returning [], the route registered and answering [], no datagram sent and no control port asked.
+  satisfies: none   fails: 1, 2
+hard-coded stub: return the entry (127.0.0.1, Fake, 6) from /api/discover, return ["127.0.0.1"] or [alias] from discover() keyed on the alias argument, do no socket work.
+  satisfies: none   fails: 1 - both of line 1's cases are the same zero window at the same loopback address on ephemeral ports, so nothing in the arguments tells the listening control port from the hole; 2 - same, for the answered and silent targets.
+
+survives: 2
