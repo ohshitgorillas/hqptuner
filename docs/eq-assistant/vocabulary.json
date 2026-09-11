@@ -3,7 +3,7 @@
     "name": "HQPTuner EQ Assistant — listening-complaint vocabulary map",
     "version": "2.0.0+polysemy.2026-07-25",
     "compiled": "2026-07-22",
-    "purpose": "Concatenated into the EQ Assistant system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (feature contract).",
+    "purpose": "Concatenated into the EQ Assistant system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (the agent's domain brief), FEATURE-CONTRACT.md (the web feature's contract).",
     "use_case": "VOICING MODE ONLY: a finished stereo master, reproduced on headphones, already corrected toward a measurement-grounded baseline (AutoEq import or an in-session corrective fit). Every range below is calibrated for that context, NOT for mixing individual multitrack elements on loudspeakers, and NOT for corrective work. When the session carries a measurement and a yardstick, CORRECTIVE.md governs instead: band placement, Q and gain come from the error curve, and this file's typical_gain_db / typical_q values do not size those moves.",
     "direction_convention": "`direction` is what to do TO THE NAMED REGION to SATISFY THE USER. It is never 'what the word means'. If the user says 'it's too boomy', the boomy entry's direction is `cut`, because cutting 60-150 Hz relieves boominess. If the user says 'I want it warmer', the warm entry's direction is `boost`, because boosting 100-300 Hz delivers warmth. Read `named_quality` to know which reading the entry is written for.",
     "named_quality_field": {

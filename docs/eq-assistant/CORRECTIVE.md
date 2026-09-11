@@ -4,6 +4,13 @@ Every other document in this base calibrates for **voicing**: a plain-language c
 
 Provenance note: the workflow here was not designed on paper first. It was extracted from two real sessions — `sessions/ori/ori3-tuning.json` (ZMF Ori 3.0, factory 5128 measurement, DF target) and `sessions/blackwood/blackwood-tuning.json` (ZMF Blackwood, user's own REW measurement, flat-on-rig target) — where the doctrine was beaten into shape turn by turn. Claims sourced only to those ledgers are tagged `[session]`; everything else cites the standing corpus. The mechanics of every eqlab job mentioned live in `scripts/eqlab/README.md`; this document carries when and why, never how.
 
+This document answers four questions, and governs from the turn a measurement arrives:
+
+1. Am I in corrective mode or voicing mode? (§1.)
+2. What is "correct" here — which yardstick, read how, smoothed how? (§2, §3, §4.)
+3. What in this measurement is not correctable, and how far can it be trusted? (§5, §6.)
+4. How is a correction fitted, and which fits are anti-patterns? (§7, §8, §9.)
+
 ## 1. Two modes, and how to tell which one you are in
 
 | | Voicing | Corrective |

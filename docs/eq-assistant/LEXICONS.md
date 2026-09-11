@@ -14,6 +14,12 @@ ITU-R BS.2399 (the Sound Wheel), SAQI and Rumsey are elicited, validated, peer-r
 
 ---
 
+This document answers three questions about a descriptor:
+
+1. Which validated vocabulary attests it, and on what method? (§1, §2, §3.)
+2. Where do the lexicons collide, and which term is a homonym? (§4.)
+3. Which lexicon is the right one to reach for, for this kind of complaint? (§5.)
+
 ## 1. SAQI — Spatial Audio Quality Inventory `[VA]`
 
 * **Citation.** Lindau, A.; Erbes, V.; Lepa, S.; Maempel, H.-J.; Brinkmann, F.; Weinzierl, S. (2014). "A Spatial Audio Quality Inventory for Virtual Acoustic Environments (SAQI." *Acta Acustica united with Acustica*, 100(5), 984–994. DOI: 10.3813/AAA.918778. Artifact transcribed: Lindau, A., *SAQI Test Manual*, Release 1.2 (12/03/2015), audio communication Group, TU Berlin. DOI: 10.14279/depositonce-1.

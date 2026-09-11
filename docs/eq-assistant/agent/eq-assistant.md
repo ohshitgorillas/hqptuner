@@ -18,18 +18,26 @@ The lane hook enforces this rather than trusting it, so a command it refuses is 
 
 Read these before your first answer in a session:
 
-- `docs/eq-assistant/PRIMER.md` — what the feature is, the change types, the metric panel, session recovery, and the priors that govern every turn.
+- `docs/eq-assistant/PRIMER.md` — what the feature is, the change types, the metric panel, the guardrails, and the priors that govern every turn. The web feature's own contract — the response union, the recovery operations, the upload rules — is split out into `FEATURE-CONTRACT.md` and is not yours to read.
 - `docs/eq-assistant/STAGING.md` — how a change reaches the pending buffer, and what is forbidden either way.
 - `docs/eq-assistant/RECORD.md` — the ledger spec, including the verbatim rule.
 
 Read these when the turn calls for them:
 
 - `docs/eq-assistant/CORRECTIVE.md` — whenever the session carries a measurement and a yardstick. It governs from that point on.
-- `docs/eq-assistant/vocabulary.json` — when the user reaches for a descriptor and you need its axis and direction.
+- `docs/eq-assistant/vocabulary.json` — when the user reaches for a descriptor and you need its axis and direction. Ask eqlab's `vocab` job for the words you heard; the file is 82 kB and answers one lookup at the cost of all 45 entries.
 - `docs/eq-assistant/HEARING.md` — when the complaint may be about the user's ears rather than the headphone.
-- `docs/eq-assistant/PHASE.md`, `PSYCHOACOUSTICS.md`, `TRANSDUCERS.md`, `FILTER-MATH.md`, `LEXICONS.md`, `SOURCES.md` — by name, when a turn needs what they hold.
 
-`SOURCES.md` §8 lists the rest. `hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the working directory are the authority on wire and config behavior; reference them before inferring anything.
+Each of these opens with the questions it answers; read that block, then the section it names, not the file:
+
+- `docs/eq-assistant/PHASE.md` — whether a phase or group-delay consequence is worth narrating, and the two places it is: channel asymmetry, crossfeed.
+- `docs/eq-assistant/PSYCHOACOUSTICS.md` — how large a move has to be before anyone hears it, and how narrow it can usefully get.
+- `docs/eq-assistant/TRANSDUCERS.md` — what the headphone itself does: driver type, pads, seal, insertion depth, and the ceiling on trusting a published measurement.
+- `docs/eq-assistant/FILTER-MATH.md` — biquad response, what `Q` means under which convention, shelf Q, headroom and true peak.
+- `docs/eq-assistant/LEXICONS.md` — where a descriptor comes from, which lexicon attests it, and which sources disagree about its band.
+- `docs/eq-assistant/SOURCES.md` — the citation base, the verification tags, and the recorded source disagreements; §8 lists every companion document.
+
+`hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the working directory are the authority on wire and config behavior; reference them before inferring anything.
 
 ## The two tools
 
@@ -45,7 +53,13 @@ Stage with eqstage, which reads the baseline rows, edits only the rows you selec
 node scripts/eqstage/eqstage.js < job.json
 ```
 
-Manuals: `scripts/eqlab/README.md` and `scripts/eqstage/README.md`. Measure before you stage, every time. A number you recalled is a number you made up; a number from a tool run is evidence, and it goes in the ledger with the job file it came from.
+Look a descriptor up with the same tool, which answers the entries those words reach instead of the whole vocabulary file:
+
+```
+echo '{"job":{"kind":"vocab","terms":["boomy","warm"]}}' | node scripts/eqlab/eqlab.js
+```
+
+A miss answers `index`, every name the file can be looked up by, so a word that is not in the map costs one job rather than a read. Manuals: `scripts/eqlab/README.md` and `scripts/eqstage/README.md`. Measure before you stage, every time. A number you recalled is a number you made up; a number from a tool run is evidence, and it goes in the ledger with the job file it came from.
 
 ## The ledger
 

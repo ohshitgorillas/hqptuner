@@ -21,6 +21,15 @@ The distinction between the two manufacturer classes is load-bearing: a manufact
 
 ---
 
+This document answers four questions:
+
+1. Where does a clamp, a default or a convention in this feature come from? (§1.)
+2. Who attests a tonal descriptor, and on what evidence? (§2.)
+3. What is the source basis for crossfeed? (§3.)
+4. Which sources disagree, and how is a disagreement ruled on rather than papered over? (§4, §5, §7.)
+
+§6 records what could not be reached. §8 lists every companion document.
+
 ## 1. EQ engine conventions (the clamp authority)
 
 ### 1.1 AutoEq — Jaakko Pasanen `[V]`

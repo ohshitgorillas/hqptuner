@@ -1,6 +1,6 @@
 # PSYCHOACOUSTICS.md — how big, how narrow, and how sure
 
-Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener), `PHASE.md` (phase and group delay). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener), `PHASE.md` (phase and group delay). Compiled 2026-07-25.
 
 This document answers two questions the tuner implicitly answers every turn, and previously answered from convention rather than evidence:
 

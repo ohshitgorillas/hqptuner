@@ -1,12 +1,19 @@
 # FILTER-MATH.md — biquad response, what "Q" means, and headroom
 
-Companion to `SOURCES.md` (citations), `docs/protocol.md` (wire truth), `PRIMER.md` (feature contract), `PHASE.md` (what the phase half of these transfer functions does, and whether it is audible). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations), `docs/protocol.md` (wire truth), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `PHASE.md` (what the phase half of these transfer functions does, and whether it is audible). Compiled 2026-07-25.
 
 The tuner's `evaluate_chain` tool computes the summed magnitude response of a filter chain in order to measure a candidate change and to recompute the required negative preamp. That computation is only meaningful if our `q` means the same thing the engine's `q` means. This document is the primary-source basis for that arithmetic — and it names, explicitly, the one link in the chain that is still asserted rather than sourced.
 
 **Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL (same artifact class as `[V]`; the difference is who read it).
 
 ---
+
+This document answers four questions:
+
+1. What are the coefficients of the three stage types this feature emits? (§1.)
+2. What does `Q` mean, and under whose convention? (§2, §3, §4.)
+3. What grammar does a `ParametricEQ.txt` export have to satisfy? (§5.)
+4. How is headroom computed, and where is the measurement path weakest? (§6, §7.)
 
 ## 1. RBJ Audio EQ Cookbook — the primary `[VA]`
 

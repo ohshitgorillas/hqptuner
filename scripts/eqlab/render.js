@@ -415,6 +415,19 @@ function renderPlot(out) {
   return `wrote plot -> ${out.path}\nseries: ${out.series.join(", ")}`;
 }
 
+/**
+ * @param {Awaited<ReturnType<typeof import("./vocab.js").vocabJob>>} out
+ * @returns {string}
+ */
+function renderVocab(out) {
+  if (!out.matched.length) return `no match for ${out.terms.join(", ")}\n${out.index.length} name(s) available`;
+  const rows = out.matched.map((/** @type {any} */ m) => [m.matched_as, m.name, m.group, String(m.entry.senses?.length ?? 0)]);
+  const conflicts = out.conflicts.length
+    ? `\nconflicts:\n${out.conflicts.map((/** @type {any} */ c) => `  ${(c.terms || c).join(" + ")}`).join("\n")}`
+    : "";
+  return `${table(["asked", "term", "group", "senses"], rows)}${conflicts}`;
+}
+
 // The dispatch erases which body shape goes with which key — `out.job` is a
 // runtime string, so no signature here can tie the two together. Each renderer
 // above states what it reads; this table only routes to it.
@@ -428,6 +441,7 @@ const BODY = {
   snapshot: renderSnapshot,
   export: renderExport,
   plot: renderPlot,
+  vocab: renderVocab,
 };
 
 /**

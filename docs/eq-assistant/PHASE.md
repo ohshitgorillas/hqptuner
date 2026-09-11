@@ -1,6 +1,6 @@
 # PHASE.md — what phase does on this chain, and who can hear it
 
-Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (feature contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform). Compiled 2026-07-26.
+Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform). Compiled 2026-07-26.
 
 **Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL or page number (same artifact class as `[V]`; the difference is who read it). Figures computed by us are labeled **derived** in place and are never presented as source claims.
 
