@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: keep a blind test-author or arbiter out of the implementation.
+"""PreToolUse hook: keep a blind test-author or reviewer out of the implementation.
 
-Wired from the `hooks:` frontmatter of `.claude/agents/testsmith.md`,
-`arbiter.md`, `user-reviewer.md`, `abuser-reviewer.md` and
+Wired from the `hooks:` frontmatter of `.claude/agents/gauntlet-testsmith.md`,
+`gauntlet-arbiter.md`, `user-reviewer.md`, `abuser-reviewer.md` and
 `pedant-reviewer.md`, so it binds those subagents only — the
 orchestrator and every other agent are untouched. A session-wide
 `permissions.deny` would have blinded the orchestrator too, which is the one
@@ -26,7 +26,9 @@ Blocked for those agents:
     (`/components/`, `/store/`, `/lib/`, any `.js`/`.css`/`.map`) — the same
     source by another road; `/api/` GETs pass
 
-Allowed, because they are the spec's own sources: `docs/`, `tests/`,
+Allowed, because they are the spec's own sources: `docs/` except
+`docs/gauntlet/`, whose only readable part is the approved block the agent was
+handed at `docs/gauntlet/specs/approved/<slug>.txt`; `tests/`,
 `hqplayerd-readme.txt`, the HQPlayer manual, and the test runners (`make test`,
 `pytest`) — a traceback through implementation source is the cost of running
 the suite at all.
@@ -48,8 +50,11 @@ SERVED = re.compile(r":8090/(?:components|store|lib)/|:8090/[^\s\"']*\.(?:js|css
 
 _WHY = (
     "Blind agent: the implementation is out of bounds. Work from the spec block, "
-    "docs/, tests/, and the HQPlayer documentation. If the spec does not say what the "
-    "behavior is, report that gap instead of reading the code to find out."
+    "docs/ outside docs/gauntlet/, tests/, and the HQPlayer documentation. The "
+    "chain's own artifacts under docs/gauntlet/ are not yours either: the one "
+    "you work from is the approved block you were handed. If the spec does not "
+    "say what the behavior is, report that gap instead of reading the code to "
+    "find out."
 )
 
 

@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: `state/reviews/` is the reviewers' lane, and their only one.
+"""PreToolUse hook: `docs/gauntlet/reviews/` is the reviewers' lane, and their only one.
 
 Wired session-wide from `.claude/settings.json`, so it binds the orchestrator
 and every subagent, and again from the `hooks:` frontmatter of
-`.claude/agents/arbiter.md` and `prosecutor.md`, where the same
-script confines those two agents to that one directory.
+`.claude/agents/gauntlet-arbiter.md` and `gauntlet-prosecutor.md`, where the
+same script confines those two agents to that one directory.
 
 The rule it enforces: a reviewer's verdict reaches `scripts/pair.sh open`
-from a file the reviewer wrote itself, `state/reviews/<slug>.<N>.txt`, never
-from a transcription the orchestrator typed. So the two reviewers may write
-there and nowhere else, and nobody else may write there at all. Reviewers
+from a file the reviewer wrote itself, `docs/gauntlet/reviews/<slug>.<N>.txt`,
+never from a transcription the orchestrator typed. So the two reviewers may
+write there and nowhere else, and nobody else may write there at all. Reviewers
 write relative to the main checkout, which is where `pair.sh open` looks.
 
 Denied:
 
-  * `Write`/`Edit`/`NotebookEdit` whose target is under `state/reviews/` of
-    any checkout, unless the caller's `agent_type` is `arbiter` or
-    `prosecutor`
+  * `Write`/`Edit`/`NotebookEdit` whose target is under
+    `docs/gauntlet/reviews/` of any checkout, unless the caller's `agent_type`
+    is `gauntlet-arbiter` or `gauntlet-prosecutor`
   * for those two agents, any `Write`/`Edit`/`NotebookEdit` outside
-    `state/reviews/`, the arbiter's own `specs/approved/` lane excepted,
-    and any `Bash` command that `free_bash` meters
-  * for those two agents, a `Read` or a `Grep` aimed under `state/reviews/`,
-    and a read-only `Bash` command naming such a path
+    `docs/gauntlet/reviews/`, the gauntlet-arbiter's own
+    `docs/gauntlet/specs/approved/` lane excepted, and any `Bash` command that
+    `free_bash` meters
+  * for those two agents, a `Read` or a `Grep` aimed under
+    `docs/gauntlet/reviews/`, and a read-only `Bash` command naming such a path
   * for everyone else, a `Bash` command that `free_bash` meters and that
-    names a `state/reviews/` path
+    names a `docs/gauntlet/reviews/` path
 
 A reviewer is denied the lane's contents as well as its writes, because a
 rejection burns the agent that printed it and its replacement continues the
@@ -31,10 +32,10 @@ numbering in the same directory: the `Glob` that finds the next `<N>` is
 allowed and returns filenames, and a prior round reaches a reviewer only as
 the carried verdicts in the author's own return.
 
-Allowed: every read-only command naming `state/reviews/` (`cat`, `grep`,
-`sed -n`) for everyone but those two agents, git commands that never write the
-working tree, `Glob` for anyone, and every write elsewhere by every
-non-reviewer. `state/` is gitignored, so there is no git object to restore
+Allowed: every read-only command naming `docs/gauntlet/reviews/` (`cat`,
+`grep`, `sed -n`) for everyone but those two agents, git commands that never
+write the working tree, `Glob` for anyone, and every write elsewhere by every
+non-reviewer. The lane is gitignored, so there is no git object to restore
 from and no restore carve-out.
 
 `agent_type` is present in the payload only for subagent calls; an absent key
@@ -52,42 +53,43 @@ import re
 import shlex
 import sys
 
-REVIEWERS = frozenset({"arbiter", "prosecutor"})
+REVIEWERS = frozenset({"gauntlet-arbiter", "gauntlet-prosecutor"})
 #: the one reviewer with a second lane, and the folder that lane is
-APPROVED_WRITER = "arbiter"
-APPROVED_LANE = os.path.join("specs", "approved")
+APPROVED_WRITER = "gauntlet-arbiter"
+APPROVED_LANE = os.path.join("docs", "gauntlet", "specs", "approved")
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 #: tools that hand back a file's contents; `Glob` returns names only and is not one
 READ_TOOLS = ("Read", "Grep")
-#: a `state/reviews/` path token anywhere in a shell command, relative or absolute
-BASH_REVIEWS = re.compile(r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?state/reviews/")
+#: a `docs/gauntlet/reviews/` path token anywhere in a shell command, relative or absolute
+BASH_REVIEWS = re.compile(r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?docs/gauntlet/reviews/")
 
 _LANE = (
-    "state/reviews/ is the reviewers' lane: a verdict file is written by the "
-    "arbiter or prosecutor that produced it, and scripts/pair.sh open "
-    "compares the spec file against it. Nothing else writes there. "
-    "(.claude/hooks/reviews-lane.py)"
+    "docs/gauntlet/reviews/ is the reviewers' lane: a verdict file is written "
+    "by the gauntlet-arbiter or gauntlet-prosecutor that produced it, and "
+    "scripts/pair.sh open compares the spec file against it. Nothing else "
+    "writes there. (.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_LANE = (
-    "Reviewer: your one write is your verdict, to state/reviews/<slug>.<N>.txt "
-    "of the main checkout, and for the arbiter the approved spec, to "
-    "specs/approved/. Not hqptuner/, not tests/, not docs/, not the rest of "
-    "specs/. (.claude/hooks/reviews-lane.py)"
+    "Reviewer: your one write is your verdict, to "
+    "docs/gauntlet/reviews/<slug>.<N>.txt of the main checkout, and for the "
+    "gauntlet-arbiter the approved spec, to docs/gauntlet/specs/approved/. Not "
+    "hqptuner/, not tests/, not the rest of docs/. "
+    "(.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_BASH = (
     "Reviewer: a shell command that changes anything is denied; your one write "
-    "is the Write tool onto state/reviews/. Read-only shell (cat, grep, sed -n, "
-    "make check, pytest) passes. (.claude/hooks/reviews-lane.py)"
+    "is the Write tool onto docs/gauntlet/reviews/. Read-only shell (cat, grep, "
+    "sed -n, make check, pytest) passes. (.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_READ = (
-    "Reviewer: state/reviews/ is not yours to read. A prior round reaches you "
-    "as the carried verdicts in the author's return, never as a file: the round "
-    "that rejected a brief printed the steering back verbatim, and it is written "
-    "nowhere for you to find. Glob for the next <N> is allowed and returns "
-    "filenames. (.claude/hooks/reviews-lane.py)"
+    "Reviewer: docs/gauntlet/reviews/ is not yours to read. A prior round "
+    "reaches you as the carried verdicts in the author's return, never as a "
+    "file: the round that rejected a brief printed the steering back verbatim, "
+    "and it is written nowhere for you to find. Glob for the next <N> is "
+    "allowed and returns filenames. (.claude/hooks/reviews-lane.py)"
 )
 _BASH = (
-    "A shell write naming a state/reviews/ path is denied: " + _LANE
+    "A shell write naming a docs/gauntlet/reviews/ path is denied: " + _LANE
 )
 
 

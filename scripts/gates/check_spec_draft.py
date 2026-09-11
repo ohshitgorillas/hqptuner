@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 r"""Gate: a spec block's items carry their clauses.
 
-In draft mode the string shapes the arbiter cuts on sight are reported
+In draft mode the string shapes the gauntlet-arbiter cuts on sight are reported
 before the reviewer is spawned, so a string shape never costs a round.
 
 A block is read above its reviewer section, which starts at the first line
@@ -14,7 +14,7 @@ started yet, so a soft-wrapped item is one item.
 
 Both modes, per item: the first clause is ``kills:`` (behavior) or ``rule:``
 (excision). Draft mode (default) adds, per behavior item: an outcome carrying one of the words
-the arbiter cuts under (h) and (i); a missing ``kills:``, ``bite:`` or
+the gauntlet-arbiter cuts under (h) and (i); a missing ``kills:``, ``bite:`` or
 ``existing:``; an ``existing:`` naming a ``tests/`` path with no ``::`` (an
 ``existing: none (<grep>)`` is exempt, the grep being the evidence); a
 ``bite:`` that names neither a parenthesised command nor a stub. Per excision

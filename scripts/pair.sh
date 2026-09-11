@@ -25,7 +25,7 @@
 #
 # open commits the approved spec block, with the arbiter's READY output,
 # as tests/specs/<slug>.txt — the first commit on the spec branch, made before
-# any implementation exists. The arbiter writes it to specs/approved/<slug>.txt
+# any implementation exists. The gauntlet-arbiter writes it to docs/gauntlet/specs/approved/<slug>.txt
 # (gitignored, in-tree, so the write is free), the one folder .claude/hooks/specs-lane.py
 # lets it write and lets nothing else write; open derives that path from the slug
 # rather than taking it, so no other hand can name a file there. The writer reads
@@ -117,9 +117,9 @@ BASE_FILE="$STATE/$SLUG.base"
 RED_FILE="$STATE/$SLUG.red"
 SPEC_PATH="tests/specs/$SLUG.txt"
 # The approved block, derived from the slug and never taken as an argument:
-# specs/approved/ is the arbiter's lane, so the file open reads is one only
-# the arbiter can have written.
-SPECFILE="$ROOT/specs/approved/$SLUG.txt"
+# docs/gauntlet/specs/approved/ is the gauntlet-arbiter's lane, so the file
+# open reads is one only that reviewer can have written.
+SPECFILE="$ROOT/docs/gauntlet/specs/approved/$SLUG.txt"
 SPEC_MSG="spec: $SLUG"
 RED_MSG="test: $SLUG red"
 
@@ -286,7 +286,7 @@ excise_whole_files() {   # excise_whole_files <tree> <spec-commit>
 
 # The reviewer section of the spec file is the reviewer's own text. Every
 # arbiter round that carries verdicts is written by that agent to
-# state/reviews/<slug>.<N>.txt (a round that rejected a brief writes nothing)
+# docs/gauntlet/reviews/<slug>.<N>.txt (a round that rejected a brief writes nothing)
 # (.claude/hooks/reviews-lane.py keeps every other hand off it), and the
 # section after the separator has to match the newest one, which has to
 # start with READY. A READY the orchestrator typed does not open a pair.
@@ -297,8 +297,8 @@ verdict_check() {
   local vfile
   grep -qxF -- "$VERDICT_SEP" "$SPECFILE" \
     || die "no '$VERDICT_SEP' line in $SPECFILE — the reviewer's output goes beneath that separator."
-  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1 || true)
-  [ -n "$vfile" ] || die "no state/reviews/$SLUG.<N>.txt — the arbiter writes its verdict there itself, every round that carries one."
+  vfile=$(ls -1 "$ROOT/docs/gauntlet/reviews/$SLUG".[0-9]*.txt 2>/dev/null | sort -t. -k2,2n | tail -1 || true)
+  [ -n "$vfile" ] || die "no docs/gauntlet/reviews/$SLUG.<N>.txt — the gauntlet-arbiter writes its verdict there itself, every round that carries one."
   [ "$(head -1 "$vfile")" = "READY" ] || die "${vfile#"$ROOT"/} does not start with READY — the reviewer has not passed this block."
   if ! diff -qB <(sed -n "/^$VERDICT_SEP\$/,\$p" "$SPECFILE" | sed '1d;s/[[:space:]]*$//') \
                 <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
@@ -396,7 +396,7 @@ do_respec() {
   verdict_check
 
   local vfile
-  vfile=$(ls -1 "$ROOT/state/reviews/$SLUG".[0-9]*.txt | sort -t. -k2,2n | tail -1)
+  vfile=$(ls -1 "$ROOT/docs/gauntlet/reviews/$SLUG".[0-9]*.txt | sort -t. -k2,2n | tail -1)
   if diff -qB <(committed_verdict "$SPEC_DIR") <(sed 's/[[:space:]]*$//' "$vfile") >/dev/null; then
     die "${vfile#"$ROOT"/} is the round already committed on $SPEC_BR — a re-approved block carries a new arbiter round, not the last READY pasted under a changed block."
   fi
