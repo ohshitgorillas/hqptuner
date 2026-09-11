@@ -18,9 +18,10 @@ Denied:
     `docs/gauntlet/reviews/` of any checkout, unless the caller's `agent_type`
     is `gauntlet-arbiter` or `gauntlet-prosecutor`
   * for those two agents, any `Write`/`Edit`/`NotebookEdit` outside
-    `docs/gauntlet/reviews/`, the gauntlet-arbiter's own
-    `docs/gauntlet/specs/approved/` lane excepted, and any `Bash` command that
-    `free_bash` meters
+    `docs/gauntlet/reviews/`, each reviewer's own approved lane excepted —
+    `docs/gauntlet/specs/approved/` for the gauntlet-arbiter,
+    `docs/gauntlet/plans/approved/` for the gauntlet-prosecutor — and any
+    `Bash` command that `free_bash` meters
   * for those two agents, a `Read` or a `Grep` aimed under
     `docs/gauntlet/reviews/`, and a read-only `Bash` command naming such a path
   * for everyone else, a `Bash` command that `free_bash` meters and that
@@ -54,11 +55,13 @@ import shlex
 import sys
 
 REVIEWERS = frozenset({"gauntlet-arbiter", "gauntlet-prosecutor"})
-#: the one reviewer with a second lane, and the folder that lane is
-APPROVED_WRITER = "gauntlet-arbiter"
+#: each reviewer's second lane, the folder it writes the artifact it approved to
+APPROVED_LANES = {
+    "gauntlet-arbiter": os.path.join("docs", "gauntlet", "specs", "approved"),
+    "gauntlet-prosecutor": os.path.join("docs", "gauntlet", "plans", "approved"),
+}
 #: the reviewers' own lane, as a repo-relative path
 REVIEWS_LANE = os.path.join("docs", "gauntlet", "reviews")
-APPROVED_LANE = os.path.join("docs", "gauntlet", "specs", "approved")
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 #: tools that hand back a file's contents; `Glob` returns names only and is not one
 READ_TOOLS = ("Read", "Grep")
@@ -73,10 +76,11 @@ _LANE = (
 )
 _REVIEWER_LANE = (
     "Reviewer: your one write is your verdict, to "
-    "docs/gauntlet/reviews/<slug>.<N>.txt of the main checkout, and for the "
-    "gauntlet-arbiter the approved spec, to docs/gauntlet/specs/approved/. Not "
-    "hqptuner/, not tests/, not the rest of docs/. "
-    "(.claude/hooks/reviews-lane.py)"
+    "docs/gauntlet/reviews/<slug>.<N>.txt of the main checkout, plus the "
+    "artifact you approved: for the gauntlet-arbiter the approved spec, to "
+    "docs/gauntlet/specs/approved/, and for the gauntlet-prosecutor the "
+    "approved plan, to docs/gauntlet/plans/approved/. Not hqptuner/, not "
+    "tests/, not the rest of docs/. (.claude/hooks/reviews-lane.py)"
 )
 _REVIEWER_BASH = (
     "Reviewer: a shell command that changes anything is denied; your one write "
@@ -114,12 +118,12 @@ def _in_reviews(target: str, cwd: str, lane) -> bool:
     return root is not None and rel is not None and not rel.startswith("..") and _under_reviews(rel)
 
 
-def _in_approved(target: str, cwd: str, lane) -> bool:
-    """Does this path land inside some checkout's `docs/gauntlet/specs/approved/`?"""
+def _in_approved(target: str, cwd: str, lane, approved: str) -> bool:
+    """Does this path land inside some checkout's `approved` lane, the caller's own?"""
     root, rel = lane._split_root(target, cwd)
     if root is None or rel is None or rel.startswith(".."):
         return False
-    return rel == APPROVED_LANE or rel.startswith(APPROVED_LANE + os.sep)
+    return rel == approved or rel.startswith(approved + os.sep)
 
 
 def _write_verdict(target: str, cwd: str, agent: str, lane) -> str | None:
@@ -127,7 +131,8 @@ def _write_verdict(target: str, cwd: str, agent: str, lane) -> str | None:
     if agent in REVIEWERS:
         if in_reviews:
             return None
-        if agent == APPROVED_WRITER and _in_approved(target, cwd, lane):
+        approved = APPROVED_LANES.get(agent)
+        if approved is not None and _in_approved(target, cwd, lane, approved):
             return None
         return _REVIEWER_LANE
     return _LANE if in_reviews else None
