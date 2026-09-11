@@ -36,10 +36,15 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 TESTS = "tests/"
+
+#: resolved so the argv carries a full path, as scripts/build_autoeq_db.py does
+GIT = shutil.which("git") or "git"
 
 #: everything below this line is the reviewer's own output, not the contract
 SEPARATOR = "--- spec-reviewer"
@@ -52,22 +57,25 @@ class Line:
     """One excision or repair line of an approved block."""
 
     def __init__(self, target: str) -> None:
+        """Hold one target, its quoted assertion and its landing name."""
         self.target = target
         self.assertion = ""
         self.landing = ""  # the `as:` field, empty on a `kind: excision` line
 
     @property
     def path(self) -> str:
+        """Give the file half of the target."""
         return self.target.split("::", 1)[0]
 
     @property
     def test(self) -> str:
+        """Give the test half of the target, empty for a whole-file target."""
         _, _, name = self.target.partition("::")
         return name
 
 
 def parse_block(text: str) -> list[Line]:
-    """The lines of a block, in spec order."""
+    """Read the lines of a block, in spec order."""
     contract, _, _ = text.partition(SEPARATOR)
     lines: list[Line] = []
     for raw in contract.splitlines():
@@ -86,23 +94,24 @@ def parse_block(text: str) -> list[Line]:
 
 
 def _git(*args: str) -> tuple[int, str]:
-    done = subprocess.run(("git", *args), capture_output=True, text=True, check=False)
+    done = subprocess.run([GIT, *args], capture_output=True, text=True, check=False)
     return done.returncode, done.stdout
 
 
 def file_at(rev: str, path: str) -> str | None:
-    """The file's content at that commit, or None where it does not exist."""
+    """Read the file's content at that commit, or None where it does not exist."""
     code, out = _git("show", f"{rev}:{path}")
     return out if code == 0 else None
 
 
 def changed_files(base: str, head: str) -> list[str]:
+    """List the files under tests/ that differ between the two commits."""
     _, out = _git("diff", "--name-only", base, head, "--", TESTS)
     return [p for p in out.splitlines() if p.strip()]
 
 
 def test_body(source: str, name: str) -> str | None:
-    """The span from `def <name>` to the next definition at that indent.
+    """Cut the span from `def <name>` to the next definition at that indent.
 
     A name in quotes is a node test title, which no `def` introduces: the
     whole file is its body, and None says the file does not carry it at all.
@@ -118,9 +127,9 @@ def test_body(source: str, name: str) -> str | None:
         indent = len(start.group("indent"))
         body = [row]
         for follow in rows[i + 1 :]:
-            if follow.strip() and len(follow) - len(follow.lstrip()) <= indent:
-                if follow.lstrip().startswith(("def ", "async def ", "class ", "@")):
-                    break
+            outdented = follow.strip() and len(follow) - len(follow.lstrip()) <= indent
+            if outdented and follow.lstrip().startswith(("def ", "async def ", "class ", "@")):
+                break
             body.append(follow)
         return "\n".join(body)
     return None
@@ -152,6 +161,7 @@ def landing_verdict(line: Line, head: str) -> str:
 
 
 def report(block: str, base: str, head: str) -> list[str]:
+    """Give every verdict the block earns over that diff, in printing order."""
     lines = parse_block(block)
     named = {line.path for line in lines}
     named.update(line.landing.split("::", 1)[0] for line in lines if line.landing)
@@ -163,14 +173,14 @@ def report(block: str, base: str, head: str) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    """Print one verdict per line and return 1 where any of them refuses the land."""
     parser = argparse.ArgumentParser(description="Check a tests-only diff against its block.")
     parser.add_argument("--spec", required=True, help="tests/specs/<slug>.txt")
     parser.add_argument("--base", required=True, help="the commit the change started from")
     parser.add_argument("--head", required=True, help="the commit that landed it")
     args = parser.parse_args(argv)
 
-    with open(args.spec, encoding="utf-8") as handle:
-        block = handle.read()
+    block = Path(args.spec).read_text(encoding="utf-8")
 
     verdicts = report(block, args.base, args.head)
     for verdict in verdicts:
@@ -195,15 +205,13 @@ def self_test() -> int:
     )
     lines = parse_block(block)
     survivor = (
-        "def test_one():\n    assert LABEL == 'Preset'\n\n\n"
-        "def test_sibling():\n    assert LABEL == 'Preset'\n"
+        "def test_one():\n    assert LABEL == 'Preset'\n\n\n" "def test_sibling():\n    assert LABEL == 'Preset'\n"
     )
     sibling_only = "def test_one():\n    assert other\n\n\ndef test_sibling():\n    assert LABEL == 'Preset'\n"
 
     rules = {
         "1 the contract stops at the reviewer separator": (
-            [line.target for line in lines]
-            == ["tests/test_a.py::test_one", "tests/test_c.py::test_three"]
+            [line.target for line in lines] == ["tests/test_a.py::test_one", "tests/test_c.py::test_three"]
         ),
         "2 a body carries its own assertion, a sibling's does not": (
             lines[0].assertion in (test_body(survivor, "test_one") or "")
