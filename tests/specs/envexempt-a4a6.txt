@@ -1,0 +1,42 @@
+slug: envexempt-a4a6
+kind: repair
+
+brief: none
+
+1. excise tests/gates/test_container_env.py::test_omitting_the_exemption_table_honors_the_shipped_exemptions
+   rule: docs/testing.md rule 11
+   assertion: assert FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}) == []
+   replace: A config carrying one suffix the shipped `EXEMPT` table names beside one path field that nothing pins, checked with no exemption argument passed, reports failure lines naming exactly the second suffix.
+   as: tests/gates/test_container_env.py::test_omitting_the_exemption_table_honors_the_shipped_exemptions
+   kills: falling back to an empty table when the caller passes no exemption argument, which names both suffixes at this input rather than the one the image really left writing into an unwritable default.
+
+2. excise tests/gates/test_container_env.py::test_passing_an_empty_exemption_table_excuses_nothing
+   rule: docs/testing.md rule 11
+   assertion: assert len(FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}, {})) == 2
+   replace: With an explicitly empty exemption table, the count of failure lines equals the count of `Path` fields the config under test declares.
+   as: tests/gates/test_container_env.py::test_passing_an_empty_exemption_table_excuses_nothing
+   kills: falling back to the shipped table when the caller passes an empty one, which excuses the very fields a caller asked to have checked.
+
+3. excise tests/gates/test_container_env.py::test_a_clean_pair_of_source_files_exits_zero
+   rule: docs/testing.md rule 11
+   assertion: assert MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE)) == 0
+   replace: Over one pair, `main` returns 0 where every `Path` field of the config is either pinned under `/state` or named by the shipped `EXEMPT` table, then nonzero once that same config gains one further path field that neither condition covers.
+   as: tests/gates/test_container_env.py::test_main_exits_nonzero_once_a_path_field_is_neither_pinned_nor_exempt
+   kills: reading the exemption table from the pins rather than from the module, which returns 0 at the second observation too and passes an image that leaves a knob writing into an unwritable default.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `failures` - one failure line naming exactly the non-exempt suffix with the shipped table in force (1) against a count equal to the declared `Path` fields with an explicit empty table (2), two inputs to one invariant; plus a differential on `main` (3)
+
+1  KEEP  config with one shipped-`EXEMPT` suffix beside one unpinned non-exempt path field, no exemption argument -> failure lines naming exactly the non-exempt suffix; falling back to an empty table names both suffixes at that input; target tests/gates/test_container_env.py:338-340 is green only while the fixture mirrors the shipped table's exact entries (comment at :73), so an owner approving a third exemption turns it red - rule 11, the instance instead of the invariant.
+2  KEEP  carried.
+3  KEEP  one pair whose every `Path` field is pinned under `/state` or named by the shipped table -> `main` returns 0, and nonzero once that config gains one path field neither condition covers; reading the exemption table from the pins returns 0 at the second observation too; target tests/gates/test_container_env.py:360-361 is green only while `SHIPPED_EXEMPT_CONFIG_SOURCE` carries one field per shipped entry (comment at :87-89), so a new owner-approved exemption reads as stale drift - rule 11.
+
+null stub: gate module present, `path_fields` and `pinned` return `{}`, `failures` returns `[]`, `main` returns 0.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: canned reply per input tuple, no parsing and no table lookup - one line for line 1's pair, two for line 2's, 0 for line 3's pair.
+  satisfies: none   fails: 1, 2, 3
+  reading: a table keyed on the whole input reproduces any finite list of literals; what it cannot do is carry two inputs to one invariant on one surface (1 against 2) or a relation between two observations of one surface (3), which is the taxonomy the discrimination check sets.
+survives: 3
+
+note: line 1's input no longer shares its fields-and-pins argument with line 2, so the pair is a sweep over the applicable-table invariant rather than a differential on the sentinel default alone; the sentinel is still pinned, by line 1's `kills:` - the implementation that ignores the exemption argument reports both suffixes there.
