@@ -126,8 +126,8 @@ const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ me
 function LiveLabel({ entry, meta, badge }) {
   return html`
     <label>
-      ${entry.label || meta.label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
-      ${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
+      ${entry.label || meta.label}${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
+      ${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
     </label>
   `;
 }
