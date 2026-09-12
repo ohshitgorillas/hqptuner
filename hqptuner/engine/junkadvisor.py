@@ -110,7 +110,7 @@ def classify(  # noqa: PLR0913
     the advisor's note goes quiet under treatment while auto-pilot needs the untreated signature to know what to
     engage and what to let go of.
     """
-    if not _eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
+    if not eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
         return None
     smoothed = _median_smooth(levels_db, SMOOTH_BINS)
     floor = _percentile(smoothed, FLOOR_PERCENTILE)
@@ -121,7 +121,8 @@ def classify(  # noqa: PLR0913
     )
 
 
-def _eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
+def eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
+    """Whether an aggregate carries enough coverage, bins and HF bandwidth for any rule here to read it."""
     if seconds < MIN_SECONDS or bins < SPUR_BASELINE_BINS:
         return False
     return not (sdm or samplerate is None or samplerate <= MIN_RATE_HZ or bandwidth <= MIN_BANDWIDTH_HZ)
@@ -175,7 +176,8 @@ def _percentile(levels: list[float], pct: int) -> float:
     return ordered[min(len(ordered) - 1, (len(ordered) * pct) // 100)]
 
 
-def _hz(i: int, bins: int, bandwidth: float) -> float:
+def hz(i: int, bins: int, bandwidth: float) -> float:
+    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
     return i * bandwidth / (bins - 1)
 
 
@@ -209,7 +211,7 @@ def _at_floor_above(smoothed: list[float], start: int, floor: float) -> bool:
 
 
 def _fake_hires(edge: int, bins: int, bandwidth: float, samplerate: int) -> dict[str, Any]:
-    ceiling = _hz(edge, bins, bandwidth)
+    ceiling = hz(edge, bins, bandwidth)
     reason = (
         f"Content stops at {ceiling / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container — "
         f"consistent with fake hi-res. Recommend engaging the 20k high-frequency filter."
@@ -271,7 +273,7 @@ def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] |
     for i in range(_bin(SPUR_MIN_HZ, bins, bandwidth), bins):
         excess = min_levels[i] - baseline[i]
         if excess >= SPUR_DB and min_levels[i] > floor + ABOVE_FLOOR_DB and excess > spur_db:
-            spur_hz, spur_db = _hz(i, bins, bandwidth), excess
+            spur_hz, spur_db = hz(i, bins, bandwidth), excess
     if spur_hz == 0.0:
         return None
     corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"

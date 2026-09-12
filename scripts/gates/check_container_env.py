@@ -39,6 +39,7 @@ READERS = ("_env", "_optional_path")
 EXEMPT: dict[str, str] = {
     "DATA_DIR": "package data ships inside the wheel, read-only, never written",
     "DEBUG_LOG": "deliberately unset; the operator sets it on the container",
+    "JUNKCAL_DIR": "deliberately unset; the operator sets it on the container",
 }
 
 

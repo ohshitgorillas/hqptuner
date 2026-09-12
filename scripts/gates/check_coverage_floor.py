@@ -30,6 +30,7 @@ FLOOR = 90
 #: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
     "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",
+    "hqptuner/core/junkcal.py": "temporary feature to be used for a few days then disabled",
 }
 
 

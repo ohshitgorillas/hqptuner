@@ -215,6 +215,10 @@ class MeteringReader:
         """Ask the reader to shut down: the stream loop and the backoff wait both end at the next check."""
         self._stop.set()
 
+    def aggregate(self) -> SpectralAggregate | None:
+        """Return the aggregate the reader is accumulating, or None while there is no evidence to read."""
+        return self._agg
+
     def verdict(self) -> dict[str, Any] | None:
         """Return the track's latched signature, whatever the engine currently has engaged.
 
