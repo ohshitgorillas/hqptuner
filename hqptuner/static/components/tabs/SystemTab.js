@@ -27,6 +27,7 @@ import {
   setKeepOptionDescriptions,
   apodLight,
   setApodLight,
+  notesVisible,
 } from "../../store/prefs.js";
 import { Section, Card, collapseFrom } from "../common.js";
 
@@ -98,8 +99,19 @@ const About = () => {
 // descriptions visible even then. While the master is on the second switch
 // renders checked, since the master forces those descriptions visible; the
 // stored pref is untouched.
+//
+// Each row's note follows Setting descriptions: under the row while it is on, on
+// the row's hover while it is off, never both.
+const rowTitle = (/** @type {string} */ note) => (notesVisible.value ? undefined : note);
+const rowNote = (/** @type {string} */ note) =>
+  notesVisible.value ? html`<div class="field-note">${note}</div>` : null;
+
+const SHOW_DESC_NOTE =
+  "Show the description from the manual under each setting. Disabling this converts those descriptions to hover tips.";
+const KEEP_OPT_NOTE = "Keep filter and DSD source option descriptions when setting descriptions are hidden";
+
 const DescriptionPrefs = () => html`
-  <div class="field" data-k="showDescriptions">
+  <div class="field" data-k="showDescriptions" title=${rowTitle(SHOW_DESC_NOTE)}>
     <label>Setting descriptions</label>
     <div class="control">
       <${Checkbox}
@@ -107,9 +119,9 @@ const DescriptionPrefs = () => html`
         onChange=${(/** @type {string | number} */ v) => setShowDescriptions(v === "1")}
       />
     </div>
-    <div class="field-note">Show the description from the manual under each setting. Disabling this converts those descriptions to hover tips.</div>
+    ${rowNote(SHOW_DESC_NOTE)}
   </div>
-  <div class="field" data-k="keepOptionDescriptions">
+  <div class="field" data-k="keepOptionDescriptions" title=${rowTitle(KEEP_OPT_NOTE)}>
     <label>Option descriptions</label>
     <div class="control">
       <${Checkbox}
@@ -118,7 +130,7 @@ const DescriptionPrefs = () => html`
         onChange=${(/** @type {string | number} */ v) => setKeepOptionDescriptions(v === "1")}
       />
     </div>
-    <div class="field-note">Keep filter and DSD source option descriptions when setting descriptions are hidden</div>
+    ${rowNote(KEEP_OPT_NOTE)}
   </div>
 `;
 
@@ -132,8 +144,11 @@ const APOD_LIGHT_OPTIONS = [
   { value: "uncorrected", label: "On for uncorrected events" },
 ];
 
+const APOD_LIGHT_NOTE =
+  'An indicator light in the top bar flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "On for uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.';
+
 const ApodLightPref = () => html`
-  <div class="field" data-k="apodLight">
+  <div class="field" data-k="apodLight" title=${rowTitle(APOD_LIGHT_NOTE)}>
     <label>Apodizing indicator</label>
     <div class="control">
       <${RadioGroup}
@@ -142,18 +157,16 @@ const ApodLightPref = () => html`
         onChange=${(/** @type {string | number} */ v) => setApodLight(String(v))}
       />
     </div>
-    <div class="field-note">
-      An indicator light in the top bar flashes to indicate apodizing events. Brighter flashes indicate higher event
-      density. When "On for uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at
-      half-brightness.
-    </div>
+    ${rowNote(APOD_LIGHT_NOTE)}
   </div>
 `;
 
 // The dyslexic font switch. Chrome, like the two above it: the store stamps
 // `data-dyslexic` on the root and the CSS swaps `--font-ui` off it.
+const DYSLEXIC_NOTE = "Use a dyslexic-friendly font (Atkinson Hyperlegible) for non-monospace text.";
+
 const DyslexicPref = () => html`
-  <div class="field" data-k="dyslexic">
+  <div class="field" data-k="dyslexic" title=${rowTitle(DYSLEXIC_NOTE)}>
     <label>Dyslexic font</label>
     <div class="control">
       <${Checkbox}
@@ -161,7 +174,7 @@ const DyslexicPref = () => html`
         onChange=${(/** @type {string | number} */ v) => applyDyslexic(v === "1")}
       />
     </div>
-    <div class="field-note">Use a dyslexic-friendly font (Atkinson Hyperlegible) for non-monospace text.</div>
+    ${rowNote(DYSLEXIC_NOTE)}
   </div>
 `;
 

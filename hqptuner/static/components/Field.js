@@ -65,16 +65,26 @@ async function doRescan() {
     rescanning.value = false;
   }
 }
-// What a rescan costs, said under the device list rather than on hover. Only
-// with auto-save on, because auto-save is what puts the live settings back
-// afterwards (lanes/rescan.py) — with it off a rescan loses them and the
-// sentence would be false. The matrix profile is the one exception either way:
-// loading a profile needs live playback and the rescan has just stopped the
-// engine, so nothing can pre-load it.
+// What a rescan costs: said under the device list while Setting descriptions is
+// on, and on the Rescan button's hover while it is off. Only with auto-save on,
+// because auto-save is what puts the live settings back afterwards
+// (lanes/rescan.py) — with it off a rescan loses them and the sentence would be
+// false. The matrix profile is the one exception either way: loading a profile
+// needs live playback and the rescan has just stopped the engine, so nothing can
+// pre-load it.
 const RESCAN_COST = "Stops the engine. All live settings except matrix profiles survive.";
+const rescanCostShown = () => autosave.value && notesVisible.value;
 
 function RescanButton() {
-  return html`<button type="button" class="rescan-btn" data-testid="rescan" disabled=${rescanning.value} onClick=${doRescan}>
+  const title = autosave.value && !notesVisible.value ? RESCAN_COST : undefined;
+  return html`<button
+    type="button"
+    class="rescan-btn"
+    data-testid="rescan"
+    title=${title}
+    disabled=${rescanning.value}
+    onClick=${doRescan}
+  >
     ${rescanning.value ? "Rescanning…" : "⟳ Rescan devices"}
   </button>`;
 }
@@ -248,7 +258,7 @@ function fieldProse(entry, key, meta, { reason, options }) {
   return html`
     ${showDesc ? html`<${DescBlock} entry=${entry} value=${effective(key)} options=${options} meta=${meta} />` : null}
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
-    ${entry.rescan && autosave.value ? html`<div class="field-rescan-cost">${RESCAN_COST}</div>` : null}
+    ${entry.rescan && rescanCostShown() ? html`<div class="field-rescan-cost">${RESCAN_COST}</div>` : null}
     ${stackedCaption(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
     <${FavoriteError} entry=${entry} />
   `;

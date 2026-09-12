@@ -268,6 +268,12 @@ function xfcNote(bs, tilt) {
   </div>`;
 }
 
+const GUIDE =
+  "Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or hard-panned material (early stereo, live and orchestral recordings) starts slightly thin under crossfeed, so it sits better around 50–75%.";
+// The guide follows Setting descriptions: in the strip while it is on, on the
+// slider's and the mini plot's hover while it is off.
+const guideTitle = () => (notesVisible.value ? undefined : GUIDE);
+
 // Control strip on the RESPONSE card.
 /** Renders the compensation control strip — amount slider, center-tilt readout, on/off/rebuild actions and guidance. */
 export function XfeedStrip() {
@@ -305,6 +311,7 @@ export function XfeedStrip() {
         value=${pct}
         unit="%"
         disabled=${locked}
+        title=${guideTitle()}
         onDrag=${(/** @type {string | number} */ v) => (sliderDrag.value = Number(v))}
         onCommit=${(/** @type {string | number} */ v) => commit(Number(v))}
       />
@@ -316,11 +323,7 @@ export function XfeedStrip() {
       </span>
       ${xfcActions(rows, rec, pair, { pct, issue, issueCode })}
       <span class="xfc-scale">0% off · 100% neutral · above 100% brighter than neutral</span>
-      <span class="xfc-scale"
-        >Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or
-        hard-panned material (early stereo, live and orchestral recordings) starts slightly thin under crossfeed, so it
-        sits better around 50–75%.</span
-      >
+      ${notesVisible.value ? html`<span class="xfc-scale">${GUIDE}</span>` : null}
       ${xfcNote(bs, tilt)}
     </div>
   `;
@@ -343,7 +346,7 @@ export function CompMiniPlot() {
   const xf = (/** @type {number} */ f) => centerMagDb(bs.fc, bs.feed, f);
   const corr = (/** @type {number} */ f) => chainResponse(comp, f, FS).db;
   return html`
-    <div class="xfc-mini">
+    <div class="xfc-mini" title=${guideTitle()}>
       <${PlotFrame}
         traces=${[
           { points: trace(xf), kind: "ghost", label: "crossfeed", dy: 3 },

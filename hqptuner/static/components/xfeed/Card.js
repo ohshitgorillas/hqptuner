@@ -440,6 +440,8 @@ function BauerMode() {
 }
 
 // --- card --------------------------------------------------------------------
+const MODE_NOTE =
+  "Bauer crossfeed is built into HQPlayer and is the default. Structural crossfeed is HQPTuner's own and uses the Matrix pipelines.";
 
 /** Renders the Crossfeed card — the enable gate, the Bauer/Structural mode segment and the selected mode's controls. */
 export function CrossfeedCard() {
@@ -461,6 +463,7 @@ export function CrossfeedCard() {
                 <${Gate} rows=${rows} active=${active} />
                 <${Segment}
                   value=${active}
+                  title=${notesVisible.value ? undefined : MODE_NOTE}
                   options=${[
                     { value: "bauer", label: "Bauer" },
                     { value: "structural", label: "Structural" },
@@ -468,11 +471,8 @@ export function CrossfeedCard() {
                   onChange=${(/** @type {string} */ v) => setXfMode(v, rows)}
                 />
                 <${LensToggle} rows=${rows} />
-                <span class="row-break" aria-hidden="true"></span>
-                <div class="field-note">
-                  Bauer crossfeed is built into HQPlayer and is the default. Structural crossfeed is HQPTuner's own and
-                  uses the Matrix pipelines.
-                </div>
+                ${notesVisible.value ? html`<span class="row-break" aria-hidden="true"></span>` : null}
+                ${notesVisible.value ? html`<div class="field-note">${MODE_NOTE}</div>` : null}
               </div>
               ${active === "structural" ? html`<${StructuralMode} rows=${rows} />` : html`<${BauerMode} />`}
             </div>`
