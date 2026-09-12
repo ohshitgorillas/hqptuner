@@ -64,11 +64,11 @@ const s = (v) => (v == null ? "" : String(v));
 /**
  * Renders an option list as a row of buttons, the one matching `value` marked
  * active.
- * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, idBase?: string, onChange: ValueSink }} props
+ * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, idBase?: string, title?: string, onChange: ValueSink }} props
  */
-export function Segment({ value, options, disabled, idBase, onChange }) {
+export function Segment({ value, options, disabled, idBase, title, onChange }) {
   return html`
-    <span class="segment">
+    <span class="segment" title=${title}>
       ${(options || []).map((o, i) => {
         const tipId = o.tip && idBase ? `${idBase}-tip-${i}` : undefined;
         return html`
@@ -316,11 +316,11 @@ function ReadBox({ shown, min, max, step, unit, sub, disabled, onCommit }) {
  * stays in real units.
  * @param {{ value: CtrlValue, min: string | number, max: string | number, step?: string | number,
  *   boxStep?: string | number, ticks?: number[], unit?: string, sub?: string,
- *   format?: (n: number) => string, disabled?: boolean, anchor?: string, scale?: string,
+ *   format?: (n: number) => string, disabled?: boolean, anchor?: string, scale?: string, title?: string,
  *   onChange?: ValueSink, onDrag?: ValueSink, onCommit?: ValueSink }} props
  */
 export function SliderNumber(props) {
-  const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor, scale } = props;
+  const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor, scale, title } = props;
   const st = step == null ? 1 : step;
   const log = scale === "log";
   /**
@@ -342,7 +342,7 @@ export function SliderNumber(props) {
     ? { value: s(enc(value)), min: s(enc(lo)), max: s(enc(hi)), step: "any" }
     : { value: s(value), min, max, step: st };
   return html`
-    <span class="slidernum">
+    <span class="slidernum" title=${title}>
       <span class="range-wrap">
         <input
           class="rng"
