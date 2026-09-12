@@ -1,0 +1,55 @@
+slug: junkcal-a4a6
+kind: new
+
+brief:
+> Calibration capture for the HF filter auto-pilot. Capture only — no detection rule or threshold changes.
+> Purpose: a corpus compared against albums known to have spurs, fake hi-res, or rising HF noise, to calibrate auto-pilot for consistency across albums. `junkadvisor` keeps every threshold as a module constant for exactly this; nothing today produces the captures.
+> Env var in `hqptuner/config.py`, set in `docker-compose.yaml`. Unset = off; value is the destination directory. Owner-only: no UI, no copy, no changelog.
+> Background task in the app lifespan beside `autopilotops.run`, 15 s tick, started only when the var is set.
+> One file per playback period. The playback period is one album, therefore one production quality with consistent issues. While Nx content plays, append one row per tick, so drift within the album reads straight down the file.
+> Row:
+> - `MeteringReader.verdict()`, and what `autopilot.desired_junk_filter` resolved from it
+> - `SpectralAggregate.window_min_db()`, full bin resolution above 13 kHz
+> - wall timestamp, `agg.seconds` (engine coverage, not wall clock), `agg.frames`, engaged junk filter, active main filter, samplerate, bandwidth, bins
+> The per-row spectrum is the windowed minimum: all three signatures are noise-floor properties present in every frame, so the minimum keeps them and drops intermittent music. Floor is 13 kHz because `LOSSY_WINDOW_HZ` starts there.
+> `window_min_db()` returns None until `WINDOW_BLOCKS` × `BLOCK_SECONDS` of coverage, so early rows carry no spectrum. Write null and keep the row.
+> Constraints: Nx gate already exists as `junkadvisor._eligible` — reuse it rather than a second rate test. `MeteringReader._agg` is private, so one read accessor is needed. Layering is `api > core > presets > lanes > engine > conf`, so the writer belongs in `core`. Disk writes through a thread. Source-rate tap only — never extended to pre/post-filter comparison, which would be filter-specification measurement.
+> Owner notes: Using Roon, which does not display track info. Any plan containing the words "track" or "metadata" will be rejected on sight.
+
+1. Each row's `desired_junk_filter` is the corner the playing signature resolves to: `20k` under the fake-hi-res 96 kHz spectrum, `30k` under a 176.4 kHz spectrum carrying a persistent 30 kHz tone, every such row's `junk_filter` reading `none`.
+   kills: stamping one constant corner into `desired_junk_filter` on every row, which reads `20k` under both signatures, so a spur album cannot be told from a fake-hi-res one anywhere in the corpus.
+   bite: null stub fails at both inputs (surface new) — with `hqptuner.core.junkcal.run` present and returning None without writing, `dest` holds no `.jsonl` file at all, so there is no row carrying a `desired_junk_filter` field to read. Absence confirmed at HEAD: `hqptuner/core/` holds applyops, autopilotops, connection, engineread, loader, manager and readings only, and `MeteringReader` (`hqptuner/engine/metering.py:181`) presents `verdict`, `recommendation`, `run`, `retarget` and `stop`, no `aggregate`.
+   existing: none, `grep -rn "junkcal\|JUNKCAL" tests/` returns no match; `grep -rn "desired_junk_filter" tests/` returns `tests/live/test_autopilot.py` only, against the pure function rather than any written file.
+
+2. A row's `spectrum` reads null at coverage below the persistence window, then its lowest `hz` is 13031.25 on a 48 kHz-bandwidth 1025-bin frame, 13006.0546875 on an 88.2 kHz-bandwidth 1025-bin frame.
+   kills: capturing every bin from 0 Hz up, whose lowest `hz` is 0.0 at both earned geometries, burying the band the calibration reads under the whole music band and multiplying the row by 1025 bins against 747 and 874.
+   bite: null stub fails at all three inputs (surface new) — no row is written, so no `spectrum` exists to read as null or to read a lowest `hz` from. The two geometries themselves are measured: bandwidth 48000.0 Hz over 1025 bins is a 46.875 Hz step, so the first bin at or above `LOSSY_WINDOW_HZ[0]` (13000.0, `hqptuner/engine/junkadvisor.py:72`) is k=278 at 13031.25 Hz with 747 bins at or above it; bandwidth 88200.0 Hz over 1025 bins is an 86.1328125 Hz step, first bin k=151 at 13006.0546875 Hz with 874 bins at or above it. Command: `PYTHONPATH=/home/atom/dev/hqptuner /home/atom/dev/hqptuner/.venv/bin/python <throwaway>`, importing `LOSSY_WINDOW_HZ` and calling `junk_spectra.fake_hires_96k()` and `decaying_176()` with the bandwidths at `tests/support/junk_spectra.py:23,63,87`, applying `k * bandwidth / (bins - 1)`.
+   existing: none, `grep -rn "junkcal\|JUNKCAL" tests/` returns no match; the unearned-then-earned `window_min_db` pair is pinned at `tests/engine/test_junk_persistence.py:51,58` against the aggregate itself, which reads no written file.
+
+3. The `.jsonl` count in the destination directory is 0 with the variable unset, 0 while a 44.1 kHz stream plays, 1 after a stream restart at the same samplerate, 2 after a samplerate change between two ticks.
+   kills: rolling the file on the engine's own per-stream restart, which writes 2 at the same-samplerate restart, so a player that gaps between songs gets one file per song rather than one holding the album's production.
+   bite: null stub fails at the third and fourth inputs (surface new) — the count is 0 at every input, since the stub writes nothing and never creates the directory, so the two cases that carry 1 and 2 fail while the two that carry 0 pass for the wrong reason.
+   existing: none, `grep -rn "junkcal\|JUNKCAL" tests/` returns no match.
+
+--- spec-reviewer READY ---
+READY
+discriminates: sweep on `desired_junk_filter` across two signatures (line 1) and sweep on the `.jsonl` count in the destination directory (line 3), with the folded spectrum sweep on one bin-arithmetic invariant (line 2)
+
+1  KEEP  fake-hi-res 96 kHz spectrum -> row's `desired_junk_filter` is `20k` against that row's `junk_filter` of `none`, 176.4 kHz spectrum with a persistent 30 kHz tone -> `30k` against `none`; stamping one constant corner fails it at the 176.4 kHz input with `20k`; bite: null stub fails at both inputs, no `.jsonl` and no row carrying the field.
+2  KEEP  coverage below the persistence window -> row's `spectrum` is null, 48 kHz-bandwidth/1025-bin earned frame -> lowest `hz` 13031.25, 88.2 kHz-bandwidth/1025-bin earned frame -> 13006.0546875; capturing every bin from 0 Hz fails it at both earned inputs with 0.0; bite: null stub fails at all three inputs, no row and no `spectrum` (geometries fixture-side at tests/support/junk_spectra.py:14-23,63, step `k * bandwidth / (bins - 1)` at :2-3).
+3  KEEP  variable unset -> `.jsonl` count 0, 44.1 kHz stream playing -> 0, stream restart at the same samplerate -> 1, samplerate change between two ticks -> 2; rolling on the engine's per-stream restart fails it at the third input with 2; bite: null stub fails at the third and fourth inputs, count 0 with the directory never created.
+
+null stub: `hqptuner.core.junkcal` importable with `run` returning None and `TICK_SECONDS`/`PERIOD_GAP_SECONDS` present, nothing written, the destination directory never created.
+  satisfies: none   fails: 1, 2, 3
+hard-coded stub: a `run` that writes one canned `.jsonl` on start — a constant corner in `desired_junk_filter`, a canned pair list after a canned null first row — and rolls the file on every stream restart.
+  satisfies: none   fails: 1, 2, 3
+  reading on 1: two distinct expected corners on one field, so a constant emitter dies at the second signature; reproducing both requires the verdict the row is supposed to carry.
+  reading on 2: the two `hz` values are two inputs to one bin-arithmetic invariant over fixture-supplied bandwidths, not two design literals.
+  reading on 3: the stub must carry the previous tick's samplerate, honour the unset variable and the 44.1 kHz gate, and refuse to roll on a same-rate restart.
+
+survives: 3
+
+notes:
+- `LOSSY_WINDOW_HZ[0] == 13000.0` at `hqptuner/engine/junkadvisor.py:72` is inside `hqptuner/` and barred to me; line 2's expected bins are taken as the author measured them.
+- The brief's row-field sentence lists `verdict()`, wall timestamp, `agg.seconds`, `agg.frames`, active main filter, samplerate, bandwidth and bins. No line pins those; each would be a key-presence assertion, which rule 10 forbids and the four-line cap will not hold. Flagged for the owner rather than held against the block: I did not name it in round 1 and the brief is unchanged, so it is not a defect this pass may spend.
+- The block as it reached me carried `kind:`, the brief and the three behavior lines only; no public-entry-point, wire-fact, fixture or changelog section arrived (the brief rules out a changelog entry). The approved spec file therefore carries exactly what was reviewed.
