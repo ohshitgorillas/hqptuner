@@ -152,6 +152,11 @@ class Config:
     # There is deliberately no UI for it; it is an operator's tool, set on the
     # container (`-e HQPTUNER_DEBUG_LOG=/state/audit.jsonl`) and read with jq.
     debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
+    # Calibration capture for the junk-filter detector (core/junkcal.py): one
+    # JSON Lines file per playback period in this directory. Unset means the
+    # capture is inert: no task, no file, no cost. An operator's tool, like the
+    # event log above.
+    junkcal_dir: Path | None = field(default_factory=lambda: _optional_path("JUNKCAL_DIR"))
     # Level for ordinary prose logging (hqptuner/__main__.py). A name, not a
     # number; anything unparseable falls back to INFO rather than refusing to
     # start (audit.resolve_level).

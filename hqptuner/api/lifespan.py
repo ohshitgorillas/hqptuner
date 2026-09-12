@@ -8,7 +8,7 @@ from contextlib import AbstractAsyncContextManager
 from fastapi import FastAPI
 
 from hqptuner.config import Config
-from hqptuner.core import autopilotops
+from hqptuner.core import autopilotops, junkcal
 from hqptuner.core.connection import ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.discovery import probe
@@ -69,13 +69,19 @@ def make_lifespan(
         # runs exactly where the reader does and nowhere else: with metering off there
         # is nothing for it to read and nothing it could honestly decide.
         autopilot_task: asyncio.Task[None] | None = None
+        # The calibration capture reads the same verdict and writes files only.
+        junkcal_task: asyncio.Task[None] | None = None
         if cfg.metering_enabled:
             reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
             manager.metering = reader
             metering_task = asyncio.create_task(reader.run())
             autopilot_task = asyncio.create_task(autopilotops.run(manager, cfg.poll_interval))
+            if cfg.junkcal_dir is not None:
+                junkcal_task = asyncio.create_task(junkcal.run(manager, cfg.junkcal_dir))
         yield
         manager.stop()
+        if junkcal_task is not None:
+            await _finish(junkcal_task, 0)
         if autopilot_task is not None:
             await _finish(autopilot_task, 0)
         if reader is not None and metering_task is not None:

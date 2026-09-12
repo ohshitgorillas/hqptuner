@@ -29,6 +29,7 @@ services:
       - HQPTUNER_HQP_HOST
       - HQPTUNER_HQP_USERNAME
       - HQPTUNER_HQP_PASSWORD
+      - HQPTUNER_JUNKCAL_DIR
       # - HQPTUNER_LISTEN_PORT=8090
       # - HQPTUNER_HQP_HOME=/var/lib/hqplayer/home
 
