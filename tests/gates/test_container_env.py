@@ -48,6 +48,10 @@ PINNED = GATE.pinned
 FAILURES = GATE.failures
 MAIN = GATE.main
 
+#: The exemption table the gate ships, which is what applies to a caller who
+#: passes none. Read from the module so no case restates its entries.
+SHIPPED_EXEMPT: dict[str, str] = GATE.EXEMPT
+
 #: A ``Config`` carrying one plain ``Path`` field, one ``Path | None`` field and
 #: one field of every scalar type the gate is meant to walk past.
 CONFIG_SOURCE = '''
@@ -68,20 +72,6 @@ class Config:
     port: int = field(default_factory=lambda: int(_env("PORT", "8090")))
     timeout: float = field(default_factory=lambda: float(_env("TIMEOUT", "2.5")))
     verbose: bool = field(default_factory=lambda: _env("VERBOSE", "") == "1")
-'''
-
-#: A ``Config`` carrying exactly the two fields the shipped ``EXEMPT`` table names.
-EXEMPT_ONLY_CONFIG_SOURCE = '''
-from dataclasses import dataclass, field
-from pathlib import Path
-
-
-@dataclass
-class Config:
-    """Runtime knobs."""
-
-    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", "./data")))
-    debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
 '''
 
 #: A ``Config`` a real image could be clean against: two writable path fields to
@@ -166,6 +156,35 @@ def field_source(name: str, annotation: str, suffix: str) -> str:
         '    """Runtime knobs."""\n\n'
         f'    {name}: {annotation} = field(default_factory=lambda: _env("{suffix}", "x"))\n'
     )
+
+
+def config_source_for(suffixes: list[str]) -> str:
+    """A ``Config`` with one ``Path`` field per env suffix, in the order given."""
+    head = (
+        "from dataclasses import dataclass, field\n"
+        "from pathlib import Path\n\n\n"
+        "@dataclass\n"
+        "class Config:\n"
+        '    """Runtime knobs."""\n\n'
+    )
+    body = "".join(
+        f'    dir_{index}: Path = field(default_factory=lambda: _env("{suffix}", "x"))\n'
+        for index, suffix in enumerate(suffixes)
+    )
+    return head + body
+
+
+def suffix_none_of(names: list[str]) -> str:
+    """An env suffix that neither contains nor is contained by any of ``names``."""
+    candidate = "ZZ_UNCOVERED_DIR"
+    while any(candidate in name or name in candidate for name in names):
+        candidate = "Z" + candidate
+    return candidate
+
+
+def exit_shape(code: int) -> str:
+    """``"clean"`` for a zero exit code, ``"failing"`` for any nonzero one."""
+    return "clean" if code == 0 else "failing"
 
 
 def line_naming(lines: list[str], needle: str) -> str:
@@ -336,13 +355,18 @@ def test_every_violation_is_reported_on_its_own_line() -> None:
 
 
 def test_omitting_the_exemption_table_honors_the_shipped_exemptions() -> None:
-    """A caller who passes none gets the module's own table, so its entries excuse their fields."""
-    assert FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}) == []
+    """A caller who passes none gets the module's own table, so only the field it does not name fails."""
+    excused = sorted(SHIPPED_EXEMPT)
+    checked = suffix_none_of(excused)
+    reported = FAILURES(PATH_FIELDS(config_source_for([*excused, checked])), {})
+    named = {suffix for suffix in [*excused, checked] if line_naming(reported, suffix)}
+    assert named == {checked}
 
 
 def test_passing_an_empty_exemption_table_excuses_nothing() -> None:
     """An explicit empty table is the caller's own, so the shipped entries do not apply."""
-    assert len(FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}, {})) == 2
+    fields = PATH_FIELDS(config_source_for(sorted(SHIPPED_EXEMPT)))
+    assert len(FAILURES(fields, {}, {})) == len(fields)
 
 
 # --- main -------------------------------------------------------------------
@@ -357,8 +381,18 @@ def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(tmp
     assert "preset_dir" in capsys.readouterr().out
 
 
-def test_a_clean_pair_of_source_files_exits_zero(tmp_path: Path) -> None:
-    assert MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE)) == 0
+def test_main_exits_nonzero_once_a_path_field_is_neither_pinned_nor_exempt(tmp_path: Path) -> None:
+    """A pair whose every path field is pinned under ``/state`` or excused passes; one further field does not."""
+    pins: list[str] = [name for name in PINNED(CLEAN_DOCKERFILE) if name not in SHIPPED_EXEMPT]
+    covered = [*pins, *sorted(SHIPPED_EXEMPT)]
+    uncovered = [*covered, suffix_none_of([*SHIPPED_EXEMPT, *PINNED(CLEAN_DOCKERFILE)])]
+    covered_root = tmp_path / "covered"
+    uncovered_root = tmp_path / "uncovered"
+    covered_root.mkdir()
+    uncovered_root.mkdir()
+    covered_code = MAIN(write_pair(covered_root, config_source_for(covered), CLEAN_DOCKERFILE))
+    uncovered_code = MAIN(write_pair(uncovered_root, config_source_for(uncovered), CLEAN_DOCKERFILE))
+    assert (exit_shape(covered_code), exit_shape(uncovered_code)) == ("clean", "failing")
 
 
 def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: Any) -> None:
