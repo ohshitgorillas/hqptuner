@@ -56,6 +56,10 @@ markers = [
     "e2e: browser tests driving a real server (deselected by default)",
 ]
 
+[tool.coverage.run]
+# temporary feature to be used for a few days then disabled
+omit = ["hqptuner/core/junkcal.py"]
+
 [tool.mutmut]
 # Mutation testing, run by hand via `make mutate` — never in `make check` or
 # pre-commit (docs/testing.md "Mutation testing"). It asks the one question the
