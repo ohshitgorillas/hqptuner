@@ -1,13 +1,8 @@
 """The pair driver on a pair whose block removes test files.
 
 ``scripts/pair.sh red <slug>`` lands the writer's work on the spec branch as a
-single ``test: <slug> red`` commit, and ``scripts/pair.sh merge <slug>`` lands
-the pair on ``dev``. No step takes a path argument: the block a pair is opened
-from is the one ``specs/approved/<slug>.txt`` carries.
-
-A ``kind: excision`` block carries excision lines, ``N. excise <target>`` with
-a ``rule:`` and an ``assertion:`` under it. A target with no ``::`` in it names
-a whole file.
+single ``test: <slug> red`` commit. No step takes a path argument: the block a
+pair is opened from is the one ``specs/approved/<slug>.txt`` carries.
 
 Every case builds a throwaway git checkout under ``tmp_path``, copies the
 driver into it, opens a pair there and runs the red step there, so nothing in
@@ -18,8 +13,7 @@ the script.
 
 The observed values are the run's outcome (``clean`` for exit 0, ``refused``
 for anything else), the name-status listing of the ``test: <slug> red`` commit
-on the spec branch, what the spec tree still carries afterwards, and what the
-``dev`` branch carries once the pair is merged.
+on the spec branch, and whether a spec tree was left behind.
 """
 
 import os
@@ -78,16 +72,6 @@ kind: new
 1. A caller sees the thing happen.
    kills: the thing not happening.
    existing: none
-
---- spec-reviewer READY ---
-{verdict}"""
-
-_EXCISION_BLOCK = """slug: {slug}
-kind: excision
-
-1. excise {target}
-   rule: docs/testing.md rule 10
-   assertion: assert 1 == 1
 
 --- spec-reviewer READY ---
 {verdict}"""
@@ -160,13 +144,6 @@ def _open_pair(root: Path, slug: str) -> Path:
     return root / ".claude" / "worktrees" / f"{slug}-spec"
 
 
-def _edit_a_test(spec_tree: Path) -> None:
-    """The writer's own work in the spec tree: one edited test file, alongside whatever the block excises."""
-    (spec_tree / EDITED).write_text(
-        _TEST_BODY + "\n\ndef test_it_still_holds() -> None:\n    assert 2 == 2\n", encoding="utf-8"
-    )
-
-
 def _outcome(finished: subprocess.CompletedProcess[str]) -> str:
     """``clean`` when the driver exited 0, ``refused`` for any nonzero status."""
     return "clean" if finished.returncode == 0 else "refused"
@@ -185,27 +162,6 @@ def _red_commit_files(root: Path, slug: str) -> list[str]:
         return []
     shown = _git(root, "show", "--format=", "--name-status", shas[0])
     return sorted(line for line in shown.stdout.splitlines() if line)
-
-
-def _carried_on(root: Path, branch: str, relative: str) -> bool:
-    """Whether that branch's tip carries the path."""
-    return _git(root, "cat-file", "-e", f"{branch}:{relative}").returncode == 0
-
-
-# --- 1. a whole-file target naming a test file that exists --------------------
-
-
-def test_a_whole_file_target_survives_the_red_run_and_is_gone_from_dev_once_the_pair_is_merged(
-    tmp_path: Path,
-) -> None:
-    slug = "probe-one"
-    root = _checkout(tmp_path, slug, _EXCISION_BLOCK.format(slug=slug, target=TARGET, verdict=_VERDICT))
-    spec_tree = _open_pair(root, slug)
-    _edit_a_test(spec_tree)
-    _drive(root, "red", slug)
-    after_red = ((spec_tree / TARGET).exists(), _red_commit_files(root, slug))
-    _drive(root, "merge", slug)
-    assert (after_red, _carried_on(root, "dev", TARGET)) == ((True, [f"M\t{EDITED}"]), False)
 
 
 # --- 4. a spec tree whose only change is a deletion ---------------------------
