@@ -29,7 +29,8 @@ FLOOR = 90
 
 #: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
-    "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",}
+    "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",
+}
 
 
 def percentages(report: Path) -> dict[str, float]:
