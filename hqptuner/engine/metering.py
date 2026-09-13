@@ -42,13 +42,14 @@ RECONNECT_DELAY = 5.0
 # again. Shorter than the manager's own status poll, so the gate adds no latency
 # of its own beyond the staleness of the status it reads.
 IDLE_RECHECK = 1.0
-# Ingest every Nth frame (~43/s at 44.1k). The aggregate is a long-run average;
-# a quarter of the hops carries the same verdict at a quarter of the CPU.
+# Ingest every Nth frame (~43/s at 44.1k). The aggregate folds minima over
+# seconds of coverage; a quarter of the hops carries the same verdict at a
+# quarter of the CPU.
 DECIMATE = 4
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
 
-# The spur rule's persistence window: per-bin minima are folded into blocks of
+# The detector's persistence window: per-bin minima are folded into blocks of
 # BLOCK_SECONDS coverage, and the window spectrum exists once WINDOW_BLOCKS
 # full blocks have been earned (~30 s). A tone must persist through the whole
 # window to survive the minimum — long enough that a sustained musical partial
@@ -116,34 +117,31 @@ def _int(value: str | None) -> int | None:
 
 
 class SpectralAggregate:
-    """Per-track mean power spectrum plus a windowed per-bin minimum.
+    """Per-track windowed per-bin minimum power spectrum.
 
-    The mean is per-bin power sums over ingested frames. The minimum is kept
-    block-wise: each BLOCK_SECONDS of coverage folds into one per-bin-min
-    array, the last WINDOW_BLOCKS of which form the spur rule's persistence
-    window. Silent frames never touch the minimum (they carry no tone either),
-    and a block that saw only silence is dropped rather than pushed.
+    The minimum is kept block-wise: each BLOCK_SECONDS of coverage folds into
+    one per-bin-min array, the last WINDOW_BLOCKS of which form the detector's
+    persistence window. Silent frames never touch the minimum (they carry no
+    signature either), and a block that saw only silence is dropped rather than
+    pushed.
     """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
-        """Start an empty aggregate fixed to one frame geometry: zeroed power sums, no blocks, no coverage yet."""
+        """Start an empty aggregate fixed to one frame geometry: no blocks, no coverage yet."""
         self.bins = bins
         self.bandwidth = bandwidth
         self.frames = 0
         self.seconds = 0.0
-        self._power = [0.0] * bins
         self._blocks: deque[list[float]] = deque(maxlen=WINDOW_BLOCKS)
         self._block_min: list[float] | None = None
         self._block_seconds = 0.0
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
-        """Fold one frame's per-bin power into the running sums and, unless silent, into the current block's minimum.
+        """Fold one frame's per-bin power, unless silent, into the current block's minimum.
 
         Once the block has BLOCK_SECONDS of coverage it is pushed to the window and a fresh one starts; a block that
         saw only silent frames is dropped instead of pushed.
         """
-        for i, p in enumerate(mags_sq):
-            self._power[i] += p
         self.frames += 1
         self.seconds += covered_seconds
         if not silent:
@@ -159,10 +157,6 @@ class SpectralAggregate:
                 self._blocks.append(self._block_min)
             self._block_min = None
             self._block_seconds = 0.0
-
-    def levels_db(self) -> list[float]:
-        """Convert the mean power spectrum over every ingested frame to dB, empty bins floored at -200."""
-        return [10 * math.log10(p / self.frames) if p > 0 else -200.0 for p in self._power]
 
     def window_min_db(self) -> list[float] | None:
         """Per-bin minimum (dB) over the last full persistence window, or None until WINDOW_BLOCKS full blocks exist.
@@ -200,7 +194,6 @@ class MeteringReader:
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._serial: str | None = None
-        self._verdict: dict[str, Any] | None = None
 
     def retarget(self, host: str, port: int) -> None:
         """Point the reader at another daemon; the next dial uses it.
@@ -220,39 +213,31 @@ class MeteringReader:
         return self._agg
 
     def verdict(self) -> dict[str, Any] | None:
-        """Return the track's latched signature, whatever the engine currently has engaged.
+        """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
 
-        Computed on demand. A verdict latches for the rest of the track: the signature is a property of the source,
-        and loud music masking it from the detector later in the track does not make it go away (the Ænima case — a
-        persistent tone plainly visible on the spectrogram, drowned out of the mean spectrum once the music starts).
-        The latch clears on track change or stream loss.
+        Recomputed on every call and held by nothing: a verdict is a property of the spectrum in front of the rules,
+        so it appears when the window carries the signature and is None again once it does not.
 
         Deliberately blind to the engaged filter, unlike ``recommendation``: auto-pilot engages what the signature
         asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
         filter is still earning its place.
         """
         ctx, agg = self._context(), self._agg
-        if ctx is None or agg is None or agg.frames == 0:
+        if ctx is None or agg is None:
             return None
         if ctx.track_serial != self._serial:
-            self._verdict = None  # the aggregate is the old track's evidence
-            return None
-        fresh = junkadvisor.classify(
-            agg.levels_db(),
+            return None  # the aggregate is the old track's evidence
+        return junkadvisor.classify(
+            agg.window_min_db(),
             agg.bandwidth,
-            agg.seconds,
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
-            min_levels_db=agg.window_min_db(),
         )
-        if fresh is not None:
-            self._verdict = fresh
-        return self._verdict
 
     def recommendation(self) -> dict[str, Any] | None:
         """Return the advisor's note for the current track, or None.
 
-        The latched signature, minus the case where the engine already deals with it: the note goes quiet while the
+        The live signature, minus the case where the engine already deals with it: the note goes quiet while the
         engaged junk filter — or, for spur verdicts, a main filter from a recommended family — treats it. Engaging is
         the user acting on the advice, disengaging brings the advice back.
         """
@@ -289,7 +274,6 @@ class MeteringReader:
                 delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
             if not keep:
                 self._agg = None  # a broken stream ends the track's evidence
-                self._verdict = None
             if not self._stop.is_set():
                 await self._wait(delay)
 
@@ -355,7 +339,6 @@ class MeteringReader:
         if agg is None or ctx.track_serial != self._serial or agg.bins != bins or agg.bandwidth != bandwidth:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
             self._serial = ctx.track_serial
-            self._verdict = None
         agg.add(
             _frame_power(body, channels, bins),
             xform_time * DECIMATE,

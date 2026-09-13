@@ -1,6 +1,6 @@
 """What the high-frequency filter auto-pilot wants engaged, given the track's signature.
 
-A pure decision with no I/O: the caller supplies the latched signature (``engine.metering.MeteringReader.verdict``)
+A pure decision with no I/O: the caller supplies the live signature (``engine.metering.MeteringReader.verdict``)
 and the active main filter's name. The answer is a junk-filter NAME for the caller to write.
 
 Auto-pilot's resting state is nothing engaged. The junk filter is a corrective, not a preference: with auto-pilot on,

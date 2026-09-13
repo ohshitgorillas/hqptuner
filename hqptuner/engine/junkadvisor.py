@@ -1,14 +1,16 @@
 """Junk-filter advice from the metering stream's spectral aggregate.
 
-Pure functions over a time-averaged power spectrum (``metering.py`` supplies
-it): detect the HF signatures the manual's junk-filter table addresses and name
-the filter that treats them. Nothing here writes to the engine or reads its
-state — ``classify`` detects, ``treats`` says whether a given engaged filter
+Pure functions over the windowed per-bin minimum power spectrum (``metering.py``
+supplies it): detect the HF signatures the manual's junk-filter table addresses
+and name the filter that treats them. Nothing here writes to the engine or reads
+its state — ``classify`` detects, ``treats`` says whether a given engaged filter
 covers what was detected, and the caller decides what to do with the pair.
 
 Signatures (manual p.53, "Playback filter"):
-- brick wall well below the container's Nyquist in a hi-res container →
-  ``20k`` (sharp cut; the manual's "fake high-res content" case)
+- brick wall above 20 kHz and well below the container's Nyquist in a hi-res
+  container → ``20k`` (sharp cut; the manual's "fake high-res content" case).
+  A ceiling at or below 20 kHz earns nothing: the 20k corner removes nothing
+  below itself, so the recommendation could not change what is heard.
 - persistent narrow spurs above the music's natural decay → ``30k`` / ``40k``
   (slow roll-off above the corner). The manual's example cause is analog-tape
   transfers, but clipping harmonics of an authentic hi-res recording look the
@@ -19,20 +21,19 @@ Signatures (manual p.53, "Playback filter"):
 - HF noise rising with frequency → ``50k`` (very slow roll-off; the manual's
   "excessive noise shaping" case — some ADCs, DSD-to-PCM conversions)
 
-The brick-wall and ramp rules read the track's mean spectrum — both are
-broadband shapes that only firm up under a long average. That mean keeps moving
-as a track plays, so the brick-wall rule reads it only through statistics a
-passage cannot shift far: the highest bin standing clear of the noise floor, and
-two band means at fixed frequencies. A local slope on the same curve answers one
-way in a loud passage and another in a quiet one, for the same master. The spur
-rule instead
-reads a windowed per-bin *minimum* spectrum (the caller supplies it): a bias
-tone is present in every frame, so it survives the minimum, while music energy
-at the same frequency is intermittent and any quiet moment inside the window
-drops its bin to the hiss floor. The mean spectrum can never separate the two —
-loud broadband music raises the spur's local baseline until the tone
-disappears into it (observed live: a persistent 30.3 kHz tone 15 dB proud
-during a quiet intro fell to 6 dB of excess once the music started).
+All three rules read one curve, the windowed per-bin *minimum* spectrum the
+caller supplies. A master's own limit — a cutoff, a shaping ramp, a bias tone —
+is present in every frame, so it survives the minimum; music energy at the same
+frequency is intermittent, and any quiet moment inside the window drops its bin
+to the hiss floor. A mean over the same frames cannot separate the two: loud
+broadband music raises the local baseline until the signature disappears into it
+(observed live: a persistent 30.3 kHz tone 15 dB proud during a quiet intro fell
+to 6 dB of excess once the music started), and from the other side a loud
+passage lifts the near-floor band above a cutoff until the cliff shallows out.
+
+A verdict is therefore a property of the spectrum in front of the rules, not of
+the passage that has played: it is recomputed from the current window on every
+call and held by nothing.
 
 The rate-relative filters (2x/4x/8x) are deliberately never recommended.
 
@@ -43,10 +44,6 @@ captures stays a one-line change.
 
 import statistics
 from typing import Any
-
-# Minimum accumulated coverage before any verdict — early in a track the
-# average still carries fades and silence.
-MIN_SECONDS = 15.0
 
 # Eligibility floor: every signature lives above 24 kHz, so a container that
 # carries nothing up there has nothing for these rules to read.
@@ -59,17 +56,15 @@ FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
 # Brick wall: the content ceiling inside BRICK_WINDOW_HZ, everything above it
 # staying near the floor, and a >= BRICK_DROP_DB fall from BRICK_REF_HZ to that
 # near-floor band. The reference band is fixed in frequency so the reading is a
-# property of the master rather than of the passage playing.
-BRICK_WINDOW_HZ = (18_000.0, 26_000.0)
+# property of the master rather than of the passage playing. The window bottom
+# is the 20k corner itself: a ceiling at or below it is nothing the corner acts
+# on, and the bottom bin is excluded for that reason.
+BRICK_WINDOW_HZ = (20_000.0, 26_000.0)
 BRICK_REF_HZ = (15_000.0, 18_000.0)
 BRICK_DROP_DB = 30.0
 BRICK_GUARD_HZ = 1_500.0  # gap between the ceiling and the band read above it
 ABOVE_FLOOR_DB = 8.0  # "near the floor" allowance above the cliff
 FAKE_HIRES_MIN_RATE = 88_200
-
-# Lossy sources cut far lower than any upsampled CD, and cut sharply, so a
-# ceiling down here earns the same verdict only on the steep-fall test.
-LOSSY_WINDOW_HZ = (13_000.0, 18_000.0)
 
 # Spurs: narrow smoothed curve exceeding a wide smoothed baseline.
 SPUR_MIN_HZ = 25_000.0
@@ -86,44 +81,42 @@ SPUR_FAMILIES = ("poly-sinc-gauss-hires", "poly-sinc-ext2-hires")
 RAMP_LO_HZ = 25_000.0
 RAMP_RISE_DB = 10.0
 RAMP_ABOVE_FLOOR_DB = 20.0  # a real ramp carries energy, not floor wobble
+# The 50k corner acts only on a container that carries content past it, so the
+# source Nyquist must exceed the corner. 176.4 kHz is the lowest standard PCM
+# rate whose Nyquist (88.2 kHz) clears it; 88.2 and 96 kHz sources never do.
+RAMP_MIN_BANDWIDTH_HZ = 50_000.0
 
 
-# Wide by necessity: every argument is an independent measurement or engine fact
-# the verdict reads, three of the six are already keyword-only, and a parameter
-# object would rename them rather than reduce them.
-def classify(  # noqa: PLR0913
-    levels_db: list[float],
+def classify(
+    min_levels_db: list[float] | None,
     bandwidth: float,
-    seconds: float,
     *,
     samplerate: int | None,
     sdm: bool,
-    min_levels_db: list[float] | None = None,
 ) -> dict[str, Any] | None:
-    """Return the signature this aggregate carries, or None when there is nothing to say.
+    """Return the signature this spectrum carries, or None when there is nothing to say.
 
-    ``levels_db`` is the mean power spectrum (dB, one value per bin up to ``bandwidth`` = the source Nyquist);
-    ``min_levels_db`` is the windowed per-bin minimum spectrum the spur rule reads, or None while the window has not yet
-    been earned (no spur verdicts until it has). The verdict is spectrum-only — the metering tap sees the source, so
-    engaging a filter never changes what the detector sees — which is why detection says nothing about what the engine
-    has engaged. Whether the engaged settings already treat the signature is ``treats``, and the caller applies it:
-    the advisor's note goes quiet under treatment while auto-pilot needs the untreated signature to know what to
-    engage and what to let go of.
+    ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
+    Nyquist), or None while the window has not yet been earned — the only readiness gate there is, and no verdict of
+    any kind before it. The verdict is spectrum-only — the metering tap sees the source, so engaging a filter never
+    changes what the detector sees — which is why detection says nothing about what the engine has engaged. Whether
+    the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes
+    quiet under treatment while auto-pilot needs the untreated signature to know what to engage and what to let go of.
     """
-    if not eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
+    if min_levels_db is None or not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
         return None
-    smoothed = _median_smooth(levels_db, SMOOTH_BINS)
+    smoothed = _median_smooth(min_levels_db, SMOOTH_BINS)
     floor = _percentile(smoothed, FLOOR_PERCENTILE)
     return (
-        _brick_wall(smoothed, bandwidth, floor, samplerate or 0)
+        _ceiling_wall(smoothed, bandwidth, floor, samplerate or 0)
         or _spurs(min_levels_db, bandwidth)
         or _ramp(smoothed, bandwidth, floor)
     )
 
 
-def eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
-    """Whether an aggregate carries enough coverage, bins and HF bandwidth for any rule here to read it."""
-    if seconds < MIN_SECONDS or bins < SPUR_BASELINE_BINS:
+def eligible(samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
+    """Whether a spectrum carries enough bins and HF bandwidth for any rule here to read it."""
+    if bins < SPUR_BASELINE_BINS:
         return False
     return not (sdm or samplerate is None or samplerate <= MIN_RATE_HZ or bandwidth <= MIN_BANDWIDTH_HZ)
 
@@ -191,18 +184,21 @@ def _band_mean(levels: list[float], lo: int, hi: int) -> float:
 
 
 def _content_edge(smoothed: list[float], bandwidth: float, floor: float, window: tuple[float, float]) -> int | None:
-    """Highest bin in ``window`` standing clear of the floor, or None when there is no ceiling inside it.
+    """Highest bin inside ``window`` standing clear of the floor, or None when there is no ceiling strictly inside it.
 
-    A ceiling at the window's top bin is content that carries on past the window, which is not a ceiling at all.
+    Both ends are excluded. A ceiling at the top bin is content that carries on past the window, which is not a
+    ceiling at all; a ceiling at the bottom bin sits at or below the corner the verdict would recommend, which is a
+    corner that removes nothing from what is playing.
     """
     bins = len(smoothed)
+    bottom = _bin(window[0], bins, bandwidth)
     top = _bin(window[1], bins, bandwidth)
     limit = floor + ABOVE_FLOOR_DB
     edge = -1
-    for i in range(_bin(window[0], bins, bandwidth), top + 1):
+    for i in range(bottom, top + 1):
         if smoothed[i] > limit:
             edge = i
-    return None if edge < 0 or edge >= top else edge
+    return None if edge <= bottom or edge >= top else edge
 
 
 def _at_floor_above(smoothed: list[float], start: int, floor: float) -> bool:
@@ -220,6 +216,8 @@ def _fake_hires(edge: int, bins: int, bandwidth: float, samplerate: int) -> dict
 
 
 def _ceiling_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
+    if samplerate < FAKE_HIRES_MIN_RATE:
+        return None
     bins = len(smoothed)
     edge = _content_edge(smoothed, bandwidth, floor, BRICK_WINDOW_HZ)
     if edge is None:
@@ -232,27 +230,6 @@ def _ceiling_wall(smoothed: list[float], bandwidth: float, floor: float, sampler
     if ref - above < BRICK_DROP_DB:
         return None
     return _fake_hires(edge, bins, bandwidth, samplerate)
-
-
-def _lossy_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
-    bins = len(smoothed)
-    edge = _content_edge(smoothed, bandwidth, floor, LOSSY_WINDOW_HZ)
-    if edge is None:
-        return None
-    guard = max(1, _bin(BRICK_GUARD_HZ, bins, bandwidth))
-    # The reference band straddles a cutoff this low, so the fall itself carries the magnitude.
-    if smoothed[max(0, edge - guard)] - smoothed[min(bins - 1, edge + guard)] < BRICK_DROP_DB:
-        return None
-    if not _at_floor_above(smoothed, edge + guard, floor):
-        return None
-    return _fake_hires(edge, bins, bandwidth, samplerate)
-
-
-def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
-    if samplerate < FAKE_HIRES_MIN_RATE:
-        return None
-    ceiling = _ceiling_wall(smoothed, bandwidth, floor, samplerate)
-    return ceiling or _lossy_wall(smoothed, bandwidth, floor, samplerate)
 
 
 def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
@@ -290,6 +267,8 @@ def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] |
 
 
 def _ramp(smoothed: list[float], bandwidth: float, floor: float) -> dict[str, Any] | None:
+    if bandwidth <= RAMP_MIN_BANDWIDTH_HZ:
+        return None
     bins = len(smoothed)
     lo = _bin(RAMP_LO_HZ, bins, bandwidth)
     top_lo = _bin(0.85 * bandwidth, bins, bandwidth)
