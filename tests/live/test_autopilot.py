@@ -46,9 +46,9 @@ from typing import Any
 import pytest
 from conftest import DaemonFactory, eventually, spawn_threaded_daemon, wait_for_api
 from fake_control import CommandLog
-from fake_metering import MeteringStream
+from fake_metering import MeteringStream, frame
 from fastapi.testclient import TestClient
-from junk_spectra import FAKE_HIRES_FRAME, decaying_176, fake_hires_96k, spur_min_176
+from junk_spectra import FAKE_HIRES_FRAME, fake_hires_96k, flat_fullband_96k, spur_min_176
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -63,18 +63,15 @@ from hqptuner.presets.store.presets import PresetStore
 
 #: A 96 kHz PCM track with content cut dead at 22 kHz — the fake-hi-res
 #: signature, whose verdict recommends the 20k corner.
-BRICKWALL = classify(fake_hires_96k(), 48000.0, 60.0, samplerate=96000, sdm=False)
+BRICKWALL = classify(fake_hires_96k(), 48000.0, samplerate=96000, sdm=False)
 
 #: A 176.4 kHz track carrying a persistent 40 kHz tone — the spur signature,
 #: whose verdict recommends the 30k corner and offers hi-res filter families.
-SPUR = classify(
-    decaying_176(),
-    88200.0,
-    60.0,
-    samplerate=176400,
-    sdm=False,
-    min_levels_db=spur_min_176(40000.0),
-)
+SPUR = classify(spur_min_176(40000.0), 88200.0, samplerate=176400, sdm=False)
+
+#: Strong flat content across the whole 0-48 kHz band, 0.7 s per frame: content
+#: clear to Nyquist, so a window made of these frames carries no signature.
+FLAT_FULLBAND_FRAME = frame(flat_fullband_96k(), 48000.0, 0.7)
 
 #: A junk-filter enumeration in the shape the daemon answers `GetJunkFilters`
 #: with (protocol.md §6: `<JunkFiltersItem index name value/>`).
@@ -145,17 +142,18 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
 
     A covering batch (the default) earns a verdict before the fixture hands the
     manager back; zero frames means no verdict will ever be earned, which is the
-    resting case. Keyword arguments are the daemon's State overrides, as for
-    `live_manager`. The engine is reported playing a 96 kHz PCM track, because
-    the reader only holds the metering socket while something is playing
-    (protocol.md §7)."""
+    resting case. The fake stream comes back alongside the manager, so a case
+    can feed it further frames. Keyword arguments are the daemon's State
+    overrides, as for `live_manager`. The engine is reported playing a 96 kHz
+    PCM track, because the reader only holds the metering socket while something
+    is playing (protocol.md §7)."""
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
     readers: list[tuple[MeteringReader, asyncio.Task[None]]] = []
     streams: list[MeteringStream] = []
 
     async def build(
         frames: int = COVERING_FRAMES, **overrides: str
-    ) -> tuple[ConnectionManager, CommandLog, dict[str, str]]:
+    ) -> tuple[ConnectionManager, CommandLog, dict[str, str], MeteringStream]:
         port, log, state = await daemon(state="2", _metadata=METADATA_96K_PCM, **overrides)
         stream = MeteringStream()
         streams.append(stream)
@@ -184,7 +182,7 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
         if frames:
             stream.send(FAKE_HIRES_FRAME, count=frames)
             await eventually(lambda: reader.recommendation() is not None)
-        return manager, log, state
+        return manager, log, state, stream
 
     yield build
     for reader, reader_task in readers:
@@ -213,7 +211,7 @@ def engaged(manager: ConnectionManager) -> str | None:
 async def test_no_verdict_releases_the_engine_to_none(advising: Advising) -> None:
     # the user's own 20k corner is not a baseline to return to: with nothing
     # advised, auto-pilot's resting place is `none`
-    manager, _log, state = await advising(frames=0, filter_junk="1")
+    manager, _log, state, _ = await advising(frames=0, filter_junk="1")
     await eventually(lambda: engaged(manager) == "20k")
     manager.presetops.autopilot.enable()
     await act(manager)
@@ -223,10 +221,31 @@ async def test_no_verdict_releases_the_engine_to_none(advising: Advising) -> Non
 async def test_an_untreated_verdict_engages_the_recommended_filter(advising: Advising) -> None:
     # 20k is index 1 of the fake's built-in enumeration; that the index is
     # resolved against the RUNNING list is the whole point of writing one
-    manager, log, _ = await advising()
+    manager, log, _, _ = await advising()
     manager.presetops.autopilot.enable()
     await act(manager)
     assert junk_writes(log) == ["1"]
+
+
+async def _digest(stream: MeteringStream) -> None:
+    """Wait until the wire is drained, then let the reader chew the buffered tail."""
+    await asyncio.wait_for(stream.flushed(), 3.0)
+    for _ in range(100):
+        await asyncio.sleep(0)
+
+
+async def test_a_signature_that_leaves_the_spectrum_releases_the_corner(advising: Advising) -> None:
+    # index 1 is the 20k corner the signature asks for, index 0 is `none`: once
+    # a window of content clear to Nyquist has gone by, the corner acts on
+    # nothing that is playing, so auto-pilot hands the engine back to `none`
+    manager, log, _, stream = await advising()
+    manager.presetops.autopilot.enable()
+    await act(manager)
+    engaged_writes = junk_writes(log)
+    stream.send(FLAT_FULLBAND_FRAME, count=60)  # ≈ 42 s, a full window and more
+    await _digest(stream)
+    await act(manager)
+    assert (engaged_writes, junk_writes(log)) == (["1"], ["1", "0"])
 
 
 async def test_a_fixed_corner_is_released_when_no_verdict_asks_for_it(advising: Advising) -> None:
@@ -234,7 +253,7 @@ async def test_a_fixed_corner_is_released_when_no_verdict_asks_for_it(advising: 
     # The case above reads the release off the engine's own State, which cannot
     # tell one write from a loop that rewrites `none` every pass; this one reads
     # the command log, so the release is pinned as exactly one write.
-    manager, log, _ = await advising(frames=0, filter_junk="2")
+    manager, log, _, _ = await advising(frames=0, filter_junk="2")
     await eventually(lambda: engaged(manager) == "30k")
     manager.presetops.autopilot.enable()
     await act(manager)
@@ -247,7 +266,7 @@ async def test_a_rate_relative_filter_is_released_when_no_verdict_asks_for_it(
 ) -> None:
     # rate-relative corners are no longer protected inside auto-pilot: on means
     # the resting filter is `none`, whatever the user left engaged
-    manager, log, _ = await advising(frames=0, _junk_filters=RATE_RELATIVE_ENUM, filter_junk=index)
+    manager, log, _, _ = await advising(frames=0, _junk_filters=RATE_RELATIVE_ENUM, filter_junk=index)
     await eventually(lambda: engaged(manager) == name)
     manager.presetops.autopilot.enable()
     await act(manager)
@@ -255,7 +274,7 @@ async def test_a_rate_relative_filter_is_released_when_no_verdict_asks_for_it(
 
 
 async def test_an_engine_already_resting_on_none_is_never_written_to(advising: Advising) -> None:
-    manager, log, _ = await advising(frames=0)
+    manager, log, _, _ = await advising(frames=0)
     await eventually(lambda: engaged(manager) == "none")
     manager.presetops.autopilot.enable()
     await act(manager)
@@ -263,7 +282,7 @@ async def test_an_engine_already_resting_on_none_is_never_written_to(advising: A
 
 
 async def test_auto_pilot_switched_off_never_writes_the_junk_filter(advising: Advising) -> None:
-    manager, log, _ = await advising()
+    manager, log, _, _ = await advising()
     await act(manager)
     assert junk_writes(log) == []
 
@@ -271,7 +290,7 @@ async def test_auto_pilot_switched_off_never_writes_the_junk_filter(advising: Ad
 async def test_a_filter_absent_from_the_running_enumeration_is_never_written(advising: Advising) -> None:
     # this engine build offers no 20k corner at all; an index resolved against a
     # list it does not serve would engage a filter nobody asked for
-    manager, log, _ = await advising(_junk_filters="none 30k")
+    manager, log, _, _ = await advising(_junk_filters="none 30k")
     manager.presetops.autopilot.enable()
     await act(manager)
     assert junk_writes(log) == []
@@ -280,7 +299,7 @@ async def test_a_filter_absent_from_the_running_enumeration_is_never_written(adv
 async def test_a_store_stamped_newer_than_understood_writes_nothing(advising: Advising, tmp_path: Path) -> None:
     # switched on first, so the only thing standing between this verdict and a
     # write is the stamp: a build that read the file anyway would engage 20k
-    manager, log, _ = await advising()
+    manager, log, _, _ = await advising()
     manager.presetops.autopilot.enable()
     (tmp_path / "autopilot.json").write_text(json.dumps({"schema": 99}))
     await act(manager)
@@ -291,7 +310,7 @@ async def test_a_write_the_engine_refuses_is_still_attempted(advising: Advising)
     # the precondition the case below rests on, stated rather than assumed: a
     # daemon that answers SetJunkFilter with an error is still asked to engage
     # 20k, so "refused" there is a refusal and not a write that never happened
-    manager, log, _ = await advising(_error="SetJunkFilter")
+    manager, log, _, _ = await advising(_error="SetJunkFilter")
     manager.presetops.autopilot.enable()
     await act(manager)
     assert junk_writes(log) == ["1"]
@@ -300,7 +319,7 @@ async def test_a_write_the_engine_refuses_is_still_attempted(advising: Advising)
 async def test_a_refused_write_leaves_auto_pilot_enabled(advising: Advising) -> None:
     # the engine says no; that is the engine's business, not a reason to hand
     # the user back a switch they never touched
-    manager, _log, _ = await advising(_error="SetJunkFilter")
+    manager, _log, _, _ = await advising(_error="SetJunkFilter")
     manager.presetops.autopilot.enable()
     await act(manager)
     assert manager.presetops.autopilot.enabled is True

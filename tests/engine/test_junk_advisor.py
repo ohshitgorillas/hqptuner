@@ -1,4 +1,4 @@
-"""The junk-filter advisor: per-track average spectra classified into advice.
+"""The junk-filter advisor: one windowed-minimum spectrum classified into advice.
 
 `classify` is pure, so the signature cases (fake hi-res cliff, HF spur,
 noise-shaping ramp) are synthesized spectra handed straight in (`junk_spectra`).
@@ -23,11 +23,10 @@ from fake_metering import frame
 from fastapi.testclient import TestClient
 from junk_spectra import (
     FAKE_HIRES_FRAME,
-    constant_fall_96k,
     cutoff_96k,
-    decaying_176,
     fake_hires_96k,
     genuine_hires_96k,
+    shaping_ramp_96k,
     shaping_ramp_176,
     spectrum,
     spur_min_176,
@@ -36,45 +35,27 @@ from narrow import present
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.junkadvisor import MIN_SECONDS, classify, treats
+from hqptuner.engine.junkadvisor import classify, treats
 from hqptuner.engine.metering import TrackContext, context_from
 
 
 def _classify(
-    levels: list[float],
+    min_levels_db: list[float],
     bandwidth: float,
     *,
-    seconds: float = 60.0,
     samplerate: int | None = 96000,
     sdm: bool = False,
-    min_levels_db: list[float] | None = None,
 ) -> dict[str, Any] | None:
-    return classify(
-        levels,
-        bandwidth,
-        seconds,
-        samplerate=samplerate,
-        sdm=sdm,
-        min_levels_db=min_levels_db,
-    )
+    return classify(min_levels_db, bandwidth, samplerate=samplerate, sdm=sdm)
 
 
 def _classify_spur(tone_hz: float, *, tone_db: float = -45.0) -> dict[str, Any] | None:
-    """The spur rule reads the windowed minimum spectrum: the tone rides in
-    ``min_levels_db`` while the mean alongside is ordinary decaying music."""
-    return _classify(
-        decaying_176(),
-        88200.0,
-        samplerate=176400,
-        min_levels_db=spur_min_176(tone_hz, tone_db),
-    )
+    """The spur rule reads the windowed minimum spectrum: the tone rides in it,
+    standing proud of the decay the rest of the band sits on."""
+    return _classify(spur_min_176(tone_hz, tone_db), 88200.0, samplerate=176400)
 
 
 # --- classify: guards -----------------------------------------------------------
-
-
-def test_no_verdict_below_the_minimum_coverage() -> None:
-    assert _classify(fake_hires_96k(), 48000.0, seconds=MIN_SECONDS - 0.1) is None
 
 
 def test_sdm_source_gets_no_verdict() -> None:
@@ -104,31 +85,26 @@ def test_fake_hires_reason_names_the_filter() -> None:
 
 
 @pytest.mark.parametrize(
-    ("levels", "expected_filter", "expected_ceiling_khz"),
+    ("cutoff_hz", "expected"),
     [
-        (constant_fall_96k(18.0), "20k", 19.6),
-        (constant_fall_96k(11.25), "20k", 22.3),
-        (constant_fall_96k(8.1818), "20k", 25.0),
-        (cutoff_96k(14000.0), "20k", 14.0),
+        (17000.0, None),
+        (20000.0, None),
+        (22500.0, ("20k", pytest.approx(22.5, abs=0.2))),
     ],
 )
-def test_fake_hires_reports_the_content_ceiling(
-    levels: list[float], expected_filter: str, expected_ceiling_khz: float
-) -> None:
-    advice = _classify(levels, 48000.0) or {}
-    assert (advice["filter"], advice["ceiling_khz"]) == (
-        expected_filter,
-        pytest.approx(expected_ceiling_khz, abs=0.2),
-    )
+def test_only_a_ceiling_the_20k_corner_can_act_on_earns_a_verdict(cutoff_hz: float, expected: object) -> None:
+    # a ceiling at or below the corner is content the corner would not touch
+    advice = _classify(cutoff_96k(cutoff_hz), 48000.0)
+    assert (None if advice is None else (advice["filter"], advice["ceiling_khz"])) == expected
 
 
 def test_genuine_hires_gets_no_verdict() -> None:
     assert _classify(genuine_hires_96k(), 48000.0) is None
 
 
-def test_hf_tone_in_the_mean_alone_earns_no_spur_verdict() -> None:
-    # without the minimum spectrum there is no persistence evidence to read
-    assert _classify(spur_min_176(40000.0), 88200.0, samplerate=176400, min_levels_db=None) is None
+def test_no_minimum_spectrum_earns_no_verdict() -> None:
+    # no windowed minimum yet: no evidence to read, so no verdict
+    assert classify(None, 88200.0, samplerate=176400, sdm=False) is None
 
 
 @pytest.mark.parametrize(
@@ -162,8 +138,19 @@ def test_tone_under_15_db_above_the_minimum_baseline_earns_no_verdict() -> None:
     assert _classify_spur(40000.0, tone_db=-130.0) is None
 
 
-def test_noise_shaping_ramp_recommends_the_50k_filter() -> None:
-    assert (_classify(shaping_ramp_176(), 88200.0, samplerate=176400) or {})["filter"] == "50k"
+@pytest.mark.parametrize(
+    ("levels", "bandwidth", "samplerate", "expected"),
+    [
+        (shaping_ramp_96k(), 48000.0, 96000, None),
+        (shaping_ramp_176(), 88200.0, 176400, "50k"),
+    ],
+)
+def test_the_50k_corner_is_recommended_only_where_the_container_reaches_past_it(
+    levels: list[float], bandwidth: float, samplerate: int, expected: str | None
+) -> None:
+    # in a container whose bandwidth stops below the corner the filter removes nothing
+    advice = _classify(levels, bandwidth, samplerate=samplerate)
+    assert (None if advice is None else advice["filter"]) == expected
 
 
 # Suppression is no longer `classify`'s business: it detects the signature and

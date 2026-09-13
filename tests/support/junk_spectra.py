@@ -3,8 +3,8 @@ from them (`fake_metering.frame`, protocol.md §7: bin k sits at
 ``k * bandwidth / (bins - 1)`` Hz).
 
 Shared by `test_junk_advisor` (the pure `classify` cases) and
-`test_junk_persistence` (the windowed-minimum and latch cases), so neither
-test file imports from the other."""
+`test_junk_persistence` (the windowed-minimum cases), so neither test file
+imports from the other."""
 
 from collections.abc import Callable
 
@@ -23,18 +23,6 @@ def fake_hires_96k() -> list[float]:
     return spectrum(48000.0, lambda f: -20.0 if f <= 22000.0 else -140.0)
 
 
-def constant_fall_96k(rate_db_per_khz: float) -> list[float]:
-    """96 kHz container, flat at -20 dB to 15 kHz, then falling at a constant
-    ``rate_db_per_khz`` into a -110 dB noise floor."""
-
-    def level(f: float) -> float:
-        if f <= 15000.0:
-            return -20.0
-        return max(-20.0 - rate_db_per_khz * (f - 15000.0) / 1000.0, -110.0)
-
-    return spectrum(48000.0, level)
-
-
 def cutoff_96k(cutoff_hz: float) -> list[float]:
     """96 kHz container, flat at -20 dB to ``cutoff_hz``, sitting at the -110 dB
     noise floor above it: one step, no transition."""
@@ -48,19 +36,13 @@ def genuine_hires_96k() -> list[float]:
 
 def flat_fullband_96k() -> list[float]:
     """Strong flat content across the entire 0-48 kHz band — content clear to
-    Nyquist, no cliff, no tone. Mixed into brick-wall evidence it erases the
-    cliff from the cumulative mean, so no re-classification can recommend."""
+    Nyquist, no cliff, no tone: nothing a high-frequency corner would act on."""
     return spectrum(48000.0, lambda _f: -20.0)
 
 
 def _decay_176(f: float) -> float:
     # music decaying naturally, reaching the floor by ~20 kHz — no cliff (6 dB/kHz)
     return max(-20.0 - 6.0 * f / 1000.0, -140.0)
-
-
-def decaying_176() -> list[float]:
-    """Ordinary decaying-music mean spectrum in a 176.4 kHz container — no tone."""
-    return spectrum(88200.0, _decay_176)
 
 
 def spur_min_176(tone_hz: float, tone_db: float = -45.0) -> list[float]:
@@ -70,18 +52,29 @@ def spur_min_176(tone_hz: float, tone_db: float = -45.0) -> list[float]:
     return spectrum(88200.0, lambda f: tone_db if abs(f - tone_hz) <= 130.0 else _decay_176(f))
 
 
-def shaping_ramp_176() -> list[float]:
-    """Music gone by ~20 kHz, then broadband noise rising smoothly to -60 at Nyquist."""
+def _shaping_ramp(bandwidth: float) -> list[float]:
+    """Music gone by ~20 kHz, then broadband noise rising smoothly to -60 at the
+    container's Nyquist."""
 
     def level(f: float) -> float:
         if f <= 20000.0:
             return -20.0 - 90.0 * f / 20000.0
         if f <= 24000.0:
             return -110.0
-        return -110.0 + 50.0 * (f - 24000.0) / (88200.0 - 24000.0)
+        return -110.0 + 50.0 * (f - 24000.0) / (bandwidth - 24000.0)
 
-    return spectrum(88200.0, level)
+    return spectrum(bandwidth, level)
 
 
-#: 0.7 s of coverage per frame: 60 frames ≈ 42 s, comfortably past the minimum.
+def shaping_ramp_176() -> list[float]:
+    """The noise-shaping ramp in a 176.4 kHz container: bandwidth to 88.2 kHz."""
+    return _shaping_ramp(88200.0)
+
+
+def shaping_ramp_96k() -> list[float]:
+    """The same noise-shaping ramp in a 96 kHz container: bandwidth to 48 kHz."""
+    return _shaping_ramp(48000.0)
+
+
+#: 0.7 s of coverage per frame: 60 frames ≈ 42 s, comfortably past the window.
 FAKE_HIRES_FRAME = frame(fake_hires_96k(), 48000.0, 0.7)

@@ -64,7 +64,7 @@ async def _passes(sleeps: list[float], count: int) -> None:
 
 async def _earn_20k(stream: MeteringStream, reader: Any) -> None:
     """Earn the brick-wall verdict from a bounded batch, wire fully drained."""
-    stream.send(FAKE_HIRES_FRAME, count=30)  # ≈ 21 s, past the 15 s minimum
+    stream.send(FAKE_HIRES_FRAME, count=60)  # ≈ 42 s, past the 30 s window
     await eventually(lambda: reader.recommendation() is not None)
     await asyncio.wait_for(stream.flushed(), 3.0)
     for _ in range(100):  # let the reader chew the buffered tail
