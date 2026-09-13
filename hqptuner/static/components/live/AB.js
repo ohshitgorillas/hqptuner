@@ -5,7 +5,9 @@
 // are (./View.js): a Field is bound to the staged/dirty/Apply model and none of
 // that exists on this page. The two slot dropdowns take the SAME widget the
 // setting's chain-card dropdown takes, so a filter keeps its tips, its stars and
-// its narrowing here — it is the same list, reached a second way.
+// its narrowing here — it is the same list, reached a second way. The matrix
+// profile has no chain card and no live form field, so its slots take the widget
+// the Matrix tab's saved-profile picker takes, with the same per-profile notes.
 //
 // Picking in a slot writes nothing. The switch is the only thing on the card
 // that touches the engine, which is what makes the pick safe to change while
@@ -18,13 +20,19 @@ import {
   abSlots,
   abLit,
   abChain,
+  abMatrixBusy,
+  abMatrixError,
   setAbTarget,
   setAbSlot,
   flipAb,
+  MATRIX_FIELD,
 } from "../../store/live/ab.js";
 import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { liveAbOpen } from "../../store/prefs.js";
+import { savedProfiles, isLiveProfile } from "../../store/matrix/profiles.js";
+import { profileTips } from "../matrix/ProfileCard.js";
+import { Combobox } from "../controls/Combobox.js";
 import { RadioGroup, Segment } from "../controls/index.js";
 import { widgetFor, tipsFor, favFor, badgeFor, starsFor, tierFor, collapseFor, FavoriteError } from "../binder.js";
 import { describe } from "../../store/prose.js";
@@ -153,11 +161,88 @@ function Switch({ control }) {
   `;
 }
 
+// The profiles one side may hold: the default profile, then every saved name the
+// daemon can actually switch to, minus whatever the other side holds. Same rule
+// as the chain slots above — dropped rather than disabled — extended to the
+// names the engine never loaded, which no switch could reach.
+/**
+ * @param {import("../../store/live/ab.js").AbSlot | null} other
+ * @returns {{ value: string, label: string }[]}
+ */
+function matrixSlotOptions(other) {
+  const list = [
+    { value: "", label: "[Default]" },
+    ...savedProfiles.value.filter(isLiveProfile).map((/** @type {string} */ n) => ({ value: n, label: n })),
+  ];
+  return other ? list.filter((o) => o.value !== String(other.id)) : list;
+}
+
+/** @param {{ side: "a" | "b" }} props */
+function MatrixSlot({ side }) {
+  const slots = abSlots.value;
+  const slot = slots[side];
+  const value = slot ? String(slot.id) : "";
+  const options = matrixSlotOptions(slots[side === "a" ? "b" : "a"]);
+  const listed = options.some((o) => o.value === value);
+  return html`
+    <div class="field ab-slot">
+      <label>${side.toUpperCase()}</label>
+      <div class="control">
+        <${Combobox}
+          value=${value}
+          options=${options}
+          valueLabel=${slot && !listed ? slot.name : undefined}
+          tips=${profileTips}
+          disabled=${abMatrixBusy.value}
+          onChange=${(/** @type {string | number} */ v) => setAbSlot(side, String(v), String(v) || "[Default]")}
+        />
+      </div>
+    </div>
+  `;
+}
+
+// The matrix switch. A side takes no click unless its own menu still offers what
+// it holds: an empty side, a profile the engine never loaded and a profile a
+// staged delete has taken away are all values no switch can reach.
+function MatrixSwitch() {
+  const { a, b } = abSlots.value;
+  const busy = abMatrixBusy.value;
+  const offered = (/** @type {"a" | "b"} */ side) => {
+    const slot = abSlots.value[side];
+    return (
+      !!slot && matrixSlotOptions(abSlots.value[side === "a" ? "b" : "a"]).some((o) => o.value === String(slot.id))
+    );
+  };
+  return html`
+    <div class="ab-switch seg-box">
+      <${Segment}
+        value=${abLit.value}
+        options=${[
+          { value: "a", label: "A", sub: a ? a.name : undefined, disabled: busy || !offered("a") },
+          { value: "b", label: "B", sub: b ? b.name : undefined, disabled: busy || !offered("b") },
+        ]}
+        onChange=${(/** @type {string} */ v) => flipAb(/** @type {"a" | "b"} */ (v))}
+      />
+    </div>
+  `;
+}
+
+function MatrixPair() {
+  return html`
+    <div class="ab-slots">
+      <${MatrixSlot} side="a" />
+      <${MatrixSlot} side="b" />
+    </div>
+    <${MatrixSwitch} />
+  `;
+}
+
 function AbBody() {
   const rows = abRows.value;
   const picked = abField.value;
-  const control = targetControl();
-  const error = control ? liveErrors.value[control.field] || "" : "";
+  const matrix = picked === MATRIX_FIELD;
+  const control = matrix ? null : targetControl();
+  const error = matrix ? abMatrixError.value : (control && liveErrors.value[control.field]) || "";
   return html`
     <div class="ab-card">
       <div class="field ab-target">
@@ -173,6 +258,7 @@ function AbBody() {
           />
         </div>
       </div>
+      ${matrix ? html`<${MatrixPair} />` : null}
       ${
         control
           ? html`

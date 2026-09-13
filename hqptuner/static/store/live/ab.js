@@ -18,13 +18,24 @@
 // prefs.js's persist/loadBool are private to it and hold booleans, and neither
 // this pair nor the target is one.
 import { signal, computed } from "@preact/signals";
+import { api } from "../../lib/api.js";
+import { truthy } from "../../lib/coerce.js";
+import { errText } from "../../lib/errtext.js";
 import { engineState } from "../signals.js";
+import { matrixActiveProfile } from "../matrix/profiles.js";
+import { runningValue } from "../resolve.js";
+import { refreshConfig } from "../sync.js";
 import { CHAINS } from "./derive.js";
 import { liveModel } from "./model.js";
 import { writeLive } from "./write.js";
 
 const TARGET_KEY = "hqptuner.abTarget";
 const SLOTS_KEY = "hqptuner.abSlots";
+
+// The matrix profile row's target. Not a live form field and not a chain
+// setting: it names the same thing on both chains, so it has no TWIN entry and
+// its pair is stored once.
+export const MATRIX_FIELD = "matrix_profile";
 
 // The same field on the other chain. A chain change carries the user's pick
 // across by this table and never by the row's position: CHAINS is documented as
@@ -48,15 +59,18 @@ const LABELS = {
   oversampling1x: "1x filter",
   oversampling: "Nx filter",
   modulator: "Modulator",
+  [MATRIX_FIELD]: "Matrix profile",
 };
 
 /**
  * @typedef {{ id: string, name: string }} AbSlot
- *   One side's stored value: the enum ID that gets written, and the name it
- *   carried when it was picked.
+ *   One side's stored value: the value the switch applies — an enum ID, or a
+ *   profile name with "" for the default profile — and the name it carried when
+ *   it was picked.
  * @typedef {{ a: AbSlot | null, b: AbSlot | null }} AbPair
  * @typedef {{ field: string, label: string }} AbRow
- *   One row of the target picker: the live form field it aims at, and its label.
+ *   One row of the target picker: the switcher target it aims at — a live form
+ *   field, or the matrix profile — and its label.
  */
 
 /** @returns {string} */
@@ -91,7 +105,7 @@ function store(key, value) {
   }
 }
 
-/** The live form field the user picked, "" when none. May name either chain. */
+/** The switcher target the user picked, "" when none. May name either chain. */
 export const abTarget = signal(loadTarget());
 
 /** Every stored pair, by the field it belongs to. */
@@ -100,7 +114,7 @@ const slotsByField = signal(loadSlots());
 /**
  * Aim the switcher at one setting.
  *
- * @param {string} field a live form field the switcher can target
+ * @param {string} field a switcher target
  * @returns {void}
  */
 export function setAbTarget(field) {
@@ -114,20 +128,33 @@ export function setAbTarget(field) {
 // one that keeps the card usable before playback starts.
 export const abChain = computed(() => ((engineState.value || {}).active_chain === "sdm" ? "sdm" : "pcm"));
 
+// The matrix profile is switchable only while the matrix engine is engaged: a
+// bypassed matrix runs no profile, so a switch there would change nothing the
+// user hears. Read the way the signal path bar reads it.
+function matrixRow() {
+  return truthy(runningValue("matrix_enabled"))
+    ? [{ field: MATRIX_FIELD, label: /** @type {Record<string, string>} */ (LABELS)[MATRIX_FIELD] }]
+    : [];
+}
+
 /**
- * The three settings the switcher can aim at on one chain.
+ * The settings the switcher can aim at on one chain: the chain's three, plus the
+ * matrix profile while the matrix engine is engaged.
  *
  * @param {string} chain
  * @returns {AbRow[]}
  */
 function rowsFor(chain) {
-  return CHAINS[chain].map((c) => ({
-    field: c.field,
-    label: /** @type {Record<string, string>} */ (LABELS)[c.field],
-  }));
+  return [
+    ...CHAINS[chain].map((c) => ({
+      field: c.field,
+      label: /** @type {Record<string, string>} */ (LABELS)[c.field],
+    })),
+    ...matrixRow(),
+  ];
 }
 
-/** The three settings the switcher can aim at on the resolved chain. */
+/** The settings the switcher can aim at on the resolved chain. */
 export const abRows = computed(() => rowsFor(abChain.value));
 
 // The picked target as the LOADED chain names it. A pick made on one chain
@@ -179,18 +206,52 @@ const targetControl = computed(() => {
 // Which side the engine is on. Neither, whenever the running value is something
 // else: the setting is reachable from its chain card too, and a third value
 // there is an ordinary thing to do, not a state to hide.
-export const abLit = computed(() => {
+// The running value the slots are compared against. The engine names the profile
+// that has none `[Default]` (readme §1.12), and the slot holding it stores the
+// empty name the switch sends, so the two are read onto the same value here.
+function runningTargetValue() {
+  if (abField.value === MATRIX_FIELD) {
+    const active = matrixActiveProfile.value;
+    return active === "[Default]" ? "" : active;
+  }
   const control = targetControl.value;
+  return control ? String(control.value) : null;
+}
+
+export const abLit = computed(() => {
+  const now = runningTargetValue();
   const { a, b } = abSlots.value;
-  if (!control) return "";
-  const now = String(control.value);
+  if (now === null) return "";
   if (a && String(a.id) === now) return "a";
   return b && String(b.id) === now ? "b" : "";
 });
 
+/** Whether a matrix profile switch is in flight. */
+export const abMatrixBusy = signal(false);
+/** What the last matrix profile switch failed with, "" when it did not. */
+export const abMatrixError = signal("");
+
+// MatrixSetProfile is a live 4321 switch and not a config field, so it never
+// goes through writeLive. The lane readback-verifies against State
+// (lanes/matrixlane.py) and the card reports what comes back.
+/** @param {string} name */
+async function switchMatrixProfile(name) {
+  abMatrixBusy.value = true;
+  abMatrixError.value = "";
+  try {
+    await api.matrixProfile("switch", name);
+    await refreshConfig();
+  } catch (e) {
+    abMatrixError.value = errText(e);
+  } finally {
+    abMatrixBusy.value = false;
+  }
+}
+
 /**
  * Switch the engine to one side's value, now. One live write on the ordinary
- * path, so it is readback-verified and reported like every other LIVE control.
+ * path, so it is readback-verified and reported like every other LIVE control,
+ * or one MatrixSetProfile switch on the matrix profile lane.
  *
  * @param {"a" | "b"} side
  * @returns {Promise<void>}
@@ -199,5 +260,9 @@ export async function flipAb(side) {
   const field = abField.value;
   const slot = abSlots.value[side];
   if (!field || !slot) return;
+  if (field === MATRIX_FIELD) {
+    await switchMatrixProfile(slot.id);
+    return;
+  }
   await writeLive(field, slot.id);
 }
