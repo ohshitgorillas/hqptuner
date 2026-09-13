@@ -122,6 +122,20 @@ async def _digest(stream: MeteringStream) -> None:
         await asyncio.sleep(0)
 
 
+def _counted(reader: Any) -> int:
+    """How many decimated hops the reader has ingested so far."""
+    aggregate = reader.aggregate()
+    return 0 if aggregate is None else int(aggregate.frames)
+
+
+async def _ingested(stream: MeteringStream, reader: Any, hops: int) -> None:
+    """Wait until the wire is drained and the reader has counted ``hops``
+    ingested frames — it samples every DECIMATE-th frame off the wire, so the
+    batch is drained when the count stops short of nothing."""
+    await asyncio.wait_for(stream.flushed(), 3.0)
+    await eventually(lambda: _counted(reader) >= hops)
+
+
 async def _earn_20k(stream: MeteringStream, reader: Any) -> None:
     """Earn the brick-wall verdict from a bounded batch, wire fully drained."""
     stream.send(FAKE_HIRES_FRAME, count=60)  # ≈ 42 s, past the 30 s window
@@ -136,10 +150,10 @@ async def test_a_verdict_follows_the_window_and_does_not_outlive_it(metering_str
         for _ in range(6):  # every block's minimum carries the 22.5 kHz ceiling
             stream.send(CUT_22K5_FRAME, count=DECIMATE)
             stream.send(FLAT_FULLBAND_FRAME, count=DECIMATE)
-        await _digest(stream)
+        await _ingested(stream, reader, 12)  # 48 wire frames, one hop per DECIMATE
         earned = reader.recommendation() or {}
         stream.send(FLAT_FULLBAND_FRAME, count=48)  # a further window, no ceiling
-        await _digest(stream)
+        await _ingested(stream, reader, 24)
         assert (earned["filter"], reader.recommendation()) == ("20k", None)
 
 
@@ -148,10 +162,10 @@ async def test_no_verdict_until_the_window_is_covered(metering_stream: Callable[
     cell: list[TrackContext | None] = [PLAYING]
     async with running_reader(port, cell) as (reader, _):
         stream.send(CUT_22K5_FRAME, count=30)  # ≈ 19.6 s, short of the window
-        await _digest(stream)
+        await _ingested(stream, reader, 7)
         early = reader.recommendation()
         stream.send(CUT_22K5_FRAME, count=30)  # ≈ 42 s of the same ceiling
-        await _digest(stream)
+        await _ingested(stream, reader, 15)
         assert (early, (reader.recommendation() or {})["filter"]) == (None, "20k")
 
 

@@ -49,6 +49,7 @@ from fake_control import CommandLog
 from fake_metering import MeteringStream, frame
 from fastapi.testclient import TestClient
 from junk_spectra import FAKE_HIRES_FRAME, fake_hires_96k, flat_fullband_96k, spur_min_176
+from narrow import present
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -227,11 +228,17 @@ async def test_an_untreated_verdict_engages_the_recommended_filter(advising: Adv
     assert junk_writes(log) == ["1"]
 
 
-async def _digest(stream: MeteringStream) -> None:
-    """Wait until the wire is drained, then let the reader chew the buffered tail."""
+def _counted(manager: ConnectionManager) -> int:
+    """How many decimated hops the manager's reader has ingested so far."""
+    aggregate = present(manager.metering).aggregate()
+    return 0 if aggregate is None else int(aggregate.frames)
+
+
+async def _ingested(stream: MeteringStream, manager: ConnectionManager, hops: int) -> None:
+    """Wait until the wire is drained and the reader has counted ``hops``
+    ingested frames — it samples every DECIMATE-th frame off the wire."""
     await asyncio.wait_for(stream.flushed(), 3.0)
-    for _ in range(100):
-        await asyncio.sleep(0)
+    await eventually(lambda: _counted(manager) >= hops)
 
 
 async def test_a_signature_that_leaves_the_spectrum_releases_the_corner(advising: Advising) -> None:
@@ -243,7 +250,7 @@ async def test_a_signature_that_leaves_the_spectrum_releases_the_corner(advising
     await act(manager)
     engaged_writes = junk_writes(log)
     stream.send(FLAT_FULLBAND_FRAME, count=60)  # ≈ 42 s, a full window and more
-    await _digest(stream)
+    await _ingested(stream, manager, 30)  # 15 hops off the covering batch, 15 more here
     await act(manager)
     assert (engaged_writes, junk_writes(log)) == (["1"], ["1", "0"])
 
