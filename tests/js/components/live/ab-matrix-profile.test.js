@@ -171,6 +171,17 @@ const withClass = (out, token) =>
     .filter((el) => classes(el).includes(token))
     .sort((a, b) => a.start - b.start);
 
+// One option row's wire value: the `data-v` it carries, where a row carrying
+// the attribute with no value of its own reads as the empty string — the shape
+// the unnamed profile takes on the wire. A row carrying no `data-v` at all has
+// no wire value and reads as undefined, so it fails a comparison loudly rather
+// than passing for the unnamed one.
+/**
+ * @param {import("../../support/markup.js").MarkupElement} el
+ * @returns {string | undefined}
+ */
+const wireValue = (el) => (hasAttr(el, "data-v") ? attr(el, "data-v") || "" : undefined);
+
 // What the FIRST side's dropdown offers, as the wire values of its option rows
 // in document order. A card that renders no dropdown offers nothing, which is a
 // list to compare rather than a fixture failure: it is one of the ways the row
@@ -178,7 +189,7 @@ const withClass = (out, token) =>
 /** @returns {(string | undefined)[]} */
 function firstSlotOffers() {
   const slots = withClass(render(html`<${AbCard} />`), "ab-slot");
-  return slots.length === 0 ? [] : ddRows(slots[0].html).map((el) => attr(el, "data-v"));
+  return slots.length === 0 ? [] : ddRows(slots[0].html).map(wireValue);
 }
 
 // The switch's two sides, as (side, is it refused) pairs in document order: the
