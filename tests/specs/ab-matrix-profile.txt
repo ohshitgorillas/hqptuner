@@ -20,9 +20,9 @@ brief:
    bite: abField "", abSlots {"a":null,"b":null}, abLit "" at all three live_active values (same command, probe line 2).
    existing: none, same grep as line 1; tests/js/store/liveab.test.js::test_the_engine_sitting_on_slot_as_id_lights_a and its two siblings drive filterNx on the filter target only, with matrixConfig unset.
 
-3. With the PCM chain loaded, the /api/matrix form carrying enabled "1", live_profiles ["Hall", "Room"], file_profiles holding the names Room, Study, live_active "[Default]", the switcher aimed at matrix_profile with side A empty, the data-v values of the rows with class dd-opt inside the first element with class ab-slot, in document order, read ["", "Room"] while side B holds id "Hall" name "Hall"; ["", "Hall"] while side B holds id "Room" name "Room".
+3. With the PCM chain loaded, the /api/matrix form carrying enabled "1", live_profiles ["Hall", "Room"], file_profiles holding the names Room, Study, live_active "[Default]", the switcher aimed at matrix_profile with side A empty, the wire values of the rows with class dd-opt inside the first element with class ab-slot, in document order, each row's value taken from its data-v attribute where a row carrying data-v with no value reads as the empty string, are ["", "Room"] while side B holds id "Hall" name "Hall"; ["", "Hall"] while side B holds id "Room" name "Room".
    kills: offering every saved profile name, which lists Study, a profile the configuration carries and the daemon never loaded, so a user can pick a side that no press can ever switch to.
-   bite: 0 elements with class ab-slot and 0 dd-opt rows in the card in both states; abField "" and abSlots {"a":null,"b":null} (same command, probe line 3).
+   bite: 0 elements with class ab-slot and 0 dd-opt rows in the card in both states, so the list reads empty under this reading as under any other; abField "" and abSlots {"a":null,"b":null} (same command, probe line 3).
    existing: none, same grep as line 1; tests/js/components/live/livecombobox.test.js::test_the_matrix_profile_picker_offers_the_loaded_profile reads the LIVE Matrix profile card's native select, a different card.
 
 4. With the same /api/matrix state as line 3, the switcher aimed at matrix_profile, side B holding id "" name "[Default]", the buttons carrying data-v inside the element with class ab-switch, read as (data-v, carries the disabled attribute) pairs in document order, are [("a", false), ("b", false)] while side A holds id "Room" name "Room"; [("a", true), ("b", false)] while side A holds id "Study" name "Study".
@@ -35,31 +35,30 @@ brief:
    kills: a second tip builder written for this card that keys the note on the option's label, or returns the profile's own name as the note, so a profile whose stored name and description differ shows its name in the popover instead of what the user wrote.
    bite: null stub fails at profile name "Room" with a stored description (surface new) — ProfileCard.js exports no profileTips at HEAD, so a stub module that exports the name and returns { name: "", text: "", rows: [], chips: [] } returns "" where the line asks for the stored text.
    existing: none, `grep -rn -e profileTips -e descriptionFor tests/js` printed tests/js/store/descriptions.test.js only, which pins the descriptions store's own read and write path and never the tip builder.
-   fifth line: the note the user wrote is the brief's own requirement and nothing else in the block reaches it; the rendered popover is unreachable in SSR by the citation above, so the builder's own output is the only place the note text is observable offline.
+   fifth line: the note the user wrote is the brief's own requirement and nothing else in the block reaches it; the rendered popover is unreachable in SSR (tests/js/components/controls/combobox.test.js:4-8: the per-option tip elements exist only while the popup is open, and SSR reaches the closed state only), so the builder's own output is the only place the note text is observable offline.
 
 (The block as submitted carried no public entry points, wire facts, fixtures or changelog line; none are invented here.)
 
 --- spec-reviewer READY ---
 
 READY
-discriminates: differential on abRows (line 1, enabled "1" vs "0") plus a three-value sweep on abLit (line 2)
+discriminates: differential on abRows (matrix row present at /api/matrix enabled "1", absent at "0"), plus sweeps on abLit, on the dd-opt data-v list and on the switch's disabled pairs
 
-round 1 finding (m) withdrawn on the citation. The first shape I named — restating line 3's outcome as (data-v, note text) pairs — is not reachable: docs/testing.md:144-146 ("Branches that cannot be reached") rules that a branch gated behind a handler SSR never fires is documented as a gap and never reached by widening public surface, and tests/js/components/controls/combobox.test.js:4-8 already states that gap for this widget in its own header ("the open state - and the per-option tip elements that exist only while open - cannot be rendered here"). The second shape I named is what the return took: a new line with its own over-cap sentence.
+1  KEEP  carried: PCM chain loaded, /api/matrix enabled "1" vs "0" -> abRows ["filter1x","filter","dither","matrix_profile"] vs ["filter1x","filter","dither"]; listing the matrix row whatever the engine's state fails it at enabled "0"; bite: ["filter1x","filter","dither"] at both, so red at enabled "1"
+2  KEEP  carried: matrix target, side A id "Room", side B id "" name "[Default]", live_active "Room" / "" with active "[Default]" / "Hall" -> abLit "a" / "b" / ""; comparing the slot id against the running profile name literally fails it at live_active "" with active "[Default]"; bite: abLit "" at all three
+3  KEEP  side A empty, live_profiles ["Hall","Room"], file_profiles Room+Study, side B holding Hall vs Room -> dd-opt data-v list ["","Room"] vs ["","Hall"]; offering every saved name fails it by listing Study in both; bite: 0 ab-slot elements and 0 dd-opt rows in both states
+4  KEEP  carried: side B id "" name "[Default]", side A holding Room vs Study -> (data-v, disabled) [("a",false),("b",false)] vs [("a",true),("b",false)]; checking the [Default] side against the daemon's loaded names fails it at ("b", true) in both states; bite: 0 ab-switch elements and no buttons in both states
+5  KEEP  reversal of my round-1 CUT (m): I took the note's rendered form to be reachable offline and it is not - tests/js/components/controls/combobox.test.js:4-8 states that the per-option tip elements exist only while the popup is open and that SSR reaches the closed state only, so the builder's own output is the only offline observation of the note and the (m) repair I named does not exist. profileTips at a name the wire carries a note for -> that note's text; at a name it carries none for -> ""; a tip builder keying on the option label or returning the profile name fails it at the profile whose name and note differ; bite: null stub returning { name:"", text:"", rows:[], chips:[] } fails at name "Room" with a stored note
 
-1  KEEP  carried
-2  KEEP  carried
-3  KEEP  carried
-4  KEEP  carried
-5  KEEP  profileTips(render option whose value is a saved profile name) -> text reading the wire's stored description for that name, trimmed; "" for a name the wire carries no description for; a builder keying the note on the option's label, or returning the profile's own name, fails it at a profile whose stored name and description differ by answering the name; bite: null stub fails at "Room" with a stored description - a module exporting profileTips and returning { name: "", text: "", rows: [], chips: [] } answers "" where the line asks for the stored text
-
-null stub: live/ab.js grows no matrix row, abRows stays the three PCM fields, abLit stays "", AB.js renders no .ab-slot dropdown and no .ab-switch for a matrix target, and profileTips returns its zero values.
+null stub: the matrix work absent - abRows keeps its three PCM fields, the card answers abField "" for a matrix_profile target so it renders no ab-slot and no ab-switch, and a ProfileCard module exporting profileTips returns { name: "", text: "", rows: [], chips: [] }.
   satisfies: none   fails: 1, 2, 3, 4, 5
-hard-coded stub: one fixed abRows list, abLit fixed at one letter, one fixed dd-opt data-v list, one fixed (data-v, disabled) pair list, and one fixed tip text, whatever /api/matrix, the slots and the descriptions wire carry.
+hard-coded stub: a table keyed on the fixtures each line gives - the four-row list for one /api/matrix payload and the three-row list for the other, "a"/"b"/"" for the three live_active strings, the two option lists for the two side-B picks, the two disabled pairs for the two side-A picks, and a constant note string for the name "Room". Each key is the wire fact the line names (the enabled flag, the running profile, the other side's pick, whether the profile was loaded), so the table must read the wire to answer, and line 5 names no literal for a table to hold.
   satisfies: none   fails: 1, 2, 3, 4, 5
 
 survives: 5
 
-notes:
-- line 5 is not a delta on tests/js/store/descriptions.test.js: that suite pins descriptionFor(name).text at :126 and null at :131 and :136, a different exported function taking a profile name, answering null rather than "" and never keyed on a render option's value. `grep -rn -e profileTips -e descriptionFor tests/js` returns that file only, as the return said.
-- residual gap the owner should see: line 5 pins the builder's output, and lines 3 and 4 pin the dropdown and the switch, but nothing offline pins that the ab-slot dropdown is handed profileTips at all - an implementation that builds correct tips and never passes them to the matrix dropdown keeps all five lines green. Whether any closed-state SSR reading would see the wiring is a fact about hqptuner/static/components/live/AB.js that I am barred from reading; if one exists, it belongs in a later block, and if none does it is a browser hand-back item under docs/testing.md "Branches that cannot be reached".
-- the block as sent carries kind, brief and behavior lines only: no public entry points, no wire facts, no fixtures and no changelog line. The approved file therefore carries none, and the blind writer gets no entry-point list. This was true of the block in round 1 as well and is not a finding I may spend a pass on; it is the owner's to settle before the writer is briefed.
+notes
+- Withdrawn in full: my round-1 (m) finding and the line-5 restatement it demanded. Citation tests/js/components/controls/combobox.test.js:4-8 settles it in a file I can read; wiring the note into the open popup is a browser hand-back item, not an offline line.
+- Line 5's "trimmed" still pins formatting (docs/testing.md rule 11). Not held against the block: the line bites without it. The writer seeds the note fixture with no surrounding whitespace, so nothing in the test turns on the trim.
+- For the owner, not judged under any check here: the block carries no public entry points, no wire facts, no fixtures and no changelog line. The testsmith is blind, and lines 2, 3 and 4 need the matrix wire shape and the slot/target setters named; CHANGELOG.md is a user-visible change under the repo sheet.
+- Unread: where profileTips lands and whether the AB card reuses it are in hqptuner/, denied to me; line 5 is judged on the surface it states.
