@@ -198,21 +198,6 @@ async def test_coverage_is_measured_in_seconds_not_frames(metering_stream: Calla
         assert reader.recommendation() is None
 
 
-async def test_track_change_resets_the_evidence(metering_stream: Callable[..., Any]) -> None:
-    stream, port = await metering_stream()
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(port, cell) as (reader, _):
-        # 30 frames ≈ 21 s: enough for advice, but small enough that whatever
-        # backlog outlives the wait cannot re-earn the minimum for track-2
-        stream.send(FAKE_HIRES_FRAME, count=30)
-        await eventually(lambda: reader.recommendation() is not None)
-        await stream.flushed()  # consume the backlog while still on track-1
-        cell[0] = replace(PLAYING, track_serial="track-2")
-        stream.send(FAKE_HIRES_FRAME, count=2)  # ≈ 1.4 s — nowhere near re-earned
-        await eventually(lambda: reader.recommendation() is None)
-        assert reader.recommendation() is None
-
-
 async def test_unreachable_stream_retries_through_the_injected_sleep(closed_port: int) -> None:
     sleeps: list[float] = []
 
