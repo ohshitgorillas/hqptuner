@@ -284,10 +284,12 @@ const profileOptions = (saved) => [{ value: "", label: "[Default]" }, ...saved.m
 // the box's in-flight draft is the typist's, and it reaches the store on the
 // pause the editor already flushes on.
 /**
+ * One profile row's tip: what the user wrote about that profile.
+ *
  * @param {import("../controls/comborows.js").RenderOption} o
  * @returns {import("../controls/Combobox.js").TipContent}
  */
-const profileTips = (o) => ({
+export const profileTips = (o) => ({
   name: "",
   text: (descriptionFor(String(o.value))?.text || "").trim(),
   rows: [],
