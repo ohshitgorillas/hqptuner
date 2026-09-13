@@ -87,7 +87,7 @@ async def run(mgr: ConnectionManager, interval: float) -> None:
     """Act once per tick until the task is cancelled, which is how the lifespan stops it.
 
     A loop of its own rather than a step inside the manager's poll: what auto-pilot reads is the metering reader's
-    latched verdict, and the reader is a background task for the same reason. The cadence follows the status poll
+    live verdict, and the reader is a background task for the same reason. The cadence follows the status poll
     because everything the decision reads is refreshed by it, and ticking faster would only re-ask the same question.
     The wait is the manager's own, which the test suite virtualizes (``docs/testing.md`` §7).
     """
