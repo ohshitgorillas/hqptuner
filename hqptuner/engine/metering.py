@@ -43,20 +43,18 @@ RECONNECT_DELAY = 5.0
 # of its own beyond the staleness of the status it reads.
 IDLE_RECHECK = 1.0
 # Ingest every Nth frame (~43/s at 44.1k). The aggregate folds minima over
-# seconds of coverage; a quarter of the hops carries the same verdict at a
+# a second of coverage; a quarter of the hops carries the same verdict at a
 # quarter of the CPU.
 DECIMATE = 4
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
 
-# The detector's persistence window: per-bin minima are folded into blocks of
-# BLOCK_SECONDS coverage, and the window spectrum exists once WINDOW_BLOCKS
-# full blocks have been earned (~30 s). A tone must persist through the whole
-# window to survive the minimum — long enough that a sustained musical partial
-# cannot fake it, short enough that a bias tone is caught within the first
-# minute of a track.
-BLOCK_SECONDS = 5.0
-WINDOW_BLOCKS = 6
+# The detector's persistence window: the per-bin minimum spans the most recent
+# ingested hops whose coverage sums to WINDOW_SECONDS, and exists once that much
+# has been earned. The window is stated in seconds rather than in hops because
+# hop length follows the source rate. A tone must persist through the whole
+# window to survive the minimum.
+WINDOW_SECONDS = 1.0
 # Frames quieter than this on every channel (RMS dBFS) are kept out of the
 # minimum: digital silence between songs carries no tone either, and one such
 # frame would collapse every bin's minimum to the floor.
@@ -119,56 +117,41 @@ def _int(value: str | None) -> int | None:
 class SpectralAggregate:
     """Per-track windowed per-bin minimum power spectrum.
 
-    The minimum is kept block-wise: each BLOCK_SECONDS of coverage folds into
-    one per-bin-min array, the last WINDOW_BLOCKS of which form the detector's
-    persistence window. Silent frames never touch the minimum (they carry no
-    signature either), and a block that saw only silence is dropped rather than
-    pushed.
+    The window is the shortest run of the most recent ingested hops whose
+    coverage still reaches WINDOW_SECONDS; the oldest hop is dropped once the
+    ones after it cover the window on their own. Silent frames never touch the
+    minimum (they carry no signature either) and their coverage is not counted,
+    so silence cannot age the window out.
     """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
-        """Start an empty aggregate fixed to one frame geometry: no blocks, no coverage yet."""
+        """Start an empty aggregate fixed to one frame geometry: no hops, no coverage yet."""
         self.bins = bins
         self.bandwidth = bandwidth
         self.frames = 0
         self.seconds = 0.0
-        self._blocks: deque[list[float]] = deque(maxlen=WINDOW_BLOCKS)
-        self._block_min: list[float] | None = None
-        self._block_seconds = 0.0
+        self._hops: deque[tuple[list[float], float]] = deque()
+        self._coverage = 0.0
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
-        """Fold one frame's per-bin power, unless silent, into the current block's minimum.
+        """Push one frame's per-bin power, unless silent, onto the window and drop whatever it ages out.
 
-        Once the block has BLOCK_SECONDS of coverage it is pushed to the window and a fresh one starts; a block that
-        saw only silent frames is dropped instead of pushed.
+        A silent frame still counts toward frames and seconds, but neither joins the window nor covers any of it.
         """
         self.frames += 1
         self.seconds += covered_seconds
-        if not silent:
-            if self._block_min is None:
-                self._block_min = list(mags_sq)
-            else:
-                block = self._block_min
-                for i, p in enumerate(mags_sq):
-                    block[i] = min(block[i], p)
-        self._block_seconds += covered_seconds
-        if self._block_seconds >= BLOCK_SECONDS:
-            if self._block_min is not None:
-                self._blocks.append(self._block_min)
-            self._block_min = None
-            self._block_seconds = 0.0
+        if silent:
+            return
+        self._hops.append((list(mags_sq), covered_seconds))
+        self._coverage += covered_seconds
+        while self._hops and self._coverage - self._hops[0][1] >= WINDOW_SECONDS:
+            self._coverage -= self._hops.popleft()[1]
 
     def window_min_db(self) -> list[float] | None:
-        """Per-bin minimum (dB) over the last full persistence window, or None until WINDOW_BLOCKS full blocks exist.
-
-        The current partial block joins the minimum too — it can only tighten it, never fake persistence.
-        """
-        if len(self._blocks) < WINDOW_BLOCKS:
+        """Per-bin minimum (dB) over the window, or None until WINDOW_SECONDS of non-silent coverage exists."""
+        if self._coverage < WINDOW_SECONDS:
             return None
-        arrays: list[list[float]] = list(self._blocks)
-        if self._block_min is not None:
-            arrays.append(self._block_min)
-        mins = [min(vals) for vals in zip(*arrays, strict=True)]
+        mins = [min(vals) for vals in zip(*(mags_sq for mags_sq, _ in self._hops), strict=True)]
         return [10 * math.log10(p) if p > 0 else -200.0 for p in mins]
 
 
