@@ -189,7 +189,7 @@ async def test_a_paused_engine_buys_no_coverage(metering_stream: Callable[..., A
 async def test_coverage_is_measured_in_seconds_not_frames(metering_stream: Callable[..., Any]) -> None:
     stream, port = await metering_stream()
     cell: list[TrackContext | None] = [PLAYING]
-    short_hop = frame(fake_hires_96k(), 48000.0, 0.05)  # 60 frames but only ≈ 3 s
+    short_hop = frame(fake_hires_96k(), 48000.0, 0.01)  # 60 frames but only ≈ 0.6 s
     async with running_reader(port, cell) as (reader, _):
         stream.send(short_hop, count=60)
         await asyncio.wait_for(stream.flushed(), 3.0)
