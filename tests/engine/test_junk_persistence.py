@@ -22,7 +22,7 @@ from fake_metering import MeteringStream, frame
 from junk_spectra import BINS as WIRE_BINS
 from junk_spectra import FAKE_HIRES_FRAME, cutoff_96k, flat_fullband_96k, spur_min_176
 
-from hqptuner.engine.metering import DECIMATE, SpectralAggregate, TrackContext
+from hqptuner.engine.metering import BLOCK_SECONDS, DECIMATE, WINDOW_BLOCKS, SpectralAggregate, TrackContext
 
 # --- SpectralAggregate: the windowed minimum -------------------------------------
 
@@ -47,54 +47,36 @@ LOW_FRAME = _agg_frame(-90.0)
 SILENT_FRAME = [_power(-120.0)] * AGG_BINS  # all-floor: what a silent hop carries
 
 
-def _bin_reading(aggregate: SpectralAggregate, bin_index: int) -> float | None:
-    """One bin of the windowed minimum in whole dB, or None while the window is
-    unearned. Rounding stands in for the tolerance an approx comparison would
-    carry, so a reading and a bare None can be compared side by side."""
-    curve = aggregate.window_min_db()
-    return None if curve is None else round(curve[bin_index], 1)
-
-
-@pytest.mark.parametrize(
-    ("hops", "coverage", "expected"),
-    [
-        (4, 0.05, None),
-        (20, 0.04, None),
-        (4, 0.24, None),
-        (2, 0.5, -20.0),
-        (4, 0.25, -20.0),
-    ],
-)
-def test_the_window_is_earned_by_summed_coverage_not_by_hop_count(
-    hops: int, coverage: float, expected: float | None
-) -> None:
+def test_window_min_is_none_before_the_window_is_earned() -> None:
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
-    for _ in range(hops):
-        aggregate.add(HIGH_FRAME, coverage)
-    assert _bin_reading(aggregate, _CONSTANT_BIN) == expected
+    for _ in range(WINDOW_BLOCKS - 1):  # 25 s — one block short of the window
+        aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
+    assert aggregate.window_min_db() is None
 
 
-def test_the_window_drops_the_oldest_hop_as_newer_hops_arrive() -> None:
+def test_window_min_appears_once_the_window_is_earned() -> None:
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
-    for mags in (LOW_FRAME, LOW_FRAME, HIGH_FRAME):
-        aggregate.add(mags, 0.5)
-    with_the_low_hop_in_the_window = _bin_reading(aggregate, _VARYING_BIN)
-    aggregate.add(HIGH_FRAME, 0.5)  # the second low hop ages out of the window
-    assert (with_the_low_hop_in_the_window, _bin_reading(aggregate, _VARYING_BIN)) == (-90.0, -20.0)
+    for _ in range(WINDOW_BLOCKS):  # exactly the 30 s window, to the block
+        aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
+    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 def _earned_alternating() -> SpectralAggregate:
-    """High and low frames alternating, half a second of coverage apiece, well
+    """High and low frames alternating, a full block of coverage apiece, well
     past the persistence window."""
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
-    for _ in range(4):
-        aggregate.add(HIGH_FRAME, 0.5)
-        aggregate.add(LOW_FRAME, 0.5)
+    for _ in range(WINDOW_BLOCKS + 1):
+        aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
+        aggregate.add(LOW_FRAME, BLOCK_SECONDS)
     return aggregate
 
 
 def test_a_bin_fed_the_same_power_reports_that_level() -> None:
     assert (_earned_alternating().window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+
+
+def test_an_intermittent_bin_reports_its_low_level() -> None:
+    assert (_earned_alternating().window_min_db() or [])[_VARYING_BIN] == pytest.approx(-90.0, abs=0.5)
 
 
 # --- SpectralAggregate: silent frames ---------------------------------------------
@@ -115,14 +97,12 @@ def test_silent_frames_count_toward_seconds() -> None:
     assert _tone_plus_silence().seconds == pytest.approx(10.0)
 
 
-def test_silent_hops_buy_the_window_no_coverage() -> None:
+def test_silent_frames_never_lower_the_window_min() -> None:
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
-    aggregate.add(LOW_FRAME, 0.5)
-    aggregate.add(SILENT_FRAME, 0.5, silent=True)
-    aggregate.add(SILENT_FRAME, 0.5, silent=True)
-    on_half_a_second_of_tone = _bin_reading(aggregate, _VARYING_BIN)
-    aggregate.add(HIGH_FRAME, 0.5)  # the second tone hop earns the window
-    assert (on_half_a_second_of_tone, _bin_reading(aggregate, _VARYING_BIN)) == (None, -90.0)
+    for _ in range(WINDOW_BLOCKS + 1):  # tone coverage alone earns the window
+        aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
+        aggregate.add(SILENT_FRAME, BLOCK_SECONDS, silent=True)
+    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 # --- MeteringReader: the verdict on the wire --------------------------------------
@@ -133,10 +113,6 @@ FLAT_FULLBAND_FRAME = frame(flat_fullband_96k(), 48000.0, 0.7)
 
 #: A 96 kHz container whose content stops dead at 22.5 kHz, 0.7 s per frame.
 CUT_22K5_FRAME = frame(cutoff_96k(22500.0), 48000.0, 0.7)
-
-#: The same 22.5 kHz ceiling declaring 0.2 s per wire frame, so one ingested hop
-#: covers 0.8 s of playback and two cover 1.6 s.
-CUT_22K5_SHORT_FRAME = frame(cutoff_96k(22500.0), 48000.0, 0.2)
 
 
 async def _digest(stream: MeteringStream) -> None:
@@ -162,7 +138,7 @@ async def _ingested(stream: MeteringStream, reader: Any, hops: int) -> None:
 
 async def _earn_20k(stream: MeteringStream, reader: Any) -> None:
     """Earn the brick-wall verdict from a bounded batch, wire fully drained."""
-    stream.send(FAKE_HIRES_FRAME, count=60)  # ≈ 42 s of covered playback
+    stream.send(FAKE_HIRES_FRAME, count=60)  # ≈ 42 s, past the 30 s window
     await eventually(lambda: reader.recommendation() is not None)
     await _digest(stream)
 
@@ -171,11 +147,13 @@ async def test_a_verdict_follows_the_window_and_does_not_outlive_it(metering_str
     stream, port = await metering_stream()
     cell: list[TrackContext | None] = [PLAYING]
     async with running_reader(port, cell) as (reader, _):
-        stream.send(CUT_22K5_FRAME, count=DECIMATE)  # one hop, 2.8 s of the 22.5 kHz ceiling
-        await _ingested(stream, reader, 1)
+        for _ in range(6):  # every block's minimum carries the 22.5 kHz ceiling
+            stream.send(CUT_22K5_FRAME, count=DECIMATE)
+            stream.send(FLAT_FULLBAND_FRAME, count=DECIMATE)
+        await _ingested(stream, reader, 12)  # 48 wire frames, one hop per DECIMATE
         earned = reader.recommendation() or {}
-        stream.send(FLAT_FULLBAND_FRAME, count=DECIMATE * 2)  # further coverage, no ceiling
-        await _ingested(stream, reader, 3)
+        stream.send(FLAT_FULLBAND_FRAME, count=48)  # a further window, no ceiling
+        await _ingested(stream, reader, 24)
         assert (earned["filter"], reader.recommendation()) == ("20k", None)
 
 
@@ -183,11 +161,11 @@ async def test_no_verdict_until_the_window_is_covered(metering_stream: Callable[
     stream, port = await metering_stream()
     cell: list[TrackContext | None] = [PLAYING]
     async with running_reader(port, cell) as (reader, _):
-        stream.send(CUT_22K5_SHORT_FRAME, count=DECIMATE)  # one hop, 0.8 s: short of the window
-        await _ingested(stream, reader, 1)
+        stream.send(CUT_22K5_FRAME, count=30)  # ≈ 19.6 s, short of the window
+        await _ingested(stream, reader, 7)
         early = reader.recommendation()
-        stream.send(CUT_22K5_SHORT_FRAME, count=DECIMATE)  # a second hop, 1.6 s of the same ceiling
-        await _ingested(stream, reader, 2)
+        stream.send(CUT_22K5_FRAME, count=30)  # ≈ 42 s of the same ceiling
+        await _ingested(stream, reader, 15)
         assert (early, (reader.recommendation() or {})["filter"]) == (None, "20k")
 
 
