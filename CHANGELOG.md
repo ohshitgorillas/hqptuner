@@ -8,6 +8,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The Setting Switcher compares matrix profiles.** While the matrix engine is engaged, a fourth setting switches between two saved matrix profiles, and each profile's notes show on hover in both dropdowns.
 
+### Changed
+
+- **The junk-filter advisor answers after about a second of playback.** The detector needed thirty seconds of covered playback before its first verdict, so the advisor chip and auto-pilot sat quiet through the opening of every track. They now read the quietest level in each bin over the last second of non-silent audio, and answer about a second in.
+
 ### Fixed
 
 - **The junk-filter advisor names a track's real content ceiling.** A track whose content fades out gradually below the container's limit read differently from one minute of it to the next, so auto-pilot could settle on the 30k filter for a track whose content stops around 23 kHz, or swap between corners mid-track. The ceiling is now read from a fixed reference band, and cutoffs as low as 13 kHz are recognized.
