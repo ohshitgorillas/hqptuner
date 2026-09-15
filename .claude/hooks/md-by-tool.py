@@ -40,6 +40,40 @@ EXEMPT_HEADS = {"git", "rm", "make", "pre-commit", "mv", "cp", "install"}
 #: script paths that are markdown gates or fixers in their own right
 EXEMPT_SCRIPTS = ("scripts/gates/", "triviajudge-", "md-softwrap.py", "skills/caveman-compress")
 
+#: text that can write, in a stage whose targets this parser cannot read. An
+#: unreadable stage is refused only when a mark appears in the text that holds
+#: it: an inline script or an `xargs` command with no write verb and no
+#: redirection writes nothing, wherever it names a markdown path. The list is a
+#: deny-list, so an unrecognized write verb reads as no mark and passes -- the
+#: residual hole is an inline script whose write hides behind a call into a
+#: module (`python3 -c "import gen; gen.run()"`).
+WRITE_MARK = re.compile(
+    r">"
+    r"|\bopen\s*\("
+    r"|\bwrite\w*"
+    r"|\btruncate\b"
+    r"|\bdump\w*"
+    r"|\bunlink\b"
+    r"|\bmkdir\b"
+    r"|\brename\b"
+    r"|\breplace\b"
+    r"|\bfile\s*="
+    r"|\bshutil\b"
+    r"|\bsystem\s*\("
+    r"|\bpopen\b"
+    r"|\btee\b"
+    r"|\btouch\b"
+    r"|\bsed\b"
+    r"|\bmv\b"
+    r"|\bcp\b"
+    r"|\binstall\b"
+    r"|\bchmod\b"
+    r"|\bremove\b"
+    r"|\bmove\b"
+    r"|\bcopy\w*"
+    r"|\bsave\w*"
+)
+
 _WHY = (
     "Markdown is written with the Write or Edit tool, never from the shell. The soft-wrap "
     "and changelog-style gates run from those tools' PostToolUse payload; a shell write to "
@@ -59,6 +93,27 @@ _free = _load("free_bash")
 _shapes = _load("shell_shapes")
 
 
+def _unreadable_md_write(stage: str, body: str, cmd: str, unknown: str) -> bool:
+    """Does a stage whose targets cannot be read look like a markdown write?
+
+    Two tests, on the only evidence there is: the text that holds the stage,
+    and the reason the targets are unreadable. A `STAGE` reason -- an inline
+    script, a heredoc -- carries the whole program in the stage text and its
+    body, so a markdown path the program writes is spelled in one of the two.
+    The `STDIN` reason of an `xargs` takes its paths off the pipe, so the whole
+    command is the text. Past that the text has to hold something that can
+    write at all; a program that only prints writes nothing, whatever it names.
+
+    The heredoc case stays denied. `python3 - <<EOF` rewriting a plan spells
+    the plan in the body and opens it there, so both tests find it in the body
+    alone. What this lets through is the shape that only quotes: a markdown
+    name inside an inline script that prints it, matches it or passes it to a
+    reader.
+    """
+    text = f"{stage}\n{body}" if unknown == _shapes.STAGE else cmd
+    return bool(MD_PATH.search(text) and WRITE_MARK.search(text))
+
+
 def verdict(cmd: str) -> str | None:
     """Why this command is refused, or None to let it through.
 
@@ -67,9 +122,11 @@ def verdict(cmd: str) -> str | None:
     with the message in a heredoc names one and writes none, and
     `cat > notes.txt <<EOF` naming a plan in its body writes `notes.txt`. So
     `stage_targets` answers for each stage, and a stage whose targets this
-    parser cannot read is refused rather than guessed at -- which is what keeps
+    parser cannot read falls back to its own text, through
+    `_unreadable_md_write` -- which is what keeps
     `python3 - <<EOF` rewriting a plan, and `/usr/bin/env mv` around the head
-    exemption, on the denied side.
+    exemption, on the denied side, while an inline script that only quotes a
+    markdown name passes.
 
     The `MD_PATH` pre-check stays, as the cheap answer to "is markdown in play
     at all". Without it the fail-closed branch would refuse every `python3 -c`
@@ -89,9 +146,9 @@ def verdict(cmd: str) -> str | None:
         if words and os.path.basename(words[0]) in EXEMPT_HEADS:
             continue
         targets, unknown = _shapes.stage_targets(stage, body)
-        if unknown:
-            return _WHY
         if any(t.endswith(".md") for t in targets):
+            return _WHY
+        if unknown and _unreadable_md_write(stage, body, cmd, unknown):
             return _WHY
     return None
 
@@ -128,6 +185,8 @@ def self_test() -> int:
         "python3 tools/gen.py docs/out.md",
         "python3 - <<'EOF'\nopen('docs/plan.md', 'w').write('x')\nEOF",
         "/usr/bin/env mv docs/a.md docs/b.md",
+        "python3 -c \"open('docs/plan.md', 'w').write('x')\"",
+        "grep -rl foo docs | xargs sed -i 's/a/b/' docs/x.md",
     ]
     allow = [
         "cp scratch.md docs/plan.md",
@@ -142,6 +201,9 @@ def self_test() -> int:
         ".venv/bin/triviajudge-md docs/x.md",
         "make check",
         "echo hi > out.txt",
+        "python3 -c \"print('docs/plan.md')\"",
+        "ls docs/*.md | xargs cat",
+        "python3 - <<'EOF'\nprint('docs/plan.md')\nEOF",
     ]
     bad = [c for c in deny if verdict(c) is None] + [c for c in allow if verdict(c) is not None]
     for c in bad:
