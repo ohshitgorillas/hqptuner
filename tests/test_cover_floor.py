@@ -217,13 +217,26 @@ async def test_reasserting_a_chain_sends_a_listed_value_and_forgets_an_unlisted_
     assert (report, manager.readings.live.chain["pcm"]) == expected
 
 
+def _readings(
+    manager: ConnectionManager,
+) -> tuple[dict[str, str], dict[str, str], dict[str, list[dict[str, str]]]]:
+    """The manager's state, status and enums, each present after a load."""
+    state = manager.readings.state
+    status = manager.readings.status
+    enums = manager.readings.enums
+    if state is None or status is None or enums is None:
+        raise RuntimeError("readings not loaded")
+    return state, status, enums
+
+
 def _no_chain(manager: ConnectionManager) -> ConnectionManager:
     """The same manager with its readings naming no active chain: the mode at
     ``[source]`` and the status frame carrying neither active_mode nor
     active_rate."""
-    manager.readings.state["mode"] = "0"
-    manager.readings.status.pop("active_mode", None)
-    manager.readings.status.pop("active_rate", None)
+    state, status, _enums = _readings(manager)
+    state["mode"] = "0"
+    status.pop("active_mode", None)
+    status.pop("active_rate", None)
     return manager
 
 
@@ -251,10 +264,10 @@ async def test_routed_fields_are_remembered_under_the_active_chain_only(
 async def test_a_field_the_enumeration_cannot_name_is_left_out_of_the_snapshot(live_manager: LiveManager) -> None:
     manager, _log, _state = await live_manager()
     before = await _loaded(manager)
-    state = manager.readings.state
+    state, _status, enums = _readings(manager)
     state["mode"] = "99"  # a mode index no enumerated mode carries
     del state["shaper"]  # a routable field's state attribute gone
-    next(item for item in manager.readings.enums["filters"] if item["index"] == "0").pop("value")
+    next(item for item in enums["filters"] if item["index"] == "0").pop("value")
     del state["adaptive"]
     after = live_snapshot(manager) or {}
     assert sorted(before) == sorted([*after, "adaptive_volume", "dither", "filter", "filter1x", "mode"])
