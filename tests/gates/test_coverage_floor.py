@@ -49,24 +49,23 @@ GATE = _load_gate_module()
 CHECK = GATE.check
 
 
-def _a_shipped_exemption_key() -> str:
-    """One path out of the gate's own exemption mapping — what ``exempt=None`` falls back to.
+def _the_shipped_exemption_keys() -> list[str]:
+    """Every path out of the gate's own exemption mapping — what ``exempt=None`` falls back to.
 
     Found by looking for it rather than by name: the contract is that the gate
     ships exemptions and uses them when the caller passes none, not that they
     live under any particular attribute.
     """
-    keys = [
+    return [
         key
         for value in vars(GATE).values()
         if isinstance(value, dict)
         for key in value
         if isinstance(key, str) and key.endswith(".py")
     ]
-    return keys[0]  # an empty list raises here: the gate ships no exemption mapping to fall back to
 
 
-SHIPPED_EXEMPTION = _a_shipped_exemption_key()
+SHIPPED_EXEMPTIONS = _the_shipped_exemption_keys()
 
 
 def lines_naming(out: str, path: str) -> list[str]:
@@ -219,5 +218,5 @@ def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: 
     percentage far under the floor: only the shipped exemptions can turn that
     into a pass, and a stale-exemption check finds nothing to complain about.
     """
-    report = write_report(tmp_path, {SHIPPED_EXEMPTION: 3.0})
+    report = write_report(tmp_path, dict.fromkeys(SHIPPED_EXEMPTIONS, 3.0))
     assert CHECK(report, 90) == 0

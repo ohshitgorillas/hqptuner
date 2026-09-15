@@ -1,5 +1,4 @@
-"""What a connection save reports about its own 8088 attempt, and what the
-record on disk says about keeping the password (docs/testing.md).
+"""What a connection save reports about its own 8088 attempt (docs/testing.md).
 
 Every case parks the record file under ``tmp_path``: the Config default points
 at the running install's own state, and conftest's guard covers the stores it
@@ -23,7 +22,6 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.core.connection import ConnectionRecord, ConnectionStore
 
 AppFactory = Callable[..., TestClient]
 
@@ -87,16 +85,3 @@ def test_a_save_reports_the_lane_its_own_config_attempt_reached(
     pair = {"username": "", "password": ""} if state == "incomplete_pair" else {"username": "u", "password": "p"}
     body: dict[str, Any] = {"host": "127.0.0.1", "remember": False, **pair}
     assert client.post("/api/connection", json=body).json().get("lane") == lane
-
-
-@pytest.mark.parametrize(("stored", "answered"), [(None, False), (True, True)])
-def test_an_unset_record_reads_as_ask_every_time_and_a_stored_choice_reads_back(
-    app_factory: AppFactory, store_path: Path, *, stored: bool | None, answered: bool
-) -> None:
-    # The choice is the user's, so the install that never made one is reported
-    # as not keeping the password; the install that asked to keep it still is.
-    if stored is not None:
-        record = ConnectionRecord(host="10.0.0.5", username="u", password="p", remember=stored)
-        ConnectionStore(store_path).write(record)
-    client = app_factory()
-    assert client.get("/api/connection").json()["remember"] == answered

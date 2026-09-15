@@ -14,6 +14,7 @@ import fake_http
 import pytest
 from conftest import DaemonFactory, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, serve
+from fake_metering import MeteringStream
 
 from hqptuner.engine.control import ControlClient
 
@@ -176,3 +177,21 @@ def restore_recovering_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses the first two POST /restore arrivals, then accepts — the restart
     # window a retrying lane is supposed to ride through
     yield from fake_http.spawn(fake_http.state(_restore_refusals=2))
+
+
+# --- fake metering stream (port 4322 lane), implemented in fake_metering ----
+
+
+@pytest.fixture
+async def metering_stream() -> AsyncIterator[Callable[..., Any]]:
+    """Fake 4322 streams on demand, each closed at teardown."""
+    streams: list[MeteringStream] = []
+
+    async def build(repeat: bytes | None = None) -> tuple[MeteringStream, int]:
+        stream = MeteringStream(repeat=repeat)
+        streams.append(stream)
+        return stream, await stream.start()
+
+    yield build
+    for stream in streams:
+        await stream.close()
