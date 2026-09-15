@@ -1,0 +1,62 @@
+slug: changelog-judge-wiring
+kind: new
+
+brief:
+> Wire up the Trivia Judge package's Changelog sweep (wherein it checks the changelog for duplicates, superseded work, etc) to ...hmm. where should it go? scripts/bump.sh?
+> we also need to adjust the changelog rules, agents can now freely write changelog entries as they're reviewed by the judge
+> Wire the gate, then relax
+> free is fine: I see it regardless
+> strike the no tests thing, I changed my mind
+
+1. Starting at `version = "1.2.3"` in `pyproject.toml`, with one bullet under `## [Unreleased]` in `CHANGELOG.md`, a `scripts/bump.sh --patch` run finishes with `pyproject.toml` reading `version = "1.2.4"` where `.venv/bin/triviajudge-changelog` exits 0, `version = "1.2.3"` where it exits 1. (Two cases, parametrized, one assertion each.)
+   kills: a wiring that stops every bump whatever the judge answers — an unconditional `die` after the call, or `! .venv/bin/triviajudge-changelog --release || die` — which reads as wired, passes any line that only measures the flagged case, and cuts no release again.
+   bite: HEAD reads `1.2.4` in both cases. Miniature repo holding a copy of HEAD's `scripts/bump.sh`, a stub at `.venv/bin/triviajudge-changelog` logging its argv, `pyproject.toml` and `hqptuner/__init__.py` agreeing at `1.2.3`, one bullet under `## [Unreleased]`, clean tree on branch `dev`. `STUB_EXIT=0 bash scripts/bump.sh --patch` -> exit status 0, `pyproject.toml` reads `version = "1.2.4"`, `git log --oneline -1` reads `b158ebd release: 1.2.4`, stub log empty. `STUB_EXIT=1 bash scripts/bump.sh --patch` -> exit status 0, `pyproject.toml` reads `version = "1.2.4"`, `git log --oneline -1` reads `aea705c release: 1.2.4`, stub log empty.
+   existing: none, `grep -rn "bump\.sh\|triviajudge" tests/` -> no output, exit 1.
+
+2. With a `.venv/bin/triviajudge-changelog` that exits 1 where its argv is exactly `--release`, exits 0 for every other argv, `scripts/bump.sh --patch --dry-run` exits 1.
+   kills: wiring `--head`, which judges the bullets HEAD added, so a duplicate or a superseded entry already sitting in the section passes the bump untouched.
+   bite: HEAD exits 0. Same miniature repo, stub replaced by the argv-sensitive one, `bash scripts/bump.sh --patch --dry-run` -> exit status 0, `[2/4] rewrite` present once, no `FAIL:` line, stub log empty.
+   existing: none, `grep -rn "bump\.sh\|triviajudge" tests/` -> no output, exit 1.
+
+--- reviewer ---
+READY
+discriminates: sweep on the version written by a `--patch` run, keyed on the judge's exit status - `1.2.4` where the judge exits 0, `1.2.3` where it exits 1; two inputs to one invariant, not two design literals.
+
+re-review: round 1 findings were three STRICKEN lines under the block-level discrimination
+defect, with repairs (A) and (B) named. Both returned as named repairs with changed text:
+(A) is the new line 1, (B) is the new line 2. Finding discharged. (d) re-checked
+independently rather than taken on the return's word: the always-abort wiring passes 2 (the
+argv-sensitive stub exits 1 on `--release`, so a script that aborts on every run still exits
+1) and fails 1; the `--head` wiring passes 1 (line 1's stub keys on exit status, not argv)
+and fails 2. Two behaviors, both kept.
+
+1  ADMITTED  `--patch` from `version = "1.2.3"` with one bullet under `## [Unreleased]`, judge exiting 0 -> `version = "1.2.4"`; judge exiting 1 -> `version = "1.2.3"`; an unconditional abort after the call fails it at the judge-exiting-0 case, where the file still reads `1.2.3`; bite: HEAD reads `1.2.4` in both cases, measured with `STUB_EXIT=0` and `STUB_EXIT=1` runs in the miniature repo.
+2  ADMITTED  `--patch --dry-run` against a judge exiting 1 only where its argv is exactly `--release` -> exit status 1; `--head` wiring fails it there, since that judge answers 0 to `--head` and the run exits 0; bite: HEAD exits 0, stub log never written.
+
+null stub: the release script unwired as at HEAD -- judge never invoked, the bump authors the release whatever the changelog holds.
+  satisfies: none   fails: 1, 2
+hard-coded stub: ignore the judge's status entirely, write the literal `version = "1.2.4"`, exit 0.
+  satisfies: none   fails: 1 (the judge-exiting-1 case reads `1.2.4`), 2 (exits 0)
+
+survives: 2
+
+note (for the owner, not a ground of the verdict): line 1's expected `1.2.4` is reachable by
+a wiring that hard-codes the next version rather than computing it, because the fixture
+starts at `1.2.3` and nothing in this repo pins the increment. That surface is HEAD's, not
+this change's, so it is not held against the block; a fixture starting at `1.2.9`, expecting
+`1.2.10`, would close it for free if the writer wants it.
+
+note (writer, not a line defect): both lines drive a real `git` in a scratch repository, and
+line 1's pass case ends in a commit. The run needs its own identity and config rather than
+the ambient one -- rule 16 -- so the committer is passed on the command rather than read
+from the environment.
+
+note (unread file): the `bite:` values come from a file I am barred from reading and are
+taken as measured. I verified the `existing:` claim myself --
+`grep -rn "bump|triviajudge|changelog" tests/` returns no hit on the release script or on
+triviajudge; `tests/gates/test_changelog_style.py` covers the changelog style gate, a
+different surface.
+
+note (brief, carried from round 1): the relaxation sentences ("agents can now freely write
+changelog entries", "free is fine", "strike the no tests thing") name rule prose, not a
+caller-observable behavior; they pin no line and are not outstanding under (m).
