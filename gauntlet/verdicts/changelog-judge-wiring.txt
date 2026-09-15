@@ -1,0 +1,2 @@
+RED 1: assert version_of(repo) == expected — AssertionError: assert '1.2.4' == '1.2.3' (case "the sweep flags the changelog")
+RED 2: assert run_bump(repo, "--patch", "--dry-run").returncode == 1 — AssertionError: assert 0 == 1
