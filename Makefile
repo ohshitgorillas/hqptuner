@@ -17,6 +17,7 @@ lint:
 	$(VENV)/python scripts/gates/check_nesting.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
 	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py' | grep -Ev '$(VENDORED)')
 	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/check_test_clocks.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/' | grep -Ev '$(VENDORED)')
 	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/' | grep -Ev '$(VENDORED)')
@@ -70,11 +71,14 @@ lint-js:
 # The coverage floor is per file and lives in the gate below, not in
 # --cov-fail-under. Second recipe line, so a failing suite reports first.
 # The junit report carries the suite's wall time; the third line holds it to
-# the last green run's (scripts/gates/check_suite_time.py).
+# the last green run's (scripts/gates/check_suite_time.py). The idle probe
+# measures each test's wall time against its CPU time and writes a second
+# report, which the fourth line holds per test (scripts/gates/check_idle.py).
 test:
-	$(VENV)/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
 	$(VENV)/python scripts/gates/check_coverage_floor.py
 	$(VENV)/python scripts/gates/check_suite_time.py
+	$(VENV)/python scripts/gates/check_idle.py
 
 test-live:
 	$(VENV)/pytest -m "not e2e" -q

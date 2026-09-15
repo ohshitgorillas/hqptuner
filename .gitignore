@@ -11,6 +11,10 @@ __pycache__/
 .pytest-junit.xml
 # last green run's wall time, the bar scripts/gates/check_suite_time.py holds the suite to
 .suite-time.json
+# per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/check_idle.py
+.idle-probe.json
+# the smallest idle each test has been measured at, the record that gate converges
+.idle-min.json
 htmlcov/
 
 # editor scratch — vim swap files for anything open in the tree

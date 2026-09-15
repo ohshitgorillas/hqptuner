@@ -77,9 +77,17 @@ repos:
         language: system
         types: [python]
         files: ^tests/
+      - id: test-clocks
+        name: no real clock under tests/
+        entry: .venv/bin/python scripts/gates/check_test_clocks.py
+        language: system
+        types: [python]
+        files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        entry: .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+        # `env` because pre-commit splits the entry and execs it directly rather
+        # than through a shell, so a bare assignment would be read as a program.
+        entry: env PYTHONPATH=scripts .venv/bin/pytest -m "not live and not e2e" -q -p idle_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
         language: system
         pass_filenames: false
         always_run: true
@@ -99,6 +107,15 @@ repos:
       - id: suite-time
         name: suite wall time against the last green run
         entry: .venv/bin/python scripts/gates/check_suite_time.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Reads the idle report the pytest hook writes; a red suite is not
+      # judged and not recorded, so this reports the red rather than a number.
+      - id: idle-time
+        name: per-test idle against the threshold
+        entry: .venv/bin/python scripts/gates/check_idle.py
         language: system
         pass_filenames: false
         always_run: true
