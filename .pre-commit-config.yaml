@@ -47,6 +47,11 @@ repos:
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
+        # shell_shapes.py is a kit file, copied whole from gauntlet and ported
+        # back by diff. Splitting it here would make every future port a merge
+        # by hand. Owner-approved, this path only; every other hook file stays
+        # under the cap and the ratchet.
+        exclude: ^\.claude/hooks/shell_shapes\.py$
       - id: no-barrels
         name: no re-export modules or trivial forwarders
         entry: .venv/bin/python scripts/gates/check_no_barrels.py

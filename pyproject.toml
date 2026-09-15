@@ -109,7 +109,7 @@ ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_th
 [tool.ruff]
 line-length = 120
 force-exclude = true
-extend-exclude = ["scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
+extend-exclude = [".claude/hooks", "scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
 target-version = "py312"
 
 [tool.black]

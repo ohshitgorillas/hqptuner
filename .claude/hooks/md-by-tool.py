@@ -9,10 +9,11 @@ if it stays untracked. (The trivia judge is the exception: it runs at Stop over
 the whole working tree and sees shell writes too.) Wired session-wide, so it
 binds every agent and subagent without anyone being reminded.
 
-Blocked: a Bash command that meters under free_bash.py and names a `.md` path
-outside quotes. Read-only commands (`cat`, `grep`, `sed -n`, `diff`) are free
-and pass. `git`, `rm`, `make`, `pre-commit` pass by head command: they move,
-delete, stage or gate markdown and add no prose. So does a call into
+Blocked: a Bash command with a stage that meters under free_bash.py and writes
+to a `.md` target. Read-only commands (`cat`, `grep`, `sed -n`, `diff`) are free
+and pass. `git`, `rm`, `make`, `pre-commit`, `mv`, `cp`, `install` pass by head
+command, stage by stage: they move, delete, stage or gate markdown and add no
+prose. So does a call into
 `scripts/gates/`, a `triviajudge-*` console script or `md-softwrap.py`, which
 are the gates themselves, and so does the `skills/caveman-compress` CLI,
 exempted by the owner: it rewrites prose in place and the caller runs
@@ -27,15 +28,15 @@ import importlib.util
 import json
 import os
 import re
-import shlex
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 #: a markdown path token
 MD_PATH = re.compile(r"(?<![\w.])[\w./~-]*\.md\b")
-#: head commands that touch markdown files without adding prose
-EXEMPT_HEADS = {"git", "rm", "make", "pre-commit"}
+#: head commands that touch markdown files without adding prose. `mv`, `cp` and
+#: `install` relocate prose; none of the four types a character of it.
+EXEMPT_HEADS = {"git", "rm", "make", "pre-commit", "mv", "cp", "install"}
 #: script paths that are markdown gates or fixers in their own right
 EXEMPT_SCRIPTS = ("scripts/gates/", "triviajudge-", "md-softwrap.py", "skills/caveman-compress")
 
@@ -55,34 +56,44 @@ def _load(name: str):
 
 
 _free = _load("free_bash")
-
-
-def _heads(cmd: str) -> list[str]:
-    """Basename of the first word of every &&/;/| segment."""
-    out = []
-    for seg in re.split(r"&&|\|\||;|\|", cmd):
-        try:
-            toks = shlex.split(seg, posix=True)
-        except ValueError:
-            toks = seg.split()
-        toks = [t for t in toks if "=" not in t or t.startswith("-")] or toks
-        if toks:
-            out.append(os.path.basename(toks[0]))
-    return out
+_shapes = _load("shell_shapes")
 
 
 def verdict(cmd: str) -> str | None:
-    """Why this command is refused, or None to let it through."""
-    masked = _free._mask(cmd) or cmd
-    if not MD_PATH.search(masked):
+    """Why this command is refused, or None to let it through.
+
+    The question is asked per stage, of what that stage writes *to*. A command
+    that names a `.md` path somewhere is not a markdown write: `git commit -m`
+    with the message in a heredoc names one and writes none, and
+    `cat > notes.txt <<EOF` naming a plan in its body writes `notes.txt`. So
+    `stage_targets` answers for each stage, and a stage whose targets this
+    parser cannot read is refused rather than guessed at -- which is what keeps
+    `python3 - <<EOF` rewriting a plan, and `/usr/bin/env mv` around the head
+    exemption, on the denied side.
+
+    The `MD_PATH` pre-check stays, as the cheap answer to "is markdown in play
+    at all". Without it the fail-closed branch would refuse every `python3 -c`
+    on this host. It reads the raw command, quoted text and heredoc bodies
+    included, because prose naming a plan is evidence that markdown is the
+    subject even where it is not a target. It decides nothing on its own: past
+    it, only a target or an unreadable stage denies.
+    """
+    if not MD_PATH.search(cmd):
         return None
     if _free.is_free_bash(cmd):
         return None
     if any(s in cmd for s in EXEMPT_SCRIPTS):
         return None
-    if all(h in EXEMPT_HEADS for h in _heads(masked)):
-        return None
-    return _WHY
+    for stage, body in _shapes.segments_with_bodies(cmd):
+        words = _shapes.command_words(_shapes.words_of(stage))
+        if words and os.path.basename(words[0]) in EXEMPT_HEADS:
+            continue
+        targets, unknown = _shapes.stage_targets(stage, body)
+        if unknown:
+            return _WHY
+        if any(t.endswith(".md") for t in targets):
+            return _WHY
+    return None
 
 
 def main() -> None:
@@ -115,9 +126,14 @@ def self_test() -> int:
         "printf 'x\\n' > docs/new.md",
         "cat >> notes.md <<'EOF'\nhello\nEOF",
         "python3 tools/gen.py docs/out.md",
-        "cp scratch.md docs/plan.md",
+        "python3 - <<'EOF'\nopen('docs/plan.md', 'w').write('x')\nEOF",
+        "/usr/bin/env mv docs/a.md docs/b.md",
     ]
     allow = [
+        "cp scratch.md docs/plan.md",
+        "git commit -m \"$(cat <<'EOF'\ndocs: rewrite docs/x.md\nEOF\n)\"",
+        "cat > notes.txt <<'EOF'\nsee docs/plan.md\nEOF",
+        "python3 -c 'print(1)'",
         "sed -n '10,20p' docs/architecture.md",
         "grep -n foo README.md | head",
         "git add docs/x.md && git commit -m 'docs: touch x.md'",

@@ -106,11 +106,43 @@ import sys
 #: first words of commands that only read; anything else is treated as a write
 READ_ONLY = frozenset(
     {
-        "basename", "cat", "cksum", "cmp", "column", "comm", "cut", "diff",
-        "dirname", "du", "echo", "false", "fgrep", "file", "grep",
-        "head", "jq", "less", "ls", "md5sum", "nl", "od",
-        "printf", "pwd", "realpath", "rg", "sha256sum", "sort",
-        "stat", "tail", "test", "tr", "true", "uniq", "wc", "which", "xxd",
+        "basename",
+        "cat",
+        "cksum",
+        "cmp",
+        "column",
+        "comm",
+        "cut",
+        "diff",
+        "dirname",
+        "du",
+        "echo",
+        "false",
+        "fgrep",
+        "file",
+        "grep",
+        "head",
+        "jq",
+        "less",
+        "ls",
+        "md5sum",
+        "nl",
+        "od",
+        "printf",
+        "pwd",
+        "realpath",
+        "rg",
+        "sha256sum",
+        "sort",
+        "stat",
+        "tail",
+        "test",
+        "tr",
+        "true",
+        "uniq",
+        "wc",
+        "which",
+        "xxd",
         "yq",
     }
 )
@@ -119,8 +151,15 @@ READ_ONLY = frozenset(
 #: `find` prints names and is the reader every search starts with
 FIND_WRITE_ACTIONS = frozenset(
     {
-        "-delete", "-exec", "-execdir", "-ok", "-okdir",
-        "-fprint", "-fprint0", "-fprintf", "-fls",
+        "-delete",
+        "-exec",
+        "-execdir",
+        "-ok",
+        "-okdir",
+        "-fprint",
+        "-fprint0",
+        "-fprintf",
+        "-fls",
     }
 )
 
@@ -128,9 +167,26 @@ FIND_WRITE_ACTIONS = frozenset(
 #: not the command `xargs` runs
 XARGS_VALUE_FLAGS = frozenset(
     {
-        "-a", "-d", "-E", "-e", "-I", "-i", "-L", "-l", "-n", "-P", "-s",
-        "--arg-file", "--delimiter", "--eof", "--replace", "--max-lines",
-        "--max-args", "--max-procs", "--max-chars", "--process-slot-var",
+        "-a",
+        "-d",
+        "-E",
+        "-e",
+        "-I",
+        "-i",
+        "-L",
+        "-l",
+        "-n",
+        "-P",
+        "-s",
+        "--arg-file",
+        "--delimiter",
+        "--eof",
+        "--replace",
+        "--max-lines",
+        "--max-args",
+        "--max-procs",
+        "--max-chars",
+        "--process-slot-var",
     }
 )
 
@@ -160,8 +216,12 @@ INLINE_P_HEADS = frozenset({"perl", "node"})
 #: `pytest` arguments that make it write somewhere of its own choosing, so the
 #: invocation stops being a run of the suite and falls to the ordinary path test
 PYTEST_WRITE_FLAGS = (
-    "--junitxml", "--junit-xml", "--report-log", "--result-log",
-    "--cov-report", "--basetemp",
+    "--junitxml",
+    "--junit-xml",
+    "--report-log",
+    "--result-log",
+    "--cov-report",
+    "--basetemp",
 )
 
 #: git subcommands that print no file content; everything else prints some, and
@@ -174,9 +234,24 @@ PYTEST_WRITE_FLAGS = (
 #: `ls-files`, `merge-base`, `rev-list`, `rev-parse` and `status`.
 GIT_METADATA = frozenset(
     {
-        "status", "rev-parse", "ls-files", "branch", "describe", "remote",
-        "config", "symbolic-ref", "merge-base", "rev-list", "tag",
-        "add", "commit", "restore", "checkout", "switch", "worktree", "reset",
+        "status",
+        "rev-parse",
+        "ls-files",
+        "branch",
+        "describe",
+        "remote",
+        "config",
+        "symbolic-ref",
+        "merge-base",
+        "rev-list",
+        "tag",
+        "add",
+        "commit",
+        "restore",
+        "checkout",
+        "switch",
+        "worktree",
+        "reset",
     }
 )
 #: flags that turn `git log` from a list of commits into a patch
@@ -206,11 +281,35 @@ LANE_SUFFIXES = ("plans/approved", "specs/approved", "verdicts", "reviews")
 #: carries `--output`, `grep -O` or a writing `reflog` form.
 GIT_NO_WORKTREE = frozenset(
     {
-        "add", "blame", "cat-file", "commit", "describe", "diff", "grep", "log",
-        "ls-files", "ls-tree", "merge-base", "reflog", "rev-list", "rev-parse",
-        "shortlog", "show", "status",
+        "add",
+        "blame",
+        "cat-file",
+        "commit",
+        "describe",
+        "diff",
+        "grep",
+        "log",
+        "ls-files",
+        "ls-tree",
+        "merge-base",
+        "reflog",
+        "rev-list",
+        "rev-parse",
+        "shortlog",
+        "show",
+        "status",
     }
 )
+
+#: git global options that consume the word after them. Every other `-…` word
+#: before the subcommand stands alone, and `--opt=value` is already one word.
+GIT_VALUED_GLOBALS = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
+
+#: git global options that decide what the subcommand runs, rather than where
+#: it runs. `-c alias.<name>=!<command>` redefines a subcommand into a shell
+#: command, and each of these names a program git execs. `git_parts` refuses to
+#: split an invocation carrying one, so it stays unrecognized and is denied.
+GIT_EXEC_GLOBALS = frozenset({"--exec-path", "--upload-pack", "--receive-pack"})
 
 #: `--output=<file>` writes a file wherever git takes its diff options
 GIT_OUTPUT = "output"
@@ -282,9 +381,7 @@ def redirect_targets(segment: str) -> list[str]:
 def _redirections(segment: str) -> list[str]:
     """The target text of every redirection in the stage, in order."""
     masked = mask_quoted(segment)
-    return [
-        segment[m.start(1) : m.end(1)].strip("\"'") for m in REDIRECT.finditer(masked)
-    ]
+    return [segment[m.start(1) : m.end(1)].strip("\"'") for m in REDIRECT.finditer(masked)]
 
 
 def redirect_writes(segment: str) -> bool:
@@ -353,9 +450,7 @@ def _split_unquoted(text: str) -> list[str]:
             out.append("".join(buf))
             buf = []
             i += 1
-        elif ch == "&" and not (
-            (i and text[i - 1] in ">&") or (i + 1 < len(text) and text[i + 1] in ">&")
-        ):
+        elif ch == "&" and not ((i and text[i - 1] in ">&") or (i + 1 < len(text) and text[i + 1] in ">&")):
             out.append("".join(buf))
             buf = []
             i += 1
@@ -409,16 +504,12 @@ def segments_with_bodies(command: str) -> list[tuple[str, str]]:
 #: shell keywords that stand in front of the command a stage runs. Stripping
 #: them is what makes `do rm t.py` a `rm` rather than an unknown head word, and
 #: an unknown head word is a write.
-KEYWORD_PREFIXES = frozenset(
-    {"if", "while", "until", "then", "else", "elif", "do", "!", "time", "{"}
-)
+KEYWORD_PREFIXES = frozenset({"if", "while", "until", "then", "else", "elif", "do", "!", "time", "{"})
 
 #: stage heads that run no command at all. A `for ... in <list>` header binds a
 #: variable, `done` and `fi` close a block: nothing in them touches the disk, so
 #: a lane path quoted in a `for` list is a string and not a target.
-NO_COMMAND_HEADS = frozenset(
-    {"for", "select", "case", "in", "done", "fi", "esac", "}", ")", ";;"}
-)
+NO_COMMAND_HEADS = frozenset({"for", "select", "case", "in", "done", "fi", "esac", "}", ")", ";;"})
 
 
 def command_words(words: list[str]) -> list[str]:
@@ -904,6 +995,47 @@ def _long_option(word: str, option: str, least: int) -> bool:
     return len(name) >= least and option.startswith(name)
 
 
+def _git_global_execs(word: str, value: str | None) -> bool:
+    """Does this global option choose what git runs, rather than where?"""
+    if word.split("=", 1)[0] in GIT_EXEC_GLOBALS:
+        return True
+    if word.startswith("-c") and not word.startswith("--"):
+        setting = word[2:] or (value or "")
+        return setting.split("=", 1)[0].startswith("alias.")
+    return False
+
+
+def git_parts(words: list[str]) -> tuple[str, list[str]] | None:
+    """A git invocation split at its subcommand: `(subcommand, the words after)`.
+
+    Global options come in front of the subcommand and five of them take a
+    value, so `words[1]` is the subcommand in the plainest spelling only. Ask
+    this split instead, never an index: it makes `git -C <dir> ls-files tests/`
+    and `git ls-files tests/` one command to every caller, and a site that asks
+    it cannot be broken by a spelling it did not think of.
+
+    `None` is a git invocation with no subcommand to find -- a bare `git`, an
+    option list that reaches no verb, or one carrying a `GIT_EXEC_GLOBALS`
+    option or an alias definition, which choose what the verb runs. Callers read
+    `None` as an unrecognized subcommand, and unrecognized denies.
+    """
+    i = 1
+    while i < len(words):
+        word = words[i]
+        valued = word in GIT_VALUED_GLOBALS
+        after = words[i + 1] if valued and i + 1 < len(words) else None
+        if _git_global_execs(word, after):
+            return None
+        if valued:
+            i += 2
+            continue
+        if word.startswith("-"):
+            i += 1
+            continue
+        return word, words[i + 1 :]
+    return None
+
+
 def git_write_form(words: list[str]) -> bool:
     """Does this `GIT_NO_WORKTREE` stage carry a form that writes anyway?
 
@@ -912,7 +1044,10 @@ def git_write_form(words: list[str]) -> bool:
     is the safe direction. Every word after the subcommand is scanned, `--` and
     pattern arguments included, because a misread there under-denies.
     """
-    sub, rest = words[1], words[2:]
+    parts = git_parts(words)
+    if parts is None:
+        return False
+    sub, rest = parts
     if any(_long_option(w, GIT_OUTPUT, 3) for w in rest):
         return True
     if sub == "grep":
@@ -979,19 +1114,18 @@ def stage_targets(segment: str, body: str = "") -> tuple[list[str], str | None]:
     if not words or words[0] in NO_COMMAND_HEADS:
         return targets, None
     head = os.path.basename(words[0])
-    git_reader = (
-        head == "git"
-        and len(words) > 1
-        and words[1] in GIT_NO_WORKTREE
-        and not git_write_form(words)
-    )
+    git = git_parts(words) if head == "git" else None
+    git_reader = git is not None and git[0] in GIT_NO_WORKTREE and not git_write_form(words)
     if is_runner(words) or reads_only(words) or git_reader:
         return targets, None
     if has_inline_script(words) or body:
         return targets, STAGE
     if head == "xargs":
         return targets, STDIN
-    for word in words[1:]:
+    #: a git write acts on the words after its subcommand; the subcommand is
+    #: the verb, not a path, and `git_parts` has already stepped over the
+    #: global options in front of it, which name a directory and not a target
+    for word in git[1] if git is not None else words[1:]:
         if word.startswith("-"):
             targets.extend(_option_value(word))
         else:
@@ -1013,11 +1147,7 @@ def lane_pattern(lane: str) -> re.Pattern[str]:
     follows the name must be a separator or the end of the command, so
     `tests_old.py` is not the lane.
     """
-    return re.compile(
-        r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?"
-        + re.escape(lane)
-        + r"(?:/|(?=[\s\"';|&)]|$))"
-    )
+    return re.compile(r"(?:^|[\s\"'=(:])(?:[^\s\"']*/)?" + re.escape(lane) + r"(?:/|(?=[\s\"';|&)]|$))")
 
 
 def bash_touches_lane(command: str, pattern: re.Pattern[str]) -> bool:
@@ -1138,10 +1268,7 @@ def path_in_lane(target: str, cwd: str, lane: str) -> bool:
         return under(rel, lane)
     parts = os.path.abspath(os.path.join(cwd, target)).split(os.sep)
     lane_parts = lane.split("/")
-    return any(
-        parts[i : i + len(lane_parts)] == lane_parts
-        for i in range(len(parts) - len(lane_parts) + 1)
-    )
+    return any(parts[i : i + len(lane_parts)] == lane_parts for i in range(len(parts) - len(lane_parts) + 1))
 
 
 def bypassed() -> bool:
@@ -1222,8 +1349,7 @@ HOSTILE_PAYLOADS = (
     #: a NUL in a path is a string, so it is readable here and raises deeper in
     ('{"tool_name": "Edit", "tool_input": {"file_path": "\\u0000"}}', "Edit", True),
     (
-        '{"tool_name": "Bash", "tool_input": {"command": "echo hi"},'
-        ' "cwd": "/nonexistent-by-construction/deeper"}',
+        '{"tool_name": "Bash", "tool_input": {"command": "echo hi"},' ' "cwd": "/nonexistent-by-construction/deeper"}',
         "Bash",
         True,
     ),
@@ -1233,8 +1359,7 @@ HOSTILE_PAYLOADS = (
         True,
     ),
     (
-        '{"tool_name": "Bash", "tool_input": {"command": "echo hi"},'
-        ' "agent_type": 3, "cwd": "/"}',
+        '{"tool_name": "Bash", "tool_input": {"command": "echo hi"},' ' "agent_type": 3, "cwd": "/"}',
         "Bash",
         False,
     ),
@@ -1588,9 +1713,7 @@ def probe(verdict, root: str, tool: str, key: str = "file_path", *, agent: str |
 #: on either side, and `\b` would take the `gauntlet` of `gauntlet-arbiter` and
 #: rename the agent. A trailing `/` is left to the text, so `find tests -delete`
 #: and `cd tests && rm t.py` -- a lane named with no slash at all -- respell too.
-_DEFAULT_SEGMENT = re.compile(
-    r"(?<![\w.-])(" + "|".join(sorted(set(DEFAULT_DIRS.values()))) + r")(?![\w.-])"
-)
+_DEFAULT_SEGMENT = re.compile(r"(?<![\w.-])(" + "|".join(sorted(set(DEFAULT_DIRS.values()))) + r")(?![\w.-])")
 
 
 def respell(target: str) -> str:
