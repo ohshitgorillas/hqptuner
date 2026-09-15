@@ -1,6 +1,6 @@
 ---
 name: live-daemon
-description: Conduct against the production hqplayerd and the dev container's staging buffer: idle gate and restore, the tested HTTP lane, EQ sessions that stage and never apply, probe cleanup, the excised LIVE rate control, and the secrets presence test. Load before any write against hqplayerd or the staging buffer.
+description: Conduct against the production hqplayerd and the dev container's staging buffer: idle gate and restore, the tested HTTP lane, EQ sessions that stage and never apply, probe cleanup, the removed LIVE rate control, and the secrets presence test. Load before any write against hqplayerd or the staging buffer.
 ---
 
 # Live daemon

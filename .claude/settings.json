@@ -15,11 +15,12 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/md-by-tool.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/tests-lane.py"
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/specs-lane.py"
@@ -28,6 +29,23 @@
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/plans-lane.py"
           },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/tests-lane.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/verdicts-lane.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/gauntlet-off.py --bash"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash|Read|Grep",
+        "hooks": [
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/reviews-lane.py"
@@ -64,29 +82,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_md_trivia.py --stop",
-            "timeout": 180
-          },
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_comment_trivia.py --stop",
-            "timeout": 60
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/verdicts-lane.py --stop"
           }
         ]
       }
     ],
-    "SubagentStop": [
+    "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_md_trivia.py --stop",
-            "timeout": 180
-          },
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/gauntlet-off.py --session-start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}\"/.venv/bin/python \"${CLAUDE_PROJECT_DIR}\"/scripts/gates/check_comment_trivia.py --stop",
-            "timeout": 60
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/gauntlet-off.py --prompt"
           }
         ]
       }

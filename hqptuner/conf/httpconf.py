@@ -287,8 +287,7 @@ def _submitted_value(el: Tag) -> str | None:
     return _attr(el, "value") or ""
 
 
-# The CRUD verbs /config/profile/{action} takes for the preset mirrors. The
-# matrix half of this pair is gone (see post_profile's neighbours below).
+# The CRUD verbs /config/profile/{action} takes for the preset mirrors.
 _ACTIONS = ("load", "save", "delete")
 
 
@@ -341,12 +340,9 @@ class HttpConfigClient:
         """
         return parse_matrix_form((await self._get("/matrix")).text)
 
-    # No profile CRUD on this lane. ``POST /matrix/{load,save,delete}`` cost a
-    # ~3 s engine reload each and never persisted a saved profile anyway (the
-    # daemon keeps it in memory only, matrix-spec.md "Probe findings — saved"),
-    # so save/delete became
-    # staged ``<matrix_profile>`` config edits and load rides 4321
-    # ``MatrixSetProfile``. Nothing here writes /matrix any more.
+    # No profile CRUD on this lane. save/delete are staged ``<matrix_profile>``
+    # config edits and load rides 4321 ``MatrixSetProfile``. Nothing here
+    # writes /matrix.
 
     async def get_speakers(self) -> dict[str, Any]:
         """GET /speakers — the multi-channel speaker-processing form (readme §1.9).

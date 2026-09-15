@@ -22,16 +22,19 @@ script paths is worth nothing if the session can edit those scripts. Only
 job files live (`docs/eq-assistant/RECORD.md`).
 
 Path resolution, pipeline splitting and heredoc stripping are borrowed from
-`tests-lane.py` rather than restated.
+`shell_shapes.py` rather than restated.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import shlex
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import shell_shapes as sh  # noqa: E402
 
 #: the two tools the session runs, as repo-relative paths
 NODE_TOOLS = ("scripts/eqstage/eqstage.js", "scripts/eqlab/eqlab.js")
@@ -58,18 +61,9 @@ _WRITE = (
 )
 
 
-def _load(name: str):
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), name + ".py")
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
-
-
-def _is_node_tool(arg: str, cwd: str, lane) -> bool:
+def _is_node_tool(arg: str, cwd: str) -> bool:
     """Is this argument one of the two staging tools, in some checkout?"""
-    _root, rel = lane._split_root(arg, cwd)
+    _root, rel = sh.split_root(arg, cwd)
     if rel is None or rel.startswith(".."):
         return False
     return rel.replace(os.sep, "/") in NODE_TOOLS
@@ -88,13 +82,13 @@ def _words(segment: str) -> list[str] | None:
     return words or None
 
 
-def _segment_ok(segment: str, cwd: str, lane) -> bool:
+def _segment_ok(segment: str, cwd: str) -> bool:
     words = _words(segment)
     if words is None:
         return False
     head = os.path.basename(words[0])
     if head == "node":
-        return len(words) == 2 and _is_node_tool(words[1], cwd, lane)
+        return len(words) == 2 and _is_node_tool(words[1], cwd)
     if head == "sed":
         return len(words) > 1 and words[1] == "-n"
     if head == "git":
@@ -102,15 +96,15 @@ def _segment_ok(segment: str, cwd: str, lane) -> bool:
     return head in READ_ONLY
 
 
-def _bash_verdict(command: str, cwd: str, lane) -> str | None:
-    segments = [s for s in lane._SEGMENT.split(lane._strip_heredocs(command)) if s.strip()]
+def _bash_verdict(command: str, cwd: str) -> str | None:
+    segments = sh.segments(command)
     if not segments:
         return _BASH
-    return None if all(_segment_ok(s, cwd, lane) for s in segments) else _BASH
+    return None if all(_segment_ok(s, cwd) for s in segments) else _BASH
 
 
-def _write_verdict(target: str, cwd: str, lane) -> str | None:
-    _root, rel = lane._split_root(target, cwd)
+def _write_verdict(target: str, cwd: str) -> str | None:
+    _root, rel = sh.split_root(target, cwd)
     if rel is None or rel.startswith(".."):
         return _WRITE
     if rel == WRITABLE or rel.startswith(WRITABLE + os.sep):
@@ -118,15 +112,14 @@ def _write_verdict(target: str, cwd: str, lane) -> str | None:
     return _WRITE
 
 
-def verdict(name: str, tool_input: dict, payload: dict, lane=None) -> str | None:
+def verdict(name: str, tool_input: dict, payload: dict) -> str | None:
     """Why this call is refused, or None to let it through."""
     cwd = payload.get("cwd") or os.getcwd()
-    lane = lane or _load("tests-lane")
     if name in WRITE_TOOLS:
         target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
-        return _write_verdict(target, cwd, lane) if target else None
+        return _write_verdict(target, cwd) if target else None
     if name == "Bash":
-        return _bash_verdict(tool_input.get("command", ""), cwd, lane)
+        return _bash_verdict(tool_input.get("command", ""), cwd)
     return None
 
 

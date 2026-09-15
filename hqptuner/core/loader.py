@@ -42,10 +42,10 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     mgr.readings.release = await release.fetch_release(mgr.http_base_url)
     if mgr.http_client is not None:
         await _load_http_lane(mgr)
-    # Last statements on purpose: the connect body has run to its end. `ready` is no
-    # longer a flag set here — it is read off this pair, the connect standing and the
-    # 8088 lane having answered, so an install whose configuration lane is refused or
-    # absent reports itself unready rather than ready on the handshake alone.
+    # Last statements on purpose: the connect body has run to its end. `ready` is read
+    # off this pair, the connect standing and the 8088 lane having answered, so an
+    # install whose configuration lane is refused or absent reports itself unready
+    # rather than ready on the handshake alone.
     stamp_http_ok(mgr)
     # Both written before `connects`, which is the counter a post-restore wait tests
     # first: once it sees this connect, `http_ok` and `drops_at_connect` already

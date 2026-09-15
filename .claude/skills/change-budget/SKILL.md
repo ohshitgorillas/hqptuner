@@ -49,8 +49,8 @@ git -C .claude/worktrees/<slug>-impl rebase dev \
 && scripts/pair.sh merge <slug>
 ```
 
-- **`docs/gauntlet/plans/drafts/*.txt` are gitignored**, main checkout only, absent from pair worktrees. The Stop trivia judge and `check_md_trivia.py <file>` select lines by `git diff` and see nothing there. Judge with a `path:line<TAB>text` records file and `.venv/bin/python scripts/gates/check_md_trivia.py --lines <records>`; it takes minutes, run it in the background.
+- **`gauntlet/plans/drafts/*.txt` are gitignored**, main checkout only, absent from pair worktrees. The Stop trivia judge and `triviajudge-md <file>` select lines by `git diff` and see nothing there. Judge with a `path:line<TAB>text` records file and `.venv/bin/triviajudge-md --lines <records>`; it takes minutes, run it in the background. That head is outside `free_bash.py`'s gate-script shape, so it meters.
 - **`.claude/hooks/md-by-tool.py` passes `rm`, `git`, `make`, `pre-commit` only when every `;`/`&&`/`|` segment's head is exempt.** `cd … && rm x.md` and `rm x.md; ls` are both denied; a bare `rm` with absolute paths passes. `cp` and `mv` onto a `.md` are denied; write the content with `Write`.
 - **Every `subprocess.run` needs an owner-granted `# noqa: S603`**: a bare binary name fires S607, a resolved path fires S603. Precedent is `shutil.which` plus inline noqa in `scripts/gates/check_binaural.py`. Request it in the stage 1 plan.
 - **`claude -p --bare` cannot log in.** Drop `--bare`, keep `--tools "" --setting-sources "" --no-session-persistence`, and strip `CLAUDECODE` from the env when calling from inside a session.
-- **The gauntlet-testsmith's gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.
+- **The gauntlet-scrivener's gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.

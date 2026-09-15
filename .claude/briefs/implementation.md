@@ -32,7 +32,7 @@ No other slot exists. Prose outside a slot is not part of the brief.
 
 Whole brief: 40 lines.
 
-## Excision
+## Cuts
 
 A cut instruction deletes whole slots. It never rewords inside one.
 

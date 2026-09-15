@@ -1,0 +1,9 @@
+{
+  "tests_dir": "tests",
+  "gauntlet_dir": "gauntlet",
+  "docs_dir": "docs",
+  "target_branch": "dev",
+  "gate_command": "make check",
+  "pytest_command": ".venv/bin/pytest -m \"not live and not e2e\" -q",
+  "node_command": "node --test"
+}

@@ -1,0 +1,32 @@
+slug: junk-excise-3107
+
+kind: excision
+brief:
+> Both rules currently read a mean spectrum accumulated over time; that accumulator goes, and so does the verdict latch: a verdict is a property of the current spectrum, recomputed every tick, held by nothing.
+> No time-averaging and no memory of past verdicts survives anywhere in the detection path.
+> Run a kind: excision pair first that removes the latch tests, the levels_db test and the seconds-driven cases, then the kind: new pair for the rewritten rules.
+
+1. excise tests/engine/test_junk_persistence.py::test_a_verdict_latches_for_the_rest_of_the_track
+   rule: docs/testing.md rule 11
+   assertion: assert (reader.recommendation() or {})["filter"] == "20k"
+
+2. excise tests/engine/test_junk_persistence.py::test_silent_frames_still_weigh_into_the_mean
+   rule: docs/testing.md rule 10
+   assertion: assert _tone_plus_silence().levels_db()[_CONSTANT_BIN] == pytest.approx(-23.0, abs=0.5)
+
+--- spec-reviewer READY ---
+READY
+discriminates: N/A - kind: excision, the block pins nothing
+
+1  KEEP  carried: single test under tests/, assertion quoted verbatim, rule 11 fits -- the file's own comment states the 60 flat frames leave "nothing for a latch-free re-classification to recommend", so only a decision about holding verdicts can turn it red.
+2  KEEP  tests/engine/test_junk_persistence.py::test_silent_frames_still_weigh_into_the_mean; target is a single test under tests/, assertion quoted verbatim from the file, and rule 10 fits on the test file alone: one call, one absolute expected value on levels_db (no sibling in the file carries a second value on that surface -- the others read window_min_db, frames and seconds), with the expected number derived by the code's own arithmetic, stated in the test's own comment "mean power of a -20 frame and an all-floor frame sits ~3 dB under the tone".
+
+finding (m), round 1: withdrawn on the citations at hqptuner/engine/metering.py:290-292, :354-357, :252-262 and :167-176. Line 3 of round 1: withdrawn, the line is dropped.
+
+null stub: n/a -- an excision line removes a test and pins no behavior, so no implementation satisfies or fails it.
+  satisfies: none   fails: none
+hard-coded stub: n/a -- same.
+  satisfies: none   fails: none
+survives: 2
+
+note, for the owner, on a fact I am barred from reading (hqptuner/engine/metering.py): the surviving test named ::test_disengaging_brings_the_latched_verdict_back_without_new_frames asserts a verdict reappears with no frames sent since, and its name says "latched verdict". The author's citation at metering.py:167-176 says what persists across those two reads is the aggregate's windowed minimum spectrum rather than a stored verdict. I cannot read that file. If the kind: new pair also removes the 30 s windowed minimum -- the brief's "recomputed every tick" reads that way, while its "mean spectrum accumulated over time" does not -- that test goes red and its name misstates the behavior under rule 6; it would then need a line in the following block, not in this one.

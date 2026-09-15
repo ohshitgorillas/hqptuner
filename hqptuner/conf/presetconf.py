@@ -268,10 +268,9 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     staged edits then land on that matrix like any other.
     """
     remaining = dict(edits)
-    # FIRST, ahead of the materialize below: a profile saved before HQPTuner
-    # stored a chain carries none, and materializing that one would install an
-    # empty chain over the live matrix before there was anything left to copy
-    # from. Backfilling first gives it the chain the user is running, which
+    # FIRST, ahead of the materialize below: a profile carrying no chain, materialized,
+    # would install an empty chain over the live matrix before there was anything left
+    # to copy from. Backfilling first gives it the chain the user is running, which
     # materialize then puts back where it came from.
     xml = backfill_profile_chains(xml)
     adopt = _profile_to_materialize(edits, profile)
@@ -339,7 +338,7 @@ def _read_special(xml: bytes) -> dict[str, str]:
     if pipelines is not None:
         out[MATRIX_PIPELINES] = pipelines
     # saved profiles: the readback that proves a staged save or delete reached the
-    # config file, since the daemon never writes the element itself (round 5)
+    # config file, since the daemon never writes the element itself
     out[MATRIX_PROFILES] = read_profiles(xml)
     # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
     active_fixed = find_active_fixed(xml)

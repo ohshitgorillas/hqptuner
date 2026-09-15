@@ -139,7 +139,7 @@ class Config:
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files
-    # (probe-verified on 6.0.4: data/impulse_0-0.wav <-> /var/lib/hqplayer/home/…).
+    # (on hqplayerd 6.0.4, data/impulse_0-0.wav maps to /var/lib/hqplayer/home/…).
     # Overridable for non-standard installs.
     hqp_home: str = field(default_factory=lambda: _env("HQP_HOME", "/var/lib/hqplayer/home"))
     # Largest convolution filter upload accepted, in bytes (api/routes/matrix.py).

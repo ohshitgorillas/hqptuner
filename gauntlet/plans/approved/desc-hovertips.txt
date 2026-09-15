@@ -1,0 +1,74 @@
+slug: desc-hovertips
+grounding: detective
+
+brief:
+> Issue: Several locations in the UI maintain explanatory text in spite of the "Settings descriptions" and "Option descriptions" options (System tab > HQPTuner card) being disabled.
+delivered: What is wrong, below; each listed site gets gated.
+> Task: Convert the explanation text to hover tips as per the option's intent.
+delivered: What changes, all four sites: inline text renders only while Setting descriptions is on; while it is off, the same text is a hover tip on the named element.
+> Locations:
+delivered: The four site entries under What changes.
+> - HQPTuner card itself; Setting descriptions, Option descriptions, Apodizing indicator, and Dyslexic font
+delivered: What changes, site 1.
+> - Matrix tab, Crossfeed card: Bauer vs Structural explanation (hover tip goes to [Bauer|Structural] switch)
+delivered: What changes, site 2.
+> - Matrix tab, Crossfeed card, Crossfeed compensation sub-section (hover tip goes to the plot and slider) note: only the paragraph beginning "Guide:" is converted to hover tips; leave the rest of the text
+delivered: What changes, site 3; the "0% off" scale line, the tilt readout and the xfcNote paragraph stay as they are.
+> - Output tab, both Backend cards: "Stops the engine. All live settings except matrix profiles survive."
+delivered: What changes, site 4; one shared source renders on both cards.
+> I have personally identified all sites in the code requiring this treatment.
+delivered: Touched list is these four sites only.
+> If a location with text is omitted from this list, that is intentional.
+delivered: No other text site is touched or proposed.
+> Do not suggest additional text locations to clean up or expand the spec beyond what has been provided.
+delivered: No additional sites proposed.
+> All quoted lines are defects of "Setting descriptions", "Option descriptions" currently works as intended.
+delivered: Every site gates on `notesVisible` (the Setting descriptions master), not on `descVisible`.
+> Do not alter the latter, only the former.
+delivered: `keepOptionDescriptions`, `descVisible` and their consumers are untouched; only the Option descriptions row's own explanatory note changes, as a Setting descriptions site.
+
+What is wrong. The Setting descriptions pref is `showDescriptions` (hqptuner/static/store/prefs.js:71), exposed as `notesVisible` (prefs.js:274, "Static feature notes follow the master only"). Field rows already follow it: Field.js:247 renders the `.field-note` only while `notesVisible` is true, and Field.js:229 moves the same text into the row's `title` when it is false. Four sites render explanatory text unconditionally:
+1. HQPTuner card, hqptuner/static/components/tabs/SystemTab.js: `.field-note` under Setting descriptions (:110), Option descriptions (:121), Apodizing indicator (:145-149), Dyslexic font (:164). None reads `notesVisible`.
+2. Crossfeed card, hqptuner/static/components/xfeed/Card.js:471-475: the `row-break` span and `.field-note` "Bauer crossfeed is built into HQPlayer..." inside `.xfs-top`, beside the `Segment` at :462-469.
+3. Crossfeed compensation strip, hqptuner/static/components/xfeed/Comp.js:319-323: `span.xfc-scale` "Guide: ...", not gated. The neighbouring xfcNote (:260-269) already gates at :261.
+4. Backend device fields, hqptuner/static/components/Field.js:251: `div.field-rescan-cost` renders `RESCAN_COST` (:74) whenever `entry.rescan && autosave.value`; `notesVisible` is not consulted. Both Output tab cards reach it through `<Field k="alsa_device">` and `<Field k="net_device">` (hqptuner/static/components/tabs/OutputTab.js:79, :91).
+
+What changes, what the user sees. With Setting descriptions on, nothing visible changes. With it off:
+- Site 1: each of the four notes disappears; the row's `.field` div carries the same text as `title`. Wording unchanged.
+- Site 2: the note and its `row-break` span disappear; the text becomes the `title` of the Bauer|Structural switch. `Segment` (hqptuner/static/components/controls/index.js:69) takes no title today and its root `span.segment` (:71) forwards no attributes; it gains an optional `title` prop set on that root span. Per-button `title=${o.reason}` (:80) is untouched; the crossfeed options carry no `reason`, so the root title shows on hover over either button.
+- Site 3: the Guide span disappears; its text becomes the `title` of the slider and of the mini plot. `SliderNumber` (controls/index.js:322) has no title and its root `span.slidernum` (:345) forwards none; it gains an optional `title` prop set on that root span, which is never disabled itself. At the disabled edge, when the strip renders the slider with `disabled=${locked}` (Comp.js:307), the tip stays on the root span and is intended to show there as well; the plot's tip is independent of `locked`. The plot's `div.xfc-mini` (Comp.js:346) is local and takes `title` directly. The "0% off · 100% neutral" span (:318), the tilt span and its own title (:311-316), and xfcNote are unchanged. With crossfeed off, the strip's off variant (Comp.js:283-290) renders no Guide and CompMiniPlot returns null, so there is no tip, the same as today.
+- Site 4: the caption disappears; `RESCAN_COST` becomes the `title` of the Rescan devices button (`RescanButton`, Field.js:76-80), still only while autosave is on, because the sentence is false with autosave off (comment at Field.js:68-73). At the disabled edge, while a rescan runs the button is `disabled=${rescanning.value}` (Field.js:77) and reads "Rescanning…". The title stays set, so the intended reading is the same tip; a browser that suppresses it on a disabled button loses the cost only while the rescan it describes is already under way. Whether Chromium paints a native title over a disabled control is ASSUMED, legal because settling it needs the rebuilt container; it is checked at hand-back for both the locked slider and the rescanning button.
+Tips appear only while notes are hidden, matching the no-duplication rule at Field.js:212-216. Text strings move into the `title` unchanged.
+
+Files touched. hqptuner/static/components/tabs/SystemTab.js, hqptuner/static/components/xfeed/Card.js, hqptuner/static/components/xfeed/Comp.js, hqptuner/static/components/Field.js, hqptuner/static/components/controls/index.js, CHANGELOG.md. New tests under tests/js through /tests at stage 2. No CSS change: `.xfs-top .field-note` (hqptuner/static/css/features/crossfeed.css:90) and `.xfc-scale` (crossfeed.css:33) still match elements rendered while notes are visible, and `.xfc-scale` still matches the span at Comp.js:318.
+
+Caller-side delta. No split or extraction. `Segment` and `SliderNumber` each gain one optional prop. Of the existing call sites, two gain it: the Segment at xfeed/Card.js:462 and the SliderNumber at xfeed/Comp.js:300. Every other call site is unchanged.
+
+Existing tests. The rescan caption tests (tests/js/components/chrome/field-rescan-caption.test.js:68-83) call `reset({ meta })`, and `reset` defaults `desc = true` (tests/js/support/field-harness.js:145, applied at :152), so notes are on and those assertions still hold. `segment.test.js:129` asserts the bare `<span class="segment">`; with `title` absent the root renders no attribute, so it still holds. A red one after implementation goes back through /tests, never edited.
+
+Rules touched.
+- Field.js:68, "What a rescan costs, said under the device list rather than on hover": overturned while Setting descriptions is off, per the brief's site 4. It still holds while notes are on. The comment is rewritten to say both cases.
+- controls/index.js:59-61, "An option list carrying no tips renders exactly what it always did — no element, no attribute": kept. An absent `title` renders no attribute on `span.segment`, the same pattern as the button's `title=${o.reason || undefined}` (:80), and segment.test.js:129 guards it. The `title` prop on SliderNumber follows the same absent-means-no-attribute rule.
+- Field.js:212-216, the no-duplication rule: kept. A tip appears only while the inline text is hidden.
+- docs/design-system.md:45, "gate row carrying `hoverNote` loses its inline note and keeps hover": kept, and extended in spirit to these four sites; no gate row changes.
+- .claude/skills/copy-rules/SKILL.md:10, "Em dashes are forbidden in user-facing text" against "owner-drafted copy is the spec, character for character": the Guide string (Comp.js:320-322) moves into the attributes character for character. This is not new copy: no character changes, the string is already live user-facing text, and the brief orders a conversion with no rewording. Rewording it would be a copy change the brief did not ask for and would need owner-approved wording, so it is out of scope.
+
+Cost. Frontend only: no daemon write, no playback interruption. Rebuild of hqptuner:dev via /task-check, `user-reviewer` pass and owner eyes at the hand-back URL.
+
+Open questions: none.
+--- plan-reviewer READY ---
+READY
+a  PASS  Re-run because the Site 4 bullet changed. The caption still becomes a hover tip under the brief's site 4 bullet, quoted verbatim, and the new Rules touched entry states outright that the Field.js:68 "under the device list rather than on hover" rule is overturned while notes are off.
+b  PASS  The harness claim now cites tests/js/support/field-harness.js:145 (`desc = true`), applied at :152, and both lines say that. The Risk sentence is gone. The one new ASSUMED, whether Chromium paints a native title over a disabled control, is legal because it needs the rebuilt container. New citations checked: Comp.js:300 (SliderNumber open), Comp.js:307 (`disabled=${locked}`), Comp.js:283-290 (off variant), Field.js:77, Card.js:462, controls/index.js:59-61 (the quoted rule sits on :60-61, inside the range), design-system.md:45. grounding: detective holds.
+c  N/A   Re-run because the caller-side sentence changed. Still no split, extraction or move. The corrected count of two existing call sites gaining the prop (Card.js:462, Comp.js:300) matches mine.
+d  PASS  carried: The cause is named upstream of what the user sees: the four render sites never read `notesVisible` (SystemTab.js:110-164, Card.js:472, Comp.js:319, Field.js:251). Field.js:229/:247 are cited as the working mechanism these sites skip.
+e  PASS  The Rules touched section names all five rules. It overturns Field.js:68 while notes are off and says the comment is rewritten. It keeps controls/index.js:59-61 no-attribute, guarded by segment.test.js:129, keeps Field.js:212-216, and keeps design-system.md:45. It puts copy-rules SKILL.md:10 against verbatim copy and resolves it by moving the string character for character.
+f  PASS  Disabled edges now have a reading. The locked slider (Comp.js:307) keeps the tip on the never-disabled root span, and the plot's tip is independent of `locked`. The rescanning button (Field.js:77) keeps the title set, and the plan states what is lost if a browser suppresses it. Crossfeed off is stated (Comp.js:283-290; CompMiniPlot returns null). Paint behaviour is deferred to hand-back as a legal ASSUMED.
+g  PASS  Open questions: none. The em-dash condition that depended on a nonexistent gate is removed, and the copy-rule collision is resolved in the plan by citation rather than deferred.
+h  PASS  Re-run on the changed Site 3, Site 4 and caller-side sentences. The one-hop trace is unchanged: an absent `title` renders no attribute at the other 16 Segment and 2 SliderNumber call sites, and `rescan: true` is only on schema.js:400 and :470, rendered at Field.js:344. "The plot's tip is independent of `locked`" holds, because `div.xfc-mini` (Comp.js:346) is in CompMiniPlot, which does not read `locked`.
+i  PASS  carried: The brief: block is present with one delivered: line per sentence, including the "note:" clause inside bullet 3 and both clauses of the last two sentences. Each resolves to a named site in "What changes" or to the touched list. There are no dropped: lines.
+j  N/A   carried: hqptuner/core/manager.py is not touched.
+k  PASS  Re-run because the Site 3 and Site 4 bullets changed. Site 3 still puts the tip on "the plot and slider" for the Guide paragraph only and leaves the rest of the text. Site 4 still converts the caption on both Backend cards, and its disabled-edge reading adds no condition the brief sentence lacks.
+
+Notes:
+- Whether Chromium shows a native title over the disabled slider input and the disabled rescan button can only be settled live, and the plan puts it on the hand-back check.

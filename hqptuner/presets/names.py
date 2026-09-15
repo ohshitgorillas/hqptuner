@@ -13,15 +13,15 @@ text.
 So the shared rule is a denylist of what breaks a filename, a zip member name or
 the store: path escapes, control characters, the filesystem's byte limit, an
 empty name, leading whitespace. Trailing whitespace is trimmed rather than
-refused. An allowlist here refused ``Headphones — ZMF Ori 3.0`` for no reason
-the daemon or the filesystem cared about.
+refused. An allowlist would refuse ``Headphones — ZMF Ori 3.0`` for no reason
+the daemon or the filesystem cares about.
 
 The one exception to "refuse only what breaks" is ``validate_new_name``: a name
 entering a store for the first time is also refused when its letters mix the
 Latin and Cyrillic scripts, because ``admin`` spelled with U+0430 CYRILLIC
 SMALL LETTER A renders identically to ``admin`` beside it. That check runs on a
-first save only, so a name an older build already stored keeps reading,
-applying, overwriting and deleting. Greek is deliberately outside the check
+first save only, so a name already in a store keeps reading, applying,
+overwriting and deleting. Greek is deliberately outside the check
 (``ΔΣ 256`` is an ordinary audio name), and a whole-script lookalike (``pay``
 spelled entirely in Cyrillic) is out of its reach: the standard library carries
 no confusables table.
@@ -135,9 +135,8 @@ def validate_name(name: str, error: type[HQPTunerError], label: str) -> str:
 def validate_new_name(name: str, error: type[HQPTunerError], label: str) -> str:
     """``validate_name`` plus the first-save check: a mix of Latin and Cyrillic letters is refused.
 
-    For a name entering a store for the first time only. A stored name that
-    would fail this is still read, overwritten and deleted through
-    ``validate_name``, so nothing an older build saved is stranded.
+    For a name entering a store for the first time only. Reading, overwriting
+    and deleting an existing name go through ``validate_name`` instead.
     """
     name = validate_name(name, error, label)
     if _mixes_confusable_scripts(name):

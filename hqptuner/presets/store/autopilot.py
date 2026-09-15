@@ -92,8 +92,8 @@ class AutopilotStore:
     def enable(self) -> None:
         """Switch auto-pilot on.
 
-        A ``baseline`` left by an older HQPTuner is dropped rather than carried forward: nothing reads it, and a key
-        the store no longer means anything by is worse on disk than absent.
+        Drops any ``baseline`` key from the stored data: nothing reads it, and an unread key is worse on disk than
+        absent.
         """
         data = self._read_file()
         data.pop("baseline", None)

@@ -1,0 +1,84 @@
+slug: trivia-conf-comments
+grounding: inline
+
+brief:
+"Choose a section of the code and run a trivia judge sweep over the comments and docstrings. `engine/` is already being covered. When finished, dispatch one Sonnet-level agent per file to address the issues."
+
+delivered: section chosen is `hqptuner/conf/` plus `hqptuner/config.py`, which the `--paths hqptuner/conf` prefix also matched; `engine/` is untouched.
+delivered: the sweep is run — `.venv/bin/triviajudge-sweep --comments --paths hqptuner/conf --yes`, 366 candidate lines, 3 model calls, 11 flags, 0 pattern complaints.
+delivered: one Sonnet agent per flagged file, 7 agents in one message, each holding only its own file's flag lines; this plan is what they are dispatched against.
+
+what is wrong
+
+The sweep judges what the tree holds, not what a commit adds, so these 11 lines shipped under gates that never looked at them. Each states history rather than the fact that holds now. Verified by reading each site:
+
+1. `hqptuner/conf/fixedvol.py:17` — "the daemon's parked memory for a disabled fixed volume, and now ours too". HQPTuner writes that commented line itself (`_remember_fixed`, `hqptuner/conf/fixedvol.py:114`) and strips it (`:129`), so "ours too" is a present-tense statement of what the regex must match and it stays. Only "now" goes — the word is what narrates the adoption.
+2. `hqptuner/conf/fixedvol.py:63-68` — "a level edit that left it off was silently discarded, and the apply reported success because read_config then omits the field it just dropped". A fixed bug described in the past tense inside a comment explaining current behavior.
+3. `hqptuner/conf/httpconf.py:290-291` — "The matrix half of this pair is gone (see post_profile's neighbours below)." States a deleted feature.
+4. `hqptuner/conf/httpconf.py:344-349` — "``POST /matrix/{load,save,delete}`` cost a ~3 s engine reload each and never persisted ... so save/delete became staged ``<matrix_profile>`` config edits". The cost of routes that no longer exist, plus a "became" narration. The standing fact — there is no profile CRUD on this lane, save/delete are staged config edits, load rides 4321 `MatrixSetProfile` — survives without the history.
+5. `hqptuner/conf/matrixconf.py:422-424` — "every profile saved before profiles stored one". Legacy-state narration inside `_post_of`'s docstring.
+6. `hqptuner/conf/matrixconf.py:461-467` — `backfill_profile_chains` docstring, "Every profile saved before HQPTuner stored a chain is in that state". Same shape. The function's reason for existing is the empty-chain hazard, which is a present fact; the era that produced it is not.
+7. `hqptuner/conf/presetconf.py:271-275` — "a profile saved before HQPTuner stored a chain carries none". Same shape, in the ordering comment.
+8. `hqptuner/conf/presetconf.py:342-343` — "(round 5)" is decision archaeology; the rest of the line states a present fact and stays.
+9. `hqptuner/conf/presetzip.py:172-173` — "Powers the one-time migration of hqplayerd's presets into the HQPTuner-owned store." Names a one-time process as the member reader's purpose. (`:170` is the docstring summary, `:171` blank; the sweep reports a docstring block at its first line.)
+10. `hqptuner/conf/xmledit.py:26-30` — "A merely *absent* target is no longer one of these". Narration by negation; the positive statement (absent targets are created, see `PARENT`) carries it.
+11. `hqptuner/config.py:139-143` — "(probe-verified on 6.0.4: data/impulse_0-0.wav <-> /var/lib/hqplayer/home/…)", the clause on `:142`. A completed probe narrated where the fact needs a version, not a process. `:144` is the `hqp_home` field and `:145` opens the unrelated `max_filter_bytes` comment; neither is touched.
+
+Flags 5, 6 and 7 are the same legacy fact stated in three places, so the three rewrites say the same thing three ways; each agent sees only its own file, which is why the rule they are given is the rule, not a suggested wording.
+
+what changes
+
+Comment and docstring text only. No code, no signatures, no behavior, no user-facing copy. Each of the 11 sites is rewritten to state what holds now; where the history is the whole content of a line, the line goes. Four sites are docstring blocks — `matrixconf.py:422-424`, `matrixconf.py:461-467`, `presetzip.py:172-173`, `xmledit.py:26-30` — and site 6 cuts from mid-sentence, forcing a reflow. `pyproject.toml` `[tool.ruff.lint]` selects `"D"` (pep257) over `hqptuner/`, exempted only for `tests/**/*.py` in `[tool.ruff.lint.per-file-ignores]`, at `line-length = 120`. A docstring rewrite therefore keeps its one-line summary and reflows the body to 120 columns; the rule handed to each agent says so. A rewrite that loses a present-tense fact the old text carried is worse than the flag, so the rule handed to each agent is: keep every fact that describes the code as it stands, drop every clause about what changed, was, used to, or no longer is, and never grow the comment.
+
+what the user sees
+
+Nothing. Internal prose, no runtime path touched.
+
+files touched
+
+hqptuner/conf/fixedvol.py (2 sites)
+hqptuner/conf/httpconf.py (2 sites)
+hqptuner/conf/matrixconf.py (2 sites)
+hqptuner/conf/presetconf.py (2 sites)
+hqptuner/conf/presetzip.py (1 site)
+hqptuner/conf/xmledit.py (1 site)
+hqptuner/config.py (1 site)
+
+caller-side delta
+
+None. Nothing splits, extracts or moves; no call site changes.
+
+cost
+
+No playback interruption and no daemon contact. A rebuild IS owed: `hqptuner/CLAUDE.md` confines the free-gate-only lane to `CHANGELOG.md`, `docs/`, `scripts/` and `.claude/` edits, and these are `hqptuner/` edits, so `/task-check` runs in full — `make check`, the `hqptuner:dev` rebuild and the `:8090` health check. The docker rebuild is metered on the leash of 8. `make check` must be green: ruff `D`, `vulture` and the length gates read these files, and `triviajudge-comments --head` judges added lines, so the rewrites are themselves judged. Re-running the sweep over `hqptuner/conf` after the edits is the verification, one more model-call batch.
+
+Two "round 5" archaeology clauses the sweep did not flag sit at `hqptuner/conf/matrixconf.py:3` and `:415`. They are left alone: the sweep read and passed them, and widening past its output is not what was asked. Named so the post-edit sweep result is read knowing they are there.
+
+Risk is a rewrite that drops a fact. Mitigated by reading all 7 diffs myself before the gate run; a diff that removes a present-tense clause goes back to its agent.
+
+disclosed deviation
+
+`hqptuner/CLAUDE.md` Delegation says "Never delegate anything behind the plan gate" and "You implement; you do not hand the whole change to a builder." The brief orders one agent per file. The owner's instruction is taken as the ruling on that rule for this task: the plan gate itself stays mine, the agents get a stated rule and a bounded site list, and I read every diff before the gate run under `~/dev/CLAUDE.md` 7.6. Named here rather than done quietly.
+
+no spec block
+
+Comment text is not behavior. No test can distinguish a rewritten comment from the old one, so stage 2 carries no spec block and no `gauntlet-arbiter`; the deliverable to rule on is the 11 rewritten texts themselves. No `CHANGELOG.md` entry: internal-only.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: "No named thing is redefined: all 11 sites are comment or docstring prose, no field, route, constant, signal or normative rule changes. Resolved by reading each site (`fixedvol.py:17`, `:62-68`; `httpconf.py:290-291`, `:344-349`; `matrixconf.py:421-426`, `:460-468`; `presetconf.py:271-275`, `:341-342`; `presetzip.py:169-173`; `xmledit.py:25-31`; `config.py:139-143`) — every one is a line the interpreter ignores. The one site where a rewrite would narrow a documented meaning is site 1, carried as a FAIL under (b) rather than here."
+b  PASS  All three repairs land and every changed sentence resolves against the tree. Site 1 now reads "HQPTuner writes that commented line itself (`_remember_fixed`, `hqptuner/conf/fixedvol.py:114`) and strips it (`:129`) ... it stays. Only "now" goes"; `:114` is `return _insert_root_child(xml, f'<!--<fixed volume="{level}"/>-->'.encode())` and `:129` is `xml = _COMMENTED_FIXED_RE.sub(b"", xml)`, so the present fact is kept and the narration is what goes. Site 9 is now `presetzip.py:172-173`, which is where the quoted sentence is, and its new parenthetical — "the sweep reports a docstring block at its first line" — resolves against `triviajudge/comment_trivia.py:148-156`, `Line(path, first, "\n".join(body[first - 1 : last]))` over `docstring_spans`. Site 11 is now `config.py:139-143` with the clause on `:142`, and `:144`/`:145` are correctly named as the `hqp_home` field and the `max_filter_bytes` comment. The cost sentence now states the rule one way and correctly: `hqptuner/CLAUDE.md` confines the free-gate lane to `CHANGELOG.md`, `docs/`, `scripts/`, `.claude/`, these are `hqptuner/` edits, `/task-check` runs in full, and `change-budget.py` meters docker. The new cost paragraph's two sites resolve: `matrixconf.py:3` is "Covers matrix-spec §8 step 3 and profile persistence, round 5." and `:415` is "(every profile saved through its own route, round 5)", both inside docstring blocks that `candidates()` builds, so "the sweep read and passed them" is consistent with the mechanism. `grounding: inline` still holds: every citation the plan carries is inside its touched list or inside the vendored `triviajudge` package it names by mechanism, and no outside path is cited with a line number.
+c  N/A   carried: "Nothing splits, extracts or moves; no signature, path or symbol changes, so there is no call site to count."
+d  PASS  carried: "Cause is named upstream of the appearance: "The sweep judges what the tree holds, not what a commit adds, so these 11 lines shipped under gates that never looked at them." The appearance (history in live comments) follows from the gate shape, and `pyproject.toml` `[tool.triviajudge]` confirms the added-line scope the commit gates run under."
+e  PASS  Re-run, because the cost sentence changed. The `/task-check` rule is now stated one way and as the sheet has it, so the round-1 caveat is discharged; nothing else in the rule set moved. Rules touched and stated plainly remain the two Delegation sentences (overturned openly under "disclosed deviation" on the owner's quoted instruction), the changelog binding (taken on its own "internal-only work may skip" clause) and the stage-2 spec-block rule (overturned openly under "no spec block"). Rules in force and not overturned: `[tool.triviajudge]` scope, the user-facing-copy rule, the import-layering contract.
+f  PASS  The docstring edge now has a reading: "Four sites are docstring blocks — `matrixconf.py:422-424`, `matrixconf.py:461-467`, `presetzip.py:172-173`, `xmledit.py:26-30` — and site 6 cuts from mid-sentence, forcing a reflow ... A docstring rewrite therefore keeps its one-line summary and reflows the body to 120 columns; the rule handed to each agent says so." All four cited ranges are docstring bodies, `[tool.ruff.lint]` does select `"D"` with `convention = "pep257"` at `line-length = 120`, and `[tool.ruff.lint.per-file-ignores]` exempts `"D"` for `tests/**/*.py` alone. With the summary line kept, no site can empty a docstring, which is the remaining edge.
+g  PASS  carried: "The plan carries no open questions and none is owed. The one candidate — delegating the rewrites behind the plan gate — is settled by the owner's own quoted sentence, "dispatch one Sonnet-level agent per file to address the issues", so it is a disclosure rather than a question, and the plan files it as one."
+h  PASS  carried: "I ran the trace. The change has no call-graph delta, so the bound is textual: no `__doc__` read anywhere under `hqptuner/` (the only hits are `scripts/*` argparse descriptions over their own module docstrings), no doctest configuration in `pyproject.toml` or the `Makefile`, and no file under `tests/` or `docs/` carries any of the flagged phrases. "Nothing. Internal prose, no runtime path touched" holds inside that bound."
+i  PASS  carried: "`brief:` block present at `gauntlet/plans/drafts/trivia-conf-comments.txt:4-9`, the owner's three sentences quoted, three `delivered:` lines, no `dropped:`. Each resolves to a named element: the section and `engine/` to "files touched", the sweep to the eleven-flag list under "what is wrong", the dispatch to the rule under "what changes" plus "disclosed deviation"."
+j  N/A   carried: "The plan adds no method, attribute, property or import to any file; it changes comment and docstring text only, so no composition root is touched."
+k  PASS  carried: "Each `delivered:` element reads as its sentence reads. "run a trivia judge sweep over the comments and docstrings" — `triviajudge-comments` screens comments and docstrings both, per `hqptuner/CLAUDE.md`'s trivia rule. "`engine/` is already being covered" — `startswith("hqptuner/conf")` cannot match `hqptuner/engine/`, so the sweep left it alone. "one Sonnet-level agent per file" — seven flagged files, seven agents. My own repairs 1-4 change only the plan's citations, one site rationale, the cost statement and the docstring reading; none of them puts a condition into any element that the brief does not state, so the second clause does not fire."
+
+notes
+- The reported sweep run — "366 candidate lines, 3 model calls, 11 flags, 0 pattern complaints" — is still pasted without its output, and I did not re-run it: `triviajudge-sweep` is a model-calling batch. Nothing load-bearing rests on the counts; the eleven flags themselves I resolved site by site. The same bound applies to the new sentence's "the sweep read and passed them" for `matrixconf.py:3` and `:415`: the mechanism supports it and only a rerun settles it, and the plan leaves both lines alone either way.
+- My round-1 note on the two unflagged "round 5" clauses is withdrawn: the plan now names them and states why they stay out of scope. My round-1 shape note is withdrawn as well — it was settled, not unsettled, and the plan's shape is not one of these checks.

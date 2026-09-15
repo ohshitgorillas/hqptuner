@@ -1,6 +1,6 @@
 # PSYCHOACOUSTICS.md — how big, how narrow, and how sure
 
-Companion to `SOURCES.md` (citations), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener), `PHASE.md` (phase and group delay). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener), `PHASE.md` (phase and group delay).
 
 This document answers two questions the tuner implicitly answers every turn, and previously answered from convention rather than evidence:
 
@@ -15,7 +15,7 @@ It also records, deliberately, what could **not** be verified.
 
 ## 1. Auditory filter bandwidth — the real justification for low Q
 
-`SOURCES.md` §2.5 rules that voicing moves default to broad, low-Q filters. That ruling previously rested on Toole alone, partly at `[S]`. It now has an independent, free, peer-reviewed anchor.
+`SOURCES.md` §2.5 rules that voicing moves default to broad, low-Q filters. It has an independent, free, peer-reviewed anchor.
 
 **Völk, F. (2015). "Updated analytical expressions for critical bandwidth and critical-band rate." *Fortschritte der Akustik – DAGA 2015*, Nürnberg, pp. 1181–1182. Deutsche Gesellschaft für Akustik.** `[VA]` — peer-reviewed conference proceedings, free and permanently hosted. The best free artifact found that prints all the canonical formulae side by side.
 

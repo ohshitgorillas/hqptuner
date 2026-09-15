@@ -25,7 +25,7 @@ Violations rejected in review even if tests pass.
    - **Fake servers tear down promptly.** `http.server.HTTPServer.shutdown()` blocks on `serve_forever`'s `poll_interval`, 0.5 s default charged to every fixture teardown; `fake_http.spawn` passes `poll_interval=0.01`. Any new threaded fake does same.
    - **E2E exception, `e2e`-marked tests only.** The browser suite drives the app in a subprocess, so there is no seam to inject a clock through and nothing to virtualize. There the rule is narrower: fixed sleeps stay forbidden, bounded condition-polls are allowed — a `wait_for_selector` / `wait_for_function` / `Locator.wait_for` with a timeout, or an equivalent bounded poll for a non-DOM condition. The timeout is a ceiling on a condition, never a duration anything is expected to take. The offline suite is unaffected: it keeps the full rule and the virtual clock.
 
-   Reason: suite once took 84 s, ~80 s of it real sleeps. Now 7 s. Test reintroducing wall-clock wait is defective even when it passes.
+   Reason: real sleeps dominate suite wall time. Test reintroducing wall-clock wait is defective even when it passes.
    - **Gated**: `scripts/gates/check_suite_time.py` holds the offline suite's wall time to the last green run's. Over 5 s slower fails and escalates to the owner (`--accept` records it); 10 s or more slower is rejected outright.
 
 8. **New tests must bite.** A test written for new or changed behavior must fail against the pre-change code — a test that is green both with and without the change constrains nothing, however well-shaped it looks to the mechanical gates. The `/tests` chain enforces this with a bite check: implementation reverted to HEAD (tests kept), new tests re-run, red expected. Assertion failure is the only result that proves bite. A collection or import error proves the test names a symbol that does not exist yet, which every test of a new surface does regardless of what it asserts; it is not weak evidence, it is no evidence. Where the surface is new and no red run can say anything, the obligation is discharged statically instead: the spec block names the null stub each line fails — the module present, exports named, every function returning its zero value — and mutation testing is what checks it later. Tests with no pre-change state to fail against — characterization of existing behavior, tests accompanying a pure refactor — are exempt, and the exemption is stated in the hand-back rather than assumed silently; mutation testing (below) covers those over time.
@@ -35,7 +35,7 @@ Violations rejected in review even if tests pass.
    - **Rendered text is copy.** Assert classes, attributes, `data-*` state, disabled flags, values and numbers; text only where it is a wire identifier or a number.
    - **`data/*.json`, and any vendored or built blob the app serves, never supplies an expected value.** Join and lookup mechanics are tested against fixtures under `tests/support/fixtures/`; a check that the owner's data is well-formed is a gate under `scripts/gates/`, not a behavior test.
    - **A curated count is copy, like a curated order.** The number of presets is data; the number of channels the engine reported is contract.
-   - Where a selector would need a sentence, add a `data-testid`. If nothing meaningful survives removing the wording, delete the test instead of leaving a tautology — through `/tests` with `kind: excision`, which is the route that performs a deletion, since no hand edits `tests/` directly. `scripts/gates/check_no_copy_assertions.py` and its eslint peer catch the mechanical shape; the principle is what review checks.
+   - Where a selector would need a sentence, add a `data-testid`. If nothing meaningful survives removing the wording, delete the test instead of leaving a tautology — through `/tests` with `motion: strike`, which is the route that performs a deletion, since no hand edits `tests/` directly. `scripts/gates/check_no_copy_assertions.py` and its eslint peer catch the mechanical shape; the principle is what review checks.
 
 10. **A test discriminates, or it is a tautology.** The question a test answers is not "does the code do something" but "which of these two implementations am I looking at". An assertion the wrong implementation also satisfies constrains nothing, and it costs the same to run and maintain as one that does. The shapes that fail this, all of them common and all of them green:
     - **Asserting one call's absolute output.** A single input with a single expected value is a lookup-table entry, and a table is exactly the wrong implementation the suite exists to exclude. Assert a relation between two observations, or make the surrounding set of tests carry two distinct expected values on the same surface.
@@ -68,28 +68,28 @@ Violations rejected in review even if tests pass.
 
 ## Speed is a correctness property
 
-The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is excised on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner excises directly and needs no spec lane to do it.
+The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is struck on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner strikes it directly and needs no spec lane to do it.
 
 No design reason survives this. Where production paces on a real clock, the test injects a seam or it does not exist.
 
-## Excision blocks
+## Strike motions
 
-Rule 9 orders a copy-pinning test deleted, and no hand edits `tests/` directly, so a deletion travels the `/tests` chain as a spec block whose first line is `kind: excision`. The block carries excision lines in place of behavior lines, never both:
+Rule 9 orders a copy-pinning test deleted, and no hand edits `tests/` directly, so a deletion travels the `/tests` chain as a spec block whose first line is `motion: strike`. The block carries strike lines in place of behavior lines, never both:
 
 ```
-N. excise <target>
+N. strike <target>
    rule: docs/testing.md rule <n>
    assertion: <the offending assertion, quoted from the test file>
 ```
 
-The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `gauntlet-testsmith` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh merge` before it commits, since the lane hook denies every agent that shell. An excision line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
+The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `gauntlet-scrivener` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh merge` before it commits, since the lane hook denies every agent that shell. A strike line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
 
-## Repair blocks
+## Amend motions
 
-A test that breaks a rule while pinning behavior worth keeping takes `kind: repair`, where one line carries both halves — what goes, and what takes its place:
+A test that breaks a rule while pinning behavior worth keeping takes `motion: amend`, where one line carries both halves — what goes, and what takes its place:
 
 ```
-N. excise tests/<file>::<test>
+N. strike tests/<file>::<test>
    rule: docs/testing.md rule <n>
    assertion: <the offending assertion, quoted from the test file>
    replace: <the behavior as the caller sees it>
@@ -97,9 +97,9 @@ N. excise tests/<file>::<test>
    kills: <a wrong implementation a user would notice>
 ```
 
-The target is always a single test. A whole file belongs to `kind: excision` alone, since a replacement cannot land in a file the excision half deleted. `as:` names what the replacement must land as, and may equal the target: a coupled test name often states the behavior correctly (rule 6) and only the assertion is wrong, so renaming it is churn. The merge check reads a target as satisfied on either fact — the name is gone from `tests/`, or the name is there and the quoted `assertion:` is gone from that test's own body, body rather than file, because the same assertion text can sit in a sibling parametrize case. A repair line carries no `bite:`: the replacement pins behavior HEAD already has, which rule 8 exempts in the clause that exempts characterization. The four-line cap counts `replace:` lines only.
+The target is always a single test. A whole file belongs to `motion: strike` alone, since a replacement cannot land in a file the strike half deleted. `as:` names what the replacement must land as, and may equal the target: a coupled test name often states the behavior correctly (rule 6) and only the assertion is wrong, so renaming it is churn. The merge check reads a target as satisfied on either fact — the name is gone from `tests/`, or the name is there and the quoted `assertion:` is gone from that test's own body, body rather than file, because the same assertion text can sit in a sibling parametrize case. An amend line carries no `bite:`: the replacement pins behavior HEAD already has, which rule 8 exempts in the clause that exempts characterization. The four-line cap counts `replace:` lines only.
 
-Neither tests-only kind reaches a red run. Both are checked at the merge by `scripts/excision-diff.py`, which compares the landed diff against the committed block and refuses the land on any target the block named that the diff did not satisfy.
+Neither tests-only motion reaches a red run. Both are checked at the merge by `scripts/strike-diff.py`, which compares the landed diff against the committed block and refuses the land on any target the block named that the diff did not satisfy.
 
 ## Markers
 

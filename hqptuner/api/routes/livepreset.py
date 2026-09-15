@@ -20,8 +20,8 @@ from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, 
 
 router = APIRouter(prefix="/api")
 
-# The one record key that is not a live-lane field: auto-pilot is HQPTuner's own
-# switch (presets/store/live.py), selectable like the rest.
+# The one record key that is not a live-lane field: autopilot is HQPTuner's own
+# switch, selectable like the rest.
 AUTOPILOT = "autopilot"
 
 # Chain-scoped fields index the enumerations of one chain, so a preset carrying
@@ -156,8 +156,8 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
     except LivePresetError as exc:
         raise refuse(exc) from exc
     fields = dict(record.get("fields") or {})
-    # A preset saved before the LIVE rate control was removed can still carry a
-    # "rate" field. It has no live route, so it is dropped and the rest applies.
+    # A preset record may carry a "rate" field. It has no live route, so it is
+    # dropped and the rest applies.
     fields.pop("rate", None)
     try:
         report = await lane.apply_preset(manager, fields) if fields else {"live": [], "stored": {}}

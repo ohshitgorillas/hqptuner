@@ -1,0 +1,153 @@
+slug: junkmin-floor
+
+kind: new
+
+brief:
+> Rehome the 20k brick-wall and 50k ramp rules in hqptuner/engine/junkadvisor.py off the mean spectrum onto the windowed per-bin minimum, and give that curve a floor statistic that does not collapse: the 10th percentile at junkadvisor.py:271 is pessimism applied twice on a curve that is already a minimum, running ~40 dB low across /srv/hqptuner/state/junkcal/*.jsonl, which blocks _content_edge and makes every floor + 8 gate vacuous.
+> Both signatures are readable from a single frame, so drop them out from behind window_min_db's 6-block gate (metering.py:172), which exists for the spur rule alone — metering.py joins junkadvisor.py in the touched list.
+> Plan, do not assume, whether _lossy_wall survives on a minimum curve, since music in its 13k-18k window is intermittent and a minimum reads a quiet passage as a cutoff; spur verdict latching is out of scope.
+> sections A, B, C and E stand as written, and section D is replaced — _lossy_wall is excised rather than kept on the mean, because when it fires _at_floor_above has already established that the band above the ceiling is empty, so the 20k corner it recommends cuts nothing.
+> The excision takes the mean spectrum with it, so plan for levels_db, SpectralAggregate._power, classify's levels_db parameter and LOSSY_WINDOW_HZ going away, with eligible taking its bin count from the minimum curve and junkcal.py:45's use of LOSSY_WINDOW_HZ[0] as the capture's frequency floor moving rather than vanishing, since the capture format must not change.
+> if the 20k filter doesn't actually resolve the issue, we don't recommend it.
+
+behaviors:
+
+1. A 96 kHz track whose windowed minimum spectrum is flat at -20 dB up to a cutoff, sitting at -110 dB above it, is described by the pair (filter, ceiling_khz): no verdict at a 14 kHz cutoff, no verdict at a 19 kHz cutoff, ("20k", 22.0) at a 22 kHz cutoff, ("20k", 25.0) at a 25 kHz cutoff.
+   kills: recommends the 20k filter at whatever content ceiling it finds, so a track cut at 14 kHz or at 19 kHz is told to engage a filter whose corner sits above the cutoff and removes nothing.
+   bite: at a 14 kHz cutoff `filter='20k', ceiling_khz=14.0`; at 19 kHz `filter='20k', ceiling_khz=19.0`; at 22 kHz `filter='20k', ceiling_khz=22.0`; at 25 kHz `filter='20k', ceiling_khz=25.0` (/home/atom/dev/hqptuner/.venv/bin/python /tmp/claude-1000/-home-atom-dev-hqptuner/002104fc-be43-4089-8b21-ab3d7e0cf052/scratchpad/junkmin.py)
+   existing: tests/engine/test_junk_advisor.py::test_fake_hires_reports_the_content_ceiling pins the contradicting pairs ("20k", 19.6) at tests/engine/test_junk_advisor.py:109, ("20k", 22.3) at :110, ("20k", 25.0) at :111 and ("20k", 14.0) at :112 on this entry point, all four rows built by `constant_fall_96k` and `cutoff_96k`; `grep -rn "cutoff_96k\|constant_fall_96k" tests/` returns those four parametrize rows and the two builders at tests/support/junk_spectra.py:26 and :38.
+
+2. Two 176.4 kHz tracks whose windowed minimum spectra agree below 44.1 kHz — flat at -20 dB to 22 kHz, then dither at -140 dB — differing only above 44.1 kHz, where one holds empty bins at -200 dB to Nyquist, the other that same -140 dB dither to Nyquist, are described by one pair (filter, ceiling_khz) ("20k", 22.0).
+   kills: gives no verdict at all on the track whose bins above 44.1 kHz are empty, so an upsampled source is told nothing while the track that differs from it only in dead air is told to engage the 20k filter.
+   bite: the empty-above track `None`, the dither-to-Nyquist track `('20k', 22.0)` — HEAD splits the pair (`cd /home/atom/dev/hqptuner && PYTHONPATH=/home/atom/dev/hqptuner .venv/bin/python $S/m.py`, a throwaway script building both 1025-bin curves at bandwidth 88200.0 from `junkadvisor.hz(i, 1025, 88200.0)` bin centres and calling `classify(s, 88200.0, 60.0, samplerate=176400, sdm=False, min_levels_db=list(s))`, the argument shape `MeteringReader.verdict()` passes at hqptuner/engine/metering.py:240-247; output verbatim `A None` / `B ('20k', 22.0)`)
+   existing: none, `grep -rn "44100\|upsampl" tests/engine/ tests/support/` returns device-capability rate lists and one samplerate parametrize row, no spectrum whose empty region is fed to the advisor.
+
+3. An 8-bin SpectralAggregate fed one block of coverage, its bin 2 at -20 dB in every frame of that block, its bin 5 at -20 dB in some of those frames, -90 dB in others, every remaining bin at -120 dB throughout, reports from min_db() the curve [-120.0, -120.0, -20.0, -120.0, -120.0, -90.0, -120.0, -120.0].
+   kills: holds the ungated curve behind the same six-block persistence window, so min_db() answers None at one block of coverage, staying silent for the first 30 seconds of a track while the eligibility gate asks for 15.
+   bite: null stub fails at one block of coverage (surface new)
+   existing: none for min_db itself; `grep -rn "min_db(\|levels_db(" tests/` returns window_min_db assertions at tests/engine/test_junk_persistence.py:55, :62, :76, :80 and :111, and one mean assertion at tests/engine/test_junk_persistence.py:103, `test_silent_frames_still_weigh_into_the_mean`, which pins `levels_db()` — the mean statistic the brief's last sentence removes, so that test goes with it.
+
+4. A 176.4 kHz track streamed with an HF rise toward Nyquist in every frame is described by the pair (filter, ceiling_khz) ("50k", 88.2); the same track streamed with that rise in every second frame is described by no verdict.
+   kills: reads the rising region off the per-track mean, where a rise carried by half the frames averages into a standing one, so a track with no persistent noise shaping in it is told to engage the 50k filter.
+   bite: with the rise in every second frame `('50k', 88.2)`; with the rise in every frame `('50k', 88.2)` (`/home/atom/dev/hqptuner/.venv/bin/python - <<'EOF'`, a 14-block SpectralAggregate feed then `classify(agg.levels_db(), agg.bandwidth, agg.seconds, samplerate=176400, sdm=False, min_levels_db=agg.window_min_db())`, the call MeteringReader.verdict() makes at hqptuner/engine/metering.py:240-247)
+   existing: none, `grep -rn '"50k"' tests/` returns tests/engine/test_junk_advisor.py:166, which hands one synthesized curve straight to classify with no aggregate behind it, and two unrelated assertions at tests/live/test_autopilot.py:133 and tests/engine/test_junk_advisor.py:376.
+
+public entry points:
+
+hqptuner/engine/junkadvisor.py
+
+def classify(
+    min_db: list[float] | None,
+    bandwidth: float,
+    seconds: float,
+    *,
+    samplerate: int | None,
+    sdm: bool,
+    min_levels_db: list[float] | None = None,
+) -> dict[str, Any] | None:
+    """Return the signature this aggregate carries, or None when there is nothing to say.
+
+    ``min_db`` is the trailing per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
+    Nyquist), or None before any non-silent frame has been folded into it — there is no curve to read then and no
+    verdict to give. ``min_levels_db`` is the same minimum behind the spur rule's persistence window, or None while
+    that window has not yet been earned (no spur verdicts until it has). The verdict is spectrum-only — the metering
+    tap sees the source, so engaging a filter never changes what the detector sees — which is why detection says
+    nothing about what the engine has engaged. Whether the engaged settings already treat the signature is ``treats``,
+    and the caller applies it: the advisor's note goes quiet under treatment while auto-pilot needs the untreated
+    signature to know what to engage and what to let go of.
+    """
+
+def eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
+    """Whether an aggregate carries enough coverage, bins and HF bandwidth for any rule here to read it."""
+
+def treated(junk_filter: str | None, recommended: str) -> bool:
+def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
+def hz(i: int, bins: int, bandwidth: float) -> float:
+
+MIN_SECONDS = 15.0
+
+hqptuner/engine/metering.py
+
+class SpectralAggregate:
+    """Per-track per-bin minimum power spectrum, in two lengths.
+
+    The minimum is kept block-wise: each BLOCK_SECONDS of coverage folds into
+    one per-bin-min array, and the deque holds the last WINDOW_BLOCKS of them.
+    ``min_db`` reads whatever blocks there are, so it answers from the first
+    non-silent frame onward; ``window_min_db`` answers only once WINDOW_BLOCKS
+    full blocks have been earned, which is the spur rule's persistence proof.
+    Silent frames never touch the minimum (they carry no tone either), and a
+    block that saw only silence is dropped rather than pushed.
+    """
+
+    def __init__(self, bins: int, bandwidth: float) -> None:
+        """Start an empty aggregate fixed to one frame geometry: no blocks, no coverage yet."""
+
+    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
+
+    def min_db(self) -> list[float] | None:
+        """Per-bin minimum (dB) over every block held, or None before the first non-silent frame is folded in.
+
+        Bounded rather than monotone: the deque keeps the last WINDOW_BLOCKS blocks, so the curve spans the trailing
+        window however long the track runs and does not deepen without limit as it plays. Empty bins floor at -200.
+        """
+
+    def window_min_db(self) -> list[float] | None:
+        """``min_db`` once WINDOW_BLOCKS full blocks have been earned, None until then.
+
+        The gate is the spur rule's persistence proof: a tone that survives six blocks of minima cannot be a sustained
+        musical partial. The current partial block joins the minimum too — it can only tighten it, never fake
+        persistence.
+        """
+
+class MeteringReader:
+    """Owns the 4322 connection and the current track's aggregate."""
+
+    def aggregate(self) -> SpectralAggregate | None:
+    def verdict(self) -> dict[str, Any] | None:
+    def recommendation(self) -> dict[str, Any] | None:
+
+BLOCK_SECONDS = 5.0
+WINDOW_BLOCKS = 6
+SILENT_RMS_DB = -90.0
+
+wire and protocol facts:
+
+- The metering stream is a separate binary TCP stream on port 4322, streamed unconditionally on bare accept, one frame per transform hop, ~43 frames/s at 44.1k (docs/protocol.md:287-291, §7, verified live 2026-07-28).
+- Header is 32 bytes little-endian: `u32 version`, `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1, observed 1025), `u32 transformBits`, `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain`, `u32 reserved` (docs/protocol.md:292).
+- Per channel the body carries `f32 peakMax, peak, rms, rmsMax` then `2 × xformLength` f32 transform values as two consecutive halves, reals then imaginaries, not interleaved; bin `k` magnitude is `hypot(a[k], b[k])` and bin `k` sits at `k · bandwidth / (xformLength − 1)` Hz (docs/protocol.md:293). `bandwidth` is therefore the source Nyquist, and a spectrum's bin count and bandwidth come from the frame, never from the engine's configured output rate.
+- The reader holds the 4322 connection only while `State` reports playing (state 2) and closes it otherwise (docs/protocol.md:297), so an aggregate's coverage accrues in playing time, not wall time.
+
+applicable fixtures:
+
+- tests/support/junk_spectra.py — `spectrum(bandwidth, level_at)` builds a 1025-bin dB curve from a level function; `cutoff_96k(hz)` is flat -20 dB to a cutoff then -110 dB; `fake_hires_96k`, `genuine_hires_96k`, `constant_fall_96k`, `flat_fullband_96k`, `decaying_176`, `spur_min_176`, `shaping_ramp_176` are the named signature curves; `FAKE_HIRES_FRAME` is one encoded 0.7 s frame of the fake-hi-res curve.
+- tests/fake_metering.py — `frame(levels, bandwidth, seconds)` encodes a dB curve into a real §7 frame; the metering stream fake serves frames over a real socket.
+- tests/conftest.py — `metering_stream` spawns that fake and returns the port; `running_reader` drives a real MeteringReader against it; `eventually` polls a condition without touching the wall clock; `PLAYING` is a TrackContext in state 2; `virtual_clock` (autouse) virtualizes sleep and monotonic.
+- tests/narrow.py — `present(verdict)` narrows an optional verdict mapping for strict mypy.
+
+changelog entry:
+
+Under `## [Unreleased]`, `### Fixed`, replacing the entry now at CHANGELOG.md:15:
+
+- **The junk-filter advisor names a track's real content ceiling.** A track whose content fades out gradually below the container's limit read differently from one minute of it to the next, so auto-pilot could settle on the 30k filter for a track whose content stops around 23 kHz, or swap between corners mid-track. The ceiling is now read from a fixed reference band.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: sweep on classify's (filter, ceiling_khz) over the 96k cutoff — four cutoffs, three distinct expected values, 19 and 22 kHz straddling the 20 kHz corner
+
+1  DELTA tests/engine/test_junk_advisor.py:109 (carried): the four parametrize rows of test_fake_hires_reports_the_content_ceiling change — the 14 kHz and a new 19 kHz row expect no verdict instead of ("20k", 14.0)/("20k", 19.6), and the remaining rows move onto cutoff_96k at 22 and 25 kHz; no new test.
+2  KEEP (carried) two 176.4 kHz minimum curves agreeing below 44.1 kHz and differing only above it (empty -200 dB bins against -140 dB dither to Nyquist) -> both ("20k", 22.0); reading one noise floor over the whole grid fails it at the empty-above track, which it calls no verdict at all; bite: HEAD splits the pair, `A None` / `B ('20k', 22.0)`
+3  KEEP 8-bin aggregate, one block of coverage, bin 2 held at -20 dB, bin 5 alternating -20/-90 dB, rest at -120 dB -> min_db() returns [-120.0, -120.0, -20.0, -120.0, -120.0, -90.0, -120.0, -120.0]; holding the ungated curve behind the six-block window fails it at one block, where it answers None; bite: null stub fails at one block of coverage (surface new)
+4  KEEP (carried) 176.4 kHz stream, HF rise toward Nyquist in every frame -> ("50k", 88.2), same rise in every second frame -> no verdict; reading the rising region off the per-track mean fails it at the every-second-frame stream, which it also calls ('50k', 88.2); bite: both streams give ('50k', 88.2) at HEAD
+
+null stub: module present, exports named, classify returns None, SpectralAggregate.add a no-op and min_db/window_min_db returning None.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: one implementation per surface returning the values the lines name for the inputs they give, reading no spectrum and tracking no frames — on classify it cannot stay constant, since line 1 varies the content ceiling across the 20 kHz corner; on the aggregate it cannot answer -90.0 at bin 5 while bin 2 holds -20.0 without taking a minimum over the frames line 3 feeds, and one block is not the six-block gate's design value.
+  satisfies: none   fails: 1, 2, 3, 4
+
+survives: 3
+
+notes:
+- Round 2 recorded the hard-coded stub as satisfying line 3; that reading was of the equality form then in front of me. Line 3's text changed to the curve form, so the reading changes with it.
+- Line 3's `existing:` says test_silent_frames_still_weigh_into_the_mean (tests/engine/test_junk_persistence.py:103) goes when levels_db() goes. That removal is a deletion under tests/ and travels its own kind: excision block; it is not carried by this one.

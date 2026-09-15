@@ -13,9 +13,10 @@ Blocked: a Bash command that meters under free_bash.py and names a `.md` path
 outside quotes. Read-only commands (`cat`, `grep`, `sed -n`, `diff`) are free
 and pass. `git`, `rm`, `make`, `pre-commit` pass by head command: they move,
 delete, stage or gate markdown and add no prose. So does a call into
-`scripts/gates/` or `md-softwrap.py`, which are the gates themselves, and so
-does the `skills/caveman-compress` CLI, exempted by the owner: it rewrites
-prose in place and the caller runs `md-softwrap.py --fix` over its output.
+`scripts/gates/`, a `triviajudge-*` console script or `md-softwrap.py`, which
+are the gates themselves, and so does the `skills/caveman-compress` CLI,
+exempted by the owner: it rewrites prose in place and the caller runs
+`md-softwrap.py --fix` over its output.
 
 Any other shape is refused with the instruction to use Write or Edit.
 """
@@ -36,7 +37,7 @@ MD_PATH = re.compile(r"(?<![\w.])[\w./~-]*\.md\b")
 #: head commands that touch markdown files without adding prose
 EXEMPT_HEADS = {"git", "rm", "make", "pre-commit"}
 #: script paths that are markdown gates or fixers in their own right
-EXEMPT_SCRIPTS = ("scripts/gates/", "md-softwrap.py", "skills/caveman-compress")
+EXEMPT_SCRIPTS = ("scripts/gates/", "triviajudge-", "md-softwrap.py", "skills/caveman-compress")
 
 _WHY = (
     "Markdown is written with the Write or Edit tool, never from the shell. The soft-wrap "
@@ -122,7 +123,7 @@ def self_test() -> int:
         "git add docs/x.md && git commit -m 'docs: touch x.md'",
         "rm docs/old.md",
         "python3 .claude/hooks/md-softwrap.py --fix docs/x.md",
-        ".venv/bin/python scripts/gates/check_md_trivia.py docs/x.md",
+        ".venv/bin/triviajudge-md docs/x.md",
         "make check",
         "echo hi > out.txt",
     ]

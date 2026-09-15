@@ -169,8 +169,7 @@ def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
     """Every named preset snapshot in a ``/backup`` archive, keyed by preset name.
 
-    Those are the ``data/cfgs/<name>.xml`` members. Powers the one-time migration of hqplayerd's presets into the
-    HQPTuner-owned store.
+    Those are the ``data/cfgs/<name>.xml`` members.
     """
     out: dict[str, bytes] = {}
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:

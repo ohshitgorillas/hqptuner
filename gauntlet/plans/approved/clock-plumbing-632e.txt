@@ -1,0 +1,119 @@
+slug: clock-plumbing-632e
+grounding: detective
+
+brief:
+
+> bring it home
+>
+> do not go back to stage 1 with repairs. instead, look at the workflow in ~/dev/gauntlet/ specifically as it relates to the testing fast lane. can you do that adhoc?
+>
+> let's do this: take both plans all the way through the arbiter; I will then hand off the approved files to fresh agents. Your context can't handle all that after what you've already been through.
+
+delivered: "bring it home" — the two remaining wall-clock sites that block `idle-gate-ba28` from merging, neither of which shares a mechanism with the `eventually()` repair. `scripts/gates/check_gates_wired.py` refuses an unwired gate, so both gates land together or not at all, and these two sites are the rest of what stops them.
+
+delivered: "do not go back to stage 1 with repairs" — followed as far as this repo allows, and then superseded in the owner's own next message, "let's do this: take both plans all the way through the arbiter", which is the sentence this plan follows. Recorded rather than passed over, and not put back to the owner as a question, because the owner's following sentence answers it.
+
+delivered: "instead, look at the workflow in ~/dev/gauntlet/ specifically as it relates to the testing fast lane." — the lane was read and identified: `kind: repair`, at `~/dev/gauntlet/docs/testing.md` "Repair blocks", a spec-block kind with no `bite:`, rule 8 exempted because the replacement is characterization, and no stage 1.
+
+delivered: "can you do that adhoc?" — answered no, with the reason, and the nearest lane this repo does implement is what stage 2 uses instead. `kind: repair` is not wired here: `.claude/agents/gauntlet-arbiter.md:39` admits `new | characterization | refactor | excision` and nothing else, this repo's `docs/testing.md` carries an "Excision blocks" section and no repair section, and `scripts/pair.sh:42,232,243` special-cases `excision` alone, so a repair block would take the `new` polarity and expect red where a repair run is green. Its grammar does not fit either: a repair line targets `tests/<file>::<test>` and quotes an `assertion:` from a test body, and neither site here is an assertion in a test — one is a shared fake's pacing, the other a fixture's config. `kind: refactor`, which this repo does implement, is the element that delivers this: green expected at the red run, no `bite:` to measure, no `gauntlet-accountant` round for the block itself.
+
+delivered: "take both plans all the way through the arbiter" — this is the second of the two, and the smaller.
+
+delivered: "Your context can't handle all that after what you've already been through." — the reason this plan states every fact with a citation rather than relying on session memory, and the reason its artifacts land on disk: a fresh agent reads `docs/gauntlet/plans/approved/clock-plumbing-632e.txt` and the approved spec block, and needs nothing from this conversation.
+
+## What is wrong
+
+Two sites under `tests/` hold a real clock, and both violate `docs/testing.md:19` rule 7.
+
+**`tests/support/fake_metering.py:97`**, `await asyncio.sleep(self._interval)`, inside `_pump`'s repeat branch (`:91-105`). The offline suite does not spend it: every construction site takes the `interval: float = 0.0` default at `:53`, so the call is already a bare yield. The grounding round confirmed that no call site anywhere in the tree passes `interval` to any of the three surfaces that take one. The 5 ms that does get spent lives on the two threaded spawners' own defaults — `spawn_threaded` at `:154-166` and `spawn_threaded_stream` at `:169-178`, both `interval: float = 0.005` — and it is spent by exactly one caller, `tests/e2e/support/stack.py:219`.
+
+That is the shape of the defect: a hazard rather than a live wait. A constant in a shared fake, one keyword away from being spent by any offline test, sitting in the tree the gate refuses. It is also mis-filed: the two threaded spawners exist for the e2e stack and have no other consumer, but they live in `tests/support/`.
+
+**`tests/api/test_connection_lane.py:55`**, `"request_timeout": 0.05` in the `app_factory` fixture (`:36-64`). This one is live, and `idle-gate-ba28`'s measurement clocked it at 48-50 ms. It survived the `idle-excise-ba28` excision: that block removed the test which spent the deadline, and the fixture default that creates it stayed behind.
+
+The file holds two test functions, both parametrized, so **six builds**: `test_a_save_reports_the_lane_its_own_config_attempt_reached` at `:76` with four cases (`:67-74`), and `test_an_unset_record_reads_as_ask_every_time_and_a_stored_choice_reads_back` at `:96` with two (`:95`).
+
+**What spends those 50 ms is not the control lane, and this is the load-bearing fact of the plan.** The obvious repair — delete the line and let `request_timeout` fall back to its `5.0` default at `hqptuner/config.py:83` — would make the suite dramatically worse, not better. `TestClient(create_app(cfg))` runs the app's lifespan, whose first statement (`hqptuner/api/lifespan.py:61`) is `_adopt_alias`. That probes the container host alias (`:29-31`):
+
+    if not host_is_unchosen(connections.read()):
+        return
+    answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout)
+
+The guard is `host_is_unchosen`, `hqptuner/core/connection.py:116-122`, true when no record file exists and `HQPTUNER_HQP_HOST` is unset. `app_factory` points `connection_file` at an empty `tmp_path`, and the session-autouse scrub at `tests/conftest.py:60-77` deletes every `HQPTUNER_*` name except `HQPTUNER_CHROMIUM`. There is no truthiness test on the alias and no early return in `probe` (`hqptuner/engine/discovery.py:115-124`), and the alias resolves to its default, `"host.docker.internal"` (`hqptuner/config.py:97`), which nothing in the test environment answers, so the probe runs to the deadline `asyncio.wait_for` holds at `hqptuner/engine/control.py:147`.
+
+**Both edges of that guard, since only one of them probes.** Five of the six builds probe. The sixth does not: the `(True, True)` case of `:95` writes a `ConnectionRecord` through `ConnectionStore(store_path).write(record)` at `:101-103` before building at `:104`, so `host_is_unchosen` is False and `_adopt_alias` returns at `hqptuner/api/lifespan.py:29-30` without probing. That build spends nothing today and nothing after, so it is neither a cost nor a saving.
+
+The `0.05` is a muzzle on that probe. Removing it uncages a 5.0 s wait on each of the five.
+
+## What the owner sees change
+
+Nothing, in either case. No production file is touched by this plan, no behaviour changes, and no user-facing text moves. Both changes are test plumbing: one parameter dropped from a fake, and one fixture key swapped for another. The e2e browser suite keeps being fed frames; what sets the rate stops being a constant and becomes the consumer.
+
+No normative line moves. An earlier draft of this plan proposed a clause on `docs/testing.md:26`; it is withdrawn, and the reason is under the `tests/support/fake_metering.py` entry below.
+
+## Which files get touched, and roughly how
+
+**`tests/support/fake_metering.py`.** `MeteringStream.__init__` (`:53`) drops `interval` outright, taking nothing in its place, and `_pump` (`:91-105`) replaces `await asyncio.sleep(self._interval)` at `:97` with a bare `await asyncio.sleep(0)`. The `await writer.drain()` already at `:96` is what paces the loop after that: a write that outruns the consumer blocks there until the socket buffer clears. `spawn_threaded` (`:154-166`) and `spawn_threaded_stream` (`:169-178`) drop their `interval: float = 0.005` defaults with it. After this the file holds no clock at all, and the `repeat=None` queue branch (`:99-103`) is unchanged, since it never slept.
+
+**`spawn_threaded` and `spawn_threaded_stream` do not move, and nothing gains a sleep.** An earlier draft moved them into `tests/e2e/support/` so their 5 ms default would sit inside the gate's path carve-out. That relocated the clock instead of removing it, and it needed a clause on `docs/testing.md:26` to be legal on the prose as well as on the gate. Both are withdrawn. The two spawners keep their home, lose their `interval` parameter with everything else, and `docs/testing.md:91`'s rule that the browser suite drives "the same wire fakes the offline suite uses" holds by construction rather than by argument, since there is now one fake and no second pacing path.
+
+**What paces the e2e stack once the constant is gone.** Backpressure, which is a condition and not a clock. `_pump` already awaits `writer.drain()` at `:96` before its sleep; a pump that writes, drains and yields advances exactly as fast as the consumer takes frames, and the consumer in the browser suite is a real `python -m hqptuner` subprocess reading a socket. `drain()` is backpressure, not a poll: it has no ceiling and no condition it re-checks, and the rate it settles at is not known here. So it is not what `docs/testing.md:26` allows, and this plan does not invoke `:26` at all — an earlier draft leaned on that line twice and was wrong both times. No carve-out is needed, because the sleep is removed rather than relocated: after this change `tests/support/fake_metering.py` holds no non-zero sleep, so nothing this plan touches sits in `tests/e2e/` and `:26` has no surface left to be invoked on. The claim is that narrow on purpose. Six non-zero sleeps under `tests/` survive this change and are not its business: `tests/conftest.py:222`, which belongs to `clock-seam-632e` per the paragraph below, and five inside `tests/e2e/` — `test_abuse_bracket.py:126`, `test_hwapply.py:173`, `test_livepreset_repick.py:166` and `:183`, `support/stack.py:182` — which are exactly the sites the gate's path carve-out exists to spare (`docs/gauntlet/specs/approved/idle-gate-ba28.txt:126`). What this plan removes is the one fixed metering interval, not every clock under `tests/`.
+
+**`tests/e2e/support/stack.py`** is not touched. `:219` calls `spawn_threaded_stream(_repeat_frame())` positionally and passes no interval, so dropping the parameter leaves the call as written; the generator protocol around it (`:224` takes the port, `:244` resumes for teardown) is likewise unchanged.
+
+**`tests/api/test_connection_lane.py`.** The `"request_timeout": 0.05` key at `:55` is replaced by a `container_host_alias` override of `"127.0.0.1"`. The alias probe then attempts that address at `cfg.hqp_control_port`, which the fixture already points at `closed_port` (`:49`) — a port bound and released, so refused at once by the kernel — and `probe` returns `None` through its `except (OSError, ControlError)` at `hqptuner/engine/discovery.py:123-124`, the same `None` an unreachable host gives it today, by the same code path.
+
+**`tests/support/fixtures_daemons.py`** is read but very likely not edited: the construction at `:204` is `MeteringStream(repeat=repeat)` and passes no `interval`, so it is unaffected by the signature change. It is listed because the plan cannot promise that without the writer's hand on it.
+
+## Caller-side delta
+
+No production caller changes; this plan touches no production file.
+
+`MeteringStream`: 4 construction sites, `tests/support/fixtures_daemons.py:204`, `tests/audit/test_autopilot_audit.py:289`, `tests/live/test_autopilot.py:160` and `tests/support/fake_metering.py:160` inside `spawn_threaded`. **None passes `interval`**, so the only one that changes is `:160`, which stops forwarding a parameter that no longer exists.
+
+`spawn_threaded`: 1 caller, the forward at `tests/support/fake_metering.py:177`, which drops the positional `interval` it passes today.
+
+`spawn_threaded_stream`: 1 caller, `tests/e2e/support/stack.py:219`, which passes no interval and does not change.
+
+The seven tests that pin frame cadence through the `metering_stream` fixture count passes rather than seconds and are untouched: `tests/engine/test_metering_idle.py:107,120,131,193,206` and `tests/engine/test_junk_advisor.py:238,251`, each waiting on `len(sleeps) >= n` against the reader's injected sleep recorder (`test_metering_idle.py:48-62`). Their conditions hold on the same number of loop turns before and after, because the offline path's `interval` was already `0.0`.
+
+`app_factory`: 2 consumers, 6 builds. Neither test reads `request_timeout`.
+
+## What it costs
+
+**The change:** one parameter dropped from three signatures, one `await` swapped for a bare yield, one internal forward, one fixture key. No file moves, no new file, no doc edit, no production code. No `CHANGELOG.md` entry — nothing here is visible to a user of the application.
+
+**What it buys:** the shared fake stops holding a clock anywhere, in either tree, rather than holding one in a tree the gate does not read. `test_connection_lane.py` stops spending 48-50 ms on each of five builds.
+
+**The risk this design carries and the moved-constant design did not.** Dropping the interval changes the e2e stack's frame rate from 5 ms to whatever the consumer sustains. `await writer.drain()` bounds it — the pump blocks once the socket buffer is full, so the rate is the subprocess's read rate rather than a spin — but that rate is not 200 frames a second and is not known here. Two things follow. A browser test that depends on frames arriving slowly enough to observe could change behaviour, and a consumer that reads fast makes the pump busy where it used to idle, which `~/dev/CLAUDE.md` 3.2 counts on actual footprint rather than intent. Both are measurements against the running e2e stack, so they are the `gauntlet-accountant`'s at stage 2: the sustained frame rate and the pump's CPU, against the same stack today at 5 ms. A rate that saturates a core sends this back to stage 1 for a bounded condition on the stack's own state rather than on drain alone.
+
+**Where `request_timeout` still goes, corrected.** The earlier draft said it "is never reached", and that is wrong. It is reached, one hop from the changed fixture: `TestClient` starts the lifespan, `hqptuner/api/lifespan.py:62` starts `manager.run()`, `hqptuner/core/manager.py:154` calls `loader.connect_and_load`, and `hqptuner/core/loader.py:37` builds `ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout)`. The fixture's own comment at `:53-54` names that path. Reached is not spent: `hqp_control_port` is `closed_port` (`:49`), the same refused loopback hole the alias probe will now hit, so the deadline is a ceiling the connect never approaches. That rests on the same refusal mechanism as the alias override and folds into the one ASSUMED below rather than standing as a separate claim.
+
+**The risk, named.** The alias override changes what the probe talks to, from an unresolvable name to a refused port. Both answer `None` through `probe`'s own `except (OSError, ControlError)`, so the lifespan sees no difference — but the failure mode moves from a timeout to a refusal, and if any assertion distinguished those, this is where it would show. One case in the file does assert an unreachable-lane outcome: `("nothing_on_the_port", "no_answer")` at `:73`, asserted at `:92`. It is not this path. That verdict is reached over the HTTP lane, which the case points at `closed_port` through `hqp_http_port` at `:88-89`, and its deadline is not `request_timeout`; removing the fixture key cannot move it. Stage 2 pins that all four lane verdicts are unchanged.
+
+**What is ASSUMED, and it is one thing:** that a connect to `127.0.0.1` at a released `closed_port` is refused promptly rather than waited out, on this host. `closed_port` (`tests/conftest.py:394-405`) binds port 0, reads the number and closes, so nothing holds it. That single fact carries both the alias probe and the `loader.py:37` control client. Settling it is a timing measurement, so it is the `gauntlet-accountant`'s at stage 2 rather than a number typed here; the measurement command is `-k`-selected rather than path-selected, since `.claude/hooks/tests-lane.py` denies a shell command naming a `tests/` path.
+
+**Deliberately left out:** `tests/conftest.py:222` and the `ConnectionManager.run()` pacing seam. That is the other plan, `clock-seam-632e`. It touches production code and retires a normative rule, and nothing is gained by landing the two together.
+
+## Open questions
+
+None.
+
+--- plan-reviewer READY ---
+
+READY
+
+a  PASS  carried: The redefinitions are stated outright as the change: `MeteringStream.__init__` at `:53` "drops `interval` outright, taking nothing in its place", and both spawners lose their `interval: float = 0.005`. The second meaning change — what sets the e2e frame rate — is stated in the same terms at line 50 and again in full under the risk paragraph, not smuggled in as a side effect of removing a sleep.
+b  PASS  Re-run on the changed passage, and every claim in it resolves. `tests/support/fake_metering.py` carries exactly one sleep, `:97`, which becomes `asyncio.sleep(0)`, so the file holds no non-zero sleep afterwards. Nothing this plan touches sits in `tests/e2e/`: the touched list is fake_metering.py, test_connection_lane.py and fixtures_daemons.py, with stack.py explicitly not touched. The six surviving sites are exactly the six my grep returned — `tests/conftest.py:222`, `tests/e2e/test_abuse_bracket.py:126`, `tests/e2e/test_hwapply.py:173`, `tests/e2e/test_livepreset_repick.py:166` and `:183`, `tests/e2e/support/stack.py:182` — and `docs/gauntlet/specs/approved/idle-gate-ba28.txt:126` says of the path carve-out what the plan says it says, naming two of those five itself. `tests/conftest.py:222` is assigned to `clock-seam-632e` by the plan's own closing paragraph. The rule-7-tree-wide phrasing is gone, and what replaces it is narrower than my repair asked for rather than wider.
+c  PASS  carried: Recount matches mine. Four `MeteringStream` constructions — fixtures_daemons.py:204, test_autopilot_audit.py:289, test_autopilot.py:160, fake_metering.py:160 — and only `:160` passes `interval`, so only it changes. `spawn_threaded`: one caller at `:177`, dropping a positional. `spawn_threaded_stream`: one caller at stack.py:219, unchanged. `app_factory`: 2 consumers, 6 builds. No file moves, so no import-path delta to count.
+d  PASS  carried: Cause named upstream of the symptom: the fixture's 0.05 is not the control lane's give-up but a muzzle on the startup alias probe (lifespan.py:31 against container_host_alias's unresolvable default, config.py:97), and the appearance — 48-50 ms per build — follows from asyncio.wait_for at control.py:147. Not round N of a growing fix list.
+e  PASS  carried: It now invokes `docs/testing.md:19` rule 7 alone and disclaims `:26` in terms. That reading holds for this change: the fake's pump carries no clock afterwards, and nothing the plan touches asks either rule for a licence. `:23`, `:25` and `:91` are as I found them in round 3 — untouched, unaffected, and held by construction respectively.
+f  PASS  carried: The edges of the new pacing are read. Repeat branch versus the `repeat=None` queue branch at `:99-103`, which never slept and is unchanged. Buffer-full: the pump blocks in `drain()` at `:96` until the consumer reads, which the plan states. Consumer gone: `drain()` raises `ConnectionError`, caught at `:104-105`, the same path a hang-up takes today. Teardown: `close()` cancels the handlers and `_serve`'s `finally` cancels the pump, so a parked `drain()` is not a leak. The unknown edge — the sustained rate at the fast end — is named as unmeasured rather than left unqualified, and is note 1.
+g  PASS  carried: The escalation is moot rather than answered: the `docs/testing.md:26` amendment that raised it is deleted, no normative line moves, and nothing else in the plan turns on a ruling the owner has not given. "None." is the right answer to open questions again.
+h  PASS  carried, with one pointer: the reach claims I traced still hold — stack.py:219 is the only consumer of the dropped default, the seven offline cadence sites took `interval` at `0.0` already, and the `request_timeout` trace through lifespan.py:62, manager.py:154 and loader.py:37 stands with its refusal mechanism. The sentence that overreached is repaired, so the pointer is discharged.
+i  PASS  carried: Six lines for six brief sentences, all `delivered:`, none `dropped:`, so the open-questions obligation does not arise and "None." stands. "I will then hand off the approved files to fresh agents" is the second clause of the sentence line 20 covers and is answered at line 22, which names the approved-plan file the fresh agent reads.
+j  N/A   hqptuner/core/manager.py is not touched; the plan touches no production file.
+k  PASS  carried: Each `delivered:` reads as its sentence reads. "do not go back to stage 1 with repairs" takes the escape by quoting the owner's later words in the brief block, "take both plans all the way through the arbiter", which orders the chain this round is part of. "instead, look at the workflow..." and "can you do that adhoc?" are delivered by the fast-lane finding and its refusal, both grounded; "bring it home" and "take both plans..." resolve to elements in the body.
+
+note 1 — the e2e frame rate and the pump's CPU once the constant is gone are live measurements against the running stack, so they are not mine to settle and are not a FAIL. The owner is the reader who can weigh the second half: `~/dev/CLAUDE.md` 3.2 binds on actual footprint, and the plan's own fallback is that a rate saturating a core returns this to stage 1. That is a stage-2 outcome the owner may prefer to price before approving stage 1 rather than after.
+note 2 — ASSUMED promptness of a refused loopback connect carries both the alias probe and the loader.py:37 client. Legal and still the accountant's at stage 2: it is a timing measurement, not a read.

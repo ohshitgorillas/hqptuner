@@ -1,0 +1,120 @@
+slug: clock-seam-632e
+grounding: detective
+
+brief:
+
+> bring it home
+>
+> do not go back to stage 1 with repairs. instead, look at the workflow in ~/dev/gauntlet/ specifically as it relates to the testing fast lane. can you do that adhoc?
+>
+> let's do this: take both plans all the way through the arbiter; I will then hand off the approved files to fresh agents. Your context can't handle all that after what you've already been through.
+
+delivered: "bring it home" — one of the three sites the static gate refuses, and the only one that cannot be repaired without touching production code. The gate lands with `clock-plumbing-632e` and not before: `scripts/gates/check_gates_wired.py` refuses an unwired gate, so both gates go in together or neither does, and the other two sites belong to that plan.
+
+delivered: "do not go back to stage 1 with repairs" — followed as far as this repo allows, then superseded in the owner's own next message, "let's do this: take both plans all the way through the arbiter", which is the sentence this plan follows. Not put back as a question, because that following sentence answers it.
+
+delivered: "instead, look at the workflow in ~/dev/gauntlet/ specifically as it relates to the testing fast lane." — read and identified: `kind: repair`, at `~/dev/gauntlet/docs/testing.md` "Repair blocks", a spec-block kind with no `bite:`, rule 8 exempted because the replacement is characterization, and no stage 1.
+
+delivered: "can you do that adhoc?" — answered no, for this plan, on two independent grounds. It is not wired in today's tree: `.claude/agents/gauntlet-arbiter.md:39` admits `new | characterization | refactor | excision`, this repo's `docs/testing.md` has `## Excision blocks` at `:75` and no repair section, and `scripts/pair.sh:42,232,243` special-cases `excision` alone, so a repair block would take the `new` polarity and expect red where a repair run is green. That leg is true of today's tree only — `docs/gauntlet/plans/approved/repair-lane-3f80.txt` is an approved plan to implement the lane here. The second leg does not expire: a repair line targets `tests/<file>::<test>` and quotes an `assertion:` from a test body, and this change is to a helper and to a production method, neither of which is a test with an assertion.
+
+delivered: "take both plans all the way through the arbiter" — this is the first of the two.
+
+delivered: "I will then hand off the approved files to fresh agents." — the reason every fact here carries a citation rather than resting on session memory. The artifacts are `docs/gauntlet/plans/approved/clock-seam-632e.txt` and the approved spec block; a fresh agent needs nothing from this conversation.
+
+delivered: "Your context can't handle all that after what you've already been through." — the same, and the reason this plan states its own predecessor's errors explicitly rather than assuming the next reader has watched them being found.
+
+## What is wrong
+
+`tests/conftest.py:211-224` defines `eventually()`, the suite's condition-poll helper, on a real clock: a 10 ms `await asyncio.sleep(0.01)` at `:222` inside a real `asyncio.wait_for(wait(), timeout)` at `:224`, default `timeout: float = 3.0`. 71 call sites in 16 files use it. That violates `docs/testing.md:19` rule 7, "No test waits on wall clock", and `docs/testing.md:71`, which excises a wall-clock wait on sight, coverage no defence.
+
+It is also the largest idle source the idle-gate measurement found that no per-test threshold can see: 10 ms a poll, spread thin enough that no one test crosses 40 ms. `docs/plans/idle-gate.md:49` records it as the best explanation for the 24-31 ms cluster in `tests/apply/test_manager_connection.py`, `tests/api/test_health_ready.py` and `tests/live/test_live_chain.py`, and as spread through most of the 48 tests over 10 ms. That line says 17 files; this plan re-measured 16, the difference being `tests/specs/readymark-5b3e.txt`, which mentions the name in prose.
+
+It is not a defect that was missed. `tests/conftest.py:213-214` states the reason in its own docstring: "Real clock with tiny polls, because `run()` is deliberately real-paced (docs/testing.md §7)". That claim is true, and it is the actual obstacle.
+
+`ConnectionManager.run()` (`hqptuner/core/manager.py:146-172`) paces on the private `_sleep` at four sites, `:157`, `:161`, `:170`, `:172`. `_sleep` (`:191-203`) waits on `asyncio.wait_for(self._wake.wait(), seconds)`, a real clock. The autouse `virtual_clock` fixture (`tests/conftest.py:100-125`) replaces exactly two methods:
+
+    124:    monkeypatch.setattr(ConnectionManager, "sleep", sleep)
+    125:    monkeypatch.setattr(ConnectionManager, "monotonic", monotonic)
+
+The public `sleep()` (`:289-294`) delegates to `_sleep` at `:294`, so replacing `sleep` reaches the lanes and leaves the poll loop alone. `docs/testing.md:24` states that as a rule: "`ConnectionManager.run()` stays on real clock by design."
+
+So a test waiting for a manager to poll cannot get there by turning the event loop. It waits out `cfg.poll_interval` on a wall clock — `0.02` for the suite's own managers (`tests/conftest.py:289`), `2.0` in production (`hqptuner/config.py:81`) — and `eventually()`'s 10 ms sleep is how it does.
+
+## What the owner sees change
+
+Nothing in the running application. `hqptuner/core/manager.py` gains one method and `run()` calls it instead of `_sleep` directly; outside the suite the wait it performs is the wait it performs today, `_wake` included.
+
+In the suite: the offline run stops spending wall time in `eventually()`, and a condition that never holds stops costing three wall-clock seconds per site.
+
+## Which files get touched, and roughly how
+
+**`hqptuner/core/manager.py`.** Two new **public** members beside the `sleep`/`monotonic` pair: `pace(seconds)`, the poll loop's own pacing seam, whose body is the `_sleep` call `run()` makes today, and `stopping`, a property reading True once `stop()` has been called. The four `await self._sleep(...)` calls at `:157`, `:161`, `:170`, `:172` become `await self.pace(...)`. `_sleep` does not change, keeps `_wake`, and keeps the public `sleep()` at `:294` as its caller. Public is the point for both: `docs/testing.md:22` rules that a virtualized seam is a public method and that "patching private `_sleep` would be" the rule-3 violation. This plan satisfies that rule rather than bending it, and that is the whole reason the method exists instead of the suite reaching into `_sleep`.
+
+It is a separate method rather than a reuse of the public `sleep()`, for a behaviour reason. `virtual_clock`'s replacement for `sleep` advances a nonlocal offset (`tests/conftest.py:117-118`) that `monotonic` reads back, so routing the poll loop through it would advance the suite's clock by `cfg.poll_interval` on every turn. Lane deadlines are measured against that same clock with `alarm_threshold`, default `15.0` (`hqptuner/config.py:82`), so at the production interval eight turns would push every lane into alarm. The poll loop needs to yield, not to advance time.
+
+**`tests/conftest.py`.** `virtual_clock` patches the new seam alongside `:124-125`. **What it patches it to is not a no-op**, and this is the correction that matters most in this draft. `docs/testing.md:23` forbids exactly that shape: "No-op `sleep` with real `monotonic` turns every deadline loop into hot spin hammering fake for full wall-clock deadline — slower than sleeps it removed". A bare `asyncio.sleep(0)` on this seam is that defect: a started manager would re-enter `loader.poll()` against the fakes on every event-loop pass, for the whole rest of the test and through teardown, bounded by nothing — the predecessor draft of this plan proposed exactly that and was wrong.
+
+The seam is instead patched to **park on a pulse the waiting test grants, or on the manager being asked to stop, whichever comes first**. Under the virtual clock the poll seam waits on an event that `eventually()` sets once per pass. A manager then advances exactly one poll per pass of a test that is waiting for it, and is parked whenever no test is waiting — the case `docs/testing.md:23` is written about. `:23` is therefore not overturned and not touched: its prohibition holds, and this design is what obeying it looks like on a seam whose production body is a wait.
+
+**The stop half of that disjunction is not a detail, and leaving it out is how the previous paragraph of this plan was wrong.** A seam parked on a pulse alone never returns when a manager is stopped: `stop()` sets `_stop` and `_wake` (`hqptuner/core/manager.py:130-132`), the suite's replacement consults neither, and both teardown paths are a bare `await task` after `manager.stop()` with no cancel and no timeout — `tests/conftest.py:253-254` in `live_manager` and `:302-303` in `start_manager`. That task would never finish and the session would hang, in teardown, on every test that starts a manager. What is at stake there is termination, not the shutdown responsiveness named further down.
+
+So the parked seam returns on stop as a property of the design, not as something stage 2 discovers. It reaches that without touching `_stop` or `_wake`, because reading a private from a seam replacement is the same rule-3 smell `docs/testing.md:22` names for patching one: the manager's stopping state is observable through the public surface the seam is added to, and the replacement waits on the pulse and on that, first to complete. The surface is two public members, not one, and this plan picks them rather than leaving the choice to stage 2. `ConnectionManager` gains `pace(seconds)`, the wait `run()` awaits, and `stopping`, a property reading True once `stop()` has been called. The suite replaces `pace` wholesale, so a `pace` that checked stopping internally would lose that check the moment it was replaced — which is why the readout has to be separate and public, and why the alternative shape does not work.
+
+`ConnectionManager` has no public stopping readout today: `_stop` is private and appears only at `hqptuner/core/manager.py:63`, `:131` and `:151`. So `docs/architecture.md:101`'s requirement applies — "An addition to the manager names which of those it could not live in and why" — and both members are named against the kinds it keeps. `pace` is a **clock seam**, where `sleep` and `monotonic` already sit, and it cannot live elsewhere because it is a wait the suite virtualizes. `stopping` is one of the **lifecycle flags**: it reads back the flag `stop()` sets, it is the same state `ready` and `alarm` are read off, and it cannot live in the clock seams because it reports lifecycle rather than time. Neither belongs in construction, the supervisor loop or the client accessors.
+
+`eventually()` at `:211-224` loses both clocks: the 10 ms sleep becomes a yield plus that pulse, and the real `asyncio.wait_for` ceiling becomes a bounded pass count. Its `timeout` parameter becomes that budget. The two `noqa` suppressions on `:211` and `:221` are re-examined, since ASYNC109 is about a real timeout parameter.
+
+**`docs/testing.md`.** `:24` is retired and replaced. It states as a rule the thing this change undoes. What replaces it says that under the virtual clock a running manager advances one poll per pass of a waiting caller, and is parked otherwise. `:19`, `:22` and `:23` are read, named above, and unchanged.
+
+**Docstrings that restate the retired rule**, all five, same commit: `hqptuner/core/manager.py:193-195`, `:283-284`, `:292`, `tests/conftest.py:112-114`, `:213-214`.
+
+`docs/architecture.md` is **not** touched. `:101` reads "the clock seams", plural, so a second clock seam on the manager needs no edit there. The predecessor plan called the method "one of the five kinds `docs/architecture.md:101` keeps"; there is no enumeration of five kinds anywhere in that file, and `:101` is a composition-root bullet.
+
+## Caller-side delta
+
+Production: **zero call sites move.** `run()` gains one method call; the new seam has no other caller; `_sleep` keeps `sleep()` and loses `run()`.
+
+Tests: **7 of `eventually()`'s 71 call sites pass `timeout=` explicitly and are the only ones that change**; the other 64 take the default. They are `tests/conftest.py:269` and `:271` (`5.0`), `tests/apply/test_manager_apply.py:22` and `:34` (`2.0`), `tests/matrix/test_matrix_switch.py:40` (`3.0`), `tests/api/test_health_ready.py:71` (`5.0`) and `tests/presets/test_load_resync.py:73` (`5.0`). The predecessor plan said 71 sites in 17 files with 6 explicit; re-measured, 71 in 16 with 7.
+
+All seven are covered by the same measured number and none keeps a per-site value. Their spread today is a wall-clock ceiling on how long a condition may take, not a statement about how many passes it needs, and the two extremes make that plain: `tests/apply/test_manager_apply.py:22` waits on `manager.reachable` at `timeout=2.0`, and `tests/conftest.py:269` waits on `manager.reachable and manager.readings.loaded_at is not None` at `5.0`. The second is the strictly larger condition and is the one the budget is measured at; a site whose condition is a subset cannot need more passes than it. So the seven become the default budget, and a site needing its own number is a finding the measurement produces, not an assumption made here.
+
+## What it costs
+
+**The change:** two public members on `ConnectionManager`, `pace` and `stopping`. Then one `virtual_clock` line, one helper rewritten, one normative doc line, five docstrings, seven call sites.
+
+**The cross-thread cost, restored.** The predecessor plan named this as the repair's main hazard and this plan's earlier draft claimed it did not exist, on a grounding classification that sorted call sites by what each lambda reads. That was wrong, and the path is one hop from the helper: `tests/conftest.py:269` and `:271` wait on `manager.readings.loaded_at`, which `hqptuner/core/loader.py:159` fills only after `await mgr.refresh_http_forms()` completes an HTTP round trip to the 8088 fake, and that fake is a thread — `tests/support/fake_http.py:529`, `threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)`. `start_manager` hands every manager an `HttpConfigClient` on it (`tests/conftest.py:284-287`), and `tests/api/test_health_ready.py:71` waits on the same attribute.
+
+At those sites the condition becomes true when another thread gets there, and no number of passes on this loop makes it happen sooner. The budget is spent yielding against real cross-thread latency — bounded in passes rather than seconds, but paid in CPU where it used to be paid in 10 ms of sleep. Two consequences taken rather than hidden: the default budget must cover the slowest such wait or a passing test reds, and the budget is therefore measured, not typed.
+
+**What stays ASSUMED**, one number: the default pass budget. It cannot be settled at stage 2, and saying it could was an error in an earlier draft of this plan. The number to measure is passes-to-satisfy at the cross-thread sites above, and a pass only exists once the seam and the pulse exist, so there is nothing at HEAD to measure against — an `accountant` round at stage 2 would have to invent the surface it was measuring. It is therefore settled during implementation, against the suite, before the pair merges. The condition on it does not move: a budget that cannot cover those sites at sane cost sends this plan back to stage 1, not into a `# noqa`. It is not a number any spec line pins either — the spec sweeps `eventually()` at budgets it states outright, so the default is an implementation constant and a wrong one reds the suite rather than passing silently. Nothing else here is assumed.
+
+**The behaviour stage 2 has to pin, named so it is not discovered later.** `_wake` exists so `restore` reconnects at once and `stop` never waits out a poll interval (`hqptuner/core/manager.py:132`, `:315`, `:327` set it; `:202-203` wait and clear it). The new seam wraps that wait rather than replacing it, so production is unchanged — but it is now reached through a method the suite replaces, and the suite's replacement never consults `_wake`. Shutdown responsiveness is a behaviour stage 2 pins, not a property this plan asserts.
+
+**What this plan cannot settle.** Whether the static gate refuses anything beyond the three known sites is not knowable yet: `scripts/gates/check_test_clocks.py` is not in the tree, and its spec line 7 flags a `timeout=` keyword "given a small value" without stating the threshold in the block. The repaired `eventually(..., timeout=...)` sites and the `alarm_threshold=` sites under `tests/` may or may not be flagged. The suite-wall-time consequence of a poll loop advancing once per pass is likewise behind a metered run (`scripts/gates/check_suite_time.py`, `docs/testing.md:29`) and is not claimed here.
+
+**Deliberately left out:** `tests/support/fake_metering.py:97` and `tests/api/test_connection_lane.py:55`. They are `clock-plumbing-632e`.
+
+## Open questions
+
+None.
+
+--- plan-reviewer READY ---
+
+READY
+
+a  PASS  carried: `pace` and `stopping` occur nowhere in `hqptuner/`, `tests/` or `scripts/` today, so nothing existing is redefined, and the `docs/testing.md:24` retirement is stated outright as the change being proposed rather than as means to something else.
+b  PASS  carried: The `ASSUMED` tag takes its escape — a pass exists only once the seam and the pulse exist, so there is nothing at HEAD to measure, which is a live experiment rather than a free read. Every citation in the plan resolved on reading across rounds 1 to 5, and this round's diff against the round 4 text is four paragraphs and nothing else, checked rather than taken on report.
+c  PASS  carried: Counted independently: `grep -rn "eventually(" tests/` minus the definition gives 71; 17 files hold the name but one is `tests/specs/readymark-5b3e.txt`, so 16 call-site files; the explicit `timeout=` sites are `tests/conftest.py:269,271`, `tests/apply/test_manager_apply.py:22,34`, `tests/matrix/test_matrix_switch.py:40`, `tests/api/test_health_ready.py:71` and `tests/presets/test_load_resync.py:73`, seven. Production side confirmed: `run()` is `_sleep`'s only caller besides `sleep()` at `hqptuner/core/manager.py:294`.
+d  PASS  carried: Cause is named upstream of the appearance: `run()` paces on the private `_sleep` (`:191-203`) which `virtual_clock` does not patch (`tests/conftest.py:124-125`), so a test waiting on a poll turn must wait out `cfg.poll_interval` on the wall clock, which is why `eventually()` holds a 10 ms sleep.
+e  PASS  carried: `docs/testing.md:19`, `:22`, `:23` and `:24` are each named with their status — `:24` retired in the open, `:22` satisfied by both members being public, `:23` obeyed rather than overturned. `stopping` costs no dead-code exemption: `pyproject.toml:78` has vulture scanning `["hqptuner", "scripts", "tests"]`, so the suite's read of it counts as a use.
+f  PASS  carried: The stop boundary has its reading as a property of the design — the seam parks on the pulse or on `stopping`, first to complete — so `tests/conftest.py:253-254` and `:302-303` terminate; and the `timeout=` edges are read against each other with the subset argument.
+g  PASS  carried: "## Open questions / None." Nothing in the plan is an owner question: which members the surface is, and where the budget is measured, are both the plan's own and it decided them.
+h  PASS  carried: The cross-thread mechanism replaces the withdrawn reach claim, with every citation re-read. `stopping` has no production caller, its only reader is the suite's `pace` replacement, and `pace`'s only caller is `run()`; `_sleep` is unchanged and keeps `sleep()` at `hqptuner/core/manager.py:294`, `_wake` still set at `:132`, `:315`, `:327` and waited at `:202-203`.
+i  PASS  carried: Every brief sentence carries a line; no `dropped:` remains, so the open-questions requirement is discharged, and each `delivered:` resolves to something in the body.
+j  PASS  j2 resolves: the touched-files section now reads "Two new **public** members", names `pace(seconds)` and `stopping`, and the four `_sleep` calls become `await self.pace(...)`, so it no longer contradicts the cost line or the stop paragraph. Kinds verified on the tree: `pace` beside `sleep` (`hqptuner/core/manager.py:289`) and `monotonic` (`:281`) is a clock seam; `stopping` beside `ready` (`:114-115`) and `alarm` (`:124-125`) is a lifecycle flag reading back the flag `stop()` sets at `:131`; `docs/architecture.md:101`'s requirement is quoted and answered for both.
+k  PASS  carried: `delivered: "bring it home"` reads as the sentence reads with the owner's own next sentence in hand: one of three sites, the gate landing with `clock-plumbing-632e`, which is the second of the two plans the owner asked to be taken through the arbiter. The other six `delivered:` lines read as their sentences read.
+
+notes:
+- One sentence under "What the owner sees change" still reads "gains one method"; it is a summary of the production-visible effect rather than the touched-files statement, and the plan's three counting sentences now agree. Not a finding, named so the next reader does not read it as a third count.
+- Whether the pass budget can be settled during implementation rather than at stage 2 is a chain-procedure question I cannot settle from the tree, and it is not a plan defect either way: the plan states the condition that sends it back to stage 1 if the number comes out too large.
+- Carried as framed: `tests/apply/test_manager_connection.py:104,109` and `tests/api/test_health_ready.py:167,171` await `manager.sleep(...)`, the lane seam rather than the poll seam; a stage 2 measurement, not a finding.

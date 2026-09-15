@@ -1,6 +1,6 @@
 # LEXICONS.md — the validated attribute vocabularies
 
-Companion to `SOURCES.md` (citations, disagreements), `vocabulary.json` (the term map the tuner actually loads), `TRANSDUCERS.md` (physical reality). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations, disagreements), `vocabulary.json` (the term map the tuner actually loads), `TRANSDUCERS.md` (physical reality).
 
 `vocabulary.json` maps a user's word to a filter. This document is the evidence base behind those words: four independent published vocabularies, what each actually defines, and — critically — **which of them assign frequencies and which do not.**
 
@@ -220,7 +220,6 @@ ITU-R BS.2399, SAQI and Rumsey between them define the *meaning* and the *orderi
 
 ## 6. Open
 
-- **Zacharov & Koivuniemi**, "Unravelling the Perception of Spatial Sound Reproduction", **AES 19th International Conference (2001), pp. 272–286** — corrected from an earlier mis-citation to the AES 109th/110th Convention; the correction is sourced to Rumsey's own reference list [10]. Not fetched.
-- **Berg & Rumsey**, repertory-grid attribute elicitation, likely via the DiVA thesis `diva2:1012219`. Not fetched.
-- **Bech & Zacharov**, *Perceptual Audio Evaluation* (Wiley 2006), and Zacharov (ed.), *Sensory Evaluation of Sound* (CRC) — commercial books, `[X]` with the paywall named. No content reconstructed.
-- **Le Bagousse et al.** and the AES / Harman "How to Listen" / Moulton attribute lists — dropped as redundant once the practitioner-chart lane covered the vendor material.
+- **Zacharov & Koivuniemi**, "Unravelling the Perception of Spatial Sound Reproduction", **AES 19th International Conference (2001), pp. 272–286**.
+- **Berg & Rumsey**, repertory-grid attribute elicitation, likely via the DiVA thesis `diva2:1012219`.
+- **Bech & Zacharov**, *Perceptual Audio Evaluation* (Wiley 2006), and Zacharov (ed.), *Sensory Evaluation of Sound* (CRC) — commercial books, `[X]` with the paywall named.

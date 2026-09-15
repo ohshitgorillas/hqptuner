@@ -14,7 +14,7 @@ FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
-# the daemon's parked memory for a disabled fixed volume, and now ours too
+# the daemon's parked memory for a disabled fixed volume; HQPTuner writes this same commented line too
 _COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
 
 
@@ -62,9 +62,7 @@ def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[byte
     else:
         # Staging the LEVEL alone switches the feature ON. Presence of <fixed> IS
         # the enabled flag, so there is nowhere to park a level while the feature
-        # is off — a level edit that left it off was silently discarded, and the
-        # apply reported success because read_config then omits the field it just
-        # dropped. An explicit fixed_volume_enabled=0 still wins: it is handled
+        # is off. An explicit fixed_volume_enabled=0 still wins: it is handled
         # above, so "turn it off" never resurrects the feature.
         enabled = FIXED_LEVEL in fixed_edits or active is not None
     current = fixed_level_of(active.group(0)) if active is not None else None

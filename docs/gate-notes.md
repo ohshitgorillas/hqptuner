@@ -2,7 +2,7 @@
 
 Commands that metered against the change budget but are read-only, for later review of `.claude/hooks/free_bash.py`.
 
-Everything below is resolved as of 2026-08-04 — see the Resolution section at the end for what changed and what deliberately did not.
+See the Resolution sections below for what changed and what deliberately did not.
 
 ## 2026-08-03
 
@@ -25,11 +25,9 @@ diff -u .claude/worktrees/wheel-guard/hqptuner/static/lib/dom.js hqptuner/static
 
 `diff` reads two paths and writes nothing. `grep`, `cat` and `sed -n` over the same files are free; `diff` is the correct tool for the comparison and costs a budget slot.
 
-Uncertain which of the above the hook actually charged — the trip reported a count, not a list. Worth having the hook name the metered stage.
-
 ## 2026-08-04
 
-Six read-only investigation commands (git history archaeology + grep) tripped the budget. `git log` / `git show --stat` appear absent from the free list:
+Read-only investigation commands, git history archaeology and grep, for example:
 
 ```
 git -C /srv/hqptuner log --oneline --all -20 && git -C /srv/hqptuner log --all --oneline --grep -i -E 'tooltip|hover|tip|revert' | head -30
@@ -48,11 +46,11 @@ All read-only: `git log`, `git show --stat`, `grep`, `ls`. History archaeology i
 
 `node` is free as a pipeline head when `--test` is present and no `-e`/`--eval`/`-p`/`--print`/`-i` is — the same trust level `pytest` already has, and the only way to run one JS test file (`make test-js` takes no file argument).
 
-`diff` was already free (`READERS`); what metered was the `for … do … done` wrapper, whose `;`-split leaves `for f in <paths>` as a segment head. Shell loops stay unparsed and stay metered — the free alternatives are `diff -r -q dirA dirB` or `&&`-chained `diff` calls.
+`diff` is free (`READERS`); a `for … do … done` wrapper meters because its `;`-split leaves `for f in <paths>` as a segment head. Shell loops stay unparsed and stay metered — the free alternatives are `diff -r -q dirA dirB` or `&&`-chained `diff` calls.
 
-The denial now names the calls it charged: `evaluate()` collects a `Tool(first 70 chars)` label per CHANGE-class block and appends `Metered: …` to the reason, so a trip no longer reports a bare count.
+The denial names the calls it charged: `evaluate()` collects a `Tool(first 70 chars)` label per CHANGE-class block and appends `Metered: …` to the reason.
 
-Cases are pinned in `ALLOWLIST_CASES` in `.claude/hooks/budget_selftest.py`, which is where the hook's self-test moved so `change-budget.py` stays under the 500-line gate; run it with `python3 .claude/hooks/budget_selftest.py`.
+Cases are pinned in `ALLOWLIST_CASES` in `.claude/hooks/budget_selftest.py`; keeping the self-test there keeps `change-budget.py` under the 500-line gate. Run it with `python3 .claude/hooks/budget_selftest.py`.
 
 The host's own budget hook (`~/.claude/hooks/command-burst-guard.py`) loads a separate copy of `free_bash.py`. `project_owns_budget()` there stands that guard down for any project shipping `.claude/hooks/change-budget.py`, so exactly one hook meters a call in this repo.
 
@@ -74,17 +72,15 @@ Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` 
 
 ## 2026-09-05, second pass
 
-The testsmith's instructed gate commands metered, and the lane hook then read them as shell writes naming `tests/`:
+Instructed gate commands run directly, which the lane hook reads as shell writes naming `tests/`:
 
 ```
 .venv/bin/python scripts/gates/check_test_assertions.py tests/*.py
 .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/*.py
 ```
 
-`SendMessage` rounds to a reviewer counted toward the leash, a background task notification reset it, and a `prosecutor` spawn cost an action while an `arbiter` spawn did not.
-
 ## Resolution — 2026-09-05, second pass
 
-A `python` head is free when its first argument is the literal relative path `scripts/gates/check_<name>.py` (`GATE_SCRIPT` in `free_bash.py`): the repo's own verifiers, the same scripts `make check` runs. Relative only, so it resolves against the command's cwd; an absolute or out-of-tree path ending in that suffix meters. The judgment is syntactic, so a script planted under a scratch cwd at that path would run free, the same edge `cd <path> &&` and `make -C <dir>` already carry. `check_md_trivia.py` comes along, which frees its `claude` CLI call and cache write from any agent's shell.
+A `python` head is free when its first argument is the literal relative path `scripts/gates/check_<name>.py` (`GATE_SCRIPT` in `free_bash.py`): the repo's own verifiers, the same scripts `make check` runs. Relative only, so it resolves against the command's cwd; an absolute or out-of-tree path ending in that suffix meters. The judgment is syntactic, so a script planted under a scratch cwd at that path would run free, the same edge `cd <path> &&` and `make -C <dir>` already carry. The trivia judges are outside that shape — they are `triviajudge` console scripts, not files under `scripts/gates/` — so an agent shelling out to one meters, and only the plugin's own hook modes run off the leash.
 
 `HARNESS_TOOLS` (`SendMessage`, `Skill`, `Monitor`, `TaskStop`) classify free beside `FREE_TOOLS`, on the `FREE_SPAWN_AGENTS` reasoning: the recipient's tool calls are metered in its own context. `FREE_SPAWN_AGENTS` holds all seven chain agents. `task-notification` is stripped with the other harness wrappers, so a notification row is not the user speaking. Pinned in `budget_selftest.py`.

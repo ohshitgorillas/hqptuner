@@ -1,6 +1,6 @@
 # Matrix pipeline editing — design of record
 
-Approved 2026-07-20, seven phases, all done. Reverses architecture §1's "matrix editing cut" non-goal. Spec of record for Matrix tab; wire truth + probe results appended below. Per-phase hand-back reports live in `CHANGELOG.md` and git history.
+Spec of record for the Matrix tab; wire truth and probe results below.
 
 **Headings are the citation contract.** Code in `hqptuner/` and `tests/` cites this file by heading text; `scripts/gates/check_doc_refs.py` fails build when cited heading vanishes. Reword heading, update citers same commit. Reorganize freely otherwise — that's why headings, not section numbers.
 
@@ -10,7 +10,7 @@ Post-probe corrections folded into text, not appended: what this doc says is wha
 
 ### Probes
 
-Done — all five open questions closed; see probe-findings sections below.
+See the probe-findings sections below.
 
 ### Tab structure
 
@@ -32,9 +32,9 @@ PROFILE card carries active-profile picker with **Load**, **Save as new**, **Sav
 
 **Live-active profile grounds pipeline baseline (binding).** Switch is memory-only, so config file keeps its own rows while engine runs profile's — only case where file truth isn't running truth. `pipelineBaseline` (`store/resolve.js`) therefore takes daemon's `/matrix` rows whenever `live_active` names a profile, file JSON otherwise (and as fallback when daemon reported no rows). Editor and matrix graph show what's playing; edit stages diff against that. Miss this and a load leaves user reading config's EQ curve and pipeline while different profile plays.
 
-Load and Switch are **one button**. Differed only in whether choice persisted; button that deliberately doesn't persist not worth own control. Lane tag beside picker states which half a Load gets: `live — no reload` for profile daemon read at startup, `stages — applies at next apply` for one saved but not applied — daemon can't switch to profile it never read.
+Load and Switch are **one button**: they differ only in whether the choice persists, and a button that deliberately doesn't persist is not worth its own control. Lane tag beside picker states which half a Load gets: `live — no reload` for profile daemon read at startup, `stages — applies at next apply` for one saved but not applied — daemon can't switch to profile it never read.
 
-Form lane gone from profile CRUD. Plain-Save cut at first delivery reversed — HQPTuner writes element, so save to existing name = replace, delete-then-save recipe retired. Why form lane couldn't stay: see "Probe findings — saved matrix profiles do not persist".
+Form lane carries no profile CRUD. HQPTuner writes the element, so save to existing name = replace, and no delete-then-save recipe is needed. Why the form lane cannot serve: see "Probe findings — saved matrix profiles do not persist".
 
 ### Profile descriptions
 
@@ -76,9 +76,9 @@ Form parser handles grouped indexed row fields, datalist capture, malformed `gai
 
 ## Delivery status
 
-Delivered in full. Standing follow-ups: switch-while-playing verification needs playback window (verified idle only); `Reset` scope still open in `protocol.md` §9.
+Standing follow-ups: switch-while-playing verification needs a playback window (idle only so far); `Reset` scope still open in `protocol.md` §9.
 
-Every visual phase landed under hand-back protocol in `docs/design-system.md`, plus matrix-specific fixture requirement: measure against **both** live daemon state **and** 16-row / 8-stage worst-case mock via `/api/matrix` route interception.
+Visual work follows the hand-back protocol in `docs/design-system.md`, plus matrix-specific fixture requirement: measure against **both** live daemon state **and** 16-row / 8-stage worst-case mock via `/api/matrix` route interception.
 
 ## Wire truth (live 6.0.4 form)
 
@@ -122,11 +122,11 @@ Idle-gated, live 6.0.4.
 
 **Restore-verify transient (not bug in our lane).** Right after matrix reload, DAC-correction select can render with empty option list while output device re-discovers, so too-early readback shows `post_correction_dac0=""`. Apply verification must retry and settle before judging device-derived fields; same transient class makes matrix-form read right after apply one poll behind.
 
-**`/matrix/load` replaces whole matrix context including post-process.** Loading pipelines-only profile cleared bauer/correction enable and `dac0`. Violates HQPTuner's "settings you send are settings you get back" contract, so `matrixlane.profile_action("load")` snapshots form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with plain `POST /matrix` after load settles, readback-verifies past post-reload transient.
+**`/matrix/load` replaces whole matrix context including post-process.** Loading a pipelines-only profile clears bauer/correction enable and `dac0`. Violates HQPTuner's "settings you send are settings you get back" contract, so `matrixlane.profile_action("load")` snapshots form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with plain `POST /matrix` after load settles, readback-verifies past post-reload transient.
 
 **4321 `MatrixSetProfile` — clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and stock UI's active label track switch; working XML untouched (memory-only — reverts on daemon restart, standard Control API semantics). Switch installs profile's whole matrix context, its `<post_process>` chain included: profile element's content model is `<matrix>`'s minus `enabled` (readme §1.12 → §1.11), so crossfeed / DAC correction / loudness move with it.
 
-**Measured, not inferred** (`scripts/probes/probe_switch_post_effect.py`, 6.0.4, engine idle, no config write): switching to a profile whose config element carries `correction enabled="1" dac0="Holo Audio Cyan 2"` installed exactly that; switching to one carrying no `<post_process>` gave `correction=0`, `dac0=""` and loudness off. Zero reload both ways. **A chain-less profile therefore installs an EMPTY chain — it does not leave the running one alone.** Every profile saved before profiles stored a chain is in that state, which is why `matrixconf.backfill_profile_chains` fills them from the live `<matrix>` at apply — the applied config in `presetconf.apply_edits`, stored presets in `presetops.backfill_profiles`, each from its own matrix. A profile that already carries a chain is never overwritten: that is the user's saved choice.
+Switching to a profile whose config element carries `correction enabled="1" dac0="Holo Audio Cyan 2"` installs exactly that; switching to one carrying no `<post_process>` gives `correction=0`, `dac0=""` and loudness off. Zero reload both ways. **A chain-less profile therefore installs an EMPTY chain — it does not leave the running one alone.** Every profile saved before profiles stored a chain is in that state, which is why `matrixconf.backfill_profile_chains` fills them from the live `<matrix>` at apply — the applied config in `presetconf.apply_edits`, stored presets in `presetops.backfill_profiles`, each from its own matrix. A profile that already carries a chain is never overwritten: that is the user's saved choice.
 
 **`MatrixSetProfile` accepts a name the daemon does not have — DAEMON BUG.** An unknown name answers `result="OK"`, `State.matrix_profile` reports it back, and the stock UI shows it active: nothing on the wire says no. The engine then fails `clHQPlayerEngine::InitMatrix(): specified profile not found!` on its next reinit and every one after, stopping and re-running the playback engine in a loop until something switches the profile to a real one. Memory-only like any switch, so a daemon restart clears it and no config file carries it. Consequence: readback is not evidence on this route — a switch must check the name against `MatrixListProfiles` first. `matrixlane.switch_profile` does not, and forwards whatever `POST /api/matrix/profile` was given; `scripts/abuse.sh` does, snapshotting `State.matrix_profile` at open and refusing at close rather than switching to a recorded name the daemon no longer lists.
 
@@ -134,7 +134,7 @@ Idle-gated, live 6.0.4.
 
 ## Probe findings — `/matrix/plot` as a numeric oracle
 
-First pass called this route unusable. It's usable, as **numeric oracle** not plot source. Read-only: nine POSTs, each readback-verified — form fields, matrix XML, `GET /matrix` byte-identical every time, no reload, engine untouched. Safe to call freely.
+This route is usable as a **numeric oracle**, not as a plot source. Read-only: after a POST the form fields, the matrix XML and `GET /matrix` are byte-identical, with no reload and the engine untouched. Safe to call freely.
 
 **Computes from SUBMITTED form, not stored config.** Injecting `process_0` daemon never saw changes result, so arbitrary chain can be evaluated by daemon's own DSP without writing anything. That's what makes it oracle not readback.
 
@@ -156,13 +156,13 @@ plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
 
 **Daemon's `iir` is RBJ cookbook and `q` is RBJ Q — measured, not assumed.** Six chains (single peak, two overlapping peaks, high-Q, ultrasonic, `lp`, `hp`) fitted against `lib/dsp/biquad.js`: **`q` → 0.019 dB RMS** over 12 numbers; `bw` → 2.66 dB; `s` → 0.18 dB. Shelf/peak parameterization grounded.
 
-**Grid: 20 Hz – 20 kHz at FIXED rate ~96–99 kHz — not source rate.** `peak;f=30000` probe returned valid result, impossible below ~60 kHz Nyquist; joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz–20 kHz. **This lane can't answer what filter does at actual source rate.** Bilinear warping at running rate unverified — negligible for LF work (700 Hz pole sub-0.01 dB across every rate), potentially material near Nyquist.
+**Grid: 20 Hz – 20 kHz at FIXED rate ~96–99 kHz — not source rate.** A submitted `peak;f=30000` chain returns a valid result, impossible below ~60 kHz Nyquist; joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz–20 kHz. **This lane can't answer what filter does at actual source rate.** Bilinear warping at running rate unverified — negligible for LF work (700 Hz pole sub-0.01 dB across every rate), potentially material near Nyquist.
 
 **Standing limitation:** min/max only, no curve. Can verify filter's *shape parameterization* via chains whose extremes encode answer, but can't render response. Use as validation harness for `lib/dsp/` and any future port — daemon becomes ground truth instead of second implementation of our own assumptions. Journal read via `journalctl -u hqplayerd` or daemon's own `/log`.
 
 ## Probe findings — saved matrix profiles do not persist
 
-**Profile saved through `/matrix/save` registers in daemon memory only, lost on next daemon restart.** User-reported as "matrix profiles saved do not persist", then reproduced: four form-lane ops (save, save, delete, delete) with disk state read from `/api/backup` after each.
+**Profile saved through `/matrix/save` registers in daemon memory only, lost on next daemon restart.** Four form-lane ops (save, save, delete, delete); table shows `/api/backup` disk state after each:
 
 | op | `MatrixListProfiles` | `<matrix_profile>` in `hqplayerd.xml` | config mtime |
 |---|---|---|---|
@@ -172,14 +172,14 @@ plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
 | delete P2 | + P1 | unchanged | 02:45:04 |
 | delete P1 | Default, Mch-to-Stereo mixdown | unchanged | 02:45:13 |
 
-- **Every op rewrites config file** (mtime bumps each time) and rewrite never carries saved profile — not "written somewhere else", not flush-ordering artifact.
-- **No shutdown flush.** Profile saved at 23:15 absent from pre-restart file and post-restart list; only residue is empty `data/<name>/` member in backup archive.
+- **Every op rewrites config file** (mtime bumps each time), and the rewrite never carries the saved profile.
+- **No shutdown flush.** A profile saved before daemon restart is absent from the pre-restart file and the post-restart list; only residue is an empty `data/<name>/` member in the backup archive.
 - **The two profiles that survive are stock**, shipped verbatim in packaged template `/var/lib/hqplayer/hqplayerd.xml`.
 - **Not an HQPTuner payload defect.** Suspect was missing submit-button field; daemon's own form buttons carry `value` but no `name` (`tests/fixtures/matrix-6.0.4.html`), so browser submits nothing for them either. Daemon accepts name — appears in `MatrixListProfiles` and datalist — then keeps it in memory.
 
 That's why HQPTuner owns `<matrix_profile>` element and writes it on persistent restore lane — see "Profiles" above.
 
-`/matrix/save` to **existing** name is additionally silent no-op (HTTP 200, profile unchanged), exactly like config lane's `profile/save`. Irrelevant now HQPTuner writes element itself, but it's why daemon's own UI can't overwrite a profile.
+`/matrix/save` to an **existing** name is a silent no-op (HTTP 200, profile unchanged), exactly like config lane's `profile/save` — which is why the daemon's own UI can't overwrite a profile.
 
 **Daemon registers profiles only at process start, and registry lands seconds after HTTP is back.** Profile written to config file becomes switchable at next daemon start and not before, so `MatrixListProfiles` read taken immediately after daemon serves HTTP again is stale — it answers before registry is populated. Any profile-list read across a restart must settle before it's believed.
 
@@ -187,13 +187,13 @@ That's why HQPTuner owns `<matrix_profile>` element and writes it on persistent 
 
 ### Operational note — the daemon is single-writer
 
-Concurrent stock-`/matrix`-UI Apply submits its complete form and silently reverts just-applied HQPTuner pipeline edit. Daemon-level TOCTOU: same-instant multi-writer use unsupported by daemon itself. Observed live.
+Concurrent stock-`/matrix`-UI Apply submits its complete form and silently reverts just-applied HQPTuner pipeline edit. Daemon-level TOCTOU: same-instant multi-writer use unsupported by daemon itself.
 
 ---
 
 # Crossfeed compensation (M/S) — design of record
 
-Approved 2026-07-21. Extends Matrix tab. Delivered; structural-crossfeed alternative that generalizes it is `docs/crossfeed-math.md`.
+Extends the Matrix tab. The structural-crossfeed alternative that generalizes it is `docs/crossfeed-math.md`.
 
 ## Motivation
 
@@ -201,7 +201,7 @@ AutoEq/REW profiles measured and targeted for raw headphone drive. Bauer post-pr
 
 ## Model (verified against libbs2b source)
 
-Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented**: HQPlayer manual's third-party license list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so measurement-rig confirmation of shipped curve remains last word.
+Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented**: HQPlayer manual's third-party license list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so the shipped curve's match to bs2b is not independently confirmed (open item).
 
 From `(fc, feed)`:
 
@@ -248,7 +248,7 @@ Stereo pair (rows for channels i, i+1) compiles to 8 pipelines, `k = 10^(preamp_
 
 (Out i = M′+S, out i+1 = M′−S; comp on M rows only.) **Literal rows, badged**: Pipelines card shows real 8 rows with "crossfeed comp s %" badge; slider regenerates block as one staged op. Recognition is structural (row pattern + Lin gain magnitudes + shared EQ prefix + comp suffix on M rows); hand-edit breaking pattern drops badge and slider, rows stand as ordinary pipelines — never blocked, never rewritten. Pair detection accepts either row order (live configs arrive In 2-first); compile always emits canonical In 1-first. Multichannel out of scope.
 
-Implementation: `static/lib/xfeed.js` (params, M/S responses, cascade fit, `compProcess`, `msCompile`/`msRecognize`), `components/xfeed/Comp.js` (control strip and badge). Validated node-vs-python against independent reference, 48/48 golden anchors.
+Implementation: `static/lib/xfeed.js` (params, M/S responses, cascade fit, `compProcess`, `msCompile`/`msRecognize`), `components/xfeed/Comp.js` (control strip and badge).
 
 ## UI
 

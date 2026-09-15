@@ -17,8 +17,8 @@ session link lives.
 
 The fix is never to reword around the pattern: state the change and the
 constraint behind it, or delete the line. A line that must stay takes
-``history-ok: <reason>``, reason required, the same contract as the comment
-gate in ``check_archaeology.py``.
+``history-ok: <reason>``, reason required, the same contract as the archaeology
+gate in ``triviajudge``.
 
 Usage: ``python scripts/gates/check_commit_msg.py <message-file>`` (the
 commit-msg hook contract) or ``-`` to read the message from stdin.

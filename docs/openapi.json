@@ -1503,7 +1503,7 @@
     },
     "/api/matrix/profile": {
       "post": {
-        "description": "Load a saved matrix profile into the running matrix (matrix-spec.md \"Profiles\", amended round 5).\n\n4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no\ncredentials \u2014 the Control API lane is unauthenticated.\n\nSaving and deleting a profile are NOT here: they are staged\n``<matrix_profile>`` config edits and ride ``/api/config/stage`` +\n``/api/config/apply`` like every other persistent setting, because the daemon\ndoes not persist profiles itself (round 5). The client stages the loaded\nprofile's rows alongside this call, so a load is live AND persists.",
+        "description": "Load a saved matrix profile into the running matrix (matrix-spec.md \"Profiles\").\n\n4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no\ncredentials \u2014 the Control API lane is unauthenticated.\n\nSaving and deleting a profile are NOT here: they are staged\n``<matrix_profile>`` config edits and ride ``/api/config/stage`` +\n``/api/config/apply`` like every other persistent setting, because the daemon\ndoes not persist profiles itself. The client stages the loaded\nprofile's rows alongside this call, so a load is live AND persists.",
         "operationId": "matrix_profile_api_matrix_profile_post",
         "requestBody": {
           "content": {

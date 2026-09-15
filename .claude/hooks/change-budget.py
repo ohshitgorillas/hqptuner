@@ -70,9 +70,9 @@ READ_ONLY_AGENTS = {"Explore", "Plan", "gauntlet-detective", "caveman:cavecrew-i
 # metered by these same hooks in the subagent's context, so charging the spawn
 # double-counts and trips the leash mid-chain. Unmeters no write. Exact names
 # only, as above.
-FREE_SPAWN_AGENTS = {"gauntlet-testsmith", "gauntlet-arbiter", "gauntlet-prosecutor",
+FREE_SPAWN_AGENTS = {"gauntlet-scrivener", "gauntlet-arbiter", "gauntlet-prosecutor",
                      "user-reviewer", "abuser-reviewer", "pedant-reviewer",
-                     "gauntlet-accountant"}
+                     "gauntlet-examiner"}
 
 # Harness tools that move text or control between agents already running. They
 # do reach an agent, so not FREE_TOOLS; free on the FREE_SPAWN_AGENTS reasoning:

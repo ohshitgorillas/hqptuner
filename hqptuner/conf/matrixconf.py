@@ -421,10 +421,9 @@ def delete_profile(xml: bytes, name: str) -> bytes:
 def _post_of(body: bytes) -> dict[str, str]:
     """One stored profile's ``<post_process>`` chain in form-field terms.
 
-    ``{}`` for a profile carrying no chain, which is every profile saved before
-    profiles stored one. Attributes outside ``PLUGIN_MAP`` are ignored here: they
-    stay in the element (the write copies it verbatim) but HQPTuner has no field
-    to hand them back through.
+    ``{}`` for a profile carrying no chain. Attributes outside ``PLUGIN_MAP`` are
+    ignored here; they stay in the element because the write copies it verbatim,
+    with no HQPTuner field to hand them back through.
     """
     out: dict[str, str] = {}
     chain = re.search(rb"<post_process\b[^>]*>(.*?)</post_process>", body, re.DOTALL)
@@ -461,11 +460,11 @@ def backfill_profile_chains(xml: bytes) -> bytes:
     """Give every saved profile carrying no ``<post_process>`` a verbatim copy of the live ``<matrix>``'s chain.
 
     A live switch installs a profile's whole matrix context, and one carrying no
-    chain installs an EMPTY chain — crossfeed / DAC correction / loudness all
+    chain installs an EMPTY chain: crossfeed, DAC correction and loudness all
     drop in the running engine (measured, matrix-spec.md "Probe findings — form
-    lane, checkbox encoding and the live lane"). Every profile saved before
-    HQPTuner stored a chain is in that state; filling them from the matrix the
-    user is running makes them behave like the ones saved since.
+    lane, checkbox encoding and the live lane"). Filling a chainless profile
+    from the matrix the user is running makes it behave like one saved with a
+    chain.
 
     A snapshot whose live ``<matrix>`` carries no chain comes back unchanged.
     Verbatim, for the same reason ``write_profile`` copies verbatim — the plugin

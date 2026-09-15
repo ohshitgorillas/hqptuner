@@ -1,6 +1,6 @@
 # EQ export — format reference + save-to recommendations
 
-Reference for **Export EQ** feature (shipped) — inverse of AutoEq/REW **import** lane (`hqptuner/static/lib/eqimport.js`). Serializer: `hqptuner/static/lib/eqexport.js` (`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons on Matrix tab: master **Export AutoEq / REW .txt…** beside Load button (whole pipeline set → `hqptuner-matrix-eq.txt`) and per-row **Export EQ** beside each row's Import EQ (`hqptuner-pipeline-N.txt`). This doc fixes target formats and mapping.
+Reference for **Export EQ** feature — inverse of AutoEq/REW **import** lane (`hqptuner/static/lib/eqimport.js`). Serializer: `hqptuner/static/lib/eqexport.js` (`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons on Matrix tab: master **Export AutoEq / REW .txt…** beside Load button (whole pipeline set → `hqptuner-matrix-eq.txt`) and per-row **Export EQ** beside each row's Import EQ (`hqptuner-pipeline-N.txt`). This doc fixes target formats and mapping.
 
 ## 1. What we export *from*
 
@@ -98,11 +98,11 @@ Shelf `6dB`/`12dB` fixed-slope, and `LP/HP/BP/NO/AP` beyond peaking+shelves, are
 
 ### Scope decisions
 
-- **Export unit** *(shipped)*: two lanes — **master** button exports whole pipeline set to one file (`pipelinesToRewText`), **per-row** button exports single pipeline (`rowToRewText`). In master file a stereo-identical set collapses to one clean block; channels carrying different EQ written under `# Pipeline N (In i -> Out j)` comment headers (skipped as non-filter lines on re-import) so nothing dropped or silently merged.
-- **v1 format scope** *(shipped)*: REW/EQ-APO `.txt` only; CamillaDSP / JSON / GraphicEQ remain on-demand follow-ups.
+- **Export unit**: two lanes — **master** button exports whole pipeline set to one file (`pipelinesToRewText`), **per-row** button exports single pipeline (`rowToRewText`). In master file a stereo-identical set collapses to one clean block; channels carrying different EQ written under `# Pipeline N (In i -> Out j)` comment headers (skipped as non-filter lines on re-import) so nothing dropped or silently merged.
+- **v1 format scope**: REW/EQ-APO `.txt` only; CamillaDSP / JSON / GraphicEQ remain on-demand follow-ups.
 - **Preamp source**: row's dB `gain`. A `Lin`-unit or polarity-inverted row gain has no `Preamp:` equivalent → flag and omit rather than mis-emit.
 
-- **Crossfeed / crossfeed-compensation collision** *(decided — offer both)*. Structural crossfeed and crossfeed compensation own pipelines 1–8 as one recognized block (`msRecognize` / `applyEqToBlock`, `eqimport.js` `blockPlan`): they fold user's EQ together with compensation filters and Lin channel gains. Exporting raw pipeline there yields **crossfed** filter set — compensation baked in — not the headphone correction user actually wants to share. When export target is a recognized crossfeed block, offer two choices:
+- **Crossfeed / crossfeed-compensation collision**: offer both. Structural crossfeed and crossfeed compensation own pipelines 1–8 as one recognized block (`msRecognize` / `applyEqToBlock`, `eqimport.js` `blockPlan`): they fold user's EQ together with compensation filters and Lin channel gains. Exporting raw pipeline there yields **crossfed** filter set — compensation baked in — not the headphone correction user actually wants to share. When export target is a recognized crossfeed block, offer two choices:
   - **Full crossfed pipeline** — running filters verbatim (what's actually playing).
   - **Underlying EQ profile only** — pre-compensation EQ, recovered from block's stash (rows stashed when block was installed) or, absent a stash, block's shared-EQ component with compensation removed. This is portable headphone profile most consumers expect.
 

@@ -1,9 +1,8 @@
 """Where the daemon is and who we are to it, settable at runtime and kept for the install.
 
-Until this store existed, ``hqp_host``, ``hqp_username`` and ``hqp_password`` were read from ``HQPTUNER_*`` at
-construction and never moved again (``config.py``). That is fine on the container, where an operator writes a compose
-file, and useless on a Windows install, where nobody sets an environment variable and there is no place to type a
-credential.
+``config.py`` reads ``hqp_host``, ``hqp_username`` and ``hqp_password`` from ``HQPTUNER_*`` at construction only; that
+is fine on the container, where an operator writes a compose file, and useless on a Windows install, where nobody
+sets an environment variable and there is no place to type a credential.
 
 The store holds one record — host, username, password, ``remember`` — written whole on every save. ``remember`` false
 still writes a record: the host and the username belong to the install either way, and the password is written as the

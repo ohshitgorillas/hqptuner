@@ -32,7 +32,7 @@ card can still say what was saved even when an ID no longer resolves.
 ``autopilot`` sits beside ``fields`` rather than in it because it is not a live-lane
 field and the lane would refuse it: the high-frequency filter's auto-pilot is
 HQPTuner's own switch, applied by the route after the lane has done its work. A
-record written before it existed carries no such key and reads as off.
+record with no ``autopilot`` key reads as off.
 
 A record need not carry every setting: a save may name the ones it keeps, and an
 apply leaves the absent ones where the engine has them. ``autopilot: null`` is
@@ -55,8 +55,6 @@ if TYPE_CHECKING:
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
 # misread preset writes settings the user never chose. An unstamped file predates
 # the stamp and is adopted as the current schema on its next write.
-# 2 adds the record's `autopilot` key.
-# 3 lets a record carry a subset of the fields, and `autopilot: null` for "not stored".
 _SCHEMA = 3
 
 

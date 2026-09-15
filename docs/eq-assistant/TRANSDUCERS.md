@@ -1,6 +1,6 @@
 # TRANSDUCERS.md — what the EQ Assistant is actually EQ-ing
 
-Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener, where the deficit is not the transducer's), `vocabulary.json` (the term map). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener, where the deficit is not the transducer's), `vocabulary.json` (the term map).
 
 The tuner does not generate a correction from nothing. It amends a chain that already carries an AutoEq profile for a specific headphone. **This document is the physical and measurement reality behind that profile**: what kind of driver made the curve, which acoustic variables move it, and above which frequency the measurement it came from stops meaning anything.
 
@@ -102,7 +102,7 @@ Single-DD and DD+BA hybrid shells are the commonest IEM configuration on the mar
 
 **Vent-set bass rolloff** (closing, partially, the gap flagged at §7): three manufacturers independently describe the same trade-off. **Apple** `[VA]` (US 11,575,985 B2, *Mass loaded earbud with vent chamber*, 2023): "bass response may be controlled to a frequency of less than 1 kHz by shaping bass duct to contain a volume of air that acts as a corresponding acoustic mass" — a vent/duct's air column loads the diaphragm as added mass, not a simple leak. **EM-Tech** `[VA]` (US 11,368,784 B2, *Receiver unit having pressure equilibrium structure and compensation structure for low frequency*, 2022) states the trade-off directly: "if a ventilation recess is provided in order to relieve deafening of the ear, large loss occurs in the SPL in the low frequency region" — compensated by duct resonance and acoustic mesh damping. **Apple** again `[VA]` (US 9,161,118 B2, *Earphone having an acoustic tuning mechanism*, 2015) gives a numeric port-area figure — "about 1 mm² to about 8 mm²" — tied to a back-volume resonance of "about 2 kHz to about 3 kHz," though that figure is a resonance peak, not the LF corner itself. **No source gives a clean vent-diameter-to-Hz corner number for an IEM** — the mechanism is now solid, the magnitude is not. Updates §7.
 
-**DD+BA hybrid combination — naive is not automatically better.** **Jiang, Xu, Jiang, Kim & Hwang**, *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and Dynamic Receivers*, Applied Sciences 9(23):5047, 2019, DOI 10.3390/app9235047 (peer-reviewed, open-access CC-BY, Pusan National University acoustics group). Full text `[V]` — read directly.
+**DD+BA hybrid combination — naive is not automatically better.** **Jiang, Xu, Jiang, Kim & Hwang**, *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and Dynamic Receivers*, Applied Sciences 9(23):5047, 2019, DOI 10.3390/app9235047 (peer-reviewed, open-access CC-BY, Pusan National University acoustics group). Full text `[V]`.
 
 The dynamic and BA units share one front chamber, and "the SPL of a hybrid earphone can be treated as the summation of the SPLs of the dynamic and BA earphones. In addition, the dynamic, BA, and hybrid earphones have the same peak frequency in the SPL curve because they have the same front chamber." With a bare (prototype, non-optimized) front-chamber tube, that summation is **worse than either driver alone**:
 
@@ -114,7 +114,7 @@ The dynamic and BA units share one front chamber, and "the SPL of a hybrid earph
 
 **This paper does not use "phase" or "notch" language anywhere in the text** — its account of the shared-chamber interaction is SPL-summation and acoustic-tube filtering, not a BA-to-BA-style phase-cancellation notch (Knowles AN-030, §2.2). Do not stretch this citation into a phase-null claim it doesn't make; a DD-to-BA phase-notch analog to AN-030 remains genuinely open (§7).
 
-**Diaphragm breakup in small dynamic IEM diaphragms: no source found.** A cluster of general audio-transducer patents surfaced a breakup-frequency figure via search-engine synthesis only, unverified by direct fetch — **not cited**. Marked open, §7.
+**Diaphragm breakup in small dynamic IEM diaphragms: no source found.** A breakup-frequency figure attributed to general audio-transducer patents is unconfirmed — **not cited**. Marked open, §7.
 
 ### 2.2 Balanced armature
 
@@ -146,7 +146,7 @@ Also from AN-030: BA tweeters are differentiated by first-peak resonance with ex
 
 ### 2.3 Electrostatic and planar IEM drivers
 
-**Provisional negative finding: no public Sonion EST datasheet was located.** Sonion lists EST tweeters (e.g. EST65DB01) but search surfaced only marketplace listings and reseller blogs; likely NDA-gated. Planar IEM drivers were not investigated. Both are open.
+**No public Sonion EST datasheet.** Sonion lists EST tweeters (e.g. EST65DB01); likely NDA-gated. Planar IEM drivers are unsourced. Both are open.
 
 ---
 
@@ -275,16 +275,16 @@ This does **not** license an idle gate, a refusal, or a disabled control. It lic
 
 ## 7. Open items
 
-- **Insertion depth with published dB figures** — still open. Direction is sourced; magnitude is not. One `[S]` lead (an Etymotic ER-2 spec reportedly stating "A change of 10 mm in the length of the sound tube will change the frequency response by 0.5 dB at some frequencies") failed TLS and **must not be cited**.
+- **Insertion depth with published dB figures** — still open. Direction is sourced; magnitude is not. One `[S]` lead (an Etymotic ER-2 spec reportedly stating "A change of 10 mm in the length of the sound tube will change the frequency response by 0.5 dB at some frequencies") **must not be cited**.
 - **Foam vs silicone** broken out separately, and a bore-diameter series.
-- **Dynamic-driver IEM vent** setting the bass rolloff corner — **mechanism now sourced three ways** (§2.1: Apple mass-loaded-duct patent, Apple back-volume-resonance patent, EM-Tech pressure-relief patent), **but no source gives a clean vent-diameter-to-Hz corner number.** Partial close, not full.
-- ~~**DD+BA hybrid crossover, full text**~~ **RESOLVED 2026-07-25** — **Read in full `[V]`.** §2.1 is written around it; local copy is gitignored, not committed. The paper's own account is shared-front-chamber SPL summation plus acoustic-tube filtering, **not** phase/notch language — a DD-to-BA phase-notch citation analogous to Knowles AN-030 (§2.2) remains genuinely open.
+- **Dynamic-driver IEM vent** setting the bass rolloff corner — **mechanism sourced three ways** (§2.1: Apple mass-loaded-duct patent, Apple back-volume-resonance patent, EM-Tech pressure-relief patent), **but no source gives a clean vent-diameter-to-Hz corner number.** Partial close, not full.
+- **DD-to-BA phase-notch citation** analogous to Knowles AN-030 (§2.2) remains open. §2.1's account of the DD+BA hybrid (Jiang et al., full text `[V]`) is shared-front-chamber SPL summation plus acoustic-tube filtering, **not** phase/notch language.
 - **Diaphragm breakup in small (5–12 mm) dynamic IEM diaphragms** — no citable source found. Do not cite the unverified ~15 kHz/~20 kHz figure that turned up as search-engine synthesis without a direct-fetch source behind it.
 - **"No cup resonance" for IEM dynamic drivers** (§2.1) is an inference from construction + the existing canal-coupling mechanism, not a direct quote from any source.
 - **Numeric seal-loss curve** for IEMs — mechanism sourced, magnitude not.
 - **Planar IEM drivers**; **Sonion EST datasheets** (provisionally: none public).
 - **B&K 5128 pinna/canal geometry** and a direct 5128-vs-711 comparison plot; **IEC 60318-7** named but not confirmed by any source read.
-- **Peer-reviewed sources on over-ear measurement variance** — none reached. Two candidates (an *Acta Acustica* 2021 cross-site study; the ICA 2016 ear-simulator paper) were respectively not fetched and TLS-broken.
+- **Peer-reviewed sources on over-ear measurement variance** — none reached. Candidates: an *Acta Acustica* 2021 cross-site study; the ICA 2016 ear-simulator paper.
 - **Occlusion rationale** for the Harman IE bass shelf — needs Olive et al. 2016 full text.
 - **GRAS technical documentation** — `grasacoustics.com` returns 403 domain-wide to this fetcher; the RA0402 "± 2.2 dB from 10 to 20 kHz" tolerance is `[S]` and uncorroborated.
 - **oratory1990's reasoning** — permanently `[X]`; reddit and web.archive.org are both blocked at the fetcher. His preset *data* in the AutoEq repo remains citable; his method and rationale are not.

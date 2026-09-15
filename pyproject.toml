@@ -25,6 +25,10 @@ dev = [
     "vulture",
     "types-beautifulsoup4",
     "mutmut",
+    # the trivia and archaeology gates in the Makefile and in pre-commit are its
+    # console scripts; the Claude Code plugin of the same name runs the hook
+    # modes and puts nothing on PATH
+    "triviajudge",
     # hqptuner.spec builds the desktop binary with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
@@ -75,11 +79,24 @@ do_not_mutate = ["hqptuner/static/*"]
 # never touches hqptuner/; collecting it there only errors the stats pass.
 pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests/gates"]
 
+[tool.triviajudge]
+# Scope for the three trivia gates. It matches the `files`/`exclude` of their
+# pre-commit hooks and the `git ls-files` filter on the Makefile's archaeology
+# line; both the hook modes and the console scripts read it from here.
+# CHANGELOG.md has check_changelog.py and copy-before-after.md is a record of
+# owner-approved wording, so neither takes a judge.
+md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
+suffixes = [".py", ".js", ".css"]
+excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
+# Beside the other agent-written caches, which .gitignore already carries.
+cache_dir = ".claude/logs"
+
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not
 # called by name, so ignore those decorators or every @router.* endpoint reads
 # as unused. min_confidence 60 is vulture's floor for unused module-level defs.
 paths = ["hqptuner", "scripts", "tests"]
+exclude = ["scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
 min_confidence = 60
 ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete", "@pytest.fixture"]
 # BaseHTTPRequestHandler overrides in the wire-protocol fakes are dispatched by
@@ -90,10 +107,13 @@ ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_th
 
 [tool.ruff]
 line-length = 120
+force-exclude = true
+extend-exclude = ["scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
 target-version = "py312"
 
 [tool.black]
 line-length = 120
+extend-exclude = "scripts/(pair/|cite\\.py|strike-diff\\.py)"
 target-version = ["py312"]
 
 [tool.ruff.lint]
@@ -160,12 +180,13 @@ ban-relative-imports = "all"
 # Owner-approved for this file: the merge check compares two commits, so git is its
 # only source. The argv is this module's own literals plus a rev and a repo-relative
 # path handed in by scripts/pair.sh, and GIT is resolved by shutil.which.
-"scripts/excision-diff.py" = ["S603"]
+"scripts/strike-diff.py" = ["S603"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 files = ["hqptuner", "tests", "scripts"]
+exclude = "^scripts/(pair/|cite\\.py|strike-diff\\.py)"
 # Mirrors the pytest `pythonpath` above: the support modules and the budget
 # analyzers are imported by bare name, not by package path.
 mypy_path = ["tests", "tests/support", "scripts/budget"]

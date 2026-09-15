@@ -5,12 +5,11 @@ engine (~3 s). Either way the lane that wrote has to wait for the daemon to
 serve again and then confirm what actually landed — HQPTuner never reports a
 success it did not read back.
 
-Six lanes each grew their own copy of that loop. They are one shape: take a
-deadline off the manager's clock, try a flaky probe, treat ``httpx.HTTPError``
-as the expected post-restart transient rather than a failure, sleep, and give up
-honestly at the deadline. Six copies is six chances for the retry semantics to
-drift apart silently, which is exactly the class of bug a readback-verify path
-must not have. This module is the one copy.
+Every write lane rides this one loop: take a deadline off the manager's clock,
+try a flaky probe, treat ``httpx.HTTPError`` as the expected post-restart
+transient rather than a failure, sleep, and give up honestly at the deadline.
+One implementation means the retry semantics cannot drift apart between lanes,
+which is exactly the class of bug a readback-verify path must not have.
 
 Pacing goes through ``ConnectionManager.sleep`` / ``.monotonic`` — the injectable
 clock seams the suite virtualizes (docs/testing.md §7). A lane that reaches for

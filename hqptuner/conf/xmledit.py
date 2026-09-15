@@ -25,10 +25,10 @@ if TYPE_CHECKING:
 class GroundingError(ValueError):
     """An edit that cannot be placed in this snapshot at all.
 
-    A merely *absent* target is no longer one of these — it is created (see
-    ``PARENT``). What remains are the cases with no defensible answer: a snapshot
-    with no root element, a tag with no known schema position, an unknown form
-    field, a malformed value.
+    An absent target is created instead (see ``PARENT``), not raised as this error.
+    This error covers the cases with no defensible answer: a snapshot with no root
+    element, a tag with no known schema position, an unknown form field, a
+    malformed value.
 
     Lives here, at the bottom of the layering, because both editing modules raise
     it and the locators are shared. Message text is user-facing (it reaches the

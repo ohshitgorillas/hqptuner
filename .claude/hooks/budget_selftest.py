@@ -85,7 +85,7 @@ def _budget_checks():
                      _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
 
     spawn = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Agent",
-             "tool_input": {"subagent_type": "gauntlet-testsmith", "prompt": "spec"}}
+             "tool_input": {"subagent_type": "gauntlet-scrivener", "prompt": "spec"}}
     ok.append(_check("a /tests agent spawn is free past the limit",
                      evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
     review = dict(spawn, tool_input={"subagent_type": "gauntlet-prosecutor", "prompt": "plan"})

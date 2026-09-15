@@ -1,6 +1,6 @@
 # HQPTuner — architecture and normative rules
 
-Replaces `outline.md` (removed 2026-07-25 — had drifted into stale UI snapshot). Section numbers preserved from that file so `architecture §N` citations across codebase keep meaning.
+Section numbers are preserved so `architecture §N` citations across the codebase keep meaning.
 
 **This document carries rules, not inventories.** Old outline rotted because it duplicated control list and tab layout in prose, and prose not updated by `make check`. Everything enumerable here points at artifact that owns it instead.
 
@@ -8,7 +8,7 @@ Replaces `outline.md` (removed 2026-07-25 — had drifted into stale UI snapshot
 
 HQPTuner is configuration interface for HQPlayer Embedded — replaces stock configuration, matrix and speaker pages for day-to-day settings work.
 
-**Non-goals:** playback, library, media control of any kind; standalone convolution-engine page (convolution *within* matrix pipelines is in scope). Matrix pipeline editing originally cut as too complex, un-cut 2026-07-20 — design of record is `docs/matrix-spec.md`.
+**Non-goals:** playback, library, media control of any kind; standalone convolution-engine page (convolution *within* matrix pipelines is in scope). Matrix pipeline editing is in scope; design of record is `docs/matrix-spec.md`.
 
 ## 2. Integration lanes, and enumeration volatility
 
@@ -26,8 +26,8 @@ Normative rules:
 - **Enumeration volatility.** Filter/shaper names and list ordering change between HQPlayer versions; config file stores numeric enum **IDs** while wire uses list **indices**. Running engine's enumeration queries (`GetModes`, `GetFilters`, `GetShapers`, `GetRates`, `GetJunkFilters`) are sole runtime authority for names, IDs, ordering. Static `data/*.json` joins **by name**, never overrides live data; engine entry with no metadata match still renders (name only). Never ship constant where engine-reported value belongs.
 - **Never mix index and ID domains.** `Set*` and `State` speak list index; `hqplayerd.xml` stores enum ID. Translating between lanes requires live lists.
 - **Mode-relative enumerations, no pre-capture.** Engine returns only current mode's lists (SDM lists in SDM, PCM lists in PCM), and they differ wholesale — indices shift between modes. Re-run enumeration queries on every mode switch rather than filtering cached list; never flip modes to pre-capture other one. Mode index 0 (`[source]`) keeps current lists.
-- **Static facet fallback (2026-07-24).** Because live enum only covers *active* mode, filters exclusive to inactive mode had no facets and bypassed narrowing. quality/focus/apodizing/ratio transcribed into `data/filters.json`, consumed by `store/narrow/facets.js` as **fallback for filters live enum omits**. Live stays sole authority for active mode.
-- **Length/adaptive are overlay-first (2026-08-30).** The wire carries no length or adaptive signal, so these two facets are the exception to live-first: a `length` token or `adaptive` bool on a filter's `data/filters.json` row wins over the name-token rules, which remain the fallback for names the overlay does not reach. Enumeration authority is untouched — the overlay still joins by name and decides nothing about which filters exist.
+- **Static facet fallback.** Because live enum only covers *active* mode, filters exclusive to inactive mode had no facets and bypassed narrowing. quality/focus/apodizing/ratio transcribed into `data/filters.json`, consumed by `store/narrow/facets.js` as **fallback for filters live enum omits**. Live stays sole authority for active mode.
+- **Length/adaptive are overlay-first.** The wire carries no length or adaptive signal, so these two facets are the exception to live-first: a `length` token or `adaptive` bool on a filter's `data/filters.json` row wins over the name-token rules, which remain the fallback for names the overlay does not reach. Enumeration authority is untouched — the overlay still joins by name and decides nothing about which filters exist.
 - **Live-vs-file divergence is real and must be surfaced, not assumed away.** hqplayerd never writes Control API changes to `hqplayerd.xml` — not while running, not at shutdown (verified: md5-identical across `systemctl stop` with unsaved change in memory). Running engine can differ from file indefinitely, and this is observed in wild, not only constructed in probe: on Opal running filters already differed from file's stored filters before any spike run. Read both lanes; show divergence.
 - **`result="OK"` is not proof of application.** Always verify by `State` readback.
 - **A request that fails after its bytes went out drops the connection.** The daemon answers every command it accepts, unknown ones included (`protocol.md` §4), so a reply given up on is a reply still to come — and left on an open socket it becomes the answer the *next* command reads. Nothing downstream can catch that: `set_command` checks the root element's `result` and never which element it is, so a stale `<Volume result="OK"/>` passes as success for a `MatrixSetProfile` that was never acknowledged, and `_attrs` returns the wrong document's attributes into `readings`. So `ControlClient.request` closes its own connection on a read timeout, a socket error or a frame that will not parse, and the poll loop reconnects. A `CommandError` (`result="Error"`) is the exception and keeps the connection: that reply is complete and correctly paired. Expect the consequence at the batch level — fields behind a stalled setter in one `apply_live` report `daemon_unavailable` instead of being written over a suspect connection, while fields behind a *refused* one still apply.
@@ -118,7 +118,7 @@ Coverage guarded by `scripts/gates/check_metadata.py`: the shipped files load th
 
 **HQPTuner owns its preset store** (`hqptuner/presets/store/presets.py`) — full-config XML snapshots in directory we own, driven through one reliable daemon primitive, `POST /restore` onto `[default]`.
 
-This reverses original design, which assumed hqplayerd's named-profile subsystem would serve. It will not: `POST /restore` drops daemon to `[default]` and ignores named working member, `profile/save` to existing name silently no-ops, and `/backup` empties after profile load. Daemon's own `data/cfgs/<name>.xml` files kept **mirrored** so its native web UI stays populated, but never HQPTuner's load/save path. Matrix profiles are separate and do switch cleanly live, via 4321 `MatrixSetProfile` (`docs/matrix-spec.md`).
+hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops daemon to `[default]` and ignores named working member, `profile/save` to existing name silently no-ops, and `/backup` empties after profile load. Daemon's own `data/cfgs/<name>.xml` files kept **mirrored** so its native web UI stays populated, but never HQPTuner's load/save path. Matrix profiles are separate and do switch cleanly live, via 4321 `MatrixSetProfile` (`docs/matrix-spec.md`).
 
 Five operations, all built on that one primitive (`presets/store/presets.py` plus `presets/presetops.py`):
 

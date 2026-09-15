@@ -1,0 +1,177 @@
+slug: junk-live-verdict
+grounding: detective
+
+brief:
+Rewrite the junk-filter detector's 20k and 50k rules to read the windowed minimum spectrum (`window_min_db()`), as the spur rule already does. Both rules currently read a mean spectrum accumulated over time; that accumulator goes, and so does the verdict latch: a verdict is a property of the current spectrum, recomputed every tick, held by nothing. The "fake lossy hi-res" case goes with it: a source that brick-walls below 20 kHz gets no verdict, because the 20k filter does nothing to it.
+
+Scope
+- In: brick-wall and ramp rules, the mean accumulator in `SpectralAggregate`, the latch in `MeteringReader.verdict`, and whatever in the advisor note or auto-pilot follows from a live verdict.
+- Out: the spur rule (30k/40k), rate-relative filters, the junkcal capture format, threshold values already set.
+
+Rulings
+- No time-averaging and no memory of past verdicts survives anywhere in the detection path.
+- A filter is recommended, and auto-pilot engages it, only when it has an effect on what is playing. 20k needs a content ceiling above 20 kHz with near-floor energy above it. 50k needs a container whose bandwidth reaches past the corner; derive the rate floor from that and state it.
+- Auto-pilot follows the live verdict directly: engage when present, release when absent. No hysteresis, no hold timer.
+
+Evidence
+- `/srv/hqptuner/state/junkcal/*.jsonl` holds 21 periods of the windowed minimum spectrum from 13 kHz up; `scripts/junkcal_view.py` reads it. Use it to show the rewritten rules fire where the curves show the shape and stay quiet where they do not. Recorded verdicts in the rows are the old rules' output, not ground truth.
+
+Delivery
+- One slug, one plan, whole scope. The previous attempt died as several partial worktrees under separate slugs and was purged; deferring any in-scope item to a follow-up is incomplete.
+- The unreleased changelog entry about the content ceiling is superseded; say what happens to it.
+- The words "track" and "metadata" in the plan get it rejected.
+
+Task
+- Deliver a stage 1 plan with a READY verdict.
+
+brief coverage:
+delivered: "Rewrite the junk-filter detector's 20k and 50k rules to read the windowed minimum spectrum (`window_min_db()`), as the spur rule already does." — change 1a: `classify` takes one spectrum, the windowed minimum, and the brick-wall and ramp rules read it.
+delivered: "Both rules currently read a mean spectrum accumulated over time; that accumulator goes, and so does the verdict latch: a verdict is a property of the current spectrum, recomputed every tick, held by nothing." — change 2a deletes `_power`/`levels_db`, change 2b deletes the `_verdict` field and every assignment to it.
+delivered: "The \"fake lossy hi-res\" case goes with it: a source that brick-walls below 20 kHz gets no verdict, because the 20k filter does nothing to it." — change 1c deletes `_lossy_wall` and `LOSSY_WINDOW_HZ` and lifts the brick window's bottom to 20 kHz.
+delivered: "In: brick-wall and ramp rules, the mean accumulator in `SpectralAggregate`, the latch in `MeteringReader.verdict`, and whatever in the advisor note or auto-pilot follows from a live verdict." — changes 1, 2, 3, 4, 5; change 5 records that the note surface and the auto-pilot decision need no code change and says why.
+delivered: "Out: the spur rule (30k/40k), rate-relative filters, the junkcal capture format, threshold values already set." — the out-of-scope paragraph names each and what keeps it untouched.
+delivered: "No time-averaging and no memory of past verdicts survives anywhere in the detection path." — changes 1b, 2a and 2b; the only remaining time structure is the rolling minimum window the brief names as the input.
+delivered: "A filter is recommended, and auto-pilot engages it, only when it has an effect on what is playing." — changes 1c and 1d, one effect precondition per rule.
+delivered: "20k needs a content ceiling above 20 kHz with near-floor energy above it." — change 1c.
+delivered: "50k needs a container whose bandwidth reaches past the corner; derive the rate floor from that and state it." — change 1d, with the derivation and the 176.4 kHz floor stated.
+delivered: "Auto-pilot follows the live verdict directly: engage when present, release when absent. No hysteresis, no hold timer." — change 5, which verifies that no hysteresis or hold timer exists and that release-on-absence is already the decision's behaviour.
+delivered: "`/srv/hqptuner/state/junkcal/*.jsonl` holds 21 periods of the windowed minimum spectrum from 13 kHz up; `scripts/junkcal_view.py` reads it." — evidence section; the captures were read directly rather than through `scripts/junkcal_view.py`, whose `rows`/`curve`/`band` subcommands report recorded rows and cannot evaluate a proposed rule. One correction to the sentence: the glob matches 20 files, and the 21st file in that directory is a `.jsonl.orig` backup the glob does not match. The evidence section says which is which.
+delivered: "Use it to show the rewritten rules fire where the curves show the shape and stay quiet where they do not." — evidence section, per period, both rules.
+delivered: "Recorded verdicts in the rows are the old rules' output, not ground truth." — the evidence section uses recorded verdicts only as a contrast column and never as an expected result.
+delivered: the brief's last Delivery sentence, naming two words that reject the plan — neither of them appears anywhere outside the quoted brief block above.
+delivered: "Deliver a stage 1 plan with a READY verdict." — this document.
+
+what is wrong
+
+The detector has three rules and two curves. The spur rule reads the windowed per-bin minimum spectrum (`junkadvisor.py:258-289`, fed from `metering.py:167`). The brick-wall and ramp rules read a power mean accumulated over every frame ingested since the current item started (`metering.py:163-165`, consumed at `metering.py:241`). Three consequences:
+
+1. The mean's answer depends on the passage. The module docstring already records the failure it caused for the spur rule — a 30.3 kHz tone 15 dB proud during a quiet intro fell to 6 dB of excess once the music started (`junkadvisor.py:33-38`) — and the brick-wall rule is exposed to the same thing from the other side: a loud passage lifts the near-floor band above the ceiling and the cliff shallows out.
+
+2. The verdict latches for the rest of the item (`metering.py:249-250`). A verdict therefore outlives the evidence for it, and auto-pilot holds a filter the current spectrum no longer asks for.
+
+3. `_lossy_wall` (`junkadvisor.py:237-248`) accepts a ceiling anywhere in 13–18 kHz (`LOSSY_WINDOW_HZ`, `junkadvisor.py:72`) and recommends the 20k corner for it. The 20k corner removes nothing below 20 kHz, so that recommendation cannot change what the listener hears.
+
+what changes
+
+1. `hqptuner/engine/junkadvisor.py`
+
+1a. `classify` (`:94-122`) loses `levels_db` and `seconds` and takes the windowed minimum as its single spectrum. It returns None when that spectrum is None, which is the only readiness gate left. All three rules then read one curve: the 9-bin median smoothing for brick-wall and ramp, the raw per-bin values for spurs, exactly as the spur rule already does (`:264-268`). The `# noqa: PLR0913` at `:94` goes with the argument count.
+
+1b. `eligible` (`:124-128`) loses `seconds`, and `MIN_SECONDS` (`:49`) is deleted. Its 15 s coverage floor is dead once the windowed minimum is the input: that window does not exist until six full 5 s blocks have been earned (`metering.py:167-176`, `BLOCK_SECONDS`/`WINDOW_BLOCKS` at `metering.py:57-59`), which is 30 s, twice the floor. The rate, bandwidth, bin-count and SDM tests in `eligible` stay as they are.
+
+1c. The brick-wall rule keeps one path instead of two. `BRICK_WINDOW_HZ` (`:63`) moves from an 18–26 kHz search window to 20–26 kHz. `_content_edge` (`:193-205`) changes with it, and the change is a behaviour change: today it returns the highest bin standing clear of the floor anywhere in the window, its bottom bin included, rejecting only a bin at or above the window top (`:198-205`). With the bottom at 20 kHz that would report a ceiling at exactly 20.0 kHz, where the 20k corner removes nothing. It gains a strict-bottom test — the ceiling bin must sit above the window's bottom bin — which is the "content ceiling above 20 kHz" half of the ruling. The two edges then read: a ceiling at exactly 20.0 kHz is refused by the new test, and one at 26.0 kHz is refused by the existing `edge >= top` test at `:205`, which is content carrying on past the window rather than a ceiling. `_at_floor_above` (`:208-210`) is unchanged and supplies the "near-floor energy above it" half as it already does. `_lossy_wall` (`:237-248`) and `LOSSY_WINDOW_HZ` (`:72`) are deleted. `_ceiling_wall` (`:222-235`) is the surviving rule body; the dispatcher `_brick_wall` (`:251-255`) has nothing left to dispatch between and collapses into it, carrying the rate test at `:252` with it. `FAKE_HIRES_MIN_RATE` (`:68`) keeps its value of 88 200 Hz and keeps being tested: it is a threshold already set and the brief's Out list excludes those, and it is what keeps the unchanged 20k reason's "consistent with fake hi-res" wording (`:213-219`) true of every source that reaches the rule. So the narrowest container that reaches it is still 88.2 kHz, Nyquist 44.1 kHz, where the band `_at_floor_above` averages runs from above 21.5 kHz to 44.1 kHz — on the 1 025-bin grid the captures show, roughly half the curve, not a handful of bins. `BRICK_DROP_DB`, `BRICK_GUARD_HZ`, `ABOVE_FLOOR_DB` and `BRICK_REF_HZ` keep their values.
+
+1d. The ramp rule gains one precondition: the source bandwidth must exceed 50 kHz. Derivation: the bandwidth the frame header carries is the source Nyquist (`protocol.md:291`, "`f32 bandwidth` (Nyquist, Hz)"; header layout at `metering.py:38`, read out at `metering.py:353`), so bandwidth above the 50 kHz corner means a sample rate above 100 kHz. The lowest standard PCM rate that clears 100 kHz is 176.4 kHz, so the 50k filter is never recommended for an 88.2 or 96 kHz source, and the effective rate floor for this rule is 176 400 Hz. The rule is stated on bandwidth rather than on the rate because bandwidth is the fact the curve is measured against; the rate floor follows from it and is stated here because the brief asks for it. The precondition reads strictly at its edge: a container whose bandwidth is exactly 50 kHz is refused, because a 50 kHz corner removes nothing from it. That edge is unreachable in practice — no standard PCM rate is 100 kHz — so the first rate that passes is 176.4 kHz and the first bandwidth that passes is 88.2 kHz, well clear of the edge. `RAMP_LO_HZ`, `RAMP_RISE_DB` and `RAMP_ABOVE_FLOOR_DB` keep their values.
+
+1e. The module docstring (`:1-45`) is rewritten: it currently explains at `:26-38` why the brick-wall and ramp rules read the mean and only the spur rule reads the minimum, which is the design being removed.
+
+1f. No user-facing string changes. The 20k reason (`_fake_hires`, `:213-219`) and the 50k reason (inside `_ramp`, `:300-304`) ship character for character as they are, and the spur reason is out of scope. Nothing in this change reworded them.
+
+2. `hqptuner/engine/metering.py`
+
+2a. `SpectralAggregate` loses the mean: `self._power` (`:134`), the per-bin accumulation loop in `add` (`:145-146`) and `levels_db` (`:163-165`) are deleted. `self.frames` (`:132`) and `self.seconds` (`:133`) stay — junkcal writes both into its rows and that format is out of scope. The block-wise minimum (`:135-137`, `:149-161`, `:167-176`) is untouched. Side effect worth naming: ingest stops summing power across every bin of every ingested frame, so the reader's per-frame cost falls to the minimum fold alone.
+
+2b. `MeteringReader` loses the latch: the `_verdict` field (`:203`) and all four assignments to it (`:238`, `:249`, `:292`, `:358`) are deleted. `verdict` (`:222-250`) recomputes from `agg.window_min_db()` on every call and returns whatever the current spectrum says, including None. The serial guard at `:237` stays but returns None instead of clearing a latch: it says the aggregate belongs to something else that is now playing, which is evidence ownership, not memory of a verdict. The `agg.frames == 0` guard at `:235` goes, since a windowed minimum cannot exist without frames.
+
+2c. `recommendation` (`:252-262`) is unchanged in code: it is the verdict minus the case the engine already treats. Its docstring says "latched signature" and is reworded, as are the `verdict` docstring (`:223-235`), the class docstring at `:119-126` and the module docstring's aggregate paragraph (`:5-12`).
+
+3. `hqptuner/core/junkcal.py`
+
+The `eligible` call at `:57` drops `agg.seconds`. One more site: `_spectrum` at `:45` takes the stored spectrum's 13 kHz floor from `junkadvisor.LOSSY_WINDOW_HZ[0]`, the constant change 1c deletes, so deleting it without more would break the capture. The 13 kHz floor becomes a module constant of `junkcal.py` itself, which is where it belongs — it is how much of the curve the capture stores, not a detector threshold, and no rule reads it. Its value does not move, so every existing capture and every new one keeps starting at 13 kHz. With that, nothing else changes: every row key, the period-file rules and the stored spectrum stay exactly as they are (`:60-71`), the capture format is untouched and the existing captures stay readable by `scripts/junkcal_view.py`. The docstring at `:7` says "latched verdict" and is reworded.
+
+4. `hqptuner/lanes/autopilot.py` and `hqptuner/core/autopilotops.py`
+
+Docstrings only. `lanes/autopilot.py:3` and `core/autopilotops.py:90` both describe the verdict as latched. No code changes: `desired_junk_filter` (`lanes/autopilot.py:23-33`) already returns `NO_FILTER` when the verdict is None, and `_move` (`core/autopilotops.py:47-61`) already writes only when the wanted filter differs from the engaged one. There is no hysteresis and no hold timer anywhere in that path to remove — the hold was the latch, and change 2b is what removes it. After 2b, engage-when-present and release-when-absent are what the existing code does against a live verdict.
+
+5. The note surface: one comment, no code
+
+`api/routes/status.py:90` calls `recommendation()` and puts the result under the payload's `junk` key (`:99`); the shape of a verdict is unchanged. `static/store/alerts/junkadvice.js:9` derives the chip from `(engineStatus.value || {}).junk || null` with no local state, and `static/components/AlertStrip.js:37-45` renders `advice.reason` when it is there and returns null when it is not. The note therefore already shows whatever the latest poll carried; the latch was the only thing holding it up, and removing it makes the chip appear and clear live with no code change on either side.
+
+What does change is a statement. The comment at `static/store/alerts/junkadvice.js:1-5` gives the clearing rule as a closed pair — the chip clears when what is playing changes, or when the engaged settings treat the signature. After 2b there is a third and now ordinary way for it to clear: the current spectrum stops carrying the signature. That rule is overturned by this change and the comment is corrected. It is a code comment, not user-facing copy, so it carries no owner-approval cost; the chip's own text is `advice.reason`, which 1f leaves untouched.
+
+6. `docs/architecture.md`
+
+Two normative statements are overturned and both are edited.
+
+`:99` states that nothing is engaged until a verdict is earned, citing `junkadvisor.MIN_SECONDS` plus the spur window. `MIN_SECONDS` is deleted by 1b, so that clause becomes the persistence window alone.
+
+`:98` gives the note's clearing rule as a closed pair: it clears on a change of what is playing, or once the engaged junk filter treats the signature, and `none` never clears it. After 2b a third way is the common one — the current spectrum stops carrying the signature — and it is the whole point of the change, so the sentence is rewritten to state it. The rest of `:98` stays true and is not edited: detection and treatment separate with the caller combining them, stream absence meaning no recommendation, rate-relative filters never recommended, the connection held only while the engine is playing, and the pause-versus-broken-stream rule.
+
+One correction in passing on the same line as `:99`: `junkadvisor.covered_by_filter` is a stale name for what the code now calls `treats` (`junkadvisor.py:156`). It is a different sentence of that line from the `MIN_SECONDS` clause, so it is a second small edit to the same line rather than part of the first.
+
+7. `CHANGELOG.md`
+
+`:13`, under `[Unreleased]` / `### Fixed`, is the superseded entry: it announces that the advisor names a real content ceiling read from a fixed reference band and that cutoffs as low as 13 kHz are recognized. The second half is exactly what change 1c removes, and the first half describes the mean-spectrum reading that change 1a replaces. It has never shipped — the last released version is 1.15.2 (`CHANGELOG.md:17`) — so there is nothing to supersede it with a second entry: line 13 is deleted and one new `### Fixed` entry describing the rewritten behaviour takes its place, so the released notes carry one true statement rather than a correction of an unreleased one. That entry is agent copy until the owner approves it character for character; it is written at stage 2 and lands verbatim in the same commit as the code.
+
+8. `tests/`
+
+I write nothing under `tests/` in any tree. The work goes through `/tests` at stage 2, with the spec block, the blind writer and the red run. The files that hold the affected behaviour are `tests/engine/test_junk_advisor.py` (the `classify` helpers at `:43` and `:62`, the coverage-floor case at `:76`, the brick-wall cases at `:98-127`, the ramp case at `:165`), `tests/engine/test_junk_persistence.py` (the mean case at `:101` and the latch cases at `:138-190`), `tests/engine/test_metering_idle.py` (the `_earn_20k` helper at `:65` and the three verdict-lifetime cases at `:169-208`), `tests/live/test_autopilot.py` (the `classify`-built constants at `:66-70`), and the support builders in `tests/support/junk_spectra.py` (`:21-84`), which today build mean-shaped curves for the brick-wall and ramp cases.
+
+caller-side delta
+
+Nothing is split or extracted, and no forwarder is introduced. Three signatures change and the call sites are countable.
+
+`classify` has four direct call sites in three files: `metering.py:240` in production, `tests/engine/test_junk_advisor.py:52` inside the `_classify` helper that every advisor case goes through, and `tests/live/test_autopilot.py:66` and `:70`, which build the two module constants and pass `seconds` positionally as `60.0`. The helper at `tests/engine/test_junk_advisor.py:62` is not a fourth site: it calls `_classify`, not `classify`.
+
+`eligible` has two call sites: `junkadvisor.py:113` inside `classify`, and `junkcal.py:57`. `levels_db` has one production site, deleted with it (`metering.py:241`), and one test reader (`tests/engine/test_junk_persistence.py:101`). `LOSSY_WINDOW_HZ` has one site outside the rule that owns it, `junkcal.py:45`, handled in change 3.
+
+Deletions: `_lossy_wall`, `LOSSY_WINDOW_HZ`, `MIN_SECONDS`, the `_brick_wall` dispatcher, `SpectralAggregate._power`, `SpectralAggregate.levels_db`, `MeteringReader._verdict`. `FAKE_HIRES_MIN_RATE` survives, moved into `_ceiling_wall` with the test that reads it. No import moves, so the layering contract is untouched.
+
+what is out of scope and stays untouched
+
+The spur rule (`junkadvisor.py:258-289`), including `SPUR_MIN_HZ`, `SPUR_DB`, `SPUR_BASELINE_BINS`, `SPUR_CORNER_SPLIT_HZ` and `SPUR_FAMILIES`, and the `treated`/`treats` pair (`:142` and `:156`) that the rate-relative filters ride on. The junkcal row keys, period rules and stored spectrum. Every threshold value already set: `BRICK_DROP_DB`, `BRICK_GUARD_HZ`, `ABOVE_FLOOR_DB`, `FLOOR_PERCENTILE`, `SMOOTH_BINS`, `FAKE_HIRES_MIN_RATE`, `RAMP_LO_HZ`, `RAMP_RISE_DB`, `RAMP_ABOVE_FLOOR_DB`, `MIN_RATE_HZ`, `MIN_BANDWIDTH_HZ`, `BLOCK_SECONDS`, `WINDOW_BLOCKS`, `SILENT_RMS_DB`, `DECIMATE`. Two bounds move and neither is a tuning: the `BRICK_WINDOW_HZ` bottom and the 50k bandwidth precondition are where the rulings say they must be.
+
+evidence
+
+Method. The glob the brief names, `/srv/hqptuner/state/junkcal/*.jsonl`, matches 20 files, 2 117 rows, 2 074 of them eligible and carrying a stored spectrum. A 21st file sits in that directory and the glob does not match it: `junkcal-20260912T210302Z.jsonl.orig`, 224 rows, whose first row is the same row as the live `junkcal-20260912T210302Z.jsonl` and which runs on to 22:00:03 where the live file stops at 21:30:18 — a pre-split backup of one period that was cut up by hand. Its 114 rows past 21:30:18 span the window the next two period files cover: `junkcal-20260912T213103Z.jsonl` opens at 21:31:03 with 78 rows and `junkcal-20260912T215118Z.jsonl` at 21:51:18 with 36, and both are evaluated below. I evaluated the 20 files the glob matches, not the backup. Whether the hand split dropped any row I cannot settle from the files, so the counts below are counts over the corpus as it stands. I read them and ran the proposed rules over the stored windowed minimum curves in a throwaway evaluator, single process, one core, 0.98 s. That is a check on the design, not on the implementation; the implementation is checked by the stage 2 tests. Recorded verdicts appear below only as a contrast column. Every period is 96 kHz (bandwidth 48 kHz) or 192 kHz (bandwidth 96 kHz), 1 025 bins.
+
+20k, where the shape is. The rewritten rule fires in six periods, always on a ceiling above 20 kHz with the band above it at the floor:
+- `junkcal-20260912T215118Z`: 35 of 35 eligible ticks, ceilings 22.4–23.1 kHz, fall from the reference band 66.2–102.0 dB, and no verdict change anywhere in the period.
+- `junkcal-20260912T210302Z`: 78 of 109 ticks, ceilings 22.6–25.1 kHz, fall 30.2–52.5 dB. This is the period with the `.orig` backup beside it; the 78 are from the 110-row live file, and the rows the backup carries past 21:30:18 are evaluated under the two period names that cover that window.
+- `junkcal-20260912T213103Z`: 20 of 77, ceilings 22.4–23.9 kHz.
+- `junkcal-20260912T232043Z`: 3 of 67, ceilings 25.5–25.7 kHz.
+- `junkcal-20260913T032631Z`: 8 of 345, ceilings 23.9–25.8 kHz.
+- `junkcal-20260913T015252Z`: 1 of 8, ceiling 22.1 kHz.
+
+20k, where it is not. It is silent for every tick of the other fourteen periods. The two longest quiet runs are `junkcal-20260913T062936Z` (267 ticks, no ceiling in the window on any of them, no verdict of any kind in the period) and `junkcal-20260913T051734Z` (210 ticks, no ceiling on any of them). Across all 2 074 ticks the rule stops at "no ceiling in the window" 1 745 times and at "the fall is shallower than 30 dB" 230 times.
+
+50k. Only the six 192 kHz periods reach the rule at all; the fourteen 96 kHz periods are excluded by the bandwidth precondition of change 1d before any curve is read, which is the ruling working as stated. Among those six, the rise from the 25 kHz region to the top of the band, measured on the minimum curve, separates them cleanly: `junkcal-20260913T051734Z` median −45.7 dB, `junkcal-20260912T234133Z` −16.1 dB, `junkcal-20260912T233859Z` −15.1 dB, `junkcal-20260913T082855Z` −25.5 dB, `junkcal-20260912T235103Z` −0.3 dB, and `junkcal-20260913T021159Z` +5.8 dB median with a maximum of 10.8 dB. The rule fires three times, all in `junkcal-20260913T021159Z`, and never in the other five. That is the only period whose captured curve rises toward Nyquist at all, and it is also the only period whose recorded rows carry 50k verdicts (84 of them, from the mean curve).
+
+Consequence to name rather than bury: three firings in 185 eligible ticks is a much quieter 50k rule than the recorded rows suggest, because `RAMP_RISE_DB` is 10 dB and a minimum curve rises less than a mean curve over the same band. The threshold is out of scope by the brief and is not touched here. The measurement is stated so the owner can decide later whether 10 dB is still the right number on this curve.
+
+The removed 20k case. No recorded 20k verdict in any of the 20 periods has a ceiling below 20 kHz — the recorded ceilings run 22.0 to 25.9 kHz — so the captures contain no instance of the case change 1c removes, and its removal changes no tick in this evidence. That is consistent with the case being close to unreachable: `_lossy_wall` needs a rate of at least 88.2 kHz (`junkadvisor.py:252`) yet a ceiling at 13–18 kHz, which is a lossy encode inside a hi-res container. Its removal rests on the ruling, not on this evidence, and I am not claiming the evidence shows it firing wrongly.
+
+Flapping, measured. Removing the latch makes the verdict change between ticks. Over the 2 074 eligible ticks the rewritten detector changes its answer 258 times against the recorded rows' 17. The captures tick every 15 s (`junkcal.py:36`) while auto-pilot decides every `poll_interval`, 2.0 s by default (`config.py:81`, handed over at `api/lifespan.py:78`), so 258 is a lower bound on how often auto-pilot would move the filter over those 8.6 hours of playback, not an estimate of it. Most of that churn is not from the rewritten rules: the five periods where the rewritten 20k and 50k rules are almost or entirely silent (`062936Z`, `083210Z`, `161658Z`, `021159Z`, `032631Z`) account for 183 of the 258 changes, and in those five the 20k rule fires 8 times and the 50k rule 3. The rest is the spur rule's own verdict appearing and clearing on a rolling window — unchanged code, previously hidden by the latch and now visible to auto-pilot. The brief rules out hysteresis and a hold timer, so this is a disclosed cost of the change rather than a problem to be solved here.
+
+Measurement caveat, bounded. The captures store the minimum spectrum only from 13 kHz up (`junkcal.py:42-47`), while the rules take their floor percentile over the whole curve from 0 Hz. My evaluator therefore took the floor over the stored slice. I also ran the alternative convention — the order statistic a full-length curve would select if every bin below 13 kHz ranked above the decile, which is the direction music energy pushes it — and the two conventions disagree on the final verdict for 11 of the 2 074 ticks (6 in `232043Z`, 3 in `021159Z`, 2 in `032631Z`). Every count above is from the first convention and is right to within those 11 ticks.
+
+cost
+
+`make check` and a container rebuild through `/task-check`, then a hand-back URL. The advisor chip's behaviour changes for a user watching it — it now appears and clears with the spectrum instead of latching for the rest of what is playing — so this gets an independent `user-reviewer` pass on the rebuilt container before hand-back, and the owner's own eyes after that. No playback interruption and no daemon write from the change itself; auto-pilot's own writes go through the ordinary LIVE lane as they already do, and there will be more of them (measured above). Risk sits in two places: a 50k rule that fires rarely on real material, and auto-pilot moving the filter more often than before. Both are measured above and both follow from the rulings.
+
+follow-up work deferred
+
+None. Every item in the brief's In list is a numbered change above.
+
+open questions
+
+None. The rulings settle the two that would otherwise be the owner's: whether a filter with no audible effect may still be recommended, and whether the release may be damped.
+
+--- plan-reviewer READY ---
+
+READY
+
+a  PASS  carried: "The verdict's redefinition from latched track property to a live reading of the current spectrum is stated outright as the change proposed (changes 2b, 4, and the docstring reword at junkcal.py:7), and the brief quoted at the head authorizes it ("a verdict is a property of the current spectrum, recomputed every tick, held by nothing"). Resolved against metering.py:222-250 and docs/architecture.md:99." Change 1c's new behaviour change to `_content_edge` is likewise stated outright as part of the proposed rule, not as a side effect.
+b  PASS  All three items repaired and re-resolved. 1c now says `_content_edge` (`:193-205`) changes in behaviour and describes its present behaviour exactly as junkadvisor.py:198-205 reads it (highest bin clear of the floor, bottom bin included, rejecting only `edge >= top`), and names `_ceiling_wall` (`:222-235`) as the surviving body with the `_brick_wall` dispatcher (`:251-255`) collapsing into it and carrying the rate test at `:252`. The Method paragraph now says 20 files / 2 117 rows, which is what `wc -l /srv/hqptuner/state/junkcal/*.jsonl` returns, and "the other fourteen periods" and "any of the 20 periods" follow it. The `.orig` account resolves against the files: same first row, 2026-09-12T21:03:02 in both; live file last row 21:30:18; backup last row 22:00:03; `junkcal-20260912T213103Z.jsonl` first row 21:31:03 (78 rows) and `junkcal-20260912T215118Z.jsonl` first row 21:51:18, last row 22:00:03 (36 rows).
+c  PASS  The rewritten delta names exactly the four direct `classify` call sites I counted — metering.py:240, tests/engine/test_junk_advisor.py:52, tests/live/test_autopilot.py:66 and :70 — and says correctly why tests/engine/test_junk_advisor.py:62 (`_classify_spur`, which calls `_classify` at :65) is not one. `LOSSY_WINDOW_HZ`'s outside site at junkcal.py:45 is now counted, the deletions list drops `FAKE_HIRES_MIN_RATE` and names the dispatcher instead.
+d  PASS  carried: "The cause is named upstream of the appearance: the per-item power mean (metering.py:145-146,163-165) consumed at metering.py:241 and the `_verdict` latch at metering.py:203,249, with the mechanism by which the symptom follows (a passage-dependent curve, a verdict outliving its evidence) stated at "what is wrong" 1-3. Not a repeat round on this surface."
+e  PASS  Both collisions now named and disposed of. Change 5's second paragraph names the closed-pair clearing rule at static/store/alerts/junkadvice.js:1-5 as overturned and corrected, and says correctly that it is a code comment rather than the chip's own text (`advice.reason`, AlertStrip.js:45). Change 6 names docs/architecture.md:98's clearing rule as overturned and rewritten, and lists the rest of that line as untouched, which matches what :98 says. `FAKE_HIRES_MIN_RATE` (junkadvisor.py:68) is kept and still tested, moving into `_ceiling_wall`, so the hi-res-container precondition stands, the brief's Out list on thresholds is respected, and `_fake_hires`'s unchanged wording at :213-219 stays true of every source that reaches the rule.
+f  PASS  Both edges read. 20k: with the 88.2 kHz gate kept, the narrowest container reaching the rule has Nyquist 44.1 kHz, so `_at_floor_above` averages from above 21.5 kHz to 44.1 kHz — on a 1 025-bin grid about half the curve, which is the reading my finding asked for; the 20.0 kHz ceiling edge is refused by the new strict-bottom test and the 26.0 kHz edge by `edge >= top` at :205. 50k: 1d now states the precondition reads strictly at exactly 50 kHz bandwidth and that the edge is unreachable, no standard PCM rate being 100 kHz.
+g  PASS  carried: "The plan carries no open question, and the two it says the rulings settle are in fact settled by the quoted brief ("A filter is recommended ... only when it has an effect on what is playing"; "No hysteresis, no hold timer"). The `RAMP_RISE_DB` measurement is disclosed as a cost under a brief that puts thresholds out of scope, not passed along as a question; the changelog wording goes to stage 2 approval, which is where that word belongs."
+h  PASS  The one path I found is closed: change 3 names junkcal.py:45, moves the 13 kHz floor to a module constant of junkcal.py at the same value, and only then claims the capture format and the existing captures are unaffected. No other reader of a deleted symbol exists in the tree (`LOSSY_WINDOW_HZ`, `MIN_SECONDS`, `levels_db`, `_power`, `_verdict` all grep clean outside junkadvisor.py, metering.py, tests and spec text).
+i  PASS  Only the evidence `delivered:` line changed; it still names the evidence section and now carries the 20-vs-21 correction against the brief's own sentence, which is the right place for it. Block still covers every brief sentence, every `delivered:` still resolves to a numbered change, no `dropped:` line.
+j  N/A   carried: "The plan adds nothing to hqptuner/core/manager.py; its touched list is junkadvisor.py, metering.py, junkcal.py, autopilot.py, autopilotops.py, architecture.md, CHANGELOG.md and tests/." Change 3's new constant lands in core/junkcal.py, not in the manager.
+k  PASS  Re-read against the changed elements: 1c now delivers "20k needs a content ceiling above 20 kHz with near-floor energy above it" through a strict-bottom test that refuses exactly 20.0 kHz, without adding any condition the sentence does not state (the 88.2 kHz gate is kept, not newly imposed); 1d delivers the 50k sentence with the derivation and the 176.4 kHz floor; change 5 and change 6 deliver the "In:" sentence's "whatever in the advisor note ... follows from a live verdict" by naming the one statement each surface holds. No repair of mine left an element carrying a condition its sentence does not state.
+
+notes:
+- The per-period counts in the evidence section are the author's own evaluator run; reproducing them needs a metered run, so I checked the corpus they were taken over and the file-level facts around them rather than the arithmetic.

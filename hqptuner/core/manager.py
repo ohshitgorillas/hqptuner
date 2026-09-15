@@ -1,6 +1,6 @@
 """Connection manager — single source of truth for daemon reachability.
 
-Roadmap Phase 2.2 rules:
+Rules:
 - "reachable" means a successful GetInfo handshake, not a mere TCP accept
 - State/Status polling doubles as heartbeat (and keeps traffic under the
   daemon's ~156 s idle-drop window, protocol.md §1)
@@ -180,11 +180,11 @@ class ConnectionManager:
 
         The blind ``except`` above this is deliberate and stays: ``run()`` is started with
         ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
-        nowhere at all — the supervisor would die in silence while the API kept serving. What
-        changes is that a fault outside ``_WIRE_FAULTS`` no longer reaches ``_drop``, which
-        logs at most once per outage and would report our own ``TypeError`` as the daemon
-        being unreachable. Every iteration logs a traceback instead, and the connection is
-        left as it was: nothing here is evidence the daemon went away.
+        nowhere at all — the supervisor would die in silence while the API kept serving. A
+        fault outside ``_WIRE_FAULTS`` never reaches ``_drop``, which logs at most once per
+        outage and would report our own ``TypeError`` as the daemon being unreachable. Every
+        iteration logs a traceback instead, and the connection is left as it was: nothing
+        here is evidence the daemon went away.
         """
         log.exception("%s failed with a fault of ours, not the daemon's; retrying", stage)
 

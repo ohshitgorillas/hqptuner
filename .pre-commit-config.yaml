@@ -60,7 +60,7 @@ repos:
         files: ^CHANGELOG\.md$
       - id: md-trivia
         name: markdown states what holds now (LLM judge)
-        entry: .venv/bin/python scripts/gates/check_md_trivia.py
+        entry: .venv/bin/triviajudge-md
         language: system
         files: \.md$
         exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
@@ -227,14 +227,14 @@ repos:
 
       - id: archaeology
         name: decision-archaeology gate
-        entry: .venv/bin/python scripts/gates/check_archaeology.py
+        entry: .venv/bin/triviajudge-archaeology
         language: system
         types_or: [python, javascript, css]
         exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
 
       - id: comment-trivia
         name: comments state what holds now (LLM judge)
-        entry: .venv/bin/python scripts/gates/check_comment_trivia.py
+        entry: .venv/bin/triviajudge-comments
         language: system
         types_or: [python, javascript, css]
         exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)

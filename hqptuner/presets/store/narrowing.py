@@ -98,9 +98,8 @@ def _flag(value: Any) -> bool:
 
 
 # Every facet the store holds: its default and the check its value must pass. The frontend's signal names map to these
-# keys in the obvious way (nHideLimited <-> hide_limited, nApod1x <-> apod_1x). A file written before the rate-change
-# facets settled may still carry `ratio` / `upsample_only` / `hide_2x` / `hide_int` / `hires_1x` / `hires_nx`;
-# read() only looks up the keys named here, so those entries are ignored and the next write drops them.
+# keys in the obvious way (nHideLimited <-> hide_limited, nApod1x <-> apod_1x). read() looks up only the keys named
+# here; any other key present in a file is ignored and dropped on the next write.
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("or", _one_of(_MODES)),

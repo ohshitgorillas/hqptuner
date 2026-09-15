@@ -1,21 +1,21 @@
 # Custom crossfeed — research findings and design options
 
-Research output, 2026-07-22. Grounds question "should HQPTuner bypass HQPlayer's Bauer post-process and build own crossfeed in matrix pipelines?" in real psychoacoustic and filter math.
+Research output. Grounds question "should HQPTuner bypass HQPlayer's Bauer post-process and build own crossfeed in matrix pipelines?" in real psychoacoustic and filter math.
 
-**Implemented.** Started as findings doc; design now ships as Structural mode of Crossfeed card. Implementation notes marked as such. Companion: `docs/matrix-spec.md` (matrix wire contract, probe findings, existing crossfeed-compensation design of record).
+**Implemented** as Structural mode of Crossfeed card. Implementation notes marked as such. Companion: `docs/matrix-spec.md` (matrix wire contract, probe findings, existing crossfeed-compensation design of record).
 
 ## Provenance
 
 | Claim class | Status |
 |---|---|
-| Brown & Duda structural model (eqs. 1–5, numeric constants) | **Verified verbatim** from paper (IEEE TSAP 6(5), 1998, pp. 476–480) |
-| Woodworth/Kuhn ITD limits | **Verified** — eq. (2) same paper, Kuhn's ~50 % LF excess quoted there |
-| bs2b parameter model | **Verified** previously against libbs2b source; see `matrix-spec.md` |
-| Matrix realizability | **Derived here** from wire grammar, then **validated live** — 24 rows applied and read back byte-exact, see §5 |
-| Numeric agreement between structural model and bs2b default preset | **Computed here** — see §4, worth independent check |
+| Brown & Duda structural model (eqs. 1–5, numeric constants) | Matches paper verbatim (IEEE TSAP 6(5), 1998, pp. 476–480) |
+| Woodworth/Kuhn ITD limits | eq. (2) same paper, Kuhn's ~50 % LF excess quoted there |
+| bs2b parameter model | Matches libbs2b source; see `matrix-spec.md` |
+| Matrix realizability | From wire grammar — 24 rows applied and read back byte-exact, see §5 |
+| Numeric agreement between structural model and bs2b default preset | See §4, worth independent check |
 | HRTF dataset licenses | **Secondhand** from search summaries; each needs reading before vendoring |
-| Delay-stage resolution | **Verified** — HQPlayer manual §7.2, `s` = "delay in number of samples at source rate" |
-| Daemon accepts `delay` in a process chain | **Verified live** — all three unit forms (`s`/`t`/`d`+`v`) parse, magnitude-transparent |
+| Delay-stage resolution | HQPlayer manual §7.2, `s` = "delay in number of samples at source rate" |
+| Daemon accepts `delay` in a process chain | All three unit forms (`s`/`t`/`d`+`v`) parse, magnitude-transparent |
 
 ---
 
@@ -90,11 +90,11 @@ Two corroborations. Bauer's original 1961 network delayed crossfeed signal "by a
 
 HQPlayer's `bauer` post-process is libbs2b (documented — see `matrix-spec.md`). Structure: first-order lowpass on cross path plus first-order high-boost on direct path, with scalar normalization. **No delay line**, but not delay-free: filters minimum-phase, so phase response supplies frequency-dependent delay — larger at LF, smaller at HF, qualitatively right shape. bs2b's own docs show this as "time delay response" curve.
 
-Correcting earlier claim in this repo's discussion: bs2b does not "lack ITD"; it lacks **explicit, independently-controllable** ITD.
+bs2b does not "lack ITD"; it lacks **explicit, independently-controllable** ITD.
 
-**Center tilt is physically real, not bs2b defect.** For ±30° case above, ignoring delay (as bs2b does), center response is (α_near + α_far)/2 = 0.8125 → **−1.80 dB at HF relative to DC**. bs2b's default preset (700 Hz / 4.5 dB) has computed center tilt of **1.81 dB** (`lib/xfeed.js`, verified against source). Agreement to 0.01 dB, from independent derivations — and bs2b docs state default is "closest to the virtual speaker placement with azimuth 30 degrees".
+**Center tilt is physically real, not bs2b defect.** For ±30° case above, ignoring delay (as bs2b does), center response is (α_near + α_far)/2 = 0.8125 → **−1.80 dB at HF relative to DC**. bs2b's default preset (700 Hz / 4.5 dB) has computed center tilt of **1.81 dB** (`lib/xfeed.js`). Agreement to 0.01 dB, from independent derivations — and bs2b docs state default is "closest to the virtual speaker placement with azimuth 30 degrees".
 
-**Reframes HQPTuner's existing compensation feature.** Crossfeed compensation does not correct error — it trades loudspeaker-accurate center for neutral one. Legitimate, useful choice, and *tonal* choice, independent of any headphone EQ (which rides through untouched — EQ framing deliberately dropped in 0.4.0, should stay dropped). Feature's copy should not imply tilt is flaw. Worth wording pass whatever else decided.
+**Reframes HQPTuner's existing compensation feature.** Crossfeed compensation does not correct error — it trades loudspeaker-accurate center for neutral one. Legitimate, useful choice, and *tonal* choice, independent of any headphone EQ, which rides through untouched. Feature's copy should not imply tilt is flaw. Worth wording pass whatever else decided.
 
 ## 5 · Realizability in HQPlayer's matrix — the key result
 
@@ -220,7 +220,7 @@ Any manual touch of angle or center falls to **Custom**, derived rather than sto
 
 Grounding, and its limit: SPL's Phonitor parameterizes same way (angle switch spanning 20–55°, marked at 20/30/40/55, 30° as SPL's own recommended starting point and fixed angle on Phonitor se). Its quoted delays do **not** match ours — SPL give 20–55° as 90–635 µs where Woodworth at a = 8.75 cm gives 176–454 µs by ray and 270–664 µs including shadow group delay. So parameterization shared; numbers not, and copy should not imply Phonitor equivalence.
 
-Not adopted: bs2b's preset names (Jan Meier, Chu Moy). Those are parameter sets for different math and live in Bauer mode; reusing names would muddy A/B.
+bs2b's preset names (Jan Meier, Chu Moy) are not used here: those are parameter sets for different math and live in Bauer mode; reusing names would muddy A/B.
 
 ### 6.5 · Supplying H — modeled or measured
 
@@ -261,9 +261,9 @@ Measured route not automatically better. Non-individualized HRTFs are known weak
 
 Ships as Structural mode of Crossfeed card. `lib/binaural/` holds model, compiler, recognizer, and `lib/binaural-setup.js` the presets; `store/xfeed/mode.js` the mode derivation and staging; `components/xfeed/Card.js` the card; `components/xfeed/Geometry.js` the geometry. Verified by `scripts/gates/check_binaural.py` (ten checks, node-driven) and `scripts/gates/check_xfeed.py`.
 
-Three behaviors worth recording because all three got wrong first:
+Three behaviors worth recording:
 
-**Installing never refuses.** Earlier version returned issue and blocked mode switch when rows 0+1 were not readable EQ pair. Guard inherited from compensation block; control that silently declines to go where user pointed it is worse than one that goes and explains. Rows compiler cannot read as EQ pair are *set aside*: block installs carrying no EQ of its own, and says so.
+**Installing never refuses.** Guard inherited from compensation block; control that silently declines to go where user pointed it is worse than one that goes and explains. Rows compiler cannot read as EQ pair are *set aside*: block installs carrying no EQ of its own, and says so.
 
 **EQ carried per ear.** Chain and preamp both. Measured headphone correction often asymmetric, and refusing those profiles would have excluded exactly listeners most likely to want accurate crossfeed. EQ distributes over each output ear independently, so costs nothing structurally.
 

@@ -1,5 +1,9 @@
 VENV := .venv/bin
 
+# Files vendored from ~/dev/gauntlet. They are the package's product, linted to its
+# standard rather than this repo's, and a fix belongs upstream, not in this checkout.
+VENDORED := ^(scripts/pair/|scripts/cite\.py|scripts/strike-diff\.py|\.claude/hooks/(blind-bash|bwrap-wrap|gauntlet-off|no-impl-reads|pair-passthrough|plans-lane|reviews-lane|shell_shapes|specs-lane|tests-lane|verdicts-lane)\.py)
+
 .PHONY: lint lint-js test test-live test-e2e test-js check manual mutate trivia
 
 lint:
@@ -9,17 +13,17 @@ lint:
 	$(VENV)/vulture
 	$(VENV)/mypy
 	$(VENV)/lint-imports
-	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/gates/check_nesting.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py')
+	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
+	$(VENV)/python scripts/gates/check_nesting.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
+	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py' | grep -Ev '$(VENDORED)')
 	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
-	$(VENV)/python scripts/gates/check_archaeology.py $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
+	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/' | grep -Ev '$(VENDORED)')
+	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/' | grep -Ev '$(VENDORED)')
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
-	$(VENV)/python scripts/gates/check_spec_draft.py --committed $$(git ls-files 'tests/specs/*.txt')
+	$(VENV)/python scripts/gates/check_spec_draft.py --committed $$(git ls-files 'gauntlet/specs/approved/*.txt')
 	$(VENV)/python scripts/gates/check_binaural.py
 	$(VENV)/python scripts/gates/check_xfeed.py
 	$(VENV)/python scripts/gates/check_e2e_isolation.py
@@ -105,8 +109,8 @@ check: lint lint-js test test-js
 # stays out of `check`, which is offline by contract; pre-commit runs it on
 # every markdown commit.
 trivia:
-	$(VENV)/python scripts/gates/check_md_trivia.py --head
-	$(VENV)/python scripts/gates/check_comment_trivia.py --head
+	$(VENV)/triviajudge-md --head
+	$(VENV)/triviajudge-comments --head
 
 # Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs

@@ -4,11 +4,7 @@ A standalone brief for an agent picking up this feature cold. Companions: `SOURC
 
 **One prior worth carrying into every turn.** A user may be EQ-ing to compensate for their own hearing rather than to change the headphone, and they will rarely say so. `HEARING.md` carries what that does and does not license — in short: never infer a curve from an age, a grade or a self-report; a threshold shift is not a gain figure and half is the population approximation; boost near the edge of a loss region rather than deep inside it; the chain has no compression, no per-ear control and no calibrated level, so level-dependent complaints and asymmetry are `clarify` + `recommends` cases; and a sudden, unilateral or newly-changed symptom earns one factual sentence pointing at assessment — never a refusal, and never an idle gate.
 
-> **Revised 2026-07-22.** Three corrections and one structural change; all are called out in place below. (1) The crossfeed center-tilt direction was inverted — it *decreases* as crossfeed level rises. (2) AutoEq bands were described as untouchable; they are in scope. (3) The guardrail table was presented as enforced limits; almost all of it is guidance, and **Q is deliberately unclamped**. (4) **Structural: a turn is a bounded tool loop, not a single completion**, and the prose rule was loosened to permit prose anchored to the numbers it describes. If you find text anywhere that contradicts this file on any of these, this file is right and that text is stale.
-
-> **Revised 2026-07-26.** One structural change: **a third response branch, `discuss`**, so the user can ask questions and get an anchored answer that stages nothing (D16). The union is now three branches, only one of which may carry `changes`, and every prose answer declares a `basis`. Further amendments landing in the same pass are recorded in the plan's decision table (D17–D21); where this file has not caught up with them yet, the plan is authoritative for those and this file is authoritative for everything above.
-
-> **Revised 2026-07-30.** **The XOR guards the write path, not speech** (D22). Three consequences absorbed below: `diagnosis` carries two registers of one finding (`explains_symptom` technical, `in_plain_terms` plain), an acting turn may answer a question that arrived beside the complaint through an `answers` field, and numeric literals in prose are provenance-checked by the validator. D18's `variants` and D23's optional-by-design `alternatives_rejected` are now in the schema block. Three guardrail rows that existed in no other document — a ±12 dB gain clamp, a Q 0.18–6.0 clamp and a per-turn band budget — have been **removed**; D1's ±6 dB per turn is the only policy clamp, and D2 sets no band caps. **The `basis` enum is unsettled** — this file's `discuss` block and the plan's differ, and neither is authoritative until that is resolved; do not read either as final.
+**The XOR guards the write path, not speech.** `diagnosis` carries two registers of one finding (`explains_symptom` technical, `in_plain_terms` plain), an acting turn may answer a question that arrived beside the complaint through an `answers` field, and numeric literals in prose are provenance-checked by the validator. The only policy clamp is ±6 dB per turn; there is no absolute gain ceiling and no band cap.
 
 ## What it is
 
@@ -89,7 +85,7 @@ Consequence for this feature: **any AI-proposed crossfeed parameter change must,
 
 ### The tilt, and its direction
 
-> **Not** "every 1 dB of crossfeed level costs 1 dB of center tilt", with tilt rising as feed rises — **both the direction and the magnitude are wrong.** The algebra behind that claim (`GB_lo − GB_hi = −feed`) is a true identity, but that quantity is the shelf separation in the analog prototype, not the realized tilt after normalization.
+Center tilt is not 1 dB per 1 dB of crossfeed level, and it does not rise as feed rises. The algebra `GB_lo − GB_hi = −feed` is a true identity, but that quantity is the shelf separation in the analog prototype, not the realized tilt after normalization.
 
 In bs2b the mid (center) path is normalized to 0 dB at DC and rolls off to `−tilt` at high frequency, where
 
@@ -110,7 +106,7 @@ Two consequences, both counterintuitive and both load-bearing:
 
 The entire 14 dB feed range moves tilt by 1.78 dB, so a ±1.5 dB nudge near the default changes tilt by roughly 0.3 dB — broad, and at or below audibility on its own. It matters for keeping compensation consistent, not as an audible consequence. **Do not narrate it to the user as a tonal change.**
 
-Verified numerically against the shipped implementation in `lib/xfeed.js`, and corroborated by the app's own UI copy, which states a 1–2.7 dB range.
+This matches the shipped implementation in `lib/xfeed.js`; the app's own UI copy states a 1–2.7 dB range.
 
 **A separate effect, frequently conflated:** crossfeed also sums correlated low-frequency content between channels, which can raise perceived bass weight. That is *not* the mid-path treble tilt and is *not* what compensation corrects. Keep them apart.
 
@@ -167,15 +163,15 @@ Look a term up with eqlab's `vocab` job rather than reading the file: it answers
 
 | Guard | Value | Provenance |
 |---|---|---|
-| **EQ gain, per turn — the one policy clamp** | **±6.0 dB** | AutoEq `DEFAULT_MAX_GAIN = 6.0`, `DEFAULT_TREBLE_MAX_GAIN = 6.0`; project decision D1. **There is no absolute gain ceiling and no Q clamp** — AutoEq's `DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0` and `DEFAULT_PEAKING_FILTER_MIN_Q/MAX_Q = 0.18248/6.0` describe *that tool's* envelope, not ours, and were removed from this table on 2026-07-30 because they appeared nowhere else and contradicted the paragraph above |
+| **EQ gain, per turn — the one policy clamp** | **±6.0 dB** | AutoEq `DEFAULT_MAX_GAIN = 6.0`, `DEFAULT_TREBLE_MAX_GAIN = 6.0`; project decision D1. **There is no absolute gain ceiling and no Q clamp** — AutoEq's `DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0` and `DEFAULT_PEAKING_FILTER_MIN_Q/MAX_Q = 0.18248/6.0` describe *that tool's* envelope, not ours |
 | Q, voicing preferred | 0.5 – 1.6 | Toole: broad low-Q colorations are what listeners actually notice over repeated listening; narrow deep bands are less audible and more likely mis-aimed |
 | Q, narrowband ceiling | 4.0 | reserved for `sibilant`, `shrill`, `piercing` only |
 | Shelf Q | **fixed 0.7** | AutoEq `DEFAULT_SHELF_FILTER_MAX_Q = 0.7`; every shipped oratory1990 shelf is `Q 0.70` |
 | Center frequency | 20 – 20000 Hz | AutoEq shelf/peaking `MIN_FC = 20.0`; note AutoEq's optimizer caps at 10 kHz |
-| Band scope | **all bands amendable, AutoEq included** | user decision 2026-07-22; supersedes the withdrawn protected-segment design |
-| Crossfeed frequency | **300 – 2000 Hz, step 1** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. **Probed live 2026-07-31:** the daemon's `/matrix` form serves `min="300" max="2000" step="1"` — no divergence from the library constants. Read the live form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
-| Crossfeed level | **1.0 – 15.0 dB, step 0.1** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. **Probed live 2026-07-31:** the form serves `min="1" max="15" step="0.1"` — no divergence. Same runtime caveat |
+| Band scope | **all bands amendable, AutoEq included** | project decision |
+| Crossfeed frequency | **300 – 2000 Hz, step 1** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. The daemon's `/matrix` form serves `min="300" max="2000" step="1"`, matching the library constants. Read the live form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
+| Crossfeed level | **1.0 – 15.0 dB, step 0.1** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. The form serves `min="1" max="15" step="0.1"`, matching the library constants. Same runtime caveat |
 | Compensation strength | 0 – 150 % | app-defined |
-| **Headroom recompute** | on any net positive gain | AutoEq emits `Preamp: {-compound.max_gain:.1f} dB` — the negative of the maximum of the **summed** magnitude response of the whole chain. **Not** the negative sum of positive gains, and **not** the negative of the largest single band. Verified against the shipped HD 650 preset: largest band `+6.4` dB, preamp `-6.1` dB, because a `-3.1` dB band partially cancels it. |
+| **Headroom recompute** | on any net positive gain | AutoEq emits `Preamp: {-compound.max_gain:.1f} dB` — the negative of the maximum of the **summed** magnitude response of the whole chain. **Not** the negative sum of positive gains, and **not** the negative of the largest single band. For example, the shipped HD 650 preset's largest band is `+6.4` dB and its preamp is `-6.1` dB, because a `-3.1` dB band partially cancels it. |
 
 Every positive-gain proposal must recompute the row `gain` (dB) by that rule across the **entire** chain — all EQ bands and compensation stages together — because they share one headroom budget.

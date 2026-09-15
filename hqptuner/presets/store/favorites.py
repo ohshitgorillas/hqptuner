@@ -10,7 +10,7 @@ refuses a store newer than this HQPTuner understands, an unstamped file adopted 
 install that never stars anything reads as empty.
 
 The list is validated rather than trusted. Names come from the engine's own enumeration, so the ceilings here are an
-abuse guard and nothing else: HQPlayer 6.0.4 offers 67 PCM and 77 SDM filters, and the longest name it ships is
+abuse guard and nothing else: HQPlayer offers under a hundred filters per chain, and no name it ships is longer than
 32 characters.
 """
 
@@ -31,9 +31,9 @@ _SCHEMA = 1
 
 # The two independent sets the file holds, each a list of engine-reported names. They live in one file because they
 # are one feature and one user gesture, and each write carries the other kind through untouched, so starring a
-# modulator never disturbs a filter star. Adding ``modulators`` did NOT move the stamp: ``filters`` still means what
-# it meant, so an older HQPTuner reading this file reads the filter stars correctly and simply cannot see the
-# modulator ones — better than refusing a store it can still understand.
+# modulator never disturbs a filter star. The stamp covers ``filters`` only, so a reader that knows that kind alone
+# reads the filter stars correctly and simply cannot see the modulator ones — better than refusing a store it can
+# still understand.
 _KINDS = ("filters", "modulators")
 
 # Ceilings on what a client may store. Far past any real list (144 filters exist, none longer than 32 characters),

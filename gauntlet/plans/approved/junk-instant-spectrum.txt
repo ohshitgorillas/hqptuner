@@ -1,0 +1,173 @@
+slug: junk-instant-spectrum
+grounding: detective
+
+brief:
+The junk detector cannot return any verdict before 30 s of non-silent covered playback: window_min_db() returns None until six full 5 s blocks exist (metering.py:58-59, :166), and silent blocks are dropped rather than pushed, so a quiet intro pushes first detection later still. Excise that window. The detection path must read a spectrum of what is playing now, with no block deque, no minimum taken across blocks, and no readiness gate that withholds a verdict while evidence accumulates — the ruling at plans/approved/junk-live-verdict.txt:12 ("no time-averaging and no memory of past verdicts survives anywhere in the detection path") applies to this window too, and the previous plan wrongly exempted it because the brief named window_min_db() as the input. All three rules change with it, the spur rule included, since its whole contrast between a persistent tone and intermittent music came from that window; say what each rule reads instead and what it costs in false firing, and say what happens to the junkcal capture format, which stores the windowed minimum.
+
+brief coverage:
+delivered: "The junk detector cannot return any verdict before 30 s of non-silent covered playback: window_min_db() returns None until six full 5 s blocks exist (metering.py:58-59, :166), and silent blocks are dropped rather than pushed, so a quiet intro pushes first detection later still." — the three citations resolve as given and are quoted under "what is wrong"; change 1a deletes the readiness return, and the silent-block drop goes with the blocks themselves; change 1b keeps the silence threshold, now as a per-hop test that yields no verdict rather than a block that is dropped.
+delivered: "Excise that window." — change 1a deletes the block deque, the partial block, the block clock, `window_min_db`, `BLOCK_SECONDS` and `WINDOW_BLOCKS`.
+delivered: "The detection path must read a spectrum of what is playing now, with no block deque, no minimum taken across blocks, and no readiness gate that withholds a verdict while evidence accumulates" — change 1a: the aggregate holds one transform hop's power spectrum, the most recent ingested one, and `frame_db()` returns None only before the first frame of the current track.
+delivered: "the ruling at plans/approved/junk-live-verdict.txt:12 ... applies to this window too" — changes 1a, 1b and 1c: after them the detection path holds no array older than one ingested hop, and 1c stops a held hop outliving a pause.
+delivered: "the previous plan wrongly exempted it because the brief named window_min_db() as the input." — recorded, not argued: that plan's scope line put the window's input status beyond question, and this plan reverses it rather than defending it.
+delivered: "All three rules change with it, the spur rule included, since its whole contrast between a persistent tone and intermittent music came from that window" — change 2: all three read the hop spectrum; the spur rule's persistence argument is deleted from the docstring, and its user-facing reason string, which asserts persistence, is named as owner copy carrying a factual error.
+delivered: "say what each rule reads instead and what it costs in false firing" — the "what each rule reads, and what it costs" section, one part per rule.
+delivered: "say what happens to the junkcal capture format, which stores the windowed minimum." — change 3: keys and shape unchanged, the stored curve's meaning changes, one key added to tell the two eras apart, and the evidentiary consequence stated.
+
+what is wrong
+
+The detector has a 30 s gate in front of it and no rule needs one.
+
+`window_min_db()` returns None until `WINDOW_BLOCKS` full blocks exist (`metering.py:166-167`), blocks are `BLOCK_SECONDS` of coverage each (`metering.py:58-59`), so 6 × 5 s = 30 s of covered playback before any verdict of any kind. A block that saw only silent frames is dropped instead of pushed (`metering.py:156-159`), and silence is any frame whose every channel RMS sits below `SILENT_RMS_DB` (`metering.py:63`, read at `metering.py:364`), so a quiet intro pays coverage into blocks that never arrive and pushes the first verdict out past 30 s.
+
+`classify` names that gate as the only one left (`junkadvisor.py:99-101`), which is true and is the defect: the input is a 30 s rolling minimum, so the verdict is a property of the last 30 s rather than of what is playing. It is the same time-averaging the ruling at `docs/gauntlet/plans/approved/junk-live-verdict.txt:12` removed from the mean spectrum, kept because that plan's brief named `window_min_db()` as the input to write the rules against.
+
+Two further statements are stale in the tree and are corrected here, since this change rewrites the lines they sit on.
+
+- `CHANGELOG.md:13`, unreleased, says cutoffs "as low as 13 kHz are recognized". `LOSSY_WINDOW_HZ` is gone and `BRICK_WINDOW_HZ` is `(20_000.0, 26_000.0)` (`junkadvisor.py:62`), so nothing below 20 kHz is recognized. Change 7 of the approved plan called for this line to be replaced and it did not land.
+- `scripts/junkcal_view.py:8-10` says the brick-wall and ramp rules read a mean spectrum that is not captured, so a recorded 20k or 50k verdict cannot be recomputed from its row. All three rules have read the windowed minimum since the last change, so the sentence is wrong twice over.
+
+what changes
+
+1. `hqptuner/engine/metering.py`
+
+1a. `SpectralAggregate` holds one hop instead of a window. Deleted: `self._blocks`, `self._block_min`, `self._block_seconds` (`:135-137`), the block fold and push in `add` (`:146-159`), `window_min_db` (`:161-176`), `BLOCK_SECONDS` and `WINDOW_BLOCKS` (`:58-59`) with the comment above them (`:51-57`). Added: `self._latest: list[float] | None`, which `add` sets to a copy of the frame it is given. New accessor `frame_db()` returns that frame in dB by the same conversion `window_min_db` used (`10 * log10(p)`, `-200.0` at zero), or None before the first frame of the current track. `self.frames` and `self.seconds` stay: junkcal writes both into its rows (`junkcal.py:69-70`) and `scripts/junkcal_view.py:237` reads `seconds`.
+
+The accessor is named `frame_db`, not `levels_db`: `levels_db` was the mean accessor deleted by the previous change, and the tests that read it were rewritten then. A new meaning on the old name would read as a revert.
+
+The class keeps its name. It no longer aggregates a spectrum, but `frames` and `seconds` are still per-track counters the capture reads, and a rename moves `junkcal.py:32`, `metering.py` and every test that builds one for no behaviour.
+
+1b. Silence handling stays and changes shape. `SILENT_RMS_DB` (`:63`), `_frame_silent` (`:358-364`), the `silent` keyword of `add` (`:139`) and its call-site argument (`:345`) are all kept. What `add` does with the flag changes: instead of holding the frame out of a minimum, it stores no hop at all for a silent frame (`self._latest = None`), so `frame_db()` returns None and a silent hop earns no verdict. That is not memory and not a readiness gate — nothing accumulates and nothing is withheld while it does; a hop with nothing audible in it has nothing to say, and the next audible hop says whatever it says.
+
+The alternative — delete the guard with the minimum it was written for — was considered and rejected, because the two ends of the threshold do not behave alike without it. Digital silence is all-zero power, which the dB conversion sends to `-200.0` in every bin: a flat curve whose own 10th-percentile floor is the curve itself, so nothing clears floor + 8 dB and no rule fires. A frame just under the threshold is not that. Every channel's RMS below -90 dBFS still leaves an ordinary quiet curve with structure in it, and `_spurs` measures excess against that same curve's own 51-bin baseline and its own floor (`junkadvisor.py:247-252`), both of which sink with it — so a narrow tone in near-silence clears 15 dB of excess just as it would at level. Deleting the guard would therefore hand the spur rule a new false-firing region at the bottom of the scale, which is the region inter-track hiss lives in. Keeping it puts one sharp line at -90 dBFS instead. The line itself was set for the minimum and is not retuned here, for the reason 2b gives.
+
+1c. `verdict` (`:215-234`) returns None unless `ctx.playing`. Today a pause deliberately keeps the aggregate standing (`:259`, `run` at `:271`), which was right for a window earned over the track; a held hop is a picture of a moment that has stopped. The serial guard at `:228` stays as it is. The aggregate itself still survives the pause, so the capture's counters and grid do not restart on a pause.
+
+This one has a consequence outside the reader, and it is a behaviour change in its own right. With auto-pilot on, a None verdict resolves to `NO_FILTER` (`lanes/autopilot.py:31-32`), and `_move` compares that against the engaged filter without consulting `ctx.playing` (`core/autopilotops.py:57-61`) before writing through the LIVE lane (`core/autopilotops.py:81`). So 1c makes a pause release the engaged junk filter and the resume re-engage it: two audited daemon writes per pause, where today the verdict survives the pause (`metering.py:259`) and the filter stays put — behaviour pinned at `tests/engine/test_metering_idle.py:169`, which this change reverses.
+
+Releasing on pause is what I think is wanted, and it is my call rather than a question: nothing is playing, the ruling is engage when the signature is present and release when it is absent (`docs/gauntlet/plans/approved/junk-live-verdict.txt:14`), and a filter held across a pause is held on the strength of a hop from before it. Two writes per pause is also small beside the 2 s ceiling priced below — a pause is a user action, not a loop. If you would rather a pause hold the filter, that is one word and 1c drops the `ctx.playing` test, at the cost of the reader reporting a signature for audio that stopped.
+
+1d. `frame_db()` replaces `window_min_db()` at the one production read, `verdict` (`:231`).
+
+1e. Comments and docstrings rewritten, no behaviour: the `DECIMATE` comment (`:45-47`), which explains the value by minima folded over seconds of coverage — the value 4 stays, and what it now means is that the hop the rules read is at most four hops old (≤ 93 ms at 44.1 kHz, ≤ 43 ms at 96 kHz, from ~43 hops/s at 44.1 kHz, `protocol.md:289`); the module docstring's aggregate and verdict-lifetime paragraphs (`:1-19`); the `SpectralAggregate` class docstring (`:119-126`); `add` (`:139-144`); `verdict` (`:216`); `recommendation` (`:237`); and `run`'s "a pause mid-track leaves the evidence standing, so the verdict survives it" (`:259`), which 1c overturns.
+
+2. `hqptuner/engine/junkadvisor.py`
+
+2a. `classify`'s first parameter is renamed `min_levels_db` → `levels_db` (`:91`), and its docstring (`:97-105`) states the new input: one transform hop's per-bin power spectrum in dB, a 2048-sample transform at the observed 1025-bin grid (`protocol.md:291`), which is ~21 ms of audio at 96 kHz and ~46 ms at 44.1 kHz. The None case is unchanged in code and changes in meaning: it is now "no frame has been ingested for this track yet", not "the window is not earned".
+
+2b. No rule body changes and no threshold moves. `_ceiling_wall` (`:218-232`), `_spurs` (`:235-266`) and `_ramp` (`:269-283`) read what `classify` hands them, which is the whole change for all three. `_median_smooth`, `_percentile` and the floor rule are untouched: `SMOOTH_BINS`, `FLOOR_PERCENTILE`, `BRICK_*`, `ABOVE_FLOOR_DB`, `FAKE_HIRES_MIN_RATE`, `SPUR_*`, `RAMP_*`, `MIN_RATE_HZ`, `MIN_BANDWIDTH_HZ` all keep their values. Every one of them was set against a 30 s minimum curve and none of them is right for a hop; they are not retuned here because there is no evidence to retune them from, which the evidence section states and the cost section prices.
+
+2c. The module docstring loses the design it documents. `:24-36` is the minimum-versus-mean argument — a master's own limit survives the minimum, music energy does not, and a verdict is a property of the spectrum in front of the rules. The last clause stays true and the argument for it is gone; `:3` ("windowed per-bin minimum power spectrum") and the signature summaries at `:10-22` are restated on the hop. `_spurs`'s own docstring (`:236-242`) is the same argument at rule scale and goes with it.
+
+2d. One user-facing string carries a claim the change makes false. `_spurs` returns "Persistent tone at {x} kHz — ..." (`:258-259`). Nothing in the rule establishes persistence once the input is one hop; a narrow peak in one 21 ms transform is not a persistent tone. This is owner copy with a factual error: it is flagged here, the corrected wording is proposed at stage 2 and ships only on character-for-character approval. The 20k string (`:212-213`, "Content stops at {x} kHz ... consistent with fake hi-res") and the 50k string (`:280-281`, "HF noise rising toward {x} kHz") assert what the curve in front of them shows and stay true of a hop; they are not reworded, and if you read them otherwise they are yours to rule on.
+
+3. `hqptuner/core/junkcal.py` — the capture format
+
+`_spectrum` (`:43-49`) reads `agg.frame_db()`. The row keys, the `[hz, db]` pair shape, the `SPECTRUM_FLOOR_HZ` 13 kHz floor, the period rules and the file naming are untouched, so every existing capture stays readable and `scripts/junkcal_view.py` keeps working on old and new files alike.
+
+What changes is what the `spectrum` column means: one transform hop instead of a 30 s per-bin minimum. The two are not comparable, and a directory will hold both with nothing in the rows to say which. One key is added for that: `"spectrum_kind": "frame"`. Rows written before this change carry no such key, which reads as the windowed minimum; `junkcal_view.py` selects keys by name and ignores ones it does not read (`:61`, `:234-238`), so it needs no change to keep working, and it gains the field to filter on later.
+
+Evidentiary consequence, stated rather than buried: a row is now one hop sampled once every `TICK_SECONDS` (15 s, `junkcal.py:36`), that is, one of roughly 645 hops in the tick, chosen by nothing. The capture stops being a picture of the track's floor and becomes a sample of the signal. It remains the only instrument that records the detector's actual input, which is why it follows the input rather than keeping the old curve, and the corpus it builds after this lands is the only evidence there will be for retuning 2b's thresholds.
+
+4. `scripts/junkcal_view.py`
+
+Docstring only, `:4-10`. Two corrections: the stored curve is the hop spectrum, not the windowed minimum, and the structural-limit paragraph about the mean is deleted outright — it has been wrong since the previous change and this one ends the question, because every rule's input is now exactly what the row stores, so a recorded verdict can be recomputed from its row. No code changes; `percentile` (`:121`) and `band_stats` (`:175`) already mirror the detector's own floor rule, which does not move.
+
+5. `docs/architecture.md`
+
+Two normative statements, both overturned, both on lines this change rewrites.
+
+`:98` says the note clears "as soon as the current windowed minimum stops carrying the signature". It is now the current hop. Same line, second edit: "a pause mid-track keeps the aggregate" stays true of the aggregate and no longer of the verdict, which 1c silences during the pause; the clause is rewritten to say both.
+
+`:99` says a track "stays there until it earns a verdict of its own, which takes a full persistence window of the metering stream (`metering.BLOCK_SECONDS` × `metering.WINDOW_BLOCKS`)". Both constants are deleted by 1a. The sentence becomes the opposite fact: a verdict is available from the first ingested hop, so auto-pilot acts within one status poll of playback starting.
+
+6. `README.md:200`
+
+The `HQPTUNER_JUNKCAL_DIR` row describes the stored column as "the noise-floor spectrum above 13 kHz". After change 3 it is not a noise floor; it is one hop. The band is unchanged. This is owner prose: the corrected wording is proposed at stage 2 with the changelog line and ships on approval.
+
+7. `CHANGELOG.md`
+
+`:13` is deleted and one new `### Fixed` entry under `[Unreleased]` takes its place, covering both the stale claim named above and this change's user-visible behaviour: advice appears within a second or two of playback starting instead of after half a minute, and follows what is playing moment to moment. Nothing is superseded in a released version — the last release is 1.15.2 (`CHANGELOG.md:17`) — so the unreleased notes carry one true statement rather than a correction of an untrue one. Agent copy until approved character for character at stage 2, landing in the same commit as the code.
+
+8. `tests/`
+
+I write nothing under `tests/` in any tree; this goes through `/tests` at stage 2 with a spec block, the blind writer and a red run. The behaviour this change moves is pinned in `tests/engine/test_junk_persistence.py` (the window's own cases at `:50` and `:57`, the intermittent-bin case at `:78`, the silence cases at `:92-100`, the `_earn_20k` helper at `:139` documented as "≈ 42 s, past the 30 s window", the verdict-lifetime cases at `:146-192`, and the wire-silence case at `:214`), `tests/engine/test_junk_advisor.py` (the `_classify` wrapper at `:42`, the None case at `:105`, and the coverage cases at `:172` and `:189`), `tests/engine/test_metering_idle.py` (`_earn_20k` at `:65` and the pause case at `:169`, which asserts the behaviour 1c reverses), `tests/live/test_autopilot.py` (the `classify`-built constants at `:67` and `:71`, the `advising` fixture at `:140`, the release case at `:244`), `tests/audit/test_autopilot_audit.py:284-313`, and the builders in `tests/support/junk_spectra.py:16-79`. `tests/support/fake_metering.py:22` builds silent wire frames by RMS, which 1b makes ordinary frames.
+
+caller-side delta
+
+Nothing is split or extracted and no forwarder appears. Four surfaces change and every site is named.
+
+`window_min_db` has one production caller, `MeteringReader.verdict` (`metering.py:231`), and one more inside the touched list, `junkcal._spectrum` (`junkcal.py:45`). Both move to `frame_db()`.
+
+`add`'s `silent` keyword has one production call site (`metering.py:345`). `_frame_silent` has that one caller. `SILENT_RMS_DB` has one reader, `_frame_silent`.
+
+`classify`'s first parameter is renamed, not moved; its one production call site (`metering.py:230`) passes positionally.
+
+`BLOCK_SECONDS` and `WINDOW_BLOCKS` have no production reader outside `SpectralAggregate` and `docs/architecture.md:99`.
+
+No production caller of `MeteringReader.aggregate`, `MeteringReader.verdict`, `MeteringReader.recommendation`, `SpectralAggregate`, `junkadvisor.classify` or `junkadvisor.eligible` exists outside the touched list: the reader is constructed at `api/lifespan.py:75`, held at `core/manager.py:112`, retargeted at `core/manager.py:329`, and read for the status payload at `api/routes/status.py:90`. None of those signatures changes. No import moves, so the layering contract is untouched.
+
+what each rule reads, and what it costs
+
+All three now read one transform hop, ~21 ms of audio at 96 kHz. What that does to each is not the same, and the answer is not symmetric.
+
+20k, brick wall. Reads the 9-bin median of the hop. True positives survive intact: a brick-walled master is brick-walled in every hop, so the ceiling and the empty band above it are there whenever the rule looks. The cost is on the other side of the test. `BRICK_DROP_DB` compares the fixed 15–18 kHz reference band against the band above the ceiling (`junkadvisor.py:228-231`), and on a minimum curve both ends were 30 s minima, so a quiet moment anywhere in the window pulled the reference down and the drop shrank. In one hop the reference band is whatever is sounding at that instant. Any hop with strong 15–18 kHz content — a cymbal, sibilance, a hi-hat — and nothing above 22 kHz clears 30 dB on an authentic hi-res master that the windowed minimum would have refused. Expect the rule to fire on genuine hi-res during HF-heavy transients and fall silent between them, which is false firing and flapping from the same cause.
+
+30k/40k, spurs. Reads the raw per-bin values of the hop against a 51-bin median of the same hop. This rule loses its entire discriminator. "Persistent" was never a test in the rule body; it was a property of the input, enforced by the 30 s minimum, and the module docstring's field case says so directly — a 30.3 kHz tone 15 dB proud during a quiet intro fell to 6 dB of excess once the music started (`junkadvisor.py:30-32`). Against a hop, "narrow peak ≥ `SPUR_DB` above the local median and above floor + 8 dB" is satisfied by a bias tone, by a cymbal partial, by transient ringing, by any narrow HF feature that happens to be sounding in that 21 ms. The field case inverts: the tone now shows during the quiet intro and disappears under the music, rather than the reverse. This is the noisiest of the three by a wide margin and the one whose copy stops being true (2d).
+
+50k, noise-shaping ramp. Reads the same smoothed hop. True positives survive for the same reason as 20k — shaping is in every hop. False firing barely moves: music energy falls toward Nyquist and a hop that rises toward it is still unusual. What it gains instead is drop-out: `RAMP_ABOVE_FLOOR_DB` requires the top band to sit 20 dB above the floor (`junkadvisor.py:277`), and in a single quiet hop it does not, so the verdict vanishes and returns with the next loud one. Flicker, not false firing.
+
+Common to all three, and the largest cost in the change: the verdict now changes as fast as anything reads it. Auto-pilot reads every `poll_interval`, 2.0 s by default (`config.py:81`, passed at `api/lifespan.py:78`), and writes the junk filter to the production hqplayerd whenever the answer differs from what is engaged. The ceiling is therefore one LIVE-lane write every 2 s, on the order of 1 800 an hour, against a daemon this repo treats as live production. The writes are the ordinary audited lane and a junk-filter change costs the stream nothing (manual §2.8, recorded at `docs/architecture.md:99`), so this is load and audit volume rather than an interruption — but it is a change of kind, not of degree, from a latched verdict that moved 258 times in 8.6 hours. Hysteresis and a hold timer are ruled out by `docs/gauntlet/plans/approved/junk-live-verdict.txt:14`, so the plan discloses this rather than damping it. If you want it damped, that ruling is the one to revise, and it is a separate change.
+
+Against all of that, the thing the brief is buying: first advice arrives a second or two into playback instead of 30 s in, and a quiet intro no longer pushes it out further. The figure is not the hop age. The connect path this plan leaves in place is the floor: `ctx.playing` is the manager's last status poll (`metering.py:79-80`, `:86`) at `poll_interval` 2.0 s (`config.py:81`), the reader re-checks the idle gate every `IDLE_RECHECK` = 1.0 s (`metering.py:44`), and only then is a hop ingested and decimated (≤ 93 ms at 44.1 kHz). One poll staleness plus one recheck plus one decimated hop is what a listener waits, against the same path plus 30 s of covered non-silent playback today.
+
+evidence
+
+There is none, and no honest way to manufacture it.
+
+The 20 capture files under `/srv/hqptuner/state/junkcal` store the windowed minimum (`junkcal.py:43-49`), which is the input this change deletes. Running the proposed rules over those curves would measure the old input under a new name and produce numbers that look like evidence and are not. The firing counts in `docs/gauntlet/plans/approved/junk-live-verdict.txt` are of that kind for the previous change and do not carry over here.
+
+No corpus of per-hop spectra exists anywhere in the tree or on the host. Building one means capturing from the live metering stream against real playback over hours, which is the thing change 3 makes the capture do from the moment it lands.
+
+So the false-firing section above is reasoning from the rule bodies and the input geometry, not measurement, and every quantity in it is a direction rather than a rate. The one number in it that is measured — 258 verdict changes over 8.6 hours — is the old detector's, quoted as the baseline this departs from. ASSUMED, and settling it needs the live capture the change itself creates: that the 20k and spur rules fire materially more often on authentic material than they do today.
+
+That is also why 2b moves no threshold. Retuning `BRICK_DROP_DB`, `SPUR_DB` or `RAMP_RISE_DB` for a hop is a real need and there is nothing to set them from until the new capture has run.
+
+cost
+
+`make check` and a container rebuild through `/task-check`, then a hand-back URL. The advisor chip changes behaviour a user can see — it appears within a second or two of playback rather than half a minute in, and it now comes and goes with the music — so this takes an independent `user-reviewer` pass on the rebuilt container before hand-back, and your eyes after that.
+
+No playback interruption, and the change writes nothing to the daemon by itself. What it changes is how often auto-pilot does: up to one LIVE-lane write every 2 s while playing, priced above, plus two per pause from 1c where today a pause costs none. All of them are the ordinary audited lane.
+
+Two owner approvals are owed at stage 2 and named now so they are not a surprise: the corrected spur reason string (2d) and the corrected `README.md:200` wording (6), both alongside the changelog entry (7).
+
+Risk sits in one place. The detector gets faster and less discriminating in the same stroke, thresholds that were set for a 30 s minimum stay where they are because nothing exists to move them to, and the first real measurement of the result is the capture this change starts writing.
+
+follow-up work deferred
+
+Threshold retune for the hop input, once the new capture has a corpus. Named, not planned, and not in this slug.
+
+open questions
+
+None. The brief rules the design; the two copy corrections are approvals at stage 2, not decisions between branches.
+
+--- plan-reviewer READY ---
+
+READY
+
+a  PASS  Re-run on 1b and 1c, both changed. Each redefinition is stated outright as the change being proposed: `add`'s `silent` flag keeps its name and changes what it does ("instead of holding the frame out of a minimum, it stores no hop at all for a silent frame"), and 1c's pause silencing is stated with `metering.py:259` and `docs/architecture.md:98` named as overturned. Nothing arrives as a side effect of a fix.
+b  PASS  Every changed citation opens as described. Line 122: `context_from` reads the manager's last poll and derives `playing` from it (`metering.py:79-80`, `:86`), `poll_interval` defaults to 2.0 (`config.py:81`), `IDLE_RECHECK = 1.0` (`metering.py:44`); the under-100 ms figure is gone and the hop age appears only as the third term. Line 52: the `DECIMATE` comment is `:45-47`, as now written. 1b: `SILENT_RMS_DB` `:63`, `_frame_silent` `:358-364`, the `silent` keyword `:139` and its call site `:345` all exist and are kept; `junkadvisor.py:247-252` is baseline (`:247`), floor (`:248`) and the excess test (`:252`), which is what the paragraph says it is, and both baseline and floor are computed from the same curve, so they do sink with it. 1c's new paragraphs: `lanes/autopilot.py:31-32`, `core/autopilotops.py:57-61`, `:81`, `metering.py:259`, `tests/engine/test_metering_idle.py:169`, `junk-live-verdict.txt:14` all read as quoted, and the write is audited at `autopilotops.py:79`. `grounding: detective` unchanged at line 2.
+c  PASS  carried: Nothing is split or extracted; I counted the same sites the plan names. `window_min_db` — `metering.py:231` and `junkcal.py:45`, no others. `_frame_silent` — one caller, `metering.py:345`; `SILENT_RMS_DB` — one reader, `metering.py:364`. `classify` — one production call site, `metering.py:230`, positional. `BLOCK_SECONDS`/`WINDOW_BLOCKS` — no reader outside `SpectralAggregate` and `architecture.md:99`. No import moves, so the layering contract is untouched. (1b now keeps those two symbols rather than deleting them, which removes delta rather than adding any; the section's count still holds.)
+d  PASS  carried: The cause is named upstream of the appearance — the readiness gate and the 30 s minimum at the detector's input (`metering.py:161-176`), not the late chip — and the plan says why the appearance follows. Not a round-N fix list: one input change with its consequences priced.
+e  PASS  Re-run on 1b. The rule 1b could have collided with is the brief's own "no readiness gate that withholds a verdict while evidence accumulates", and the plan states its position on it in the same paragraph rather than passing over it: nothing accumulates and nothing is withheld, because a silent hop carries no evidence to accumulate. The round-1 list stands otherwise: `architecture.md:98` and `:99` overturned and named, `junk-live-verdict.txt:12` applied, `:14` named as the ruling that forbids damping and now also as the ruling 1c follows.
+f  PASS  The escape taken is the one this check names: both ends of the boundary are read. Digital silence is all-zero power to `-200.0` per bin, a flat curve whose own 10th percentile is the curve, nothing clears floor + 8 dB; a frame just under -90 dBFS on every channel is an ordinary quiet curve whose 51-bin baseline and floor sink with it, so a narrow tone there clears `SPUR_DB` as it would at level. The relation is not uniform, the plan says so, and keeps the guard for that reason. The residual — that the -90 dBFS line was set for the minimum and is not retuned — is stated at 1b and priced with 2b rather than left implicit.
+g  PASS  "None" still stands, and the pause decision at 1c does not become a smuggled question: the plan makes the call, grounds it in a standing owner ruling (`junk-live-verdict.txt:14`), names the alternative and its cost in one sentence for the owner to overrule in prose. Either branch is one conditional, so it is not work the owner must rule on before drafting can continue.
+h  PASS  The path I named is now named by the plan, with its mechanism and its price: `verdict` → `autopilot.desired_junk_filter` (`lanes/autopilot.py:31-32`) → `_move` (`core/autopilotops.py:57-61`) → `lane.apply_now` (`:81`), two audited writes per pause, against a behaviour pinned at `tests/engine/test_metering_idle.py:169` which the plan says it reverses; the cost section prices it beside the 2 s ceiling. 1b opens the same mechanism for a silent hop (`frame_db()` None → `NO_FILTER` → a release write while playing), which falls inside the ceiling the plan already discloses and states as "the verdict now changes as fast as anything reads it". No other path inside the one-hop bound reaches anything the plan calls untouched: `junkcal_view.py` ignores unknown keys (`:61`, `:234-238`) and tolerates a null spectrum (`:61-63`), `frames`/`seconds` survive for `junkcal.py:69-70` and `junkcal_view.py:237`, no import moves.
+i  PASS  Brief still quoted verbatim at line 5; the one changed coverage line (sentence 1) now names both elements that answer it — 1a for the readiness return and the block drop, 1b for the kept threshold — and both exist in the body. Every other brief sentence keeps the line it had, and every `delivered:` resolves to a named element. No `dropped:` lines.
+k  PASS  Sentence 1 of the brief, on its plain meaning, complains that the silent-block drop delays first detection. 1b leaves no delay for anything audible: nothing accumulates, so a quiet intro above the threshold yields a verdict on its first hop, and below it there is nothing to detect. The element therefore reads as the sentence reads, and the condition it keeps is disclosed in the coverage line rather than carried silently. My own repairs added statements and removed no case any brief sentence covers, so the second clause does not fire.
+j  N/A   carried: The plan adds nothing to `hqptuner/core/manager.py`; it cites `:112` and `:329` only as call sites whose signatures do not change.
+
+notes
+1. How often inter-track silence drops below -90 dBFS on every channel — and so how often 1b costs a release-and-re-engage pair with auto-pilot on — is live behaviour on real material. It sits inside the write ceiling the plan discloses, and only the capture this change starts writing can put a number on it.
+2. `/srv/hqptuner/state/junkcal` and its "20 capture files" are host state outside this checkout; I did not read them, and the evidence section's conclusion does not depend on the count.
+3. `protocol.md:289` carries its own tension — hop = `xformLength − 1` samples against "~43/s at 44.1k" — and the plan's two figures (a 2048-sample transform spanning ~46 ms at 44.1 kHz; a hop every ~23 ms) each follow from one side of it. Both are internally consistent; settling which the daemon actually sends needs the live stream.

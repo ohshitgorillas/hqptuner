@@ -1,6 +1,6 @@
 # PHASE.md — what phase does on this chain, and who can hear it
 
-Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform). Compiled 2026-07-26.
+Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform).
 
 **Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL or page number (same artifact class as `[V]`; the difference is who read it). Figures computed by us are labeled **derived** in place and are never presented as source claims.
 
@@ -11,7 +11,7 @@ This document answers four questions, in the order an agent needs them:
 3. Is that audible? (§3, §4.)
 4. Where does phase stop being a non-issue? (§7 asymmetry, §8 crossfeed.)
 
-**The headline, and it is a correction rather than a confirmation.** The research base previously justified magnitude-only evaluation by citing Moulana (1975) at one remove through Toole & Olive. We now have the primary, and **there was no phase experiment in it** (§6). The magnitude-only architecture is still right, but for two better reasons that were never written down: a minimum-phase filter's phase is not an independent choice (§1), and our chain's measured group delay sits under every published audibility threshold (§4).
+**Moulana (1975), cited by Toole & Olive to justify magnitude-only evaluation, contains no phase experiment** (§6). The magnitude-only architecture is right for two reasons: a minimum-phase filter's phase is not an independent choice (§1), and our chain's measured group delay sits under every published audibility threshold (§4).
 
 ---
 
@@ -36,7 +36,7 @@ The mechanism, from Smith, J. O. III, *Introduction to Digital Filters with Audi
 
 **Load-bearing caveats, all quoted in the lane report:** the decomposition requires causal, stable, and **no zeros on the unit circle** (Smith; Kabal keeps a separate `B_uc(z)` factor for them and states "A system with a zero on the unit circle is not strictly minimum-phase"); recovery of the response from the magnitude is only "to within a sign change"; and Bode's integral formally needs the log-magnitude slope at all frequencies. None of these is violated by an RBJ peaking or shelving section at audio gains.
 
-**Not obtained:** Bode (1940, 1945) themselves — no free copy reached, so **no page citations to Bode**. Oppenheim & Schafer directly — only OCW material keyed to it.
+**No page citations to Bode (1940, 1945)** — citations are to OCW material keyed to Oppenheim & Schafer, not to either text directly.
 
 ---
 
@@ -215,7 +215,7 @@ That paragraph is the *discharge* of an assumption, not the whole of it. Phase e
 
 **Toole & Olive quote him accurately and use him too strongly.** State it this way, not more harshly and not less:
 
-* **There was no phase experiment.** The conclusion is an argument from explanatory sufficiency — the magnitude account already fit, so the phase irregularity is assumed inert. Nothing held magnitude constant while varying phase.
+* **The conclusion rests on explanatory sufficiency, not a phase experiment.** The magnitude account already fit, so the phase irregularity is assumed inert; nothing held magnitude constant while varying phase.
 * **His two "phase conditions" alter the magnitude.** A single switch selects θ = 0 or θ = π for summing the resonant arm, which turns a hump into a dip and adds a low-to-high-frequency step. No intermediate phase was ever presented, so phase and magnitude are confounded in every trial.
 * **He treated the magnitude-only account as a hypothesis, not a result.** Testing whether a hump plus a compensating dip cancels is listed as *future work*.
 * **He needed a mechanism magnitude cannot represent.** Driven-state loudness alone did not predict his data, and he closes the gap with an **inter-state frequency (pitch) shift** from the drive frequency toward the resonator's natural frequency — a time-domain effect, maximal around 250–400 Hz, with no counterpart in a magnitude curve. That range is our compression of two figures he states separately: p. 8.30 puts the greatest subjective influence "in the locality of 400Hz", and Conclusion 6 (p. 8.59) names "the range 125 to 500Hz approximately, and in particular, in the region of 250Hz". Toole & Olive relay the same finding at p. 124 — "pitch shift, an interstate coloration, tends to be most audible in the frequency range between 125 and 500 Hz" — as their summary of Moulana, not as an independent result. **This is the one real blind spot of a magnitude-only evaluator, and it is the same region as the vocabulary's warmth/mud/boxiness cluster.**
@@ -231,7 +231,7 @@ That paragraph is the *discharge* of an assumption, not the whole of it. Phase e
 
 **Do not port his Q to our `q`.** His Q is the isolated resonator's circuit Q in a *parallel-path summing* topology — a resonant arm added to a flat arm — not the composite peak's bandwidth. Q sets the resonator, a separate dilution parameter sets the mix, and the hump's shape depends on both; a mapping through his eq. 3.38 would be required. His low-Q data is additionally contaminated by a broadband step that a peaking section does not have, so his Q 3 results are not single-peak data. He does anchor bandwidth usefully: "a Q of 4·3 corresponds with a resonance bandwidth which is one third of an octave wide."
 
-**Consequence for the research base.** `SOURCES.md` §2.5 finding 6 keeps its `[V]` tag — the quote is verified — but its *weight* is corrected there, and the justification for magnitude-only evaluation now rests on §1 and §4 of this document instead.
+`SOURCES.md` §2.5 finding 6 keeps its `[V]` tag — the quote is verified. The justification for magnitude-only evaluation rests on §1 and §4 of this document.
 
 ---
 
@@ -267,7 +267,7 @@ Everything above is about a phase shift applied **identically to both channels**
 
 ## 8. Crossfeed: the phase that must not be corrected
 
-**Verified in the shipped code.** `fitComp()` in `hqptuner/static/lib/xfeed.js` fits its two high shelves to `-centerMagDb(...)`, and its error metric is magnitude in dB. The compensation is a **magnitude-only inverse of the M-path tilt**, realized as two minimum-phase shelves. The M-path phase — and the M-versus-S phase relationship — is left exactly as bs2b produced it.
+`fitComp()` in `hqptuner/static/lib/xfeed.js` fits its two high shelves to `-centerMagDb(...)`, and its error metric is magnitude in dB. The compensation is a **magnitude-only inverse of the M-path tilt**, realized as two minimum-phase shelves. The M-path phase — and the M-versus-S phase relationship — is left exactly as bs2b produced it.
 
 **That is correct, and it must stay that way.** The interaural phase and time relationship *is* the crossfeed effect. `docs/crossfeed-math.md` makes this explicit for the structural design: the head-shadow filter's group delay deliberately "supplies the low-frequency excess — 135 µs of the 397 µs total", with the `delay:` stage carrying only the high-frequency ray component. Group delay there is a *feature being synthesized*, not an artifact being removed. A future agent that notices the compensation "only corrects magnitude" and sets out to correct its phase as well would be deleting the feature. Do not.
 
@@ -285,7 +285,7 @@ Keep this distinct from the separate conflation `PRIMER.md` already warns about:
 
 * **EQ bands cannot pre-ring** (§1). Any pre-echo in the chain comes from the oversampling filter, never from a band.
 * **EQ group delay is below threshold in-band** (§4). A filter's is a different quantity at a different scale, and near Nyquist the audibility is `contested` — which `filters.json`'s `guidance` block is required to say.
-* **The negative rules still apply.** Midrange tonality, nasality and boom are EQ's. A group-delay or phase explanation must not become the escape hatch for a complaint the model cannot otherwise fix; that is the confident non-answer `PRIMER.md` warns against, and §4 is the reason it would be wrong on the numbers as well as wrong in method.
+* **Midrange tonality, nasality and boom are EQ's.** A group-delay or phase explanation must not become the escape hatch for a complaint the model cannot otherwise fix; that is the confident non-answer `PRIMER.md` warns against, and §4 is the reason it would be wrong on the numbers as well as wrong in method.
 
 ---
 
@@ -293,11 +293,11 @@ Keep this distinct from the separate conflation `PRIMER.md` already warns about:
 
 * **No published minimum-phase-versus-linear-phase EQ discrimination test exists.** A dedicated search found none, and Liski et al. 2018's own literature review enumerates the field without one. The adjacent literature answers a different question — how much group delay, however produced, is audible. This is a genuine null result and it is why §1 (entailment) carries the argument rather than an experiment.
 * **Only one published group-delay threshold below 500 Hz** — Jensen & Møller's 4.7 ms at 250 Hz (§3.2). Nothing at all below that, which is precisely where our chain's delay lives (§2.4). The single highest-value gap in this document.
-* **Banno et al. (2002)** on group-delay peak height versus bandwidth — cited only through the Aalborg review `[S]`; full citation not recovered. Its claim that narrow-bandwidth group delay is less audible would directly license our high-Q bands, so it is worth the fetch. (The paper obtained on 2026-07-26 under this name — Banno et al., *Acoust. Sci. & Tech.* 28(3), 2007, on the realtime STRAIGHT vocoder — is a different work and not relevant.)
-* **Møller, H., Minnaar, P., Olesen, S. K., Christensen, F. & Plogsties, J. (2007), "On the audibility of all-pass phase in electroacoustical transfer functions," *JAES* 55(3), 115–134** — AES paywall. Its threshold values are in hand secondhand via Liski §3.2, but the **ringing-versus-lateralization split (§7)** reaches us only through a student review, and that split is load-bearing for the asymmetry rule.
-* **"Evaluation of headphone phase equalization on sound reproduction," *Applied Acoustics*** (Southampton eprints 434440) — the only artifact identified that is specifically about headphone phase equalization. Both ScienceDirect and the institutional copy refused automated fetches.
+* **Banno et al. (2002)** on group-delay peak height versus bandwidth — cited only through the Aalborg review `[S]`; full citation not recovered. Its claim that narrow-bandwidth group delay is less audible would directly license our high-Q bands, so it is worth the fetch. (Banno et al., *Acoust. Sci. & Tech.* 28(3), 2007, on the realtime STRAIGHT vocoder, is a different work published under this name and not relevant.)
+* **Møller, H., Minnaar, P., Olesen, S. K., Christensen, F. & Plogsties, J. (2007), "On the audibility of all-pass phase in electroacoustical transfer functions," *JAES* 55(3), 115–134** — AES paywall. Its threshold values are known secondhand via Liski §3.2. The **ringing-versus-lateralization split (§7)**, load-bearing for the asymmetry rule, is known only via a student review `[S]`.
+* **"Evaluation of headphone phase equalization on sound reproduction," *Applied Acoustics*** (Southampton eprints 434440) — the only artifact identified that is specifically about headphone phase equalization.
 * **Lipshitz, Pocock & Vanderkooy (1982)**, *JAES* 30(9), 580–595 — still `[X]`, AES paywall, and its abstract carries no numbers. The frequently repeated "audible mainly on headphones" summary of it remains **unverified**; §3.5 is the honest state of that question. (`FILTER-MATH.md` §8 carries the same item.)
 * **Preis (1982)** *JAES* 30(11) tutorial review — its frequency-dependent group-delay tolerance curve, said to be synthesized from seven perceptual studies, was not obtained.
 * **A displacement mapping**, not a detection threshold: nothing found states how far an image moves for a given interaural time difference. Mills (1958) on minimum audible angle would fill it; `pubs.aip.org` refused.
-* ~~**Moulana's Section 9 figures** carry two Q-label rows on apparently the same gridlines~~ — **RESOLVED.** They are not on the same gridlines: the lower row is offset by half a division and interleaves with the upper, so the two together form one continuous half-octave logarithmic Q scale — 2, 3, 4, 6, 9, 12, 18, 25, 35, 50, 75, 100, 150, 200 — staggered above and below the axis only so the labels do not collide. The text nowhere explains this. The curves are safe to digitize against the combined scale.
+* **Moulana's Section 9 figures'** two Q-label rows are not on the same gridlines: the lower row is offset by half a division and interleaves with the upper, so the two together form one continuous half-octave logarithmic Q scale — 2, 3, 4, 6, 9, 12, 18, 25, 35, 50, 75, 100, 150, 200 — staggered above and below the axis only so the labels do not collide. The text nowhere explains this. The curves are safe to digitize against the combined scale.
 * **The inter-state pitch shift (§6) is unmodeled.** `evaluate_chain` computes magnitude; Moulana's account needs a frequency shift that no magnitude response contains, maximal 250–400 Hz. Nothing in the tuner represents it, and it is not clear anything should — but it should not be forgotten either.

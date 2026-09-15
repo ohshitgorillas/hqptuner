@@ -45,6 +45,7 @@ docs/plans/
 docs/*plan.md
 docs/*audit.md
 docs/*brief.md
+/specs/
 
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
 # agent working files stay local. Only curated tuning JSONs are tracked.
@@ -85,22 +86,14 @@ hqpcreds
 docker-compose.yaml
 state/
 
-# approved spec blocks staged for scripts/pair.sh open; the committed copy
-# lives at tests/specs/<slug>.txt on the spec branch. Anchored to the repo root:
-# a bare `specs/` matches at any depth and swallows that committed copy, so
-# `pair.sh open` commits nothing and `pair.sh red` refuses for want of a spec.
-/specs/
-
-# the gauntlet's own artifacts, all of them local: the gauntlet-arbiter's
-# approved blocks staged for scripts/pair.sh open, the gauntlet-prosecutor's
-# approved plans, the drafts behind both, and the reviewer rounds. The
-# committed copy of an approved spec lives at tests/specs/<slug>.txt on the
-# spec branch, made by pair.sh open, and it is the only one git tracks.
-# Anchored at the repo root for the reason above: a bare specs/ would match at
-# any depth and swallow that committed copy.
-/docs/gauntlet/specs/
-/docs/gauntlet/plans/
-/docs/gauntlet/reviews/
+# the gauntlet's artifacts. Approved specs and plans are tracked; drafts, reviewer
+# rounds and the pair's red and merge evidence stay local. Anchored at the repo
+# root so a bare name cannot swallow a same-named directory elsewhere.
+/gauntlet/red/
+/gauntlet/merge/
+/gauntlet/reviews/
+/gauntlet/plans/drafts/
+/gauntlet/specs/drafts/
 
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules

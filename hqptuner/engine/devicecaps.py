@@ -10,7 +10,7 @@ rate menus take it from the log (the same ``GET /log`` lane the System tab tails
 
 Absence of evidence narrows nothing. An unreadable log, logging switched off, no
 announcement, or an announcement naming a device other than the selected one all
-resolve to ``None`` — and every menu stays whole, exactly as before this existed.
+resolve to ``None`` — and every menu stays whole.
 """
 
 import re

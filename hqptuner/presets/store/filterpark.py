@@ -2,7 +2,7 @@
 
 An upload parks on disk until the next persistent apply injects it into the
 restore archive as a ``data/<name>`` member — which the daemon lands in its
-home directory (probe-verified on 6.0.4), where the pipeline ``process``
+home directory, where the pipeline ``process``
 absolute path then resolves. Disk-backed so a backend restart cannot orphan a
 staged process string from its file.
 

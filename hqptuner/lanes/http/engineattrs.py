@@ -24,9 +24,9 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
 
 # readback window after the restore, before reporting the apply unconfirmed —
-# the restore restart measures ~5.6 s on 6.0.4. Deliberately its own deadline
-# rather than the alarm threshold or the shared settle helper: this lane's
-# restart cost is known.
+# the restore restarts the daemon, so the window has to outlast that restart.
+# Deliberately its own deadline rather than the alarm threshold or the shared
+# settle helper: this lane's restart cost is known.
 _VERIFY_WINDOW = 10.0
 _VERIFY_INTERVAL = 0.5
 

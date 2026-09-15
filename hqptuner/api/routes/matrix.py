@@ -97,7 +97,7 @@ class MatrixProfileBody(BaseModel):
 
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any]:
-    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles", amended round 5).
+    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles").
 
     4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no
     credentials — the Control API lane is unauthenticated.
@@ -105,7 +105,7 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     Saving and deleting a profile are NOT here: they are staged
     ``<matrix_profile>`` config edits and ride ``/api/config/stage`` +
     ``/api/config/apply`` like every other persistent setting, because the daemon
-    does not persist profiles itself (round 5). The client stages the loaded
+    does not persist profiles itself. The client stages the loaded
     profile's rows alongside this call, so a load is live AND persists.
     """
     if body.action != "switch":

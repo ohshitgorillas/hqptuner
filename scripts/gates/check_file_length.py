@@ -46,14 +46,14 @@ WATCH_LINE = 400
 #: file shrinks — the gate insists on it. Do not raise one; that is the crawl
 #: this table exists to refuse.
 ALLOWANCE: dict[str, int] = {
-    "hqptuner/conf/matrixconf.py": 497,
+    "hqptuner/conf/matrixconf.py": 496,
     "hqptuner/static/store/actions.js": 415,
     "hqptuner/static/components/xfeed/Card.js": 483,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,
     "scripts/eqlab/search.js": 442,
     "scripts/eqlab/render.js": 441,
-    "hqptuner/conf/httpconf.py": 431,
+    "hqptuner/conf/httpconf.py": 427,
     ".claude/hooks/free_bash.py": 434,
     ".claude/hooks/read-volume.py": 430,
     "scripts/probes/probe_absent_plugin.py": 430,

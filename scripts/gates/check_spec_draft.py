@@ -13,15 +13,16 @@ clause before it, or into the item's outcome sentence when no clause has
 started yet, so a soft-wrapped item is one item.
 
 Both modes, per item: the first clause is ``kills:`` (behavior) or ``rule:``
-(excision). Draft mode (default) adds, per behavior item: an outcome carrying one of the words
+(strike). Draft mode (default) adds, per behavior item: an outcome carrying one of the words
 the gauntlet-arbiter cuts under (h) and (i); a missing ``kills:``, ``bite:`` or
 ``existing:``; an ``existing:`` naming a ``tests/`` path with no ``::`` (an
 ``existing: none (<grep>)`` is exempt, the grep being the evidence); a
-``bite:`` that names neither a parenthesised command nor a stub. Per excision
-item: a missing ``rule:`` or ``assertion:``. One report line per flagged
-source line, ``<file>:<line>: <reasons>``.
+``bite:`` that names neither a parenthesised command nor a stub. Per strike
+item: a missing ``rule:`` or ``assertion:``. A strike item is one whose head
+word is ``strike``, or ``excise`` in a block committed under the old grammar.
+One report line per flagged source line, ``<file>:<line>: <reasons>``.
 
-Committed mode (``--committed``) runs the clause-order check alone. Wired over ``tests/specs/`` in
+Committed mode (``--committed``) runs the clause-order check alone. Wired over ``gauntlet/specs/approved/`` in
 the Makefile and pre-commit; the word checks stay in draft mode because an
 approved block may legitimately carry them.
 
@@ -64,7 +65,8 @@ class Item:
         self.line = line
         self.outcome = head
         self.clauses: list[tuple[int, str, str]] = []
-        self.excision = head.lstrip().split(" ", 1)[1].startswith("excise")
+        # `excise` is the head of blocks committed before the grammar took `strike`.
+        self.strike = head.lstrip().split(" ", 1)[1].startswith(("strike", "excise"))
 
     def clause(self, name: str) -> tuple[int, str, str] | None:
         """Return the first clause named ``name`` as ``(line, name, body)``, or None."""
@@ -115,12 +117,12 @@ def _behavior_flags(item: Item) -> list[Flag]:
     return flags
 
 
-def _excision_flags(item: Item) -> list[Flag]:
+def _strike_flags(item: Item) -> list[Flag]:
     return [(item.line, f"missing {name}") for name in ("rule:", "assertion:") if item.clause(name) is None]
 
 
 def _committed_flags(item: Item) -> list[Flag]:
-    want = "rule:" if item.excision else "kills:"
+    want = "rule:" if item.strike else "kills:"
     first = item.clauses[0][1] if item.clauses else None
     return [] if first == want else [(item.line, f"first clause is {first or 'absent'}, not {want}")]
 
@@ -134,7 +136,7 @@ def check(text: str, *, committed: bool) -> list[Flag]:
         flags += _committed_flags(item)
         if committed:
             continue
-        flags += _excision_flags(item) if item.excision else _behavior_flags(item)
+        flags += _strike_flags(item) if item.strike else _behavior_flags(item)
     return flags
 
 

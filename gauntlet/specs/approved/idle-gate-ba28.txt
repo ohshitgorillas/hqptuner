@@ -1,0 +1,136 @@
+slug: idle-gate-ba28
+
+kind: new
+
+brief:
+> Dynamic gate: a pytest plugin that records, per test, wall time (`time.perf_counter`) and CPU time (`time.process_time` plus `resource.getrusage(RUSAGE_CHILDREN)`), and flags a test whose `wall - cpu` exceeds 100 ms.
+> Static gate: an AST pass over `tests/` that flags a real-clock deadline knob given a small value (`timeout=`, `request_timeout=`, `alarm_threshold=`) and any `time.sleep` or `asyncio.sleep` with a non-zero argument outside `tests/e2e/`.
+> Your task is to implement those hooks.
+> Investigate and report first before stage 1.
+>
+> 40 ms.
+>
+> KEEP
+>
+> WHY THE FUCK AM I BEING ASKED ABOUT THIS? THIS IS NOT A FUCKING BLOCKING DECISION, THIS IS AN AGENT BEING FUCKING LAZY.
+
+1. The gate's exit code with no minima recorded yet, by the report: four tests at 0.030 s each gives 0; one test at 0.050 s gives 1.
+   kills: judging the run's total idle against the threshold instead of each test's own, which refuses a report of four 0.030 s tests and passes a report holding one 0.050 s test and nothing else.
+   bite: null stub fails at the 0.050 s report (surface new) — `scripts/gates/check_idle.py::check(report: Path, minima: Path) -> int` returning its zero value answers 0 where the line requires 1.
+   existing: none, `grep -rn "idle_probe\|check_idle\|check_test_clocks\|idle-min\|idle-probe" tests/ scripts/ Makefile .pre-commit-config.yaml` → no match, exit 1
+
+2. The gate's exit code for one test recorded at 0.050 s, then 0.010 s, then 0.050 s over three successive runs sharing one minima file, run by run: 1, then 0, then 0.
+   kills: judging the newest recorded value rather than the smallest ever seen, which refuses the third run on the same 0.050 s it refused the first on.
+   bite: null stub fails at the first run (surface new) — the stub records nothing, so the run reads 0.050 s and the line requires 1.
+   existing: none, same grep, no match, exit 1
+
+3. The node ids the minima file carries after a run over a report naming test A alone, the file having held A at 0.010 s beside B at 0.200 s before that run: A alone.
+   kills: carrying every node id ever recorded forward, which refuses every run after a test is renamed or deleted, with no test in the tree to repair.
+   bite: null stub fails at that run (surface new) — the stub writes no minima, so the file still carries both ids where the line requires one.
+   existing: none, same grep, no match, exit 1
+
+4. The minima file's entry for one test a report names at 0.200 s, by that report's session stamp, the file having been empty before the run: stamped 1 leaves the file reading `{}`; stamped 0 leaves it reading `{"tests/a.py::test_one": 0.200}`.
+   kills: recording a red session's numbers, which stores the idle a test accumulated while the suite was failing, holding every later run to a number the failure produced.
+   bite: null stub fails at the stamped-0 report (surface new) — the stub writes no minima, where the line requires an entry of 0.200.
+   existing: none, same grep, no match, exit 1
+
+5. `idle(wall_start, wall_end, cpu_start, cpu_end)`'s return, by the readings handed to it: wall 0.000 to 0.100 over CPU 0.000 to 0.010 gives 0.090; wall 0.000 to 0.100 over CPU 0.000 to 0.100 gives 0.
+   kills: recording wall time rather than wall minus CPU, which reads a CPU-bound test as idle for its whole duration.
+   cap: a fifth line, because every line above judges a report it is handed, none of them stating what the number in a report means; a plugin recording wall time alone satisfies all four, reddening every slow-but-busy test in the suite.
+   bite: null stub fails at the wall 0.100 over CPU 0.010 reading (surface new) — `scripts/idle_probe.py::idle()` returning its zero value answers 0.0 where the line requires 0.090.
+   existing: none, same grep, no match, exit 1
+
+6. The pass's exit code over one file, by what that file holds: a test body with no sleep call beside no deadline knob gives 0; `asyncio.sleep(0)` as its only sleep gives 0; `asyncio.sleep(0.01)` gives 1; `time.sleep(0.01)` gives 1; `asyncio.sleep(INTERVAL)` naming a module constant gives 1; `asyncio.sleep(self._interval)` gives 1.
+   kills: matching only a non-zero numeric literal, which passes the shared fake's paced pump where the argument is an attribute one keyword away from being spent by any offline test.
+   cap: a sixth line, because it is the block's first line on the brief's second sentence, the static pass; the five above judge recorded numbers, and a wait whose test never crosses 40 ms is invisible to every one of them.
+   bite: null stub fails at the `0.01` file (surface new) — `scripts/gates/check_test_clocks.py::check(names: list[str]) -> int` returning its zero value answers 0 where the line requires 1.
+   existing: none, same grep, no match, exit 1
+
+7. The pass's exit code over one file carrying a single keyword at 0.05, by that keyword's name: `chunk_size=0.05` gives 0; `discovery_timeout=0.05` gives 1; the mapping key `"request_timeout": 0.05` gives 1.
+   kills: matching the three literal spellings `timeout=`, `request_timeout=` and `alarm_threshold=`, which passes the two `discovery_timeout=` deadlines this tree waits out.
+   cap: a seventh line, because a sleep call and a deadline knob are separate AST nodes under separate matchers; an implementation carrying the sleep half alone satisfies line 6 whole while reading no keyword argument at all.
+   bite: null stub fails at the `discovery_timeout=0.05` file (surface new) — `scripts/gates/check_test_clocks.py::check(names: list[str]) -> int` returning its zero value answers 0 where the line requires 1.
+   existing: none, same grep, no match, exit 1
+
+8. The pass's exit code over one file holding `asyncio.sleep(0.05)`, by the path it is handed at: `tests/e2e/support/probe.py` gives 0; `tests/engine/test_probe.py` gives 1.
+   kills: applying the patterns to every path handed in, which flags the bounded condition-polls `docs/testing.md:25` allows the browser suite and leaves no path that satisfies both rules.
+   cap: an eighth line, because no line above names a path; a pass satisfying lines 6 and 7 exactly reds the browser suite, which `docs/testing.md:25` exempts by rule.
+   bite: null stub fails at the `tests/engine/` file (surface new) — `scripts/gates/check_test_clocks.py::check(names: list[str]) -> int` returning its zero value answers 0 where the line requires 1.
+   existing: none, same grep, no match, exit 1
+
+9. The content of `.idle-probe.json` in the session's rootdir after `pytest_sessionfinish`, by the status the session finished at, `record("tests/a.py::test_one", 0.030)` having been called once: exit status 0 gives `{"exitstatus": 0, "tests": {"tests/a.py::test_one": 0.030}}`; exit status 2 gives the same entry under `"exitstatus": 2`.
+   kills: writing the recorded numbers with no session status beside them, which leaves every report indistinguishable from a green one and hands line 4 a file whose stamp it cannot read.
+   cap: a ninth line, because the brief's first clause is that the plugin records per test, and no line above observes the recording: lines 1 to 4 judge a report handed to them and line 5 judges the arithmetic alone, so a plugin computing `idle()` correctly and writing no file at all satisfies all eight.
+   bite: null stub fails at the exit-status-0 session (surface new) — `record()` and `pytest_sessionfinish()` as no-ops leave no `.idle-probe.json`, where the line requires that file with that entry.
+   existing: none, `grep -rn "idle_probe\|check_idle\|check_test_clocks\|idle-min\|idle-probe" tests/ scripts/ Makefile .pre-commit-config.yaml` → no match, exit 1
+
+public entry points (planned surface):
+
+    # scripts/idle_probe.py — pytest plugin, loaded by `-p idle_probe`
+    REPORT_NAME = ".idle-probe.json"
+    def idle(wall_start: float, wall_end: float, cpu_start: float, cpu_end: float) -> float
+    def record(nodeid: str, seconds: float) -> None
+    def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None) -> Generator[None, None, None]
+    def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None
+
+    # scripts/gates/check_idle.py
+    THRESHOLD = 0.040
+    REPORT_NAME = ".idle-probe.json"
+    MINIMA_NAME = ".idle-min.json"
+    def main_checkout(root: Path) -> Path
+    def check(report: Path, minima: Path) -> int
+    def main() -> int
+
+    # scripts/gates/check_test_clocks.py
+    def check(names: list[str]) -> int
+    def main() -> int
+
+`record(nodeid, seconds)` is the recording seam: `pytest_runtest_protocol` calls it with the number `idle()` returned, and a test drives it directly, so no test reads a clock to produce a recorded value.
+
+wire and protocol facts: no daemon. No surface here speaks to it: two read and write local files, one parses Python source. `docs/testing.md:19` is rule 7, the rule all three serve; `docs/testing.md:25` is the `tests/e2e/` carve-out line 8 pins; `docs/testing.md:28` records the existing wall-time gate the dynamic half sits beside.
+
+The two local files are an interface between the two surfaces above, so their shape is stated here rather than left to the implementation. Both are JSON objects, UTF-8, written with a trailing newline.
+
+- The **report**, `.idle-probe.json`, written by the plugin at `pytest_sessionfinish` into the run's rootdir, is the file lines 1, 2 and 4 hand to `check()` as `report` and the file line 9 pins. Two keys: `"exitstatus"`, an integer, the session's exit status, which is the session stamp line 4 reads; and `"tests"`, an object mapping a pytest node id (`"tests/gates/test_idle.py::test_name"`, the spelling pytest prints) to that test's idle seconds as a number.
+
+      {"exitstatus": 0, "tests": {"tests/a.py::test_one": 0.03}}
+
+- The **minima**, `.idle-min.json`, is the file lines 1, 2, 3 and 4 hand to `check()` as `minima`, read before the run and rewritten after it. One object, the same node id spelling mapping to seconds. No stamp, no nesting.
+
+      {"tests/a.py::test_one": 0.01}
+
+  Absent means nothing recorded yet, which is line 1's starting state.
+
+applicable fixtures: `tmp_path` only. The gate modules are loaded by `importlib.util.spec_from_file_location` and called with hand-built paths, the pattern of `tests/gates/test_suite_time.py:33`; source files for the static pass are hand-built under `tmp_path`, the pattern of `tests/gates/test_nesting.py`. No conftest fixture applies; nothing here runs pytest or reads the repo's own report.
+
+changelog entry: no entry. All three surfaces are gates on the test suite, invisible to a user of the application.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: differential on `check_idle.check` (line 2: the same 0.050 s report answers 1 on the first run and 0 on the third, so the answer turns on state the gate carried), plus anchor+edges on that surface (line 1: 0.030 s and 0.050 s straddle 0.040 s at points the design names nowhere) and sweeps with two or more distinct values on `check_test_clocks.check` (6, 7, 8), on `idle()` (5) and on the report `record()` plus `pytest_sessionfinish` leave behind (9)
+
+changed: line 9 only, on the writer's `UNTESTABLE 9`. Lines 1 to 8 carry their round 2 verdicts, so their stubs are unchanged; both stubs are restated below because line 9 changed.
+
+The `UNTESTABLE` is sound and the repair is the right one. Round 2's line 9 said "one test having been timed at 0.030 s" and named no way to produce that timing; the only route through the surface as it then stood was 30 ms of real idle inside the wrapper's yield, which is docs/testing.md:19 and :70, the defect this block exists to gate. A block whose own test would violate rule 7 cannot be approved, and I missed it: I read "one test having been timed" as a given the harness supplies and never asked what supplies it. That is the reversal sentence for line 9, and the round 2 KEEP is withdrawn in favour of the verdict below.
+
+`record(nodeid: str, seconds: float) -> None` is a stated public entry point, not a reach into internals, and it is the shape tests/conftest.py:115-125 already uses for the manager's clock. It does not overlap line 5: an implementation returning wall time from `idle()` fails 5 and passes 9, and one whose `record()` drops the seconds fails 9 and passes 5.
+
+1  KEEP  carried: four tests at 0.030 s, then one at 0.050 s, no minima file present -> 0, then 1; judging the run's total idle (0.120 s) fails it at the four-test report; bite: null stub fails at the 0.050 s report
+2  KEEP  carried: one test at 0.050 s, 0.010 s, 0.050 s over three runs sharing one minima path -> 1, 0, 0; judging the newest value rather than the smallest ever seen fails it at the third run; bite: null stub fails at the first run
+3  KEEP  carried: a report naming test A alone over a minima file holding A at 0.010 s and B at 0.200 s -> the file carries A alone; carrying every node id forward fails it there; bite: null stub fails at that run, leaving both ids
+4  KEEP  carried: a report naming one test at 0.200 s over an empty minima file, by session stamp -> stamped 1 leaves `{}`, stamped 0 leaves `{"tests/a.py::test_one": 0.200}`; recording a red session's numbers fails it at the stamped-1 report; bite: null stub fails at the stamped-0 report
+5  KEEP  carried: `idle(0.000, 0.100, 0.000, 0.010)` -> 0.090 and `idle(0.000, 0.100, 0.000, 0.100)` -> 0; recording wall time rather than wall minus CPU fails both, answering 0.100; bite: null stub fails at the first reading
+6  KEEP  carried: one source file by content, no sleep and `asyncio.sleep(0)` -> 0, the four non-zero forms -> 1; matching only a non-zero numeric literal fails it at tests/support/fake_metering.py:97's attribute argument; bite: null stub fails at the `0.01` file
+7  KEEP  carried: one file carrying a single keyword at 0.05 by name, `chunk_size=` -> 0, `discovery_timeout=` -> 1, the `"request_timeout"` mapping key -> 1; matching the three literal spellings fails it at `discovery_timeout=`; bite: null stub fails at the `discovery_timeout=0.05` file
+8  KEEP  carried: one file holding `asyncio.sleep(0.05)` by path, `tests/e2e/support/probe.py` -> 0, `tests/engine/test_probe.py` -> 1; applying the patterns to every path fails it at the e2e path, reddening tests/e2e/test_hwapply.py:173 and tests/e2e/support/stack.py:182; bite: null stub fails at the `tests/engine/` file
+9  KEEP  `record("tests/a.py::test_one", 0.030)` called once, then `pytest_sessionfinish` at exit status 0 -> `.idle-probe.json` reads `{"exitstatus": 0, "tests": {"tests/a.py::test_one": 0.030}}`, and at exit status 2 the same entry under `"exitstatus": 2`; writing the recorded numbers with no session status beside them fails it at the status-2 session, leaving a file line 4 cannot stamp; bite: null stub fails at the status-0 session, `record()` and `pytest_sessionfinish()` as no-ops leaving no file at all. Not a golden dump: two fields, both named, both put there by the test — the node id and 0.030 by the `record()` call, the status by the argument. No clock is read at either input. Cap sentence earns it: lines 1 to 4 judge a report handed to them and line 5 judges the arithmetic, so a plugin that writes no file satisfies all eight.
+
+null stub: all three modules present with the named exports, `idle()` returning 0.0, `record()` and both plugin hooks no-ops writing no report, both gates' `check()` returning 0 and no minima written.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9
+hard-coded stub: a table keyed on the exact reports, readings, source texts, paths, recorded pairs and session statuses the lines name, answering the constants they give, parsing no source and carrying nothing between calls.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9 — 2 defeats it outright, the same 0.050 s report answering 1 then 0, which no stateless table can do; 1's pair straddles the threshold at values the design names nowhere, 6's pair spans literal, constant and attribute arguments, and 9's two reports differ only in a field the table would have to copy from its input, as its entry must be copied from the `record()` call.
+
+survives: 9
+
+existing: verified on this checkout, not taken on report. `tests/gates/` holds no `test_idle.py` and no `test_test_clocks.py`; both appear only at 60e636b2, `test: idle-gate-ba28 red`, this block's own red commit, so `existing: none` stands against pre-existing tests and nothing here is a DELTA. cap: nine lines, five past the default, each with its own sentence.

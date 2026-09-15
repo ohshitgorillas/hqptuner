@@ -1,0 +1,54 @@
+slug: clock-seam-632e
+
+kind: new
+
+brief:
+> bring it home
+>
+> do not go back to stage 1 with repairs. instead, look at the workflow in ~/dev/gauntlet/ specifically as it relates to the testing fast lane. can you do that adhoc?
+>
+> let's do this: take both plans all the way through the arbiter; I will then hand off the approved files to fresh agents. Your context can't handle all that after what you've already been through.
+
+1. The number of times a running manager polls the daemon under the virtual clock, by what the test does: a caller that spends 0 passes waiting on it gives 0 further polls; a caller that spends 3 passes gives 3 further polls; ten bare event-loop yields with no caller waiting give 0 further polls.
+   kills: pacing the poll loop on a seam the suite replaces with a bare yield, which turns the loop once per event-loop pass whether or not anything is waiting on it.
+   bite: null stub fails at the 3-pass input (surface new) — `hqptuner/core/manager.py::ConnectionManager`'s pacing seam returning its zero value answers 0 polls where the line requires 3.
+   existing: none, `grep -rn "pace\|pulse\|poll_pulse" tests/ hqptuner/core/manager.py` → no match on a pacing seam, exit 1
+
+2. The number of times `eventually()` invokes its condition, by the condition it is handed at the budget named: a condition that first reads true at the 2nd check, at a budget of 10, gives 2; a condition that is never true, at a budget of 5, gives 5.
+   kills: bounding the wait with a real `asyncio.wait_for` ceiling, which invokes the condition as many times as 10 ms polls fit into the seconds it was given and makes the count a function of the machine rather than of the argument.
+   bite: measured at HEAD. A condition first true at the 2nd check returns at invocation 2 (3 runs: 2, 2, 2), so HEAD already answers the first input and the line pins it as the invariant the second is read against. A never-true condition is invoked 488-490 times at `timeout=5.0` (3 runs: 490, 488, 488), 293-294 times at the default (3 runs: 294, 293, 294) and 195 times at `timeout=2.0` (3 runs: 195, 195, 195), raising `builtins.TimeoutError` in every case, where the line requires 5. Command: `.venv/bin/python $S`, where `$S` is a throwaway script in the session scratchpad re-implementing the helper body verbatim from `tests/conftest.py:211-224` (`while not condition(): await asyncio.sleep(0.01)` under `asyncio.wait_for(wait(), timeout)`), run and `rm -f`'d in the same command; the helper is re-implemented rather than imported because `.claude/hooks/tests-lane.py` denies a command naming a `tests/` path.
+   existing: none, `grep -rn "def eventually" tests/` → `tests/conftest.py:211`, one definition, no test covers its invocation count, exit 0
+
+public entry points (planned surface):
+
+    # hqptuner/core/manager.py — ConnectionManager
+    async def run(self) -> None                       # unchanged signature
+    async def sleep(self, seconds: float) -> None     # unchanged, the lanes' seam
+    def monotonic(self) -> float                      # unchanged
+    async def pace(self, seconds: float) -> None      # new: the poll loop's own wait, what run() awaits
+    @property
+    def stopping(self) -> bool                        # new: True once stop() has been called
+
+    # tests/conftest.py
+    async def eventually(condition: Callable[[], bool], passes: int = 500) -> None
+
+wire and protocol facts: none. Nothing here speaks to the daemon differently; the poll loop's body is unchanged and only what paces it moves. `docs/testing.md:19` is rule 7, the rule the change serves; `docs/testing.md:22` requires a virtualized seam to be a public method; `docs/testing.md:23` forbids a no-op sleep under a real `monotonic`; `docs/testing.md:24` is the rule this change retires. `docs/architecture.md:101` names the kinds the manager keeps.
+
+applicable fixtures: `virtual_clock` (`tests/conftest.py:100-125`), autouse, which gains the seam patch. `start_manager` (`tests/conftest.py:283-303`), which builds a manager on a fake daemon at `poll_interval` 0.02 and tears it down with `manager.stop()` then a bare `await task`. `live_manager` (`tests/conftest.py:228-254`), the same teardown shape. The daemon's own `CommandLog` is what the poll counts in line 1 are read off.
+
+changelog entry: no entry. Nothing here is visible to a user of the application: the production wait is unchanged outside the suite, and the seam exists so the suite can replace it.
+
+--- spec-reviewer READY ---
+
+READY
+discriminates: sweep on the manager's poll count under the virtual clock (line 1, carried) and sweep on `eventually()`'s invocation count (line 2, carried; two distinct values on one invariant)
+
+1  KEEP  carried: 0/3 passes spent waiting by a caller, and ten bare event-loop yields with no waiter, on a manager running under the virtual clock -> 0, 3 and 0 further polls in the fake daemon's CommandLog; pacing on a seam the suite replaces with a bare yield (one turn per event-loop pass) fails it at the ten-yield input with 10 polls; bite: null stub fails at the 3-pass input (0 polls where 3 are required)
+2  KEEP  carried: a condition first true at the 2nd check at budget 10, and a never-true condition at budget 5 -> 2 and 5 invocations; bounding the wait with a real `asyncio.wait_for` ceiling fails it at the never-true input with 488-490 invocations; bite: measured at HEAD, 488-490 at `timeout=5.0` where the line requires 5
+
+null stub: `pace` is present and returns its zero value at once, `stopping` reads False, `run()` is a no-op, `eventually` returns None without invoking the condition.
+  satisfies: none   fails: 1, 2
+hard-coded stub: `eventually` invokes the condition exactly `passes` times and then returns or raises; `pace` returns at once always, so `run()` polls once per event-loop pass.
+  satisfies: none   fails: 1, 2
+
+survives: 2
