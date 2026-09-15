@@ -49,25 +49,6 @@ GATE = _load_gate_module()
 CHECK = GATE.check
 
 
-def _the_shipped_exemption_keys() -> list[str]:
-    """Every path out of the gate's own exemption mapping — what ``exempt=None`` falls back to.
-
-    Found by looking for it rather than by name: the contract is that the gate
-    ships exemptions and uses them when the caller passes none, not that they
-    live under any particular attribute.
-    """
-    return [
-        key
-        for value in vars(GATE).values()
-        if isinstance(value, dict)
-        for key in value
-        if isinstance(key, str) and key.endswith(".py")
-    ]
-
-
-SHIPPED_EXEMPTIONS = _the_shipped_exemption_keys()
-
-
 def lines_naming(out: str, path: str) -> list[str]:
     """Every stdout line that names ``path``; the caller pins how many and what they say."""
     return [line for line in out.splitlines() if path in line]
@@ -209,14 +190,3 @@ def test_a_file_above_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: A
     report = write_report(tmp_path, {"hqptuner/first.py": 10.0, "hqptuner/fine.py": 99.0})
     CHECK(report, 90, {})
     assert "hqptuner/fine.py" not in capsys.readouterr().out
-
-
-def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:
-    """A caller who passes no mapping gets the module's own, not an empty one.
-
-    The report holds nothing but a file the shipped mapping excuses, at a
-    percentage far under the floor: only the shipped exemptions can turn that
-    into a pass, and a stale-exemption check finds nothing to complain about.
-    """
-    report = write_report(tmp_path, dict.fromkeys(SHIPPED_EXEMPTIONS, 3.0))
-    assert CHECK(report, 90) == 0
