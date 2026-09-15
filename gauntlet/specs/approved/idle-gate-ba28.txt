@@ -105,8 +105,7 @@ applicable fixtures: `tmp_path` only. The gate modules are loaded by `importlib.
 
 changelog entry: no entry. All three surfaces are gates on the test suite, invisible to a user of the application.
 
---- spec-reviewer READY ---
-
+--- reviewer ---
 READY
 discriminates: differential on `check_idle.check` (line 2: the same 0.050 s report answers 1 on the first run and 0 on the third, so the answer turns on state the gate carried), plus anchor+edges on that surface (line 1: 0.030 s and 0.050 s straddle 0.040 s at points the design names nowhere) and sweeps with two or more distinct values on `check_test_clocks.check` (6, 7, 8), on `idle()` (5) and on the report `record()` plus `pytest_sessionfinish` leave behind (9)
 
