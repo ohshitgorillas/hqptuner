@@ -64,6 +64,11 @@ repos:
         language: system
         files: \.md$
         exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
+      - id: changelog-trivia
+        name: changelog entries are new work, not repeats (LLM judge)
+        entry: .venv/bin/triviajudge-changelog
+        language: system
+        files: ^CHANGELOG\.md$
 
       - id: single-assertion
         name: one assertion per test
