@@ -26,13 +26,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import DaemonFactory, eventually
+from conftest import DaemonFactory
 from narrow import present
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes.live import lane
 from hqptuner.presets import presetlane
 
 #: What the 4321 fake is moved to when the restore lands: the engine that comes
@@ -68,10 +67,6 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
         )
         manager = ConnectionManager(cfg, http)
         task = asyncio.create_task(manager.run())
-        await eventually(
-            lambda: manager.reachable and manager.readings.state is not None and manager.readings.loaded_at is not None,
-            timeout=5.0,
-        )
         built.append((manager, task, http))
         return manager, state
 
@@ -99,13 +94,6 @@ def _submitted(result: dict[str, Any]) -> None:
         raise AssertionError(f"the engine apply never reached the daemon: {result}")
 
 
-def _held(manager: ConnectionManager) -> None:
-    """A chain edit the manager is actually holding, or a failure — same
-    premise, for the dormant chain's half of the memory."""
-    if not manager.readings.live.chain:
-        raise AssertionError("the LIVE chain edit was never held: nothing for the restart to clear")
-
-
 # --- when the engine cannot be re-read, the picture is empty -----------------
 # A stale reading is worse than none: everything that folds the picture into a
 # saved config would write settings off a process that is gone.
@@ -131,14 +119,6 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state(
 # same way, so both leave the same picture of a process that no longer exists.
 
 
-async def test_a_staged_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
-    manager, _state = await dual_lane()
-    await lane.apply_now(manager, {"oversampling": "23"})
-    _held(manager)
-    _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert manager.readings.live.chain == {}
-
-
 async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
@@ -146,14 +126,6 @@ async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
     assert present(manager.readings.state).get("filterNx") == "2"
-
-
-async def test_an_engine_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
-    manager, _state = await dual_lane()
-    await lane.apply_now(manager, {"oversampling": "23"})
-    _held(manager)
-    _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
-    assert manager.readings.live.chain == {}
 
 
 async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(

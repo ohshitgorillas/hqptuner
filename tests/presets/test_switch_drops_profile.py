@@ -24,7 +24,6 @@ from typing import Any
 
 import fake_http
 import pytest
-from conftest import eventually
 from fake_http import state
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -70,7 +69,6 @@ async def _dual_manager(control_port: int, daemon: dict[str, Any], tmp_path: Pat
         http,
     )
     task = asyncio.create_task(manager.run())
-    await eventually(lambda: manager.reachable)
     yield manager
     manager.stop()
     await task

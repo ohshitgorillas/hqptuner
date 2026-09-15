@@ -37,7 +37,6 @@ from narrow import present
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import rescan
 from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at
@@ -88,24 +87,6 @@ def _sent(log: CommandLog) -> list[str]:
     return [name for name, _ in log]
 
 
-def _at(sent: list[str], name: str) -> int:
-    """Where a command first reached the daemon, or -1 if it never did."""
-    return sent.index(name) if name in sent else -1
-
-
-def _next_after_the_mode_switch(sent: list[str]) -> str:
-    """The command the daemon was asked immediately after the first `SetMode`.
-
-    Answers `"SetMode"` — a setter, so a caller asserting "not a setter" fails —
-    when there was no mode switch at all or nothing followed it, since neither
-    is a mode switch that was verified before the next write."""
-    at = _at(sent, "SetMode")
-    if at < 0:
-        return "SetMode"
-    rest = sent[at + 1 :]
-    return rest[0] if rest else "SetMode"
-
-
 async def _rescanning(
     daemon: DaemonFactory,
     start_manager: StartManager,
@@ -124,89 +105,6 @@ async def _rescanning(
         PresetStore(tmp_path / "presets").set_autosave(enabled=True)
     http_daemon["_on_refresh"] = lambda: state.update(ENGINE_AFTER_RESCAN)
     return manager, log, state
-
-
-# --- with auto-save on, what the engine held comes back ----------------------
-
-
-#: One live-only setting per case, named as the daemon's own `State` reports it,
-#: with the value the engine was holding before the rescan dropped it.
-HELD_BY_THE_ENGINE = [
-    ("adaptive", "1"),
-    ("filterNx", "1"),
-    ("filter1x", "1"),
-    ("shaper", "1"),
-    ("mode", "1"),
-    ("filter_junk", "1"),
-]
-
-
-@pytest.mark.parametrize(("reported", "held"), HELD_BY_THE_ENGINE)
-async def test_a_rescan_puts_the_engines_pre_rescan_setting_back(
-    daemon: DaemonFactory,
-    start_manager: StartManager,
-    http_daemon: dict[str, Any],
-    tmp_path: Path,
-    *,
-    reported: str,
-    held: str,
-) -> None:
-    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    await engineread.refresh_devices(manager)
-    assert state[reported] == held
-
-
-#: The same settings as the caller is told about them: the field name each is
-#: known by, carrying the engine's own value for it.
-RESTORED_BY_THE_ENGINE = [
-    ("adaptive_volume", "1"),
-    ("filter", "40"),
-    ("dither", "5"),
-    ("mode", "pcm"),
-    ("junk_filter", "1"),
-]
-
-
-@pytest.mark.parametrize(("field", "value"), RESTORED_BY_THE_ENGINE)
-async def test_a_rescan_reports_the_value_it_put_back(
-    daemon: DaemonFactory,
-    start_manager: StartManager,
-    http_daemon: dict[str, Any],
-    tmp_path: Path,
-    *,
-    field: str,
-    value: str,
-) -> None:
-    # `restored` is keyed by the field name the setting is known by, so the
-    # caller can say which settings the rescan cost and what they came back as
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert (await engineread.refresh_devices(manager))["restored"][field] == value
-
-
-# --- the order the replay has to go in ---------------------------------------
-# `SetMode` swaps the enumeration lists out from under every other setter
-# (protocol.md §4), so the mode goes first and alone, and everything resolved
-# against those lists goes after it.
-
-
-async def test_a_rescan_replays_the_output_mode_before_any_other_setting(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    assert [name for name, _ in _setters(log[before:])][:1] == ["SetMode"]
-
-
-async def test_a_replayed_mode_switch_carries_no_other_setter_with_it(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # the switch is verified before the next write, or the write lands against
-    # enumerations the switch was still moving
-    manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    assert _next_after_the_mode_switch(_sent(log[before:])) not in SETTERS
 
 
 # --- what a rescan never replays ---------------------------------------------
@@ -307,12 +205,6 @@ async def test_a_rescan_whose_replay_fails_restores_nothing(
 ) -> None:
     # nothing verified by readback, so nothing may be reported as put back
     assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["restored"] == {}
-
-
-async def test_a_rescan_whose_replay_fails_warns_the_user(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["warning"] == rescan.WRITE_FAILED
 
 
 # --- the engine is the source, never the store -------------------------------
@@ -433,26 +325,6 @@ async def test_a_rescan_whose_replay_raises_restores_nothing(
 # rather than merely being a non-empty string. It is ABSENT when there is
 # nothing to say — a bar that renders whatever is in that slot must not be
 # handed an empty string to show.
-
-
-async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # the poll is parked past the case so the replay is the only traffic on the lane
-    port, _log, state = await daemon(**ENGINE_HELD)
-    manager = await start_manager(http_daemon["_port"], hqp_control_port=port, alarm_threshold=0.05, poll_interval=60.0)
-    PresetStore(tmp_path / "presets").set_autosave(enabled=True)
-    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await engineread.refresh_devices(manager))["warning"] == rescan.NO_DAEMON
-
-
-async def test_a_rescan_whose_replay_raises_warns_the_user(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(
-        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
-    )
-    assert (await engineread.refresh_devices(manager))["warning"] == rescan.WRITE_FAILED
 
 
 async def test_a_rescan_that_put_everything_back_warns_about_nothing(

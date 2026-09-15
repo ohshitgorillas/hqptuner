@@ -90,18 +90,8 @@ async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
 
 # --- connect-time faults on the best-effort lanes -----------------------------
 # The 8088 lane and the preset migration both ride alongside the 4321 connect.
-# Neither may undo it, and `start_manager` has already waited for the manager to
-# settle — so what these pin is the absence of a recorded outage, which settling
-# does not itself require.
-
-
-async def test_a_refusing_backup_route_records_no_outage(
-    start_manager: StartManager, http_daemon: dict[str, Any]
-) -> None:
-    # the 8088 file-config read fails; the 4321 connect it rode alongside stands
-    http_daemon["_fail_paths"] = ["/backup/settings.zip"]
-    manager = await start_manager(http_daemon["_port"])
-    assert manager.unreachable_since is None
+# Neither may undo it: what these pin is that a fault on either leaves no
+# fabricated truth and imports nothing.
 
 
 async def test_a_refusing_backup_route_leaves_file_config_unset(
@@ -121,13 +111,6 @@ def _newer_store(tmp_path: Path) -> Path:
     presets.mkdir()
     (presets / "store.json").write_text(json.dumps({"schema": 99}))
     return presets
-
-
-async def test_a_store_stamped_by_a_newer_hqptuner_records_no_outage(
-    start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager = await start_manager(http_daemon["_port"], preset_dir=_newer_store(tmp_path))
-    assert manager.unreachable_since is None
 
 
 async def test_a_store_stamped_by_a_newer_hqptuner_imports_nothing(

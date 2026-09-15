@@ -2,9 +2,8 @@
 
 `classify` is pure, so the signature cases (fake hi-res cliff, HF spur,
 noise-shaping ramp) are synthesized spectra handed straight in (`junk_spectra`).
-The reader cases run against a fake 4322 stream speaking the real binary frame
-layout over a real socket (`fake_metering`, protocol.md §7); the context cases
-run against the fake control daemon through a real `ConnectionManager`.
+The context cases run against the fake control daemon through a real
+`ConnectionManager`.
 
 Known gap: the spec's `/api/status` case names "the existing API client
 fixture", but `api_client` (closed control port) answers 503 on /api/status
@@ -12,17 +11,11 @@ before any daemon load, so the payload case runs on `live_api` — the offline
 app whose control daemon is fake and whose metering port has no listener.
 """
 
-import asyncio
-from collections.abc import Callable
-from dataclasses import replace
 from typing import Any
 
 import pytest
-from conftest import PLAYING, eventually, running_reader
-from fake_metering import frame
 from fastapi.testclient import TestClient
 from junk_spectra import (
-    FAKE_HIRES_FRAME,
     cutoff_96k,
     fake_hires_96k,
     genuine_hires_96k,
@@ -36,7 +29,7 @@ from narrow import present
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import classify, treats
-from hqptuner.engine.metering import TrackContext, context_from
+from hqptuner.engine.metering import context_from
 
 
 def _classify(
@@ -158,95 +151,7 @@ def test_the_50k_corner_is_recommended_only_where_the_container_reaches_past_it(
 # cases that used to run through `classify` live in the `treats` section below.
 
 
-# --- MeteringReader against the fake 4322 stream --------------------------------
-
-
-async def test_fake_hires_stream_yields_20k_advice(metering_stream: Callable[..., Any]) -> None:
-    _, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(port, cell) as (reader, _):
-        await eventually(lambda: reader.recommendation() is not None)
-        assert (reader.recommendation() or {})["filter"] == "20k"
-
-
-async def test_a_paused_engine_buys_no_coverage(metering_stream: Callable[..., Any]) -> None:
-    # The daemon streams a damning spectrum to whoever connects, endlessly. A
-    # paused engine still earns nothing from it, because a paused reader is not
-    # on the wire at all (tests/engine/test_metering_idle.py).
-    _, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    passes: list[float] = []
-
-    async def idle(seconds: float) -> None:
-        passes.append(seconds)
-        await asyncio.sleep(0)
-
-    cell: list[TrackContext | None] = [replace(PLAYING, playing=False)]
-    async with running_reader(port, cell, sleep=idle) as (reader, _):
-        await eventually(lambda: len(passes) >= 5)  # ≈ 5 re-checks' worth of stream
-        assert reader.recommendation() is None
-
-
-async def test_coverage_is_measured_in_seconds_not_frames(metering_stream: Callable[..., Any]) -> None:
-    stream, port = await metering_stream()
-    cell: list[TrackContext | None] = [PLAYING]
-    short_hop = frame(fake_hires_96k(), 48000.0, 0.05)  # 60 frames but only ≈ 3 s
-    async with running_reader(port, cell) as (reader, _):
-        stream.send(short_hop, count=60)
-        await asyncio.wait_for(stream.flushed(), 3.0)
-        for _ in range(100):  # let the reader digest the buffered tail
-            await asyncio.sleep(0)
-        assert reader.recommendation() is None
-
-
-async def test_unreachable_stream_retries_through_the_injected_sleep(closed_port: int) -> None:
-    sleeps: list[float] = []
-
-    async def backoff(seconds: float) -> None:
-        sleeps.append(seconds)
-        await asyncio.sleep(0)
-
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(closed_port, cell, sleep=backoff):
-        await eventually(lambda: len(sleeps) >= 3)
-        assert len(sleeps) >= 3
-
-
-async def test_unreachable_stream_has_no_recommendation(closed_port: int) -> None:
-    sleeps: list[float] = []
-
-    async def backoff(seconds: float) -> None:
-        sleeps.append(seconds)
-        await asyncio.sleep(0)
-
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(closed_port, cell, sleep=backoff) as (reader, _):
-        await eventually(lambda: len(sleeps) >= 3)
-        assert reader.recommendation() is None
-
-
-async def test_lost_context_silences_accumulated_advice(metering_stream: Callable[..., Any]) -> None:
-    _, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(port, cell) as (reader, _):
-        await eventually(lambda: reader.recommendation() is not None)
-        cell[0] = None  # daemon went unreachable
-        await eventually(lambda: reader.recommendation() is None)
-        assert reader.recommendation() is None
-
-
-async def test_stop_finishes_a_running_reader(metering_stream: Callable[..., Any]) -> None:
-    _, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[TrackContext | None] = [PLAYING]
-    async with running_reader(port, cell) as (reader, task):
-        await eventually(lambda: reader.recommendation() is not None)  # mid-stream
-        reader.stop()
-        done, _pending = await asyncio.wait({task}, timeout=3.0)
-        assert task in done
-
-
 # --- context_from against the fake control daemon -------------------------------
-
-METADATA_96K_PCM = '<metadata samplerate="96000" sdm="0"/>'
 
 
 async def test_context_is_none_while_the_manager_is_unreachable(closed_port: int) -> None:
@@ -255,25 +160,6 @@ async def test_context_is_none_while_the_manager_is_unreachable(closed_port: int
         assert context_from(manager) is None
     finally:
         await manager.aclose()
-
-
-def _settled(manager: ConnectionManager) -> bool:
-    context = context_from(manager)
-    return context is not None and context.samplerate is not None
-
-
-@pytest.mark.parametrize(("field", "expected"), [("playing", True), ("samplerate", 96000), ("sdm", False)])
-async def test_playing_96k_pcm_track_shapes_the_context(live_manager: Any, field: str, expected: object) -> None:
-    manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=METADATA_96K_PCM)
-    await eventually(lambda: _settled(manager))
-    assert getattr(context_from(manager), field) == expected
-
-
-async def test_sdm_metadata_marks_the_context_sdm(live_manager: Any) -> None:
-    sdm_metadata = '<metadata samplerate="96000" sdm="1"/>'
-    manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=sdm_metadata)
-    await eventually(lambda: _settled(manager))
-    assert present(context_from(manager)).sdm is True
 
 
 # --- /api/status payload --------------------------------------------------------
@@ -350,23 +236,3 @@ def test_engaged_corner_above_the_recommendation_does_not_treat_the_brickwall_ve
 
 def test_engaged_20k_corner_treats_the_brickwall_verdict() -> None:
     assert treats(present(_classify(fake_hires_96k(), 48000.0)), "20k", None) is True
-
-
-# --- context_from: the active main filter ----------------------------------------
-
-
-async def test_context_reports_the_active_main_filter(live_manager: Any) -> None:
-    manager, _, _ = await live_manager(
-        poll_interval=0.05,
-        state="2",
-        _metadata=METADATA_96K_PCM,
-        _active_filter="poly-sinc-gauss-hires-lp",
-    )
-    await eventually(lambda: _settled(manager))
-    assert present(context_from(manager)).filter == "poly-sinc-gauss-hires-lp"
-
-
-async def test_context_filter_is_none_when_status_omits_the_attribute(live_manager: Any) -> None:
-    manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=METADATA_96K_PCM, _active_filter="")
-    await eventually(lambda: _settled(manager))
-    assert present(context_from(manager)).filter is None

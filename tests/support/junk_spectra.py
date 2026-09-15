@@ -34,12 +34,6 @@ def genuine_hires_96k() -> list[float]:
     return spectrum(48000.0, lambda f: -20.0 - 120.0 * f / 48000.0)
 
 
-def flat_fullband_96k() -> list[float]:
-    """Strong flat content across the entire 0-48 kHz band — content clear to
-    Nyquist, no cliff, no tone: nothing a high-frequency corner would act on."""
-    return spectrum(48000.0, lambda _f: -20.0)
-
-
 def _decay_176(f: float) -> float:
     # music decaying naturally, reaching the floor by ~20 kHz — no cliff (6 dB/kHz)
     return max(-20.0 - 6.0 * f / 1000.0, -140.0)

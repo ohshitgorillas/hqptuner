@@ -6,11 +6,10 @@ The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
 registered below: the daemons themselves in `fixtures_daemons`, the
 `TestClient`s over the REST app in `fixtures_clients`. What stays here is the
 autouse guards, the helpers test modules import by name (`spawn_threaded_daemon`,
-`_live_app`, `wait_for_api`, `eventually`, `running_reader`, the type aliases),
+`_live_app`, `wait_for_api`, `running_reader`, the type aliases),
 and the manager fixtures built on them."""
 
 import asyncio
-import contextlib
 import functools
 import os
 import socket
@@ -30,7 +29,7 @@ from hqptuner.api.factory import create_app
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.metering import MeteringReader, TrackContext
+from hqptuner.engine.metering import TrackContext
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
@@ -208,22 +207,6 @@ LiveBuilt = tuple[ConnectionManager, CommandLog, dict[str, str]]
 LiveManager = Callable[..., Awaitable[LiveBuilt]]
 
 
-async def eventually(condition: Callable[[], bool], timeout: float = 3.0) -> None:  # noqa: ASYNC109
-    """Wait until the condition holds; a TimeoutError means the behavior never
-    happened. Real clock with tiny polls, because ``run()`` is deliberately
-    real-paced (docs/testing.md §7) — the lanes' own waits stay virtual.
-
-    ASYNC109 and ASYNC110 are suppressed rather than fixed: the helper polls a
-    caller-supplied ``condition()``, so by construction there is no mutation
-    point to hang an ``asyncio.Event`` on."""
-
-    async def wait() -> None:
-        while not condition():  # noqa: ASYNC110
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(wait(), timeout)
-
-
 @pytest.fixture
 async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
     """Build managers on fake daemons, stopping each at teardown.
@@ -244,7 +227,6 @@ async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
             settings["poll_interval"] = poll_interval
         manager = ConnectionManager(Config(**settings))
         task = asyncio.create_task(manager.run())
-        await eventually(lambda: manager.reachable)
         started.append((manager, task))
         return manager, log, state
 
@@ -257,31 +239,18 @@ async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
 
 # --- a manager running BOTH lanes, 4321 and 8088 ----------------------------
 
-#: Start a manager against the 4321 fake plus an 8088 lane on the given port,
-#: settled before it comes back; keyword arguments override its Config.
+#: Start a manager against the 4321 fake plus an 8088 lane on the given port;
+#: keyword arguments override its Config.
 StartManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]
-
-
-async def settled(manager: ConnectionManager) -> None:
-    """A full connect plus one completed poll. ``run()`` flags the daemon
-    reachable before the best-effort 8088 loads run, so the flag alone cannot
-    prove the connect returned whole — a completed poll can."""
-    await eventually(lambda: manager.reachable and manager.readings.loaded_at is not None, timeout=5.0)
-    first = manager.readings.loaded_at
-    await eventually(lambda: manager.reachable and manager.readings.loaded_at != first, timeout=5.0)
 
 
 @pytest.fixture
 async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[StartManager]:
-    """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``,
-    waiting until it has settled; everything is torn down at exit.
-
-    ``settle=False`` hands the manager back before its connect body has run,
-    which is the only way a case can watch the app cross that window from
-    outside; every other caller wants the default."""
+    """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``;
+    everything is torn down at exit."""
     started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
 
-    async def start(http_port: int, *, settle: bool = True, **overrides: Any) -> ConnectionManager:
+    async def start(http_port: int, **overrides: Any) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", http_port, "u", "p")
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
@@ -293,8 +262,6 @@ async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[
         manager = ConnectionManager(Config(**{**defaults, **overrides}), http)
         task = asyncio.create_task(manager.run())
         started.append((manager, task, http))
-        if settle:
-            await settled(manager)
         return manager
 
     yield start
@@ -421,28 +388,6 @@ def _never_the_hosts_metering_port(_no_inherited_environment: dict[str, str]) ->
 #: A playing 96 kHz PCM track with no junk filter engaged — the context under
 #: which the metering reader accumulates evidence.
 PLAYING = TrackContext(playing=True, track_serial="track-1", samplerate=96000, sdm=False, junk_filter="none")
-
-
-async def _instant(_seconds: float) -> None:
-    await asyncio.sleep(0)
-
-
-@contextlib.asynccontextmanager
-async def running_reader(
-    port: int,
-    cell: list[TrackContext | None],
-    sleep: Callable[[float], Any] = _instant,
-) -> AsyncIterator[tuple[MeteringReader, "asyncio.Task[None]"]]:
-    """A MeteringReader running against the given port, reading its context
-    from ``cell[0]``, stopped and awaited on exit."""
-    reader = MeteringReader("127.0.0.1", port, lambda: cell[0], sleep=sleep)
-    task = asyncio.create_task(reader.run())
-    try:
-        yield reader, task
-    finally:
-        reader.stop()
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
 
 
 def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], tries: int = 10_000) -> None:

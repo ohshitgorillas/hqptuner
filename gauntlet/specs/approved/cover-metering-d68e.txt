@@ -1,0 +1,95 @@
+slug: cover-metering-d68e
+kind: characterization
+
+brief:
+
+> The working tree at /home/atom/dev/hqptuner on dev holds an uncommitted excision: every wall-clock test the owner ruled invalid is deleted, along with the fixtures and helpers their removal killed.
+> The offline suite is green at 2231 passed / 0 failed, ruff, black and vulture are clean, and scripts/gates/check_test_clocks.py from impl/idle-gate-ba28 prints nothing over the whole tree.
+> The commit is blocked: check_coverage_floor.py runs in pre-commit (.pre-commit-config.yaml:90) and five files are under the 90% floor, because the deleted tests were their cover.
+> Your task is to restore that cover and land the excision; take your plan through the gate.
+> --no-verify, SKIP= and hook-config edits are off the table, and any gate exemption is owner-approved per site before it is written.
+> MeteringStream._pump's repeat= branch in tests/support/fake_metering.py is an open hazard: the pacing wait was deleted, so it now writes and drains unbounded. Only tests/e2e/support/stack.py reaches it. The e2e suite has not been run and must not be until that loop is bounded.
+> After the excision commit, the gate itself lands: d8004479 on impl/idle-gate-ba28, seven files, already rebased onto dev at 7f865b0e, carrying an uncommitted __all__ = ["pytest_runtest_protocol", "pytest_sessionfinish"] fix in that worktree's scripts/idle_probe.py. Note that git cherry-pick does not fire the pre-commit hook.
+> Approved and standing: gauntlet/specs/approved/idle-gate-ba28.txt. Dead on the owner's ruling, do not implement: gauntlet/plans/approved/clock-seam-632e.txt and clock-plumbing-632e.txt.
+> By the way, I am explicitly ordering the override/disregard of the four line spec cap for the purposes of this session. This message is to be passed along to the relevant reviewers.
+> For this work, I am explicitly approving the disregard/override of the cap of 4 specs per block. Use as many as you need to get coverage back. Pass this along to the relevant reviewer verbatim.
+
+1. Two frames inside one block report the lower power at a bin whose power fell between them: with SpectralAggregate(8, 48000.0), adding frame A (bin 2 at 10**-2.0, bin 5 at 10**-2.0, every other bin at 10**-12.0) for 2.5 s, then frame B (frame A at bin 5 = 10**-9.0) for 2.5 s, then frame A for 5.0 s five times, window_min_db()[2] is -20.0, window_min_db()[5] is -90.0.
+   kills: keeps the last frame's power for the block in place of the minimum over the block — that reports -20.0 at both bins.
+   bite: -20.0 at bin 2, -90.0 at bin 5 (`PYTHONPATH=. python3 q1_2.py`, a throwaway measured by gauntlet-examiner; full window array [-120.0, -120.0, -20.0, -120.0, -120.0, -90.0, -120.0, -120.0])
+   existing: none, `grep -rn window_min_db tests/` in the main checkout /home/atom/dev/hqptuner, whose working tree carries the excision on disk and is therefore dev as this work will land it. Six hits, all in tests/engine/test_junk_persistence.py, every one feeding exactly BLOCK_SECONDS of coverage per add, so the block closes on the first frame in all of them and none reaches a second frame inside one block.
+
+2. The block in progress tightens the window minimum from the moment it starts: with SpectralAggregate(8, 48000.0), adding frame A for 5.0 s six times, window_min_db()[5] is -20.0; after one further add of frame B for 2.5 s, the same read is -90.0.
+   kills: reads the minimum over completed blocks only — that reports -20.0 at both readings.
+   bite: -20.0 before the partial block, -90.0 after it (`PYTHONPATH=. python3 q13_14.py`, function q13(), a throwaway measured by gauntlet-examiner; full window arrays [-120.0, -120.0, -20.0, -120.0, -120.0, -20.0, -120.0, -120.0] then [-120.0, -120.0, -20.0, -120.0, -120.0, -90.0, -120.0, -120.0])
+   existing: none, same grep and same tree as line 1. Every hit reads window_min_db after a whole number of full blocks, so none of them has a partial block standing at the moment of the read.
+
+3. One frame in every four reaches the aggregate: driving the reader against a MeteringStream handed 4, 8 or 12 copies of one frame, aggregate().frames is 1, 2 or 3 respectively.
+   kills: folds every frame the wire carried — that reports 4, 8 or 12.
+   bite: 1, 2, 3 (`PYTHONPATH=. python3 drive.py`, function q3(n), a throwaway measured by gauntlet-examiner)
+   existing: none, `grep -rn MeteringReader tests/` in the main checkout /home/atom/dev/hqptuner. Four hits, all in tests/live/test_autopilot.py, which sits under tests/live/ and carries the live marker, so it is deselected from the offline suite the coverage floor reads.
+
+4. Frames whose level block sits below the silence threshold stay out of the window minimum: after 24 copies of frame(spur_min_176(60000.0), 88200.0, 1.25, channels=2) earn the window, 24 copies of frame(flat, 88200.0, 1.25, channels=2, rms=-100.0) — flat being a 1025-entry list whose every entry is -140.0 — still report window_min_db()[697] as -41.99 dB, window_min_db()[116] as -76.94 dB.
+   kills: folds every frame's power whatever its level block reports — that reports -136.99 dB at both bins, measured on the identical run at rms=-20.0.
+   bite: -41.98970004653157 at bin 697, -76.93813729189907 at bin 116 (`PYTHONPATH=. python3 drive5.py`, case run_case(-100.0), a throwaway measured by gauntlet-examiner; the same script's run_case(-20.0) reports -136.98969994185603 at both bins. Bin 697 centres at 60034.57 Hz, bin 116 at 9991.41 Hz, at 88200/1024 Hz per bin)
+   existing: none. `grep -rn frame_silent tests/` in the main checkout /home/atom/dev/hqptuner prints nothing, and `grep -rn frame_power tests/` in the same tree prints nothing. tests/engine/test_junk_persistence.py:88 passes silent=True into add directly, so it pins the aggregate's own skip, never the level-block reading that decides the flag.
+   why this line is past the cap: the silence decision is read off the wire's per-channel level block, which is a different surface from the aggregate's silent= argument the existing test supplies by hand. This is also the only line that reads the wire's transform block back, so without it the binary layout of protocol.md §7 — two consecutive halves, reals then imaginaries — is pinned nowhere in the offline suite.
+
+5. A frame whose header declares zero channels ends the track's evidence: twelve good frames alone report aggregate().frames as 3, twelve good frames followed by frame(spur_min_176(60000.0), 88200.0, 1.25, channels=0) report no aggregate at all.
+   kills: ingests whatever the header describes — that reports 4 in the second case.
+   bite: 3 with no thirteenth frame, None with it (`PYTHONPATH=. python3 drive.py`, functions q6() and q6_control(), a throwaway measured by gauntlet-examiner)
+   existing: none. `grep -rn implausible tests/` in the main checkout /home/atom/dev/hqptuner prints nothing, and `grep -rn MeteringReader tests/` in the same tree prints four lines, all in the live-marked tests/live/test_autopilot.py.
+   why this line is past the cap: it is the only line where the reader refuses a frame, so it is the only one that reaches the reader's reconnect path. Every other reader line ends on a context change instead.
+
+6. A pause mid-track keeps the track's evidence where a context the reader cannot read ends it: after 8 frames, with the context reporting playing false at the same track_serial, `None if aggregate() is None else aggregate().frames` is 2; with the context callable returning None instead, the same expression is None.
+   kills: discards the aggregate whenever the socket closes, a pause included — that reports None in both cases.
+   bite: 2 at the pause, None at the unreadable context (`PYTHONPATH=. python3 drive.py`, functions q7() and q8(), a throwaway measured by gauntlet-examiner)
+   existing: none. `grep -rn MeteringReader tests/` in the main checkout /home/atom/dev/hqptuner prints four lines, all in tests/live/test_autopilot.py, which carries the live marker and is deselected from the offline suite, so no offline test holds a reader to read an aggregate off at all.
+   why this line is past the cap: a deliberate disconnect at the idle gate is the one socket close that keeps the evidence, and the reader's other close discards it. One line carrying both cases is what tells the two apart.
+
+7. A track change starts fresh evidence: with 16 frames arriving at one track_serial, aggregate().frames is 4; with the serial changed after the eighth of them, aggregate().frames is 2.
+   kills: folds the new track's frames into the old track's aggregate — that reports 4 in both cases.
+   bite: 4 at one serial (`PYTHONPATH=. python3 q13_14.py`, function q14()), 2 across a serial change (`PYTHONPATH=. python3 drive.py`, function q9()), both throwaways measured by gauntlet-examiner
+   existing: none. `grep -rln track_serial tests/` in the main checkout /home/atom/dev/hqptuner prints tests/conftest.py plus six files under tests/js/, none of them a Python test of the reader; `grep -rn MeteringReader tests/` in the same tree prints four lines, all in the live-marked tests/live/test_autopilot.py.
+   why this line is past the cap: a verdict computed over two tracks' frames is the defect the whole aggregate exists to avoid, and no other line changes the serial while frames are arriving.
+
+8. The window's signature names the frequency of the tone it found, for the current track alone: with 24 copies of the spur frame at samplerate 176400, `(verdict() or {}).get("ceiling_khz")` is 59.9; with the context's track_serial changed at playing false, the same expression is None.
+   kills: reads the aggregate whatever track it belongs to — that reports 59.9 in both cases.
+   bite: 59.9 for the current track, None across the serial change (`PYTHONPATH=. python3 drive.py`, function q10_11_12(), first and second stages, a throwaway measured by gauntlet-examiner; the full dict carries filter "40k", families ["poly-sinc-gauss-hires", "poly-sinc-ext2-hires"], ceiling_khz 59.9)
+   existing: none. `grep -rn ceiling_khz tests/` in the main checkout /home/atom/dev/hqptuner prints six lines: four under tests/js/, plus tests/engine/test_junk_advisor.py:91 and :121, which call junkadvisor.classify on a spectrum list the test built, never on one the reader folded off the wire.
+   why this line is past the cap: it is the only line that carries a frame from the socket through to the advisor's reading of it. Every existing hit starts from a Python list, so the join between the two halves is pinned nowhere.
+
+9. The note goes quiet while the engaged junk filter treats the tone: continuing from line 8's first state, `(recommendation() or {}).get("filter")` is "40k" at junk_filter None, None at junk_filter "40k".
+   kills: hands the note back whatever the engine already engaged — that reports "40k" in both cases.
+   bite: "40k" at junk_filter None, None at junk_filter "40k" (`PYTHONPATH=. python3 drive.py`, function q10_11_12(), third and fourth stages, a throwaway measured by gauntlet-examiner)
+   existing: none. `grep -rn recommendation tests/` in the main checkout /home/atom/dev/hqptuner prints six lines, none of them a call of the reader's method: three are prose, and tests/engine/test_junk_advisor.py:206, :211 and :233 pin junkadvisor.treats directly, on a verdict dict the test wrote.
+   why this line is past the cap: verdict and recommendation are two different answers over one aggregate, one blind to the engaged filter, one gated on it. A block pinning only verdict admits a build where the note never goes quiet.
+
+--- reviewer ---
+READY
+discriminates: sweep on MeteringReader.aggregate().frames (line 3: 4 / 8 / 12 copies -> 1 / 2 / 3), with a within-line differential carrying two distinct expected values on every other line's own surface
+
+return on round 1's findings, finding by finding: line 1 STRICKEN -> repaired, bin 2 now read beside bin 5. Line 2 STRICKEN -> repaired, the same read taken before and after the partial block. Old line 4 STRICKEN (d) -> dropped. Old line 8 AMENDED sibling 7 -> folded, now line 6's second case. Old line 9 STRICKEN -> repaired, the 16-frames-at-one-serial control now carried in the line. Old line 11 AMENDED sibling 10 -> folded, now line 8's second case. Note on flat_minus_140 -> resolved, the spectrum is defined inline as 1025 entries of -140.0, which matches BINS = 1025 at tests/support/junk_spectra.py:13. Note on the sleep seam -> withdrawn on the citation (metering.py:178-189, :280-286, :321). Note on verdict()/recommendation() being methods on the reader -> withdrawn on the citation (metering.py:211, :215, :237). Note on the missing round path -> resolved by the path in the brief and the evidence for its number. No finding is evaded and none is outstanding.
+
+1  ADMITTED  SpectralAggregate(8, 48000.0), frame A 2.5 s then frame B 2.5 s then frame A 5.0 s five times -> window_min_db()[2] is -20.0 and [5] is -90.0; "keeps the last frame's power for the block" fails it at bin 5, reporting -20.0; bite: -20.0 / -90.0 (`PYTHONPATH=. python3 q1_2.py`)
+2  ADMITTED  SpectralAggregate(8, 48000.0), frame A 5.0 s six times then frame B 2.5 s -> window_min_db()[5] is -20.0 at the first read and -90.0 at the second; "reads the minimum over completed blocks only" fails it at the second read, reporting -20.0; bite: -20.0 then -90.0 (`PYTHONPATH=. python3 q13_14.py`, q13())
+3  ADMITTED  carried from round 1. MeteringStream handed 4 / 8 / 12 copies of one frame -> aggregate().frames 1 / 2 / 3; "folds every frame the wire carried" fails it at 4 copies, reporting 4; bite: 1, 2, 3 (`PYTHONPATH=. python3 drive.py`, q3(n))
+4  ADMITTED  24 spur frames then 24 frames of a flat -140.0 dB spectrum at rms=-100.0 -> window_min_db()[697] is -41.99 dB and [116] is -76.94 dB; "folds every frame's power whatever its level block reports" fails it at both bins, reporting -136.99 dB; bite: -41.98970004653157 / -76.93813729189907 (`PYTHONPATH=. python3 drive5.py`, run_case(-100.0))
+5  ADMITTED  carried from round 1 (the cap sentence's rewording changes no field the checks read). Twelve good frames -> aggregate().frames 3; twelve plus a channels=0 frame -> no aggregate; "ingests whatever the header describes" fails it at the thirteenth frame, reporting 4; bite: 3 / None (`PYTHONPATH=. python3 drive.py`, q6(), q6_control())
+6  ADMITTED  8 frames then playing false at the same track_serial -> `None if aggregate() is None else aggregate().frames` is 2; the same 8 frames with the context callable returning None -> None; "discards the aggregate whenever the socket closes, a pause included" fails it at the pause, reporting None; bite: 2 / None (`PYTHONPATH=. python3 drive.py`, q7(), q8())
+7  ADMITTED  16 frames at one track_serial -> aggregate().frames 4; the serial changed after the eighth -> 2; "folds the new track's frames into the old track's aggregate" fails it at the changed serial, reporting 4; bite: 4 (`PYTHONPATH=. python3 q13_14.py`, q14()) and 2 (`PYTHONPATH=. python3 drive.py`, q9())
+8  ADMITTED  24 spur frames at samplerate 176400 -> `(verdict() or {}).get("ceiling_khz")` is 59.9; the track_serial changed at playing false -> None; "reads the aggregate whatever track it belongs to" fails it at the changed serial, reporting 59.9; bite: 59.9 / None (`PYTHONPATH=. python3 drive.py`, q10_11_12(), stages one and two)
+9  ADMITTED  continuing from line 8's first state -> `(recommendation() or {}).get("filter")` is "40k" at junk_filter None and None at junk_filter "40k"; "hands the note back whatever the engine already engaged" fails it at junk_filter "40k", reporting "40k"; bite: "40k" / None (`PYTHONPATH=. python3 drive.py`, q10_11_12(), stages three and four)
+
+null stub: the metering module present with add a no-op, SpectralAggregate.window_min_db(), MeteringReader.aggregate(), verdict() and recommendation() all returning None, and .frames 0.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9
+hard-coded stub: a table keyed on the exact input sequences the lines name, returning the named arrays, counts and dicts, with no transform, no windowing, no decimation and no track bookkeeping.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9 — every line now carries at least two distinct expected values on its own surface, which is the escape rule 10 names and the one the round-1 cuts were made to force.
+survives: 9
+
+notes, none gate-holding
+- The owner's cap override is in the brief in the owner's own words, twice, and is honored: check (f) is not run against the count. Every line from the fourth on also carries its own justification sentence, and none is hand-waving.
+- Arithmetic cross-check against files I may read: spur_min_176's default tone_db is -45.0 (tests/support/junk_spectra.py:42) and frame() writes the level block and transform into every channel (tests/support/fake_metering.py:20-36), so two channels summing to -41.99 dB at bin 697 is 10*log10(2) = 3.01 dB above one, exactly the gap line 4's kills names. The flat -140.0 spectrum summing to -136.99 dB is the same 3.01 dB. Bins 697 and 116 sit at 60034.57 Hz and 9991.41 Hz for 1025 bins over 88200 Hz, as the block says.
+- No line reaches MeteringStream._pump's repeat= branch, the hazard the brief flags: every line drives frames through the bounded send(payload, count=) queue at tests/support/fake_metering.py:63-66. No line is e2e.
+- Whether these nine tests actually lift the five files back over the 90% coverage floor is not a fact I can read; the block states behavior, not coverage. If a file is still short after they land, that is a new block, not a defect in this one.
+- Two hook misfires observed while reviewing, reported and not patched: no-impl-reads.py denied `cat docs/approved-specs.md` from the shell though docs/ is explicitly readable for this role (the Read tool on the same path passed), and reviews-lane.py denies this role every read of gauntlet/reviews/, which is what left round 1 unable to settle its own round number.

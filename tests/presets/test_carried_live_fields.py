@@ -28,10 +28,10 @@ The apply path over the same contract is `test_restore_carries_the_engine.py`.
 import asyncio
 from collections.abc import AsyncIterator, Callable, Coroutine
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any
 
 import pytest
-from conftest import DaemonFactory, eventually
+from conftest import DaemonFactory
 from fake_config_xml import cfg_xml
 from fake_http import state
 
@@ -64,7 +64,6 @@ async def engine_manager(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator
             )
         )
         task = asyncio.create_task(manager.run())
-        await eventually(lambda: manager.reachable)
         started.append((manager, task))
         return manager
 
@@ -80,63 +79,6 @@ def _active_preset_holding(preset_dir: Path, edits: dict[str, str], name: str = 
     store = PresetStore(preset_dir)
     store.save(name, presetconf.apply_edits(cfg_xml(state()), edits))
     store.set_active(name)
-
-
-# --- the running engine outranks the store ------------------------------------
-
-
-class EngineCase(NamedTuple):
-    """One live-domain field: the State the daemon starts on, the field it
-    answers for, that answer in the config form's domain, and the different
-    value the active preset has stored for it."""
-
-    state: dict[str, str]
-    field: str
-    running: str
-    stored: str
-
-
-#: One row per field of the live domain: the State the daemon starts on, the
-#: field that State answers for, the config-domain value the engine's answer
-#: resolves to, and a DIFFERENT value sitting in the active preset's snapshot.
-#:
-#: The engine's answer is an index into an enumeration the daemon serves for the
-#: chain it has LOADED, and the two chains number the same names differently
-#: (protocol.md §4) — so each row names the chain it reads under. Under PCM
-#: (``mode="1"``) State's ``filterNx``/``filter1x``/``shaper``/``rate`` are the
-#: ``filter``/``filter1x``/``dither`` answers, resolved on the fake's PCM lists;
-#: under SDM (``mode="2"``) the same three attributes answer for
-#: ``oversampling``/``oversampling1x``/``modulator`` on the SDM lists.
-#: ``adaptive`` belongs to neither chain, and ``mode`` is itself.
-#:
-#: Values from the fake's own enumerations: PCM filter index 2 = sinc-M = enum 25
-#: and index 3 = poly-sinc-short-mp = enum 57; PCM shaper index 1 = NS9 = enum 5.
-#: SDM filter index 1 = sinc-M = enum 23 and index 2 = poly-sinc-short-lp = enum
-#: 57; SDM shaper index 1 = ASDM7EC = enum 3. The stored value differs from the
-#: engine's in every row, so a field taken from the store instead of the engine
-#: reads back wrong rather than reading back the same thing twice.
-ENGINE_WINS = [
-    EngineCase({"mode": "2"}, "mode", "sdm", "auto"),
-    EngineCase({"mode": "1", "filterNx": "2"}, "filter", "25", "40"),
-    EngineCase({"mode": "1", "filter1x": "3"}, "filter1x", "57", "40"),
-    EngineCase({"mode": "1", "shaper": "1"}, "dither", "5", "7"),
-    EngineCase({"mode": "2", "filterNx": "1"}, "oversampling", "23", "38"),
-    EngineCase({"mode": "2", "filter1x": "2"}, "oversampling1x", "57", "38"),
-    EngineCase({"mode": "2", "shaper": "1"}, "modulator", "3", "12"),
-    EngineCase({"mode": "1", "adaptive": "1"}, "adaptive_volume", "1", "0"),
-]
-
-
-@pytest.mark.parametrize("case", ENGINE_WINS, ids=[c.field for c in ENGINE_WINS])
-async def test_the_engines_own_value_beats_a_different_stored_one(
-    engine_manager: EngineManager, tmp_path: Path, case: EngineCase
-) -> None:
-    # the engine is running one value and the preset was saved on another: a
-    # restore that carried the stored answer would boot the daemon out of the
-    # filter, shaper or chain the user is listening to
-    manager = await engine_manager(**case.state)
-    _active_preset_holding(tmp_path / "presets", {case.field: case.stored})
-    assert carried_live_fields(manager)[case.field] == case.running
 
 
 # --- the store answers only where the engine cannot ---------------------------
@@ -192,11 +134,3 @@ def test_a_manager_with_neither_source_answers_empty_instead_of_raising(tmp_path
     # a restore on a cold manager must not die on the way to the push
     manager = ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"))
     assert carried_live_fields(manager) == {}
-
-
-async def test_an_active_preset_with_no_stored_snapshot_still_carries_the_engine(
-    engine_manager: EngineManager, tmp_path: Path
-) -> None:
-    manager = await engine_manager(mode="2")
-    PresetStore(tmp_path / "presets").set_active("Ghost")
-    assert carried_live_fields(manager)["mode"] == "sdm"

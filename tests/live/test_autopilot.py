@@ -44,12 +44,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import DaemonFactory, eventually, spawn_threaded_daemon, wait_for_api
+from conftest import DaemonFactory, spawn_threaded_daemon, wait_for_api
 from fake_control import CommandLog
-from fake_metering import MeteringStream, frame
+from fake_metering import MeteringStream
 from fastapi.testclient import TestClient
-from junk_spectra import FAKE_HIRES_FRAME, fake_hires_96k, flat_fullband_96k, spur_min_176
-from narrow import present
+from junk_spectra import FAKE_HIRES_FRAME, fake_hires_96k, spur_min_176
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -70,10 +69,6 @@ BRICKWALL = classify(fake_hires_96k(), 48000.0, samplerate=96000, sdm=False)
 #: whose verdict recommends the 30k corner and offers hi-res filter families.
 SPUR = classify(spur_min_176(40000.0), 88200.0, samplerate=176400, sdm=False)
 
-#: Strong flat content across the whole 0-48 kHz band, 0.7 s per frame: content
-#: clear to Nyquist, so a window made of these frames carries no signature.
-FLAT_FULLBAND_FRAME = frame(flat_fullband_96k(), 48000.0, 0.7)
-
 #: A junk-filter enumeration in the shape the daemon answers `GetJunkFilters`
 #: with (protocol.md §6: `<JunkFiltersItem index name value/>`).
 ITEMS = [
@@ -83,10 +78,6 @@ ITEMS = [
 ]
 
 METADATA_96K_PCM = '<metadata samplerate="96000" sdm="0"/>'
-
-#: An engine build whose junk-filter enumeration carries the rate-relative
-#: corners, in this order — index 1 is 2x, 2 is 4x, 3 is 8x, and 0 is `none`.
-RATE_RELATIVE_ENUM = "none 2x 4x 8x 20k"
 
 #: 60 frames at 0.7 s of coverage apiece ≈ 42 s, comfortably past the advisor's
 #: minimum — a bounded batch, so the evidence is a fact about what crossed the
@@ -173,7 +164,6 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
         )
         task = asyncio.create_task(manager.run())
         started.append((manager, task))
-        await eventually(lambda: manager.reachable)
         # the reader is the app's, not the manager's: the lifespan starts one
         # beside the manager and hands it over. This is that same reader, over
         # the same wire, with its idle re-check paced instantly.
@@ -182,7 +172,6 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
         readers.append((reader, asyncio.create_task(reader.run())))
         if frames:
             stream.send(FAKE_HIRES_FRAME, count=frames)
-            await eventually(lambda: reader.recommendation() is not None)
         return manager, log, state, stream
 
     yield build
@@ -201,91 +190,6 @@ async def advising(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[Advis
 def junk_writes(log: CommandLog) -> list[str]:
     """Every junk-filter index this daemon was actually asked to engage."""
     return [attrs.get("value", "") for name, attrs in log if name == "SetJunkFilter"]
-
-
-def engaged(manager: ConnectionManager) -> str | None:
-    """The junk filter the engine is running right now, as the advisor sees it."""
-    context = context_from(manager)
-    return None if context is None else context.junk_filter
-
-
-async def test_no_verdict_releases_the_engine_to_none(advising: Advising) -> None:
-    # the user's own 20k corner is not a baseline to return to: with nothing
-    # advised, auto-pilot's resting place is `none`
-    manager, _log, state, _ = await advising(frames=0, filter_junk="1")
-    await eventually(lambda: engaged(manager) == "20k")
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert state["filter_junk"] == "0"
-
-
-async def test_an_untreated_verdict_engages_the_recommended_filter(advising: Advising) -> None:
-    # 20k is index 1 of the fake's built-in enumeration; that the index is
-    # resolved against the RUNNING list is the whole point of writing one
-    manager, log, _, _ = await advising()
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert junk_writes(log) == ["1"]
-
-
-def _counted(manager: ConnectionManager) -> int:
-    """How many decimated hops the manager's reader has ingested so far."""
-    aggregate = present(manager.metering).aggregate()
-    return 0 if aggregate is None else int(aggregate.frames)
-
-
-async def _ingested(stream: MeteringStream, manager: ConnectionManager, hops: int) -> None:
-    """Wait until the wire is drained and the reader has counted ``hops``
-    ingested frames — it samples every DECIMATE-th frame off the wire."""
-    await asyncio.wait_for(stream.flushed(), 3.0)
-    await eventually(lambda: _counted(manager) >= hops)
-
-
-async def test_a_signature_that_leaves_the_spectrum_releases_the_corner(advising: Advising) -> None:
-    # index 1 is the 20k corner the signature asks for, index 0 is `none`: once
-    # a window of content clear to Nyquist has gone by, the corner acts on
-    # nothing that is playing, so auto-pilot hands the engine back to `none`
-    manager, log, _, stream = await advising()
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    engaged_writes = junk_writes(log)
-    stream.send(FLAT_FULLBAND_FRAME, count=60)  # ≈ 42 s, a full window and more
-    await _ingested(stream, manager, 30)  # 15 hops off the covering batch, 15 more here
-    await act(manager)
-    assert (engaged_writes, junk_writes(log)) == (["1"], ["1", "0"])
-
-
-async def test_a_fixed_corner_is_released_when_no_verdict_asks_for_it(advising: Advising) -> None:
-    # index 2 of the built-in enumeration is the 30k corner; index 0 is `none`.
-    # The case above reads the release off the engine's own State, which cannot
-    # tell one write from a loop that rewrites `none` every pass; this one reads
-    # the command log, so the release is pinned as exactly one write.
-    manager, log, _, _ = await advising(frames=0, filter_junk="2")
-    await eventually(lambda: engaged(manager) == "30k")
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert junk_writes(log) == ["0"]
-
-
-@pytest.mark.parametrize(("name", "index"), [("2x", "1"), ("4x", "2"), ("8x", "3")])
-async def test_a_rate_relative_filter_is_released_when_no_verdict_asks_for_it(
-    advising: Advising, name: str, index: str
-) -> None:
-    # rate-relative corners are no longer protected inside auto-pilot: on means
-    # the resting filter is `none`, whatever the user left engaged
-    manager, log, _, _ = await advising(frames=0, _junk_filters=RATE_RELATIVE_ENUM, filter_junk=index)
-    await eventually(lambda: engaged(manager) == name)
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert junk_writes(log) == ["0"]
-
-
-async def test_an_engine_already_resting_on_none_is_never_written_to(advising: Advising) -> None:
-    manager, log, _, _ = await advising(frames=0)
-    await eventually(lambda: engaged(manager) == "none")
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert junk_writes(log) == []
 
 
 async def test_auto_pilot_switched_off_never_writes_the_junk_filter(advising: Advising) -> None:
@@ -311,16 +215,6 @@ async def test_a_store_stamped_newer_than_understood_writes_nothing(advising: Ad
     (tmp_path / "autopilot.json").write_text(json.dumps({"schema": 99}))
     await act(manager)
     assert junk_writes(log) == []
-
-
-async def test_a_write_the_engine_refuses_is_still_attempted(advising: Advising) -> None:
-    # the precondition the case below rests on, stated rather than assumed: a
-    # daemon that answers SetJunkFilter with an error is still asked to engage
-    # 20k, so "refused" there is a refusal and not a write that never happened
-    manager, log, _, _ = await advising(_error="SetJunkFilter")
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert junk_writes(log) == ["1"]
 
 
 async def test_a_refused_write_leaves_auto_pilot_enabled(advising: Advising) -> None:

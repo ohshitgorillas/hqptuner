@@ -9,7 +9,6 @@ bounds how much coverage the wire ever carried)."""
 
 import asyncio
 import contextlib
-import socket
 import struct
 import threading
 from collections.abc import Iterator, Sequence
@@ -41,35 +40,20 @@ class MeteringStream:
     """Listener on port 0 that streams frames to any client that connects.
 
     The socket lifecycle is observable, because a client that hangs up is a
-    real event on this side of the wire: ``accepts`` counts every client the
-    listener has ever taken, ``connected`` how many are attached right now. A
-    peer's close arrives as EOF on the read half, exactly as the real daemon
-    sees it.
+    real event on this side of the wire: ``connected`` counts how many clients
+    are attached right now. A peer's close arrives as EOF on the read half,
+    exactly as the real daemon sees it."""
 
-    A stream can break either way a real one does: `close` hangs up cleanly, so
-    the client reads EOF, while `crash` resets the connection, so the client's
-    next read raises instead."""
-
-    def __init__(self, repeat: bytes | None = None, interval: float = 0.0) -> None:
+    def __init__(self, repeat: bytes | None = None) -> None:
         self._repeat = repeat
-        self._interval = interval
         self._queue: asyncio.Queue[bytes] = asyncio.Queue()
-        self._flushed = asyncio.Event()
-        self._flushed.set()
         self._server: asyncio.Server | None = None
         self._handlers: set[asyncio.Task[None]] = set()
-        self._peers: set[asyncio.StreamWriter] = set()
-        self._accepts = 0
         self._connected = 0
 
     async def start(self) -> int:
         self._server = await asyncio.start_server(self._serve, "127.0.0.1", 0)
         return int(self._server.sockets[0].getsockname()[1])
-
-    @property
-    def accepts(self) -> int:
-        """How many clients this listener has accepted since it started."""
-        return self._accepts
 
     @property
     def connected(self) -> int:
@@ -78,15 +62,8 @@ class MeteringStream:
 
     def send(self, payload: bytes, count: int = 1) -> None:
         """Enqueue ``count`` copies of one frame for the connected client."""
-        self._flushed.clear()
         for _ in range(count):
             self._queue.put_nowait(payload)
-
-    async def flushed(self) -> None:
-        """Wait until every queued frame has been written AND drained. Drain
-        blocks on the socket buffer, so all but the buffered tail of a large
-        batch has actually been read by the peer when this returns."""
-        await self._flushed.wait()
 
     async def _pump(self, writer: asyncio.StreamWriter) -> None:
         try:
@@ -94,13 +71,10 @@ class MeteringStream:
                 if self._repeat is not None:
                     writer.write(self._repeat)
                     await writer.drain()
-                    await asyncio.sleep(self._interval)
                     continue
                 payload = await self._queue.get()
                 writer.write(payload)
                 await writer.drain()
-                if self._queue.empty():
-                    self._flushed.set()
         except ConnectionError:
             pass
 
@@ -109,8 +83,6 @@ class MeteringStream:
         if task is None:  # pragma: no cover — handlers always run as tasks
             return
         self._handlers.add(task)
-        self._peers.add(writer)
-        self._accepts += 1
         self._connected += 1
         pump = asyncio.create_task(self._pump(writer))
         # a client that closes its socket shows up here as EOF, even when the
@@ -121,26 +93,11 @@ class MeteringStream:
         finally:
             self._connected -= 1
             self._handlers.discard(task)
-            self._peers.discard(writer)
             writer.close()
             pump.cancel()
             hangup.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await asyncio.gather(pump, hangup, return_exceptions=True)
-
-    async def crash(self) -> None:
-        """Break every live connection with a TCP reset and stop listening — a
-        daemon whose process dies mid-stream.
-
-        The difference from `close` is what the client's pending read does:
-        after a reset it raises (ECONNRESET), where a clean hang-up returns
-        EOF. `SO_LINGER` with a zero timeout is what turns the close into a
-        reset rather than a FIN."""
-        for writer in list(self._peers):
-            peer = writer.get_extra_info("socket")
-            if peer is not None:
-                peer.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
-        await self.close()
 
     async def close(self) -> None:
         for task in list(self._handlers):
@@ -151,13 +108,13 @@ class MeteringStream:
             await self._server.wait_closed()
 
 
-def spawn_threaded(repeat: bytes, interval: float = 0.005) -> Iterator[tuple[MeteringStream, int]]:
+def spawn_threaded(repeat: bytes) -> Iterator[tuple[MeteringStream, int]]:
     """`spawn_threaded_stream` with the stream itself handed back, for cases
     that ask the listener whether anybody ever connected."""
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    stream = MeteringStream(repeat=repeat, interval=interval)
+    stream = MeteringStream(repeat=repeat)
     port: int = asyncio.run_coroutine_threadsafe(stream.start(), loop).result()
     yield stream, port
     asyncio.run_coroutine_threadsafe(stream.close(), loop).result()
@@ -166,13 +123,12 @@ def spawn_threaded(repeat: bytes, interval: float = 0.005) -> Iterator[tuple[Met
     loop.close()
 
 
-def spawn_threaded_stream(repeat: bytes, interval: float = 0.005) -> Iterator[int]:
+def spawn_threaded_stream(repeat: bytes) -> Iterator[int]:
     """The same fake stream, served from a dedicated thread's event loop — for
     the sync `TestClient` cases, whose app (and its metering reader) runs in its
     own loop while the test's is parked (conftest's `spawn_threaded_daemon`).
 
-    Frames are paced by ``interval`` rather than flooded: the real daemon emits
-    one frame per transform hop (protocol.md §7), and a flood keeps the app's
-    loop saturated for the whole `TestClient` teardown."""
-    for _stream, port in spawn_threaded(repeat, interval):
+    The pump is unbounded: it writes the repeated frame as fast as the peer
+    drains it, which spins a core for as long as a client is attached."""
+    for _stream, port in spawn_threaded(repeat):
         yield port

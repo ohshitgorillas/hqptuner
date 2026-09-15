@@ -14,7 +14,6 @@ import fake_http
 import pytest
 from conftest import DaemonFactory, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, serve
-from fake_metering import MeteringStream
 
 from hqptuner.engine.control import ControlClient
 
@@ -22,19 +21,6 @@ from hqptuner.engine.control import ControlClient
 @pytest.fixture
 async def live_daemon_port() -> AsyncIterator[int]:
     server = await asyncio.start_server(serve, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    yield port
-    server.close()
-    await server.wait_closed()
-
-
-@pytest.fixture
-async def split_filter_daemon_port() -> AsyncIterator[int]:
-    """Daemon whose 1x and Nx filter slots DIFFER (1x=2, Nx=0). The default fake
-    has both at index 0, where a preserved sibling and a clobbered one are the
-    same value — so any test of the one-sided SetFilter case needs this one."""
-    handler = functools.partial(serve, overrides={"filter1x": "2", "filterNx": "0"})
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     yield port
     server.close()
@@ -190,21 +176,3 @@ def restore_recovering_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses the first two POST /restore arrivals, then accepts — the restart
     # window a retrying lane is supposed to ride through
     yield from fake_http.spawn(fake_http.state(_restore_refusals=2))
-
-
-# --- fake metering stream (port 4322 lane), implemented in fake_metering ----
-
-
-@pytest.fixture
-async def metering_stream() -> AsyncIterator[Callable[..., Any]]:
-    """Fake 4322 streams on demand, each closed at teardown."""
-    streams: list[MeteringStream] = []
-
-    async def build(repeat: bytes | None = None) -> tuple[MeteringStream, int]:
-        stream = MeteringStream(repeat=repeat)
-        streams.append(stream)
-        return stream, await stream.start()
-
-    yield build
-    for stream in streams:
-        await stream.close()

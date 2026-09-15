@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 import pytest
-from conftest import DaemonFactory, ManagerFactory, eventually
+from conftest import DaemonFactory, ManagerFactory
 from fake_control import CommandLog
 
 from hqptuner.core.manager import ConnectionManager
@@ -58,7 +58,6 @@ async def running_profile(
             poll_interval=0.02,
         )
         task = asyncio.create_task(manager.run())
-        await eventually(lambda: manager.reachable)
         started.append((manager, task))
         return manager, log
 
@@ -76,15 +75,6 @@ def with_night(http_daemon: dict[str, Any]) -> None:
 
 
 # --- the active profile is in the config: its matrix goes live ----------------
-
-
-async def test_an_apply_under_an_active_profile_restores_that_profiles_rows(
-    running_profile: RunningProfile, http_daemon: dict[str, Any]
-) -> None:
-    with_night(http_daemon)
-    manager, _log = await running_profile("Night")
-    await manager.applyops.apply({}, {"title": "Renamed"})
-    assert http_daemon["_pipelines"][0]["gain"] == "-7"
 
 
 async def test_an_apply_under_an_active_profile_still_applies_the_staged_edit(

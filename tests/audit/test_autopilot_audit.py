@@ -14,60 +14,29 @@ itself passed. The log is read back with a plain ``json.loads`` per line, the wa
 forensic record.
 
 The route cases run on both lanes at once, because a live junk-filter write needs
-the 4321 control daemon and a config-preset load needs the 8088 one. The acting
-case builds a manager the way ``tests/live/test_autopilot`` does — a real
-``MeteringReader`` on the fake 4322 stream, fed a bounded batch of frames so the
-advisor has earned a verdict — with the audit log pointed into ``tmp_path``.
+the 4321 control daemon and a config-preset load needs the 8088 one.
 """
 
-import asyncio
 import json
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from audit_records import last, records
-from conftest import DaemonFactory, eventually, wait_for_api
+from conftest import wait_for_api
 from fake_config_xml import cfg_xml
 from fake_http import state
-from fake_metering import MeteringStream
 from fastapi.testclient import TestClient
-from junk_spectra import FAKE_HIRES_FRAME
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.core.autopilotops import act
-from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.metering import MeteringReader, context_from
 from hqptuner.presets.store.presets import PresetStore
-
-#: The engine is reported playing a 96 kHz PCM track: the metering reader only
-#: holds its socket while something plays (protocol.md §7).
-METADATA_96K_PCM = '<metadata samplerate="96000" sdm="0"/>'
-
-#: 60 frames at ~0.7 s of coverage apiece — past the advisor's minimum, and a
-#: bounded batch, so the evidence is what crossed the socket rather than elapsed
-#: wall clock.
-COVERING_FRAMES = 60
-
-#: The corner the fake-hi-res signature's verdict recommends, as the fake
-#: daemon's built-in junk-filter enumeration names it.
-RECOMMENDED = "20k"
-
-#: A fixed corner a user could have left engaged, as that same enumeration names
-#: it — neither the resting `none` nor the filter the verdict asks for.
-FIXED_CORNER = "30k"
 
 #: The volume trace's records all carry a `volume.`-prefixed event, and it takes
 #: its observations on checkpoints across the app rather than on this suite's
 #: subject.
 VOLUME_EVENT_PREFIX = "volume."
-
-
-async def _instant(_seconds: float) -> None:
-    """The reader's idle re-check, paced by the loop instead of the clock."""
-    await asyncio.sleep(0)
 
 
 # --- reading the log back, independently of the module that writes it ---------
@@ -268,87 +237,3 @@ def test_loading_a_config_preset_with_no_stored_flag_records_its_source(
     switch_on(autopilot_client)
     autopilot_client.post("/api/profile/load", json={"name": "Office"})
     assert last(audit_log, "autopilot.set")["source"] == "preset.load"
-
-
-# --- the acting loop ---------------------------------------------------------
-
-Advising = Callable[..., Any]
-
-
-@pytest.fixture
-async def advising(daemon: DaemonFactory, tmp_path: Path, audit_log: Path) -> AsyncIterator[Advising]:
-    """A running manager on the fake control daemon, its advisor fed a covering
-    batch of metering frames off the fake 4322 stream, with the audit log in
-    ``tmp_path`` — the ``advising`` fixture of tests/live/test_autopilot, logged."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
-    readers: list[tuple[MeteringReader, asyncio.Task[None]]] = []
-    streams: list[MeteringStream] = []
-
-    async def build(frames: int = COVERING_FRAMES, **overrides: str) -> ConnectionManager:
-        port, _log, _state = await daemon(state="2", _metadata=METADATA_96K_PCM, **overrides)
-        stream = MeteringStream()
-        streams.append(stream)
-        metering_port = await stream.start()
-        manager = ConnectionManager(
-            Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=port,
-                hqp_metering_port=metering_port,
-                poll_interval=0.02,
-                backup_dir=tmp_path,
-                preset_dir=tmp_path / "presets",
-                live_preset_file=tmp_path / "live-presets.json",
-                autopilot_file=tmp_path / "autopilot.json",
-                debug_log=audit_log,
-            )
-        )
-        task = asyncio.create_task(manager.run())
-        started.append((manager, task))
-        await eventually(lambda: manager.reachable)
-        reader = MeteringReader("127.0.0.1", metering_port, lambda: context_from(manager), sleep=_instant)
-        manager.metering = reader
-        readers.append((reader, asyncio.create_task(reader.run())))
-        if frames:
-            stream.send(FAKE_HIRES_FRAME, count=frames)
-            await eventually(lambda: reader.recommendation() is not None)
-        return manager
-
-    yield build
-    for reader, reader_task in readers:
-        reader.stop()
-        reader_task.cancel()
-        await asyncio.gather(reader_task, return_exceptions=True)
-    for manager, task in started:
-        manager.stop()
-        await task
-        await manager.aclose()
-    for stream in streams:
-        await stream.close()
-
-
-def engaged(manager: ConnectionManager) -> str | None:
-    """The junk filter the engine is running right now, as the advisor sees it."""
-    context = context_from(manager)
-    return None if context is None else context.junk_filter
-
-
-async def test_the_act_record_names_the_junk_filter_it_moved_to(advising: Advising, audit_log: Path) -> None:
-    # the acting loop writes with nobody watching, so the record naming the
-    # filter it moved to is the only account of why the engine changed
-    manager = await advising()
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert last(audit_log, "autopilot.act")["want"] == RECOMMENDED
-
-
-async def test_the_act_record_names_the_junk_filter_engaged_before_the_move(
-    advising: Advising, audit_log: Path
-) -> None:
-    # the engine sits on the 30k corner while the verdict asks for 20k, so the
-    # record's two filters differ from each other and from the resting `none`:
-    # a build that wrote the wanted filter into both is visible here
-    manager = await advising(filter_junk="2")
-    await eventually(lambda: engaged(manager) == FIXED_CORNER)
-    manager.presetops.autopilot.enable()
-    await act(manager)
-    assert last(audit_log, "autopilot.act")["engaged"] == FIXED_CORNER
