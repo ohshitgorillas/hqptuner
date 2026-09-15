@@ -115,6 +115,7 @@ check: lint lint-js test test-js
 trivia:
 	$(VENV)/triviajudge-md --head
 	$(VENV)/triviajudge-comments --head
+	$(VENV)/triviajudge-changelog --head
 
 # Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs

@@ -91,6 +91,11 @@ fi
 UNREL=$(sed -n '/^## \[Unreleased\]$/,/^## \[/{ /^## \[/d; p; }' CHANGELOG.md | tr -d '[:space:]')
 [ -n "$UNREL" ] || die "CHANGELOG.md [Unreleased] is empty — write the entries first."
 
+# The section as a whole: duplicates, superseded entries, entries under the
+# wrong kind. Venv-qualified, since this script activates no venv. The explicit
+# die is what names the reason; under `set -e` a bare failure prints nothing.
+.venv/bin/triviajudge-changelog --release || die "the changelog judge flagged [Unreleased] — fix the entries first."
+
 echo "  $CUR -> $NEW ($PART) · dated $TODAY"
 if [ "$DRY" = 1 ]; then echo "  (dry run — nothing below is executed)"; fi
 

@@ -80,11 +80,12 @@ do_not_mutate = ["hqptuner/static/*"]
 pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests/gates"]
 
 [tool.triviajudge]
-# Scope for the three trivia gates. It matches the `files`/`exclude` of their
-# pre-commit hooks and the `git ls-files` filter on the Makefile's archaeology
-# line; both the hook modes and the console scripts read it from here.
-# CHANGELOG.md has check_changelog.py and copy-before-after.md is a record of
-# owner-approved wording, so neither takes a judge.
+# Scope for the markdown, comment and archaeology gates. It matches the
+# `files`/`exclude` of their pre-commit hooks and the `git ls-files` filter on
+# the Makefile's archaeology line; both the hook modes and the console scripts
+# read it from here. The changelog gate is not scoped here: it reads CHANGELOG.md
+# from its own module constant. copy-before-after.md is a record of
+# owner-approved wording, so it takes no judge.
 md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
@@ -170,6 +171,10 @@ ban-relative-imports = "all"
     "PLR0913",  # a behavior test takes one parameter per input it varies
     "D",        # a test name already states its behavior; a docstring would restate it
 ]
+# Owner-approved for this file: the surface under test is a shell script, so a real
+# bash and a real git have to start. S603's trusted-input carve-out admits only
+# literals and sys.executable, and both executables are resolved by shutil.which.
+"tests/gates/test_release_preflight.py" = ["S603"]
 "scripts/*" = ["S101"]
 "scripts/probes/**/*.py" = ["PLR0915"]  # probes are linear capture sequences, read top to bottom rather than decomposed
 "scripts/budget/**/*.py" = [
