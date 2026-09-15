@@ -1,0 +1,109 @@
+slug: cover-floor-df17
+kind: characterization
+
+brief:
+> - hqptuner/lanes/rescan.py 80.49%
+> - hqptuner/conf/matrixscope.py 81.67%
+> - hqptuner/lanes/live/lane.py 87.50%
+> - hqptuner/lanes/live/snapshot.py 89.06%
+> - hqptuner/engine/control.py 89.90%
+> Your task is to create new tests to bring these files back above the coverage floor and kill the exemption
+> I am authorizing the override of the four-spec cap for this run.
+
+Behaviors:
+
+1. Given a snapshot holding profiles "A" plus "B", each with a body, `matrix_scope(xml, None)` returns bytes equal to the input, while `matrix_scope(xml, "A")` returns bytes holding A's body `<a/>` with B's `<b/>` absent.
+   kills: an implementation that scopes to the first profile whenever no profile is named, so an unscoped write lands inside profile A.
+   bite: `matrix_scope(XML0, None) == XML0` True; `matrix_scope(XML0, "A")` == `b'<hqplayerd><engine><matrix><a/></matrix></engine></hqplayerd>'`, `b"<b/>" in it` False (gauntlet-examiner throwaway: `.venv/bin/python <scratch>.py`), XML0 = `<hqplayerd><engine><matrix><matrix_profile name="A"><a/></matrix_profile><matrix_profile name="B"><b/></matrix_profile></matrix></engine></hqplayerd>`
+   existing: none, `grep -rn "matrix_scope\|has_profile\|matrix_body_span\|GroundingError" tests/` hits only xmledit GroundingError tests (tests/presets/test_backup_workaround.py:33, tests/apply/test_absent_targets.py:82,88, tests/matrix/test_matrix_validation.py, tests/matrix/test_profile_materialize.py:245,250); no hit on matrix_scope, has_profile or matrix_body_span
+
+2. On that same snapshot, `has_profile(xml, "B")` returns True; `has_profile(xml, "Z")` returns False.
+   kills: an implementation that reports every name as present, so a load of a profile the snapshot lacks is attempted.
+   bite: `has_profile(XML0, "B")` True; `has_profile(XML0, "Z")` False (gauntlet-examiner throwaway: `.venv/bin/python <scratch>.py`)
+   existing: none, same grep as line 1, zero hits on has_profile
+
+3. `matrix_body_span` sweeps four inputs, one comparison per case: `b"<matrix><a/></matrix>"` returns a span whose slice of the input equals `b"<a/>"`; `b"<matrix/>"` raises `GroundingError`; `b"<matrix>"` with no closing tag raises `GroundingError`; `matrix_scope(xml, "A")` where profile A is the self-closing `<matrix_profile name="A"/>` raises `GroundingError`.
+   kills: an implementation that returns an empty span (start equal to end) for a bodyless element, so a caller writes into nothing while reporting success; the anchor rejects one that raises on every input.
+   bite: `matrix_body_span(b"<matrix><a/></matrix>")` == `(8, 12)`, `xml[8:12]` == `b'<a/>'`; the three bodyless inputs raise `GroundingError` (gauntlet-examiner throwaway: `.venv/bin/python <scratch>.py`), XML1 = XML0 with profile A as `<matrix_profile name="A"/>`
+   existing: none, same grep as line 1, zero hits on matrix_body_span
+
+4. `replay(mgr, fields)` on a manager whose control lane points at a port nothing listens on, built the way tests/support/fixtures_clients.py:54 builds it (`Config(hqp_host="127.0.0.1", hqp_control_port=<bound-then-closed port>)`, `tests/conftest.py:361` `_closed_port`), returns `{"restored": {}, "warning": NO_DAEMON}` as one dict comparison, NO_DAEMON being the imported constant. Line 4 is rescan.py's daemon-gone outcome.
+   kills: an implementation that reports the fields restored without a write reaching the engine.
+   bite: `{'restored': {}, 'warning': 'The engine did not come back after the rescan — your live settings were not restored.'}` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, manager on `Config(hqp_control_port=<bound-then-closed port>)` with `manager.run()` started, no private attribute touched, fields `{"dither": "5"}`)
+   existing: none, `grep -rn "NO_DAEMON\|WRITE_FAILED\|never came back\|restoring your live settings failed" tests/` hits only a comment at tests/support/fake_http.py:246. tests/presets/test_rescan_replay.py::test_a_rescan_the_control_lane_never_returns_from_restores_nothing asserts `["restored"] == {}` through `engineread.refresh_devices` with `_close=EVERY_COMMAND`, and that file alone leaves this outcome unreached: `PYTHONPATH=scripts .venv/bin/pytest -q -p idle_probe -k "test_rescan_replay" --cov=hqptuner.lanes.rescan --cov-branch --cov-report=term-missing` prints `hqptuner/lanes/rescan.py 66 11 16 5 80% 99-100, 117, 153->155, 174-175, 179, 181-183, 188-189`; line 175 is this return, so no existing test pins it and a fold there would assert a branch that file never enters.
+
+5. `replay(mgr, fields)` on a connected manager, with every field already at the engine's current value, returns `{"restored": {}}` as one dict comparison, no "warning" key inside it. Line 5 is rescan.py's nothing-moved outcome.
+   kills: an implementation that rewrites every field regardless of whether the rescan moved it, which reports the field under "restored" after its readback verifies.
+   bite: `{'restored': {}}` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, fields `{"dither": "0"}` against fake DEFAULTS shaper "0")
+   existing: none, same grep as line 4; tests/presets/test_rescan_replay.py::test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_mapping holds no live settings, so it returns at rescan.py:171-172 `if not fields: return {"restored": {}}` before the nothing-moved return at :179, which the coverage run quoted in line 4 lists as unreached (`179`)
+
+6. `replay(mgr, fields)` where the daemon refuses the field's setter with `result="Error"` returns `{"restored": {}, "warning": WRITE_FAILED}` as one dict comparison, WRITE_FAILED being the imported constant, with the refusal swallowed. Line 6 is rescan.py's write-raised outcome.
+   kills: an implementation that lets the control error escape, so the rescan endpoint reports a failure instead of a finished rescan with a warning.
+   bite: `{'restored': {}, 'warning': 'The rescan finished, but restoring your live settings failed.'}`, no exception (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, fake `_error="SetShaping"`, fields `{"dither": "5"}`)
+   existing: none, same grep as line 4; tests/presets/test_rescan_replay.py::test_a_rescan_whose_replay_raises_restores_nothing uses `_close=EVERY_SETTER` through `refresh_devices`, and the coverage run quoted in line 4 lists rescan.py:181-183, this except branch, as unreached by that file
+
+7. `replay(mgr, fields)` where the daemon answers the setter OK while the readback still shows the old value returns `{"restored": {}, "warning": WRITE_FAILED}` as one dict comparison. Line 7 is rescan.py's lost-field report, distinct from line 6 because the write succeeded on the wire.
+   kills: an implementation that trusts the setter's OK, which reports the field under "restored" with no warning.
+   bite: `{'restored': {}, 'warning': 'The rescan finished, but restoring your live settings failed.'}` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, fake `_deaf="SetShaping"`, fields `{"dither": "5"}`)
+   existing: none, same grep as line 4; tests/presets/test_rescan_replay.py::test_a_rescan_whose_replay_fails_restores_nothing uses `_deaf=EVERY_SETTER` through `refresh_devices`, and the coverage run quoted in line 4 lists rescan.py:188-189, the lost-field warning, as unreached by that file
+
+8. `mode_then_split(mgr, http_fields, {})` on an engine already running mode "pcm" sweeps two batches, one comparison on the returned triple per case: `{"mode": "pcm", "not_routable_field": "x"}` returns `([], {}, {"mode": "pcm", "not_routable_field": "x"})`; `{"mode": "pcm", "dither": "5"}` returns `([], {"shaper": {"value": "1"}}, {})`. Line 8 is lane.py's restore-lane tail.
+   kills: an implementation that strips "mode" from the remainder after skipping the mode write, so the restore lane never sets it.
+   bite: `([], {}, {'mode': 'pcm', 'not_routable_field': 'x'})`; `([], {'shaper': {'value': '1'}}, {})` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, default fake State mode "1" = pcm)
+   existing: none, `grep -rn "mode_then_split\|reassert_chain\|chain_entered\|remember_routed" tests/` printed nothing
+
+9. `reassert_chain(mgr, client)` with one remembered field for the active chain sweeps two remembered values, one comparison per case on the tuple `(return, mgr.readings.live.chain["pcm"])`: a value the running enumeration names (`{"dither": "5"}`) gives `([{"setting": "shaper", "ok": True}], {"dither": "5"})`; a value absent from it (`{"dither": "999"}`) gives `([], {})`. Line 9 is lane.py's dropped-field path.
+   kills: an implementation that sends the stale value to the engine, or keeps it in memory to be re-sent on the next chain entry.
+   bite: `([{'setting': 'shaper', 'ok': True}], {'dither': '5'})`; `([], {})` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, seeded `mgr.readings.live.chain["pcm"]`, PCM shapers carry ids "0" and "5" only)
+   existing: none, same grep as line 8
+
+10. `remember_routed(mgr, [{"setting": "shaper", "ok": True}], {"dither": "5"})` sweeps two managers, one comparison per case on `mgr.readings.live.chain` after the call: readings naming the active chain "pcm" give `{"pcm": {"dither": "5"}}`; readings naming no active chain give `{}`. Line 10 is lane.py's no-chain guard.
+   kills: an implementation that records the fields under a made-up chain key when no chain is active.
+   bite: `{'pcm': {'dither': '5'}}`; `{}` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, second case `state["mode"]="0"` ([source]) with status stripped of `active_mode`/`active_rate`)
+   existing: none, same grep as line 8
+
+11. `live_snapshot(mgr)` read on one connected manager before, then after, four readings mutations (the state's mode index set to one no enumerated mode carries, one routable field's state attribute removed, the enum item a field points at stripped of its value key, "adaptive" removed) satisfies `sorted(before) == sorted([*after, "adaptive_volume", "dither", "filter", "filter1x", "mode"])` as one comparison. Line 11 is snapshot.py's three absent-from-enumeration returns.
+   kills: an implementation that emits a placeholder entry (`{"value": "None"}`) or raises `KeyError` for a field it cannot name.
+   bite: before `['adaptive_volume', 'dither', 'filter', 'filter1x', 'junk_filter', 'mode']`; after `['junk_filter']` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, mutations `state["mode"]="99"`, `del state["shaper"]`, `enums["filters"]` item index "0" without its `value` key, `del state["adaptive"]`)
+   existing: none, `grep -rn "live_snapshot(" tests/` hits only tests/apply/test_live_snapshot.py:22 `assert live_snapshot(manager) is None` (no loaded chain)
+
+12. `ControlClient.request` before `connect` raises `ControlError` whose `code` is `"daemon_unavailable"`. Line 12 is control.py's unconnected guard.
+   kills: an implementation that raises `AttributeError` from a None writer, which the lanes do not catch.
+   bite: `ControlError` raised, `code == "daemon_unavailable"` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, `ControlClient(port=54329)`, `await client.request("<GetInfo/>")`; class attribute at hqptuner/engine/control.py:43 `code = "daemon_unavailable"`)
+   existing: none, `grep -rn "exceeds size limit\|\"not connected\"\|MAX_RESPONSE" tests/` hits only a comment at tests/engine/test_control_stall.py:36
+
+13. `ControlClient.request` against a daemon that writes the reply in two pieces, the first ending mid-tag (`<Sta`, then `te result="OK"/>`), returns the parsed element satisfying `(el.tag, el.attrib) == ("State", {"result": "OK"})` as one comparison. Line 13 is control.py's still-arriving frame path.
+   kills: an implementation that parses the first chunk alone and raises on it.
+   bite: `tag == "State"`, `attrib == {'result': 'OK'}` (gauntlet-examiner throwaway `.venv/bin/python <scratch>.py`, raw `asyncio.start_server` writing `b"<Sta"`, drain, `b'te result="OK"/>'`)
+   existing: none, same grep as line 12; tests/engine/test_control.py tests parse one-piece replies only
+
+--- reviewer ---
+READY
+discriminates: sweep on `replay` (NO_DAEMON / no warning / WRITE_FAILED), differential on `matrix_scope` (identity at `None` beside scoped bytes at `"A"`), anchor+edges on `matrix_body_span`, sweeps with two values on `mode_then_split`, `reassert_chain`, `remember_routed`, differential on `live_snapshot`, wire-supplied element on `ControlClient.request` beside its unconnected raise.
+
+Return, finding by finding:
+- 13 (t) STRICKEN: repair taken, line dropped; the owner's ruling on the alternative (distinct code) is recorded in the return. Withdrawn, nothing outstanding.
+- Old 14 renumbered 13, text unchanged: carried.
+- Block level (m): every file the brief names has at least one surviving line (rescan.py 4-7, matrixscope.py 1-3, lane.py 8-10, snapshot.py 11, control.py 12-13). The brief states coverage targets, not behaviors; no brief sentence names a behavior no surviving line pins. The dropped size-cap line leaves one control.py branch unpinned, which is a coverage fact for the owner's exemption ruling, not a contract this block owes.
+- Cap (f): owner authorized the override in the brief; lines 5-13 each carry their one sentence naming the distinct outcome they pin.
+- Notes naming readable files: none outstanding.
+
+1  carried ADMITTED  `(XML0, None)` -> bytes equal to XML0, `(XML0, "A")` -> `b'<hqplayerd><engine><matrix><a/></matrix></engine></hqplayerd>'`; first-profile-when-unnamed fails at `(XML0, None)`; bite: measured
+2  carried ADMITTED  `(XML0, "B")` -> True, `(XML0, "Z")` -> False; every-name-present fails at `"Z"`; bite: measured
+3  carried ADMITTED  four-case sweep: `b"<matrix><a/></matrix>"` -> span whose slice of the input is `b"<a/>"`, three bodyless inputs -> `GroundingError`; empty-span implementation fails at `b"<matrix/>"`, always-raise implementation fails at the anchor; bite: measured `(8, 12)`, three raises
+4  carried ADMITTED  manager on `Config(hqp_control_port=<bound-then-closed port>)`, fields `{"dither": "5"}` -> `{"restored": {}, "warning": NO_DAEMON}` (imported constant); reports-restored-without-a-write fails there; bite: measured dict, no private attribute touched
+5  carried ADMITTED  connected manager, fields `{"dither": "0"}` equal to the engine's value -> `{"restored": {}}`; rewrite-everything fails there; bite: measured; existing `_nothing_to_carry` tests take rescan.py:171-172, not this branch, per the cited coverage run
+6  carried ADMITTED  daemon `_error="SetShaping"`, fields `{"dither": "5"}` -> `{"restored": {}, "warning": WRITE_FAILED}`; error-escapes implementation fails there; bite: measured; rescan.py:181-183 unreached by tests/presets/test_rescan_replay.py per the cited run
+7  carried ADMITTED  daemon `_deaf="SetShaping"`, fields `{"dither": "5"}` -> `{"restored": {}, "warning": WRITE_FAILED}`; trusts-the-OK implementation fails there; bite: measured; rescan.py:188-189 unreached per the cited run; (d) against 6 escaped as in round 2
+8  carried ADMITTED  two-batch sweep on the returned triple: non-routable -> `([], {}, {"mode": "pcm", "not_routable_field": "x"})`, routable -> `([], {"shaper": {"value": "1"}}, {})`; strips-mode implementation fails at the first batch; bite: measured
+9  carried ADMITTED  `"5"` -> `([{"setting": "shaper", "ok": True}], {"dither": "5"})`, `"999"` -> `([], {})` on `(return, mgr.readings.live.chain["pcm"])`; sends-or-keeps-stale implementation fails at `"999"`; bite: measured
+10  carried ADMITTED  chain `pcm` named -> `{"pcm": {"dither": "5"}}`, no chain -> `{}` on `mgr.readings.live.chain`; made-up-key implementation fails at the no-chain input; bite: measured
+11  carried ADMITTED  before/after four readings mutations -> `sorted(before) == sorted([*after, "adaptive_volume", "dither", "filter", "filter1x", "mode"])`; placeholder-or-KeyError implementation fails at the after read; bite: measured before six keys, after `['junk_filter']`
+12  carried ADMITTED  `request` before `connect` -> `ControlError` with `code == "daemon_unavailable"` (hqptuner/engine/control.py:43); AttributeError-from-None-writer fails there; bite: measured
+13  carried ADMITTED  split reply `b"<Sta"`, drain, `b'te result="OK"/>'` -> `(el.tag, el.attrib) == ("State", {"result": "OK"})`; first-chunk-alone parsing fails there; bite: measured
+
+null stub: every named function returns its zero value (`b""`, `False`, `None`, `{}`, `([], {}, {})`, `[]`), raises nothing, records nothing, sends nothing.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+hard-coded stub: returns each line's quoted literal for its quoted input, raises where the line says raise, reads no socket and parses no XML.
+  satisfies: none (every surface carries a relation to its input or two distinct values)   fails: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+survives: 13
