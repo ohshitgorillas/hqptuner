@@ -135,14 +135,16 @@ def whole_file_targets(text: str) -> list[str]:
 def red_run(slug: str, tree: str, runner: list[str]) -> str:
     """Run the suite in the spec tree and save the output. Returns its path.
 
-    `runner` is the configured invocation, whole: the caller resolves it, and
-    the only word this function adds to it is its own.
+    `runner` is the configured invocation: the caller resolves it, and this
+    function drops its quiet flag and adds its own verbose one.
     """
     saved = red_path(slug)
     os.makedirs(path(os.path.dirname(saved)), exist_ok=True)
     #: verbose, so a passing test is named rather than summarized as a dot: the
-    #: juror rules on the names this file carries and on nothing else
-    output = trees.capture_in_tree(tree, list(runner) + ["-v"])
+    #: juror rules on the names this file carries and on nothing else. A `-q`
+    #: in the configured command cancels `-v` back to dots, so it goes.
+    words = [word for word in runner if word != "-q"]
+    output = trees.capture_in_tree(tree, words + ["-v"])
     with open(path(saved), "w", encoding="utf-8") as handle:
         handle.write(output)
     return saved
@@ -205,7 +207,10 @@ def strike_whole_files(tree: str, block: str) -> None:
     for target in targets:
         if not target.startswith(prefix):
             trees.die(
-                "pair: strike target '" + target + "' is not under " + prefix
+                "pair: strike target '"
+                + target
+                + "' is not under "
+                + prefix
                 + " -- a strike motion removes tests, never source."
             )
         if ".." in target:
