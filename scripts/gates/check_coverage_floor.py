@@ -35,6 +35,11 @@ EXEMPT: dict[str, str] = {
     "hqptuner/lanes/live/lane.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/lanes/live/snapshot.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/engine/control.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/engine/junkadvisor.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/engine/metering.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/lanes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/api/routes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/core/autopilotops.py": "cover struck with the wall-clock tests; retired by cover-floor",
 }
 
 

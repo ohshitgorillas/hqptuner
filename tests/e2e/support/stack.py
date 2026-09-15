@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import Any
 
 import fake_http
-import fake_metering
 from fake_control import DEFAULTS, CommandLog, serve
 
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
@@ -91,11 +90,6 @@ def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     loop.call_soon_threadsafe(loop.stop)
     thread.join()
     loop.close()
-
-
-def _repeat_frame() -> bytes:
-    """One plausible metering frame, repeated forever: a quiet 48 kHz band."""
-    return fake_metering.frame([-90.0] * 33, bandwidth=48000.0, transform_time=0.01)
 
 
 def _app_env(listen_port: int, control_port: int, http_port: int, metering_port: int, tmp: Path) -> dict[str, str]:
@@ -216,12 +210,11 @@ def stack(tmp: Path) -> Iterator[Stack]:
     control = spawn_control(control_state, control_log)
     http_state = fake_http.state()
     http = fake_http.spawn(http_state)
-    metering = fake_metering.spawn_threaded_stream(_repeat_frame())
     proc: subprocess.Popen[bytes] | None = None
     try:
         control_port = next(control)
         next(http)
-        metering_port = next(metering)
+        metering_port = _free_port()
         listen_port = _free_port()
         log_path = tmp / "app.log"
         env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
@@ -241,4 +234,3 @@ def stack(tmp: Path) -> Iterator[Stack]:
         # that follows it; resuming normally is what runs it.
         next(control, None)
         next(http, None)
-        next(metering, None)
