@@ -1,0 +1,105 @@
+slug: junkrules
+kind: new
+
+brief:
+> "Draft the stage 1 plan for slug junkrules: rewrite detection in hqptuner/engine/junkadvisor.py against the fixture under tests/support/fixtures/junkcal/ (67 albums, 139 kept rows, committed at 6b300b59), scored by .venv/bin/python scripts/junkcal_eval.py, which prints a per-row confusion matrix and a miss list for any classifier and is the plan's acceptance check, target 139 of 139. Rules, binding: verdicts read per-bin minimum spectra only, with no wait, window or track identity; cliff and ramp are stateless; a spur verdict holds until the minimum at that bin drops well below the recorded level; where a row supports more than one filter the lowest corner wins; the lossy case is gone and content ending below 20 kHz is none; pair-format rows show a cliff but get no cliff math. Thresholds are read off the fixture, not carried from HEAD, and a row the rules cannot hit without breaking another is named in the plan with the two rows in conflict. junkadvisor.py leaves the coverage exemption list and gets unit tests to the 90% floor, and the junk section of docs/architecture.md is amended to the rules above. The plan goes to gauntlet-detective for grounding and gauntlet-prosecutor for review, and is presented on READY."
+>
+> Owner's revisions, in the order they were given, each replacing what it names:
+> "pair-format rows get no cliff math, in the detector and in scripts/junkcal_eval.py alike, so a label_only album's rows are scored only on the spur finding or none, and the depth-tie pairs you named are conflicts only if they survive that change. Draft stage 1 on that basis with the recomputed target, through gauntlet-detective and gauntlet-prosecutor."
+> "Spur release is on excess, not level: the verdict engages when the bin stands over its baseline by the engage split and releases when that excess falls under a lower release split, both read off the fixture, so a baseline rising over the spur releases the filter; a filter is never held where the spur is not visible."
+> "Ruled: label_only rows leave the cliff scoring in scripts/junkcal_eval.py and keep their spur scoring, since the detector reads the full grid at runtime and those rows are truncated records of it; the target is the rows that remain, CLIFF_SPLIT_DB stays at 30.0 as measured, and the depth-33 sweep value is dropped."
+> "spur state is per bin, each bin over the engage split holding and releasing on its own on excess, never on level, with the verdict the lowest corner among held bins"
+> "the release split comes from one read-only pass over /srv/hqptuner/state/junkcal, every bin that ever crosses the engage split in the nine spur albums against rows where the spur has gone, read at the trough, landing in junkadvisor.py with its histogram in the plan, and if no trough exists release equals engage and the plan says so"
+> "Make the two repairs the session already owed, scripts/junkcal_view.py:8-10 and the 51-bin guard on the top-bin drop, and leave the fixture and labels.json unchanged."
+> "Question 1: not accepted. Ramp is rising ultrasonic noise; the test must locate the rise across the ultrasonic band rather than fit a slope over the top band, where DSD-derived material is often flat or lowpassed. The four ramp rows are detector misses and stay in the target. Re-derive the ramp test against the fixture, then re-score; the two clean rows and the 20260914T044230Z trade are re-examined under the new test. Target remains every remaining row."
+> "Question 2: 10.0 dB as read. The empty gap at 9 to 10 dB separates the nine spur-gone rows from the 31 sagged-spur rows, and no other point in 0 to 21 does. The hold stays, with the holder, the metering.py call site and the docs/architecture.md:98 amendment. The bite for the hold line is a gauntlet-examiner synthetic sequence, since the corpus is static per row."
+> "Target is 114 and the plan may not stop short."
+> "Three misses are each settled by viewing the row, label wrong or feature wrong, before any threshold sweep."
+> "Of the three short rows, 20260912T213118Z at 21:34:03 is fixed without moving any threshold by dropping the cliff from the prediction side for label_only rows in scripts/junkcal_eval.py, which is the owner's ruling's own 'in the detector and in scripts/junkcal_eval.py alike'."
+> "Line goes in. Reasons: It is not a label override. Album stays clean in labels.json. Row expectation follows the row's own stats, which is the convention da643163 already set: expect the lowest corner a row's own stats support. This is that rule reaching the cliff branch. Detector has no track identity. It sees one row. Content on that row ends at 22.36 kHz, above 20 kHz, so 20k is the right verdict and the eval must expect what the detector should see. Split used is the fixture's CLIFF_SPLIT_DB, not junkadvisor.py's. Within the no-threshold-from-junkadvisor ruling. Cost: one row where eval and detector share the same 30.0 split, so eval cannot catch a wrong split on that row. Acceptable at one row with the row viewed. Alternative of leaving it a named defect at 113 ships 'works for most.' Rejected."
+
+Every behavior below reads one grid: 1025 bins spanning 0 Hz to a bandwidth of 88200.0 Hz, samplerate 176400, sdm False. Bin i sits at i * 88200 / 1024 Hz.
+
+1. On a spectrum whose content stops at a ceiling, the 20k corner is earned on the drop from the content down to the band above that ceiling, read past any loud ultrasonic junk standing in that band: the corner is earned only where the content stands at least 30 dB over that band, the ceiling itself sitting strictly inside 20 to 26 kHz. Inputs, each a 1025-value list: (a) -70.0 at every bin at or below 22000 Hz, -120.0 above it, with bins 462 through 562 (39.8 kHz through 48.4 kHz) raised to -20.0, a wide ultrasonic plateau 100 dB over that floor; (b) -95.0 at or below 22000 Hz, -120.0 above it; (c) -70.0 at or below 20000 Hz, -120.0 above it. Expected: (a) 20k; (b) nothing; (c) nothing.
+   kills: recommends the 20k corner for any content edge inside the 20 to 26 kHz window whatever the drop below it, so ordinary lowpassed material ending at 22 kHz with a 25 dB shoulder is told to engage a filter it does not need
+   bite: HEAD returns None at (a), None at (b), None at (c) (`.venv/bin/python /tmp/claude-1000/-home-atom-dev-hqptuner/923cba54-77db-439d-98bb-598b544ffad0/scratchpad/junkrules-measure2.py`, a throwaway script calling `classify` once per case at bandwidth 88200.0, samplerate 176400, sdm False, deleted in the same command that ran it)
+   existing: none, `grep -rn junkadvisor tests/` printed no lines
+
+2. Where a spectrum carries two persistent tones, each standing over its own wide neighbourhood, the corner earned is the lower tone's rather than the louder tone's. Inputs, each a 1025-value list whose bin i is -70.0 - 0.005 * i: (a) bin 406 raised 30.0 dB, bin 697 raised 40.0 dB; (b) bin 697 raised 40.0 dB alone. Expected: (a) 30k; (b) 40k.
+   kills: reads the corner off the loudest tone alone, so a recording carrying a loud 60 kHz tone and a quieter 35 kHz one is recommended 40k, which leaves the 35 kHz tone in what is played
+   bite: HEAD returns 40k at (a), 40k at (b) (`.venv/bin/python /tmp/claude-1000/-home-atom-dev-hqptuner/923cba54-77db-439d-98bb-598b544ffad0/scratchpad/junkrules-measure.py`, a throwaway script calling `classify` once per case at bandwidth 88200.0, samplerate 176400, sdm False, deleted in the same command that ran it)
+   existing: none, `grep -rn junkadvisor tests/` printed no lines
+
+3. A band of rising ultrasonic noise earns the 50k corner on the steadiness of its rise rather than on the size of that rise. Inputs, each a 1025-value list at -100.0 below 57500 Hz, with -100.0 at bins 1000 through 1024: (a) from the first bin at or above 57500 Hz through bin 999, rising linearly from -100.0 to -99.0; (b) from that same first bin, rising linearly to -91.0 at the midpoint of the span, then falling linearly to -94.0 at bin 999. Expected: (a) 50k; (b) nothing.
+   kills: reads the size of the rise rather than its steadiness, so a hump that climbs 9 dB and falls back is recommended 50k while a steady 1 dB climb is recommended nothing
+   bite: HEAD returns None at (a), None at (b) (`.venv/bin/python /tmp/claude-1000/-home-atom-dev-hqptuner/923cba54-77db-439d-98bb-598b544ffad0/scratchpad/junkrules-measure.py`, a throwaway script calling `classify` once per case at bandwidth 88200.0, samplerate 176400, sdm False, deleted in the same command that ran it; the first bin at or above 57500 Hz resolved to bin 668 at 57536.71875 Hz, the span being 668 through 999)
+   existing: none, `grep -rn junkadvisor tests/` printed no lines
+
+4. Across successive windows carried on one spur holder, each tone engages, holds, releases on its own excess. Inputs, six 1025-value lists in this order, every call in the sequence sharing one holder, each list's bin i being -70.0 - 0.005 * i, bin 406 the 35.0 kHz tone, bin 697 the 60.0 kHz tone: (W0) bin 697 raised 12.0 dB; (W1) bin 697 raised 40.0 dB; (W2) bin 697 raised 12.0 dB; (W3) bin 697 raised 12.0 dB, bin 406 raised 30.0 dB; (W4) bin 697 raised 12.0 dB, bin 406 raised 5.0 dB; (W5) bin 697 raised 5.0 dB, bin 406 raised 5.0 dB. Expected in order: nothing; 40k; 40k; 30k; 40k; nothing.
+   kills: drops the recommendation the moment a tone's excess sags under the engage split, so the advice flickers off and back on through a loud passage while the tone is still there
+   bite: HEAD, which carries no holder, was called once per window: None at W0, 40k at W1, None at W2, 30k at W3, None at W4, None at W5 (`.venv/bin/python /tmp/claude-1000/-home-atom-dev-hqptuner/923cba54-77db-439d-98bb-598b544ffad0/scratchpad/junkrules-measure.py`, a throwaway script calling `classify` once per window at bandwidth 88200.0, samplerate 176400, sdm False, deleted in the same command that ran it)
+   existing: none, `grep -rn junkadvisor tests/` printed no lines
+
+public entry points
+
+The planned public surface of `hqptuner/engine/junkadvisor.py`, imported as `from hqptuner.engine import junkadvisor`. Signatures and docstrings only. `Any` is `typing.Any`.
+
+class SpurHolder:
+    """The bins a spur verdict is standing on, held across the windows of one track.
+
+    Frequencies rather than bin indices, so a samplerate change re-grids without carrying stale
+    indices into the new grid; the bins the new grid does not carry are dropped. The holder records
+    no level, no window count and no track identity: the caller discards it with the aggregate.
+    """
+
+    def __init__(self) -> None: ...
+
+def classify(min_levels_db: list[float] | None, bandwidth: float, *, samplerate: int | None, sdm: bool, holder: SpurHolder | None = None) -> dict[str, Any] | None:
+    """Return the signature this spectrum carries, or None when there is nothing to say.
+
+    Where more than one rule fires, the lowest corner is the verdict: it treats every signature the others name.
+    A caller passing no holder reads the window in front of it alone, which is the state of a track that has just
+    started; a caller passing one across successive calls carries the spur hold between them.
+    """
+
+def verdicts(min_levels_db: list[float] | None, bandwidth: float, *, samplerate: int | None, sdm: bool, holder: SpurHolder | None = None) -> list[dict[str, Any]]:
+    """Return one verdict per rule this spectrum fires, in cliff, spur, ramp order."""
+
+def eligible(samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
+    """Whether a spectrum carries enough bins and HF bandwidth for any rule here to read it."""
+
+def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
+    """Whether the engine's current settings already treat the verdict's signature."""
+
+def treated(junk_filter: str | None, recommended: str) -> bool:
+    """Whether the engaged junk filter already treats the detected signature."""
+
+def hz(i: int, bins: int, bandwidth: float) -> float:
+    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
+
+NO_FILTER = "none"
+
+What a verdict value is. A verdict is a dict. Its `"filter"` key carries the corner as one of the strings `"20k"`, `"30k"`, `"40k"`, `"50k"`, and that string is what every expected outcome above names. It also carries `"reason"`, a sentence of user-facing copy, and `"ceiling_khz"`, a float; a spur verdict carries `"families"` as well, a list of filter-name prefixes. "nothing" in an expected outcome is `classify` returning None, and the corresponding `verdicts` return is the empty list.
+
+--- reviewer ---
+READY
+discriminates: anchor+edges on the junk verdict, plus a differential the holder carries (line 1: one ceiling, three drops, 20k against nothing twice; line 2: the same loud tone alone against that tone beside a quieter lower one, 40k against 30k; line 3: a steady 1 dB rise against a 9 dB hump, 50k against nothing; line 4: the identical window, bin 697 up 12.0 dB on the -70.0 - 0.005i baseline, returning nothing at W0 and 40k at W2)
+
+re-review. No behavior line changed: the `kind:` line, the `brief:` section, the grid sentence and lines 1 through 4 are character-identical to the block round 2 passed, so every per-line verdict carries. Round 2's findings were four `ADMITTED` and a `READY`, with no note naming a file; there is nothing outstanding to answer and no reversal to justify. The added `public entry points` section and the `What a verdict value is` paragraph are neither a behavior line nor the brief, and they add no input, no outcome and no `kills:`; they are the first statement of what a caller can observe, so (c), (j) and (o) were re-read against them, and no line loses its verdict:
+  (c) the verdict dict carries "reason", a sentence of user-facing copy. The paragraph states that the expected outcome of every line is the `"filter"` string alone, so no line pins wording. "20k", "30k", "40k", "50k" are wire-shaped identifiers.
+  (j) `classify` and `SpurHolder` are exported from `hqptuner.engine.junkadvisor` and driven by argument. Every input above is a list of floats plus keyword scalars; no click, no keypress, no wall clock. Line 4's sequence is six calls on one exported holder the harness constructs itself.
+  (o) no outcome is truthiness, a type, a length or a key presence. "nothing" is `classify` returning None at an input whose sibling on the same surface returns a named corner: a comparison, not an existence check.
+  (b) re-run, since it costs one grep: `grep -rn junkadvisor tests/` printed no lines (exit 1). `existing: none` stands on all four.
+
+1  ADMITTED  carried: a 22 kHz ceiling with content 50 dB over the band above it, that band carrying a -20.0 plateau across bins 462 through 562 -> 20k; the same ceiling at a 25 dB shoulder -> nothing; a 20000 Hz ceiling -> nothing; "recommends 20k for any content edge inside the 20 to 26 kHz window whatever the drop below it" fails it at (b), returning 20k; bite: HEAD returns None at (a), measured
+2  ADMITTED  carried: bin 406 up 30.0 dB beside bin 697 up 40.0 dB on a -70.0 - 0.005i baseline -> 30k, and bin 697 alone -> 40k; "reads the corner off the loudest tone" fails it at (a), returning 40k; bite: HEAD returns 40k at (a), measured
+3  ADMITTED  carried: a 1.0 dB linear rise over bins 668 through 999 -> 50k, a 9 dB rise to the midpoint falling back to -94.0 -> nothing; "reads the size of the rise rather than its steadiness" fails it at both cases, inverting them; bite: HEAD returns None at (a), measured
+4  ADMITTED  carried: six windows on one holder, bin 697 at 12/40/12/12/12/5 dB with bin 406 at 30 then 5 -> nothing, 40k, 40k, 30k, 40k, nothing; "drops the recommendation the moment excess sags under the engage split" fails it at W2, returning nothing; bite: HEAD returns None at W2, measured
+
+null stub: `classify` and `verdicts` return None and the empty list at every input, `SpurHolder.__init__` records nothing, `eligible` returns False.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: a stateless table keyed on the exact 1025-value lists above, returning 20k for 1(a), 30k for 2(a), 40k for 2(b), 50k for 3(a) and None for every other listed input.
+  satisfies: 1, 2, 3   fails: 4
+  reading, per line: the table takes 1, 2 and 3 only by carrying the full input list, and it cannot take 4 at any size, because W0 and W2 are the same 1025 floats and the line demands nothing at the first and 40k at the second. A stateless lookup has no key that separates them; only the holder does. So the block does not reduce to a table, and the discrimination check is met rather than argued around: line 1's inputs are ordinary constructed spectra at a 22 kHz ceiling, not chips, presets, defaults or points where a fixture degenerates.
+
+survives: 4

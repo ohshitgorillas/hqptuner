@@ -1,0 +1,4 @@
+RED 1: "AssertionError: assert None == '20k'"
+RED 2: "AssertionError: assert '40k' == '30k'"
+RED 3: "AssertionError: assert None == '50k'"
+ERROR 4: "AttributeError: module 'hqptuner.engine.junkadvisor' has no attribute 'SpurHolder'"
