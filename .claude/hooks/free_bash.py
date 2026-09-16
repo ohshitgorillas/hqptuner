@@ -32,6 +32,7 @@ from free_bash_tables import (  # noqa: E402
     FREE_MAKE_TARGETS,
     FREE_PY_CMDS,
     GATE_SCRIPT,
+    GATE_WRAPPER,
     GIT_BRANCH_BAD,
     GIT_GLOBAL_FLAGS,
     GIT_READ_SUBCMDS,
@@ -56,7 +57,7 @@ def _no(note, reason):
 
 
 def _strip_prefix(toks):
-    """Drop leading env assignments and a runner prefix (uv run / poetry run / npx)."""
+    """Drop leading env assignments and a runner prefix (uv run / poetry run / npx / gate.sh)."""
     i = 0
     while i < len(toks) and re.match(r"^[A-Za-z_]\w*=", toks[i]):
         i += 1
@@ -64,6 +65,8 @@ def _strip_prefix(toks):
         if toks[i] in ("uv", "poetry") and i + 1 < len(toks) and toks[i + 1] == "run":
             i += 2
         elif toks[i] == "npx":
+            i += 1
+        elif GATE_WRAPPER.match(toks[i]):
             i += 1
     # `python -m <module>` — expose the module (pytest, mypy, …) to the allowlist;
     # a non-verifier module (pip, http.server) still fails it and meters.

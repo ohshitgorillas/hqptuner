@@ -6,6 +6,7 @@ The budget's own file
 has to stay under the repo's 500-line gate, and the fixtures are the part with
 no policy in them.
 """
+
 import os
 import sys
 import importlib.util
@@ -42,8 +43,7 @@ def _said(text):
 
 def _tripped(text):
     block = {"type": "tool_result", "is_error": True, "tool_use_id": "t", "content": text}
-    return {"toolDenialKind": "permission-rule",
-            "message": {"role": "user", "content": [block]}}
+    return {"toolDenialKind": "permission-rule", "message": {"role": "user", "content": [block]}}
 
 
 def _ran(count, command="sudo ls", start=0):
@@ -56,8 +56,7 @@ def _ran(count, command="sudo ls", start=0):
 
 
 def _verdict(rows, command="sudo pending"):
-    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-            "tool_name": "Bash", "tool_input": {"command": command}}
+    data = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Bash", "tool_input": {"command": command}}
     return evaluate(data, rows)
 
 
@@ -68,69 +67,97 @@ def _check(label, condition):
 
 def _budget_checks():
     limit = CHANGE_LIMIT
-    ok = [_check(f"action {limit} allowed with {limit - 1} complete",
-                 _verdict([_said("do it"), *_ran(limit - 1)]) is None)]
+    ok = [
+        _check(
+            f"action {limit} allowed with {limit - 1} complete", _verdict([_said("do it"), *_ran(limit - 1)]) is None
+        )
+    ]
     reason = _verdict([_said("do it"), *_ran(limit)])
     ok.append(_check(f"action {limit + 1} denied with {limit} complete", bool(reason)))
-    ok.append(_check("denied count is the pending call's ordinal",
-                     reason.startswith(f"{limit + 1} metered actions")))
-    ok.append(_check("the denial names the metered calls, pending one last",
-                     reason.rstrip().endswith("Bash(sudo pending)")))
-    ok.append(_check("the denial names one call per metered action",
-                     reason.rsplit("Metered: ", 1)[1].count(";") == limit))
+    ok.append(_check("denied count is the pending call's ordinal", reason.startswith(f"{limit + 1} metered actions")))
+    ok.append(
+        _check("the denial names the metered calls, pending one last", reason.rstrip().endswith("Bash(sudo pending)"))
+    )
+    ok.append(
+        _check("the denial names one call per metered action", reason.rsplit("Metered: ", 1)[1].count(";") == limit)
+    )
     flushed = _verdict([_said("do it"), *_ran(limit), _call("z", "tz", "Bash", {"command": "sudo pending"})])
-    ok.append(_check("same verdict when the pending row is already flushed",
-                     flushed == reason))
-    ok.append(_check("a free call is never denied",
-                     _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
+    ok.append(_check("same verdict when the pending row is already flushed", flushed == reason))
+    ok.append(_check("a free call is never denied", _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
 
-    spawn = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Agent",
-             "tool_input": {"subagent_type": "gauntlet-scrivener", "prompt": "spec"}}
-    ok.append(_check("a /tests agent spawn is free past the limit",
-                     evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
+    spawn = {
+        "cwd": os.path.dirname(os.path.abspath(__file__)),
+        "tool_name": "Agent",
+        "tool_input": {"subagent_type": "gauntlet-scrivener", "prompt": "spec"},
+    }
+    ok.append(
+        _check("a /tests agent spawn is free past the limit", evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None)
+    )
     review = dict(spawn, tool_input={"subagent_type": "gauntlet-prosecutor", "prompt": "plan"})
-    ok.append(_check("a gauntlet-prosecutor spawn is free past the limit",
-                     evaluate(review, [_said("hi"), *_ran(limit + 5)]) is None))
+    ok.append(
+        _check(
+            "a gauntlet-prosecutor spawn is free past the limit",
+            evaluate(review, [_said("hi"), *_ran(limit + 5)]) is None,
+        )
+    )
 
     rounds = [_said("do it")]
     for i in range(limit):
-        rounds += [_call(f"s{i}", f"ts{i}", "SendMessage", {"to": "r", "message": "again"}),
-                   _done(f"ts{i}")]
-    ok.append(_check("messages to a running agent do not count toward the limit",
-                     _verdict(rounds) is None))
+        rounds += [_call(f"s{i}", f"ts{i}", "SendMessage", {"to": "r", "message": "again"}), _done(f"ts{i}")]
+    ok.append(_check("messages to a running agent do not count toward the limit", _verdict(rounds) is None))
 
-    note = ("<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n"
-            "<result>READY</result>\n</task-notification>")
+    note = (
+        "<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n"
+        "<result>READY</result>\n</task-notification>"
+    )
     noted = [_said("do it"), *_ran(3), _said(note), *_ran(limit - 2, start=3)]
     ok.append(_check("a task notification mid-burst does not reset the count", bool(_verdict(noted))))
 
-    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"),
-           *_ran(limit - 2, start=3)]
+    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"), *_ran(limit - 2, start=3)]
     ok.append(_check("a command row mid-burst does not reset the count", bool(_verdict(mid))))
-    ok.append(_check("prose mid-burst does reset the count",
-                     _verdict([_said("do it"), *_ran(limit + 1), _said("now do this other thing")]) is None))
+    ok.append(
+        _check(
+            "prose mid-burst does reset the count",
+            _verdict([_said("do it"), *_ran(limit + 1), _said("now do this other thing")]) is None,
+        )
+    )
 
-    after = [_said("do it"), *_ran(limit + 1),
-             _tripped(f"{limit + 1} metered actions since the user last spoke (change budget {limit})."),
-             _said("<command-name>/clear</command-name>")]
+    after = [
+        _said("do it"),
+        *_ran(limit + 1),
+        _tripped(f"{limit + 1} metered actions since the user last spoke (change budget {limit})."),
+        _said("<command-name>/clear</command-name>"),
+    ]
     ok.append(_check("a command row right after a trip does reset", _verdict(after) is None))
 
-    ask = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-           "tool_name": "AskUserQuestion", "tool_input": {"questions": []}}
-    ok.append(_check("surfacing to the user is free past the limit",
-                     evaluate(ask, [_said("hi"), *_ran(limit + 5)]) is None))
+    ask = {
+        "cwd": os.path.dirname(os.path.abspath(__file__)),
+        "tool_name": "AskUserQuestion",
+        "tool_input": {"questions": []},
+    }
+    ok.append(
+        _check("surfacing to the user is free past the limit", evaluate(ask, [_said("hi"), *_ran(limit + 5)]) is None)
+    )
 
     edits = [_said("edit them")]
     for i in range(500):
         edits += [_call(f"e{i}", f"u{i}", "Edit", {"file_path": __file__}), _done(f"u{i}")]
-    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-            "tool_name": "Edit", "tool_input": {"file_path": __file__}}
-    ok.append(_check("in-tree edits are never denied, however many",
-                     evaluate(data, edits) is None))
-    outside = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-               "tool_name": "Write", "tool_input": {"file_path": "/etc/x"}}
-    ok.append(_check("a write outside the tree still meters past the limit",
-                     bool(evaluate(outside, [_said("hi"), *_ran(limit)]))))
+    data = {
+        "cwd": os.path.dirname(os.path.abspath(__file__)),
+        "tool_name": "Edit",
+        "tool_input": {"file_path": __file__},
+    }
+    ok.append(_check("in-tree edits are never denied, however many", evaluate(data, edits) is None))
+    outside = {
+        "cwd": os.path.dirname(os.path.abspath(__file__)),
+        "tool_name": "Write",
+        "tool_input": {"file_path": "/etc/x"},
+    }
+    ok.append(
+        _check(
+            "a write outside the tree still meters past the limit", bool(evaluate(outside, [_said("hi"), *_ran(limit)]))
+        )
+    )
     return ok
 
 
@@ -143,8 +170,25 @@ ALLOWLIST_CASES = [
     # python: a gate under scripts/gates/ by its relative path is a verifier;
     # any other script, or the same suffix somewhere else, is arbitrary code
     (".venv/bin/python scripts/gates/check_test_assertions.py tests/*.py", True),
-    ("cd /srv/x/.claude/worktrees/y-spec && .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/a.py", True),
+    (
+        "cd /srv/x/.claude/worktrees/y-spec && .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/a.py",
+        True,
+    ),
     ("python scripts/other.py", False, "python"),
+    # gate.sh wraps a command and adds a log file, so it inherits that command's
+    # verdict rather than carrying one of its own
+    ("scripts/gate.sh make check", True),
+    ("scripts/gate.sh .venv/bin/pytest -m 'not live' -q", True),
+    ("PYTHONPATH=$(pwd) scripts/gate.sh make check", True),
+    ("./scripts/gate.sh make test-js", True),
+    # the wrapper grants nothing: `npm` is not on the free list, wrapped or bare
+    ("./scripts/gate.sh npm test", False, "npm"),
+    (".claude/worktrees/y-spec/scripts/gate.sh make check", True),
+    ("scripts/gate.sh sudo docker compose up -d", False, "sudo"),
+    ("scripts/gate.sh rm -rf build", False, "rm"),
+    ("scripts/gate.sh", False, "gate.sh"),
+    # a `gate.sh` that is not this repo's wrapper is an unknown program
+    ("gate.sh make check", False, "gate.sh"),
     ("python /tmp/x/scripts/gates/check_x.py", False, "python"),
     ("sed -E 's/x/y/' f", False, "-n"),
     ("black --diff x", False, "--check"),
@@ -192,7 +236,7 @@ ALLOWLIST_CASES = [
     ("git diff --output=/srv/hqptuner/x", False, "--output"),
     # node: the JS suite, narrowed to one file
     ("node --import ./tests/js/support/vendor-resolve.js --test tests/js/eqlab/a.test.js", True),
-    ("node -e 'require(\"fs\").rmSync(\"x\")'", False, "-e"),
+    ('node -e \'require("fs").rmSync("x")\'', False, "-e"),
     ("node scripts/build.js", False, "--test"),
     # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
     ("scripts/pair.sh list", True),
@@ -200,23 +244,22 @@ ALLOWLIST_CASES = [
     ("scripts/pair.sh respec eqfix", False, "respec"),
     ("scripts/pair.sh merge eqfix", False, "merge"),
     ("scripts/pair.sh abort eqfix", False, "abort"),
-    ("bash scripts/pair.sh list", False, "bash"),   # `bash` is not a recognized head
+    ("bash scripts/pair.sh list", False, "bash"),  # `bash` is not a recognized head
     # unchanged: a shell loop is not parsed, so it still meters
     ("for f in a b; do diff -q $f x/$f; done", False, "for"),
 ]
 
 
 def _allowlist_checks():
-    ok = [_check(f"{'free' if case[1] else 'meters'}: {case[0]}",
-                 is_free_bash(case[0]) is case[1])
-          for case in ALLOWLIST_CASES]
+    ok = [
+        _check(f"{'free' if case[1] else 'meters'}: {case[0]}", is_free_bash(case[0]) is case[1])
+        for case in ALLOWLIST_CASES
+    ]
     # every metering case carries a token, so the sweep below cannot be
     # satisfied by a reason that explains only the cases someone thought of
     metering = [c for c in ALLOWLIST_CASES if not c[1]]
-    ok.append(_check("every metering case declares a deciding token",
-                     all(len(c) == 3 for c in metering)))
-    ok += [_check(f"reason names {c[2]}: {c[0]}", c[2] in reason_metered(c[0]))
-           for c in metering if len(c) == 3]
+    ok.append(_check("every metering case declares a deciding token", all(len(c) == 3 for c in metering)))
+    ok += [_check(f"reason names {c[2]}: {c[0]}", c[2] in reason_metered(c[0])) for c in metering if len(c) == 3]
     return ok
 
 
