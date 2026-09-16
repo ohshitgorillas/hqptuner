@@ -939,44 +939,6 @@
     "samplerate": 192000,
     "source": "junkcal-20260913T021159Z.jsonl"
   },
-  "20260913T032646Z": {
-    "class": "clean",
-    "full_band": true,
-    "junk_filter": "none",
-    "kept": [
-      {
-        "roles": ["first"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -145.89,
-          "free_edge_hz": 40687.5,
-          "spur": 18.07,
-          "spur_hz": 40265.6
-        },
-        "timestamp": "2026-09-13T03:26:46.145110+00:00"
-      },
-      {
-        "roles": ["near-miss"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -145.07,
-          "free_edge_hz": 40828.1,
-          "near_miss_ratio": 1.944,
-          "spur": 42.77,
-          "spur_hz": 33375.0
-        },
-        "timestamp": "2026-09-13T03:37:31.504461+00:00"
-      }
-    ],
-    "label_only": false,
-    "rows": 88,
-    "samplerate": 96000,
-    "source": "junkcal-20260913T032631Z.jsonl"
-  },
   "20260913T034831Z": {
     "class": "cliff",
     "full_band": false,
@@ -1011,44 +973,6 @@
     ],
     "label_only": true,
     "rows": 10,
-    "samplerate": 96000,
-    "source": "junkcal-20260913T032631Z.jsonl"
-  },
-  "20260913T035101Z": {
-    "class": "clean",
-    "full_band": true,
-    "junk_filter": "none",
-    "kept": [
-      {
-        "roles": ["first"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -201.85,
-          "free_edge_hz": 28734.4,
-          "spur": 10.17,
-          "spur_hz": 37968.8
-        },
-        "timestamp": "2026-09-13T03:51:01.991461+00:00"
-      },
-      {
-        "roles": ["near-miss"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -140.36,
-          "free_edge_hz": 40546.9,
-          "near_miss_ratio": 1.374,
-          "spur": 30.23,
-          "spur_hz": 33046.9
-        },
-        "timestamp": "2026-09-13T04:08:47.668784+00:00"
-      }
-    ],
-    "label_only": false,
-    "rows": 239,
     "samplerate": 96000,
     "source": "junkcal-20260913T032631Z.jsonl"
   },
@@ -2448,44 +2372,6 @@
     "samplerate": 96000,
     "source": "junkcal-20260914T101142Z.jsonl"
   },
-  "20260914T174715Z": {
-    "class": "clean",
-    "full_band": true,
-    "junk_filter": "none",
-    "kept": [
-      {
-        "roles": ["first"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -137.24,
-          "free_edge_hz": 33421.9,
-          "spur": 9.54,
-          "spur_hz": 40171.9
-        },
-        "timestamp": "2026-09-14T17:47:15.270793+00:00"
-      },
-      {
-        "roles": ["near-miss"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -139.79,
-          "free_edge_hz": 39375.0,
-          "near_miss_ratio": 2.011,
-          "spur": 44.25,
-          "spur_hz": 33375.0
-        },
-        "timestamp": "2026-09-14T17:49:15.333931+00:00"
-      }
-    ],
-    "label_only": false,
-    "rows": 54,
-    "samplerate": 96000,
-    "source": "junkcal-20260914T174645Z.jsonl"
-  },
   "20260914T180015Z": {
     "class": "cliff",
     "full_band": false,
@@ -2520,44 +2406,6 @@
     ],
     "label_only": false,
     "rows": 5,
-    "samplerate": 96000,
-    "source": "junkcal-20260914T174645Z.jsonl"
-  },
-  "20260914T180130Z": {
-    "class": "clean",
-    "full_band": true,
-    "junk_filter": "none",
-    "kept": [
-      {
-        "roles": ["first"],
-        "stats": {
-          "ceiling_hz": 22359.4,
-          "depth": 27.39,
-          "edge_rel": 16.05,
-          "floor": -189.61,
-          "free_edge_hz": 22359.4,
-          "spur": 4.44,
-          "spur_hz": 29015.6
-        },
-        "timestamp": "2026-09-14T18:01:30.719983+00:00"
-      },
-      {
-        "roles": ["near-miss"],
-        "stats": {
-          "ceiling_hz": 0.0,
-          "depth": 0.0,
-          "edge_rel": 0.0,
-          "floor": -135.31,
-          "free_edge_hz": 37406.2,
-          "near_miss_ratio": 1.552,
-          "spur": 34.14,
-          "spur_hz": 32953.1
-        },
-        "timestamp": "2026-09-14T18:20:16.363828+00:00"
-      }
-    ],
-    "label_only": false,
-    "rows": 245,
     "samplerate": 96000,
     "source": "junkcal-20260914T174645Z.jsonl"
   },
