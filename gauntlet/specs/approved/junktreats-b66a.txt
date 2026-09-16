@@ -1,0 +1,41 @@
+slug: junktreats-b66a
+
+kind: characterization
+
+brief:
+> covering junkadvisor.py's treats and treated by behavior line
+
+1. Asking whether an engaged junk filter already treats a `30k` verdict answers true for engaged junk filters `20k`, `30k`, `2x`; false for `40k`, `50k`, `none`, nothing engaged.
+   kills: an implementation reading the engaged corner as an exact match against the recommended one, so a listener who engaged `20k` against a `30k` verdict keeps being told to engage a filter they already engaged.
+   bite: HEAD, measured by the examiner with a throwaway script run against the checkout, deleted in the same command (`python3 measure_junktreats.py`, importing `hqptuner.engine.junkadvisor` with `sys.path` at `/home/atom/dev/hqptuner` and calling each function directly). `treated(junk_filter, "30k")`: `20k` -> True, `30k` -> True, `40k` -> False, `50k` -> False, `2x` -> True, `none` -> False, `None` -> False.
+   existing: none, `grep -rn "junkadvisor.treats\|junkadvisor.treated\|import treats\|import treated\|\btreated(" tests/` printed no lines, rc=1
+
+2. With nothing engaged, asking whether the engine's settings already treat a `40k` verdict offering the families `poly-sinc-gauss-hires`, `poly-sinc-ext2-hires` answers true for main filter names `poly-sinc-gauss-hires`, `poly-sinc-ext2-hires-lp`; false for `xtr-poly-sinc-gauss-hires`, `sinc-M`, for no main filter.
+   kills: an implementation matching a family anywhere in the main filter name rather than at its start, so `xtr-poly-sinc-gauss-hires` silences a spur note that filter never treats.
+   bite: HEAD. Examiner, throwaway script deleted in the same command (`python3 measure_junktreats.py`, importing `hqptuner.engine.junkadvisor` with `sys.path` at `/home/atom/dev/hqptuner`): `treats({"filter": "40k", "families": ["poly-sinc-gauss-hires", "poly-sinc-ext2-hires"]}, None, filter_name)` -> `poly-sinc-gauss-hires` True, `poly-sinc-ext2-hires-lp` True, `sinc-M` False, `None` False. Examiner, second run, `.venv/bin/python -c "from hqptuner.engine.junkadvisor import treats; verdict={'filter':'40k','families':['poly-sinc-gauss-hires','poly-sinc-ext2-hires']}; print([treats(verdict, None, fn) for fn in ['xtr-poly-sinc-gauss-hires','lp-poly-sinc-ext2-hires','poly-sinc-gauss-hires-lp'])"` -> `[False, False, True]`.
+   existing: none, `grep -rn "junkadvisor.treats\|junkadvisor.treated\|import treats\|import treated\|\btreated(" tests/` printed no lines, rc=1
+
+--- reviewer ---
+READY
+discriminates: sweep on `junkadvisor` corner coverage (true at `20k`/`30k`, false at `40k`/`50k`) and on family matching (true at `poly-sinc-ext2-hires-lp`, false at `xtr-poly-sinc-gauss-hires`)
+
+round 1 findings, return read one by one:
+- (i) split into two lines, one call form each: repaired, both lines new text.
+- (g) the substring `kills:` rejected by no named input: repaired, line 2 names `xtr-poly-sinc-gauss-hires` with its measured `False` at HEAD and the command that produced it.
+- note, rule 3: cited. `treats` is called from `hqptuner/engine/metering.py:251` and `hqptuner/lanes/autopilot.py:31`. `treated` is cited as called at `hqptuner/engine/junkadvisor.py:228` only. Withdrawn as a bar to line 1, restated as the one note below: I cannot read either file, and the brief names `treated` outright.
+- note, `2x`: cited as the engine's own enumeration name, `hqptuner/data/engine-enums.json:819-822`. Withdrawn; it is a wire identifier, which rule 9 makes assertable.
+- note, `existing:`: cited. My own broader grep agrees - `tests/engine/test_junkadvisor.py` pins `classify` across four parametrized tests and touches neither function. Withdrawn.
+
+1  ADMITTED  engaged junk filter against a `30k` verdict -> true for `20k`, `30k`, `2x`, false for `40k`, `50k`, `none`, nothing engaged; the exact-corner-match implementation fails it at engaged `20k`, where it answers false and the line says true; bite: measured at HEAD, `treated(junk_filter, "30k")` -> True, True, False, False, True, False, False across those seven inputs
+2  ADMITTED  nothing engaged, main filter name against a `40k` verdict offering `poly-sinc-gauss-hires`, `poly-sinc-ext2-hires` -> true for `poly-sinc-gauss-hires`, `poly-sinc-ext2-hires-lp`, false for `xtr-poly-sinc-gauss-hires`, `sinc-M`, no main filter; the match-anywhere implementation fails it at `xtr-poly-sinc-gauss-hires`, where it answers true and the line says false; bite: measured at HEAD, `[False, False, True]` for `xtr-poly-sinc-gauss-hires`, `lp-poly-sinc-ext2-hires`, `poly-sinc-gauss-hires-lp`
+
+null stub: `treated` and `treats` present, both returning `False` for every input.
+  satisfies: none   fails: 1, 2
+hard-coded stub: return the named booleans for the named inputs and do no matching.
+  satisfies: none   fails: 1, 2
+  Each line now names the input on which its two rival implementations split - `20k` on line 1, `xtr-poly-sinc-gauss-hires` on line 2 - so a table over the named inputs is not a rival that survives the line, it is the invariant transcribed. This reverses round 1's reading for the family half, which recorded the stub satisfying it: what changed is that input. Round 1 named no such input on the family half, and every name it did carry answered the same under prefix matching and under substring matching.
+
+survives: 2
+
+note (fact I am barred from reading; for the owner, not a bar to this block):
+- Line 1 pins `treated`, and the return cites `hqptuner/engine/junkadvisor.py:228` as its only call site - inside its own module. A function no caller outside the module reaches is a helper by role however public its name, and rule 3 wants the surface a caller would exercise, which here is `treats`. I do not strike on it: I cannot read the module to see whether `treated` is part of its exported surface, round 1's bite recorded `treats({"filter": "30k"}, junk_filter, None)` giving those same seven answers, and the brief asks in the owner's words for `treats` and `treated` covered by behavior line. If the owner reads `treated` as internal, line 1 restates on `treats` with the seven values round 1 already measured, and the test count does not move. Round 1 left the choice of call form open; the citation is what puts the question, and it is the owner's to settle.
