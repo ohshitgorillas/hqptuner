@@ -5,9 +5,9 @@ The captures hold the detector's input, one row per tick: the engine context, th
 the windowed minimum spectrum from the lossy window's floor upward. The recorded ``verdict`` is the current rules'
 output, not ground truth; this tool reports it as one column among many and otherwise ignores it.
 
-One limit is structural and worth knowing before reading anything here: the row stores the windowed *minimum*
-spectrum only. ``junkadvisor``'s brick-wall and ramp rules read the *mean* spectrum, which is not captured, so a
-recorded 20k or 50k verdict cannot be recomputed from the row that carries it. Only the spur rule's input is here.
+One thing is worth knowing before reading anything here: the row stores the windowed *minimum* spectrum, which is
+every rule's input. ``junkadvisor``'s cliff, spur and ramp rules all read a curve derived from it, so any recorded
+verdict can be recomputed from the row that carries it.
 
 Three subcommands:
 
