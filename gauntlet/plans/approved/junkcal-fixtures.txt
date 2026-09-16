@@ -1,0 +1,619 @@
+slug: junkcal-fixtures
+grounding: detective
+
+brief: Build the junkcal test fixture: from the captures in /srv/hqptuner/state/junkcal (ignore the .orig), label every album by an oracle over its rows that takes no threshold from hqptuner/engine/junkadvisor.py, reading each class boundary off where the corpus distribution of that shape statistic splits, and write one gzipped JSONL per album at 0.1 dB plus a labels.json (per album: source file, rate, full_band, class, implied filter; per kept row: timestamp, role, the statistics that earned it) into tests/support/fixtures/junkcal/, keeping per album only the rows a test can bite on: strongest and weakest positive row, for a spur album also a row where the minimum at that bin has dropped well below the spur, for a clean album the row nearest a false positive, and every album's first non-null row. No album mixes band-limited and full-band content, so a file whose cliff or ramp rows sit in contiguous runs is several albums captured in one period and is cut at the run boundaries, named by each piece's first timestamp, and never cut on spur gaps; pair-format rows (13 kHz up) show a cliff but cannot support the cliff math, so such an album is labeled cliff, marked label_only, keeps its first row and one cliff row, and stays out of the cliff split. Start from the previous session's scratchpad (junkcal_score.py, scores.jsonl, stats.json) and gauntlet/plans/drafts/junkcal-fixtures.txt, which predates the pair-format ruling, and take your stage 1 plan through gauntlet-detective for grounding and gauntlet-prosecutor for review before any pass over the corpus. This session runs with the gauntlet chain off by my ruling, so you write under tests/ directly and scripts/pair.sh is not used; report the per-album table, class tally, splits with counts, file cuts with the values chosen, and fixture bytes on disk.
+
+brief (correction 1, carried from the earlier draft for this slug, gauntlet/plans/drafts/junkcal-fixtures.txt:6): Your oracle reused the thresholds from hqptuner/engine/junkadvisor.py (30 dB drop, rise 10 dB, top 20 dB above the floor). Those are the broken rules this corpus exists to replace, so their blind spots are now your labels. Score shape instead: per row record the ceiling frequency and the depth below it, the best spur excess and its bin, and for 192 kHz rows the level slope from 25 kHz to Nyquist and the top-band level above the row's own floor. Then pick each class threshold where the corpus distribution of that statistic splits, and report the split with the numbers. Prior profiling of the row-median curves found cliffs in 213103, 215118, 235053, 013517, 014121, 232043 and 210302, and ramps in 021159, 235103, 042430 and 042830. If your statistics disagree with that list, show the per-row numbers for those albums; do not report zero.
+
+brief (correction 2, same file, :8): One file can hold more than one album when captures fall inside the same period gap, and no album in this corpus mixes band-limited and full-band content. So 051723 and 174645 are each two or three albums: split every file at the boundaries of a contiguous cliff run or ramp run, name each piece by the timestamp of its first row like the existing hand-split files, and treat each piece as its own album. Do not split on spur gaps, since louder material masks a spur without the album changing. An album carrying two signatures in the same rows, like 041315 with its cliff and its 44109.4 Hz spur, is one album and keeps a row for each role. labels.json holds per album its source file, rate, full_band and class, and per kept row its timestamp, role and the statistics that earned it. The 45 kHz boundary follows the shipped rule.
+
+brief (owner's ruling on the first presentation of this plan): oracle window is 22-24 kHz, from previous advisor's brief, not from me. Shipped window is 20-26 kHz. 232043 shows only 2 of 67 rows with a ceiling in window; plan guesses its ceiling sits below 22 kHz and records free_edge_hz to check. If ceiling is 20-22 kHz, it is a cliff a 20k filter treats, and this window hides it by construction.
+
+brief (owner's ruling on the first emit, which he rejected): Fixtures are rejected: gap absorption may bridge only rows positive for neither signature, so the 235118 head run stands and cuts; write every post-READY change (window, contrast, GAP plateau rule, sub-20 kHz agreement rule, absorption fix) as a plan amendment, take it through gauntlet-prosecutor, and re-emit only on my word after READY. Also: sub-20 kHz albums are lossy sub-case material, the class is excised, they must not land as cliff/20k -- class clean, filter none, free_edge_hz in their row stats; 042745 looks like near-silence and its rows are shown before labeling. DROP_DB about 19 from six values is accepted, and the report names the four pieces without a spur-absent row and their best drop.
+
+delivered (owner's ruling on the first emit): Absorption bridges only rows positive for neither signature; 20260912T235103Z's head run stands and cuts, and the file goes from 2 pieces to 11. Every post-READY change is an amendment in this body, measured with its command. The lossy sub-case rule, the 042745 rows and the four spur pieces without a `spur-absent` row are all above. Nothing is re-emitted until the owner's word after `READY`; the rejected emit is still on disk under `tests/support/fixtures/junkcal/` and is replaced, not added to, by the run he approves.
+delivered (owner's ruling): The cliff window is the shipped 20-26 kHz `BRICK_WINDOW_HZ` (`junkadvisor.py:62`), not the 22-24 kHz of the previous advisor's brief. It is a reading window and no class boundary reads it, which is the same standing as the 15-18 kHz reference band and the 1.5 kHz guard already borrowed; it is declared with them. A ceiling at 20-22 kHz is now visible, so 20260912T232043Z is measured rather than guessed at, and `free_edge_hz` stays in the pass as the check on whether any album's content stops below 20 kHz.
+delivered (correction 1): Score shape, not the shipped thresholds -- per row `ceiling_hz`, `depth`, `edge_rel`, `free_edge_hz`, `spur`, `spur_hz`, and on 192 kHz rows `slope` and `top_rel`; the contrast value that gates them is itself read off the corpus now.
+delivered (correction 1): Show the per-row numbers wherever my statistics disagree with the prior lists, never a zero -- "Disagreement with the owner's prior lists", two albums, every row quoted.
+delivered (correction 2): One file can hold more than one album; cut at cliff-run and ramp-run boundaries, name each piece by its first timestamp, never cut on spur gaps.
+delivered (correction 2), with the count superseded: "So 051723 and 174645 are each two or three albums". Under this plan's marking at `MIN_RUN = 5` and any `GAP` in [22, 49] both files come out FOUR pieces -- 20260914T051723Z `.87 C5 .246 C7` and 20260914T174645Z `.52 C5 .245 C8`, each cutting to clean | cliff | clean | cliff, because both unmarked remainders stand far above `MIN_RUN` and both gaps far above `GAP`. I stand behind four: the count was the owner's estimate from row-median profiling and the cut he asked for is what produces the number, so the cut supersedes the estimate. The latest brief restates the rule and drops the count, which is the same reading. If the true objection is that a 5-row and a 7-row run are short because the cliff element under-reads flat 96 kHz material, that is a statement about the element and the sweep's report is where it lands, with these two files as the sharpest reading available.
+delivered (correction 2): An album carrying two signatures in the same rows is one album keeping a row for each role. Both cases the sentence covers are delivered. Cliff with spur: the cliff element reads the band above the ceiling as a median, so a narrow spur above a cliff does not erase it, and a cliff or ramp piece carrying a persistent spur keeps its class and its spur row. Cliff with ramp, the 18 rows of 20260912T235103Z: precedence and the overlap rule decide the piece's class only, and the piece keeps one row of the losing signature as a role row, chosen by `edge_rel` for a cliff and by `slope` for a ramp.
+delivered (correction 2): The 45 kHz boundary follows the shipped rule -- `corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"` (`junkadvisor.py:256`), so exactly 45 000.0 Hz is `30k`.
+delivered: Read the captures in /srv/hqptuner/state/junkcal, ignore the .orig -- 43 files, `junkcal-*.jsonl` glob, measured `files=43 rows=4052 nulls=68 scored=3984`.
+delivered: Label every album by an oracle over its rows -- three shape statistics per row, class per album piece.
+delivered: No threshold from junkadvisor.py -- no shipped constant survives as a boundary of any kind. The contrast value, the last shipped number the earlier draft carried, is read off the corpus as a fourth split. What is borrowed is reading arithmetic with no threshold in it (9-bin median curve, 10th-percentile floor, 51-bin baseline, 15-18 kHz reference band, guard gap, hz()).
+delivered: Each class boundary read off where the corpus distribution of that statistic splits -- four splits plus the spur-absent drop, each with its histogram and the trough or gap it was read at.
+delivered: One gzipped JSONL per album, levels at 0.1 dB, every other field kept.
+delivered: labels.json per album: source file, rate, full_band, class, implied filter; per kept row: timestamp, role, statistics.
+delivered: Keep only the rows a test can bite on -- roles first / strongest / weakest / spur-absent / near-miss, deduplicated.
+delivered: No album mixes band-limited and full-band content -- the premise the cut has to satisfy; per piece the cliff-positive fraction is reported, and a mixed piece is a defect in GAP/MIN_RUN, not a mixed album.
+delivered: Cut a file at the boundaries of contiguous cliff or ramp runs, name each piece by its first row's timestamp, never cut on spur gaps.
+delivered: Pair-format albums are labeled cliff, marked label_only, keep first row and one cliff row, and stay out of the cliff split -- their depth values never enter the histogram the cliff boundary is read off, which is read off flat rows alone.
+delivered: Start from the previous session's scratchpad and the earlier draft -- scores.jsonl and stats.json are reused for every statistic that the pair-format ruling does not change; the earlier draft's splits are re-read under the ruling.
+delivered: gauntlet-detective for grounding, gauntlet-prosecutor for review, before any pass over the corpus -- the only pass run so far is the previous session's, whose output is the input here.
+delivered: Gauntlet chain off, tests/ written directly, no scripts/pair.sh.
+delivered: Report the per-album table, class tally, splits with counts, file cuts with the values chosen, fixture bytes on disk.
+
+## What is wrong
+
+Nothing in the tree is wrong. This is new material: there is no junkcal fixture corpus. The earlier draft
+(`gauntlet/plans/drafts/junkcal-fixtures.txt`) was written before the pair-format ruling and labels cliffs from `depth`
+on every row, flat and pair alike. That is what the ruling overturns, and the two places it reaches are:
+
+1. The cliff boundary. The earlier draft read `depth >= 18 dB` off the whole-corpus histogram. That histogram is 30
+   pair files against 13 flat ones, and the pair cliff mass (depth 55-105 dB) and the pair rolloff mass are both in it.
+   Under the ruling the pair rows leave the split, and the boundary is read off flat rows alone.
+2. The cliff marker for a pair row. A pair row starts at 13 kHz (`SPECTRUM_FLOOR_HZ`), so a band-limited pair row
+   stores content and then stored silence, and its 10th-percentile floor IS that silence. `depth` on such a row
+   measures the capture's dynamic range, not the filter's transition: the five deepest pair albums read 61.3, 63.6,
+   64.2, 83.5 and 84.7 dB median depth, against 40.39 (n=7), 41.47 (n=12) and 41.55 (n=13) for the three flat albums
+   that carry cliff rows. That is the arithmetic the ruling calls unsupportable.
+   (`jq -s -r 'map(select(.fmt=="flat" and .depth>=30))|group_by(.stamp)[]|"\(.[0].stamp) n=\(length)
+   med=\(map(.depth)|sort|.[length/2|floor])"' scores.jsonl` -> 20260914T041315Z n=7 med=40.39, 20260914T051723Z n=12
+   med=41.47, 20260914T174645Z n=13 med=41.55.)
+
+The earlier draft also carried a `spur-masked` role, which this brief's row list does not name. It is gone, and no
+brief sentence asks for it.
+
+## What changes
+
+New files only. No existing file is edited, no existing behavior changes. No test is written and no rule is changed.
+
+### Pass 1, shape only
+
+Re-run of the previous session's `shape` pass, with one statistic added and one phase in front of it. Phase A streams
+every row and accumulates the level-above-floor histogram the contrast split is read off; it needs no contrast value.
+The trough is read, and phase B streams the corpus again in the same process and scores every row with it. Per non-null
+row, top 25 bins dropped:
+
+- `floor` -- 10th percentile of the 9-bin median-smoothed curve, the row's own.
+- `ref_rel` -- mean(15-18 kHz) minus floor.
+- `ceiling_hz` -- highest bin strictly inside the shipped 20-26 kHz window standing CONTRAST_DB clear of the floor,
+  else 0. The window is 20-26 kHz on the owner's ruling, not the 22-24 kHz the earlier draft carried (see "The window,
+  corrected" below).
+- `edge_rel` (NEW) -- the smoothed level at that ceiling bin minus the floor. How plainly the edge stands, with no
+  reference band in it. This is the statistic a pair album's one kept cliff row is chosen by, because it is not the
+  cliff math the ruling rejects.
+- `depth`, `above_rel` -- mean(15-18 kHz) minus the MEDIAN of the band above the ceiling plus a 1.5 kHz guard, and
+  that median above the floor. Recorded for every row; used as a class boundary for flat rows only.
+- `spur`, `spur_hz` -- best per-bin excess of the raw curve over its 51-bin median baseline above 25 kHz, restricted
+  to bins standing CONTRAST_DB clear of the floor, and the bin that carried it.
+- `free_edge_hz` -- the highest bin anywhere in the row standing clear of the floor, with no window on it. Not a class
+  boundary and no class reads it. It is the check on the window itself: an album whose rows carry no ceiling inside
+  20-26 kHz but whose free edge sits below 20 kHz is band-limited lower than the window reaches, and the report names
+  it with its number rather than calling it full-band by default.
+- `slope`, `top_rel` -- 192 kHz rows only: least-squares dB/kHz from 25 kHz to the top of the surviving band, and
+  mean(top 15%) minus floor.
+- pass B, per file: the dominant spur bin (the bin the most of its spur-bearing rows agree on within 2 bins) and every
+  row's level, baseline and excess read at that one bin.
+
+### The window, corrected
+
+The owner's ruling on the first presentation: the 22-24 kHz cliff window came from the previous advisor's brief, not
+from him; the shipped window is 20-26 kHz (`BRICK_WINDOW_HZ`, `junkadvisor.py:62`); and 20260912T232043Z reads 2 rows
+of 67 with a ceiling inside 22-24 kHz while the plan could only GUESS its content edge sits below 22 kHz. A ceiling at
+20-22 kHz is a cliff a `20k` filter treats, and a window that hides it does so by construction.
+
+So the window is the shipped 20-26 kHz. It is a reading window, the same standing as the 15-18 kHz reference band, the
+1.5 kHz guard and `hz()`: it decides which bins can carry a ceiling, and no class boundary reads it. Every class
+boundary is still a corpus trough. The blind spot that remains is narrower and is watched rather than assumed away:
+content that stops BELOW 20 kHz carries no ceiling in the window at all, so `free_edge_hz` is recorded per row and any
+album whose rows have no ceiling but a free edge below 20 kHz is named in the report with that number.
+
+20260912T232043Z is measured under the corrected window in the pass. Its 2 of 67 was a reading of the struck window and
+says nothing about the corrected one.
+
+### The four splits
+
+Every number in this section is read off the PREVIOUS session's `scores.jsonl`, which was scored at `CONTRAST_DB = 8.0`
+and with the 22-24 kHz window the owner has struck. The contrast value is itself a split now (CONTRAST below) and the
+window is wider, so the three readings quoted here are provisional in one specific way: both changes move the
+statistics under them, so all three are re-read off the new pass's distributions by the same trough rule and the final
+numbers reach the owner in the report. The trough rule does not change; the values it lands on may. The cliff series is
+the one most exposed: every `depth` is measured from the ceiling the window picks, and a wider window admits rows that
+had none.
+
+CONTRAST, whole corpus. **MEASURED: 11.0 dB** (shipped `ABOVE_FLOOR_DB` is 8.0). Command:
+`nice -n 10 ionice -c3 timeout 900 .venv/bin/python junkcal_fixtures.py shape` ->
+`files=43 rows=4052 nulls=68 scored=3984 contrast=11.0`. Histogram (level above floor, 1 dB bins, `distributions.txt`):
+the floor mode peaks at 222097 rows at 1 dB and falls to a local minimum of 68205 at 11 dB, then rises again to a
+content mode of 75127 at 15 dB before falling away. The trough rule is the FIRST local minimum above the floor mode,
+not the smallest bin in the scanned range: the first reading took the global minimum over 2-20 dB and returned 20.0 dB,
+which is the far side of the content mode and not a trough at all. That reading was wrong and is corrected here. `CONTRAST_DB` decides which
+bins can carry a ceiling or a spur at all, upstream of every other statistic, and the earlier draft took it from the
+shipped `ABOVE_FLOOR_DB = 8.0` (`junkadvisor.py:66`, read at `:196`, `:206`, `:252`). That is a shipped threshold inside
+an oracle the brief says takes none, so it is read off the corpus like the others: in one accumulation phase over every
+row, the histogram of (9-bin median curve minus the row's own 10th-percentile floor), 1 dB bins, over every bin above
+13 kHz. That distribution is the separation the constant names -- bins sitting at the floor against bins carrying
+content -- and the split is its trough. The phase needs no contrast value to run, so the pass computes the histogram,
+reads the trough, and scores with it, in one process. **Value: measured, reported with its histogram.** It is tagged
+ASSUMED below until that pass runs, and it comes back as a plan amendment per `docs/plans.md:76-82`.
+
+CLIFF, flat rows only (the pair-format ruling). Re-read at `CONTRAST_DB = 11.0` and the 20-26 kHz window, over
+`scores2.jsonl` (`jq -r 'select(.fmt=="flat" and .depth>0)|.depth' scores2.jsonl | sort -n | wc -l` -> 117). 117 flat
+rows now carry a positive depth, against 50 under the struck window. The series runs dense from 5.73 to 27.39, then:
+
+    ... 22.71 23.17 23.57 23.9 26.4 26.46 26.64 27.39 | 31.9 32.01 32.67 33.6 35.72 36.5 36.51 36.74 37.13 37.53
+    37.54 37.6 37.81 38.3 38.32 39.65 40.25 40.55 40.75 40.76 40.78 41.33 41.47 41.52 43.89 | 56.12 56.72 57.07
+    57.24 57.54 58.56 58.65 58.75 58.99 59.51
+
+  The widest gap inside the rolloff population is 27.39 -> 31.90, 4.51 dB; no other adjacent pair between 8 and 44 dB
+  is more than 2.5 dB apart. (The 43.89 -> 56.12 gap is 12.23 dB and is wider still, but it lies INSIDE the cliff
+  population, between ordinary cliffs and the deepest ones, so it separates nothing.) **Cliff threshold: depth >= 30 dB**
+  , unchanged from the first reading. 35 flat rows at or above it, 82 below.
+
+SPUR, whole corpus, re-read at `CONTRAST_DB = 11.0`, whole output of
+`jq -r 'select(.spur>0)|.spur|(./2|floor*2)' scores2.jsonl | sort -n | uniq -c`:
+
+    excess dB   0   2   4   6   8  10  12  14  16  18  20  22  24  26  28  30  32  34  36  38  40  42  44  46  48
+    rows        1  44 769 413 337 378 260 236 142  57  45  37  48 105 130 101  85  64  58  64  42  47  19  18   9
+
+    excess dB  50  52  56  58  62
+    rows       25  20   1   1   1
+
+  Two modes. The count falls from 769 at 4 dB to a local minimum of 37 at 22 dB and rises again to 130 at 28 dB.
+  **Spur threshold: excess >= 22 dB**, unchanged from the first reading.
+
+RAMP, 192 kHz rows, re-read at `CONTRAST_DB = 11.0`
+(`jq -r 'select(.sr>=176400)|.top_rel|floor' scores2.jsonl | sort -n | uniq -c`):
+
+    top_rel dB  -9  -8  -7  -4  -3   -2   -1   0   1   2   3   4   5   6   7   8   9  10  11  13  14  15  16  17  18  19  20
+    rows         3   1   2   7  26  110  129  27   2   1  12  36  65  46  14   7   9   4   3   4   6  21  40  40  47  39   1
+
+  A three-row gap at 1-2 dB separates floor wobble from a top band carrying energy; the distribution is identical to
+  the first reading, since `top_rel` and `slope` read the smoothed curve against the floor and no contrast value gates
+  them. **Ramp threshold: slope > 0 and top_rel >= 3 dB**, unchanged. The slope side needs no tuned constant: rising or
+  falling is the sign.
+
+### Marking a row
+
+- ramp-positive: samplerate >= 176400 and slope > 0 and top_rel >= 3.
+- **ramp wins.** A ramp-positive row is never cliff-positive, whatever its ceiling reads. 18 rows of
+  20260912T235103Z (pairs, 192 kHz) are both under the raw statistics
+  (`jq -r 'select(.sr>=176400 and .slope>0 and .top_rel>=3 and .ceiling_hz>0)' scores.jsonl`), and the two readings
+  cannot both be true of the same content: a ramp needs energy rising to Nyquist, so content continues far above the
+  ceiling the cliff element found, and that ceiling is rolloff inside a full-band signal rather than a band edge. The
+  precedence is one-way and costs nothing in the other direction: band-limited 192 kHz material (fake hires) has no
+  top-band energy, cannot be ramp-positive, and is still marked cliff. With the precedence applied the two
+  segmentations can no longer claim the same row, so no piece is claimed by both, no piece takes two classes, and the
+  `label_only` branch can no longer swallow a piece that was cut for its ramp.
+- cliff-positive, flat row: depth >= 30 and not ramp-positive.
+- cliff-positive, pair row: `ceiling_hz > 0` and not ramp-positive -- a content edge inside 20-26 kHz standing clear of the row's own floor,
+  with the band above it read below that edge. Presence only; no depth, no reference band. Every album marked this way
+  is `label_only`.
+- spur-positive: spur >= 22. Never cuts a file.
+
+### Cutting a file into albums
+
+Per file, per signature (cliff, ramp), in row order over non-null rows:
+
+1. maximal runs of positives, absorbing a stretch shorter than `GAP` inside a run ONLY where every row in it is
+   positive for NEITHER signature (the owner's ruling on the first emit). A stretch holding a row of the other
+   signature is not bridged, and the run ends there. Bridging across the other signature is what lost the head of
+   `junkcal-20260912T235103Z.jsonl` (143 rows, 1 null), whose first 20 rows carry 19 cliff positives: they were
+   absorbed into a cliff run spanning the whole file, that run then lost the overlap contest to the file's 63 ramp
+   positives, and the head fell out unmarked and was written as a `clean` album 95% cliff-positive. The owner named it
+   by the piece stamp of its first row, "the 235118 head run"; the capture is 20260912T235103Z and no file in the
+   corpus is named 235118. With the ruling applied that head run stands on its own and cuts;
+2. a surviving run carrying fewer than `MIN_RUN` POSITIVE rows is not a run and leaves its rows where they lie.
+   `MIN_RUN` counts positives, never the span the absorption in step 1 produced: a cluster of three positives spread
+   over six rows carries three, not six;
+3. the file is cut at every surviving run boundary; an unmarked remainder shorter than `MIN_RUN` is absorbed into the
+   neighbouring piece it touches, the earlier one when it touches two.
+
+Each piece is an album named by its first row's timestamp as `YYYYmmddTHHMMSSZ`, the spelling `_claim` gives a capture
+file. `GAP` and `MIN_RUN` are ASSUMED, tagged below: they define what an album is, and every piece, class, role and
+output file follows from them, so they are the plan's largest deferred values. The segmentation sweep over
+`scores.jsonl` is what settles them, and they come back as a plan amendment per `docs/plans.md:76-82` with the command,
+its output and the segment counts they produce.
+
+The two values are in tension, and the corpus bounds them from three sides at once. Run structure per file, under this
+plan's marking including ramp precedence, from
+
+    jq -s -r 'def ramp: (.sr>=176400 and .slope>0 and .top_rel>=3);
+      def cliff: ((ramp|not) and ((.fmt=="flat" and .depth>=30) or (.fmt=="pairs" and .ceiling_hz>0)));
+      group_by(.stamp)[] | (.[0].stamp) as $s |
+      ([.[] | if cliff then "C" elif ramp then "R" else "." end]) as $m |
+      if ($m|index("C")) or ($m|index("R")) then
+        "\($s) n=\($m|length) " + ($m|join("")|[scan("C+|R+|\\.+")]|map("\(.[0:1])\(length)")|join(" "))
+      else empty end' scores.jsonl
+
+1. `GAP >= 15`. 20260912T210302Z is cliff throughout with unmarked stretches of 12, 14, 4 and 2 rows. A `GAP` of 15
+   absorbs all four; a `GAP` under 12 absorbs none of the first two and cuts that one album into five pieces.
+2. `MIN_RUN <= 5`. 20260914T051723Z has 12 cliff-positive rows in two runs of 5 and 7, about 245 rows apart, the 7-row
+   run ending the album. A `MIN_RUN` above 5 kills the 5-row run and leaves that cliff content inside an otherwise
+   clean piece: a mixed piece, and a defect by the brief's premise.
+3. `MIN_RUN >= 5`, which is the rule that separates an album boundary from a stray positive, and it is step 2 doing it
+   rather than a new rule. Eight files carry nothing but runs of one or two positives -- 20260913T161658Z `.153 C1
+   .33`, 20260913T062936Z `.26 C1 .12 C1 .227`, 20260913T015252Z `.3 C1 .3 C1`, 20260913T062651Z `.3 C2`,
+   20260913T222531Z `.18 C2 .21`, 20260913T234553Z `.4 C1 .3 C2 .1`, 20260914T013517Z `C1 .1 C2 .20`,
+   20260912T232043Z `.55 C2 .10`. At `GAP = 15` the absorption merges the neighbours inside each of those files, and
+   the largest cluster any of them reaches is three positives (20260913T234553Z `C1 .3 C2` and 20260914T013517Z `C1 .1
+   C2`); every other merges to two or stands alone at one. A ninth file settles the value: 20260913T032631Z
+   (n=345, `.89 C1 .2 C2 .3 C1 .49 C1 .1 C1 .186 C9`) merges its three scattered head positives into one cluster of
+   FOUR positives over nine rows at `GAP = 15`, so `MIN_RUN = 4` would keep it, cut on it, and drop a nine-row album
+   out of a 345-row file -- exactly the stray-positive album this bound exists to prevent. So the bound is
+   `MIN_RUN >= 5`, and with bound 2 it pins `MIN_RUN = 5` exactly. At 5 every one of those clusters falls below step 2
+   and is not a run: no cut is taken on it, no one-row, two-row or nine-row album falls out, and by step 2's own words
+   those rows stay where they lie, inside the single piece the file remains. That is known mixing, not invisible
+   mixing: every piece's cliff-positive fraction is reported, and each of those nine files is named in the report with
+   its stray count.
+4. `GAP <= 49`. The same 20260913T032631Z carries a 49-row unmarked stretch. At `GAP = 50` that stretch is absorbed and
+   its cluster becomes six positives over 61 rows, so a piece that is 90% cliff-negative would be classed cliff. The
+   corpus puts the ceiling one row below that stretch: `GAP <= 49`.
+5. Inside that ceiling the lower end has its own reading. At `GAP = 15` two pieces come out sparse -- 20260913T012530Z
+   at 5 positives over 26 rows and 20260915T045733Z at 6 over 23 -- and both disappear into their own neighbours at
+   `GAP = 22`. Sparse pieces are album fragments, not albums, so the sweep's room is `22 <= GAP <= 49`. What chooses
+   the value inside it is not a sparsity rule: under the corrected absorption every value in `[22, 49]` gives the
+   IDENTICAL segmentation, because no same-signature bridgeable gap in the corpus has a length in that range -- the
+   largest below it is 20 rows in 20260912T225619Z and the smallest above it is 64 rows in 20260914T174645Z. Nothing
+   separates the values, so the smallest is taken. One piece still lands sparse at every value and is named here rather
+   than kept quietly: 20260912T225619Z, 14 cliff-positive rows of 74, 19%, whose gaps of 20, 16 and 17 rows all bridge
+   into one run. The earlier "smallest value that leaves no piece below 25% positive" rule is retired: no value in the
+   range satisfies it, and applying it as written is what produced the plateau reading used at the rejected emit.
+
+6. One exemption from `MIN_RUN`, not a sixth bound: **a run covering every scored row of its file is a run whatever its
+   count.** `MIN_RUN` exists to reject an island inside a file, and a file with no unmarked row has no island in it.
+   20260914T042430Z is the case: 6 rows, 2 null, and all four scored rows ramp-positive in one run
+   (`jq -r 'select(.stamp=="20260914T042430Z")|[.line,.fmt,.sr,.slope,.top_rel]|@tsv' scores.jsonl` -> slopes 0.1245,
+   0.1484, 0.1332, 0.1265 at top_rel 16.22, 16.59, 17.59, 18.26; `jq -r '.albums["20260914T042430Z"]|"rows=\(.rows)
+   nulls=\(.nulls)"' stats.json` -> rows=6 nulls=2). Without the exemption `MIN_RUN = 5` kills that run and an album
+   whose every readable row carries the signature yields no album of that class -- a disagreement manufactured by
+   `MIN_RUN` rather than measured. The exemption leaves bound 3 untouched: 20260913T032631Z's four positives sit inside
+   345 rows, which is the island `MIN_RUN` is for.
+
+A piece carrying positives but no surviving run takes the class of the rest of its rows -- `spur` or `clean` by the
+dominant-bin test -- and its stray positives are reported with it. Under the exemption above, no file can be all
+positives and still land there.
+
+**MEASURED: `MIN_RUN = 5`, `GAP = 22`**, under the absorption ruling. Command:
+`... junkcal_fixtures.py sweep` -> every value from 22 to 49 gives the identical segmentation, 66 pieces with 1 sparse
+piece and the same eight files cut, so the smallest value in the window and the stable plateau now agree and `GAP = 22`
+is both. (Before the ruling they did not: `GAP = 22` gave 58 pieces against 57 for 23-49, and the plan's "smallest
+value" rule and the plateau pointed at different numbers. That disagreement is gone.)
+
+Segmentation at `GAP = 22` (`... junkcal_fixtures.py segments 22`), the eight files that cut:
+
+    20260912T235103Z n=142 [0:20]cliff [20:44]- [44:60]ramp [60:66]- [66:73]ramp [73:94]cliff [94:102]ramp
+                           [102:114]- [114:126]cliff [126:132]- [132:142]ramp
+    20260913T012530Z n=106 [0:13]- [13:106]cliff
+    20260913T032631Z n=345 [0:87]- [87:97]cliff [97:336]- [336:345]cliff
+    20260914T004154Z n=167 [0:161]cliff [161:167]-
+    20260914T041315Z n=19  [0:6]- [6:19]cliff
+    20260914T043500Z n=51  [0:28]- [28:51]ramp
+    20260914T051723Z n=345 [0:87]- [87:92]cliff [92:338]- [338:345]cliff
+    20260914T174645Z n=310 [0:52]- [52:57]cliff [57:302]- [302:310]cliff
+
+43 files cut to 66 albums, against 57 before the ruling. The whole of that difference is 20260912T235103Z, which now
+cuts into ELEVEN pieces, alternating cliff and ramp every few rows. That is the ruling working as written -- no run may
+swallow the other signature's content -- and it is also the reading the earlier rounds predicted would shred. Whether
+that file is eleven albums or one album this oracle reads inconsistently is not something the oracle can settle; the
+eleven pieces and their spans are reported and the call is the owner's.
+
+Two further consequences the sweep carries to the owner rather than buries:
+
+- Two albums on the owner's prior lists do not survive this marking. Their per-row numbers are in "Disagreement with
+  the owner's prior lists" below, which correction 1 requires and which the sweep re-reads after the pass.
+- 20260912T235103Z interleaves the two signatures every few rows even after ramp precedence, so both segmentations
+  produce long runs over the same span once `GAP = 15` absorbs their gaps. Where a cliff run and a ramp run overlap,
+  the run holding more positive rows inside the overlap owns that span and the other's cut points inside it are
+  dropped; the losing signature's rows stay in the piece, and the piece keeps one of them as a role row per "Rows kept,
+  per piece" below, so the mixing is in the fixture and not only in the report. Whether that file is one album this
+  oracle
+  reads inconsistently or several is not settleable before the pass runs, and its reading goes to the owner.
+
+### Class, per piece
+
+Cliff piece -> `cliff`; ramp piece -> `ramp`. An unmarked piece is `spur` when its dominant spur bin is positive in at
+least half its rows, otherwise `clean`. A cliff or ramp piece that also carries a persistent spur keeps its class and
+also keeps the spur row.
+
+Implied filter: cliff -> `20k`, ramp -> `50k`, clean -> `none`, spur -> `40k` when the dominant bin is strictly above
+45 000.0 Hz and `30k` at or below it, the shipped rule at the corner line.
+
+**Lossy sub-case, the owner's ruling on the first emit.** Content that stops below 20 kHz is lossy sub-case material; a
+`20k` cut does nothing there, so the class is excised: such an album is `clean` with filter `none`, never `cliff`/`20k`,
+and its rows carry `free_edge_hz` so a junkrules test can bite on a wrong implementation that still says `20k`. The
+test is agreement across the piece, and agreement is what separates band-limited content from a near-silent row whose
+free edge wanders. A row carrying NO free edge at all (`free_edge_hz == 0.0`, silence throughout) counts toward neither
+side of the fraction: it is evidence of nothing either way, and reading it as "below 20 kHz" would make any silent
+stretch lossy by arithmetic.
+
+The fraction itself is measured, not chosen. Command:
+`nice -n 10 ionice -c3 timeout 900 .venv/bin/python junkcal_fixtures.py readings 22`, whose `SUB20 fraction per piece`
+block is the whole distribution. Its upper end:
+
+    ... 0.414 20260913T012900Z 29/70   0.500 20260913T002249Z 3/6   0.571 20260913T000934Z 12/21
+    0.667 20260914T042745Z 2/3 | 0.829 20260913T161658Z 34/41   1.000 20260913T001449Z 8/8
+    1.000 20260913T012545Z 11/11   1.000 20260913T083225Z 7/7   1.000 20260914T012241Z 6/6
+
+The gap 0.667 -> 0.829 is the widest in the series and its midpoint is 0.748, so **the agreement fraction is three
+quarters**, read at a gap like every other boundary here rather than set by hand. Five pieces qualify: 20260913T001449Z
+8/8, 20260913T012545Z 11/11, 20260913T083225Z 7/7, 20260914T012241Z 6/6 and 20260913T161658Z 34/41. (012545 reads 11 of
+11 rather than the 11 of 13 the first emit reported, because its two edgeless rows now count toward neither side.)
+
+20260914T042745Z sits at 2 of 3 rows, immediately below the gap, and does NOT qualify, which the owner asked to see
+before it was labeled. Its
+three scored rows (`jq -r 'select(.stamp=="20260914T042700Z")|...' scores2.jsonl`): `ref_rel` 3.77, 3.90, 5.59 dB;
+`free_edge_hz` 3100.8, 28897.6, 8268.8 Hz; `spur` 62.75, 59.29, 52.26 dB all at 28811.4 Hz. The 15-18 kHz band stands
+under 6 dB over the row's own floor and the free edge wanders by 25 kHz between consecutive rows: near-silence carrying
+one tone, not band-limited music. It is classed `spur` / `30k` on that tone.
+
+`full_band` is a property of the album's CONTENT: false for a cliff album, true otherwise. It is not the storage
+format, which is readable from any fixture row (a pair row's `spectrum` is a list of `[hz, db]` pairs, a flat row's is
+a list of numbers) and is recorded in the scratchpad table either way.
+
+### Rows kept, per piece
+
+Roles deduplicate when one row earns several.
+
+- every piece: `first`, its first non-null row.
+- pair cliff piece (`label_only`): `first` and one `cliff` row, the cliff-positive row with the highest `edge_rel`.
+  Nothing else, and no `strongest`/`weakest` pair: the magnitudes those roles would rank are the untrusted math.
+- any piece whose span also carries positives of the OTHER signature, the one the overlap rule sent away: one row of
+  it, role named for that signature (`cliff` or `ramp`), the cliff row by highest `edge_rel` and the ramp row by
+  highest `slope`. This is correction 2's "keeps a row for each role" applied to the two-signature case it also covers,
+  20260912T235103Z, where 18 rows read cliff and ramp at once. Precedence decides the piece's CLASS; it does not
+  decide what the fixture carries, and a test that wants to bite on the losing signature has the row.
+- flat cliff piece: `strongest` and `weakest`, max and min `depth` among its cliff-positive rows.
+- ramp piece: `strongest` and `weakest`, max and min `slope` among its ramp-positive rows.
+- spur piece: `strongest` and `weakest`, the max and min excess at the dominant bin among its spur-positive rows; and
+  `spur-absent`, the row minimising the excess at that bin over the whole piece. The brief's condition is relative --
+  "the minimum at that bin has dropped well below the spur" -- so the condition is relative and nothing else: the row
+  is admitted when its excess sits at least DROP_DB below the piece's strongest. **MEASURED: DROP_DB = 17.9 dB.**
+  Command: `nice -n 10 ionice -c3 timeout 900 .venv/bin/python junkcal_fixtures.py readings 22`, whose `DROP per
+  spur-carrying piece` block is the whole distribution, one value per piece carrying a dominant spur bin:
+
+    5.18 20260914T044846Z   10.08 20260914T041345Z   10.49 20260914T042745Z   13.08 20260913T222546Z
+    22.66 20260915T045803Z  25.2 20260914T041515Z    31.12 20260913T075854Z   34.77 20260914T004224Z
+    36.62 20260912T210317Z  39.47 20260915T082635Z   45.33 20260913T234623Z   49.07 20260912T213118Z
+
+  Twelve values under the corrected absorption, against six before it: the re-segmentation gives more pieces and more
+  of them carry a dominant bin. The widest gap is 13.08 -> 22.66, 9.58 dB, midpoint 17.87, and no other adjacent pair
+  exceeds 5.92 dB. **DROP_DB = 17.9**, which moves the value the owner accepted at "about 19 from six values" and
+  excludes exactly the same four pieces he asked to have named: 20260913T222546Z 13.08 dB, 20260914T042745Z 10.49,
+  20260914T041345Z 10.08, 20260914T044846Z 5.18. Eight pieces clear it and carry a `spur-absent` row. The 5 dB
+  absolute cap the earlier draft carried is gone, read off nothing.
+- clean piece: `near-miss`, the row with the highest ratio of any statistic to its threshold -- `depth/30` (flat only),
+  `spur/22`, and `top_rel/3` on 192 kHz rows with a positive slope. Highest ratio, no ceiling of 1 and no floor: the
+  role names a clean piece's most dangerous row whatever that row reaches. The ratio itself is written into that row's
+  `stats` as `near_miss_ratio` and the report carries the reading for every clean album, so a piece whose best ratio
+  sits near zero says so in the fixture rather than passing as a near miss. On a clean 96 kHz pair piece only `spur/22`
+  is eligible, which is the case where that reading matters most.
+
+### Output
+
+- `tests/support/fixtures/junkcal/<piece-stamp>.jsonl.gz`, gzip level 9, carrying ONLY the rows `labels.json` names for
+  that album and no others, in timestamp order, one JSON object per line, every key kept verbatim except `spectrum`
+  levels rounded with `round(x, 1)`; pair `hz` values untouched.
+- `tests/support/fixtures/junkcal/labels.json`, one object per album keyed by piece stamp: `source`, `samplerate`,
+  `full_band`, `class`, `junk_filter`, `label_only`, and `rows` as a list of `{timestamp, roles, stats}` in file order,
+  `stats` carrying that row's `floor`, `ceiling_hz`, `edge_rel`, `depth`, `spur`, `spur_hz`, `near_miss_ratio` on a
+  `near-miss` row, the excess at the dominant bin on a spur row, and on 192 kHz material `slope` and `top_rel`.
+
+## Disagreement with the owner's prior lists
+
+Correction 1 asks for this: "If your statistics disagree with that list, show the per-row numbers for those albums; do
+not report zero." Its two lists are cliffs in 213103, 215118, 235053, 013517, 014121, 232043 and 210302, and ramps in
+021159, 235103, 042430 and 042830 (`gauntlet/plans/drafts/junkcal-fixtures.txt:6`). Measured at `CONTRAST_DB = 8.0` and
+re-read after the pass:
+
+- Agreeing, cliff: 20260912T215118Z (35 of 35 scored rows carry a ceiling), 20260913T235053Z (151 of 151),
+  20260912T210302Z (77 of 109), 20260912T213103Z (51 of 77), 20260914T014121Z (22 of 60, merging to one cluster over
+  nearly the whole file at `GAP >= 22`).
+- Agreeing, ramp: 20260913T021159Z (185 of 185), 20260914T042830Z (12 of 12), 20260914T042430Z (4 of 4, by the
+  whole-file exemption), 20260912T235103Z (63 ramp positives against 26 cliff positives, so the overlap rule gives the
+  span to ramp).
+- Disagreeing, 20260914T013517Z. 24 scored rows, 3 with a ceiling
+  (`jq -r 'select(.stamp=="20260914T013517Z" and .ceiling_hz>0)|[.line,.ts,.ceiling_hz,.depth,.above_rel,.ref_rel]|@tsv'
+  scores.jsonl`): line 0 at 01:35:17, ceiling 22500.0, depth 70.79, above_rel 1.04, ref_rel 71.82; line 2 at 01:35:47,
+  23859.4, 59.50, 1.16, 60.66; line 3 at 01:36:02, 23015.6, 61.34, 1.29, 62.63. Every one reads as plain a cliff as
+  this corpus holds -- the band above the ceiling sits about 1 dB over the row's own floor -- and the album still fails,
+  because three positives in 24 rows is below `MIN_RUN` and the run is an island, not the file. What the numbers say is
+  that the first four rows of that capture are band-limited and the remaining twenty are not, which is a piece too
+  short to be an album under any value bound 3 allows.
+- 20260912T232043Z is no longer a disagreement this plan can state, because the reading it rested on is gone. Under the
+  struck window it read 2 rows of 67 with a ceiling, both at 23812.5 Hz, depth 16.99, above_rel 2.70 and 2.67 (lines 56
+  and 57, at 23:34:44 and 23:34:59), while the other 65 rows carried no bin inside 22-24 kHz standing clear of their
+  floor at all. Under the corrected 20-26 kHz window those 67 rows are re-read, and the owner's reading -- that its
+  ceiling may sit at 20-22 kHz, which is a cliff a `20k` filter treats -- is what the pass answers. Its rows, their
+  `free_edge_hz`, and the resulting class go in the report whichever way they land.
+
+## The lane and the hook
+
+`.claude/hooks/tests-lane.py` denies every hand but `gauntlet-scrivener` a write under `tests/`. This plan does not
+narrow, edit or bypass it. What makes the write legal is the session: `GAUNTLET=off` is in force and the SessionStart
+hook reports `tests-lane.py` among the hooks it silences; the owner set that switch and named the destination. The
+tests-only lane at the head of `/tests` is likewise not taken, by the same ruling: the chain is off, a scrivener
+spawned here would not be blind, and there is no behavior line to write -- this is a derived data corpus.
+
+## Files touched
+
+- new `tests/support/fixtures/junkcal/<piece-stamp>.jsonl.gz`, one per album; 43 files cut into more, count reported.
+- new `tests/support/fixtures/junkcal/labels.json`
+- scratchpad only, not in the tree: the scoring script, `scores.jsonl`, `stats.json`, `segments.txt`, `table.tsv`.
+
+## Caller-side delta
+
+Zero. Nothing in the repo reads `tests/support/fixtures/junkcal/`. The corpus lands with no consumer on purpose: it is
+the input a later rules change would be tested against.
+
+## Cost
+
+Two single-process Python runs over the 101 MB corpus, streamed line by line, `nice -n 10 ionice -c3`, under
+`timeout 900`, one core, tens of seconds each; well under 1 GB RSS. The shape run reads the corpus twice within the one
+process (phase A, then phase B), one file held in memory at a time, largest file 8 654 504 bytes. Disclosed with its number
+before each run. The segmentation sweep runs over `scores.jsonl` only, 1.3 MB, and costs nothing. No parallelism, no background process,
+nothing written outside the scratchpad and `tests/support/fixtures/junkcal/`, nothing under `/srv` written.
+
+## ASSUMED
+
+- SETTLED, was ASSUMED, with the measured value and the command above: `CONTRAST_DB = 11.0`, `GAP = 22`,
+  `MIN_RUN = 5`, `DROP_DB = 17.9`, and the lossy sub-case agreement fraction at three quarters.
+- SETTLED, the post-READY changes that carry a ruling rather than a measurement, listed here so this file's record
+  matches the owner's own list of them: the cliff window, struck at the brief's 22-24 kHz and set to the shipped
+  20-26 kHz `BRICK_WINDOW_HZ` ("The window, corrected"); the GAP plateau rule, retired -- every value in `[22, 49]`
+  gives the identical segmentation, so the smallest is taken and the "no piece below 25% positive" rule that no value
+  satisfies is gone (bound 5); and the absorption fix, bridging only rows positive for neither signature (step 1).
+  Together with the five measured values these are the five changes the owner named, each in the body with its
+  consequence.
+- ASSUMED, superseded: `CONTRAST_DB`, the one shared definition of "standing clear of this row's own floor". Not from
+  the shipped `ABOVE_FLOOR_DB = 8.0`: it is read off the corpus as the fourth split (above), at the trough of the
+  level-above-floor histogram. It is ASSUMED only until that accumulation phase runs, which is the metered pass that
+  settles it, and it returns as a plan amendment with the command and its histogram. What it costs while unsettled: the
+  other three splits above were read at 8.0 and are re-read at the measured value.
+- ASSUMED: the 20-26 kHz cliff window, the shipped `BRICK_WINDOW_HZ` on the owner's ruling. It is a reading window and
+  no class boundary reads it, the same standing as the reference band and the guard, and it is declared rather than
+  buried. What it costs: content stopping below 20 kHz carries no ceiling in it, which `free_edge_hz` watches and the
+  report names.
+- ASSUMED, superseded: `GAP` and `MIN_RUN`, the two values that define what an album is. Settled by the sweep over
+  `scores.jsonl`. `MIN_RUN = 5` is pinned by the corpus (bounds 2 and 3 above) and only `GAP` is open, inside
+  `[22, 49]`. Returned as a plan amendment with the sweep output and the per-file segment counts.
+- ASSUMED: the ramp gate is `samplerate >= 176400` as the brief words it. No album sits between that and the shipped
+  bandwidth spelling, so the choice is unobservable in this corpus.
+- ASSUMED: `label_only` marks the album, not the row. A pair album's two kept rows are both real rows of the capture;
+  what the flag says is that the album's class was read from the shape of the edge and not from the depth math, so a
+  test must not bite on a depth number in a `label_only` album.
+
+## Citations, verified this round by gauntlet-detective
+
+- `hqptuner/engine/junkadvisor.py:53` `SMOOTH_BINS = 9`; `:54` `FLOOR_PERCENTILE = 10`; `:62`
+  `BRICK_WINDOW_HZ = (20_000.0, 26_000.0)`; `:63` `BRICK_REF_HZ = (15_000.0, 18_000.0)`; `:64` `BRICK_DROP_DB = 30.0`;
+  `:65` `BRICK_GUARD_HZ = 1_500.0`; `:66` `ABOVE_FLOOR_DB = 8.0`; `:70` `SPUR_MIN_HZ = 25_000.0`; `:71`
+  `SPUR_DB = 15.0`; `:72` `SPUR_BASELINE_BINS = 51`; `:73` `SPUR_CORNER_SPLIT_HZ = 45_000.0`; `:81`
+  `RAMP_LO_HZ = 25_000.0`; `:82` `RAMP_RISE_DB = 10.0`; `:83` `RAMP_ABOVE_FLOOR_DB = 20.0`; `:87`
+  `RAMP_MIN_BANDWIDTH_HZ = 50_000.0`; `:127` `NO_FILTER = "none"`; `:132` `_CORNER_KHZ`.
+- `junkadvisor.py:172-174` `hz()`; `:108-109` working curve and percentile floor; `:161-164` `_median_smooth`;
+  `:167-169` `_percentile`; `:218-232` `_ceiling_wall`; `:235-266` the spur hunt; `:269-283` `_ramp`; `:256`
+  `corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"` -- so exactly 45 000.0 Hz is `30k`.
+- The cliff window is the shipped `BRICK_WINDOW_HZ = (20_000.0, 26_000.0)` at `junkadvisor.py:62`, on the owner's
+  ruling; the 22-24 kHz of the previous advisor's brief is struck. A reading window, no class boundary, declared under
+  ASSUMED with the reference band and the guard. `free_edge_hz` watches what it still cannot see.
+- `hqptuner/core/junkcal.py:40` `SPECTRUM_FLOOR_HZ = 13_000.0`; `:43-49` `_spectrum`, pair rows built from
+  `agg.window_min_db()` at `:45`; `:77-89` `_claim`, the stamp spelling at `:80`.
+- `scripts/junkcal_view.py:58-64` unzips pair rows; `:88-90` `capture_files`, the glob that excludes the `.orig`.
+- `.claude/hooks/tests-lane.py:75-86` denies the write, `:89-90` the Bash form, `:51` names `gauntlet-scrivener` as the
+  one hand, `:70-72` requires its `*-spec` worktree.
+- `docs/testing.md:48` sanctions an external reference oracle committed as fixtures; `:36` puts fixtures under
+  `tests/support/fixtures/`.
+- Gates: `check_file_length.py:145-147`, `check_test_assertions.py:219-226` and `check_test_clocks.py:124-126` all read
+  `sys.argv[1:]`, fed `git ls-files '*.py'` / `git ls-files 'tests/*.py'` at `Makefile:16,19,20,63`; no `.gz` or
+  `.json` reaches their argv. `check_coverage_floor.py:25` reads `.coverage.json`. `.jscpd.json` walks `hqptuner`,
+  `scripts`, `tests` but tokenizes python/javascript/css only. No `.gitattributes` exists; `.gitignore` covers neither
+  `*.gz` nor `tests/support/fixtures`.
+- `tests/conftest.py:129` `METADATA_MIN` is the only fixture-path constant. `grep -rn junkcal tests/` returns nothing.
+- Committing this many binary blobs is a repo-weight decision. Size on disk is measured and reported; nothing is
+  committed under this plan.
+
+## Open questions
+
+None for the owner.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: No existing name is redefined. The new names -- the CONTRAST split, `DROP_DB`, `near_miss_ratio`,
+   `free_edge_hz` -- exist nowhere in the tree, and where the oracle's `CONTRAST_DB` parts company with the shipped
+   `ABOVE_FLOOR_DB` the plan says so outright rather than as a side effect, which is the escape. `full_band` and
+   `label_only` are still absent from the tree.
+b  PASS  carried: Both round-5 repairs are in and everything they assert reproduces. Bound 6's exemption quotes
+   20260914T042430Z correctly (4 scored rows of 6, nulls=2, slopes 0.1245/0.1484/0.1332/0.1265, top_rel
+   16.22/16.59/17.59/18.26, one run covering the file) and leaves bound 3 standing, since 20260913T032631Z's four
+   positives do sit inside 345 rows. The disagreement section's numbers are exact: 20260914T013517Z lines 0, 2, 3 at
+   22500.0/70.79/1.04/71.82, 23859.4/59.50/1.16/60.66, 23015.6/61.34/1.29/62.63, and 20260912T232043Z lines 56, 57
+   both 23812.5 at depth 16.99, `above_rel` 2.70 and 2.67. The dangling reference now points at that section, and the
+   section exists.
+c  PASS  carried: Nothing splits, extracts or moves, and the stated delta of zero holds: `grep -rn junkcal tests/` is
+   empty and `tests/conftest.py:129` `METADATA_MIN` is the only fixture-path constant.
+d  PASS  carried: The cause is still named upstream of the appearance (`SPECTRUM_FLOOR_HZ = 13_000.0` at
+   `hqptuner/core/junkcal.py:40` over `agg.window_min_db()` at `:45`), and the contrast that carries it is now measured
+   rather than asserted; both figures reproduce.
+e  PASS  carried: Every rule in force on this surface is named and none is overturned in silence. `tests-lane.py`
+   denies the write (`:51` `WRITER = "gauntlet-scrivener"`, `:70` `_is_spec_tree`, `:75-85` `_write_verdict`, `:89`
+   `_bash_verdict`) and is silenced by the owner's switch, not by this plan: `gauntlet-off.py` lists `tests-lane.py` in
+   `SILENCED`, `shell_shapes.py:1274` `bypassed()` is read in `hook_main` at `:1637`, and this session's environment
+   reads `GAUNTLET=off`. `docs/testing.md:48` sanctions an external reference oracle committed as fixtures and `:36`
+   puts fixtures under `tests/support/fixtures/`; both cited lines say that. The `/tests` tests-only lane is named and
+   declined with its reason.
+f  PASS  The role rule added this round is the last state-space edge that was open. A piece whose span carries
+   positives of the signature the overlap rule sent away now keeps one row of it, so the losing signature is readable
+   in the fixture rather than only in the report. The `label_only` bullet's "Nothing else" and that rule would give
+   opposite instructions for one shape -- a pair cliff piece whose span also holds ramp positives -- but no piece in
+   this corpus reaches it: 20260912T235103Z is the only file carrying both, and there ramp owns the span 63 positives
+   to 26, so the piece is a ramp piece and not a `label_only` one. Earlier edges stay closed: the narrowest file
+   (20260914T042430Z, four scored rows) by bound 6, the degenerate `near-miss` by `near_miss_ratio`, exactly 45 000.0
+   Hz by `junkadvisor.py:256`.
+g  PASS  carried: correction 1 is quoted verbatim against `gauntlet/plans/drafts/junkcal-fixtures.txt:6`, and its words
+   ask for per-row numbers on a disagreement rather than fixing any album's class, so no owner ruling is owed before
+   the pass. `CONTRAST_DB`, `DROP_DB`, `GAP` and `MIN_RUN` remain measurements, each with the pass that settles it and
+   the amendment route at `docs/plans.md:76-82`. The plan carries no open question, and the one departure from an
+   owner sentence is stated in the brief block the owner reads first rather than asked as a question.
+h  PASS  carried: "New files only ... no existing behavior changes" carries its mechanism and the one-hop trace finds
+   nothing arriving: the gates take `git ls-files '*.py'` / `'tests/*.py'` (`Makefile:16,19,20`, fallback `find ...
+   -name '*.py'`), `.jscpd.json` tokenizes python/javascript/css only, no `.gitattributes` exists, and `.gitignore`
+   names neither `*.gz` nor `tests/support/fixtures`. Nothing imports or reads the fixture directory.
+i  PASS  Every sentence of the latest brief and of both corrections now carries a line, and the one clause the plan
+   does not deliver is the one it names: "delivered (correction 2), with the count superseded: 'So 051723 and 174645
+   are each two or three albums'" quotes the sentence, gives the four-piece reading with the run structures that
+   produce it, says in those words that the cut supersedes the estimate, and names the under-sensitivity alternative
+   and where it lands. That is a departure the owner reads at the head of the plan, not a silent drop, and the later
+   brief he wrote restates the rule without the count.
+j  N/A   carried: The plan touches no source file; no composition root is reached.
+k  PASS  Correction 2's "keeps a row for each role" now reads as it reads: both cases are delivered, cliff-with-spur by
+   the median above the ceiling plus the spur row, and cliff-with-ramp by one row of the losing signature chosen by
+   `edge_rel` or `slope`, with precedence deciding the class alone. The round-2 findings stay repaired: the oracle
+   takes no shipped threshold, the `spur-absent` role is relative only, and each `.jsonl.gz` carries only the rows
+   `labels.json` names.
+
+notes:
+- Every deferred value in this plan -- `CONTRAST_DB`, `DROP_DB`, `GAP`, `MIN_RUN` -- is settled by the pass itself and
+  comes back as an amendment. The four splits above were read at `CONTRAST_DB = 8.0` and are re-read at the measured
+  value, so the numbers in the approved plan are provisional by the plan's own words, and the amendment is where they
+  stop being so.
+- Fixture bytes on disk exist only after the pass, and the repo-weight decision that rests on them is the owner's,
+  after the number.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: The window change takes check `a`'s escape in the body: the plan quotes the owner's ruling verbatim
+   in the brief block, states the redefinition outright in "### The window, corrected", and declares the window in the
+   `ASSUMED` block as a reading window no class boundary reads. Nothing in this round touches a name.
+b  PASS  The b4 residue is repaired at the sentence my finding named: line 14 now reads "20260912T235103Z's head run
+   stands and cuts", and `grep -c 235118` on the body returns 3 -- line 12, which is the owner's ruling quoted as he
+   wrote it, and lines 196-197, which say the shorthand is his and that no capture in the corpus carries that name.
+   Every other measured value in this amendment stands as verified in round 9: 117 and 82 on the cliff series,
+   `DROP_DB = 17.9` with its twelve values and the 13.08 -> 22.66 gap, `GAP = 22` chosen because every value in
+   [22, 49] gives the identical segmentation, the agreement fraction read at the 0.667 -> 0.829 gap, and the `SETTLED`
+   block listing all five post-READY changes.
+c  PASS  carried: Nothing splits, extracts or moves, and the stated delta of zero holds: `grep -rn junkcal tests/` is
+   empty and `tests/conftest.py:129` `METADATA_MIN` is the only fixture-path constant.
+d  PASS  carried: The cause is still named upstream of the appearance (`SPECTRUM_FLOOR_HZ = 13_000.0` at
+   `hqptuner/core/junkcal.py:40` over `agg.window_min_db()` at `:45`), and the contrast that carries it is measured.
+e  PASS  carried: Every rule in force on this surface is named and none is overturned in silence. `tests-lane.py`
+   denies the write and is silenced by the owner's switch, not by this plan; `docs/testing.md:48` sanctions an
+   external reference oracle committed as fixtures and `:36` puts fixtures under `tests/support/fixtures/`; the
+   `/tests` tests-only lane is named and declined with its reason.
+f  PASS  carried: The edgeless row is settled in the sentence that needed it: a row with `free_edge_hz == 0.0` counts
+   toward neither side, with the reason stated, which moves 20260913T012545Z from 11 of 13 to 11 of 11. The whole-file
+   exemption, the near-miss ratio and the absorption rule keep the earlier edges closed.
+g  PASS  carried: No open question is carried and none of the deferred values is the owner's any longer; all four are
+   settled with commands. `DROP_DB` moved from the "about 19 from six values" he accepted to 17.9 from twelve, the
+   body says so in those words, and the four pieces he asked to have named are still the four excluded.
+h  PASS  carried: "New files only ... no existing behavior changes" carries its mechanism and the one-hop trace finds
+   nothing arriving: the gates take `git ls-files '*.py'` / `'tests/*.py'`, `.jscpd.json` tokenizes
+   python/javascript/css only, no `.gitattributes` exists, and `.gitignore` names neither `*.gz` nor
+   `tests/support/fixtures`. Nothing imports or reads the fixture directory.
+i  PASS  carried: The brief block's lines quote the latest brief, both corrections and both owner rulings verbatim,
+   and every sentence of each carries a `delivered:` line that resolves to a section of the body.
+j  N/A   carried: The plan touches no source file; no composition root is reached.
+k  PASS  carried: The `delivered` lines answering the rulings read as the rulings read, and 20260914T042745Z's three
+   rows are quoted before it is labeled with every number exact.
+
+notes:
+- `junkcal_fixtures.py readings 22` is the one command in this amendment I did not re-run: it is a metered pass over
+  the production host's corpus and that authorisation is not mine. Everything it emits that a free read reaches --
+  the piece stamps, the fractions at 34/41, 11/11, 6/6, 7/7, 2/3 and 29/70, and all the arithmetic on both of its
+  blocks -- I checked against `scores2.jsonl`, and it holds.
+- The fixtures from the rejected emit are still under `tests/support/fixtures/junkcal/`. This round approves the plan,
+  not a run: the re-emit is the owner's word to give, as his ruling says.

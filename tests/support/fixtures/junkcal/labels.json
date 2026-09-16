@@ -1,0 +1,2861 @@
+{
+  "20260912T210317Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22500.0,
+          "depth": 27.55,
+          "edge_rel": 12.06,
+          "floor": -158.43,
+          "free_edge_hz": 22500.0,
+          "spur": 23.21,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:03:17.118955+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22453.1,
+          "depth": 32.88,
+          "edge_rel": 13.89,
+          "floor": -156.09,
+          "free_edge_hz": 22453.1,
+          "spur": 21.05,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:19:32.703875+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 110,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T210302Z.jsonl"
+  },
+  "20260912T213118Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 21562.5,
+          "depth": 15.53,
+          "edge_rel": 12.32,
+          "floor": -145.61,
+          "free_edge_hz": 21562.5,
+          "spur": 44.78,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:31:18.122147+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 21890.6,
+          "depth": 35.86,
+          "edge_rel": 15.27,
+          "floor": -144.51,
+          "free_edge_hz": 21890.6,
+          "spur": 46.04,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:34:03.206688+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 73,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T213103Z.jsonl"
+  },
+  "20260912T214918Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 21703.1,
+          "depth": 18.97,
+          "edge_rel": 11.54,
+          "floor": -144.71,
+          "free_edge_hz": 21703.1,
+          "spur": 47.69,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:49:18.612339+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 21937.5,
+          "depth": 22.69,
+          "edge_rel": 12.59,
+          "floor": -143.55,
+          "free_edge_hz": 21937.5,
+          "spur": 45.49,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-12T21:49:33.616340+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T213103Z.jsonl"
+  },
+  "20260912T215133Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22406.2,
+          "depth": 75.79,
+          "edge_rel": 13.27,
+          "floor": -200.93,
+          "free_edge_hz": 22406.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-12T21:51:33.648117+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 72.15,
+          "edge_rel": 22.89,
+          "floor": -201.42,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-12T21:54:33.726427+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 36,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T215118Z.jsonl"
+  },
+  "20260912T225634Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 25453.1,
+          "depth": 11.0,
+          "edge_rel": 11.46,
+          "floor": -137.76,
+          "free_edge_hz": 26578.1,
+          "spur": 20.49,
+          "spur_hz": 29765.6
+        },
+        "timestamp": "2026-09-12T22:56:34.156300+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -137.63,
+          "free_edge_hz": 26765.6,
+          "near_miss_ratio": 1.018,
+          "spur": 22.4,
+          "spur_hz": 29765.6
+        },
+        "timestamp": "2026-09-12T23:01:04.304226+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 75,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T225619Z.jsonl"
+  },
+  "20260912T231543Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -137.18,
+          "free_edge_hz": 31453.1,
+          "spur": 5.59,
+          "spur_hz": 25500.0
+        },
+        "timestamp": "2026-09-12T23:15:43.443689+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -183.35,
+          "free_edge_hz": 41156.2,
+          "near_miss_ratio": 0.763,
+          "spur": 16.78,
+          "spur_hz": 37875.0
+        },
+        "timestamp": "2026-09-12T23:18:43.551281+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 15,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T231528Z.jsonl"
+  },
+  "20260912T232058Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 24281.2,
+          "depth": 21.74,
+          "edge_rel": 11.05,
+          "floor": -143.84,
+          "free_edge_hz": 24281.2,
+          "spur": 3.2,
+          "spur_hz": 26296.9
+        },
+        "timestamp": "2026-09-12T23:20:58.580838+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 24234.4,
+          "depth": 27.23,
+          "edge_rel": 13.42,
+          "floor": -142.62,
+          "free_edge_hz": 24234.4,
+          "spur": 3.96,
+          "spur_hz": 24984.4
+        },
+        "timestamp": "2026-09-12T23:35:59.126598+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 68,
+    "samplerate": 96000,
+    "source": "junkcal-20260912T232043Z.jsonl"
+  },
+  "20260912T233914Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -134.39,
+          "free_edge_hz": 51187.5,
+          "slope": -0.2892,
+          "spur": 7.09,
+          "spur_hz": 41718.8,
+          "top_rel": -0.14
+        },
+        "timestamp": "2026-09-12T23:39:14.197026+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -134.3,
+          "free_edge_hz": 49125.0,
+          "near_miss_ratio": 0.852,
+          "slope": -0.2973,
+          "spur": 18.74,
+          "spur_hz": 41812.5,
+          "top_rel": -0.17
+        },
+        "timestamp": "2026-09-12T23:40:14.218587+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 9,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T233859Z.jsonl"
+  },
+  "20260912T234148Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -133.71,
+          "free_edge_hz": 49687.5,
+          "slope": -0.292,
+          "spur": 16.53,
+          "spur_hz": 41812.5,
+          "top_rel": -0.18
+        },
+        "timestamp": "2026-09-12T23:41:48.137690+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 32,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T234133Z.jsonl"
+  },
+  "20260912T235118Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 20062.5,
+          "depth": 12.04,
+          "edge_rel": 11.24,
+          "floor": -126.64,
+          "free_edge_hz": 20062.5,
+          "slope": -0.0654,
+          "spur": 4.82,
+          "spur_hz": 33843.8,
+          "top_rel": 3.53
+        },
+        "timestamp": "2026-09-12T23:51:18.465708+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 20343.8,
+          "depth": 14.52,
+          "edge_rel": 12.14,
+          "floor": -127.66,
+          "free_edge_hz": 20343.8,
+          "slope": -0.0144,
+          "spur": 4.37,
+          "spur_hz": 28593.8,
+          "top_rel": 4.84
+        },
+        "timestamp": "2026-09-12T23:54:48.578464+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 49,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T000318Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -131.8,
+          "free_edge_hz": 93656.2,
+          "slope": 0.0596,
+          "spur": 13.19,
+          "spur_hz": 56812.5,
+          "top_rel": 8.72
+        },
+        "timestamp": "2026-09-13T00:03:18.916450+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -132.33,
+          "free_edge_hz": 93656.2,
+          "slope": 0.0844,
+          "spur": 14.02,
+          "spur_hz": 56812.5,
+          "top_rel": 9.38
+        },
+        "timestamp": "2026-09-13T00:04:03.944958+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 6,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T000448Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first", "strongest"],
+        "stats": {
+          "ceiling_hz": 20437.5,
+          "depth": 7.9,
+          "edge_rel": 11.04,
+          "floor": -131.79,
+          "free_edge_hz": 20437.5,
+          "slope": 0.0702,
+          "spur": 14.86,
+          "spur_hz": 56812.5,
+          "top_rel": 8.58
+        },
+        "timestamp": "2026-09-13T00:04:48.977166+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 22687.5,
+          "depth": 15.35,
+          "edge_rel": 11.16,
+          "floor": -128.99,
+          "free_edge_hz": 22687.5,
+          "slope": 0.0015,
+          "spur": 4.54,
+          "spur_hz": 92062.5,
+          "top_rel": 6.28
+        },
+        "timestamp": "2026-09-13T00:06:04.016364+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 24843.8,
+          "depth": 17.24,
+          "edge_rel": 12.13,
+          "floor": -129.3,
+          "free_edge_hz": 24843.8,
+          "slope": -0.0009,
+          "spur": 4.82,
+          "spur_hz": 26343.8,
+          "top_rel": 6.65
+        },
+        "timestamp": "2026-09-13T00:06:19.024166+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 15,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T000834Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -133.01,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1074,
+          "spur": 15.73,
+          "spur_hz": 56812.5,
+          "top_rel": 10.04
+        },
+        "timestamp": "2026-09-13T00:08:34.115527+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -134.14,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1196,
+          "spur": 15.37,
+          "spur_hz": 56906.2,
+          "top_rel": 10.89
+        },
+        "timestamp": "2026-09-13T00:08:49.121012+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -133.26,
+          "free_edge_hz": 89906.2,
+          "slope": 0.1067,
+          "spur": 14.67,
+          "spur_hz": 56906.2,
+          "top_rel": 9.79
+        },
+        "timestamp": "2026-09-13T00:09:04.128864+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22781.2,
+          "depth": 14.9,
+          "edge_rel": 11.08,
+          "floor": -126.38,
+          "free_edge_hz": 22781.2,
+          "slope": -0.0566,
+          "spur": 4.25,
+          "spur_hz": 29718.8,
+          "top_rel": 3.52
+        },
+        "timestamp": "2026-09-13T00:09:34.145031+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T000949Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 21281.2,
+          "depth": 12.77,
+          "edge_rel": 11.16,
+          "floor": -126.28,
+          "free_edge_hz": 21281.2,
+          "slope": -0.0557,
+          "spur": 3.91,
+          "spur_hz": 29718.8,
+          "top_rel": 3.67
+        },
+        "timestamp": "2026-09-13T00:09:49.157626+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -126.16,
+          "free_edge_hz": 19968.8,
+          "near_miss_ratio": 0.234,
+          "slope": -0.0277,
+          "spur": 5.14,
+          "spur_hz": 26062.5,
+          "top_rel": 3.42
+        },
+        "timestamp": "2026-09-13T00:10:34.183762+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 20,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T001449Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -129.12,
+          "free_edge_hz": 16218.8,
+          "slope": 0.01,
+          "spur": 0.0,
+          "spur_hz": 0.0,
+          "top_rel": 6.29
+        },
+        "timestamp": "2026-09-13T00:14:49.342308+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -130.21,
+          "free_edge_hz": 16406.2,
+          "slope": 0.0341,
+          "spur": 5.32,
+          "spur_hz": 85406.2,
+          "top_rel": 6.75
+        },
+        "timestamp": "2026-09-13T00:15:49.388191+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -128.11,
+          "free_edge_hz": 16218.8,
+          "slope": 0.005,
+          "spur": 0.0,
+          "spur_hz": 0.0,
+          "top_rel": 4.77
+        },
+        "timestamp": "2026-09-13T00:16:34.410797+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 8,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T001649Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 23250.0,
+          "depth": 13.84,
+          "edge_rel": 11.22,
+          "floor": -128.3,
+          "free_edge_hz": 23250.0,
+          "slope": -0.0047,
+          "spur": 3.35,
+          "spur_hz": 25687.5,
+          "top_rel": 5.52
+        },
+        "timestamp": "2026-09-13T00:16:49.416892+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 20250.0,
+          "depth": 11.19,
+          "edge_rel": 12.31,
+          "floor": -128.41,
+          "free_edge_hz": 20250.0,
+          "slope": -0.0053,
+          "spur": 3.55,
+          "spur_hz": 26343.8,
+          "top_rel": 5.41
+        },
+        "timestamp": "2026-09-13T00:17:19.437257+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 24,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T002249Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -129.89,
+          "free_edge_hz": 17625.0,
+          "slope": 0.0389,
+          "spur": 13.29,
+          "spur_hz": 56812.5,
+          "top_rel": 6.67
+        },
+        "timestamp": "2026-09-13T00:22:49.639816+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 21562.5,
+          "depth": 13.14,
+          "edge_rel": 11.39,
+          "floor": -128.96,
+          "free_edge_hz": 21562.5,
+          "slope": 0.0021,
+          "spur": 4.65,
+          "spur_hz": 31406.2,
+          "top_rel": 6.43
+        },
+        "timestamp": "2026-09-13T00:23:49.706594+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 21656.2,
+          "depth": 12.82,
+          "edge_rel": 11.52,
+          "floor": -128.64,
+          "free_edge_hz": 21656.2,
+          "slope": -0.0081,
+          "spur": 5.25,
+          "spur_hz": 27468.8,
+          "top_rel": 5.78
+        },
+        "timestamp": "2026-09-13T00:24:04.715567+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 20062.5,
+          "depth": 6.57,
+          "edge_rel": 11.45,
+          "floor": -133.5,
+          "free_edge_hz": 92250.0,
+          "slope": 0.0861,
+          "spur": 14.78,
+          "spur_hz": 56812.5,
+          "top_rel": 10.59
+        },
+        "timestamp": "2026-09-13T00:26:34.812591+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 16,
+    "samplerate": 192000,
+    "source": "junkcal-20260912T235103Z.jsonl"
+  },
+  "20260913T012545Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -123.96,
+          "free_edge_hz": 15093.8,
+          "spur": 8.56,
+          "spur_hz": 29625.0
+        },
+        "timestamp": "2026-09-13T01:25:45.048763+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -128.29,
+          "free_edge_hz": 0.0,
+          "near_miss_ratio": 0.521,
+          "spur": 11.47,
+          "spur_hz": 29625.0
+        },
+        "timestamp": "2026-09-13T01:28:30.134362+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 14,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T012530Z.jsonl"
+  },
+  "20260913T012900Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 25406.2,
+          "depth": 17.89,
+          "edge_rel": 11.15,
+          "floor": -127.61,
+          "free_edge_hz": 27187.5,
+          "spur": 5.14,
+          "spur_hz": 32015.6
+        },
+        "timestamp": "2026-09-13T01:29:00.154583+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -132.42,
+          "free_edge_hz": 0.0,
+          "near_miss_ratio": 0.924,
+          "spur": 20.32,
+          "spur_hz": 29625.0
+        },
+        "timestamp": "2026-09-13T01:32:30.256827+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 88,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T012530Z.jsonl"
+  },
+  "20260913T015100Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22828.1,
+          "depth": 16.95,
+          "edge_rel": 11.12,
+          "floor": -126.97,
+          "free_edge_hz": 22828.1,
+          "spur": 6.82,
+          "spur_hz": 29625.0
+        },
+        "timestamp": "2026-09-13T01:51:00.902884+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -134.78,
+          "free_edge_hz": 0.0,
+          "near_miss_ratio": 0.581,
+          "spur": 12.79,
+          "spur_hz": 29625.0
+        },
+        "timestamp": "2026-09-13T01:51:45.921033+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T012530Z.jsonl"
+  },
+  "20260913T015414Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 25453.1,
+          "depth": 17.17,
+          "edge_rel": 11.04,
+          "floor": -125.08,
+          "free_edge_hz": 25453.1,
+          "spur": 3.73,
+          "spur_hz": 28406.2
+        },
+        "timestamp": "2026-09-13T01:54:14.059737+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22031.2,
+          "depth": 64.2,
+          "edge_rel": 13.21,
+          "floor": -198.12,
+          "free_edge_hz": 22031.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T02:10:29.201579+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 11,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T015252Z.jsonl"
+  },
+  "20260913T021214Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first", "strongest"],
+        "stats": {
+          "ceiling_hz": 25687.5,
+          "depth": 1.85,
+          "edge_rel": 11.59,
+          "floor": -138.29,
+          "free_edge_hz": 93656.2,
+          "slope": 0.2267,
+          "spur": 5.68,
+          "spur_hz": 30375.0,
+          "top_rel": 19.73
+        },
+        "timestamp": "2026-09-13T02:12:14.227612+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -137.62,
+          "free_edge_hz": 93656.2,
+          "slope": 0.0286,
+          "spur": 5.79,
+          "spur_hz": 75187.5,
+          "top_rel": 13.32
+        },
+        "timestamp": "2026-09-13T02:35:00.119257+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 186,
+    "samplerate": 192000,
+    "source": "junkcal-20260913T021159Z.jsonl"
+  },
+  "20260913T032646Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -145.89,
+          "free_edge_hz": 40687.5,
+          "spur": 18.07,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-13T03:26:46.145110+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -145.07,
+          "free_edge_hz": 40828.1,
+          "near_miss_ratio": 1.944,
+          "spur": 42.77,
+          "spur_hz": 33375.0
+        },
+        "timestamp": "2026-09-13T03:37:31.504461+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 88,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T032631Z.jsonl"
+  },
+  "20260913T034831Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22453.1,
+          "depth": 37.95,
+          "edge_rel": 11.37,
+          "floor": -193.71,
+          "free_edge_hz": 22453.1,
+          "spur": 4.79,
+          "spur_hz": 29062.5
+        },
+        "timestamp": "2026-09-13T03:48:31.892750+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 33.98,
+          "edge_rel": 17.28,
+          "floor": -192.03,
+          "free_edge_hz": 22359.4,
+          "spur": 5.55,
+          "spur_hz": 27234.4
+        },
+        "timestamp": "2026-09-13T03:49:31.930045+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 10,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T032631Z.jsonl"
+  },
+  "20260913T035101Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -201.85,
+          "free_edge_hz": 28734.4,
+          "spur": 10.17,
+          "spur_hz": 37968.8
+        },
+        "timestamp": "2026-09-13T03:51:01.991461+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -140.36,
+          "free_edge_hz": 40546.9,
+          "near_miss_ratio": 1.374,
+          "spur": 30.23,
+          "spur_hz": 33046.9
+        },
+        "timestamp": "2026-09-13T04:08:47.668784+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 239,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T032631Z.jsonl"
+  },
+  "20260913T045049Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22406.2,
+          "depth": 13.14,
+          "edge_rel": 11.94,
+          "floor": -192.99,
+          "free_edge_hz": 22406.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T04:50:49.236589+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22406.2,
+          "depth": 58.07,
+          "edge_rel": 16.71,
+          "floor": -196.37,
+          "free_edge_hz": 22406.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T04:52:19.292953+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 9,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T032631Z.jsonl"
+  },
+  "20260913T051749Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -172.72,
+          "free_edge_hz": 77437.5,
+          "slope": -0.7198,
+          "spur": 5.7,
+          "spur_hz": 72562.5,
+          "top_rel": -1.6
+        },
+        "timestamp": "2026-09-13T05:17:49.427953+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -172.89,
+          "free_edge_hz": 77062.5,
+          "near_miss_ratio": 0.696,
+          "slope": -0.7641,
+          "spur": 15.32,
+          "spur_hz": 26343.8,
+          "top_rel": -0.48
+        },
+        "timestamp": "2026-09-13T05:37:50.179451+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 211,
+    "samplerate": 192000,
+    "source": "junkcal-20260913T051734Z.jsonl"
+  },
+  "20260913T062706Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "cliff"],
+        "stats": {
+          "ceiling_hz": 24609.4,
+          "depth": 7.25,
+          "edge_rel": 17.54,
+          "floor": -136.18,
+          "free_edge_hz": 24609.4,
+          "spur": 14.54,
+          "spur_hz": 38531.2
+        },
+        "timestamp": "2026-09-13T06:27:06.463999+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 6,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T062651Z.jsonl"
+  },
+  "20260913T062951Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -138.35,
+          "free_edge_hz": 46828.1,
+          "spur": 11.18,
+          "spur_hz": 33750.0
+        },
+        "timestamp": "2026-09-13T06:29:51.497643+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -130.95,
+          "free_edge_hz": 46828.1,
+          "near_miss_ratio": 0.607,
+          "spur": 13.35,
+          "spur_hz": 34312.5
+        },
+        "timestamp": "2026-09-13T06:53:07.348962+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 268,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T062936Z.jsonl"
+  },
+  "20260913T075854Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first", "spur-absent"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 0.0,
+          "dom_spur_hz": 28781.2,
+          "edge_rel": 0.0,
+          "floor": -200.0,
+          "free_edge_hz": 0.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T07:58:54.128281+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 31.12,
+          "dom_spur_hz": 28781.2,
+          "edge_rel": 0.0,
+          "floor": -145.82,
+          "free_edge_hz": 42281.2,
+          "spur": 31.12,
+          "spur_hz": 28781.2
+        },
+        "timestamp": "2026-09-13T08:09:24.526512+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 22.23,
+          "dom_spur_hz": 28781.2,
+          "edge_rel": 0.0,
+          "floor": -151.19,
+          "free_edge_hz": 42515.6,
+          "spur": 22.23,
+          "spur_hz": 28781.2
+        },
+        "timestamp": "2026-09-13T08:15:24.708652+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 115,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T075839Z.jsonl"
+  },
+  "20260913T082910Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first", "near-miss"],
+        "stats": {
+          "ceiling_hz": 25500.0,
+          "depth": 2.98,
+          "edge_rel": 12.94,
+          "floor": -135.15,
+          "free_edge_hz": 66843.8,
+          "near_miss_ratio": 0.24,
+          "slope": -0.3054,
+          "spur": 5.28,
+          "spur_hz": 74625.0,
+          "top_rel": -7.07
+        },
+        "timestamp": "2026-09-13T08:29:10.077267+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 7,
+    "samplerate": 192000,
+    "source": "junkcal-20260913T082855Z.jsonl"
+  },
+  "20260913T083040Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -126.64,
+          "free_edge_hz": 0.0,
+          "slope": -0.0233,
+          "spur": 0.0,
+          "spur_hz": 0.0,
+          "top_rel": 1.77
+        },
+        "timestamp": "2026-09-13T08:30:40.116183+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 24000.0,
+          "depth": 7.92,
+          "edge_rel": 11.27,
+          "floor": -132.89,
+          "free_edge_hz": 24000.0,
+          "near_miss_ratio": 0.309,
+          "slope": -0.2945,
+          "spur": 6.79,
+          "spur_hz": 31031.2,
+          "top_rel": -8.36
+        },
+        "timestamp": "2026-09-13T08:31:10.129938+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 192000,
+    "source": "junkcal-20260913T082855Z.jsonl"
+  },
+  "20260913T083225Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -139.53,
+          "free_edge_hz": 0.0,
+          "spur": 14.57,
+          "spur_hz": 45281.2
+        },
+        "timestamp": "2026-09-13T08:32:25.154751+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -140.43,
+          "free_edge_hz": 0.0,
+          "near_miss_ratio": 0.826,
+          "spur": 18.17,
+          "spur_hz": 45281.2
+        },
+        "timestamp": "2026-09-13T08:48:10.637472+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 101,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T083210Z.jsonl"
+  },
+  "20260913T161658Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -200.0,
+          "free_edge_hz": 0.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T16:16:58.008401+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -140.56,
+          "free_edge_hz": 0.0,
+          "near_miss_ratio": 0.848,
+          "spur": 18.66,
+          "spur_hz": 45281.2
+        },
+        "timestamp": "2026-09-13T16:43:58.855970+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 188,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T161658Z.jsonl"
+  },
+  "20260913T222546Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "40k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 52.25,
+          "dom_spur_hz": 76875.0,
+          "edge_rel": 0.0,
+          "floor": -131.51,
+          "free_edge_hz": 32343.8,
+          "slope": -0.2183,
+          "spur": 52.25,
+          "spur_hz": 76875.0,
+          "top_rel": -2.79
+        },
+        "timestamp": "2026-09-13T22:25:46.050656+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 52.86,
+          "dom_spur_hz": 76875.0,
+          "edge_rel": 0.0,
+          "floor": -132.26,
+          "free_edge_hz": 32250.0,
+          "slope": -0.2245,
+          "spur": 52.86,
+          "spur_hz": 76875.0,
+          "top_rel": -2.47
+        },
+        "timestamp": "2026-09-13T22:26:01.056858+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 39.78,
+          "dom_spur_hz": 76875.0,
+          "edge_rel": 0.0,
+          "floor": -133.98,
+          "free_edge_hz": 0.0,
+          "slope": -0.1415,
+          "spur": 39.78,
+          "spur_hz": 76875.0,
+          "top_rel": 0.07
+        },
+        "timestamp": "2026-09-13T22:34:46.379614+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 42,
+    "samplerate": 192000,
+    "source": "junkcal-20260913T222531Z.jsonl"
+  },
+  "20260913T234623Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first", "strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 39.84,
+          "dom_spur_hz": 28828.1,
+          "edge_rel": 0.0,
+          "floor": -195.54,
+          "free_edge_hz": 35015.6,
+          "spur": 39.84,
+          "spur_hz": 28828.1
+        },
+        "timestamp": "2026-09-13T23:46:23.554018+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 33.63,
+          "dom_spur_hz": 28828.1,
+          "edge_rel": 0.0,
+          "floor": -194.23,
+          "free_edge_hz": 37125.0,
+          "spur": 36.53,
+          "spur_hz": 28781.2
+        },
+        "timestamp": "2026-09-13T23:46:38.563779+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 7,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T234553Z.jsonl"
+  },
+  "20260913T234738Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "cliff"],
+        "stats": {
+          "ceiling_hz": 21421.9,
+          "depth": 15.24,
+          "edge_rel": 13.29,
+          "floor": -146.11,
+          "free_edge_hz": 21421.9,
+          "spur": 44.49,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-13T23:47:38.581240+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 8,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T234553Z.jsonl"
+  },
+  "20260913T235123Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22406.2,
+          "depth": 73.79,
+          "edge_rel": 12.19,
+          "floor": -200.77,
+          "free_edge_hz": 22406.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-13T23:51:23.660055+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 74.53,
+          "edge_rel": 25.71,
+          "floor": -201.07,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T00:23:54.571088+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 153,
+    "samplerate": 96000,
+    "source": "junkcal-20260913T235053Z.jsonl"
+  },
+  "20260914T004224Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -136.54,
+          "free_edge_hz": 28380.8,
+          "spur": 27.42,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-14T00:42:24.762215+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 24332.5,
+          "depth": 24.31,
+          "edge_rel": 11.2,
+          "floor": -130.58,
+          "free_edge_hz": 24332.5,
+          "spur": 26.12,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-14T00:42:54.780839+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 5,
+    "samplerate": 88200,
+    "source": "junkcal-20260914T004154Z.jsonl"
+  },
+  "20260914T004309Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 24978.5,
+          "depth": 27.63,
+          "edge_rel": 11.22,
+          "floor": -129.81,
+          "free_edge_hz": 24978.5,
+          "spur": 21.67,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-14T00:43:09.823584+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 23988.0,
+          "depth": 22.92,
+          "edge_rel": 12.54,
+          "floor": -121.41,
+          "free_edge_hz": 23988.0,
+          "spur": 20.26,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-14T00:50:25.072813+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 158,
+    "samplerate": 88200,
+    "source": "junkcal-20260914T004154Z.jsonl"
+  },
+  "20260914T012241Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first", "near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -141.98,
+          "free_edge_hz": 19422.9,
+          "near_miss_ratio": 0.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T01:22:41.211534+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 6,
+    "samplerate": 88200,
+    "source": "junkcal-20260914T004154Z.jsonl"
+  },
+  "20260914T013517Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "cliff"],
+        "stats": {
+          "ceiling_hz": 22500.0,
+          "depth": 70.79,
+          "edge_rel": 16.78,
+          "floor": -177.83,
+          "free_edge_hz": 22500.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T01:35:17.535026+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T013517Z.jsonl"
+  },
+  "20260914T013632Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first", "near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -148.93,
+          "free_edge_hz": 28828.1,
+          "near_miss_ratio": 0.31,
+          "spur": 6.83,
+          "spur_hz": 31125.0
+        },
+        "timestamp": "2026-09-14T01:36:32.580138+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 19,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T013517Z.jsonl"
+  },
+  "20260914T014151Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 23437.5,
+          "depth": 69.2,
+          "edge_rel": 11.31,
+          "floor": -181.12,
+          "free_edge_hz": 23437.5,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T01:41:51.492640+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 22500.0,
+          "depth": 63.71,
+          "edge_rel": 17.98,
+          "floor": -190.26,
+          "free_edge_hz": 22500.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T01:54:51.860482+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 57,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T014121Z.jsonl"
+  },
+  "20260914T015536Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "cliff"],
+        "stats": {
+          "ceiling_hz": 22500.0,
+          "depth": 65.07,
+          "edge_rel": 19.66,
+          "floor": -189.33,
+          "free_edge_hz": 22500.0,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T01:55:36.883689+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T014121Z.jsonl"
+  },
+  "20260914T041345Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first", "strongest"],
+        "stats": {
+          "ceiling_hz": 21703.1,
+          "depth": 15.69,
+          "dom_excess": 53.14,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 12.04,
+          "floor": -159.65,
+          "free_edge_hz": 21703.1,
+          "spur": 53.14,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:13:45.296638+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 22546.9,
+          "depth": 26.64,
+          "dom_excess": 43.06,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 11.99,
+          "floor": -156.33,
+          "free_edge_hz": 22546.9,
+          "spur": 43.06,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:14:15.312806+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 8,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T041315Z.jsonl"
+  },
+  "20260914T041515Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 23156.2,
+          "depth": 36.51,
+          "dom_excess": 43.65,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 18.04,
+          "floor": -154.31,
+          "free_edge_hz": 23156.2,
+          "spur": 43.65,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:15:15.345687+00:00"
+      },
+      {
+        "roles": ["spur"],
+        "stats": {
+          "ceiling_hz": 22781.2,
+          "depth": 40.75,
+          "dom_excess": 50.05,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 11.96,
+          "floor": -158.06,
+          "free_edge_hz": 22781.2,
+          "spur": 50.05,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:16:45.384339+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 23203.1,
+          "depth": 40.76,
+          "dom_excess": 49.95,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 11.11,
+          "floor": -157.93,
+          "free_edge_hz": 23203.1,
+          "spur": 49.95,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:17:00.388402+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 8,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T041315Z.jsonl"
+  },
+  "20260914T041715Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "strongest"],
+        "stats": {
+          "ceiling_hz": 23250.0,
+          "depth": 40.78,
+          "dom_excess": 53.5,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 11.52,
+          "floor": -158.09,
+          "free_edge_hz": 23250.0,
+          "spur": 53.5,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:17:15.396221+00:00"
+      },
+      {
+        "roles": ["spur"],
+        "stats": {
+          "ceiling_hz": 22968.8,
+          "depth": 39.65,
+          "dom_excess": 57.67,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 11.82,
+          "floor": -159.25,
+          "free_edge_hz": 22968.8,
+          "spur": 57.67,
+          "spur_hz": 44109.4
+        },
+        "timestamp": "2026-09-14T04:17:30.403317+00:00"
+      },
+      {
+        "roles": ["weakest", "spur-absent"],
+        "stats": {
+          "ceiling_hz": 22500.0,
+          "depth": 38.3,
+          "dom_excess": 32.47,
+          "dom_spur_hz": 44109.4,
+          "edge_rel": 13.83,
+          "floor": -157.75,
+          "free_edge_hz": 22500.0,
+          "spur": 38.19,
+          "spur_hz": 44156.2
+        },
+        "timestamp": "2026-09-14T04:17:45.408197+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T041315Z.jsonl"
+  },
+  "20260914T042030Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first", "near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -150.36,
+          "free_edge_hz": 51750.0,
+          "near_miss_ratio": 0.664,
+          "slope": -0.3008,
+          "spur": 14.6,
+          "spur_hz": 41812.5,
+          "top_rel": -0.11
+        },
+        "timestamp": "2026-09-14T04:20:30.444488+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 9,
+    "samplerate": 192000,
+    "source": "junkcal-20260914T042000Z.jsonl"
+  },
+  "20260914T042245Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first", "near-miss"],
+        "stats": {
+          "ceiling_hz": 25500.0,
+          "depth": 10.01,
+          "edge_rel": 11.31,
+          "floor": -148.22,
+          "free_edge_hz": 35718.8,
+          "near_miss_ratio": 1.135,
+          "spur": 24.98,
+          "spur_hz": 29765.6
+        },
+        "timestamp": "2026-09-14T04:22:45.504538+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 9,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T042215Z.jsonl"
+  },
+  "20260914T042500Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 25781.2,
+          "depth": 8.16,
+          "edge_rel": 13.01,
+          "floor": -150.55,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1245,
+          "spur": 11.9,
+          "spur_hz": 65906.2,
+          "top_rel": 16.22
+        },
+        "timestamp": "2026-09-14T04:25:00.560087+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -150.16,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1484,
+          "spur": 15.76,
+          "spur_hz": 65906.2,
+          "top_rel": 16.59
+        },
+        "timestamp": "2026-09-14T04:25:15.570474+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 6,
+    "samplerate": 192000,
+    "source": "junkcal-20260914T042430Z.jsonl"
+  },
+  "20260914T042900Z": {
+    "class": "ramp",
+    "full_band": true,
+    "junk_filter": "50k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -152.93,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1164,
+          "spur": 10.21,
+          "spur_hz": 34781.2,
+          "top_rel": 15.27
+        },
+        "timestamp": "2026-09-14T04:29:00.625201+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -153.34,
+          "free_edge_hz": 93375.0,
+          "slope": 0.0496,
+          "spur": 9.95,
+          "spur_hz": 63937.5,
+          "top_rel": 14.89
+        },
+        "timestamp": "2026-09-14T04:30:30.663528+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -154.72,
+          "free_edge_hz": 93656.2,
+          "slope": 0.1453,
+          "spur": 9.92,
+          "spur_hz": 39562.5,
+          "top_rel": 17.01
+        },
+        "timestamp": "2026-09-14T04:31:45.705870+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 14,
+    "samplerate": 192000,
+    "source": "junkcal-20260914T042830Z.jsonl"
+  },
+  "20260914T043230Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -143.94,
+          "free_edge_hz": 46828.1,
+          "spur": 10.91,
+          "spur_hz": 30281.2
+        },
+        "timestamp": "2026-09-14T04:32:30.713820+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -144.04,
+          "free_edge_hz": 46828.1,
+          "near_miss_ratio": 0.728,
+          "spur": 16.02,
+          "spur_hz": 28781.2
+        },
+        "timestamp": "2026-09-14T04:34:00.763732+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 12,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T043200Z.jsonl"
+  },
+  "20260914T043530Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -142.29,
+          "free_edge_hz": 33468.8,
+          "slope": -0.0859,
+          "spur": 10.46,
+          "spur_hz": 41062.5,
+          "top_rel": 4.07
+        },
+        "timestamp": "2026-09-14T04:35:30.803945+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 24187.5,
+          "depth": 21.25,
+          "edge_rel": 11.16,
+          "floor": -144.17,
+          "free_edge_hz": 24187.5,
+          "near_miss_ratio": 0.708,
+          "slope": -0.0259,
+          "spur": 10.84,
+          "spur_hz": 87093.8,
+          "top_rel": 5.51
+        },
+        "timestamp": "2026-09-14T04:38:45.894969+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 30,
+    "samplerate": 192000,
+    "source": "junkcal-20260914T043500Z.jsonl"
+  },
+  "20260914T044230Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 21093.8,
+          "depth": 12.18,
+          "edge_rel": 11.78,
+          "floor": -143.41,
+          "free_edge_hz": 21093.8,
+          "slope": 0.0084,
+          "spur": 8.79,
+          "spur_hz": 29343.8,
+          "top_rel": 6.01
+        },
+        "timestamp": "2026-09-14T04:42:30.997540+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 24093.8,
+          "depth": 5.91,
+          "edge_rel": 11.29,
+          "floor": -146.66,
+          "free_edge_hz": 88500.0,
+          "near_miss_ratio": 2.797,
+          "slope": 0.0606,
+          "spur": 10.91,
+          "spur_hz": 72843.8,
+          "top_rel": 8.39
+        },
+        "timestamp": "2026-09-14T04:47:46.153898+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 23,
+    "samplerate": 192000,
+    "source": "junkcal-20260914T043500Z.jsonl"
+  },
+  "20260914T044846Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 25968.8,
+          "depth": 7.56,
+          "dom_excess": 33.19,
+          "dom_spur_hz": 40265.6,
+          "edge_rel": 12.17,
+          "floor": -153.29,
+          "free_edge_hz": 40406.2,
+          "spur": 33.19,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T04:48:46.173308+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 33.28,
+          "dom_spur_hz": 40265.6,
+          "edge_rel": 0.0,
+          "floor": -155.82,
+          "free_edge_hz": 40453.1,
+          "spur": 33.28,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T04:49:01.183756+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 28.1,
+          "dom_spur_hz": 40265.6,
+          "edge_rel": 0.0,
+          "floor": -152.9,
+          "free_edge_hz": 40359.4,
+          "spur": 28.1,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T04:49:31.201956+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 7,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T044816Z.jsonl"
+  },
+  "20260914T051753Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -141.0,
+          "free_edge_hz": 40312.5,
+          "spur": 18.29,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T05:17:53.956801+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -140.37,
+          "free_edge_hz": 39468.8,
+          "near_miss_ratio": 1.959,
+          "spur": 43.1,
+          "spur_hz": 33375.0
+        },
+        "timestamp": "2026-09-14T05:28:54.341059+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 89,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T051723Z.jsonl"
+  },
+  "20260914T053939Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 36.74,
+          "edge_rel": 13.58,
+          "floor": -189.87,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T05:39:39.685021+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 37.81,
+          "edge_rel": 11.73,
+          "floor": -194.46,
+          "free_edge_hz": 22359.4,
+          "spur": 5.19,
+          "spur_hz": 27187.5
+        },
+        "timestamp": "2026-09-14T05:40:09.697432+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 22406.2,
+          "depth": 35.72,
+          "edge_rel": 11.71,
+          "floor": -191.74,
+          "free_edge_hz": 22406.2,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T05:40:39.706546+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T051723Z.jsonl"
+  },
+  "20260914T054054Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 23390.6,
+          "depth": 21.32,
+          "edge_rel": 11.61,
+          "floor": -184.66,
+          "free_edge_hz": 26343.8,
+          "spur": 5.12,
+          "spur_hz": 27421.9
+        },
+        "timestamp": "2026-09-14T05:40:54.714369+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -135.05,
+          "free_edge_hz": 37734.4,
+          "near_miss_ratio": 1.413,
+          "spur": 31.08,
+          "spur_hz": 32953.1
+        },
+        "timestamp": "2026-09-14T05:59:40.345157+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 246,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T051723Z.jsonl"
+  },
+  "20260914T064226Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 41.33,
+          "edge_rel": 11.09,
+          "floor": -195.7,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T06:42:26.757989+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 22453.1,
+          "depth": 59.51,
+          "edge_rel": 14.46,
+          "floor": -194.93,
+          "free_edge_hz": 22453.1,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T06:42:56.768447+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 7,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T051723Z.jsonl"
+  },
+  "20260914T101212Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -140.93,
+          "free_edge_hz": 40359.4,
+          "spur": 18.37,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T10:12:12.895362+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -139.87,
+          "free_edge_hz": 40406.2,
+          "near_miss_ratio": 0.87,
+          "spur": 19.14,
+          "spur_hz": 40265.6
+        },
+        "timestamp": "2026-09-14T10:12:27.904792+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 34,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T101142Z.jsonl"
+  },
+  "20260914T174715Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -137.24,
+          "free_edge_hz": 33421.9,
+          "spur": 9.54,
+          "spur_hz": 40171.9
+        },
+        "timestamp": "2026-09-14T17:47:15.270793+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -139.79,
+          "free_edge_hz": 39375.0,
+          "near_miss_ratio": 2.011,
+          "spur": 44.25,
+          "spur_hz": 33375.0
+        },
+        "timestamp": "2026-09-14T17:49:15.333931+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 54,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T174645Z.jsonl"
+  },
+  "20260914T180015Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 22312.5,
+          "depth": 33.6,
+          "edge_rel": 11.82,
+          "floor": -183.93,
+          "free_edge_hz": 22312.5,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T18:00:15.691109+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 38.32,
+          "edge_rel": 14.29,
+          "floor": -193.18,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T18:01:00.709011+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T174645Z.jsonl"
+  },
+  "20260914T180130Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 27.39,
+          "edge_rel": 16.05,
+          "floor": -189.61,
+          "free_edge_hz": 22359.4,
+          "spur": 4.44,
+          "spur_hz": 29015.6
+        },
+        "timestamp": "2026-09-14T18:01:30.719983+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -135.31,
+          "free_edge_hz": 37406.2,
+          "near_miss_ratio": 1.552,
+          "spur": 34.14,
+          "spur_hz": 32953.1
+        },
+        "timestamp": "2026-09-14T18:20:16.363828+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 245,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T174645Z.jsonl"
+  },
+  "20260914T190247Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22453.1,
+          "depth": 57.24,
+          "edge_rel": 16.01,
+          "floor": -192.66,
+          "free_edge_hz": 22453.1,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T19:02:47.787337+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 22312.5,
+          "depth": 40.55,
+          "edge_rel": 11.9,
+          "floor": -194.81,
+          "free_edge_hz": 22312.5,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T19:03:02.794874+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 22453.1,
+          "depth": 58.99,
+          "edge_rel": 11.28,
+          "floor": -195.25,
+          "free_edge_hz": 22453.1,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-14T19:04:02.818691+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 8,
+    "samplerate": 96000,
+    "source": "junkcal-20260914T174645Z.jsonl"
+  },
+  "20260915T023345Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -149.5,
+          "free_edge_hz": 39046.9,
+          "spur": 5.03,
+          "spur_hz": 40031.2
+        },
+        "timestamp": "2026-09-15T02:33:45.750636+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -161.88,
+          "free_edge_hz": 42421.9,
+          "near_miss_ratio": 0.413,
+          "spur": 9.08,
+          "spur_hz": 30281.2
+        },
+        "timestamp": "2026-09-15T03:08:31.925468+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 249,
+    "samplerate": 96000,
+    "source": "junkcal-20260915T023315Z.jsonl"
+  },
+  "20260915T045803Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first", "weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 40.39,
+          "dom_spur_hz": 28811.4,
+          "edge_rel": 0.0,
+          "floor": -130.53,
+          "free_edge_hz": 0.0,
+          "spur": 40.39,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T04:58:03.274070+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 44.88,
+          "dom_spur_hz": 28811.4,
+          "edge_rel": 0.0,
+          "floor": -129.1,
+          "free_edge_hz": 0.0,
+          "spur": 44.88,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T04:58:18.279223+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 88200,
+    "source": "junkcal-20260915T045733Z.jsonl"
+  },
+  "20260915T045848Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 20801.1,
+          "depth": 15.81,
+          "edge_rel": 11.12,
+          "floor": -124.03,
+          "free_edge_hz": 20801.1,
+          "spur": 38.24,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T04:58:48.295015+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 23040.5,
+          "depth": 16.17,
+          "edge_rel": 12.32,
+          "floor": -126.25,
+          "free_edge_hz": 28897.6,
+          "spur": 41.07,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T05:03:03.438225+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 177,
+    "samplerate": 88200,
+    "source": "junkcal-20260915T045733Z.jsonl"
+  },
+  "20260915T054304Z": {
+    "class": "spur",
+    "full_band": true,
+    "junk_filter": "30k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 23083.6,
+          "depth": 16.71,
+          "dom_excess": 37.72,
+          "dom_spur_hz": 28811.4,
+          "edge_rel": 11.07,
+          "floor": -125.0,
+          "free_edge_hz": 23083.6,
+          "spur": 37.72,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T05:43:04.912283+00:00"
+      },
+      {
+        "roles": ["strongest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 42.54,
+          "dom_spur_hz": 28811.4,
+          "edge_rel": 0.0,
+          "floor": -127.02,
+          "free_edge_hz": 19638.3,
+          "spur": 42.54,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T05:43:34.933224+00:00"
+      },
+      {
+        "roles": ["weakest"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "dom_excess": 33.17,
+          "dom_spur_hz": 28811.4,
+          "edge_rel": 0.0,
+          "floor": -169.4,
+          "free_edge_hz": 13307.5,
+          "spur": 33.17,
+          "spur_hz": 28811.4
+        },
+        "timestamp": "2026-09-15T05:44:04.959957+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 5,
+    "samplerate": 88200,
+    "source": "junkcal-20260915T045733Z.jsonl"
+  },
+  "20260915T082635Z": {
+    "class": "cliff",
+    "full_band": false,
+    "junk_filter": "20k",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 21750.0,
+          "depth": 13.17,
+          "edge_rel": 12.22,
+          "floor": -136.12,
+          "free_edge_hz": 28968.8,
+          "spur": 33.94,
+          "spur_hz": 28828.1
+        },
+        "timestamp": "2026-09-15T08:26:35.788355+00:00"
+      },
+      {
+        "roles": ["cliff"],
+        "stats": {
+          "ceiling_hz": 21421.9,
+          "depth": 52.71,
+          "edge_rel": 14.34,
+          "floor": -190.35,
+          "free_edge_hz": 21421.9,
+          "spur": 4.95,
+          "spur_hz": 44062.5
+        },
+        "timestamp": "2026-09-15T08:43:21.476325+00:00"
+      }
+    ],
+    "label_only": true,
+    "rows": 196,
+    "samplerate": 96000,
+    "source": "junkcal-20260915T082605Z.jsonl"
+  },
+  "20260916T042850Z": {
+    "class": "clean",
+    "full_band": true,
+    "junk_filter": "none",
+    "kept": [
+      {
+        "roles": ["first"],
+        "stats": {
+          "ceiling_hz": 22359.4,
+          "depth": 36.81,
+          "edge_rel": 12.78,
+          "floor": -193.01,
+          "free_edge_hz": 22359.4,
+          "spur": 0.0,
+          "spur_hz": 0.0
+        },
+        "timestamp": "2026-09-16T04:28:50.713319+00:00"
+      },
+      {
+        "roles": ["near-miss"],
+        "stats": {
+          "ceiling_hz": 0.0,
+          "depth": 0.0,
+          "edge_rel": 0.0,
+          "floor": -162.73,
+          "free_edge_hz": 36562.5,
+          "near_miss_ratio": 0.601,
+          "spur": 13.22,
+          "spur_hz": 26109.4
+        },
+        "timestamp": "2026-09-16T04:37:21.024591+00:00"
+      }
+    ],
+    "label_only": false,
+    "rows": 70,
+    "samplerate": 96000,
+    "source": "junkcal-20260916T042820Z.jsonl"
+  }
+}

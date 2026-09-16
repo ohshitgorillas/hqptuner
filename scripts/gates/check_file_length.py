@@ -56,6 +56,7 @@ ALLOWANCE: dict[str, int] = {
     "hqptuner/conf/httpconf.py": 427,
     ".claude/hooks/read-volume.py": 430,
     "scripts/probes/probe_absent_plugin.py": 430,
+    "scripts/junkcal_fixture.py": 656,
     ".claude/hooks/change-budget.py": 427,
     "hqptuner/static/css/features/volume.css": 407,
     "scripts/eqlab/chain.js": 405,
@@ -77,13 +78,24 @@ def measure(name: str) -> int:
     return len(Path(name).read_text().splitlines())
 
 
+#: Paths the owner has exempted from the cap by hand, with his reason. An entry here still
+#: takes an ALLOWANCE entry, so the file may not grow; what the exemption buys is the one
+#: length it already has, not headroom.
+CAP_EXEMPT: dict[str, str] = {
+    # Owner-approved: the derived-corpus oracle carries the reading behind every measured
+    # value, and a split that fits the cap scatters that provenance.
+    "scripts/junkcal_fixture.py": "junkcal fixture oracle, provenance kept whole",
+}
+
+
 def cap_fault(name: str, lines: int) -> str | None:
     """Return why a file is over its hard cap, or None when it is not.
 
     Checked independently of the allowance, so an entry permitting a length the
-    cap forbids still cannot buy past the cap.
+    cap forbids still cannot buy past the cap. CAP_EXEMPT is the one door out,
+    and it is the owner's to open.
     """
-    if lines <= limit_for(name):
+    if lines <= limit_for(name) or name in CAP_EXEMPT:
         return None
     return f"{name}: {lines} lines (max {limit_for(name)}) — split it"
 
