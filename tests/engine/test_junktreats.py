@@ -37,7 +37,7 @@ VERDICT_40K: Verdict = {
     ids=["20k", "30k", "2x", "40k", "50k", "none", "nothing engaged"],
 )
 def test_an_engaged_junk_filter_covers_a_corner_no_lower_than_its_own(
-    junk_filter: str | None, already_treated: bool
+    junk_filter: str | None, *, already_treated: bool
 ) -> None:
     assert treated(junk_filter, CORNER_30K) is already_treated
 
@@ -60,6 +60,6 @@ def test_an_engaged_junk_filter_covers_a_corner_no_lower_than_its_own(
     ],
 )
 def test_a_main_filter_treats_a_verdict_only_when_a_family_starts_its_name(
-    filter_name: str | None, already_treated: bool
+    filter_name: str | None, *, already_treated: bool
 ) -> None:
     assert treats(VERDICT_40K, None, filter_name) is already_treated
