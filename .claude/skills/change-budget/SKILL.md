@@ -7,7 +7,7 @@ description: The change-budget hook's free list, the command shapes that meter b
 
 `.claude/hooks/change-budget.py` meters what you change between turns where the user speaks, on one leash of 8 actions you cannot take back: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside the repo. In-tree `Write`/`Edit`/`NotebookEdit` are free and uncapped: `git restore` undoes them, `make check` gates them, the plan gate ruled on them first. Only prose the user typed resets the leash; a slash command, `/clear` or local-command output buys nothing, except that the first human row after a trip always resets.
 
-`${CLAUDE_PLUGIN_ROOT}/scripts/pair.sh open|respec|red|merge|abort` is one metered action each; `list` is free. A `/tests` run costs open plus merge; edits in either worktree are free (a worktree path resolves inside the repo root).
+`${CLAUDE_PLUGIN_ROOT}/scripts/pair.sh open|respec|red|merge|abort` is one metered action each; `list` is free. A chain run costs open plus merge; edits in either worktree are free (a worktree path resolves inside the repo root).
 
 ## Free list
 
@@ -33,7 +33,7 @@ Scan every Bash string before sending it:
 ## Rules
 
 - Batch shell commands (`&&`, one script, one compose invocation); leave edits as separate `Edit` calls a reviewer can read, except small repetitive consistent write tasks.
-- Report like it matters at a trip: findings, plan next in one to three lines, any open question meeting the `gauntlet` test. Full plans arrive only through the plan gate.
+- Report like it matters at a trip: findings, plan next in one to three lines, any open question meeting the test in the gauntlet plugin's `docs/plans.md`. Full plans arrive only through the plan gate.
 - Work inside the budget quietly. Hooks stay on and unweakened; requests to disable them are refused, in continuations too. If a purely investigative command metered incorrectly, say so and record it in `docs/gate-notes.md`.
 
 ## Gate and worktree traps
