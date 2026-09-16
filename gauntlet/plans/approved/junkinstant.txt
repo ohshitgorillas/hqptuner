@@ -1,0 +1,271 @@
+slug: junkinstant
+grounding: detective
+
+brief:
+"You open slug junkinstant on HQPTuner's dev branch, where the approved plan for the previous slug is at gauntlet/plans/approved/junkrules.txt and .venv/bin/python scripts/junkcal_eval.py at 114 of 114 is the acceptance check that must still hold when you finish."
+delivered: ACCEPTANCE below reads the prior plan at gauntlet/plans/approved/junkrules.txt for what junkrules landed and what it deliberately kept, and makes `.venv/bin/python scripts/junkcal_eval.py` at 114 of 114 the implementation's proof, run at implementation because it is a metered action.
+
+"The slug deletes the readiness gate, the track_serial check and the track-change rebuild from hqptuner/engine/metering.py, removes the remaining coverage exemptions in scripts/gates/check_coverage_floor.py, and amends docs/architecture.md:98 because the spur hold's only track boundary becomes visibility release"
+delivered: WHAT CHANGES items 1, 2 and 3 delete the three named sites in `hqptuner/engine/metering.py`; item 5 removes the one coverage exemption the owner's ruling names; item 6 amends `docs/architecture.md:98`.
+revised at owner's word: "junkadvisor.py only" — the exemption sentence is read as the `hqptuner/engine/junkadvisor.py` entry at `scripts/gates/check_coverage_floor.py:34` alone. The owner ruled on that question before this plan was drafted, against the measured fact that all seven EXEMPT entries sat under the floor in the uncommitted local `.coverage.json` COVERAGE tags ASSUMED, written before `4c5877ec` landed ( `__main__.py` 87.5, `engine/control.py` 89.9, `engine/junkadvisor.py` 87.69, `engine/metering.py` 55.65, `lanes/autopilot.py` 73.68, `api/routes/autopilot.py` 84.0, `core/autopilotops.py` 84.91). The other six entries stay as written.
+
+"Removing the junkadvisor.py exemption means covering its treats and treated by behavior with a test."
+delivered: WHAT CHANGES item 5 removes the entry and records what the removal rests on; COVERAGE carries the arithmetic.
+
+WHAT IS WRONG
+
+junkrules made the detector stateless in the rules and per-bin in the hold: a spectrum is classified on its own, and a spur bin is held until its excess falls under `SPUR_RELEASE_DB` or the bin stops standing clear of the floor (`hqptuner/engine/junkadvisor.py:135-147`, `SpurHolder.decide`). Three sites in the reader still impose the older model on top of those rules.
+
+1. Readiness. `SpectralAggregate.window_min_db` returns None until six full five-second blocks exist (`hqptuner/engine/metering.py:166-167`, `if len(self._blocks) < WINDOW_BLOCKS: return None`), so no verdict of any kind is possible for the first ~30 s of a stream. `hqptuner/engine/junkadvisor.py:161` calls it "the only readiness gate there is". A tone the rules can read off the first block is not read for half a minute.
+
+2. Track identity in the read. `verdict()` returns None whenever the engine's `track_serial` differs from the one the aggregate was built under (`hqptuner/engine/metering.py:233`), so the advice drops on the first poll after a track change even though the evidence in hand is unchanged.
+
+3. Track identity in the write. `_ingest` rebuilds the aggregate, resets `self._serial` and throws away the spur hold whenever `ctx.track_serial` changes (`hqptuner/engine/metering.py:346-349`), so every track change costs a fresh ~30 s readiness wait on top of the hold.
+
+Together these are the "wait, window and track identity" the junkrules rules say the verdict does not read. The hold is keyed by frequency rather than bin index precisely so a re-grid carries it (`hqptuner/engine/junkadvisor.py:126-128`), and the release rule is already the one the owner wants: a filter is never held where the spur is not visible.
+
+Separately, `hqptuner/engine/junkadvisor.py` is excused at `scripts/gates/check_coverage_floor.py:34` with the reason "treats, treated and the readiness guards carry no behavior line yet". That reason is already false: `tests/engine/test_junktreats.py` landed at `4c5877ec` and pins `treated` and `treats` by behavior. The 87.69% figure quoted in this plan is an uncommitted local `.coverage.json` written before that test landed, tagged ASSUMED in COVERAGE; the uncovered region it names is `treated`'s body (`junkadvisor.py:209-220`) and `treats`'s body (`junkadvisor.py:223-231`), plus four guard lines; the two bodies are what the landed test covers apart from `:229`, and the four guards and that line stay uncovered. COVERAGE below carries the enumeration with the arithmetic.
+
+WHAT THE USER SEES CHANGE
+
+Advice appears within the first seconds of playback instead of after ~30 s, and it survives a track change: a spur the rules can still see on the new track keeps its advice standing, and one they cannot see releases on its own at the next window. Nothing else about the note, the chip or auto-pilot changes. The cost of that is stated in COST.
+
+WHAT CHANGES
+
+1. `SpectralAggregate.window_min_db` (`hqptuner/engine/metering.py:161-172`) folds whatever blocks exist, full window or not: the `len(self._blocks) < WINDOW_BLOCKS` gate goes, and None is returned only where there is no evidence at all, meaning no pushed block and no partial block. The rolling deque and its `maxlen=WINDOW_BLOCKS` stay (`:135`): six blocks is how far back the minimum reaches, which is retention, not readiness. `BLOCK_SECONDS` and `WINDOW_BLOCKS` keep their values and their names.
+
+2. The staleness check at `hqptuner/engine/metering.py:233` goes. `verdict()` then reads the aggregate it has, whatever the engine is playing.
+
+3. `_ingest` (`hqptuner/engine/metering.py:342-354`) rebuilds only on geometry: `agg is None or agg.bins != bins or agg.bandwidth != bandwidth`. The `ctx.track_serial != self._serial` term goes, `self._serial = ctx.track_serial` (`:348`) goes with it, and so does the `self._holder = junkadvisor.SpurHolder()` reset at `:349` — a re-grid needs no hold reset, the hold being keyed by frequency and dropping the bins the new grid lacks (`junkadvisor.py:135-141`). The `self._serial` field itself (`hqptuner/engine/metering.py:196`) is then dead and is deleted. The reset in `run()` on a broken stream stays as written: a stream break is not a track boundary.
+
+   `TrackContext.track_serial` (`hqptuner/engine/metering.py:71`) and its population in `context_from` (`:87`) have no reader left after those three deletions and are deleted too. The whole-repo reference list is `metering.py:71,87,233,346,348` and `tests/conftest.py:390` (detective grep, verified by reading each line), so nothing outside this file and one test fixture holds it.
+
+4. Prose that states the model being deleted is amended where it is now false, in the same commit:
+   - `hqptuner/engine/metering.py:10-13` module docstring, "throws the aggregate away whenever the stream or the track context breaks, so a verdict is only ever computed over one track's frames".
+   - `hqptuner/engine/metering.py` `verdict()` docstring (`:218-223`), "The holder carries no track identity: it is rebuilt with the aggregate, so the hold dies with the track and with the stream", and `run()`'s "one unbroken run of one track's frames".
+   - `hqptuner/engine/metering.py:51-57`, the persistence-window comment over `BLOCK_SECONDS`/`WINDOW_BLOCKS`, which describes the window as what a verdict waits for.
+   - `hqptuner/engine/junkadvisor.py:161-162`, "or None while the window has not yet been earned — the only readiness gate there is, and no verdict of any kind before it", and `SpurHolder`'s class docstring at `:124-128`, "held across the windows of one track" and "discarded with the aggregate".
+   - `hqptuner/core/junkcal.py:8-9`, the module docstring's "the windowed minimum spectrum", and `_spectrum`'s docstring at `:44`, "or None until earned".
+
+5. `scripts/gates/check_coverage_floor.py:34`, the `hqptuner/engine/junkadvisor.py` entry in `EXEMPT`, is deleted. The remaining six entries are untouched. Nothing in the gate forces this: `below()` (`scripts/gates/check_coverage_floor.py:49-52`) drops every exempt path before the floor is applied, and `stale()` (`:55-57`) fires only on a key naming no file in the report, so a leftover entry over a file measured at 94.87% passes silently. The entry goes because the brief says it goes and because the reason it carries is no longer true, not because a gate would catch it.
+
+   That landed test parametrizes over the engaged junk filter, corner fixed (`tests/engine/test_junktreats.py:26-42`, `CORNER_30K`), and over the main filter's name, verdict fixed (`:44-65`, `VERDICT_40K`). So no test in this slug pays for the removal, and the spec block in item 9 carries no `treats`/`treated` line. The removal rests on that landed test and on `make check` at implementation, which is the run that proves the file clears the 90% floor with the entry gone; COVERAGE below is the prediction, not the proof.
+
+6. `docs/architecture.md:98` is amended: the note no longer clears on track change, and the windowed minimum no longer has to be earned before anything is said. The proposed replacement of the two affected sentences, for approval:
+   "The cliff and ramp verdicts are properties of the spectrum in front of the rules, recomputed on every read and held by nothing, so the note clears as soon as the current minimum stops carrying the signature; a spur verdict is held per bin, each bin engaging when its excess over the local baseline crosses the engage split and releasing on its own once that excess falls under the lower release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a tone does not drop the advice and bring it back."
+   "The hold has no track boundary of its own: a held bin releases when the rules stop seeing it, not when the track changes, and the aggregate behind it is rebuilt only when the frame geometry changes or the stream breaks. The note clears once the engaged junk filter treats it (corner at or below the recommended one, or any rate-relative choice); `none` never clears it."
+
+7. `docs/architecture.md:99` carries the same fact and is amended with it, though the brief names only `:98`: it reads "A track opens with nothing engaged and stays there until it earns a verdict of its own, which takes a full persistence window of the metering stream (`metering.BLOCK_SECONDS` × `metering.WINDOW_BLOCKS`)", which is false once the readiness gate is gone. Proposed replacement of that one sentence, for approval:
+   "Auto-pilot engages as soon as the stream carries a signature it can read, which no longer waits on a full persistence window."
+   Leaving it standing would put two contradicting statements one line apart. Flagged rather than done silently.
+
+8. `hqptuner/static/store/alerts/junkadvice.js:4-6` is user-facing copy in a comment and states "It clears by itself when the current spectrum stops carrying the signature, when the track changes, or when the engaged settings treat the signature (the backend decides what counts)". The middle clause becomes false. junkrules read this text as true and left it; this slug is what falsifies it. Proposed replacement, for the owner's approval character for character:
+   "It clears by itself when the current spectrum stops carrying the signature, or when the engaged settings treat the signature (the backend decides what counts)."
+   No em dash. Nothing else in the file changes, and the file has no other junk prose.
+
+9. Tests. Two lanes, and they are separate.
+   - The tests-only lane carries one motion and no more: a `motion: strike` on `tests/engine/test_junk_persistence.py:38-42`, `test_window_min_is_none_before_the_window_is_earned`, whose whole assertion is the deleted gate. `tests/conftest.py:390` is not in that lane. The `PLAYING` fixture there is dead — `grep -rn PLAYING tests/ hqptuner/ scripts/` finds no use of it under `tests/` beyond its own definition at `tests/conftest.py:390`, the other Python hits being the engine's own state constant (`hqptuner/engine/metering.py:39` and its use at `:86`) and a probe's own (`scripts/probes/probe_rate_slots.py:31,43,109`), both unrelated to the fixture, and the `tests/js/` hits being JS files that define their own constant — and its `track_serial="track-1"` keyword stops compiling when the field goes, so the writer owns that fixture inside the spec block below and amends it there. `test_window_min_appears_once_the_window_is_earned` (`:45-49`) stays true as written and is not touched.
+   - `gauntlet/specs/approved/cover-metering-d68e.txt` is approved, unimplemented and partly contradicted by this slug. Its behavior 7 (`:50`, "A track change starts fresh evidence") dies outright; behavior 8 (`:56`) keeps its first clause, the window's signature naming the tone's frequency, and loses its second, None across a serial change; behavior 6 (`:44`) keeps both its cases, the pause and the unreadable context, and loses only the words "at the same track_serial", the pause no longer being told from a track change by anything the reader reads. Nothing implements them today: `grep -rn MeteringReader tests/` prints nothing and `hqptuner/engine/metering.py` is still exempt at `scripts/gates/check_coverage_floor.py:35`, so no test goes red and no gate fires. That spec is not folded into this one: junkinstant's block stays at two lines, and those three lines return to their own stage 2 by `pair.sh respec` against the same arbiter, as separate work this plan names and does not do.
+   - The stage 2 spec block carries two `kind: new` lines and no more:
+     1. One parametrized line over `SpectralAggregate.window_min_db`, three cases in one line: no frames fed at all returns None; one partial frame returns the level that frame was fed at; one full block returns the level it was fed at. The readiness gate's death and its one surviving None, in the same parametrization.
+     2. One line where the aggregate and the spur hold survive a `track_serial` change on the wire under `context_from`, at unchanged geometry: the same evidence and the same held bin read across the change, with no rebuild and no reset.
+   - The writer owns, inside that block, the fake 4322 stream harness the second line needs (`tests/support/fixtures_daemons.py`, per the pointer at `tests/conftest.py:386`) and the dead `PLAYING` fixture at `tests/conftest.py:390`, amending it off `track_serial` as part of writing that line. Both lines are written tests-first by the blind `scrivener` through `/tests`. No `treats`/`treated` line: item 5 records the landed test that already pins them.
+
+COVERAGE
+
+Removing the exemption needs `hqptuner/engine/junkadvisor.py` at or over 90% by the gate's own arithmetic, which is lines and branches together: `(covered_lines + covered_branches) / (num_statements + num_branches)`, which stood at `(141 + 30) / (155 + 40)` = 87.69%. That base figure is ASSUMED: it comes from an uncommitted local `.coverage.json` written by a run made before `4c5877ec` landed. No coverage report is committed at any commit of this repo — `.coverage.json` is a build artifact of the test target (`Makefile:78`, `--cov-report=json:.coverage.json`) read by the gate (`scripts/gates/check_coverage_floor.py:26`), `git log -- .coverage.json` prints nothing, and the file is not on disk now — so no free read restores it; only a metered `make check` does.
+
+`tests/engine/test_junktreats.py`, landed at `4c5877ec`, covers missing lines 215-220, 228, 230 and 231, and five of the six missing branches over them (`[215,216] [215,217] [218,219] [218,220] [228,230]`). Line 229 and branch `[228,229]` stay uncovered: both `treats` cases pass `junk_filter=None` (`tests/engine/test_junktreats.py:65`, `treats(VERDICT_40K, None, filter_name)`), so `treated(...)` at `hqptuner/engine/junkadvisor.py:228` is False on every case and the `return True` at `:229` never runs; no other caller reaches it either, `hqptuner/lanes/autopilot.py:31` passing `junkadvisor.NO_FILTER` and `hqptuner/engine/metering.py:251` having no Python test (item 9's own `grep -rn MeteringReader tests/`). That is `(150 + 35) / 195` = 94.87%, which clears the 90 floor. The four lines that stay uncovered beyond it are guards — 186 and 195, the eligibility refusal in `verdicts`/`eligible`, and 388 and 391, the ramp's rate and band-width refusals — and none of them is reached by this slug's two behavior lines either. This is arithmetic off the ASSUMED base plus the landed test, not a fresh measurement; the run that settles it is `make check` at implementation.
+
+ACCEPTANCE
+
+`.venv/bin/python scripts/junkcal_eval.py` must still read 114 of 114. Nothing in this plan touches a rule: the scorer reaches the detector through its `verdicts` entry point (`scripts/junkcal_eval.py:188-212`, `adapted`/`resolve`, loaded by dotted path `DEFAULT_CLASSIFIER = "hqptuner.engine.junkadvisor"` at `:53`), hands it one whole row's spectrum at a time, and never constructs a `SpectralAggregate` or a `TrackContext` — `grep -n "track_serial\|readiness" scripts/junkcal_eval.py` returns nothing. So the score is unchanged by construction, and the run at implementation is the proof of that, not the discovery of it.
+
+FILES TOUCHED
+
+- `hqptuner/engine/metering.py` — items 1, 2, 3 and the docstring amendments in 4. Net deletion; the file is 386 lines against a 400-line watch (`scripts/gates/check_file_length.py`), and it only shrinks.
+- `hqptuner/engine/junkadvisor.py` — docstring amendments only (item 4). No rule, constant or signature changes.
+- `hqptuner/core/junkcal.py` — docstring amendments only (item 4). Its `_spectrum` (`:43-49`) is the second production caller of `window_min_db` and takes the change without an edit to its code.
+- `scripts/gates/check_coverage_floor.py` — one `EXEMPT` entry deleted (item 5).
+- `docs/architecture.md` — lines 98 and 99 (items 6 and 7), owner-approved text.
+- `hqptuner/static/store/alerts/junkadvice.js` — one comment clause (item 8), owner-approved text.
+- `tests/engine/test_junk_persistence.py` — the one tests-only lane motion in item 9, a strike.
+- `tests/conftest.py`, `tests/support/fixtures_daemons.py` — the writer's, inside the spec block (item 9): the dead `PLAYING` fixture amended off `track_serial`, and the fake 4322 stream harness the second line drives.
+- New tests under `tests/` from the stage 2 spec block, by the `scrivener`.
+- `CHANGELOG.md` — one `[Unreleased]` entry, authored at stage 2. The change is user-visible: advice appears sooner and no longer drops at a track change.
+
+CALLER-SIDE DELTA
+
+Nothing splits, nothing moves between modules, no name is re-exported. `window_min_db` has two production callers: `MeteringReader.verdict` (`hqptuner/engine/metering.py:236`) and `junkcal._spectrum` (`hqptuner/core/junkcal.py:45`). Neither call changes; both start returning a spectrum where they used to get None, which is the change. Five more calls are in `tests/engine/test_junk_persistence.py` — `:42`, `:49`, `:63`, `:67`, `:93` — of which `:42` is the strike item 9 names and the other four feed whole blocks, so they read the same after item 1. `window_min_db`, `verdict`, `recommendation`, `classify`, `verdicts`, `treats`, `treated` all keep their signatures and their meanings; `window_min_db`'s return type is unchanged (`list[float] | None`) and only the condition under which it is None narrows. One field disappears from a public dataclass, `TrackContext.track_serial`, and its construction sites are `hqptuner/engine/metering.py:87` and `tests/conftest.py:390` — two, both in FILES TOUCHED, no production caller outside this module.
+
+COST
+
+- Behavior risk, and it is the point of the slug: a spur held on one track can keep advising into the next one until its bin stops standing clear of the floor or its excess falls under the release split. On material where that tone really is gone, the advice stands one window late instead of clearing at the track boundary. The release rule is what bounds it and there is no other bound.
+- The narrowest evidence a verdict can rest on is one ingested frame, not one block and not thirty seconds: `add` (`hqptuner/engine/metering.py:139-159`) folds each non-silent frame into `_block_min` as it arrives, and the partial block joins the read, so the first frame past the decimator can carry a verdict. A transient that a longer minimum would have folded away can now raise a note. No corpus row measures this: the fixture scores whole rows, not partial windows, so this is stated as unmeasured rather than given a number.
+- The calibration corpus changes shape: rows captured by `hqptuner/core/junkcal.py` carry a spectrum from the opening seconds of a period instead of null, so a future capture holds early partial-minimum rows the present fixture has none of. The fixture at `tests/support/fixtures/junkcal/` is committed and is not recaptured here, so the 114-of-114 acceptance reads the same rows it always did; the cost lands on whatever is captured next, and it is a dev-tool corpus, not a user surface.
+- `/task-check` (`make check`, rebuild `hqptuner:dev`, health-check `:8090`) after the edits, per the repo rule, since `hqptuner/` and a static asset are touched. No playback interruption, no daemon write, nothing against the live hqplayerd.
+- No visual change, so no `user-reviewer` round is owed; the changed comment renders nowhere.
+
+ASSUMED
+
+- The 87.69% base figure in COVERAGE, from an uncommitted local `.coverage.json` written before `4c5877ec` landed. No coverage report is committed and the file is absent from the tree now, so settling it needs a metered `make check`.
+- That `make check` passes with the junkadvisor exemption gone. The arithmetic above says 94.87%, off that ASSUMED base plus the test landed at `4c5877ec`, but the run itself is metered and belongs to implementation.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: "PASS  The redefinition is stated outright as the change proposed: item 1 keeps `WINDOW_BLOCKS` its
+         name while restating its meaning ("six blocks is how far back the minimum reaches, which is retention, not
+         readiness"), and items 6 and 7 amend the normative statements it overturns at `docs/architecture.md:98` and
+         `:99`, both line numbers verified. Brief sentence 2 is the owner authorizing the deletion."
+b  PASS  Both sets of citations now resolve, and I opened every one. In
+         `gauntlet/specs/approved/cover-metering-d68e.txt`, `:44` is behavior 6, `:50` is behavior 7 and `:56` is
+         behavior 8, exactly as item 9's bullet now has them. In `hqptuner/core/junkcal.py`, the module docstring's
+         "the windowed minimum" runs `:8-9`, `_spectrum` is `:43-49`, its docstring "or None until earned" is `:44`,
+         and the `agg.window_min_db()` call is `:45` — item 4, FILES TOUCHED and CALLER-SIDE DELTA each carry the
+         right one now. Every other load-bearing citation in the plan was resolved in rounds 1 and 2 and none of them
+         changed: the gate arithmetic against `.coverage.json` at HEAD, `check_coverage_floor.py:34`, `:35`, `:49-52`,
+         `:55-57`, the metering sites at `:71`, `:87`, `:139-159`, `:161-172`, `:196`, `:233`, `:236`, `:342-354`, the
+         junkadvisor docstrings, `docs/architecture.md:98` and `:99`, `junkadvice.js:4-6`, `conftest.py:390`, the
+         persistence tests, and `junkcal_eval.py:53` and `:188-212`. `grounding: detective` is the second header line
+         and is the right value: the plan cites `scripts/junkcal_eval.py` and `gauntlet/specs/approved/` outside its
+         touched list.
+c  PASS  The count now matches mine exactly. `grep -n window_min_db` over the tree gives two production calls,
+         `hqptuner/engine/metering.py:236` and `hqptuner/core/junkcal.py:45`, and five test calls at
+         `tests/engine/test_junk_persistence.py:42`, `:49`, `:63`, `:67` and `:93`; the plan names all seven, marks
+         `:42` as the strike item 9 carries, and says the other four feed whole blocks, which they do (`:49` and `:93`
+         directly, `:63` and `:67` through `_earned_alternating`). The field deletion's two construction sites,
+         `metering.py:87` and `tests/conftest.py:390`, are still the whole list.
+d  PASS  carried: "PASS  Cause named upstream of appearance: three sites in the reader imposing a per-track windowed
+         model on rules that are stateless and per-bin (`metering.py:166`, `:233`, `:346`), with the appearance
+         following from it. First plan on this surface since junkrules, not round N of a growing fix list."
+e  PASS  Re-read on the corrected line numbers; the substance is what round 2 passed. Item 9 names
+         `gauntlet/specs/approved/cover-metering-d68e.txt` and states plainly which of its behaviors this slug
+         overturns — 7 outright, 8's serial clause, 6's four words — and what happens to them, a respec to its own
+         stage 2 against the same arbiter. No other rule in force over this surface is touched in silence:
+         `docs/architecture.md:98` and `:99` are amended in items 6 and 7, `junkadvice.js` in item 8, and the two
+         test-lane motions in item 9.
+f  PASS  carried: "PASS  COST now states the boundary reading rather than a block: "The narrowest evidence a verdict
+         can rest on is one ingested frame, not one block and not thirty seconds", and `add` at
+         `hqptuner/engine/metering.py:139-159` is what it says it is — every non-silent frame folded into `_block_min`
+         as it arrives, with the partial block joining the read at `:168-170`."
+g  PASS  carried: "PASS  Re-read against item 9's new bullet, which adds no question: the respec of the three
+         cover-metering lines is named as separate work through `pair.sh respec` and the same arbiter, not passed to
+         the owner as a question. The plan still carries no open-questions section and still owes none."
+h  PASS  carried: "PASS  The reach claim now names its mechanism. `hqptuner/core/junkcal.py` is in FILES TOUCHED and
+         item 4, both callers of `window_min_db` are named, and the acceptance claim is bounded by a fact I checked:
+         `tests/support/fixtures/junkcal/` holds committed `.jsonl.gz` captures and the plan states they are not
+         recaptured here, so the 114-of-114 run reads the same rows while the corpus shape change lands on whatever is
+         captured next. One hop from the changed symbols turns up nothing else: `verdict` and `recommendation` reach
+         `core/autopilotops.py:60` and `api/routes/status.py:90`, both of which the plan's WHAT THE USER SEES already
+         describes, and `TrackContext` reaches `core/junkcal.py:55` through `context_from`, which reads `playing`,
+         `samplerate`, `sdm`, `junk_filter` and `filter` and never `track_serial`."
+i  PASS  The block is whole: the owner's brief is quoted verbatim in three sentences, each carries exactly one
+         `delivered:` line, and each resolves to a named element that exists. Sentence 3's line now names "item 9's
+         stage 2 spec-block bullet", which is the third bullet under item 9 and names itself rather than a position
+         that moves. Nothing is `dropped:`, so nothing is owed to open questions.
+j  N/A   carried: "N/A   `hqptuner/core/manager.py`, the composition root (`docs/architecture.md:101`), is not
+         touched: FILES TOUCHED lists metering.py, junkadvisor.py, the coverage gate, two docs, one JS comment and
+         tests."
+k  PASS  Re-read on sentence 3, whose `delivered:` line changed again. The element it now names gives one behavior
+         line over `junkadvisor.treated` and `junkadvisor.treats` together, which is what the sentence asks for, and
+         COVERAGE's arithmetic over exactly those two bodies is the committed report's own. Sentences 1 and 2 are
+         unchanged: ACCEPTANCE holds 114 of 114 as the implementation's proof by a mechanism I verified, and the
+         one-entry reading of the exemption sentence rests on the owner's quoted words, "junkadvisor.py only". No
+         repair I named over three rounds narrowed any brief sentence.
+l  PASS  The last duplication is gone: CALLER-SIDE DELTA now carries the call-site list and nothing about the capture,
+         and COST's "The calibration corpus changes shape" bullet carries that fact once, with the consequence and the
+         fixture ruling beside it. Reading the plan sentence by sentence, every remaining sentence carries a fact not
+         in the citation beside it or in an earlier section, and the two cross-section pointers — "The cost of that is
+         stated in COST" and "whose arithmetic is in COVERAGE below" — name the section that holds the fact, which is
+         what one-fact-one-section asks for.
+
+notes
+1. `make check` with the exemption gone, and `.venv/bin/python scripts/junkcal_eval.py` at 114 of 114, are metered
+   runs that belong to implementation. I ran neither; the plan's ASSUMED tag on the first is the legal shape and the
+   second is named as proof rather than discovery. The owner is the reader who can weigh what happens if the second
+   comes back under 114: the plan says the score is unchanged by construction, and that argument, not a measurement,
+   is what is being approved.
+2. The round paths for rounds 2 and 3 came from the coordinator's own directory listing rather than from
+   `pair.sh review plan junkinstant`, which keeps printing round 1. I read `highest_round` in the installed plugin's
+   `scripts/pair/blocks.py` and it returns 0 through its `except OSError` path, which is consistent with the reported
+   misfire; the listing itself I cannot check, being denied every read of the reviews lane. Nothing was patched. The
+   owner should know the numbering is being supplied by hand until that is fixed, because the failure mode is a round
+   overwriting an earlier one that sits in no git object.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: "PASS  The redefinition is stated outright as the change proposed: item 1 keeps `WINDOW_BLOCKS` its
+         name while restating its meaning ("six blocks is how far back the minimum reaches, which is retention, not
+         readiness"), and items 6 and 7 amend the normative statements it overturns at `docs/architecture.md:98` and
+         `:99`, both line numbers verified. Brief sentence 2 is the owner authorizing the deletion."
+b  PASS  Round 5's repair lands. WHAT IS WRONG now reads "the two bodies are what the landed test covers apart from
+         `:229`, and the four guards and that line stay uncovered", which agrees with COVERAGE and with the file:
+         every `treats` case in `tests/engine/test_junktreats.py:65` passes `junk_filter=None`, so `treated(...)` at
+         `hqptuner/engine/junkadvisor.py:228` is False throughout and the `return True` at `:229` never runs, leaving
+         `:229` plus the four guards at `:186`, `:195`, `:388` and `:391` uncovered. Every other citation in the plan
+         was opened in rounds 3 through 5 and none of them changed: the metering sites at `:71`, `:87`, `:139-159`,
+         `:161-172`, `:196`, `:233`, `:236`, `:342-354`, the junkadvisor bodies and docstrings, the gate at `:26`,
+         `:34`, `:35`, `:49-52`, `:55-57`, `Makefile:78`, the empty `git log -- .coverage.json` behind the ASSUMED
+         base, `docs/architecture.md:98` and `:99`, `junkadvice.js:4-6`, `conftest.py:386` and `:390`,
+         `fixtures_daemons.py`, the persistence tests, the cover-metering spec lines and `junkcal_eval.py:53` and
+         `:188-212`. `grounding: detective` is the second header line and is the right value.
+c  PASS  carried: "PASS  The count now matches mine exactly. `grep -n window_min_db` over the tree gives two
+         production calls, `hqptuner/engine/metering.py:236` and `hqptuner/core/junkcal.py:45`, and five test calls at
+         `tests/engine/test_junk_persistence.py:42`, `:49`, `:63`, `:67` and `:93`; the plan names all seven, marks
+         `:42` as the strike item 9 carries, and says the other four feed whole blocks, which they do (`:49` and `:93`
+         directly, `:63` and `:67` through `_earned_alternating`). The field deletion's two construction sites,
+         `metering.py:87` and `tests/conftest.py:390`, are still the whole list."
+d  PASS  carried: "PASS  Cause named upstream of appearance: three sites in the reader imposing a per-track windowed
+         model on rules that are stateless and per-bin (`metering.py:166`, `:233`, `:346`), with the appearance
+         following from it. First plan on this surface since junkrules, not round N of a growing fix list."
+e  PASS  carried: "PASS  Item 9's new lane split is the rule the tests lane states rather than a rule overturned in
+         silence: `.claude/commands/tests.md:24` says a motion whose change also needs an edited shared fixture —
+         `tests/conftest.py`, anything under `tests/support/` — trips `UNNAMED <path>` at the merge and takes the
+         ordinary chain, which is exactly where the plan now puts the `PLAYING` fixture and the 4322 harness, leaving
+         the lane one `motion: strike` confined to `tests/engine/test_junk_persistence.py`. The cap of four spec
+         lines is not approached at two. The cover-metering collision is unchanged from round 3 and still named in
+         full, and no other rule over this surface moves in silence."
+f  PASS  carried: "PASS  COST now states the boundary reading rather than a block: "The narrowest evidence a verdict
+         can rest on is one ingested frame, not one block and not thirty seconds", and `add` at
+         `hqptuner/engine/metering.py:139-159` is what it says it is — every non-silent frame folded into `_block_min`
+         as it arrives, with the partial block joining the read at `:168-170`."
+g  PASS  carried: "PASS  Re-read against item 9's new bullet, which adds no question: the respec of the three
+         cover-metering lines is named as separate work through `pair.sh respec` and the same arbiter, not passed to
+         the owner as a question. The plan still carries no open-questions section and still owes none."
+h  PASS  carried: "PASS  The reach claim now names its mechanism. `hqptuner/core/junkcal.py` is in FILES TOUCHED and
+         item 4, both callers of `window_min_db` are named, and the acceptance claim is bounded by a fact I checked:
+         `tests/support/fixtures/junkcal/` holds committed `.jsonl.gz` captures and the plan states they are not
+         recaptured here, so the 114-of-114 run reads the same rows while the corpus shape change lands on whatever is
+         captured next. One hop from the changed symbols turns up nothing else: `verdict` and `recommendation` reach
+         `core/autopilotops.py:60` and `api/routes/status.py:90`, both of which the plan's WHAT THE USER SEES already
+         describes, and `TrackContext` reaches `core/junkcal.py:55` through `context_from`, which reads `playing`,
+         `samplerate`, `sdm`, `junk_filter` and `filter` and never `track_serial`."
+i  PASS  carried: "PASS  Sentence 3's `delivered:` line is now "WHAT CHANGES item 5 removes the entry and records what
+         the removal rests on; COVERAGE carries the arithmetic", one line naming two elements that both exist and
+         both do what the line says. Three brief sentences, three lines, nothing `dropped:`."
+j  N/A   carried: "N/A   `hqptuner/core/manager.py`, the composition root (`docs/architecture.md:101`), is not
+         touched: FILES TOUCHED lists metering.py, junkadvisor.py, the coverage gate, two docs, one JS comment and
+         tests."
+k  PASS  carried: "PASS  Re-read on sentence 3's shortened line. "Removing the junkadvisor.py exemption means
+         covering its treats and treated by behavior with a test" resolves to item 5, which removes the entry and
+         rests it on `tests/engine/test_junktreats.py`, a test asserting on `treated` over seven engaged-filter cases
+         (`:42`) and on `treats` over five main-filter cases (`:65`) — both functions pinned by behavior by a test,
+         which is the sentence on its plain meaning, under the owner's quoted revision. Repair 1 above narrows
+         nothing: it makes a summary sentence agree with COVERAGE and leaves the element delivering the sentence."
+l  PASS  The one changed clause adds "apart from `:229`" and "and that line", both facts not carried by the sentence
+         before them and both needed to stop the paragraph contradicting COVERAGE; the paragraph still ends by naming
+         COVERAGE as the section holding the enumeration, which is what one-fact-one-section asks. Round 5's reading
+         of the rest stands: no sentence says a fact its citation or an earlier section already carries.
+
+notes
+1. Two things in this plan are unsettleable by free read and are the owner's to weigh: the 87.69% base, from an
+   uncommitted `.coverage.json` that is in no commit and not on disk, and the 94.87% prediction that rests on it.
+   `make check` at implementation is the only thing that settles either, and the plan tags both.
+2. `.venv/bin/python scripts/junkcal_eval.py` at 114 of 114 is metered and belongs to implementation. I did not run
+   it. What is approved is ACCEPTANCE's argument that the score is unchanged by construction, not a measurement of
+   it; if that run comes back under 114, the plan's reasoning is what was wrong, not the implementation.
+3. Round paths for this plan have been supplied by the coordinator rather than by `pair.sh review plan junkinstant`,
+   which keeps printing round 1 — round 3's note 2 has the detail. Nothing was patched; the numbering risk is that a
+   round overwrites one that sits in no git object.
