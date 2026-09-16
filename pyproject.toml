@@ -88,7 +88,10 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # owner-approved wording, so it takes no judge.
 md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
 suffixes = [".py", ".js", ".css"]
-excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
+# The kit's own files are its to word: .claude/hooks/shell_shapes.py is
+# copied from the gauntlet plugin verbatim, so a remark judged here would be
+# repaired in a file the next copy overwrites. Owner-approved, all kit files.
+excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/", ".claude/hooks/shell_shapes.py"]
 # Beside the other agent-written caches, which .gitignore already carries.
 cache_dir = ".claude/logs"
 
@@ -97,7 +100,6 @@ cache_dir = ".claude/logs"
 # called by name, so ignore those decorators or every @router.* endpoint reads
 # as unused. min_confidence 60 is vulture's floor for unused module-level defs.
 paths = ["hqptuner", "scripts", "tests"]
-exclude = ["scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
 min_confidence = 60
 ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete", "@pytest.fixture"]
 # BaseHTTPRequestHandler overrides in the wire-protocol fakes are dispatched by
@@ -109,12 +111,16 @@ ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_th
 [tool.ruff]
 line-length = 120
 force-exclude = true
-extend-exclude = [".claude/hooks", "scripts/pair", "scripts/cite.py", "scripts/strike-diff.py"]
+extend-exclude = [".claude/hooks"]
 target-version = "py312"
 
 [tool.black]
 line-length = 120
-extend-exclude = "scripts/(pair/|cite\\.py|strike-diff\\.py)"
+# Mirrors ruff's exclusion above: .claude/hooks/ carries the gauntlet kit's own
+# files, reformatting them forks them from the plugin they are copied from.
+extend-exclude = "\\.claude/hooks/"
+# pre-commit hands black explicit paths, which extend-exclude alone does not stop.
+force-exclude = "\\.claude/hooks/"
 target-version = ["py312"]
 
 [tool.ruff.lint]
@@ -182,16 +188,11 @@ ban-relative-imports = "all"
     "PLR2004",  # the remaining literals are self_checks() expectations: the number asserted IS the expectation
 ]
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
-# Owner-approved for this file: the merge check compares two commits, so git is its
-# only source. The argv is this module's own literals plus a rev and a repo-relative
-# path handed in by scripts/pair.sh, and GIT is resolved by shutil.which.
-"scripts/strike-diff.py" = ["S603"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 files = ["hqptuner", "tests", "scripts"]
-exclude = "^scripts/(pair/|cite\\.py|strike-diff\\.py)"
 # Mirrors the pytest `pythonpath` above: the support modules and the budget
 # analyzers are imported by bare name, not by package path.
 mypy_path = ["tests", "tests/support", "scripts/budget"]

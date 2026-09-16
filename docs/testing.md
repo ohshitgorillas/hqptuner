@@ -82,7 +82,7 @@ N. strike <target>
    assertion: <the offending assertion, quoted from the test file>
 ```
 
-The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `gauntlet-scrivener` with an `Edit` in its spec tree; a whole file is removed by `scripts/pair.sh merge` before it commits, since the lane hook denies every agent that shell. A strike line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
+The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `scrivener` with an `Edit` in its spec tree; a whole file is removed by `${CLAUDE_PLUGIN_ROOT}/scripts/pair.sh merge` before it commits, since the lane hook denies every agent that shell. A strike line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
 
 ## Amend motions
 
@@ -99,7 +99,7 @@ N. strike tests/<file>::<test>
 
 The target is always a single test. A whole file belongs to `motion: strike` alone, since a replacement cannot land in a file the strike half deleted. `as:` names what the replacement must land as, and may equal the target: a coupled test name often states the behavior correctly (rule 6) and only the assertion is wrong, so renaming it is churn. The merge check reads a target as satisfied on either fact — the name is gone from `tests/`, or the name is there and the quoted `assertion:` is gone from that test's own body, body rather than file, because the same assertion text can sit in a sibling parametrize case. An amend line carries no `bite:`: the replacement pins behavior HEAD already has, which rule 8 exempts in the clause that exempts characterization. The four-line cap counts `replace:` lines only.
 
-Neither tests-only motion reaches a red run. Both are checked at the merge by `scripts/strike-diff.py`, which compares the landed diff against the committed block and refuses the land on any target the block named that the diff did not satisfy.
+Neither tests-only motion reaches a red run. Both are checked at the merge by `${CLAUDE_PLUGIN_ROOT}/scripts/strike-diff.py`, which compares the landed diff against the committed block and refuses the land on any target the block named that the diff did not satisfy.
 
 ## Markers
 

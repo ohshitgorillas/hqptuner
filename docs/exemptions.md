@@ -35,7 +35,7 @@ The owner, by hand, or an agent typing the owner's grant at the owner's instruct
 
 ## What it is not
 
-An exemption is not a way past a `STRICKEN`. `gauntlet-arbiter.md` check (o) is explicit: a line taking the existence-only escape needs an entry here before the test lands, obtaining it is the main agent's errand, and its absence is never a reason to keep the line. The reviewer cuts on the line's own merits and the entry decides nothing about that verdict.
+An exemption is not a way past a `STRICKEN`. `arbiter.md` check (o) is explicit: a line taking the existence-only escape needs an entry here before the test lands, obtaining it is the main agent's errand, and its absence is never a reason to keep the line. The reviewer cuts on the line's own merits and the entry decides nothing about that verdict.
 
 A `skip` on an environment or data precondition — a dependency missing, a service down — is mechanism, not exemption, and needs no entry. `docs/testing.md` Markers draws that line.
 

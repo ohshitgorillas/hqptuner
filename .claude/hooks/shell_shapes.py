@@ -39,8 +39,25 @@ that, matching the test-directory shape both as typed and after
 `os.path.normpath`, so an argument that opens under the lane and walks out of
 it is not a run.
 
-`blind-reads.json` beside this file carries seven keys, and they are the whole
-of what varies between the projects this kit is copied into. Three name
+`blind-reads.json` carries seven keys, and they are the whole
+of what varies between the projects this kit is copied into. It is read from
+`$CLAUDE_PROJECT_DIR/.claude/blind-reads.json`, and from beside this file when
+the project names no file at all: the config belongs to the project, not to
+wherever the hook file happens to sit, so a kit installed once outside the
+checkout still reads each project's own declaration.
+
+The file is required. A declaration that is there and parses is the project's
+word, and `{}` is a word like any other -- it asks for the kit's defaults and
+gets them. Absent, unreadable, not JSON and not a JSON object are faults, and
+a fault is a denial out of every hook and a non-zero exit out of `--config`,
+naming the path. They answered as an empty config once, alongside "declares
+nothing", which made a typo in the file a merge onto the wrong branch and a
+red run with its deselection dropped, silently. `scripts/init.py` writes the
+file, so an install has one deliberate step instead of a quiet wrong answer.
+
+The fault is held rather than raised at import: seven hooks build their lane
+constants at module level, and a hook that raises there takes the session with
+it and prints no denial at all. Three name
 directories. `tests_dir` is the blind writer's lane, `tests` by default, and what
 the agent definitions and the docs mean by `<tests dir>`. `gauntlet_dir` is where
 the chain's artifacts live, `gauntlet` by default. `docs_dir` is the prose a
@@ -102,6 +119,18 @@ import os
 import re
 import shlex
 import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+#: one payload as a hook reads it: whatever JSON carried, decided at runtime by
+#: `payload_fault` rather than trusted by its static shape
+Payload = dict[str, Any]
+#: the `tool_input` of one payload, on the same terms: a hook reads the keys it
+#: needs through `command_of` and `write_target`, which answer for a missing key
+ToolInput = dict[str, Any]
+#: the three arguments every lane verdict takes, and the refusal or None it gives
+Verdict = Callable[[str, ToolInput, Payload], str | None]
 
 #: first words of commands that only read; anything else is treated as a write
 READ_ONLY = frozenset(
@@ -446,11 +475,11 @@ def _split_unquoted(text: str) -> list[str]:
             out.append("".join(buf))
             buf = []
             i += 2
-        elif ch in ";|\n":
-            out.append("".join(buf))
-            buf = []
-            i += 1
-        elif ch == "&" and not ((i and text[i - 1] in ">&") or (i + 1 < len(text) and text[i + 1] in ">&")):
+        #: a one-character separator, and the bare `&` that is one: next to a
+        #: redirection (`2>&1`, `>&2`) it duplicates a descriptor instead
+        elif ch in ";|\n" or (
+            ch == "&" and not ((i and text[i - 1] in ">&") or (i + 1 < len(text) and text[i + 1] in ">&"))
+        ):
             out.append("".join(buf))
             buf = []
             i += 1
@@ -518,6 +547,13 @@ def command_words(words: list[str]) -> list[str]:
     A leading `(` is part of the head word as `shlex` splits it, so it comes off
     here: `(echo x > t)` runs `echo`, and reading its head as `(echo` makes an
     unknown command out of a known one.
+
+    A git invocation comes back in its plain spelling, global options folded
+    away by `git_words`, because every caller past this point asks what the
+    command is by looking at its words -- and `git -C <dir> ls-files` answers
+    that question wrong in the raw spelling, at every one of those callers at
+    once. Normalizing here is what makes the answer one fix rather than a fix
+    per site.
     """
     out = list(words)
     while out and out[0] in KEYWORD_PREFIXES:
@@ -525,6 +561,8 @@ def command_words(words: list[str]) -> list[str]:
     if out:
         head = out[0].lstrip("(")
         out = ([head] + out[1:]) if head else out[1:]
+    if out and Path(out[0]).name == "git":
+        out = git_words(out)
     return out
 
 
@@ -575,7 +613,7 @@ def _ruff_reads(words: list[str]) -> bool:
 #: heads whose read-only answer depends on the rest of the invocation. They are
 #: the shapes every search and every gate run reaches for, and a head-word list
 #: cannot hold them: `find tests` prints and `find tests -delete` empties.
-CONDITIONAL_READERS = {
+CONDITIONAL_READERS: dict[str, Callable[[list[str]], bool]] = {
     "find": _find_reads,
     "xargs": _xargs_reads,
     "awk": _awk_reads,
@@ -594,13 +632,13 @@ def reads_only(words: list[str]) -> bool:
     """
     if not words:
         return True
-    head = os.path.basename(words[0])
+    head = Path(words[0]).name
     if head in READ_ONLY:
         return True
     if head == "sed":
         return not any(w == "-i" or w.startswith("-i") for w in words[1:])
     checker = CONDITIONAL_READERS.get(head)
-    return bool(checker) and checker(words)
+    return checker is not None and checker(words)
 
 
 def has_inline_script(words: list[str]) -> bool:
@@ -613,7 +651,7 @@ def has_inline_script(words: list[str]) -> bool:
     """
     if not words:
         return False
-    head = os.path.basename(words[0])
+    head = Path(words[0]).name
     for word in words[1:]:
         if word in ("-e", "--eval", "-"):
             return True
@@ -634,19 +672,137 @@ def path_shape(prefix: str) -> str:
     return rf"(?:{TREE})?{re.escape(prefix)}/[A-Za-z0-9_][A-Za-z0-9._/-]*"
 
 
-def config() -> dict:
-    """The one per-repo value, from `blind-reads.json` beside this file.
+def project_checkout(start: Path) -> Path | None:
+    """The main checkout holding `start`, following a worktree's pointer file.
 
-    An unreadable or malformed file is an empty config, which is the default
-    lane: a typo in the file moves nothing.
+    A worktree's `.git` is a file reading `gitdir: <main>/.git/worktrees/<name>`
+    rather than a directory, so a walk that stops at the first `.git` stops in
+    the worktree. The declaration lives in the main checkout, and a worktree
+    that carries no copy of it would otherwise read as a project declaring
+    nothing. The pointer names the main checkout's `.git`, whose parent is the
+    checkout.
+
+    Anything else a pointer file names -- a submodule's `<super>/.git/modules/`,
+    an unreadable file, a spelling this does not know -- is the directory
+    holding it, which is what the walk answered before.
     """
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blind-reads.json")
+    for candidate in (start, *start.parents):
+        dot_git = candidate / ".git"
+        if dot_git.is_dir():
+            return candidate
+        if dot_git.is_file():
+            try:
+                pointer = dot_git.read_text(encoding="utf-8").strip()
+            except OSError:
+                return candidate
+            if not pointer.startswith("gitdir:"):
+                return candidate
+            gitdir = Path(pointer[len("gitdir:") :].strip())
+            if not gitdir.is_absolute():
+                gitdir = (candidate / gitdir).resolve()
+            common = gitdir.parent.parent
+            if gitdir.parent.name == "worktrees" and common.name == ".git":
+                return common.parent
+            return candidate
+    return None
+
+
+class ConfigFault(Exception):
+    """The project's declaration is absent or will not parse.
+
+    Not a default. A project that declares nothing and a project whose
+    declaration is a typo are both faults, and the empty object is the only
+    way to ask for the kit's defaults and mean it.
+    """
+
+
+def config_path() -> Path:
+    """The file this project's declaration is read from, present or not.
+
+    `$CLAUDE_PROJECT_DIR/.claude/blind-reads.json` is the declaration. The
+    project path wins because the config is the project's: the kit ships as a
+    plugin and lives outside the checkout entirely, shared by every project it
+    runs for, and only the project path distinguishes them.
+
+    That variable is set for a hook and is not promised to a script, so where
+    it is unset the checkout holding the working directory stands in as the
+    project. `${CLAUDE_PLUGIN_ROOT}/scripts/pair.sh` and
+    `${CLAUDE_PLUGIN_ROOT}/scripts/blind.sh` run with the checkout as their
+    working directory and would otherwise read a project's declaration as
+    absent. Both scripts resolve the checkout at entry and export the
+    variable, so the walk is the last fallback rather than the usual path;
+    where it does run it follows a worktree's pointer file to the main
+    checkout, because that is where the declaration is.
+
+    The copy beside this file is the last fallback, for a kit copied into a
+    tree rather than installed. The kit itself ships none, and the fallback is
+    reached only where the project names no file at all: a project path that
+    exists is the declaration whatever it holds, so a malformed project file
+    never half-applies by falling through to a second source. Where neither
+    file is there the path named is the project's, because that is the one to
+    write.
+    """
+    beside = Path(__file__).resolve().parent / "blind-reads.json"
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    if not project:
+        root = project_checkout(Path.cwd().resolve())
+        project = str(root) if root else None
+    if not project:
+        return beside
+    candidate = Path(project) / ".claude" / "blind-reads.json"
+    return beside if not candidate.is_file() and beside.is_file() else candidate
+
+
+def config() -> dict[str, Any]:
+    """The project's declaration, or a `ConfigFault` naming the file.
+
+    A file that is there and parses is the project's word, and `{}` is a word
+    like any other: it asks for the kit's defaults and gets them. Absent,
+    unreadable, not JSON, and not a JSON object are the four faults. They were
+    one answer with "declares nothing" once -- all five came back `{}` -- which
+    meant a typo in the file moved `scripts/pair.sh merge` onto whatever
+    `target_branch` defaults to and dropped a runner's deselection, with
+    nothing said to anyone.
+
+    The fault is raised rather than printed. `hook_main` turns it into a
+    denial and the `--config` reader turns it into a non-zero exit naming the
+    path, so an operator reads the path instead of a traceback out of a hook.
+    """
+    source = config_path()
     try:
-        with open(path, encoding="utf-8") as fh:
+        with source.open(encoding="utf-8") as fh:
             loaded = json.load(fh)
-    except (OSError, ValueError):
-        return {}
-    return loaded if isinstance(loaded, dict) else {}
+    except FileNotFoundError:
+        raise ConfigFault(f"no declaration at {source}: run scripts/init.py to write one") from None
+    except OSError as exc:
+        raise ConfigFault(f"the declaration at {source} cannot be read ({exc})") from None
+    except ValueError as exc:
+        raise ConfigFault(f"the declaration at {source} is not valid JSON ({exc})") from None
+    if not isinstance(loaded, dict):
+        raise ConfigFault(f"the declaration at {source} is not a JSON object")
+    return loaded
+
+
+@functools.lru_cache(maxsize=1)
+def _declared() -> tuple[dict[str, Any], str | None]:
+    """The declaration and the fault it is, read once per process.
+
+    The fault is held here rather than raised because the callers are
+    module-level constants in seven hooks and in this file: a hook that raises
+    while importing takes the whole session with it, and the denial it owed
+    the operator is never printed. So the resolved values stay the kit's
+    defaults and the fault waits at the entry point, which is the one place
+    that can shape it.
+    """
+    try:
+        return config(), None
+    except ConfigFault as exc:
+        return {}, str(exc)
+
+
+def config_fault() -> str | None:
+    """The fault this project's declaration is, or `None` when it is its word."""
+    return _declared()[1]
 
 
 def _under(path: str, parent: str) -> bool:
@@ -683,7 +839,7 @@ DEFAULT_RUNNERS = {
 }
 
 
-def _clean(name) -> str | None:
+def _clean(name: object) -> str | None:
     """One repo-relative directory, or `None` when the name cannot be one.
 
     Normalized, so a traversal is judged by where it lands rather than by how
@@ -692,13 +848,15 @@ def _clean(name) -> str | None:
     """
     if not isinstance(name, str) or not name:
         return None
+    #: lexical: `Path` has no normalization that collapses `..` without
+    #: resolving symlinks, and where a name lands is the whole question here
     name = os.path.normpath(name).replace(os.sep, "/")
-    if os.path.isabs(name) or name in (".", "..") or name.startswith("../"):
+    if Path(name).is_absolute() or name in (".", "..") or name.startswith("../"):
         return None
     return name
 
 
-def _scalar(value) -> str | None:
+def _scalar(value: object) -> str | None:
     """One configured scalar, or `None` when the value cannot be one.
 
     A scalar is a single non-empty line with no leading or trailing blanks left
@@ -713,7 +871,7 @@ def _scalar(value) -> str | None:
     return value
 
 
-def _words(value) -> list[str] | None:
+def _words(value: object) -> list[str] | None:
     """One runner invocation as words, or `None` when the value cannot be one.
 
     A command line, split the way a shell splits it, so a marker expression
@@ -729,34 +887,34 @@ def _words(value) -> list[str] | None:
     return words or None
 
 
-def runners_from(conf: dict) -> dict:
+def runners_from(conf: dict[str, Any]) -> dict[str, list[str]]:
     """The two runner invocations this config resolves to, defaults filled in.
 
     Per key, like the scalars: a runner overlaps no lane and no other runner, so
     an unusable `pytest_command` leaves the node one standing.
     """
-    resolved = {}
+    resolved: dict[str, list[str]] = {}
     for key, default in DEFAULT_RUNNERS.items():
         words = _words(conf.get(key)) if key in conf else None
         resolved[key] = words if words is not None else shlex.split(default)
     return resolved
 
 
-def scalars_from(conf: dict) -> dict:
+def scalars_from(conf: dict[str, Any]) -> dict[str, str]:
     """The two scalars this config resolves to, defaults filled in.
 
     Per key, unlike the directories: a scalar cannot overlap a lane or another
     scalar, so an unusable branch name has nothing to take down with it and the
     gate keeps whatever the project named.
     """
-    resolved = {}
+    resolved: dict[str, str] = {}
     for key, default in DEFAULT_SCALARS.items():
         name = _scalar(conf.get(key)) if key in conf else None
         resolved[key] = name if name is not None else default
     return resolved
 
 
-def dirs_from(conf: dict) -> dict:
+def dirs_from(conf: dict[str, Any]) -> dict[str, str]:
     """The three directories this config resolves to, defaults filled in.
 
     All or nothing. A key that cannot be a directory, or any pair that overlaps
@@ -765,7 +923,7 @@ def dirs_from(conf: dict) -> dict:
     the rest, so naming `tests_dir` as `docs` collides with the default
     `docs_dir` exactly as it would with a declared one.
     """
-    resolved = {}
+    resolved: dict[str, str] = {}
     for key, default in DEFAULT_DIRS.items():
         if key not in conf:
             resolved[key] = default
@@ -783,21 +941,21 @@ def dirs_from(conf: dict) -> dict:
 
 
 @functools.lru_cache(maxsize=1)
-def dirs() -> dict:
+def dirs() -> dict[str, str]:
     """The resolved set, read once per process."""
-    return dirs_from(config())
+    return dirs_from(_declared()[0])
 
 
 @functools.lru_cache(maxsize=1)
-def scalars() -> dict:
+def scalars() -> dict[str, str]:
     """The resolved scalars, read once per process."""
-    return scalars_from(config())
+    return scalars_from(_declared()[0])
 
 
 @functools.lru_cache(maxsize=1)
-def runners() -> dict:
+def runners() -> dict[str, list[str]]:
     """The resolved runner invocations, read once per process."""
-    return runners_from(config())
+    return runners_from(_declared()[0])
 
 
 def pytest_command() -> list[str]:
@@ -841,17 +999,17 @@ def lane(suffix: str) -> str:
 
 
 def plans_lane() -> str:
-    """The gauntlet-prosecutor's lane."""
+    """The prosecutor's lane."""
     return lane("plans/approved")
 
 
 def specs_lane() -> str:
-    """The gauntlet-arbiter's lane."""
+    """The arbiter's lane."""
     return lane("specs/approved")
 
 
 def verdicts_lane() -> str:
-    """The gauntlet-juror's lane."""
+    """The juror's lane."""
     return lane("verdicts")
 
 
@@ -869,7 +1027,7 @@ LANE_DIRS = tuple(lane(suffix) for suffix in LANE_SUFFIXES)
 #: derived lanes, so a shell script asks for a lane rather than rebuilding one
 #: out of the base and a suffix it would have to hardcode. A runner answers one
 #: word per line; every other key answers one line.
-CONFIG_READERS = {
+CONFIG_READERS: dict[str, Callable[[], str | list[str]]] = {
     "tests_dir": tests_dir,
     "gauntlet_dir": gauntlet_dir,
     "docs_dir": docs_dir,
@@ -927,25 +1085,8 @@ def is_blind_run(words: list[str]) -> bool:
     return bool(_TESTPATH_WHOLE.match(arg) and _TESTPATH_WHOLE.match(os.path.normpath(arg)))
 
 
-def is_runner(words: list[str]) -> bool:
-    """Is this invocation a run of the project's suite, rather than a write?
-
-    A closed table of whole invocations. `pytest` is the only head word
-    accepted with arbitrary arguments; everything else names the argument that
-    makes it a run. An inline-script flag disqualifies any of them.
-
-    The kit's own `scripts/blind.sh test <path>` is in it as a whole
-    invocation: a script is not a head word on any list, and asking whether a
-    head only ever prints is the wrong question for one that runs gates.
-    """
-    if not words:
-        return False
-    if has_inline_script(words):
-        return False
-    if is_blind_run(words):
-        return True
-    head = os.path.basename(words[0])
-    rest = words[1:]
+def _runner_by_head(head: str, rest: list[str]) -> bool:
+    """The closed table: one head word, and the argument that makes it a run."""
     first = rest[0] if rest else ""
     if head == "pytest":
         return not any(w.startswith(PYTEST_WRITE_FLAGS) for w in rest)
@@ -965,34 +1106,24 @@ def is_runner(words: list[str]) -> bool:
     return False
 
 
-def is_object_restore(words: list[str]) -> bool:
-    """`git restore --source <rev> -- <paths>` or `git checkout <rev> -- <paths>`.
+def is_runner(words: list[str]) -> bool:
+    """Is this invocation a run of the project's suite, rather than a write?
 
-    Both copy a named commit onto a path. Neither types content, so a lane that
-    has git history can be reverted without going around its writer.
+    A closed table of whole invocations. `pytest` is the only head word
+    accepted with arbitrary arguments; everything else names the argument that
+    makes it a run. An inline-script flag disqualifies any of them.
+
+    The kit's own `scripts/blind.sh test <path>` is in it as a whole
+    invocation: a script is not a head word on any list, and asking whether a
+    head only ever prints is the wrong question for one that runs gates.
     """
-    if len(words) < 4 or words[0] != "git":
+    if not words:
         return False
-    if words[1] == "restore":
-        return "--source" in words[2:] or any(w.startswith("--source=") for w in words[2:])
-    if words[1] == "checkout":
-        return "--" in words[2:] and not words[2].startswith("-")
-    return False
-
-
-def words_of(segment: str) -> list[str]:
-    try:
-        return shlex.split(segment, comments=False, posix=True)
-    except ValueError:
-        return segment.split()
-
-
-def _long_option(word: str, option: str, least: int) -> bool:
-    """Would git read `word` as `--<option>`, spelled out or abbreviated?"""
-    if not word.startswith("--"):
+    if has_inline_script(words):
         return False
-    name = word[2:].split("=", 1)[0]
-    return len(name) >= least and option.startswith(name)
+    if is_blind_run(words):
+        return True
+    return _runner_by_head(Path(words[0]).name, words[1:])
 
 
 def _git_global_execs(word: str, value: str | None) -> bool:
@@ -1036,6 +1167,61 @@ def git_parts(words: list[str]) -> tuple[str, list[str]] | None:
     return None
 
 
+def git_words(words: list[str]) -> list[str]:
+    """A git invocation with its global options folded away: `[head, sub, *rest]`.
+
+    `command_words` applies this, so every walker downstream sees the plain
+    spelling. That is what keeps the fix in one place: a test that asks which
+    words look like paths cannot read `-C <dir>` as one, and a test that reads
+    `words[1]` finds the subcommand there, without either of them knowing a
+    thing about git's global options.
+
+    An invocation `git_parts` will not split comes back unchanged, so it stays
+    unrecognized rather than being turned into something recognized.
+    """
+    parts = git_parts(words)
+    if parts is None:
+        return words
+    sub, rest = parts
+    return [words[0], sub, *rest]
+
+
+def is_object_restore(words: list[str]) -> bool:
+    """`git restore --source <rev> -- <paths>` or `git checkout <rev> -- <paths>`.
+
+    Both copy a named commit onto a path. Neither types content, so a lane that
+    has git history can be reverted without going around its writer.
+    """
+    if words[:1] != ["git"]:
+        return False
+    parts = git_parts(words)
+    if parts is None:
+        return False
+    sub, rest = parts
+    if len(rest) < 2:
+        return False
+    if sub == "restore":
+        return "--source" in rest or any(w.startswith("--source=") for w in rest)
+    if sub == "checkout":
+        return "--" in rest and not rest[0].startswith("-")
+    return False
+
+
+def words_of(segment: str) -> list[str]:
+    try:
+        return shlex.split(segment, comments=False, posix=True)
+    except ValueError:
+        return segment.split()
+
+
+def _long_option(word: str, option: str, least: int) -> bool:
+    """Would git read `word` as `--<option>`, spelled out or abbreviated?"""
+    if not word.startswith("--"):
+        return False
+    name = word[2:].split("=", 1)[0]
+    return len(name) >= least and option.startswith(name)
+
+
 def git_write_form(words: list[str]) -> bool:
     """Does this `GIT_NO_WORKTREE` stage carry a form that writes anyway?
 
@@ -1070,9 +1256,10 @@ def segment_writes(segment: str, *, restore_ok: bool = True) -> bool:
         return False
     if is_runner(words):
         return False
-    head = os.path.basename(words[0])
+    head = Path(words[0]).name
     if head == "git":
-        if len(words) > 1 and words[1] in GIT_NO_WORKTREE:
+        parts = git_parts(words)
+        if parts is not None and parts[0] in GIT_NO_WORKTREE:
             return git_write_form(words)
         return not (restore_ok and is_object_restore(words))
     return not reads_only(words)
@@ -1113,7 +1300,7 @@ def stage_targets(segment: str, body: str = "") -> tuple[list[str], str | None]:
     words = command_words(words_of(segment))
     if not words or words[0] in NO_COMMAND_HEADS:
         return targets, None
-    head = os.path.basename(words[0])
+    head = Path(words[0]).name
     git = git_parts(words) if head == "git" else None
     git_reader = git is not None and git[0] in GIT_NO_WORKTREE and not git_write_form(words)
     if is_runner(words) or reads_only(words) or git_reader:
@@ -1123,8 +1310,7 @@ def stage_targets(segment: str, body: str = "") -> tuple[list[str], str | None]:
     if head == "xargs":
         return targets, STDIN
     #: a git write acts on the words after its subcommand; the subcommand is
-    #: the verb, not a path, and `git_parts` has already stepped over the
-    #: global options in front of it, which name a directory and not a target
+    #: the verb, not a path, and its global options were folded away upstream
     for word in git[1] if git is not None else words[1:]:
         if word.startswith("-"):
             targets.extend(_option_value(word))
@@ -1156,7 +1342,7 @@ def bash_touches_lane(command: str, pattern: re.Pattern[str]) -> bool:
 
 def cd_target(words: list[str]) -> str | None:
     """The directory a `cd` stage moves to, or None when the stage is not a `cd`."""
-    if not words or os.path.basename(words[0]) != "cd":
+    if not words or Path(words[0]).name != "cd":
         return None
     args = [w for w in words[1:] if not w.startswith("-")]
     return args[0] if args else ""
@@ -1166,8 +1352,10 @@ def _target_in_lane(target: str, here: str | None, pattern: re.Pattern[str]) -> 
     """Does one write target land in the lane, from the directory the walk is in?"""
     if pattern.search(target):
         return True
-    if here and not os.path.isabs(target):
-        return bool(pattern.search(os.path.normpath(os.path.join(here, target))))
+    if here and not Path(target).is_absolute():
+        #: lexical: where the target lands is the question, and `Path.resolve()`
+        #: would follow a symlink out of the lane before it is asked
+        return bool(pattern.search(os.path.normpath(os.path.join(here, target))))  # noqa: PTH118
     return False
 
 
@@ -1199,7 +1387,8 @@ def lane_write_in(command: str, pattern: re.Pattern[str], *, restore_ok: bool = 
             if here is None or target in ("", "-") or target.startswith(("/", "~")):
                 here = None
             else:
-                here = os.path.normpath(os.path.join(here, target))
+                #: lexical, for the reason `_target_in_lane` gives
+                here = os.path.normpath(os.path.join(here, target))  # noqa: PTH118
             continue
         if not segment_writes(stage, restore_ok=restore_ok):
             continue
@@ -1221,9 +1410,9 @@ def lane_write_in(command: str, pattern: re.Pattern[str], *, restore_ok: bool = 
 def checkout_root(path: str) -> str | None:
     """The checkout (main or worktree) containing `path`, by walking up to a `.git`."""
     while True:
-        if os.path.exists(os.path.join(path, ".git")):
+        if Path(path, ".git").exists():
             return path
-        parent = os.path.dirname(path)
+        parent = str(Path(path).parent)
         if parent == path:
             return None
         path = parent
@@ -1235,17 +1424,19 @@ def root_by_name(path: str) -> str | None:
     `.claude/worktrees/<slug>-spec` and `-impl` are roots by construction; the
     directory holding `.claude/worktrees` is the main checkout.
     """
-    parts = path.split(os.sep)
+    parts = Path(path).parts
     for i in range(len(parts) - 1, 1, -1):
         if parts[i - 2] == ".claude" and parts[i - 1] == "worktrees":
-            return os.sep.join(parts[: i + 1])
+            return str(Path(*parts[: i + 1]))
     return None
 
 
 def split_root(target: str, cwd: str) -> tuple[str | None, str | None]:
     """(checkout root, path relative to it) for a write target, or (None, None)."""
-    resolved = os.path.abspath(os.path.join(cwd, target))
-    root = root_by_name(resolved) or checkout_root(os.path.dirname(resolved))
+    #: lexical: the `..` collapse is the whole job, and resolving would follow a
+    #: symlink into another checkout
+    resolved = os.path.abspath(os.path.join(cwd, target))  # noqa: PTH100, PTH118
+    root = root_by_name(resolved) or checkout_root(str(Path(resolved).parent))
     if root is None:
         return None, None
     return root, os.path.relpath(resolved, root)
@@ -1266,7 +1457,9 @@ def path_in_lane(target: str, cwd: str, lane: str) -> bool:
     _, rel = split_root(target, cwd)
     if rel is not None and not rel.startswith(".."):
         return under(rel, lane)
-    parts = os.path.abspath(os.path.join(cwd, target)).split(os.sep)
+    #: lexical, as in `split_root`
+    resolved = os.path.abspath(os.path.join(cwd, target))  # noqa: PTH100, PTH118
+    parts = list(Path(resolved).parts)
     lane_parts = lane.split("/")
     return any(parts[i : i + len(lane_parts)] == lane_parts for i in range(len(parts) - len(lane_parts) + 1))
 
@@ -1287,8 +1480,6 @@ def bypassed() -> bool:
 
 def deny(reason: str) -> str:
     """The PreToolUse deny payload, as a JSON string."""
-    import json
-
     return json.dumps(
         {
             "hookSpecificOutput": {
@@ -1300,7 +1491,7 @@ def deny(reason: str) -> str:
     )
 
 
-def command_of(tool_input: dict) -> str:
+def command_of(tool_input: dict[str, Any] | None) -> str:
     """The `command` field of a tool input, as a string, whatever it holds.
 
     A hook reads this field and hands it to a classifier that splits it. The
@@ -1314,14 +1505,37 @@ def command_of(tool_input: dict) -> str:
     return command if isinstance(command, str) else ""
 
 
-def cwd_of(payload: dict) -> str:
+def cwd_of(payload: Payload | None) -> str:
     """The `cwd` a payload names, as a path, or this process's own.
 
     Same boundary as `command_of`: the field is whatever the payload carried,
     and a hook that hands a number to `os.path` raises, which denies the call.
     """
     cwd = (payload or {}).get("cwd")
-    return cwd if isinstance(cwd, str) and cwd else os.getcwd()
+    return cwd if isinstance(cwd, str) and cwd else str(Path.cwd())
+
+
+def agent_of(payload: Payload | None) -> str:
+    """Who is running this call, as a bare agent name, or `""` for the main agent.
+
+    Installed as a plugin, the harness spells a subagent's `agent_type` with
+    the plugin it came from in front of it -- `gauntlet:prosecutor`
+    where a loose copy of the same kit sends `prosecutor`. Every hook
+    here compares the name against a bare one, so the namespace has to come off
+    before the comparison or the same agent matches nothing it should: a lane
+    denies its own writer, and a blind agent's guard finds no subject and lets
+    the call through unblinded.
+
+    An agent name carries no `:`, so everything up to the last one is the
+    namespace and the tail is the name. Which plugin the namespace names
+    is not checked: a foreign plugin shipping an agent named `arbiter`
+    is treated as this kit's, exactly as an unnamespaced agent of that name in
+    the host project already is.
+    """
+    agent = (payload or {}).get("agent_type") or ""
+    if not isinstance(agent, str):
+        return ""
+    return agent.rsplit(":", 1)[-1] if ":" in agent else agent
 
 
 #: payloads a hook must answer without dying, each with the tool it names --
@@ -1379,7 +1593,7 @@ REQUIRED_FIELD = {
 OPTIONAL_FIELD = {"Grep": "path", "Glob": "path"}
 
 
-def payload_fault(name: str, tool_input, payload, guarded: tuple[str, ...]) -> str | None:
+def payload_fault(name: str, tool_input: Any, payload: Any, guarded: tuple[str, ...]) -> str | None:
     """Why this hook cannot decide the call it was handed, or None to decide it.
 
     A guard reads three things: which tool, what it names, and who is running
@@ -1422,7 +1636,7 @@ def undecidable(why: str) -> str:
     Names the hook, so the denial that reaches the agent says which gate spoke
     and what it could not read, rather than arriving as an unexplained no.
     """
-    hook = os.path.basename(sys.argv[0]) or "a gauntlet hook"
+    hook = Path(sys.argv[0]).name or "a gauntlet hook"
     return (
         f"{hook} could not decide this call, so it refuses it: {why}. A gate that "
         "cannot read the call it was handed does not let the call through -- the "
@@ -1431,12 +1645,28 @@ def undecidable(why: str) -> str:
     )
 
 
+def misconfigured(fault: str) -> str:
+    """The refusal a hook gives while the project's declaration is a fault.
+
+    A lane is a configured directory, so a hook whose config will not load
+    does not know where any lane is. It refuses rather than deciding against
+    the kit's defaults: defaults that are not the project's are a lane in the
+    wrong place, and a lane in the wrong place guards nothing.
+    """
+    hook = Path(sys.argv[0]).name or "a gauntlet hook"
+    return (
+        f"{hook} refuses this call: {fault}. The lanes are configured "
+        "directories, so a gate that cannot read the declaration does not know "
+        "which directory it guards, and it will not fall back on the kit's "
+        "defaults and guard the wrong one. Fix the file, or write one with "
+        f"`python3 scripts/init.py`. (hooks/{hook})"
+    )
+
+
 def is_denial(answer: str) -> bool:
     """Whether a hook's stdout is a `PreToolUse` denial."""
-    import json as _json
-
     try:
-        parsed = _json.loads(answer)
+        parsed = json.loads(answer)
     except ValueError:
         return False
     if not isinstance(parsed, dict):
@@ -1470,7 +1700,6 @@ def survives_hostile_payloads(
     its first line, and every payload would pass without touching the code the
     check exists to exercise.
     """
-    import json as _json
     import subprocess
 
     environment = dict(os.environ)
@@ -1483,22 +1712,22 @@ def survives_hostile_payloads(
             text=True,
             env=environment,
             timeout=60,
+            check=False,
         )
         if done.returncode != 0:
             return False
         out = done.stdout.strip()
         if out:
             try:
-                _json.loads(out)
+                json.loads(out)
             except ValueError:
                 return False
         if not refuses_undecidable:
             continue
         #: a payload naming no readable tool at all is undecidable for every
         #: hook; one naming a guarded tool is undecidable when its fields are not
-        if tool is None or (tool in guards and not usable):
-            if not is_denial(out):
-                return False
+        if (tool is None or (tool in guards and not usable)) and not is_denial(out):
+            return False
     return True
 
 
@@ -1515,20 +1744,21 @@ def survives_hostile_payloads(
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
 
 
-def write_target(tool_input: dict) -> str:
+def write_target(tool_input: dict[str, Any] | None) -> str:
     """The path a write tool names, or the empty string for no target."""
     tool_input = tool_input or {}
-    return tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    return target if isinstance(target, str) else ""
 
 
 def dispatch(
     name: str,
-    tool_input: dict,
-    payload: dict,
+    tool_input: dict[str, Any],
+    payload: Payload,
     *,
-    on_write,
-    on_bash,
-    on_read=None,
+    on_write: Callable[[str, str, str], str | None],
+    on_bash: Callable[[str, str], str | None],
+    on_read: Callable[[dict[str, Any], str, str], str | None] | None = None,
     read_tools: tuple[str, ...] = (),
 ) -> str | None:
     """Route one tool call to the handler for its kind; None lets it through.
@@ -1541,7 +1771,7 @@ def dispatch(
     function the same two-argument callable.
     """
     cwd = cwd_of(payload)
-    agent = (payload or {}).get("agent_type") or ""
+    agent = agent_of(payload)
     if name in WRITE_TOOLS:
         target = write_target(tool_input)
         return on_write(target, cwd, agent) if target else None
@@ -1567,7 +1797,7 @@ def lane_denial(lane: str, noun: str, lane_msg: str, *, restore: bool = True) ->
     )
 
 
-def sole_writer_lane(lane: str, writer: str, lane_msg: str, bash_msg: str):
+def sole_writer_lane(lane: str, writer: str, lane_msg: str, bash_msg: str) -> Verdict:
     """The verdict function of a lane one named agent writes and nobody else.
 
     Returns a `_verdict(name, tool_input, payload)`. A write whose target is in
@@ -1582,16 +1812,16 @@ def sole_writer_lane(lane: str, writer: str, lane_msg: str, bash_msg: str):
             return None
         return None if agent == writer else lane_msg
 
-    def on_bash(command: str, agent: str) -> str | None:
+    def on_bash(command: str, _agent: str) -> str | None:
         return bash_msg if lane_write_in(command, pattern) else None
 
-    def verdict(name: str, tool_input: dict, payload: dict) -> str | None:
+    def verdict(name: str, tool_input: dict[str, Any], payload: Payload) -> str | None:
         return dispatch(name, tool_input, payload, on_write=on_write, on_bash=on_bash)
 
     return verdict
 
 
-def read_payload(guards: tuple[str, ...]) -> tuple[dict | None, str | None]:
+def read_payload(guards: tuple[str, ...]) -> tuple[Payload | None, str | None]:
     """One payload from stdin as `(payload, refusal)`; exactly one is not None.
 
     Every way the payload can fail to be a call this hook can decide ends in a
@@ -1616,7 +1846,7 @@ def read_payload(guards: tuple[str, ...]) -> tuple[dict | None, str | None]:
     return (None, undecidable(fault)) if fault is not None else (data, None)
 
 
-def hook_main(verdict, *, guards: tuple[str, ...] = WRITE_TOOLS + ("Bash",)) -> None:
+def hook_main(verdict: Verdict, *, guards: tuple[str, ...] = WRITE_TOOLS + ("Bash",)) -> None:
     """Read one payload from stdin and print a denial if `verdict` names one.
 
     `guards` is the set of tools this hook decides, and it is what makes a
@@ -1637,8 +1867,12 @@ def hook_main(verdict, *, guards: tuple[str, ...] = WRITE_TOOLS + ("Bash",)) -> 
     if bypassed():
         return  # GAUNTLET=off: the owner's switch, read at the entry point only
     data, refusal = read_payload(guards)
-    if refusal is not None:
-        print(deny(refusal))
+    if refusal is not None or data is None:
+        print(deny(refusal or undecidable("its payload named no call")))
+        return
+    fault = config_fault()
+    if fault is not None:
+        print(deny(misconfigured(fault)))
         return
     try:
         reason = verdict(data.get("tool_name", ""), data.get("tool_input") or {}, data)
@@ -1649,7 +1883,11 @@ def hook_main(verdict, *, guards: tuple[str, ...] = WRITE_TOOLS + ("Bash",)) -> 
         print(deny(reason))
 
 
-def answer_main(answer_of, *, guards: tuple[str, ...] = ("Bash",)) -> None:
+def answer_main(
+    answer_of: Callable[[Payload], dict[str, Any] | None],
+    *,
+    guards: tuple[str, ...] = ("Bash",),
+) -> None:
     """`hook_main` for a hook whose answer is not a denial.
 
     `bwrap-wrap.py` rewrites the command rather than refusing it, so its answer
@@ -1661,8 +1899,12 @@ def answer_main(answer_of, *, guards: tuple[str, ...] = ("Bash",)) -> None:
     if bypassed():
         return  # GAUNTLET=off: the owner's switch, read at the entry point only
     data, refusal = read_payload(guards)
-    if refusal is not None:
-        print(deny(refusal))
+    if refusal is not None or data is None:
+        print(deny(refusal or undecidable("its payload named no call")))
+        return
+    fault = config_fault()
+    if fault is not None:
+        print(deny(misconfigured(fault)))
         return
     try:
         answer = answer_of(data)
@@ -1673,7 +1915,7 @@ def answer_main(answer_of, *, guards: tuple[str, ...] = ("Bash",)) -> None:
         print(json.dumps(answer))
 
 
-def entry(self_test_fn, main_fn) -> None:
+def entry(self_test_fn: Callable[[], int], main_fn: Callable[[], None]) -> None:
     """The `__main__` of a hook with one gate mode and one wire mode."""
     sys.exit(self_test_fn()) if "--self-test" in sys.argv else main_fn()
 
@@ -1691,7 +1933,14 @@ def allowed(verdict: str | None) -> bool:
     return verdict is None
 
 
-def probe(verdict, root: str, tool: str, key: str = "file_path", *, agent: str | None = None):
+def probe(
+    verdict: Verdict,
+    root: str,
+    tool: str,
+    key: str = "file_path",
+    *,
+    agent: str | None = None,
+) -> Callable[..., str | None]:
     """A closure that calls `verdict` for one tool the way the wire does.
 
     `key` is the field that tool carries its target in. `agent` is the default
@@ -1699,8 +1948,8 @@ def probe(verdict, root: str, tool: str, key: str = "file_path", *, agent: str |
     agent, whose payload carries no such key at all.
     """
 
-    def call(value, who: str | None = agent) -> str | None:
-        payload = {"cwd": root}
+    def call(value: Any, who: str | None = agent) -> str | None:
+        payload: Payload = {"cwd": root}
         if who is not None:
             payload["agent_type"] = who
         return verdict(tool, {key: value}, payload)
@@ -1710,7 +1959,7 @@ def probe(verdict, root: str, tool: str, key: str = "file_path", *, agent: str |
 
 #: one of the three default directory names as a whole path segment, for
 #: `rebased`. The bounds are not `\b`: a name is a segment when nothing joins it
-#: on either side, and `\b` would take the `gauntlet` of `gauntlet-arbiter` and
+#: on either side, and `\b` would take the `gauntlet` of `arbiter` and
 #: rename the agent. A trailing `/` is left to the text, so `find tests -delete`
 #: and `cd tests && rm t.py` -- a lane named with no slash at all -- respell too.
 _DEFAULT_SEGMENT = re.compile(r"(?<![\w.-])(" + "|".join(sorted(set(DEFAULT_DIRS.values()))) + r")(?![\w.-])")
@@ -1724,13 +1973,13 @@ def respell(target: str) -> str:
     a default one as a segment -- `gauntlet_dir` of `work/tests` is a legal set
     beside `tests_dir` -- and a second pass would rewrite what the first wrote.
     """
-    by_default = dict(zip(DEFAULT_DIRS.values(), dirs().values()))
+    by_default = dict(zip(DEFAULT_DIRS.values(), dirs().values(), strict=True))
     if all(default == configured for default, configured in by_default.items()):
         return target
     return _DEFAULT_SEGMENT.sub(lambda m: by_default[m.group(1)], target)
 
 
-def rebased(one_probe):
+def rebased(one_probe: Callable[..., str | None]) -> Callable[..., str | None]:
     """A probe that respells the kit's default directories at the configured ones.
 
     Every self-test writes its paths at `tests/`, `docs/` and `gauntlet/`, which
@@ -1745,13 +1994,15 @@ def rebased(one_probe):
     just written. The names are disjoint, so a single alternation is exact.
     """
 
-    def at_configured_dirs(target: str, *rest):
+    def at_configured_dirs(target: str, *rest: Any) -> str | None:
         return one_probe(respell(target), *rest)
 
     return at_configured_dirs
 
 
-def probes(verdict, root: str = "/repo", *, agent: str | None = None):
+def probes(
+    verdict: Verdict, root: str = "/repo", *, agent: str | None = None
+) -> tuple[Callable[..., str | None], Callable[..., str | None]]:
     """The `(write, bash)` pair every lane self-test drives its lane through."""
     return (
         rebased(probe(verdict, root, "Edit", agent=agent)),
@@ -1759,7 +2010,38 @@ def probes(verdict, root: str = "/repo", *, agent: str | None = None):
     )
 
 
-def report(lines: dict) -> int:
+#: the git global option spellings a lane self-test inserts. Between them they
+#: cover every shape the parser has to walk past: three that take a separate
+#: value, one `--opt=value`, and one bare short flag.
+GIT_GLOBAL_SPELLINGS = (
+    "-C /repo",
+    "--no-pager",
+    "-c core.pager=cat",
+    "--git-dir=/repo/.git",
+    "-P",
+)
+
+
+def git_globals_change_nothing(probe: Callable[..., str | None], *commands: str) -> bool:
+    """That a git global option in front of the subcommand moves no verdict.
+
+    A global option says where git runs, never what it does, so a lane owes the
+    same answer with one in front as without. A self-test asks it this way
+    rather than by listing spellings: any site that reads `words[1]` as the
+    subcommand fails here, under whichever spelling broke it -- including one
+    nobody has written down yet.
+    """
+    for command in commands:
+        if not command.startswith("git "):
+            return False
+        want = denied(probe(command))
+        for spelling in GIT_GLOBAL_SPELLINGS:
+            if denied(probe(f"git {spelling} {command[4:]}")) != want:
+                return False
+    return True
+
+
+def report(lines: dict[str, bool]) -> int:
     """Print one PASS or FAIL per spec line; 0 if every line held."""
     for label, ok in lines.items():
         print(f"  {'PASS' if ok else 'FAIL'}  {label}")
@@ -1771,6 +2053,13 @@ if __name__ == "__main__":
     #: shell script; `scripts/blind.sh` and `scripts/pair.sh` read it through
     #: here so one reader serves the hooks and the scripts alike
     if len(sys.argv) == 3 and sys.argv[1] == "--config":
+        #: a fault is the exit status and a line on stderr, never a value on
+        #: stdout: the shell reading this substitutes what it is given, and a
+        #: default printed here is the wrong branch or the wrong lane, silently
+        fault = config_fault()
+        if fault is not None:
+            sys.stderr.write(f"shell_shapes.py: {fault}\n")
+            sys.exit(2)
         sys.stdout.write("".join(line + "\n" for line in config_lines(sys.argv[2])))
         sys.exit(0)
     sys.stderr.write("usage: shell_shapes.py --config <key>\n")
