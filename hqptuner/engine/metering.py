@@ -194,6 +194,7 @@ class MeteringReader:
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._serial: str | None = None
+        self._holder = junkadvisor.SpurHolder()
 
     def retarget(self, host: str, port: int) -> None:
         """Point the reader at another daemon; the next dial uses it.
@@ -215,8 +216,12 @@ class MeteringReader:
     def verdict(self) -> dict[str, Any] | None:
         """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
 
-        Recomputed on every call and held by nothing: a verdict is a property of the spectrum in front of the rules,
-        so it appears when the window carries the signature and is None again once it does not.
+        The cliff and the ramp are recomputed on every call and held by nothing: each is a property of the spectrum in
+        front of the rules, so it appears when the window carries the signature and is None again once it does not. The
+        spur is held per bin by the reader's ``SpurHolder`` until the tone's excess over the local baseline falls under
+        the release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a
+        tone no longer drops the advice and brings it back. The holder carries no track identity: it is rebuilt with the
+        aggregate, so the hold dies with the track and with the stream.
 
         Deliberately blind to the engaged filter, unlike ``recommendation``: auto-pilot engages what the signature
         asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
@@ -232,6 +237,7 @@ class MeteringReader:
             agg.bandwidth,
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
+            holder=self._holder,
         )
 
     def recommendation(self) -> dict[str, Any] | None:
@@ -274,6 +280,7 @@ class MeteringReader:
                 delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
             if not keep:
                 self._agg = None  # a broken stream ends the track's evidence
+                self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
             if not self._stop.is_set():
                 await self._wait(delay)
 
@@ -339,6 +346,7 @@ class MeteringReader:
         if agg is None or ctx.track_serial != self._serial or agg.bins != bins or agg.bandwidth != bandwidth:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
             self._serial = ctx.track_serial
+            self._holder = junkadvisor.SpurHolder()  # the hold is the old track's, or the old grid's
         agg.add(
             _frame_power(body, channels, bins),
             xform_time * DECIMATE,

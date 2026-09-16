@@ -1,90 +1,150 @@
 """Junk-filter advice from the metering stream's spectral aggregate.
 
-Pure functions over the windowed per-bin minimum power spectrum (``metering.py``
+Functions over the windowed per-bin minimum power spectrum (``metering.py``
 supplies it): detect the HF signatures the manual's junk-filter table addresses
 and name the filter that treats them. Nothing here writes to the engine or reads
-its state — ``classify`` detects, ``treats`` says whether a given engaged filter
-covers what was detected, and the caller decides what to do with the pair.
+its state — ``classify`` detects, ``treats`` says whether an engaged filter covers
+what was detected, and the caller decides what to do with the pair.
 
 Signatures (manual p.53, "Playback filter"):
 - brick wall above 20 kHz and well below the container's Nyquist in a hi-res
-  container → ``20k`` (sharp cut; the manual's "fake high-res content" case).
-  A ceiling at or below 20 kHz earns nothing: the 20k corner removes nothing
-  below itself, so the recommendation could not change what is heard.
+  container → ``20k`` (sharp cut; the manual's "fake high-res content" case). A
+  ceiling at or below 20 kHz earns nothing: the corner removes nothing below
+  itself, so the recommendation could not change what is heard.
 - persistent narrow spurs above the music's natural decay → ``30k`` / ``40k``
   (slow roll-off above the corner). The manual's example cause is analog-tape
   transfers, but clipping harmonics of an authentic hi-res recording look the
   same to this rule (field report: an authentic 96k recording with clipping
-  fired it), so the cause is unknowable from the spectrum. The verdict states
-  the observation only and offers the hires filter families as an alternative
-  to the corner filter.
+  fired it), so the cause is unknowable from the spectrum. The verdict states the
+  observation only and offers the hires families as an alternative to the corner.
 - HF noise rising with frequency → ``50k`` (very slow roll-off; the manual's
   "excessive noise shaping" case — some ADCs, DSD-to-PCM conversions)
 
 All three rules read one curve, the windowed per-bin *minimum* spectrum the
 caller supplies. A master's own limit — a cutoff, a shaping ramp, a bias tone —
-is present in every frame, so it survives the minimum; music energy at the same
-frequency is intermittent, and any quiet moment inside the window drops its bin
-to the hiss floor. A mean over the same frames cannot separate the two: loud
-broadband music raises the local baseline until the signature disappears into it
-(observed live: a persistent 30.3 kHz tone 15 dB proud during a quiet intro fell
-to 6 dB of excess once the music started), and from the other side a loud
-passage lifts the near-floor band above a cutoff until the cliff shallows out.
+is present in every frame and survives the minimum; music energy at the same
+frequency is intermittent, and any quiet moment in the window drops its bin to
+the hiss floor. A mean cannot separate the two: loud music raises the local
+baseline until the signature disappears into it (observed live: a 30.3 kHz tone
+15 dB proud during a quiet intro fell to 6 dB of excess once the music started),
+and lifts the near-floor band above a cutoff until the cliff shallows out.
 
-A verdict is therefore a property of the spectrum in front of the rules, not of
-the passage that has played: it is recomputed from the current window on every
-call and held by nothing.
-
-The rate-relative filters (2x/4x/8x) are deliberately never recommended.
-
-Thresholds are conservative on purpose: only unambiguous signatures earn a
-recommendation, and every threshold is a module constant so tuning against real
-captures stays a one-line change.
+The cliff and the ramp are therefore properties of the spectrum in front of the
+rules, recomputed on every call and held by nothing. The spur is not: a tone that
+has engaged is held per bin until its excess falls under ``SPUR_RELEASE_DB`` or
+the bin stops standing clear of the floor, so a loud passage that lifts the
+baseline over a tone does not drop the advice and bring it back. The held set
+lives in a ``SpurHolder`` the caller owns and discards with its aggregate; a
+caller passing none reads the window in front of it alone. Where several rules
+fire the lowest corner wins: it treats every signature the others name. The
+rate-relative filters (2x/4x/8x) are never recommended, and every threshold below
+is read off the junkcal capture corpus with its reading recorded beside it.
 """
 
+import math
 import statistics
 from typing import Any
 
-# Eligibility floor: every signature lives above 24 kHz, so a container that
-# carries nothing up there has nothing for these rules to read.
+# Eligibility floor: every signature lives above 24 kHz, so a container carrying
+# nothing up there has nothing for these rules to read.
 MIN_RATE_HZ = 48_000
 MIN_BANDWIDTH_HZ = 24_000.0
 
+# The top bins carry the anti-imaging filter's transition, not the master's.
+DROP_TOP_BINS = 25
+
 SMOOTH_BINS = 9  # median-filter width for the working curve (odd)
 FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
+#: Level over the row's own floor a bin must reach to carry a ceiling or a spur.
+#: The trough of the corpus histogram of (smoothed curve minus floor): floor mode
+#: 222097 rows at 1 dB, first local minimum 68205 at 11, content mode 75127 at 15.
+CONTRAST_DB = 11.0
 
-# Brick wall: the content ceiling inside BRICK_WINDOW_HZ, everything above it
-# staying near the floor, and a >= BRICK_DROP_DB fall from BRICK_REF_HZ to that
-# near-floor band. The reference band is fixed in frequency so the reading is a
-# property of the master rather than of the passage playing. The window bottom
-# is the 20k corner itself: a ceiling at or below it is nothing the corner acts
-# on, and the bottom bin is excluded for that reason.
-BRICK_WINDOW_HZ = (20_000.0, 26_000.0)
-BRICK_REF_HZ = (15_000.0, 18_000.0)
-BRICK_DROP_DB = 30.0
-BRICK_GUARD_HZ = 1_500.0  # gap between the ceiling and the band read above it
-ABOVE_FLOOR_DB = 8.0  # "near the floor" allowance above the cliff
-FAKE_HIRES_MIN_RATE = 88_200
+# Brick wall: the content ceiling inside CLIFF_WINDOW_HZ, and the fall from
+# CLIFF_REF_HZ to the median of the band above it. The reference band is fixed in
+# frequency, so the reading is the master's rather than the passage's; the band
+# above is a median, so loud junk standing in it cannot fill the cliff in. Both
+# window ends are excluded: a ceiling at the bottom sits at or below the corner
+# recommended, one at the top is content carrying on past the window.
+CLIFF_WINDOW_HZ = (20_000.0, 26_000.0)
+CLIFF_REF_HZ = (15_000.0, 18_000.0)
+CLIFF_GUARD_HZ = 1_500.0  # gap between the ceiling and the band read above it
 
-# Spurs: narrow smoothed curve exceeding a wide smoothed baseline.
+#: Reference band minus the median above the ceiling. 117 flat corpus rows carry a
+#: positive depth: dense to 27.39 dB, resuming at 31.90, and no other adjacent pair
+#: between 8 and 44 dB is more than 2.5 apart.
+CLIFF_SPLIT_DB = 30.0
+
+# Spurs: raw per-bin values against the curve's own wide median baseline. A
+# persistent tone is a few bins wide, which the 9-bin working curve erases.
 SPUR_MIN_HZ = 25_000.0
-SPUR_DB = 15.0
 SPUR_BASELINE_BINS = 51
 SPUR_CORNER_SPLIT_HZ = 45_000.0  # spur above this → 40k corner still clears it
 
-# Filter families a spur verdict offers as an alternative to the corner filter
-# (manual p.34/p.32: "for HiRes content", "also suitable for playback of lossy
-# compression"). Name prefixes — each family ships -lp/-ip/-mp phase variants.
+#: Excess over the 51-bin baseline above 25 kHz that engages a bin. Two modes in
+#: the corpus: 769 rows at 4 dB, a local minimum of 37 at 22, 130 again at 28.
+SPUR_SPLIT_DB = 22.0
+
+#: Excess at which a held bin releases. Pooled over the 29 bins that cross the
+#: engage split in the corpus's nine spur albums, every row of those albums, 510
+#: values in 1 dB bins: nine values at 0 to 8 dB, nothing at 9 or 10, then 31
+#: running 11 to 21 and on without a break into the main mode at 22 and above.
+#: The minimum at 10 is the only two-sided one below the engage split, separating
+#: the nine rows whose spur has gone from the 31 whose excess has only sagged.
+#: Thin, and named as thin: one value either side of a two-bin gap, out of 510.
+SPUR_RELEASE_DB = 10.0
+
+# Filter families a spur verdict offers instead of the corner filter (manual
+# p.34/p.32: "for HiRes content", "also suitable for playback of lossy
+# compression"). Prefixes — each family ships -lp/-ip/-mp phase variants.
 SPUR_FAMILIES = ("poly-sinc-gauss-hires", "poly-sinc-ext2-hires")
 
-# Noise-shaping ramp: rise from the lower HF region to the top of the band.
-RAMP_LO_HZ = 25_000.0
-RAMP_RISE_DB = 10.0
-RAMP_ABOVE_FLOOR_DB = 20.0  # a real ramp carries energy, not floor wobble
-# The 50k corner acts only on a container that carries content past it, so the
-# source Nyquist must exceed the corner. 176.4 kHz is the lowest standard PCM
-# rate whose Nyquist (88.2 kHz) clears it; 88.2 and 96 kHz sources never do.
-RAMP_MIN_BANDWIDTH_HZ = 50_000.0
+# Noise-shaping ramp: the band above RAMP_LO_HZ rising without turning back, read
+# as the rank correlation of its smoothed trend against frequency. Neither a
+# slope nor a fit quality: what separates a shaped master from a clean one is
+# that the rise never reverses, and DSD-derived material is often flat or
+# lowpassed where a slope would have to find its rise.
+#: 141 band bottoms from 30 to 100 kHz at 0.5 kHz steps against five readings,
+#: 750 combinations: 9 separate the corpus's two groups at all, all of them the
+#: trend rank, widest margin at 57.5 kHz. A least-squares fit separates nowhere.
+RAMP_LO_HZ = 57_500.0
+#: The lowest corpus row expecting 50k reads 0.9676 and the highest expecting
+#: nothing reads 0.9586: a 0.0090 margin across 38 rows, the narrowest threshold
+#: here, and the first to re-read when the corpus grows.
+RAMP_RANK = 0.963
+# The 50k corner acts only on a container carrying content past it, so the source
+# Nyquist must exceed the corner. 176.4 kHz is the lowest standard PCM rate whose
+# Nyquist (88.2 kHz) clears it; 88.2 and 96 kHz sources never do.
+RAMP_MIN_RATE = 176_400
+
+#: The top bins every rule drops, plus a full spur baseline in what is left.
+MIN_BINS = DROP_TOP_BINS + SPUR_BASELINE_BINS
+
+
+class SpurHolder:
+    """The bins a spur verdict is standing on, held across the windows of one track.
+
+    Frequencies rather than bin indices, so a samplerate change re-grids without carrying stale indices in; the bins
+    the new grid lacks are dropped. No level, no window count, no track identity: discarded with the aggregate.
+    """
+
+    def __init__(self) -> None:
+        """Start with nothing held: a track opens owing its verdict to the window in front of it."""
+        self.held: set[float] = set()
+
+    def decide(self, visible: dict[float, float]) -> set[float]:
+        """Return the held set after one window, ``visible`` being excess by frequency.
+
+        A held bin absent from ``visible`` has stopped standing clear of the floor and releases whatever its excess.
+        """
+        held = {frequency for frequency in self.held if frequency in visible}
+        for frequency, excess in visible.items():
+            if excess >= SPUR_SPLIT_DB:
+                held.add(frequency)
+            elif excess < SPUR_RELEASE_DB:
+                held.discard(frequency)
+        self.held = held
+        return held
 
 
 def classify(
@@ -93,6 +153,7 @@ def classify(
     *,
     samplerate: int | None,
     sdm: bool,
+    holder: SpurHolder | None = None,
 ) -> dict[str, Any] | None:
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
@@ -102,33 +163,46 @@ def classify(
     changes what the detector sees — which is why detection says nothing about what the engine has engaged. Whether
     the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes
     quiet under treatment while auto-pilot needs the untreated signature to know what to engage and what to let go of.
+    Where more than one rule fires, the lowest corner is the verdict: it treats every signature the others name.
+    """
+    found = verdicts(min_levels_db, bandwidth, samplerate=samplerate, sdm=sdm, holder=holder)
+    return min(found, key=lambda v: _CORNER_KHZ[str(v["filter"])]) if found else None
+
+
+def verdicts(
+    min_levels_db: list[float] | None,
+    bandwidth: float,
+    *,
+    samplerate: int | None,
+    sdm: bool,
+    holder: SpurHolder | None = None,
+) -> list[dict[str, Any]]:
+    """Return one verdict per rule this spectrum fires, in cliff, spur, ramp order.
+
+    No rule excludes another, so a caller needing what a spectrum supported rather than what it is advised to engage
+    reads this; ``classify`` is the lowest corner among them.
     """
     if min_levels_db is None or not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
-        return None
-    smoothed = _median_smooth(min_levels_db, SMOOTH_BINS)
-    floor = _percentile(smoothed, FLOOR_PERCENTILE)
-    return (
-        _ceiling_wall(smoothed, bandwidth, floor, samplerate or 0)
-        or _spurs(min_levels_db, bandwidth)
-        or _ramp(smoothed, bandwidth, floor)
-    )
+        return []
+    curve = _Curve(min_levels_db, bandwidth)
+    rules = (_cliff(curve, samplerate or 0), _spur(curve, holder), _ramp(curve, samplerate or 0))
+    return [verdict for verdict in rules if verdict is not None]
 
 
 def eligible(samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
     """Whether a spectrum carries enough bins and HF bandwidth for any rule here to read it."""
-    if bins < SPUR_BASELINE_BINS:
+    if bins < MIN_BINS:
         return False
     return not (sdm or samplerate is None or samplerate <= MIN_RATE_HZ or bandwidth <= MIN_BANDWIDTH_HZ)
 
 
 # The engine's name for nothing engaged. Named rather than spelled out at each
-# site because auto-pilot's baseline defaults to it and has to mean the same
-# thing this module does by it.
+# site because auto-pilot's baseline defaults to it and has to mean the same thing
+# this module does by it.
 NO_FILTER = "none"
 
-# Fixed-corner filters by corner frequency. A corner at or below the
-# recommended one also removes the junk (it cuts everything the recommended
-# corner would), so it counts as treatment.
+# Fixed-corner filters by corner frequency. A corner at or below the recommended
+# one also removes the junk, so it counts as treatment.
 _CORNER_KHZ = {"20k": 20, "30k": 30, "40k": 40, "50k": 50}
 
 
@@ -136,7 +210,7 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
     """Whether the engaged junk filter already treats the detected signature.
 
     ``none`` (or nothing engaged) never does; a fixed corner treats when it is at or below the recommended corner; a
-    rate-relative filter (2x/4x/8x) is a deliberate manual choice and is never second-guessed.
+    rate-relative filter (2x/4x/8x) is a manual choice and is never second-guessed.
     """
     if junk_filter in (None, NO_FILTER):
         return False
@@ -149,13 +223,45 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
 def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
     """Whether the engine's current settings already treat the verdict's signature.
 
-    Treatment is either the engaged junk filter (corner logic above), or — for verdicts that offer filter families — an
-    active main filter from one of them.
+    Either the engaged junk filter (corner logic above), or — for verdicts offering families — a main filter from one.
     """
     if treated(junk_filter, str(verdict["filter"])):
         return True
     families: list[str] = verdict.get("families") or []
     return filter_name is not None and any(filter_name.startswith(f) for f in families)
+
+
+def hz(i: int, bins: int, bandwidth: float) -> float:
+    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
+    return i * bandwidth / (bins - 1)
+
+
+class _Curve:
+    """One spectrum as every rule reads it: the top bins gone, smoothed, and its own floor.
+
+    Frequencies stay on the grid the untruncated spectrum came on, so the drop moves no bin's frequency.
+    """
+
+    def __init__(self, min_levels_db: list[float], bandwidth: float) -> None:
+        """Take the curve apart once: what the three rules share is computed here and nowhere else."""
+        self.bins = len(min_levels_db)
+        self.bandwidth = bandwidth
+        self.levels = min_levels_db[: self.bins - DROP_TOP_BINS]
+        self.smoothed = _median_smooth(self.levels, SMOOTH_BINS)
+        self.baseline = _median_smooth(self.levels, SPUR_BASELINE_BINS)
+        self.floor = _percentile(self.smoothed, FLOOR_PERCENTILE)
+
+    def hz(self, i: int) -> float:
+        """Return the centre frequency of a kept bin."""
+        return hz(i, self.bins, self.bandwidth)
+
+    def at(self, frequency: float) -> int:
+        """Return the kept bin nearest a frequency."""
+        return min(len(self.levels) - 1, max(0, round(frequency * (self.bins - 1) / self.bandwidth)))
+
+    def above(self, frequency: float) -> int:
+        """Return the lowest kept bin at or above a frequency, or one past the last kept bin."""
+        return min(len(self.levels), math.ceil(frequency * (self.bins - 1) / self.bandwidth))
 
 
 def _median_smooth(levels: list[float], width: int) -> list[float]:
@@ -169,45 +275,39 @@ def _percentile(levels: list[float], pct: int) -> float:
     return ordered[min(len(ordered) - 1, (len(ordered) * pct) // 100)]
 
 
-def hz(i: int, bins: int, bandwidth: float) -> float:
-    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
-    return i * bandwidth / (bins - 1)
-
-
-def _bin(hz: float, bins: int, bandwidth: float) -> int:
-    return min(bins - 1, max(0, round(hz * (bins - 1) / bandwidth)))
-
-
 def _band_mean(levels: list[float], lo: int, hi: int) -> float:
     band = levels[lo : hi + 1]
     return sum(band) / len(band) if band else -200.0
 
 
-def _content_edge(smoothed: list[float], bandwidth: float, floor: float, window: tuple[float, float]) -> int | None:
-    """Highest bin inside ``window`` standing clear of the floor, or None when there is no ceiling strictly inside it.
+def _band_median(levels: list[float], lo: int, hi: int) -> float:
+    band = levels[lo : hi + 1]
+    return statistics.median(band) if band else -200.0
 
-    Both ends are excluded. A ceiling at the top bin is content that carries on past the window, which is not a
-    ceiling at all; a ceiling at the bottom bin sits at or below the corner the verdict would recommend, which is a
-    corner that removes nothing from what is playing.
-    """
-    bins = len(smoothed)
-    bottom = _bin(window[0], bins, bandwidth)
-    top = _bin(window[1], bins, bandwidth)
-    limit = floor + ABOVE_FLOOR_DB
+
+def _content_edge(curve: _Curve) -> int | None:
+    """Highest bin inside the cliff window standing clear of the floor, or None for none strictly inside it."""
+    bottom, top = (curve.at(h) for h in CLIFF_WINDOW_HZ)
+    limit = curve.floor + CONTRAST_DB
     edge = -1
     for i in range(bottom, top + 1):
-        if smoothed[i] > limit:
+        if curve.smoothed[i] > limit:
             edge = i
     return None if edge <= bottom or edge >= top else edge
 
 
-def _at_floor_above(smoothed: list[float], start: int, floor: float) -> bool:
-    bins = len(smoothed)
-    return _band_mean(smoothed, min(bins - 1, start), bins - 1) <= floor + ABOVE_FLOOR_DB
-
-
-def _fake_hires(edge: int, bins: int, bandwidth: float, samplerate: int) -> dict[str, Any]:
-    ceiling = hz(edge, bins, bandwidth)
+def _cliff(curve: _Curve, samplerate: int) -> dict[str, Any] | None:
+    """Return the brick-wall verdict where content stops inside the window and falls far enough below it."""
+    edge = _content_edge(curve)
+    if edge is None:
+        return None
+    kept = len(curve.levels)
+    guard = max(1, round(CLIFF_GUARD_HZ * (curve.bins - 1) / curve.bandwidth))
+    above = _band_median(curve.smoothed, min(kept - 1, edge + guard), kept - 1)
+    ref = _band_mean(curve.smoothed, curve.at(CLIFF_REF_HZ[0]), curve.at(CLIFF_REF_HZ[1]))
+    if ref - above < CLIFF_SPLIT_DB:
+        return None
+    ceiling = curve.hz(edge)
     reason = (
         f"Content stops at {ceiling / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container — "
         f"consistent with fake hi-res. Recommend engaging the 20k high-frequency filter."
@@ -215,45 +315,32 @@ def _fake_hires(edge: int, bins: int, bandwidth: float, samplerate: int) -> dict
     return {"filter": "20k", "reason": reason, "ceiling_khz": round(ceiling / 1000, 1)}
 
 
-def _ceiling_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
-    if samplerate < FAKE_HIRES_MIN_RATE:
-        return None
-    bins = len(smoothed)
-    edge = _content_edge(smoothed, bandwidth, floor, BRICK_WINDOW_HZ)
-    if edge is None:
-        return None
-    guard = max(1, _bin(BRICK_GUARD_HZ, bins, bandwidth))
-    if not _at_floor_above(smoothed, edge + guard, floor):
-        return None  # real content (or junk another rule owns) lives above the ceiling
-    above = _band_mean(smoothed, min(bins - 1, edge + guard), bins - 1)
-    ref = _band_mean(smoothed, _bin(BRICK_REF_HZ[0], bins, bandwidth), _bin(BRICK_REF_HZ[1], bins, bandwidth))
-    if ref - above < BRICK_DROP_DB:
-        return None
-    return _fake_hires(edge, bins, bandwidth, samplerate)
+def _excesses(curve: _Curve) -> dict[float, float]:
+    """Excess over the wide baseline, by frequency, for every visible bin above 25 kHz."""
+    limit = curve.floor + CONTRAST_DB
+    return {
+        curve.hz(i): curve.levels[i] - curve.baseline[i]
+        for i in range(curve.at(SPUR_MIN_HZ), len(curve.levels))
+        if curve.levels[i] > limit
+    }
 
 
-def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
-    """Return the spur verdict for the windowed minimum spectrum, or None when no persistent tone stands out.
+def _spur_corner(frequency: float) -> str:
+    return "40k" if frequency > SPUR_CORNER_SPLIT_HZ else "30k"
 
-    Spurs are hunted in the RAW per-bin values of the windowed minimum spectrum against that spectrum's own wide median
-    baseline: a persistent tone is only a few bins wide, which is exactly what the working curve's 9-bin median erases —
-    searching a smoothed curve can never find one. The minimum spectrum's baseline and floor are its own, not the
-    mean's: the minimum sits far below the mean wherever music is intermittent, which is the very contrast this rule
-    exploits.
+
+def _spur(curve: _Curve, holder: SpurHolder | None) -> dict[str, Any] | None:
+    """Return the spur verdict for this window, or None when no bin is held under it.
+
+    Every bin decides on its own excess; the verdict is the lowest corner any held bin implies, named for the held bin
+    of that corner standing highest over its baseline right now.
     """
-    if min_levels is None or len(min_levels) < SPUR_BASELINE_BINS:
+    visible = _excesses(curve)
+    held = (holder or SpurHolder()).decide(visible)
+    if not held:
         return None
-    bins = len(min_levels)
-    baseline = _median_smooth(min_levels, SPUR_BASELINE_BINS)
-    floor = _percentile(_median_smooth(min_levels, SMOOTH_BINS), FLOOR_PERCENTILE)
-    spur_hz, spur_db = 0.0, 0.0
-    for i in range(_bin(SPUR_MIN_HZ, bins, bandwidth), bins):
-        excess = min_levels[i] - baseline[i]
-        if excess >= SPUR_DB and min_levels[i] > floor + ABOVE_FLOOR_DB and excess > spur_db:
-            spur_hz, spur_db = hz(i, bins, bandwidth), excess
-    if spur_hz == 0.0:
-        return None
-    corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"
+    corner = min((_spur_corner(f) for f in held), key=lambda name: _CORNER_KHZ[name])
+    spur_hz = max((f for f in held if _spur_corner(f) == corner), key=lambda f: visible[f])
     reason = (
         f"Persistent tone at {spur_hz / 1000:.1f} kHz — "
         f"recommend switching to a 'hires' resampling filter or engaging the {corner} high-frequency filter."
@@ -266,18 +353,46 @@ def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] |
     }
 
 
-def _ramp(smoothed: list[float], bandwidth: float, floor: float) -> dict[str, Any] | None:
-    if bandwidth <= RAMP_MIN_BANDWIDTH_HZ:
+def _ranks(values: list[float]) -> list[float]:
+    """Return the rank of every value, ties sharing their midpoint rank."""
+    order, ranks, start = sorted(range(len(values)), key=lambda i: values[i]), [0.0] * len(values), 0
+    while start < len(order):
+        stop = start
+        while stop + 1 < len(order) and values[order[stop + 1]] == values[order[start]]:
+            stop += 1
+        for i in order[start : stop + 1]:
+            ranks[i] = (start + stop) / 2.0
+        start = stop + 1
+    return ranks
+
+
+def _rank_correlation(values: list[float]) -> float:
+    """Spearman correlation of a series against its own rising index, 0.0 where either side is flat."""
+    n = len(values)
+    xs, ys = [float(i) for i in range(n)], _ranks(values)
+    mx, my = sum(xs) / n, sum(ys) / n
+    dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+    dy = math.sqrt(sum((y - my) ** 2 for y in ys))
+    if dx == 0.0 or dy == 0.0:
+        return 0.0
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)) / (dx * dy)
+
+
+def _ramp(curve: _Curve, samplerate: int) -> dict[str, Any] | None:
+    """Return the ramp verdict where the working curve above 57.5 kHz rises without turning back.
+
+    The band is smoothed again at the baseline's width to strip the ripple; one narrower than that window carries no
+    trend of its own and does not fire.
+    """
+    if samplerate < RAMP_MIN_RATE:
         return None
-    bins = len(smoothed)
-    lo = _bin(RAMP_LO_HZ, bins, bandwidth)
-    top_lo = _bin(0.85 * bandwidth, bins, bandwidth)
-    top = _band_mean(smoothed, top_lo, bins - 1)
-    rise = top - _band_mean(smoothed, lo, min(top_lo - 1, lo + (top_lo - lo) // 4))
-    if rise < RAMP_RISE_DB or top < floor + RAMP_ABOVE_FLOOR_DB:
+    band = curve.smoothed[curve.above(RAMP_LO_HZ) :]
+    if len(band) < SPUR_BASELINE_BINS:
+        return None
+    if _rank_correlation(_median_smooth(band, SPUR_BASELINE_BINS)) < RAMP_RANK:
         return None
     reason = (
-        f"HF noise rising toward {bandwidth / 1000:.0f} kHz — consistent with excessive noise shaping "
+        f"HF noise rising toward {curve.bandwidth / 1000:.0f} kHz — consistent with excessive noise shaping "
         f"(some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter."
     )
-    return {"filter": "50k", "reason": reason, "ceiling_khz": round(bandwidth / 1000, 1)}
+    return {"filter": "50k", "reason": reason, "ceiling_khz": round(curve.bandwidth / 1000, 1)}
