@@ -274,6 +274,30 @@ def _seg_ok(mseg, oseg, note=None):
     return all(_stage_ok(m, o, False, note) for m, o in stages[1:])
 
 
+# The sandbox wrapper (gauntlet's hooks/bwrap-wrap.py) replaces every Bash
+# command with `bwrap <mounts> -- bash -s <<'DELIM'\n<command>\nDELIM`, and this
+# hook is handed that replacement, not what the agent typed. The wrapper only
+# ever REMOVES filesystem reach, so the command that runs is the heredoc body
+# and the body is what read-only has to be decided on. Judging the wrapper
+# instead charged a change action for `cat`, `ls` and `grep` alike: every read
+# in a wrapped session metered as "`bwrap` not on the free list".
+#
+# Shape-matched, never flag-parsed. The `--` is bwrap's own separator and the
+# wrapper leaves it bare, so the first ` -- bash -s <<'WORD'` is the boundary.
+# Anything that is not exactly this emission falls through unchanged and meters
+# as before, so a hand-typed `bwrap` is still a metered action.
+_SANDBOX_WRAP = re.compile(
+    r"^\s*bwrap\s.*?\s--\s+(?:bash|sh)\s+-s\s+<<'([A-Za-z_]\w*)'\n(.*)\n\1[ \t]*$",
+    re.S,
+)
+
+
+def unwrap_sandbox(cmd):
+    """The command a sandbox wrapper carries, or `cmd` unchanged."""
+    m = _SANDBOX_WRAP.match(cmd)
+    return m.group(2) if m else cmd
+
+
 def is_free_bash(cmd, note=None):
     """True only for a purely read-only command (verification or investigation).
     Bias: any doubt returns False (the command meters).
@@ -284,6 +308,7 @@ def is_free_bash(cmd, note=None):
     try:
         if not cmd or not cmd.strip():
             return _no(note, "empty command")
+        cmd = unwrap_sandbox(cmd)
         cmd = lex.SAFE_SUBST.sub("/SAFESUBST", cmd)
         masked = lex.mask(cmd)
         if masked is None:

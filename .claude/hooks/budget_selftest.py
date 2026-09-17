@@ -165,6 +165,16 @@ def _budget_checks():
 # the command itself contains, which the reason must echo back. The token is
 # typed here in the input, so asserting on it pins which part of the command
 # decided the verdict without pinning a word of the diagnostic's prose.
+def _wrapped(command):
+    """A command as the sandbox wrapper emits it — the shape this hook is handed
+    in a wrapped session, rather than the text the agent typed."""
+    return (
+        "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid "
+        "--bind /home/atom/dev/hqptuner /home/atom/dev/hqptuner "
+        f"-- bash -s <<'GAUNTLET_COMMAND_EOF'\n{command}\nGAUNTLET_COMMAND_EOF"
+    )
+
+
 ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
     # python: a gate under scripts/gates/ by its relative path is a verifier;
@@ -247,6 +257,13 @@ ALLOWLIST_CASES = [
     ("bash scripts/pair.sh list", False, "bash"),  # `bash` is not a recognized head
     # unchanged: a shell loop is not parsed, so it still meters
     ("for f in a b; do diff -q $f x/$f; done", False, "for"),
+    # the sandbox wrapper: the verdict follows the command it carries, because
+    # `bwrap` only narrows what that command can reach. Judging the wrapper
+    # charged an action for every read in a wrapped session.
+    (_wrapped("ls -la && git log --oneline -5"), True),
+    (_wrapped("sudo systemctl restart hqplayerd"), False, "sudo"),
+    # a hand-typed `bwrap` is not the wrapper's shape and still meters
+    ("bwrap --ro-bind / / sh -c 'touch /tmp/probe'", False, "bwrap"),
 ]
 
 
