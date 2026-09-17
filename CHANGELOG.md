@@ -10,6 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The junk-filter advisor speaks from the opening seconds of a track.** A note appears as soon as the stream carries a signature, and it stands across a track change until the signature clears or the engaged settings treat it.
 - **The junk-filter advisor recommends the corner that treats the whole track.** Brick walls, persistent tones and rising HF noise are now read as the labelled captures read them. Rising noise went undetected, a track carrying two tones was told to cut only the louder one, and a tone found in a quiet passage was dropped as soon as the music came back.
 - **The junk-filter advisor names a track's real content ceiling.** A track whose content fades out gradually below the container's limit read differently from one minute of it to the next, so auto-pilot could settle on the 30k filter for a track whose content stops around 23 kHz, or swap between corners mid-track. The ceiling is now read from a fixed reference band, and cutoffs as low as 13 kHz are recognized.
 - **LIVE filter counters sit beside their labels.** On the LIVE SDM and PCM chain cards, the 1x filter and Nx filter counts dropped below the source-rate hint. They now sit on the label line, as on the Output tab.

@@ -29,7 +29,6 @@ from hqptuner.api.factory import create_app
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.metering import TrackContext
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
@@ -384,10 +383,6 @@ def _never_the_hosts_metering_port(_no_inherited_environment: dict[str, str]) ->
 
 
 # --- metering reader harness (fake 4322 stream lives in fixtures_daemons) ---
-
-#: A playing 96 kHz PCM track with no junk filter engaged — the context under
-#: which the metering reader accumulates evidence.
-PLAYING = TrackContext(playing=True, track_serial="track-1", samplerate=96000, sdm=False, junk_filter="none")
 
 
 def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], tries: int = 10_000) -> None:

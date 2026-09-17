@@ -1,6 +1,6 @@
 """hqplayerd metering side-channel reader (TCP 4322, protocol.md §7).
 
-A background task that keeps a per-track spectral aggregate for the
+A background task that keeps a spectral aggregate for the
 junk-filter advisor (``junkadvisor.py``). The daemon streams frames
 unconditionally on bare accept, one per transform hop; the metering tap runs at
 the *source* rate, so the aggregate sees the source spectrum directly even
@@ -8,9 +8,9 @@ while upsampling.
 
 The stream is best-effort by design: connection refused, dropped, or absent
 means "no recommendation", never a user-facing error. The reader reconnects
-with a fixed backoff and throws the aggregate away whenever the stream or the
-track context breaks, so a verdict is only ever computed over one track's
-frames.
+with a fixed backoff and throws the aggregate away whenever the stream breaks
+or the frame geometry changes; a track change is neither, so the evidence in
+hand survives one.
 
 The connection is held only while the engine is playing. The daemon cannot be
 asked to send less, so the socket is the only throttle there is, and an idle
@@ -50,11 +50,12 @@ MAX_CHANNELS = 32
 MAX_BINS = 65_536
 
 # The detector's persistence window: per-bin minima are folded into blocks of
-# BLOCK_SECONDS coverage, and the window spectrum exists once WINDOW_BLOCKS
-# full blocks have been earned (~30 s). A tone must persist through the whole
-# window to survive the minimum — long enough that a sustained musical partial
-# cannot fake it, short enough that a bias tone is caught within the first
-# minute of a track.
+# BLOCK_SECONDS coverage, and the window spectrum is the minimum over the last
+# WINDOW_BLOCKS of them (~30 s) plus whatever partial block is open. A tone must
+# persist through the coverage in hand to survive the minimum, and once the
+# window is full that coverage is long enough that a sustained musical partial
+# cannot fake it. The window is how far back the minimum reaches; it is not a
+# wait, and the first frame folded already carries a readable spectrum.
 BLOCK_SECONDS = 5.0
 WINDOW_BLOCKS = 6
 # Frames quieter than this on every channel (RMS dBFS) are kept out of the
@@ -68,7 +69,6 @@ class TrackContext:
     """What the advisor needs to know about the engine's current track."""
 
     playing: bool
-    track_serial: str | None
     samplerate: int | None
     sdm: bool
     junk_filter: str | None
@@ -84,7 +84,6 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
     rate = meta.get("samplerate")
     return TrackContext(
         playing=_int(status.get("state")) == PLAYING,
-        track_serial=status.get("track_serial"),
         samplerate=_int(rate) if rate else None,
         sdm=meta.get("sdm") in ("1", "true"),
         junk_filter=_junk_filter_name(manager.readings.state or {}, manager.readings.enums),
@@ -159,15 +158,16 @@ class SpectralAggregate:
             self._block_seconds = 0.0
 
     def window_min_db(self) -> list[float] | None:
-        """Per-bin minimum (dB) over the last full persistence window, or None until WINDOW_BLOCKS full blocks exist.
+        """Per-bin minimum (dB) over whatever coverage is in hand, or None while no frame has been folded at all.
 
-        The current partial block joins the minimum too — it can only tighten it, never fake persistence.
+        The pushed blocks and the current partial one are read together, full window or not: WINDOW_BLOCKS is how far
+        back the minimum reaches, not a wait the reader serves before anything can be said.
         """
-        if len(self._blocks) < WINDOW_BLOCKS:
-            return None
         arrays: list[list[float]] = list(self._blocks)
         if self._block_min is not None:
             arrays.append(self._block_min)
+        if not arrays:
+            return None
         mins = [min(vals) for vals in zip(*arrays, strict=True)]
         return [10 * math.log10(p) if p > 0 else -200.0 for p in mins]
 
@@ -193,7 +193,6 @@ class MeteringReader:
         self._sleep = sleep
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
-        self._serial: str | None = None
         self._holder = junkadvisor.SpurHolder()
 
     def retarget(self, host: str, port: int) -> None:
@@ -220,8 +219,8 @@ class MeteringReader:
         front of the rules, so it appears when the window carries the signature and is None again once it does not. The
         spur is held per bin by the reader's ``SpurHolder`` until the tone's excess over the local baseline falls under
         the release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a
-        tone no longer drops the advice and brings it back. The holder carries no track identity: it is rebuilt with the
-        aggregate, so the hold dies with the track and with the stream.
+        tone no longer drops the advice and brings it back. The holder carries no track identity and neither does the
+        aggregate: a held bin releases when the rules stop seeing it, not when the track changes.
 
         Deliberately blind to the engaged filter, unlike ``recommendation``: auto-pilot engages what the signature
         asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
@@ -230,8 +229,6 @@ class MeteringReader:
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None:
             return None
-        if ctx.track_serial != self._serial:
-            return None  # the aggregate is the old track's evidence
         return junkadvisor.classify(
             agg.window_min_db(),
             agg.bandwidth,
@@ -261,8 +258,8 @@ class MeteringReader:
         difference between megabytes a second of idle traffic and none.
 
         A broken stream is not an error: it is logged at debug and the aggregate and verdict are discarded, so a
-        verdict is only ever computed over one unbroken run of one track's frames. A *deliberate* disconnect at the
-        idle gate is not a break — a pause mid-track leaves the evidence standing, so the verdict survives it.
+        verdict is only ever computed over one unbroken run of frames. A *deliberate* disconnect at the idle gate is
+        not a break — a pause leaves the evidence standing, so the verdict survives it, and so does a track change.
         """
         while not self._stop.is_set():
             keep = False
@@ -274,7 +271,7 @@ class MeteringReader:
                 elif ctx.playing:
                     keep = await self._stream()
                 else:
-                    keep = True  # paused mid-track: the aggregate is still this track's
+                    keep = True  # paused: keep the aggregate for the resume
             except (OSError, asyncio.IncompleteReadError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
                 delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
@@ -315,7 +312,7 @@ class MeteringReader:
                 read = None
                 frame += 1
                 if frame % DECIMATE == 0:
-                    self._ingest(header, body, ctx)
+                    self._ingest(header, body)
             return False
         finally:
             await _discard(read)
@@ -339,14 +336,12 @@ class MeteringReader:
             raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
         return header, await reader.readexactly(channels * (16 + 8 * bins))
 
-    def _ingest(self, header: tuple[float, ...], body: bytes, ctx: TrackContext) -> None:
+    def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
         channels, bins = int(header[1]), int(header[2])
         bandwidth, xform_time = float(header[4]), float(header[5])
         agg = self._agg
-        if agg is None or ctx.track_serial != self._serial or agg.bins != bins or agg.bandwidth != bandwidth:
+        if agg is None or agg.bins != bins or agg.bandwidth != bandwidth:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
-            self._serial = ctx.track_serial
-            self._holder = junkadvisor.SpurHolder()  # the hold is the old track's, or the old grid's
         agg.add(
             _frame_power(body, channels, bins),
             xform_time * DECIMATE,

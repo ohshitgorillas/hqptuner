@@ -5,8 +5,9 @@ app lifespan beside auto-pilot and only where the metering reader runs. It reads
 talks to the engine, engages a filter or touches the reader's lifetime.
 
 While the detector's eligibility gate passes, each tick appends one JSON Lines row: the live verdict, the junk
-filter auto-pilot resolves from it, the engine context, the aggregate's coverage and grid, and the windowed minimum
-spectrum at or above ``SPECTRUM_FLOOR_HZ``. The spectrum is the metering tap's own, which sees the source rate.
+filter auto-pilot resolves from it, the engine context, the aggregate's coverage and grid, and the minimum spectrum
+over the coverage in hand at or above ``SPECTRUM_FLOOR_HZ`` — a row carries one from the opening seconds of a period,
+not only once a full window stands behind it. The spectrum is the metering tap's own, which sees the source rate.
 
 A playback period is one file. The aggregate restarts with every stream the player opens, so a period is held open
 across short silence and closes only on a gap of ``PERIOD_GAP_SECONDS`` without playback, a samplerate change, or a
@@ -41,7 +42,7 @@ SPECTRUM_FLOOR_HZ = 13_000.0
 
 
 def _spectrum(agg: SpectralAggregate) -> list[list[float]] | None:
-    """Return the windowed minimum as ``[hz, db]`` pairs at or above ``SPECTRUM_FLOOR_HZ``, or None until earned."""
+    """Return the windowed minimum as ``[hz, db]`` pairs at or above ``SPECTRUM_FLOOR_HZ``, or None with no evidence."""
     window = agg.window_min_db()
     if window is None:
         return None

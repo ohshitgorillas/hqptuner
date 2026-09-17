@@ -122,14 +122,15 @@ MIN_BINS = DROP_TOP_BINS + SPUR_BASELINE_BINS
 
 
 class SpurHolder:
-    """The bins a spur verdict is standing on, held across the windows of one track.
+    """The bins a spur verdict is standing on, held from window to window.
 
     Frequencies rather than bin indices, so a samplerate change re-grids without carrying stale indices in; the bins
-    the new grid lacks are dropped. No level, no window count, no track identity: discarded with the aggregate.
+    the new grid lacks are dropped. No level, no window count, no track identity: a held bin releases when the rules
+    stop seeing it, not at a track boundary.
     """
 
     def __init__(self) -> None:
-        """Start with nothing held: a track opens owing its verdict to the window in front of it."""
+        """Start with nothing held: the reader opens owing its verdict to the window in front of it."""
         self.held: set[float] = set()
 
     def decide(self, visible: dict[float, float]) -> set[float]:
@@ -158,9 +159,10 @@ def classify(
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
     ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
-    Nyquist), or None while the window has not yet been earned — the only readiness gate there is, and no verdict of
-    any kind before it. The verdict is spectrum-only — the metering tap sees the source, so engaging a filter never
-    changes what the detector sees — which is why detection says nothing about what the engine has engaged. Whether
+    Nyquist), or None while no frame has been folded at all — the reader has no other readiness gate, so the first
+    frame past the decimator already carries a spectrum the rules can read. The verdict is spectrum-only — the
+    metering tap sees the source, so engaging a filter never changes what the detector sees — which is why detection
+    says nothing about what the engine has engaged. Whether
     the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes
     quiet under treatment while auto-pilot needs the untreated signature to know what to engage and what to let go of.
     Where more than one rule fires, the lowest corner is the verdict: it treats every signature the others name.
