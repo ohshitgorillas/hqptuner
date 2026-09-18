@@ -5,8 +5,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from jbconfig import BY_TRACK, GROUPS, HEADLINE_WINDOW, REPORT, WINDOWS
-from jbthresholds import LABEL_CAND_TITLE, LABEL_CANDIDATES, best_guard
+from jbconfig import (
+    BY_TRACK,
+    CANDIDATE_E_REF_HZ,
+    GROUPS,
+    HEADLINE_WINDOW,
+    MASK_ABOVE_HZ,
+    MASK_FOLDS_HZ,
+    QUIET_MAX_LEVEL_DB,
+    REPORT,
+    WINDOWS,
+)
+from jbedge import edge_section
+from jbmask import DECILES, MASK_READINGS, MASK_SPLITS, mask_sweep_section
+from jbmirror import mirror_section
+from jbpolicy import loud_frame_sweep_section, policy_section
+from jbquiet import QUIET_CANDIDATES, SPLITS
+from jbthresholds import EN_DASH, LABEL_CAND_TITLE, LABEL_CANDIDATES, best_guard
+from jbveto import real_veto_section
 
 if TYPE_CHECKING:
     from jbrun import LabelledRun
@@ -143,6 +159,190 @@ def _album_section(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
+def _split_section(run: LabelledRun) -> list[str]:
+    """Write A, G and GC at the headline window over all steady blocks, over the quiet ones, and over the loud ones."""
+    intro = (
+        f"Steady blocks only. A block is quiet when the 90th percentile of its 15{EN_DASH}18 kHz reference band sits "
+        f"under {QUIET_MAX_LEVEL_DB:g} dB in the metering's own dB, and loud otherwise. Each split picks its own cut "
+        f"over the values that split leaves."
+    )
+    lines = [
+        f"## Quiet and loud blocks at {HEADLINE_WINDOW:g} s",
+        "",
+        intro,
+        "",
+        (
+            "| blocks | candidate | cut | fake side | wrong-side blocks | fake called real | real called fake | "
+            "held-out wrong | held-out fake called real | held-out real called fake | blocks |"
+        ),
+        "| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for split in SPLITS:
+        for cand in QUIET_CANDIDATES:
+            s, row = run.split_scored[split][cand], run.loao_split[split][cand]
+            cut = f"{s['threshold']:.4f}" if np.isfinite(s["threshold"]) else "none"
+            side = "at or above" if s["fake_high"] else "at or below"
+            lines.append(
+                f"| {split} | {cand} | {cut} | {side} | {s['wrong']} | {s['fake_called_real']} | "
+                f"{s['real_called_fake']} | {row['wrong']} | {row['fake_called_real']} | "
+                f"{row['real_called_fake']} | {s['blocks']} |"
+            )
+    return [*lines, ""]
+
+
+def _loao_section(run: LabelledRun) -> list[str]:
+    """Every candidate's leave-one-album-out totals beside its in-sample row, over the steady headline blocks."""
+    head = run.scored["steady"][HEADLINE_WINDOW]
+    intro = (
+        "Steady blocks only. The in-sample columns repeat the cut each candidate picked over every block it then "
+        "grades. The leave-one-album-out columns hold each album out in turn, pick the cut over all the other "
+        "albums' blocks, grade the held-out album at it, and sum the wrong-side counts over the albums."
+    )
+    lines = [
+        f"## Leave-one-album-out at {HEADLINE_WINDOW:g} s",
+        "",
+        intro,
+        "",
+        (
+            "| candidate | in-sample wrong | in-sample fake called real | in-sample real called fake | "
+            "held-out wrong | held-out fake called real | held-out real called fake | blocks |"
+        ),
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for cand in LABEL_CANDIDATES:
+        s, row = head[cand], run.loao[cand]
+        lines.append(
+            f"| {cand} | {s['wrong']} | {s['fake_called_real']} | {s['real_called_fake']} "
+            f"| {row['wrong']} | {row['fake_called_real']} | {row['real_called_fake']} | {row['blocks']} |"
+        )
+    return [*lines, "", *_loao_album_rows(run)]
+
+
+def _loao_album_rows(run: LabelledRun) -> list[str]:
+    """Per album, G's and H's wrong-side blocks in sample and held out, for every album either puts one wrong."""
+    lines = [
+        f"### Per-album wrong blocks for G and H at {HEADLINE_WINDOW:g} s",
+        "",
+        "Every album carrying a wrong block under G or H, in sample or held out.",
+        "",
+        "| album | label | blocks | G in sample | H in sample | G held out | H held out |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for name in sorted(run.albums):
+        entry = run.albums[name]
+        counts = [
+            entry["wrong"]["G"],
+            entry["wrong"]["H"],
+            run.loao["G"]["albums"].get(name, 0),
+            run.loao["H"]["albums"].get(name, 0),
+        ]
+        if not any(counts):
+            continue
+        row = " | ".join(str(c) for c in counts)
+        lines.append(f"| {name} | {entry['label']} | {entry['blocks']} | {row} |")
+    return [*lines, ""]
+
+
+def _quiet_album_section(run: LabelledRun) -> list[str]:
+    """Per album over the quiet steady blocks: how many, how many G puts wrong, and G's median value there."""
+    lines = [
+        f"## Per-album G on quiet blocks at {HEADLINE_WINDOW:g} s",
+        "",
+        "Quiet steady blocks only, G at the cut the quiet split picked.",
+        "",
+        "| album | label | blocks | wrong | median G |",
+        "| --- | --- | ---: | ---: | ---: |",
+    ]
+    for name in sorted(run.quiet_albums):
+        entry = run.quiet_albums[name]
+        median = f"{entry['median']:.2f}" if np.isfinite(entry["median"]) else "none"
+        lines.append(f"| {name} | {entry['label']} | {entry['blocks']} | {entry['wrong']} | {median} |")
+    return [*lines, ""]
+
+
+def _a_missed_section(run: LabelledRun) -> list[str]:
+    """Per album: the FAKE blocks A calls real, split into blocks with no reading and blocks with one below the cut."""
+    thr = run.scored["steady"][HEADLINE_WINDOW]["A"]
+    side = (
+        "A reads fake at or above its cut, so every wrong fake block carrying a reading sits below it."
+        if thr["fake_high"]
+        else "A reads fake at or below its cut, so the second column counts blocks whose reading sits above it."
+    )
+    lines = [
+        f"## Per-album fake blocks A calls real at {HEADLINE_WINDOW:g} s",
+        "",
+        f"Steady blocks only, at A's own cut from the table above. {side}",
+        "",
+        "| album | no reading | reading below the cut |",
+        "| --- | ---: | ---: |",
+    ]
+    for name in sorted(run.a_missed):
+        entry = run.a_missed[name]
+        lines.append(f"| {name} | {entry['no_reading']} | {entry['below_cut']} |")
+    return [*lines, ""]
+
+
+def _mask_cell(reading: str, value: float) -> str:
+    """One mask cell: three decimals for a correlation, two for a level in dB, blank-free ``none`` for no reading."""
+    if not np.isfinite(value):
+        return "none"
+    return f"{value:.3f}" if reading == "correlation" else f"{value:.2f}"
+
+
+def _mask_decile_rows(run: LabelledRun) -> list[str]:
+    """One row per reading and split: how many blocks carry it, and p0 to p100 of it over them."""
+    out = []
+    for reading in MASK_READINGS:
+        for split in MASK_SPLITS:
+            entry = run.mask_deciles[reading][split]
+            cells = [_mask_cell(reading, v) for v in entry["deciles"]] or ["none"] * len(DECILES)
+            out.append(f"| {reading} | {split} | {entry['blocks']} | " + " | ".join(cells) + " |")
+    return out
+
+
+def _mask_album_rows(run: LabelledRun) -> list[str]:
+    """One row per album: its label, its steady headline blocks, and the median of all three readings."""
+    out = []
+    for name in sorted(run.mask_albums):
+        entry = run.mask_albums[name]
+        medians = " | ".join(_mask_cell(r, entry["median"][r]) for r in MASK_READINGS)
+        out.append(f"| {name} | {entry['label']} | {entry['blocks']} | {medians} |")
+    return out
+
+
+def _mask_section(run: LabelledRun) -> list[str]:
+    """Write the mask reading over the steady headline blocks: its deciles by split, then its per-album medians."""
+    folds = " and ".join(f"{hz / 1000:g} kHz" for hz in MASK_FOLDS_HZ)
+    intro = (
+        f"Steady blocks only. Each frame's summed-channel power is normalised to per-Hz, and the block's above-fold "
+        f"level is the median across its frames of the mean level in dB from {MASK_ABOVE_HZ[0]:g} Hz above the fold "
+        f"to {MASK_ABOVE_HZ[1] / 1000:g} kHz above it. The music level is the same over "
+        f"{CANDIDATE_E_REF_HZ[0] / 1000:g}{EN_DASH}{CANDIDATE_E_REF_HZ[1] / 1000:g} kHz, the ratio is the above-fold "
+        f"level minus it in dB, and the correlation is Pearson across the block's frames between the two band "
+        f"levels. Both folds at {folds} are read and the one with the higher above-fold level is the block's "
+        f"reading. The quiet and loud split is the same tag the section above uses."
+    )
+    head = "| reading | blocks set | blocks | " + " | ".join(f"p{p}" for p in DECILES) + " |"
+    lines = [
+        "## Mask",
+        "",
+        intro,
+        "",
+        head,
+        "| --- | --- | ---: | " + " | ".join("---:" for _ in DECILES) + " |",
+        *_mask_decile_rows(run),
+        "",
+        f"### Per-album mask medians at {HEADLINE_WINDOW:g} s",
+        "",
+        "Steady blocks only, every block of the album pooled.",
+        "",
+        "| album | label | blocks | " + " | ".join(f"median {r}" for r in MASK_READINGS) + " |",
+        "| --- | --- | ---: | " + " | ".join("---:" for _ in MASK_READINGS) + " |",
+        *_mask_album_rows(run),
+    ]
+    return [*lines, ""]
+
+
 def _tail_sections(run: LabelledRun) -> list[str]:
     """List the duplicate arrivals dropped, and the bursts nothing labels."""
     dupes = (
@@ -169,5 +369,22 @@ def _tail_sections(run: LabelledRun) -> list[str]:
 
 def write_labelled_report(run: LabelledRun) -> None:
     """Write every section of the owner-labelled report to ``REPORT``."""
-    lines = _preamble(run) + _guard_section(run) + _group_sections(run) + _album_section(run) + _tail_sections(run)
+    lines = (
+        _preamble(run)
+        + _guard_section(run)
+        + _group_sections(run)
+        + _split_section(run)
+        + _loao_section(run)
+        + _album_section(run)
+        + _quiet_album_section(run)
+        + _mask_section(run)
+        + mask_sweep_section(run)
+        + real_veto_section(run)
+        + mirror_section(run)
+        + edge_section(run)
+        + loud_frame_sweep_section(run)
+        + policy_section(run)
+        + _a_missed_section(run)
+        + _tail_sections(run)
+    )
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")

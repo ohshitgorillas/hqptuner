@@ -169,20 +169,56 @@ def _walk_up(
     return ceiling, fall
 
 
+def _content_edges(curves: WalkCurves, grid: Grid, window_hz: tuple[float, float]) -> tuple[np.ndarray, np.ndarray]:
+    """Per row: ``junkadvisor._content_edge`` — the highest bin inside the window standing clear of the row's floor.
+
+    Returns the edge index per row and whether that row has one. A row whose highest clear bin lands on either window
+    end has none: at the bottom it sits at or below the corner recommended, at the top content carries on past the
+    window. Reversing the window slice turns "highest true bin" into one ``argmax``, where the loop scans every bin of
+    every row.
+    """
+    bottom, top = (grid.at(h) for h in window_hz)
+    window = curves.smoothed[:, bottom : top + 1] > (curves.floor + CONTRAST_DB)[:, None]
+    edge = top - window[:, ::-1].argmax(axis=1)
+    return edge, window.any(axis=1) & (edge > bottom) & (edge < top)
+
+
+def _cliff_falls(
+    curves: WalkCurves, grid: Grid, window_hz: tuple[float, float], ref_hz: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return (ceiling Hz or NaN, fall dB or NaN) per row for ``junkadvisor._cliff``'s edge and fall arithmetic.
+
+    The fall is the mean of the reference band minus the median of everything from the guard width above the edge to
+    the top kept bin; ``_cliff`` reads it against ``CLIFF_SPLIT_DB``, and the caller here reads it against its own cut.
+    """
+    ceiling = np.full(curves.smoothed.shape[0], np.nan, dtype=np.float64)
+    fall = np.full(curves.smoothed.shape[0], np.nan, dtype=np.float64)
+    edge, ok = _content_edges(curves, grid, window_hz)
+    if not ok.any():
+        return ceiling, fall
+    rows = np.flatnonzero(ok)
+    ref_lo, ref_hi = (grid.at(h) for h in ref_hz)
+    ref = curves.smoothed[rows, ref_lo : ref_hi + 1].mean(axis=1)
+    lo = np.minimum(grid.kept - 1, edge[rows] + grid.guard())
+    ceiling[rows] = grid.hz_of(edge[rows])
+    fall[rows] = ref - _tail_medians(curves.smoothed[rows], lo, grid.kept)
+    return ceiling, fall
+
+
 def readings(
     rows: np.ndarray,
     grid: Grid,
     window_hz: tuple[float, float] | None = None,
     curves: WalkCurves | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return (ceiling Hz or NaN, fall dB or NaN) for every summed-power dB row.
+    """Return (ceiling Hz or NaN, fall dB or NaN) per row, read as ``junkadvisor._cliff`` reads one curve.
 
     The window is ``CLIFF_WINDOW_HZ`` unless the caller names another, and the reference band is ``CLIFF_REF_HZ``;
     both move with ``JB_CLIFF_LO``. A row with no edge inside the window carries no reading, read by the caller as a
     full verdict rather than as a number on the fall scale.
     """
     c = curves if curves is not None else walk_curves(rows, grid)
-    return _walk_up(c, grid, window_hz or CLIFF_WINDOW_HZ, CLIFF_REF_HZ)
+    return _cliff_falls(c, grid, window_hz or CLIFF_WINDOW_HZ, CLIFF_REF_HZ)
 
 
 def readings_walkup(rows: np.ndarray, grid: Grid, curves: WalkCurves | None = None) -> tuple[np.ndarray, np.ndarray]:

@@ -11,6 +11,7 @@ from jbconfig import GROUPS, HEADLINE_WINDOW, REPORT, WINDOWS
 from jbcurves import Grid, musical_frames, readings, readings_walkup, walk_curves
 from jbderived import load_burst, musical_groups, summed_db
 from jblabels import FAMILY_ORDER, family_of, normalize
+from jbquiet import QUIET_CANDIDATES, SPLITS
 from jbthresholds import LABEL_CANDIDATES, best_guard, calls_fake
 
 if TYPE_CHECKING:
@@ -136,6 +137,49 @@ def _print_guard_sweep(run: LabelledRun) -> None:
             )
 
 
+def _print_quiet_split(run: LabelledRun) -> None:
+    """Every row of the quiet/loud split, then the two per-album tables read off it."""
+    for split in SPLITS:
+        for cand in QUIET_CANDIDATES:
+            s = run.split_scored[split][cand]
+            print(
+                f"split={split} cand={cand} cut={s['threshold']:.4f} fake_high={s['fake_high']} "
+                f"wrong={s['wrong']}/{s['blocks']} fake_called_real={s['fake_called_real']} "
+                f"real_called_fake={s['real_called_fake']}"
+            )
+    for name in sorted(run.quiet_albums):
+        entry = run.quiet_albums[name]
+        print(
+            f"quiet_album={name!r} label={entry['label']} blocks={entry['blocks']} wrong={entry['wrong']} "
+            f"median_G={entry['median']:.2f}"
+        )
+    for name in sorted(run.a_missed):
+        entry = run.a_missed[name]
+        print(f"a_missed={name!r} no_reading={entry['no_reading']} below_cut={entry['below_cut']}")
+
+
+def _print_loao(run: LabelledRun) -> None:
+    """Every candidate's leave-one-album-out totals beside its in-sample row, then the same inside each split."""
+    head = run.scored["steady"][HEADLINE_WINDOW]
+    for cand in LABEL_CANDIDATES:
+        row, s = run.loao[cand], head[cand]
+        print(
+            f"loao cand={cand} wrong={row['wrong']}/{row['blocks']} "
+            f"fake_called_real={row['fake_called_real']} real_called_fake={row['real_called_fake']} "
+            f"in_sample_wrong={s['wrong']} in_sample_fake_called_real={s['fake_called_real']} "
+            f"in_sample_real_called_fake={s['real_called_fake']}"
+        )
+    for split in SPLITS:
+        for cand in QUIET_CANDIDATES:
+            row, s = run.loao_split[split][cand], run.split_scored[split][cand]
+            print(
+                f"loao_split={split} cand={cand} wrong={row['wrong']}/{row['blocks']} "
+                f"fake_called_real={row['fake_called_real']} real_called_fake={row['real_called_fake']} "
+                f"in_sample_wrong={s['wrong']} in_sample_fake_called_real={s['fake_called_real']} "
+                f"in_sample_real_called_fake={s['real_called_fake']}"
+            )
+
+
 def print_summary(run: LabelledRun) -> None:
     """Print the headline JSON, a line per group, window and candidate, the per-album counts, then the guard sweep."""
     _print_headline_json(run)
@@ -154,4 +198,6 @@ def print_summary(run: LabelledRun) -> None:
             f"album={name!r} label={entry['label']} blocks={entry['blocks']} "
             + " ".join(f"{c}={entry['wrong'][c]}" for c in LABEL_CANDIDATES)
         )
+    _print_quiet_split(run)
+    _print_loao(run)
     _print_guard_sweep(run)

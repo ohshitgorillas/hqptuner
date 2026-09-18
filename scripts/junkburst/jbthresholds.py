@@ -16,6 +16,11 @@ from jbconfig import (
     CANDIDATE_F_FOLDS_HZ,
     CANDIDATE_F_INNER_HZ,
     CANDIDATE_F_OUTER_HZ,
+    CANDIDATE_G_BAND_HZ,
+    CANDIDATE_G_CONTROL_FOLDS_HZ,
+    CANDIDATE_G_FOLDS_HZ,
+    CANDIDATE_G_GUARD_HZ,
+    CANDIDATE_H_OFFSET_HZ,
     FLOOR_PCT,
     SMOOTH_BINS,
 )
@@ -28,7 +33,7 @@ PartRow = tuple[str, float, float, float, float, float]
 
 #: Captured per block during the scoring loop; AF is derived afterward from A's and F's own thresholds, so it is not
 #: in this tuple.
-BASE_LABEL_CANDIDATES = ("A", "AW", "AM", "B", "C", "advisor", "D", "E2", "E3", "F")
+BASE_LABEL_CANDIDATES = ("A", "AW", "AM", "B", "C", "advisor", "D", "E2", "E3", "F", "G", "GC", "H")
 #: Full candidate order for reporting, once AF has been computed.
 LABEL_CANDIDATES = (*BASE_LABEL_CANDIDATES, "AF")
 LABEL_CAND_TITLE = {
@@ -61,6 +66,24 @@ LABEL_CAND_TITLE = {
         f"same mirrored above it, for folds at "
         + " and ".join(f"{hz / 1000:g} kHz" for hz in CANDIDATE_F_FOLDS_HZ)
         + ", F the larger of the two"
+    ),
+    "G": (
+        f"G — the block's per-bin minimum in dB after a {SMOOTH_BINS}-bin median smooth; at each fold the median over "
+        f"the {CANDIDATE_G_BAND_HZ / 1000:g} kHz band starting {CANDIDATE_G_GUARD_HZ:g} Hz above it minus the median "
+        f"over the {CANDIDATE_G_BAND_HZ / 1000:g} kHz band ending {CANDIDATE_G_GUARD_HZ:g} Hz below it, G the largest "
+        f"absolute value over the folds at " + " and ".join(f"{hz / 1000:g} kHz" for hz in CANDIDATE_G_FOLDS_HZ)
+    ),
+    "GC": (
+        "GC — G minus the median of the same absolute step measured at control folds "
+        + ", ".join(f"{hz / 1000:g} kHz" for hz in CANDIDATE_G_CONTROL_FOLDS_HZ)
+        + "; a fold or control outside the burst's grid drops out, and GC carries no reading when every control does"
+    ),
+    "H": (
+        f"H — G's signed step at a fold, minus the mean of the same two-band difference centred "
+        f"{CANDIDATE_H_OFFSET_HZ / 1000:g} kHz below the fold and {CANDIDATE_H_OFFSET_HZ / 1000:g} kHz above it; H "
+        f"the larger absolute value over the folds at "
+        + " and ".join(f"{hz / 1000:g} kHz" for hz in CANDIDATE_G_FOLDS_HZ)
+        + ", a fold whose own step or both offset steps fall outside the burst's grid carrying no reading"
     ),
     "AF": "AF — fake when A reads fake at A's own threshold or F reads fake at F's own threshold",
 }

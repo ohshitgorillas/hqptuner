@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 TRACK_ROW_COLUMNS = 4
 ALBUM_ROW_COLUMNS = 3
 
+#: The owner's verdicts that grade a burst, each mapped to the side it is scored on. ``CLEAN`` is a master the owner
+#: hears as clean, scored with ``REAL``. Every other verdict grades nothing and drops the burst from the corpus.
+GRADES = {"FAKE": "FAKE", "REAL": "REAL", "CLEAN": "REAL"}
+
 #: Owner's family grouping for the per-family wrong-side table. Each key set is an AND of normalized substrings
 #: matched against the burst's album field; the first family whose any key set matches wins. A REAL burst is always
 #: "real" regardless of album; a FAKE burst matching no key set is "unassigned".
@@ -99,8 +103,8 @@ def owner_label(
     label = by_album.get((artist, album))
     if label == BY_TRACK:
         label = by_track.get((artist, album, track))
-    if label in ("FAKE", "REAL"):
-        return str(label)
+    if label in GRADES:
+        return GRADES[label]
     return None
 
 

@@ -80,12 +80,36 @@ AMT_NEAR_HI_HZ = 4_000.0
 AMT_FACTOR_SWEEP = tuple(round(0.5 + 0.05 * i, 2) for i in range(9))
 WINDOWS = (0.125, 0.25, 0.5, 1.0, 2.0, 5.0)
 HEADLINE_WINDOW = 1.0
+#: Windows the mask reading is scored at, each with its own block length, so the mask sweep can be read at more than
+#: the headline window.
+MASK_SWEEP_WINDOWS = (1.0, 2.0, 5.0)
 
 #: Candidate F reads mirroring around a fold frequency: content genuinely above a fold correlates with nothing below
 #: it, while a mirrored-image artifact leaves the two sides looking like reflections of each other.
 CANDIDATE_F_FOLDS_HZ = (22_050.0, 24_000.0)
 CANDIDATE_F_INNER_HZ = 500.0
 CANDIDATE_F_OUTER_HZ = 6_000.0
+
+#: Candidate G reads the step across each image fold on the block's per-bin minimum curve: the median of a band just
+#: above the fold minus the median of the same-width band just below it. An image leaves the curve stepping at the
+#: fold; content carrying on through it does not.
+CANDIDATE_G_FOLDS_HZ = (22_050.0, 24_000.0)
+#: Control folds for GC. Nothing folds at these frequencies, so the step measured there is the curve's own tilt, and
+#: GC subtracts the median of it from G.
+CANDIDATE_G_CONTROL_FOLDS_HZ = (27_000.0, 30_000.0, 33_000.0)
+#: Candidate H reads G's signed step at a fold against the same signed step measured this far below and above it.
+#: A curve that steps at the fold alone keeps its reading; a curve tilting through the whole span loses it.
+CANDIDATE_H_OFFSET_HZ = 2_000.0
+
+#: Each of G's two bands stands this far clear of its fold and runs this wide.
+CANDIDATE_G_GUARD_HZ = 300.0
+CANDIDATE_G_BAND_HZ = 1_500.0
+
+#: A block is quiet when the 90th percentile of its 15-18 kHz reference band sits under this level in the metering's
+#: own dB. The value is the 10th percentile of that level over every labelled 1 s block of the corpus, so the quiet
+#: half is the corpus's own quietest tenth. The quiet and loud halves are thresholded separately, because a candidate
+#: reading a band that quiet is reading something different from the same band on a loud block.
+QUIET_MAX_LEVEL_DB = -104.9820
 
 #: Width of the median the content test reads the band through. One frame is one FFT, not a folded window, so its
 #: noise floor ripples: over the bins above 24 kHz the loudest bin of a narrow median clears the row's low percentile
@@ -101,3 +125,37 @@ BY_TRACK = "BY_TRACK"
 
 #: The two groups every labelled table is split into, transition bursts scored in their own.
 GROUPS = ("steady", "transition")
+
+#: The mask reading walks the same two image folds as candidates F and G. Above each fold it reads the band from
+#: ``MASK_ABOVE_HZ[0]`` to ``MASK_ABOVE_HZ[1]`` above the fold, and reads it against the 15-18 kHz music band, so a
+#: mirrored image is measured where it lands rather than where the master's own content stops.
+MASK_FOLDS_HZ = (22_050.0, 24_000.0)
+MASK_ABOVE_HZ = (300.0, 6_000.0)
+
+#: Candidate M reads mirroring in time rather than in the bin curve: for each offset below it walks the per-frame
+#: level at that distance above a fold against the per-frame level the same distance below it, and takes off the
+#: same correlation with the upper bin moved ``CANDIDATE_M_SHIFT_HZ`` further out. A mirrored image moves frame for
+#: frame with its source; content carrying on past the fold does not, and the shifted pair says how much of the
+#: correlation is the band's own common movement.
+CANDIDATE_M_FOLDS_HZ = (22_050.0, 24_000.0)
+CANDIDATE_M_OFFSETS_HZ = tuple(500.0 + 250.0 * i for i in range(23))
+CANDIDATE_M_SHIFT_HZ = 1_000.0
+
+#: The two image folds the edge candidates P, G90 and S all read. Each candidate takes its reading at whichever of
+#: them reads stronger, and carries no reading when neither lies on the burst's grid.
+EDGE_FOLDS_HZ = (22_050.0, 24_000.0)
+#: Candidate P walks a per-frame edge: the highest bin inside ``CANDIDATE_P_EDGE_HZ`` above which every bin for the
+#: next ``CANDIDATE_P_HOLD_HZ`` sits under that frame's own mean level over ``CANDIDATE_P_REF_HZ`` plus
+#: ``CANDIDATE_P_STEP_DB``. P is the share of the block's frames whose edge lands within ``CANDIDATE_P_NEAR_HZ`` of
+#: the fold, so a master whose content stops at the fold frame after frame reads high and one whose edge wanders
+#: reads low.
+CANDIDATE_P_EDGE_HZ = (15_000.0, 30_000.0)
+CANDIDATE_P_REF_HZ = (34_000.0, 40_000.0)
+CANDIDATE_P_STEP_DB = 10.0
+CANDIDATE_P_HOLD_HZ = 1_000.0
+CANDIDATE_P_NEAR_HZ = 300.0
+#: Candidate S reads how far the per-bin spread collapses across a fold: the mean over bins of the p90 minus the
+#: minimum across frames, taken over the band from ``CANDIDATE_S_INNER_HZ`` to ``CANDIDATE_S_OUTER_HZ`` above the
+#: fold, divided by the same over the mirrored band below it.
+CANDIDATE_S_INNER_HZ = 300.0
+CANDIDATE_S_OUTER_HZ = 1_800.0
