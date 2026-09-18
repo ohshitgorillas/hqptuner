@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 from jbconfig import (
     AMT_NEAR_HI_HZ,
@@ -85,27 +87,45 @@ def e2_parts(frames: np.ndarray, grid: Grid) -> tuple[float, float]:
     return spread(upper), spread(lower)
 
 
-def e3_parts(frames: np.ndarray, grid: Grid) -> tuple[float, float, float]:
+@dataclass
+class BlockResidual:
+    """One block's per-bin median curve in dB, that curve's ``median_smooth`` copy, and the residual between them.
+
+    Candidates E3 and F read the same three arrays off the same block — E3 the absolute residual, F the signed one —
+    so the median over the frames and the median filter over the bins are done once here.
+    """
+
+    median_row: np.ndarray
+    smoothed: np.ndarray
+    residual: np.ndarray
+
+
+def block_residual(frames: np.ndarray, grid: Grid) -> BlockResidual:
+    """Take one block's per-bin median curve over the kept bins, its smoothed copy and their difference."""
+    median_row = np.median(frames[:, : grid.kept], axis=0)
+    smoothed = median_smooth(median_row[None, :], SMOOTH_BINS)[0]
+    return BlockResidual(median_row=median_row, smoothed=smoothed, residual=median_row - smoothed)
+
+
+def e3_parts(block: BlockResidual, grid: Grid) -> tuple[float, float, float]:
     """Candidate E3's three parts for one block, all read off the block's per-bin median curve in dB.
 
-    The curve is taken against a ``median_smooth`` copy of itself at the working width, and the parts are the mean
-    absolute residual over the numerator band, the same over the reference band, and how far the reference band's own
-    median sits above the row's ``FLOOR_PCT`` floor. All three are NaN when either band falls outside the grid.
+    The parts are the mean absolute residual over the numerator band, the same over the reference band, and how far
+    the reference band's own median sits above the row's ``FLOOR_PCT`` floor. All three are NaN when either band
+    falls outside the grid.
     """
     nan = float("nan")
     num_span = band_bins(grid, *CANDIDATE_E_NUM_HZ)
     ref_span = band_bins(grid, *CANDIDATE_E_REF_HZ)
     if num_span is None or ref_span is None:
         return nan, nan, nan
-    median_row = np.median(frames[:, : grid.kept].astype(np.float64), axis=0)[None, :]
-    smoothed = median_smooth(median_row, SMOOTH_BINS)
-    residual = np.abs(median_row - smoothed)[0]
-    floor = float(row_floor(smoothed)[0])
+    residual = np.abs(block.residual)
+    floor = float(row_floor(block.smoothed[None, :])[0])
     (num_lo, num_hi), (ref_lo, ref_hi) = num_span, ref_span
     return (
         float(residual[num_lo : num_hi + 1].mean()),
         float(residual[ref_lo : ref_hi + 1].mean()),
-        float(np.median(median_row[0, ref_lo : ref_hi + 1]) - floor),
+        float(np.median(block.median_row[ref_lo : ref_hi + 1]) - floor),
     )
 
 
@@ -127,17 +147,14 @@ def e3_value(num_resid: float, ref_resid: float, ref_over_floor: float, min_over
     return num_resid / ref_resid
 
 
-def f_folds(frames: np.ndarray, grid: Grid) -> list[float]:
+def f_folds(block: BlockResidual, grid: Grid) -> list[float]:
     """Candidate F's correlation at each fold in ``CANDIDATE_F_FOLDS_HZ`` order, NaN where a fold lacks both bands.
 
-    The block's per-bin median curve in dB, minus a ``median_smooth`` copy of itself, is the residual. For each fold
-    frequency the Pearson correlation is taken between the residual over the band just below the fold and the
-    residual over the band just above it, mirrored bin for bin so each pair sits the same distance from the fold.
+    For each fold frequency the Pearson correlation is taken between the block's residual over the band just below
+    the fold and the residual over the band just above it, mirrored bin for bin so each pair sits the same distance
+    from the fold.
     """
-    median_row = np.median(frames[:, : grid.kept].astype(np.float64), axis=0)
-    smoothed = median_smooth(median_row[None, :], SMOOTH_BINS)[0]
-    residual = median_row - smoothed
-    return [_fold_corr(residual, grid, fold_hz) for fold_hz in CANDIDATE_F_FOLDS_HZ]
+    return [_fold_corr(block.residual, grid, fold_hz) for fold_hz in CANDIDATE_F_FOLDS_HZ]
 
 
 def _fold_corr(residual: np.ndarray, grid: Grid, fold_hz: float) -> float:
@@ -160,7 +177,7 @@ def _fold_corr(residual: np.ndarray, grid: Grid, fold_hz: float) -> float:
     return c if np.isfinite(c) else float("nan")
 
 
-def f_value(frames: np.ndarray, grid: Grid) -> float:
+def f_value(block: BlockResidual, grid: Grid) -> float:
     """Candidate F for one block: the larger of the two fold correlations, NaN when neither fold has both bands."""
-    corrs = [c for c in f_folds(frames, grid) if np.isfinite(c)]
+    corrs = [c for c in f_folds(block, grid) if np.isfinite(c)]
     return max(corrs) if corrs else float("nan")

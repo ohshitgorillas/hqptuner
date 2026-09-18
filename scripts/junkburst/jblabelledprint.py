@@ -6,9 +6,9 @@ import json
 from typing import TYPE_CHECKING
 
 import numpy as np
-from jbcandidates import f_folds
+from jbcandidates import block_residual, f_folds
 from jbconfig import GROUPS, HEADLINE_WINDOW, REPORT, WINDOWS
-from jbcurves import Grid, musical_frames, readings, readings_walkup
+from jbcurves import Grid, musical_frames, readings, readings_walkup, walk_curves
 from jbderived import load_burst, musical_groups, summed_db
 from jblabels import FAMILY_ORDER, family_of, normalize
 from jbthresholds import LABEL_CANDIDATES, best_guard, calls_fake
@@ -64,9 +64,10 @@ def _print_burst_blocks(stamp: str) -> None:
     musical = musical_frames(summed, grid)
     for b_index, g in enumerate(musical_groups(meta["arrived"], musical, HEADLINE_WINDOW)):
         p90_row = np.percentile(summed[g], 90, axis=0)[None, :]
-        ceiling, fall = readings(p90_row, grid)
-        wu_ceiling, wu_fall = readings_walkup(p90_row, grid)
-        folds = f_folds(summed[g], grid)
+        p90_curves = walk_curves(p90_row, grid)
+        ceiling, fall = readings(p90_row, grid, curves=p90_curves)
+        wu_ceiling, wu_fall = readings_walkup(p90_row, grid, curves=p90_curves)
+        folds = f_folds(block_residual(summed[g], grid), grid)
         ce = f"{ceiling[0] / 1000:.2f}" if np.isfinite(ceiling[0]) else "none"
         wce = f"{wu_ceiling[0] / 1000:.2f}" if np.isfinite(wu_ceiling[0]) else "none"
         fa = f"{fall[0]:.2f}" if np.isfinite(fall[0]) else "nan"

@@ -18,7 +18,7 @@ from jbconfig import (
     REPORT,
     WINDOWS,
 )
-from jbcurves import Grid, frame_content, musical_frames, readings
+from jbcurves import Grid, content_curves, frame_content, musical_frames, readings
 from jbderived import load_burst, musical_groups, stats, summed_db, track_key
 from jbreport import SpectrumSweep, write_report
 
@@ -40,49 +40,37 @@ class BurstArrays:
     lin: np.ndarray
 
 
-def _collect_bursts() -> list[dict[str, Any]]:
-    """Read every derived burst once and return its per-frame content masks and header facts."""
-    stamps = sorted(p.stem for p in DER.glob("*.npy"))
-    bursts: list[dict[str, Any]] = []
-    print(f"derived bursts={len(stamps)}", flush=True)
-    for n, stamp in enumerate(stamps, 1):
-        meta, db = load_burst(stamp)
-        grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-        summed = summed_db(db)
-        musical = musical_frames(summed, grid)
-        content24 = frame_content(summed, grid, LABEL_HZ) & musical
-        bursts.append(
-            {
-                "stamp": stamp,
-                "samplerate": int(meta["samplerate"] or 0),
-                "bandwidth": float(meta["bandwidth"]),
-                "junk_filter": meta.get("junk_filter"),
-                "track": track_key(meta),
-                "frames": int(meta["frames"]),
-                "arrived": meta["arrived"],
-                "musical": musical,
-                "musical_frames": int(musical.sum()),
-                "content24": content24,
-                "content24_frames": int(content24.sum()),
-                "frames_above22": frame_content(summed, grid, CANDIDATE_C_HZ) & musical,
-            }
-        )
-        del db, summed
-        if n % 25 == 0 or n == len(stamps):
-            print(f"read {n}/{len(stamps)}", flush=True)
-    return bursts
-
-
-def _burst_labels(bursts: list[dict[str, Any]]) -> dict[str, str]:
-    """Label every burst on its own frames; what plays before or after it decides nothing here."""
-    return {
-        b["stamp"]: (
-            "unlabelled"
-            if b["samplerate"] < LABEL_MIN_RATE or not b["musical_frames"]
-            else ("full" if b["content24_frames"] else "cliff")
-        )
-        for b in bursts
+def _read_burst(stamp: str) -> tuple[dict[str, Any], Grid, np.ndarray]:
+    """Read one derived burst into its per-frame content masks and header facts, with the frames it was read from."""
+    meta, db = load_burst(stamp)
+    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
+    summed = summed_db(db)
+    del db
+    curves = content_curves(summed, grid)
+    musical = musical_frames(summed, grid, curves)
+    content24 = frame_content(summed, grid, LABEL_HZ, curves) & musical
+    burst = {
+        "stamp": stamp,
+        "samplerate": int(meta["samplerate"] or 0),
+        "bandwidth": float(meta["bandwidth"]),
+        "junk_filter": meta.get("junk_filter"),
+        "track": track_key(meta),
+        "frames": int(meta["frames"]),
+        "arrived": meta["arrived"],
+        "musical": musical,
+        "musical_frames": int(musical.sum()),
+        "content24": content24,
+        "content24_frames": int(content24.sum()),
+        "frames_above22": frame_content(summed, grid, CANDIDATE_C_HZ, curves) & musical,
     }
+    return burst, grid, summed
+
+
+def _burst_label(burst: dict[str, Any]) -> str:
+    """Label one burst on its own frames; what plays before or after it decides nothing here."""
+    if burst["samplerate"] < LABEL_MIN_RATE or not burst["musical_frames"]:
+        return "unlabelled"
+    return "full" if burst["content24_frames"] else "cliff"
 
 
 def _track_rows(bursts: list[dict[str, Any]], burst_labels: dict[str, str]) -> list[dict[str, Any]]:
@@ -156,32 +144,46 @@ def _record(window_sweep: dict[str, Any], stamp: str, labels: list[str], values_
         cand["series"][stamp] = [(lab, float(value)) for lab, value in zip(labels, values, strict=True)]
 
 
-def _score_bursts(bursts: list[dict[str, Any]], burst_labels: dict[str, str]) -> SpectrumSweep:
-    """Read every labelled burst a second time and score every candidate at every window on its blocks."""
-    sweep = _empty_sweep()
+def _score_burst(
+    burst: dict[str, Any], grid: Grid, summed: np.ndarray, sweep: dict[float, dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Score one labelled burst at every window into ``sweep``, returning its advisor and ceiling rows."""
+    arrays = BurstArrays(grid=grid, summed=summed, lin=np.power(10.0, summed / 10.0))
     advisor_rows: list[dict[str, Any]] = []
     ceiling_rows: list[dict[str, Any]] = []
-    for n, b in enumerate(bursts, 1):
-        if burst_labels[b["stamp"]] == "unlabelled":
-            continue
-        meta, db = load_burst(b["stamp"])
-        summed = summed_db(db)
-        del db
-        arrays = BurstArrays(
-            grid=Grid(int(meta["bins"]), float(meta["bandwidth"])),
-            summed=summed,
-            lin=np.power(10.0, summed / 10.0),
-        )
-        for window in WINDOWS:
-            rows = _score_window(b, arrays, window, sweep)
-            if rows is not None:
-                advisor_rows += rows["advisor"]
-                ceiling_rows += rows["ceiling"]
-        del summed, arrays
-        if n % 25 == 0 or n == len(bursts):
-            print(f"scored {n}/{len(bursts)}", flush=True)
+    for window in WINDOWS:
+        rows = _score_window(burst, arrays, window, sweep)
+        if rows is not None:
+            advisor_rows += rows["advisor"]
+            ceiling_rows += rows["ceiling"]
+    return advisor_rows, ceiling_rows
+
+
+def _collect_and_score() -> tuple[list[dict[str, Any]], dict[str, str], SpectrumSweep]:
+    """Read every derived burst once, label it on its own frames, and score it while its frames are still in hand."""
+    stamps = sorted(p.stem for p in DER.glob("*.npy"))
+    print(f"derived bursts={len(stamps)}", flush=True)
+    sweep = _empty_sweep()
+    bursts: list[dict[str, Any]] = []
+    burst_labels: dict[str, str] = {}
+    advisor_rows: list[dict[str, Any]] = []
+    ceiling_rows: list[dict[str, Any]] = []
+    for n, stamp in enumerate(stamps, 1):
+        burst, grid, summed = _read_burst(stamp)
+        bursts.append(burst)
+        burst_labels[stamp] = _burst_label(burst)
+        if burst_labels[stamp] != "unlabelled":
+            advisor, ceiling = _score_burst(burst, grid, summed, sweep)
+            advisor_rows += advisor
+            ceiling_rows += ceiling
+        del summed
+        if n % 25 == 0 or n == len(stamps):
+            print(f"scored {n}/{len(stamps)}", flush=True)
     advisor_wrong = sum(1 for row in advisor_rows if row["predicted"] != row["label"])
-    return SpectrumSweep(sweep=sweep, advisor_wrong=advisor_wrong, advisor_rows=advisor_rows, ceiling_rows=ceiling_rows)
+    result = SpectrumSweep(
+        sweep=sweep, advisor_wrong=advisor_wrong, advisor_rows=advisor_rows, ceiling_rows=ceiling_rows
+    )
+    return bursts, burst_labels, result
 
 
 def _score_window(
@@ -317,10 +319,8 @@ def _print_summary(scored: dict[float, dict[str, Any]], result: SpectrumSweep) -
 
 def report() -> None:
     """Score every candidate at every window and write the report."""
-    bursts = _collect_bursts()
-    burst_labels = _burst_labels(bursts)
+    bursts, burst_labels, result = _collect_and_score()
     track_rows = _track_rows(bursts, burst_labels)
-    result = _score_bursts(bursts, burst_labels)
     scored = {w: {name: score_candidate(cand) for name, cand in cands.items()} for w, cands in result.sweep.items()}
     write_report(track_rows, scored, result, len(bursts))
     _print_summary(scored, result)

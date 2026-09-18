@@ -11,6 +11,7 @@ from jbcandidates import (
     am_value,
     amt_call,
     amt_medians,
+    block_residual,
     block_spread,
     e2_parts,
     e2_value,
@@ -31,7 +32,7 @@ from jbconfig import (
     LABEL_HZ,
     WINDOWS,
 )
-from jbcurves import Grid, frame_content, musical_frames, readings, readings_walkup
+from jbcurves import Grid, content_curves, frame_content, musical_frames, readings, readings_walkup, walk_curves
 from jbderived import load_burst, musical_groups, summed_db
 from jblabelledprint import print_family_totals, print_summary, print_target_blocks
 from jblabelledreport import write_labelled_report
@@ -93,7 +94,8 @@ def _burst_context(stamp: str, label: str, group: str) -> BurstContext:
     grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
     summed = summed_db(db)
     del db
-    musical = musical_frames(summed, grid)
+    curves = content_curves(summed, grid)
+    musical = musical_frames(summed, grid, curves)
     return BurstContext(
         stamp=stamp,
         label=label,
@@ -102,8 +104,8 @@ def _burst_context(stamp: str, label: str, group: str) -> BurstContext:
         summed=summed,
         lin=np.power(10.0, summed / 10.0),
         musical=musical,
-        content24=frame_content(summed, grid, LABEL_HZ) & musical,
-        content22=frame_content(summed, grid, CANDIDATE_C_HZ) & musical,
+        content24=frame_content(summed, grid, LABEL_HZ, curves) & musical,
+        content22=frame_content(summed, grid, CANDIDATE_C_HZ, curves) & musical,
         arrived=meta["arrived"],
         samplerate=int(meta["samplerate"] or 0),
         bandwidth=float(meta["bandwidth"]),
@@ -111,14 +113,15 @@ def _burst_context(stamp: str, label: str, group: str) -> BurstContext:
 
 
 def _block_values(
-    ctx: BurstContext, g: list[int], index: int, curves: WindowCurves
+    ctx: BurstContext, g: list[int], block: np.ndarray, index: int, curves: WindowCurves
 ) -> tuple[dict[str, float], PartRow]:
     """Every base candidate's value for one block, and the E2 and E3 parts the guard sweep re-reads it from."""
     verdict = junkadvisor.classify(
-        [float(v) for v in ctx.summed[g].min(axis=0)], ctx.bandwidth, samplerate=ctx.samplerate, sdm=False
+        [float(v) for v in block.min(axis=0)], ctx.bandwidth, samplerate=ctx.samplerate, sdm=False
     )
-    e2_upper, e2_lower = e2_parts(ctx.summed[g], ctx.grid)
-    e3_num, e3_ref, e3_over = e3_parts(ctx.summed[g], ctx.grid)
+    e2_upper, e2_lower = e2_parts(block, ctx.grid)
+    residual = block_residual(block, ctx.grid)
+    e3_num, e3_ref, e3_over = e3_parts(residual, ctx.grid)
     values = {
         "A": float(curves.p90_fall[index]),
         "AW": float(curves.wu_fall[index]),
@@ -129,13 +132,13 @@ def _block_values(
         "D": float(ctx.content24[g].sum()) / len(g),
         "E2": e2_value(e2_upper, e2_lower, CANDIDATE_E2_MIN_REF_SPREAD_DB),
         "E3": e3_value(e3_num, e3_ref, e3_over, CANDIDATE_E3_MIN_REF_OVER_FLOOR_DB),
-        "F": f_value(ctx.summed[g], ctx.grid),
+        "F": f_value(residual, ctx.grid),
     }
     return values, (ctx.label, e2_upper, e2_lower, e3_num, e3_ref, e3_over)
 
 
 def _amt_entry(
-    ctx: BurstContext, g: list[int], index: int, curves: WindowCurves, am_val: float
+    ctx: BurstContext, block: np.ndarray, index: int, curves: WindowCurves, am_val: float
 ) -> tuple[str, float, str, float, float]:
     """AMT's inputs for one block: AM's value and the two spread medians its veto compares."""
     edge = am_edge_hz(
@@ -144,7 +147,7 @@ def _amt_entry(
         float(curves.p90_ceiling[index]),
         float(curves.wu_ceiling[index]),
     )
-    spread = block_spread(ctx.summed[g], ctx.grid)
+    spread = block_spread(block, ctx.grid)
     near_med, ref_med = amt_medians(spread, ctx.grid, edge)
     return (ctx.stamp, am_val, ctx.label, near_med, ref_med)
 
@@ -156,19 +159,21 @@ def _score_window(ctx: BurstContext, window: float, acc: Accumulators) -> None:
         return
     p90_rows = np.stack([np.percentile(ctx.summed[g], 90, axis=0) for g in groups])
     mean_rows = np.stack([10.0 * np.log10(np.maximum(ctx.lin[g].mean(axis=0), 1e-20)) for g in groups])
-    p90_ceiling, p90_fall = readings(p90_rows, ctx.grid)
+    p90_curves = walk_curves(p90_rows, ctx.grid)
+    p90_ceiling, p90_fall = readings(p90_rows, ctx.grid, curves=p90_curves)
     _, mean_fall = readings(mean_rows, ctx.grid)
-    wu_ceiling, wu_fall = readings_walkup(p90_rows, ctx.grid)
+    wu_ceiling, wu_fall = readings_walkup(p90_rows, ctx.grid, curves=p90_curves)
     curves = WindowCurves(
         p90_fall=p90_fall, mean_fall=mean_fall, wu_fall=wu_fall, p90_ceiling=p90_ceiling, wu_ceiling=wu_ceiling
     )
     for index, g in enumerate(groups):
-        values, part = _block_values(ctx, g, index, curves)
+        block = ctx.summed[g]
+        values, part = _block_values(ctx, g, block, index, curves)
         acc.parts[ctx.group][window].append(part)
         for cand, value in values.items():
             acc.rows[ctx.group][window][cand].append((ctx.stamp, value, ctx.label))
         if window == HEADLINE_WINDOW:
-            acc.amt_cache[ctx.group].append(_amt_entry(ctx, g, index, curves, values["AM"]))
+            acc.amt_cache[ctx.group].append(_amt_entry(ctx, block, index, curves, values["AM"]))
 
 
 def _score_all(graded: list[str], owner: dict[str, str | None], group_of: dict[str, str]) -> Accumulators:

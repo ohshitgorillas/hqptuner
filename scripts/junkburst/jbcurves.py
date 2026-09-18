@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 from jbconfig import (
     CLIFF_GUARD_HZ,
@@ -17,14 +19,17 @@ from jbconfig import (
     WALKUP_REF_HZ,
     WALKUP_WINDOW_HZ,
 )
+from scipy.ndimage import median_filter
 
 
 def median_smooth(rows: np.ndarray, width: int) -> np.ndarray:
-    """Median filter along the bin axis, edges padded by replication."""
-    half = width // 2
-    padded = np.pad(rows, ((0, 0), (half, half)), mode="edge")
-    windows = np.lib.stride_tricks.sliding_window_view(padded, width, axis=1)
-    return np.asarray(np.median(windows, axis=-1))
+    """Median filter along the bin axis, edges padded by replication.
+
+    ``median_filter`` in ``nearest`` mode is the running median of the same replicated-edge windows, and every width
+    here is odd, so it returns bin for bin what an explicit window sort returns — without materialising the
+    ``width``-times copy of the array that a sliding-window sort needs.
+    """
+    return np.asarray(median_filter(rows, size=(1, width), mode="nearest"))
 
 
 def row_floor(rows: np.ndarray) -> np.ndarray:
@@ -47,29 +52,93 @@ class Grid:
         """Return the kept-bin index nearest a frequency, clamped to the kept range."""
         return min(self.kept - 1, max(0, round(hz * (self.bins - 1) / self.bandwidth)))
 
+    @property
+    def hz_per_bin(self) -> float:
+        """Return the frequency step between adjacent bins."""
+        return self.bandwidth / (self.bins - 1)
+
     def hz(self, i: int) -> float:
         """Return the frequency of a bin index."""
-        return i * self.bandwidth / (self.bins - 1)
+        return i * self.hz_per_bin
+
+    def hz_of(self, i: np.ndarray) -> np.ndarray:
+        """Return the frequencies of an array of bin indices."""
+        return np.asarray(i * self.hz_per_bin, dtype=np.float64)
 
     def guard(self) -> int:
         """Return the cliff guard width in bins, at least one."""
         return max(1, round(CLIFF_GUARD_HZ * (self.bins - 1) / self.bandwidth))
 
 
-def musical_frames(rows: np.ndarray, grid: Grid) -> np.ndarray:
+@dataclass
+class ContentCurves:
+    """The two curves every content test over one burst reads: each row's floor, and the band it is contrasted with."""
+
+    floor: np.ndarray
+    band: np.ndarray
+
+
+def content_curves(rows: np.ndarray, grid: Grid) -> ContentCurves:
+    """Smooth one burst's rows at both widths once, so the tests below share the work instead of repeating it.
+
+    The wide median over every frame and every kept bin is the most expensive arithmetic in a run, and each test that
+    reads a different band otherwise recomputes the identical curves.
+    """
+    kept = rows[:, : grid.kept]
+    return ContentCurves(
+        floor=row_floor(median_smooth(kept, SMOOTH_BINS)), band=median_smooth(kept, CONTENT_SMOOTH_BINS)
+    )
+
+
+def musical_frames(rows: np.ndarray, grid: Grid, curves: ContentCurves | None = None) -> np.ndarray:
     """Per row: does anything below 10 kHz clear the row's own floor by CONTRAST_DB.
 
     A row failing this carries no signal to read a ceiling off — digital silence, or a passage at the hiss floor —
     and says nothing about where the master's content stops.
     """
-    kept = rows[:, : grid.kept]
-    floor = row_floor(median_smooth(kept, SMOOTH_BINS))
-    band = median_smooth(kept, CONTENT_SMOOTH_BINS)
-    return (band[:, : grid.at(10_000.0) + 1] > (floor + CONTRAST_DB)[:, None]).any(axis=1)
+    c = curves if curves is not None else content_curves(rows, grid)
+    return (c.band[:, : grid.at(10_000.0) + 1] > (c.floor + CONTRAST_DB)[:, None]).any(axis=1)
+
+
+@dataclass
+class WalkCurves:
+    """The rows every edge walk reads: smoothed at ``SMOOTH_BINS``, and the floor of each smoothed row.
+
+    Both bands walked over one set of rows read the same smoothing and the same floor; only the window and the
+    reference band differ, so the median filter and the floor sort are done once here and shared.
+    """
+
+    smoothed: np.ndarray
+    floor: np.ndarray
+
+
+def walk_curves(rows: np.ndarray, grid: Grid) -> WalkCurves:
+    """Smooth one set of rows over the kept bins and take each row's floor off that smoothing."""
+    smoothed = median_smooth(rows[:, : grid.kept], SMOOTH_BINS)
+    return WalkCurves(smoothed=smoothed, floor=row_floor(smoothed))
+
+
+def _first_run(below: np.ndarray, guard: int) -> tuple[np.ndarray, np.ndarray]:
+    """Per row of a boolean array: the start of its first run of ``guard`` true bins, and whether it has one.
+
+    A prefix sum differenced at the guard width counts every window in one pass, where a window view sorted per row
+    costs the guard width again at every bin.
+    """
+    counts = np.cumsum(below, axis=1, dtype=np.int32)
+    padded = np.concatenate([np.zeros((below.shape[0], 1), dtype=np.int32), counts], axis=1)
+    runs = (padded[:, guard:] - padded[:, :-guard]) == guard
+    return runs.argmax(axis=1), runs.any(axis=1)
+
+
+def _tail_medians(smoothed: np.ndarray, lo: np.ndarray, kept: int) -> np.ndarray:
+    """Per row: the median of that row's bins from its own ``lo`` up to the top kept bin."""
+    cols = np.arange(kept)
+    tail = np.where(cols[None, :] >= lo[:, None], smoothed, np.nan)
+    return np.asarray(np.nanmedian(tail, axis=1))
 
 
 def _walk_up(
-    rows: np.ndarray, grid: Grid, window_hz: tuple[float, float], ref_hz: tuple[float, float]
+    curves: WalkCurves, grid: Grid, window_hz: tuple[float, float], ref_hz: tuple[float, float]
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return (ceiling Hz or NaN, fall dB or NaN) per row for one window and one reference band.
 
@@ -78,37 +147,33 @@ def _walk_up(
     the window. A row whose reference mean sits under ``EDGE_FLOOR_GUARD_DB`` above the row's own floor carries no
     reading: nothing there is loud enough to walk down from.
     """
-    smoothed = median_smooth(rows[:, : grid.kept], SMOOTH_BINS)
-    floor = row_floor(smoothed)
+    smoothed = curves.smoothed
+    ceiling = np.full(smoothed.shape[0], np.nan, dtype=np.float64)
+    fall = np.full(smoothed.shape[0], np.nan, dtype=np.float64)
     bottom, top = grid.at(window_hz[0]), grid.at(window_hz[1])
     guard = grid.guard()
     ref_lo, ref_hi = grid.at(ref_hz[0]), grid.at(ref_hz[1])
     ref = smoothed[:, ref_lo : ref_hi + 1].mean(axis=1)
     start = ref_hi + 1
-    ceiling = np.full(rows.shape[0], np.nan, dtype=np.float64)
-    fall = np.full(rows.shape[0], np.nan, dtype=np.float64)
-    for r in range(rows.shape[0]):
-        if ref[r] - floor[r] < EDGE_FLOOR_GUARD_DB:
-            continue
-        row = smoothed[r]
-        seg = row[start:]
-        if seg.size < guard:
-            continue
-        below = seg <= (ref[r] - EDGE_STEP_DB)
-        hits = np.flatnonzero(np.lib.stride_tricks.sliding_window_view(below, guard).all(axis=1))
-        if hits.size == 0:
-            continue
-        edge = start + int(hits[0])
-        if not (bottom < edge < top):
-            continue
-        ceiling[r] = grid.hz(edge)
-        lo = min(grid.kept - 1, edge + guard)
-        fall[r] = ref[r] - float(np.median(row[lo : grid.kept]))
+    if smoothed.shape[1] - start < guard:
+        return ceiling, fall
+    hit, found = _first_run(smoothed[:, start:] <= (ref - EDGE_STEP_DB)[:, None], guard)
+    edge = start + hit
+    ok = found & (ref - curves.floor >= EDGE_FLOOR_GUARD_DB) & (edge > bottom) & (edge < top)
+    if not ok.any():
+        return ceiling, fall
+    rows = np.flatnonzero(ok)
+    ceiling[rows] = grid.hz_of(edge[rows])
+    lo = np.minimum(grid.kept - 1, edge[rows] + guard)
+    fall[rows] = ref[rows] - _tail_medians(smoothed[rows], lo, grid.kept)
     return ceiling, fall
 
 
 def readings(
-    rows: np.ndarray, grid: Grid, window_hz: tuple[float, float] | None = None
+    rows: np.ndarray,
+    grid: Grid,
+    window_hz: tuple[float, float] | None = None,
+    curves: WalkCurves | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return (ceiling Hz or NaN, fall dB or NaN) for every summed-power dB row.
 
@@ -116,16 +181,18 @@ def readings(
     both move with ``JB_CLIFF_LO``. A row with no edge inside the window carries no reading, read by the caller as a
     full verdict rather than as a number on the fall scale.
     """
-    return _walk_up(rows, grid, window_hz or CLIFF_WINDOW_HZ, CLIFF_REF_HZ)
+    c = curves if curves is not None else walk_curves(rows, grid)
+    return _walk_up(c, grid, window_hz or CLIFF_WINDOW_HZ, CLIFF_REF_HZ)
 
 
-def readings_walkup(rows: np.ndarray, grid: Grid) -> tuple[np.ndarray, np.ndarray]:
+def readings_walkup(rows: np.ndarray, grid: Grid, curves: WalkCurves | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Return the fixed-band twin of ``readings``, unaffected by ``JB_CLIFF_LO``.
 
     It walks up from the top of ``junkadvisor``'s own 15-18 kHz reference band into its own 20-26 kHz window.
     Candidate AM reads the larger fall of this edge and the (possibly shifted) ``readings`` edge.
     """
-    return _walk_up(rows, grid, WALKUP_WINDOW_HZ, WALKUP_REF_HZ)
+    c = curves if curves is not None else walk_curves(rows, grid)
+    return _walk_up(c, grid, WALKUP_WINDOW_HZ, WALKUP_REF_HZ)
 
 
 def band_bins(grid: Grid, lo_hz: float, hi_hz: float) -> tuple[int, int] | None:
@@ -148,10 +215,8 @@ def band_level_db(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) ->
     return np.asarray(10.0 * np.log10(np.maximum(np.power(10.0, frames[:, lo : hi + 1] / 10.0).sum(axis=1), 1e-20)))
 
 
-def frame_content(rows: np.ndarray, grid: Grid, above_hz: float) -> np.ndarray:
+def frame_content(rows: np.ndarray, grid: Grid, above_hz: float, curves: ContentCurves | None = None) -> np.ndarray:
     """Per row: does the band above ``above_hz`` clear that row's own floor by CONTRAST_DB."""
-    kept = rows[:, : grid.kept]
-    floor = row_floor(median_smooth(kept, SMOOTH_BINS))
-    band = median_smooth(kept, CONTENT_SMOOTH_BINS)
+    c = curves if curves is not None else content_curves(rows, grid)
     start = grid.at(above_hz)
-    return (band[:, start:] > (floor + CONTRAST_DB)[:, None]).any(axis=1)
+    return (c.band[:, start:] > (c.floor + CONTRAST_DB)[:, None]).any(axis=1)
