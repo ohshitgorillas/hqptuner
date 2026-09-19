@@ -1,0 +1,55 @@
+slug: junk-block-stats
+kind: new
+brief:
+> replace the folded minimum in `SpectralAggregate` (hqptuner/engine/metering.py:118-172, BLOCK_SECONDS, WINDOW_BLOCKS, `_block_min`, `window_min_db()`) with closed 1 s blocks, each carrying the per-bin minimum, the per-bin 90th percentile across the block's non-silent frames, and three scalars read exactly as docs/junk-filter-autopilot-resource.md section 2 defines them: above-fold level (block median across frames of the mean level per Hz over the 300 Hz to 6 kHz band above the fold, at whichever of 22.05 and 24 kHz reads higher), music level (the same over 15 to 18 kHz), and their ratio.
+> `window_min_db()` keeps its name and contract, returning the per-bin minimum over the last 30 closed blocks plus the open one, so the spur and ramp verdicts, auto-pilot, the chip and the junkcal capture change nothing in this plan; add one accessor returning the latest closed block's curves and scalars, with no consumer yet, and state that the 20k rule and run rule are later slugs.
+> Draft the spec block per docs/testing.md from that plan, one behavior line per behavior, each bite: value pasted from its command, the examiner measuring any bite that needs a throwaway script over stored bursts under /srv/hqptuner/state/junkburst/derived/ read-only.
+
+Surface: `hqptuner/engine/blockstats.py`, `block_record(rows: list[list[float]], bandwidth: float) -> BlockRecord`, where `rows` are one block's non-silent frames as linear per-bin power and `BlockRecord` carries `minimum: list[float]` and `p90: list[float]` in dB and the three scalars `above_db: float`, `music_db: float`, `ratio_db: float`; and `SpectralAggregate.latest_block() -> BlockRecord | None` in `hqptuner/engine/metering.py`. A level of L dB is a power of `10 ** (L / 10)`.
+
+1. `above_db` follows whichever fold carries the loud band. Two blocks of 1025 bins, every bin at -200 dB but one loud band: block A at -40 dB over 28.1 to 29.9 kHz, block B at -60 dB over 22.4 to 24.25 kHz. `block_record(A, 48000.0).above_db - block_record(B, 48000.0).above_db` is 20.0 dB, +/- 0.5.
+   kills: reads the 22.05 kHz fold alone rather than the higher-reading of the two, so block A's above-fold level comes back off its floor bins at about -217 dB and the difference reads about -135 dB instead of 20
+   bite: null stub fails at block A (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+2. `ratio_db` is a distance between per-Hz levels, so the width of the band each level is read over does not enter it. Input A: 1025 bins, every bin at -200 dB but 24.3 to 30.0 kHz at -40 dB and 15.0 to 18.0 kHz at -25 dB. Input B: the same rows with the 15.0 to 18.0 kHz bins at -35 dB instead. `block_record(A, 48000.0).ratio_db` is -15.0 dB and `block_record(B, 48000.0).ratio_db` is -5.0 dB, +/- 0.5.
+   kills: subtracts the two bands' summed power without normalising each to per Hz, so a 5.7 kHz band read against a 3.0 kHz band comes back at about -12.2 dB at input A and about -2.2 dB at input B, every ratio displaced by the widths it was read over
+   bite: null stub fails at input A (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+3. `minimum` and `p90` read the same block differently. One block of ten rows, 1025 bins, bin 200 at -20 dB in five rows and -90 dB in the other five, every other bin at -200 dB: `(block_record(rows, 48000.0).minimum[200], block_record(rows, 48000.0).p90[200])` is (-90.0, -20.0) dB, +/- 0.5.
+   kills: takes the 90th-percentile curve off the same running minimum the minimum curve is taken off, so a bin loud in half the block reports -90 dB for both and a later rule reads that block's junk shelf at the floor
+   bite: null stub fails at those rows (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+4. A block closes at 1.0 s of coverage, and the latest record carries that block alone. Into `SpectralAggregate(1025, 48000.0)`, `add(frame, 1.0)` with bin 200 at -20 dB, then `add(frame, 1.0)` with bin 200 at -60 dB: `latest_block().minimum[200]` is -20.0 dB after the first call and -60.0 dB after the second, +/- 0.5.
+   kills: closes the block at 5.0 s of coverage as the aggregate does today, so the accessor carries no record at either point and a consumer reading per-block statistics gets one block for every five the corpus scored
+   bite: null stub fails after the first call (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+5. A fold the grid cannot reach carries no scalar. Rows of 1025 bins all at -40 dB: `block_record(rows, 24000.0).above_db` is NaN.
+   kills: clamps a band running past the top kept bin to that bin, so a 48 kHz container reports a finite above-fold level read off its own anti-imaging transition and the mask reads a junk shelf at a fold the container has no bins for
+   bite: null stub fails at bandwidth 24000.0 (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+6. `music_db` is its own reading of the 15 to 18 kHz band, not a copy of the above-fold level. At inputs A and B of line 2, which differ only in that band: `block_record(B, 48000.0).music_db - block_record(A, 48000.0).music_db` is -10.0 dB, +/- 0.5.
+   kills: fills `music_db` with the above-fold level the same call just read, so the record says the music band sits where the junk does, a 10 dB drop in the 15 to 18 kHz content moves it 0.0 dB, and the record's own two levels contradict the ratio beside them
+   bite: null stub fails at input B (surface new)
+   existing: none, `grep -rn --include='*.py' "latest_block\|blockstats\|p90\|above_db\|music_db\|ratio_db" tests/` exits 1 with no output
+
+Line 5 past the cap, why the contract cannot be stated in four: lines 1 to 4 and 6 all read at bandwidth 48000.0, where both folds sit inside the grid, and no input in them reaches the off-grid path at all. That path is the only one a 44.1 or 48 kHz container ever takes, and those are the containers most playback arrives in. Fold it into another line and the clamped-band failure — a finite above-fold level invented from the container's own transition band — is pinned nowhere.
+
+Line 6 past the cap, why the contract cannot be stated in five: `music_db` is the third of the three scalars the brief names, and no other line observes it. Line 2 reads the ratio alone, which a record that copies the above-fold level into `music_db` still gets right, so line 2's own `kills:` leaves that failure alive. Folding the reading into line 2 puts two outcomes on one line.
+
+--- reviewer ---
+READY
+discriminates: differential on above_db (line 1) and on music_db (line 6), sweep on ratio_db (line 2: two inputs, -15.0 and -5.0), anchor+edges on above_db (line 1 in-grid anchor, line 5 off-grid edge)
+
+1  carried ADMITTED  blocks A and B of 1025 bins at 48000.0, loud band 28.1-29.9 kHz at -40 dB and 22.4-24.25 kHz at -60 dB -> above_db difference 20.0 dB +/- 0.5; reading the 22.05 kHz fold alone fails it at block A, near -217 dB off floor bins, difference about -135 dB; bite: null stub fails at block A (surface new)
+2  ADMITTED  inputs A and B of 1025 bins at 48000.0, differing only in the 15-18 kHz band at -25 dB and -35 dB -> ratio_db is -15.0 dB and -5.0 dB +/- 0.5; subtracting summed band power without per-Hz normalisation fails it at input A, returning about -12.2 dB; bite: null stub fails at input A (surface new)
+3  carried ADMITTED  one block, ten rows, bin 200 at -20 dB in five rows and -90 dB in five -> (minimum[200], p90[200]) is (-90.0, -20.0) dB +/- 0.5 as one tuple; taking p90 off the running minimum fails it at that block, returning (-90.0, -90.0); bite: null stub fails at those rows (surface new)
+4  carried ADMITTED  SpectralAggregate(1025, 48000.0), add(frame, 1.0) with bin 200 at -20 dB then add(frame, 1.0) at -60 dB -> latest_block().minimum[200] is -20.0 then -60.0 +/- 0.5; closing the block at 5.0 s fails it at the first call, where latest_block() carries no record; bite: null stub fails after the first call (surface new)
+5  ADMITTED  rows of 1025 bins all at -40 dB at bandwidth 24000.0 -> above_db is NaN; clamping the band to the top kept bin fails it at that input, returning a finite level off the container's own transition; bite: null stub fails at bandwidth 24000.0 (surface new)
+6  ADMITTED  inputs A and B of line 2 -> music_db difference -10.0 dB +/- 0.5; copying the above-fold level into music_db fails it at input B, returning 0.0 dB; bite: null stub fails at input B (surface new)
+
+null stub: hqptuner/engine/blockstats.py present, block_record returns a BlockRecord of zero-filled curves with above_db, music_db and ratio_db at 0.0, SpectralAggregate.latest_block() returns None.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6
+hard-coded stub: switch on the literal rows and bandwidth given, return the named curves and scalars, compute no fold choice, no grid-reach test, no per-Hz normalisation, no percentile and no separate band reading.
+  satisfies: none   fails: 1, 2, 3, 4, 5, 6
+
+survives: 6
