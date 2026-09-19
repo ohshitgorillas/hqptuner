@@ -1,4 +1,4 @@
-"""Per-block spectral statistics, the arithmetic of docs/junk-filter-autopilot-resource.md §2.
+"""Per-block spectral statistics, the arithmetic of docs/junk-filter-autopilot-resource-20k.md §2.
 
 One closed block of metering frames reads as three things: the per-bin minimum, the per-bin 90th percentile across
 the block's frames, and the band scalars — the level just above whichever image fold reads higher, the level of the
