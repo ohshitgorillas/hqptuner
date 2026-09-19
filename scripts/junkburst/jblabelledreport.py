@@ -20,7 +20,7 @@ from jbedge import edge_section
 from jbmask import DECILES, MASK_READINGS, MASK_SPLITS, mask_sweep_section
 from jbmirror import mirror_section
 from jbpolicy import loud_frame_sweep_section, policy_section
-from jbpolicyyield import policy_yield_block_table
+from jbpolicyyield import policy_run_rule_diff_table, policy_run_rule_table, policy_yield_block_table
 from jbquiet import QUIET_CANDIDATES, SPLITS
 from jbthresholds import EN_DASH, LABEL_CAND_TITLE, LABEL_CANDIDATES, best_guard
 from jbtilt import tilt_section
@@ -387,6 +387,8 @@ def write_labelled_report(run: LabelledRun) -> None:
         + loud_frame_sweep_section(run)
         + policy_section(run)
         + policy_yield_block_table(run)
+        + policy_run_rule_table(run)
+        + policy_run_rule_diff_table(run)
         + tilt_section(run)
         + _a_missed_section(run)
         + _tail_sections(run)
