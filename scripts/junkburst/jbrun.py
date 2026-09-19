@@ -57,6 +57,21 @@ class LabelledRun:
     mirror: Mirror = field(default_factory=dict)
     gstep: GStep = field(default_factory=dict)
     edge: Edge = field(default_factory=dict)
+    #: ``tilt[group][reading]`` is one (stamp, value, label) per block at the headline window, in the same order as
+    #: ``mask``'s rows there. T's three slopes and U's two top-band readings are read at that window alone.
+    tilt: Edge = field(default_factory=dict)
+    #: ``tilt_albums[album]`` is that album's label, its kept block count at the mask sweep's album line, and its
+    #: median of all five readings.
+    tilt_albums: dict[str, dict[str, Any]] = field(default_factory=dict)
+    #: One row per graded rule of the tilt section: T's sign test, U's two readings, then the qualifier.
+    tilt_grades: list[dict[str, Any]] = field(default_factory=list)
+    #: One row per 1 s block of the bursts the tilt section's block table names.
+    tilt_blocks: list[dict[str, Any]] = field(default_factory=list)
+    #: One row per ``jbflip.FLIP_CUTS`` value: `flip` alone against that fixed cut over the kept blocks, its
+    #: wrong-side counts, and the wrong count per album or track row key.
+    tilt_flip_sweep: list[dict[str, Any]] = field(default_factory=list)
+    #: `flip`'s leave-one-album-out cut over the same kept blocks ``tilt_flip_sweep`` reads, wrong-side counts.
+    tilt_flip_loao: dict[str, Any] = field(default_factory=dict)
     #: ``edge_deciles[candidate][label]`` is the block count and p0 to p100 of that candidate over the blocks the
     #: mask sweep's album line keeps at the headline window, split FAKE from REAL.
     edge_deciles: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
@@ -67,8 +82,8 @@ class LabelledRun:
     #: One row per ``jbpolicy.LOUD_FRAME_CUTS`` value: G90 alone against that fixed cut over the blocks the album
     #: line keeps, its wrong-side counts, and the wrong count per album or track row key.
     loud_frame_sweep: list[dict[str, Any]] = field(default_factory=list)
-    #: The policy grade: how many bursts it covers, one row per graded rule, and the per-block table for the one
-    #: row key ``jbpolicy.POLICY_BLOCK_KEY`` names.
+    #: The policy grade: how many bursts it covers, one row per graded rule, the per-block table for the one row key
+    #: ``jbpolicy.POLICY_BLOCK_KEY`` names, and the yield rule's block-level table.
     policy_grade: dict[str, Any] = field(default_factory=dict)
     #: ``mirror_deciles[label]`` is the block count and p0 to p100 of M over the blocks the mask sweep's album line
     #: keeps at the headline window, split FAKE from REAL.

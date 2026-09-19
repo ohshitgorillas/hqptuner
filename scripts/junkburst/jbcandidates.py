@@ -204,7 +204,7 @@ def min_curve(mins: np.ndarray, grid: Grid) -> np.ndarray:
     return np.asarray(median_smooth(mins[None, : grid.kept], SMOOTH_BINS)[0])
 
 
-def _fold_step(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
+def fold_step(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
     """Return the step in dB across one fold: the median of the band above it minus the median of the band below.
 
     Both bands are ``CANDIDATE_G_BAND_HZ`` wide and stand ``CANDIDATE_G_GUARD_HZ`` clear of the fold. The step is NaN
@@ -221,7 +221,7 @@ def _fold_step(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
 
 def abs_steps(curve: np.ndarray, grid: Grid, folds_hz: tuple[float, ...]) -> list[float]:
     """Return the absolute step at each of ``folds_hz`` that lies inside the burst's grid, the rest dropped."""
-    return [abs(s) for s in (_fold_step(curve, grid, hz) for hz in folds_hz) if np.isfinite(s)]
+    return [abs(s) for s in (fold_step(curve, grid, hz) for hz in folds_hz) if np.isfinite(s)]
 
 
 def g_value(curve: np.ndarray, grid: Grid) -> float:
@@ -235,14 +235,14 @@ def _h_fold(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
 
     NaN when the fold's own step is off the grid, or when neither offset step is.
     """
-    step = _fold_step(curve, grid, fold_hz)
+    step = fold_step(curve, grid, fold_hz)
     if not np.isfinite(step):
         return float("nan")
     offsets = [
         s
         for s in (
-            _fold_step(curve, grid, fold_hz - CANDIDATE_H_OFFSET_HZ),
-            _fold_step(curve, grid, fold_hz + CANDIDATE_H_OFFSET_HZ),
+            fold_step(curve, grid, fold_hz - CANDIDATE_H_OFFSET_HZ),
+            fold_step(curve, grid, fold_hz + CANDIDATE_H_OFFSET_HZ),
         )
         if np.isfinite(s)
     ]
@@ -263,7 +263,7 @@ def g_signed_step(curve: np.ndarray, grid: Grid) -> float:
     G is an absolute value, so a curve stepping up across the fold and one stepping down read the same. This keeps
     the sign of the step G was read from, and is NaN on exactly the blocks G is NaN on.
     """
-    steps = [s for s in (_fold_step(curve, grid, hz) for hz in CANDIDATE_G_FOLDS_HZ) if np.isfinite(s)]
+    steps = [s for s in (fold_step(curve, grid, hz) for hz in CANDIDATE_G_FOLDS_HZ) if np.isfinite(s)]
     return max(steps, key=abs) if steps else float("nan")
 
 

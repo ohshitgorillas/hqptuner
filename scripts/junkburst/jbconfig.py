@@ -159,3 +159,19 @@ CANDIDATE_P_NEAR_HZ = 300.0
 #: fold, divided by the same over the mirrored band below it.
 CANDIDATE_S_INNER_HZ = 300.0
 CANDIDATE_S_OUTER_HZ = 1_800.0
+
+#: Candidate T reads the p90 curve's tilt on each side of the fold the loud-frame step selects: the least-squares
+#: slope in dB per kHz over a band standing ``CANDIDATE_T_GUARD_HZ`` clear of the fold and running
+#: ``CANDIDATE_T_BAND_HZ`` wide, taken above the fold and below it. An image rises into the fold from above and the
+#: master's own content falls away below it, so the two slopes carry opposite signs where the fold is a fold. The
+#: fold is whichever of ``EDGE_FOLDS_HZ`` carries the larger absolute step, the one the loud-frame step reads.
+CANDIDATE_T_GUARD_HZ = 300.0
+CANDIDATE_T_BAND_HZ = 1_500.0
+
+#: Candidate U reads the top of the container: the band ending ``CANDIDATE_U_TOP_GUARD_HZ`` below the burst's own
+#: Nyquist and running ``CANDIDATE_U_TOP_BAND_HZ`` wide. That band lies above the bins the working grid keeps, so it
+#: is read over the burst's full bin range rather than the kept one. U reports that band's level against the
+#: ``CANDIDATE_E_REF_HZ`` music band, and how far it moves with the ``CANDIDATE_U_BASS_HZ`` band frame for frame.
+CANDIDATE_U_TOP_GUARD_HZ = 300.0
+CANDIDATE_U_TOP_BAND_HZ = 2_000.0
+CANDIDATE_U_BASS_HZ = (100.0, 500.0)

@@ -34,13 +34,14 @@ from jbconfig import DER
 from jblabelled import report_labelled
 from jbprobe import probe
 from jbscore import report
+from jbtracks import tracks
 from jbunpack import unpack
 
 
 def main() -> None:
     """Run the stage named on argv."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("unpack", "report", "probe"))
+    parser.add_argument("stage", choices=("unpack", "report", "probe", "tracks"))
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--stamps", nargs="*", default=[])
     parser.add_argument(
@@ -48,9 +49,16 @@ def main() -> None:
         action="store_true",
         help="grade every block against the owner's label from labels.tsv instead of the spectrum rule",
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="tracks: rebuild every row already in tracks.tsv and print a unified diff instead of writing",
+    )
     args = parser.parse_args()
     if args.stage == "unpack":
         unpack(args.workers)
+    elif args.stage == "tracks":
+        tracks(check=args.check)
     elif args.stage == "probe":
         probe(args.stamps or sorted(p.stem for p in DER.glob("*.npy")))
     elif args.labels:

@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from jbamt import amt_sweep
 from jbcandidates import (
     am_edge_hz,
     am_value,
-    amt_call,
     amt_medians,
     block_quiet,
     block_residual,
@@ -28,7 +28,6 @@ from jbcandidates import (
     min_curve,
 )
 from jbconfig import (
-    AMT_FACTOR_SWEEP,
     BY_TRACK,
     CANDIDATE_C_HZ,
     CANDIDATE_E2_MIN_REF_SPREAD_DB,
@@ -47,14 +46,16 @@ from jbderived import load_burst, musical_groups, summed_db
 from jbedge import EDGE_CANDIDATES, block_edge_values, edge_tables
 from jblabelledprint import print_family_totals, print_summary, print_target_blocks
 from jblabelledreport import write_labelled_report
-from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label
+from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
 from jbloao import loao_table
 from jbmask import MASK_SWEEP_CANDIDATE, mask_sweep, mask_tables
 from jbmirror import mirror_tables
 from jbpolicy import loud_frame_sweep, policy_grade
+from jbpolicyyield import policy_yield_augment
 from jbquiet import QUIET_CANDIDATES, SPLITS, a_missed_albums, quiet_album_totals, split_keep, split_tables
 from jbrun import AmtCache, Edge, GStep, LabelledRun, Mask, Mirror, Parts, Quiet, Rows, Scored
 from jbthresholds import BASE_LABEL_CANDIDATES, LABEL_CANDIDATES, PartRow, best_threshold, calls_fake, sweep_guard
+from jbtilt import TILT_READINGS, block_tilt_values, tilt_augment
 from jbveto import real_veto
 
 from hqptuner.engine import junkadvisor
@@ -101,6 +102,7 @@ class Accumulators:
     mirror: Mirror
     gstep: GStep
     edge: Edge
+    tilt: Edge
 
 
 def _burst_context(stamp: str, label: str, group: str) -> BurstContext:
@@ -205,6 +207,8 @@ def _score_window(ctx: BurstContext, window: float, acc: Accumulators) -> None:
             acc.amt_cache[ctx.group].append(_amt_entry(ctx, block, index, curves, values["AM"]))
             for cand, value in block_edge_values(block, ctx.grid).items():
                 acc.edge[ctx.group][cand].append((ctx.stamp, value, ctx.label))
+            for name, value in block_tilt_values(block, ctx.grid).items():
+                acc.tilt[ctx.group][name].append((ctx.stamp, value, ctx.label))
         if window in MASK_SWEEP_WINDOWS:
             reading = mask_reading(block, ctx.grid)
             acc.mask[ctx.group][window].append((ctx.stamp, ctx.label, reading.above_db, reading.ratio_db, reading.corr))
@@ -223,6 +227,7 @@ def _score_all(graded: list[str], owner: dict[str, str | None], group_of: dict[s
         mirror={g: {w: [] for w in MASK_SWEEP_WINDOWS} for g in GROUPS},
         gstep={g: {w: [] for w in MASK_SWEEP_WINDOWS} for g in GROUPS},
         edge={g: {c: [] for c in EDGE_CANDIDATES} for g in GROUPS},
+        tilt={g: {r: [] for r in TILT_READINGS} for g in GROUPS},
     )
     for n, stamp in enumerate(graded, 1):
         label = owner[stamp]
@@ -268,33 +273,6 @@ def _derive_af(rows: Rows, scored: Scored, group: str, window: float) -> dict[st
     return best_threshold(af_values, af_labels)
 
 
-def _amt_sweep(scored: Scored, amt_cache: AmtCache) -> dict[str, dict[str, Any]]:
-    """AM vetoed by the near-edge-versus-reference spread ratio, the factor swept and the threshold re-picked at each.
-
-    The sweep runs at the headline window, the same shape as the E2 and E3 guard sweep.
-    """
-    amt_best: dict[str, dict[str, Any]] = {}
-    for group in GROUPS:
-        am_thr = scored[group][HEADLINE_WINDOW]["AM"]
-        sweep_rows: list[dict[str, Any]] = []
-        for factor in AMT_FACTOR_SWEEP:
-            calls: list[float] = []
-            labels: list[str] = []
-            for _, am_val, label, near_med, ref_med in amt_cache[group]:
-                am_fake = calls_fake(am_val, am_thr)
-                calls.append(1.0 if amt_call(near_med, ref_med, factor, am_fake=am_fake) else 0.0)
-                labels.append(label)
-            best = best_threshold(calls, labels)
-            sweep_rows.append({"factor": float(factor), "values": calls, "labels": labels, **best})
-        amt_best[group] = min(sweep_rows, key=lambda r: (r["wrong"], r["factor"]))
-        row = amt_best[group]
-        print(
-            f"amt group={group} best_factor={row['factor']:g} wrong={row['wrong']}/{row['blocks']} "
-            f"fake_called_real={row['fake_called_real']} real_called_fake={row['real_called_fake']}"
-        )
-    return amt_best
-
-
 def _album_totals(rows: Rows, scored: Scored, album_of: dict[str, str]) -> dict[str, dict[str, Any]]:
     """Per-album wrong-side counts at the headline window, steady blocks only, each candidate at its own threshold."""
     albums: dict[str, dict[str, Any]] = {}
@@ -333,7 +311,8 @@ def _load_run() -> LabelledRun:
         artist, album, track = row.get("artist", "").strip(), row.get("album", "").strip(), row.get("track", "").strip()
         group_of[s] = "transition" if row.get("transition", "").strip() == "yes" else "steady"
         album_of[s] = album or f"{artist} (no album)"
-        row_key_of[s] = f"{album_of[s]} — {track}" if by_album.get((artist, album)) == BY_TRACK else album_of[s]
+        key = (primary_artist(artist), album)
+        row_key_of[s] = f"{album_of[s]} — {track}" if by_album.get(key) == BY_TRACK else album_of[s]
     return LabelledRun(
         tracks=tracks,
         stamps=stamps,
@@ -353,6 +332,7 @@ def report_labelled() -> None:
     acc = _score_all(run.graded, run.owner, run.group_of)
     run.rows, run.parts, run.amt_cache, run.quiet = acc.rows, acc.parts, acc.amt_cache, acc.quiet
     run.mask, run.mirror, run.gstep, run.edge = acc.mask, acc.mirror, acc.gstep, acc.edge
+    run.tilt = acc.tilt
     run.scored = _thresholds(run.rows)
     run.guard_sweep = {
         group: {
@@ -361,7 +341,7 @@ def report_labelled() -> None:
         }
         for group in GROUPS
     }
-    run.amt_best = _amt_sweep(run.scored, run.amt_cache)
+    run.amt_best = amt_sweep(run.scored, run.amt_cache)
     print_family_totals(run)
     print_target_blocks(run)
     run.albums = _album_totals(run.rows, run.scored, run.album_of)
@@ -385,6 +365,8 @@ def report_labelled() -> None:
     )
     run.edge_deciles, run.edge_albums, run.edge_grades = edge_tables(run)
     run.loud_frame_sweep, run.policy_grade = loud_frame_sweep(run), policy_grade(run)
+    policy_yield_augment(run)
+    tilt_augment(run)
     run.mirror_deciles, run.mirror_albums, run.mirror_grades = mirror_tables(
         run.mask["steady"][HEADLINE_WINDOW],
         g_head_rows,

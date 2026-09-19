@@ -42,7 +42,7 @@ TABLE1_BURSTS = (
 def signed_fold_step(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
     """Signed step in dB across one fold: median of the band above it minus median of the band below.
 
-    Same bands as candidate G (``jbcandidates._fold_step``), kept signed rather than G's own ``abs()``.
+    Same bands as candidate G (``jbcandidates.fold_step``), kept signed rather than G's own ``abs()``.
     """
     lo_span = band_bins(grid, fold_hz - CANDIDATE_G_GUARD_HZ - CANDIDATE_G_BAND_HZ, fold_hz - CANDIDATE_G_GUARD_HZ)
     hi_span = band_bins(grid, fold_hz + CANDIDATE_G_GUARD_HZ, fold_hz + CANDIDATE_G_GUARD_HZ + CANDIDATE_G_BAND_HZ)

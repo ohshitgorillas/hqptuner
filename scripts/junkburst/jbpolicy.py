@@ -58,6 +58,27 @@ def loud_frame_sweep(run: LabelledRun) -> list[dict[str, Any]]:
     return [loud_frame_cut_row(kept_mask, kept_g90, run.row_key_of, cut) for cut in LOUD_FRAME_CUTS]
 
 
+def loud_frame_loao_row(run: LabelledRun) -> dict[str, Any]:
+    """G90's leave-one-album-out cut over the same kept blocks ``loud_frame_sweep`` reads, wrong-side counts."""
+    mask_rows: list[MaskRow] = run.mask["steady"][HEADLINE_WINDOW]
+    g90_rows = run.edge["steady"]["G90"]
+    keep = sweep_keep(mask_rows, MASK_SWEEP_ALBUM_LEVEL)
+    calls = _loao_calls(g90_rows, run.album_of, keep)
+    rows: dict[str, int] = {}
+    total: dict[str, Any] = {"wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
+    for i in keep:
+        stamp, _value, label = g90_rows[i]
+        is_fake = label == "FAKE"
+        veto_real = bool(np.isfinite(mask_rows[i][3]) and mask_rows[i][3] >= MIRROR_VETO_LEVEL)
+        if (calls[i] and not veto_real) == is_fake:
+            continue
+        total["wrong"] += 1
+        total["fake_called_real" if is_fake else "real_called_fake"] += 1
+        rows[run.row_key_of[stamp]] = rows.get(run.row_key_of[stamp], 0) + 1
+    total["rows"] = rows
+    return total
+
+
 def loud_frame_sweep_section(run: LabelledRun) -> list[str]:
     """Return the report's loud-frame step sweep section: one table per ``LOUD_FRAME_CUTS`` cut."""
     intro = (
@@ -71,6 +92,8 @@ def loud_frame_sweep_section(run: LabelledRun) -> list[str]:
         f"| {row['cut']:g} dB | {row['wrong']} | {row['fake_called_real']} | {row['real_called_fake']} |"
         for row in run.loud_frame_sweep
     ]
+    loao = loud_frame_loao_row(run)
+    rows.append(f"| leave-one-album-out | {loao['wrong']} | {loao['fake_called_real']} | {loao['real_called_fake']} |")
     out = ["## Loud-frame step sweep", "", intro, "", head, "| --- | ---: | ---: | ---: |", *rows, ""]
     for row in run.loud_frame_sweep:
         out += [f"### {row['cut']:g} dB", "", "| album or track | wrong |", "| --- | ---: |"]
@@ -250,8 +273,10 @@ POLICY_PASSES: tuple[tuple[float | None, tuple[str, ...]], ...] = (
 )
 
 
-def policy_grade(run: LabelledRun) -> dict[str, Any]:
-    """Grade every rule per unique steady burst under each veto pass, and read the per-block table."""
+def policy_grade_context(
+    run: LabelledRun,
+) -> tuple[PolicyBlocks, dict[str, list[int]], set[int], list[MaskRow], list[tuple[str, float, str]], list[int]]:
+    """Build the steady-burst blocks, bursts, keep set and readings a policy pass grades ``run`` over."""
     mask_rows: list[MaskRow] = run.mask["steady"][HEADLINE_WINDOW]
     g_rows = run.rows["steady"][HEADLINE_WINDOW][MASK_SWEEP_CANDIDATE]
     g90_rows = run.edge["steady"]["G90"]
@@ -259,6 +284,12 @@ def policy_grade(run: LabelledRun) -> dict[str, Any]:
     bursts = policy_bursts(mask_rows)
     kept = set(keep)
     blocks = PolicyBlocks(mask_rows, g_rows, g90_rows, run.album_of, keep)
+    return blocks, bursts, kept, mask_rows, g90_rows, keep
+
+
+def policy_grade(run: LabelledRun) -> dict[str, Any]:
+    """Grade every rule per unique steady burst under each veto pass, and read the per-block table."""
+    blocks, bursts, kept, mask_rows, g90_rows, keep = policy_grade_context(run)
     rows = []
     for veto, rules in POLICY_PASSES:
         junk = policy_junk(blocks, veto=veto, rules=rules)

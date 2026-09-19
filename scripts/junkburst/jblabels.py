@@ -56,6 +56,11 @@ FAMILY_KEYS: dict[str, tuple[tuple[str, ...], ...]] = {
 FAMILY_ORDER = ("soft wall", "hard wall", "no shelf", "unassigned", "real")
 
 
+def primary_artist(artist: str) -> str:
+    """Return the text before the first ``' / '``, the artist a multi-performer credit is filed under."""
+    return artist.split(" / ", maxsplit=1)[0].strip()
+
+
 def _rows(path: Path) -> list[list[str]]:
     """Every non-empty line of a TSV split on tabs, header included."""
     return [line.split("\t") for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -79,9 +84,9 @@ def load_labels() -> tuple[dict[tuple[str, str], str], dict[tuple[str, str, str]
     by_track: dict[tuple[str, str, str], str] = {}
     for row in _rows(LABELS_TSV)[1:]:
         if len(row) >= TRACK_ROW_COLUMNS:
-            by_track[(row[0].strip(), row[1].strip(), row[2].strip())] = row[3].strip()
+            by_track[(primary_artist(row[0]), row[1].strip(), row[2].strip())] = row[3].strip()
         elif len(row) == ALBUM_ROW_COLUMNS:
-            by_album[(row[0].strip(), row[1].strip())] = row[2].strip()
+            by_album[(primary_artist(row[0]), row[1].strip())] = row[2].strip()
     return by_album, by_track
 
 
@@ -95,11 +100,13 @@ def owner_label(
 
     The burst's artist and album from ``tracks.tsv`` index ``labels.tsv``, and a ``BY_TRACK`` album is resolved once
     more by the burst's track title. A burst absent from ``tracks.tsv``, or whose row reaches no label, is unlabelled.
+    Artist is matched on the primary artist on both sides, so a per-track credit reaches the album's own row.
     """
     row = tracks.get(stamp)
     if row is None:
         return None
-    artist, album, track = row.get("artist", "").strip(), row.get("album", "").strip(), row.get("track", "").strip()
+    artist = primary_artist(row.get("artist", ""))
+    album, track = row.get("album", "").strip(), row.get("track", "").strip()
     label = by_album.get((artist, album))
     if label == BY_TRACK:
         label = by_track.get((artist, album, track))
