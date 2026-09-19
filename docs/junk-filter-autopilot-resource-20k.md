@@ -234,7 +234,33 @@ Beaten approaches, kept so they are not repeated.
 - **Texture as a veto inside the fall.** A fall call vetoed to real when per-bin spread 1.5 to 4 kHz above the found edge exceeds 0.5 to 0.9 of the reference-band spread. The veto fires on fake blocks, not real ones: soft wall 122 to 150 wrong, hard wall 46 to 110, real unchanged. Dither jitter above a wall is not smaller than music spread, the same cause that beat the standalone texture candidates, so texture does not earn a place conditionally either.
 - **Quiet split on level above the block floor.** The floor is the 10th percentile of the whole curve, which on a fake with a deep stopband is the stopband itself, near minus 195 dB on Guidance, so the reference sits 100 dB above it in any passage and such an album never reads quiet; the rule measures stopband depth, not music level. The absolute level rule of section 3 stands in its place.
 
-## 7 · Tooling
+## 7 · Engine port
+
+The engine carries numpy as a runtime dependency (`pyproject.toml` `dependencies`), so the block arithmetic of section 2 is mirrored in numpy at `hqptuner/engine/blockstats.py` rather than ported to scalar Python. The readings below are a throwaway scalar port's, and they are what the dependency answers. A throwaway scalar port of the per-block minimum curve, p90 curve, above-fold level, music level and ratio was run against the scoring package over the same non-silent frames, 3 bursts each at 88.2, 96 and 192 kHz, 5 blocks per burst. Report: `.junkburst-report-blockstats-tolerance.md`.
+
+| Reading | Value |
+|---|---|
+| Max difference, any curve or scalar | 1.7e-05 dB |
+| Percentile method | linear interpolation between bracketing ranks, numpy's default; nothing else to copy |
+| CPU per second of coverage, every frame, 88.2 and 96 kHz | 0.20 to 0.22 s |
+| CPU per second of coverage, every frame, 192 kHz | 0.43 s |
+| Peak memory per aggregate | under 13 MB |
+
+The differences sit at float32 rounding noise, so the port tolerance is 1e-4 dB per bin and per scalar, an order over the largest reading. CPU scales with frames per second, not bins: bursts carry 1025 bins at every rate and the 192 kHz bursts carry twice the frames of the 96 kHz ones for twice the cost. That cost is for the block statistics alone at every frame, which is the rate the engine ingests at and the rate the locked cuts were read at.
+
+Shipped as slug `junk-block-stats` at `8ad47fda`: `hqptuner/engine/blockstats.py` in numpy, `SpectralAggregate` closing 1 s blocks into a record of minimum curve, p90 curve and the three scalars, 30 blocks of reach so the spur and ramp rules read what they read before, `latest_block()` with no consumer yet. numpy in the dev container, Python 3.12, numpy 2.5.3:
+
+| Reading | Value |
+|---|---|
+| Import time, one cold sample | 40 ms |
+| Installed size | 70 MB |
+| CPU per second of coverage with numpy | unmeasured |
+
+No test pins the block median across frames for the scalars, and no test compares the mirror against the scoring package; that comparison is an oracle fixture under `tests/support/fixtures/`, its own slug, not yet built.
+
+The corpus holds no 44.1 or 48 kHz bursts: 72 at 88.2 kHz, 338 at 96 kHz, 118 at 192 kHz. No burst in the port sample carried a silent frame under the engine's RMS gate, so the silent path of the port is unmeasured.
+
+## 8 · Tooling
 
 - `scripts/junkcal_burst.py`: captures raw 5 s bursts while hi-res plays, 120 s apart, into `/srv/hqptuner/state/junkburst/`. Restart by hand for a new round.
 - `scripts/junkburst_blocks.py unpack --workers 8`: decodes new bursts into `derived/`, first gzip member only. `report --labels`: collapses overlapping bursts, grades every candidate against `labels.tsv` and `tracks.tsv` at every window and writes `JB_REPORT`, a bare name under the capture directory or an absolute path. `JB_CLIFF_LO` moves the cliff window bottom for the run only. Unpack needs a shell that can write under `/srv`; the agent sandbox cannot, and it cannot see host processes either.
