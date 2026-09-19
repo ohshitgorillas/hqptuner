@@ -28,7 +28,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.engine import junkadvisor
+from hqptuner.engine import blockstats, junkadvisor
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -42,10 +42,10 @@ RECONNECT_DELAY = 5.0
 # again. Shorter than the manager's own status poll, so the gate adds no latency
 # of its own beyond the staleness of the status it reads.
 IDLE_RECHECK = 1.0
-# Ingest every Nth frame (~43/s at 44.1k). The aggregate folds minima over
-# seconds of coverage; a quarter of the hops carries the same verdict at a
-# quarter of the CPU.
-DECIMATE = 4
+# Ingest every Nth frame (~43/s at 44.1k). The block statistics are read off
+# the frames a block kept, at the rate the corpus they are graded against was
+# captured at, so every hop is ingested.
+DECIMATE = 1
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
 
@@ -56,8 +56,8 @@ MAX_BINS = 65_536
 # window is full that coverage is long enough that a sustained musical partial
 # cannot fake it. The window is how far back the minimum reaches; it is not a
 # wait, and the first frame folded already carries a readable spectrum.
-BLOCK_SECONDS = 5.0
-WINDOW_BLOCKS = 6
+BLOCK_SECONDS = 1.0
+WINDOW_BLOCKS = 30
 # Frames quieter than this on every channel (RMS dBFS) are kept out of the
 # minimum: digital silence between songs carries no tone either, and one such
 # frame would collapse every bin's minimum to the floor.
@@ -116,13 +116,12 @@ def _int(value: str | None) -> int | None:
 
 
 class SpectralAggregate:
-    """Per-track windowed per-bin minimum power spectrum.
+    """Per-track windowed per-bin minimum power spectrum, and the statistics of each closed block.
 
-    The minimum is kept block-wise: each BLOCK_SECONDS of coverage folds into
-    one per-bin-min array, the last WINDOW_BLOCKS of which form the detector's
-    persistence window. Silent frames never touch the minimum (they carry no
-    signature either), and a block that saw only silence is dropped rather than
-    pushed.
+    Each BLOCK_SECONDS of coverage closes one block, whose non-silent frames are read into a
+    ``blockstats.BlockRecord``: the per-bin minimum the persistence window is folded from, the per-bin 90th
+    percentile, and the three band scalars. The last WINDOW_BLOCKS records form the window. Silent frames never
+    reach a record (they carry no signature either), and a block that saw only silence closes carrying none.
     """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
@@ -131,19 +130,21 @@ class SpectralAggregate:
         self.bandwidth = bandwidth
         self.frames = 0
         self.seconds = 0.0
-        self._blocks: deque[list[float]] = deque(maxlen=WINDOW_BLOCKS)
+        self._blocks: deque[blockstats.BlockRecord] = deque(maxlen=WINDOW_BLOCKS)
+        self._rows: list[list[float]] = []
         self._block_min: list[float] | None = None
         self._block_seconds = 0.0
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
-        """Fold one frame's per-bin power, unless silent, into the current block's minimum.
+        """Keep one frame's per-bin power, unless silent, in the open block.
 
-        Once the block has BLOCK_SECONDS of coverage it is pushed to the window and a fresh one starts; a block that
-        saw only silent frames is dropped instead of pushed.
+        Once the block has BLOCK_SECONDS of coverage it is read into a record and a fresh one starts; a block that
+        saw only silent frames closes carrying no record.
         """
         self.frames += 1
         self.seconds += covered_seconds
         if not silent:
+            self._rows.append(mags_sq)
             if self._block_min is None:
                 self._block_min = list(mags_sq)
             else:
@@ -152,24 +153,28 @@ class SpectralAggregate:
                     block[i] = min(block[i], p)
         self._block_seconds += covered_seconds
         if self._block_seconds >= BLOCK_SECONDS:
-            if self._block_min is not None:
-                self._blocks.append(self._block_min)
+            if self._rows:
+                self._blocks.append(blockstats.block_record(self._rows, self.bandwidth))
+            self._rows = []
             self._block_min = None
             self._block_seconds = 0.0
+
+    def latest_block(self) -> blockstats.BlockRecord | None:
+        """Return the record of the block that closed most recently, or None while none has closed."""
+        return self._blocks[-1] if self._blocks else None
 
     def window_min_db(self) -> list[float] | None:
         """Per-bin minimum (dB) over whatever coverage is in hand, or None while no frame has been folded at all.
 
-        The pushed blocks and the current partial one are read together, full window or not: WINDOW_BLOCKS is how far
+        The closed blocks and the current partial one are read together, full window or not: WINDOW_BLOCKS is how far
         back the minimum reaches, not a wait the reader serves before anything can be said.
         """
-        arrays: list[list[float]] = list(self._blocks)
+        arrays: list[list[float]] = [record.minimum for record in self._blocks]
         if self._block_min is not None:
-            arrays.append(self._block_min)
+            arrays.append([10 * math.log10(p) if p > 0 else -200.0 for p in self._block_min])
         if not arrays:
             return None
-        mins = [min(vals) for vals in zip(*arrays, strict=True)]
-        return [10 * math.log10(p) if p > 0 else -200.0 for p in mins]
+        return [min(vals) for vals in zip(*arrays, strict=True)]
 
 
 class MeteringReader:
@@ -344,7 +349,7 @@ class MeteringReader:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
         agg.add(
             _frame_power(body, channels, bins),
-            xform_time * DECIMATE,
+            xform_time,
             silent=_frame_silent(body, channels, bins),
         )
 
