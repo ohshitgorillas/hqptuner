@@ -8,7 +8,7 @@ Run the project's task-complete check:
 bash .claude/task-check.sh
 ```
 
-It runs `make check` (the full gate) and, **only if the gate is green**, rebuilds the `hqptuner:dev` Docker container from the working tree (`docker-compose.yaml`, not the prod `compose.yaml`) and health-checks `:8090`. The docker step is sudo-gated — that is expected; let it prompt.
+It runs `make check` (the full gate) and, **only if the gate is green**, rebuilds the `hqptuner:dev` Docker container from the working tree (`docker-compose.yaml`, not the prod `compose.yaml`) and health-checks `:8090`. A root-owned systemd path unit performs the rebuild on request; the script waits up to 600 s for its result and fails on a timeout.
 
 Report **PASS/FAIL per stage**:
 
