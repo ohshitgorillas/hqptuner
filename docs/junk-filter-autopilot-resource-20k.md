@@ -2,7 +2,7 @@
 
 Reference for the junk filter auto-pilot: what each filter setting targets, the detector that currently performs best for it, how that detector scores against the labelled corpus, and which approaches lost to it. Living document until the feature is locked in. A result overwrites its predecessor only when it supersedes and improves it; a new capture round appends to the corpus section; an approach that is beaten moves to the regressions section with only enough of its data to show why it is not tried again.
 
-Companion: `hqptuner/engine/junkadvisor.py` (classifier), `hqptuner/engine/metering.py` (spectral aggregates fed by hqplayerd's metering stream), `scripts/junkcal_burst.py` (raw burst capture), `scripts/junkburst_blocks.py` (unpack and scoring).
+Companion: `hqptuner/engine/junkadvisor.py` (classifier), `hqptuner/engine/metering.py` (spectral aggregates fed by hqplayerd's metering stream), `hqptuner/engine/blockstats.py` (per-block curves and scalars of section 2, in numpy), `scripts/junkcal_burst.py` (raw burst capture), `scripts/junkburst_blocks.py` (unpack and scoring).
 
 ## 1 · What each setting targets
 
@@ -126,7 +126,7 @@ Wall shapes on the rendered spectra, all fake: Master of Puppets, a hard wall at
 
 ## 3 · 20k detector: floor step at a source Nyquist, and its loud-frame form
 
-The locked rule is the loud-frame step with the mask and veto of section 2; the floor step below is its minimum-curve form, nested inside it, and the account of how the fold step was found. Both live in the scoring script only, as candidates G and G90; the engine classifies on the 30 s block minimum through the reference-band fall.
+The locked rule is the loud-frame step with the mask and veto of section 2; the floor step below is its minimum-curve form, nested inside it, and the account of how the fold step was found. The floor step lives in the scoring script only, as candidate G; the engine classifies per closed block on the loud-frame step, candidate G90, with the mask and the yielding veto.
 
 **Signal.** In quiet and in loud passages alike, fake hi-res carries the source's noise floor, dither or shaped noise, up to the source Nyquist and the upsampler's stopband above it, so the floor itself steps at 22.05 or 24 kHz. A real converter floor has no reason to step there. The music above the floor is not measured at all, so the reference-band level cap and the edge-finder confusion of the previous best do not arise.
 
@@ -236,7 +236,7 @@ Beaten approaches, kept so they are not repeated.
 
 ## 7 · Engine port
 
-The engine carries numpy as a runtime dependency (`pyproject.toml` `dependencies`), so the block arithmetic of section 2 is mirrored in numpy at `hqptuner/engine/blockstats.py` rather than ported to scalar Python. The readings below are a throwaway scalar port's, and they are what the dependency answers. A throwaway scalar port of the per-block minimum curve, p90 curve, above-fold level, music level and ratio was run against the scoring package over the same non-silent frames, 3 bursts each at 88.2, 96 and 192 kHz, 5 blocks per burst. Report: `.junkburst-report-blockstats-tolerance.md`.
+The engine carries numpy as a runtime dependency (`pyproject.toml` `dependencies`), so the block arithmetic of section 2 is mirrored in numpy at `hqptuner/engine/blockstats.py` rather than ported to scalar Python. A scalar port of the same arithmetic costs what the table below reads, per `.junkburst-report-blockstats-tolerance.md`, and that cost is what the dependency answers.
 
 | Reading | Value |
 |---|---|
@@ -254,9 +254,24 @@ Shipped as slug `junk-block-stats` at `8ad47fda`: `hqptuner/engine/blockstats.py
 |---|---|
 | Import time, one cold sample | 40 ms |
 | Installed size | 70 MB |
-| CPU per second of coverage with numpy | unmeasured |
+| CPU per second of coverage with numpy, 88.2 and 96 kHz | 0.0031 to 0.0032 s |
+| CPU per second of coverage with numpy, 192 kHz | 0.0063 s |
+
+The shipped mirror agrees with the scoring package within 1e-5 dB on the minimum curve, `above_db` and `ratio_db` at every rate the corpus holds. The record's `p90` is the raw per-bin percentile, and the rule reads the step on `blockstats.p90_smoothed`, its 9-bin median smooth, which is the curve `jbedge.p90_curve` returns; raw and smoothed differ by 8 to 26 dB per bin, widest at 192 kHz. The frame correlation scalar the scoring package carries has no field in the record and none is owed.
 
 No test pins the block median across frames for the scalars, and no test compares the mirror against the scoring package; that comparison is an oracle fixture under `tests/support/fixtures/`, its own slug, not yet built.
+
+**Engine stages.** Each is one slug through the plan gate, in this order:
+
+| Stage | Content | State |
+|---|---|---|
+| Block statistics | `blockstats.py`, 1 s blocks, every frame ingested | shipped |
+| 20k rule | mask, loud-frame step, veto with yield, per-block verdict in `junkadvisor.py` | shipped |
+| Run rule | engage on the second junk block within gap 3, hold through dropped blocks, drop on the first kept real block, reset on rate change; auto-pilot and the chip follow it | next |
+| Spur window | reach from 30 blocks down to 3 to 5 (section 4), graded on the corpus first | open |
+| Oracle fixture | stored rows plus the scoring package's readings under `tests/support/fixtures/`, one line pinning `block_record` within 1e-4 dB | open |
+
+Rulings in `gauntlet/plans/approved/junk-live-verdict.txt`: line 12 permits one closed block's statistics beside the rolling minimum; line 13 states the content-ceiling test, and the 20k plan amends it to junk above the fold at or above the level line; line 14 forbids hysteresis and hold, and the run rule amends it. The junkcal fixture under `scripts/junkcal_eval.py` carries no 20k scorer; the 20k grading surface is the burst corpus of section 2. Auto-pilot samples the per-block verdict every 2 s with no confirming block and no hold, so a track near the cut can move the junk filter on the daemon every poll.
 
 The corpus holds no 44.1 or 48 kHz bursts: 72 at 88.2 kHz, 338 at 96 kHz, 118 at 192 kHz. No burst in the port sample carried a silent frame under the engine's RMS gate, so the silent path of the port is unmeasured.
 
