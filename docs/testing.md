@@ -72,35 +72,6 @@ The offline suite exists to be run on every commit. A test that waits on a wall 
 
 No design reason survives this. Where production paces on a real clock, the test injects a seam or it does not exist.
 
-## Strike motions
-
-Rule 9 orders a copy-pinning test deleted, and no hand edits `tests/` directly, so a deletion travels the chain as a spec block whose first line is `motion: strike`. The block carries strike lines in place of behavior lines, never both:
-
-```
-N. strike <target>
-   rule: docs/testing.md rule <n>
-   assertion: <the offending assertion, quoted from the test file>
-```
-
-The target is `tests/<file>::<test>` for a pytest test, `tests/js/<file>::"<test title>"` for a node one, or `tests/<file>` with no `::` for a whole file. A single test is removed by the `scrivener` with an `Edit` in its spec tree; a whole file is removed by `${CLAUDE_PLUGIN_ROOT}/scripts/pair.sh merge` before it commits, since the lane hook denies every agent that shell. A strike line needs no `kills:`, `bite:` or `existing:`, and the four-line cap does not apply, but every line names one target and one rule number that the quoted assertion actually violates.
-
-## Amend motions
-
-A test that breaks a rule while pinning behavior worth keeping takes `motion: amend`, where one line carries both halves — what goes, and what takes its place:
-
-```
-N. strike tests/<file>::<test>
-   rule: docs/testing.md rule <n>
-   assertion: <the offending assertion, quoted from the test file>
-   replace: <the behavior as the caller sees it>
-   as: tests/<file>::<test_name>
-   kills: <a wrong implementation a user would notice>
-```
-
-The target is always a single test. A whole file belongs to `motion: strike` alone, since a replacement cannot land in a file the strike half deleted. `as:` names what the replacement must land as, and may equal the target: a coupled test name often states the behavior correctly (rule 6) and only the assertion is wrong, so renaming it is churn. The merge check reads a target as satisfied on either fact — the name is gone from `tests/`, or the name is there and the quoted `assertion:` is gone from that test's own body, body rather than file, because the same assertion text can sit in a sibling parametrize case. An amend line carries no `bite:`: the replacement pins behavior HEAD already has, which rule 8 exempts in the clause that exempts characterization. The four-line cap counts `replace:` lines only.
-
-Neither tests-only motion reaches a red run. Both are checked at the merge by `${CLAUDE_PLUGIN_ROOT}/scripts/strike-diff.py`, which compares the landed diff against the committed block and refuses the land on any target the block named that the diff did not satisfy.
-
 ## Markers
 
 - Default suite offline and deterministic; must pass on machine with no hqplayerd.
