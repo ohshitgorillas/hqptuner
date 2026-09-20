@@ -1,0 +1,103 @@
+slug: junk-20k-rule
+kind: new
+brief:
+> Draft the stage 1 plan for slug `junk-20k-rule`: replace the reference-band fall in `hqptuner/engine/junkadvisor.py` with the locked 20k rule stated in `docs/junk-filter-autopilot-resource-20k.md` section 2, read per closed block from `SpectralAggregate.latest_block()`, with the 9-bin median smooth applied to the record's p90 curve inside the rule.
+> Mirror the mask, step and yield arithmetic from the scoring package under `scripts/junkburst/`, cite each function mirrored, and state the tolerance against the scoring package over three stored bursts from `/srv/hqptuner/state/junkburst/derived/` read-only, one each at 88.2, 96 and 192 kHz.
+> Correct the `hqptuner/engine/blockstats.py` docstring that claims the record mirrors `jbedge.p90_curve`, and state what happens to the fixture rows under `scripts/junkcal_eval.py`, to the 20k reason copy, and to `gauntlet/plans/approved/junk-live-verdict.txt:13`.
+> Leave the run rule, `junk-live-verdict.txt:14`, the spur rule and the ramp rule unedited, and state in the cost section what the running engine does with a verdict that changes block by block.
+> Send to `gauntlet-detective` for grounding and `gauntlet-prosecutor` for review, and present on READY.
+
+surface: `hqptuner.engine.junkadvisor.classify` and `.verdicts`, each taking a new
+keyword-only argument `block` carrying a `hqptuner.engine.blockstats.BlockRecord` or None,
+and `hqptuner.engine.metering.SpectralAggregate.latest_block`. Lines 1 to 3 call
+`classify(min_levels_db, 48000.0, samplerate=96000, sdm=False, block=record)`, where
+`record` is `blockstats.block_record(rows, 48000.0)` over the same frames the window
+minimum is built from, and read the returned verdict's `filter` value. Frames are built
+with the band helpers of `tests/engine/test_junk_blockstats.py` at 1025 bins; a band's
+per-Hz level is its raw bin level less 16.7091 dB at this grid.
+
+unpinned: brief sentence 1's 9-bin median smooth changes no verdict at this geometry. The
+fold step is a median over a 1.5 kHz band, 32 bins here, and a 9-bin median smooth moves
+that median only for a run of bins wider than the smooth removes. Its per-bin fidelity
+against `scripts/junkburst/jbedge.py:90-93` is the oracle-fixture slug's
+(`docs/junk-filter-autopilot-resource-20k.md:262`, `:272`).
+
+1. For frames carrying a junk band from 24300 to 30000 Hz and a music band from 15000 to
+   18000 Hz at -60 dB per Hz, run twice: where the junk band's per-Hz level is
+   -118 dB per Hz, `classify` names the `20k` filter; where it is -132 dB per Hz,
+   `classify` returns None.
+   kills: reads the step over the fold and the ratio to the music and never the level of
+     the band above the fold, so a master whose junk already sits below the level the
+     filter could remove is advised to engage the filter, and the listener is told to cut
+     a band that carries nothing
+   bite: null stub fails at the first run (surface new) — `classify` at HEAD takes no such
+     argument, `classify() got an unexpected keyword argument 'block'`, and the stub that
+     accepts it fires no 20k verdict at either run
+   existing: tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop,
+     whose three cases pass no block and whose `20k` case is re-expected at no corner
+
+2. For frames carrying a junk band from 24300 to 30000 Hz at a raw bin level of -50 dB and
+   a band from 22200 to 23700 Hz below the 24000 Hz fold at -62 dB, giving a fold step of
+   12.0 dB, run twice with only the music band's raw bin level differing: at -30 dB, so
+   the record's `ratio_db` is -20.0355, `classify` names the `20k` filter; at -40 dB, so
+   `ratio_db` is -10.0355, `classify` returns None.
+   kills: reads the fold step alone and never the ratio to the music, so ultrasonic
+     content that tracks the music inside 15 dB of it — a real hi-res master — is called
+     fake and the listener is advised to cut its top octave
+   bite: null stub fails at the first run (surface new) — `classify` at HEAD takes no such
+     argument, `classify() got an unexpected keyword argument 'block'`, and the stub that
+     accepts it fires no 20k verdict at either run
+   existing: tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop,
+     the same table these two cases join
+
+3. For frames carrying the junk band and the music band of line 1 together with a
+   single-bin tone at 27000 Hz standing 40 dB over the junk band's bin level, run twice:
+   where the junk band is at -160 dB per Hz, so the record's `above_db` is -140.8294, the
+   `filter` values `verdicts` returns are `30k` alone; where it is at -118 dB per Hz, so
+   `above_db` is -98.8294, they are `20k` and `30k`.
+   kills: returns early on a block the mask drops, so a master carrying a persistent tone
+     loses its 30k advice for as long as its ultrasonic band sits under the level line and
+     auto-pilot releases a filter that was treating something audible
+   bite: null stub fails at the second run (surface new) — `verdicts` at HEAD takes no such
+     argument, `verdicts() got an unexpected keyword argument 'block'`, and the stub that
+     accepts it returns `30k` alone at both runs
+   existing: none, `grep -rn "verdicts" tests/engine/test_junkadvisor.py` prints nothing
+     and exits 1
+
+4. For a `SpectralAggregate(1025, 48000.0)` fed one non-silent frame at
+   `covered_seconds=1.0`, then one frame at `covered_seconds=1.0, silent=True`, then a
+   non-silent frame and a silent frame at `covered_seconds=0.5` each, every non-silent
+   frame carrying the same junk band from 24300 to 30000 Hz at a raw bin level of -50 dB,
+   the `above_db` values `latest_block()` returns after the three closes are -66.7449,
+   None and -66.7449.
+   kills: reads the tail of the closed-block list, so a block that closes carrying no
+     frame leaves the block before it in front of the rules and a silent passage holds the
+     previous second's verdict for as long as the silence lasts
+   bite: HEAD returns -66.7449 at all three reads, the first two the same object,
+     `r1 is r2` True, measured with
+     `.venv/bin/python -m pytest -s -q <scratch>/measure_bite7.py`
+   existing: tests/engine/test_junk_blockstats.py::test_block_closes_at_one_second_of_coverage
+
+--- reviewer ---
+READY
+discriminates: sweep on `classify`'s filter value, two distinct expected values across the locked -125 dB/Hz level line (line 1) and two more across the locked -15 dB ratio veto at a fixed 12.0 dB step (line 2)
+
+round 1 findings, each answered:
+- line 2 (g): repaired as named. The step is held at 12.0 dB across both runs and only the music band moves, so a fold-step-alone rule fails whatever its cut: at or under 12 it fires at both runs and loses run B, over 12 it fires at neither and loses run A. Finding withdrawn.
+- line 4 (hard-coded stub, (b), (h)): repaired as named. The third close carries a non-silent and a silent frame in the same second, which a stub keyed on the `silent` flag of the last frame answers with None and the line answers with -66.7449; the reads are stated as literals rather than "that of the first frame"; `existing:` names the test to fold into. Finding withdrawn.
+- line 1 (b): answered. `existing:` now cites tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop and says what happens to its three block-less cases. Verdict stays AMENDED, which is what an answered (b) looks like.
+- brief sentence 1's 9-bin smooth: answered by the escape named in round 1, the sentence declared unpinned. Checked against the readable record: docs/junk-filter-autopilot-resource-20k.md:260 states the record's `p90` is the raw percentile and `jbedge.p90_curve` smooths it, and :262 puts the mirror comparison in an oracle fixture under tests/support/fixtures/ with its own slug, listed "open" in the stage table. The smooth is an internal step of the rule with no observable delta at this geometry, and a line pinning it per bin would be struck under (r); it is not held against this block.
+
+1  AMENDED tests/engine/test_junkadvisor.py:81: two cases join the 20k corner table with `_classify` taking `block=record` — junk at -118 dB/Hz over music at -60 dB/Hz names `20k`, junk at -132 dB/Hz names no corner — and the table's three block-less cases are re-expected, the plateau case at no corner.
+2  AMENDED tests/engine/test_junkadvisor.py:81: two more cases in the same table at a fixed 12.0 dB fold step, moving the music band alone — ratio -20.0355 names `20k`, ratio -10.0355 names no corner.
+3  ADMITTED  carried: frames with junk 24300-30000 Hz, music 15000-18000 Hz at -60 dB/Hz and a single-bin 27000 Hz tone 40 dB over the junk bin -> `verdicts` returns `30k` alone at junk -160 dB/Hz and `20k` plus `30k` at -118 dB/Hz; an implementation returning early on a block the mask drops fails it at the -160 run, where `30k` disappears; bite: null stub fails at the second run, returning `30k` alone.
+4  AMENDED tests/engine/test_junk_blockstats.py:76: the closing test gains a third close and reads `above_db` rather than one minimum bin — a loud second, a silent second, then a second carrying a loud and a silent half-frame — asserting (-66.7449, None, -66.7449) where HEAD asserts -66.7449 at all three.
+
+null stub: `classify` and `verdicts` accept `block` and ignore it, never firing a 20k verdict; `SpectralAggregate.latest_block` returns None.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return the named verdict for the named call and None otherwise, keyed on the call's visible arguments and on the `silent` flag of the frame last added, reading nothing out of the record.
+  satisfies: none   fails: 1, 2 (both runs of each differ only in frame data, never in an argument), 3, 4 (the third close's block carries a silent frame and is not empty)
+
+survives: 1
+
+note (not a strike, carried): no line runs a samplerate other than 96000, while brief sentence 2 names 88.2, 96 and 192 kHz; its verb is "state the tolerance", stage 1 prose, and docs:262 puts the cross-rate mirror comparison in the oracle-fixture slug, so no line is demanded here.
