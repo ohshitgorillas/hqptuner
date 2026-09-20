@@ -10,21 +10,13 @@ A row is scored against itself rather than against its album, because an album's
 majority verdict and a kept row need not carry it: a clean album keeps its near-miss row, and
 that row can carry a spur over the corpus split. Scoring such a row against ``none`` counts a
 correct verdict as a miss. The per-row expectation is the lowest corner among every finding the
-row's own statistics support by the fixture's splits: its album's ``junk_filter`` where the row
-is cliff- or ramp-positive, and the filter whose corner sits just below ``spur_hz`` where the
-row carries a spur at or over ``SPUR_SPLIT_DB``. A row supporting nothing expects ``none``, a
-spur-absent row included.
+row's own statistics support by the fixture's splits: the filter whose corner sits just below
+``spur_hz`` where the row carries a spur at or over ``SPUR_SPLIT_DB``. A row supporting nothing
+expects ``none``, a spur-absent row included.
 
-Two things a ``label_only`` album's rows do not get. Such an album's depth is the capture's
-stored silence rather than a measured fall, so its rows get no cliff scoring on either side:
-the cliff leaves the expectation, and the cliff verdict leaves the prediction before the lowest
-corner is taken. A row of such an album that supports nothing else leaves the scored set rather
-than scoring ``none``, because there is nothing left to grade it on.
-
-Where a cliff-positive row's album carries ``junk_filter: none`` and the row's own ``depth``
-clears ``CLIFF_SPLIT_DB``, the expectation is ``20k`` rather than the album's label: a row is
-expected the lowest corner its own statistics support, and an album label is the majority
-verdict of rows that need not include this one.
+The 20k rule reads one closed block's frames, and a fixture row stores a windowed minimum
+spectrum and no frames, so no row here can produce a record and none is scored on 20k. The 20k
+corpus is the burst corpus of ``docs/junk-filter-autopilot-resource-20k.md`` §2.
 
 ``--classifier`` takes a dotted path. A callable is used as it stands and must accept one row
 and return a filter name. A module is adapted: its ``classify`` is called on the row's own
@@ -63,22 +55,9 @@ SPUR_SPLIT_DB = 22.0
 #: spur bin above which the 40k corner sits just below the spur, and below which the 30k one does.
 SPUR_CORNER_SPLIT_HZ = 45_000.0
 
-#: The fixture's own cliff split, ``scripts/junkcal_fixture.py`` ``CLIFF_SPLIT_DB``: reference
-#: band minus the median above the ceiling that a flat row must carry to be cliff-positive.
-CLIFF_SPLIT_DB = 30.0
-
-#: The fixture's own ramp splits, ``scripts/junkcal_fixture.py`` ``RAMP_TOP_SPLIT_DB`` and
-#: ``RAMP_MIN_RATE``: top-band level over the floor, and the rate below which no row ramps.
-RAMP_TOP_SPLIT_DB = 3.0
-RAMP_MIN_RATE = 176_400
-
 
 class Advisor(Protocol):
-    """The module surface the adapter needs: one verdict per rule the spectrum fires.
-
-    Per-rule rather than the single name ``classify`` returns, because a ``label_only`` row is
-    graded on what it supports minus its cliff, and a corner name alone cannot be taken apart.
-    """
+    """The module surface the adapter needs: one verdict per rule the spectrum fires."""
 
     def verdicts(
         self, min_levels_db: list[float] | None, bandwidth: float, *, samplerate: int | None, sdm: bool
@@ -102,13 +81,11 @@ def full_curve(row: Row) -> list[float]:
     return [float(v) for v in spec]
 
 
-def row_filter(advisor: Advisor, row: Row, *, label_only: bool) -> str:
+def row_filter(advisor: Advisor, row: Row) -> str:
     """Return the filter the detector recommends for one row, or ``none``.
 
-    The lowest corner among the rules that fired, the cliff verdict dropped first for a
-    ``label_only`` row: the detector reads the full grid at runtime and returns what every rule saw,
-    and the scorer alone decides what such a row may be graded on. The 20k corner is the cliff
-    rule's alone, so dropping it by name drops that rule and no other.
+    The lowest corner among the rules that fired. The row carries a spectrum and no frames, so the
+    20k rule reads nothing and the corners are the spur's and the ramp's.
     """
     found = advisor.verdicts(
         full_curve(row),
@@ -116,80 +93,31 @@ def row_filter(advisor: Advisor, row: Row, *, label_only: bool) -> str:
         samplerate=int(row["samplerate"]),
         sdm=False,
     )
-    corners = [str(v["filter"]) for v in found if not (label_only and str(v["filter"]) == "20k")]
+    corners = [str(v["filter"]) for v in found]
     return max(corners, key=FILTERS.index) if corners else "none"
 
 
-def is_pairs(row: Row) -> bool:
-    """Report whether a row stores ``[hz, db]`` pairs rather than a flat level list."""
-    spec = row["spectrum"]
-    return bool(spec) and isinstance(spec[0], list)
-
-
-def ramp_positive(row: Row, stats: dict[str, Any]) -> bool:
-    """Report whether a row's top band rises, ``scripts/junkcal_fixture.py`` ``ramp_pos``."""
-    if int(row["samplerate"]) < RAMP_MIN_RATE:
-        return False
-    return float(stats.get("slope", 0.0)) > 0.0 and float(stats.get("top_rel", 0.0)) >= RAMP_TOP_SPLIT_DB
-
-
-def cliff_positive(row: Row, stats: dict[str, Any]) -> bool:
-    """Report whether a row's content stops, ``scripts/junkcal_fixture.py`` ``cliff_pos``.
-
-    A pairs row carries the capture's stored ceiling rather than a measured depth, so its
-    presence is the finding; a flat row needs its depth over the corpus split.
-    """
-    if ramp_positive(row, stats):
-        return True
-    if is_pairs(row):
-        return float(stats.get("ceiling_hz", 0.0)) > 0.0
-    return float(stats.get("depth", 0.0)) >= CLIFF_SPLIT_DB
-
-
-def cliff_expectation(label: dict[str, Any], stats: dict[str, Any]) -> str:
-    """Return the corner a cliff-positive row is expected, its album's label or its own depth's.
-
-    A row is expected the lowest corner its own statistics support, and an album's ``junk_filter``
-    is the majority verdict of rows that need not include this one. Depth only: a row that is
-    cliff-positive through the ramp branch carries no depth of its own to outrank the label with.
-    """
-    name = str(label["junk_filter"])
-    if name == "none" and float(stats.get("depth", 0.0)) >= CLIFF_SPLIT_DB:
-        return "20k"
-    return name
-
-
-def expected_filter(label: dict[str, Any], stats: dict[str, Any], row: Row) -> str | None:
-    """Return the lowest corner one kept row's own statistics support, or None where it is not scored.
-
-    A ``label_only`` album's rows get no cliff scoring, so one supporting nothing else leaves the
-    scored set rather than expecting ``none``: its depth is the capture's stored silence and there
-    is nothing left to grade it on.
-    """
-    label_only = bool(label.get("label_only"))
+def expected_filter(stats: dict[str, Any]) -> str:
+    """Return the lowest corner one kept row's own statistics support, or ``none``."""
     found: list[str] = []
-    if not label_only and cliff_positive(row, stats):
-        found.append(cliff_expectation(label, stats))
     if float(stats.get("spur", 0.0)) >= SPUR_SPLIT_DB:
         found.append("40k" if float(stats.get("spur_hz", 0.0)) > SPUR_CORNER_SPLIT_HZ else "30k")
     corners = [name for name in found if name != "none"]
-    if corners:
-        return max(corners, key=FILTERS.index)
-    return None if label_only else "none"
+    return max(corners, key=FILTERS.index) if corners else "none"
 
 
 class RowClassifier(Protocol):
-    """A scored classifier: one row in, one filter name out, told whether the row's cliff counts."""
+    """A scored classifier: one row in, one filter name out."""
 
-    def __call__(self, row: Row, *, label_only: bool) -> str:
+    def __call__(self, row: Row) -> str:
         """Return the filter name this classifier gives one row."""
 
 
 def adapted(advisor: Advisor) -> RowClassifier:
     """Return a row classifier over a detector module's own ``verdicts``."""
 
-    def classify_row(row: Row, *, label_only: bool) -> str:
-        return row_filter(advisor, row, label_only=label_only)
+    def classify_row(row: Row) -> str:
+        return row_filter(advisor, row)
 
     return classify_row
 
@@ -208,8 +136,7 @@ def resolve(dotted: str) -> RowClassifier:
     if isinstance(target, ModuleType):
         return adapted(target)
 
-    def call_row(row: Row, *, label_only: bool) -> str:
-        del label_only  # a classifier named directly is scored on everything it returns
+    def call_row(row: Row) -> str:
         return str(target(row))
 
     return call_row
@@ -248,14 +175,11 @@ def main() -> None:
     misses: list[str] = []
     for stamp, label, rows in albums(args.fixtures):
         by_ts = {str(row["timestamp"]): row for row in rows}
-        label_only = bool(label.get("label_only"))
         for kept in label["kept"]:
             row = by_ts[str(kept["timestamp"])]
             stats = dict(kept["stats"])
-            want = expected_filter(label, stats, row)
-            if want is None:
-                continue  # a label_only row supporting no finding is not scored
-            got = str(classify_row(row, label_only=label_only))
+            want = expected_filter(stats)
+            got = str(classify_row(row))
             pairs.append((want, got))
             if want != got:
                 misses.append(

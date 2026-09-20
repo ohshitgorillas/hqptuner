@@ -6,9 +6,13 @@ the block's frames, and the band scalars — the level just above whichever imag
 does not enter the distance between them.
 
 The functions here mirror the scoring package under ``scripts/junkburst/`` (``jbcurves.Grid``, ``jbcurves.band_bins``
-and ``band_level_db``, ``jbcandidates._per_hz_level``, ``_fold_mask`` and ``mask_reading``, ``jbedge.p90_curve``,
-``jblabelled``'s per-bin minimum) rather than importing them: the image installs the wheel, and that package is not
-in it (``Dockerfile``, ``pyproject.toml`` ``packages``).
+and ``band_level_db``, ``jbcandidates._per_hz_level``, ``_fold_mask``, ``mask_reading`` and ``fold_step``,
+``jbcurves.median_smooth``, ``jbedge.p90_curve`` and ``g90_value``, ``jblabelled``'s per-bin minimum) rather than
+importing them: the image installs the wheel, and that package is not in it (``Dockerfile``, ``pyproject.toml``
+``packages``).
+
+The record's ``p90`` is the raw percentile row ``jbedge.p90_curve`` smooths rather than that smoothed curve: the
+9-bin median smooth belongs to the rule that reads the step, and ``p90_smoothed`` runs it there.
 """
 
 import math
@@ -17,16 +21,22 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from hqptuner.engine import junkadvisor
-
 # A power of zero has no dB, and the metering stream carries empty bins. The clamp puts them at the same floor the
 # window minimum has always reported.
 FLOOR_POWER = 1e-20
+# The top bins carry the anti-imaging filter's transition, not the master's.
+DROP_TOP_BINS = 25
+SMOOTH_BINS = 9  # median-filter width for the curve the step is read on (odd)
 # The two image folds the mask reading walks, the band it reads above each of them, and the music band it reads them
 # against — jbconfig.MASK_FOLDS_HZ, MASK_ABOVE_HZ, CANDIDATE_E_REF_HZ.
 MASK_FOLDS_HZ = (22_050.0, 24_000.0)
 MASK_ABOVE_HZ = (300.0, 6_000.0)
 MUSIC_BAND_HZ = (15_000.0, 18_000.0)
+# Each of the loud-frame step's two bands stands this far clear of its fold and runs this wide — jbconfig's
+# CANDIDATE_G_GUARD_HZ and CANDIDATE_G_BAND_HZ. The step walks the same two folds the mask reading does,
+# jbconfig.EDGE_FOLDS_HZ.
+STEP_GUARD_HZ = 300.0
+STEP_BAND_HZ = 1_500.0
 
 
 @dataclass(frozen=True)
@@ -51,7 +61,7 @@ class Grid:
         """Hold the geometry's bin count and bandwidth, and the count of bins left after the top ones are dropped."""
         self.bins = bins
         self.bandwidth = bandwidth
-        self.kept = bins - junkadvisor.DROP_TOP_BINS
+        self.kept = bins - DROP_TOP_BINS
 
     def at(self, hz: float) -> int:
         """Return the kept-bin index nearest a frequency, clamped to the kept range."""
@@ -121,3 +131,45 @@ def block_record(rows: list[list[float]], bandwidth: float) -> BlockRecord:
         music_db=music_db,
         ratio_db=ratio_db,
     )
+
+
+def _median_smooth(row: npt.NDArray[np.float64], width: int) -> npt.NDArray[np.float64]:
+    """Return the running median along the bin axis, edges replicated — jbcurves.median_smooth in ``nearest`` mode."""
+    half = width // 2
+    windows = np.lib.stride_tricks.sliding_window_view(np.pad(row, half, mode="edge"), width)
+    return np.asarray(np.median(windows, axis=1))
+
+
+def p90_smoothed(record: BlockRecord, bins: int, bandwidth: float) -> npt.NDArray[np.float64]:
+    """Return the record's 90th-percentile row smoothed at SMOOTH_BINS over the kept bins — jbedge.p90_curve."""
+    grid = Grid(bins, bandwidth)
+    return _median_smooth(np.asarray(record.p90[: grid.kept], dtype=np.float64), SMOOTH_BINS)
+
+
+def _fold_step(curve: npt.NDArray[np.float64], grid: Grid, fold_hz: float) -> float:
+    """Return the step in dB across one fold: the median of the band above it minus the median of the band below.
+
+    Both bands are STEP_BAND_HZ wide and stand STEP_GUARD_HZ clear of the fold. The step is NaN where either band
+    reaches past the top of the grid, so that fold drops out of the reading.
+    """
+    lo_span = _band_bins(grid, fold_hz - STEP_GUARD_HZ - STEP_BAND_HZ, fold_hz - STEP_GUARD_HZ)
+    hi_span = _band_bins(grid, fold_hz + STEP_GUARD_HZ, fold_hz + STEP_GUARD_HZ + STEP_BAND_HZ)
+    if lo_span is None or hi_span is None:
+        return float("nan")
+    lo_a, lo_b = lo_span
+    hi_a, hi_b = hi_span
+    return float(np.median(curve[hi_a : hi_b + 1]) - np.median(curve[lo_a : lo_b + 1]))
+
+
+def loud_frame_step(record: BlockRecord, bins: int, bandwidth: float) -> tuple[float, float]:
+    """Return the largest absolute fold step on the smoothed p90 curve, and the fold it was read at.
+
+    NaN in both where neither fold lies inside the grid — jbedge.g90_value over jbcandidates.abs_steps.
+    """
+    grid = Grid(bins, bandwidth)
+    curve = p90_smoothed(record, bins, bandwidth)
+    read = ((fold_hz, _fold_step(curve, grid, fold_hz)) for fold_hz in MASK_FOLDS_HZ)
+    steps = [(abs(step), fold_hz) for fold_hz, step in read if math.isfinite(step)]
+    if not steps:
+        return float("nan"), float("nan")
+    return max(steps)

@@ -22,7 +22,7 @@ from jbcurves import Grid, content_curves, frame_content, musical_frames, readin
 from jbderived import load_burst, musical_groups, stats, summed_db, track_key
 from jbreport import SpectrumSweep, write_report
 
-from hqptuner.engine import junkadvisor
+from hqptuner.engine import blockstats, junkadvisor
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -96,11 +96,13 @@ def _advisor_rows(
     """One row per block: what ``junkadvisor.classify`` calls the block's per-bin minimum, against the block's label."""
     out: list[dict[str, Any]] = []
     for index, (g, lab) in enumerate(zip(groups, labels, strict=True)):
+        frames = summed[g]
         verdict = junkadvisor.classify(
-            [float(v) for v in summed[g].min(axis=0)],
+            [float(v) for v in frames.min(axis=0)],
             burst["bandwidth"],
             samplerate=burst["samplerate"],
             sdm=False,
+            block=blockstats.block_record(np.power(10.0, frames / 10.0).tolist(), burst["bandwidth"]),
         )
         predicted = "cliff" if (verdict or {}).get("filter") == "20k" else "full"
         out.append(

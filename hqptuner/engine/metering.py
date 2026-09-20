@@ -131,6 +131,7 @@ class SpectralAggregate:
         self.frames = 0
         self.seconds = 0.0
         self._blocks: deque[blockstats.BlockRecord] = deque(maxlen=WINDOW_BLOCKS)
+        self._latest: blockstats.BlockRecord | None = None
         self._rows: list[list[float]] = []
         self._block_min: list[float] | None = None
         self._block_seconds = 0.0
@@ -153,15 +154,20 @@ class SpectralAggregate:
                     block[i] = min(block[i], p)
         self._block_seconds += covered_seconds
         if self._block_seconds >= BLOCK_SECONDS:
-            if self._rows:
-                self._blocks.append(blockstats.block_record(self._rows, self.bandwidth))
+            self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
+            if self._latest is not None:
+                self._blocks.append(self._latest)
             self._rows = []
             self._block_min = None
             self._block_seconds = 0.0
 
     def latest_block(self) -> blockstats.BlockRecord | None:
-        """Return the record of the block that closed most recently, or None while none has closed."""
-        return self._blocks[-1] if self._blocks else None
+        """Return the record of the block that closed most recently, or None while none has closed.
+
+        A block that closes carrying no frame is the outcome of that close, so a silent second clears the reading
+        rather than leaving the second before it in front of the rules.
+        """
+        return self._latest
 
     def window_min_db(self) -> list[float] | None:
         """Per-bin minimum (dB) over whatever coverage is in hand, or None while no frame has been folded at all.
@@ -240,6 +246,7 @@ class MeteringReader:
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
             holder=self._holder,
+            block=agg.latest_block(),
         )
 
     def recommendation(self) -> dict[str, Any] | None:
