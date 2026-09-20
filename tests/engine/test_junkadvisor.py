@@ -98,7 +98,8 @@ def _ceiling_under_a_plateau() -> Levels:
 
 JUNK_BAND = (24300.0, 30000.0)
 MUSIC_BAND = (15000.0, 18000.0)
-SUB_FOLD_BAND = (22200.0, 23700.0)
+SUB_FOLD_BAND = (20250.0, 23700.0)
+FOLD_STEP_DB = 12.0
 TONE_27K_BIN = 576
 
 
@@ -132,8 +133,19 @@ def _junk_over_music(junk_per_hz_db: float) -> Levels:
 def _junk_over_music_across_the_fold(music_raw_db: float) -> Levels:
     """A 12.0 dB fold step held fixed while the music band alone moves."""
     junk = (*JUNK_BAND, -50.0)
-    below_fold = (*SUB_FOLD_BAND, -62.0)
+    below_fold = (*SUB_FOLD_BAND, -50.0 - FOLD_STEP_DB)
     music = (*MUSIC_BAND, music_raw_db)
+    return _band_levels([junk, below_fold, music])
+
+
+def _a_fold_step_over_moving_bands(
+    junk_per_hz_db: float, music_per_hz_db: float
+) -> Levels:
+    """A 12.0 dB fold step and a fixed junk-to-music ratio, every band moving."""
+    junk_raw_db = _raw_db(junk_per_hz_db)
+    junk = (*JUNK_BAND, junk_raw_db)
+    below_fold = (*SUB_FOLD_BAND, junk_raw_db - FOLD_STEP_DB)
+    music = (*MUSIC_BAND, _raw_db(music_per_hz_db))
     return _band_levels([junk, below_fold, music])
 
 
@@ -160,8 +172,8 @@ def _windowed(levels: Levels) -> Call:
         (_windowed(_ceiling_under_a_plateau()), None),
         (_windowed(_ceiling(-95.0, 22000.0)), None),
         (_windowed(_ceiling(-70.0, 20000.0)), None),
-        (_blocked(_junk_over_music(-118.0)), "20k"),
-        (_blocked(_junk_over_music(-132.0)), None),
+        (_blocked(_a_fold_step_over_moving_bands(-118.0, -60.0)), "20k"),
+        (_blocked(_a_fold_step_over_moving_bands(-132.0, -74.0)), None),
         (_blocked(_junk_over_music_across_the_fold(-30.0)), "20k"),
         (_blocked(_junk_over_music_across_the_fold(-40.0)), None),
     ],
