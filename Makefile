@@ -2,7 +2,7 @@ VENV := .venv/bin
 
 # Files vendored from ~/dev/gauntlet. They are the package's product, linted to its
 # standard rather than this repo's, and a fix belongs upstream, not in this checkout.
-VENDORED := ^(scripts/pair/|scripts/cite\.py|scripts/strike-diff\.py|\.claude/hooks/(blind-bash|bwrap-wrap|gauntlet-off|no-impl-reads|pair-passthrough|plans-lane|reviews-lane|shell_shapes|specs-lane|tests-lane|verdicts-lane)\.py)
+VENDORED := ^\.claude/hooks/shell_shapes\.py
 
 .PHONY: lint lint-js test test-live test-e2e test-js check manual mutate trivia
 

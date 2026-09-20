@@ -63,7 +63,7 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 
 # Agent types that cannot write. Exact names only, never a pattern: the hook
 # can't see the agent registry, so a guessed name is an unmetered write.
-READ_ONLY_AGENTS = {"Explore", "Plan", "gauntlet:detective", "caveman:cavecrew-investigator"}
+READ_ONLY_AGENTS = {"Explore", "Plan", "gauntlet:detective", "gauntlet:auditor", "caveman:cavecrew-investigator"}
 
 # Agent types whose *spawn* is free even though they may write: the project's
 # own chain agents, writer, reviewers and the accountant. Their tool calls are
