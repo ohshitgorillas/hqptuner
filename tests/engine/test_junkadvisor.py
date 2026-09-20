@@ -1,7 +1,8 @@
 """The junk verdict read off one per-bin minimum spectrum.
 
 Every case builds a 1025-value level spectrum on a grid spanning 0 Hz to
-88200.0 Hz, so bin ``i`` sits at ``i * 88200 / 1024`` Hz. Cases assert the
+88200.0 Hz, so bin ``i`` sits at ``i * 88200 / 1024`` Hz, except the cases
+carrying a closed block, which span 0 Hz to 48000.0 Hz. Cases assert the
 corner the verdict names, or ``None`` where the spectrum earns no verdict.
 """
 
@@ -12,9 +13,13 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from hqptuner.engine import junkadvisor
-from hqptuner.engine.junkadvisor import classify
+from hqptuner.engine.blockstats import block_record
+from hqptuner.engine.junkadvisor import classify, verdicts
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from hqptuner.engine.blockstats import BlockRecord
     from hqptuner.engine.junkadvisor import SpurHolder
 
 Verdict = dict[str, Any]
@@ -29,6 +34,18 @@ BIN_HZ = BANDWIDTH / (BINS - 1)
 TONE_35K_BIN = 406
 TONE_60K_BIN = 697
 
+BLOCK_HZ = 48000.0
+BLOCK_RATE = 96000
+BLOCK_BIN_HZ = BLOCK_HZ / (BINS - 1)
+PER_HZ_OFFSET_DB = 16.7091
+FLOOR_DB = -200.0
+
+Grid = tuple[float, int]
+Call = tuple[Levels, Grid, "BlockRecord | None"]
+Corners = tuple[str, ...]
+WIDE_GRID: Grid = (BANDWIDTH, SAMPLERATE)
+BLOCK_GRID: Grid = (BLOCK_HZ, BLOCK_RATE)
+
 
 def _bin_hz(index: int) -> float:
     return index * BIN_HZ
@@ -37,6 +54,14 @@ def _bin_hz(index: int) -> float:
 def _classify(levels: Levels) -> Verdict | None:
     """The verdict a caller reading the window in front of it alone gets."""
     return classify(levels, BANDWIDTH, samplerate=SAMPLERATE, sdm=False)
+
+
+def _corner_on(levels: Levels, grid: Grid, block: BlockRecord | None) -> Corner:
+    """The corner a caller gets for one window, with or without a closed block."""
+    hz, rate = grid
+    if block is None:
+        return _corner(classify(levels, hz, samplerate=rate, sdm=False))
+    return _corner(classify(levels, hz, samplerate=rate, sdm=False, block=block))
 
 
 def _classify_held(levels: Levels, holder: SpurHolder) -> Verdict | None:
@@ -69,17 +94,105 @@ def _ceiling_under_a_plateau() -> Levels:
     return levels
 
 
+# --- the block: one closed second of frames behind the same window ----------------
+
+JUNK_BAND = (24300.0, 30000.0)
+MUSIC_BAND = (15000.0, 18000.0)
+SUB_FOLD_BAND = (22200.0, 23700.0)
+TONE_27K_BIN = 576
+
+
+def _raw_db(per_hz_db: float) -> float:
+    """The bin level a flat band takes to read at that level per Hz on this grid."""
+    return per_hz_db + PER_HZ_OFFSET_DB
+
+
+def _band_levels(bands: Sequence[tuple[float, float, float]]) -> Levels:
+    """A level spectrum on the 48 kHz grid carrying each band at its bin level."""
+    levels = [FLOOR_DB] * BINS
+    for low_hz, high_hz, level_db in bands:
+        for index in range(BINS):
+            if low_hz <= index * BLOCK_BIN_HZ <= high_hz:
+                levels[index] = level_db
+    return levels
+
+
+def _rows(levels: Levels) -> list[list[float]]:
+    """The one frame whose per-bin minimum is that spectrum."""
+    return [[10.0 ** (level_db / 10.0) for level_db in levels]]
+
+
+def _junk_over_music(junk_per_hz_db: float) -> Levels:
+    """Ultrasonic junk over a music band held at -60 dB per Hz."""
+    junk = (*JUNK_BAND, _raw_db(junk_per_hz_db))
+    music = (*MUSIC_BAND, _raw_db(-60.0))
+    return _band_levels([junk, music])
+
+
+def _junk_over_music_across_the_fold(music_raw_db: float) -> Levels:
+    """A 12.0 dB fold step held fixed while the music band alone moves."""
+    junk = (*JUNK_BAND, -50.0)
+    below_fold = (*SUB_FOLD_BAND, -62.0)
+    music = (*MUSIC_BAND, music_raw_db)
+    return _band_levels([junk, below_fold, music])
+
+
+def _with_a_27k_tone(levels: Levels) -> Levels:
+    """The same spectrum with one bin at 27 kHz standing 40 dB over its band."""
+    lifted = list(levels)
+    lifted[TONE_27K_BIN] += 40.0
+    return lifted
+
+
+def _blocked(levels: Levels) -> Call:
+    """A window and the record of the block built from the very same frame."""
+    return (levels, BLOCK_GRID, block_record(_rows(levels), BLOCK_HZ))
+
+
+def _windowed(levels: Levels) -> Call:
+    """A window with no closed block behind it."""
+    return (levels, WIDE_GRID, None)
+
+
 @pytest.mark.parametrize(
-    ("spectrum", "corner"),
+    ("call", "corner"),
     [
-        (_ceiling_under_a_plateau(), "20k"),
-        (_ceiling(-95.0, 22000.0), None),
-        (_ceiling(-70.0, 20000.0), None),
+        (_windowed(_ceiling_under_a_plateau()), None),
+        (_windowed(_ceiling(-95.0, 22000.0)), None),
+        (_windowed(_ceiling(-70.0, 20000.0)), None),
+        (_blocked(_junk_over_music(-118.0)), "20k"),
+        (_blocked(_junk_over_music(-132.0)), None),
+        (_blocked(_junk_over_music_across_the_fold(-30.0)), "20k"),
+        (_blocked(_junk_over_music_across_the_fold(-40.0)), None),
     ],
-    ids=["50 dB drop past a plateau", "25 dB shoulder", "ceiling at 20 kHz"],
+    ids=[
+        "50 dB drop past a plateau",
+        "25 dB shoulder",
+        "ceiling at 20 kHz",
+        "junk 7 dB over the level line",
+        "junk 7 dB under the level line",
+        "junk 20 dB under the music",
+        "junk 10 dB under the music",
+    ],
 )
-def test_20k_is_earned_only_on_a_deep_drop(spectrum: Levels, corner: Corner) -> None:
-    assert _corner(_classify(spectrum)) == corner
+def test_20k_is_earned_only_on_a_deep_drop(call: Call, corner: Corner) -> None:
+    assert _corner_on(*call) == corner
+
+
+def _verdict_corners(levels: Levels) -> Corners:
+    """Every corner a caller reading one window with its closed block is offered."""
+    record = block_record(_rows(levels), BLOCK_HZ)
+    found = verdicts(levels, BLOCK_HZ, samplerate=BLOCK_RATE, sdm=False, block=record)
+    return tuple(sorted(str(verdict["filter"]) for verdict in found))
+
+
+@pytest.mark.parametrize(
+    ("junk_db", "seen"),
+    [(-160.0, ("30k",)), (-118.0, ("20k", "30k"))],
+    ids=["a block under the level line", "a block over it"],
+)
+def test_a_tone_keeps_its_corner_off_the_block(junk_db: float, seen: Corners) -> None:
+    assert _verdict_corners(_with_a_27k_tone(_junk_over_music(junk_db))) == seen
 
 
 # --- the spur: persistent tones over their own neighbourhood ----------------------

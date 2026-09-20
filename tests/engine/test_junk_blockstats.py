@@ -40,9 +40,18 @@ def _two_band_rows(music_db: float) -> list[list[float]]:
     return [_frame(48000.0, [junk, music])]
 
 
-def _latest_minimum(aggregate: SpectralAggregate, index: int) -> float:
+def _junk_frame() -> list[float]:
+    return _frame(48000.0, [(24300.0, 30000.0, -50.0)])
+
+
+def _silent_frame() -> list[float]:
+    return _frame(48000.0, [])
+
+
+def _latest_above(aggregate: SpectralAggregate) -> float | None:
+    """The closed block's level above the fold, or None where no block stands."""
     record = aggregate.latest_block()
-    return float("nan") if record is None else record.minimum[index]
+    return None if record is None else round(record.above_db, 1)
 
 
 def test_above_fold_level_follows_the_fold_carrying_the_loud_band() -> None:
@@ -78,12 +87,15 @@ def test_minimum_and_p90_read_the_same_bin_differently() -> None:
 def test_block_closes_at_one_second_of_coverage() -> None:
     aggregate = SpectralAggregate(BINS, 48000.0)
 
-    aggregate.add(_spike_frame(200, -20.0), 1.0)
-    after_first = _latest_minimum(aggregate, 200)
-    aggregate.add(_spike_frame(200, -60.0), 1.0)
-    after_second = _latest_minimum(aggregate, 200)
+    aggregate.add(_junk_frame(), 1.0)
+    after_loud = _latest_above(aggregate)
+    aggregate.add(_silent_frame(), 1.0, silent=True)
+    after_silence = _latest_above(aggregate)
+    aggregate.add(_junk_frame(), 0.5)
+    aggregate.add(_silent_frame(), 0.5, silent=True)
+    after_half_loud = _latest_above(aggregate)
 
-    assert (after_first, after_second) == pytest.approx((-20.0, -60.0), abs=0.5)
+    assert (after_loud, after_silence, after_half_loud) == (-66.7, None, -66.7)
 
 
 def test_fold_the_grid_cannot_reach_carries_no_above_fold_level() -> None:
