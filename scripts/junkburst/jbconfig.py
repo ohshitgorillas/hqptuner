@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from hqptuner.engine import junkadvisor
+from hqptuner.engine import blockstats, junkadvisor
 
 SRC = Path("/srv/hqptuner/state/junkburst")
 DER = SRC / "derived"
@@ -24,19 +24,20 @@ HEADER = struct.Struct("<4I3fI")
 
 FLOOR_DB = -200.0
 CONTRAST_DB = junkadvisor.CONTRAST_DB
-DROP_TOP_BINS = junkadvisor.DROP_TOP_BINS
-SMOOTH_BINS = junkadvisor.SMOOTH_BINS
+DROP_TOP_BINS = blockstats.DROP_TOP_BINS
+SMOOTH_BINS = blockstats.SMOOTH_BINS
 FLOOR_PCT = junkadvisor.FLOOR_PERCENTILE
-CLIFF_WINDOW_HZ = junkadvisor.CLIFF_WINDOW_HZ
-CLIFF_REF_HZ = junkadvisor.CLIFF_REF_HZ
-CLIFF_GUARD_HZ = junkadvisor.CLIFF_GUARD_HZ
+#: The retired reference-band fall's own window, reference band and guard, which the cliff candidates here still read.
+CLIFF_WINDOW_HZ = (20_000.0, 26_000.0)
+CLIFF_REF_HZ = (15_000.0, 18_000.0)
+CLIFF_GUARD_HZ = 1_500.0
 
-#: junkadvisor's own window and reference band, which ``JB_CLIFF_LO`` never moves; the walk-up edge reads them.
-WALKUP_WINDOW_HZ = junkadvisor.CLIFF_WINDOW_HZ
-WALKUP_REF_HZ = junkadvisor.CLIFF_REF_HZ
+#: The same window and reference band, which ``JB_CLIFF_LO`` never moves; the walk-up edge reads them.
+WALKUP_WINDOW_HZ = (20_000.0, 26_000.0)
+WALKUP_REF_HZ = (15_000.0, 18_000.0)
 
 #: ``JB_CLIFF_LO`` moves the bottom of the cliff window down, carrying the reference band down by the same distance so
-#: the fall is still read from the same span below the window. ``junkadvisor.classify`` keeps its own constants.
+#: the fall is still read from the same span below the window. The walk-up pair above is never moved.
 _CLIFF_LO = os.environ.get("JB_CLIFF_LO")
 if _CLIFF_LO:
     _SHIFT = CLIFF_WINDOW_HZ[0] - float(_CLIFF_LO)

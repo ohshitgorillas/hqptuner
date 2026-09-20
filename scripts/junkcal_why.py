@@ -9,7 +9,11 @@ records, for
 every tick, what each of the three rules did and what the verdict became after the main filter was
 taken into account. A wrong tick is then a named rule outcome rather than a count.
 
-Recorded per tick: the cliff rule's edge outcome (no bin in the window clear of ``floor +
+The 20k rule reads a closed block's frames, and a stored row carries a spectrum and no frames, so no
+row here produces a record and no tick carries a 20k verdict. The cliff column below is the retired
+reference-band fall, kept as the account of the rows this corpus was graded on.
+
+Recorded per tick: that retired rule's edge outcome (no bin in the window clear of ``floor +
 CONTRAST_DB``, an edge pinned at the bottom of ``CLIFF_WINDOW_HZ``, an edge pinned at the top, a
 depth short of ``CLIFF_SPLIT_DB``, or a fire with its depth and ceiling); the spur rule's held set
 with the strongest held excess, or the strongest visible excess where nothing is held; the ramp
@@ -25,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import statistics
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,8 +40,6 @@ import junkcal_seq as seq
 from hqptuner.engine import junkadvisor
 from hqptuner.engine.junkadvisor import (
     _CORNER_KHZ,
-    _band_mean,
-    _band_median,
     _Curve,
     _excesses,
     _median_smooth,
@@ -50,6 +53,12 @@ Row = dict[str, Any]
 #: Width of the dB buckets the depth and excess shortfalls are histogrammed in.
 DEPTH_BUCKET_DB = 5.0
 EXCESS_BUCKET_DB = 4.0
+
+#: The retired reference-band fall's window, reference band, guard and split, which ``cliff_probe`` reads.
+CLIFF_WINDOW_HZ = (20_000.0, 26_000.0)
+CLIFF_REF_HZ = (15_000.0, 18_000.0)
+CLIFF_GUARD_HZ = 1_500.0
+CLIFF_SPLIT_DB = 30.0
 
 #: Composite rows printed per section before the tail is elided.
 SHOWN_COMPOSITES = 12
@@ -76,13 +85,25 @@ def bucket(value: float, width: float) -> str:
     return f"[{lo:g},{lo + width:g})"
 
 
-def cliff_probe(curve: _Curve) -> str:
-    """Return the cliff rule's outcome on one curve as a named code.
+def _band_mean(levels: list[float], lo: int, hi: int) -> float:
+    """Return the mean of one band of the curve, or the floor where the band is empty."""
+    band = levels[lo : hi + 1]
+    return sum(band) / len(band) if band else -200.0
 
-    The edge search is ``_content_edge`` unrolled, because that function collapses three different
-    refusals into one ``None`` and the three are the whole question here.
+
+def _band_median(levels: list[float], lo: int, hi: int) -> float:
+    """Return the median of one band of the curve, or the floor where the band is empty."""
+    band = levels[lo : hi + 1]
+    return statistics.median(band) if band else -200.0
+
+
+def cliff_probe(curve: _Curve) -> str:
+    """Return the retired reference-band fall's outcome on one curve as a named code.
+
+    The edge search is that rule's own, unrolled, because it collapsed three different refusals into
+    one ``None`` and the three are the whole question here.
     """
-    bottom, top = (curve.at(h) for h in junkadvisor.CLIFF_WINDOW_HZ)
+    bottom, top = (curve.at(h) for h in CLIFF_WINDOW_HZ)
     limit = curve.floor + junkadvisor.CONTRAST_DB
     edge = -1
     for i in range(bottom, top + 1):
@@ -95,11 +116,11 @@ def cliff_probe(curve: _Curve) -> str:
     if edge >= top:
         return "edge_at_top"
     kept = len(curve.levels)
-    guard = max(1, round(junkadvisor.CLIFF_GUARD_HZ * (curve.bins - 1) / curve.bandwidth))
+    guard = max(1, round(CLIFF_GUARD_HZ * (curve.bins - 1) / curve.bandwidth))
     above = _band_median(curve.smoothed, min(kept - 1, edge + guard), kept - 1)
-    ref = _band_mean(curve.smoothed, curve.at(junkadvisor.CLIFF_REF_HZ[0]), curve.at(junkadvisor.CLIFF_REF_HZ[1]))
+    ref = _band_mean(curve.smoothed, curve.at(CLIFF_REF_HZ[0]), curve.at(CLIFF_REF_HZ[1]))
     depth = ref - above
-    if depth < junkadvisor.CLIFF_SPLIT_DB:
+    if depth < CLIFF_SPLIT_DB:
         return f"split_short d={bucket(depth, DEPTH_BUCKET_DB)}"
     return f"fires d={bucket(depth, DEPTH_BUCKET_DB)} ceil={curve.hz(edge) / 1000:.0f}k"
 

@@ -58,7 +58,7 @@ from jbthresholds import BASE_LABEL_CANDIDATES, LABEL_CANDIDATES, PartRow, best_
 from jbtilt import TILT_READINGS, block_tilt_values, tilt_augment
 from jbveto import real_veto
 
-from hqptuner.engine import junkadvisor
+from hqptuner.engine import blockstats, junkadvisor
 
 
 @dataclass
@@ -138,7 +138,13 @@ def _block_values(
     off it without smoothing the block a second time.
     """
     mins = block.min(axis=0)
-    verdict = junkadvisor.classify([float(v) for v in mins], ctx.bandwidth, samplerate=ctx.samplerate, sdm=False)
+    verdict = junkadvisor.classify(
+        [float(v) for v in mins],
+        ctx.bandwidth,
+        samplerate=ctx.samplerate,
+        sdm=False,
+        block=blockstats.block_record(np.power(10.0, block / 10.0).tolist(), ctx.bandwidth),
+    )
     e2_upper, e2_lower = e2_parts(block, ctx.grid)
     residual = block_residual(block, ctx.grid)
     e3_num, e3_ref, e3_over = e3_parts(residual, ctx.grid)
