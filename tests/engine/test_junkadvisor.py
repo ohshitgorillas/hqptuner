@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from hqptuner.engine import junkadvisor
+from hqptuner.engine import junkadvisor, junkrun
 from hqptuner.engine.blockstats import block_record
 from hqptuner.engine.junkadvisor import classify, verdicts
 
@@ -56,12 +56,21 @@ def _classify(levels: Levels) -> Verdict | None:
     return classify(levels, BANDWIDTH, samplerate=SAMPLERATE, sdm=False)
 
 
+def _run_over(record: BlockRecord) -> junkrun.JunkRun:
+    """A fresh run that has seen the same closed block twice in a row."""
+    run = junkrun.JunkRun()
+    run.observe(record, BLOCK_HZ)
+    run.observe(record, BLOCK_HZ)
+    return run
+
+
 def _corner_on(levels: Levels, grid: Grid, block: BlockRecord | None) -> Corner:
     """The corner a caller gets for one window, with or without a closed block."""
     hz, rate = grid
     if block is None:
         return _corner(classify(levels, hz, samplerate=rate, sdm=False))
-    return _corner(classify(levels, hz, samplerate=rate, sdm=False, block=block))
+    run = _run_over(block)
+    return _corner(classify(levels, hz, samplerate=rate, sdm=False, run=run))
 
 
 def _classify_held(levels: Levels, holder: SpurHolder) -> Verdict | None:
@@ -191,8 +200,8 @@ def test_20k_is_earned_only_on_a_deep_drop(call: Call, corner: Corner) -> None:
 
 def _verdict_corners(levels: Levels) -> Corners:
     """Every corner a caller reading one window with its closed block is offered."""
-    record = block_record(_rows(levels), BLOCK_HZ)
-    found = verdicts(levels, BLOCK_HZ, samplerate=BLOCK_RATE, sdm=False, block=record)
+    run = _run_over(block_record(_rows(levels), BLOCK_HZ))
+    found = verdicts(levels, BLOCK_HZ, samplerate=BLOCK_RATE, sdm=False, run=run)
     return tuple(sorted(str(verdict["filter"]) for verdict in found))
 
 
