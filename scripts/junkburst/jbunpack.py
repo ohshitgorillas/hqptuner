@@ -49,7 +49,10 @@ def unpack_one(path: Path) -> str:
     npy, meta = DER / f"{stamp}.npy", DER / f"{stamp}.json"
     if npy.exists() and meta.exists():
         return f"{stamp} skip"
-    doc = json.loads(_first_member(path).decode("utf-8"))
+    try:
+        doc = json.loads(_first_member(path).decode("utf-8"))
+    except (zlib.error, UnicodeDecodeError, json.JSONDecodeError):
+        return f"{stamp} corrupt"
     frames = doc["frames"]
     if not frames:
         return f"{stamp} empty"
@@ -102,5 +105,5 @@ def unpack(workers: int) -> None:
     with ProcessPoolExecutor(max_workers=workers) as pool:
         for line in pool.map(unpack_one, todo, chunksize=1):
             done += 1
-            if done % 25 == 0 or done == len(todo):
+            if "corrupt" in line or "empty" in line or done % 25 == 0 or done == len(todo):
                 print(f"{done}/{len(todo)} {line}", flush=True)
