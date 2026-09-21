@@ -22,7 +22,7 @@ from jbcurves import Grid, content_curves, frame_content, musical_frames, readin
 from jbderived import load_burst, musical_groups, stats, summed_db, track_key
 from jbreport import SpectrumSweep, write_report
 
-from hqptuner.engine import blockstats, junkadvisor
+from hqptuner.engine import blockstats, junkadvisor, junkrun
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -102,16 +102,19 @@ def _advisor_rows(
             burst["bandwidth"],
             samplerate=burst["samplerate"],
             sdm=False,
-            block=blockstats.block_record(np.power(10.0, frames / 10.0).tolist(), burst["bandwidth"]),
         )
-        predicted = "cliff" if (verdict or {}).get("filter") == "20k" else "full"
+        reading = junkrun.read_block(
+            blockstats.block_record(np.power(10.0, frames / 10.0).tolist(), burst["bandwidth"]), burst["bandwidth"]
+        )
+        junk = reading.state is junkrun.State.JUNK
+        predicted = "cliff" if junk else "full"
         out.append(
             {
                 "stamp": burst["stamp"],
                 "block": index,
                 "label": lab,
                 "predicted": predicted,
-                "verdict": (verdict or {}).get("filter"),
+                "verdict": "20k" if junk else (verdict or {}).get("filter"),
             }
         )
     return out

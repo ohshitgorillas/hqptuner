@@ -28,7 +28,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.engine import blockstats, junkadvisor
+from hqptuner.engine import blockstats, junkadvisor, junkrun
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -122,6 +122,9 @@ class SpectralAggregate:
     ``blockstats.BlockRecord``: the per-bin minimum the persistence window is folded from, the per-bin 90th
     percentile, and the three band scalars. The last WINDOW_BLOCKS records form the window. Silent frames never
     reach a record (they carry no signature either), and a block that saw only silence closes carrying none.
+
+    Every block reaches ``junk_run`` as it closes, whatever the caller's poll does, so the 20k run rule reads the
+    blocks themselves rather than the ones a poll happened to land on.
     """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
@@ -130,6 +133,7 @@ class SpectralAggregate:
         self.bandwidth = bandwidth
         self.frames = 0
         self.seconds = 0.0
+        self.junk_run = junkrun.JunkRun()
         self._blocks: deque[blockstats.BlockRecord] = deque(maxlen=WINDOW_BLOCKS)
         self._latest: blockstats.BlockRecord | None = None
         self._rows: list[list[float]] = []
@@ -157,6 +161,7 @@ class SpectralAggregate:
             self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
             if self._latest is not None:
                 self._blocks.append(self._latest)
+            self.junk_run.observe(self._latest, self.bandwidth)
             self._rows = []
             self._block_min = None
             self._block_seconds = 0.0
@@ -246,7 +251,7 @@ class MeteringReader:
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
             holder=self._holder,
-            block=agg.latest_block(),
+            run=agg.junk_run,
         )
 
     def recommendation(self) -> dict[str, Any] | None:

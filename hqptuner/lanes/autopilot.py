@@ -4,9 +4,11 @@ A pure decision with no I/O: the caller supplies the live signature (``engine.me
 and the active main filter's name. The answer is a junk-filter NAME for the caller to write.
 
 Auto-pilot's resting state is nothing engaged. The junk filter is a corrective, not a preference: with auto-pilot on,
-it is engaged for the signature that calls for it and released the moment that signature clears, so a track carrying
-nothing to treat plays through no filter at all. A user who wants to hold a filter of their own switches auto-pilot
-off, which setting the filter by hand already does for them (``api/routes/apply.py``).
+it is engaged for the signature that calls for it and released when that signature clears, so a track carrying
+nothing to treat plays through no filter at all. The 20k signature clears on the run rule's terms rather than on one
+block's: it stands through blocks that read nothing and releases on the first block that reads real (``junkrun``).
+A user who wants to hold a filter of their own switches auto-pilot off, which setting the filter by hand already does
+for them (``api/routes/apply.py``).
 
 The one thing that stays auto-pilot's hand is an active main filter from the families a spur verdict offers: it
 removes the spur by resampling, so switching to a hires filter drops the junk filter and switching away brings it

@@ -42,7 +42,7 @@ LABEL_CAND_TITLE = {
     "AM": "AM — the larger of A's fall and AW's fall, NaN only when both carry no reading",
     "B": "B — per-bin mean of linear power, cliff fall (dB)",
     "C": f"C — share of the block's frames with content above {CANDIDATE_C_HZ / 1000:g} kHz",
-    "advisor": "junkadvisor.classify on the block's per-bin minimum (1 when the verdict names 20k)",
+    "advisor": "junkrun.read_block on the block's own record (1 when the block reads junk)",
     "D": f"D — share of the block's musical frames with content above {CANDIDATE_D_HZ / 1000:g} kHz",
     "E2": (
         f"E2 — per-frame band level, linear power summed over "
