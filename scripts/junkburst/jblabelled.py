@@ -58,7 +58,7 @@ from jbthresholds import BASE_LABEL_CANDIDATES, LABEL_CANDIDATES, PartRow, best_
 from jbtilt import TILT_READINGS, block_tilt_values, tilt_augment
 from jbveto import real_veto
 
-from hqptuner.engine import blockstats, junkadvisor
+from hqptuner.engine import blockstats, junkrun
 
 
 @dataclass
@@ -138,12 +138,8 @@ def _block_values(
     off it without smoothing the block a second time.
     """
     mins = block.min(axis=0)
-    verdict = junkadvisor.classify(
-        [float(v) for v in mins],
-        ctx.bandwidth,
-        samplerate=ctx.samplerate,
-        sdm=False,
-        block=blockstats.block_record(np.power(10.0, block / 10.0).tolist(), ctx.bandwidth),
+    reading = junkrun.read_block(
+        blockstats.block_record(np.power(10.0, block / 10.0).tolist(), ctx.bandwidth), ctx.bandwidth
     )
     e2_upper, e2_lower = e2_parts(block, ctx.grid)
     residual = block_residual(block, ctx.grid)
@@ -156,7 +152,7 @@ def _block_values(
         "AM": am_value(float(curves.p90_fall[index]), float(curves.wu_fall[index])),
         "B": float(curves.mean_fall[index]),
         "C": float(ctx.content22[g].sum()) / len(g),
-        "advisor": 1.0 if (verdict or {}).get("filter") == "20k" else 0.0,
+        "advisor": 1.0 if reading.state is junkrun.State.JUNK else 0.0,
         "D": float(ctx.content24[g].sum()) / len(g),
         "E2": e2_value(e2_upper, e2_lower, CANDIDATE_E2_MIN_REF_SPREAD_DB),
         "E3": e3_value(e3_num, e3_ref, e3_over, CANDIDATE_E3_MIN_REF_OVER_FLOOR_DB),

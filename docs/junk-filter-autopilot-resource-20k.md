@@ -268,11 +268,11 @@ No test pins the block median across frames for the scalars, and no test compare
 |---|---|---|
 | Block statistics | `blockstats.py`, 1 s blocks, every frame ingested | shipped |
 | 20k rule | mask, loud-frame step, veto with yield, per-block verdict in `junkadvisor.py` | shipped |
-| Run rule | engage on the second junk block within gap 3, hold through dropped blocks, drop on the first kept real block, reset on rate change; auto-pilot and the chip follow it | next |
+| Run rule | engage on the second junk block within gap 3, hold through dropped blocks, drop on the first kept real block, reset on rate change; auto-pilot and the chip follow it | shipped, `junk-run-rule` |
 | Spur window | reach from 30 blocks down to 3 to 5 (section 4), graded on the corpus first | open |
 | Oracle fixture | stored rows plus the scoring package's readings under `tests/support/fixtures/`, one line pinning `block_record` within 1e-4 dB | open |
 
-Rulings in `gauntlet/plans/approved/junk-live-verdict.txt`: line 12 permits one closed block's statistics beside the rolling minimum; line 13 states the content-ceiling test, and the 20k plan amends it to junk above the fold at or above the level line; line 14 forbids hysteresis and hold, and the run rule amends it. The junkcal fixture under `scripts/junkcal_eval.py` carries no 20k scorer; the 20k grading surface is the burst corpus of section 2. Auto-pilot samples the per-block verdict every 2 s with no confirming block and no hold, so a track near the cut can move the junk filter on the daemon every poll.
+Rulings in `gauntlet/plans/approved/junk-live-verdict.txt`: line 12 permits one closed block's statistics beside the rolling minimum; line 13 states the content-ceiling test, and the 20k plan amends it to junk above the fold at or above the level line; line 14 forbids hysteresis and hold, and the run rule amends it. The junkcal fixture under `scripts/junkcal_eval.py` carries no 20k scorer; the 20k grading surface is the burst corpus of section 2.
 
 The corpus holds no 44.1 or 48 kHz bursts: 72 at 88.2 kHz, 338 at 96 kHz, 118 at 192 kHz. No burst in the port sample carried a silent frame under the engine's RMS gate, so the silent path of the port is unmeasured.
 

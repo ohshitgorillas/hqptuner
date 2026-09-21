@@ -8,11 +8,10 @@ what was detected, and the caller decides what to do with the pair.
 
 Signatures (manual p.53, "Playback filter"):
 - junk standing above an image fold in a hi-res container → ``20k`` (sharp cut;
-  the manual's "fake high-res content" case), read per closed block: the band
-  above the fold at or above ``LEVEL_LINE_DB``, a loud-frame step over
-  ``STEP_CUT_DB``, and the ratio to the music under ``RATIO_VETO_DB`` or a step
-  reaching ``STEP_YIELD_DB``. A block whose band above the fold sits under the
-  level line earns nothing: the corner would trade floor for floor.
+  the manual's "fake high-res content" case), read by ``junkrun`` as a run over
+  closed blocks: it engages on the second junk block within ``junkrun.GAP_BLOCKS``
+  of the first, holds through blocks that read nothing, and releases on the first
+  block that reads real.
 - persistent narrow spurs above the music's natural decay → ``30k`` / ``40k``
   (slow roll-off above the corner). The manual's example cause is analog-tape
   transfers, but clipping harmonics of an authentic hi-res recording look the
@@ -30,8 +29,8 @@ A mean cannot separate the two: loud music raises the local baseline until the
 signature disappears into it (observed live: a 30.3 kHz tone 15 dB proud during a
 quiet intro fell to 6 dB of excess once the music started).
 
-The 20k rule reads neither that curve nor any window: it reads the block that
-closed most recently, and carries nothing from the block before it. The ramp is a
+The 20k rule reads neither that curve nor any window: it reads the run over the
+blocks as they closed, which the caller owns with its aggregate. The ramp is a
 property of the spectrum in front of it, recomputed on every call and held by
 nothing. The spur is not: a tone that has engaged is held per bin until its excess
 falls under ``SPUR_RELEASE_DB`` or the bin stops standing clear of the floor, so a
@@ -49,7 +48,7 @@ import math
 import statistics
 from typing import Any
 
-from hqptuner.engine import blockstats
+from hqptuner.engine import blockstats, junkrun
 
 # Eligibility floor: every signature lives above 24 kHz, so a container carrying
 # nothing up there has nothing for these rules to read.
@@ -61,17 +60,6 @@ FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
 #: The trough of the corpus histogram of (smoothed curve minus floor): floor mode
 #: 222097 rows at 1 dB, first local minimum 68205 at 11, content mode 75127 at 15.
 CONTRAST_DB = 11.0
-
-#: The level the band above the fold must reach for the corner to have anything to
-#: remove: the lowest line that keeps real music in play, and the locked line.
-LEVEL_LINE_DB = -125.0
-#: Ratio of that band to the 15-18 kHz music band at or above which the block is
-#: forced real: real ultrasonic content tracks the music to within about 15 dB.
-RATIO_VETO_DB = -15.0
-#: The loud-frame step's cut, candidate G90 locked at 11 dB.
-STEP_CUT_DB = 11.0
-#: The step at which the veto stands down, the top of the flat range.
-STEP_YIELD_DB = 14.0
 
 # Spurs: raw per-bin values against the curve's own wide median baseline. A
 # persistent tone is a few bins wide, which the 9-bin working curve erases.
@@ -146,7 +134,7 @@ class SpurHolder:
         return held
 
 
-# Owner-approved for this site: the block record is a sixth argument beside the window curve, its geometry and the
+# Owner-approved for this site: the junk run is a sixth argument beside the window curve, its geometry and the
 # held spur set, and none of the five folds into another.
 def classify(  # noqa: PLR0913
     min_levels_db: list[float] | None,
@@ -155,7 +143,7 @@ def classify(  # noqa: PLR0913
     samplerate: int | None,
     sdm: bool,
     holder: SpurHolder | None = None,
-    block: blockstats.BlockRecord | None = None,
+    run: junkrun.JunkRun | None = None,
 ) -> dict[str, Any] | None:
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
@@ -167,14 +155,14 @@ def classify(  # noqa: PLR0913
     the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes
     quiet under treatment while auto-pilot needs the untreated signature to know what to engage and what to let go of.
     Where more than one rule fires, the lowest corner is the verdict: it treats every signature the others name.
-    ``block`` is the record of the block that closed most recently, which the 20k rule alone reads; None, or a record
-    whose band above the fold has no reading, fires no 20k verdict.
+    ``run`` is the run over closed block readings the 20k rule alone reads; None, or a run standing unengaged, fires
+    no 20k verdict.
     """
-    found = verdicts(min_levels_db, bandwidth, samplerate=samplerate, sdm=sdm, holder=holder, block=block)
+    found = verdicts(min_levels_db, bandwidth, samplerate=samplerate, sdm=sdm, holder=holder, run=run)
     return min(found, key=lambda v: _CORNER_KHZ[str(v["filter"])]) if found else None
 
 
-# Owner-approved for this site: the same six arguments ``classify`` forwards.
+# Owner-approved for this site: the same six arguments ``classify`` forwards, the junk run among them.
 def verdicts(  # noqa: PLR0913
     min_levels_db: list[float] | None,
     bandwidth: float,
@@ -182,7 +170,7 @@ def verdicts(  # noqa: PLR0913
     samplerate: int | None,
     sdm: bool,
     holder: SpurHolder | None = None,
-    block: blockstats.BlockRecord | None = None,
+    run: junkrun.JunkRun | None = None,
 ) -> list[dict[str, Any]]:
     """Return one verdict per rule this spectrum fires, in 20k, spur, ramp order.
 
@@ -192,7 +180,7 @@ def verdicts(  # noqa: PLR0913
     if min_levels_db is None or not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
         return []
     curve = _Curve(min_levels_db, bandwidth)
-    rules = (_junk20k(block, bandwidth, samplerate or 0), _spur(curve, holder), _ramp(curve, samplerate or 0))
+    rules = (_junk20k(run, samplerate or 0), _spur(curve, holder), _ramp(curve, samplerate or 0))
     return [verdict for verdict in rules if verdict is not None]
 
 
@@ -282,20 +270,14 @@ def _percentile(levels: list[float], pct: int) -> float:
     return ordered[min(len(ordered) - 1, (len(ordered) * pct) // 100)]
 
 
-def _junk20k(record: blockstats.BlockRecord | None, bandwidth: float, samplerate: int) -> dict[str, Any] | None:
-    """Return the 20k verdict where one closed block carries junk the corner would remove.
+def _junk20k(run: junkrun.JunkRun | None, samplerate: int) -> dict[str, Any] | None:
+    """Return the 20k verdict where the run over closed blocks stands engaged.
 
-    Three tests over the record: the mask, which drops a block whose band above the fold sits under the level line or
-    has no reading at all; the loud-frame step over its cut; and the ratio to the music, which forces the block real
-    unless the step reaches the yield.
+    The per-block reading and the run over those readings are ``junkrun``'s; what is left here is the note, whose
+    ceiling is the fold of the run's most recent junk block.
     """
-    if record is None or not (math.isfinite(record.above_db) and record.above_db >= LEVEL_LINE_DB):
-        return None
-    step, fold = blockstats.loud_frame_step(record, len(record.minimum), bandwidth)
-    if not math.isfinite(step) or step < STEP_CUT_DB:
-        return None
-    vetoed = math.isfinite(record.ratio_db) and record.ratio_db >= RATIO_VETO_DB
-    if vetoed and step < STEP_YIELD_DB:
+    fold = run.engaged_fold() if run is not None else None
+    if fold is None:
         return None
     reason = (
         f"Junk above {fold / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container, consistent with fake hi-res. "
