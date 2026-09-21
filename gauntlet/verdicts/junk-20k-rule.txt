@@ -1,0 +1,4 @@
+RED 1: TypeError: classify() got an unexpected keyword argument 'block'
+RED 2: TypeError: classify() got an unexpected keyword argument 'block'
+RED 3: TypeError: verdicts() got an unexpected keyword argument 'block'
+RED 4: assert (-66.7, -66.7, -66.7) == (-66.7, None, -66.7)

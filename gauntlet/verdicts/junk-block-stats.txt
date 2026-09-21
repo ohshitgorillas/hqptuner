@@ -1,0 +1,6 @@
+ERROR 1: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: block_record fails to exist, so the line's null-stub bite (fails at block A, surface new) rests unproven
+ERROR 2: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: block_record fails to exist, so the line's null-stub bite (fails at input A, surface new) rests unproven
+ERROR 3: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: block_record fails to exist, so the line's null-stub bite (fails at those rows, surface new) rests unproven
+ERROR 4: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: SpectralAggregate.latest_block fails to exist (blockstats module absent), so the line's null-stub bite (fails after the first call, surface new) rests unproven
+ERROR 5: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: block_record fails to exist, so the line's null-stub bite (fails at bandwidth 24000.0, surface new) rests unproven
+ERROR 6: "ModuleNotFoundError: No module named 'hqptuner.engine.blockstats'" — null stub: block_record fails to exist, so the line's null-stub bite (fails at input B, surface new) rests unproven

@@ -1,0 +1,112 @@
+slug: junk-run-rule
+grounding: detective
+
+brief:
+> Draft the stage 1 plan for slug `junk-run-rule`: the engine engages the 20k junk filter on the second kept junk block within an index distance of 3, holds through dropped blocks, drops on the first kept block that reads real, and resets on a sample-rate change, as `docs/junk-filter-autopilot-resource-20k.md` section 3.2 and the section 7 stage table specify.
+> Make the auto-pilot and the junk chip follow that run-rule verdict in place of the raw per-block verdict from `hqptuner/engine/junkadvisor.py`.
+> Amend `gauntlet/plans/approved/junk-live-verdict.txt` line 14 for hold on the 20k setting.
+
+delivered: "the engine engages the 20k junk filter on the second kept junk block within an index distance of 3, holds through dropped blocks, drops on the first kept block that reads real, and resets on a sample-rate change" — changes 1 and 2.
+delivered: "Make the auto-pilot and the junk chip follow that run-rule verdict in place of the raw per-block verdict from `hqptuner/engine/junkadvisor.py`." — change 3, with changes 2 and 4; Caller-side delta.
+delivered: "Amend `gauntlet/plans/approved/junk-live-verdict.txt` line 14 for hold on the 20k setting." — change 7.
+
+## What is wrong
+
+The 20k verdict is one block's reading, sampled at poll cadence. `hqptuner/engine/junkadvisor.py:285` `_junk20k` answers off `record` alone; `hqptuner/engine/metering.py:249` hands it `block=agg.latest_block()` at the moment `verdict()` is called.
+
+Blocks close every second, `hqptuner/engine/metering.py:59` `BLOCK_SECONDS = 1.0`; auto-pilot samples every two, `hqptuner/config.py:81` `POLL_INTERVAL`, default `2.0`. So about every other closed block reaches no rule, and one block at the cut moves the daemon: `docs/junk-filter-autopilot-resource-20k.md:275` "a track near the cut can move the junk filter on the daemon every poll".
+
+The locked rule is a run over blocks. `:111` "engages on the second such kept block within an index distance of 3, holds through dropped blocks, and drops on the first kept block that reads real"; the ruling behind it at `:194`, "a dropped block neither confirms nor breaks the run"; gap and hold settled at `:203`, "The locked gap is 3, hold unbounded". Stage table row `:271` reads `next`.
+
+Nothing in the tree carries the distinction the rule turns on. `_junk20k` returns `None` for a masked block (`hqptuner/engine/junkadvisor.py:292`), for a step under the cut (`:295`) and for a vetoed block (`:298`) alike, so no caller can tell a dropped block from one that reads real.
+
+`gauntlet/plans/approved/junk-live-verdict.txt:14` "No hysteresis, no hold timer" forbids the hold, and `docs/junk-filter-autopilot-resource-20k.md:275` names the amendment owed: "line 14 forbids hysteresis and hold, and the run rule amends it".
+
+## What the owner sees change
+
+Auto-pilot engages 20k on the second confirming kept block, two to four seconds of coverage, instead of on the first poll that happens to catch one block over the cut.
+
+Once engaged it stands through blocks with nothing above the fold and through silent blocks, and releases on the first kept block that reads music. A track sitting at the cut no longer moves the filter every poll.
+
+The chip follows the same state, and clears as it does today once the engaged filter treats it. Same text, same markup.
+
+A sample-rate change starts the run over: nothing engages until two confirming kept blocks land on the new rate.
+
+At the other three boundaries the run stands, and each is a reading rather than a rule of its own. A pause mid-track keeps the aggregate (`docs/architecture.md:98`), so an engaged 20k stands through it and releases on the first kept block after resume that reads real. A track change at the same rate resets nothing, as the spur hold's does not (`:98`, "a held bin releases when the rules stop seeing it, not when the track changes"): an engagement bleeds into the next track until a kept block reads real, which is the bleed `docs/junk-filter-autopilot-resource-20k.md:194` accepts. The reason line names the fold of the most recent junk block in the run, not the fold that engaged it, so the ceiling on screen is never older than the last block that read junk.
+
+`CHANGELOG.md:5` `[Unreleased]` takes one `### Fixed` entry, wording at stage 2.
+
+Spur advice, ramp advice, the reason copy and the chip markup are untouched.
+
+## Which files get touched, and roughly how
+
+**1. New `hqptuner/engine/junkrun.py`.** Per-block reading and run state.
+
+- `read_block(record, bandwidth)`: the mask, step, veto and yield now at `hqptuner/engine/junkadvisor.py:292-299`, moved verbatim in arithmetic, returning a three-state reading — dropped, real, junk — with the fold from `blockstats.loud_frame_step` (`hqptuner/engine/blockstats.py:164`). `record is None` reads dropped, which is what a silent second closes as (`hqptuner/engine/metering.py:164-167`).
+- `JunkRun.observe(record, bandwidth)`, once per closed block, mirroring the graded scan at `scripts/junkburst/jbpolicyyield.py:118-150`: a block index that counts dropped blocks, the index of a pending first junk reading, and the fold. A junk reading within 3 of the pending index engages; a junk reading past 3 becomes the new pending index rather than nothing, the restart at `:144-145`; a dropped reading changes nothing while the pending index is still within reach and clears it past 3; a real reading clears the pending index and releases. `engaged_fold()` returns the fold of the most recent junk reading in the run, or None.
+- The four cuts move here from `hqptuner/engine/junkadvisor.py:67-74`, with `GAP_BLOCKS = 3` beside them. Hold is unbounded (`docs/junk-filter-autopilot-resource-20k.md:203`), so no constant.
+- Why its own module: `hqptuner/engine/junkadvisor.py` is 387 lines and `hqptuner/engine/metering.py` 393, both under the 400-line watch at `scripts/gates/check_file_length.py:43`. No ALLOWANCE entry is proposed. Layers are by package (`./pyproject.toml:231`), so a module inside `hqptuner.engine` needs no contract edit.
+
+**2. `hqptuner/engine/metering.py`.** `SpectralAggregate` owns one `JunkRun` and feeds it at the close in `add()` (`hqptuner/engine/metering.py:156-162`), so every closed block is observed whatever the poll does. Reset is then structural, with no reset code: the aggregate is replaced on a geometry change (`:354-356`, `agg.bins != bins or agg.bandwidth != bandwidth`) — bandwidth is the source Nyquist, so it moves with the rate — and dropped on a broken stream (`:291`). `verdict()` passes `run=` in place of `block=` (`:249`).
+
+**3. `hqptuner/engine/junkadvisor.py`.** `_junk20k` reads the run state and formats the same reason from the fold of the run's most recent junk reading; its block arithmetic leaves with change 1. The sixth argument of `classify` (`hqptuner/engine/junkadvisor.py:151`) and `verdicts` (`:178`) becomes the run holder, and `:195` passes it. Both `# Owner-approved for this site` comments (`:149-150`, `:177`) reword to name it: same site, same `noqa: PLR0913`, six arguments still. Module docstring `:10-16` and `:33-35` restate the rule.
+
+**4. `hqptuner/lanes/autopilot.py`.** Docstring only: `hqptuner/lanes/autopilot.py:7` "released the moment that signature clears" is no longer true of 20k. `desired_junk_filter` (`:23`) reads whatever verdict it is handed and does not change.
+
+**5. `docs/architecture.md:98`,** "clears on the first closed block that stops carrying the signature and on a block that closes silent", and `:99`, "waiting on the first closed block, up to a second of coverage", restate to the run rule. Normative rule, so it lands in the commit message too.
+
+**6. `docs/junk-filter-autopilot-resource-20k.md:271`** stage row `next` becomes shipped with slug and commit; the last sentence of `:275`, the poll-cadence defect, retires with it.
+
+**7. Two lines of `gauntlet/plans/approved/junk-live-verdict.txt`.** `gauntlet/plans/approved/junk-live-verdict.txt:14`, today "No hysteresis, no hold timer", forbids the hold. `gauntlet/plans/approved/junk-live-verdict.txt:12`, today "Nothing else spanning more than one block, and no memory of a past verdict, is", forbids the run state outright: the run is memory of past block readings and spans blocks, so line 12 is overturned by this plan, not left standing. Both amended. New lines:
+
+- No time-averaging survives anywhere in the detection path. Three structures are permitted and no other: the rolling per-bin minimum the brief names as the rules' input, over whatever reach the current plans set; statistics over one closed block of 1 s of coverage, that block's per-bin minimum, its per-bin 90th percentile and the band scalars read off its own frames; and the 20k run rule's state over closed block readings, which is the index of a pending first junk block, whether the filter is engaged and the fold behind the note. Nothing else spanning more than one block is.
+- Auto-pilot follows the live verdict directly: engage when present, release when absent. No wall-clock hold timer anywhere. The 20k verdict is a run over closed blocks rather than one block: it appears on the second kept junk block within an index distance of 3, stands through dropped blocks, clears on the first kept block that reads real, and resets on a sample-rate change.
+
+**8. `scripts/junkburst/jblabelled.py:146` and `scripts/junkburst/jbscore.py:105`.** Both grade one block at a time through `junkadvisor.classify(..., block=blockstats.block_record(...))`. The 20k decision each reads — `scripts/junkburst/jblabelled.py:159` and `scripts/junkburst/jbscore.py:107`, both `== "20k"` — comes from `junkrun.read_block`, the per-block reading they were already asking for. `classify` stays at both sites for the other corners, carrying `run=None` so the 20k rule is silent there, and `scripts/junkburst/jbscore.py:114` records `20k` where the block reads junk and `classify`'s corner otherwise, which is the column `scripts/junkburst/jbreport.py:154-158` prints and the value it holds today, 20k being the lowest corner whenever it fires. The burst-level run scan (`scripts/junkburst/jbpolicyyield.py:118-150`) is unedited.
+
+**9. `CHANGELOG.md:5`,** one entry under `### Fixed` (`:11`), written at stage 2 and landed verbatim.
+
+## Caller-side delta
+
+One production call site: `hqptuner/engine/metering.py:249`. Two scoring-script sites, change 8: `scripts/junkburst/jblabelled.py:146` and `scripts/junkburst/jbscore.py:105`.
+
+Three test sites, all in one file: `_verdict_corners` at `tests/engine/test_junkadvisor.py:195` passing `block=record`, and the helpers `_corner_on` (`:59`) and `_blocked` (`:157`) that carry a `BlockRecord` to it. They go through the tests lane; I write nothing under `tests/`.
+
+The verdict dict keeps its shape, so `hqptuner/core/autopilotops.py:60`, `hqptuner/api/routes/status.py:90`, `hqptuner/core/junkcal.py:62`, `hqptuner/static/store/alerts/junkadvice.js:10` and `hqptuner/static/components/AlertStrip.js:45` are unedited.
+
+## What it costs
+
+A new engine module carries the 90% per-file coverage floor with it, so the run state's engage, hold, release and reset each need a test.
+
+The owner approving this plan is what buys the overturn of `gauntlet/plans/approved/junk-live-verdict.txt:12` and `:14`.
+
+Hold is unbounded, so the filter can stand through a dropped stretch longer than the four-second bleed cap at `docs/junk-filter-autopilot-resource-20k.md:192`. `:194` accepts that bleed, "a dropped block on a fake, is accepted and preferred to flapping", and `:200` prices it: gap 3 engages 6 no-op blocks against gap 1's 0, with real bursts engaged 0 either way.
+
+`hqptuner/core/junkcal.py:62` keeps recording `reader.verdict()`, which becomes the run-rule verdict; its 15 s tick sees the run state, not a block. The fixture carries no 20k scorer (`docs/junk-filter-autopilot-resource-20k.md:275`), so nothing regrades.
+
+The corpus grade is already read off the locked rule by `scripts/junkburst/jbpolicyyield.py:118-150`, which change 8 leaves alone, so stage 2 measures nothing beyond the red run. Change 8's two sites read the same per-block junk decision they read today, so no graded number moves. No `bite:` value needs the examiner. Nothing is ASSUMED.
+
+Left out, each its own slug per `docs/junk-filter-autopilot-resource-20k.md:272-273`: the spur window and the oracle fixture.
+
+## Open questions
+
+None.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: "a  PASS  Redefinition still stated outright, and change 7 now states which ruling it overturns; resolved against the locked rule at `docs/junk-filter-autopilot-resource-20k.md:111` and the rewritten lines at plan lines 60-63."
+b  PASS  The one pointer left is repaired: `scripts/junkburst/jblabelled.py:159` is `"advisor": 1.0 if (verdict or {}).get("filter") == "20k" else 0.0,`, the line the sentence quotes.
+c  PASS  carried: "c  PASS  Count now matches mine: `hqptuner/engine/metering.py:249`, `scripts/junkburst/jblabelled.py:146`, `scripts/junkburst/jbscore.py:105`, and the three test sites. Grep over `hqptuner/`, `scripts/` and `tests/` finds no other caller of `classify`/`verdicts` passing the sixth argument."
+d  PASS  carried: "d  PASS  Cause named upstream of appearance: the per-block verdict read at poll cadence (`metering.py:249` against `BLOCK_SECONDS = 1.0` at `:59` and `POLL_INTERVAL` default 2.0 at `config.py:81`), plus no caller being able to tell a dropped block from a real one (`junkadvisor.py:292/295/298` all return None). First round on this surface."
+e  PASS  carried: "e  PASS  Change 7 names both rules it touches and states plainly that `:12` is overturned rather than untouched, with the replacement text given. The replacement drops the past-verdict clause, which the third permitted structure requires, and keeps \"Nothing else spanning more than one block is.\""
+f  PASS  carried: "f  PASS  The three boundaries I named are read: pause/resume against `docs/architecture.md:98` \"a pause mid-track keeps the aggregate\"; track change at the same rate against the same line's \"a held bin releases when the rules stop seeing it, not when the track changes\", with the bleed charged to `docs/junk-filter-autopilot-resource-20k.md:194`, which accepts no-op bleed and is what a new track's dropped or kept-real blocks produce; and the fold, now the most recent junk reading's rather than the engaging block's."
+g  PASS  carried: "g  PASS  \"None\", and nothing in the plan is a question the owner alone can settle; the line-12 amendment is repair work, not an escalation."
+h  PASS  carried: "h  PASS  Repaired and re-resolved. `classify` stays at both sites carrying `run=None`, so the recorded corner is unchanged for the spur and the ramp, and `jbscore.py:114` records `20k` where the block reads junk, which is what `classify` records today because 20k is the lowest corner whenever it fires; the column at `jbreport.py:154-158` holds the same value it holds now."
+i  PASS  carried: "i  PASS  Three brief sentences, three `delivered:` lines, each naming changes that still exist after the renumbering (1, 2, 3, 4, 7 and Caller-side delta). No `dropped:`."
+j  N/A   carried: "j  N/A   No file under the composition root `core/manager.py` (`docs/architecture.md:101`) is touched; change 8 adds nothing to it."
+k  PASS  carried: "k  PASS  `observe` now mirrors the graded scan clause by clause: engage within 3, restart on a junk reading past 3 (`jbpolicyyield.py:144-145`), a dropped reading clearing the pending index once the distance passes 3 (`:136-141`, reset on `gap > max_gap` with hold unbounded), release on a kept real reading. Each clause of the brief sentence now reads as the sentence reads."
+l  PASS  carried: "l  PASS  The cost line is now the price alone, \"The owner approving this plan is what buys the overturn of `gauntlet/plans/approved/junk-live-verdict.txt:12` and `:14`.\", and the overturn itself is stated once, in change 7. Change 8's new sentences each carry a fact not in an earlier section."
+
+Notes:
+- Change 3 now calls the fold "the fold of the run's most recent junk reading", the name change 1 gives it; the round-3 note is closed.

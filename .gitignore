@@ -137,3 +137,6 @@ apod-log.tsv
 
 # vendor installer kept for reference, 145 MiB and not ours to redistribute
 /HQPlayer6Embedded-setup-*.exe
+
+# junkburst scratch at the repo root: reports, logs, renders, eyes batch, throwaway scripts
+/.junkburst*

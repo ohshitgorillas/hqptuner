@@ -1,0 +1,160 @@
+slug: junk-20k-rule
+grounding: detective
+
+brief:
+> Draft the stage 1 plan for slug `junk-20k-rule`: replace the reference-band fall in `hqptuner/engine/junkadvisor.py` with the locked 20k rule stated in `docs/junk-filter-autopilot-resource-20k.md` section 2, read per closed block from `SpectralAggregate.latest_block()`, with the 9-bin median smooth applied to the record's p90 curve inside the rule.
+> Mirror the mask, step and yield arithmetic from the scoring package under `scripts/junkburst/`, cite each function mirrored, and state the tolerance against the scoring package over three stored bursts from `/srv/hqptuner/state/junkburst/derived/` read-only, one each at 88.2, 96 and 192 kHz.
+> Correct the `hqptuner/engine/blockstats.py` docstring that claims the record mirrors `jbedge.p90_curve`, and state what happens to the fixture rows under `scripts/junkcal_eval.py`, to the 20k reason copy, and to `gauntlet/plans/approved/junk-live-verdict.txt:13`.
+> Leave the run rule, `junk-live-verdict.txt:14`, the spur rule and the ramp rule unedited, and state in the cost section what the running engine does with a verdict that changes block by block.
+> Send to `gauntlet-detective` for grounding and `gauntlet-prosecutor` for review, and present on READY.
+
+delivered: "replace the reference-band fall ... read per closed block from `SpectralAggregate.latest_block()`, with the 9-bin median smooth applied to the record's p90 curve inside the rule." — changes 1, 2a, 2c, 3.
+delivered: "Mirror the mask, step and yield arithmetic from the scoring package ... cite each function mirrored, and state the tolerance ... one each at 88.2, 96 and 192 kHz." — change 2 and its mirror table; tolerance under What it costs.
+delivered: "Correct the `hqptuner/engine/blockstats.py` docstring ... and state what happens to the fixture rows ... to the 20k reason copy, and to `gauntlet/plans/approved/junk-live-verdict.txt:13`." — change 2d, change 4 with change 5's retired replay columns, change 1c, change 7.
+delivered: "Leave the run rule, `junk-live-verdict.txt:14`, the spur rule and the ramp rule unedited, and state in the cost section what the running engine does with a verdict that changes block by block." — Which files get touched (nothing under `_spur`, `_ramp`, `SpurHolder`), What it costs, flapping paragraph.
+delivered: "Send to `gauntlet-detective` for grounding and `gauntlet-prosecutor` for review, and present on READY." — header line `grounding: detective`; this draft is the prosecutor's round.
+
+## What is wrong
+
+The engine's 20k rule is not the locked rule. `hqptuner/engine/junkadvisor.py:301-317` reads a content edge inside 20 to 26 kHz off the 30 s window minimum and fires on the reference band minus the median above that edge, `:309` `ref = _band_mean(curve.smoothed, curve.at(CLIFF_REF_HZ[0]), curve.at(CLIFF_REF_HZ[1]))`. The resource note names that statistic as the thing to replace: `docs/junk-filter-autopilot-resource-20k.md:129` "the engine classifies on the 30 s block minimum through the reference-band fall", and `:269` lists this slug's content, "mask, loud-frame step, veto with yield, per-block verdict in `junkadvisor.py`, replacing the reference-band fall".
+
+Two defects behind it, both measured on the corpus. The edge finder walks past a hard wall: `:173` "some bin at the 26 kHz window top clears the floor plus `CONTRAST_DB` ... so `_content_edge` walks past the wall to the window top and returns None", 69 blocks with no reading at all. And the fall is capped by passage level: `:173` "a quiet passage where the reference sits near the dither floor, so a reference-band fall is capped by passage level; that cap is the statistic's limit, and the reason the floor step replaced it".
+
+The locked rule reads a closed block, not a window. `docs/junk-filter-autopilot-resource-20k.md:111`: "block kept at or above -125 dB per Hz above the fold, loud-frame step over its cut, and either the ratio to the music under -15 dB or the step at or over the 14 dB yield". Its four inputs exist in the engine already and nothing reads them: `hqptuner/engine/metering.py:162` `latest_block()`, "with no consumer yet" (`docs/junk-filter-autopilot-resource-20k.md:251`).
+
+One record field is not what its module says it is. `hqptuner/engine/blockstats.py:9` claims the functions mirror "``jbedge.p90_curve``"; `:119` `p90=[float(v) for v in np.percentile(frames[:, : grid.kept], 90, axis=0)]` is the raw percentile, while `scripts/junkburst/jbedge.py:90-93` runs that percentile through `median_smooth(..., SMOOTH_BINS)` before returning. Measured spread: `docs/junk-filter-autopilot-resource-20k.md:260` "the two differ by 8 to 26 dB per bin, widest at 192 kHz", and "the module docstring claims the record mirrors `p90_curve` and it does not".
+
+One closed block can be empty. `hqptuner/engine/metering.py:156` appends a record only `if self._rows`, so a block of frames all under the RMS gate closes carrying nothing and `latest_block()` goes on returning the block before it. Nothing reads it today, so the staleness is inert; a rule reading it is a verdict with memory, which `gauntlet/plans/approved/junk-live-verdict.txt:12` forbids: "No time-averaging and no memory of past verdicts survives anywhere in the detection path."
+
+## What the owner sees change
+
+The chip's 20k note starts and stops on different evidence. Today it needs content that stops inside 20 to 26 kHz on the 30 s minimum with a 30 dB fall below the 15 to 18 kHz band; after this it needs one closed second whose band above the fold stands at or above -125 dB per Hz, whose loud-frame step clears 11 dB, and whose ratio to the music clears the veto or whose step reaches 14 dB.
+
+Three audible consequences on the corpus's own albums. Soft walls now fire: Foundations of Burden and Wine Dark Sea, `docs/junk-filter-autopilot-resource-20k.md:125`, "a 20 to 25 dB fall over two to three kHz at 22 and 24 kHz". Junk that sits far below the music stops firing, because the mask drops the block: `:56` "a higher line never adds a costly error and only lowers the junk it is willing to leave". And real hi-res whose ultrasonics track the music is protected by the veto: `:109` "Under the policy no rule with the -15 dB veto engages a real burst anywhere in the corpus".
+
+The note also arrives up to one block later than today and changes at block rate. Both are under What it costs.
+
+The 20k reason line is rewritten, owner-approved this round, and the number in it now means the fold rather than a measured wall: change 1c.
+
+## Which files get touched, and roughly how
+
+**1. `hqptuner/engine/junkadvisor.py`** — the rule.
+
+1a. Delete `CLIFF_WINDOW_HZ`, `CLIFF_REF_HZ`, `CLIFF_GUARD_HZ`, `CLIFF_SPLIT_DB` with their provenance comments (`:63-76`), `_band_mean` and `_band_median` (`:280-287`, called only from `:308-309`), `_content_edge` (`:290-298`) and `_cliff` (`:301-317`). Six of those names are imported outside the module; Caller-side delta carries every site.
+
+1b. Add the four locked thresholds, each with its corpus reading beside it as `:40-41` requires: level line -125.0 dB per Hz (`docs/junk-filter-autopilot-resource-20k.md:56`, "-125 dB is the lowest line that keeps real music in play and is the locked line"), veto -15.0 dB (`:70`, "The locked veto is -15 dB"), step cut 11.0 dB (`:74`, "candidate G90, locked at 11 dB"), yield 14.0 dB (`:105`, "The locked yield is 14 dB, the top of the flat range").
+
+1c. Add `_junk20k(record, bandwidth, samplerate)`: kept test on `record.above_db`, step and fold from change 2c, veto with yield on `record.ratio_db`. It returns the shape the other two rules return, `{"filter": "20k", "reason": ..., "ceiling_khz": <fold>}`, and `ceiling_khz` is redefined in it: today `:317` carries the measured content ceiling, `round(ceiling / 1000, 1)`, and after this it carries the fold the step was read at, one of two constants, 22.0 or 24.0. Two masters with different walls caught at the same fold therefore print the same number. Owner-approved reason copy, this round, filled from the fold and the container rate:
+
+`Junk above 22.0 kHz in a 96 kHz container, consistent with fake hi-res. Recommend engaging the 20k high-frequency filter.`
+
+1d. `verdicts` (`:174-191`) and `classify` (`:151-171`) take one new keyword-only parameter, `block: blockstats.BlockRecord | None = None`, typed under `TYPE_CHECKING` so no runtime import and no import-linter edge (`pyproject.toml:225` `exclude_type_checking_imports = true`). `None`, or a record whose `above_db` is NaN, fires no 20k verdict. Rule order in `:190` stays cliff, spur, ramp.
+
+1e. `DROP_TOP_BINS` (`:54`) and `SMOOTH_BINS` (`:56`) move to `blockstats.py` and are read from there at `:121`, `:251` and `:252`. Reason under change 2b.
+
+1f. Module docstring: the 20k signature bullet (`:10-13`) is rewritten to the locked rule, and `:40-41` with it. That sentence, "every threshold below is read off the junkcal capture corpus with its reading recorded beside it", is overturned rather than satisfied by 1b: the four new thresholds are read off the burst corpus under `/srv/hqptuner/state/junkburst/`, and the junkcal capture corpus no longer grades this rule at all (change 5). Untouched: `SpurHolder`, `_spur`, `_excesses`, `_ramp`, `_ranks`, `_rank_correlation`, `_median_smooth`, `_percentile`, `eligible`, `treated`, `treats`, `hz`, `_Curve`.
+
+**2. `hqptuner/engine/blockstats.py`** — the mirrored arithmetic.
+
+2a. `block_record` (`:112-123`) is unchanged: the record keeps the raw percentile and the smooth runs when the step is read, per the brief.
+
+2b. `DROP_TOP_BINS` and `SMOOTH_BINS` land here and the `from hqptuner.engine import junkadvisor` import (`:20`) goes. Without the move the dependency is a cycle: `junkadvisor` must call the step arithmetic, and `blockstats:54` imports `junkadvisor` for `DROP_TOP_BINS`. The move makes `blockstats` the lower module and leaves `junkadvisor` importing it.
+
+2c. Add `p90_smoothed(record, bins, bandwidth)` and `loud_frame_step(record, bins, bandwidth) -> tuple[float, float]`, returning the largest absolute fold step and the fold it was read at. Mirrored, not imported, for the reason already at `:8-11` — the wheel does not carry `scripts/junkburst/`:
+
+| Mirrors | Source | What it is |
+|---|---|---|
+| `p90_smoothed` | `scripts/junkburst/jbedge.py:90-93` `p90_curve` | record `p90` through a 9-bin median smooth over the kept bins |
+| `loud_frame_step` | `scripts/junkburst/jbedge.py:96-98` `g90_value` | largest absolute fold step on that curve, over both folds |
+| the step itself | `scripts/junkburst/jbcandidates.py:207-219` `fold_step` | median of the 1.5 kHz band 300 Hz above the fold minus the same below it |
+| fold selection | `scripts/junkburst/jbcandidates.py:222-224` `abs_steps` | folds off the grid dropped, NaN when neither is on it |
+| the smooth | `scripts/junkburst/jbcurves.py:25-32` `median_smooth` | `scipy.ndimage.median_filter` in `nearest` mode, edges replicated |
+| the kept test | `scripts/junkburst/jbmask.py:99-105` `sweep_keep` | finite and at or above the line; "A NaN level is no reading rather than a low one" |
+| the veto | `scripts/junkburst/jbpolicy.py:23-27` `_loud_frame_call` | ratio finite and at or above `jbmirror.py:18` `MIRROR_VETO_LEVEL` = -15.0 forces the block real |
+| the yield | `scripts/junkburst/jbpolicyyield.py:45-53` `_fixed_yield_calls` | cut at `jbpolicy.py:106` `POLICY_G90_FIXED_CUT` = 11.0, veto standing down at the yield value |
+| the mask scalars | `scripts/junkburst/jbcandidates.py:323-340` `_fold_mask`, `mask_reading` | already mirrored at `blockstats.py:94-109`, unchanged |
+
+The line the kept test reads is `scripts/junkburst/jbmask.py:27` `MASK_SWEEP_ALBUM_LEVEL` = -125.0. Band geometry is `scripts/junkburst/jbconfig.py:105-106`, `CANDIDATE_G_GUARD_HZ = 300.0` and `CANDIDATE_G_BAND_HZ = 1_500.0`, folds `:146` `EDGE_FOLDS_HZ = (22_050.0, 24_000.0)`. The smooth replicates its edges in numpy (`np.pad` mode `edge`, then a sliding-window median), not the truncated-window form `junkadvisor.py:269-272` uses, because the tolerance below is per bin and the two forms differ over the outer four bins.
+
+2d. Module docstring `:8-11`: the record's `p90` mirrors the percentile row `jbedge.p90_curve` smooths, not `p90_curve` itself; the smooth is named as the reading rule's, beside the new functions.
+
+**3. `hqptuner/engine/metering.py`** — one argument and one empty-block fix.
+
+3a. `:237-243` passes `block=agg.latest_block()` beside `agg.window_min_db()`.
+
+3b. `latest_block()` (`:162-164`) stops returning a stale record. The aggregate holds the last closed block's outcome rather than reading the tail of `_blocks`, and a block that closes with no frames (`:156` `if self._rows:`) sets that outcome to `None`. Without it a quiet passage holds the previous second's verdict for as long as the silence lasts, which is the memory `gauntlet/plans/approved/junk-live-verdict.txt:12` forbids. `_blocks`, `BLOCK_SECONDS` (`:59`), `WINDOW_BLOCKS` (`:60`), `window_min_db` and the `SpurHolder` at `:201` are untouched, so the spur and ramp rules read exactly what they read before.
+
+**4. `scripts/junkcal_eval.py`** — the fixture scorer. A fixture row stores one windowed minimum spectrum (`:89-102` `full_curve`), no frames, so it carries no p90 and no band scalars and cannot produce a record. The cliff leaves both sides for every row, which is what `:105-120` already does for a `label_only` album: drop `cliff_positive` (`:136-146`), `cliff_expectation` (`:149-159`) and the `:171-172` branch, and drop the `label_only` special case with them, since no row gets cliff scoring any more. `docs/junk-filter-autopilot-resource-20k.md:274`: "The old 20k rule's 17 fixture rows under `scripts/junkcal_eval.py` lose their scorer when it goes; the 20k corpus is the burst corpus of section 2."
+
+**5. The scoring package and the junkcal diagnostics** — they model the retired rule and must keep running, because the tolerance measurement below is taken against them. The four deleted constants and the two deleted band helpers are re-founded where they are read, as the retired rule's own values rather than as imports of a rule that no longer exists:
+
+- `scripts/junkburst/jbconfig.py:30-32` and `:35-36` — `CLIFF_WINDOW_HZ`, `CLIFF_REF_HZ`, `CLIFF_GUARD_HZ`, `WALKUP_WINDOW_HZ`, `WALKUP_REF_HZ` become literals there, with one line saying whose values they were. `CLIFF_SPLIT_DB` is not among them: nothing in the package reads it, `jbcurves.py:192` only names it in prose, and its one live reader is `scripts/junkcal_why.py:102` below. Every downstream reader is then untouched: `jbcurves.py:9-11`, `:70`, `:216`, `:221`, `jbreport.py:11-12`, `:90-91`, `:169`, `jbscore.py:13`, `:120`.
+- `scripts/junkburst/jbconfig.py:27-28` — `DROP_TOP_BINS` and `SMOOTH_BINS` read from `hqptuner.engine.blockstats`; `:29` `FLOOR_PCT` and `:118` `CONTENT_SMOOTH_BINS` stay on `junkadvisor`.
+- `scripts/junkburst/jbscore.py:99` and `scripts/junkburst/jblabelled.py:141` — both grade `junkadvisor.classify` per block and both hold the block's frames, so both pass `block=blockstats.block_record(...)` and their advisor column goes on grading the shipped rule. The frames are already dB there, and `block_record` takes linear power (`blockstats.py:114`), so each call site converts.
+- `scripts/junkcal_why.py:38-39` and `:85`, `:98`, `:100`, `:102` — its own `_band_mean` and `_band_median` and its own copies of the three constants; `:143` replays stored rows with no frames behind them, so its 20k column retires and its cliff reasons become the retired rule's, named as such in its docstring (`:13-14`).
+- `scripts/junkcal_seq.py:139` — same shape, same retirement: stored rows, no frames, no record, no 20k verdict.
+
+**6. `docs/architecture.md:98` and `:99`** — two normative sentences go false. `:98` "The cliff and ramp verdicts are properties of the spectrum in front of the rules, recomputed on every read and held by nothing, so the note clears as soon as the current minimum stops carrying the signature": the cliff now reads the latest closed block. `:99` "Auto-pilot engages as soon as the stream carries a signature it can read, which no longer waits on a full persistence window": the 20k signature now waits for one closed block. Both amended, per the repo sheet's rule that a changed normative rule lands in that file.
+
+**7. `gauntlet/plans/approved/junk-live-verdict.txt:13`** — stated, not edited; the file is the prosecutor's to write. The ruling's first sentence and its 50k sentence stand. Its 20k sentence, "20k needs a content ceiling above 20 kHz with near-floor energy above it", is the reference-band fall's own test and has no term in the locked rule. Amended wording: *20k needs junk above the fold that the filter would actually remove: the band above the fold at or above the level line, below which the filter removes nothing.* `:14` is untouched, and the run rule amends it in its own slug (`docs/junk-filter-autopilot-resource-20k.md:274`).
+
+**8. `docs/junk-filter-autopilot-resource-20k.md:129` and `:269`** — both corrected in the same commit.
+
+**9. `CHANGELOG.md`** — one `[Unreleased]` entry; the advice the chip shows changes for the listener. Written and approved at stage 2, landed verbatim.
+
+**Gates.** `junkadvisor.py` measures 400 lines and sits exactly on the watch line (`scripts/gates/check_file_length.py:43` `WATCH_LINE = 400`); it carries no `ALLOWANCE` entry (`:48-62`) and this plan adds none. The arithmetic of change 2c is what would take it over, which is why it lives in `blockstats.py` (123 lines) rather than beside the thresholds. Deletions in 1a are 52 lines against roughly 40 added, so the file ends under 400 either way, and the split is for the module the arithmetic belongs to rather than for the count. `lint-imports` sees one new edge, `junkadvisor` to `blockstats`, inside the `engine` layer and legal; the removed edge was the reverse. Vulture: `_band_mean`, `_band_median`, `_content_edge` and `_cliff` all go together, so nothing is left unreferenced.
+
+## Caller-side delta
+
+Eight files outside `tests/`, plus two test modules and two scratch files left broken. Twenty-six edited sites, a site being one named line or range that an edit lands on, listed below. Two of the cited lines are edited by nothing: `scripts/junkcal_seq.py:139` and `scripts/junkcal_eval.py:113` both call the changed signature positionally, so their 20k column retires through the `block=None` default of 1d rather than through a diff, and `scripts/junkcal_seq.py` takes no edit at all.
+
+- `hqptuner/engine/metering.py:237` and `:156-164` — the one production caller of `classify`, and the empty-block outcome of change 3b.
+- `hqptuner/engine/blockstats.py:54` — `junkadvisor.DROP_TOP_BINS` becomes a local constant.
+- `scripts/junkburst/jbconfig.py:27`, `:28`, `:30-32`, `:35-36` — two reads repointed and five names re-founded as literals, per change 5. Their downstream readers in `jbcurves.py`, `jbreport.py` and `jbscore.py` do not change, which is the reason for founding them there.
+- `scripts/junkburst/jbscore.py:99` and `scripts/junkburst/jblabelled.py:141` — gain `block=`.
+- `scripts/junkcal_why.py:38-39`, `:85`, `:98`, `:100`, `:102`, `:143` — local helpers, local constants, 20k column retired.
+- `scripts/junkcal_seq.py:139` and `scripts/junkcal_eval.py:113` — 20k column retired, neither line edited. `:113` sits inside the `:105-120` range below, whose edit takes `row_filter`'s `label_only` parameter and its `:119` filter and leaves the call itself standing.
+- `scripts/junkcal_eval.py`, change 4's own edits, eleven ranges: the cliff functions at `:136-146` and `:149-159`; the `label_only` thread the cliff drop takes with it at `:105-120`, `:165-178`, `:184`, `:191-192`, `:211-212`, `:251` and `:257-258`, the cliff caller at `:171-172` being inside `expected_filter` and counted with it; and the docstring paragraphs that state both, `:18-27` and `:79-81`.
+- Two test modules: `tests/engine/test_junkadvisor.py:37-44`, the two `classify` helpers, with the 20k row of its cliff table at `:75`; and `tests/engine/test_junk_blockstats.py:44` `record = aggregate.latest_block()`, whose contract change 3b changes. Test changes are the writer's at stage 2, not this plan's.
+- Not repaired, and named rather than fixed: `docs/plans/junkcal-work/designs.py:95` and `docs/plans/junkcal-work/dump.py:77-92` read `CLIFF_WINDOW_HZ`, `CLIFF_GUARD_HZ`, `_band_mean` and `_band_median` directly. Scratch from a closed slug, on no gate path and imported by nothing; repairing it would be work on dead tooling.
+
+Nothing in `hqptuner/static/`, `hqptuner/api/` or `hqptuner/lanes/` changes: the verdict dict keeps its three keys, and `hqptuner/static/store/alerts/junkadvice.js:10` passes the whole object through unread. `ceiling_khz` has one reader in the tree, `scripts/junkcal_view.py:72`, which prints whatever number the verdict carries; the JS suite carries it as fixture data on 30k verdicts (`tests/js/components/chrome/junkadvice.test.js:34`, `:40`, `tests/js/components/chrome/shaperfit-strip.test.js:58`), which the 20k redefinition does not reach.
+
+## What it costs
+
+**Tolerance against the scoring package.** 1e-4 dB per bin and per scalar, `docs/junk-filter-autopilot-resource-20k.md:249`: "the port tolerance is 1e-4 dB per bin and per scalar, an order over the largest reading", the same tolerance the shipped record already meets at `:260`. It is stated here over the smoothed p90 curve and the loud-frame step, and over the block's boolean call it must agree exactly, a boolean having no tolerance. Measured at stage 2 by the `examiner` over one stored burst each at 88.2, 96 and 192 kHz from `/srv/hqptuner/state/junkburst/derived/`, read-only, every non-silent frame of five closed blocks per burst against `jbedge.g90_value` and `jbpolicyyield._fixed_yield_calls` on the same frames. Those three rates are the whole corpus: `:276` "The corpus holds no 44.1 or 48 kHz bursts: 72 at 88.2 kHz, 338 at 96 kHz, 118 at 192 kHz."
+
+**A verdict that changes block by block.** Blocks close every second (`hqptuner/engine/metering.py:59` `BLOCK_SECONDS = 1.0`) and the rule reads only the latest one, so the 20k verdict is a per-second verdict with no memory, and after change 3b a silent second clears it outright. Auto-pilot follows it directly and is forbidden hysteresis and any hold timer (`gauntlet/plans/approved/junk-live-verdict.txt:14`), and it samples at the status poll, 2.0 s by default (`hqptuner/config.py:81`, `hqptuner/api/lifespan.py:78`), so it sees every other block. It writes only on a change (`hqptuner/core/autopilotops.py:47-53`, "the ordinary case of the engaged filter already being the wanted one"), and each change is a readback-verified, event-logged `SetJunkFilter` through the LIVE lane (`hqptuner/core/autopilotops.py:1-13`). A track sitting near the cut therefore engages and releases the junk filter as often as once every 2 s, and a dropped block reads `OFF` whatever the step says (`docs/junk-filter-autopilot-resource-20k.md:56`), so a mask that drops alternate blocks releases an engaged filter mid-wall. The corpus shows exactly that shape: `:105` names three bursts whose "kept blocks 1 and 4, 2 and 4, 0 and 2" never fall two in a row. The confirming block and the hold that damp this are the run rule, the next slug (`:270`), and the brief leaves both out of this one. Until it lands, the engine runs the rule bare.
+
+**A block read on few frames.** The RMS gate keeps silent frames out of the record (`hqptuner/engine/metering.py:146`, `:61-64`), so a block that carries one surviving frame has a `p90` equal to that frame, where the 11 dB cut and the 14 dB yield were read over roughly 94 frames per second (`docs/junk-filter-autopilot-resource-20k.md:123`). The rule adds no frame-count guard and reads such a block like any other. That geometry is unmeasured by the corpus rather than tested against it: `:276` "No burst in the port sample carried a silent frame under the engine's RMS gate, so the silent path of the port is unmeasured." The guard against a single wrong block is the run rule's confirming block, which this slug does not carry.
+
+**Coverage, and a later note.** The 20k note waits for the first closed block, up to 1 s after the stream starts, where today the first folded frame already carries a readable spectrum (`hqptuner/engine/junkadvisor.py:161-164`). The spur and ramp rules are unaffected; they keep reading `window_min_db()`.
+
+**Grading moves off the fixture.** The junkcal corpus can no longer grade the 20k rule: 17 of its rows lose their scorer (change 4), and the two replay scripts that carry no frames lose their 20k column with it (change 5). What still grades the shipped rule is the burst corpus under `/srv/hqptuner/state/junkburst/`, through `jbscore.py` and `jblabelled.py` once both pass a record. Nothing inside the test suite pins the mirror; that oracle fixture is its own slug and is open (`docs/junk-filter-autopilot-resource-20k.md:262`, `:272`).
+
+**Left out deliberately.** The run rule, the spur window, and `flip`, candidate T, which the note leaves open and unadopted (`docs/junk-filter-autopilot-resource-20k.md:107`, "it stays open, not adopted") — the brief's fourth sentence: "Leave the run rule, `junk-live-verdict.txt:14`, the spur rule and the ramp rule unedited".
+
+## Open questions
+
+None. The reason copy was the one open question and the owner ruled on it this round; the approved string is in change 1c.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: "PASS  Escape taken outright in 1c: "`ceiling_khz` is redefined in it: today `:317` carries the measured content ceiling, `round(ceiling / 1000, 1)`, and after this it carries the fold", with the cost named ("Two masters with different walls caught at the same fold therefore print the same number") and the `junkcal_view.py` reason gone. Resolved against `hqptuner/engine/junkadvisor.py:317`."
+b  PASS  carried: "FAIL→PASS  The delta's jbconfig bullet now reads "two reads repointed and five names re-founded as literals, per change 5", so `CLIFF_SPLIT_DB` is founded in one place only, `scripts/junkcal_why.py`, which matches the tree: nothing in `scripts/junkburst/` imports it and `jbcurves.py:192` names it in prose. Reversal: I failed this letter last round on the delta bullet contradicting change 5's; the clause is gone."
+c  FAIL→PASS  The count resolves and matches mine. The `junkcal_eval.py` bullet now names eleven ranges — `:136-146`, `:149-159`, `:105-120`, `:165-178`, `:184`, `:191-192`, `:211-212`, `:251`, `:257-258`, `:18-27`, `:79-81` — with `:171-172` folded into `expected_filter`, which begins at `:162`, and the other bullets carry fifteen: metering 2, blockstats 1, jbconfig 4, jbscore and jblabelled 2, junkcal_why 6. Fifteen and eleven is twenty-six, the opening's number; eight files outside `tests/`, two test modules, two scratch files, and the two no-edit lines named as such. Reversal: I failed this letter in every previous round on a total that did not resolve against its own list; it does now.
+d  PASS  carried: "PASS  Cause named upstream of the appearance and cited: the edge finder walking past the wall to the window top and the fall capped by passage level, both at `docs/junk-filter-autopilot-resource-20k.md:173`, with the 69 no-reading blocks being that line's own counts summed (27+13+10+9+5+5)."
+e  PASS  carried: "PASS  Both overturns now stated. 1f names `junkadvisor.py:40-41` and says it is "overturned rather than satisfied by 1b"; change 6 quotes and amends `docs/architecture.md:98` and `:99`, and I read both lines — `:99` carries "Auto-pilot engages as soon as the stream carries a signature it can read, which no longer waits on a full persistence window". `junk-live-verdict.txt:12` is now named under What is wrong and `:13`, `:14` under change 7."
+f  PASS  carried: "PASS  Both edges read. The empty block is a defect of its own under What is wrong, grounded at `metering.py:156` `if self._rows:` against `junk-live-verdict.txt:12`, and change 3b makes an empty close set the outcome to `None`. The single-frame block gets its own cost paragraph with the RMS gate at `metering.py:146`, `:61-64`, the ~94 frames per second at `docs/junk-filter-autopilot-resource-20k.md:123`, the unmeasured silent path at `:276`, and no frame-count guard stated plainly."
+g  PASS  carried: "PASS  No open questions. The one that escalated last round was the owner's and the owner ruled this round; the approved string is carried character for character in change 1c and the section reads "None.""
+h  PASS  carried: "PASS  Traced one hop again from `classify`/`verdicts` and from the six deleted names: every non-scratch caller is now named and disposed of — `jbscore.py:99` and `jblabelled.py:141` pass `block=` and keep grading, the three replay scripts with no frames retire their 20k column, and jbconfig's literals leave `jbcurves.py`, `jbreport.py` and `jbscore.py` untouched. The rewritten claim under Grading moves off the fixture matches that trace. `hqptuner/static/`, `api/` and `lanes/` stay out of reach: `junkadvice.js:10` passes the object through and `ceiling_khz` has one reader, `junkcal_view.py:72`."
+i  PASS  carried: "PASS  Still one line per brief sentence, five of them, nothing beneath any; the changed third line names change 2d, change 4, change 5, change 1c and change 7, all elements present in the body."
+j  N/A   carried: "N/A   This project's architecture doc names no composition-root file for this check and the check template is unfilled; the plan touches `hqptuner/api/lifespan.py` not at all."
+k  PASS  carried: "FAIL→PASS  The third `delivered:` line now reads "change 2d, change 4 with change 5's retired replay columns, change 1c, change 7". Read against its brief sentence: change 4 is the junkcal_eval fixture scorer, change 5 carries the replay scripts' retired columns, change 1c the owner-approved reason copy, change 7 the ruling line. Reversal: I failed this line last round when it named change 5 and change 8 for clauses change 4 and change 7 deliver; the numbering now matches the body."
+l  PASS  Two sentences changed this round, the `junkcal_eval.py` bullet and the no-edit bullet's second clause; each carries a fact the other does not, and the containment reasoning appears once in each place it is needed rather than twice in one.
+
+notes:
+
+1. The owner approved one instantiation of the reason line, "Junk above 22.0 kHz in a 96 kHz container". The shipped string is a template that will also print 24.0 kHz and 88.2 or 192 kHz containers; whether the approval reaches those instantiations is the owner's word to give, at stage 2's copy pass.
+2. The tolerance figures are stage 2's, taken by the `examiner` in a metered run against the stored corpus; nothing in this gate settles whether those blocks exercise a NaN fold or a single-frame block, and the plan says as much.
