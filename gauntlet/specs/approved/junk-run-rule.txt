@@ -65,29 +65,36 @@ bin level less 16.7091 dB at this grid. Three inputs are named once and used by 
    existing: none, `grep -rn "junkrun\|JunkRun\|engaged_fold\|read_block" tests/` exits 1
      with no output
 
+collateral:
+- tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop
+  breaks: `hqptuner.engine.junkadvisor.classify` takes the keyword-only argument `run: junkrun.JunkRun | None` in place of `block`, so `_corner_on` at `tests/engine/test_junkadvisor.py:59`, which hands the `BlockRecord` `_blocked` builds at `:157` straight to `classify` as `block=`, no longer matches the signature and has to reach the corner through a `JunkRun`.
+  assertion: assert _corner_on(*call) == corner
+- tests/engine/test_junkadvisor.py::test_a_tone_keeps_its_corner_off_the_block
+  breaks: `hqptuner.engine.junkadvisor.verdicts` takes the keyword-only argument `run: junkrun.JunkRun | None` in place of `block`, so `_verdict_corners` at `tests/engine/test_junkadvisor.py:192`, which builds a `BlockRecord` with `blockstats.block_record` and hands it to `verdicts` as `block=`, no longer matches the signature and has to reach the corners through a `JunkRun`.
+  assertion: assert _verdict_corners(_with_a_27k_tone(_junk_over_music(junk_db))) == seen
+
 --- reviewer ---
 READY
-discriminates: sweep on the engaged fold - lines 1, 2 and 3 pair sequences of equal length
-differing only in what the blocks read, two distinct expected folds on `engaged_fold()`; line 4
-carries three aggregates varying cadence and content on `classify(...)`'s `filter` value.
+discriminates: sweep on the engaged fold - carried from round 4; no contract line changed this round.
 
-1  ADMITTED  fresh `JunkRun` observing B then A, and another observing A then A -> `engaged_fold()` after each pair is (None, 24000.0); "engages on the first junk block" fails it at the B,A pair, engaging on A and reading 24000.0 where the line reads None; bite: null stub returns (None, None) and fails at the second pair
-2  ADMITTED  fresh `JunkRun` observing A,C,C,A,C, and another observing A,C,C,C,A -> `engaged_fold()` after each sequence is (24000.0, None); "holds a pending first block for as long as no real block arrives" fails it at the second sequence, engaging on the A at distance four where the line reads None; bite: null stub returns (None, None) and fails at the first sequence
-3  ADMITTED  fresh `JunkRun` observing A,A,C,C,C, and another observing A,A,C,C,B -> `engaged_fold()` after each sequence is (24000.0, None); "releases on every block that does not read junk" fails it at the first sequence, releasing on the first C where the line reads 24000.0; bite: null stub returns (None, None) and fails at the first sequence
-4  ADMITTED  three `SpectralAggregate(1025, 48000.0)`, fed `add(frame, 1.0)` once with A's frames, three times with A's frames, and three times with B's frames -> `classify(...)`'s `filter` value read once per aggregate after its last call is (None, `20k`, None); "names the corner off the window in front of it and never the run" fails it at the first aggregate, where one closed A block reads junk and it names `20k` against the line's None; bite: null stub names no filter and fails at the second aggregate
+1  ADMITTED  carried  fresh `JunkRun` observing B then A, and another observing A then A -> `engaged_fold()` after each pair is (None, 24000.0); "engages on the first junk block" fails it at the B,A pair, engaging on A and reading 24000.0 where the line reads None; bite: null stub returns (None, None) and fails at the second pair
+2  ADMITTED  carried  fresh `JunkRun` observing A,C,C,A,C, and another observing A,C,C,C,A -> `engaged_fold()` after each sequence is (24000.0, None); "holds a pending first block for as long as no real block arrives" fails it at the second sequence, engaging on the A at distance four where the line reads None; bite: null stub returns (None, None) and fails at the first sequence
+3  ADMITTED  carried  fresh `JunkRun` observing A,A,C,C,C, and another observing A,A,C,C,B -> `engaged_fold()` after each sequence is (24000.0, None); "releases on every block that does not read junk" fails it at the first sequence, releasing on the first C where the line reads 24000.0; bite: null stub returns (None, None) and fails at the first sequence
+4  ADMITTED  carried  three `SpectralAggregate(1025, 48000.0)`, fed `add(frame, 1.0)` once with A's frames, three times with A's frames, and three times with B's frames -> `classify(...)`'s `filter` value read once per aggregate after its last call is (None, `20k`, None); "names the corner off the window in front of it and never the run" fails it at the first aggregate, where one closed A block reads junk and it names `20k` against the line's None; bite: null stub names no filter and fails at the second aggregate
 
-null stub: module `junkrun` present, `read_block` returns None, `JunkRun.observe` is a no-op, `engaged_fold()` returns None, `SpectralAggregate.junk_run` present and inert, `classify(run=...)` names no filter.
+collateral rows:
+tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop  ADMITTED (u): target is a test under `tests/`, its quoted assertion sits byte-identical in that test's own body at `tests/engine/test_junkadvisor.py:189`, `breaks:` names a fact outside the tests dir (`classify` taking `run:` in place of `block`, which `_corner_on` at `:59` and `_blocked` at `:157` feed today), and the row carries no `rule:`, `removed:`, `replace:`, `kills:` or `bite:`; the test keeps its file and its name, and no `existing:` clause in this block names it.
+tests/engine/test_junkadvisor.py::test_a_tone_keeps_its_corner_off_the_block  ADMITTED (u): target is a test under `tests/`, its quoted assertion sits byte-identical in that test's own body at `tests/engine/test_junkadvisor.py:205`, `breaks:` names a fact outside the tests dir (`verdicts` taking `run:` in place of `block`, which `_verdict_corners` at `:192-195` feed today), and the row carries no barred field; file and test name unchanged, and no `existing:` clause names it.
+
+null stub: carried from round 4 - module `junkrun` present, `read_block` returns None, `JunkRun.observe` is a no-op, `engaged_fold()` returns None, `SpectralAggregate.junk_run` present and inert, `classify(run=...)` names no filter.
   satisfies: none   fails: 1, 2, 3, 4
-hard-coded stub: content-blind counting - `engaged_fold()` is 24000.0 once two or more `observe` calls have landed within an index distance of 3, whatever the records read, with no release; `classify` names `20k` exactly when `engaged_fold()` is not None. Its sibling, answering the raw per-block verdict off the window with `junk_run` never consulted, is read against line 4 as well.
-  satisfies: none   fails: 1, 2, 3, 4 (counting stub: fails 1 at the B,A pair, 2 at the second sequence, 3 at the second sequence, 4 at the third aggregate; raw-verdict stub: fails 1, 2 and 3 on every fold and 4 at the first aggregate)
+hard-coded stub: carried from round 4 - content-blind counting, `engaged_fold()` 24000.0 once two `observe` calls land within distance 3 whatever they read, with no release, and `classify` naming `20k` exactly when the fold is not None; sibling stub answers the raw per-block verdict with `junk_run` never consulted.
+  satisfies: none   fails: 1, 2, 3, 4
 
 survives: 4
 
-R6 is closed on the citation returned: `tests/engine/test_junkadvisor.py:173` and `:176` are input A's and input B's shapes, so the round-3 line was answered by the shipped per-block verdict and this one is not - the single-block aggregate is where the two part company.
+round-4 note 3 withdrawn on the citation returned: `hqptuner/engine/junkrun.py:58` reads `step, fold = blockstats.loud_frame_step(record, len(record.minimum), bandwidth)`, so the fold is computed from the record and the bandwidth passed in rather than chosen by the design; the (n) escape holds on the wire-derived reading and the note is closed.
 
-Block level (m): the brief's first sentence is pinned by lines 1, 2 and 3 for engage, hold and drop; its second sentence, the corner following the run rather than the raw per-block verdict, by line 4. The sample-rate reset clause is out of this block on the owner's ruling, relayed at round 2. The third brief sentence, amending `gauntlet/plans/approved/junk-live-verdict.txt` line 14, pins no behavior and is not a test matter.
+round-4 note 2 is discharged by the two `collateral:` rows above, which carry exactly the signature delta it named.
 
-notes for the owner (facts I am barred from reading; no verdict above rests on them):
-- The owner's ruling closing R4 reached this review as the main agent's paraphrase, not as the owner's words quoted. The `brief:` section carried into this approved file still contains the sample-rate reset clause, and no line in the file pins it.
-- Line 4's `existing:` is the junkrun grep, which is correct for the new surface; the fold-in question was ruled at round 2 - `tests/engine/test_junkadvisor.py::test_20k_is_earned_only_on_a_deep_drop` and `::test_a_tone_keeps_its_corner_off_the_block` drive `classify` with a record handed in directly, not through the `SpectralAggregate.add` cadence, so line 4 is not either of them with one more parametrize case. Those two tests do pass `block=`, the argument this block renames to `run=`, so they change with the signature; that delta is the main agent's to carry to the writer and is no part of these four lines.
-- Whether `engaged_fold()`'s 24000.0 is wire-derived (samplerate 96000 over four, matching `BLOCK_HZ` / `BLOCK_RATE` at `tests/engine/test_junkadvisor.py:36-38`) or a value the design chose rests on `hqptuner/engine/`, which I cannot read. On the wire-derived reading it takes the (n) escape; I did not strike on it, and it is the one fact in this block I could not check.
+note for the owner, carried: the `brief:` section still carries the sample-rate reset clause, which no line in this block pins; the ruling dropping it reached this review as the main agent's paraphrase rather than the owner's quoted words.
