@@ -27,21 +27,22 @@ brief:
 
 --- reviewer ---
 READY
-discriminates: sweep on hqptuner.engine.metering.band_levels (line 1: three tones, three distinct expected indices; line 2: same tone, two bandwidths), plus a level differential on BandRing.mean() and a cross-stream differential on data.bands
-
-round 2 finding, resolved:
-- line 3 STRICKEN (g): repaired. The clause now names "reports the newest triple alone", and the line rejects it - both rings then read -60.0, and -60.0 is not greater than -60.0. Withdrawn. My round-2 replacement wording was itself green against the line, as the return showed; the return's clause is the one that bites.
+discriminates: sweep on hqptuner.engine.metering.band_levels - three tone frequencies to three distinct indices at one bandwidth (line 1), one tone across two bandwidths (line 2); differential on BandRing.mean (line 3) and on GET /api/status data.bands (line 4)
 
 1  carried ADMITTED
 2  carried ADMITTED
-3  ADMITTED
+3  carried ADMITTED
 4  carried ADMITTED
 
-null stub: hqptuner.engine.metering exposes band_levels returning (0.0, 0.0, 0.0), BandRing whose mean() returns None, and /api/status serving data.bands as null.
+null stub: module present, band_levels returns (0.0, 0.0, 0.0), BandRing.mean returns None, /api/status serves data.bands as null.
   satisfies: none   fails: 1, 2, 3, 4
-hard-coded stub: return values keyed on the scalar arguments handed in - a fixed triple from band_levels and from the status handler, a newest-triple or frame-time-span branch in BandRing.mean() - with no bin located, no bandwidth used and no reduction over the ring.
-  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return a fixed triple per exact input frame and bandwidth, doing no bin-to-band work.
+  satisfies: none   fails: 1, 2, 3, 4 - lines 1 and 2 together force a frequency-to-band mapping that scales with bandwidth (line 1 holds bandwidth at 22050.0 across three frames, line 2 holds one frame across two bandwidths), and a stub keyed on either alone fails the other.
 
 survives: 4
 
-note, not a verdict: the block's `changelog (Added)` section is copy (rule 9) and was not ruled on here; it is not carried into the approved spec file, which holds the structure line, the brief and the four surviving behavior lines.
+cut, not written to the approved file: the `entry points:`, `wire facts:` and `fixtures:` sections added this round. They are not part of a spec block (docs/approved-specs.md, "What the reviewer writes": structure line, brief, behavior lines), they pin nothing, and the approved file is the surviving contract. Two further reasons they do not travel:
+- `wire facts:` states a conclusion about implementation I am barred from reading - "GET /api/status refuses with 503 until the first Status frame has landed" (hqptuner/api/routes/status.py:88). Unverified by me; it fills no field of line 4, whose bite is a null-stub bite and stands without it.
+- `fixtures:` misstates a readable fact. It says neither tests/conftest.py's harness section nor tests/support/fixtures_daemons.py carries a 4322 stream today; tests/support/fixtures_daemons.py:6 reads "fakes from `fake_http`, and the fake 4322 metering streams", tests/conftest.py:385 reads "metering reader harness (fake 4322 stream lives in fixtures_daemons)", and tests/e2e/support/stack.py:4 names `fake_metering` (4322). A writer told to build the fake from wire facts would duplicate an existing harness. This changes no verdict: line 4's `existing:` is about a test pinning the outcome, and `grep -rn 'bands' tests/api --include=*.py` still returns no match.
+
+greps re-run this round and confirmed: `grep -rn 'band_levels' tests --include=*.py` returns only tests/engine/test_junkadvisor.py:120 and its three call sites, a local helper against `classify`; `grep -rn 'BandRing' tests --include=*.py` returns no match; `grep -rn 'bands' tests/api --include=*.py` returns no match.
