@@ -1,0 +1,86 @@
+slug: meter-mini-spectrum
+discovery: detective
+
+brief:
+> Choose a reasonable chunk of this plan as a slug and take it through stage 1 of the plan gate.
+> Present at READY.
+
+delivered: Which files get touched, and roughly how — the header mini spectrum of `docs/plans/meter-mode.md:9`, backend bands plus header instrument, the rest of the METER doc cut under What it costs.
+delivered: the last line of What it costs — the draft reaches the owner only on the reviewer's `READY`.
+
+## What is wrong
+
+No level readout anywhere in the UI. `/api/status` carries metering as a bare bool — `"metering": manager.metering is not None` at `hqptuner/api/routes/status.py:101` — so the page knows metering is on and nothing about what it sees.
+
+The frames are already on the host. `MeteringReader._ingest()` (`hqptuner/engine/metering.py:356`) takes every frame and decodes per-bin power through `_frame_power()` (`:387-398`); the single consumer is the junk advisor aggregate `_agg` (`:211`), exposed by `aggregate()` (`:227-229`). Nothing else reads a frame.
+
+The header holds one instrument, `<${ApodLamp} />` at `hqptuner/static/components/Header.js:138`.
+
+`docs/plans/meter-mode.md:9` specifies the readout: "three band levels, low, mid and high, integrated by the backend over the poll interval".
+
+## What the owner sees change
+
+Three-band mini spectrum in the header, right of the apodizing lamp. Bars ease toward each poll's reading with `--sweep` (`hqptuner/static/css/base/tokens.css:241`).
+
+Bars park at floor when the engine is not playing, when metering is off, on a 1-bit source, where the stream sends no frames, and through digital silence, which does send frames (`hqptuner/engine/metering.py:378-384`, `SILENT_RMS_DB = -90.0` at `:64`) and reads as floor rather than as nothing.
+
+No new request and no cadence change: the bars ride the existing `/api/status` poll (`hqptuner/static/store/sync.js:120`, cadence derived at `hqptuner/static/store/ui.js:26-28` — 1 s in live mode, 2 s otherwise).
+
+Departure from `docs/plans/meter-mode.md:9`, "integrated by the backend over the poll interval": the reader integrates a fixed 1 s of frames instead, and a read neither drains nor resets it. The backend cannot see the poll interval, which is two values (`hqptuner/static/store/ui.js:26-28`); and `/api/status` has readers besides the poll — `setAutopilot` re-reads it out of band (`hqptuner/static/store/actions.js:397-399`), and each extra open page polls it — so a drain-on-read window would empty the bars under exactly the traffic that fills them.
+
+Readout only. No click target, no navigation, no METER page, no text on the instrument.
+
+## Which files get touched, and roughly how
+
+`hqptuner/engine/metering.py` — band integrator fed from `_ingest()` (`hqptuner/engine/metering.py:356`), which already holds the geometry it needs at `hqptuner/engine/metering.py:358`: `bandwidth, xform_time = float(header[4]), float(header[5])`, bandwidth being the source Nyquist (`docs/protocol.md:291`, "`f32 bandwidth` (Nyquist, Hz)"). New private helper sums the linear power `_frame_power()` returns (`hqptuner/engine/metering.py:387-398`) over three bin spans and clamps to a floor; the reader keeps the last 1 s of those triples, 1 s counted by that `xform_time`, and `bands()` returns their mean beside `aggregate()` (`hqptuner/engine/metering.py:227-229`) without mutating, `None` when the ring is empty. The ring clears wherever the reader stops streaming, which the aggregate does not: the pause branch keeps that on purpose — `keep = True  # paused: keep the aggregate for the resume` (`:291`) — and only a broken stream reaches `self._agg = None` (`:296`), so the ring is cleared on the not-playing branch as well as beside that line. A quiet stream reaches neither: `_stream` returns only on `ctx.playing` false (`:322-323`) and otherwise spins on the idle tick (`:326-327`), and a ring aged by arriving frames never ages when none arrive. `bands()` therefore ages the ring out, returning `None` once the newest triple is older than the window, which is what parks the bars on a 1-bit source entered without an intervening not-playing tick. That reading paces on a seam, not on a module-level clock, under `docs/testing.md:19-22` — "production code paces itself through injectable clock, suite virtualizes it" — which the age-out does not overturn: `MeteringReader.__init__` (`hqptuner/engine/metering.py:195-205`) takes `sleep` alone, "the test seam standing in for the reconnect backoff's wall clock" (`:204`), and gains a `monotonic` keyword beside it defaulting to `time.monotonic`, the shape `discover` already uses (`docs/testing.md:21`). The band tests inject it, so none waits on a wall clock (`:71`). `DECIMATE = 1` (`:48`), so 1 s of `xform_time` is 1 s of wall clock; a raised decimation would stretch the window by that factor. Edges: low below 250 Hz, mid 250 Hz to 4 kHz, high 4 kHz to `bandwidth` — `docs/plans/meter-mode.md:9` names "low, mid and high" and no corners.
+
+`blockstats.py:91-101` `_per_hz_level()` is not reused: it takes a 2-D dB array and a `Grid` where `_ingest` holds one frame of linear power, and `_band_bins` returns None for any band whose top lies above `grid.hz(grid.kept - 1)` (`hqptuner/engine/blockstats.py:80-88`), with `kept = bins - DROP_TOP_BINS` and `DROP_TOP_BINS = 25` (`:28`, `:64`), which is every high band running to Nyquist. Those top bins are dropped for the advisor because they "carry the anti-imaging filter's transition, not the master's" (`:27`); the high bar keeps them, since it reports what the source sends rather than scoring it.
+
+`hqptuner/api/routes/status.py` — the dict literal at `hqptuner/api/routes/status.py:94-103` gains `bands`, three floats or `null`. `null` when `manager.metering` is None and when `bands()` returns None. The `deps.snapshot` envelope (`hqptuner/api/deps.py:52-59`) is untouched.
+
+`hqptuner/static/components/MiniSpectrum.js` — new. Reads `engineStatus` (`hqptuner/static/store/signals.js:23`), renders three bars, maps dB to bar height against a fixed floor, floors on `null`.
+
+`hqptuner/static/components/Header.js` — one element beside `hqptuner/static/components/Header.js:138`, in the readout row with the lamp.
+
+`hqptuner/static/css/base/header.css` — rule block after `.apod-legend` (`hqptuner/static/css/base/header.css:156`): bar geometry, well, and the `--sweep` transition on height. Two bindings hold and neither is overturned: tokens-only for typography, surfaces, radius, motion and spacing (`docs/design-system.md:12`), and motion's three roles (`:27`), where `--sweep` is already "live readout easing toward value poll refreshes" and names "meter fill" as its case.
+
+`CHANGELOG.md` — one `[Unreleased]` entry, user-visible change.
+
+## Caller-side delta
+
+none. `bands` is additive on the `/api/status` body and every reader of `engineStatus` names its key (`hqptuner/static/store/alerts/junkadvice.js:10` reads `.junk`), including the out-of-band read at `hqptuner/static/store/actions.js:397-399`. `bands()` is a new accessor with no existing call site. No file outside the list above changes.
+
+## What it costs
+
+The per-file 90% coverage floor is the offline pytest one, so it binds the band integrator and not `MiniSpectrum.js`. No live test exercises `MeteringReader.run`, `_stream` or `_ingest`: `ls tests/engine/ | grep -i meter` returns `test_metering_idle.py` alone, and that file covers the `metering_enabled` env switch (`tests/engine/test_metering_idle.py:13`). Band ingest tests therefore build a frame fixture from nothing; `SpectralAggregate` has a fed-power precedent at `tests/engine/test_junk_persistence.py:55` but no reader-level one.
+
+Cut from the METER doc, each its own later slug: the SSE feed and broadcaster (`docs/plans/meter-mode.md:21-25`), the METER page with its meters, spectrum, advisor overlay and chart recorder (`:27-43`), the mode switch and the click that opens the page (`:7`), the canvas colour-token rule bound for `docs/design-system.md` (`:45-47`), and the `prefs.js` settings (`:49-51`).
+
+Hand-back costs a `/task-check` rebuild and a `user-reviewer` pass on the running container, since the change is visual.
+
+This draft reaches the owner only on the reviewer's `READY`.
+
+## Open questions
+
+None.
+
+--- reviewer ---
+READY
+
+a  PASS  carried: the change to what `docs/plans/meter-mode.md:9` specifies is stated outright, under **What the owner sees change**, headed "Departure from `docs/plans/meter-mode.md:9`", with the reason the doc's wording cannot be implemented
+b  PASS  the citations the changed sentence adds say what it says they say: `docs/testing.md:19` reads "So production code paces itself through injectable clock, suite virtualizes it", `:21` has `discover` take `clock` and `sleep` keywords defaulting to `time.monotonic` and `asyncio.sleep`, `:71` strikes a wall-clock test on sight, and `hqptuner/engine/metering.py:195-205` is the constructor taking `sleep` alone with its seam docstring at `:204`; resolved: 48
+c  N/A   carried: nothing is split, extracted or moved; `bands` is additive on the response body and `bands()` has no existing call site
+d  PASS  carried: the cause is named upstream of the appearance — a bare bool at `hqptuner/api/routes/status.py:101` over frames already decoded at `hqptuner/engine/metering.py:356` and read by one consumer
+e  PASS  the rule the age-out lands on is named and its disposition stated: `docs/testing.md:19-22` is not overturned, the reading pacing on a `monotonic` keyword added beside `sleep` on `MeteringReader.__init__` (`hqptuner/engine/metering.py:195-205`, `:204`), defaulting to `time.monotonic` as `docs/testing.md:21` has `discover` do, with `:71` left intact; the two design-system bindings (`docs/design-system.md:12`, `:27`) and `hqptuner/engine/blockstats.py:80-88` remain named and undisturbed
+f  PASS  carried: every boundary carries a reading: not playing, metering off, 1-bit source, digital silence (`hqptuner/engine/metering.py:378-384`, `SILENT_RMS_DB = -90.0` at `:64`), empty ring, and the two poll cadences (`hqptuner/static/store/ui.js:26-28`), which the fixed 1 s window makes irrelevant to the reading
+g  PASS  carried: the plan carries no open question, and the departure it declares is put in front of the owner in the owner-visible section rather than raised as one
+h  PASS  carried: each reading under **What the owner sees change** now has a mechanism that produces it: the not-playing branch and the broken stream clear the ring, and the age-out covers the quiet stream `_stream` does not leave (`hqptuner/engine/metering.py:322-323`, `:326-327`)
+i  PASS  carried: both brief sentences carry a line, and the second now names an element that exists — "This draft reaches the owner only on the reviewer's `READY`." is the last line of **What it costs**
+j  N/A   carried: this project's architecture doc names no composition root for the check, and the plan touches no app-assembly or lifespan file
+k  PASS  carried: each `delivered:` element reads as its sentence reads — a chunk of the METER doc taken through stage 1, the rest cut and each cut named, and the presentation held to `READY`
+l  PASS  carried: every sentence carries a fact not in the citation beside it or in an earlier section; the two mentions of `hqptuner/static/store/actions.js:397-399` carry different facts (it would drain a per-read window; it names its key on the response body)
+m  PASS  carried: every row under **What the owner sees change**, the declared departure included, is mechanism inside the element the first `delivered:` line names
+
+notes:
+- The reader has one construction site, `hqptuner/api/lifespan.py:75`, which passes three positional arguments and no keywords, so the defaulted `monotonic` keyword leaves **Caller-side delta** at none as written.
+- The band corners (250 Hz, 4 kHz) remain the plan's own choice against a doc that names none — the owner's call at presentation, not mine.

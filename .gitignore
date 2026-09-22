@@ -140,3 +140,6 @@ apod-log.tsv
 
 # junkburst scratch at the repo root: reports, logs, renders, eyes batch, throwaway scripts
 /.junkburst*
+
+# metering probe scratch at the repo root: throwaway probes against the 4322 stream
+/.meter_probe*
