@@ -30,9 +30,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
-from hqptuner.engine.bands import BAND_WINDOW_SECONDS, Bands, frame_power, frame_silent
-from hqptuner.engine.bands import BandRing as BandRing
-from hqptuner.engine.bands import band_levels as band_levels
+from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, Bands, band_levels, frame_power, frame_silent
+
+#: the reader's public surface, the band level and its ring included
+__all__ =["BandRing", "MeteringReader", "SpectralAggregate", "TrackContext", "band_levels", "context_from"]
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
