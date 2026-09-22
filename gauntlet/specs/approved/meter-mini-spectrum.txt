@@ -1,0 +1,47 @@
+slug: meter-mini-spectrum
+kind: new
+brief:
+> Find the approved plan file below. Take the slug through stage 2 and present the spec block when READY.
+> slug: `meter-mini-spectrum`
+> plan: `gauntlet/plans/approved/meter-mini-spectrum.txt`
+
+1. `hqptuner.engine.metering.band_levels(power, bandwidth)` over a 1025-bin frame whose power sits in the bins nearest 100 Hz returns its largest of the three values at index 0; over the same frame shaped at 1000 Hz at index 1; at 10000 Hz at index 2, all three at bandwidth 22050.0.
+   kills: adds every bin into all three values, so a 100 Hz tone and a 10 kHz tone read the same height on all three bars.
+   bite: null stub fails at the 100 Hz frame (surface new) — a stub returning (0.0, 0.0, 0.0) has no single largest value at any index.
+   existing: none, `grep -rn 'band_levels' tests --include=*.py` returns only `tests/engine/test_junkadvisor.py:120`, a local helper building junk-advisor levels from band tuples, against `classify`.
+
+2. `hqptuner.engine.metering.band_levels(power, bandwidth)` over a 1025-bin frame carrying a 2000 Hz tone returns its largest value at index 1 at bandwidth 22050.0 and at index 1 at bandwidth 96000.0.
+   kills: cuts the three spans at fixed fractions of the bin count, so the same 2 kHz tone reads mid on a 44.1 kHz stream and low on a 192 kHz one.
+   bite: null stub fails at the 2000 Hz frame at bandwidth 96000.0 (surface new) — a stub returning (0.0, 0.0, 0.0) has no single largest value at index 1.
+   existing: none, `grep -rn 'band_levels' tests --include=*.py` returns only the junk-advisor helper cited in line 1.
+
+3. A `hqptuner.engine.metering.BandRing` given (-20.0, -60.0, -60.0) and then (-60.0, -60.0, -60.0) 0.1 s of frame time later returns a larger first value from `mean()` than one given (-40.0, -60.0, -60.0) and then (-60.0, -60.0, -60.0) at that same 0.1 s spacing.
+   kills: reports the newest triple alone, so both readings sit at the quiet frame's height and the bars jump from frame to frame instead of riding the second they cover.
+   bite: null stub fails at the (-20.0, -60.0, -60.0) pair (surface new) — a stub whose `mean()` returns None gives no value to compare against the other reading.
+   existing: none, `grep -rn 'BandRing' tests --include=*.py` returns no match.
+
+4. `GET /api/status` against an app reading a 4322 stream of 1025-bin frames at bandwidth 22050.0 whose power sits in the bins nearest 100 Hz returns a `data.bands` element 0 greater than the `data.bands` element 0 the same app returns while reading a stream of the same frames shaped at 10000 Hz.
+   kills: serves a constant triple without reading the stream, so the bars show the same three heights whatever plays.
+   bite: null stub fails at the 100 Hz stream (surface new) — a stub serving `data.bands` as null has no element 0 to compare.
+   existing: none, `grep -rn 'bands' tests/api --include=*.py` returns no match.
+
+--- reviewer ---
+READY
+discriminates: sweep on hqptuner.engine.metering.band_levels (line 1: three tones, three distinct expected indices; line 2: same tone, two bandwidths), plus a level differential on BandRing.mean() and a cross-stream differential on data.bands
+
+round 2 finding, resolved:
+- line 3 STRICKEN (g): repaired. The clause now names "reports the newest triple alone", and the line rejects it - both rings then read -60.0, and -60.0 is not greater than -60.0. Withdrawn. My round-2 replacement wording was itself green against the line, as the return showed; the return's clause is the one that bites.
+
+1  carried ADMITTED
+2  carried ADMITTED
+3  ADMITTED
+4  carried ADMITTED
+
+null stub: hqptuner.engine.metering exposes band_levels returning (0.0, 0.0, 0.0), BandRing whose mean() returns None, and /api/status serving data.bands as null.
+  satisfies: none   fails: 1, 2, 3, 4
+hard-coded stub: return values keyed on the scalar arguments handed in - a fixed triple from band_levels and from the status handler, a newest-triple or frame-time-span branch in BandRing.mean() - with no bin located, no bandwidth used and no reduction over the ring.
+  satisfies: none   fails: 1, 2, 3, 4
+
+survives: 4
+
+note, not a verdict: the block's `changelog (Added)` section is copy (rule 9) and was not ruled on here; it is not carried into the approved spec file, which holds the structure line, the brief and the four surviving behavior lines.
