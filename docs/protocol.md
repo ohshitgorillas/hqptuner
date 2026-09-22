@@ -286,14 +286,14 @@ Caveat: a setter can return `result="OK"` without the setting actually applying.
 
 ## 7. Metering side channel
 
-A separate binary TCP stream on **port 4321 + 1 = 4322**. The daemon streams unconditionally on bare accept — no control-channel enable command (`scripts/probes/probe_metering_stream.py`, against a 44.1k PCM source). One frame per transform hop (~43/s at 44.1k; hop = `xformLength − 1` samples). Layout (little-endian):
+A separate binary TCP stream on **port 4321 + 1 = 4322**. There is no control-channel enable command: the daemon accepts a bare connection and logs `Metering started`, and whether frames follow depends on the source. A PCM source streams on bare accept (`scripts/probes/probe_metering_stream.py`, against a 44.1k PCM source). **A DSD source streams only while the matrix pipeline is engaged**; with the matrix off the connection is accepted and metering logged as started, and nothing is sent, to that client or to any other holding the port. Neither `pre_before_meter` nor the output mode moves it. A metered DSD source is decimated by 64 to its base rate, so DSD64 reports `bandwidth` 22050 over the usual 1025 bins and ~43 frames/s, the same geometry a 44.1k PCM source gives. HQPlayer Desktop's own meter display shows the same decimation, reading to 21 kHz on a DSD64 source and to 85 kHz on a DSD256 one. One frame per transform hop (~43/s at 44.1k; hop = `xformLength − 1` samples). Layout (little-endian):
 
-- Header, 32 bytes: `u32 version` (1), `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1; observed 1025 → N=2048), `u32 transformBits` (observed 16), `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain` (observed 2.0), `u32 reserved` (0).
+- Header, 32 bytes: `u32 version` (1), `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1; observed 1025 → N=2048), `i32 transformBits` (the source's sample format, signed: 1 on a DSD source, 16 on 16-bit PCM, -64 on 64-bit float), `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain` (observed 2.0), `u32 reserved` (0).
 - Per channel: `f32 peakMax, peak, rms, rmsMax` (dBFS), then `2 × xformLength` f32 transform values as **two consecutive halves** (reals then imaginaries, *not* interleaved pairs) — magnitude of bin `k` is `hypot(a[k], b[k])`, linear amplitude, bin `k` → `k · bandwidth / (xformLength − 1)` Hz.
 
 Consumed at runtime by `hqptuner/engine/metering.py` (the junk-filter advisor's reader), which decodes each frame through `hqptuner/engine/bands.py`; `scripts/probes/probe_metering_stream.py` captures and decodes it standalone.
 
-Because the daemon streams unconditionally and offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
+Because the daemon offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
 
 ## 8. Out of scope
 
