@@ -38,7 +38,7 @@ export function MiniSpectrum() {
   return html`
     <span class="mini-spectrum" data-testid="mini-spectrum" aria-hidden="true">
       ${levels.value.map(
-        (db, i) => html`
+        (/** @type {number|null} */ db, /** @type {number} */ i) => html`
           <span class="mini-well" key=${i}>
             <span class="mini-bar" style=${`height: ${fill(db)}%`}></span>
           </span>
