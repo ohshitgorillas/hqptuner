@@ -33,7 +33,7 @@ from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, Bands, band_levels, frame_power, frame_silent
 
 #: the reader's public surface, the band level and its ring included
-__all__ =["BandRing", "MeteringReader", "SpectralAggregate", "TrackContext", "band_levels", "context_from"]
+__all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "TrackContext", "band_levels", "context_from"]
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
