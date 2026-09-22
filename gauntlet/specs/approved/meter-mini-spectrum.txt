@@ -15,7 +15,7 @@ brief:
    bite: null stub fails at the 2000 Hz frame at bandwidth 96000.0 (surface new) — a stub returning (0.0, 0.0, 0.0) has no single largest value at index 1.
    existing: none, `grep -rn 'band_levels' tests --include=*.py` returns only the junk-advisor helper cited in line 1.
 
-3. A `hqptuner.engine.metering.BandRing` given (-20.0, -60.0, -60.0) and then (-60.0, -60.0, -60.0) 0.1 s of frame time later returns a larger first value from `mean()` than one given (-40.0, -60.0, -60.0) and then (-60.0, -60.0, -60.0) at that same 0.1 s spacing.
+3. A `hqptuner.engine.metering.BandRing()` given `add((-20.0, -60.0, -60.0), 0.1)` and then `add((-60.0, -60.0, -60.0), 0.1)` returns a larger first value from `mean()` than one given `add((-40.0, -60.0, -60.0), 0.1)` and then `add((-60.0, -60.0, -60.0), 0.1)`.
    kills: reports the newest triple alone, so both readings sit at the quiet frame's height and the bars jump from frame to frame instead of riding the second they cover.
    bite: null stub fails at the (-20.0, -60.0, -60.0) pair (surface new) — a stub whose `mean()` returns None gives no value to compare against the other reading.
    existing: none, `grep -rn 'BandRing' tests --include=*.py` returns no match.
@@ -31,18 +31,16 @@ discriminates: sweep on hqptuner.engine.metering.band_levels - three tone freque
 
 1  carried ADMITTED
 2  carried ADMITTED
-3  carried ADMITTED
+3  ADMITTED
 4  carried ADMITTED
+
+line 3 re-run in full: the rewrite states the two feeds as `add((...), 0.1)` calls on the exported class, so the input is typed and harness-deliverable (j, h); the outcome is one positive comparison between two rings, not an absence and not two outcomes (h', i); `kills:` names a wrong output a user sees, bars sitting at the quiet frame's height (a), and the line as written fails under it, since a ring reporting the newest triple alone returns the same first value from both rings (g); no literal is pinned, so no design pin and no golden dump (n, q); no private attribute, monkeypatch or call sequence (e, r); bite is the null stub, `mean()` returning None, which gives nothing to compare (k); `grep -rn 'BandRing' tests --include=*.py` re-run this round, no match (b, l). Nothing in the rewrite is weaker than the text carried ADMITTED last round: the prose "0.1 s of frame time later" became the argument that carries it.
 
 null stub: module present, band_levels returns (0.0, 0.0, 0.0), BandRing.mean returns None, /api/status serves data.bands as null.
   satisfies: none   fails: 1, 2, 3, 4
-hard-coded stub: return a fixed triple per exact input frame and bandwidth, doing no bin-to-band work.
-  satisfies: none   fails: 1, 2, 3, 4 - lines 1 and 2 together force a frequency-to-band mapping that scales with bandwidth (line 1 holds bandwidth at 22050.0 across three frames, line 2 holds one frame across two bandwidths), and a stub keyed on either alone fails the other.
+hard-coded stub: return a fixed triple per exact input frame, bandwidth or fed pair, doing no bin-to-band and no window work.
+  satisfies: none   fails: 1, 2, 3, 4 - lines 1 and 2 together force a frequency-to-band mapping that scales with bandwidth (line 1 holds bandwidth at 22050.0 across three frames, line 2 holds one frame across two bandwidths), and a stub keyed on either alone fails the other; line 3 puts the same quiet triple last in both rings, so a stub keyed on the newest input returns one value for both and fails the comparison.
 
 survives: 4
 
-cut, not written to the approved file: the `entry points:`, `wire facts:` and `fixtures:` sections added this round. They are not part of a spec block (docs/approved-specs.md, "What the reviewer writes": structure line, brief, behavior lines), they pin nothing, and the approved file is the surviving contract. Two further reasons they do not travel:
-- `wire facts:` states a conclusion about implementation I am barred from reading - "GET /api/status refuses with 503 until the first Status frame has landed" (hqptuner/api/routes/status.py:88). Unverified by me; it fills no field of line 4, whose bite is a null-stub bite and stands without it.
-- `fixtures:` misstates a readable fact. It says neither tests/conftest.py's harness section nor tests/support/fixtures_daemons.py carries a 4322 stream today; tests/support/fixtures_daemons.py:6 reads "fakes from `fake_http`, and the fake 4322 metering streams", tests/conftest.py:385 reads "metering reader harness (fake 4322 stream lives in fixtures_daemons)", and tests/e2e/support/stack.py:4 names `fake_metering` (4322). A writer told to build the fake from wire facts would duplicate an existing harness. This changes no verdict: line 4's `existing:` is about a test pinning the outcome, and `grep -rn 'bands' tests/api --include=*.py` still returns no match.
-
-greps re-run this round and confirmed: `grep -rn 'band_levels' tests --include=*.py` returns only tests/engine/test_junkadvisor.py:120 and its three call sites, a local helper against `classify`; `grep -rn 'BandRing' tests --include=*.py` returns no match; `grep -rn 'bands' tests/api --include=*.py` returns no match.
+still cut, not written to the approved file: the `entry points:`, `wire facts:` and `fixtures:` sections. Reasons stand from round 4 - they are not part of a spec block, they pin nothing, `wire facts:` states a conclusion about implementation I may not read (hqptuner/api/routes/status.py:88), and `fixtures:` misstates a readable fact by saying no 4322 stream fake exists today when tests/support/fixtures_daemons.py:6, tests/conftest.py:385 and tests/e2e/support/stack.py:4 each name one.
