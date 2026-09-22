@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from hqptuner.engine.metering import band_levels
+from hqptuner.engine.metering import BandRing, band_levels
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -56,3 +56,22 @@ def test_a_tone_stands_tallest_in_the_band_covering_it(tone_hz: float, band: int
 @pytest.mark.parametrize("bandwidth", [CD_BANDWIDTH, HIRES_BANDWIDTH], ids=["22.05 kHz", "96 kHz"])
 def test_a_2_khz_tone_stands_tallest_in_the_same_band_at_either_bandwidth(bandwidth: float) -> None:
     assert _tallest(band_levels(_frame(2000.0, bandwidth), bandwidth)) == 1
+
+
+# --- the ring the bars are averaged over ------------------------------------
+
+QUIET_DB = -60.0
+FRAME_SECONDS = 0.1
+
+
+def _ring_after(low_band_db: float) -> BandRing:
+    """A ring fed one frame at ``low_band_db`` in the low band and then one
+    quiet frame, each covering the same frame time."""
+    ring = BandRing()
+    ring.add((low_band_db, QUIET_DB, QUIET_DB), FRAME_SECONDS)
+    ring.add((QUIET_DB, QUIET_DB, QUIET_DB), FRAME_SECONDS)
+    return ring
+
+
+def test_the_ring_carries_the_louder_frame_into_the_next_reading() -> None:
+    assert (_ring_after(-20.0).mean() or [])[0] > (_ring_after(-40.0).mean() or [])[0]
