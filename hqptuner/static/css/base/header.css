@@ -160,6 +160,35 @@
   letter-spacing: var(--track-caps);
   color: var(--fg-2);
 }
+/* the level readout beside the lamp: three wells cut into the header band, each
+   holding a bar that grows from the bottom. The wells are painted whether or not
+   anything plays, so a stopped engine reads as an instrument at rest rather than
+   as a gap in the row. */
+.mini-spectrum {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+}
+.mini-well {
+  position: relative;
+  width: 4px;
+  height: 18px;
+  border-radius: var(--r-xs);
+  background: var(--surface-page);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+/* the bar eases toward each poll's reading rather than stepping to it: at --dur
+   it reads as jitter, and the slow settle is what makes a level look damped. */
+.mini-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: var(--r-xs);
+  background: var(--spec-5);
+  transition: height var(--sweep);
+}
 .presets {
   margin-left: auto;
   display: flex;
