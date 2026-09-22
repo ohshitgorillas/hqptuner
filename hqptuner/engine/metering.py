@@ -30,7 +30,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
-from hqptuner.engine.bands import BandReadout, Bands, band_levels, frame_power, frame_silent
+from hqptuner.engine.bands import BAND_WINDOW_SECONDS, Bands, frame_power, frame_silent
+from hqptuner.engine.bands import BandRing as BandRing
+from hqptuner.engine.bands import band_levels as band_levels
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -211,7 +213,9 @@ class MeteringReader:
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
-        self._readout = BandReadout(monotonic)
+        self._monotonic = monotonic
+        self._ring = BandRing()
+        self._ring_at: float | None = None
 
     def retarget(self, host: str, port: int) -> None:
         """Point the reader at another daemon; the next dial uses it.
@@ -231,8 +235,14 @@ class MeteringReader:
         return self._agg
 
     def bands(self) -> Bands | None:
-        """Return the mean of the last window of band triples, or None while the reading is empty or stale."""
-        return self._readout.read()
+        """Return the mean of the last window of band triples, or None while the reading is empty or stale.
+
+        A stream that stops arriving without the engine leaving the playing state leaves the ring standing, so the
+        reading ages here rather than at a seam that never fires.
+        """
+        if self._ring_at is None or self._monotonic() - self._ring_at > BAND_WINDOW_SECONDS:
+            return None
+        return self._ring.mean()
 
     def verdict(self) -> dict[str, Any] | None:
         """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
@@ -295,14 +305,14 @@ class MeteringReader:
                     keep = await self._stream()
                 else:
                     keep = True  # paused: keep the aggregate for the resume
-                    self._readout.clear()  # the level readout is of the moment, and a stopped engine has none
+                    self._clear_bands()  # the level readout is of the moment, and a stopped engine has none
             except (OSError, asyncio.IncompleteReadError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
                 delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
             if not keep:
                 self._agg = None  # a broken stream ends the track's evidence
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
-                self._readout.clear()
+                self._clear_bands()
             if not self._stop.is_set():
                 await self._wait(delay)
 
@@ -361,6 +371,11 @@ class MeteringReader:
             raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
         return header, await reader.readexactly(channels * (16 + 8 * bins))
 
+    def _clear_bands(self) -> None:
+        """Drop the ring, so the bars park rather than hold the last thing that played."""
+        self._ring = BandRing()
+        self._ring_at = None
+
     def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
         channels, bins = int(header[1]), int(header[2])
         bandwidth, xform_time = float(header[4]), float(header[5])
@@ -369,7 +384,8 @@ class MeteringReader:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
         power = frame_power(body, channels, bins)
         agg.add(power, xform_time, silent=frame_silent(body, channels, bins))
-        self._readout.add(band_levels(power, bandwidth), xform_time)
+        self._ring.add(band_levels(power, bandwidth), xform_time)
+        self._ring_at = self._monotonic()
 
 
 async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None") -> None:
