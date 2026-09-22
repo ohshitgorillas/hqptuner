@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
+from hqptuner.engine.bands import BandReadout, Bands, band_levels, frame_power, frame_silent
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -59,23 +60,6 @@ MAX_BINS = 65_536
 # wait, and the first frame folded already carries a readable spectrum.
 BLOCK_SECONDS = 1.0
 WINDOW_BLOCKS = 30
-# Frames quieter than this on every channel (RMS dBFS) are kept out of the
-# minimum: digital silence between songs carries no tone either, and one such
-# frame would collapse every bin's minimum to the floor.
-SILENT_RMS_DB = -90.0
-
-# The header readout's three bands, split at these corners and running to the source Nyquist the frame declares
-# (protocol.md §7). The top bins blockstats drops are kept here: the bars report what the source sends rather than
-# scoring it.
-BAND_EDGES_HZ = (250.0, 4_000.0)
-# How much frame time the readout averages over. A read neither drains nor resets it, so every page polling
-# /api/status sees the same second.
-BAND_WINDOW_SECONDS = 1.0
-# Where a band with no power in it sits, and where the bars park.
-BAND_FLOOR_DB = -100.0
-
-#: one frame's low, mid and high levels, in dB
-Bands = tuple[float, float, float]
 
 
 @dataclass(frozen=True)
@@ -202,39 +186,6 @@ class SpectralAggregate:
         return [min(vals) for vals in zip(*arrays, strict=True)]
 
 
-class BandRing:
-    """The last window of band triples, averaged on demand.
-
-    A read neither drains nor resets it: ``/api/status`` has readers besides the page's poll, and a window emptied by
-    the first reader would take the reading away from the traffic that fills it. The window is counted in the frame
-    time the frames themselves declare, not in wall clock.
-    """
-
-    def __init__(self, window: float = BAND_WINDOW_SECONDS) -> None:
-        """Hold triples covering at most ``window`` seconds of frame time."""
-        self._window = window
-        self._entries: deque[tuple[float, Bands]] = deque()
-        self._covered = 0.0
-
-    def add(self, levels: "Bands", covered: float) -> None:
-        """Take one frame's triple and the frame time it covers, dropping whatever has aged past the window."""
-        self._entries.append((covered, levels))
-        self._covered += covered
-        while len(self._entries) > 1 and self._covered - self._entries[0][0] >= self._window:
-            self._covered -= self._entries.popleft()[0]
-
-    def mean(self) -> "Bands | None":
-        """Return the mean of the triples in hand, or None while there are none."""
-        if not self._entries:
-            return None
-        count = len(self._entries)
-        return (
-            sum(entry[1][0] for entry in self._entries) / count,
-            sum(entry[1][1] for entry in self._entries) / count,
-            sum(entry[1][2] for entry in self._entries) / count,
-        )
-
-
 class MeteringReader:
     """Owns the 4322 connection and the current track's aggregate."""
 
@@ -257,12 +208,10 @@ class MeteringReader:
         self._port = port
         self._context = context
         self._sleep = sleep
-        self._monotonic = monotonic
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
-        self._ring = BandRing()
-        self._ring_at: float | None = None
+        self._readout = BandReadout(monotonic)
 
     def retarget(self, host: str, port: int) -> None:
         """Point the reader at another daemon; the next dial uses it.
@@ -281,15 +230,9 @@ class MeteringReader:
         """Return the aggregate the reader is accumulating, or None while there is no evidence to read."""
         return self._agg
 
-    def bands(self) -> "Bands | None":
-        """Return the mean of the last window of band triples, or None while the reading is empty or stale.
-
-        Reading takes nothing out of the ring. A stream that stops arriving without the engine leaving the playing
-        state ages out here instead, which is what parks the bars on a source the reader sends no frames for.
-        """
-        if self._ring_at is None or self._monotonic() - self._ring_at > BAND_WINDOW_SECONDS:
-            return None
-        return self._ring.mean()
+    def bands(self) -> Bands | None:
+        """Return the mean of the last window of band triples, or None while the reading is empty or stale."""
+        return self._readout.read()
 
     def verdict(self) -> dict[str, Any] | None:
         """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
@@ -352,14 +295,14 @@ class MeteringReader:
                     keep = await self._stream()
                 else:
                     keep = True  # paused: keep the aggregate for the resume
-                    self._clear_bands()  # the level readout is of the moment, and there is no moment while stopped
+                    self._readout.clear()  # the level readout is of the moment, and a stopped engine has none
             except (OSError, asyncio.IncompleteReadError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
                 delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
             if not keep:
                 self._agg = None  # a broken stream ends the track's evidence
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
-                self._clear_bands()
+                self._readout.clear()
             if not self._stop.is_set():
                 await self._wait(delay)
 
@@ -418,21 +361,15 @@ class MeteringReader:
             raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
         return header, await reader.readexactly(channels * (16 + 8 * bins))
 
-    def _clear_bands(self) -> None:
-        """Drop the level readout's ring, so the bars park rather than hold the last thing that played."""
-        self._ring = BandRing()
-        self._ring_at = None
-
     def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
         channels, bins = int(header[1]), int(header[2])
         bandwidth, xform_time = float(header[4]), float(header[5])
         agg = self._agg
         if agg is None or agg.bins != bins or agg.bandwidth != bandwidth:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
-        power = _frame_power(body, channels, bins)
-        agg.add(power, xform_time, silent=_frame_silent(body, channels, bins))
-        self._ring.add(band_levels(power, bandwidth), xform_time)
-        self._ring_at = self._monotonic()
+        power = frame_power(body, channels, bins)
+        agg.add(power, xform_time, silent=frame_silent(body, channels, bins))
+        self._readout.add(band_levels(power, bandwidth), xform_time)
 
 
 async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None") -> None:
@@ -442,50 +379,3 @@ async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None")
     read.cancel()
     with contextlib.suppress(asyncio.CancelledError, OSError, asyncio.IncompleteReadError):
         await read
-
-
-def _frame_silent(body: bytes, channels: int, bins: int) -> bool:
-    """Whether every channel's RMS sits below the silence threshold.
-
-    The RMS is the third float of the per-channel level block (protocol.md §7).
-    """
-    stride = 16 + 8 * bins
-    return all(struct.unpack_from("<f", body, ch * stride + 8)[0] < SILENT_RMS_DB for ch in range(channels))
-
-
-def band_levels(power: list[float], bandwidth: float) -> Bands:
-    """One frame's low, mid and high levels in dB, split at ``BAND_EDGES_HZ`` and running to ``bandwidth``.
-
-    The corners are frequencies rather than bin fractions, so the same tone reads in the same band whatever rate the
-    source runs at. Bin ``i`` sits at ``i * bandwidth / (bins - 1)``, the geometry the frame header declares.
-    """
-    bins = len(power)
-    per_bin = bandwidth / (bins - 1)
-    low_top = min(bins - 1, round(BAND_EDGES_HZ[0] / per_bin))
-    mid_top = min(bins - 1, round(BAND_EDGES_HZ[1] / per_bin))
-    return (
-        _band_db(sum(power[: low_top + 1])),
-        _band_db(sum(power[low_top + 1 : mid_top + 1])),
-        _band_db(sum(power[mid_top + 1 :])),
-    )
-
-
-def _band_db(power: float) -> float:
-    """One band's summed power in dB, floored where the band carries nothing."""
-    if power <= 0:
-        return BAND_FLOOR_DB
-    return max(BAND_FLOOR_DB, 10 * math.log10(power))
-
-
-def _frame_power(body: bytes, channels: int, bins: int) -> list[float]:
-    """Channel-summed squared magnitudes.
-
-    The transform block is two consecutive halves (reals then imaginaries, not interleaved) — protocol.md §7.
-    """
-    power = [0.0] * bins
-    stride = 16 + 8 * bins
-    for ch in range(channels):
-        vals = struct.unpack_from(f"<{2 * bins}f", body, ch * stride + 16)
-        for k in range(bins):
-            power[k] += vals[k] ** 2 + vals[bins + k] ** 2
-    return power
