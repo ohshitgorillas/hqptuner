@@ -12,7 +12,6 @@ scoring it.
 import math
 import struct
 from collections import deque
-from collections.abc import Callable
 
 # Frames quieter than this on every channel (RMS dBFS) carry no tone.
 SILENT_RMS_DB = -90.0
@@ -105,33 +104,3 @@ class BandRing:
             sum(entry[1][1] for entry in self._entries) / count,
             sum(entry[1][2] for entry in self._entries) / count,
         )
-
-
-class BandReadout:
-    """The reader's band state: a ring, and the clock that says whether what is in it is still current.
-
-    A stream that stops arriving without the engine leaving the playing state leaves the ring standing, so the reading
-    ages here rather than at the seam that never fires.
-    """
-
-    def __init__(self, monotonic: Callable[[], float]) -> None:
-        """Read staleness off ``monotonic``; the ring starts empty."""
-        self._monotonic = monotonic
-        self._ring = BandRing()
-        self._at: float | None = None
-
-    def add(self, levels: Bands, covered: float) -> None:
-        """Take one frame's triple and stamp the ring as current."""
-        self._ring.add(levels, covered)
-        self._at = self._monotonic()
-
-    def clear(self) -> None:
-        """Drop the ring, so the bars park rather than hold the last thing that played."""
-        self._ring = BandRing()
-        self._at = None
-
-    def read(self) -> Bands | None:
-        """Return the mean of the window, or None while the ring is empty or stale."""
-        if self._at is None or self._monotonic() - self._at > BAND_WINDOW_SECONDS:
-            return None
-        return self._ring.mean()
