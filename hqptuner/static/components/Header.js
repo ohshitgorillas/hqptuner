@@ -16,6 +16,7 @@ import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
 import { StatusPill } from "./StatusPill.js";
 import { ApodLamp } from "./ApodLamp.js";
+import { MiniSpectrum } from "./MiniSpectrum.js";
 
 // Questions this header asks render beside the picker, not in a native dialog.
 const OWNER = "header";
@@ -136,6 +137,7 @@ export function Header() {
       ${daemonIdentity()}
       <${LiveSwitch} />
       <${ApodLamp} />
+      <${MiniSpectrum} />
       <div class="presets">${presetPicker()}</div>
       <${Ask} owner=${OWNER} />
       <${StatusPill} />
