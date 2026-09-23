@@ -22,6 +22,7 @@ import struct
 from typing import Any
 
 import pytest
+
 from hqptuner.engine.meterfeed import MeterFeed
 
 HEADER = "<4I3fI"
