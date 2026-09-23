@@ -101,7 +101,7 @@ async def _items(frames: list[Frame], then: Frame | None = None) -> list[Item]:
     tail = itertools.repeat(then, MAX_ADDS) if then is not None else iter(())
     items: list[Item] = []
     for header, body in itertools.chain(frames, tail):
-        await _resolved(feed.add(header, body))
+        feed.add(header, body)
         items.extend(await _drain(queue))
         if then is not None and any(event == "frame" for event, _ in items):
             break
