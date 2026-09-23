@@ -17,8 +17,6 @@ backups
 presets
 .env
 CLAUDE.md
-hqplayer6desktop-manual.pdf
-hqplayerd-readme.txt
 *.md
 !README.md
 Dockerfile

@@ -5,9 +5,9 @@
       manual and the readme, reusing scripts/authority.py's own search
       functions; `context` adds surrounding lines around each hit.
   hqp_toc()                         — the section table from
-      docs/vendor/manual/INDEX.md plus the heading list of
+      docs/official/manual/INDEX.md plus the heading list of
       hqplayerd-readme.txt.
-  hqp_section(number)               — the one docs/vendor/manual/ section
+  hqp_section(number)               — the one docs/official/manual/ section
       file whose INDEX.md row carries that number ("4.6").
   hqp_page(page)                    — the text between "[page N]" and the
       next marker, across the section files in filename order.
@@ -19,7 +19,7 @@
 
 Every tool's result is prefixed with a one-line warning naming `make
 manual` when `hqplayer6desktop-manual.pdf` is newer than
-docs/vendor/manual/INDEX.md — see `with_warning`.
+docs/official/manual/INDEX.md — see `with_warning`.
 """
 
 import re
@@ -45,7 +45,7 @@ ROOT = authority.ROOT
 MANUAL = authority.MANUAL
 INDEX = MANUAL / "INDEX.md"
 README = authority.README
-MANUAL_PDF = ROOT / "hqplayer6desktop-manual.pdf"
+MANUAL_PDF = ROOT / "docs" / "official" / "hqplayer6desktop-manual.pdf"
 
 read_lines = authority.read_lines
 
@@ -74,7 +74,7 @@ def with_warning(text: str) -> str:
 
 
 def require_manual() -> None:
-    """Raise a `ToolError` naming `make manual` when docs/vendor/manual/INDEX.md is missing."""
+    """Raise a `ToolError` naming `make manual` when docs/official/manual/INDEX.md is missing."""
     if not INDEX.is_file():
         raise ToolError(f"{MANUAL.relative_to(ROOT)} is missing; it is gitignored and built by `make manual`.")
 
@@ -233,7 +233,7 @@ def tool_hqp_toc() -> str:
 
 
 def tool_hqp_section(number: str) -> str:
-    """Print the one docs/vendor/manual/ section file whose INDEX.md row carries `number`."""
+    """Print the one docs/official/manual/ section file whose INDEX.md row carries `number`."""
     require_manual()
     number = number.strip().rstrip(".")
     for line in read_lines(INDEX):

@@ -37,7 +37,7 @@ Each of these opens with the questions it answers; read that block, then the sec
 - `docs/eq-assistant/LEXICONS.md` — where a descriptor comes from, which lexicon attests it, and which sources disagree about its band.
 - `docs/eq-assistant/SOURCES.md` — the citation base, the verification tags, and the recorded source disagreements; §8 lists every companion document.
 
-`hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the working directory are the authority on wire and config behavior; reference them before inferring anything. Read both through the hqpdoc MCP tools (`hqp_find`, `hqp_toc`, `hqp_section`, `hqp_page`, `hqp_readme`), never through `pdftotext`.
+`hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in `docs/official/` are the authority on wire and config behavior; reference them before inferring anything. Read both through the hqpdoc MCP tools (`hqp_find`, `hqp_toc`, `hqp_section`, `hqp_page`, `hqp_readme`), never through `pdftotext`.
 
 ## The two tools
 

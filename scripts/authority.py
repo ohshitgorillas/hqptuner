@@ -10,17 +10,17 @@ Two subcommands:
 quoted line plus the citation a finding can carry:
 
   1. ``docs/guide/notes/manual-facts.txt`` — cited by numbered heading and line.
-  2. ``docs/vendor/manual/*.txt`` — cited by manual section and the ``[page N]``
+  2. ``docs/official/manual/*.txt`` — cited by manual section and the ``[page N]``
      marker the hit falls under. ``manual.txt`` is the unsplit dump and is not
      searched.
-  3. ``hqplayerd-readme.txt`` — cited by line number, the coordinate ``sed -n``
+  3. ``docs/official/hqplayerd-readme.txt`` — cited by line number, the coordinate ``sed -n``
      takes.
 
 Matching is a case-insensitive substring, not a regex. Each group is capped
 (``--cap``, default 8); a group with more hits than that says how many it
 dropped, so a term too broad to trust is visible rather than silent.
 
-``docs/vendor/manual/`` is gitignored and built by ``make manual``; ``find``
+``docs/official/manual/`` is gitignored and built by ``make manual``; ``find``
 says so and exits when it is absent.
 
 ``enum`` prints the lists ``GET /api/enumerations`` serves, in wire order, as
@@ -106,8 +106,8 @@ def resolve_docs_root() -> Path:
 
 ROOT = resolve_docs_root()
 FACTS = ROOT / "docs" / "guide" / "notes" / "manual-facts.txt"
-MANUAL = ROOT / "docs" / "vendor" / "manual"
-README = ROOT / "hqplayerd-readme.txt"
+MANUAL = ROOT / "docs" / "official" / "manual"
+README = ROOT / "docs" / "official" / "hqplayerd-readme.txt"
 
 DEFAULT_CAP = 8
 DEFAULT_URL = "http://127.0.0.1:8090"
@@ -177,11 +177,11 @@ def search_section(path: Path, label: str, term: str) -> list[Hit]:
 
 
 def search_manual(term: str) -> list[Hit]:
-    """Search every split manual section in section order, skipping the unsplit manual.txt dump."""
+    """Search every split manual section in section order, skipping the unsplit dump and the front matter."""
     sections = manual_sections()
     hits: list[Hit] = []
     for path in sorted(MANUAL.glob("*.txt")):
-        if path.name == "manual.txt":
+        if path.name in ("manual.txt", "00-00-front-matter.txt"):
             continue
         hits.extend(search_section(path, sections.get(path.name, path.name), term))
     return hits
