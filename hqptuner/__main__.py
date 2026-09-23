@@ -29,6 +29,8 @@ def main() -> None:
         host=cfg.listen_host,
         port=cfg.listen_port,
         log_level=logging.getLevelName(level).lower(),
+        # An open meter feed never closes on its own; without a bound, shutdown would wait on it until the kill.
+        timeout_graceful_shutdown=5,
     )
 
 
