@@ -1,6 +1,6 @@
 """The gate that keeps owner copy out of test assertions (docs/testing.md rule 9).
 
-``scripts/gates/check_no_copy_assertions.py`` reads a test file and reports every
+``scripts/gates/testing/check_no_copy_assertions.py`` reads a test file and reports every
 prose literal (two or more alphabetic words) that sits inside an ``assert``
 expression, unless the literal is input the test itself handed over or is
 covered by a seed the suite's own support code wrote. The observable contract is
@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_no_copy_assertions.py"
+GATE_PATH = REPO_ROOT / "scripts" / "gates" / "testing" / "check_no_copy_assertions.py"
 
 #: Comment lines padding the checked file so every site of interest lands past
 #: line 20, keeping its line number distinct from any column the gate may print.

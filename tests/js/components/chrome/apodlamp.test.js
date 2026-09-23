@@ -1,15 +1,15 @@
-// Behavioral suite for components/ApodLamp.js — the header's apodizing
+// Behavioral suite for components/widgets/ApodLamp.js — the header's apodizing
 // indicator, a lamp whose brightness tracks how densely the current poll
 // interval apodized.
 //
 // The lamp is a pure function of two stores it reads for itself: the apodizing
 // history (store/apodhistory.js) and the preference that turns it on
-// (store/prefs.js apodLight). It is driven exactly as
-// tests/js/store/apodhistory.test.js and tests/js/components/enginehealth-strip.test.js
+// (store/ui/prefs.js apodLight). It is driven exactly as
+// tests/js/store/presets/apodhistory.test.js and tests/js/components/enginehealth-strip.test.js
 // drive the same history — a poll is a FRESH object written to engineStatus
 // carrying the daemon's own Status fields, and the cadence a bin records is
 // moved by writing the signals the app itself writes (liveMode, activeTab,
-// quickSystemUpdates) and read back through store/ui.js's fastPollMs. Nothing
+// quickSystemUpdates) and read back through store/ui/ui.js's fastPollMs. Nothing
 // of HQPTuner's is stubbed (docs/testing.md rule 4).
 //
 // Hazards, inherited from that seam:
@@ -54,15 +54,15 @@ import { render } from "preact-render-to-string";
 import { elements, attr } from "../../support/markup.js";
 import { readCadences, feed } from "../../support/apodpolls.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { ApodLamp } from "../../../../hqptuner/static/components/ApodLamp.js";
-import { liveMode, apodLight } from "../../../../hqptuner/static/store/prefs.js";
+import { ApodLamp } from "../../../../hqptuner/static/components/widgets/ApodLamp.js";
+import { liveMode, apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { enums } from "../../../../hqptuner/static/store/signals.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 // The two cadences the app itself produces, read rather than assumed
-// (tests/js/store/polling.test.js pins where each comes from).
+// (tests/js/store/live/polling.test.js pins where each comes from).
 const { live: LIVE_CADENCE, base: CADENCE } = readCadences();
 
 // The density case can only tell a RATE from a raw event count if the two

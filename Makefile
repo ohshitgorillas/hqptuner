@@ -16,9 +16,9 @@ lint:
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
 	$(VENV)/python scripts/gates/check_nesting.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
 	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py' | grep -Ev '$(VENDORED)')
-	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_test_clocks.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/testing/check_test_assertions.py $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/testing/check_test_clocks.py $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/testing/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/' | grep -Ev '$(VENDORED)')
 	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/' | grep -Ev '$(VENDORED)')
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
@@ -27,7 +27,7 @@ lint:
 	$(VENV)/python scripts/gates/check_spec_draft.py --committed $$(git ls-files 'gauntlet/specs/approved/*.txt')
 	$(VENV)/python scripts/gates/check_binaural.py
 	$(VENV)/python scripts/gates/check_xfeed.py
-	$(VENV)/python scripts/gates/check_e2e_isolation.py
+	$(VENV)/python scripts/gates/testing/check_e2e_isolation.py
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
 	$(VENV)/python scripts/gates/check_metadata.py
@@ -55,29 +55,29 @@ lint:
 # exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx tsc -p tsconfig.node.json
 	npx knip
 	npx jscpd
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
-	$(VENV)/python scripts/gates/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
-	$(VENV)/python scripts/gates/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
-	$(VENV)/python scripts/gates/check_css_classes.py
-	$(VENV)/python scripts/gates/check_css_dead.py
-	$(VENV)/python scripts/gates/check_css_dirty.py
+	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/css/check_css_classes.py
+	$(VENV)/python scripts/gates/css/check_css_dead.py
+	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
 # The coverage floor is per file and lives in the gate below, not in
 # --cov-fail-under. Second recipe line, so a failing suite reports first.
 # The junit report carries the suite's wall time; the third line holds it to
-# the last green run's (scripts/gates/check_suite_time.py). The idle probe
+# the last green run's (scripts/gates/testing/check_suite_time.py). The idle probe
 # measures each test's wall time against its CPU time and writes a second
 # report, which the fourth line holds per test (scripts/gates/check_idle.py).
 test:
 	PYTHONPATH=scripts:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
-	$(VENV)/python scripts/gates/check_coverage_floor.py
-	$(VENV)/python scripts/gates/check_suite_time.py
+	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
+	$(VENV)/python scripts/gates/testing/check_suite_time.py
 	$(VENV)/python scripts/gates/check_idle.py
 
 test-live:

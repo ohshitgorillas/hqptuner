@@ -204,7 +204,7 @@ def test_saving_into_a_file_stamped_by_a_newer_hqptuner_is_refused(tmp_path: Pat
 
 def test_a_refused_save_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the on-disk check (scripts/gates/check_test_assertions.py
+    # this test owns is the on-disk check (scripts/gates/testing/check_test_assertions.py
     # counts a `pytest.raises` block as an assertion).
     path = seed_stamped(tmp_path, TOO_NEW)
     before = path.read_text()

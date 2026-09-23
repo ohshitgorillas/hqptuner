@@ -38,10 +38,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { staticWire } from "../../support/wire.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { useStorage } from "../../support/storage.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
-import { rows as ddRows } from "../../support/comborows.js";
+import { rows as ddRows } from "../../support/easy/comborows.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../../support/chainenums.js";
 
 // The profile side B is seeded holding: a name the daemon loaded, so the side is

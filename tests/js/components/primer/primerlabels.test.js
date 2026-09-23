@@ -1,7 +1,7 @@
 // Behavioral suite for the names the filter primer's graph paints on its panes
 // (components/primer/Graph.js), written blind from a spec block: no graph
 // source was read. The component is driven through the exported signals of
-// store/primergraph.js and rendered to a string.
+// store/primer/primergraph.js and rendered to a string.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. Rule 9 governs everything here: the words inside a name
@@ -27,7 +27,7 @@ import { render } from "preact-render-to-string";
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../../hqptuner/static/components/primer/Graph.js");
 const { rate, outputRate, phase, lengthMs, rolloff, transientUs, content, showMe } =
-  await import("../../../../hqptuner/static/store/primergraph.js");
+  await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { elements, classes, attr } = await import("../../support/markup.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

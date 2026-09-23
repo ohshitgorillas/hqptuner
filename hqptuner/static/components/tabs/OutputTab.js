@@ -5,16 +5,16 @@
 // plumbing.
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { BypassNote } from "../matrix/BypassNote.js";
 import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/resolve.js";
-import { optionsFor } from "../../store/options.js";
+import { optionsFor } from "../../store/ui/options.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
-import { easyMode } from "../../store/easyview.js";
+import { easyMode } from "../../store/easy/easyview.js";
 import { PrimerView } from "../primer/View.js";
-import { primerOpen } from "../../store/primerview.js";
+import { primerOpen } from "../../store/primer/primerview.js";
 import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
 import { PreProcessCard, PcmChainCard, SdmChainCard } from "./ConversionCards.js";

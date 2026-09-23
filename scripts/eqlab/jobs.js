@@ -3,7 +3,7 @@
 import { serializeProcess, stageArgs } from "../../hqptuner/static/lib/matrixspec.js";
 import { applyChanges, isEq, resolveChain } from "./chain.js";
 import { curveOf, extrema, preampDb, preampDbFull, round } from "./curve.js";
-import { fitOfEdits } from "./fit.js";
+import { fitOfEdits } from "./search/fit.js";
 import { guidanceFlags, headroomFlags } from "./guidance.js";
 import { computeMetrics, metricValues } from "./metrics.js";
 import { noteDeltas, noteTable } from "./notes.js";

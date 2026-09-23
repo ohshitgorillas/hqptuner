@@ -38,8 +38,8 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../../support/wire.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { cardHeadAt } from "../../support/tabform.js";
 
 const ENUMS = {
@@ -173,7 +173,7 @@ test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () =>
 
 // The engine-health card and the volume card are the System and Volume tabs'
 // own components, rendered here as well. Both carry a "quick updates" opt-in on
-// their tab; LIVE polls at 500 ms whatever they say (store/ui.js), so both drop
+// their tab; LIVE polls at 500 ms whatever they say (store/ui/ui.js), so both drop
 // it here. The cadence itself is polling.test.js's — what is observable in the
 // markup is the card being present and the tickbox not.
 

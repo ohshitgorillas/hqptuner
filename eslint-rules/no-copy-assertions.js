@@ -1,6 +1,6 @@
 // Gate: a test never asserts a string it did not put on the wire itself
-// (docs/testing.md rule 9). The JS peer of scripts/gates/check_no_copy_assertions.py,
-// with the same semantics:
+// (docs/testing.md rule 9). It enforces for JS what
+// scripts/gates/testing/check_no_copy_assertions.py enforces for Python, with the same semantics:
 //
 //   a literal of two or more words the assertion compares against is copy unless
 //   the tests seeded it. Copy is owner-owned data, reworded at will; a test

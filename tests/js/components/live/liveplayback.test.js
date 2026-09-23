@@ -45,8 +45,8 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../../support/wire.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { attr, classes, disabledRegion, elements, enclosing, hasLabel, labeled, text } from "../../support/markup.js";
 import { cardHeadAt, section } from "../../support/tabform.js";
 

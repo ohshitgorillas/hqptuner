@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import { schema } from "../../../../hqptuner/static/store/schema.js";
 import { reset, field, META } from "../../support/field-harness.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { elements, classes, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

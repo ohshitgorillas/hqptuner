@@ -1,4 +1,4 @@
-// Behavioral suite for Easy Mode's curated preset table (store/easy.js): the
+// Behavioral suite for Easy Mode's curated preset table (store/easy/easy.js): the
 // pure pair `writeSet` (preset + knob positions -> the filter field values to
 // stage) and `matchPreset` (filter field values -> the preset and knob
 // positions they correspond to), swept over the whole shipped table.
@@ -54,8 +54,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy.js";
-import { combos } from "../support/easytable.js";
+import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy/easy.js";
+import { combos } from "../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */

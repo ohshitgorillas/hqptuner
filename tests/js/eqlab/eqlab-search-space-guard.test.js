@@ -1,4 +1,4 @@
-// Behavioral suite for scripts/eqlab/search.js — validation of the search
+// Behavioral suite for scripts/eqlab/search/search.js — validation of the search
 // space itself. Written blind from a spec block: no eqlab source was read.
 //
 // Contract under test: a search job with a missing or malformed `space` fails
@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { searchJob } from "../../../scripts/eqlab/search.js";
+import { searchJob } from "../../../scripts/eqlab/search/search.js";
 import { FS, band } from "../support/eqlab-helpers.js";
 
 // One band at 1 kHz and one metric reading the curve right there — the same

@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import { loadProfile } from "../../../../hqptuner/static/components/matrix/ProfileCard.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { stagingWire, ok } from "../../support/wire.js";
+import { stagingWire, ok } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
 
@@ -67,7 +67,7 @@ function wire() {
 /**
  * @param {PipelineRow[]} rows
  * @param {{ active?: string, profiles?: string[], saved?: Record<string, SavedProfile> }} [opts]
- * @returns {Promise<import("../../support/wire.js").StagingWire>}
+ * @returns {Promise<import("../../support/wire/wire.js").StagingWire>}
  */
 async function reset(rows, { active = "[Default]", profiles = [], saved = {} } = {}) {
   const w = wire();

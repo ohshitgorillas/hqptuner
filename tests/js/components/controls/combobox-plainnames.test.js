@@ -46,13 +46,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, optionByValue, attrOf, META } from "../../support/field-harness.js";
-import { rows } from "../../support/comborows.js";
-import { staticWire } from "../../support/wire.js";
-import { favoritesRoutes, favoritesState } from "../../support/favoriteswire.js";
+import { rows } from "../../support/easy/comborows.js";
+import { staticWire } from "../../support/wire/wire.js";
+import { favoritesRoutes, favoritesState } from "../../support/wire/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 import { enums } from "../../../../hqptuner/static/store/signals.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { elements, classes, attr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -237,7 +237,7 @@ function rowReading(out, needle) {
 // specifier is built rather than literal because it names a file that is not
 // on disk, which `tsc -p jsconfig.json` refuses as a literal (TS2307).
 
-const PREFS_MODULE = new URL("../../../../hqptuner/static/store/prefs.js", import.meta.url).href;
+const PREFS_MODULE = new URL("../../../../hqptuner/static/store/ui/prefs.js", import.meta.url).href;
 
 test("test_an_unset_storage_reads_as_standard", async () => {
   const fresh = await import(`${PREFS_MODULE.replace(/\.js$/, ".fresh-unset.js")}`);

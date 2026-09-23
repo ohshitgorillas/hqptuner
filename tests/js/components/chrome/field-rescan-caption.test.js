@@ -1,5 +1,5 @@
 // Behavioral suite for the rescan caption on the output-device fields
-// (components/Field.js, schema flag `rescan`): the "Refresh devices" button
+// (components/widgets/Field.js, schema flag `rescan`): the "Refresh devices" button
 // stops the engine, and with auto-save on HQPTuner puts the engine's live
 // settings back afterwards — every one of them except a matrix profile, which
 // cannot be loaded without live playback. So the field says what the button

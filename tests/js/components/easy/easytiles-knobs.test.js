@@ -2,13 +2,13 @@
 // positions last recorded for that preset, rather than the knob's
 // hardcoded default. Recording happens where the positions are written — a knob
 // moved, or the tile pressed — and the record is read back through
-// `store/easyview.js`'s `knobsFor`.
+// `store/easy/easyview.js`'s `knobsFor`.
 //
 // The companion file is tests/js/components/easytiles.test.js, which owns the
 // tiles, the active marking and where a press routes what the table names. Only
 // the knob-memory half lives here, and it reuses that file's harness whole:
-// tests/js/support/easytiles.js, imported dynamically after `useStorage()` so
-// that `store/easyview.js` meets the fake localStorage at its load-time read.
+// tests/js/support/easy/easytiles.js, imported dynamically after `useStorage()` so
+// that `store/easy/easyview.js` meets the fake localStorage at its load-time read.
 // The store's OWN behavior — reading back, per-preset separation,
 // surviving a reload — is tests/js/store/easyview.test.js's.
 //
@@ -27,7 +27,7 @@
 //
 // NAMES, NOT WORDS (rule 9). Preset ids, knob ids and knob option ids are wire
 // identifiers and are stated outright. Filter names are owner data and are read
-// off `store/easy.js`'s `writeSet` for the position they stand for, never typed;
+// off `store/easy/easy.js`'s `writeSet` for the position they stand for, never typed;
 // nothing here asserts a title, a description or any other piece of owner copy.
 //
 // PROPERTIES, NOT EXEMPLARS. No preset is named here to stand for a kind of
@@ -63,10 +63,10 @@ const {
   pressTile,
   pressKnob,
   offeredAnySource,
-} = await import("../../support/easytiles.js");
+} = await import("../../support/easy/easytiles.js");
 
-const { rememberKnobs, knobsFor } = await import("../../../../hqptuner/static/store/easyview.js");
-const { writeSet, presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
+const { rememberKnobs, knobsFor } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { writeSet, presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */

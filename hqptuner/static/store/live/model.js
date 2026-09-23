@@ -17,7 +17,7 @@
 import { computed } from "@preact/signals";
 import { engineState } from "../signals.js";
 import { schema } from "../schema.js";
-import { enumOptions } from "../options.js";
+import { enumOptions } from "../ui/options.js";
 import { grayModesByDevice } from "../narrow/devicecaps.js";
 import { catalog, modeValue, stateOf } from "./derive.js";
 import { chainControls } from "./chains.js";

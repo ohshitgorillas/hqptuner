@@ -1,4 +1,4 @@
-// Behavioral suite for components/Field.js — the schema<->store binder.
+// Behavioral suite for components/widgets/Field.js — the schema<->store binder.
 // Written BEFORE the complexity refactor of Field (30) and selectionDescription (27).
 //
 // Field's whole job is to turn ONE schema key into a bound control, so the

@@ -14,7 +14,7 @@ import { rateOf, intensity, SAT } from "../lib/apodscale.js";
 import { engineStatus } from "../store/signals.js";
 import { trackCounters, outputBufferApplies } from "../store/health.js";
 import { apodStripVisible, apodVisibleBins } from "../store/apodhistory.js";
-import { quickSystemUpdates, setQuickSystemUpdates, apodWindow, setApodWindow } from "../store/prefs.js";
+import { quickSystemUpdates, setQuickSystemUpdates, apodWindow, setApodWindow } from "../store/ui/prefs.js";
 import { Checkbox, Dropdown } from "./controls/index.js";
 
 /**
@@ -303,7 +303,7 @@ const ApodStrip = () => {
 };
 
 // `showQuick` is the opt-in checkbox, on by default. LIVE renders this card with
-// it off: that page already polls at 1 s unconditionally (store/ui.js), so an
+// it off: that page already polls at 1 s unconditionally (store/ui/ui.js), so an
 // unticked box promising faster updates would be describing something the page
 // is already doing. The System tab's copy is untouched.
 /**

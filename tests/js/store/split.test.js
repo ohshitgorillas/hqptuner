@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { split } from "../../../hqptuner/static/store/resolve.js";
 import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire, quiesce } from "../support/wire.js";
+import { ok, stagingWire, quiesce } from "../support/wire/wire.js";
 
 /**
  * One /config form field as the daemon serves it.

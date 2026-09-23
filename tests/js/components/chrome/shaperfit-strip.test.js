@@ -4,7 +4,7 @@
 //
 // The strip has three sources and each has its own suite: engine health
 // (alertstrip.test.js), the junk advice chip (junkadvice.test.js) and the
-// rate/shaper conflicts (store/shaperfit-alerts.test.js, which owns the
+// rate/shaper conflicts (store/guards/shaperfit-alerts.test.js, which owns the
 // derivation). This one drives all three at once and pins only what the strip
 // itself decides — the order they appear in, and that an empty strip is zero
 // pixels.

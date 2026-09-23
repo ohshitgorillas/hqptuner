@@ -1,5 +1,5 @@
 // The poll seam the apodizing-history suites are driven through, shared by the
-// store suite (tests/js/store/apodhistory.test.js) and the strip's render suite
+// store suite (tests/js/store/presets/apodhistory.test.js) and the strip's render suite
 // (tests/js/components/enginehealth-strip.test.js).
 //
 // A poll is a FRESH object written to engineStatus carrying the daemon's own
@@ -19,14 +19,14 @@
 //
 // The poll CADENCE is moved the way the app moves it — by writing the signals
 // the app itself writes (activeTab, quickSystemUpdates, liveMode) and reading
-// the result back through store/ui.js's fastPollMs — never by asserting a
+// the result back through store/ui/ui.js's fastPollMs — never by asserting a
 // number. Nothing of HQPTuner's is stubbed (docs/testing.md rule 4).
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { engineStatus } from "../../../hqptuner/static/store/signals.js";
-import { activeTab, fastPollMs } from "../../../hqptuner/static/store/ui.js";
-import { liveMode, quickSystemUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { activeTab, fastPollMs } from "../../../hqptuner/static/store/ui/ui.js";
+import { liveMode, quickSystemUpdates } from "../../../hqptuner/static/store/ui/prefs.js";
 
 const PLAYING = "2";
 export const STOPPED = "0";

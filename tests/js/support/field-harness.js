@@ -1,4 +1,4 @@
-// Shared harness for the components/Field.js suites — field.test.js (binding,
+// Shared harness for the components/widgets/Field.js suites — field.test.js (binding,
 // classes, values, constraints, option sources, graying, unit/hint/rescan) and
 // fielddesc.test.js (hover titles, inline notes, per-selection descriptions).
 //
@@ -18,17 +18,17 @@
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Field } from "../../../hqptuner/static/components/Field.js";
+import { Field } from "../../../hqptuner/static/components/widgets/Field.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
-import { staticWire } from "./wire.js";
+import { staticWire } from "./wire/wire.js";
 
 // --- the wire ---------------------------------------------------------------
 // Real REST paths, real response shapes (hqptuner/static/lib/api.js).
 
-/** @typedef {import("./wire.js").StagedBuffer} StagedBuffer */
+/** @typedef {import("./wire/wire.js").StagedBuffer} StagedBuffer */
 
 /**
  * One entry of a /api/config or /api/matrix field list: the name and value

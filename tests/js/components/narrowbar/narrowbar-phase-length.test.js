@@ -18,7 +18,7 @@
 // tests/js/support/genrepopover.js, which states what that route couples to.
 //
 // Which filters a picked phase or length then hides is the store suite's
-// subject (tests/js/store/narrowing.test.js), not this file's.
+// subject (tests/js/store/narrow/narrowing.test.js), not this file's.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/narrowbar-phase-length.test.js
 

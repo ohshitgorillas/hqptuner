@@ -30,14 +30,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field } from "../../support/field-harness.js";
-import { staticWire } from "../../support/wire.js";
-import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+import { staticWire } from "../../support/wire/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/wire/favoriteswire.js";
 import { favoriteFilters, favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { enums } from "../../../../hqptuner/static/store/signals.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 import { elements, classes, text } from "../../support/markup.js";
-import { rows, rowIncluding } from "../../support/comborows.js";
+import { rows, rowIncluding } from "../../support/easy/comborows.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 

@@ -1,4 +1,4 @@
-// Behavioral suite for scripts/eqlab/search.js — pareto fronts, binding
+// Behavioral suite for scripts/eqlab/search/search.js — pareto fronts, binding
 // constraints, margin, sensitivity and ranked rejects. Written blind from a
 // spec block: no eqlab source was read.
 //
@@ -14,15 +14,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { searchJob, REJECTS_KEPT } from "../../../scripts/eqlab/search.js";
+import { searchJob, REJECTS_KEPT } from "../../../scripts/eqlab/search/search.js";
 import { FS, near, above } from "../support/eqlab-helpers.js";
 
 /** @typedef {import("../../../scripts/eqlab/metrics.js").MetricSpec} MetricSpec */
 /** @typedef {import("../../../scripts/eqlab/jobs.js").JobCtx} JobCtx */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Failure} Failure */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Failure} Failure */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Objective} Objective */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
 
 /** @typedef {NonNullable<SurvivorOut["binding"]>} Binding */
 

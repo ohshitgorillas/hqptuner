@@ -8,7 +8,7 @@ import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { errText } from "../../lib/errtext.js";
 import { api } from "../../lib/api.js";
-import { liveMatrixOpen } from "../../store/prefs.js";
+import { liveMatrixOpen } from "../../store/ui/prefs.js";
 import { refreshConfig } from "../../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../../store/matrix/profiles.js";
 import { descriptionFor } from "../../store/matrix/descriptions.js";

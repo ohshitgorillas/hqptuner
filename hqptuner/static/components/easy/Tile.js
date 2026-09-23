@@ -4,23 +4,23 @@
 // surface is what it is, so that is what it paints.
 //
 // A tile holds no state at all. Which tile is lit and where each knob stands are
-// read off the current filter values every render (store/easy.js matchPreset),
+// read off the current filter values every render (store/easy/easy.js matchPreset),
 // so there is nothing here to fall out of step with the fields a user can also
 // edit by hand in the chain cards.
 //
 // Clicking is an ordinary field edit, four of them at most and only for the
 // fields whose value actually changes, through whichever lane the page is on
-// (store/easylane.js). No idle gate: a tile is honored whether or not the
+// (store/easy/easylane.js). No idle gate: a tile is honored whether or not the
 // daemon is playing, which is the binding product rule.
 import { html } from "../../lib/dom.js";
 import { Segment } from "../controls/index.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
-import { rememberKnobs } from "../../store/easyview.js";
-import { filterFor, writeSet } from "../../store/easy.js";
-import { knobsOffered } from "../../store/easyoffer.js";
-import { pipsFor } from "../../store/easycost.js";
-import { easyLane } from "../../store/easylane.js";
+import { rememberKnobs } from "../../store/easy/easyview.js";
+import { filterFor, writeSet } from "../../store/easy/easy.js";
+import { knobsOffered } from "../../store/easy/easyoffer.js";
+import { pipsFor } from "../../store/easy/easycost.js";
+import { easyLane } from "../../store/easy/easylane.js";
 import { sourceIsNx } from "../../store/live/derive.js";
 import { plainEntry } from "../../store/plainnames.js";
 import { filterFacets } from "../../store/narrow/facets.js";
@@ -39,8 +39,8 @@ const HIRES_TIP =
   "Uses a special hi-res-optimized filter at rates above 48 kHz; these filters can also be used for Lossy content";
 
 /**
- * @typedef {import("../../store/easy.js").Preset} Preset
- * @typedef {import("../../store/easy.js").Knob} Knob
+ * @typedef {import("../../store/easy/easy.js").Preset} Preset
+ * @typedef {import("../../store/easy/easy.js").Knob} Knob
  */
 
 // The fields go one at a time because both lanes write one at a time: staging
@@ -174,7 +174,7 @@ function Pips({ preset, lane, knobs }) {
   //
   // A number wins over the word wherever there is one: a preset can carry the
   // caption for the versions that rank against nothing and still name a filter
-  // that ranks at one of its positions (store/easycost.js).
+  // that ranks at one of its positions (store/easy/easycost.js).
   if (preset.costText && count === 0) {
     return html`
       <span class="easy-pips" data-testid="easy-pips">
@@ -239,7 +239,7 @@ function FilterName({ presetId, lane, knobs }) {
 // so two spacings mean two parents.
 // GRAYED is a third marking and the only one the card decides rather than the
 // fields: the card's material knob says the source is lossy and this preset has
-// no filter made for it (store/easyoffer.js presetGrayed). A grayed tile cannot
+// no filter made for it (store/easy/easyoffer.js presetGrayed). A grayed tile cannot
 // be operated: its button and its knobs are disabled until the card knob moves.
 /**
  * One curated preset as a tile: its mark, its cost, its words, its adjustments, and the click that sets it.

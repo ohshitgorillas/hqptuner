@@ -77,19 +77,19 @@ repos:
 
       - id: single-assertion
         name: one assertion per test
-        entry: .venv/bin/python scripts/gates/check_test_assertions.py
+        entry: .venv/bin/python scripts/gates/testing/check_test_assertions.py
         language: system
         types: [python]
         files: ^tests/
       - id: no-copy-assertions
         name: no copy in assertions
-        entry: .venv/bin/python scripts/gates/check_no_copy_assertions.py
+        entry: .venv/bin/python scripts/gates/testing/check_no_copy_assertions.py
         language: system
         types: [python]
         files: ^tests/
       - id: test-clocks
         name: no real clock under tests/
-        entry: .venv/bin/python scripts/gates/check_test_clocks.py
+        entry: .venv/bin/python scripts/gates/testing/check_test_clocks.py
         language: system
         types: [python]
         files: ^tests/
@@ -107,7 +107,7 @@ repos:
       # refusing a missing report rather than passing.
       - id: coverage-floor
         name: per-file coverage floor
-        entry: .venv/bin/python scripts/gates/check_coverage_floor.py
+        entry: .venv/bin/python scripts/gates/testing/check_coverage_floor.py
         language: system
         pass_filenames: false
         always_run: true
@@ -116,7 +116,7 @@ repos:
       # judged, so this reports the red rather than a time.
       - id: suite-time
         name: suite wall time against the last green run
-        entry: .venv/bin/python scripts/gates/check_suite_time.py
+        entry: .venv/bin/python scripts/gates/testing/check_suite_time.py
         language: system
         pass_filenames: false
         always_run: true
@@ -172,13 +172,13 @@ repos:
 
       - id: css-tokens
         name: css design-token gate
-        entry: .venv/bin/python scripts/gates/check_css_tokens.py
+        entry: .venv/bin/python scripts/gates/css/check_css_tokens.py
         language: system
         files: ^hqptuner/static/css/.*\.css$
 
       - id: css-cards
         name: css one-card-component gate
-        entry: .venv/bin/python scripts/gates/check_css_cards.py
+        entry: .venv/bin/python scripts/gates/css/check_css_cards.py
         language: system
         files: ^hqptuner/static/css/.*\.css$
 
@@ -186,7 +186,7 @@ repos:
       # CSS side, so the gate has to run when EITHER side moves.
       - id: css-classes
         name: css orphaned-class gate
-        entry: .venv/bin/python scripts/gates/check_css_classes.py
+        entry: .venv/bin/python scripts/gates/css/check_css_classes.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
@@ -198,7 +198,7 @@ repos:
       # to run when EITHER side moves.
       - id: css-dead
         name: css dead-property/keyframe gate
-        entry: .venv/bin/python scripts/gates/check_css_dead.py
+        entry: .venv/bin/python scripts/gates/css/check_css_dead.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
@@ -208,7 +208,7 @@ repos:
       # marking lives in the stylesheets, so the gate has to run when either moves.
       - id: css-dirty
         name: staged-edit marking gate
-        entry: .venv/bin/python scripts/gates/check_css_dirty.py
+        entry: .venv/bin/python scripts/gates/css/check_css_dirty.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
@@ -311,7 +311,7 @@ repos:
       # seen from two files.
       - id: e2e-isolation
         name: e2e state-isolation gate
-        entry: .venv/bin/python scripts/gates/check_e2e_isolation.py
+        entry: .venv/bin/python scripts/gates/testing/check_e2e_isolation.py
         language: system
         pass_filenames: false
         files: ^(hqptuner/config\.py|tests/e2e/support/stack\.py)$

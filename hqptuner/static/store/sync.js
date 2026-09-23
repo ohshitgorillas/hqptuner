@@ -5,7 +5,7 @@
 import { effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { lastApply } from "./actions.js";
-import { fastPollMs } from "./ui.js";
+import { fastPollMs } from "./ui/ui.js";
 import {
   health,
   engineState,
@@ -124,7 +124,7 @@ export function startPolling(interval = 2000) {
   refreshFast();
   refreshConfig();
   // The fast (status/volume) cadence is reactive: the volume page, LIVE, and the
-  // System page with quick updates ticked run at 1 s (store/ui.js). Reschedule the
+  // System page with quick updates ticked run at 1 s (store/ui/ui.js). Reschedule the
   // timer whenever the derived cadence changes; the config poll stays fixed.
   /** @type {ReturnType<typeof setInterval>} */
   let fastTimer;

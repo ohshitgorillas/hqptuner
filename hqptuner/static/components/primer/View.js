@@ -17,7 +17,7 @@
 // hidden copy in the document while the filter cards are showing.
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
-import { setPrimerOpen } from "../../store/primerview.js";
+import { setPrimerOpen } from "../../store/primer/primerview.js";
 import { INTRO, SECTIONS } from "./copy.js";
 import { PrimerGraph } from "./Graph.js";
 

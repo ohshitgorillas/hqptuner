@@ -35,8 +35,8 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { HardwareCard } from "../../../../hqptuner/static/components/SystemHardware.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
-import { stagingWire } from "../../support/wire.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
 
 //: The dirty marking itself — a CSS class, contract (docs/testing.md rule 9).

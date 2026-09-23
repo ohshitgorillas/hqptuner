@@ -90,7 +90,7 @@ DEFAULTS = {
     # What is established about the real list: `GetRates` is answered per mode AND
     # per transport state, and a snapshot taken right after a reconnect with the
     # transport idle held the auto entry alone. Whether asking again fills such a
-    # list in is NOT established — `scripts/probes/probe_rates_on_demand.py`
+    # list in is NOT established — `scripts/probes/rate/probe_rates_on_demand.py`
     # against 6.0.4 could not reproduce the short answer at all (two fresh
     # connections, three `GetRates` each, all six the full 11-item ladder). So the
     # knob says only what a daemon answered, never why.
@@ -290,7 +290,7 @@ def _reported_mode(state: dict[str, str]) -> str:
     It resolves to the mode's display name only when one is CONFIGURED. In
     ``[source]`` the daemon echoes ``"[source]"`` straight back rather than naming
     the family it settled on — measured 2026-07-29 while playing PCM
-    (``scripts/probes/probe_rate_playing.py``). So ``_active_mode`` is the fake's knob for
+    (``scripts/probes/rate/probe_rate_playing.py``). So ``_active_mode`` is the fake's knob for
     which family the SOURCE is, and this is what actually goes out.
     """
     return state.get("_active_mode", "") if state.get("mode") in ("1", "2") else "[source]"

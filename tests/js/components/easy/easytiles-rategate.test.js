@@ -59,9 +59,9 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, resetLive, tabs, liveCard, presetIds } = await import("../../support/easytiles.js");
+const { resetTab, resetLive, tabs, liveCard, presetIds } = await import("../../support/easy/easytiles.js");
 const { sdmSubject, sdmSweepSubject, sdmNames, sdmOffDefaultNames, classedAs } =
-  await import("../../support/easytable.js");
+  await import("../../support/easy/easytable.js");
 
 /** The state that pins the base: an ALSA backend whose own switch says 44.1k only. */
 const PINNED = { engine: { backend: "alsa", anydsd: "0" } };

@@ -8,8 +8,8 @@
 // the active marking), tests/js/components/easytiles-filtername.test.js (the
 // filter name a tile displays) and tests/js/components/easytiles-mark.test.js
 // (the apodizing mark, whose facet seam this file shares). All share
-// tests/js/support/easytiles.js, imported dynamically after `useStorage()` so
-// that `store/easyview.js` meets the fake localStorage at its load-time read.
+// tests/js/support/easy/easytiles.js, imported dynamically after `useStorage()` so
+// that `store/easy/easyview.js` meets the fake localStorage at its load-time read.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
 //   * the tile BOX as an `easy-tile`-classed element carrying `data-preset`,
@@ -22,7 +22,7 @@
 //   * `data-testid="easy-filter"` on the tile's filter block and
 //     `data-part="raw"` on the engine filter name inside it, the hooks
 //     tests/js/components/easytiles-filtername.test.js already pins;
-//   * `setEasyMaterial` on `store/easyview.js`, the public way the card knob's
+//   * `setEasyMaterial` on `store/easy/easyview.js`, the public way the card knob's
 //     position is stated. The card control's own rendering is not read here:
 //     the knob is driven through the store before the render.
 //
@@ -30,7 +30,7 @@
 // preset's knob positions writes a filter whose FACET says hi-res family, and
 // both halves of that are public: `combos` × `writeSet` is the table's sweep,
 // `filterFacets` is the store's facet for a name. The presets are therefore
-// partitioned off those two (tests/js/support/easygray.js), one case per
+// partitioned off those two (tests/js/support/easy/easygray.js), one case per
 // preset per output mode on each side, and no preset is named to stand for
 // either property. A facet exists for a name only when the seeded metadata
 // lists that filter, so `uniformFacets` (every name the table writes) is the
@@ -56,8 +56,8 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, ROSTER } = await import("../../support/easytiles.js");
-const { seedFacets, uniformFacets } = await import("../../support/easymark.js");
+const { resetTab, tabs, ROSTER } = await import("../../support/easy/easytiles.js");
+const { seedFacets, uniformFacets } = await import("../../support/easy/easymark.js");
 const {
   writesHiresFamily,
   facetless,
@@ -68,12 +68,12 @@ const {
   pickDisabled,
   knobOptionsOf,
   optionDisabled,
-} = await import("../../support/easygray.js");
-const { setEasyMaterial } = await import("../../../../hqptuner/static/store/easyview.js");
-const { presetsFor } = await import("../../../../hqptuner/static/store/easy.js");
+} = await import("../../support/easy/easygray.js");
+const { setEasyMaterial } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
-/** @typedef {import("../../support/easytiles.js").Knob} Knob */
-/** @typedef {import("../../support/easytiles.js").Preset} Preset */
+/** @typedef {import("../../support/easy/easytiles.js").Knob} Knob */
+/** @typedef {import("../../support/easy/easytiles.js").Preset} Preset */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();

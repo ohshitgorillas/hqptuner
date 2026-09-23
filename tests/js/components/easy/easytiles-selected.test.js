@@ -50,8 +50,8 @@ const {
   knobPositions,
   pressTile,
   offeredAnySource,
-} = await import("../../support/easytiles.js");
-const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
+} = await import("../../support/easy/easytiles.js");
+const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[], whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */

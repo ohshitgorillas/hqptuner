@@ -1,6 +1,6 @@
 // Behavioral suite for eqlab's continuous-refinement feature — the pure
-// optimizers in scripts/eqlab/refine.js and the `refine` paths through
-// scripts/eqlab/search.js. Written blind from a spec block: no eqlab source
+// optimizers in scripts/eqlab/search/refine.js and the `refine` paths through
+// scripts/eqlab/search/search.js. Written blind from a spec block: no eqlab source
 // was read.
 //
 // Search spaces follow the search suites' trick: one peaking band at 1 kHz
@@ -14,15 +14,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { coordinateDescent, nelderMead, refinePoint } from "../../../scripts/eqlab/refine.js";
-import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
+import { coordinateDescent, nelderMead, refinePoint } from "../../../scripts/eqlab/search/refine.js";
+import { searchJob, refineJob } from "../../../scripts/eqlab/search/search.js";
 import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { FS, near, below, band, argNum } from "../support/eqlab-helpers.js";
 import { ascending } from "../support/order.js";
 
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Objective} Objective */
 
 /**
  * A survivor from a refined run, where the four optional keys a refinement

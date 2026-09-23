@@ -30,9 +30,9 @@ import assert from "node:assert/strict";
 
 import { reset } from "../../support/field-harness.js";
 import { renderField, textOf } from "../../support/vnodeseam.js";
-import { vnodeRows, clickablesIn, click } from "../../support/comborows.js";
-import { staticWire, stagingWire, quiesce } from "../../support/wire.js";
-import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+import { vnodeRows, clickablesIn, click } from "../../support/easy/comborows.js";
+import { staticWire, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/wire/favoriteswire.js";
 import { favoriteFilters, favoritesError, isFavorite } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 

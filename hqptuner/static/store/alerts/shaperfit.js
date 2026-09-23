@@ -1,6 +1,6 @@
 // Rate/shaper conflicts, as alert-strip rows.
 //
-// The option lists gray a shaper the rate cannot reach (store/options.js
+// The option lists gray a shaper the rate cannot reach (store/ui/options.js
 // grayShapersByRate), which closes one direction only: pick the rate first and
 // the modulator menu tells you. The other direction — a modulator already
 // selected, then the rate dropped under it — is deliberately NOT closed by
@@ -21,7 +21,7 @@
 import { computed } from "@preact/signals";
 import { metadata } from "../signals.js";
 import { effective } from "../resolve.js";
-import { optionsFor } from "../options.js";
+import { optionsFor } from "../ui/options.js";
 import { schema, DSD_RATES, PCM_RATES, TIER } from "../schema.js";
 import { loadedChain } from "../live/rates.js";
 

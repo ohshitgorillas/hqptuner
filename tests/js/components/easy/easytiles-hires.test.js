@@ -5,8 +5,8 @@
 // The companion files are tests/js/components/easypips.test.js (the pip group
 // in the same row), tests/js/components/easytiles-mark.test.js (the apodizing
 // mark) and tests/js/components/easytiles.test.js (the tiles themselves). All
-// share tests/js/support/easytiles.js, imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
+// share tests/js/support/easy/easytiles.js, imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
 // load-time read.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
@@ -61,10 +61,10 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, tileHtml } = await import("../../support/easytiles.js");
-const { seedFacets, uniformFacets } = await import("../../support/easymark.js");
-const { setEasyMaterial } = await import("../../../../hqptuner/static/store/easyview.js");
-const { presetsFor } = await import("../../../../hqptuner/static/store/easy.js");
+const { resetTab, tabs, tileHtml } = await import("../../support/easy/easytiles.js");
+const { seedFacets, uniformFacets } = await import("../../support/easy/easymark.js");
+const { setEasyMaterial } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {{ id: string, options: string[] }} Knob */
@@ -257,7 +257,7 @@ const decode = (s) =>
  * here.
  *
  * A badge NAMED BY NOTHING answers "" rather than throwing, the convention the
- * sibling harness settled (`markLabel`, tests/js/support/easymark.js). SSR emits
+ * sibling harness settled (`markLabel`, tests/js/support/easy/easymark.js). SSR emits
  * an empty-string attribute bare (` aria-label`, never `aria-label=""`), so a
  * throw here would swallow the empty case whole and leave the case below
  * asserting only that a helper did not raise. A badge a reader is told nothing

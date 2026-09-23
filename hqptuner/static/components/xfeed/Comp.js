@@ -12,7 +12,7 @@ import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { effectivePipelines } from "../../store/resolve.js";
 import { stagePipelines, edit } from "../../store/actions.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 import { bauerSettings, xfeedBlock, removeBlock } from "../../store/xfeed/block.js";
 import { parseProcess } from "../../lib/matrixspec.js";
 import { chainResponse } from "../../lib/dsp/chain.js";

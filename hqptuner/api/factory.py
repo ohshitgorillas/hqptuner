@@ -15,8 +15,6 @@ from hqptuner.api.routes import (
     discovery,
     favorites,
     livepreset,
-    matrix,
-    matrixmodes,
     narrowing,
     pending,
     preset,
@@ -24,6 +22,7 @@ from hqptuner.api.routes import (
     volume,
 )
 from hqptuner.api.routes.audit import audit_router
+from hqptuner.api.routes.matrix import matrix, matrixmodes
 from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
 from hqptuner.config import Config

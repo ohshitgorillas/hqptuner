@@ -134,7 +134,7 @@ SET_FLAGS = re.compile(r"^[-+][aeux]$")
 # The one file a `source` may name: the gitignored dev credentials at repo root.
 SOURCEABLE = "hqpcreds"
 # the one script a bare `python` head may run free: a gate, by relative path
-GATE_SCRIPT = re.compile(r"^scripts/gates/check_[a-z0-9_]+\.py$")
+GATE_SCRIPT = re.compile(r"^scripts/gates/(?:[a-z]+/)?check_[a-z0-9_]+\.py$")
 # `scripts/gate.sh`, in this checkout or in a worktree's copy of it. It runs the
 # command it is given and adds a log file, so it is free exactly when that
 # command is free: the prefix comes off and the allowlist judges what is left.

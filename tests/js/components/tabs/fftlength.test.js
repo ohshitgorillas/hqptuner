@@ -34,9 +34,9 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Output } from "../../../../hqptuner/static/components/tabs/OutputTab.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { formFields, section } from "../../support/tabform.js";
 import { attr, classes, elements, keyed, text } from "../../support/markup.js";
 
@@ -123,7 +123,7 @@ async function outputWith(slots) {
 }
 
 // Whether a fragment carries the fft_size field, by the schema key its wrapper
-// wears in `data-k` (components/Field.js).
+// wears in `data-k` (components/widgets/Field.js).
 /** @param {string} frag */
 const carriesFftSize = (frag) => /\sdata-k="fft_size"/.test(frag);
 

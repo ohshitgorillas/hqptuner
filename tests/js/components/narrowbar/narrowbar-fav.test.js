@@ -33,8 +33,8 @@ import {
   toggleFavorite,
   nFavOnly,
 } from "../../../../hqptuner/static/store/narrow/favorites.js";
-import { staticWire } from "../../support/wire.js";
-import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+import { staticWire } from "../../support/wire/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/wire/favoriteswire.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 

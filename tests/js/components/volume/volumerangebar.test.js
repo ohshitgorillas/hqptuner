@@ -30,7 +30,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBar } from "../../../../hqptuner/static/components/volume/RangeBar.js";
 import { config, enums, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 
 // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
 // paths, so `edit()` stages exactly as it does against the backend.

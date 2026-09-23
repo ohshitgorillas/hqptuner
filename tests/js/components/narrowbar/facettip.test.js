@@ -1,6 +1,6 @@
 // Behavioral suite for the filter hover tip's facet block: filterTipFacets
 // (components/narrowbar/facettip.js) — the rows and boolean chips one filter's tip
-// carries — and the changed tipsFor (components/Field.js), whose resolver now
+// carries — and the changed tipsFor (components/widgets/Field.js), whose resolver now
 // returns { text, rows, chips } instead of bare prose.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, state
@@ -149,8 +149,8 @@ const rowKeys = (name) => filterTipFacets(name).rows.map((r) => r[0]);
 const chipCodes = (name) => filterTipFacets(name).chips.map((c) => c[0]);
 
 // The facet codes the fixtures below classify to. Grounded on the store's own
-// facet vocabulary: phase (tests/js/store/phase-facet.test.js), length
-// (tests/js/store/length-facet.test.js), genre (tests/js/store/
+// facet vocabulary: phase (tests/js/store/narrow/phase-facet.test.js), length
+// (tests/js/store/narrow/length-facet.test.js), genre (tests/js/store/
 // narrowing-mode.test.js), and ratio/focus on the very tokens these fixtures
 // feed in through the overlay and the engine description.
 const LINEAR = "linear";

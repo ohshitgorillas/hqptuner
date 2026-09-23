@@ -4,10 +4,10 @@
 /** @typedef {import("./jobs.js").RoundedNote} RoundedNote */
 /** @typedef {import("./jobs.js").PanelOut} PanelOut */
 /** @typedef {import("./guidance.js").Flag} Flag */
-/** @typedef {import("./search.js").SurvivorOut} SurvivorOut */
-/** @typedef {import("./search.js").Failure} Failure */
+/** @typedef {import("./search/search.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("./search/search.js").Failure} Failure */
 /** @typedef {import("./metrics.js").MetricResult} MetricResult */
-/** @typedef {import("./fit.js").Fit} Fit */
+/** @typedef {import("./search/fit.js").Fit} Fit */
 
 /**
  * One table cell before padding.

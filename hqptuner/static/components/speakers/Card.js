@@ -21,7 +21,7 @@ import { useEffect } from "preact/hooks";
 import { html, wheelGuard } from "../../lib/dom.js";
 import { NumberBox, Segment } from "../controls/index.js";
 import { effective } from "../../store/resolve.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 import {
   speakers,
   speakersBusy,

@@ -3,7 +3,7 @@
 // logging card, and the About HQPTuner card.
 import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { noteFor } from "../../store/prose.js";
 import { health } from "../../store/signals.js";
 import { EngineHealth } from "../EngineHealth.js";
@@ -19,7 +19,7 @@ import {
   dyslexic,
   ACCENTS,
   ACCENT_HEX,
-} from "../../store/theme.js";
+} from "../../store/ui/theme.js";
 import {
   showDescriptions,
   keepOptionDescriptions,
@@ -28,7 +28,7 @@ import {
   apodLight,
   setApodLight,
   notesVisible,
-} from "../../store/prefs.js";
+} from "../../store/ui/prefs.js";
 import { Section, Card, collapseFrom } from "../common.js";
 
 const info = computed(() => (health.value && health.value.info) || {});

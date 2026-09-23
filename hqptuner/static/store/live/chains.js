@@ -5,7 +5,7 @@
 // somewhere other than the enumerations.
 
 import { runningValue } from "../resolve.js";
-import { optionsFor, grayShapersByRate, stripRateSuffix, dropSupersededTwoStage } from "../options.js";
+import { optionsFor, grayShapersByRate, stripRateSuffix, dropSupersededTwoStage } from "../ui/options.js";
 import { narrowOptions, narrowCount, favOnlyModulators } from "../narrow/match.js";
 import { decorateOptions } from "../plainnames.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
@@ -32,7 +32,7 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // Shapers carry `narrow` nowhere and are left whole.
 //
 // Rate graying is the other half of the same story, and the same feature the
-// tabs have (components/Field.js): a modulator whose floor is above the selected
+// tabs have (components/widgets/Field.js): a modulator whose floor is above the selected
 // SDM rate is grayed with that floor as the reason. It is driven off the same
 // schema `rateGray` field the tabs read, so the two views share one rule rather
 // than growing two — and it is what closes the modulator-first order into a

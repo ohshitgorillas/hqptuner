@@ -105,7 +105,7 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
     them boots on whatever the developer last clicked. That is not a hygiene
     point — the narrow bar filters the filter enumerations, so one saved facet
     empties a chain selector and the browser tests read it as the engine
-    offering nothing. `scripts/gates/check_e2e_isolation.py` fails the build
+    offering nothing. `scripts/gates/testing/check_e2e_isolation.py` fails the build
     when a new path knob lands here unredirected.
     """
     return {

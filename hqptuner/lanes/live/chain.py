@@ -53,8 +53,7 @@ def _chain_from_status(mgr: ConnectionManager) -> str | None:
 
     ``Status.active_mode`` looks like the whole answer and is not: it echoes the
     CONFIGURED mode, so in ``[source]`` — the one case this is reached in on a
-    live daemon — it reads ``"[source]"`` and nothing else (probe-verified on
-    6.0.4, ``scripts/probes/probe_rate_playing.py``). ``Status.active_rate``
+    live daemon — it reads ``"[source]"`` and nothing else. ``Status.active_rate``
     does answer, and unambiguously: it is the rate coming out, and its family is
     the chain that produced it (``rate_family``, no rate lands between the two).
     """

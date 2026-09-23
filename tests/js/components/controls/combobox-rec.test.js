@@ -24,9 +24,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, META } from "../../support/field-harness.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { elements, classes, text } from "../../support/markup.js";
-import { rowIncluding } from "../../support/comborows.js";
+import { rowIncluding } from "../../support/easy/comborows.js";
 
 // Two flagged entries and one unflagged, so a flagged row, an unflagged row
 // and the legend are all observable in one fragment.

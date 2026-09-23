@@ -58,7 +58,7 @@
    label, the way STEREO or TUNED is printed on the panel whether or not its lamp
    is lit.
 
-   --lamp is the peak brightness for the newest poll (components/ApodLamp.js) and
+   --lamp is the peak brightness for the newest poll (components/widgets/ApodLamp.js) and
    --lit is the envelope, nought to one and back down; the light is the two
    multiplied. Keeping them separate is not tidiness: the keyframes below must
    not reference --lamp, because a registered custom property animated TO a var()
@@ -116,7 +116,7 @@
    Two identical keyframes, alternated by the class the component writes, because
    the flash has to restart on every bin and an animation restarts when its NAME
    changes. Restarting it by replacing the element instead does not survive the
-   diff (components/ApodLamp.js). Keep the two bodies in step. */
+   diff (components/widgets/ApodLamp.js). Keep the two bodies in step. */
 .apod-jewel.apod-flash-0::after {
   animation-name: apod-flash-even;
 }

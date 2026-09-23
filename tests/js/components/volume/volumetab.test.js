@@ -40,8 +40,8 @@ import {
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
-import { stagingWire } from "../../support/wire.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { cardHeadAt, section } from "../../support/tabform.js";
 import { attr, classes, elements } from "../../support/markup.js";
 import { placed } from "../../support/order.js";

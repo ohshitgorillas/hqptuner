@@ -19,7 +19,7 @@ import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js
 import { HEAD_RADIUS } from "../../../../hqptuner/static/lib/binaural/geometry.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { staticWire } from "../../support/wire.js";
+import { staticWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
 

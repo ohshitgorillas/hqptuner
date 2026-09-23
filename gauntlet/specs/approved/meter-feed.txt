@@ -1,0 +1,48 @@
+slug: meter-feed
+kind: new
+brief:
+> Pick a chunk of `docs/meter-mode.md` to make a slug out of, then take it through stage 1 of the plan gate.
+
+1. A `hqptuner.engine.meterfeed.MeterFeed()` with one queue from `subscribe()` attached, given through `add(header, body)` identical stereo frames until the queue holds its first `("frame", data)` item — `header` the eight values `struct.unpack("<4I3fI")` reads from a frame's 32-byte header (version 1, channels, xformLength 1025, transformBits, `f32` bandwidth, `f32` transformTime 1024/(2 × bandwidth), `f32` gain, reserved 0), `body` per channel `f32 peakMax, peak, rms, rmsMax` then 1025 reals and 1025 imaginaries, bin `k` at `k × bandwidth / 1024` Hz, each channel's tone in one bin and floor elsewhere — returns the pair (index of the largest value in `data["channels"][0]["bands"]`, index of the largest value in `data["channels"][1]["bands"]`) equal to the pair (index of the entry of the preceding `("geometry", g)` item's `g["centres"]` nearest in ratio to channel 0's tone-bin frequency, the same for channel 1's), swept over tones (channel 0 at the bin nearest 3000 Hz, channel 1 at the bin nearest 12000 Hz) and (channel 0 at 12000 Hz, channel 1 at 3000 Hz), each at bandwidth 22050.0 and 48000.0.
+   kills: sums the channels into one spectrum, or maps bins to bands by a fixed fraction of the bin count, so the left and right spectra show the same bars, or a 3 kHz tone on a 96 kHz source lights the bar of another frequency.
+   bite: null stub fails at the first tone assignment at bandwidth 22050.0 (surface new) — a `MeterFeed` whose `add` queues nothing leaves no `frame` item to read.
+   existing: none, `grep -rn -i "meterfeed\|MeterFeed\|meter/feed\|reduce_frame" tests --include=*.py` returns no match.
+
+2. A `hqptuner.engine.meterfeed.MeterFeed()` with one `subscribe()` queue attached, given through `add(header, body)` mono frame A and then mono frames B until the queue holds its first `("frame", data)` item, all at bandwidth 22050.0 with transformTime 1024/44100 and header and body as line 1, returns the pair (`data["channels"][0]["peak"]`, whether `data["channels"][0]["rms"]` lies strictly between B's `rms` and A's `rms`) equal to (A's `peak`, True). Swept over A `peak` -6.0 `rms` -20.0 with B `peak` -12.0 `rms` -40.0, expected (-6.0, True), and A `peak` -3.0 `rms` -10.0 with B `peak` -9.0 `rms` -30.0, expected (-3.0, True).
+   kills: reports the newest frame's levels, or the first frame's, or the loudest rms, so the peak meter drops to the last frame's -12 or the rms meter sits at one frame's reading where the stride held both.
+   bite: null stub fails at the first level pair (surface new) — a `MeterFeed` whose `add` queues nothing leaves no `frame` item to read.
+   existing: none, `grep -rn -i "meterfeed\|MeterFeed\|meter/feed\|reduce_frame" tests --include=*.py` returns no match.
+
+3. A `hqptuner.engine.meterfeed.MeterFeed()` with one `subscribe()` queue attached, given through `add(header, body)` eight identical mono frames, header and body as line 1, queues fewer `frame` items at bandwidth 48000.0 with transformTime 1024/96000 than at bandwidth 22050.0 with transformTime 1024/44100.
+   kills: sends one event per frame, or a fixed stride whatever the rate, so the page redraws at 187 events per second on a 192 kHz source and at 21.5 on a 44.1 kHz one.
+   bite: null stub fails (surface new) — a `MeterFeed` whose `add` queues nothing queues zero `frame` items at both rates, and zero is not fewer than zero.
+   existing: none, `grep -rn -i "meterfeed\|MeterFeed\|meter/feed\|reduce_frame" tests --include=*.py` returns no match.
+
+4. A `hqptuner.engine.meterfeed.MeterFeed()` with one `subscribe()` queue attached, given through `add(header, body)` one stereo frame whose channel 0 `peak` is -1.0, then mono frames whose channel 0 `peak` is P until the queue holds a `frame` item, all at bandwidth 22050.0 with transformTime 1024/44100 and header and body as line 1, queues items whose (`event`, `data["channels"]` if `event` is `"geometry"` else `data["channels"][0]["peak"]`) pairs read `[("geometry", 2), ("geometry", 1), ("frame", P)]`, swept over P -20.0 and P -30.0.
+   kills: finishes the stride across the channel change, so the page receives a mono frame holding the stereo frame's -1.0 peak, or a frame shaped for a geometry it was never sent.
+   bite: null stub fails at P -20.0 (surface new) — a `MeterFeed` whose `add` queues nothing gives an empty list.
+   existing: none, `grep -rn -i "meterfeed\|MeterFeed\|meter/feed\|reduce_frame" tests --include=*.py` returns no match.
+
+5. `GET /api/meter/feed` against an app built with metering enabled, whose engine reports playing (`State` state 2) and which reads a `tests/support/fake_metering.py` stream of frames as line 1, streams a first event whose (event name, `channels` of its `data:` JSON object) pair equals (`"geometry"`, the fake frame's channel count), the client hanging up after that event, swept over 1-channel and 2-channel fakes.
+   cap: lines 1 to 4 pin `MeterFeed` alone, and the route is the only surface a page reads, so no line there can reject a route that answers 200 and never carries the feed's events onto the stream.
+   kills: answers 200 `text/event-stream` and streams nothing, or streams events not taken from the reader's feed, so the METER page never draws.
+   bite: null stub fails at the 1-channel fake (surface new) — `/api/meter/feed` absent answers 404 with no `geometry` event.
+   existing: none, `grep -rn -i "meterfeed\|MeterFeed\|meter/feed\|reduce_frame" tests --include=*.py` returns no match.
+
+--- reviewer ---
+READY
+discriminates: sweep on `MeterFeed` frame bands (line 1: two distinct argmax pairs), sweep on `MeterFeed` frame peak (line 2: -6.0 and -3.0; line 4: -20.0 and -30.0), differential on `MeterFeed` frame-item count by bandwidth (line 3), sweep on `GET /api/meter/feed` first event (line 5: 1 and 2 channels)
+return: the round-3 finding on line 4 answered by named repair on line 4; not evaded.
+
+1  ADMITTED carried
+2  ADMITTED carried
+3  ADMITTED carried
+4  ADMITTED
+5  ADMITTED carried
+
+null stub: `MeterFeed.add` queues nothing; `/api/meter/feed` absent (404).
+  satisfies: none   fails: 1, 2, 3, 4, 5
+hard-coded stub: `MeterFeed.add` ignores the body. It queues geometry with fixed `centres` on each channel-count change without restarting its count, and a frame every 2 adds whatever the rate. Each frame has the bands spiked at one fixed index pair and levels fixed at peak -20.0, rms -22.97. The route streams one `geometry` event with `channels` 2.
+  satisfies: none   fails: 1 (tone swap), 2 (peak -20.0 not A's), 3 (equal counts at both rates), 4 (P -30.0), 5 (1-channel fake)
+
+survives: 5

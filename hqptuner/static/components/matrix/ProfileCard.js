@@ -38,7 +38,7 @@ import {
   flushDescriptions,
 } from "../../store/matrix/descriptions.js";
 import { askChoices } from "../../store/ask.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 import { Ask } from "../Ask.js";
 import { Card } from "../common.js";
 import { Combobox } from "../controls/Combobox.js";

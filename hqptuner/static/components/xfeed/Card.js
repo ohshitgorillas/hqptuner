@@ -19,10 +19,10 @@
 // until Apply.
 import { signal } from "@preact/signals";
 import { html, wheelGuard, Tri } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { effective, effectivePipelines, isDirty } from "../../store/resolve.js";
 import { edit } from "../../store/actions.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 import { noteFor } from "../../store/prose.js";
 import { pathParams } from "../../lib/binaural/geometry.js";
 import { midSideResponse, magDb } from "../../lib/binaural/response.js";

@@ -12,11 +12,11 @@
 // facet rather than a second copy of the subhead button.
 import { signal, computed, effect } from "@preact/signals";
 import { html, Tri } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { ChainPack } from "../ChainPack.js";
-import { AutopilotToggle } from "../AutopilotToggle.js";
+import { AutopilotToggle } from "../widgets/AutopilotToggle.js";
 import { effective } from "../../store/resolve.js";
-import { optionsFor } from "../../store/options.js";
+import { optionsFor } from "../../store/ui/options.js";
 import { Card, collapseFrom } from "../common.js";
 import { nSrcFormat } from "../../store/narrow/state.js";
 

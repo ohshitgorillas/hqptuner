@@ -25,7 +25,7 @@
 // /api/config, /api/state and /api/enumerations shapes; the staged mode rides
 // the real REST staging path through `edit`; the preview arrives as the two
 // preview signals a preset click leaves behind, the shape
-// tests/js/store/shaperfit-mode-gate.test.js drives. No store function is
+// tests/js/store/guards/shaperfit-mode-gate.test.js drives. No store function is
 // stubbed, and no user-facing word is asserted or selected on (rule 9) — a tile
 // is found by its `data-preset`.
 //
@@ -54,7 +54,7 @@ const {
   selectedMap,
   liveExpected,
   flush,
-} = await import("../../support/easytiles.js");
+} = await import("../../support/easy/easytiles.js");
 const { previewConfig, pendingPreset } = await import("../../../../hqptuner/static/store/signals.js");
 const { edit } = await import("../../../../hqptuner/static/store/actions.js");
 
@@ -62,7 +62,7 @@ const { edit } = await import("../../../../hqptuner/static/store/actions.js");
  * A previewed preset, as one click in the presets pane leaves the store: that
  * preset's own field values, keyed by the daemon's form-field names and valued
  * by the engine's enum ids, with the preset pending. Same two signals and same
- * shape tests/js/store/shaperfit-mode-gate.test.js drives; the values come from
+ * shape tests/js/store/guards/shaperfit-mode-gate.test.js drives; the values come from
  * the shipped table through `liveExpected`, never from a name typed out here.
  *
  * @param {string} presetId
@@ -77,7 +77,7 @@ function previewPreset(presetId) {
  * The Output tab with `ROSTER[0]`'s filters in the daemon's form and nothing staged
  * over them — the engine running one preset, the grid holding no edit.
  *
- * @returns {Promise<import("../../support/wire.js").StagingWire>}
+ * @returns {Promise<import("../../support/wire/wire.js").StagingWire>}
  */
 async function runningTile() {
   const set = running(ROSTER[0]);

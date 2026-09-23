@@ -28,7 +28,7 @@ import assert from "node:assert/strict";
 import { primerBoxEdit } from "../../support/primeredit.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { PrimerControls } from "../../../../hqptuner/static/components/primer/Controls.js";
-import { lengthMs, rolloff, transientUs, showMe } from "../../../../hqptuner/static/store/primergraph.js";
+import { lengthMs, rolloff, transientUs, showMe } from "../../../../hqptuner/static/store/primer/primergraph.js";
 
 // The three rows' minima, which are how a case says which box it typed into.
 const LENGTH_MIN = 0.1;

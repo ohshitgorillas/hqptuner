@@ -37,7 +37,7 @@ import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { isDirty, stagedCount } from "../../../../hqptuner/static/store/resolve.js";
 import { schema } from "../../../../hqptuner/static/store/schema.js";
 import { reset, field, titleOf, grayReason, activeSegment } from "../../support/field-harness.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { placed } from "../../support/order.js";
 
 /** @typedef {import("../../support/field-harness.js").ConfigField} ConfigField */

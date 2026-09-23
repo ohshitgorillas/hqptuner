@@ -1,7 +1,7 @@
 // Behavioral suite for the filter primer graph (components/primer/Graph.js) at
 // the extremes of its inputs, written blind from a spec block: no graph source
 // was read. The component is driven through the exported signals of
-// store/primergraph.js and rendered to a string; every reading below is a number
+// store/primer/primergraph.js and rendered to a string; every reading below is a number
 // pulled out of SVG geometry or out of the store's own computed grid and tap
 // list, never a word.
 //
@@ -38,7 +38,7 @@ import { render } from "preact-render-to-string";
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../../hqptuner/static/components/primer/Graph.js");
 const { rate, outputRate, phase, lengthMs, rolloff, transientUs, spectrum, design, freqPx, plotPx, showMe } =
-  await import("../../../../hqptuner/static/store/primergraph.js");
+  await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { elements, classes, attr } = await import("../../support/markup.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

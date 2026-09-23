@@ -37,7 +37,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBar } from "../../../../hqptuner/static/components/volume/RangeBar.js";
 import { config, matrixConfig, enums, engineState } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 
 // The daemon's /config form: Min and Startup inside the volume range, Max at
 // unity. The axis itself is fixed (-120..+12), so these are scenery for every

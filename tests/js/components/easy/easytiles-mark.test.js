@@ -8,10 +8,10 @@
 // active marking and where a press routes what the table names),
 // tests/js/components/easytiles-knobs.test.js (what a dark tile's knobs show)
 // and tests/js/components/easytiles-desc.test.js (a description's structure).
-// All four share tests/js/support/easytiles.js, imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
+// All four share tests/js/support/easy/easytiles.js, imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
 // load-time read; the mark's own readers and its seeding seam are
-// tests/js/support/easymark.js.
+// tests/js/support/easy/easymark.js.
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9, and never owner copy
 // verbatim). The three forms are told apart by the vector geometry each draws
@@ -31,7 +31,7 @@
 // the static overlay's `apodizing` fact under /api/metadata's `filters.filters`,
 // unioned with the engine enumeration's `arg` bitfield. The overlay half is what
 // these cases serve, because it is the half both lane fixtures can carry — see
-// tests/js/support/easymark.js.
+// tests/js/support/easy/easymark.js.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-mark.test.js
 
@@ -42,7 +42,7 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { ROSTER, resetTab, running, seedPcmPair, tabs } = await import("../../support/easytiles.js");
+const { ROSTER, resetTab, running, seedPcmPair, tabs } = await import("../../support/easy/easytiles.js");
 const {
   seedFacets,
   uniformFacets,
@@ -51,10 +51,10 @@ const {
   markGlyph,
   markLabel,
   markFollowsTitleAndPrecedesDescription,
-} = await import("../../support/easymark.js");
+} = await import("../../support/easy/easymark.js");
 const { dropdownGlyphs } = await import("../../support/apodglyph.js");
-const { recordPositions, setCardFrom } = await import("../../support/easyrecord.js");
-const { presetsFor } = await import("../../../../hqptuner/static/store/easy.js");
+const { recordPositions, setCardFrom } = await import("../../support/easy/easyrecord.js");
+const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 // The three classes a filter can be in, as the overlay spells them.
 const CLASSES = ["full", "half", "none"];

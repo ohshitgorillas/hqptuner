@@ -25,10 +25,10 @@ import { MatrixTab } from "../../../../hqptuner/static/components/matrix/Tab.js"
 import { matrixMode } from "../../../../hqptuner/static/store/matrix/mode.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { plottedRows } from "../../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../../hqptuner/static/components/matrix/BandStrip.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
 import { attr, classes, elements } from "../../support/markup.js";
 

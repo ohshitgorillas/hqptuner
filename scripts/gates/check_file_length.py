@@ -51,12 +51,12 @@ ALLOWANCE: dict[str, int] = {
     "hqptuner/static/components/xfeed/Card.js": 483,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,
-    "scripts/eqlab/search.js": 442,
+    "scripts/eqlab/search/search.js": 442,
     "scripts/eqlab/render.js": 441,
     "hqptuner/conf/httpconf.py": 427,
     ".claude/hooks/read-volume.py": 430,
     "scripts/probes/probe_absent_plugin.py": 430,
-    "scripts/junkcal_fixture.py": 656,
+    "scripts/junkcal/junkcal_fixture.py": 655,
     ".claude/hooks/change-budget.py": 427,
     "hqptuner/static/css/features/volume.css": 407,
     "scripts/eqlab/chain.js": 405,
@@ -84,7 +84,7 @@ def measure(name: str) -> int:
 CAP_EXEMPT: dict[str, str] = {
     # Owner-approved: the derived-corpus oracle carries the reading behind every measured
     # value, and a split that fits the cap scatters that provenance.
-    "scripts/junkcal_fixture.py": "junkcal fixture oracle, provenance kept whole",
+    "scripts/junkcal/junkcal_fixture.py": "junkcal fixture oracle, provenance kept whole",
 }
 
 

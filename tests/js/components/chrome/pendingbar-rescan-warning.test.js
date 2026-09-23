@@ -31,7 +31,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { health, config, matrixConfig, engineState, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { refreshDevices } from "../../../../hqptuner/static/store/sync.js";
-import { ok, staticWire } from "../../support/wire.js";
+import { ok, staticWire } from "../../support/wire/wire.js";
 
 // The sentence in the shape the server sends one, with no character SSR would
 // re-encode. Its wording is the server's business; what is pinned here is that

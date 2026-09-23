@@ -45,7 +45,7 @@ import {
   matrixConfig,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { knobDrag } from "../../support/pointer.js";
 
 // A live volume control: the card only drags when the engine reports one.
@@ -59,7 +59,7 @@ const DOWN_Y = 230;
 const UP_Y = 170;
 
 // The daemon's own live-volume endpoint, answering a write with the level it set
-// (tests/js/store/polling.test.js pins that readback shape). It is scenery here:
+// (tests/js/store/live/polling.test.js pins that readback shape). It is scenery here:
 // these cases are about the signal the card publishes, not about the write.
 function reset() {
   const w = stagingWire({

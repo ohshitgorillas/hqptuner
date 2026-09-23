@@ -1,4 +1,4 @@
-// Behavioral suite for store/theme.js — the accent preset swatches, the
+// Behavioral suite for store/ui/theme.js — the accent preset swatches, the
 // custom-hex override, and the boot-time stamp.
 //
 // The module's only dependencies are environment seams — document and
@@ -20,7 +20,7 @@ import {
   applyDyslexic,
   dyslexic,
   initTheme,
-} from "../../../hqptuner/static/store/theme.js";
+} from "../../../hqptuner/static/store/ui/theme.js";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";

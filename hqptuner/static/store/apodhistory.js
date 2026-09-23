@@ -28,8 +28,8 @@
 // for the two shapes it takes and how each was measured.
 import { signal, computed, effect } from "@preact/signals";
 import { engineStatus } from "./signals.js";
-import { fastPollMs } from "./ui.js";
-import { apodWindow } from "./prefs.js";
+import { fastPollMs } from "./ui/ui.js";
+import { apodWindow } from "./ui/prefs.js";
 
 const PLAYING = 2;
 

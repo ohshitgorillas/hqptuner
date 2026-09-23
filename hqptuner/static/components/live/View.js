@@ -22,9 +22,9 @@ import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { writeLive } from "../../store/live/write.js";
 import { describe, selectedLabel } from "../../store/prose.js";
 import { plainClosedLabel } from "../../store/plainnames.js";
-import { notesVisible, descVisible, liveNarrowOpen, livePlaybackOpen, liveHealthOpen } from "../../store/prefs.js";
+import { notesVisible, descVisible, liveNarrowOpen, livePlaybackOpen, liveHealthOpen } from "../../store/ui/prefs.js";
 import { Segment, Checkbox } from "../controls/index.js";
-import { widthClasses } from "../Field.js";
+import { widthClasses } from "../widgets/Field.js";
 import {
   widgetFor,
   tipsFor,
@@ -37,12 +37,12 @@ import {
   DescBlock,
 } from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
-import { AutopilotToggle } from "../AutopilotToggle.js";
+import { AutopilotToggle } from "../widgets/AutopilotToggle.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
-import { easyMode } from "../../store/easyview.js";
+import { easyMode } from "../../store/easy/easyview.js";
 import { PrimerView } from "../primer/View.js";
-import { primerOpen } from "../../store/primerview.js";
+import { primerOpen } from "../../store/primer/primerview.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
@@ -53,9 +53,9 @@ import { cardCollapse } from "./collapse.js";
 import { Section, Card, collapseFrom } from "../common.js";
 
 /**
- * @typedef {import("../Field.js").FieldEntry} FieldEntry
- * @typedef {import("../Field.js").FieldMeta} FieldMeta
- * @typedef {import("../Field.js").NarrowBadge} NarrowBadge
+ * @typedef {import("../widgets/Field.js").FieldEntry} FieldEntry
+ * @typedef {import("../widgets/Field.js").FieldMeta} FieldMeta
+ * @typedef {import("../widgets/Field.js").NarrowBadge} NarrowBadge
  * @typedef {ReturnType<typeof widgetFor>} Widget
  *   Whatever Field.js's own widget pick resolves to — the LIVE page renders the
  *   identical control, so it takes the identical type.
@@ -310,7 +310,7 @@ function PlaybackCard() {
 // The same card the System tab carries, high on the page because on LIVE it is
 // the instrument you judge a write by: change the filter and the
 // needle is what tells you the engine took it. This card drops its "quick
-// updates" checkbox here — LIVE polls at 1 s unconditionally (store/ui.js).
+// updates" checkbox here — LIVE polls at 1 s unconditionally (store/ui/ui.js).
 function HealthCard() {
   return html`
     <${Card} id="live-engine-health" title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
@@ -323,7 +323,7 @@ function HealthCard() {
  * LIVE page: the locked row — LIVE MODE and Mode side by side — then the five
  * movable blocks in the user's own order (components/live/Layout.js). The keys
  * are the stored order's vocabulary — a key added here needs the same key in
- * `LIVE_BLOCK_ORDER` (store/prefs.js), which is what keeps a stored order from
+ * `LIVE_BLOCK_ORDER` (store/ui/prefs.js), which is what keeps a stored order from
  * stranding a block.
  */
 export function LiveView() {

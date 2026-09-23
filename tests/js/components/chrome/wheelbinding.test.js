@@ -51,8 +51,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Field } from "../../../../hqptuner/static/components/Field.js";
-import { Knob } from "../../../../hqptuner/static/components/Knob.js";
+import { Field } from "../../../../hqptuner/static/components/widgets/Field.js";
+import { Knob } from "../../../../hqptuner/static/components/widgets/Knob.js";
 import { VolumeRangeBar } from "../../../../hqptuner/static/components/volume/RangeBar.js";
 import { MatrixTab } from "../../../../hqptuner/static/components/matrix/Tab.js";
 import { StageEditor, setSelected } from "../../../../hqptuner/static/components/matrix/StageEditor.js";
@@ -72,16 +72,16 @@ import {
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { matrixMode } from "../../../../hqptuner/static/store/matrix/mode.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { stagingWire, quiesce, ok } from "../../support/wire.js";
+import { stagingWire, quiesce, ok } from "../../support/wire/wire.js";
 import { renderWith, controlsIn, wheelAt, formValues } from "../../support/wheel.js";
 
-/** @typedef {import("../../support/wire.js").StagingWire} StagingWire */
+/** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 
 // --- the dispatch ------------------------------------------------------------

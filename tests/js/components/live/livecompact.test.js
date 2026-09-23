@@ -42,8 +42,8 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../../support/wire.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../../support/chainenums.js";
 import { classes, labeled } from "../../support/markup.js";
 import { section } from "../../support/tabform.js";

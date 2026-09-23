@@ -35,8 +35,8 @@ import assert from "node:assert/strict";
 import { reset, field, META } from "../../support/field-harness.js";
 import { renderField, textOf } from "../../support/vnodeseam.js";
 import { elements, classes, attr, text } from "../../support/markup.js";
-import { rows } from "../../support/comborows.js";
-import { plainNames, collapsedGroups, toggleCollapsedGroup } from "../../../../hqptuner/static/store/prefs.js";
+import { rows } from "../../support/easy/comborows.js";
+import { plainNames, collapsedGroups, toggleCollapsedGroup } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { nApod1x, nApodNx, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -268,7 +268,7 @@ test("test_standard_style_renders_no_header_toggle", async () => {
 // case. Membership is read shape-agnostically: absence of the key means
 // expanded, whatever the signal holds keys in.
 
-const PREFS_MODULE = new URL("../../../../hqptuner/static/store/prefs.js", import.meta.url).href;
+const PREFS_MODULE = new URL("../../../../hqptuner/static/store/ui/prefs.js", import.meta.url).href;
 
 /** @param {string} tag */
 const freshPrefs = (tag) => import(`${PREFS_MODULE.replace(/\.js$/, `.fresh-${tag}.js`)}`);

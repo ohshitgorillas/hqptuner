@@ -2,7 +2,7 @@
 """Drive the filter primer graph through a list of states and capture each one.
 
 The visual and numerical hand-back harness for the primer graph
-(components/primer/Graph.js, store/primergraph.js). One browser session, one
+(components/primer/Graph.js, store/primer/primergraph.js). One browser session, one
 page, many states, so one run covers a whole sweep.
 
   set -a; source hqpcreds; set +a
@@ -40,7 +40,7 @@ HEIGHT = 1800
 
 SET_STATE = """
 async (s) => {
-  const st = await import('/store/primergraph.js');
+  const st = await import('/store/primer/primergraph.js');
   if ('rate' in s) st.rate.value = s.rate;
   if ('outputRate' in s) st.outputRate.value = s.outputRate;
   if ('phase' in s) st.phase.value = s.phase;

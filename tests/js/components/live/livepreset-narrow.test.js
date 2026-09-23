@@ -47,13 +47,13 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
-import { rec, STATE, ENUMS, METADATA, presetWire, settle } from "../../support/livepresetwire.js";
+import { rec, STATE, ENUMS, METADATA, presetWire, settle } from "../../support/wire/livepresetwire.js";
 import { caps, tick, NET_DEVICE } from "../../support/devicecaps-harness.js";
 import { section } from "../../support/tabform.js";
 import { attr } from "../../support/markup.js";
-import { rows } from "../../support/comborows.js";
+import { rows } from "../../support/easy/comborows.js";
 import { picker as pickerIn, grayed } from "../../support/livepicker.js";
 
 const REAL_FETCH = globalThis.fetch;
@@ -61,7 +61,7 @@ afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
 
-/** @typedef {import("../../support/livepresetwire.js").PresetRecord} PresetRecord */
+/** @typedef {import("../../support/wire/livepresetwire.js").PresetRecord} PresetRecord */
 
 // The LIVE MODE card, by the machine identity it carries — never the words in
 // its head (docs/testing.md rule 9). The picker inside it is read through the

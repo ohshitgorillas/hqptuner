@@ -179,9 +179,9 @@ ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
     # python: a gate under scripts/gates/ by its relative path is a verifier;
     # any other script, or the same suffix somewhere else, is arbitrary code
-    (".venv/bin/python scripts/gates/check_test_assertions.py tests/*.py", True),
+    (".venv/bin/python scripts/gates/testing/check_test_assertions.py tests/*.py", True),
     (
-        "cd /srv/x/.claude/worktrees/y-spec && .venv/bin/python scripts/gates/check_no_copy_assertions.py tests/a.py",
+        "cd /srv/x/.claude/worktrees/y-spec && .venv/bin/python scripts/gates/testing/check_no_copy_assertions.py tests/a.py",
         True,
     ),
     ("python scripts/other.py", False, "python"),

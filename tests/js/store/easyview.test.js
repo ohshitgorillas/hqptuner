@@ -1,4 +1,4 @@
-// Behavioral suite for Easy Mode's view state — store/easyview.js: the flag that
+// Behavioral suite for Easy Mode's view state — store/easy/easyview.js: the flag that
 // says whether the Easy Mode card is showing (`easyMode` / `setEasyMode`),
 // remembered for the next visit under `hqptuner.easyMode`; the help panel, which
 // is NOT remembered; and the knob positions each preset's tile was last written
@@ -9,7 +9,7 @@
 // read here as a fact about the browser's storage rather than about the module's
 // exports, at the foot of the first section.
 //
-// The environment is the seam (tests/js/store/liveorder.test.js settled the
+// The environment is the seam (tests/js/store/live/liveorder.test.js settled the
 // pattern): a working fake localStorage is installed at file scope and only then
 // is the module pulled in, so the module's load-time read meets it. Nothing of
 // HQPTuner's is stubbed — the setters under test are the ones the card's own
@@ -58,7 +58,7 @@ const MODE_KEY = "hqptuner.easyMode";
 // install.
 const GRID_KEY = "hqptuner.easyGrid";
 
-const MODULE = "../../../hqptuner/static/store/easyview.js";
+const MODULE = "../../../hqptuner/static/store/easy/easyview.js";
 
 // A browser that has never seen Easy Mode: storage present and working, both
 // keys absent.

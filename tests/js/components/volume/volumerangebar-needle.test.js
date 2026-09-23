@@ -63,7 +63,7 @@ import {
   matrixConfig,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 
 // The daemon's own /config form field names; startup volume is defaults_volume.
 // Scenery for every case here — the needle rides the axis, not these bounds.

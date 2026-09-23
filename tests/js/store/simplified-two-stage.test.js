@@ -1,7 +1,7 @@
 // Behavioral suite for the Simplified option style dropping every mention of
 // the two-stage variant.
 //
-// The "Option style" pref (`plainNames` in store/prefs.js) has two settings:
+// The "Option style" pref (`plainNames` in store/ui/prefs.js) has two settings:
 // Standard shows the raw engine name, Simplified shows the plain-names
 // overlay's curated breakdown — a `leaf` on the dropdown row and a `short` on
 // the closed control. A filter's inline description is composed separately,
@@ -36,7 +36,7 @@ import assert from "node:assert/strict";
 import { decorateOptions, plainClosedLabel } from "../../../hqptuner/static/store/plainnames.js";
 import { optionDescription, selectionDescription } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
-import { plainNames } from "../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { reset, META } from "../support/field-harness.js";
 
 // --- fixture ----------------------------------------------------------------

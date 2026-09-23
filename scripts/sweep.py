@@ -7,7 +7,7 @@ state machine and a measurement blob every run.
   set -a; source hqpcreds; set +a
   .venv/bin/python scripts/sweep.py http://127.0.0.1:8090 OUTDIR [--viewport WxH]...
 
-Tabs come from the DOM (``.tab-nav button``), accents from ``/store/theme.js``
+Tabs come from the DOM (``.tab-nav button``), accents from ``/store/ui/theme.js``
 and hero MODE positions from the ``output_mode`` segment, so a dimension that
 grows in the app grows here without an edit. ``--viewport`` is repeatable and
 defaults to 1280x900. ``--tab`` is repeatable and keeps only the named tabs,
@@ -70,11 +70,11 @@ TABS_JS = """
 }))
 """
 
-ACCENTS_JS = "async () => (await import('/store/theme.js')).ACCENTS"
+ACCENTS_JS = "async () => (await import('/store/ui/theme.js')).ACCENTS"
 
 APPLY_ACCENT_JS = """
 async (name) => {
-  const theme = await import('/store/theme.js');
+  const theme = await import('/store/ui/theme.js');
   theme.applyAccent(name);
 }
 """

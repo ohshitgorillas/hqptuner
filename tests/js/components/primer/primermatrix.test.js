@@ -1,6 +1,6 @@
 // Behavioral suite for the filter primer's graph (components/primer/Graph.js)
 // swept over its whole state matrix, written blind from a spec block: no primer
-// source was read. The store (store/primergraph.js) is driven through its
+// source was read. The store (store/primer/primergraph.js) is driven through its
 // exported signals and its own enumeration — `RATES`, `outputFactors`,
 // `LENGTH_CHIPS`, `ROLLOFF_CHIPS`, `TRANSIENT_CHIPS` — so the matrix is whatever
 // the store currently offers rather than a list frozen here.

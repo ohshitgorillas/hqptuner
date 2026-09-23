@@ -29,7 +29,7 @@ import { render } from "preact-render-to-string";
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { PrimerControls } = await import("../../../../hqptuner/static/components/primer/Controls.js");
-const { rate, outputRate, showMe } = await import("../../../../hqptuner/static/store/primergraph.js");
+const { rate, outputRate, showMe } = await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { elements, attr, text } = await import("../../support/markup.js");
 
 test.afterEach(() => {

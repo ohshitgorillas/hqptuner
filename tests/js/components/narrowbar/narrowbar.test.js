@@ -18,7 +18,7 @@
 // states what that route couples to.
 //
 // NOT covered here: which row is marked checked, and what clicking a row does to
-// the facet signals — the store suite (tests/js/store/narrowing.test.js) pins the
+// the facet signals — the store suite (tests/js/store/narrow/narrowing.test.js) pins the
 // effect of every facet value on the offered filters, which is the observable
 // contract; the checked mark is the same fact rendered.
 //
@@ -34,7 +34,7 @@ import {
   nOddRateOnly,
   nDownsafeOnly,
 } from "../../../../hqptuner/static/store/narrow/state.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import {
   resetNarrowBar,
   renderNarrowBar,
@@ -108,7 +108,7 @@ const reset = ({ filters = FILTERS, fields = [] } = {}) => resetNarrowBar(filter
 // --- the rate popover ----------------------------------------------------------
 // The single-select ratio popover and its upsample-only checkbox are gone —
 // the rate facet offers the three narrowing switches
-// (tests/js/store/narrowing-rate.test.js) as independent checkbox rows, each
+// (tests/js/store/narrow/narrowing-rate.test.js) as independent checkbox rows, each
 // addressed by its own rule code rather than by the wording it wears
 // (docs/testing.md rule 9).
 

@@ -15,7 +15,7 @@ import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { guidanceFlags, headroomFlags } from "../../../scripts/eqlab/guidance.js";
 import { preampDb, preampDbFull } from "../../../scripts/eqlab/curve.js";
 import { probe, evaluateJob } from "../../../scripts/eqlab/jobs.js";
-import { searchJob } from "../../../scripts/eqlab/search.js";
+import { searchJob } from "../../../scripts/eqlab/search/search.js";
 import { FS, near, below, band, curve, argNum } from "../support/eqlab-helpers.js";
 
 const HEADROOM = "sub-20 Hz headroom";
@@ -25,7 +25,7 @@ const RESEAT = "inside measurement reseat variance";
 const QUALIFIED = "above rig's qualified range";
 
 /** @typedef {import("../../../scripts/eqlab/guidance.js").Flag} Flag */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
 /** @typedef {{ top: (SurvivorOut & { score: number })[] }} SearchResult */
 
 /**

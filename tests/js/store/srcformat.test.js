@@ -16,7 +16,7 @@
 //
 // The persistence half of this facet — its `src_format` wire key, and the round
 // trip through GET/PUT /api/narrowing — is pinned by
-// tests/js/store/narrowing-persist.test.js, which drives every facet of the
+// tests/js/store/narrow/narrowing-persist.test.js, which drives every facet of the
 // contract table through the shared fetch fake.
 //
 // `reset()` reassigns BOTH source signals and calls resetNarrowing() on every

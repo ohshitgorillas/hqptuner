@@ -7,7 +7,7 @@
 // settles, the server's buffer holds no entry that reads clean against its
 // baseline. Stage requests may carry `drop` —
 // `{live: {liveKey: [argName, …]}, http: [fieldName, …]}` — and the server
-// removes those entries; `stagingWire` in ../support/wire.js honors it the way
+// removes those entries; `stagingWire` in ../support/wire/wire.js honors it the way
 // the backend does.
 //
 // The wire is faked, never the store (docs/testing.md rule 4): `stagingWire`
@@ -29,7 +29,7 @@ import assert from "node:assert/strict";
 
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { edit, stagePipelines, discardAll, previewPreset } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire, quiesce } from "../support/wire.js";
+import { ok, stagingWire, quiesce } from "../support/wire/wire.js";
 
 /**
  * One /config form field, as `field()` below builds it. `value` is a union
@@ -53,7 +53,7 @@ import { ok, stagingWire, quiesce } from "../support/wire.js";
 
 /**
  * The staging server `stagingWire` hands back, read through its return type
- * rather than a re-declared shape — the fake in ../support/wire.js is frozen
+ * rather than a re-declared shape — the fake in ../support/wire/wire.js is frozen
  * and owns this contract.
  *
  * @typedef {ReturnType<typeof stagingWire>} StagingWire

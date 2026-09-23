@@ -97,7 +97,7 @@ def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
 @pytest.mark.parametrize("name", ESCAPING_NAMES)
 def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the disk check (scripts/check_test_assertions.py counts
+    # this test owns is the disk check (scripts/gates/testing/check_test_assertions.py counts
     # a `pytest.raises` block as an assertion). A refused save may still
     # materialize the store directory and its empty stamp — that is bookkeeping,
     # not a payload, so the walk looks for the payload bytes specifically.

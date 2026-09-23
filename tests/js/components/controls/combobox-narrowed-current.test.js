@@ -11,7 +11,7 @@
 // The facet engaged here is favorites-only (store/narrow/favorites.js `nFavOnly`),
 // because it narrows on the filter NAME alone and so needs no enumeration
 // fixture; the store-level rule it exercises is the same one every other facet
-// obeys (tests/js/store/narrow-drops-current.test.js).
+// obeys (tests/js/store/narrow/narrow-drops-current.test.js).
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. State is driven through the field harness (source signals plus a
@@ -34,10 +34,10 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Combobox } from "../../../../hqptuner/static/components/controls/Combobox.js";
 import { reset, field, line } from "../../support/field-harness.js";
-import { staticWire } from "../../support/wire.js";
-import { boxText, rows } from "../../support/comborows.js";
+import { staticWire } from "../../support/wire/wire.js";
+import { boxText, rows } from "../../support/easy/comborows.js";
 import { attr } from "../../support/markup.js";
-import { favoritesRoutes, favoritesState } from "../../support/favoriteswire.js";
+import { favoritesRoutes, favoritesState } from "../../support/wire/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 

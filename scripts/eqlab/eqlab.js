@@ -109,8 +109,8 @@ import { diffJob, evaluateJob, probe } from "./jobs.js";
 import { resolveMetricSpecs } from "./metrics.js";
 import { plotJob } from "./plot.js";
 import { render } from "./render.js";
-import { refineJob, searchJob } from "./search.js";
-import { MAX_COMBOS, MAX_STEPS } from "./space.js";
+import { refineJob, searchJob } from "./search/search.js";
+import { MAX_COMBOS, MAX_STEPS } from "./search/space.js";
 import { resolveTarget } from "./target.js";
 import { renderVocab, vocabJob } from "./vocab.js";
 

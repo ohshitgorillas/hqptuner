@@ -182,7 +182,8 @@ export default [
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The
-    // one-assertion gate is the JS peer of scripts/gates/check_test_assertions.py.
+    // one-assertion gate enforces for JS what
+    // scripts/gates/testing/check_test_assertions.py enforces for Python.
     files: ["tests/js/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
     plugins: {
@@ -195,7 +196,8 @@ export default [
         },
       },
     },
-    // no-copy-assertions is the JS peer of scripts/gates/check_no_copy_assertions.py
+    // no-copy-assertions enforces for JS what
+    // scripts/gates/testing/check_no_copy_assertions.py enforces for Python
     // (docs/testing.md rule 9), same semantics, blocking on both sides.
     // assertion-shape is the JS peer of the shape checks in the same Python gate,
     // blocking on both sides.

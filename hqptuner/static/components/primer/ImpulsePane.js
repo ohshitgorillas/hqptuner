@@ -29,7 +29,7 @@
 import { useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { bandColumns, traceColumns } from "../../lib/dsp/render.js";
-import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primergraph.js";
+import { design, lengthMs, output, phase, plotPx, rate, sourcePulse } from "../../store/primer/primergraph.js";
 import { HALF_W as W, H, PADR, PADT, PLOT_H, cornerNames, fmt3, niceStep, r1, ticks, xAxis, yAxis } from "./frame.js";
 import { useMeasuredPlot } from "./measure.js";
 

@@ -4,7 +4,7 @@
 //
 // The page renders six blocks top to bottom. The first, LIVE MODE, is locked in
 // place; the other five ("health", "chains", "ab", "playback", "matrix") are
-// the user's to reorder, and their order lives in store/prefs.js's `liveOrder`.
+// the user's to reorder, and their order lives in store/ui/prefs.js's `liveOrder`.
 // The gesture that reorders them is a pointer drag. The POINTER half of it —
 // pointerdown, the moves, the release — is not reachable here: SSR never fires
 // an event handler (docs/testing.md, "branches that cannot be reached"), and it
@@ -23,7 +23,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, signals
 // assigned at their exported surface. Storage is NOT installed in this file:
-// these cases are about what renders, and persistence is store/liveorder.test.js.
+// these cases are about what renders, and persistence is store/live/liveorder.test.js.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/liveblocks.test.js
 
@@ -55,8 +55,8 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode, setLiveOrder, LIVE_BLOCK_ORDER } from "../../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../../support/wire.js";
+import { liveMode, setLiveOrder, LIVE_BLOCK_ORDER } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { classes, elements, hasAttr } from "../../support/markup.js";
 
 const ENUMS = {

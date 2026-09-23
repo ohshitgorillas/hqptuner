@@ -1,4 +1,4 @@
-// Behavioral suite for store/prefs.js — the localStorage-persisted UI prefs:
+// Behavioral suite for store/ui/prefs.js — the localStorage-persisted UI prefs:
 // the storage-disabled warn contract, the quick/fast poll opt-in setters, and
 // the two derived visibility computeds.
 //
@@ -21,7 +21,7 @@ import { useStorage, dropStorage } from "../support/storage.js";
 const warns = [];
 const realWarn = console.warn;
 console.warn = (msg) => warns.push(String(msg));
-const prefs = await import("../../../hqptuner/static/store/prefs.js");
+const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
 console.warn = realWarn;
 
 afterEach(dropStorage);

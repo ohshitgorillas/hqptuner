@@ -9,7 +9,7 @@
 // would produce, never about the engine's state.
 
 import { schema, atFixedMinusThree, volumePinned } from "./schema.js";
-import { optionsFor } from "./options.js";
+import { optionsFor } from "./ui/options.js";
 import { truthy } from "../lib/coerce.js";
 import { metadata } from "./signals.js";
 import { effective, runningValue } from "./resolve.js";

@@ -10,7 +10,7 @@ This file is the store half of that: the wire key is ``lossy_1x``, the retired
 ``hires_1x`` and ``hires_nx`` keys are no longer facets at all, and a file an
 older HQPTuner left carrying them reads as if they were never there and loses
 them on the next write. Which filters each state then offers is the frontend's
-subject (tests/js/store/narrowing-lossy.test.js).
+subject (tests/js/store/narrow/narrowing-lossy.test.js).
 
 Narrowing is purely presentational and never reaches hqplayerd
 (docs/architecture.md, "Filter narrowing"), so every store here lands under

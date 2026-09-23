@@ -2,12 +2,12 @@
 //
 // Every facet that NARROWS A DROPDOWN, against one in-domain value that is not
 // that facet's own default. The default table it is stated against is
-// `NARROWING_DEFAULTS` in tests/js/support/narrowingwire.js, which is the shape
+// `NARROWING_DEFAULTS` in tests/js/support/wire/narrowingwire.js, which is the shape
 // GET/PUT /api/narrowing actually serves.
 //
 // Two facets are deliberately absent. The genre and focus MODE switches narrow
 // nothing with nothing picked and are pinned as not active narrowing
-// (tests/js/store/narrowing-mode.test.js). Source format narrows no dropdown at
+// (tests/js/store/narrow/narrowing-mode.test.js). Source format narrows no dropdown at
 // all — it discloses the chain cards' "DSD Sources" subsections
 // (tests/js/store/srcformat.test.js) — and is the one term
 // `filterNarrowingActive` drops, so a sweep of the narrowing facets is a sweep

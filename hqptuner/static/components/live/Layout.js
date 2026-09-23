@@ -3,7 +3,7 @@
 // The page is a locked row over five stacked blocks. The locked row (LIVE MODE
 // and Mode) stays at the top; the rest are the user's to arrange, and the
 // arrangement is a stored preference
-// (store/prefs.js liveOrder) rather than page state, so it survives a reload
+// (store/ui/prefs.js liveOrder) rather than page state, so it survives a reload
 // the way every other LIVE preference does.
 //
 // Reordering happens in an explicit edit mode rather than behind always-visible
@@ -23,7 +23,7 @@
 // styled and its event model fights preact's re-render.
 import { signal, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { liveMode, liveOrder, setLiveOrder, commitLiveOrder } from "../../store/prefs.js";
+import { liveMode, liveOrder, setLiveOrder, commitLiveOrder } from "../../store/ui/prefs.js";
 
 /** Whether the LIVE page is in layout-edit mode. Ephemeral: a reload lands out of it. */
 export const liveEditing = signal(false);

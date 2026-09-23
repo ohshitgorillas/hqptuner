@@ -51,9 +51,9 @@ import {
   vnodeRows,
   clickablesIn,
   click,
-} from "../../support/comborows.js";
-import { staticWire, stagingWire, quiesce } from "../../support/wire.js";
-import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+} from "../../support/easy/comborows.js";
+import { staticWire, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/wire/favoriteswire.js";
 import {
   favoriteFilters,
   favoriteModulators,
@@ -62,7 +62,7 @@ import {
   nFavOnly,
 } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -304,7 +304,7 @@ test("test_no_filter_row_wears_a_tier_badge", async () => {
 });
 
 // --- favorites-only narrowing reaches the modulator dropdown -----------------------
-// The store-side rule is pinned in tests/js/store/modulator-favorites.test.js;
+// The store-side rule is pinned in tests/js/store/presets/modulator-favorites.test.js;
 // this is the case that fails when the dropdown never asks. A component that
 // renders its option list untouched offers all five rows here.
 

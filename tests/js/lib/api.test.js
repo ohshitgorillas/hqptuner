@@ -10,10 +10,10 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { api } from "../../../hqptuner/static/lib/api.js";
-import { ok, bad } from "../support/wire.js";
+import { ok, bad } from "../support/wire/wire.js";
 
 /**
- * @typedef {import("../support/wire.js").FakeResponse} FakeResponse
+ * @typedef {import("../support/wire/wire.js").FakeResponse} FakeResponse
  * @typedef {{ path: string | null, opts: RequestInit | null }} Seen
  */
 

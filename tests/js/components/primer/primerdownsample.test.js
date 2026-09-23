@@ -5,7 +5,7 @@
 //
 // Policy (docs/testing.md): behavior only, public API only, one assertion per
 // test. The component is driven through the exported signals of
-// store/primergraph.js and rendered to a string; every reading below is a
+// store/primer/primergraph.js and rendered to a string; every reading below is a
 // number or a label pulled out of SVG geometry.
 //
 // GEOMETRY READ, in the sense tests/js/support/primeredit.js uses that phrase:
@@ -29,7 +29,7 @@ const { render } = await import("preact-render-to-string");
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { PrimerGraph } = await import("../../../../hqptuner/static/components/primer/Graph.js");
 const { rate, outputRate, phase, lengthMs, rolloff, showMe } =
-  await import("../../../../hqptuner/static/store/primergraph.js");
+  await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { elements, classes, attr, text } = await import("../../support/markup.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

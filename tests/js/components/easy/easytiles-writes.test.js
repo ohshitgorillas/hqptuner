@@ -6,8 +6,8 @@
 // The companion file is tests/js/components/easytiles.test.js, which owns the
 // grids, the active marking and where a press routes what the table names; this
 // one is about the writes that press DOES NOT make. Both share
-// tests/js/support/easytiles.js, imported dynamically after `useStorage()` so
-// that `store/easyview.js` meets the fake localStorage at its load-time read.
+// tests/js/support/easy/easytiles.js, imported dynamically after `useStorage()` so
+// that `store/easy/easyview.js` meets the fake localStorage at its load-time read.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. Every case drives the exported store signals with the shapes
@@ -47,12 +47,12 @@ const {
   pressKnob,
   seedable,
   offeredAnySource,
-} = await import("../../support/easytiles.js");
+} = await import("../../support/easy/easytiles.js");
 
-const { knobsFor } = await import("../../../../hqptuner/static/store/easyview.js");
-const { presetsFor, knobsShown, writeSet } = await import("../../../../hqptuner/static/store/easy.js");
-const { combos } = await import("../../support/easytable.js");
-const { setCardFrom } = await import("../../support/easyrecord.js");
+const { knobsFor } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { presetsFor, knobsShown, writeSet } = await import("../../../../hqptuner/static/store/easy/easy.js");
+const { combos } = await import("../../support/easy/easytable.js");
+const { setCardFrom } = await import("../../support/easy/easyrecord.js");
 
 // The schema keys the fixture seeds the PCM chain by, and the daemon's own
 // form-field names those keys are carried to: `pcm_filter_1x` is the 1x end of

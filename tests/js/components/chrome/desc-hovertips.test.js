@@ -24,7 +24,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { System } from "../../../../hqptuner/static/components/tabs/SystemTab.js";
 import { CrossfeedCard } from "../../../../hqptuner/static/components/xfeed/Card.js";
 import { XfeedStrip, lensOn } from "../../../../hqptuner/static/components/xfeed/Comp.js";
-import { Field } from "../../../../hqptuner/static/components/Field.js";
+import { Field } from "../../../../hqptuner/static/components/widgets/Field.js";
 import {
   health,
   config,
@@ -38,11 +38,11 @@ import {
   showDescriptions,
   keepOptionDescriptions,
   setShowDescriptions,
-} from "../../../../hqptuner/static/store/prefs.js";
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
 import { reset as resetField } from "../../support/field-harness.js";
-import { staticWire, stagingWire } from "../../support/wire.js";
+import { staticWire, stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
 import { attr, classes, elements, hasAttr, labeled, text } from "../../support/markup.js";
 

@@ -1,4 +1,4 @@
-// Behavioral suite for store/primergraph.js — the filter primer's model: the
+// Behavioral suite for store/primer/primergraph.js — the filter primer's model: the
 // filter designed from the sliders, and the spectrum the graph draws from it.
 // Written blind from a spec block; no store source was read.
 //
@@ -30,7 +30,7 @@ import {
   readouts,
   spectrum,
   showMe,
-} from "../../../hqptuner/static/store/primergraph.js";
+} from "../../../hqptuner/static/store/primer/primergraph.js";
 
 test.afterEach(() => {
   showMe("intro");

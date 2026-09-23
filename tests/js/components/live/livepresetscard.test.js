@@ -42,15 +42,15 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
-import { rec, STATE, ENUMS, METADATA, presetWire } from "../../support/livepresetwire.js";
+import { rec, STATE, ENUMS, METADATA, presetWire } from "../../support/wire/livepresetwire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { quiesce } from "../../support/wire.js";
+import { quiesce } from "../../support/wire/wire.js";
 import { cardHeadAt, section } from "../../support/tabform.js";
 import { attr, hasAttr, text } from "../../support/markup.js";
 import { picker, grayed } from "../../support/livepicker.js";
-import { boxText, rows, vnodeRows, click } from "../../support/comborows.js";
+import { boxText, rows, vnodeRows, click } from "../../support/easy/comborows.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -60,11 +60,11 @@ afterEach(() => {
 // Total reset for the rendered page: every source signal the LIVE page reads,
 // plus the three this file's store owns. LIVE mode stays OFF so the list on
 // screen is the one the case seeded, not one the wire re-served.
-/** @typedef {import("../../support/livepresetwire.js").PresetRecord} PresetRecord */
+/** @typedef {import("../../support/wire/livepresetwire.js").PresetRecord} PresetRecord */
 
 /**
  * @param {{ chain?: string, presets?: PresetRecord[], error?: string, busy?: string }} [fixture]
- * @returns {Promise<import("../../support/livepresetwire.js").PresetWire>}
+ * @returns {Promise<import("../../support/wire/livepresetwire.js").PresetWire>}
  */
 async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } = {}) {
   const wire = presetWire({ presets, chain });
@@ -269,7 +269,7 @@ function pickRow(seen, value) {
 const APPLY = /^\/api\/livepresets\/([^/]+)\/apply$/;
 
 /**
- * @param {import("../../support/livepresetwire.js").PresetWire} w
+ * @param {import("../../support/wire/livepresetwire.js").PresetWire} w
  * @returns {string[]}
  */
 const applied = (w) =>

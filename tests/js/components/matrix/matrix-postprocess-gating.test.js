@@ -38,7 +38,7 @@
 // daemon field behind the `matrix_enabled` schema key; the post-process fields
 // are `post_bauer_*`, `post_correction_*`, `post_loudness_*`), by the exported
 // crossfeed view signal (`xfMode`, store/xfeed/mode.js), and by `edit()` over the
-// staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing is
+// staging wire fake on the real REST paths (tests/js/support/wire/wire.js). Nothing is
 // stubbed and no module private is touched.
 //
 // Readings taken where the spec left room, reported in the hand-back:
@@ -59,7 +59,7 @@
 //     still be disabled, and must still offer its own reason on hover (these
 //     fields are quietGray); with every gate engaged nothing is grayed at all.
 //
-//   * `grayReason(key)` (store/graying.js) is not called directly: what a user
+//   * `grayReason(key)` (store/ui/graying.js) is not called directly: what a user
 //     meets is the rendered field, and the rendered field is where both halves of
 //     the behavior — the disabling and the reason — are observable together.
 //
@@ -85,16 +85,16 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { matrixMode } from "../../../../hqptuner/static/store/matrix/mode.js";
-import { loudnessSide } from "../../../../hqptuner/static/store/ui.js";
+import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { plottedRows, previewEq } from "../../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../../hqptuner/static/components/matrix/BandStrip.js";
 import { field, grayReason, titleOf } from "../../support/field-harness.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 // One card's fragment, picked by the id its section carries (docs/testing.md
 // rule 9), so a reworded head changes nothing.
 import { cardTitled } from "../../support/tabform.js";

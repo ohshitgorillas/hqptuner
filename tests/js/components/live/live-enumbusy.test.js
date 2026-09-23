@@ -48,7 +48,7 @@ import {
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
-import { ok, bad, staticWire } from "../../support/wire.js";
+import { ok, bad, staticWire } from "../../support/wire/wire.js";
 import { formField } from "../../support/chainenums.js";
 import { labeled } from "../../support/markup.js";
 import { section } from "../../support/tabform.js";

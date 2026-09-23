@@ -35,7 +35,7 @@ import {
   discardAll,
   stagePipelines,
 } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../support/wire.js";
+import { ok, stagingWire } from "../support/wire/wire.js";
 
 /**
  * One /config or /matrix form field, as `field()` below builds it. `value` is a

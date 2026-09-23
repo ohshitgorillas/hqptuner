@@ -1,5 +1,5 @@
 {
-  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by preset id, matching store/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no preset, because one position means one thing wherever it is offered. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
+  "_comment": "Easy Mode tile copy, verbatim from docs/plans/filters-for-fuckwits.md. Keyed by preset id, matching store/easy/easy.js PRESETS; knob labels and option labels are keyed by the knob and option ids that module declares. Owner-approved text: edits here are copy changes. `tips` is keyed by knob id then option id and belongs to no preset, because one position means one thing wherever it is offered. `help.body` is one string whose blank lines are paragraph breaks, the same way a description carries its own.",
   "notice": "Easy Mode dramatically simplifies the process of filter selection, an otherwise nuanced topic. Only a few of HQPlayer's filters are accessible here, so think of Easy Mode like training wheels and don't be afraid to experiment.",
   "help": {
     "link": "Still confused?",

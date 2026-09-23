@@ -6,7 +6,7 @@
 // blanked by the store, and the pen lifts across it.
 import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
-import { delay, lengthMs, noFilter, phase } from "../../store/primergraph.js";
+import { delay, lengthMs, noFilter, phase } from "../../store/primer/primergraph.js";
 import {
   HALF_W as W,
   H,

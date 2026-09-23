@@ -1,5 +1,5 @@
 // Behavioral suite for the source-relative output-rate control of the filter
-// primer (store/primergraph.js and the control block components/primer/Graph.js
+// primer (store/primer/primergraph.js and the control block components/primer/Graph.js
 // renders), written blind from a spec block: no primer source was read. The
 // store is driven through its exported signals and functions; the control is
 // read out of a server-rendered string.
@@ -41,7 +41,7 @@ const {
   outputRateFor,
   setRate,
   showMe,
-} = await import("../../../../hqptuner/static/store/primergraph.js");
+} = await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { elements, attr } = await import("../../support/markup.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

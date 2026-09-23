@@ -1,4 +1,4 @@
-// Behavioral suite for components/Knob.js — only the render-visible contracts
+// Behavioral suite for components/widgets/Knob.js — only the render-visible contracts
 // its parent suite does not already pin. tests/js/playbackvolume.test.js owns
 // the dial's ARIA surface (aria-valuemin/max/now/text) and the off/live
 // classes through PlaybackVolume; asserted here is what that route never
@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Knob } from "../../../../hqptuner/static/components/Knob.js";
+import { Knob } from "../../../../hqptuner/static/components/widgets/Knob.js";
 import { knobGestures } from "../../support/pointer.js";
 
 const knob = (props = {}) => render(html`<${Knob} min="-60" max="0" ...${props} />`);

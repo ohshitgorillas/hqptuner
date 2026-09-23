@@ -9,7 +9,7 @@
 // source rate crosses the line; the readings are what a reader holds against the
 // graph, and they sit above everything that comes and goes.
 //
-// Every control writes one signal of store/primergraph.js and nothing else;
+// Every control writes one signal of store/primer/primergraph.js and nothing else;
 // the shared primitives from ../controls/index.js are used as they are, so
 // the row reads like the app's other instrument cards.
 import { html } from "../../lib/dom.js";
@@ -33,7 +33,7 @@ import {
   rolloff,
   setRate,
   transientUs,
-} from "../../store/primergraph.js";
+} from "../../store/primer/primergraph.js";
 
 /** Below this source rate there is no band above 20 kHz for content to sit in. */
 const CONTENT_MIN_RATE = 96000;
@@ -50,7 +50,7 @@ const PHASE_OPTIONS = [
   { value: "linear", label: "Linear" },
   { value: "minimum", label: "Minimum" },
 ];
-/** @type {{ key: keyof import("../../store/primergraph.js").Content, label: string }[]} */
+/** @type {{ key: keyof import("../../store/primer/primergraph.js").Content, label: string }[]} */
 const CONTENT_ROWS = [
   { key: "spurs", label: "HF spurs" },
   { key: "fakeHires", label: "Fake hi-res" },

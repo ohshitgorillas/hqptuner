@@ -27,7 +27,7 @@
 import { config } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
-import { stagingWire } from "./wire.js";
+import { stagingWire } from "./wire/wire.js";
 
 // --- the menus ---------------------------------------------------------------
 
@@ -139,7 +139,7 @@ export const tick = async () => {
  *   sdmRate?: string,
  *   mode?: string,
  * }} [fixture]
- * @returns {Promise<import("./wire.js").StagingWire>}
+ * @returns {Promise<import("./wire/wire.js").StagingWire>}
  */
 export async function reset({
   backend = "network",

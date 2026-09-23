@@ -12,7 +12,7 @@
 import { html } from "../../lib/dom.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
-import { easyHelp, toggleEasyHelp } from "../../store/easyview.js";
+import { easyHelp, toggleEasyHelp } from "../../store/easy/easyview.js";
 import { MARK_LABEL, markRuns } from "./marks.js";
 
 // A paragraph that names a mark shows the mark, not a description of it: the

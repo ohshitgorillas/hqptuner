@@ -11,7 +11,7 @@ import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { metadata } from "../store/signals.js";
 import { duringEngineWrite } from "../store/enginewrite.js";
-import { notesVisible } from "../store/prefs.js";
+import { notesVisible } from "../store/ui/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 import { Card } from "./common.js";
 import { ChainPack } from "./ChainPack.js";

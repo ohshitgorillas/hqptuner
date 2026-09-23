@@ -27,12 +27,12 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../../../hqptuner/static/components/matrix/Tab.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { stagePipelines, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { plottedRows, togglePlotted } from "../../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stageProfileDelete } from "../../../../hqptuner/static/store/matrix/profiles.js";
-import { stagingWire } from "../../support/wire.js";
-import { rows as optionRows, boxText } from "../../support/comborows.js";
+import { stagingWire } from "../../support/wire/wire.js";
+import { rows as optionRows, boxText } from "../../support/easy/comborows.js";
 import { elements, classes, attr, hasAttr } from "../../support/markup.js";
 import { placed } from "../../support/order.js";
 
@@ -135,7 +135,7 @@ const profileButtons = (out) =>
     .map((s) => s.split("</button>")[0]);
 
 // The saved-profile picker: the app's own dropdown, read the way every other
-// combobox suite reads one (tests/js/support/comborows.js). The wire value each
+// combobox suite reads one (tests/js/support/easy/comborows.js). The wire value each
 // option row carries is the profile's NAME, so rows are addressed by `data-v`
 // and never by the words on them (docs/testing.md rule 9).
 // SSR emits an empty-string attribute BARE (docs/testing.md, harness facts), so

@@ -42,7 +42,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { LogTail } from "../../../../hqptuner/static/components/LogTail.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 
 // Full reset: a real staging wire (docs/testing.md rule 4), the /config form
 // grounding log_enabled, and a clean pending buffer via the public discard.

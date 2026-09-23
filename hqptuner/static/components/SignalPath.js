@@ -19,7 +19,7 @@ import { html } from "../lib/dom.js";
 import { engineStatus, engineState } from "../store/signals.js";
 import { runningValue, formFieldName } from "../store/resolve.js";
 import { schema, volumePinned } from "../store/schema.js";
-import { optionsFor } from "../store/options.js";
+import { optionsFor } from "../store/ui/options.js";
 import { truthy as on } from "../lib/coerce.js";
 import { hz } from "../lib/units.js";
 
@@ -83,8 +83,8 @@ function configLabel(key) {
   const raw = runningValue(key);
   if (raw === undefined || raw === "") return "";
   // FieldEntry, not the ambient SchemaField: the catalog spells three fields
-  // differently and does not overlap it (components/Field.js states which).
-  const entry = /** @type {Record<string, import("./Field.js").FieldEntry>} */ (schema)[key];
+  // differently and does not overlap it (components/widgets/Field.js states which).
+  const entry = /** @type {Record<string, import("./widgets/Field.js").FieldEntry>} */ (schema)[key];
   const hit = optionsFor(entry.optionsFrom || "", formFieldName(entry)).find(
     (/** @type {OptionItem} */ o) => String(o.value) === String(raw),
   );

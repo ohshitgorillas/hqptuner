@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { effectivePipelines, stagedCount, canonPipelines } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../support/wire.js";
+import { ok, stagingWire } from "../support/wire/wire.js";
 
 // The daemon's shape: `gain` is a NUMBER and every row carries an `index` the
 // file rows do not have.

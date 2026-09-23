@@ -17,10 +17,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { widthClasses } from "../../../../hqptuner/static/components/Field.js";
-import { setPlainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { widthClasses } from "../../../../hqptuner/static/components/widgets/Field.js";
+import { setPlainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 
-/** @typedef {import("../../../../hqptuner/static/components/Field.js").FieldEntry} FieldEntry */
+/** @typedef {import("../../../../hqptuner/static/components/widgets/Field.js").FieldEntry} FieldEntry */
 
 // Minimal schema entries: one that participates in the simplified style, one
 // that does not, and one that both participates AND earns width tokens of its

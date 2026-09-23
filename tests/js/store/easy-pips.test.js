@@ -1,4 +1,4 @@
-// Behavioral suite for `pipsFor` (store/easycost.js): the two rules a preset's
+// Behavioral suite for `pipsFor` (store/easy/easycost.js): the two rules a preset's
 // cost in pips obeys that are not owner data. What a tile draws that many pips
 // of is tests/js/components/easypips.test.js.
 //
@@ -27,9 +27,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { pipsFor } from "../../../hqptuner/static/store/easycost.js";
-import { presetsFor } from "../../../hqptuner/static/store/easy.js";
-import { combos } from "../support/easytable.js";
+import { pipsFor } from "../../../hqptuner/static/store/easy/easycost.js";
+import { presetsFor } from "../../../hqptuner/static/store/easy/easy.js";
+import { combos } from "../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */

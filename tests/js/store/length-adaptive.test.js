@@ -1,6 +1,6 @@
 // Behavioral suite for the ADAPTIVE facet boolean (store/narrow/facets.js), the "adaptive" pick in narrowing (store/narrow/match.js), and the hover tip's Length row (components/narrowbar/facettip.js).
 //
-// The boolean comes from the overlay row alone: `adaptive: true` in a filter's data/filters.json row facets adaptive, and an overlay silent on it — a row without the key, or no row at all — facets false. A filter may carry both a length and the adaptive boolean, and its tip Length row's value tokens carry both codes. The "adaptive" length pick narrows by the boolean, not by the length bucket, so an adaptive filter is kept whatever its length. (Which length a filter carries is pinned in tests/js/store/length-facet.test.js.)
+// The boolean comes from the overlay row alone: `adaptive: true` in a filter's data/filters.json row facets adaptive, and an overlay silent on it — a row without the key, or no row at all — facets false. A filter may carry both a length and the adaptive boolean, and its tip Length row's value tokens carry both codes. The "adaptive" length pick narrows by the boolean, not by the length bucket, so an adaptive filter is kept whatever its length. (Which length a filter carries is pinned in tests/js/store/narrow/length-facet.test.js.)
 //
 // Every name here is synthetic — no real filter's classification is asserted; the rules themselves are the subject.
 //

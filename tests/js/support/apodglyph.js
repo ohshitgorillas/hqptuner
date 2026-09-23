@@ -26,7 +26,7 @@ import { enums } from "../../../hqptuner/static/store/signals.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
 import { reset, field, META } from "./field-harness.js";
-import { rowIncluding } from "./comborows.js";
+import { rowIncluding } from "./easy/comborows.js";
 import { elements, classes, attr } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */

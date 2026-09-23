@@ -170,7 +170,7 @@
      rule that causes it — `margin-bottom: var(--sp-4)` reads as correct and
      tokenized until you know what the parent already spends — not catchable
      by reading one rule, which is why it is a gate
-     (scripts/gates/check_css_tokens.py). */
+     (scripts/gates/css/check_css_tokens.py). */
   --rhythm-stack: var(--sp-2); /* card to card, down a tab body */
   --rhythm-row: var(--sp-3); /* card to card, across a row */
   --rhythm-field: var(--sp-4); /* field to field, down a card body */

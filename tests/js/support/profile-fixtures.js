@@ -5,7 +5,7 @@
 
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { stagingWire } from "./wire.js";
+import { stagingWire } from "./wire/wire.js";
 
 /**
  * One pipeline row, every value a string.

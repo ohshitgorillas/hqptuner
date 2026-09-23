@@ -38,8 +38,8 @@ PRECOMMIT_EXEMPT: dict[str, str] = {}
 
 
 def gate_scripts(gates: Path) -> list[str]:
-    """Filename of every gate script in the directory, sorted."""
-    return sorted(path.name for path in gates.glob("*.py") if path.is_file())
+    """Path of every gate script under the directory, relative to it, sorted."""
+    return sorted(path.relative_to(gates).as_posix() for path in gates.rglob("*.py") if path.is_file())
 
 
 def live(text: str) -> str:

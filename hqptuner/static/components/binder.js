@@ -6,7 +6,7 @@
 import { html } from "../lib/dom.js";
 import { optionDescription, selectionDescription, selectedLabel } from "../store/prose.js";
 import { plainTrueName } from "../store/plainnames.js";
-import { collapsedGroups, toggleCollapsedGroup, plainNames } from "../store/prefs.js";
+import { collapsedGroups, toggleCollapsedGroup, plainNames } from "../store/ui/prefs.js";
 import { filterFacets } from "../store/narrow/facets.js";
 import {
   isFavorite,
@@ -15,12 +15,12 @@ import {
   toggleFavoriteModulator,
   favoritesError,
 } from "../store/narrow/favorites.js";
-import { modulatorTier, modulatorTipRows } from "../store/options.js";
+import { modulatorTier, modulatorTipRows } from "../store/ui/options.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Steps } from "./controls/detents.js";
 import { Combobox } from "./controls/Combobox.js";
 import { filterTipFacets } from "./narrowbar/facettip.js";
-import { Knob } from "./Knob.js";
+import { Knob } from "./widgets/Knob.js";
 
 /**
  * @typedef {SchemaField & { narrow?: string, favKind?: string, slider?: boolean }} FieldEntry
@@ -130,7 +130,7 @@ export const favFor = (/** @type {FieldEntry} */ entry) => {
 /**
  * Builds the rate-tier badge resolver for the modulator dropdown — the DSD tier
  * a modulator's floor names, read off the shaper overlay by the same name join
- * the graying uses (store/options.js). Undefined for every other control, so
+ * the graying uses (store/ui/options.js). Undefined for every other control, so
  * filter and dither rows carry no tier.
  * @type {(entry: FieldEntry) => ((o: SchemaOption) => string | null) | undefined}
  */

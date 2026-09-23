@@ -153,10 +153,10 @@ export function enclosing(fragment, el) {
 }
 
 // Every element a control key renders as. A field's wrapper carries
-// `data-k="<key>"` (components/Field.js). For a control backed by the daemon's
+// `data-k="<key>"` (components/widgets/Field.js). For a control backed by the daemon's
 // form that key IS the wire identifier the form is keyed by, but not every
 // `data-k` is one: the two description preferences render `showDescriptions` and
-// `keepOptionDescriptions` (client-side prefs, `store/prefs.js`, with no schema
+// `keepOptionDescriptions` (client-side prefs, `store/ui/prefs.js`, with no schema
 // key at all), and the LIVE view's wrappers carry catalog keys such as
 // `pcm_filter_nx` (`store/live/derive.js`). What holds for all three is that the
 // value is a machine identifier the owner does not reword — contract, unlike the

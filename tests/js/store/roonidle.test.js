@@ -30,7 +30,7 @@ import { roonIdleAlert } from "../../../hqptuner/static/store/alerts/roonidle.js
 import { AlertStrip } from "../../../hqptuner/static/components/AlertStrip.js";
 import { engineStatus, config } from "../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
-import { stagingWire, quiesce } from "../support/wire.js";
+import { stagingWire, quiesce } from "../support/wire/wire.js";
 import { reset, DSD512, DSD1024, PCM_8X, MODULATOR } from "../support/shaperfit-fixtures.js";
 
 // The advisory by its machine identity: the alert record's `kind`, and the

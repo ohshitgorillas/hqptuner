@@ -24,7 +24,7 @@ import { resetBar, renderBar, group, hasGroup } from "../../support/narrowbarvie
 import { renderWith, propsOf } from "../../support/wheel.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { NarrowBar } from "../../../../hqptuner/static/components/narrowbar/Bar.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { attr, elements, classes } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

@@ -11,11 +11,11 @@ import { html, wheelGuard } from "../lib/dom.js";
 import { health, config, pendingPreset } from "../store/signals.js";
 import { pickPreset, deletePreset } from "../store/actions.js";
 import { presetPickFailed } from "../store/alerts/presetpick.js";
-import { liveMode, setLiveMode } from "../store/prefs.js";
+import { liveMode, setLiveMode } from "../store/ui/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
-import { StatusPill } from "./StatusPill.js";
-import { ApodLamp } from "./ApodLamp.js";
+import { StatusPill } from "./widgets/StatusPill.js";
+import { ApodLamp } from "./widgets/ApodLamp.js";
 import { MiniSpectrum } from "./MiniSpectrum.js";
 
 // Questions this header asks render beside the picker, not in a native dialog.

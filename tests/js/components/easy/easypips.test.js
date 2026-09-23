@@ -25,9 +25,9 @@
 // The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
 // tests/js/components/easytiles-mark.test.js (the apodizing mark itself). All
-// share tests/js/support/easytiles.js, imported dynamically after `useStorage()`
-// so that `store/easyview.js` meets the fake localStorage at its load-time read;
-// the pip readers are tests/js/support/easypips.js.
+// share tests/js/support/easy/easytiles.js, imported dynamically after `useStorage()`
+// so that `store/easy/easyview.js` meets the fake localStorage at its load-time read;
+// the pip readers are tests/js/support/easy/easypips.js.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
 //   * `data-testid="easy-pips"` on the pip group, one per tile
@@ -52,12 +52,12 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, resetLive, liveCard } = await import("../../support/easytiles.js");
-const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../../support/easypips.js");
-const { seedFacets, uniformFacets } = await import("../../support/easymark.js");
-const { recordPositions } = await import("../../support/easyrecord.js");
-const { pipsFor } = await import("../../../../hqptuner/static/store/easycost.js");
-const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
+const { resetTab, tabs, resetLive, liveCard } = await import("../../support/easy/easytiles.js");
+const { pipCount, pipsAreNamed, pipsShareTheMarksRow } = await import("../../support/easy/easypips.js");
+const { seedFacets, uniformFacets } = await import("../../support/easy/easymark.js");
+const { recordPositions } = await import("../../support/easy/easyrecord.js");
+const { pipsFor } = await import("../../../../hqptuner/static/store/easy/easycost.js");
+const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
@@ -168,7 +168,7 @@ for (const preset of DOTTED) {
 // chain: a card that carried one knob through and dropped another, or carried
 // them on one chain only, fails by naming the tile, the knob and the chain.
 // Positions are put on record through `recordPositions`
-// (tests/js/support/easyrecord.js): a tile knob's through `rememberKnobs`, the
+// (tests/js/support/easy/easyrecord.js): a tile knob's through `rememberKnobs`, the
 // card knob's through `setEasyMaterial`, and AFTER the reset because the reset
 // clears both.
 //

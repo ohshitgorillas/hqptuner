@@ -33,8 +33,8 @@ import assert from "node:assert/strict";
 
 import { resetBar, renderBar, attr } from "../../support/narrowbarview.js";
 import { elements, text } from "../../support/markup.js";
-import { staticWire } from "../../support/wire.js";
-import { favoritesState, favoritesRoutes } from "../../support/favoriteswire.js";
+import { staticWire } from "../../support/wire/wire.js";
+import { favoritesState, favoritesRoutes } from "../../support/wire/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

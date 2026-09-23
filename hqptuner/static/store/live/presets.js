@@ -16,7 +16,7 @@ import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { reportError } from "./state.js";
 import { remirrorLive } from "./write.js";
-import { liveMode } from "../prefs.js";
+import { liveMode } from "../ui/prefs.js";
 
 // Every saved preset, as /api/livepresets serves it: {name, chain, fields,
 // names, compatible}. Null until the first read — "not looked yet" and "none

@@ -37,7 +37,7 @@ import {
   matrixConfig,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

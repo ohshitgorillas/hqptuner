@@ -11,7 +11,7 @@ import { options } from "preact";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Field } from "../../../hqptuner/static/components/Field.js";
+import { Field } from "../../../hqptuner/static/components/widgets/Field.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
 

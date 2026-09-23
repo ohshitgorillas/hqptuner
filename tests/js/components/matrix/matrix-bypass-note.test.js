@@ -54,7 +54,7 @@
 // exported store signals carrying the daemon's own /matrix form (`enabled` is
 // the daemon field behind the `matrix_enabled` schema key), by the exported
 // crossfeed view signal (`xfMode`, store/xfeed/mode.js) and by `edit()` over the
-// staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing
+// staging wire fake on the real REST paths (tests/js/support/wire/wire.js). Nothing
 // is stubbed and no module private is touched.
 //
 // The note's PLACEMENT is not asserted: which element carries the marking and
@@ -90,10 +90,10 @@ import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
 import { BAUER_PRESETS } from "../../../../hqptuner/static/lib/xfeed.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { plottedRows, previewEq } from "../../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../../hqptuner/static/components/matrix/BandStrip.js";
-import { stagingWire } from "../../support/wire.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
 import { elements, attr, text } from "../../support/markup.js";
 

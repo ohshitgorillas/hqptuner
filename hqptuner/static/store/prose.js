@@ -13,7 +13,7 @@
 
 import { metadata } from "./signals.js";
 import { schema } from "./schema.js";
-import { notesVisible, plainNames } from "./prefs.js";
+import { notesVisible, plainNames } from "./ui/prefs.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -28,14 +28,14 @@ import { notesVisible, plainNames } from "./prefs.js";
  *
  * @typedef {object} OverlayEntry
  *   One filters.json / shapers.json row. This module reads the prose; the rate
- *   floor belongs to the same row and `store/options.js` reads it, so the shape
+ *   floor belongs to the same row and `store/ui/options.js` reads it, so the shape
  *   names it rather than describing a record narrower than the one served.
  * @property {string} [description]
  * @property {string} [notes]
  * @property {boolean} [sdm_two_stage] oversampling runs in two stages for SDM output
  * @property {number | null} [min_rate_hz]
  * @property {string} [min_rate_label]
- * @property {number} [generation] SDM modulator only; `store/options.js` reads it
+ * @property {number} [generation] SDM modulator only; `store/ui/options.js` reads it
  *
  * @typedef {object} Metadata
  *   The static overlay bundle /api/metadata serves.

@@ -46,9 +46,9 @@ import {
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { loudnessSide } from "../../../../hqptuner/static/store/ui.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
-import { stagingWire } from "../../support/wire.js";
+import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.

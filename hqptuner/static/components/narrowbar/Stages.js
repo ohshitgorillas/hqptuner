@@ -4,11 +4,11 @@
 // signals, not popovers over facet values — and shares no state with them.
 import { html } from "../../lib/dom.js";
 import { effective } from "../../store/resolve.js";
-import { optionsFor } from "../../store/options.js";
+import { optionsFor } from "../../store/ui/options.js";
 import { metadata } from "../../store/signals.js";
 import { Segment } from "../controls/index.js";
 import { previewCount } from "../../store/narrow/match.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 
 /**
  * @typedef {{ value: string }} StageSignal
@@ -55,9 +55,9 @@ export const LOSSY_TIP =
   "At 1x rates, this only benefits lossy material like MP3 and MQA; lossless material contains no ultrasonic content to attenuate. " +
   'Selecting "Lossless" hides these filters; "Lossy" shows them only.';
 
-// The "Option style" switch (store/prefs.js plainNames): Simplified re-renders
-// the six chain dropdowns with the plain-names overlay's grouped plain-English
-// text; Standard is the raw engine names, untouched.
+// The "Option style" switch (store/ui/prefs.js plainNames): the Simplified style
+// shows the six chain dropdowns in the plain-names overlay's grouped plain-English
+// text; the Standard style shows the raw engine names, untouched.
 export const OPTION_STYLE_SEGS = [
   { value: "standard", label: "Standard" },
   { value: "simplified", label: "Simplified" },

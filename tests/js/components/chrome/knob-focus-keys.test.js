@@ -52,7 +52,7 @@ import assert from "node:assert/strict";
 // before the imports below pull dom.js in.
 import { knobSliderEdit, knobBoxEdit } from "../../support/knobedit.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Knob } from "../../../../hqptuner/static/components/Knob.js";
+import { Knob } from "../../../../hqptuner/static/components/widgets/Knob.js";
 import { knobDrag, knobKeys } from "../../support/pointer.js";
 
 // A knob with room to move a long way either side of where it starts, and a

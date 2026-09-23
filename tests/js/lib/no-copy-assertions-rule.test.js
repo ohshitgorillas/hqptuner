@@ -1,5 +1,5 @@
 // Behavioral suite for eslint-rules/no-copy-assertions.js, the frontend peer of
-// scripts/gates/check_no_copy_assertions.py (docs/testing.md rule 9).
+// scripts/gates/testing/check_no_copy_assertions.py (docs/testing.md rule 9).
 //
 // The rule is driven through ESLint's Linter on invented source text, never
 // RuleTester: RuleTester's assertions are internal, and the one-assertion gate

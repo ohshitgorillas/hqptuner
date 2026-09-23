@@ -29,9 +29,9 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Output } from "../../../../hqptuner/static/components/tabs/OutputTab.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing, nSrcFormat } from "../../../../hqptuner/static/store/narrow/state.js";
-import { stagingWire, quiesce } from "../../support/wire.js";
+import { stagingWire, quiesce } from "../../support/wire/wire.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../../support/tabform.js";
 import { SUBHEADS, subsection, subheadsIn } from "../../support/chainsubsections.js";
 import { attr, classes, elements, keyed } from "../../support/markup.js";
@@ -45,7 +45,7 @@ import { placed } from "../../support/order.js";
 // an appliesLive control reads (store/resolve.js fileValue).
 /**
  * @param {{ cfg?: Record<string, FieldSpec>, mode?: string }} [opts]
- * @returns {Promise<import("../../support/wire.js").StagingWire>}
+ * @returns {Promise<import("../../support/wire/wire.js").StagingWire>}
  */
 async function reset({ cfg = {}, mode = "auto" } = {}) {
   const w = stagingWire();
@@ -308,7 +308,7 @@ function builtVnodes() {
  * Press the option carrying wire value `value` on the field keyed `key`.
  *
  * Both handles are contract: the field wears its schema key in `data-k`
- * (components/Field.js), the option its own value in `data-v`
+ * (components/widgets/Field.js), the option its own value in `data-v`
  * (components/controls/index.js). Preact builds a field's widget before it
  * moves to the next field, so a field's options are the ones built after its
  * own `data-k` vnode and before the next field's — the renderer's depth-first

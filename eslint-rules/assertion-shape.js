@@ -1,8 +1,8 @@
 // Gate: the one assertion a test makes has a shape a test may take
-// (docs/testing.md rules 2 and 10, and the Markers section). The JS peer of the
-// shape checks in scripts/gates/check_test_assertions.py, beside the count rule
-// in one-assertion-per-test.js, which stays a separate rule so the two can run
-// at different severities while a sweep is in flight.
+// (docs/testing.md rules 2 and 10, and the Markers section). This is the JS peer
+// of the shape checks in scripts/gates/testing/check_test_assertions.py. The count
+// rule is separate, in one-assertion-per-test.js, so the two rules can run at
+// different severities.
 //
 //   count      a logical expression (`&&` / `||`) at the root of an assertion's
 //              first argument is one assertion per operand

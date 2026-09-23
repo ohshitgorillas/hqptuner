@@ -6,8 +6,8 @@
 // The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
 // tests/js/components/easytiles-knobs.test.js (what a dark tile's knobs show).
-// All three share tests/js/support/easytiles.js, imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
+// All three share tests/js/support/easy/easytiles.js, imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
 // load-time read.
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9). The descriptions the tiles
@@ -37,8 +37,8 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { ROSTER, resetTab, tabs } = await import("../../support/easytiles.js");
-const { descBlockCount, descBlockContainers } = await import("../../support/easydesc.js");
+const { ROSTER, resetTab, tabs } = await import("../../support/easy/easytiles.js");
+const { descBlockCount, descBlockContainers } = await import("../../support/easy/easydesc.js");
 
 // Stand-in prose, never compared against what ships. Three paragraphs, one
 // paragraph, and one paragraph carrying an interior newline that is NOT a blank

@@ -12,7 +12,7 @@ import { config, volume, staged, liveOverride, previewConfig, pendingPreset, eng
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { mirror, refreshConfig } from "./sync.js";
-import { liveMode } from "./prefs.js";
+import { liveMode } from "./ui/prefs.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor

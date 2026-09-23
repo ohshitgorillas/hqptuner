@@ -1,4 +1,4 @@
-// Behavioral suite for store/tabmap.js — which tab a staged edit lights up.
+// Behavioral suite for store/ui/tabmap.js — which tab a staged edit lights up.
 //
 // The mapping is hand-maintained (schema `group` is not the tab), and its
 // failure mode is silent: a key nobody listed falls through to the Matrix tab, so a
@@ -16,12 +16,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { dirtyTabs } from "../../../hqptuner/static/store/tabmap.js";
+import { dirtyTabs } from "../../../hqptuner/static/store/ui/tabmap.js";
 import { config, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { question, answer } from "../../../hqptuner/static/store/ask.js";
-import { stagingWire, quiesce } from "../support/wire.js";
+import { stagingWire, quiesce } from "../support/wire/wire.js";
 
 async function reset() {
   const w = stagingWire();
@@ -37,7 +37,7 @@ async function reset() {
 // confirm whatever stands, then await. The guards are pinned in their own
 // suites; this one's subject is which tab the staged edit lights.
 /**
- * @param {import("../support/wire.js").StagingWire} w
+ * @param {import("../support/wire/wire.js").StagingWire} w
  * @param {string} key
  * @param {string} value
  */

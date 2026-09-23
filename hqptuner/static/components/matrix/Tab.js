@@ -5,13 +5,13 @@
 // Plots stay reserved (step 7).
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { noteFor } from "../../store/prose.js";
 import { pipelineBaseline, effectivePipelines, canonPipelines } from "../../store/resolve.js";
 import { stagePipelines } from "../../store/actions.js";
 import { planEqImport } from "../../lib/eqimport.js";
 import { pipelinesToRewText } from "../../lib/eqexport.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible } from "../../store/ui/prefs.js";
 import { MatrixPlot, plottedRows } from "./Plot.js";
 import { LibraryPicker, clearLibrarySelection } from "./Library.js";
 import { XfeedBadge } from "../xfeed/Comp.js";

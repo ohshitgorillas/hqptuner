@@ -13,7 +13,7 @@
 
 // One selectable option as the option stores emit it.
 //
-// Producers: store/options.js enumOptions() and optionsFor(). Both construct
+// Producers: store/ui/options.js enumOptions() and optionsFor(). Both construct
 // all four fields unconditionally, so none is optional — `disabled: false` and
 // `reason: ""` are written out rather than left off. grayShapersByRate() then
 // spreads an option and overwrites disabled/reason, preserving the shape.
@@ -97,7 +97,7 @@ interface ApiEnvelope<T> {
 
 // What a schema entry's grayWhen/adviseWhen predicate is handed.
 //
-// Built at store/graying.js:18 as `{ mode: modeName.value, effective }`.
+// Built at store/ui/graying.js:18 as `{ mode: modeName.value, effective }`.
 // `effective(key)` resolves a control's rendered value — live override, else
 // staged edit, else baseline — and returns undefined for an unknown key or a
 // control with no value on either side. Booleans are in the union because a

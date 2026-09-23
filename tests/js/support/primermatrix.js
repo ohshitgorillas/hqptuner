@@ -90,7 +90,7 @@ const {
   outputFactors,
   outputRateFor,
   showMe,
-} = await import("../../../hqptuner/static/store/primergraph.js");
+} = await import("../../../hqptuner/static/store/primer/primergraph.js");
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 

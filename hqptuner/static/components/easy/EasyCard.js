@@ -25,11 +25,11 @@
 import { html } from "../../lib/dom.js";
 import { Card } from "../common.js";
 import { Segment } from "../controls/index.js";
-import { knobsFor, setEasyMaterial, setEasyMode, toggleEasyHelp } from "../../store/easyview.js";
+import { knobsFor, setEasyMaterial, setEasyMode, toggleEasyHelp } from "../../store/easy/easyview.js";
 import { easyProse } from "../../store/prose.js";
-import { matchPreset, presetsFor } from "../../store/easy.js";
-import { cardKnobs, cardPositions, presetGrayed, presetOffered } from "../../store/easyoffer.js";
-import { easyLane, easyRunning } from "../../store/easylane.js";
+import { matchPreset, presetsFor } from "../../store/easy/easy.js";
+import { cardKnobs, cardPositions, presetGrayed, presetOffered } from "../../store/easy/easyoffer.js";
+import { easyLane, easyRunning } from "../../store/easy/easylane.js";
 import { EasyHelp } from "./Help.js";
 import { PresetTile } from "./Tile.js";
 
@@ -51,7 +51,7 @@ function ExitLink() {
 
 // The card's knobs, set once for every tile. Material is a fact about what is
 // playing, not about a preset, so one control on the notice's row says it and
-// every tile that takes the knob follows (store/easy.js MATERIAL). Moving it
+// every tile that takes the knob follows (store/easy/easy.js MATERIAL). Moving it
 // writes nothing: it changes what the tiles name and what a press would write,
 // and the press is still the write. The words are the card's own copy, keyed the
 // way a tile knob's are; the position tips are the shared ones.
@@ -85,7 +85,7 @@ function CardKnobs() {
 // falling back to the knob's own default. The lit tile's positions are read back
 // out of the filter values, so they exist only while it is lit — without the
 // record, pressing another tile would drop the one you left back to its defaults
-// and lose a position you set (store/easyview.js).
+// and lose a position you set (store/easy/easyview.js).
 //
 // Read per knob rather than merged over the defaults wholesale, so the record
 // can only ever supply a position the knob actually offers. The store keeps
@@ -93,7 +93,7 @@ function CardKnobs() {
 // knob would otherwise key nothing: the row would come up with none of its
 // options marked and a press would stage an empty filter name.
 /**
- * @param {import("../../store/easy.js").Preset} preset
+ * @param {import("../../store/easy/easy.js").Preset} preset
  * @returns {Record<string, string>}
  */
 const resting = (preset) => {
@@ -108,11 +108,11 @@ const resting = (preset) => {
 // where a DARK tile's knobs sit, which the fields cannot say.
 //
 // The roster itself is not the whole table: a preset the engine's current state
-// gives no working path to is left out (store/easyoffer.js says which and why).
+// gives no working path to is left out (store/easy/easyoffer.js says which and why).
 //
 // TWO markings, from two readings of the same four fields. SELECTED is what the
 // grid has picked, staged edits folded in; ACTIVE is what the engine is running,
-// staged edits left out (store/easylane.js). On LIVE nothing stages and the two
+// staged edits left out (store/easy/easylane.js). On LIVE nothing stages and the two
 // always land on one tile. On the Output tab they part the moment a preset is
 // staged, and that parting is the point: with one marking, staging a preset
 // takes the only mark off the tile the engine is still running and the page has

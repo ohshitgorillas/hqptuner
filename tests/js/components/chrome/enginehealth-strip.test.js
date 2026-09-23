@@ -3,11 +3,11 @@
 // heading.
 //
 // The strip is a pure function of the apodizing history store, so it is driven
-// exactly as tests/js/store/apodhistory.test.js drives it — a poll is a FRESH
+// exactly as tests/js/store/presets/apodhistory.test.js drives it — a poll is a FRESH
 // object written to engineStatus carrying the daemon's own Status fields, and
 // the cadence a bin records is moved by writing the signals the app itself
 // writes (liveMode, activeTab, quickSystemUpdates) and read back through
-// store/ui.js's fastPollMs. Nothing of HQPTuner's is stubbed (docs/testing.md
+// store/ui/ui.js's fastPollMs. Nothing of HQPTuner's is stubbed (docs/testing.md
 // rule 4), and the markup is read as a browser would present it.
 //
 // Hazards, inherited from that seam:
@@ -69,14 +69,14 @@ import { renderWith } from "../../support/wheel.js";
 import { STOPPED, readCadences, setApodCounter, poll, append, feed } from "../../support/apodpolls.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { EngineHealth } from "../../../../hqptuner/static/components/EngineHealth.js";
-import { liveMode, apodWindow, setApodWindow } from "../../../../hqptuner/static/store/prefs.js";
+import { liveMode, apodWindow, setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 // The two cadences the app itself produces, read rather than assumed
-// (tests/js/store/polling.test.js pins where each comes from).
+// (tests/js/store/live/polling.test.js pins where each comes from).
 const { live: LIVE_CADENCE, base: CADENCE } = readCadences();
 
 // The width case needs one cadence to be exactly twice the other, and the

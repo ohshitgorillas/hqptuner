@@ -75,8 +75,8 @@ Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` 
 Instructed gate commands run directly, which the lane hook reads as shell writes naming `tests/`:
 
 ```
-.venv/bin/python scripts/gates/check_test_assertions.py tests/*.py
-.venv/bin/python scripts/gates/check_no_copy_assertions.py tests/*.py
+.venv/bin/python scripts/gates/testing/check_test_assertions.py tests/*.py
+.venv/bin/python scripts/gates/testing/check_no_copy_assertions.py tests/*.py
 ```
 
 ## Resolution — 2026-09-05, second pass

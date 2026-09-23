@@ -1,14 +1,14 @@
 // Volume tab: the live playback knob, the three-handle volume range, the
 // fixed-volume and adjustments cards, and Loudness (volume-adaptive by definition).
 import { html } from "../../lib/dom.js";
-import { Field } from "../Field.js";
+import { Field } from "../widgets/Field.js";
 import { BypassNote } from "../matrix/BypassNote.js";
 import { Segment } from "../controls/index.js";
 import { PlaybackVolume } from "../volume/Playback.js";
 import { VolumeRangeBar } from "../volume/RangeBar.js";
 import { effective, isDirty } from "../../store/resolve.js";
-import { loudnessSide } from "../../store/ui.js";
-import { grayReason } from "../../store/graying.js";
+import { loudnessSide } from "../../store/ui/ui.js";
+import { grayReason } from "../../store/ui/graying.js";
 import { LoudnessPlot } from "../plots.js";
 import { noteFor } from "../../store/prose.js";
 import { Section, Card } from "../common.js";

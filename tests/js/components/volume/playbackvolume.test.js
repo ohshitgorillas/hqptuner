@@ -31,7 +31,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { PlaybackVolume } from "../../../../hqptuner/static/components/volume/Playback.js";
 import { volume, volumeRange, config, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, disabledRegion, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -330,7 +330,7 @@ test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async (
 });
 
 // --- no faster-updates opt-in ------------------------------------------------
-// The volume page polls every second unconditionally now (store/ui.js), so there
+// The volume page polls every second unconditionally now (store/ui/ui.js), so there
 // is no choice left to offer. The case that pinned the ABSENCE of the old
 // wording is gone: that sentence is nowhere in shipped source, so its absence
 // constrained nothing. The opt-in's class is a wire identifier and still bites.

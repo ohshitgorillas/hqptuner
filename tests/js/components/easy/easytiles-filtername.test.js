@@ -5,11 +5,11 @@
 // The companion files are tests/js/components/easytiles.test.js (the tiles, the
 // active marking and where a press routes what the table names) and
 // tests/js/components/easytiles-knobs.test.js (what a dark tile's knobs show).
-// All three share tests/js/support/easytiles.js, imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
+// All three share tests/js/support/easy/easytiles.js, imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
 // load-time read. WHICH name a preset and a set of knob positions comes out as
 // is tests/js/store/easy-filtername.test.js's, and where the 1x/Nx boundary
-// falls is tests/js/store/live-source-nx.test.js's; this file is about what the
+// falls is tests/js/store/live/live-source-nx.test.js's; this file is about what the
 // tile puts on screen.
 //
 // HOOKS THIS SUITE REQUIRES the implementation to provide:
@@ -81,10 +81,10 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, tileHtml, running } = await import("../../support/easytiles.js");
-const { combos } = await import("../../support/easytable.js");
-const { recordPositions } = await import("../../support/easyrecord.js");
-const { presetsFor } = await import("../../../../hqptuner/static/store/easy.js");
+const { resetTab, tabs, tileHtml, running } = await import("../../support/easy/easytiles.js");
+const { combos } = await import("../../support/easy/easytable.js");
+const { recordPositions } = await import("../../support/easy/easyrecord.js");
+const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 const signals = await import("../../../../hqptuner/static/store/signals.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -163,7 +163,7 @@ const EMPTY_SECTION = { entries: {}, families: {}, variants: {} };
  * the knob positions a tile is put on, put on record after the reset that
  * clears them and before the render that reads them: a tile knob's through
  * `rememberKnobs`, the card knob's through `setEasyMaterial`
- * (tests/js/support/easyrecord.js).
+ * (tests/js/support/easy/easyrecord.js).
  *
  * @param {{
  *   annotate?: string,

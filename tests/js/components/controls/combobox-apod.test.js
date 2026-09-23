@@ -37,9 +37,9 @@ import assert from "node:assert/strict";
 import { reset, field, META } from "../../support/field-harness.js";
 import { renderField } from "../../support/vnodeseam.js";
 import { elements, classes, attr, hasAttr, text } from "../../support/markup.js";
-import { endOf, encloses, rows, rowIncluding, classTokens } from "../../support/comborows.js";
+import { endOf, encloses, rows, rowIncluding, classTokens } from "../../support/easy/comborows.js";
 import { enums } from "../../../../hqptuner/static/store/signals.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

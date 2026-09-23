@@ -42,7 +42,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Knob } from "../../../../hqptuner/static/components/Knob.js";
+import { Knob } from "../../../../hqptuner/static/components/widgets/Knob.js";
 import { knobDrag } from "../../support/pointer.js";
 
 // Where the press lands, and the two places the pointer travels to while the

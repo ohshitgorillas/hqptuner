@@ -33,7 +33,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { CrossfeedCard } from "../../../../hqptuner/static/components/xfeed/Card.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
-import { setShowDescriptions } from "../../../../hqptuner/static/store/prefs.js";
+import { setShowDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import {
   xfMode,
   liveParams,
@@ -44,7 +44,7 @@ import {
 } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
-import { staticWire, stagingWire } from "../../support/wire.js";
+import { staticWire, stagingWire } from "../../support/wire/wire.js";
 import { hasLabel } from "../../support/markup.js";
 import { placed } from "../../support/order.js";
 

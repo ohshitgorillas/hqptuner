@@ -24,8 +24,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ok, bad } from "../support/wire.js";
-import { settle } from "../support/livepresetwire.js";
+import { ok, bad } from "../support/wire/wire.js";
+import { settle } from "../support/wire/livepresetwire.js";
 import {
   descriptions,
   descriptionError,

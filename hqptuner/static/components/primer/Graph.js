@@ -1,7 +1,8 @@
 // The filter primer's graph: three SVG panes and the controls beneath, all
-// drawn from store/primergraph.js (docs/plans/filter-primer-graph.md). Impulse
-// and Delay half width on the top row, Frequency full width beneath; the
-// panes stack in that order on a narrow viewport (css/features/primer.css).
+// reading store/primer/primergraph.js; docs/plans/filter-primer-graph.md documents
+// this graph's design. Impulse and Delay half width on the top row, Frequency
+// full width beneath; the panes stack in that order on a narrow viewport
+// (css/features/primer.css).
 //
 // `PlotFrame` (../plots.js) is unusable here, its axis is log 20 Hz to 20 kHz;
 // the plot classes and the depth ladder in cards/plots.css are reused. Every

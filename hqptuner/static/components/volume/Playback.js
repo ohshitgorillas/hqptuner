@@ -16,7 +16,7 @@ import { html } from "../../lib/dom.js";
 import { volume, volumeRange, volumeDrag } from "../../store/signals.js";
 import { effective, runningValue } from "../../store/resolve.js";
 import { setVolume } from "../../store/actions.js";
-import { Knob } from "../Knob.js";
+import { Knob } from "../widgets/Knob.js";
 import { Card } from "../common.js";
 import { truthy, num } from "../../lib/coerce.js";
 

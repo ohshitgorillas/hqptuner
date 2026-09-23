@@ -3,7 +3,7 @@
 
 `SetRate` does not — it returns `result="OK"` and leaves `State.rate` at `"0"`
 until an explicit mode is configured (measured 2026-07-29,
-`scripts/probes/probe_rate_playing.py`). HQPTuner now resolves the loaded chain in
+`scripts/probes/rate/probe_rate_playing.py`). HQPTuner now resolves the loaded chain in
 `[source]` from `Status.active_rate` and sends filter and shaper edits live there
 rather than holding them, so the same question has to be asked of the chain
 setters before that is shipped: a setter that is silently ignored produces the

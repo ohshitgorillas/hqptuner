@@ -9,7 +9,7 @@ import { html } from "../../lib/dom.js";
 import { parseProcess, serializeProcess, stageArgs, IIR_TYPES } from "../../lib/matrixspec.js";
 import { clamp } from "../../lib/coerce.js";
 import { stagePipelines } from "../../store/actions.js";
-import { Knob } from "../Knob.js";
+import { Knob } from "../widgets/Knob.js";
 
 /**
  * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow

@@ -1,6 +1,6 @@
 """The gate that refuses a test suite slower than the last green run.
 
-``scripts/gates/check_suite_time.py`` reads the junit XML report pytest wrote
+``scripts/gates/testing/check_suite_time.py`` reads the junit XML report pytest wrote
 (``--junitxml``) and a JSON baseline file holding the last green run's wall
 time in seconds, and answers with an exit code. A green run within
 ``ESCALATE`` seconds of the baseline passes and becomes the new baseline; one
@@ -26,7 +26,7 @@ import pytest
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_suite_time.py"
+GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "testing" / "check_suite_time.py"
 
 
 def _load_gate_module() -> ModuleType:

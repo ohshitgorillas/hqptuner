@@ -39,9 +39,9 @@ import {
   metadata,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { liveMode } from "../../../../hqptuner/static/store/prefs.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing, nSrcFormat } from "../../../../hqptuner/static/store/narrow/state.js";
-import { staticWire } from "../../support/wire.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { hasGroup, mentions, resets } from "../../support/narrowbarview.js";
 
 // The engine's own `<GetFilters/>` enumeration (protocol.md:226), rated so that

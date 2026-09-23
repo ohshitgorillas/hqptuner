@@ -27,7 +27,7 @@ import {
   runDiscovery,
   submitConnection,
 } from "../../../hqptuner/static/store/setup.js";
-import { staticWire, ok } from "../support/wire.js";
+import { staticWire, ok } from "../support/wire/wire.js";
 
 /** The globals a wire fake installs a `fetch` on. */
 /** @type {{ fetch?: unknown }} */

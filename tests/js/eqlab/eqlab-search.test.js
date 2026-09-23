@@ -1,4 +1,4 @@
-// Behavioral suite for scripts/eqlab/search.js — value/change expansion and
+// Behavioral suite for scripts/eqlab/search/search.js — value/change expansion and
 // whole search jobs. Written blind from a spec block: no eqlab source was read.
 //
 // Search spaces are kept to single digits of candidates so that an ordering
@@ -19,8 +19,8 @@ import assert from "node:assert/strict";
 import { valueAt } from "../../../scripts/eqlab/curve.js";
 import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 import { resolveChain, applyChanges } from "../../../scripts/eqlab/chain.js";
-import { searchJob } from "../../../scripts/eqlab/search.js";
-import { expandValue, expandChange } from "../../../scripts/eqlab/space.js";
+import { searchJob } from "../../../scripts/eqlab/search/search.js";
+import { expandValue, expandChange } from "../../../scripts/eqlab/search/space.js";
 import { FS, near, band, curve, serveRows, REAL_FETCH } from "../support/eqlab-helpers.js";
 
 afterEach(() => {
@@ -73,9 +73,9 @@ test("test_an_explicit_values_object_of_three_numbers_stays_verbatim", () => {
   assert.deepEqual(expandValue({ values: [0, 0.5, 1.0] }), [0, 0.5, 1.0]);
 });
 
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Constraint} Constraint */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Constraint} Constraint */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Objective} Objective */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
 /** @typedef {SurvivorOut & { score: number }} TopOut */
 
 /**

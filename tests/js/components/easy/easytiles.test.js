@@ -1,12 +1,12 @@
 // Behavioral suite for Easy Mode's preset tiles: what the card lays out
 // (components/easy/EasyCard.js), which tile reads as the one the engine is
 // currently set to, and what a press on a tile or on a tile's knob writes on
-// each of the two lanes (store/easylane.js).
+// each of the two lanes (store/easy/easylane.js).
 //
 // The harness — the daemon form and engine enumeration the lanes are driven
 // with, the wire both are watched over, the readers and the click seam — is
-// tests/js/support/easytiles.js, imported dynamically below so that the fake
-// localStorage is installed before `store/easyview.js` reads it. What each
+// tests/js/support/easy/easytiles.js, imported dynamically below so that the fake
+// localStorage is installed before `store/easy/easyview.js` reads it. What each
 // preset MEANS is tests/js/store/easy.test.js's; this file is about the lane in
 // between the table and the daemon.
 //
@@ -84,16 +84,16 @@ const {
   pressables,
   seedable,
   offeredAnySource,
-} = await import("../../support/easytiles.js");
+} = await import("../../support/easy/easytiles.js");
 
 // The preset table's public readers, imported the same way the harness is so
 // the fake storage is in place before any store module loads. Every filter
 // name this file seeds or expects is read out of `writeSet`, never typed (rule
 // 9); which presets carry which knobs, and which positions each knob offers,
 // are read out of `presetsFor` and `knobsShown` for the same reason.
-const { writeSet, presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
-const { combos } = await import("../../support/easytable.js");
-const { setCardFrom } = await import("../../support/easyrecord.js");
+const { writeSet, presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
+const { combos } = await import("../../support/easy/easytable.js");
+const { setCardFrom } = await import("../../support/easy/easyrecord.js");
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */

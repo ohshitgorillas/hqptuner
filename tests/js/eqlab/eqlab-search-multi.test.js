@@ -1,4 +1,4 @@
-// Behavioral suite for scripts/eqlab/search.js — multi-spec search spaces:
+// Behavioral suite for scripts/eqlab/search/search.js — multi-spec search spaces:
 // append/amend as arrays of specs, back-compat single specs, and searches
 // scored by target-relative metrics. Written blind from a spec block: no
 // eqlab source was read. Test numbers in comments refer to the spec block's
@@ -9,13 +9,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { searchJob } from "../../../scripts/eqlab/search.js";
+import { searchJob } from "../../../scripts/eqlab/search/search.js";
 import { resolveTarget } from "../../../scripts/eqlab/target.js";
 import { FS, band, curve } from "../support/eqlab-helpers.js";
 
 /** @typedef {import("../../../scripts/eqlab/jobs.js").JobCtx} JobCtx */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
 
 /**
  * A survivor of a scalar search whose space fills every change group it reads.

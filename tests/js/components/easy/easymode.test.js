@@ -23,7 +23,7 @@
 //   * `data-testid="easy-enter"` on the Narrow Filters card's Easy Mode link
 //   * `data-testid="easy-exit"` on the Easy Mode card's exit link
 //   * `data-card="filter-primer"` on the primer's section, the third face the
-//     filter half of each page can show (store/primerview.js's `primerOpen`)
+//     filter half of each page can show (store/primer/primerview.js's `primerOpen`)
 //   * `data-note="easy-notice"` on the card's notice/subtitle element
 //   * `data-testid="easy-switcher"` on a grid switcher, were there one — read
 //     only for its ABSENCE, the card having no switcher any more
@@ -62,15 +62,15 @@ const { Output } = await import("../../../../hqptuner/static/components/tabs/Out
 const { LiveView } = await import("../../../../hqptuner/static/components/live/View.js");
 const { EasyCard } = await import("../../../../hqptuner/static/components/easy/EasyCard.js");
 const { NarrowBar } = await import("../../../../hqptuner/static/components/narrowbar/Bar.js");
-const { easyMode } = await import("../../../../hqptuner/static/store/easyview.js");
-const { primerOpen } = await import("../../../../hqptuner/static/store/primerview.js");
+const { easyMode } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { primerOpen } = await import("../../../../hqptuner/static/store/primer/primerview.js");
 const { easyProse } = await import("../../../../hqptuner/static/store/prose.js");
 const signals = await import("../../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
 const { liveMode, showDescriptions, keepOptionDescriptions } =
-  await import("../../../../hqptuner/static/store/prefs.js");
+  await import("../../../../hqptuner/static/store/ui/prefs.js");
 const narrow = await import("../../../../hqptuner/static/store/narrow/state.js");
-const { stagingWire, staticWire } = await import("../../support/wire.js");
+const { stagingWire, staticWire } = await import("../../support/wire/wire.js");
 const { elements, classes, attr } = await import("../../support/markup.js");
 const { cardHeadAt, section, formFields } = await import("../../support/tabform.js");
 const { resets, seen: readerSees } = await import("../../support/narrowbarview.js");

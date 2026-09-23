@@ -34,8 +34,8 @@ import {
   showDescriptions,
   keepOptionDescriptions,
   quickSystemUpdates,
-} from "../../../../hqptuner/static/store/prefs.js";
-import { stagingWire } from "../../support/wire.js";
+} from "../../../../hqptuner/static/store/ui/prefs.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { formFields, section } from "../../support/tabform.js";
 import { attr, classes, elements, enclosing, hasAttr, hasLabel, labeled, text } from "../../support/markup.js";
 
@@ -136,8 +136,8 @@ test("the engine health card keeps its quick updates tickbox on the tab", () => 
 });
 
 // The opt-in explains what the faster cadence costs, in a note of its own. That
-// the explanation is there is the behavior; the cadence it names is store/ui.js's
-// contract (tests/js/store/polling.test.js) and the sentence is owner copy, so
+// the explanation is there is the behavior; the cadence it names is store/ui/ui.js's
+// contract (tests/js/store/live/polling.test.js) and the sentence is owner copy, so
 // the note is read by its identity alone (docs/testing.md rule 9).
 
 test("the quick updates opt-in carries its explanatory note", () => {

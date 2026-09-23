@@ -9,7 +9,7 @@
 // Filed on its own because the page's cards no longer live in one module: the
 // matrix picker is its own file and reaching into the page module for the
 // handle would point an import back up at its own caller.
-import { setLiveCardOpen } from "../../store/prefs.js";
+import { setLiveCardOpen } from "../../store/ui/prefs.js";
 
 /**
  * One LIVE card's collapse handle, backed by its stored disclosure pref.

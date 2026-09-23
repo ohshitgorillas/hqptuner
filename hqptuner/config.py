@@ -142,7 +142,7 @@ class Config:
     # (on hqplayerd 6.0.4, data/impulse_0-0.wav maps to /var/lib/hqplayer/home/…).
     # Overridable for non-standard installs.
     hqp_home: str = field(default_factory=lambda: _env("HQP_HOME", "/var/lib/hqplayer/home"))
-    # Largest convolution filter upload accepted, in bytes (api/routes/matrix.py).
+    # Largest convolution filter upload accepted, in bytes (api/routes/matrix/matrix.py).
     # A million-tap float32 mono impulse is 4 MiB; the default leaves room for
     # 24 s at 352.8 kHz and keeps a LAN client from filling the backup volume
     # one upload at a time.

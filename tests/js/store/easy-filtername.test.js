@@ -1,4 +1,4 @@
-// Behavioral suite for `filterFor` (store/easy.js): the engine filter NAME an
+// Behavioral suite for `filterFor` (store/easy/easy.js): the engine filter NAME an
 // Easy Mode tile displays for a preset, an output mode, a set of knob positions
 // and a side of the chain.
 //
@@ -30,7 +30,7 @@
 //
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link, the convention
-// tests/js/store/plainnames-truename.test.js settled.
+// tests/js/store/narrow/plainnames-truename.test.js settled.
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 //
@@ -39,9 +39,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { combos } from "../support/easytable.js";
+import { combos } from "../support/easy/easytable.js";
 
-const MOD = new URL("../../../hqptuner/static/store/easy.js", import.meta.url).href;
+const MOD = new URL("../../../hqptuner/static/store/easy/easy.js", import.meta.url).href;
 const easy = await import(`${MOD}`);
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */

@@ -7,8 +7,8 @@ import { Output } from "./OutputTab.js";
 import { Volume } from "./VolumeTab.js";
 import { System } from "./SystemTab.js";
 import { MatrixTab } from "../matrix/Tab.js";
-import { activeTab as active } from "../../store/ui.js";
-import { dirtyTabs } from "../../store/tabmap.js";
+import { activeTab as active } from "../../store/ui/ui.js";
+import { dirtyTabs } from "../../store/ui/tabmap.js";
 
 const TABS = [
   ["output", "Output", Output],

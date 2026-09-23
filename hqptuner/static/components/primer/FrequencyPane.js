@@ -18,7 +18,7 @@ import { useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { clamp } from "../../lib/coerce.js";
 import { peakColumns } from "../../lib/dsp/render.js";
-import { axisHz, freqPx, noFilter, outputRate, rate, spectrum } from "../../store/primergraph.js";
+import { axisHz, freqPx, noFilter, outputRate, rate, spectrum } from "../../store/primer/primergraph.js";
 import {
   AXIS_Y,
   FULL_W as W,

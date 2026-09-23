@@ -29,8 +29,8 @@ import {
   nSrcFormat,
 } from "../../store/narrow/state.js";
 import { narrowingError } from "../../store/narrow/persist.js";
-import { setEasyMode } from "../../store/easyview.js";
-import { notesVisible, plainNames, setPlainNames } from "../../store/prefs.js";
+import { setEasyMode } from "../../store/easy/easyview.js";
+import { notesVisible, plainNames, setPlainNames } from "../../store/ui/prefs.js";
 import { closeExcept } from "./popover.js";
 import { NarrowFacets } from "./Facets.js";
 import { Segment } from "../controls/index.js";

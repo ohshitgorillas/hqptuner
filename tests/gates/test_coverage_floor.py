@@ -1,6 +1,6 @@
 """The gate that holds every individual source file to a coverage floor.
 
-``scripts/gates/check_coverage_floor.py`` reads a ``coverage.py`` JSON report —
+``scripts/gates/testing/check_coverage_floor.py`` reads a ``coverage.py`` JSON report —
 the artifact ``pytest --cov-report=json:<path>`` writes — and asks one question
 of every entry in its top-level ``files`` map: does this file's
 ``summary.percent_covered`` reach the floor? A file that does not is named on
@@ -33,7 +33,7 @@ import pytest
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_coverage_floor.py"
+GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "testing" / "check_coverage_floor.py"
 
 
 def _load_gate_module() -> ModuleType:

@@ -13,7 +13,7 @@ import { html } from "../lib/dom.js";
 import { volumeShown } from "../store/signals.js";
 import { effective } from "../store/resolve.js";
 import { setLive, edit } from "../store/actions.js";
-import { loudnessSide } from "../store/ui.js";
+import { loudnessSide } from "../store/ui/ui.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp/curves.js";
 import { clamp, num } from "../lib/coerce.js";
 import { db as fmtLevel, dbOffset } from "../lib/units.js";

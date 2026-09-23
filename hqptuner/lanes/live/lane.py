@@ -219,8 +219,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     """Whether the engine is already in the mode a preset asks for.
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
-    it clears the engine's rate pin outright (probe-verified on 6.0.4,
-    ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
+    it clears the engine's rate pin outright and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
     index = (mgr.readings.state or {}).get("mode")

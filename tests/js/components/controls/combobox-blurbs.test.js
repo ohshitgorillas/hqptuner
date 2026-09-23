@@ -33,13 +33,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { elements, classes, attr, text } from "../../support/markup.js";
-import { rows } from "../../support/comborows.js";
-import { plainNames } from "../../../../hqptuner/static/store/prefs.js";
+import { rows } from "../../support/easy/comborows.js";
+import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { reset, field, optionByValue, attrOf, META } from "../../support/field-harness.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
-import { favoritesRoutes, favoritesState } from "../../support/favoriteswire.js";
-import { staticWire } from "../../support/wire.js";
+import { favoritesRoutes, favoritesState } from "../../support/wire/favoriteswire.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { ascending } from "../../support/order.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */

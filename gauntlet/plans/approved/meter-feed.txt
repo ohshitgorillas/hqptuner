@@ -1,0 +1,90 @@
+slug: meter-feed
+discovery: detective
+
+brief:
+> Pick a chunk of `docs/meter-mode.md` to make a slug out of, then take it through stage 1 of the plan gate.
+
+delivered: Which files get touched, and roughly how — the Feed section, `docs/plans/meter-mode.md:21-25`, as backend SSE endpoint plus broadcaster; the rest of the METER doc cut under What it costs.
+
+## What is wrong
+
+No way for a page to receive metering at frame rate. The only metering surface is three band levels on the `/api/status` poll (`hqptuner/api/routes/status.py:92`, `:102`), a 1 s mean (`hqptuner/engine/bands.py:22`). No streaming response exists under `hqptuner/api/`; every router is a plain request/response one (`hqptuner/api/factory.py:78-92`).
+
+The frames already reach the host. `MeteringReader._ingest` (`hqptuner/engine/metering.py:380-389`) takes every frame (`DECIMATE = 1`, `:53`) and hands it to two consumers, the advisor aggregate and the band ring (`:386-388`). Per-channel `peak` and `rms` sit in every frame (`docs/protocol.md:292`); `frame_silent` reads `rms` alone (`hqptuner/engine/bands.py:30-36`) and nothing reads `peak`. `frame_power` sums channels (`:39-50`), so no per-channel spectrum exists.
+
+`docs/plans/meter-mode.md:21-25` specifies the feed the METER page is to read.
+
+## What the owner sees change
+
+Nothing on screen: no page reads the feed yet. `GET /api/meter/feed` answers `text/event-stream` while metering is on, and 204 when it is off (`HQPTUNER_METERING_ENABLED=0`, `docs/architecture.md:98`), which an `EventSource` takes as a failed connection and never retries: WHATWG HTML §9.2.2, "if res's status is not 200 ... fail the connection", and §9.2.3, "Once the user agent has failed the connection, it does not attempt to reconnect" (https://html.spec.whatwg.org/multipage/server-sent-events.html).
+
+Stream shape. One `geometry` event, source Nyquist, channel count, 1/12-octave band centres, always ahead of the first `frame` event it describes; then one `frame` event per stride: per channel `peak` max-held across the stride, `rms` power-averaged across it, and the band spectrum power-averaged across it, all dB, 0.1 dB resolution. Attach while the feed holds a geometry: that `geometry` goes to the new subscriber at once. Attach before any frame, or after `reset()`, which forgets the geometry: nothing is sent until the first frame arrives, and that frame's geometry goes to every subscriber before its stride's `frame`. Channels, bin count or bandwidth changing mid-stride (`hqptuner/engine/metering.py:384` rebuilds the aggregate on the same change): the partial stride of the old geometry is dropped, never sent, and the new `geometry` goes out ahead of the new stride.
+
+Stride is frames per 40 ms of the frame time the header declares (`transformTime`, `docs/protocol.md:291`), nearest integer with ties rounding up, at least 1: 2 at 44.1k (21.5 events/s), 2 at 48k, 3 at 88.2k, 4 at 96k (23.4/s), 8 at 192k (23.4/s), 15 at 384k (25/s). A DSD source reads as its decimated base rate (`docs/protocol.md:289`), so DSD64 strides as 44.1k.
+
+Bands: centres at 1000·2^(k/12) Hz from the first above 20 Hz (20.9 Hz) to the last whose lower edge sits below Nyquist: 122 bands at 22050, 147 at 96000. A band's level is the mean power of the bins inside its edges; a band holding no bin takes the nearest bin, so neighbouring low bands carry one bin's value — the wide bars `docs/plans/meter-mode.md:15` asks for, not interpolation. At 21.5 Hz bins that sharing runs up to about 360 Hz; above it every band holds at least one bin. Floor `BAND_FLOOR_DB` (`hqptuner/engine/bands.py:24`), -100 dB, where power is zero.
+
+Silence: no frames reach the reader when the engine is not playing (`hqptuner/engine/metering.py:341-342`) or on a DSD source with the matrix off (`docs/protocol.md:289`), so the stream sends nothing; the connection stays open. The feed resets each time `_stream` connects (`hqptuner/engine/metering.py:334`), so a resume never mixes frames from before the pause, a pause shorter than one `IDLE_RECHECK` (`:49`) included.
+
+Departure from `docs/plans/meter-mode.md:23`, "every second to fourth frame" and "About 15 KB/s": stride runs past 4 above 96k, since a fixed 2–4 would put 192k at 47 events/s; the 20–30/s rate the same line gives holds at every rate above. Per-channel spectra, which the page's summed-or-per-channel control (`docs/plans/meter-mode.md:32`) needs, put a stereo 44.1k frame event near 1.5 KB, about 33 KB/s per open page, double the doc's figure.
+
+## Which files get touched, and roughly how
+
+`hqptuner/engine/meterfeed.py` — new. `reduce_frame(body, channels, bins, bandwidth)`: numpy view over the frame body (numpy already runtime, `pyproject.toml:7-13`), per-channel `peak`, `rms` and 1/12-octave band power. `MeterFeed`: stride accumulator plus subscriber set. `add(header, body)` returns before reducing anything when no subscriber is attached — the doc's "sends only while a page is attached" (`docs/plans/meter-mode.md:25`), taken back to the reduction so an unattached reader pays nothing. `subscribe()` hands back a bounded queue, 8 events, oldest dropped on overflow, so a stalled client holds at most 8 events and never back-pressures the reader; `unsubscribe()`; `reset()`. Every edge reads the same for one subscriber or many: one reduction per stride, one enqueue per subscriber. New file rather than growth in `metering.py`, at 398 lines against the 500-line gate (`scripts/gates/check_file_length.py:38`).
+
+`hqptuner/engine/metering.py` — reader owns a `MeterFeed` built in `__init__` (`hqptuner/engine/metering.py:195-219`); `_ingest` (`:380-389`) calls `feed.add` beside the ring; `_stream` calls `feed.reset` beside `open_connection` (`:334`).
+
+`hqptuner/api/routes/meter.py` — new router. `GET /api/meter/feed`: 204 when `manager.metering` is None; else subscribes, returns a Starlette `StreamingResponse` over an async generator yielding `event:`/`data:` lines, `Cache-Control: no-cache`, unsubscribes in `finally`. Disconnect is seen without a send: uvicorn declares ASGI spec 2.3 (`.venv/lib/python3.14/site-packages/uvicorn/protocols/http/h11_impl.py:207`), and below 2.4 Starlette runs `listen_for_disconnect` beside the stream and cancels it (`.venv/lib/python3.14/site-packages/starlette/responses.py:267-280`), so a page left during a pause frees its queue at once.
+
+`hqptuner/api/factory.py` — `meter` joins the route import (`hqptuner/api/factory.py:9-23`) and one `include_router` beside `:78-92`.
+
+`hqptuner/__main__.py` — `timeout_graceful_shutdown=5` on `uvicorn.run` (`hqptuner/__main__.py:27-31`). Uvicorn waits for open connections before lifespan shutdown, unbounded by default (`.venv/lib/python3.14/site-packages/uvicorn/server.py:287-302`, default `None` at `.venv/lib/python3.14/site-packages/uvicorn/config.py:231`); an open feed never closes on its own, so without the bound every container stop with a METER page open would run to compose's kill, `compose.yaml` setting no `stop_grace_period`, and skip lifespan shutdown (`hqptuner/api/lifespan.py:81-95`). 5 s sits under compose's 10 s default.
+
+`docs/openapi.json` — regenerated by the gate's own `--write` (`scripts/gates/check_openapi.py:1-14`).
+
+`docs/protocol.md` — `docs/protocol.md:294` names `hqptuner/engine/meterfeed.py` as the third runtime decoder of §7 frames.
+
+`docs/architecture.md` — one bullet beside `docs/architecture.md:98`: the feed, its stride, and reduction only while a subscriber is attached.
+
+## Caller-side delta
+
+none. New route, new module; `MeteringReader`'s one construction site (`hqptuner/api/lifespan.py:75`) passes nothing new; `/api/status` unchanged.
+
+## Rules touched
+
+- `docs/architecture.md:98`, metering connection held only while playing — kept.
+- `docs/testing.md:19-29`, rule 7, no test waits on wall clock — kept: stride counts frame time, delivery is queue-driven, no sleep or timeout in the feed or route.
+- `scripts/gates/check_openapi.py` snapshot — kept: updated through its accept path, no exemption.
+- `scripts/gates/check_file_length.py:38`, 500 lines — kept, by the new module.
+- `[tool.importlinter]` layers `api > core > presets > lanes > engine > conf` — kept: route in `api` reaches `engine` through `manager.metering`.
+- `CLAUDE.md:58`, changelog binding — kept, under its internal-only skip.
+- `CLAUDE.md:73`, per-file 90% coverage floor — kept, by both new modules.
+
+## What it costs
+
+`uvicorn.run` grace reaches every in-flight request, not the feed alone: a request still running 5 s after shutdown starts is cancelled rather than waited on.
+
+Tests: feed reduction and stride from synthetic frame bodies (`tests/api/test_status_bands.py:51` packs wire frames already); subscriber attach, overflow, reset and detach; route 204, event framing, and queue freed on disconnect. All offline, per-file 90% coverage on both new modules.
+
+No `CHANGELOG.md` entry: nothing user-visible until the page reads the feed.
+
+Cut from the METER doc, each its own later slug: the mode switch and the click that opens the page (`docs/plans/meter-mode.md:7`), the METER page with meters, spectrum, advisor overlay and chart recorder (`:27-43`), `ApodStrip` (`:39`), canvas colour-token rule (`:45-47`), `prefs.js` settings (`:49-51`). The engine's `peakMax` and `rmsMax` stay off the feed: `:59` leaves showing them undecided, and adding them later is additive.
+
+## Open questions
+
+None.
+--- reviewer ---
+READY
+a  PASS  carried: the departures from `docs/plans/meter-mode.md:23` and the shutdown grace that now reaches every request are stated outright as proposed changes
+b  PASS  resolved: 57
+c  PASS  carried: no split or move. The count "none" matches mine: the one `MeteringReader(` site, `hqptuner/api/lifespan.py:75`, is unchanged. `tests/test_frozen_paths.py:200` records `uvicorn.run` kwargs but asserts only the call count (`:205`), so no test breaks
+d  PASS  carried: names the cause: no streaming surface exists, and `_ingest` has no per-frame per-channel consumer; the feed follows from that
+e  PASS  carried: Rules touched now names the changelog binding (`CLAUDE.md:58`) and the coverage floor (`CLAUDE.md:73`) as kept; the new `docs/protocol.md:294` edit touches no rule
+f  PASS  carried: "Stream shape." now gives readings for attach with a geometry held, attach before any frame or after `reset()`, and a geometry change mid-stride; the stride names ties-up rounding, and 192k reads 8
+g  PASS  carried: no open questions, and none was found that doc or code leaves to the owner
+h  PASS  carried: the plan names the mechanism: the feed resets at every `_stream` connect, and a resume from a pause of any length re-enters `_stream` (`hqptuner/engine/metering.py:305-306`) and passes the connect at `:334`
+i  PASS  carried: one brief sentence, one `delivered:` line naming the Which files section and the cuts under What it costs, both present in the body
+j  N/A   carried: `hqptuner/core/manager.py` is not touched; the route reads the existing `manager.metering`
+k  PASS  carried: the Feed section of the only meter-mode doc in the tree (`docs/plans/meter-mode.md`) is picked and taken through stage 1, as the sentence reads
+l  PASS  carried: the three sentences are deleted; the changed sentences carry no fact already given beside them, and the "Silence" reset sentence is an edge reading
+m  PASS  carried: the owner-visible units are `GET /api/meter/feed` with its 204, and the `timeout_graceful_shutdown` default. The first sits under the Feed `delivered:` line. The second is mechanism inside it, because an open feed would otherwise hold shutdown (`uvicorn/server.py:287-302`)

@@ -44,7 +44,7 @@ import {
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
-import { staticWire } from "../../support/wire.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { cardHeadAt, stateOf } from "../../support/tabform.js";
 import {
   PCM_FILTERS,

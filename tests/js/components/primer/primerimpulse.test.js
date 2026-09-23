@@ -1,6 +1,6 @@
 // Behavioral suite for the filter primer's impulse pane (components/primer/Graph.js),
 // written blind from a spec block: no graph source was read. The component is
-// driven through the exported signals of store/primergraph.js and rendered to a
+// driven through the exported signals of store/primer/primergraph.js and rendered to a
 // string; every reading below is a number pulled out of SVG geometry and
 // compared against numbers derived from the store's own computed signals and
 // lib/dsp/pulse.js, never a word.
@@ -53,7 +53,7 @@ const {
   sourcePulse,
   plotPx,
   showMe,
-} = await import("../../../../hqptuner/static/store/primergraph.js");
+} = await import("../../../../hqptuner/static/store/primer/primergraph.js");
 const { filterPulse } = await import("../../../../hqptuner/static/lib/dsp/pulse.js");
 const { elements, classes, attr, text } = await import("../../support/markup.js");
 

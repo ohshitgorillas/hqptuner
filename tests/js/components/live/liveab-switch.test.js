@@ -43,7 +43,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { staticWire } from "../../support/wire.js";
+import { staticWire } from "../../support/wire/wire.js";
 import { useStorage } from "../../support/storage.js";
 import { elements, attr, text, classes } from "../../support/markup.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../../support/chainenums.js";

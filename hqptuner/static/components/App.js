@@ -18,7 +18,7 @@ import { Setup } from "./Setup.js";
 import { setupOpen } from "../store/setup.js";
 import { ready } from "../store/signals.js";
 import { engineRestarting } from "../store/enginewrite.js";
-import { liveMode } from "../store/prefs.js";
+import { liveMode } from "../store/ui/prefs.js";
 
 /** Root layout: header, signal path and alert strip over either the tab bar and body or the LIVE page, with the pending bar below. */
 export function App() {

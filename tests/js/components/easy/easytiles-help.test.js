@@ -3,9 +3,9 @@
 // until that link is pressed; pressing it again takes the panel away; and
 // pressing it persists nothing.
 //
-// The harness is tests/js/support/easytiles.js — imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
-// load-time read — plus tests/js/support/easyhelp.js for the panel's own readers
+// The harness is tests/js/support/easy/easytiles.js — imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
+// load-time read — plus tests/js/support/easy/easyhelp.js for the panel's own readers
 // and the press seam.
 //
 // NOTHING HERE READS COPY (docs/testing.md rule 9, and never owner copy
@@ -40,15 +40,15 @@ import { useStorage } from "../../support/storage.js";
 
 const store = useStorage();
 
-const { ROSTER, resetTab, flush, tabs, seenTabs, pressTile } = await import("../../support/easytiles.js");
+const { ROSTER, resetTab, flush, tabs, seenTabs, pressTile } = await import("../../support/easy/easytiles.js");
 const { HELP_LINK, helpPanels, helpLinks, subtitleCarriesHelpLink, introPrecedesHelpLink, pressTestId, resetHelp } =
-  await import("../../support/easyhelp.js");
+  await import("../../support/easy/easyhelp.js");
 
 /**
  * The card, with every signal it reads put back — the panel's own included,
  * which a case that opened it would otherwise leave open for the next.
  *
- * @returns {Promise<import("../../support/wire.js").StagingWire>}
+ * @returns {Promise<import("../../support/wire/wire.js").StagingWire>}
  */
 async function reset() {
   const w = await resetTab({ mode: "pcm" });

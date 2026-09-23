@@ -4,7 +4,7 @@
 // value-in / value-out read of the narrowing signals, shared by the widgets and
 // the facet assembly.
 import { effective } from "../../store/resolve.js";
-import { optionsFor } from "../../store/options.js";
+import { optionsFor } from "../../store/ui/options.js";
 import {
   nGenre,
   nGenreMode,

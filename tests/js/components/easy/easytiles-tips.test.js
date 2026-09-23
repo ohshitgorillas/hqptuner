@@ -6,8 +6,8 @@
 // The companion files are tests/js/components/easytiles-positions.test.js (what a
 // knob offers), tests/js/components/easytiles-knobs.test.js (which position it
 // marks) and tests/js/components/easytiles.test.js (the tiles and the presses).
-// All share tests/js/support/easytiles.js, imported dynamically after
-// `useStorage()` so that `store/easyview.js` meets the fake localStorage at its
+// All share tests/js/support/easy/easytiles.js, imported dynamically after
+// `useStorage()` so that `store/easy/easyview.js` meets the fake localStorage at its
 // load-time read.
 //
 // HOW A TIP IS FOUND, and the reading this file takes. A knob renders as a
@@ -46,10 +46,10 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, offeredAnySource } = await import("../../support/easytiles.js");
+const { resetTab, tabs, offeredAnySource } = await import("../../support/easy/easytiles.js");
 const { knobTip, knobTipText, knobDescribedBy, knobHasGroup, knobIsNamed, knobOptions, optionTips } =
-  await import("../../support/easyknobs.js");
-const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
+  await import("../../support/easy/easyknobs.js");
+const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */

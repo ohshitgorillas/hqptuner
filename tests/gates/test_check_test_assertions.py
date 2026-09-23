@@ -1,6 +1,6 @@
 """The gate that holds tests to docs/testing.md rules 2, 3 and 10 and the Markers clause.
 
-``scripts/gates/check_test_assertions.py`` reads a test file and reports every
+``scripts/gates/testing/check_test_assertions.py`` reads a test file and reports every
 test function without exactly one assertion outside a loop, every assertion
 whose shape the policy forbids, every skip the owner has not exempted and every
 assert sitting outside a test function. The observable contract is the list
@@ -25,7 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_test_assertions.py"
+GATE_PATH = REPO_ROOT / "scripts" / "gates" / "testing" / "check_test_assertions.py"
 
 #: The reason string an exempt table carries; its wording is never asserted.
 REASON = "invented reason"

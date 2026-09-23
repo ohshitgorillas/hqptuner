@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const STORE = "../../../hqptuner/static/store/primergraph.js";
+const STORE = "../../../hqptuner/static/store/primer/primergraph.js";
 const DSP = "../../../hqptuner/static/lib/dsp/spectrum.js";
 
 test.afterEach(async () => {

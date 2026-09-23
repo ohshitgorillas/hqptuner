@@ -14,8 +14,8 @@
 // The other way is a record holding a position the knob does not offer: the
 // tile marks that knob's `default` instead.
 //
-// Shares tests/js/support/easytiles.js with the rest of the tile suites,
-// imported dynamically after `useStorage()` so that `store/easyview.js` meets
+// Shares tests/js/support/easy/easytiles.js with the rest of the tile suites,
+// imported dynamically after `useStorage()` so that `store/easy/easyview.js` meets
 // the fake localStorage at its load-time read.
 //
 // PROPERTIES, NOT EXEMPLARS. No preset is named to stand for a kind of tile.
@@ -40,12 +40,12 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetTab, tabs, knobPositions, offeredAnySource } = await import("../../support/easytiles.js");
+const { resetTab, tabs, knobPositions, offeredAnySource } = await import("../../support/easy/easytiles.js");
 
-const { knobPresent, knobIsDisabled } = await import("../../support/easyknobs.js");
+const { knobPresent, knobIsDisabled } = await import("../../support/easy/easyknobs.js");
 
-const { rememberKnobs } = await import("../../../../hqptuner/static/store/easyview.js");
-const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy.js");
+const { rememberKnobs } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { presetsFor, knobsShown } = await import("../../../../hqptuner/static/store/easy/easy.js");
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string>, whenHires?: boolean, card?: boolean }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[] }} Preset */

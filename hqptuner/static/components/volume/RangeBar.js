@@ -19,7 +19,7 @@ import { AXIS_MIN, AXIS_MAX, num, clampVolume, clampLoudness } from "../../lib/v
 import { volumeShown, volumeRange } from "../../store/signals.js";
 import { effective, isDirty } from "../../store/resolve.js";
 import { edit } from "../../store/actions.js";
-import { grayReason } from "../../store/graying.js";
+import { grayReason } from "../../store/ui/graying.js";
 import { NumberBox } from "../controls/index.js";
 import { Card } from "../common.js";
 

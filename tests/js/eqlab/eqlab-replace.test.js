@@ -11,19 +11,19 @@ import assert from "node:assert/strict";
 
 import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 import { applyChanges, selectBand } from "../../../scripts/eqlab/chain.js";
-import { candidates } from "../../../scripts/eqlab/space.js";
+import { candidates } from "../../../scripts/eqlab/search/space.js";
 import { evaluateJob } from "../../../scripts/eqlab/jobs.js";
-import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
+import { searchJob, refineJob } from "../../../scripts/eqlab/search/search.js";
 import { guidanceFlags } from "../../../scripts/eqlab/guidance.js";
-import { residualFit, fitOfEdits } from "../../../scripts/eqlab/fit.js";
+import { residualFit, fitOfEdits } from "../../../scripts/eqlab/search/fit.js";
 import { near, below, band, argNum } from "../support/eqlab-helpers.js";
 import { ascending } from "../support/order.js";
 
 const FS = 44100;
 
-/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").Failure} Failure */
-/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").Failure} Failure */
+/** @typedef {import("../../../scripts/eqlab/search/search-space.js").SurvivorOut} SurvivorOut */
 /** @typedef {ReturnType<typeof evaluateJob>} EvalOut */
 
 /**

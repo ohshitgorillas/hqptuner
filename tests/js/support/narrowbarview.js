@@ -18,8 +18,8 @@ import { NarrowBar } from "../../../hqptuner/static/components/narrowbar/Bar.js"
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "./wire.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/ui/prefs.js";
+import { staticWire } from "./wire/wire.js";
 import { elements, classes, text } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */

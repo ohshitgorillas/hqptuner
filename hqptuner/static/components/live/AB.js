@@ -29,7 +29,7 @@ import {
 } from "../../store/live/ab.js";
 import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
-import { liveAbOpen } from "../../store/prefs.js";
+import { liveAbOpen } from "../../store/ui/prefs.js";
 import { savedProfiles, isLiveProfile } from "../../store/matrix/profiles.js";
 import { profileTips } from "../matrix/ProfileCard.js";
 import { Combobox } from "../controls/Combobox.js";

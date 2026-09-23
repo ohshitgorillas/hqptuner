@@ -20,7 +20,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, controlRow, attrOf } from "../../support/field-harness.js";
-import { rows, rowIncluding } from "../../support/comborows.js";
+import { rows, rowIncluding } from "../../support/easy/comborows.js";
 import { attr, soleControl } from "../../support/markup.js";
 import { nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 
