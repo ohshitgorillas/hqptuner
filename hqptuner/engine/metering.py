@@ -1,10 +1,8 @@
 """hqplayerd metering side-channel reader (TCP 4322, protocol.md §7).
 
-A background task that keeps a spectral aggregate for the
-junk-filter advisor (``junkadvisor.py``). The daemon streams frames
-unconditionally on bare accept, one per transform hop; the metering tap runs at
-the *source* rate, so the aggregate sees the source spectrum directly even
-while upsampling.
+A background task that keeps a spectral aggregate for the junk-filter advisor (``junkadvisor.py``). The daemon streams
+frames unconditionally on bare accept, one per transform hop; the metering tap runs at the *source* rate, so the
+aggregate sees the source spectrum directly even while upsampling.
 
 The stream is best-effort by design: connection refused, dropped, or absent
 means "no recommendation", never a user-facing error. The reader reconnects
@@ -44,13 +42,11 @@ log = logging.getLogger(__name__)
 HEADER = struct.Struct("<4I3fI")  # version, channels, bins, bits, bandwidth, xformTime, gain, reserved
 PLAYING = 2
 RECONNECT_DELAY = 5.0
-# How long the reader waits before re-checking whether the engine started playing
-# again. Shorter than the manager's own status poll, so the gate adds no latency
-# of its own beyond the staleness of the status it reads.
+# How long the reader waits before re-checking whether the engine started playing again. Shorter than the manager's
+# own status poll, so the gate adds no latency of its own beyond the staleness of the status it reads.
 IDLE_RECHECK = 1.0
-# Ingest every Nth frame (~43/s at 44.1k). The block statistics are read off
-# the frames a block kept, at the rate the corpus they are graded against was
-# captured at, so every hop is ingested.
+# Ingest every Nth frame (~43/s at 44.1k). The block statistics are read off the frames a block kept, at the rate the
+# corpus they are graded against was captured at, so every hop is ingested.
 DECIMATE = 1
 MAX_CHANNELS = 32
 MAX_BINS = 65_536

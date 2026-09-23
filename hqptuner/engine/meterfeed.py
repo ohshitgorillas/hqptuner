@@ -131,7 +131,6 @@ class MeterFeed:
         """Start with no geometry, no stride in hand and no subscriber."""
         self._subscribers: list[asyncio.Queue[Event]] = []
         self._geo: Geometry | None = None
-        self._stride = 1
         self._count = 0
         self._peak: npt.NDArray[np.float64] | None = None
         self._power: npt.NDArray[np.float64] | None = None
@@ -166,16 +165,16 @@ class MeterFeed:
             geo = self._geo = geometry(channels, bins, bandwidth)
             self._restart()
             self._send(geo.event())
-        self._stride = stride(bins, float(header[5]))
         levels = reduce_frame(body, channels, bins, geo)
         peak, power = levels[:, 0], levels[:, 1:]
         if self._peak is not None and self._power is not None:
             peak, power = np.maximum(self._peak, peak), self._power + power
         self._peak, self._power = peak, power
         self._count += 1
-        if self._count >= self._stride:
+        if self._count >= stride(bins, float(header[5])):
             self._send(_frame_event(peak, power / self._count))
             self._restart()
+
     def _send(self, event: Event) -> None:
         """Queue one event for every subscriber, dropping a subscriber's oldest event where its queue is full."""
         for queue in self._subscribers:
