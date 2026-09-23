@@ -117,10 +117,10 @@ trivia:
 	$(VENV)/triviajudge-comments --head
 	$(VENV)/triviajudge-changelog --head
 
-# Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
+# Pre-parse the vendored Signalyst docs into docs/official/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs
 # instead of pdftotext'ing all 65 pages into context. Output is gitignored
-# (derived from copyrighted material) and rebuilt from hqplayer6desktop-manual.pdf
+# (derived from copyrighted material) and rebuilt from docs/official/hqplayer6desktop-manual.pdf
 # on demand; deliberately not part of `check`, which must stay runnable without
 # a copy of the manual in place.
 manual:

@@ -252,7 +252,7 @@ Everything above establishes what RBJ, W3C and EQ APO mean by `q`. **It does not
 
 `SOURCES.md` §1.2 states that HQPlayer's `iir:` stage response math "is the standard RBJ biquad set", and sources that to **the commissioning brief** — not to HQPlayer documentation, not to measurement.
 
-`hqplayerd-readme.txt` `[V]` (the Embedded daemon config reference, in the working directory) documents the plugin's arguments verbatim:
+`hqplayerd-readme.txt` `[V]` (the Embedded daemon config reference, in `docs/official/`) documents the plugin's arguments verbatim:
 
 ```
 Plugin "iir" arguments:

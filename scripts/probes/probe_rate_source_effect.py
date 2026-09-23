@@ -9,7 +9,7 @@ conclusion is not sound and this probe exists to replace it. Two flaws:
   2  it judged by `State.rate`, which is the REQUEST slot's readback, not by
      `Status.active_rate`, which is what actually comes out
 
-The manual makes the difference load-bearing (`docs/vendor/manual/04-04-pcm.txt`
+The manual makes the difference load-bearing (`docs/official/manual/04-04-pcm.txt`
 lines 15-17): "When default output mode is set to `[source]` ... this is only a
 default and upper limit for output rate, specific rate is selected by the
 playback engine during playback time". A daemon that honours the request as a cap

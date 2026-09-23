@@ -42,7 +42,7 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "hqp_section",
-        "description": 'Print one docs/vendor/manual/ section file by its INDEX.md number, e.g. "4.6".',
+        "description": 'Print one docs/official/manual/ section file by its INDEX.md number, e.g. "4.6".',
         "inputSchema": {
             "type": "object",
             "properties": {"number": {"type": "string", "description": 'Section number, e.g. "4.6".'}},
