@@ -39,7 +39,7 @@ Scan every Bash string before sending it:
 ## Gate and worktree traps
 
 - **Worktree Python tests the parent checkout.** In `.claude/worktrees/*`, `.venv` symlinks into `/srv/hqptuner` and the console-script `pytest` never puts cwd on `sys.path`, so `make check` runs the main checkout's code and reads green while the worktree's changes never executed. Run `PYTHONPATH=$(pwd) scripts/gate.sh make check` there. `.venv/bin/python -m pytest` is safe, `.venv/bin/pytest` is not. Pre-commit has the same blind spot; the JS half is unaffected.
-- **`git ls-files` gates skip untracked files** (`check_file_length.py`, `check_test_assertions.py`, `check_doc_refs.py`). Green locally, red at commit or at `scripts/ship.sh`. `git add` a new or fast-growing file before trusting `make check`.
+- **`git ls-files` gates skip untracked files** (`check_test_assertions.py`, `check_doc_refs.py`). Green locally, red at commit or at `scripts/ship.sh`. `git add` a new or fast-growing file before trusting `make check`.
 - **`pair.sh merge` FAIL is not a diagnostic.** Run the failing gate target in `.claude/worktrees/<slug>-spec` (free, with `PYTHONPATH`), adjudicate, fix, rerun merge exactly once.
 - **dev moved during the gate.** Merge prints "dev will not fast-forward", a rerun prints "dev moved after <slug> was already combined; rebasing spec would flatten that merge". One chain, one metered action, then merge again; the test commit is the `test: <slug>` line in `git log --oneline spec/<slug>`:
 

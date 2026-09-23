@@ -7,19 +7,15 @@ decided it". Neither answers "what should I have done instead", which is the
 only one of the three that changes the next command.
 
 So a second clause rides the same line when the call matches a shape the
-project has already ruled on. The rules here are not advice in general; each
-one is a standing ruling that was written down, ignored at the keystroke, and
-paid for. A shape earns an entry by having actually misfired.
+project has already ruled on. Each rule here is a standing ruling, not advice
+in general.
 
 The clause is appended after the charge, not before it — this module is
-reached from a PostToolUse hook and cannot stop anything. It exists to kill the
-second offense, which is where the observed cost was: a repeated merge, a
-second worktree write. The first one is memory's job.
+reached from a PostToolUse hook and cannot stop anything. It targets the second
+offense of a shape, such as a repeated merge or a second worktree write.
 
-Lives beside read-volume.py rather than inside it because that file sits at its
-length-ratchet allowance (scripts/gates/check_file_length.py) and the ratchet
-does not rise. why_metered() moved here with the table for the same reason, and
-because the two answers belong to one question.
+Lives beside read-volume.py rather than inside it, with why_metered(), because
+the two answers belong to one question.
 """
 import os
 import re

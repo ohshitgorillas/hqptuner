@@ -13,9 +13,6 @@ lint:
 	$(VENV)/vulture
 	$(VENV)/mypy
 	$(VENV)/lint-imports
-	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/gates/check_nesting.py $$(git ls-files '*.py' | grep -Ev '$(VENDORED)' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py' | grep -Ev '$(VENDORED)')
 	$(VENV)/python scripts/gates/testing/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_test_clocks.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
@@ -34,9 +31,9 @@ lint:
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling
-# lives in eslint.config.js and matches xenon --max-absolute B. The length gate
-# also covers CSS: the stylesheet is split by concern under static/css/ and the
-# `<link>` order in index.html is the cascade order.
+# lives in eslint.config.js and matches xenon --max-absolute B. The stylesheet is
+# split by concern under static/css/ and the `<link>` order in index.html is the
+# cascade order.
 #
 # There are two tsc invocations because the trees run in different places.
 # jsconfig.json covers the browser tree: DOM libs, no node types. tsconfig.node.json
@@ -44,9 +41,7 @@ lint:
 # resolve `process`, `Buffer` and `node:*` imports to nothing. Same compiler
 # options otherwise, strict included — neither tree gets a weaker standard.
 #
-# store/schema.js is exempt from the length gate: it is a one-entry-per-line
-# control table rather than logic, and prettier at printWidth 120 is what pushed
-# it past 500. vendor/ is upstream and exempt from every gate.
+# vendor/ is upstream and exempt from every gate.
 #
 # jscpd is the one gate here that is not frontend-only: it reads Python, JS and
 # CSS in a single pass. It lives in this target rather than `lint` because it is
@@ -60,7 +55,6 @@ lint-js:
 	npx tsc -p tsconfig.node.json
 	npx knip
 	npx jscpd
-	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
 	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py

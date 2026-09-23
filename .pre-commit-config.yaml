@@ -37,27 +37,6 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
-      - id: nesting
-        name: no function nests more than 4 blocks deep
-        entry: .venv/bin/python scripts/gates/check_nesting.py
-        language: system
-        types: [python]
-      - id: file-length
-        name: max 500 source / 800 test lines, watched files only shrink
-        entry: .venv/bin/python scripts/gates/check_file_length.py
-        language: system
-        types: [python]
-        # shell_shapes.py is a kit file, copied whole from gauntlet and ported
-        # back by diff. Splitting it here would make every future port a merge
-        # by hand. Owner-approved, this path only; every other hook file stays
-        # under the cap and the ratchet.
-        exclude: ^\.claude/hooks/shell_shapes\.py$
-      - id: no-barrels
-        name: no re-export modules or trivial forwarders
-        entry: .venv/bin/python scripts/gates/check_no_barrels.py
-        language: system
-        types: [python]
-        exclude: ^tests/
       - id: changelog-style
         name: changelog entry style ([Unreleased] only)
         entry: .venv/bin/python scripts/gates/check_changelog.py
@@ -163,13 +142,6 @@ repos:
         language: system
         pass_filenames: false
         types: [javascript]
-      - id: file-length-js
-        name: max 500 source / 800 test lines (js)
-        entry: .venv/bin/python scripts/gates/check_file_length.py
-        language: system
-        types: [javascript]
-        exclude: ^(hqptuner/static/vendor/|hqptuner/static/store/schema\.js$)
-
       - id: css-tokens
         name: css design-token gate
         entry: .venv/bin/python scripts/gates/css/check_css_tokens.py

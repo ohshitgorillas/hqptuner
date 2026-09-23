@@ -12,8 +12,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      # Full history, not a shallow clone: check_file_length.py and the CSS
-      # gates enumerate their inputs with `git ls-files`.
+      # Full history, not a shallow clone: the CSS gates enumerate their inputs
+      # with `git ls-files`.
       - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6

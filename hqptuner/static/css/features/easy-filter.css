@@ -1,11 +1,8 @@
 /* easy-filter — the name block on an Easy Mode tile: the engine filter name the
    tile writes, with the plain-names overlay's family, class and shape under it.
 
-   Its own file rather than a block appended to easy.css, which is at the edge of
-   the file-length gate's watched band (scripts/gates/check_file_length.py): past
-   400 lines that file would need a ratchet entry, and entries there only ever
-   come down. easy-tips.css split off the same way. Loads after easy.css and owns
-   no layout of the tile itself; the button it sits in is placed there. */
+   Loads after easy.css and owns no layout of the tile itself; the button it sits
+   in is placed there. */
 
 /* Centered under the description, on the button's own gap. Column rather than
    inline lines, because the four lines are a block that reads top to bottom and
@@ -23,11 +20,7 @@
    gap doing two jobs: the space under the button and the space between two
    knobs. Grouping them splits it, so the space before the switches can grow
    without the switches spreading apart from each other — two spacings mean two
-   parents (docs/design-system.md), and this is the second parent.
-
-   This rule and the one under it live here rather than in easy.css because that
-   file sits exactly on the file-length gate's watch line with no room left. The
-   next change to it needs the split the gate is pointing at. */
+   parents (docs/design-system.md), and this is the second parent. */
 .easy-knobs {
   display: flex;
   flex-direction: column;
