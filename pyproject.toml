@@ -30,6 +30,9 @@ dev = [
     # console scripts; the Claude Code plugin of the same name runs the hook
     # modes and puts nothing on PATH
     "triviajudge",
+    # the length, directory-count, barrel and nesting gates; the mv extra is
+    # rope, which `filepawl mv` uses to rewrite Python imports
+    "filepawl[mv]",
     # hqptuner.spec builds the desktop binary with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
@@ -95,6 +98,42 @@ suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/", ".claude/hooks/shell_shapes.py"]
 # Beside the other agent-written caches, which .gitignore already carries.
 cache_dir = ".claude/logs"
+
+[tool.filepawl]
+languages = ["python", "javascript"]
+tests = ["tests/**"]
+
+[tool.filepawl.length]
+cap = 500
+cap_tests = 800
+watch = 400
+
+[tool.filepawl.exempt]
+".claude/hooks/shell_shapes.py" = "kit file, copied whole from gauntlet and ported back by diff"
+"scripts/junkcal/junkcal_fixture.py" = "junkcal fixture oracle, provenance kept whole"
+"hqptuner/static/store/schema.js" = "one-entry-per-line control table, not logic"
+
+[tool.filepawl.barrels]
+include = ["hqptuner/**/*.py", "scripts/**/*.py"]
+# Route handlers under hqptuner/api/ are thin adapters by design.
+forwarders = [
+    "hqptuner/core/**",
+    "hqptuner/lanes/**",
+    "hqptuner/presets/**",
+    "hqptuner/engine/**",
+    "hqptuner/conf/**",
+]
+
+[tool.filepawl.barrels.forwarder_exempt]
+"hqptuner/presets/presetops.py::park_filter" = "reaches the private filter park, which callers have no route to"
+"hqptuner/presets/presetops.py::parked_filter_members" = "same park, same reason; the facade is the interface"
+
+[tool.filepawl.python]
+include = ["**/*.py"]
+mover = "rope"
+
+[tool.filepawl.javascript]
+include = ["**/*.js", "**/*.css"]
 
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not
