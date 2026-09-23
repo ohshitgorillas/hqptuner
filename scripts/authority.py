@@ -34,11 +34,75 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx
+if TYPE_CHECKING:
+    import httpx
+else:
+    try:
+        import httpx
+    except ImportError:
+        httpx = None
 
-ROOT = Path(__file__).resolve().parent.parent
+
+def _worktree_common_dir(git_file: Path, candidate: Path) -> Path | None:
+    """Resolve a worktree's `.git` file (`gitdir: ...`) to the main checkout's common dir.
+
+    That directory's own `commondir` file holds the (usually relative) path
+    back to the main checkout's `.git`, which is what makes a worktree see
+    the main checkout's gitignored files.
+    """
+    try:
+        content = git_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not content.startswith("gitdir:"):
+        return None
+    gitdir = Path(content.split(":", 1)[1].strip())
+    if not gitdir.is_absolute():
+        gitdir = (candidate / gitdir).resolve()
+    commondir_file = gitdir / "commondir"
+    if not commondir_file.is_file():
+        return gitdir
+    try:
+        relative = commondir_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return gitdir
+    return (gitdir / relative).resolve()
+
+
+def git_common_dir(start: Path) -> Path | None:
+    """Return the same path `git rev-parse --path-format=absolute --git-common-dir` would, or None.
+
+    Walks up from `start` looking for `.git`. A plain checkout's `.git` is a
+    directory and is its own common dir; a worktree's `.git` is a file,
+    resolved by `_worktree_common_dir`. Reads the same on-disk layout git
+    itself does, without shelling out.
+    """
+    for candidate in (start, *start.parents):
+        git_path = candidate / ".git"
+        if git_path.is_dir():
+            return git_path
+        if git_path.is_file():
+            return _worktree_common_dir(git_path, candidate)
+    return None
+
+
+def resolve_docs_root() -> Path:
+    """Return the checkout that holds the gitignored docs sources.
+
+    A `.claude/worktrees/*` checkout shares its `.git` with the main checkout
+    but not the gitignored manual/readme copies, so the docs root is the
+    parent of the git common dir, not this script's own directory. Falls
+    back to this script's own repo root when no `.git` is found.
+    """
+    common_dir = git_common_dir(Path(__file__).resolve().parent)
+    if common_dir is not None:
+        return common_dir.parent
+    return Path(__file__).resolve().parent.parent
+
+
+ROOT = resolve_docs_root()
 FACTS = ROOT / "docs" / "guide" / "notes" / "manual-facts.txt"
 MANUAL = ROOT / "docs" / "vendor" / "manual"
 README = ROOT / "hqplayerd-readme.txt"
@@ -154,6 +218,9 @@ def cmd_find(term: str, cap: int) -> int:
 
 def fetch_enumerations(url: str) -> dict[str, Any] | None:
     """GET /api/enumerations, returning the decoded body or None after reporting why it failed."""
+    if httpx is None:
+        print("httpx is not installed; run this from .venv/bin/python for `enum`.", file=sys.stderr)
+        return None
     try:
         response = httpx.get(f"{url}/api/enumerations", timeout=10.0)
         response.raise_for_status()
