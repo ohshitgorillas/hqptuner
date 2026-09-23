@@ -1633,6 +1633,23 @@
         "summary": "Metadata"
       }
     },
+    "/api/meter/feed": {
+      "get": {
+        "description": "Stream the metering feed as ``text/event-stream``, or answer 204 while metering is off.\n\nAn ``EventSource`` takes the 204 as a failed connection and does not retry, so a page left open against an\ninstall with metering off costs nothing.",
+        "operationId": "meter_feed_api_meter_feed_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meter Feed"
+      }
+    },
     "/api/narrowing": {
       "get": {
         "description": "Every narrow-bar facet, stored value or default.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 answering with defaults would be a lie\nabout a file that is there and full.",

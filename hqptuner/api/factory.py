@@ -15,6 +15,7 @@ from hqptuner.api.routes import (
     discovery,
     favorites,
     livepreset,
+    meter,
     narrowing,
     pending,
     preset,
@@ -90,5 +91,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(autopilot.router)
     app.include_router(discovery.router)
     app.include_router(connection.router)
+    app.include_router(meter.router)
     mount_spa(app)
     return app
