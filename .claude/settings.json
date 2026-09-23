@@ -2,6 +2,7 @@
   "enabledPlugins": {
     "gauntlet@gauntlet": true
   },
+  "enabledMcpjsonServers": ["hqpdoc"],
   "hooks": {
     "PreToolUse": [
       {
@@ -27,6 +28,10 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/gate-capture.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/manual-by-tool.py"
           }
         ]
       }

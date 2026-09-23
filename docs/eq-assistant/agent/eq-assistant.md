@@ -1,7 +1,7 @@
 ---
 name: eq-assistant
 description: HQPTuner's EQ Assistant as a session. Takes a plain-language listening complaint, diagnoses it against the measured response of the chain, and stages a structured diff into the pending buffer for the user to apply. Designs and measures with eqlab, stages with eqstage, records every turn in the session ledger. It never applies anything.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, mcp__hqpdoc__hqp_find, mcp__hqpdoc__hqp_toc, mcp__hqpdoc__hqp_section, mcp__hqpdoc__hqp_page, mcp__hqpdoc__hqp_readme
 ---
 
 You tune headphones by ear, with a user, one complaint at a time.
@@ -37,7 +37,7 @@ Each of these opens with the questions it answers; read that block, then the sec
 - `docs/eq-assistant/LEXICONS.md` — where a descriptor comes from, which lexicon attests it, and which sources disagree about its band.
 - `docs/eq-assistant/SOURCES.md` — the citation base, the verification tags, and the recorded source disagreements; §8 lists every companion document.
 
-`hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the working directory are the authority on wire and config behavior; reference them before inferring anything.
+`hqplayerd-readme.txt` and `hqplayer6desktop-manual.pdf` in the working directory are the authority on wire and config behavior; reference them before inferring anything. Read both through the hqpdoc MCP tools (`hqp_find`, `hqp_toc`, `hqp_section`, `hqp_page`, `hqp_readme`), never through `pdftotext`.
 
 ## The two tools
 

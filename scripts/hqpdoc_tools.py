@@ -24,7 +24,6 @@ docs/vendor/manual/INDEX.md — see `with_warning`.
 
 import re
 from collections.abc import Callable
-from pathlib import Path
 
 import authority
 
@@ -37,85 +36,24 @@ README_CAP = 200
 HEADING_LINE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+(.+?)\s*$")
 ELEMENT_TITLE = re.compile(r'^(Element|Sub-element)\s+"(.+)"$')
 ALLCAPS_TITLE = re.compile(r"^[A-Z][A-Z0-9 _/,()\-]*$")
+# "1.0 Provisioning": a single capitalised word, which the prose lines that start with a number are not.
+WORD_TITLE = re.compile(r"^[A-Z][a-z]+$")
 
 OTHER_LICENSES_MARKER = re.compile(r"^4\.\s+OTHER LICENSES\s*$")
 
-
-def _worktree_common_dir(git_file: Path, candidate: Path) -> Path | None:
-    """Resolve a worktree's `.git` file (`gitdir: ...`) to the main checkout's common dir.
-
-    That directory's own `commondir` file holds the (usually relative) path
-    back to the main checkout's `.git`, which is what makes a worktree see
-    the main checkout's gitignored files.
-    """
-    try:
-        content = git_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if not content.startswith("gitdir:"):
-        return None
-    gitdir = Path(content.split(":", 1)[1].strip())
-    if not gitdir.is_absolute():
-        gitdir = (candidate / gitdir).resolve()
-    commondir_file = gitdir / "commondir"
-    if not commondir_file.is_file():
-        return gitdir
-    try:
-        relative = commondir_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return gitdir
-    return (gitdir / relative).resolve()
-
-
-def git_common_dir(start: Path) -> Path | None:
-    """Return the same path `git rev-parse --path-format=absolute --git-common-dir` would, or None.
-
-    Walks up from `start` looking for `.git`. A plain checkout's `.git` is a
-    directory and is its own common dir; a worktree's `.git` is a file,
-    resolved by `_worktree_common_dir`. Reads the same on-disk layout git
-    itself does, without shelling out.
-    """
-    for candidate in (start, *start.parents):
-        git_path = candidate / ".git"
-        if git_path.is_dir():
-            return git_path
-        if git_path.is_file():
-            return _worktree_common_dir(git_path, candidate)
-    return None
-
-
-def resolve_docs_root() -> Path:
-    """Return the checkout that holds the gitignored docs sources.
-
-    A `.claude/worktrees/*` checkout shares its `.git` with the main
-    checkout but not the gitignored manual/readme copies, so the docs root
-    is the parent of the git common dir, not this script's own directory.
-    Falls back to this script's own repo root when no `.git` is found.
-    """
-    common_dir = git_common_dir(Path(__file__).resolve().parent)
-    if common_dir is not None:
-        return common_dir.parent
-    return Path(__file__).resolve().parent.parent
-
-
-ROOT = resolve_docs_root()
-MANUAL = ROOT / "docs" / "vendor" / "manual"
+ROOT = authority.ROOT
+MANUAL = authority.MANUAL
 INDEX = MANUAL / "INDEX.md"
-README = ROOT / "hqplayerd-readme.txt"
+README = authority.README
 MANUAL_PDF = ROOT / "hqplayer6desktop-manual.pdf"
 
-INDEX_ROW = re.compile(r"^\|\s*([\d.]+)\s*\|\s*(.+?)\s*\|\s*(\d+)\s*\|\s*`([^`]+)`\s*\|")
+read_lines = authority.read_lines
+
+Heading = tuple[str, str, int, int]
 
 
 class ToolError(Exception):
     """A tool-level failure: reported as isError true, never as a protocol error."""
-
-
-def read_lines(path: Path) -> list[str]:
-    """Return the file's lines with trailing newlines stripped, or an empty list when it is absent."""
-    if not path.is_file():
-        return []
-    return path.read_text(encoding="utf-8", errors="replace").splitlines()
 
 
 def staleness_warning() -> str | None:
@@ -163,7 +101,8 @@ def _manual_label_to_file(hit_citation: str, sections: dict[str, str]) -> str | 
     for filename, section_label in sections.items():
         if section_label == label:
             return filename
-    return None
+    # search_manual labels a section file INDEX.md does not list by its bare filename.
+    return label if (MANUAL / label).is_file() else None
 
 
 def _locate_by_citation(lines: list[str], hit: "authority.Hit") -> tuple[list[str], int] | None:
@@ -213,8 +152,12 @@ def _render_group(name: str, hits: list["authority.Hit"], cap: int, context: int
 
 def tool_hqp_find(term: str, cap: int = 8, context: int = 0) -> str:
     """Search manual-facts.txt, the split manual and the readme, reusing authority's own search functions."""
-    if not term:
+    if not term.strip():
         raise ToolError("hqp_find needs a non-empty term.")
+    if cap < 1:
+        raise ToolError(f"hqp_find cap must be at least 1, not {cap}.")
+    if context < 0:
+        raise ToolError(f"hqp_find context must be at least 0, not {context}.")
     require_manual()
     needle = term.lower()
 
@@ -248,19 +191,17 @@ def tool_hqp_find(term: str, cap: int = 8, context: int = 0) -> str:
     return "\n\n".join(parts)
 
 
-def readme_headings() -> list[tuple[str, str, int, int]]:
+def readme_headings(lines: list[str]) -> list[Heading]:
     """Parse (number, title, depth, line_index0) for every readme heading before OTHER LICENSES."""
-    headings: list[tuple[str, str, int, int]] = []
-    for index0, line in enumerate(read_lines(README)):
+    headings: list[Heading] = []
+    for index0, line in enumerate(lines):
         if OTHER_LICENSES_MARKER.match(line):
             break
         match = HEADING_LINE.match(line)
         if not match:
             continue
-        number, rest = match.group(1), match.group(2)
-        if ELEMENT_TITLE.match(rest) or ALLCAPS_TITLE.match(rest):
-            title = rest
-        else:
+        number, title = match.group(1), match.group(2)
+        if not (ELEMENT_TITLE.match(title) or ALLCAPS_TITLE.match(title) or WORD_TITLE.match(title)):
             continue
         depth = number.count(".") + 1
         headings.append((number, title, depth, index0))
@@ -285,7 +226,7 @@ def tool_hqp_toc() -> str:
     section_table = "\n".join(section_lines).rstrip()
 
     readme_lines = ["## hqplayerd-readme.txt headings"]
-    for number, title, depth, index0 in readme_headings():
+    for number, title, depth, index0 in readme_headings(read_lines(README)):
         readme_lines.append(f"{'  ' * (depth - 1)}{number} {title}  (line {index0 + 1})")
 
     return section_table + "\n\n" + "\n".join(readme_lines)
@@ -294,10 +235,11 @@ def tool_hqp_toc() -> str:
 def tool_hqp_section(number: str) -> str:
     """Print the one docs/vendor/manual/ section file whose INDEX.md row carries `number`."""
     require_manual()
+    number = number.strip().rstrip(".")
     for line in read_lines(INDEX):
-        row = INDEX_ROW.match(line)
-        if row and row.group(1) == number:
-            filename = row.group(4)
+        row = authority.INDEX_ROW.match(line)
+        if row and row.group(1).rstrip(".") == number:
+            filename = row.group(3)
             path = MANUAL / filename
             if not path.is_file():
                 raise ToolError(f"section {number} names {filename}, which is missing from {MANUAL.relative_to(ROOT)}.")
@@ -326,45 +268,39 @@ def tool_hqp_page(page: int) -> str:
     return "\n".join(out)
 
 
-def _find_readme_heading(key: str, headings: list[tuple[str, str, int, int]]) -> tuple[str, str, int, int]:
-    """Resolve `key` to one (number, title, depth, line_index0) heading, by number then by name."""
+def _find_readme_headings(key: str, headings: list[Heading]) -> list[Heading]:
+    """Resolve `key` to its headings, by number (every heading carrying it) then by name (exactly one)."""
     if re.match(r"^\d+(\.\d+)*\.?$", key):
         number = key.rstrip(".")
-        for heading in headings:
-            if heading[0] == number:
-                return heading
-        raise ToolError(f"no readme heading numbered {key!r}.")
+        numbered = [heading for heading in headings if heading[0] == number]
+        if not numbered:
+            raise ToolError(f"no readme heading numbered {key!r}.")
+        return numbered
 
     needle = key.lower()
-    for number, title, depth, index0 in headings:
-        element = ELEMENT_TITLE.match(title)
-        name = element.group(2) if element else title
+    for heading in headings:
+        element = ELEMENT_TITLE.match(heading[1])
+        name = element.group(2) if element else heading[1]
         if name.lower() == needle:
-            return (number, title, depth, index0)
-    for number, title, depth, index0 in headings:
-        if needle in title.lower():
-            return (number, title, depth, index0)
+            return [heading]
+    partial = [heading for heading in headings if needle in heading[1].lower()]
+    if len(partial) == 1:
+        return partial
+    if partial:
+        candidates = ", ".join(f"{number} {title}" for number, title, _depth, _index0 in partial)
+        raise ToolError(f"{key!r} matches several readme headings: {candidates}.")
     raise ToolError(f"no readme heading matching {key!r}.")
 
 
-def tool_hqp_readme(key: str) -> str:
-    """Print one readme heading block, through to the next heading of equal or shallower depth."""
-    if not key:
-        raise ToolError("hqp_readme needs a non-empty key.")
-    headings = readme_headings()
-    if not headings:
-        raise ToolError(f"{README.relative_to(ROOT)} is missing or has no headings.")
-    _number, _title, depth, start0 = _find_readme_heading(key, headings)
-
-    end0 = len(read_lines(README))
+def _readme_block(lines: list[str], headings: list[Heading], heading: Heading) -> str:
+    """Render one heading's block, through to the next heading of equal or shallower depth."""
+    _number, _title, depth, start0 = heading
+    end0 = next((i for i, line in enumerate(lines) if OTHER_LICENSES_MARKER.match(line)), len(lines))
     for _other_number, _other_title, other_depth, other_index0 in headings:
-        if other_index0 <= start0:
-            continue
-        if other_depth <= depth:
+        if other_index0 > start0 and other_depth <= depth:
             end0 = other_index0
             break
 
-    lines = read_lines(README)
     block = lines[start0:end0]
     numbered = [f"{start0 + i + 1}: {text}" for i, text in enumerate(block)]
 
@@ -381,3 +317,16 @@ def tool_hqp_readme(key: str) -> str:
     if truncated:
         out += f"\n\n[truncated at {README_CAP} lines; dropped subheadings: " + (", ".join(dropped) or "(none)") + "]"
     return out
+
+
+def tool_hqp_readme(key: str) -> str:
+    """Print the readme heading block `key` names; a number two headings share prints both."""
+    key = key.strip()
+    if not key:
+        raise ToolError("hqp_readme needs a non-empty key.")
+    lines = read_lines(README)
+    headings = readme_headings(lines)
+    if not headings:
+        raise ToolError(f"{README.relative_to(ROOT)} is missing or has no headings.")
+    matches = _find_readme_headings(key, headings)
+    return "\n\n".join(_readme_block(lines, headings, heading) for heading in matches)

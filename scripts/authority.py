@@ -94,10 +94,12 @@ def resolve_docs_root() -> Path:
     A `.claude/worktrees/*` checkout shares its `.git` with the main checkout
     but not the gitignored manual/readme copies, so the docs root is the
     parent of the git common dir, not this script's own directory. Falls
-    back to this script's own repo root when no `.git` is found.
+    back to this script's own repo root when no `.git` is found, or when the
+    common dir is not a checkout's `.git` (a bare or separate git dir, whose
+    parent is not a checkout).
     """
     common_dir = git_common_dir(Path(__file__).resolve().parent)
-    if common_dir is not None:
+    if common_dir is not None and common_dir.name == ".git":
         return common_dir.parent
     return Path(__file__).resolve().parent.parent
 

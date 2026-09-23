@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "hqpdoc": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["scripts/hqpdoc_mcp.py"]
+    }
+  }
+}

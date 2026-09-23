@@ -10,6 +10,7 @@ each one does.
 """
 
 import json
+import re
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -68,64 +69,107 @@ TOOLS: list[dict[str, Any]] = [
     },
 ]
 
+_MISSING = object()
+
+
+def _str_arg(args: dict[str, Any], key: str) -> str:
+    """Return the required string argument `key`, or raise a `ToolError` naming what is wrong."""
+    value = args.get(key, _MISSING)
+    if value is _MISSING:
+        raise tools.ToolError(f"missing required argument {key!r}.")
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        raise tools.ToolError(f"argument {key!r} must be a string, not {type(value).__name__}.")
+    return str(value)
+
+
+def _int_arg(args: dict[str, Any], key: str, default: int | None = None) -> int:
+    """Return the integer argument `key` (or its default), or raise a `ToolError` naming what is wrong."""
+    value = args.get(key, _MISSING)
+    if value is _MISSING and default is not None:
+        return default
+    if value is _MISSING:
+        raise tools.ToolError(f"missing required argument {key!r}.")
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str) and re.fullmatch(r"\s*-?\d+\s*", value):
+        return int(value)
+    raise tools.ToolError(f"argument {key!r} must be an integer, not {value!r}.")
+
+
 DISPATCH: dict[str, Callable[[dict[str, Any]], str]] = {
-    "hqp_find": lambda args: tools.tool_hqp_find(args["term"], int(args.get("cap", 8)), int(args.get("context", 0))),
+    "hqp_find": lambda args: tools.tool_hqp_find(
+        _str_arg(args, "term"), _int_arg(args, "cap", 8), _int_arg(args, "context", 0)
+    ),
     "hqp_toc": lambda _args: tools.tool_hqp_toc(),
-    "hqp_section": lambda args: tools.tool_hqp_section(str(args["number"])),
-    "hqp_page": lambda args: tools.tool_hqp_page(int(args["page"])),
-    "hqp_readme": lambda args: tools.tool_hqp_readme(str(args["key"])),
+    "hqp_section": lambda args: tools.tool_hqp_section(_str_arg(args, "number")),
+    "hqp_page": lambda args: tools.tool_hqp_page(_int_arg(args, "page")),
+    "hqp_readme": lambda args: tools.tool_hqp_readme(_str_arg(args, "key")),
 }
 
 
+def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
+
+
 def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Dispatch one `tools/call`, turning a `ToolError` or bad arguments into an isError result."""
-    handler = DISPATCH.get(name)
-    if handler is None:
-        return {"content": [{"type": "text", "text": f"unknown tool {name!r}."}], "isError": True}
+    """Dispatch one `tools/call` to a known tool, turning a `ToolError` or unreadable file into an isError result."""
     try:
-        text = handler(arguments or {})
+        text = DISPATCH[name](arguments)
     except tools.ToolError as exc:
         return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
-    except (KeyError, ValueError, TypeError) as exc:
-        return {"content": [{"type": "text", "text": f"bad arguments for {name}: {exc}"}], "isError": True}
+    except OSError as exc:
+        return {"content": [{"type": "text", "text": f"{name} could not read its source: {exc}"}], "isError": True}
     return {"content": [{"type": "text", "text": tools.with_warning(text)}], "isError": False}
 
 
-def handle_request(msg: dict[str, Any]) -> dict[str, Any] | None:
-    """Route one parsed JSON-RPC message to its handler, or None for a notification (no `id`)."""
-    msg_id = msg.get("id")
-    method = msg.get("method")
-    params = msg.get("params") or {}
+def _tools_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+    """Validate a `tools/call` request's name and arguments, then run it."""
+    name = params.get("name")
+    if not isinstance(name, str) or name not in DISPATCH:
+        return _error(msg_id, -32602, f"unknown tool {name!r}.")
+    arguments = params.get("arguments")
+    if arguments is None:
+        arguments = {}
+    if not isinstance(arguments, dict):
+        return _error(msg_id, -32602, f"arguments for {name} must be an object.")
+    return {"jsonrpc": "2.0", "id": msg_id, "result": call_tool(name, arguments)}
 
+
+def _initialize(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+    result = {
+        "protocolVersion": params.get("protocolVersion", PROTOCOL_VERSION_FALLBACK),
+        "capabilities": {"tools": {}},
+        "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+    }
+    return {"jsonrpc": "2.0", "id": msg_id, "result": result}
+
+
+METHODS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
+    "initialize": _initialize,
+    "tools/list": lambda msg_id, _params: {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}},
+    "tools/call": _tools_call,
+    "ping": lambda msg_id, _params: {"jsonrpc": "2.0", "id": msg_id, "result": {}},
+}
+
+
+def handle_request(msg: Any) -> dict[str, Any] | None:
+    """Route one parsed JSON-RPC message to its handler, or None for a notification (no `id`)."""
+    if not isinstance(msg, dict):
+        return _error(None, -32600, "invalid request: expected a JSON object.")
     if "id" not in msg:
         # Notification: read and drop, per the JSON-RPC/MCP contract.
         return None
-
-    if method == "initialize":
-        client_version = params.get("protocolVersion", PROTOCOL_VERSION_FALLBACK)
-        result = {
-            "protocolVersion": client_version,
-            "capabilities": {"tools": {}},
-            "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-        }
-        return {"jsonrpc": "2.0", "id": msg_id, "result": result}
-
-    if method == "tools/list":
-        return {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}}
-
-    if method == "tools/call":
-        name = params.get("name", "")
-        arguments = params.get("arguments") or {}
-        return {"jsonrpc": "2.0", "id": msg_id, "result": call_tool(name, arguments)}
-
-    if method == "ping":
-        return {"jsonrpc": "2.0", "id": msg_id, "result": {}}
-
-    return {
-        "jsonrpc": "2.0",
-        "id": msg_id,
-        "error": {"code": -32601, "message": f"method not found: {method}"},
-    }
+    msg_id = msg["id"]
+    method = msg.get("method")
+    params = msg.get("params")
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        return _error(msg_id, -32602, "invalid params: expected a JSON object.")
+    handler = METHODS.get(method) if isinstance(method, str) else None
+    if handler is None:
+        return _error(msg_id, -32601, f"method not found: {method}")
+    return handler(msg_id, params)
 
 
 def main() -> int:
@@ -137,12 +181,7 @@ def main() -> int:
         try:
             msg = json.loads(line)
         except json.JSONDecodeError as exc:
-            parse_error = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": str(exc)},
-            }
-            sys.stdout.write(json.dumps(parse_error) + "\n")
+            sys.stdout.write(json.dumps(_error(None, -32700, str(exc))) + "\n")
             sys.stdout.flush()
             continue
         response = handle_request(msg)

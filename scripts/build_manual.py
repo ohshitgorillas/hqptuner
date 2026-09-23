@@ -66,7 +66,8 @@ INDEX_PROVENANCE = (
     " Signalyst's copyrighted material and neither it nor anything derived from it is redistributable."
 )
 INDEX_HOWTO = (
-    "Read the one file you need, not the whole manual. Section bodies are verbatim `pdftotext -layout`"
+    "Agents read this directory through the hqpdoc MCP tools (`hqp_find`, `hqp_section`, `hqp_page`),"
+    " not by hand. Read the one file you need, not the whole manual. Section bodies are verbatim `pdftotext -layout`"
     " output, so the manual's tables appear as column-aligned text rather than Markdown tables."
     " `manual.txt` is the full unsplit dump and is the authority if a section file looks wrong."
     " `[page N]` markers are kept so a finding can be cited back to a page of the PDF."
