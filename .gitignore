@@ -89,10 +89,11 @@ docker-compose.yaml
 state/
 
 # the gauntlet's artifacts. Approved specs and plans are tracked; drafts, reviewer
-# rounds and the pair's red and merge evidence stay local. Anchored at the repo
+# rounds and the pair's red, merge and gate evidence stay local. Anchored at the repo
 # root so a bare name cannot swallow a same-named directory elsewhere.
 /gauntlet/red/
 /gauntlet/merge/
+/gauntlet/gate/
 /gauntlet/reviews/
 /gauntlet/plans/drafts/
 /gauntlet/specs/drafts/
