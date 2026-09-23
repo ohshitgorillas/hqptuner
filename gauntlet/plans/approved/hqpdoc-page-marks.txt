@@ -1,0 +1,83 @@
+slug: hqpdoc-page-marks
+discovery: detective
+
+brief:
+> Problems with the MCP server:
+> 1. hqp_page returns the wrong pages. hqp_page(5) returns filter-table rows from §4.6, not the Introduction. hqp_page(2) returns the closed-form row. hqp_page(1) gives "page 1 not found".
+> - Cause: in scripts/build_manual.py:52, the pattern that finds page headers (^\s*(\d+)\s*/\s*\d+\s*$) also matches quality-rating cells such as 5/5 and 2/5 in the filter table. The build turns those cells into fake [page 5] and [page 2] markers, at lines 286 and 392 of 04-06-filter-oversampling-selection.txt.
+> - As a result, text on pages 33 and 35 is filed under the wrong page number.
+> - The real headers for pages 1 to 5 fall in front matter the split throws away, so the Introduction (page 5) has no page marker at all.
+> 2. Readme heading list looks wrong: there is no 1.3 heading (hqp_readme("1.3") gives "no readme heading numbered '1.3'"), and 3.9 appears twice. I haven't yet checked whether the readme itself is like this or the parser is at fault.
+> 3. hqp_toc, hqp_section and hqp_readme otherwise work.
+> Note that the official docs have also been moved to `docs/official/` and `.gitignore` updated.
+> This is also a trial run of the new version of Gauntlet's workflow, so report any incorrect refusals or problems you run across.
+
+delivered: "Problems with the MCP server" — What is wrong, defects A, B, C.
+delivered: "1. hqp_page returns the wrong pages" — Which files, header rule and front-matter unit.
+delivered: "hqp_page(5) returns filter-table rows" — Which files, header rule and front-matter unit.
+delivered: "hqp_page(2) returns the closed-form row" — Which files, header rule and front-matter unit.
+delivered: "hqp_page(1) gives" — Which files, front-matter unit.
+delivered: "- Cause: in scripts/build_manual.py:52" — Which files, header rule.
+delivered: "The build turns those cells" — Which files, header rule.
+delivered: "- As a result, text on pages 33 and 35" — Which files, header rule.
+delivered: "- The real headers for pages 1 to 5" — Which files, front-matter unit.
+delivered: "2. Readme heading list looks wrong" — What is wrong, readme finding.
+delivered: "I haven't yet checked" — What is wrong, readme finding.
+delivered: "3. hqp_toc, hqp_section and hqp_readme otherwise work" — What it costs, untouched-tools line.
+delivered: "Note that the official docs" — What is wrong, defect C; Which files, path rows.
+delivered: "This is also a trial run" — What it costs, trial-run line.
+
+## What is wrong
+Defect A. `scripts/build_manual.py:52` matches any bare `N/M` line. Raw dump carries rating cells `5/5` at `docs/official/vendor/manual/manual.txt:1331` and `2/5` at `:1449`, between real headers `33 / 65` (`:1306`) and `36 / 65` (`:1457`). `clean` (`scripts/build_manual.py:180-182`) emits each as `[page N]`; `tool_hqp_page` (`scripts/hqpdoc_tools.py:250-268`) trusts every marker.
+Defect B. `parse_toc` returns index of body heading `1. Introduction` (`scripts/build_manual.py:161-162`); headers `1 / 65` to `5 / 65` (`docs/official/vendor/manual/manual.txt:1`, `:19`, `:30`, `:85`, `:108`) sit above it, and `raw[body_start:]` (`scripts/build_manual.py:327`) drops them. Pages 1-5 have no marker.
+Readme finding: source, not parser. `docs/official/hqplayerd-readme.txt` has no bare `1.3` line: `1.2 Element "engine"` at `docs/official/hqplayerd-readme.txt:58`, then `1.3.1 Sub-element "defaults"` at `:258`. `3.9` is printed twice upstream: `:1011` and `:1014`. Parser already returns every heading sharing a number (`scripts/hqpdoc_tools.py:275-280`). No change.
+Defect C. Docs moved to `docs/official/`; old split landed at `docs/official/vendor/manual/`, while owner's edited ignore comment names `docs/official/manual/` (`./.gitignore:27`). Code still points at old paths: `scripts/build_manual.py:45-47`, `scripts/authority.py:109-110`, `scripts/hqpdoc_tools.py:48`. MCP tools and `make manual` break until fixed.
+
+## What the owner sees change
+`hqp_page(1)` to `hqp_page(5)` return cover, partners, TOC pages, and Introduction. `hqp_page(33)`, `hqp_page(35)` return full pages.
+`make manual` reads PDF and readme from `docs/official/`, writes `docs/official/manual/`; hqpdoc tools read there. Stale `docs/official/vendor/` left on disk, gitignored, for owner to remove.
+`hqp_readme("1.3")` still not-found; `hqp_readme("3.9")` still returns both blocks.
+
+## Which files get touched, and roughly how
+`scripts/build_manual.py`, header rule: `clean` runs once over whole raw dump. First header accepted must read `1 / T`; T fixed from it. Later header accepted only as `previous + 1 / T`; any other `N/M` line passes through verbatim. After the pass, accepted count must equal T, else `sys.exit` naming last accepted page, same shape as partition check.
+`scripts/build_manual.py`, front-matter unit: `parse_toc` runs over cleaned lines (TOC rows and heading unchanged by cleaning; markers match neither). Cleaned lines split at returned index: `front = cleaned[:index]`, `body = cleaned[index:]`. Front written as `00-00-front-matter.txt`, not listed in INDEX.md. Body, `locate`, `build_units` unchanged, so partition assertion `scripts/build_manual.py:336` still compares units against body alone. `tool_hqp_page` keeps `current_page` across files in filename order (`scripts/hqpdoc_tools.py:254-263`), so `[page 5]` at end of front file carries into `01-00-introduction.txt`. No backward search.
+`scripts/build_manual.py` paths: `PDF`, `README` to `docs/official/`, `OUT` to `docs/official/manual/`; docstring and generated-prose path mentions follow.
+`scripts/authority.py`: `MANUAL`, `README` paths; docstring mentions. `search_manual` (`scripts/authority.py:183`) skips `00-00-front-matter.txt` as it skips `manual.txt`, so `hqp_find` never returns TOC rows.
+`scripts/hqpdoc_tools.py`: `MANUAL_PDF` path; docstring mentions.
+`scripts/hqpdoc_mcp.py`: tool description at `scripts/hqpdoc_mcp.py:45`.
+`Makefile:120-123` comment; `.dockerignore:20-21` stale root entries dropped (`docs` excluded at `.dockerignore:15`).
+`CLAUDE.md:52`, `docs/eq-assistant/agent/eq-assistant.md:40`, `docs/eq-assistant/FILTER-MATH.md:255`: "in the working dir(ectory)" becomes `docs/official/`.
+`scripts/probes/probe_rate_source_effect.py:12` docstring path.
+Tests: new file under `tests/` for header rule and front-matter split, via scrivener from stage 2 spec, fixture lines only.
+Rule overturned: one file per manual subsection (`scripts/build_manual.py:13-15`); split gains one non-section file, `00-00-front-matter.txt`, and that docstring bullet says so. Rules touched, not overturned: strict partition (`scripts/build_manual.py:28-32`) holds over body; verbatim body (`scripts/build_manual.py:14-16`) holds, rejected `N/M` lines pass through; built blob never supplies expected value (`docs/testing.md:36`); Signalyst material and split stay untracked under `docs/official/` (`./.gitignore:26-30`); authority location (`CLAUDE.md:52`) rewritten to new path, rule itself unchanged.
+
+## Caller-side delta
+none. Paths are module constants; `.mcp.json` names `scripts/hqpdoc_mcp.py` only.
+
+## What it costs
+One `make manual` rebuild to verify: pdftotext on 65 pages. ASSUMED seconds and below disclosure floor; timing needs the metered run.
+New test module imports `scripts/build_manual.py`; coverage runs `--cov=hqptuner` only (`Makefile:78`), so no floor applies.
+Untouched: `hqp_toc`, `hqp_section`, `hqp_readme` code.
+Left out: `.claude/hooks/manual-by-tool.py` names PDF by basename, path-independent.
+Left out: `hqptuner/data/*.json`, probes, approved specs cite readme by basename only.
+Left out: `tests/js/store/narrowing-lossy.test.js:9` comment cites old split path; provenance comment only, no tests-lane motion.
+Trial-run findings reported in hand-back, not in this plan.
+`.gitignore` already carries owner's uncommitted move edit; commit includes it.
+
+## Open questions
+None
+--- reviewer ---
+READY
+a  PASS  carried: no existing name changes meaning: the header rule narrows `PAGE_MARK` to real headers, and the front file arrives under a new name stated as the change. Its break with the split's per-subsection rule is filed under (e)
+b  PASS  carried: resolved: 39
+c  PASS  carried: no symbol is split, extracted or moved: the path constants are read in their own modules (hqpdoc_tools takes `authority.MANUAL`), nothing under `tests/` imports authority, build_manual or hqpdoc_tools (git grep), and `.mcp.json` names only the script, so the plan's count of 0 matches mine
+d  PASS  carried: Defect B now names the cause (headers 1-5 sit above the body index that `raw[body_start:]` cuts at, build_manual.py:327). The owner-visible symptom follows from it
+e  PASS  names the one rule overturned (`scripts/build_manual.py:13-15`, one file per manual subsection) together with its docstring change, and lists the partition, verbatim-body, testing.md:36, .gitignore:26-30 and CLAUDE.md:52 rules as touched and not overturned
+f  PASS  carried: the header rule gives both boundaries: the first accepted header must read `1 / T` (manual.txt:1 is `1 / 65`), and a missed or garbled header aborts because the accepted count must equal T. The current dump carries exactly 65 sequential headers (grep over manual.txt). The front-matter split has no backward search to bound
+g  PASS  carried: no open questions, and the one the plan might have put (where the split goes) is answered by the owner's .gitignore:27 comment, which the plan cites
+h  PASS  names the mechanism: `search_manual` (scripts/authority.py:183) already skips `manual.txt` by name, so skipping `00-00-front-matter.txt` the same way keeps TOC rows out of `hqp_find`. `tool_hqp_page` reads its own glob (hqpdoc_tools.py:256), so pages 1-5 still resolve. `hqp_toc` and `hqp_section` read INDEX.md, where the front file is not listed
+i  PASS  carried: 14 lines for 14 brief sentences, each opening with its sentence's first words and naming an element present in the plan body; no `dropped:` lines
+j  N/A   carried: the plan touches no file under hqptuner/, so no composition root is in play
+k  PASS  carried: each `delivered:` element reads as its sentence reads. The header rule rejects the 5/5 and 2/5 cells (they are not previous + 1 / 65), so pages 33 and 35 regain their text. The front file carries `[page 1]` to `[page 5]`, and `tool_hqp_page` keeps `current_page` across files (hqpdoc_tools.py:254-263), so pages 1-5 resolve to cover, partners, TOC and Introduction. The readme finding answers "I haven't yet checked"; the untouched-tools line answers sentence 3
+l  PASS  the restated header-rule sentence is gone. The new authority and rule-overturned sentences each carry a fact found nowhere else in the plan
+m  PASS  the `search_manual` skip adds no owner-visible delta: today's split carries no TOC rows, so `hqp_find` output is what it is now. The remaining rows trace to `delivered:` lines, as carried: every row under What the owner sees change traces to a `delivered:` line: pages 1-5 and 33/35 to the hqp_page sentences, paths to "Note that the official docs", readme row to the readme sentences. The front file is gitignored output, not a tracked artifact

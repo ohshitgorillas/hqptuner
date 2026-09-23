@@ -1,0 +1,4 @@
+RED 1: "assert ['b'] == ['b', '  5/5', 'c']" (and the same shape at cells "  3/5" and "  5/3")
+RED 2: "assert <class 'list'> is <class 'SystemExit'>" (at both drop-2 and drop-3)
+ERROR 3: "AttributeError: module 'build_manual_under_test' has no attribute 'split'" (at both dump-x and dump-y)
+ERROR 4: "AttributeError: module 'build_manual_under_test' has no attribute 'split'" (at both dump-x and dump-y)
