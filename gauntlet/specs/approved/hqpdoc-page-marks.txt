@@ -1,0 +1,44 @@
+slug: hqpdoc-page-marks
+kind: new
+brief:
+> Find the approved plan file below. Take the slug through stage 2, presenting the block when READY.
+> `gauntlet/plans/approved/hqpdoc-page-marks.txt`
+
+1. `scripts/build_manual.py` `clean(lines)` over the lines `"      1 / 3"`, `"a"`, `"      2 / 3"`, `"b"`, `<cell>`, `"c"`, `"      3 / 3"`, `"d"`, with `<cell>` swept over `"  5/5"`, `"  3/5"` and `"  5/3"`, files under page 2 the lines `["b", <cell>, "c"]`, where the lines filed under page N are the output lines after the one `scripts/authority.py` `PAGE` matches with group 1 equal to `str(N)`, up to the next line `PAGE` matches.
+   kills: turns every bare `N/M` line into a page marker, so the filter table's `5/5` rating cell becomes a page 5 marker and `hqp_page(5)` returns filter-table rows instead of the Introduction.
+   bite: HEAD files `["b"]` under page 2 at every one of the three cells, since each cell comes out as a page marker of its own (examiner: `python3 -c` script importing `clean` from `scripts/build_manual.py` and `PAGE` from `scripts/authority.py`, run at the checkout root).
+   existing: none, `grep -rn 'build_manual' tests --include=*.py` returns no match.
+
+2. `scripts/build_manual.py` `clean(lines)` over dump A, the lines `"      1 / 3"`, `"a"`, `"      2 / 3"`, `"b"`, `"  5/5"`, `"c"`, `"      3 / 3"`, `"d"`, returns a list, where the same dump with exactly one `"      N / 3"` header dropped raises `SystemExit`, swept over dropping `"      2 / 3"` and dropping `"      3 / 3"`.
+   kills: accepts whatever headers it meets, so a dump that lost a header files that page's text under the page before it and `hqp_page` answers with the wrong page's text.
+   bite: HEAD returns without raising at all three inputs: `['[page 1]', 'a', '[page 2]', 'b', '[page 5]', 'c', '[page 3]', 'd']` at dump A, `['[page 1]', 'a', 'b', '[page 5]', 'c', '[page 3]', 'd']` with `"      2 / 3"` dropped, `['[page 1]', 'a', '[page 2]', 'b', '[page 5]', 'c', 'd']` with `"      3 / 3"` dropped (examiner: same `python3 -c` script as line 1).
+   existing: none, `grep -rn 'build_manual' tests --include=*.py` returns no match.
+
+3. `scripts/build_manual.py` `split(raw)`, a new function returning the tuple `(entries, front, body)`, returns a `front` in which `scripts/authority.py` `PAGE` matches, in order, the page numbers of every header above the dump's first body heading, swept over two dumps: dump X, the lines `"      1 / 3"`, `"Cover"`, `"      2 / 3"`, `"   1. Intro.......3"`, `"      3 / 3"`, `"1. Intro"`, `"Body text"`, whose `front` carries `["1", "2", "3"]`; dump Y, the lines `"      1 / 3"`, `"Cover"`, `"   1. Overview.......2"`, `"      2 / 3"`, `"1. Overview"`, `"Text"`, `"      3 / 3"`, `"More"`, whose `front` carries `["1", "2"]`.
+   kills: discards every line above the body's first heading, so the cover, partners and table-of-contents pages carry no marker and `hqp_page(1)` answers "page 1 not found".
+   bite: null stub fails at both dumps (surface new) — a `split` returning `([], [], [])` gives a `front` in which `PAGE` matches no page number.
+   existing: none, `grep -rn 'build_manual' tests --include=*.py` returns no match.
+
+4. `scripts/build_manual.py` `split(raw)` returns a `body` whose first element is the dump's first body heading, the heading the dump's table-of-contents row 1 names, swept over the two dumps of line 3: `"1. Intro"` at dump X, `"1. Overview"` at dump Y.
+   kills: cuts the dump at the end of the file instead of at the first body heading, so the Introduction's text lands in the front-matter file and the `01-00` section file comes out empty.
+   bite: null stub fails at both dumps (surface new) — a `split` returning `([], [], [])` gives a `body` with no first element.
+   existing: none, `grep -rn 'build_manual' tests --include=*.py` returns no match.
+
+--- reviewer ---
+READY
+discriminates: sweep on `clean` page filing (line 1); differential on `clean` accept versus refuse (line 2); sweep on `split` over dumps X and Y with distinct expected values (lines 3, 4)
+return, round 1: every finding was answered by the repair it named. Line 2 is now the accept-versus-refuse differential, swept over the dropped middle header and the dropped last header. Lines 3 and 4 are now sweeps over two dumps. In those dumps the front-page count differs (`["1","2","3"]` against `["1","2"]`) and so does the first heading (`"1. Intro"` against `"1. Overview"`). All of these values are fixture-supplied. No finding is outstanding.
+(m): the brief's sentences state no behavior, so this check is decided on the brief text alone and needs no other file. Round 1's note about the plan file is withdrawn: it bore on no fact this check needs.
+
+1  carried ADMITTED
+2  ADMITTED
+3  ADMITTED
+4  ADMITTED
+
+null stub: `clean` returns `[]` and never raises, and `split` returns `([], [], [])`.
+  satisfies: none   fails: 1 (nothing is filed under page 2), 2 (nothing raises at either drop), 3 (PAGE matches no page), 4 (the body has no first element)
+hard-coded stub: `clean` either always raises SystemExit or returns one fixed list, and `split` returns the constant `([], ["[page 1]", "[page 2]", "[page 3]"], ["1. Intro"])`.
+  satisfies: none   fails: 1 (a constant cannot echo the swept cell), 2 (always-raise fails at dump A, and always-return fails at both drops), 3 (the constant misses dump Y's `["1","2"]`), 4 (the constant misses dump Y's `"1. Overview"`)
+sibling check, lines 1 and 2: a `clean` that takes a bare `N/M` as a marker whenever N is the next expected page fails line 1 at the `"  3/5"` cell. It passes line 2, because dump A's `"  5/5"` stays text and both drops still raise. So the two lines kill different implementations.
+
+survives: 4
