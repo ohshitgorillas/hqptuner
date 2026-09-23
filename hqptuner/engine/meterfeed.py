@@ -1,4 +1,4 @@
-"""The METER page's feed: metering frames reduced to per-channel levels and a 1/12-octave spectrum, one event per stride.
+"""The METER page's feed: metering frames reduced to per-channel levels and a 1/12-octave spectrum per stride.
 
 Frames arrive at the transform hop rate (~43/s at 44.1k, 187/s at 192k). The feed folds a stride of them into one
 ``frame`` event, so a page redraws at 20 to 30 events a second whatever the source rate: the stride is the number of
@@ -68,7 +68,8 @@ def geometry(channels: int, bins: int, bandwidth: float) -> Geometry:
     first = math.floor(BANDS_PER_OCTAVE * math.log2(LOWEST_CENTRE_HZ / 1000)) + 1
     last = math.ceil(BANDS_PER_OCTAVE * math.log2(bandwidth * half / 1000)) - 1
     centres = [1000 * 2 ** (k / BANDS_PER_OCTAVE) for k in range(first, last + 1)]
-    lo, hi = [], []
+    lo: list[int] = []
+    hi: list[int] = []
     for centre in centres:
         start = min(bins, math.ceil(centre / half / per_bin))
         end = min(bins, math.ceil(centre * half / per_bin))
@@ -115,7 +116,7 @@ def _db(power: npt.NDArray[np.float64]) -> list[float]:
 
 
 def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64]) -> Event:
-    """A finished stride as a ``frame`` event: the max-held peak, and the mean rms and band powers, all in dB."""
+    """Return a finished stride as a ``frame`` event: the max-held peak, and the mean rms and band powers, in dB."""
     channels = [
         {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bands": _db(mean[ch, 1:])}
         for ch in range(len(peak))
