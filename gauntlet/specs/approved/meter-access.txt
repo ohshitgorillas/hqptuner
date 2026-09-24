@@ -14,12 +14,12 @@ brief:
    bite: null stub fails at the METER-on input (surface new) - a stub whose `App` ignores `meterMode` renders {tab-nav, pending-bar} there.
    existing: none, `grep -rn 'meterMode\|setMeterMode\|meter-page' tests` returns no match.
 
-3. `MiniSpectrum` rendered through `renderTree` (`tests/js/support/vnodeseam.js`), calling the `onClick` of the vnode carrying `data-testid="mini-spectrum"` with `meterMode` false leaves `meterMode.value` true; with `meterMode` true it leaves `meterMode.value` false.
+3. `MiniSpectrum` from `hqptuner/static/components/MiniSpectrum.js`, taking no props, rendered through `renderTree` (`tests/js/support/vnodeseam.js`), calling the `onClick` of the vnode carrying `data-testid="mini-spectrum"` with `meterMode` false leaves `meterMode.value` true; with `meterMode` true it leaves `meterMode.value` false.
    kills: the click always opens METER, so a second click on the lit mini spectrum leaves the user on the METER page instead of returning to the tabs.
    bite: null stub fails at the `meterMode` false input (surface new) - a stub whose vnode carries no `onClick` leaves `meterMode.value` false.
    existing: none, `grep -rn 'mini-spectrum\|MiniSpectrum' tests` returns no match.
 
-4. `MiniSpectrum` rendered with `meterMode` true carries `aria-pressed="true"` on its `data-testid="mini-spectrum"` element; rendered with `meterMode` false it carries `aria-pressed="false"`.
+4. `MiniSpectrum` from `hqptuner/static/components/MiniSpectrum.js`, taking no props, rendered with `meterMode` true carries `aria-pressed="true"` on its `data-testid="mini-spectrum"` element; rendered with `meterMode` false it carries `aria-pressed="false"`.
    kills: `aria-pressed` is written as a constant, so a screen reader announces the switch as not pressed while the METER page is up.
    bite: null stub fails at the `meterMode` true input (surface new) - a stub rendering the element with no `aria-pressed` carries neither value.
    existing: none, `grep -rn 'mini-spectrum\|MiniSpectrum' tests` returns no match.
@@ -27,12 +27,13 @@ brief:
 --- reviewer ---
 READY
 discriminates: sweep on the LIVE/METER mode pair (line 1), App's marker set (line 2), MiniSpectrum's toggle (line 3) and its aria-pressed (line 4), each at two inputs with two distinct expected values
-1  ADMITTED
-2  ADMITTED
+note: lines 3 and 4 changed by the module path and also by "taking no props", which the return did not name; both additions narrow the input and were checked as changed text. Carried verdicts for lines 1 and 2 were read from gauntlet/specs/approved/meter-access.txt, since the return did not list them.
+1  ADMITTED carried
+2  ADMITTED carried
 3  ADMITTED
 4  ADMITTED
 null stub: meterMode stays false, setMeterMode is a no-op, App and MiniSpectrum ignore meterMode, and the mini-spectrum vnode has no onClick and no aria-pressed.
   satisfies: none   fails: 1, 2, 3, 4
-hard-coded stub: each surface returns one constant, the value its line names at the first input ([false, true], {pending-bar, meter-page}, meterMode true, aria-pressed "true"), so no mode switch does any work; every line's second input covers the other boolean state, so any stub that passes both inputs is the feature itself.
+hard-coded stub: each surface returns one constant, the value its line names at the first input ([false, true], {pending-bar, meter-page}, meterMode true, aria-pressed "true"), so no mode switch does any work; every line's second input covers the other boolean state.
   satisfies: none   fails: 1, 2, 3, 4
 survives: 4
