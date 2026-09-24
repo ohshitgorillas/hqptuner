@@ -152,4 +152,3 @@ for (const [name, meter, expected] of PRESSED) {
     assert.equal(pressedOf(meter), expected);
   });
 }
-
