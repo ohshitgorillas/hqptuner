@@ -1,6 +1,6 @@
 ---
 name: change-budget
-description: The change-budget hook's free list, the command shapes that meter by syntax, the three advisories, and the gate and worktree traps (parent-checkout venv, ls-files gates, pair.sh merge diagnosis, dev-moved rebase, gitignored plan docs, md-by-tool, S603, claude -p). Load at the first metered command or the first pair.sh call.
+description: The change-budget hook's free list, the command shapes that meter by syntax, the three advisories, and the gate and worktree traps (parent-checkout venv, ls-files gates, pair.sh merge diagnosis, dev-moved rebase, gitignored plan docs, S603, claude -p). Load at the first metered command or the first pair.sh call.
 ---
 
 # Change budget
@@ -13,7 +13,7 @@ description: The change-budget hook's free list, the command shapes that meter b
 
 Closed allowlist in `.claude/hooks/free_bash.py`; one unrecognized stage meters the whole pipeline. Free: file reads, `Grep`/`Glob`, web fetch and search, read-only agent types, spawns of the seven chain agents and `SendMessage` to a running agent, and read-only Bash: verification (`make check`, `make lint-js`, `make test-js`, `node --test <file>`, `pytest`, `ruff check`, `ruff format --check`, `black --check`, `mypy`, `python scripts/gates/check_*.py` by relative path) and investigation (`grep`, `sed -n`, `ls`, `find`, `cat`, `jq`, `diff`, read-only `git log`/`show`/`diff`/`blame`/`status`), even piped or redirected to `/dev/null` or the scratchpad. Also free: `cd <path>`, a segment that is only `VAR=…` assignments, `set -a` / `source hqpcreds`, `$(pwd)`, `$(git rev-parse --show-toplevel)`, `make -C <dir> <free target>`, `npx eslint|tsc|knip|jscpd|prettier`, `git branch` without `-d`/`-D`/`-m`/`-f`, `git worktree list`, `git check-ignore`. Loopback GETs are free: `curl -s http://127.0.0.1:<port>/api/… | jq`.
 
-Free is not the same as admitted. `.claude/hooks/gate-capture.py` denies a gate run — `make check`, `make test`, `pytest`, `ruff`, `npm test`, a script under `scripts/gates/` — piped into `head`, `tail` or `grep`, or with its stdout on `/dev/null`, and names `scripts/gate.sh` in the refusal. The free list above still reads those shapes as free; the denial is about what survives into the report, not about the budget. `scripts/gate.sh` is a runner prefix on the free list, alongside `uv run`, `poetry run` and `npx`: it comes off and the allowlist judges the command it wraps, so `scripts/gate.sh make check` is free and `scripts/gate.sh sudo docker compose up -d` meters on the `sudo`. The wrapper grants nothing the bare command does not already have — `npm test` is off the list either way.
+`scripts/gate.sh` is a runner prefix on the free list, alongside `uv run`, `poetry run` and `npx`: it comes off and the allowlist judges the command it wraps, so `scripts/gate.sh make check` is free and `scripts/gate.sh sudo docker compose up -d` meters on the `sudo`. The wrapper grants nothing the bare command does not already have — `npm test` is off the list either way.
 
 ## Misfires: the hook classifies by shape, not purpose
 
@@ -52,7 +52,6 @@ git -C .claude/worktrees/<slug>-impl rebase dev \
 ```
 
 - **`gauntlet/plans/drafts/*.txt` are gitignored**, main checkout only, absent from pair worktrees. The Stop trivia judge and `triviajudge-md <file>` select lines by `git diff` and see nothing there. Judge with a `path:line<TAB>text` records file and `.venv/bin/triviajudge-md --lines <records>`; it takes minutes, run it in the background. That head is outside `free_bash.py`'s gate-script shape, so it meters.
-- **`.claude/hooks/md-by-tool.py` passes `rm`, `git`, `make`, `pre-commit` only when every `;`/`&&`/`|` segment's head is exempt.** `cd … && rm x.md` and `rm x.md; ls` are both denied; a bare `rm` with absolute paths passes. `cp` and `mv` onto a `.md` are denied; write the content with `Write`.
 - **Every `subprocess.run` needs an owner-granted `# noqa: S603`**: a bare binary name fires S607, a resolved path fires S603. Precedent is `shutil.which` plus inline noqa in `scripts/gates/check_binaural.py`. Request it in the stage 1 plan.
 - **`claude -p --bare` cannot log in.** Drop `--bare`, keep `--tools "" --setting-sources "" --no-session-persistence`, and strip `CLAUDECODE` from the env when calling from inside a session.
 - **The scrivener's gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.

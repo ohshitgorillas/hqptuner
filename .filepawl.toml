@@ -4,7 +4,6 @@ version = 1
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 427 }
 ".claude/hooks/read-volume.py" = { lines = 430 }
-".claude/hooks/shell_shapes.py" = { lines = 2066 }
 "hqptuner/conf/httpconf.py" = { lines = 427 }
 "hqptuner/conf/matrixconf.py" = { lines = 496 }
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }

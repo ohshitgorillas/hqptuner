@@ -21,8 +21,8 @@ import re
 import shlex
 import sys
 
-# Not a plain sibling import: this file is loaded by path (change-budget.py,
-# md-by-tool.py), and in those processes the hook directory is not on sys.path.
+# Not a plain sibling import: this file is loaded by path (change-budget.py),
+# and in that process the hook directory is not on sys.path.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import free_bash_lex as lex  # noqa: E402

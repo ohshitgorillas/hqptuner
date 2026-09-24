@@ -92,10 +92,7 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # owner-approved wording, so it takes no judge.
 md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
 suffixes = [".py", ".js", ".css"]
-# The kit's own files are its to word: .claude/hooks/shell_shapes.py is
-# copied from the gauntlet plugin verbatim, so a remark judged here would be
-# repaired in a file the next copy overwrites. Owner-approved, all kit files.
-excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/", ".claude/hooks/shell_shapes.py"]
+excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
 cache_dir = ".claude/logs"
 
@@ -109,7 +106,6 @@ cap_tests = 800
 watch = 400
 
 [tool.filepawl.exempt]
-".claude/hooks/shell_shapes.py" = "kit file, copied whole from gauntlet and ported back by diff"
 "scripts/junkcal/junkcal_fixture.py" = "junkcal fixture oracle, provenance kept whole"
 "hqptuner/static/store/schema.js" = "one-entry-per-line control table, not logic"
 

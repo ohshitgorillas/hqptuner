@@ -1,6 +1,31 @@
 {
-  "enabledPlugins": {
-    "gauntlet@gauntlet": true
+  "permissions": {
+    "allow": [
+      "Bash(make check *)",
+      "Bash(make test *)",
+      "Bash(make test-js *)",
+      "Bash(make lint-js *)",
+      "Bash(scripts/gate.sh make check *)",
+      "Bash(scripts/gate.sh make test *)",
+      "Bash(scripts/gate.sh make test-js *)",
+      "Bash(scripts/gate.sh make lint-js *)",
+      "Bash(scripts/gate.sh .venv/bin/ruff check *)",
+      "Bash(scripts/gate.sh .venv/bin/pytest *)",
+      "Bash(scripts/gate.sh .venv/bin/python -m pytest *)",
+      "Bash(scripts/gate.sh npm test *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(.venv/bin/mypy)",
+      "Bash(.venv/bin/black hqptuner *)",
+      "Bash(.venv/bin/vulture hqptuner *)",
+      "Bash(.venv/bin/pytest -m \"not live\" -q)",
+      "Bash(.venv/bin/python -m pytest -q)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(npx prettier *)",
+      "Bash(bash .claude/task-check.sh)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git commit *)"
+    ]
   },
   "enabledMcpjsonServers": ["hqpdoc"],
   "hooks": {
@@ -15,20 +40,12 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/no-version-bumps.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/md-by-tool.py"
           }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/gate-capture.py"
-          },
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/manual-by-tool.py"
@@ -61,32 +78,7 @@
       }
     ]
   },
-  "permissions": {
-    "allow": [
-      "Bash(make check *)",
-      "Bash(make test *)",
-      "Bash(make test-js *)",
-      "Bash(make lint-js *)",
-      "Bash(scripts/gate.sh make check *)",
-      "Bash(scripts/gate.sh make test *)",
-      "Bash(scripts/gate.sh make test-js *)",
-      "Bash(scripts/gate.sh make lint-js *)",
-      "Bash(scripts/gate.sh .venv/bin/ruff check *)",
-      "Bash(scripts/gate.sh .venv/bin/pytest *)",
-      "Bash(scripts/gate.sh .venv/bin/python -m pytest *)",
-      "Bash(scripts/gate.sh npm test *)",
-      "Bash(.venv/bin/ruff check *)",
-      "Bash(.venv/bin/mypy)",
-      "Bash(.venv/bin/black hqptuner *)",
-      "Bash(.venv/bin/vulture hqptuner *)",
-      "Bash(.venv/bin/pytest -m \"not live\" -q)",
-      "Bash(.venv/bin/python -m pytest -q)",
-      "Bash(.venv/bin/pip install *)",
-      "Bash(npx prettier *)",
-      "Bash(bash .claude/task-check.sh)",
-      "Bash(git add *)",
-      "Bash(git restore *)",
-      "Bash(git commit *)"
-    ]
+  "enabledPlugins": {
+    "gauntlet@gauntlet": true
   }
 }
