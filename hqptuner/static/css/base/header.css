@@ -29,12 +29,10 @@
 }
 /* the LIVE switch — one latching button, not an ON|OFF pair, so the header costs
    the same height in either mode. Off it reads as chrome; on it takes the accent,
-   which in this app means exactly one thing. This auto margin is one of three —
-   .apod-lamp and .presets carry the others — and together they split the header's
-   free space into equal thirds, which is what spaces the switch, the lamp and the
-   picker across the row's one empty stretch with no new alignment to maintain.
-   The lamp is optional, and when it is off the same three-way split becomes the
-   two-way one this row had before it existed. */
+   which in this app means exactly one thing. This auto margin is one of two —
+   .presets carries the other — and together they split the header's free space
+   into equal halves: one before the cluster of LIVE, mini spectrum and lamp,
+   spaced by the header's own gap, and one before the picker. */
 .live-toggle {
   margin-left: auto;
   background: var(--surface-raised);
@@ -74,7 +72,6 @@
   initial-value: 0;
 }
 .apod-lamp {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -163,11 +160,17 @@
 /* the level readout beside the lamp: three wells cut into the header band, each
    holding a bar that grows from the bottom. The wells are painted whether or not
    anything plays, so a stopped engine reads as an instrument at rest rather than
-   as a gap in the row. */
+   as a gap in the row. It is also the METER switch: pressed, the wells' rings
+   take the accent, as the LIVE switch does when on. */
 .mini-spectrum {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-1);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease);
 }
 .mini-well {
   position: relative;
@@ -177,6 +180,10 @@
   background: var(--surface-page);
   box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
+  transition: box-shadow var(--dur) var(--ease);
+}
+.mini-spectrum.on .mini-well {
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 /* the bar eases toward each poll's reading rather than stepping to it: at --dur
    it reads as jitter, and the slow settle is what makes a level look damped. */

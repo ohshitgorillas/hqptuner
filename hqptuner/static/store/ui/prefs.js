@@ -219,6 +219,7 @@ export const liveMode = signal(loadBool(K_LIVE, false));
 
 /**
  * Set the LIVE switch and persist it, so a reload lands back on the same page.
+ * Turning LIVE on turns METER off: the two modes exclude each other.
  *
  * @param {boolean} on
  * @returns {void}
@@ -226,6 +227,23 @@ export const liveMode = signal(loadBool(K_LIVE, false));
 export function setLiveMode(on) {
   liveMode.value = !!on;
   persist(K_LIVE, liveMode.value);
+  if (on) meterMode.value = false;
+}
+
+// The METER switch, on the header's mini spectrum. Not persisted: a reload in
+// METER lands on the tabs.
+export const meterMode = signal(false);
+
+/**
+ * Set the METER switch. Turning METER on turns LIVE off through setLiveMode, so
+ * the stored LIVE flag follows.
+ *
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function setMeterMode(on) {
+  meterMode.value = !!on;
+  if (on) setLiveMode(false);
 }
 
 // LIVE page card disclosure. Five cards on that page collapse so the page can be

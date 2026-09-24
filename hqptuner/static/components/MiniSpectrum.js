@@ -6,9 +6,13 @@
 // A missing triple is the floor rather than a hidden instrument: the engine is
 // stopped, metering is off, or the stream sends no frames, and an instrument
 // that disappears for three of its states shifts every element in the row.
+//
+// The readout is also the METER switch, latching like LIVE: a click opens the
+// METER page, a click while it is up returns to the tabs.
 import { computed } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { engineStatus } from "../store/signals.js";
+import { meterMode, setMeterMode } from "../store/ui/prefs.js";
 
 // What the bars span. The floor is well under the quietest band a playing
 // stream produces, so ordinary music spends most of the bar rather than
@@ -33,10 +37,19 @@ function fill(db) {
   return Math.round(Math.max(0, Math.min(1, frac)) * 100);
 }
 
-/** The header's three-band level readout. */
+/** The header's three-band level readout, and the latching METER switch. */
 export function MiniSpectrum() {
+  const on = meterMode.value;
   return html`
-    <span class="mini-spectrum" data-testid="mini-spectrum" aria-hidden="true">
+    <button
+      type="button"
+      data-testid="mini-spectrum"
+      class="mini-spectrum ${on ? "on" : ""}"
+      aria-pressed=${on}
+      aria-label="METER"
+      title=${on ? "Leave METER and go back to the tabs" : "Show the METER page"}
+      onClick=${() => setMeterMode(!on)}
+    >
       ${levels.value.map(
         (/** @type {number|null} */ db, /** @type {number} */ i) => html`
           <span class="mini-well" key=${i}>
@@ -44,6 +57,6 @@ export function MiniSpectrum() {
           </span>
         `,
       )}
-    </span>
+    </button>
   `;
 }
