@@ -59,6 +59,8 @@ Tabs are **Output · Volume · Resampling · DSP · System** (registry: `static/
 
 **LIVE is a mode, not a tab.** Header switch (`store/prefs.liveMode`) replaces whole tabbed body with one page of settings running engine can change in place (`static/components/live/View.js`, fed by `store/live/model.js`). No staging and no Apply: every control writes on change and shows what engine reported back, not what was requested. Page is not second control surface — each control names its `schema.js` key and so carries same label, note and per-selection prose as its tab twin. Both filter chains render at once; edits to chain engine has not loaded are held per chain and applied when it loads, which is also how auto mode before playback works.
 
+**METER is a mode, not a tab.** Header switch on mini spectrum (`store/prefs.meterMode`, not persisted) replaces tab bar and tab body with METER page (`static/components/meter/View.js`); pending bar stays. LIVE and METER exclude each other: each setter, turning its mode on, turns other off.
+
 **Transport params are per-backend, not mode-gated** — Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" behavior belongs to *desktop* app, does not apply here. IPv6 is Network-only. ALSA / Network sections collapse by backend rather than gray; every field still persists (daemon rejects partial form).
 
 ### API errors

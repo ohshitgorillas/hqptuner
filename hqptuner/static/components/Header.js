@@ -120,7 +120,7 @@ function presetPicker() {
   `;
 }
 
-/** Chrome header: brand mark, daemon identity, LIVE switch, apodizing lamp, preset picker, Ask button and connection pill. */
+/** Chrome header: brand mark, daemon identity, LIVE switch, mini spectrum (the METER switch), apodizing lamp, preset picker, Ask button and connection pill. */
 export function Header() {
   return html`
     <header class="chrome-header">
@@ -136,8 +136,8 @@ export function Header() {
       </div>
       ${daemonIdentity()}
       <${LiveSwitch} />
-      <${ApodLamp} />
       <${MiniSpectrum} />
+      <${ApodLamp} />
       <div class="presets">${presetPicker()}</div>
       <${Ask} owner=${OWNER} />
       <${StatusPill} />
