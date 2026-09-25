@@ -79,6 +79,7 @@
     ]
   },
   "enabledPlugins": {
-    "gauntlet@gauntlet": true
+    "gauntlet@gauntlet": true,
+    "filepawl@filepawl": true
   }
 }
