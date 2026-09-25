@@ -142,7 +142,8 @@ function postProcessStage(cf, loud) {
 // it on the wire against 6.0.4. The source rate is the independent check, since a
 // DSD bitstream reports its bitstream rate and that is always at or above DSD64.
 // Either one alone suffices, so the pair survives whichever turns out to be absent.
-const sourceIsDsd = (/** @type {Metadata} */ md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
+/** Whether the source is a DSD bitstream, by its sdm flag or its rate. */
+export const sourceIsDsd = (/** @type {Metadata} */ md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
 const outputIsSdm = (/** @type {Status} */ st) => Number(st.active_rate) >= DSD_FLOOR;
 
 // DirectSDM only means anything on the DSD→SDM path: it "disables all processing

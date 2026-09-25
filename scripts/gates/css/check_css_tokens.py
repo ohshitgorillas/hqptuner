@@ -71,8 +71,9 @@ DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 #: the raw elevation ladder — legal only where it is defined
 PRIMITIVE = re.compile(r"var\(\s*--bg\b")
-#: the two motion roles: --dur for a state change, --sweep for a live readout
-MOTION = re.compile(r"var\(\s*--(?:dur|sweep)\b")
+#: the three transition roles: --dur for a state change, --sweep for a live
+#: readout off the poll, --follow for a readout tracking a continuous feed
+MOTION = re.compile(r"var\(\s*--(?:dur|sweep|follow)\b")
 #: opacity answers two questions — is this control in play (state), and how far
 #: back does this graphic sit (depth). Both are roles, so both are tokens. 0 and
 #: 1 stay literal: hidden and fully painted carry no shading decision.
@@ -103,7 +104,10 @@ def shape_complaint(prop: str, value: str) -> str:
             return ""
         return f"{prop}: {value} — use a var(--r-*) token from {DEFINITION_SITE}"
     if prop == "transition" and not MOTION.search(value):
-        return f"{prop}: {value} — use var(--dur) var(--ease) for a state change, var(--sweep) for a live readout"
+        return (
+            f"{prop}: {value} — use var(--dur) var(--ease) for a state change, var(--sweep) for a live readout,"
+            " var(--follow) for a feed-tracking readout"
+        )
     return ""
 
 

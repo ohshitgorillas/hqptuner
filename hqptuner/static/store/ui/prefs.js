@@ -19,6 +19,7 @@ const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
 const K_APOD_LIGHT = "hqptuner.apodLight";
+const K_METER_FLOOR = "hqptuner.meterFloor";
 
 // A dead store is worth exactly one line of console noise: silence hides the
 // "prefs never persist" case (notably node/SSR, where every read is a default),
@@ -179,21 +180,24 @@ export function setApodLight(mode) {
 export const APOD_WINDOWS = ["30", "60", "120", "300", "all"];
 
 /**
+ * A stored choice from `allowed`, or `dflt` where nothing valid is stored.
+ *
  * @param {string} key
+ * @param {string[]} allowed
  * @param {string} dflt
  * @returns {string}
  */
-function loadApodWindow(key, dflt) {
+function loadEnum(key, allowed, dflt) {
   try {
     const v = localStorage.getItem(key);
-    return v != null && APOD_WINDOWS.includes(v) ? v : dflt;
+    return v != null && allowed.includes(v) ? v : dflt;
   } catch {
     warnStorage("read");
     return dflt;
   }
 }
 
-export const apodWindow = signal(loadApodWindow(K_APOD_WINDOW, "60"));
+export const apodWindow = signal(loadEnum(K_APOD_WINDOW, APOD_WINDOWS, "60"));
 
 /**
  * Set the apodizing-strip time window and persist it. A value outside
@@ -207,6 +211,28 @@ export function setApodWindow(value) {
   apodWindow.value = value;
   try {
     localStorage.setItem(K_APOD_WINDOW, value);
+  } catch {
+    // storage disabled (private mode) — keep the in-memory value
+    warnStorage("written");
+  }
+}
+
+// The METER level bars' floor, in dB below full scale.
+export const METER_FLOORS = ["-48", "-60", "-90"];
+export const meterFloor = signal(loadEnum(K_METER_FLOOR, METER_FLOORS, "-60"));
+
+/**
+ * Set the METER level bars' floor and persist it. A value outside METER_FLOORS
+ * is ignored: the signal and the stored value both stand.
+ *
+ * @param {string} value
+ * @returns {void}
+ */
+export function setMeterFloor(value) {
+  if (!METER_FLOORS.includes(value)) return;
+  meterFloor.value = value;
+  try {
+    localStorage.setItem(K_METER_FLOOR, value);
   } catch {
     // storage disabled (private mode) — keep the in-memory value
     warnStorage("written");

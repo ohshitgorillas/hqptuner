@@ -1,0 +1,70 @@
+/* METER page: level meters. The trough is a recessed reading surface, so it
+   takes the well and no edge light. Idle dims the troughs, never the text. */
+.mt-page {
+  display: grid;
+  gap: var(--sp-4);
+}
+.mt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.mt-floor {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.mt-clip {
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.mt-clip.lit {
+  background: var(--red);
+  border-color: var(--red);
+}
+.mt-levels {
+  display: grid;
+  gap: var(--sp-2);
+}
+.mt-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr var(--w-num);
+  align-items: center;
+  gap: var(--sp-2);
+}
+.mt-trough {
+  position: relative;
+  height: 1.2rem;
+  background: var(--surface-well);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.mt-idle .mt-trough {
+  opacity: var(--o-off);
+}
+.mt-peak,
+.mt-rms {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--follow);
+}
+.mt-peak {
+  opacity: var(--o-back);
+}
+.mt-hold {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--fg);
+  transition: left var(--follow);
+}
+.mt-val {
+  text-align: right;
+}
