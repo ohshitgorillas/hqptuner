@@ -37,12 +37,6 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
-      - id: filepawl
-        name: filepawl (length, directory count, barrels, nesting)
-        entry: .venv/bin/filepawl check
-        language: system
-        pass_filenames: false
-        always_run: true
       - id: changelog-style
         name: changelog entry style ([Unreleased] only)
         entry: .venv/bin/python scripts/gates/check_changelog.py

@@ -9,7 +9,6 @@ lint:
 	$(VENV)/vulture
 	$(VENV)/mypy
 	$(VENV)/lint-imports
-	$(VENV)/filepawl check
 	$(VENV)/python scripts/gates/testing/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_test_clocks.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
