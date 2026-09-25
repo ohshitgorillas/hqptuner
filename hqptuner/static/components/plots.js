@@ -48,7 +48,8 @@ const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 // feature's frequency off the plot meant eyeballing the gap between decades.
 const FREQ_GRID = FREQ_LABELS;
 
-const fmtHz = (/** @type {number} */ f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
+/** An axis frequency label: hertz below 1 kHz, kilohertz from there, as `500` and `2k`. */
+export const fmtHz = (/** @type {number} */ f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (/** @type {number} */ f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
 // Evenly-spaced hue per trace index: N traces => N hues 360/N apart, so any count

@@ -68,3 +68,59 @@
 .mt-val {
   text-align: right;
 }
+
+/* Recorder: the apodizing strip over the spectrogram, in one grid whose first
+   column is the spectrogram's frequency gutter. The strip sits in the second
+   column, so the two charts span the same width and share one time axis. */
+.mt-rec {
+  display: grid;
+  grid-template-columns: var(--w-num) 1fr;
+  row-gap: var(--sp-3);
+}
+.mt-rec-strip {
+  grid-column: 2;
+}
+.mt-rec-head {
+  grid-column: 1 / -1;
+}
+.mt-spec-head {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+/* Spectrogram: a recessed reading surface like the strip's trough above it. */
+.mt-spec-trough {
+  position: relative;
+  height: 32rem;
+  background: var(--surface-well);
+  border: 1px solid var(--line);
+  border-right-color: var(--accent);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.mt-spec-trough canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mt-idle .mt-spec-trough {
+  opacity: var(--o-off);
+}
+/* Frequency gutter: each label centred on its frequency, with a tick running
+   out to the plot's edge. */
+.mt-spec-axis {
+  position: relative;
+}
+.mt-spec-tick {
+  position: absolute;
+  right: var(--sp-2);
+  transform: translateY(50%);
+}
+.mt-spec-tick::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--sp-2));
+  width: var(--sp-1);
+  height: 1px;
+  background: var(--line);
+}

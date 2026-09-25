@@ -8,6 +8,10 @@ import { initFavicon } from "./store/ui/favicon.js";
 import { initHealth } from "./store/health.js";
 import { initSetup } from "./store/setup.js";
 import { initApodHistory } from "./store/apodhistory.js";
+import { initSpectrogram } from "./store/meter/spectrogram.js";
+import { openMeterFeed, closeMeterFeed } from "./store/meter/feed.js";
+import { metering } from "./store/actions.js";
+import { effect } from "@preact/signals";
 
 initTheme();
 initFavicon();
@@ -17,5 +21,7 @@ initHealth();
 // install with nowhere to dial.
 initSetup();
 initApodHistory();
+initSpectrogram();
+effect(() => (metering.value ? openMeterFeed() : closeMeterFeed()));
 startPolling();
 render(html`<${App} />`, document.getElementById("app"));

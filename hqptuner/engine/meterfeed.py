@@ -20,8 +20,6 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from hqptuner.engine.bands import BAND_FLOOR_DB
-
 #: one queued event: its name and its JSON-ready data
 Event = tuple[str, dict[str, Any]]
 
@@ -35,6 +33,9 @@ LOWEST_CENTRE_HZ = 20.0
 BANDS_PER_OCTAVE = 12
 # Per-channel level block ahead of the transform values: peakMax, peak, rms, rmsMax.
 LEVELS = 4
+# Where a zero power lands, in dB. Deep enough for the page's widest spectrogram range: a 64-bit stream attenuated
+# upstream carries real content far below what a 24-bit one can.
+FEED_FLOOR_DB = -300.0
 
 
 @dataclass(frozen=True)
@@ -109,9 +110,9 @@ def reduce_frame(body: bytes, channels: int, bins: int, geo: Geometry) -> npt.ND
 
 
 def _db(power: npt.NDArray[np.float64]) -> list[float]:
-    """Linear power to dB at 0.1 dB, floored at ``BAND_FLOOR_DB`` where the power is zero."""
+    """Linear power to dB at 0.1 dB, floored at ``FEED_FLOOR_DB``."""
     with np.errstate(divide="ignore"):
-        levels = np.maximum(BAND_FLOOR_DB, 10 * np.log10(power))
+        levels = np.maximum(FEED_FLOOR_DB, 10 * np.log10(power))
     return [round(float(v), 1) for v in levels]
 
 

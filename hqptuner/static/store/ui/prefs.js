@@ -20,6 +20,9 @@ const K_LIVE = "hqptuner.liveMode";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
 const K_APOD_LIGHT = "hqptuner.apodLight";
 const K_METER_FLOOR = "hqptuner.meterFloor";
+const K_METER_CHANNEL = "hqptuner.meterChannel";
+const K_METER_SCALE = "hqptuner.meterScale";
+const K_METER_RANGE = "hqptuner.meterRange";
 
 // A dead store is worth exactly one line of console noise: silence hides the
 // "prefs never persist" case (notably node/SSR, where every read is a default),
@@ -197,47 +200,46 @@ function loadEnum(key, allowed, dflt) {
   }
 }
 
-export const apodWindow = signal(loadEnum(K_APOD_WINDOW, APOD_WINDOWS, "60"));
-
 /**
- * Set the apodizing-strip time window and persist it. A value outside
- * APOD_WINDOWS is ignored: the signal and the stored value both stand.
+ * A persisted choice from a fixed list: its signal, loaded from `key`, and a
+ * setter that stores the new value. A value outside `allowed` is ignored by the
+ * setter: the signal and the stored value both stand.
  *
- * @param {string} value
- * @returns {void}
+ * @param {string} key
+ * @param {string[]} allowed
+ * @param {string} dflt
+ * @returns {[{ value: string }, (value: string) => void]}
  */
-export function setApodWindow(value) {
-  if (!APOD_WINDOWS.includes(value)) return;
-  apodWindow.value = value;
-  try {
-    localStorage.setItem(K_APOD_WINDOW, value);
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+function enumPref(key, allowed, dflt) {
+  const sig = signal(loadEnum(key, allowed, dflt));
+  /** @param {string} value */
+  const set = (value) => {
+    if (!allowed.includes(value)) return;
+    sig.value = value;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // storage disabled (private mode) — keep the in-memory value
+      warnStorage("written");
+    }
+  };
+  return [sig, set];
 }
+
+export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
 
 // The METER level bars' floor, in dB below full scale.
 export const METER_FLOORS = ["-48", "-60", "-90"];
-export const meterFloor = signal(loadEnum(K_METER_FLOOR, METER_FLOORS, "-60"));
+export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
-/**
- * Set the METER level bars' floor and persist it. A value outside METER_FLOORS
- * is ignored: the signal and the stored value both stand.
- *
- * @param {string} value
- * @returns {void}
- */
-export function setMeterFloor(value) {
-  if (!METER_FLOORS.includes(value)) return;
-  meterFloor.value = value;
-  try {
-    localStorage.setItem(K_METER_FLOOR, value);
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
-}
+// The METER spectrogram: which channel it draws ("sum" or a channel index), its
+// frequency scale, and how many dB below full scale its color ramp reaches.
+const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
+export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
+export const METER_SCALES = ["log", "linear"];
+export const [meterScale, setMeterScale] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
+export const METER_RANGES = ["60", "90", "120", "200", "300"];
+export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "90");
 
 // The LIVE switch. Persisted like every other pref, so a reload lands back on
 // the page the user was working from rather than dropping them into the tabs.

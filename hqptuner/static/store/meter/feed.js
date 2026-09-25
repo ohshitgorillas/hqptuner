@@ -1,7 +1,9 @@
-// The METER page's connection to /api/meter/feed (api/routes/meter.py). A
-// `geometry` event describes the frames that follow it; each `frame` event moves
-// the displayed levels one step (levels.js). The levels park when playback
-// stops, so a restart never falls from the last track's reading.
+// The METER page's connection to /api/meter/feed (api/routes/meter.py), held
+// open on every page while metering is available, so the spectrogram's history
+// runs unbroken whichever page is up. A `geometry` event describes the frames
+// that follow it; each `frame` event moves the displayed levels one step
+// (levels.js) and adds its bands to the spectrogram's history. The levels park
+// when playback stops, so a restart never falls from the last track's reading.
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
@@ -9,6 +11,7 @@
 import { signal, effect } from "@preact/signals";
 import { engineStatus } from "../signals.js";
 import { settle } from "./levels.js";
+import { addSpectrumFrame } from "./spectrogram.js";
 
 const FEED = "/api/meter/feed";
 const PLAYING = 2;
@@ -50,9 +53,10 @@ export function openMeterFeed(now = () => Date.now()) {
     /** @type {Frame} */
     const frame = JSON.parse(e.data);
     meterLevels.value = settle(meterLevels.peek(), frame.channels);
+    addSpectrumFrame(meterGeometry.peek(), frame.channels);
   });
   source = es;
-  let was = playing();
+  let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
   unwatch = effect(() => {
     const on = playing();
     if (on && !was) since = clock();
