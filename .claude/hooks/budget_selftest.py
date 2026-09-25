@@ -88,17 +88,10 @@ def _budget_checks():
     spawn = {
         "cwd": os.path.dirname(os.path.abspath(__file__)),
         "tool_name": "Agent",
-        "tool_input": {"subagent_type": "gauntlet:scrivener", "prompt": "spec"},
+        "tool_input": {"subagent_type": "user-reviewer", "prompt": "http://127.0.0.1:8090"},
     }
     ok.append(
-        _check("a /tests agent spawn is free past the limit", evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None)
-    )
-    review = dict(spawn, tool_input={"subagent_type": "gauntlet:prosecutor", "prompt": "plan"})
-    ok.append(
-        _check(
-            "a prosecutor spawn is free past the limit",
-            evaluate(review, [_said("hi"), *_ran(limit + 5)]) is None,
-        )
+        _check("a reviewer spawn is free past the limit", evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None)
     )
 
     rounds = [_said("do it")]
@@ -165,16 +158,6 @@ def _budget_checks():
 # the command itself contains, which the reason must echo back. The token is
 # typed here in the input, so asserting on it pins which part of the command
 # decided the verdict without pinning a word of the diagnostic's prose.
-def _wrapped(command):
-    """A command as the sandbox wrapper emits it — the shape this hook is handed
-    in a wrapped session, rather than the text the agent typed."""
-    return (
-        "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid "
-        "--bind /home/atom/dev/hqptuner /home/atom/dev/hqptuner "
-        f"-- bash -s <<'GAUNTLET_COMMAND_EOF'\n{command}\nGAUNTLET_COMMAND_EOF"
-    )
-
-
 ALLOWLIST_CASES = [
     ("sed -n '1,5p' x", True),
     # python: a gate under scripts/gates/ by its relative path is a verifier;
@@ -248,21 +231,8 @@ ALLOWLIST_CASES = [
     ("node --import ./tests/js/support/vendor-resolve.js --test tests/js/eqlab/a.test.js", True),
     ('node -e \'require("fs").rmSync("x")\'', False, "-e"),
     ("node scripts/build.js", False, "--test"),
-    # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
-    ("scripts/pair.sh list", True),
-    ("scripts/pair.sh open eqfix", False, "open"),
-    ("scripts/pair.sh respec eqfix", False, "respec"),
-    ("scripts/pair.sh merge eqfix", False, "merge"),
-    ("scripts/pair.sh abort eqfix", False, "abort"),
-    ("bash scripts/pair.sh list", False, "bash"),  # `bash` is not a recognized head
     # unchanged: a shell loop is not parsed, so it still meters
     ("for f in a b; do diff -q $f x/$f; done", False, "for"),
-    # the sandbox wrapper: the verdict follows the command it carries, because
-    # `bwrap` only narrows what that command can reach. Judging the wrapper
-    # charged an action for every read in a wrapped session.
-    (_wrapped("ls -la && git log --oneline -5"), True),
-    (_wrapped("sudo systemctl restart hqplayerd"), False, "sudo"),
-    # a hand-typed `bwrap` is not the wrapper's shape and still meters
     ("bwrap --ro-bind / / sh -c 'touch /tmp/probe'", False, "bwrap"),
 ]
 

@@ -16,8 +16,7 @@ priced.
 
 In-tree Write/Edit/NotebookEdit classify as EDIT and are never denied:
 recoverable by `git restore`, visible in `git diff`, gated by `make check`, and
-ruled on by the plan gate before they are written, which is where a runaway
-edit burst actually gets caught. The class survives because the analyzers under
+ruled on by the plan gate before they are written. The class survives because the analyzers under
 scripts/budget/ measure edits per leash period through it; only the limit is gone.
 
 Deliberate asymmetry: Bash mutations always meter, even in-tree. Whether a
@@ -63,16 +62,13 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 
 # Agent types that cannot write. Exact names only, never a pattern: the hook
 # can't see the agent registry, so a guessed name is an unmetered write.
-READ_ONLY_AGENTS = {"Explore", "Plan", "gauntlet:detective", "gauntlet:auditor", "caveman:cavecrew-investigator"}
+READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
 
 # Agent types whose *spawn* is free even though they may write: the project's
-# own chain agents, writer, reviewers and the accountant. Their tool calls are
-# metered by these same hooks in the subagent's context, so charging the spawn
-# double-counts and trips the leash mid-chain. Unmeters no write. Exact names
-# only, as above.
-FREE_SPAWN_AGENTS = {"gauntlet:scrivener", "gauntlet:arbiter", "gauntlet:prosecutor",
-                     "gauntlet:examiner", "gauntlet:juror", "gauntlet:bailiff",
-                     "user-reviewer", "abuser-reviewer", "pedant-reviewer"}
+# own reviewers. Their tool calls are metered by these same hooks in the
+# subagent's context, so charging the spawn double-counts. Unmeters no write.
+# Exact names only, as above.
+FREE_SPAWN_AGENTS = {"user-reviewer", "abuser-reviewer", "pedant-reviewer"}
 
 # Harness tools that move text or control between agents already running. They
 # do reach an agent, so not FREE_TOOLS; free on the FREE_SPAWN_AGENTS reasoning:

@@ -5,7 +5,7 @@
 #                         eslint/prettier/tsc/knip/node tests)
 #   2. rebuild            hqptuner:dev container from the working tree, via a
 #                         trigger file a root-owned systemd path unit watches
-#                         (no sudo: agent shells run inside bwrap)
+#                         (no sudo needed)
 #   3. health check       poll :8090 until it serves, so the user is never
 #                         handed a container that failed to come up
 #

@@ -9,7 +9,7 @@ description: HQPTuner hand-back protocol: when task-check and a rebuild are owed
 
 After any edit to `hqptuner/`, static assets or dependencies, run `/task-check` (`bash .claude/task-check.sh`) before reporting done: `make check`, then (green only) rebuild the `hqptuner:dev` container from the working tree and health-check `:8090`. Work counts as done once the gate is green, the container is rebuilt, and the hand-back URL task-check prints on PASS is handed to the user, who views and tests every change in the browser.
 
-A `CHANGELOG.md`, `docs/`, `scripts/` or `.claude/` edit does not warrant task-check and gets no hand-back URL: the container serves nothing from any of them, and `pair.sh merge` already ran the full gate. Run just the relevant free gate (`make lint`, `check_changelog.py`, the soft-wrap check, the script's own tests). A tooling change's proof is running the tool, not a rebuild.
+A `CHANGELOG.md`, `docs/`, `scripts/` or `.claude/` edit does not warrant task-check and gets no hand-back URL: the container serves nothing from any of them. Run just the relevant free gate (`make lint`, `check_changelog.py`, the soft-wrap check, the script's own tests). A tooling change's proof is running the tool, not a rebuild.
 
 ## The user's eyes are final
 

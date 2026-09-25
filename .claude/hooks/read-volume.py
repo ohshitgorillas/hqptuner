@@ -252,10 +252,8 @@ def advise(data, rows):
     kind = budget.classify(name, tool_input, root, cwd)
     if kind == budget.CHANGE:
         count = count_metered(data, rows, root, cwd)
-        line = (f"Budget: {count}/{budget.CHANGE_LIMIT} "
+        return (f"Budget: {count}/{budget.CHANGE_LIMIT} "
                 f"(metered: {rules.why_metered(name, tool_input, budget)})")
-        rule = rules.rule_for(name, tool_input)
-        return f"{line}\nRule: {rule}" if rule else line
     if kind != budget.FREE:
         return None
 
@@ -409,11 +407,6 @@ def self_test():
     ok.append(_check("a metered Agent spawn is counted too",
                      "3/8" in (advise(_post("Agent", {"subagent_type": "general-purpose"}, 10),
                                       two) or "")))
-    merge = advise(_post("Bash", {"command": "scripts/pair.sh merge eqfix"}, 10), two)
-    ok.append(_check("a metered pair.sh merge carries the standing rule with its count",
-                     "Rule:" in (merge or "") and "3/8" in (merge or "")))
-    ok.append(_check("a metered call matching no rule carries the count alone",
-                     "Rule:" not in (advise(_post("Bash", {"command": "sudo ls"}, 10), two) or "")))
     full = [_said("go"), *_metered(budget.CHANGE_LIMIT - 1)]
     ok.append(_check("the counter at the limit includes the call that just completed",
                      f"{budget.CHANGE_LIMIT}/{budget.CHANGE_LIMIT}"

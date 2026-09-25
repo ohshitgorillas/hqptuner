@@ -152,8 +152,7 @@ target-version = "py312"
 
 [tool.black]
 line-length = 120
-# Mirrors ruff's exclusion above: .claude/hooks/ carries the gauntlet kit's own
-# files, reformatting them forks them from the plugin they are copied from.
+# Mirrors ruff's exclusion above.
 extend-exclude = "\\.claude/hooks/"
 # pre-commit hands black explicit paths, which extend-exclude alone does not stop.
 force-exclude = "\\.claude/hooks/"

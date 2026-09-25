@@ -17,7 +17,6 @@ lint:
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
-	$(VENV)/python scripts/gates/check_spec_draft.py --committed $$(git ls-files 'gauntlet/specs/approved/*.txt')
 	$(VENV)/python scripts/gates/check_binaural.py
 	$(VENV)/python scripts/gates/check_xfeed.py
 	$(VENV)/python scripts/gates/testing/check_e2e_isolation.py

@@ -78,7 +78,5 @@
       }
     ]
   },
-  "enabledPlugins": {
-    "gauntlet@gauntlet": true
-  }
+  "enabledPlugins": {}
 }

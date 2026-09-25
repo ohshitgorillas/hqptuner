@@ -301,7 +301,7 @@ No test pins the block median across frames for the scalars, and no test compare
 | Oracle fixture | stored rows plus the scoring package's readings under `tests/support/fixtures/`, one line pinning `block_record` within 1e-4 dB | open |
 | Relabel | `labels.tsv` rewritten in the filter-named scheme of section 1 with its two columns; Dark Side leaves the 20k grade | open |
 
-Rulings in `gauntlet/plans/approved/junk-live-verdict.txt`: line 12 permits one closed block's statistics beside the rolling minimum; line 13 states the content-ceiling test, and the 20k plan amends it to junk above the fold at or above the level line; line 14 forbids hysteresis and hold, and the run rule amends it. The junkcal fixture under `scripts/junkcal/junkcal_eval.py` carries no 20k scorer; the 20k grading surface is the burst corpus of section 2.
+Standing rulings on the live verdict: one closed block's statistics are permitted beside the rolling minimum; a filter is recommended only when it has an effect on what is playing, a content-ceiling test the 20k plan amends to junk above the fold at or above the level line; hysteresis and hold are forbidden, and the run rule amends that. The junkcal fixture under `scripts/junkcal/junkcal_eval.py` carries no 20k scorer; the 20k grading surface is the burst corpus of section 2.
 
 The corpus holds no 44.1 or 48 kHz bursts: 72 at 88.2 kHz, 338 at 96 kHz, 118 at 192 kHz. No burst in the port sample carried a silent frame under the engine's RMS gate, so the silent path of the port is unmeasured.
 

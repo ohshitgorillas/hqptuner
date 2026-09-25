@@ -12,7 +12,7 @@
 - The same-machine default still connects out of the box; `host.docker.internal` must still resolve for the case the panel's own copy recommends.
 - `README.md`'s Docker instructions agree with whatever compose ships, in the same change.
 - `layer_onto_config`'s precedence is not reopened: a non-empty variable outranking the record is deliberate and deployments (including Opal's) depend on it.
-- The change touches `compose.yaml` and `README.md`, so it takes stage 1 of the plan gate before anything is written.
+- The change touches `compose.yaml` and `README.md`, so it takes the plan gate before anything is written.
 
 `authority`
 

@@ -79,24 +79,12 @@ hqpcreds
 .claude/scheduled_tasks.lock
 # analyzer output over this machine's session transcripts (scripts/budget_miner.py)
 .claude/logs/
-# per-session agent worktrees and scripts/pair.sh's state for them (branch
-# points, the merge lock). Registered worktrees git already keeps out of
-# status; the state files it would not.
+# per-session agent worktrees
 .claude/worktrees/
 
 # local docker test stack + its state
 docker-compose.yaml
 state/
-
-# the gauntlet's artifacts. Approved specs and plans are tracked; drafts, reviewer
-# rounds and the pair's red, merge and gate evidence stay local. Anchored at the repo
-# root so a bare name cannot swallow a same-named directory elsewhere.
-/gauntlet/red/
-/gauntlet/merge/
-/gauntlet/gate/
-/gauntlet/reviews/
-/gauntlet/plans/drafts/
-/gauntlet/specs/drafts/
 
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules

@@ -66,8 +66,6 @@ ruff format --check hqptuner
 
 `ruff` and `black` share one branch, free when `--check` is present, plus `ruff check` in its own right. `ruff format --diff` and `black --diff` meter, `--check` being the free form throughout. Pinned in `ALLOWLIST_CASES` as `ruff format --check` free and `ruff format` metered.
 
-`read-volume.py`'s counter line carries a `Rule:` clause naming the standing ruling a metered call walks into. One entry: a `pair.sh merge`, whose failure `make check` in the combined tree answers for free. The table is `.claude/hooks/metered_rules.py`; run it with `python3 .claude/hooks/read-volume.py --self-test`.
-
 Writes under `.claude/worktrees/` resolve inside the repo root, so `classify()` returns `edit` and they are free, which is why no rule covers them.
 
 ## 2026-09-05, second pass

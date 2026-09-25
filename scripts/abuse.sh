@@ -9,7 +9,7 @@
 # An abuser agent types garbage into the UI. Whatever it stages lands in the
 # server's buffer, and the next human Apply writes all of it to the daemon,
 # which is how twelve stale fields once took hqplayerd off 4321. So a run is
-# opened and closed by this script, each one metered action like pair.sh:
+# opened and closed by this script, each one metered action:
 #
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
