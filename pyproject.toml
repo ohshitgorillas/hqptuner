@@ -124,6 +124,9 @@ forwarders = [
 "hqptuner/presets/presetops.py::park_filter" = "reaches the private filter park, which callers have no route to"
 "hqptuner/presets/presetops.py::parked_filter_members" = "same park, same reason; the facade is the interface"
 
+[tool.filepawl.named_results]
+include = ["hqptuner/**/*.py"]
+
 [tool.filepawl.python]
 include = ["**/*.py"]
 mover = "rope"
