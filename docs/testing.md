@@ -66,6 +66,8 @@ Violations rejected in review even if tests pass.
 
 16. **No environment coupling.** No test reads hostname, locale, timezone, cwd, HOME or a fixed port. Rule 7 covers the clock; this covers the rest.
 
+17. **One unit, one result.** A decision lives in a function whose return value is the decision; an orchestrator executes decisions and does not make them. A function returns one type on every path: a typed result (dataclass or enum), not a dict whose keys differ by branch, and not a bool carrying two meanings. New behavior that cannot name the one value its test will assert is split before it is written.
+
 ## Speed is a correctness property
 
 The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is struck on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner strikes it directly and needs no spec lane to do it.
