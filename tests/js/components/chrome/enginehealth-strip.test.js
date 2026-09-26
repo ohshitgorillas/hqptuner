@@ -68,7 +68,7 @@ import { elements, classes, text } from "../../support/markup.js";
 import { renderWith } from "../../support/wheel.js";
 import { STOPPED, readCadences, setApodCounter, poll, append, feed } from "../../support/apodpolls.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { EngineHealth } from "../../../../hqptuner/static/components/EngineHealth.js";
+import { EngineHealth } from "../../../../hqptuner/static/components/system/EngineHealth.js";
 import { liveMode, apodWindow, setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 

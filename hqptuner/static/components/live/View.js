@@ -44,7 +44,7 @@ import { easyMode } from "../../store/easy/easyview.js";
 import { PrimerView } from "../primer/View.js";
 import { primerOpen } from "../../store/primer/primerview.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
-import { EngineHealth } from "../EngineHealth.js";
+import { EngineHealth } from "../system/EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
 import { AbCard } from "./AB.js";
 import { LiveBlocks } from "./Layout.js";

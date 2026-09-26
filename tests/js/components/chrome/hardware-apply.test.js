@@ -1,5 +1,5 @@
 // Behavioral suite for the System tab's Hardware acceleration card
-// (components/SystemHardware.js), covering the CLEAN half of its apply/revert
+// (components/system/SystemHardware.js), covering the CLEAN half of its apply/revert
 // contract: with nothing changed, the apply button carries no dirty marking,
 // NEITHER button is disabled, and the status line renders with nothing to say.
 //
@@ -32,7 +32,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { HardwareCard } from "../../../../hqptuner/static/components/SystemHardware.js";
+import { HardwareCard } from "../../../../hqptuner/static/components/system/SystemHardware.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";

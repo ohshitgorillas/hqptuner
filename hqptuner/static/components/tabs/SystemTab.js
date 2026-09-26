@@ -6,9 +6,9 @@ import { html } from "../../lib/dom.js";
 import { Field } from "../widgets/Field.js";
 import { noteFor } from "../../store/prose.js";
 import { health } from "../../store/signals.js";
-import { EngineHealth } from "../EngineHealth.js";
-import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
-import { LogTail } from "../LogTail.js";
+import { EngineHealth } from "../system/EngineHealth.js";
+import { HardwareCard, BackupRestoreRow } from "../system/SystemHardware.js";
+import { LogTail } from "../system/LogTail.js";
 import { Checkbox, RadioGroup } from "../controls/index.js";
 import {
   accent,

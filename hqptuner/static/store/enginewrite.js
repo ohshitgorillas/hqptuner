@@ -1,6 +1,6 @@
 // The engine-write lifecycle, shared by every page that writes to the daemon:
 // the staged apply (store/actions.js), the speakers card (store/matrix/speakers.js)
-// and the System tab's engine write and config restore (components/SystemHardware.js).
+// and the System tab's engine write and config restore (components/system/SystemHardware.js).
 //
 // Two signals, because a write and a restart are not the same fact. `engineBusy`
 // is "a write is in flight" and drives the pill's Applying… state; `engineRestarting`

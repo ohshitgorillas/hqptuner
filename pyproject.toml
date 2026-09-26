@@ -130,6 +130,8 @@ mover = "rope"
 
 [tool.filepawl.javascript]
 include = ["**/*.js", "**/*.css"]
+mover = "command"
+mover_command = "node /home/atom/dev/jsmover/bin/jsmover.js mv {old} {new}"
 
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not

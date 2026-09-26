@@ -9,12 +9,12 @@
 // System tab unless quick updates is ticked, 1 s on LIVE always; the
 // needle's CSS transform transition gives it damped-ballistics sweep
 // between polls.
-import { html } from "../lib/dom.js";
-import { engineStatus } from "../store/signals.js";
-import { trackCounters, outputBufferApplies } from "../store/health.js";
-import { quickSystemUpdates, setQuickSystemUpdates } from "../store/ui/prefs.js";
-import { Checkbox } from "./controls/index.js";
-import { ApodStrip } from "./ApodStrip.js";
+import { html } from "../../lib/dom.js";
+import { engineStatus } from "../../store/signals.js";
+import { trackCounters, outputBufferApplies } from "../../store/health.js";
+import { quickSystemUpdates, setQuickSystemUpdates } from "../../store/ui/prefs.js";
+import { Checkbox } from "../controls/index.js";
+import { ApodStrip } from "../ApodStrip.js";
 
 /**
  * @typedef {string | number | null | undefined} StatusValue

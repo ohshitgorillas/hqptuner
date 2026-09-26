@@ -1,4 +1,4 @@
-// Behavioral suite for components/LogTail.js — the live log-tail block on the
+// Behavioral suite for components/system/LogTail.js — the live log-tail block on the
 // System tab: a checkbox that DEFAULTS to the daemon's logging state
 // (log_enabled), revealing a static 50-line window while checked.
 //
@@ -39,7 +39,7 @@ import { render } from "preact-render-to-string";
 
 import { attr, elements } from "../../support/markup.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { LogTail } from "../../../../hqptuner/static/components/LogTail.js";
+import { LogTail } from "../../../../hqptuner/static/components/system/LogTail.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { stagingWire } from "../../support/wire/wire.js";
