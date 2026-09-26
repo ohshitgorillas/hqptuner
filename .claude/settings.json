@@ -78,5 +78,7 @@
       }
     ]
   },
-  "enabledPlugins": {}
+  "enabledPlugins": {
+    "filepawl@filepawl": true
+  }
 }
