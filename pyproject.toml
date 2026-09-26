@@ -222,6 +222,7 @@ ban-relative-imports = "all"
     "SLF001",   # budget tooling reuses the change-budget hook's own classifiers so its accounting matches the hook's
     "PLR2004",  # the remaining literals are self_checks() expectations: the number asserted IS the expectation
 ]
+"scripts/eqtools_mcp.py" = ["S607"]  # owner-approved: node comes from PATH, which is the tests' stub seam; the argv stays literal
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 
 [tool.mypy]
