@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
     from pathlib import Path
 
-    from fastapi import FastAPI
+    from starlette.types import ASGIApp
 
 BINS = 1025
 TRANSFORM_BITS = 16
@@ -89,7 +89,7 @@ def _first_complete_event(text: str) -> tuple[str, str] | None:
     return None
 
 
-async def _read_first_event(app: FastAPI, state: dict[str, Any]) -> tuple[str, str] | None:
+async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, str] | None:
     """GET the feed, read until its first event, hang up; ``None`` where the
     response ends without one."""
     sent: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
