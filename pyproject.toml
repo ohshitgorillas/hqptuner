@@ -32,7 +32,7 @@ dev = [
     "triviajudge",
     # the length, directory-count, barrel and nesting gates; the mv extra is
     # rope, which `filepawl mv` uses to rewrite Python imports
-    "filepawl[mv]",
+    "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@v0.10.0",
     # hqptuner.spec builds the desktop binary with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
