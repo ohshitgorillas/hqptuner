@@ -79,7 +79,7 @@ const VuGauge = ({ speed }) => html`
         x1=${CX}
         y1=${CY}
         x2=${CX}
-        y2=${CY - 84}
+        y2=${CY - 66}
         style="transform: rotate(${angleFor(speed)}deg); transform-origin: ${CX}px ${CY}px"
       />
       <circle class="vu-hub" cx=${CX} cy=${CY} r="5" />

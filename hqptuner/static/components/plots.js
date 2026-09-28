@@ -39,8 +39,8 @@ import { db as fmtLevel, dbOffset } from "../lib/units.js";
 const W = 640;
 const PADL = 34;
 const PADR = 52; // room for the right-edge trace labels
-const PADT = 16; // top band carries the y-axis unit labels
-const PADB = 20;
+const PADT = 22; // top band carries the y-axis unit labels
+const PADB = 24;
 const LOGSPAN = Math.log(F1 / F0);
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 // A vertical at EVERY labeled frequency. Three decade lines under ten labels
@@ -344,7 +344,7 @@ export function LoudnessPlot() {
   // pointer, and the engine's own report only lands on the poll
   const vol = num(volumeShown.value, rangeHigh);
   const scale = shelfScale(vol, rangeLow, rangeHigh);
-  const freqs = bandFreqs(160);
+  const freqs = bandFreqs(256);
   const pct = Math.round(scale * 100);
   // REW-style drag handles at each band's (frequency, level) corner — dragging
   // streams live overrides (instant repaint) and stages both params on release.
