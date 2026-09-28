@@ -18,7 +18,8 @@
 import { html } from "../lib/dom.js";
 import { engineStatus, engineState } from "../store/signals.js";
 import { runningValue, formFieldName } from "../store/resolve.js";
-import { schema, volumePinned } from "../store/schema.js";
+import { schema } from "../store/schema.js";
+import { volumePinned } from "../store/schema/gray.js";
 import { optionsFor } from "../store/ui/options.js";
 import { truthy as on } from "../lib/coerce.js";
 import { hz } from "../lib/units.js";

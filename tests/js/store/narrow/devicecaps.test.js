@@ -36,7 +36,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DSD_RATES } from "../../../../hqptuner/static/store/schema.js";
+import { DSD_RATES } from "../../../../hqptuner/static/store/schema/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
   ALSA_DEVICE,

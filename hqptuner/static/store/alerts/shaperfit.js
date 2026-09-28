@@ -22,7 +22,8 @@ import { computed } from "@preact/signals";
 import { metadata } from "../signals.js";
 import { effective } from "../resolve.js";
 import { optionsFor } from "../ui/options.js";
-import { schema, DSD_RATES, PCM_RATES, TIER } from "../schema.js";
+import { schema } from "../schema.js";
+import { DSD_RATES, PCM_RATES, TIER } from "../schema/options.js";
 import { loadedChain } from "../live/rates.js";
 
 /**

@@ -41,7 +41,7 @@
 // build a profile against a bypassed engine and engage it afterwards.
 import { html } from "../../lib/dom.js";
 import { effective } from "../../store/resolve.js";
-import { MATRIX_BYPASS_REASON } from "../../store/schema.js";
+import { MATRIX_BYPASS_REASON } from "../../store/schema/gray.js";
 import { truthy } from "../../lib/coerce.js";
 
 // What a card says when its own feature is switched off: nothing the user has set

@@ -19,7 +19,7 @@ import { setVolume } from "../../store/actions.js";
 import { Knob } from "../widgets/Knob.js";
 import { Card } from "../common.js";
 import { truthy, num } from "../../lib/coerce.js";
-import { isoLevel } from "../../store/schema.js";
+import { isoLevel } from "../../store/schema/gray.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is

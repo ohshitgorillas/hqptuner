@@ -116,7 +116,6 @@ watch = 400
 
 [tool.filepawl.exempt]
 "scripts/junkcal/junkcal_fixture.py" = "junkcal fixture oracle, provenance kept whole"
-"hqptuner/static/store/schema.js" = "one-entry-per-line control table, not logic"
 
 [tool.filepawl.barrels]
 include = ["hqptuner/**/*.py", "scripts/**/*.py"]

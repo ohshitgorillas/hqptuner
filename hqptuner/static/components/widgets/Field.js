@@ -5,7 +5,8 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { schema, MATRIX_BYPASS_REASON } from "../../store/schema.js";
+import { schema } from "../../store/schema.js";
+import { MATRIX_BYPASS_REASON } from "../../store/schema/gray.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../../store/resolve.js";
 import { edit, setLive, autosave } from "../../store/actions.js";
 import { refreshDevices } from "../../store/sync.js";

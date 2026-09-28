@@ -99,7 +99,7 @@ import { stagingWire } from "../../support/wire/wire.js";
 // rule 9), so a reworded head changes nothing.
 import { cardTitled } from "../../support/tabform.js";
 import { elements, attr, text } from "../../support/markup.js";
-import { MATRIX_BYPASS_REASON } from "../../../../hqptuner/static/store/schema.js";
+import { MATRIX_BYPASS_REASON } from "../../../../hqptuner/static/store/schema/gray.js";
 
 // The two cards this file reads notes off, by id.
 const CORRECTION_CARD = "dac-correction";
