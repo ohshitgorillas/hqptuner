@@ -281,6 +281,17 @@ test("test_auto_headroom_is_named_by_the_fixed_volume_cause", async () => {
   assert.equal(cause(card()), "fixed-volume");
 });
 
+test("test_auto_headroom_at_minus_six_is_named_by_the_fixed_volume_cause", async () => {
+  await reset({ range: OFF, running: { volume_fixed: "2" } });
+  assert.equal(cause(card()), "fixed-volume");
+});
+
+test("test_a_staged_auto_headroom_at_minus_six_disable_points_at_apply", async () => {
+  await reset({ range: OFF, running: { volume_fixed: "2" } });
+  await edit("optimal_iso", "0");
+  assert.equal(staged(card()), "1");
+});
+
 test("test_a_staged_fixed_volume_disable_points_at_apply", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1" } });
   await edit("fixed_volume_enabled", "0");

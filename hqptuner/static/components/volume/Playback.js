@@ -19,6 +19,7 @@ import { setVolume } from "../../store/actions.js";
 import { Knob } from "../widgets/Knob.js";
 import { Card } from "../common.js";
 import { truthy, num } from "../../lib/coerce.js";
+import { isoLevel } from "../../store/schema.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is
@@ -33,7 +34,10 @@ import { truthy, num } from "../../lib/coerce.js";
 function disabledReason() {
   // running-on but edited-off = the user already staged the disable; the
   // missing step is Apply, so say that instead of repeating the toggle advice
-  const pendingOff = (/** @type {string} */ k) => truthy(runningValue(k)) && !truthy(effective(k));
+  // optimal_iso is a 0/1/2 level, so it is on at any nonzero level, not only "1"
+  const on = (/** @type {string} */ k, /** @type {string | number | boolean | undefined} */ v) =>
+    k === "optimal_iso" ? isoLevel(v) !== "0" : truthy(v);
+  const pendingOff = (/** @type {string} */ k) => on(k, runningValue(k)) && !on(k, effective(k));
   const hint = (/** @type {boolean} */ staged) =>
     staged ? " Apply the staged change to free the volume control." : "";
   if (truthy(runningValue("direct_sdm"))) {
@@ -44,7 +48,7 @@ function disabledReason() {
       text: `Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.${hint(staged)}`,
     };
   }
-  if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
+  if (truthy(runningValue("fixed_volume_enabled")) || isoLevel(runningValue("optimal_iso")) !== "0") {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
     return {
       code: "fixed-volume",

@@ -100,6 +100,16 @@ test("a daemon outside the verified series draws the notice", () => {
   assert.ok(render(html`<${System} />`).includes(UNVERIFIED));
 });
 
+// The version is data dropped into the notice's prose; the template's newline
+// before it is trimmed, so a word runs into the number unless a space is put
+// there on purpose. Asserted as a word boundary, not as the prose around it.
+test("the notice separates the daemon's version from the word before it", () => {
+  const engine = "6.1.0";
+  health.value = { info: { engine }, license: null };
+  const notes = elements(render(html`<${System} />`)).filter((el) => attr(el, "data-note") === "unverified-daemon");
+  assert.match(notes.map(text).join(""), new RegExp(`\\S ${engine.replace(/\./g, "\\.")}`));
+});
+
 test("a daemon in the verified series draws no notice", () => {
   health.value = { info: { engine: "6.0.4" }, license: null };
   assert.equal(render(html`<${System} />`).includes(UNVERIFIED), false);

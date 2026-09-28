@@ -66,11 +66,11 @@ const fixedOff = (/** @type {GrayCtx} */ ctx) =>
   directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "Requires Fixed volume to be enabled.");
 // Optimal ISO supersedes the manual level with an auto-optimized one (manual
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
-// volume_fixed's XML domain is 0 = off / 1 = −3 dB / 2 = −6 dB (readme §1.2), but
-// the value reaches us either as one of those strings (file truth) or as a bare
-// bool (the /config form's checkbox, which cannot express 2). Normalize to the
-// XML domain so both sources read the same.
-const isoLevel = (/** @type {string | number | boolean | undefined} */ v) => {
+/** volume_fixed's XML domain is 0 = off / 1 = −3 dB / 2 = −6 dB (readme §1.2), but
+ * the value reaches us either as one of those strings (file truth) or as a bare
+ * bool (the /config form's checkbox, which cannot express 2). Normalize to the
+ * XML domain so both sources read the same. */
+export const isoLevel = (/** @type {string | number | boolean | undefined} */ v) => {
   if (v === true) return "1";
   if (v === false || v == null) return "0";
   const s = String(v);

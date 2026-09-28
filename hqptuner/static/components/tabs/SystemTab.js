@@ -84,7 +84,7 @@ const About = () => {
     ${
       engineMismatch.value
         ? html`<p class="field-note" data-note="unverified-daemon">
-          HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports
+          HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports${" "}
           ${engineMismatch.value}. Nothing is disabled for it — but if something misbehaves, that difference is worth
           putting in the report.
         </p>`
