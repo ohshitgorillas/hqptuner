@@ -7,6 +7,12 @@ on:
     branches: [dev]
   pull_request:
   workflow_call:
+  # Weekly on main, the default branch, whose caches every branch and tag can
+  # restore: it keeps main's idle record inside GitHub's seven-day eviction and
+  # adds a reading to it, so beta and tag runs start from a converged record
+  # rather than judging a single sample.
+  schedule:
+    - cron: "17 6 * * 1"
 
 jobs:
   check:
