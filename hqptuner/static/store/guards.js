@@ -8,7 +8,8 @@
 // whether the daemon is playing or not. A guard asks about the CONFIGURATION it
 // would produce, never about the engine's state.
 
-import { schema, atFixedMinusThree, volumePinned } from "./schema.js";
+import { schema } from "./schema.js";
+import { atFixedMinusThree, volumePinned } from "./schema/gray.js";
 import { optionsFor } from "./ui/options.js";
 import { truthy } from "../lib/coerce.js";
 import { metadata } from "./signals.js";

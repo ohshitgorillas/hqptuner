@@ -6,7 +6,6 @@ version = 1
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
 "hqptuner/static/css/features/volume.css" = { lines = 407 }
 "hqptuner/static/store/actions.js" = { lines = 413 }
-"hqptuner/static/store/schema.js" = { lines = 1203 }
 "hqptuner/static/store/ui/prefs.js" = { lines = 428 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

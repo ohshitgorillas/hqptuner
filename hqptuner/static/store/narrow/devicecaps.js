@@ -14,7 +14,8 @@ import { computed, effect } from "@preact/signals";
 import { config } from "../signals.js";
 import { effective } from "../resolve.js";
 import { edit } from "../actions.js";
-import { schema, TWIN_44K, DSD_RATES } from "../schema.js";
+import { schema } from "../schema.js";
+import { TWIN_44K, DSD_RATES } from "../schema/options.js";
 import { truthy } from "../../lib/coerce.js";
 
 // The form field naming the device each backend drives. Combo drives both at
