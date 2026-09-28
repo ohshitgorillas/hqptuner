@@ -15,6 +15,8 @@ __pycache__/
 .idle-probe.json
 # the smallest idle each test has been measured at, the record that gate converges
 .idle-min.json
+# per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/check_clock_waits.py
+.clock-probe.json
 htmlcov/
 
 # editor scratch — vim swap files for anything open in the tree

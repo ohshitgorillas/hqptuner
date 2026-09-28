@@ -62,11 +62,18 @@ lint-js:
 # the last green run's (scripts/gates/testing/check_suite_time.py). The idle probe
 # measures each test's wall time against its CPU time and writes a second
 # report, which the fourth line holds per test (scripts/gates/check_idle.py).
+# That reading counts every delay a shared runner adds, so CI sets
+# IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
+# a reading the same on any machine, and the fifth line refuses any test with
+# one (scripts/gates/check_clock_waits.py).
+IDLE_GATE ?= on
+
 test:
-	PYTHONPATH=scripts:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
-	$(VENV)/python scripts/gates/check_idle.py
+	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
+	$(VENV)/python scripts/gates/check_clock_waits.py
 
 test-live:
 	$(VENV)/pytest -m "not e2e" -q
