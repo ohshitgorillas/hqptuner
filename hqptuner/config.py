@@ -65,6 +65,10 @@ def _optional_path(name: str) -> Path | None:
 # variable name — still sees every one of these fields.
 _UNSET_PATH = Path()
 
+#: Whether any build offers the junk-filter advisor, auto-pilot and the METER page. Not an operator knob: the three
+#: ship only when this reads True, and a stored auto-pilot state never acts while it reads False.
+ADVISOR_ENABLED = False
+
 
 @dataclass
 class Config:
@@ -83,6 +87,10 @@ class Config:
     # reader is never constructed, nothing connects to 4322, and the advisor's
     # recommendation is permanently null — the rest of HQPTuner is unaffected.
     metering_enabled: bool = field(default_factory=lambda: _env_flag("METERING_ENABLED", "1"))
+    # Whether the junk-filter advisor, auto-pilot and the METER page are offered at all. A build
+    # constant, not an operator knob: off hides the three and makes auto-pilot inert while they
+    # are reworked, with every stored state left where it is.
+    advisor_enabled: bool = ADVISOR_ENABLED
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
     # override only if the daemon's auth was re-provisioned.
     # Where the daemon address and management credentials the user saved at runtime live (core/connection.py) — one

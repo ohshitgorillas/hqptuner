@@ -12,6 +12,7 @@
 import { html } from "../../lib/dom.js";
 import { Checkbox } from "../controls/index.js";
 import { autopilot, metering, setAutopilot } from "../../store/actions.js";
+import { advisor } from "../../store/signals.js";
 import { notesVisible } from "../../store/ui/prefs.js";
 
 const LABEL = "HF filter auto-pilot";
@@ -21,11 +22,17 @@ const NOTE =
 // auto-pilot acts on, and without it the switch would be a control that does nothing.
 const NO_METERING = "Metering is disabled; HQPTuner can't determine optimal settings.";
 
-/** The auto-pilot switch as an ordinary field row, grayed when there is no metering to act on. */
+/** The auto-pilot switch as an ordinary field row, grayed when there is no metering to act on; nothing while the advisor is not offered. */
 export function AutopilotToggle() {
+  if (!advisor.value) return null;
   const grayed = !metering.value;
   return html`
-    <div class="field field-checkbox" data-k="junk_filter_autopilot" title=${grayed ? NO_METERING : NOTE}>
+    <div
+      class="field field-checkbox"
+      data-k="junk_filter_autopilot"
+      data-testid="autopilot-toggle"
+      title=${grayed ? NO_METERING : NOTE}
+    >
       <label>${LABEL}</label>
       <div class="control">
         <${Checkbox}

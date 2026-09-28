@@ -91,6 +91,7 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
+            advisor_enabled=True,
         )
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
         wait_for_api(client, _bands_served)

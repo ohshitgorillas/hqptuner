@@ -11,7 +11,7 @@
 // METER page, a click while it is up returns to the tabs.
 import { computed } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { engineStatus } from "../store/signals.js";
+import { advisor, engineStatus } from "../store/signals.js";
 import { meterMode, setMeterMode } from "../store/ui/prefs.js";
 
 // What the bars span. The floor is well under the quietest band a playing
@@ -37,8 +37,9 @@ function fill(db) {
   return Math.round(Math.max(0, Math.min(1, frac)) * 100);
 }
 
-/** The header's three-band level readout, and the latching METER switch. */
+/** The header's three-band level readout, and the latching METER switch; nothing while the advisor is not offered. */
 export function MiniSpectrum() {
+  if (!advisor.value) return null;
   const on = meterMode.value;
   return html`
     <button

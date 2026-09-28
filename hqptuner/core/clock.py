@@ -25,11 +25,11 @@ async def wait_until(event: asyncio.Event, seconds: float) -> bool:
 
 
 async def pace_until(wake: asyncio.Event | None, seconds: float) -> bool:
-    """Idle a background loop for ``seconds``, cut short by ``wake`` when it is given; answer whether it woke."""
-    if wake is None:
-        await asyncio.sleep(seconds)
-        return False
-    return await wait_until(wake, seconds)
+    """Idle a background loop for ``seconds``, cut short by ``wake`` when it is given; answer whether it woke.
+
+    A loop with no wake event of its own paces on one nobody sets, which is a plain sleep by another name.
+    """
+    return await wait_until(wake or asyncio.Event(), seconds)
 
 
 @dataclass(frozen=True)

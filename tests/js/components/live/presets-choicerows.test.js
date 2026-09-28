@@ -22,3 +22,14 @@ test("choiceRows lists a row for each setting the snapshot carries", () => {
     [["autopilot", "adaptive_volume"], ["autopilot"]],
   );
 });
+
+// A snapshot taken with the advisor off carries no auto-pilot state (null), and
+// then there is no auto-pilot row to offer.
+const autopilotAbsent = { chain: "pcm", fields: { adaptive_volume: { value: "1", name: "1" } }, autopilot: null };
+
+test("choiceRows offers no auto-pilot row when the snapshot carries none", () => {
+  assert.deepEqual(
+    [choiceRows(withAdaptive).map((r) => r.value), choiceRows(autopilotAbsent).map((r) => r.value)],
+    [["autopilot", "adaptive_volume"], ["adaptive_volume"]],
+  );
+});

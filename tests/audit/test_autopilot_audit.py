@@ -105,6 +105,7 @@ def autopilot_client(
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
+        advisor_enabled=True,
         hqp_home="/x/home",
         debug_log=audit_log,
     )

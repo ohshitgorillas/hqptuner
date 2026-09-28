@@ -12,6 +12,7 @@
 // the presets lane speaks to /api/livepresets and to nothing on the page.
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
+import { advisor } from "../../store/signals.js";
 import {
   livePresets,
   livePresetsBusy,
@@ -35,8 +36,9 @@ import { Card } from "../common.js";
  *   One saved live snapshot as /api/livepresets serves it. `fields` is the stored
  *   batch; `names` each field's display name; `autopilot` null when the preset
  *   does not carry the switch.
- * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }>, autopilot: boolean }} Snapshot
- *   What a save would store right now (/api/livepresets/snapshot).
+ * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }>, autopilot: boolean | null }} Snapshot
+ *   What a save would store right now (/api/livepresets/snapshot); `autopilot`
+ *   null while the advisor is not offered, and then no row is listed for it.
  * @typedef {import("../controls/Combobox.js").TipContent} TipContent
  */
 
@@ -79,15 +81,18 @@ function shown(key, value) {
  * @returns {ChoiceOption[]}
  */
 export function choiceRows(snap) {
+  // Only rows that passed the filter below reach here, so an auto-pilot row's value is never null.
   /** @param {string} key */
-  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot : snap.fields[key].name);
-  return LABELS.filter(([key]) => key === AUTOPILOT || key in snap.fields).map(([key, label]) => ({
-    value: key,
-    label,
-    checked: true,
-    disabled: false,
-    detail: detail(key),
-  }));
+  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot === true : snap.fields[key].name);
+  return LABELS.filter(([key]) => (key === AUTOPILOT ? snap.autopilot != null : key in snap.fields)).map(
+    ([key, label]) => ({
+      value: key,
+      label,
+      checked: true,
+      disabled: false,
+      detail: detail(key),
+    }),
+  );
 }
 
 // Why the device cannot play a preset, "" when it can. A preset that stores no
@@ -128,7 +133,8 @@ function presetTips(presets) {
     const names = record.names || {};
     for (const [key, label] of LABELS) {
       const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
-      if (key === AUTOPILOT ? record.autopilot != null : key in record.fields) {
+      // A record saved while auto-pilot was offered keeps its switch on disk; it is listed only while it is offered.
+      if (key === AUTOPILOT ? record.autopilot != null && advisor.value : key in record.fields) {
         tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value)), []]);
       }
     }

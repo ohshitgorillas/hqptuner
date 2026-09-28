@@ -37,6 +37,9 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
         # auto-pilot and live-snapshot state, whose defaults are the dev
         # container's bind-mounted state/
         live_preset_file=tmp_path / "live-presets.json",
+        # ADVISOR_ENABLED is off in every build; the suite keeps it on so the
+        # switch, its background loop and the state they carry stay exercised
+        advisor_enabled=True,
         favorites_file=tmp_path / "favorites.json",
         narrowing_file=tmp_path / "narrowing.json",
         description_file=tmp_path / "descriptions.json",
@@ -110,6 +113,9 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
         # records auto-pilot state, and the defaults are the dev container's
         # bind-mounted state/ (the conftest env guard backstops this)
         live_preset_file=tmp_path / "live-presets.json",
+        # ADVISOR_ENABLED is off in every build; the suite keeps it on so the
+        # switch, its background loop and the state they carry stay exercised
+        advisor_enabled=True,
         favorites_file=tmp_path / "favorites.json",
         narrowing_file=tmp_path / "narrowing.json",
         description_file=tmp_path / "descriptions.json",

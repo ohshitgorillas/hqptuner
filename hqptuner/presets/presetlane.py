@@ -176,7 +176,12 @@ def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> N
 
     Lives in the presets package rather than beside the callers so the api routes and ``core.autopilotops`` share one
     copy without either importing the other (the import layering in ``pyproject.toml``).
+
+    With the advisor off (``Config.advisor_enabled``) nothing is written and nothing is audited: the store keeps what
+    it holds for the build that offers auto-pilot again, and no path can move it meanwhile.
     """
+    if not mgr.cfg.advisor_enabled:
+        return
     previous = mgr.presetops.autopilot.enabled
     if enabled:
         mgr.presetops.autopilot.enable()

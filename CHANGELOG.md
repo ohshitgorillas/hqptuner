@@ -12,6 +12,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The Setting Switcher compares matrix profiles.** While the matrix engine is engaged, a fourth setting switches between two saved matrix profiles, and each profile's notes show on hover in both dropdowns.
 
+### Removed
+
+- **The junk-filter advisor and the high-frequency filter auto-pilot are withdrawn for rework.** The advice chip, the auto-pilot switch and the auto-pilot line in live snapshots no longer appear. Auto-pilot state already saved in presets and snapshots is kept and comes back with the feature.
+
 ### Fixed
 
 - **Filter tips show their phase, length and upsample-only markings**, and filter and modulator notes show in the hover text.

@@ -46,3 +46,26 @@ test("the row is grayed, checked and noted without metering, and plain with it",
     [["checked", "disabled", "field-gray-reason", "field-note"], []],
   );
 });
+
+/**
+ * Whether the row renders at all for one reading of /api/status.
+ * @param {{ advisor: boolean, metering: boolean, autopilot: boolean }} status
+ * @returns {boolean}
+ */
+function rendersFor(status) {
+  engineStatus.value = status;
+  showDescriptions.value = false;
+  const out = render(html`<${AutopilotToggle} />`);
+  engineStatus.value = null;
+  return out.includes('data-testid="autopilot-toggle"');
+}
+
+test("the row renders only while the advisor is on", () => {
+  assert.deepEqual(
+    [
+      rendersFor({ advisor: true, metering: true, autopilot: false }),
+      rendersFor({ advisor: false, metering: true, autopilot: false }),
+    ],
+    [true, false],
+  );
+});

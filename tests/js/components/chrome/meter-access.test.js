@@ -152,3 +152,23 @@ for (const [name, meter, expected] of PRESSED) {
     assert.equal(pressedOf(meter), expected);
   });
 }
+
+/**
+ * Whether the `data-testid="mini-spectrum"` element renders at all for one
+ * reading of /api/status.
+ *
+ * @param {{ advisor: boolean }} status
+ * @returns {boolean}
+ */
+function rendersFor(status) {
+  prefs.liveMode.value = false;
+  prefs.meterMode.value = false;
+  engineStatus.value = status;
+  const out = render(html`<${MiniSpectrum} />`);
+  engineStatus.value = null;
+  return out.includes('data-testid="mini-spectrum"');
+}
+
+test("test_the_mini_spectrum_renders_only_while_the_advisor_is_on", () => {
+  assert.deepEqual([rendersFor({ advisor: true }), rendersFor({ advisor: false })], [true, false]);
+});

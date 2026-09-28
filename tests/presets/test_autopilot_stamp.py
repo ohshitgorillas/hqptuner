@@ -49,6 +49,7 @@ def stamp_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_pat
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
+        advisor_enabled=True,
         hqp_home="/x/home",
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:

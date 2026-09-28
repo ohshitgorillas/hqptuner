@@ -95,7 +95,7 @@ class LiveSnapshotView:
 
     chain: str | None
     fields: dict[str, dict[str, str]]
-    autopilot: bool
+    autopilot: bool | None
 
 
 @dataclass(frozen=True)
@@ -140,6 +140,11 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     return keys
 
 
+def _autopilot_now(manager: ConnectionManager) -> bool | None:
+    """Return auto-pilot's switch as a save would record it, or None while the advisor is off and it has no meaning."""
+    return manager.presetops.autopilot.enabled if manager.cfg.advisor_enabled else None
+
+
 def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
     """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all). 409 chain unknown."""
     taken = snapshot.live_snapshot(manager)
@@ -151,7 +156,7 @@ def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
         chain=active,
         fields={field: item["value"] for field, item in kept.items()},
         names={field: item["name"] for field, item in kept.items()},
-        autopilot=manager.presetops.autopilot.enabled if keys is None or AUTOPILOT in keys else None,
+        autopilot=_autopilot_now(manager) if keys is None or AUTOPILOT in keys else None,
     )
 
 
@@ -164,7 +169,7 @@ def live_snapshot(manager: Mgr) -> LiveSnapshotView:
     taken = snapshot.live_snapshot(manager)
     if taken is None:
         raise refuse(ChainUnknownError())
-    return LiveSnapshotView(chain.active_chain(manager), taken, manager.presetops.autopilot.enabled)
+    return LiveSnapshotView(chain.active_chain(manager), taken, _autopilot_now(manager))
 
 
 @router.get("/livepresets")

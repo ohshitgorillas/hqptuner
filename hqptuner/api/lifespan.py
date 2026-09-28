@@ -83,7 +83,7 @@ def make_lifespan(
         autopilot_task: asyncio.Task[None] | None = None
         # The calibration capture reads the same verdict and writes files only.
         junkcal_task: asyncio.Task[None] | None = None
-        if cfg.metering_enabled:
+        if cfg.metering_enabled and cfg.advisor_enabled:
             reader = MeteringReader(
                 cfg.hqp_host,
                 cfg.hqp_metering_port,

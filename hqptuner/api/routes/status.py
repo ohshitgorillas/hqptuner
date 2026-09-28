@@ -65,6 +65,7 @@ class StatusReport:
     bands: Bands | None
     autopilot: bool
     metering: bool
+    advisor: bool
 
 
 @router.get("/health")
@@ -114,16 +115,20 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     a corrupt one refuses with ``store_corrupt``. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
     against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``bands`` carries the
-    header readout's three levels, null while the reader has nothing in front of it.
+    header readout's three levels, null while the reader has nothing in front of it. ``advisor`` says whether the
+    advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, auto-pilot reads as
+    off whatever its store holds.
     """
     frame = manager.readings.status
     if frame is None:
         raise refuse(NotLoadedError())
     junk = manager.metering.recommendation() if manager.metering is not None else None
     bands = manager.metering.bands() if manager.metering is not None else None
+    advisor = manager.cfg.advisor_enabled
     autopilot = False
-    with contextlib.suppress(AutopilotError):
-        autopilot = manager.presetops.autopilot.enabled
+    if advisor:
+        with contextlib.suppress(AutopilotError):
+            autopilot = manager.presetops.autopilot.enabled
     report = StatusReport(
         status=frame,
         metadata=manager.readings.status_metadata,
@@ -131,6 +136,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
         bands=bands,
         autopilot=autopilot,
         metering=manager.metering is not None,
+        advisor=advisor,
     )
     return deps.snapshot(manager, report)
 

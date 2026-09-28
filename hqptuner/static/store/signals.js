@@ -67,3 +67,8 @@ export const ready = computed(() => !!(health.value && health.value.ready));
 // down still applies a live setting over the control lane.
 export const connected = computed(() => !!(health.value && health.value.connected));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
+// Whether the junk-filter advisor, auto-pilot and the METER page are offered at
+// all (Config.advisor_enabled, on /api/status as `advisor`). Off, their controls
+// do not render. A payload without the field reads as offered: hiding a control
+// that in fact works is the worse failure.
+export const advisor = computed(() => (engineStatus.value || {}).advisor !== false);

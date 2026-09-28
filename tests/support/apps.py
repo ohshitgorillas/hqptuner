@@ -116,6 +116,9 @@ def live_app(
         # the auto-pilot switch lands beside it for the same reason: a preset
         # test that flips the switch must not stamp the dev container's store
         autopilot_file=tmp_path / "autopilot.json",
+        # ADVISOR_ENABLED is off in every build; the suite keeps it on so the
+        # preset and snapshot cases still exercise the switch it carries
+        advisor_enabled=True,
     )
     if request_timeout is not None:  # real wall clock, unlike the virtualized one
         cfg = replace(cfg, request_timeout=request_timeout)
