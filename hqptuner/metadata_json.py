@@ -69,11 +69,9 @@ def str_map(value: object) -> dict[str, str]:
     return value if _is_str_map(value) else {}
 
 
-def filter_entry(raw: object) -> FilterEntry:
-    """One ``filters.json`` entry, keeping only the fields ``FilterEntry`` names and whose value fits."""
+def _filter_taxonomy(raw: dict[str, object]) -> FilterEntry:
+    """Keep the character facets of one filter entry: genre, quality, focus, apodizing and phase."""
     entry: FilterEntry = {}
-    if not isinstance(raw, dict):
-        return entry
     genre = raw.get("genre")
     if _is_str_list(genre):
         entry["genre"] = genre
@@ -86,18 +84,62 @@ def filter_entry(raw: object) -> FilterEntry:
     apodizing = raw.get("apodizing")
     if _is_str(apodizing):
         entry["apodizing"] = apodizing
+    phase = raw.get("phase")
+    if _is_str(phase):
+        entry["phase"] = phase
+    return entry
+
+
+def _filter_geometry(raw: dict[str, object]) -> FilterEntry:
+    """Keep the rate and shape facets of one filter entry: the ratios, upsample-only, length and adaptive."""
+    entry: FilterEntry = {}
     ratio = raw.get("ratio")
     if _is_str(ratio):
         entry["ratio"] = ratio
+    ratio_pcm = raw.get("ratio_pcm")
+    if _is_str(ratio_pcm):
+        entry["ratio_pcm"] = ratio_pcm
+    ratio_sdm = raw.get("ratio_sdm")
+    if _is_str(ratio_sdm):
+        entry["ratio_sdm"] = ratio_sdm
+    upsample_only = raw.get("upsample_only")
+    if _is_bool(upsample_only):
+        entry["upsample_only"] = upsample_only
+    length = raw.get("length")
+    if _is_str(length):
+        entry["length"] = length
+    adaptive = raw.get("adaptive")
+    if _is_bool(adaptive):
+        entry["adaptive"] = adaptive
+    return entry
+
+
+def _filter_prose(raw: dict[str, object]) -> FilterEntry:
+    """Keep the prose of one filter entry: description, notes and the SDM two-stage pair."""
+    entry: FilterEntry = {}
     description = raw.get("description")
     if _is_str(description):
         entry["description"] = description
+    notes = raw.get("notes")
+    if _is_str(notes):
+        entry["notes"] = notes
     sdm_two_stage = raw.get("sdm_two_stage")
     if _is_bool(sdm_two_stage):
         entry["sdm_two_stage"] = sdm_two_stage
     sdm_two_stage_note = raw.get("sdm_two_stage_note")
     if _is_str(sdm_two_stage_note):
         entry["sdm_two_stage_note"] = sdm_two_stage_note
+    return entry
+
+
+def filter_entry(raw: object) -> FilterEntry:
+    """One ``filters.json`` entry, keeping only the fields ``FilterEntry`` names and whose value fits."""
+    entry: FilterEntry = {}
+    if not isinstance(raw, dict):
+        return entry
+    entry.update(_filter_taxonomy(raw))
+    entry.update(_filter_geometry(raw))
+    entry.update(_filter_prose(raw))
     return entry
 
 
@@ -119,9 +161,15 @@ def shaper_entry(raw: object) -> ShaperEntry:
     max_rate_hz = raw.get("max_rate_hz")
     if _is_opt_int(max_rate_hz):
         entry["max_rate_hz"] = max_rate_hz
+    min_rate_label = raw.get("min_rate_label")
+    if _is_str(min_rate_label):
+        entry["min_rate_label"] = min_rate_label
     description = raw.get("description")
     if _is_str(description):
         entry["description"] = description
+    notes = raw.get("notes")
+    if _is_str(notes):
+        entry["notes"] = notes
     order = raw.get("order")
     if _is_int(order):
         entry["order"] = order

@@ -1181,6 +1181,10 @@
       "FilterEntry": {
         "description": "One ``filters.json`` entry: the prose and taxonomy for one engine-reported filter name.",
         "properties": {
+          "adaptive": {
+            "title": "Adaptive",
+            "type": "boolean"
+          },
           "apodizing": {
             "title": "Apodizing",
             "type": "string"
@@ -1203,12 +1207,32 @@
             "title": "Genre",
             "type": "array"
           },
+          "length": {
+            "title": "Length",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
           "quality": {
             "title": "Quality",
             "type": "integer"
           },
           "ratio": {
             "title": "Ratio",
+            "type": "string"
+          },
+          "ratio_pcm": {
+            "title": "Ratio Pcm",
+            "type": "string"
+          },
+          "ratio_sdm": {
+            "title": "Ratio Sdm",
             "type": "string"
           },
           "sdm_two_stage": {
@@ -1218,6 +1242,10 @@
           "sdm_two_stage_note": {
             "title": "Sdm Two Stage Note",
             "type": "string"
+          },
+          "upsample_only": {
+            "title": "Upsample Only",
+            "type": "boolean"
           }
         },
         "title": "FilterEntry",
@@ -2645,6 +2673,14 @@
               }
             ],
             "title": "Min Rate Hz"
+          },
+          "min_rate_label": {
+            "title": "Min Rate Label",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
           },
           "order": {
             "title": "Order",

@@ -20,8 +20,15 @@ class FilterEntry(TypedDict, total=False):
     quality: int
     focus: list[str]
     apodizing: str
+    phase: str
     ratio: str
+    ratio_pcm: str
+    ratio_sdm: str
+    upsample_only: bool
+    length: str
+    adaptive: bool
     description: str
+    notes: str
     sdm_two_stage: bool
     sdm_two_stage_note: str
 
@@ -31,7 +38,9 @@ class ShaperEntry(TypedDict, total=False):
 
     min_rate_hz: int | None
     max_rate_hz: int | None
+    min_rate_label: str
     description: str
+    notes: str
     order: int
     generation: int
     type: str

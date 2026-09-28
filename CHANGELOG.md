@@ -14,6 +14,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Filter tips show their phase, length and upsample-only markings**, and filter and modulator notes show in the hover text.
 - **LIVE filter counters sit beside their labels.** On the LIVE SDM and PCM chain cards, the 1x filter and Nx filter counts dropped below the source-rate hint. They now sit on the label line, as on the Output tab.
 - **The Setting descriptions option** now stays truer to its word; several explanations were caught incorrectly sticking around after disabling the setting. They now convert to hover tips when the setting is disabled.
 

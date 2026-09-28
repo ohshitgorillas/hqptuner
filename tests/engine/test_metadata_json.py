@@ -10,6 +10,8 @@ JSON-incompatible value nested inside a document, and the one string field
 
 from __future__ import annotations
 
+import pytest
+
 from hqptuner.metadata_json import (
     easy_db,
     filter_entry,
@@ -32,6 +34,41 @@ def test_filter_entry_keeps_a_well_formed_sdm_two_stage_note() -> None:
     assert filter_entry({"sdm_two_stage_note": "shares the base filter's note"}) == {
         "sdm_two_stage_note": "shares the base filter's note"
     }
+
+
+#: The overlay fields the narrowing store and the prose reader take off a served
+#: filter entry, each with a value of the type it expects.
+FILTER_FACET_FIELDS = [
+    ("phase", "linear"),
+    ("upsample_only", True),
+    ("length", "long"),
+    ("adaptive", True),
+    ("ratio_pcm", "2x"),
+    ("ratio_sdm", "any"),
+    ("notes", "shares the base filter's taps"),
+]
+
+
+@pytest.mark.parametrize(("key", "value"), FILTER_FACET_FIELDS, ids=[key for key, _ in FILTER_FACET_FIELDS])
+def test_filter_entry_keeps_a_facet_field_the_narrowing_store_reads(key: str, value: object) -> None:
+    assert filter_entry({key: value}) == {key: value}
+
+
+def test_filter_entry_drops_an_upsample_only_that_is_not_a_bool_and_keeps_its_neighbor() -> None:
+    assert filter_entry({"upsample_only": "yes", "length": "long"}) == {"length": "long"}
+
+
+#: A shaper entry always carries both rate bounds, ``None`` where the overlay states none.
+UNBOUNDED_RATES = {"min_rate_hz": None, "max_rate_hz": None}
+
+
+@pytest.mark.parametrize(("key", "value"), [("min_rate_label", "DSD256"), ("notes", "fifth-order variant")])
+def test_shaper_entry_keeps_a_field_the_prose_reads(key: str, value: str) -> None:
+    assert shaper_entry({key: value}) == {**UNBOUNDED_RATES, key: value}
+
+
+def test_shaper_entry_drops_a_rate_label_that_is_not_a_string() -> None:
+    assert shaper_entry({"min_rate_label": 256}) == UNBOUNDED_RATES
 
 
 def test_filter_entry_map_on_a_non_dict_value_is_empty() -> None:

@@ -66,7 +66,9 @@ SHORT_MP = "57"
 def open_live_filters(page: Page, stack: Stack) -> None:
     """Load the SPA, switch into LIVE and open the Nx filter dropdown."""
     page.goto(stack.base_url)
-    page.wait_for_selector("footer.pending-bar", timeout=LOAD_MS)
+    # The LIVE switch is the load marker: the pending bar is not mounted in LIVE,
+    # and the switch persists, so a second load in the same page lands in LIVE.
+    page.wait_for_selector("[data-testid='live-toggle']", timeout=LOAD_MS)
     switch = page.locator("[data-testid='live-toggle']")
     # The switch latches, so it is driven to the on state rather than toggled.
     if switch.get_attribute("aria-pressed") != "true":
