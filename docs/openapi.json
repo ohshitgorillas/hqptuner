@@ -2646,10 +2646,6 @@
             ],
             "title": "Min Rate Hz"
           },
-          "needs_external_volume": {
-            "title": "Needs External Volume",
-            "type": "boolean"
-          },
           "order": {
             "title": "Order",
             "type": "integer"

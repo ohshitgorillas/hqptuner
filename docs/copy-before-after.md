@@ -626,21 +626,13 @@ This file records every user-facing description, tooltip and note string that no
 - **Before:** Special adaptive seventh order "pseudo-multi-bit" modulator with extended compensation for rates >= 20.48 MHz.
 - **After:** Special adaptive seventh order "pseudo-multi-bit" modulator with extended compensation for rates ≥ 20.48 MHz.
 
-### AHM5EC5L
-- **Before:** Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.
-- **After:** Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.
+### AHM5EC4B
+- **Before:** Fifth order 4-bit hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz. Utilizes 1024x and higher output rates for improved performance with most bit-perfect D/A conversions.
+- **After:** Fifth order 4-bit hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz. Utilizes 1024x and higher output rates for improved performance with most bit-perfect D/A conversions.
 
-### AHM7EC5L
-- **Before:** Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.
-- **After:** Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz.
-
-### AHM5EC5L notes
-- **Before:** Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method.
-- **After:** Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method.
-
-### AHM7EC5L notes
-- **Before:** Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method.
-- **After:** Limited SNR compared to other modulators, best suited for a loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method.
+### AHM7EC4B
+- **Before:** Seventh order 4-bit hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz. Utilizes 1024x and higher output rates for improved performance with most bit-perfect D/A conversions.
+- **After:** Seventh order 4-bit hybrid modulator with extended compensation. Optimized for rates ≥ 40.96 MHz. Utilizes 1024x and higher output rates for improved performance with most bit-perfect D/A conversions.
 
 ### AHM5EC8B
 - **Before:** Fifth order 8-bit hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz. Bandwidth optimized to provide enough flat noise floor bandwidth for practically all hires content.

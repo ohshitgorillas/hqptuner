@@ -198,17 +198,17 @@
       "leaf": "Extended compensation",
       "short": "Adaptive · Pseudo multi-bit · EC, DSD512+"
     },
-    "AHM5EC5L": {
+    "AHM5EC4B": {
       "family": "Hybrid",
       "variant": "Fifth order",
-      "leaf": "Adaptive, five level",
-      "short": "Hybrid · 5th order · Five level, DSD1024+"
+      "leaf": "Adaptive, 4-bit",
+      "short": "Hybrid · 5th order · 4-bit, DSD1024+"
     },
-    "AHM7EC5L": {
+    "AHM7EC4B": {
       "family": "Hybrid",
       "variant": "Seventh order",
-      "leaf": "Adaptive, five level",
-      "short": "Hybrid · 7th order · Five level, DSD1024+"
+      "leaf": "Adaptive, 4-bit",
+      "short": "Hybrid · 7th order · 4-bit, DSD1024+"
     },
     "AHM5EC8B": {
       "family": "Hybrid",

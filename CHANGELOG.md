@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Support for HQPlayer 6.1's new 4-bit hybrid modulators**, AHM5EC4B and AHM7EC4B.
+
 ### Changed
 
 - **The Setting Switcher compares matrix profiles.** While the matrix engine is engaged, a fourth setting switches between two saved matrix profiles, and each profile's notes show on hover in both dropdowns.

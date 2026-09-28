@@ -35,7 +35,6 @@ class ShaperEntry(TypedDict, total=False):
     order: int
     generation: int
     type: str
-    needs_external_volume: bool
 
 
 class SettingEntry(TypedDict, total=False):

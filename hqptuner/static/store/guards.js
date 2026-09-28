@@ -8,11 +8,8 @@
 // whether the daemon is playing or not. A guard asks about the CONFIGURATION it
 // would produce, never about the engine's state.
 
-import { schema } from "./schema.js";
-import { atFixedMinusThree, volumePinned } from "./schema/gray.js";
-import { optionsFor } from "./ui/options.js";
+import { atFixedMinusThree } from "./schema/gray.js";
 import { truthy } from "../lib/coerce.js";
-import { metadata } from "./signals.js";
 import { effective, runningValue } from "./resolve.js";
 import { askWarn } from "./ask.js";
 
@@ -49,85 +46,6 @@ function bufferHazard(key, value) {
  */
 const forcesFixedVolume = (key, value) => key === "direct_sdm" && truthy(value) && !atFixedMinusThree(effective);
 
-// Some modulators trade SNR for other qualities and assume the volume control
-// sits outside HQPlayer (data/shapers.json `needs_external_volume`, from the
-// manual's own note on AHM5EC5L / AHM7EC5L). Attenuating such a chain with
-// HQPlayer's own volume control spends the headroom the modulator does not have,
-// so both ways INTO that pairing ask first: picking the modulator against a live
-// volume control, and freeing the volume control while one is already selected.
-//
-// Whether the volume control is the operative one is `volumePinned` plus Direct
-// SDM, which the predicate does not cover: it pins the volume in the daemon
-// rather than in the config (manual §4.5), so a config that reads unpinned still
-// has no live volume control behind it.
-/**
- * @param {(key: string) => string | number | boolean | undefined} get
- * @returns {boolean}
- */
-const volumeLive = (get) => !volumePinned(get) && !truthy(get("direct_sdm"));
-
-// The modulator overlay joins by engine NAME (architecture §2) while the staged
-// value is the /config form's enum id, so the form's own option list is what
-// turns one into the other — the same join store/alerts/shaperfit.js makes.
-/**
- * The engine NAME of a flagged modulator, or "" when the id names an unflagged
- * one (or the overlay has not loaded). The name is what the apply-time warning
- * puts in front of the user, so the lookup answers the label rather than a bare
- * boolean and the predicate below reads it as one.
- *
- * @param {string | number | boolean | undefined} value a `sdm_modulator` enum id
- * @returns {string}
- */
-function thirstyLabel(value) {
-  const db = ((metadata.value && metadata.value.shapers) || {}).sdm_modulators;
-  if (!db) return "";
-  const hit = optionsFor("config", schema.sdm_modulator.field || "").find((o) => String(o.value) === String(value));
-  return hit && (db[hit.label] || {}).needs_external_volume ? hit.label : "";
-}
-
-/**
- * @param {string | number | boolean | undefined} value a `sdm_modulator` enum id
- * @returns {boolean}
- */
-const needsExternalVolume = (value) => thirstyLabel(value) !== "";
-
-// The config this edit would leave behind, for the one key it changes. Staging
-// is the point of decision, so the question has to be asked about the PENDING
-// picture rather than the present one.
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {(k: string) => string | number | boolean | undefined}
- */
-const afterEdit = (key, value) => (k) => (k === key ? value : effective(k));
-
-// Keys that can move the volume control between pinned and live. volume_min /
-// volume_max are here for the 0/0 spelling of pinned, which either one escapes.
-const VOLUME_KEYS = ["fixed_volume_enabled", "optimal_iso", "direct_sdm", "volume_min", "volume_max"];
-
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {boolean}
- */
-const picksThirstyModulator = (key, value) =>
-  key === "sdm_modulator" && needsExternalVolume(value) && volumeLive(effective);
-
-// The reverse edit: the modulator is already chosen and the volume control is
-// what moves. Only a transition earns the question — an edit that leaves the
-// volume pinned by another mechanism (swapping fixed volume for Auto headroom)
-// changes nothing about the pairing.
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @returns {boolean}
- */
-const freesVolumeControl = (key, value) =>
-  VOLUME_KEYS.includes(key) &&
-  !volumeLive(effective) &&
-  volumeLive(afterEdit(key, value)) &&
-  needsExternalVolume(effective("sdm_modulator"));
-
 // Returns a question to settle before staging, or null for a safe edit — and
 // stays synchronous so a safe edit reaches its optimistic merge in the caller's
 // own tick. An `await` on the safe path defers that merge by a microtask, which
@@ -136,14 +54,13 @@ const freesVolumeControl = (key, value) =>
 // A hazard the user has already said yes to, by id, while it stays continuously
 // staged. The same hazard is asked at edit time and again over the whole staged
 // configuration at apply time (below), and asking twice for one decision is a
-// nag: confirming the modulator and then being asked about the same pairing on
-// Apply is the app doubting an answer it already has. An acknowledgement is
-// dropped the moment its hazard leaves the staged picture (pruneAcknowledged),
-// so backing out and walking into it again asks afresh.
-// The two hazards that exist at BOTH gates, and so are the two an edit-time yes
-// can settle for the apply. The buffer warnings have no apply-time counterpart
-// and take no id.
-const SNR_PAIRING = "snr-pairing";
+// nag: confirming Direct SDM and then being asked about it again on Apply is the
+// app doubting an answer it already has. An acknowledgement is dropped the
+// moment its hazard leaves the staged picture (pruneAcknowledged), so backing
+// out and walking into it again asks afresh.
+// The hazard that exists at BOTH gates, and so is the one an edit-time yes can
+// settle for the apply. The buffer warnings have no apply-time counterpart and
+// take no id.
 const SDM_PIN = "sdm-pin";
 
 /** @type {Set<string>} */
@@ -187,24 +104,6 @@ export function guard(key, value) {
         YES_NO,
       ),
     );
-  if (picksThirstyModulator(key, value))
-    return ackOn(
-      SNR_PAIRING,
-      askWarn(
-        key,
-        "This modulator is best suited to systems where volume is externally controlled. Are you sure you want to proceed?",
-        YES_NO,
-      ),
-    );
-  if (freesVolumeControl(key, value))
-    return ackOn(
-      SNR_PAIRING,
-      askWarn(
-        key,
-        "The current modulator is best suited to systems using external volume control. Are you sure you want to proceed?",
-        YES_NO,
-      ),
-    );
   return null;
 }
 
@@ -215,27 +114,21 @@ export function guard(key, value) {
 // walks straight past them: previewPreset() drops a saved config in as the
 // baseline, which arrives with no edit to guard.
 //
-// The other edit()-free staging route, stageHttp(), cannot reach these hazards
+// The other edit()-free staging route, stageHttp(), cannot reach this hazard
 // and is not why this exists: it is module-private, its one entry is
 // stagePipelines(rows, extra), and that `extra` is a saved matrix profile's
-// post-process map — matrix_pipelines and post_bauer_* — which carries neither
-// the modulator nor Direct SDM.
+// post-process map — matrix_pipelines and post_bauer_* — which does not carry
+// Direct SDM.
 //
 // applyAll() is the choke point every one of those routes crosses, so the same
-// hazards are asked a second time there — about the CONFIGURATION rather than
+// hazard is asked a second time there — about the CONFIGURATION rather than
 // about an edit. A hazard earns its question only when the staged picture has it
-// and the running configuration does not: applying into a pairing that is
-// already live and unchanged must stay silent, or every Apply nags forever.
+// and the running configuration does not: applying into a state that is already
+// live and unchanged must stay silent, or every Apply nags forever.
 
 // The pending bar renders apply-time questions — it is where the Apply button
 // the user just pressed lives (components/PendingBar.js OWNER).
 const APPLY_OWNER = "pending";
-
-/**
- * @param {(key: string) => string | number | boolean | undefined} get
- * @returns {boolean}
- */
-const snrPairing = (get) => needsExternalVolume(get("sdm_modulator")) && volumeLive(get);
 
 /**
  * @param {(key: string) => string | number | boolean | undefined} get
@@ -253,14 +146,6 @@ const sdmForcesFixedVolume = (get) => truthy(get("direct_sdm")) && !atFixedMinus
 /** @type {ApplyHazard[]} */
 const APPLY_HAZARDS = [
   {
-    id: SNR_PAIRING,
-    hit: snrPairing,
-    message: (get) =>
-      `The staged settings are suboptimal: modulator ${thirstyLabel(get("sdm_modulator"))} is recommended for ` +
-      `external volume control only, but this change enables it and internal volume control. ` +
-      `Are you sure you want to proceed?`,
-  },
-  {
     id: SDM_PIN,
     hit: sdmForcesFixedVolume,
     message: () =>
@@ -268,14 +153,6 @@ const APPLY_HAZARDS = [
   },
 ];
 
-// Asked in sequence, not in parallel: ask.js holds ONE open question at a time
-// and a second call supersedes the first, so two hazards could not be opened at
-// once. The two hazards here are in fact mutually exclusive — the SNR pairing
-// needs a live volume control, which `volumeLive` defines as Direct SDM being
-// off, and the other hazard needs it on — so today the loop asks at most one
-// question. It is written as a loop rather than a pair of ifs because a third
-// hazard would otherwise have to reintroduce the sequencing by hand.
-//
 // Declining abandons the apply with the staging untouched.
 /**
  * Settle every apply-time hazard the staged configuration newly introduces.
@@ -295,7 +172,7 @@ export async function applyGuard() {
 // Drop the acknowledgement of any hazard that has left the staged picture, so a
 // yes never carries over to a hazard the user walked back out of and into again.
 // Called by the write paths as they settle (store/actions.js): an edit that
-// clears the pairing forgets the yes that was about it.
+// clears the hazard forgets the yes that was about it.
 /** Forget acknowledgements whose hazard the staged configuration no longer has. */
 export function pruneAcknowledged() {
   for (const h of APPLY_HAZARDS) if (!h.hit(effective)) acknowledged.delete(h.id);

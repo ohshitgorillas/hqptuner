@@ -131,9 +131,6 @@ def shaper_entry(raw: object) -> ShaperEntry:
     shaper_type = raw.get("type")
     if _is_str(shaper_type):
         entry["type"] = shaper_type
-    needs_external_volume = raw.get("needs_external_volume")
-    if _is_bool(needs_external_volume):
-        entry["needs_external_volume"] = needs_external_volume
     return entry
 
 

@@ -45,7 +45,7 @@ export function grayShapersByRate(options, kind) {
 // The DSD tier a modulator's rate floor names, as the row badge says it: "512+"
 // for a modulator that needs DSD512 or higher. Derived from the SAME
 // `min_rate_hz` the graying above reads rather than from the name, because four
-// modulators (AHM5EC5L, AHM7EC5L, AHM5EC8B, AHM7EC8B) carry a 40.96 MHz floor
+// modulators (AHM5EC4B, AHM7EC4B, AHM5EC8B, AHM7EC8B) carry a 40.96 MHz floor
 // and no rate in their name at all — a badge parsed out of the name would miss
 // exactly the 1024+ ones.
 //
