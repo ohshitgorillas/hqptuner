@@ -100,10 +100,22 @@
 .label-alt {
   display: block;
 }
+/* Every control cell is at least one select tall and centers what it holds,
+   so the first grid row of a field is the same height whether it carries a
+   dropdown, a checkbox, a number box or a radio group, and the labels of
+   side-by-side rows land on one line. */
+.field > .control {
+  min-height: var(--h-control);
+}
 .control {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+}
+/* A stacked radio group is taller than one control, so a centered label would
+   float beside its middle option; it names the group from the top instead. */
+.field[data-k="apodLight"] > label {
+  align-self: start;
 }
 .unit {
   color: var(--muted);
