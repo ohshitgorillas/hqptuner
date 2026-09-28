@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.15.3] — 2026-09-28
+
 ### Added
 
 - **Support for HQPlayer 6.1's new 4-bit hybrid modulators**, AHM5EC4B and AHM7EC4B.
