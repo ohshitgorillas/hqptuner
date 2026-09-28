@@ -20,5 +20,12 @@ export function StatusPill() {
   // in the chrome that already means "the connection", so opening that panel
   // from it needs no new word anywhere; it is how a user who saved a wrong host
   // gets back to the field they typed it into.
-  return html`<button type="button" class="pill pill-${state}" onClick=${openSetup}>${text}</button>`;
+  return html`<button
+    type="button"
+    class="pill pill-${state}"
+    title="Open connection settings to set the HQPlayer Embedded server's IP address and authentication details."
+    onClick=${openSetup}
+  >
+    ${text}
+  </button>`;
 }
