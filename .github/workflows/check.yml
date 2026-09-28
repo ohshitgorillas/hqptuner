@@ -40,9 +40,10 @@ jobs:
 
       # The idle gate judges each test's smallest recorded idle, a record that
       # converges downward across runs (scripts/gates/check_idle.py). The record
-      # is gitignored, so it is carried between runs here: the key never matches,
-      # so every run saves its own, and the prefix restores the latest one.
-      - uses: actions/cache@v4
+      # is gitignored, so it is carried between runs here: the prefix restores
+      # the latest one, and the save below runs whether or not the gate passed,
+      # since the gate writes the merged record before it judges.
+      - uses: actions/cache/restore@v4
         with:
           path: .idle-min.json
           key: idle-min-${{ github.run_id }}
@@ -52,6 +53,12 @@ jobs:
       # and no hqplayerd exists here to serve the live-marked tests.
       - name: make check
         run: make check
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .idle-min.json
+          key: idle-min-${{ github.run_id }}
 
   e2e:
     runs-on: ubuntu-latest
