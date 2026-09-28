@@ -42,11 +42,12 @@ jobs:
       # converges downward across runs (scripts/gates/check_idle.py). The record
       # is gitignored, so it is carried between runs here: the prefix restores
       # the latest one, and the save below runs whether or not the gate passed,
-      # since the gate writes the merged record before it judges.
-      - uses: actions/cache/restore@v4
+      # since the gate writes the merged record before it judges. A key is
+      # written once, so a rerun of the same run gets its own.
+      - uses: actions/cache/restore@v6
         with:
           path: .idle-min.json
-          key: idle-min-${{ github.run_id }}
+          key: idle-min-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: idle-min-
 
       # The offline half of the suite only: `make check` selects -m "not live",
@@ -54,11 +55,11 @@ jobs:
       - name: make check
         run: make check
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: always()
         with:
           path: .idle-min.json
-          key: idle-min-${{ github.run_id }}
+          key: idle-min-${{ github.run_id }}-${{ github.run_attempt }}
 
   e2e:
     runs-on: ubuntu-latest
