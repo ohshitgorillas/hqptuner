@@ -1,7 +1,7 @@
 """Favorites — the stars the user put on filter and modulator names, kept for the install rather than for one browser.
 
 A favorite is a NAME, never an enum id: the running engine owns ids and ordering, names are the stable join key
-(architecture §2), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration. The
+(architecture §3.1), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration. The
 modulator set is a second list on the same terms, serving the one modulator dropdown wherever it is rendered.
 
 Stored as one JSON file beside the live snapshots, and for the same reason: the whole store is a couple of hundred short

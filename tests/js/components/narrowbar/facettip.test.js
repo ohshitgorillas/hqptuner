@@ -11,7 +11,7 @@
 // <ratio>"`, PCM glyph `⥮`, abbreviated ratio tails (`Int`, `Any`).
 // `metadata.filters.filters` is the static name-keyed overlay served by
 // /api/metadata; the running engine is enumeration authority, so the overlay
-// only fills filters the live enum lacks (architecture §2).
+// only fills filters the live enum lacks (architecture §3.4).
 //
 // tipsFor cases ride the field-harness reset(), whose META payload carries the
 // worked filters overlay (alias, notes, two_stage_note), dithers and

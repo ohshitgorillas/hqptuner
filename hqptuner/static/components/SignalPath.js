@@ -3,8 +3,7 @@
 // conversion stages → DAC correction → output rate. Crossfeed operates on the
 // source-rate signal; DAC correction is a per-DAC response correction and so runs
 // at the OUTPUT rate, after the conversion stages — it is output-rate-dependent
-// and cannot precede the filter (this corrects architecture §3, which grouped both
-// post-process stages "before oversampling"; §3's order was flagged unverified).
+// and cannot precede the filter (architecture §7.5).
 // A disabled post-process stage is omitted entirely, so the chain only ever shows
 // what's actually in the path. Stages read as one continuous chain (connector
 // thread, not floating arrows); playing carries the accent through the thread and
@@ -172,7 +171,7 @@ const directPassThrough = (/** @type {Status} */ st, /** @type {Metadata} */ md)
 // actually use them.
 //
 // Note the two filter enumerations are distinct: <pcm filter> (67 entries) and
-// <sdm oversampling> (77, different enum IDs, no "none") — architecture §2's
+// <sdm oversampling> (77, different enum IDs, no "none") — architecture §3.3's
 // mode-relative enumerations. The engine reports whichever the current mode uses,
 // so one `active_filter` read serves both branches.
 /**

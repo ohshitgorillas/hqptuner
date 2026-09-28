@@ -21,7 +21,7 @@
 //     which source the rate/shaper fit reads, which is store/live's contract and
 //     is pinned in liverate.test.js / livechain.test.js, not here.
 //   * Shaper names are the engine's, and the constraint file joins to them BY
-//     NAME (architecture §2/§5) — so the floors below are keyed by the names
+//     NAME (architecture §3.1/§7.10) — so the floors below are keyed by the names
 //     support/chainenums.js puts on both the enum side and the form side, with
 //     the enum ID differing from the list index throughout.
 

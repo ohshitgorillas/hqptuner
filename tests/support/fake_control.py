@@ -194,7 +194,7 @@ def take_lane_down(state: dict[str, str]) -> None:
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
     """Move the fake's State to what a daemon reports after a restore's
     self-restart: it comes back up running the restored config file
-    (docs/architecture.md §1 lane 2). The file speaks ``pcm``/``sdm`` and enum
+    (docs/architecture.md §2.2 lane 2). The file speaks ``pcm``/``sdm`` and enum
     IDs; State speaks the mode index and list indices resolved against the
     chain the restart loaded (protocol.md §4 — the domains never mix), so the
     restored shaper is the loaded chain's dither or modulator looked up on that
@@ -245,7 +245,7 @@ def _junk_filters(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
 
     The `_junk_filters` knob names the list outright, space separated, so a test
     can serve an enumeration that differs from the built-in one — which is what a
-    different engine build really does answer (architecture §2: the running
+    different engine build really does answer (architecture §3.1: the running
     engine is the authority on the names and the ordering). Empty means the
     built-in list.
     """

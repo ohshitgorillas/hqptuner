@@ -137,7 +137,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     if client is None:
         raise NotConnectedError()
     state = await client.get_state()
-    # A mode switch swaps the lists wholesale (architecture §5), and playback
+    # A mode switch swaps the lists wholesale (architecture §3.3), and playback
     # state moves the rate list: what fills that one is the transport as well
     # as the mode (manual p.18 §4.4), so an idle network backend answers
     # GetRates with auto alone where the same daemon serves thirteen PCM tiers

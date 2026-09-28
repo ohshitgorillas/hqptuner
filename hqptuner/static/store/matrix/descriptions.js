@@ -1,6 +1,6 @@
 // Matrix-profile descriptions — the prose the user wrote about a saved profile,
 // stored for the install and shared by every browser pointed at it. Keyed by
-// profile NAME, the stable join key (architecture §2), because
+// profile NAME, the stable join key (architecture §3.1), because
 // `<matrix_profile>` carries only `name` (readme §1.12) and there is nowhere in
 // hqplayerd's config for this text to live.
 //

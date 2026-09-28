@@ -19,7 +19,7 @@
 //     three descriptor lines.
 //
 // NAMES, NOT WORDS (rule 9). The engine filter name is a wire identifier, since
-// static data joins the running engine by name (docs/architecture.md §2), so it
+// static data joins the running engine by name (docs/architecture.md §3.1), so it
 // is contract and is asserted outright. No filter name is TYPED here, though:
 // every one is asked of `writeSet` for the preset and knob positions in hand,
 // so the table stays the one copy of what a tile writes.

@@ -571,7 +571,7 @@ test("test_the_bare_chain_is_source_filter_shaper_output", () => {
 
 test("test_the_full_chain_runs_in_processing_order", () => {
   // matrix and crossfeed are input-side; correction is output-rate and follows
-  // the shaper — the ordering docs/architecture.md §3 originally got wrong
+  // the shaper — the ordering docs/architecture.md §7.5 originally got wrong
   const out = panel({
     ...PLAY,
     status: { active_rate: "705600", correction: "1" },

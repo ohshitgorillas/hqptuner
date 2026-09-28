@@ -8,7 +8,7 @@
 //
 // Names, not enum ids, because that is the domain the preset table speaks: the
 // running engine is the sole authority for ids and ordering, and static data
-// joins by name (architecture §2). Resolving a name to the id a lane wants is
+// joins by name (architecture §3.1). Resolving a name to the id a lane wants is
 // the last thing that happens, against the option list that lane is showing.
 import { schema } from "../schema.js";
 import { effective, runningValue } from "../resolve.js";

@@ -1,6 +1,6 @@
 # Settings classification — live vs restart
 
-Every architecture §4 control tagged with lane:
+Every architecture §7.1 control tagged with lane:
 
 - **live** — Control API (4321) setter exist; change take effect now, no daemon restart.
 - **http** — no live setter; setting persist by **restore lane**: HQPTuner fetch `/backup`, surgically edit field's element/attribute in running config XML (`presetconf.FIELD_MAP`), push archive with `POST /restore` (`scope=system`, Digest auth). Daemon self-restart in **~5.6 s** (`lanes/http/restore.py`). Field names below still daemon's own `/config` form field names — read side and staging key — but **write not form POST**.
@@ -11,7 +11,7 @@ Every architecture §4 control tagged with lane:
 
 Empirical basis: hqplayerd 6.0.4 with the engine idle (`state=0`). Wire details in `protocol.md`.
 
-Rules this table assume — no shutdown persistence, live-vs-file divergence, list-index/enum-ID split, `result="OK"` not proof — stated once in `architecture.md` §2, wire evidence in `protocol.md` §1/§4.
+Rules this table assume — no shutdown persistence, live-vs-file divergence, list-index/enum-ID split, `result="OK"` not proof — stated once in `architecture.md` §3.1, wire evidence in `protocol.md` §1/§4.
 
 ## Output
 
@@ -33,7 +33,7 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 | Quick pause | http | field `quick_pause` (checkbox) → `<engine quick_pause>` |
 | Short buffer | http | field `short_buffer` (select 0/1/2 = Normal/Short/Minimum) → `<engine short_buffer>` |
 
-**Transport params per-backend, not mode-gated (6.0.4).** Embedded `/config` form scope device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), independent values — architecture §4/§5 "DAC bits grays in SDM / DoP grays in PCM" annotations describe *desktop* app, not this form. HQPTuner surface these in collapsible ALSA / Network sections keyed on `backend` (Combo show both), not via mode-graying.
+**Transport params per-backend, not mode-gated.** Embedded `/config` form scope device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), independent values — architecture §7.1/§7.7 "DAC bits grays in SDM / DoP grays in PCM" annotations describe *desktop* app, not this form. HQPTuner surface these in collapsible ALSA / Network sections keyed on `backend` (Combo show both), not via mode-graying.
 
 **Two rate slots per family, and they differ (`scripts/probes/rate/probe_rate_slots.py`).** Daemon's own `/config` form label them apart: `defaults_samplerate` / `defaults_bitrate` = "Rate limit" (no Auto entry), `samplerate` / `bitrate` = "Sample rate" / "Bit rate" (Auto = `0`, and the slot `SetRate` writes). Against 44.1 kHz source with limit at DSD512 — request unset → 22579200 (limit caps, follow source base family); request `12288000` → 12288000 (exact, 44.1k source out at 48k base); request `49152000` → 49152000 (exact, override limit). So limit = family-following cap, request = exact rate ignoring both.
 
@@ -98,7 +98,7 @@ HQPTuner therefore expose it as three-way control (Off · −3 dB · −6 dB) ra
 
 `<engine>` settings above reachable only by editing config XML in `/backup` archive and pushing with `POST /restore` — daemon's configuration model and behavior of each write route in `protocol.md` §3.6.
 
-## Additional live controls on the wire (not in architecture §4)
+## Additional live controls on the wire (not in architecture §7.1)
 
 | Command | Status | Notes |
 |---|---|---|

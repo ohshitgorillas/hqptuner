@@ -4,7 +4,7 @@
 // ordinal of whatever number the overlay states for it).
 //
 // The fact is the static shaper overlay's `generation`, joined to the engine's
-// own modulator name (docs/architecture.md §2) and reaching the client through
+// own modulator name (docs/architecture.md §3.1) and reaching the client through
 // /api/metadata under `shapers.sdm_modulators` — the same record whose
 // `min_rate_hz` already grays and badges a row. Tips are resolved through
 // `tipsFor(entry, meta)` (components/binder.js), the per-option resolver the

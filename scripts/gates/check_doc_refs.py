@@ -4,8 +4,7 @@
 Code comments across ``hqptuner/`` and ``tests/`` point at the design docs for
 the reasoning behind a piece of behavior. A *positional* citation —
 ``matrix-spec §8 step 3``, ``probe round 5``, ``protocol.md §9`` — is silently
-invalidated by any edit above it, and nothing else checks: a docs restructure
-strands them wholesale, unnoticed. The prose becomes load-bearing — sections
+invalidated by any edit above it, and nothing else checks. The prose becomes load-bearing — sections
 survive only to be pointed at.
 
 The fix is to cite the target's **heading text**, which moves with the content
@@ -26,23 +25,19 @@ This gate enforces that form, in both directions:
 2. **A ``round N`` / ``step N`` citation is rejected outright**, even while it
    still resolves, because it is the failure waiting to happen. Those labels
    number a delivery phase or a probe session — positions in a narrative that
-   nothing maintains — and every one of them broke in the restructure.
+   nothing maintains.
 
-``§N`` is deliberately NOT rejected. ``architecture.md`` and ``protocol.md``
-both freeze their section numbers as a published contract (architecture.md
-says so in its own header, and protocol.md's citations survived the
-restructure intact because the numbering was held stable). A frozen ordinal
-is a maintained interface; an unfrozen one is rot. Do not extend this gate to
-``§N`` without first giving up that contract.
+3. **A ``§N`` citation of a doc in ``NUMBERED`` must resolve.** Those docs
+   number their headings (``## 4. Writing``, ``### 4.2 Live vs restart``), and
+   ``architecture §4.2`` fails unless a heading carries that number.
 
 **A citation must sit on one line.** Matching is per-line, so a citation
-wrapped across two lines matches nothing and is silently unverified — worse
-than the ordinal it replaced, which at least failed loudly. Where a heading is
+wrapped across two lines matches nothing and is silently unverified. Where a heading is
 too long to wrap, cite a *unique prefix* of it rather than breaking the line:
 ``matrix-spec.md "Probe findings — saved"`` resolves as well as the full text.
 
-Explicit ``{#slug}`` anchors were considered and rejected: GitHub's Markdown
-renderer does not support them and would print the braces into the page.
+Explicit ``{#slug}`` anchors are not an option: GitHub's Markdown renderer does
+not support them and prints the braces into the page.
 
 **HQPlayer's own documentation is out of scope and must never be flagged.**
 This codebase cites ``manual §7.2``, ``readme §1.11`` and ``§11.8`` constantly,
@@ -68,6 +63,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PRAGMA = "doc-ref-exempt:"
+#: design docs whose ``§N`` citations must name a numbered heading
+NUMBERED = frozenset({"architecture"})
+#: the section number that opens a numbered heading, normalised
+HEADING_NUMBER = re.compile(r"^(\d+(?:\.\d+)*)\.?\s")
 
 #: a Markdown ATX heading, any level
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$")
@@ -129,6 +128,23 @@ def ordinal_re(stems: list[str]) -> re.Pattern[str]:
     return re.compile(rf"\b({names})(?:\.md)?{gap}\b(?:round|step)s?\s+\d+")
 
 
+#: a ``§N`` citation of a numbered doc; the gap takes the closing backtick of
+#: `` `docs/architecture.md` §2``
+SECTION = re.compile(
+    rf"\b({'|'.join(re.escape(s) for s in sorted(NUMBERED, key=len, reverse=True))})(?:\.md)?`?\s*§\s*(\d+(?:\.\d+)*)"
+)
+
+
+def unresolved_sections(line: str, docs: dict[str, list[str]]) -> list[str]:
+    """Each ``§N`` citation on this line naming no numbered heading in its doc."""
+    missing = []
+    for stem, number in SECTION.findall(line):
+        numbers = {m.group(1) for m in map(HEADING_NUMBER.match, docs.get(stem, [])) if m}
+        if number not in numbers:
+            missing.append(f"{stem} §{number}")
+    return missing
+
+
 def relabel(path: Path) -> str:
     """Repo-relative display path; falls back to whatever was passed in."""
     resolved = path.resolve()
@@ -148,7 +164,7 @@ def resolve(cited: str, available: list[str]) -> str | None:
     want = normalise(cited)
     if want in available:
         return None
-    hits = [h for h in available if h.startswith(want)]
+    hits = [h for h in available if h.startswith(want) or HEADING_NUMBER.sub("", h).startswith(want)]
     if len(hits) == 1:
         return None
     if not hits:
@@ -168,7 +184,8 @@ def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
         read_ok = False
     if not read_ok:
         return problems
-    ordinal = ordinal_re([k for k in docs if not k.endswith(".md")])
+    stems = [k for k in docs if not k.endswith(".md")]
+    ordinal = ordinal_re(stems)
     label = relabel(path)
     for index, line in enumerate(lines, start=1):
         if exempt(lines, index - 1):
@@ -176,6 +193,7 @@ def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
         for match in ordinal.finditer(line):
             cite = match.group(0).strip()
             problems.append(f"{label}:{index}: ordinal citation '{cite}' — rot risk")
+        problems.extend(f"{label}:{index}: {cite} — no such section" for cite in unresolved_sections(line, docs))
         for name, cited in QUOTED.findall(line):
             available = docs.get(f"{name}.md")
             if available is None:
@@ -187,7 +205,7 @@ def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Refuse a quoted doc citation resolving to no heading, and any positional round/step citation."""
+    """Refuse an unresolved quoted or §N doc citation, and any positional round/step citation."""
     docs = doc_set()
     if not docs:
         print("check_doc_refs: no docs found", file=sys.stderr)

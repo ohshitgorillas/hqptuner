@@ -53,7 +53,7 @@ SETTLE_MS = 20_000
 
 #: The LIVE view's Nx PCM filter selector, keyed by catalog key. It is fed by
 #: the daemon's own `GetFilters` enumeration, which is the authority for the
-#: names and the descriptions the facets are read out of (architecture §2).
+#: names and the descriptions the facets are read out of (architecture §3.1).
 PCM_NX_KEY = "pcm_filter_nx"
 
 #: Option rows by the `data-v` each carries — the enum `value` the control fake

@@ -1,6 +1,6 @@
 // --- what the controls read --------------------------------------------------
 // The running engine is the sole authority for enumeration names, IDs and
-// ordering (architecture §2), so every option list below is built from the
+// ordering (architecture §3.1), so every option list below is built from the
 // enumerations rather than from anything shipped.
 //
 // This module owns the read/derive core: the joins from /api/state and the

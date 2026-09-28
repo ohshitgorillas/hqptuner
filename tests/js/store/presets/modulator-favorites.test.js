@@ -64,7 +64,7 @@ const FIELD = "pcm_filter_nx";
 const FILTERS = ["gauss-a", "gauss-b", "gauss-c", "gauss-d"];
 
 // Raw engine modulator names, the join key the favorites record and the shaper
-// overlay share (docs/architecture.md §2).
+// overlay share (docs/architecture.md §3.1).
 const MODULATORS = ["ASDM7", "ASDM7EC", "AHM5EC5L", "DSD7 256+fs"];
 
 /**

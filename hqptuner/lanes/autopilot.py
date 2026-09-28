@@ -41,7 +41,7 @@ def desired_junk_filter(verdict: JunkVerdict | None, active_filter: str | None) 
 def junk_filter_index(items: list[dict[str, str]], name: str) -> str | None:
     """Return the running enumeration's list index for this junk-filter name, or None when it carries no such name.
 
-    The running engine is the sole authority for the junk-filter enumeration (architecture §2), so the name the
+    The running engine is the sole authority for the junk-filter enumeration (architecture §3.1), so the name the
     decision above settled on is joined against what the engine actually offers rather than against anything static.
     """
     for item in items:

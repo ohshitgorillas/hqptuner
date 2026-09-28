@@ -3,7 +3,7 @@
 Two surfaces, one behavior: `FavoriteStore` over a JSON file, and the
 GET/PUT `/api/favorites` pair over that store. Neither touches hqplayerd —
 favorites are HQPTuner's own state, keyed by filter name rather than by the
-engine's enum ids (docs/architecture.md §2) — so every client here is built
+engine's enum ids (docs/architecture.md §3.1) — so every client here is built
 with no credentials and a control lane pointed at a closed port, and every
 store file lands under pytest's ``tmp_path``, never in the repo's state dir.
 

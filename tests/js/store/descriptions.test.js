@@ -1,7 +1,7 @@
 // Behavioral suite for profile descriptions on the client (store/matrix/descriptions.js):
 // the prose a user attaches to a saved matrix profile, kept on the SERVER so
 // every browser sees the same note, and keyed by profile NAME — the stable join
-// key (docs/architecture.md §2), which is also all `<matrix_profile>` carries
+// key (docs/architecture.md §3.1), which is also all `<matrix_profile>` carries
 // (hqplayerd-readme.txt §1.12).
 //
 // Persistence is one REST pair, GET/PUT /api/descriptions, driven through the

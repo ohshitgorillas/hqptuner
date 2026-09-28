@@ -111,7 +111,7 @@ export function stripRateSuffix(options) {
 
 // Live-enum option source (schema `optionsFrom: 'enum'` + `enumKey`), for the
 // 4321-lane controls that have no /config form field to take options from. The
-// running engine is the sole authority for names AND ordering (architecture §2), and
+// running engine is the sole authority for names AND ordering (architecture §3.1), and
 // Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §4) — so
 // `index` is the value, never a shipped constant.
 /**
@@ -129,7 +129,7 @@ export function enumOptions(name) {
 // two-stage `-2s` twin is in the same list has no reason to be picked there, so
 // it is not offered and not counted. The rule reads the list it was handed
 // rather than a shipped name table: the running engine is the sole authority for
-// which filters exist (architecture §2), and a `-2s` the engine stops
+// which filters exist (architecture §3.1), and a `-2s` the engine stops
 // enumerating brings its plain twin straight back.
 //
 // One name survives the prune: whatever the field is currently set to. The

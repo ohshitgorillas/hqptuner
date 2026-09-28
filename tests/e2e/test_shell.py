@@ -90,7 +90,7 @@ FAIL_NOTE = "footer.pending-bar .note.err"
 RESULT_NOTE = f"{OK_NOTE}, {FAIL_NOTE}"
 
 #: The filter names the control fake's PCM chain enumerates over GetFilters. The
-#: running engine is the enumeration authority (architecture §2), so this is the
+#: running engine is the enumeration authority (architecture §3.1), so this is the
 #: list the LIVE filter selector must be offering.
 PCM_FILTER_NAMES = ["none", "poly-sinc-gauss-long", "sinc-M", "poly-sinc-short-mp"]
 

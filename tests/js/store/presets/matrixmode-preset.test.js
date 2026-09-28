@@ -5,7 +5,7 @@
 // property of that preset. hqplayerd re-serializes its config from its own model
 // and would drop an attribute of ours (docs/matrix-spec.md:31), so the choice
 // lives in HQPTuner's own sidecar, keyed by preset NAME — the stable join key
-// (docs/architecture.md §2) — and reaches the client over one REST pair,
+// (docs/architecture.md §3.1) — and reaches the client over one REST pair,
 // GET/PUT /api/matrixmodes.
 //
 // The map is read ONCE, when the store module loads, the way favorites and

@@ -12,6 +12,8 @@ import importlib.util
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_doc_refs.py"
@@ -41,3 +43,48 @@ def test_an_unreadable_path_is_the_only_thing_reported(tmp_path: Path) -> None:
     ghost = tmp_path / "ghost.py"
     lines = GATE.check(ghost, {})
     assert (lines != [], [line for line in lines if ghost.name not in line]) == (True, [])
+
+
+#: The numbered doc the section-number tests cite into.
+SECTION_DOCS = {"architecture": ["2. engine interfaces", "2.1 control api lane", "2.4 credentials"]}
+
+
+@pytest.mark.parametrize(
+    ("line", "problems"),
+    [
+        # The section sign is escaped so this file does not cite the docs it names.
+        ("# lanes restart the daemon (docs/architecture.md \u00a72)", 0),
+        ("# the unauthenticated lane (architecture \u00a72.1)", 0),
+        ("# credentials follow `docs/architecture.md` \u00a72.4", 0),
+        ("# credentials follow `docs/architecture.md` \u00a72.2", 1),
+        ("# see architecture \u00a798 for the graying rules", 1),
+        ("# the stock pair (architecture \u00a72.4, architecture \u00a73)", 1),
+        ("# the modulator floor (manual \u00a77.2)", 0),
+    ],
+)
+def test_a_section_number_counts_as_a_problem_only_when_the_doc_has_no_such_section(
+    tmp_path: Path, line: str, problems: int
+) -> None:
+    """A ``§N`` citation of a numbered doc must name a heading there; vendor manual numbers are never checked."""
+    source = tmp_path / "source.py"
+    source.write_text(line + "\n", encoding="utf-8")
+    assert len(GATE.check(source, SECTION_DOCS)) == problems
+
+
+#: A numbered doc under a name no real doc carries, so the gate skips these lines here.
+QUOTED_DOCS = {"fixture-doc.md": ["8.1 api errors", "8.2 lane reports"]}
+
+
+@pytest.mark.parametrize(
+    ("line", "problems"),
+    [
+        ('# the refusal body (docs/fixture-doc.md "API errors")', 0),
+        ('# the refusal body (docs/fixture-doc.md "8.1 API errors")', 0),
+        ('# the refusal body (docs/fixture-doc.md "Error envelope")', 1),
+    ],
+)
+def test_a_quoted_heading_resolves_with_or_without_its_section_number(tmp_path: Path, line: str, problems: int) -> None:
+    """A numbered heading is cited by its text alone as well as with its number."""
+    source = tmp_path / "source.py"
+    source.write_text(line + "\n", encoding="utf-8")
+    assert len(GATE.check(source, QUOTED_DOCS)) == problems

@@ -8,7 +8,7 @@
 // the advice goes in the alert strip instead (shaperfit-alerts.test.js).
 //
 // Constraints live only in data/shapers.json, which joins to the engine's own
-// shaper names (architecture §2/§5), so every floor below arrives through the
+// shaper names (architecture §3.1/§7.10), so every floor below arrives through the
 // /api/metadata overlay the fixture states — `min_rate_hz` in Hz, null for a
 // shaper the file records no floor for.
 //

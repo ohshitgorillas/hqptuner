@@ -301,7 +301,7 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_stale"] = st.get("_lag", 0)
     if st.get("_die"):
         st["_down"] = True
-    # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §1 lane
+    # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §2.2 lane
     # 2), and the restarted engine comes up running the restored file — so the
     # Control API's State reflects it afterwards. That side lands on the 4321
     # daemon, which this fake cannot see: a dual-lane test hangs its own

@@ -2,7 +2,7 @@
 // disagree with the chain the engine happens to be running.
 //
 // The engine answers for the chain it has LOADED and nothing else
-// (architecture §2, protocol.md §4), but the settings about to be applied are
+// (architecture §3.3, protocol.md §4), but the settings about to be applied are
 // the ones the user is being warned about — so the family judged follows the
 // EFFECTIVE output mode: a staged or previewed edit when there is one, the
 // running configuration otherwise. `[source]` (auto) names no family at all

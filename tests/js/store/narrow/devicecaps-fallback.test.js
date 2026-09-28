@@ -17,7 +17,7 @@
 // docs/settings-classification.md:42) and `mode`.
 //
 // The first two cases pin the other direction of the same reactivity: graying
-// follows STAGED values, not applied ones (architecture.md §5), so the menus
+// follows STAGED values, not applied ones (architecture.md §7.6), so the menus
 // move the moment the user ticks a box, with no apply and no change to the
 // config payload.
 //

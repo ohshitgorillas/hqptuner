@@ -3,7 +3,7 @@
 // with a minimum-rate floor wears.
 //
 // The floor is the shaper overlay's `min_rate_hz`, joined to the engine's own
-// modulator name (docs/architecture.md §2) and reaching the client through
+// modulator name (docs/architecture.md §3.1) and reaching the client through
 // /api/metadata under `shapers.sdm_modulators` — the same record that already
 // grays a row below its floor. The badge names the DSD tier that floor admits:
 // 10240000 -> 256+, 20480000 and 22579200 -> 512+, 40960000 -> 1024+. A

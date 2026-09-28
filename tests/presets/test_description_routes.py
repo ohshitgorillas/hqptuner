@@ -8,7 +8,7 @@ everything in this file needs an app and a client, and half of it needs a daemon
 while nothing in the store file needs any of the three.
 
 A description is keyed by profile NAME, the stable join key
-(docs/architecture.md §2) — `<matrix_profile>` carries exactly one attribute,
+(docs/architecture.md §3.1) — `<matrix_profile>` carries exactly one attribute,
 `name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
 prose to live and the store is HQPTuner's own state. The REST pair therefore
 never touches hqplayerd: those clients are built with no credentials and a

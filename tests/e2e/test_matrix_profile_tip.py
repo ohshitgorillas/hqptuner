@@ -16,7 +16,7 @@ A real pointer over a real row is the only way to observe it.
 
 What the fixture supplies. The saved profile names come from the running
 engine's own enumeration, which is the authority for names and ordering
-(docs/architecture.md §2); the control fake answers `MatrixListProfiles` with
+(docs/architecture.md §3.1); the control fake answers `MatrixListProfiles` with
 two of them (`tests/support/fake_control.py`, `_profile_names`). The
 description is written by this suite through the app's own route, so the only
 string asserted on is one the test itself put on the wire (docs/testing.md

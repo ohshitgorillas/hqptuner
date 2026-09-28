@@ -63,7 +63,7 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     dither enum "0" so a staged "5" is a real change, and a modulator the fake's
     SDM shaper list actually offers (enum "0" = ASDM5).
 
-    An adopted restore self-restarts the daemon (docs/architecture.md §1 lane
+    An adopted restore self-restarts the daemon (docs/architecture.md §2.2 lane
     2), after which the Control API's State reflects the restored config file —
     so the ``_on_restore`` hook moves the control fake's State to the config
     the 8088 fake just adopted, the way one real daemon would."""

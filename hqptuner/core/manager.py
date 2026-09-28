@@ -276,7 +276,7 @@ class ConnectionManager:
     async def restarting(self) -> None:
         """Drop the control lane a restore just killed and start the reconnect now.
 
-        The daemon self-restarts on every adopted restore (architecture §1 lane 2), so the 4321
+        The daemon self-restarts on every adopted restore (architecture §2.2 lane 2), so the 4321
         socket is dead the moment the POST returns. Waiting for the poll loop to find that out costs
         up to a poll interval; dropping here and waking the loop starts the reconnect at once, and
         the loop's own retries carry it through the restart window. The post-restore wait itself is

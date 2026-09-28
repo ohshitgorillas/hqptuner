@@ -6,7 +6,7 @@ is pinned in ``tests/presets/test_matrix_mode_store.py``. The suite is cut there
 because everything in this file needs an app and a client and nothing in the
 store file does.
 
-A mode is keyed by preset NAME, the stable join key (docs/architecture.md §2),
+A mode is keyed by preset NAME, the stable join key (docs/architecture.md §3.1),
 and lives in HQPTuner's own state because hqplayerd re-serializes its config from
 its own model and would drop an attribute of ours (docs/matrix-spec.md:31). So
 the pair never touches hqplayerd: the client below is built with no credentials
@@ -94,7 +94,7 @@ def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[C
 def modes_client(joined_api: Callable[..., TestClient]) -> TestClient:
     """A client whose preset store already carries the two names these cases PUT.
 
-    A mode is keyed by preset name (docs/architecture.md §2), so every case that
+    A mode is keyed by preset name (docs/architecture.md §3.1), so every case that
     stores one names a preset that exists."""
     return joined_api([NAME, OTHER])
 
@@ -194,7 +194,7 @@ def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 
 
 # --- a name no preset carries --------------------------------------------------------
-# Preset names are the join key (docs/architecture.md §2), so a mode stored for
+# Preset names are the join key (docs/architecture.md §3.1), so a mode stored for
 # a name no preset carries is an orphan nothing can ever display.
 
 #: The preset store's own on-disk layout stamp, in a version this build cannot read.

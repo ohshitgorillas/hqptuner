@@ -2,7 +2,7 @@
 
 Derived from the official `hqp-control` 6.0.1 source (signalyst.eu, `hqp-control-601-src.zip`), MIT-licensed, © 2011–2026 Jussi Laako. File revision: `$Id: 13554 2026-03-02$`, Qt client classes `clControlInterface` / `clControlApplication`. Empirical results from a live hqplayerd 6.0.4 are folded in.
 
-This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. The normative rules that follow from it — enumeration volatility, the index/ID domain split, live-vs-file divergence — are stated once in `docs/architecture.md` §2 and are not repeated here. Per-field lane assignments live in `docs/settings-classification.md`.
+This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. The normative rules that follow from it — enumeration volatility, the index/ID domain split, live-vs-file divergence — are stated once in `docs/architecture.md` §3.1 and are not repeated here. Per-field lane assignments live in `docs/settings-classification.md`.
 
 ## 1. Transport and framing
 
@@ -51,7 +51,7 @@ hqplayerd's built-in web server (default **port 8088**, the same one the stock c
 - **Credentials:** the management username/password provisioned by `hqplayerd -u <user> <pass>` (per-user) or `-s` (system), or via the `/auth` web page.
 - **Stored digest = HTTP Digest HA1.** `hqplayerd-auth.xml` stores exactly the Digest HA1 for this realm: the `legacy` attribute = `MD5("<user>:com.signalyst.hqplayer.embedded:<pass>")`, and `digest` = `SHA-256(` same string `)`. No hidden salt. There is no reason for HQPTuner to read this file; the daemon validates Digest itself.
 
-HQPTuner's use of these credentials is described in `docs/architecture.md` §3.
+HQPTuner's use of these credentials is described in `docs/architecture.md` §2.4.
 
 ## 3.6. HTTP configuration routes (port 8088)
 
@@ -116,7 +116,7 @@ hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **no
 - **`POST /restore scope=system` lands the daemon on `[default]`** and discards an edit to a root-renamed working member (see the configuration model above). Restore is the one reliable write primitive, but it is `[default]`-centric.
 - **A named `profile/load` empties `/backup`** (bug note above).
 
-HQPTuner's model is described in `docs/architecture.md` §7; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
+HQPTuner's model is described in `docs/architecture.md` §5.1; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
 
 ## 4. Response conventions
 
@@ -140,7 +140,7 @@ HQPTuner's model is described in `docs/architecture.md` §7; the daemon's `data/
   </GetFilters>
   ```
 
-- **Item field semantics:** `index` is the list position (display order); `value` is the numeric enumeration ID; `name` is the human label. `Set*` commands and `State` responses use the **list index**, NOT the enum ID: `<SetFilter value="6"/>` selects poly-sinc-lp (index 6; enum ID 6 is poly-sinc-lp-2s), `<SetShaping value="5"/>` selects ASDM5EC (index 5; enum ID 5 is ASDM5). The enum ID (`value` attr) appears in the enumeration lists and in `hqplayerd.xml`, which stores e.g. `filter="40"` = poly-sinc-gauss-long's enum ID. An XML-lane implementation must translate ID↔index via the live enumeration lists; the two domains must never be mixed (`architecture.md` §2).
+- **Item field semantics:** `index` is the list position (display order); `value` is the numeric enumeration ID; `name` is the human label. `Set*` commands and `State` responses use the **list index**, NOT the enum ID: `<SetFilter value="6"/>` selects poly-sinc-lp (index 6; enum ID 6 is poly-sinc-lp-2s), `<SetShaping value="5"/>` selects ASDM5EC (index 5; enum ID 5 is ASDM5). The enum ID (`value` attr) appears in the enumeration lists and in `hqplayerd.xml`, which stores e.g. `filter="40"` = poly-sinc-gauss-long's enum ID. An XML-lane implementation must translate ID↔index via the live enumeration lists; the two domains must never be mixed (`architecture.md` §3.2).
 
 ## 5. Command index
 

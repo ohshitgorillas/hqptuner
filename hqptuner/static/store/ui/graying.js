@@ -1,7 +1,7 @@
 // Derived enable/gray state for a control: a control may declare `grayWhen(ctx)`
 // in the schema and it is consulted here. Further rules (mode-dependent graying,
 // rate-aware shaper narrowing, filter narrowing, mode-switch coherence —
-// architecture §5) slot in here with no store or component changes.
+// architecture §7) slot in here with no store or component changes.
 
 import { schema } from "../schema.js";
 import { modeName } from "../signals.js";

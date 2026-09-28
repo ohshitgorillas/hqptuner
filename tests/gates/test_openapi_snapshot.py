@@ -70,7 +70,7 @@ ARRAY_FOLDED = '{\n  "a": [1, 2]\n}\n'
 #: the new surface without going looking for the command.
 ACCEPT_INSTRUCTION = "scripts/gates/check_openapi.py --write"
 
-#: The route that mounts only when the audit log is enabled (architecture §
+#: The route that mounts only when the audit log is enabled (architecture §10.2
 #: "No UI, deliberately": ``GET /api/audit`` exists only while the var is set).
 AUDIT_ROUTE = "/api/audit"
 

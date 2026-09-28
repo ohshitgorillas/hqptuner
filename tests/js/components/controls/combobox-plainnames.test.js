@@ -22,7 +22,7 @@
 // filters/dithers/modulators, raw name -> {family, variant, leaf, short}), so
 // it is driven here through the harness's metadata fixture — the running engine
 // stays the enumeration authority and the data only annotates, joined by name
-// (docs/architecture.md §2).
+// (docs/architecture.md §3.1).
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire; state driven through the field harness plus the pref's exported

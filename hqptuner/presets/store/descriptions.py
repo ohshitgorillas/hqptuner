@@ -1,7 +1,7 @@
 """Profile descriptions — the prose the user wrote about a saved matrix profile, kept for the install.
 
 A description is keyed by profile NAME, never by any id the daemon hands out: names are the stable join key
-(architecture §2), and ``<matrix_profile>`` carries exactly one attribute, ``name`` (readme §1.12), so there is
+(architecture §3.1), and ``<matrix_profile>`` carries exactly one attribute, ``name`` (readme §1.12), so there is
 nowhere in the config XML for this text to live. It is HQPTuner's own record, the way favorites are.
 
 Stored as one JSON file beside the live snapshots and the favorites, and for the same reason: a few hundred short

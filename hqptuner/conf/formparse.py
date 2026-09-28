@@ -5,7 +5,7 @@ settings form; ``parse_config_form``/``parse_matrix_form``/
 ``parse_speakers_form`` turn one into its ``httpforms`` shape (``ConfigForm``/
 ``MatrixForm``/``SpeakersForm``): every field with its current value and
 constraints, grouped by the form's own section/label structure. This is the sole
-persistent-config read path (docs/architecture.md §2).
+persistent-config read path (docs/architecture.md §2.2).
 """
 
 import re

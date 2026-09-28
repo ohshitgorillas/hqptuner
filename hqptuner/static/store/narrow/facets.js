@@ -8,7 +8,7 @@
 // overlay (quality/focus/apodizing/ratio/length/adaptive, transcribed from the
 // manual) fills exactly those gaps. Static is name-keyed and NEVER overrides live: a future
 // HQPlayer that renames/adds filters is still covered live for the active mode,
-// and a stale static entry simply never matches. (architecture §2 volatility.)
+// and a stale static entry simply never matches. (architecture §3.1 volatility.)
 import { computed } from "@preact/signals";
 import { enums, metadata } from "../signals.js";
 

@@ -135,7 +135,7 @@ So the model may **recommend anything, and change only the four.** The recommend
 }]
 ```
 
-**The structural guard is free, and architecture §2 already supplies it: a suggestion may only name values present in the live engine enumeration.** The validator rejects anything else. This kills the likeliest failure outright — HQPlayer is niche, the model's recall of it is thin, and an **invented filter name is worse than bad advice because it is unfollowable**. Joining by live name also means a HQPlayer version bump cannot leave a stale hardcoded list behind, the same reasoning as D6.
+**The structural guard is free, and architecture §3.1 already supplies it: a suggestion may only name values present in the live engine enumeration.** The validator rejects anything else. This kills the likeliest failure outright — HQPlayer is niche, the model's recall of it is thin, and an **invented filter name is worse than bad advice because it is unfollowable**. Joining by live name also means a HQPlayer version bump cannot leave a stale hardcoded list behind, the same reasoning as D6.
 
 **`basis: "mechanism"`** is the footing this branch should normally stand on: a documented property plus its physical consequence, with the property from the manual and the filter's position derived from the live enumeration. It is stronger than "I read it somewhere" because it is checkable end to end. See D20 for the axis layer that makes it expressible.
 
@@ -399,7 +399,7 @@ Its own `_comment` settles the open question about how a filter's dimensional po
 
 > "quality/focus/ratio ship live in FiltersItem descriptions, apodizing in arg bit 0, **phase is encoded in the name**"
 
-`hqplayerd-readme.txt` corroborates: the live description strings carry length and phase as literal text — "Apodizing extra long Gaussian polyphase", "linear-phase", "intermediate-phase", "minimum-phase". So **no fragile suffix parser is needed and no per-filter table has to be authored**; position is read from what the engine already reports, which is architecture §2's rule anyway.
+`hqplayerd-readme.txt` corroborates: the live description strings carry length and phase as literal text — "Apodizing extra long Gaussian polyphase", "linear-phase", "intermediate-phase", "minimum-phase". So **no fragile suffix parser is needed and no per-filter table has to be authored**; position is read from what the engine already reports, which is architecture §3.1's rule anyway.
 
 Two consequences worth stating:
 
@@ -590,7 +590,7 @@ Per D2a the validator enforces three classes and nothing else. Anything not list
 | crossfeed frequency / level | live `/matrix` form bounds (D6) |
 | compensation strength | 0–150 % |
 | field types | numeric fields parse as numbers; `type` is one of `peak`/`lshelf`/`hshelf` |
-| `recommends` | optional; each entry needs `setting`, `current`, `suggested`, `reason`, `basis`, `confidence`. **Every name in `suggested` must be present in the live engine enumeration** (D19, architecture §2) — an unknown name is rejected, never rendered |
+| `recommends` | optional; each entry needs `setting`, `current`, `suggested`, `reason`, `basis`, `confidence`. **Every name in `suggested` must be present in the live engine enumeration** (D19, architecture §3.1) — an unknown name is rejected, never rendered |
 | `variants` | optional; each needs `label`, `changes`, `measured`, `tradeoff`. A single-entry `variants` is rejected — one option is not a fork |
 | forbidden targets | any enable/disable; the compensation block's internal structure; `matrix_enabled`. **`recommends` is advisory and can never stage**, so a `recommends` entry naming an in-surface parameter is rejected — that is a `changes` entry pretending to be advice |
 

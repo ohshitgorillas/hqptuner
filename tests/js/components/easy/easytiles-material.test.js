@@ -44,7 +44,7 @@
 //
 // NAMES, NOT WORDS (rule 9). Preset ids, knob ids and knob positions are wire
 // identifiers, read off the table; the engine filter name a tile displays is a
-// wire identifier too (docs/architecture.md §2) and is asserted against the
+// wire identifier too (docs/architecture.md §3.1) and is asserted against the
 // facet the store holds for it, never typed. No title, hint or label is read.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/easytiles-material.test.js
