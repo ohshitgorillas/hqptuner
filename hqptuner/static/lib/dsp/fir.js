@@ -5,7 +5,7 @@
 // `minimum_phase(method="homomorphic", half=False)`) so their published
 // reference values pin the transcription.
 
-import { fftRadix2, ifftRadix2 } from "./fft.js";
+import { fftRadix2, ifftRadix2 } from "../../vendor/eqlab/core/dsp/fft.js";
 
 /**
  * Ceiling on the attenuation a design is given, the published Kaiser and

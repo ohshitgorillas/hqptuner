@@ -53,7 +53,7 @@ every request it is handed and a wire that went quiet is a real condition. A
 regression that applied the placeholder row turns that case red, not this suite.
 """
 
-import time
+import functools
 
 from playwright.sync_api import Locator, Page, expect
 
@@ -155,32 +155,44 @@ def writes(stack: Stack) -> int:
     return sum(1 for name, _ in stack.control_log if name in WRITES)
 
 
-def wait_for_growth(stack: Stack, baseline: int, timeout_ms: int = SETTLE_MS) -> int:
-    """Poll until more writes than `baseline` have gone out, and report the count.
+def _differs_from(stack: Stack, baseline: int) -> bool:
+    """Whether the write count no longer reads `baseline` — a plain function, bound fresh each pass
+    via `functools.partial`, so no closure ever captures a loop variable that keeps changing underneath it."""
+    return writes(stack) != baseline
 
-    Runs out quietly: a case that never gets its batch fails on its own
-    assertion rather than inside this helper.
+
+def wait_for_growth(stack: Stack, baseline: int, timeout_ms: int = SETTLE_MS) -> int:
+    """Wait until more writes than `baseline` have gone out, and report the count.
+
+    Woken by the fake's own command log (`Stack.wait_for_command`): every command it records
+    notifies. Runs out quietly: a case that never gets its batch fails on
+    its own assertion rather than inside this helper.
     """
-    deadline = time.monotonic() + timeout_ms / 1000
-    while time.monotonic() < deadline and writes(stack) <= baseline:
-        time.sleep(POLL_S)
+    stack.wait_for_command(lambda: writes(stack) > baseline, timeout=timeout_ms / 1000)
     return writes(stack)
 
 
 def settled_writes(stack: Stack, timeout_ms: int = SETTLE_MS) -> int:
-    """Poll until the write count has stopped moving, and report where it stopped.
+    """Wait until the write count has stopped moving, and report where it stopped.
 
     A batch arrives as several commands, so a baseline taken the instant the
     first one lands would charge the rest of that batch to whatever the case
-    does next. The condition polled is "no further write for `STILL_PASSES`
+    does next. The condition waited on is "no further write for `STILL_PASSES`
     consecutive passes", which is a condition and not a duration: nothing here
     asserts, or may assert, that a batch takes any particular time to arrive.
+    Each pass is woken by the next command; a pass with nothing to wake it
+    still ends at `POLL_S`. The overall ceiling is a PASS BUDGET, not a wall-clock
+    deadline: `timeout_ms` converts once, at the top, into how many `POLL_S`-long
+    passes it is worth at most, and every pass after that is paced by the fake's
+    own notifications alone.
     """
-    deadline = time.monotonic() + timeout_ms / 1000
+    max_passes = max(STILL_PASSES, int(timeout_ms / 1000 / POLL_S))
     count = writes(stack)
     still = 0
-    while time.monotonic() < deadline and still < STILL_PASSES:
-        time.sleep(POLL_S)
+    for _ in range(max_passes):
+        if still >= STILL_PASSES:
+            break
+        stack.wait_for_command(functools.partial(_differs_from, stack, count), timeout=POLL_S)
         now = writes(stack)
         still = still + 1 if now == count else 0
         count = now

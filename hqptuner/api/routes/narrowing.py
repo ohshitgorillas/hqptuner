@@ -5,25 +5,52 @@ nothing here touches the control lane, the http lane, or the pending store. Both
 set, because the client's state is the whole bar and a partial answer would leave it guessing.
 """
 
-from typing import Any
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.errors import refuse
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
+from hqptuner.presets.store.narrowing import (
+    Facets,
+    NarrowingError,
+    NarrowingSchemaError,
+    NarrowingStore,
+)
 
 router = APIRouter(prefix="/api")
 
 
+class FacetBody(BaseModel, extra="forbid"):
+    """A facet map on the wire: one optional field per key ``FacetInput`` names; any other key is a 422."""
+
+    genre: list[str] | None = None
+    genre_mode: str | None = None
+    quality: int | None = None
+    focus: list[str] | None = None
+    focus_mode: str | None = None
+    phase: list[str] | None = None
+    length: list[str] | None = None
+    hide_limited: str | None = None
+    odd_rate_only: bool | None = None
+    downsafe_only: bool | None = None
+    apod_1x: str | None = None
+    apod_nx: str | None = None
+    lossy_1x: str | None = None
+    src_format: str | None = None
+
+
 class NarrowingBody(BaseModel):
-    """The whole facet set for ``PUT /api/narrowing``.
+    """The whole facet set for ``PUT /api/narrowing``."""
 
-    Deliberately untyped per facet: the store owns the domains, so a bad token comes back as its sentence naming the
-    facet rather than as pydantic's shape complaint about a dict.
-    """
+    facets: FacetBody
 
-    facets: dict[str, Any]
+
+@dataclass(frozen=True)
+class NarrowingAnswer:
+    """Both narrowing routes' answer: the whole facet set as stored."""
+
+    facets: Facets
 
 
 def _store(request: Request) -> NarrowingStore:
@@ -32,28 +59,32 @@ def _store(request: Request) -> NarrowingStore:
 
 
 @router.get("/narrowing")
-def narrowing(request: Request) -> dict[str, dict[str, Any]]:
+def narrowing(request: Request) -> NarrowingAnswer:
     """Every narrow-bar facet, stored value or default.
 
     409 when the store on disk is stamped newer than this HQPTuner reads — answering with defaults would be a lie
     about a file that is there and full.
     """
     try:
-        return {"facets": _store(request).read()}
+        facets = _store(request).read()
     except NarrowingSchemaError as exc:
         raise refuse(exc) from exc
+    return NarrowingAnswer(facets)
 
 
 @router.put("/narrowing")
-def save_narrowing(body: NarrowingBody, request: Request) -> dict[str, dict[str, Any]]:
+def save_narrowing(body: NarrowingBody, request: Request) -> NarrowingAnswer:
     """Replace the whole facet set with the facets given, and answer with what was stored.
 
     Whole-set replace: a facet left out is stored at its default, so the client never needs a second route and two
     browsers racing is last-write-wins rather than a merge nobody asked for.
+
+    422s a facet key ``FacetBody`` does not name — pydantic's own ``extra="forbid"`` refuses it at the door.
     """
     try:
-        return {"facets": _store(request).write(dict(body.facets))}
+        facets = _store(request).write(body.facets.model_dump(exclude_none=True))
     except NarrowingSchemaError as exc:
         raise refuse(exc) from exc
     except NarrowingError as exc:
         raise refuse(exc) from exc
+    return NarrowingAnswer(facets)

@@ -19,11 +19,12 @@ preset with no recorded mode is one nobody has said anything about, not one that
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
+from hqptuner.presets.store.jsonfile import read_stamped
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,6 +39,13 @@ _MODES = ("speakers", "headphones")
 
 # A ceiling on entries, matching the preset store's own reach with room to spare. An abuse guard and nothing else.
 _MAX_PRESETS = 256
+
+
+class MatrixModeFile(TypedDict, total=False):
+    """The on-disk envelope: a schema stamp beside the preset-name-to-mode map."""
+
+    schema: int
+    presets: dict[str, str]
 
 
 class MatrixModeError(HQPTunerError, ValueError):
@@ -56,27 +64,70 @@ class MatrixModeSchemaError(MatrixModeError):
 
     code = "store_too_new"
 
+    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
+        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
+        super().__init__(
+            f"matrix-mode store is schema {stamp}, this HQPTuner {__version__} understands "
+            f"{understood} — upgrade HQPTuner to read {what}"
+        )
 
-def _validate_mode(mode: Any) -> str:
+
+class InvalidModeError(MatrixModeError):
+    """A staged mode was not one of the two the store accepts."""
+
+    def __init__(self, *, mode: object) -> None:
+        """Render the wording naming the accepted modes and the rejected one."""
+        super().__init__(f"matrix mode must be one of {' / '.join(_MODES)}: {mode!r}")
+
+
+class TooManyPresetsError(MatrixModeError):
+    """A write would carry more presets with a stored mode than ``_MAX_PRESETS``."""
+
+    def __init__(self, *, count: int, limit: int) -> None:
+        """Render the wording naming the count that was about to be saved and the limit it exceeds."""
+        super().__init__(f"too many presets with a stored mode: {count} (limit {limit})")
+
+
+class InvalidPresetNameError(MatrixModeError):
+    """A staged preset name failed the shared naming rule (``names.validate_name``).
+
+    ``validate_new_name`` is never called with ``MatrixModeError``, so there is no mixed-script counterpart here.
+    """
+
+    code = "name_invalid"
+
+    def __init__(self, *, label: str, reason: str) -> None:
+        """Render the wording naming the label and the shared rule's refusal reason."""
+        super().__init__(f"Invalid {label} name: {reason}")
+
+
+def validate_mode(mode: object) -> str:
     """Return the mode as it will be stored, raising ``MatrixModeError`` when it is not one of the two."""
     if not isinstance(mode, str) or mode not in _MODES:
-        raise MatrixModeError(f"matrix mode must be one of {' / '.join(_MODES)}: {mode!r}")
+        raise InvalidModeError(mode=mode)
     return mode
 
 
-def _clean(stored: Any) -> dict[str, str]:
-    """Return the storable entries of a ``presets`` mapping, dropping anything that is not one.
+def _clean(stored: object) -> MatrixModeFile:
+    """Return a read document's envelope, keeping the stamp when it is an int and only the storable preset entries.
 
     A file another version wrote, or one a client corrupted, loses the entries that make no sense rather than the whole
     store — an unreadable entry costs that preset its recorded mode, which reads as "never chosen".
     """
+    out: MatrixModeFile = {}
     if not isinstance(stored, dict):
-        return {}
-    return {
-        name: mode
-        for name, mode in stored.items()
-        if isinstance(name, str) and name and isinstance(mode, str) and mode in _MODES
-    }
+        return out
+    schema = stored.get("schema")
+    if isinstance(schema, int):
+        out["schema"] = schema
+    presets = stored.get("presets")
+    if isinstance(presets, dict):
+        out["presets"] = {
+            name: mode
+            for name, mode in presets.items()
+            if isinstance(name, str) and name and isinstance(mode, str) and mode in _MODES
+        }
+    return out
 
 
 class MatrixModeStore:
@@ -90,39 +141,21 @@ class MatrixModeStore:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
 
-    def _read_file(self) -> dict[str, Any]:
-        """Return the file as a dict, empty when absent or unreadable.
+    def _read_file(self) -> MatrixModeFile:
+        """Return the file as a dict, empty when absent.
 
-        Every path goes through here, so a too-new store refuses uniformly instead of half-working.
+        Every path goes through here, so a too-new store refuses uniformly instead of half-working, and a file that
+        cannot be read as a JSON object raises ``StoreCorruptError`` rather than losing the modes silently.
         """
-        if not self._path.is_file():
-            return {}
-        try:
-            data = json.loads(self._path.read_text())
-        except (ValueError, OSError):
-            return {}
-        if not isinstance(data, dict):
-            return {}
-        schema = data.get("schema")
-        if isinstance(schema, int) and schema > _SCHEMA:
-            raise MatrixModeSchemaError(
-                f"matrix-mode store is schema {schema}, this HQPTuner {__version__} understands "
-                f"{_SCHEMA} — upgrade HQPTuner to read these modes"
-            )
-        return data
+
+        def _too_new(stamp: int) -> MatrixModeSchemaError:
+            return MatrixModeSchemaError(stamp=stamp, understood=_SCHEMA, what="these modes")
+
+        return _clean(read_stamped(self._path, store="matrix-mode", schema=_SCHEMA, too_new=_too_new))
 
     def read(self) -> dict[str, str]:
         """Every stored mode, keyed by preset name. Empty when nothing is stored."""
-        return _clean(self._read_file().get("presets"))
-
-    def validate_mode(self, mode: str) -> str:
-        """Return the mode as it will be stored, raising ``MatrixModeError`` when it is not one of the two.
-
-        The same rule ``write`` applies, exposed so a caller that must judge the mode BEFORE it judges the name can do
-        so: a request carrying both an unstorable mode and a name nothing will accept is answered by whichever of the
-        two the caller asks about first, and the mode is the more useful answer.
-        """
-        return _validate_mode(mode)
+        return self._read_file().get("presets", {})
 
     def _save(self, presets: dict[str, str]) -> None:
         """Write ``presets`` out as the whole file, creating the directory on the way."""
@@ -136,14 +169,11 @@ class MatrixModeStore:
         would refuse to write, are both simply not present. Writes only when something changed, so a delete on an
         install that never chose a mode leaves no file behind.
 
-        A store stamped newer than this HQPTuner keeps its entry. ``write`` refuses to overwrite such a file, and
-        rewriting it here would stamp it back down and destroy what the newer version put in — one orphan is cheaper
-        than that, and deleting a preset must not fail because a store beside it is unreadable.
+        Raises ``MatrixModeSchemaError`` when the store is stamped newer than this HQPTuner, and ``StoreCorruptError``
+        when it cannot be read at all: both are the caller's decision, not this method's, about whether losing a
+        preset must wait on a store beside it that this HQPTuner cannot open.
         """
-        try:
-            presets = _clean(self._read_file().get("presets"))
-        except MatrixModeSchemaError:
-            return False
+        presets = self._read_file().get("presets", {})
         if name not in presets:
             return False
         del presets[name]
@@ -157,11 +187,11 @@ class MatrixModeStore:
         at and a partial answer would leave it guessing about the rest. Guards the schema first — a store we cannot
         read is not one we should be writing into.
         """
-        key = names.validate_name(name, MatrixModeError, "preset")
-        value = _validate_mode(mode)
-        presets = _clean(self._read_file().get("presets"))
+        key = names.validate_name(name, InvalidPresetNameError, "preset")
+        value = validate_mode(mode)
+        presets = self._read_file().get("presets", {})
         presets[key] = value
         if len(presets) > _MAX_PRESETS:
-            raise MatrixModeError(f"too many presets with a stored mode: {len(presets)} (limit {_MAX_PRESETS})")
+            raise TooManyPresetsError(count=len(presets), limit=_MAX_PRESETS)
         self._save(presets)
         return presets

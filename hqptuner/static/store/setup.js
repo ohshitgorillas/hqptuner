@@ -36,6 +36,8 @@ const GRACE_MS = 3000;
 
 /** Whether the connection panel is showing. */
 export const setupOpen = signal(false);
+/** The host name the page was served from, written once at startup. */
+export const pageHost = signal("");
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
 export const discovering = signal(false);
 /**

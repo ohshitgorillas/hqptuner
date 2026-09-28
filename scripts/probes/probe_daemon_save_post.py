@@ -31,6 +31,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
+from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
 PROFILE = os.environ.get("PROBE_PROFILE", "hqptuner-probe-post")
@@ -41,6 +42,10 @@ SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
 
 
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
 async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
     last: Exception | None = None
     for _ in range(SETTLE_TRIES):
@@ -49,10 +54,11 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
         except (httpx.HTTPError, OSError) as exc:
             last = exc
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit(f"daemon never answered: {last}")
+    message = f"daemon never answered: {last}"
+    raise CliError(message)
 
 
-def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
+def _correction(fields: list[FormField]) -> dict[str, object]:
     return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
@@ -67,24 +73,27 @@ async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, ob
     return seen
 
 
-async def main() -> int:
+async def _run() -> int:
     """Establish whether a profile saved through the daemon's own POST /matrix/save carries its post-process chain."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to write")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
+        raise CliError(message)
     original_profile = state.get("matrix_profile", "")
 
     http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=120.0)
     at_rest = _correction((await _rpc(http.get_matrix))["fields"])
     print(f"active profile {original_profile!r}; correction at rest: {at_rest}")
     if not at_rest.get("post_correction_enabled"):
-        raise SystemExit("correction is not engaged — nothing to prove a profile carries")
+        message = "correction is not engaged — nothing to prove a profile carries"
+        raise CliError(message)
 
     try:
         # save the CURRENT matrix (correction engaged) under the daemon's own route
@@ -95,7 +104,8 @@ async def main() -> int:
             form.raise_for_status()
             fields, _ = serialize_matrix_form(form.text)
             if not fields:
-                raise SystemExit("GET /matrix served no form fields")
+                message = "GET /matrix served no form fields"
+                raise CliError(message)
             fields["profile"] = PROFILE
             # multipart: the form is enctype="multipart/form-data" and a
             # urlencoded POST is accepted with 200 and silently ignored
@@ -137,6 +147,20 @@ async def main() -> int:
         print(f"note: {PROFILE!r} is memory-only and disappears at the next daemon restart")
         await control.close()
     return 0
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

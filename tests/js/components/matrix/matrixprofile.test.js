@@ -29,7 +29,7 @@ import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { stagingWire, ok } from "../../support/wire/wire.js";
 
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 /**
  * A stored profile as `matrixConfig.file_profiles` carries one.

@@ -40,10 +40,15 @@ export const RATE_MIRRORED = new Set(["mode"]);
 // connection to another clears.
 /**
  * @typedef {object} LiveReport
- *   What POST /api/config/live answers with. The lane verifies each setter by
+ *   The report half of what POST /api/config/live answers with. The lane verifies each setter by
  *   State readback and reports per setting, so a 200 can still carry failures.
  * @property {{ ok: boolean, setting: string, error?: string }[]} [live]
  * @property {Record<string, string>} [stored] edits HELD for a chain not loaded
+ *
+ * @typedef {object} LiveAnswer
+ *   What a live write answers with: the report, and the auto-save fold beside it.
+ * @property {LiveReport} report
+ * @property {{ name: string, warning?: string }} [autosaved]
  */
 
 /** @type {string | number | undefined} */

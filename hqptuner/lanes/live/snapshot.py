@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from hqptuner.lanes.live.chain import EnumItems, active_chain
-from hqptuner.lanes.live.routing import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
+from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -31,7 +31,7 @@ _SNAPSHOT_VALUE = {"junk_filter": "index"}
 # `lane.apply_preset` writes the mode, re-enumerates, then applies the rest
 # against the lists the switch produced. Leaving mode out made a preset unable to
 # say "run SDM like this", which is most of what a preset is for.
-_SNAPSHOT_FIELDS = (*ROUTABLE, *_LIVE_ONLY)
+_SNAPSHOT_FIELDS = (*ROUTABLE, *LIVE_ONLY)
 
 
 def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
@@ -50,7 +50,7 @@ def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | Non
 
 def _spec(field: str) -> LiveField:
     """Return a snapshot field's routing spec, from whichever of the two tables carries it."""
-    return ROUTABLE.get(field) or _LIVE_ONLY[field]
+    return ROUTABLE.get(field) or LIVE_ONLY[field]
 
 
 def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:

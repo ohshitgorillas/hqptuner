@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from hqptuner.engine import blockstats, junkadvisor
+from hqptuner.engine import blockstats, junkcurve
 
 SRC = Path("/srv/hqptuner/state/junkburst")
 DER = SRC / "derived"
@@ -23,10 +23,10 @@ REPORT = Path(_JB_REPORT) if _JB_REPORT.startswith("/") else SRC / Path(_JB_REPO
 HEADER = struct.Struct("<4I3fI")
 
 FLOOR_DB = -200.0
-CONTRAST_DB = junkadvisor.CONTRAST_DB
+CONTRAST_DB = junkcurve.CONTRAST_DB
 DROP_TOP_BINS = blockstats.DROP_TOP_BINS
 SMOOTH_BINS = blockstats.SMOOTH_BINS
-FLOOR_PCT = junkadvisor.FLOOR_PERCENTILE
+FLOOR_PCT = junkcurve.FLOOR_PERCENTILE
 #: The retired reference-band fall's own window, reference band and guard, which the cliff candidates here still read.
 CLIFF_WINDOW_HZ = (20_000.0, 26_000.0)
 CLIFF_REF_HZ = (15_000.0, 18_000.0)
@@ -116,7 +116,7 @@ QUIET_MAX_LEVEL_DB = -104.9820
 #: noise floor ripples: over the bins above 24 kHz the loudest bin of a narrow median clears the row's low percentile
 #: by enough to fire the contrast test on masters carrying nothing up there. At junkadvisor's baseline width the
 #: ripple is gone and real content stands well clear.
-CONTENT_SMOOTH_BINS = junkadvisor.SPUR_BASELINE_BINS
+CONTENT_SMOOTH_BINS = junkcurve.SPUR_BASELINE_BINS
 
 #: Owner label inputs. ``tracks.tsv`` carries one row per burst; ``labels.tsv`` carries the owner's verdict per artist
 #: and album, or per track where the album row reads ``BY_TRACK``.

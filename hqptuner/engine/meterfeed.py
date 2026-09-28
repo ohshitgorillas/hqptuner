@@ -15,13 +15,44 @@ on overflow, so a stalled client never back-pressures the reader.
 import asyncio
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import NamedTuple, TypedDict
 
 import numpy as np
 import numpy.typing as npt
 
-#: one queued event: its name and its JSON-ready data
-Event = tuple[str, dict[str, Any]]
+
+class ChannelLevels(TypedDict):
+    """One channel's share of a ``frame`` event: its max-held peak, mean rms, and band powers, all in dB."""
+
+    peak: float
+    rms: float
+    bands: list[float]
+
+
+class GeometryData(TypedDict):
+    """A ``geometry`` event's payload: what a page needs to lay its bars out for one frame layout."""
+
+    nyquist: float
+    channels: int
+    centres: list[float]
+
+
+class FrameData(TypedDict):
+    """A ``frame`` event's payload: one finished stride, per channel."""
+
+    channels: list[ChannelLevels]
+
+
+#: The two shapes ``MeterFeed`` ever queues, told apart by ``Event.name`` ("geometry" or "frame").
+type EventData = GeometryData | FrameData
+
+
+class Event(NamedTuple):
+    """One queued event: its name and its JSON-ready data."""
+
+    name: str
+    data: EventData
+
 
 # Frame time one ``frame`` event covers, in milliseconds.
 STRIDE_MS = 40
@@ -51,10 +82,12 @@ class Geometry:
 
     def event(self) -> Event:
         """Return the ``geometry`` event a page lays its bars out from."""
-        return (
-            "geometry",
-            {"nyquist": self.bandwidth, "channels": self.channels, "centres": [round(c, 1) for c in self.centres]},
-        )
+        data: GeometryData = {
+            "nyquist": self.bandwidth,
+            "channels": self.channels,
+            "centres": [round(c, 1) for c in self.centres],
+        }
+        return Event("geometry", data)
 
 
 def geometry(channels: int, bins: int, bandwidth: float) -> Geometry:
@@ -118,11 +151,12 @@ def _db(power: npt.NDArray[np.float64]) -> list[float]:
 
 def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64]) -> Event:
     """Return a finished stride as a ``frame`` event: the max-held peak, and the mean rms and band powers, in dB."""
-    channels = [
+    channels: list[ChannelLevels] = [
         {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bands": _db(mean[ch, 1:])}
         for ch in range(len(peak))
     ]
-    return ("frame", {"channels": channels})
+    data: FrameData = {"channels": channels}
+    return Event("frame", data)
 
 
 class MeterFeed:

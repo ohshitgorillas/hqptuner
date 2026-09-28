@@ -14,9 +14,13 @@ from hqptuner.lanes.live.snapshot import live_snapshot
 # --- the chain has to be knowable at all --------------------------------------
 
 
-async def test_a_state_that_names_no_loaded_chain_reports_nothing(live_manager: LiveManager) -> None:
+async def test_a_state_that_names_no_loaded_chain_reports_nothing_but_a_known_chain_does(
+    live_manager: LiveManager,
+) -> None:
     # `[source]` with nothing playing: the configured mode names no family and the
     # engine has not settled on one either, so every chain-bound field would be a
-    # guess. Half a snapshot would read as the engine's settings, so there is none.
-    manager, _, _ = await live_manager(mode="0", _active_mode="")
-    assert live_snapshot(manager) is None
+    # guess. Half a snapshot would read as the engine's settings, so there is
+    # none — unlike an ordinary configured chain, which snapshots normally.
+    unknown, _, _ = await live_manager(mode="0", _active_mode="")
+    known, _, _ = await live_manager(mode="1")
+    assert (live_snapshot(unknown), "dither" in (live_snapshot(known) or {})) == (None, True)

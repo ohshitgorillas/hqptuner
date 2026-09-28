@@ -44,32 +44,24 @@ recorded beside them; the 20k rule's four are read off the burst corpus under
 ``/srv/hqptuner/state/junkburst/`` (docs/junk-filter-autopilot-resource-20k.md §2).
 """
 
-import math
-import statistics
-from typing import Any
+from dataclasses import dataclass, field
 
 from hqptuner.engine import blockstats, junkrun
+from hqptuner.engine.junkcurve import (
+    CORNER_KHZ,
+    SPUR_BASELINE_BINS,
+    SPUR_SPLIT_DB,
+    Curve,
+    excesses,
+    median_smooth,
+    rank_correlation,
+    spur_corner,
+)
 
 # Eligibility floor: every signature lives above 24 kHz, so a container carrying
 # nothing up there has nothing for these rules to read.
 MIN_RATE_HZ = 48_000
 MIN_BANDWIDTH_HZ = 24_000.0
-
-FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
-#: Level over the row's own floor a bin must reach to carry a ceiling or a spur.
-#: The trough of the corpus histogram of (smoothed curve minus floor): floor mode
-#: 222097 rows at 1 dB, first local minimum 68205 at 11, content mode 75127 at 15.
-CONTRAST_DB = 11.0
-
-# Spurs: raw per-bin values against the curve's own wide median baseline. A
-# persistent tone is a few bins wide, which the 9-bin working curve erases.
-SPUR_MIN_HZ = 25_000.0
-SPUR_BASELINE_BINS = 51
-SPUR_CORNER_SPLIT_HZ = 45_000.0  # spur above this → 40k corner still clears it
-
-#: Excess over the 51-bin baseline above 25 kHz that engages a bin. Two modes in
-#: the corpus: 769 rows at 4 dB, a local minimum of 37 at 22, 130 again at 28.
-SPUR_SPLIT_DB = 22.0
 
 #: Excess at which a held bin releases. Pooled over the 29 bins that cross the
 #: engage split in the corpus's nine spur albums, every row of those albums, 510
@@ -105,6 +97,20 @@ RAMP_MIN_RATE = 176_400
 
 #: The top bins every rule drops, plus a full spur baseline in what is left.
 MIN_BINS = blockstats.DROP_TOP_BINS + SPUR_BASELINE_BINS
+
+
+@dataclass(frozen=True)
+class JunkVerdict:
+    """One rule's signature: the corner filter that treats it, why, and the offered families, if any.
+
+    ``families`` is empty for the 20k and ramp rules, which offer no alternative to the corner; the spur rule alone
+    names hires filters the caller may switch to instead of engaging the corner (``SPUR_FAMILIES``).
+    """
+
+    filter: str
+    reason: str
+    ceiling_khz: float
+    families: tuple[str, ...] = field(default_factory=tuple)
 
 
 class SpurHolder:
@@ -144,7 +150,7 @@ def classify(  # noqa: PLR0913
     sdm: bool,
     holder: SpurHolder | None = None,
     run: junkrun.JunkRun | None = None,
-) -> dict[str, Any] | None:
+) -> JunkVerdict | None:
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
     ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
@@ -159,7 +165,7 @@ def classify(  # noqa: PLR0913
     no 20k verdict.
     """
     found = verdicts(min_levels_db, bandwidth, samplerate=samplerate, sdm=sdm, holder=holder, run=run)
-    return min(found, key=lambda v: _CORNER_KHZ[str(v["filter"])]) if found else None
+    return min(found, key=lambda v: CORNER_KHZ[v.filter]) if found else None
 
 
 # Owner-approved for this site: the same six arguments ``classify`` forwards, the junk run among them.
@@ -171,7 +177,7 @@ def verdicts(  # noqa: PLR0913
     sdm: bool,
     holder: SpurHolder | None = None,
     run: junkrun.JunkRun | None = None,
-) -> list[dict[str, Any]]:
+) -> list[JunkVerdict]:
     """Return one verdict per rule this spectrum fires, in 20k, spur, ramp order.
 
     No rule excludes another, so a caller needing what a spectrum supported rather than what it is advised to engage
@@ -179,7 +185,7 @@ def verdicts(  # noqa: PLR0913
     """
     if min_levels_db is None or not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
         return []
-    curve = _Curve(min_levels_db, bandwidth)
+    curve = Curve(min_levels_db, bandwidth)
     rules = (_junk20k(run, samplerate or 0), _spur(curve, holder), _ramp(curve, samplerate or 0))
     return [verdict for verdict in rules if verdict is not None]
 
@@ -196,10 +202,6 @@ def eligible(samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) 
 # this module does by it.
 NO_FILTER = "none"
 
-# Fixed-corner filters by corner frequency. A corner at or below the recommended
-# one also removes the junk, so it counts as treatment.
-_CORNER_KHZ = {"20k": 20, "30k": 30, "40k": 40, "50k": 50}
-
 
 def treated(junk_filter: str | None, recommended: str) -> bool:
     """Whether the engaged junk filter already treats the detected signature.
@@ -209,68 +211,23 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
     """
     if junk_filter in (None, NO_FILTER):
         return False
-    engaged = _CORNER_KHZ.get(junk_filter)
+    engaged = CORNER_KHZ.get(junk_filter)
     if engaged is None:
         return True  # rate-relative or unknown — the user chose it, don't nag
-    return engaged <= _CORNER_KHZ[recommended]
+    return engaged <= CORNER_KHZ[recommended]
 
 
-def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
+def treats(verdict: JunkVerdict, junk_filter: str | None, filter_name: str | None) -> bool:
     """Whether the engine's current settings already treat the verdict's signature.
 
     Either the engaged junk filter (corner logic above), or — for verdicts offering families — a main filter from one.
     """
-    if treated(junk_filter, str(verdict["filter"])):
+    if treated(junk_filter, verdict.filter):
         return True
-    families: list[str] = verdict.get("families") or []
-    return filter_name is not None and any(filter_name.startswith(f) for f in families)
+    return filter_name is not None and any(filter_name.startswith(f) for f in verdict.families)
 
 
-def hz(i: int, bins: int, bandwidth: float) -> float:
-    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
-    return i * bandwidth / (bins - 1)
-
-
-class _Curve:
-    """One spectrum as every rule reads it: the top bins gone, smoothed, and its own floor.
-
-    Frequencies stay on the grid the untruncated spectrum came on, so the drop moves no bin's frequency.
-    """
-
-    def __init__(self, min_levels_db: list[float], bandwidth: float) -> None:
-        """Take the curve apart once: what the three rules share is computed here and nowhere else."""
-        self.bins = len(min_levels_db)
-        self.bandwidth = bandwidth
-        self.levels = min_levels_db[: self.bins - blockstats.DROP_TOP_BINS]
-        self.smoothed = _median_smooth(self.levels, blockstats.SMOOTH_BINS)
-        self.baseline = _median_smooth(self.levels, SPUR_BASELINE_BINS)
-        self.floor = _percentile(self.smoothed, FLOOR_PERCENTILE)
-
-    def hz(self, i: int) -> float:
-        """Return the centre frequency of a kept bin."""
-        return hz(i, self.bins, self.bandwidth)
-
-    def at(self, frequency: float) -> int:
-        """Return the kept bin nearest a frequency."""
-        return min(len(self.levels) - 1, max(0, round(frequency * (self.bins - 1) / self.bandwidth)))
-
-    def above(self, frequency: float) -> int:
-        """Return the lowest kept bin at or above a frequency, or one past the last kept bin."""
-        return min(len(self.levels), math.ceil(frequency * (self.bins - 1) / self.bandwidth))
-
-
-def _median_smooth(levels: list[float], width: int) -> list[float]:
-    half = width // 2
-    n = len(levels)
-    return [statistics.median(levels[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
-
-
-def _percentile(levels: list[float], pct: int) -> float:
-    ordered = sorted(levels)
-    return ordered[min(len(ordered) - 1, (len(ordered) * pct) // 100)]
-
-
-def _junk20k(run: junkrun.JunkRun | None, samplerate: int) -> dict[str, Any] | None:
+def _junk20k(run: junkrun.JunkRun | None, samplerate: int) -> JunkVerdict | None:
     """Return the 20k verdict where the run over closed blocks stands engaged.
 
     The per-block reading and the run over those readings are ``junkrun``'s; what is left here is the note, whose
@@ -283,73 +240,29 @@ def _junk20k(run: junkrun.JunkRun | None, samplerate: int) -> dict[str, Any] | N
         f"Junk above {fold / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container, consistent with fake hi-res. "
         f"Recommend engaging the 20k high-frequency filter."
     )
-    return {"filter": "20k", "reason": reason, "ceiling_khz": round(fold / 1000, 1)}
+    return JunkVerdict(filter="20k", reason=reason, ceiling_khz=round(fold / 1000, 1))
 
 
-def _excesses(curve: _Curve) -> dict[float, float]:
-    """Excess over the wide baseline, by frequency, for every visible bin above 25 kHz."""
-    limit = curve.floor + CONTRAST_DB
-    return {
-        curve.hz(i): curve.levels[i] - curve.baseline[i]
-        for i in range(curve.at(SPUR_MIN_HZ), len(curve.levels))
-        if curve.levels[i] > limit
-    }
-
-
-def _spur_corner(frequency: float) -> str:
-    return "40k" if frequency > SPUR_CORNER_SPLIT_HZ else "30k"
-
-
-def _spur(curve: _Curve, holder: SpurHolder | None) -> dict[str, Any] | None:
+def _spur(curve: Curve, holder: SpurHolder | None) -> JunkVerdict | None:
     """Return the spur verdict for this window, or None when no bin is held under it.
 
     Every bin decides on its own excess; the verdict is the lowest corner any held bin implies, named for the held bin
     of that corner standing highest over its baseline right now.
     """
-    visible = _excesses(curve)
+    visible = excesses(curve)
     held = (holder or SpurHolder()).decide(visible)
     if not held:
         return None
-    corner = min((_spur_corner(f) for f in held), key=lambda name: _CORNER_KHZ[name])
-    spur_hz = max((f for f in held if _spur_corner(f) == corner), key=lambda f: visible[f])
+    corner = min((spur_corner(f) for f in held), key=lambda name: CORNER_KHZ[name])
+    spur_hz = max((f for f in held if spur_corner(f) == corner), key=lambda f: visible[f])
     reason = (
         f"Persistent tone at {spur_hz / 1000:.1f} kHz — "
         f"recommend switching to a 'hires' resampling filter or engaging the {corner} high-frequency filter."
     )
-    return {
-        "filter": corner,
-        "families": list(SPUR_FAMILIES),
-        "reason": reason,
-        "ceiling_khz": round(spur_hz / 1000, 1),
-    }
+    return JunkVerdict(filter=corner, reason=reason, ceiling_khz=round(spur_hz / 1000, 1), families=SPUR_FAMILIES)
 
 
-def _ranks(values: list[float]) -> list[float]:
-    """Return the rank of every value, ties sharing their midpoint rank."""
-    order, ranks, start = sorted(range(len(values)), key=lambda i: values[i]), [0.0] * len(values), 0
-    while start < len(order):
-        stop = start
-        while stop + 1 < len(order) and values[order[stop + 1]] == values[order[start]]:
-            stop += 1
-        for i in order[start : stop + 1]:
-            ranks[i] = (start + stop) / 2.0
-        start = stop + 1
-    return ranks
-
-
-def _rank_correlation(values: list[float]) -> float:
-    """Spearman correlation of a series against its own rising index, 0.0 where either side is flat."""
-    n = len(values)
-    xs, ys = [float(i) for i in range(n)], _ranks(values)
-    mx, my = sum(xs) / n, sum(ys) / n
-    dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
-    dy = math.sqrt(sum((y - my) ** 2 for y in ys))
-    if dx == 0.0 or dy == 0.0:
-        return 0.0
-    return sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)) / (dx * dy)
-
-
-def _ramp(curve: _Curve, samplerate: int) -> dict[str, Any] | None:
+def _ramp(curve: Curve, samplerate: int) -> JunkVerdict | None:
     """Return the ramp verdict where the working curve above 57.5 kHz rises without turning back.
 
     The band is smoothed again at the baseline's width to strip the ripple; one narrower than that window carries no
@@ -360,10 +273,10 @@ def _ramp(curve: _Curve, samplerate: int) -> dict[str, Any] | None:
     band = curve.smoothed[curve.above(RAMP_LO_HZ) :]
     if len(band) < SPUR_BASELINE_BINS:
         return None
-    if _rank_correlation(_median_smooth(band, SPUR_BASELINE_BINS)) < RAMP_RANK:
+    if rank_correlation(median_smooth(band, SPUR_BASELINE_BINS)) < RAMP_RANK:
         return None
     reason = (
         f"HF noise rising toward {curve.bandwidth / 1000:.0f} kHz — consistent with excessive noise shaping "
         f"(some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter."
     )
-    return {"filter": "50k", "reason": reason, "ceiling_khz": round(curve.bandwidth / 1000, 1)}
+    return JunkVerdict(filter="50k", reason=reason, ceiling_khz=round(curve.bandwidth / 1000, 1))

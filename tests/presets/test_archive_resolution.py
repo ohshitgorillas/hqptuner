@@ -15,6 +15,7 @@ import io
 import zipfile
 
 from hqptuner.conf import engineconf
+from hqptuner.conf.xmledit import GroundingError
 
 _XML = b'<hqplayerd><engine channels="2"/></hqplayerd>'
 _OTHER = b'<hqplayerd><engine channels="8"/></hqplayerd>'
@@ -28,9 +29,14 @@ def _archive(members: dict[str, bytes]) -> bytes:
     return out.getvalue()
 
 
-def test_the_default_working_config_is_found_by_name() -> None:
-    archive = _archive({"hqplayerd.xml": _XML, "data/cfgs/Speakers.xml": _OTHER})
-    assert engineconf.base_config_xml(archive) == _XML
+def _refusal_code(data: bytes) -> str:
+    """The ``code`` of the ``GroundingError`` reading ``data`` raises; empty when the read answers instead."""
+    code = ""
+    try:
+        engineconf.base_config_xml(data)
+    except GroundingError as exc:
+        code = exc.code
+    return code
 
 
 def test_a_sole_root_xml_is_the_working_config() -> None:
@@ -40,44 +46,37 @@ def test_a_sole_root_xml_is_the_working_config() -> None:
     assert engineconf.base_config_xml(archive) == _XML
 
 
-def test_several_root_xmls_resolve_by_the_active_label() -> None:
-    archive = _archive({"Speakers.xml": _XML, "Office.xml": _OTHER, "data/library.xml": b"<library/>"})
-    assert engineconf.base_config_xml(archive, "Speakers") == _XML
-
-
-def test_the_active_label_picks_its_own_member_not_the_first() -> None:
-    archive = _archive({"Speakers.xml": _XML, "Office.xml": _OTHER})
-    assert engineconf.base_config_xml(archive, "Office") == _OTHER
-
-
-def test_several_root_xmls_without_a_label_resolve_to_nothing() -> None:
+def test_several_root_xmls_without_a_label_resolve_to_nothing_but_by_the_active_label_they_resolve() -> None:
     # honest refusal: guessing which one is live would write the wrong member
+    archive = _archive({"Speakers.xml": _XML, "Office.xml": _OTHER, "data/library.xml": b"<library/>"})
+    assert (engineconf.base_config_xml(archive), engineconf.base_config_xml(archive, "Speakers")) == (b"", _XML)
+
+
+def test_a_label_naming_no_member_resolves_to_nothing_but_a_named_label_picks_its_own_member() -> None:
     archive = _archive({"Speakers.xml": _XML, "Office.xml": _OTHER})
-    assert engineconf.base_config_xml(archive) == b""
+    assert (engineconf.base_config_xml(archive, "Headphones"), engineconf.base_config_xml(archive, "Office")) == (
+        b"",
+        _OTHER,
+    )
 
 
-def test_a_label_naming_no_member_resolves_to_nothing() -> None:
-    archive = _archive({"Speakers.xml": _XML, "Office.xml": _OTHER})
-    assert engineconf.base_config_xml(archive, "Headphones") == b""
-
-
-def test_an_archive_with_no_config_at_all_resolves_to_nothing() -> None:
+def test_an_archive_with_no_config_at_all_resolves_to_nothing_but_a_named_member_is_found_by_name() -> None:
     # the daemon's post-profile-load bug: a bare data/ entry and nothing else
-    assert engineconf.base_config_xml(_archive({"data/": b""})) == b""
+    empty = _archive({"data/": b""})
+    named = _archive({"hqplayerd.xml": _XML, "data/cfgs/Speakers.xml": _OTHER})
+    assert (engineconf.base_config_xml(empty), engineconf.base_config_xml(named)) == (b"", _XML)
 
 
-def test_bytes_that_are_not_an_archive_resolve_to_nothing() -> None:
-    # a restarting daemon answers /backup with an error page; that used to raise
-    # BadZipFile out to the API as a 500 instead of taking the outage path
-    assert engineconf.base_config_xml(b"<html>gateway timeout</html>") == b""
+def test_bytes_that_are_not_an_archive_are_refused_as_unreadable() -> None:
+    # an unreadable archive and an archive with no working config are different
+    # facts, so the unreadable one raises instead of reading as empty
+    assert _refusal_code(b"<html>gateway timeout</html>") == "archive_unreadable"
 
 
-def test_the_archive_summary_names_a_member() -> None:
-    assert "hqplayerd.xml" in engineconf.archive_summary(_archive({"hqplayerd.xml": _XML})).members
-
-
-def test_the_archive_summary_marks_bytes_that_are_not_a_zip_unreadable() -> None:
-    assert engineconf.archive_summary(b"<html>gateway timeout</html>").readable is False
+def test_the_archive_summary_marks_bytes_that_are_not_a_zip_unreadable_but_names_a_member_when_it_reads() -> None:
+    unreadable = engineconf.archive_summary(b"<html>gateway timeout</html>")
+    readable = engineconf.archive_summary(_archive({"hqplayerd.xml": _XML}))
+    assert (unreadable.readable, "hqplayerd.xml" in readable.members) == (False, True)
 
 
 def test_apply_to_all_names_every_preset_snapshot_beside_the_working_config() -> None:

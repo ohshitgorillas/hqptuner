@@ -9,6 +9,17 @@
 import { useEffect } from "preact/hooks";
 
 /**
+ * The plot rectangle's width in whole CSS pixels, for an element whose content
+ * box is `contentWidth` wide and whose plot takes `ratio` of it.
+ * @param {number} contentWidth the element's content-box width, in CSS pixels
+ * @param {number} ratio the plot rectangle's share of the viewBox width
+ * @returns {number} the rounded plot width
+ */
+export function plotPx(contentWidth, ratio) {
+  return Math.round(contentWidth * ratio);
+}
+
+/**
  * Report the plot rectangle's rendered width, in CSS pixels, into `target` for
  * as long as the element is mounted, and again whenever the layout moves it.
  * A render with no layout behind it leaves the figure at zero.
@@ -24,7 +35,7 @@ export function useMeasuredPlot(ref, target, ratio) {
     const ro = new ResizeObserver((entries) => {
       const box = entries[0];
       if (!box) return;
-      target.value = Math.round(box.contentRect.width * ratio);
+      target.value = plotPx(box.contentRect.width, ratio);
     });
     ro.observe(svg);
     return () => {

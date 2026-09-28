@@ -215,6 +215,20 @@ repos:
         pass_filenames: false
         files: ^(hqptuner/data/.*\.json|hqptuner/metadata\.py)$
 
+      - id: filepawl
+        name: filepawl tree gate
+        entry: .venv/bin/filepawl check
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: filepawl-judge
+        name: filepawl judge
+        entry: .venv/bin/filepawl judge
+        language: system
+        pass_filenames: false
+        always_run: true
+
       # Cross-cutting: a citation names a doc heading, so the gate has to run
       # when either the citing source or the cited doc moves.
       - id: doc-refs
@@ -255,22 +269,6 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-
-      # Both drive the real modules through node and read the whole lib dir, so
-      # they take no filenames and trigger on any lib JS.
-      - id: binaural
-        name: binaural crossfeed reference check
-        entry: .venv/bin/python scripts/gates/check_binaural.py
-        language: system
-        pass_filenames: false
-        files: ^hqptuner/static/lib/.*\.js$
-
-      - id: xfeed
-        name: crossfeed EQ-handling regression gate
-        entry: .venv/bin/python scripts/gates/check_xfeed.py
-        language: system
-        pass_filenames: false
-        files: ^hqptuner/static/lib/.*\.js$
 
       # Reads the config module and the e2e harness together, so it triggers on
       # either: a new path knob and a harness that forgot it are the same defect

@@ -23,13 +23,18 @@ set -uo pipefail
 
 #: lines that decide a failing run, in the spellings the gates here use:
 #: make's own error line, pytest's FAILED and its summary count, a ruff or
-#: cargo-style diagnostic code, and a bare ERROR at the head of a line
-FAILURE='make: \*\*\*|FAILED|[0-9]+ failed|error\[|^ERROR'
+#: cargo-style diagnostic code, a bare ERROR at the head of a line, and
+#: vulture's finding, which carries none of those and always ends in its
+#: confidence
+FAILURE='make: \*\*\*|FAILED|[0-9]+ failed|error\[|^ERROR|[0-9]+% confidence'
 
 #: how many matched lines are worth reading before the log itself is
 MATCH_LINES=40
 #: how much of a green run is worth confirming
 TAIL_LINES=3
+#: how much of a red run's tail stands in when no line matches: a gate whose
+#: findings the pattern does not know still prints them, up to the same cap
+FALLBACK_LINES=$MATCH_LINES
 
 dir=${CLAUDE_SCRATCH:-/tmp}
 mkdir -p "$dir" || {
@@ -65,7 +70,7 @@ else
 	if [ -n "$matches" ]; then
 		printf '%s\n' "$matches"
 	else
-		tail -n "$TAIL_LINES" "$log"
+		tail -n "$FALLBACK_LINES" "$log"
 	fi
 fi
 

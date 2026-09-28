@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from conftest import ManagerFactory, minimal_wave
+from fastapi.testclient import TestClient
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -70,13 +71,16 @@ def test_parametric_eq_txt_is_accepted(manager: ConnectionManager) -> None:
     assert manager.presetops.park_filter("autoeq.txt", b"Preamp: -6.4 dB")["name"] == "autoeq.txt"
 
 
-async def test_successful_apply_clears_the_parking_area(manager: ConnectionManager) -> None:
+async def test_a_successful_apply_clears_the_parking_area_and_a_failed_one_keeps_it(
+    manager: ConnectionManager, http_client: TestClient
+) -> None:
     manager.presetops.park_filter("probe.wav", minimal_wave())
     await manager.applyops.apply({}, {"matrix_pipelines": ROWS})
-    assert manager.presetops.parked_filter_members() == {}
+    cleared = manager.presetops.parked_filter_members()
 
-
-async def test_failed_apply_keeps_the_parked_file(manager: ConnectionManager) -> None:
     manager.presetops.park_filter("probe.wav", minimal_wave())
-    await manager.applyops.apply({}, {"matrix_pipelines": "not json"})
-    assert list(manager.presetops.parked_filter_members()) == ["data/probe.wav"]
+    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": "not json"}})
+    resp = http_client.post("/api/config/apply")
+    kept = list(manager.presetops.parked_filter_members())
+
+    assert (cleared, resp.json()["code"], kept) == ({}, "invalid_input", ["data/probe.wav"])

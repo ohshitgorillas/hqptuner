@@ -332,7 +332,7 @@ export const EMPTY = { live: {}, http: {} };
 const routes = (path, opts, w) => {
   if (path === "/api/config/live") {
     w.posts.push(JSON.parse(String(opts.body)));
-    return ok({ live: [] });
+    return ok({ report: { live: [] } });
   }
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: signals.engineState.value });
   if (path === "/api/enumerations") return ok({ data: signals.enums.value });

@@ -45,19 +45,41 @@ else:
         httpx = None
 
 
-def _worktree_common_dir(git_file: Path, candidate: Path) -> Path | None:
+class GitLayoutUnreadableError(OSError):
+    """A worktree's `.git` file, or its `commondir` pointer, could not be read or made sense of."""
+
+
+class GitPathUnreadableError(GitLayoutUnreadableError):
+    """A worktree's `.git` file or its `commondir` pointer raised an `OSError` on read."""
+
+    def __init__(self, *, path: Path, exc: OSError) -> None:
+        """Name the unreadable `path` and the `exc` it raised."""
+        super().__init__(f"{path}: {exc}")
+
+
+class GitdirLineMissingError(GitLayoutUnreadableError):
+    """A worktree's `.git` file was read but did not start with a `gitdir:` line."""
+
+    def __init__(self, *, git_file: Path) -> None:
+        """Name the malformed `git_file`."""
+        super().__init__(f"{git_file}: no 'gitdir:' line")
+
+
+def _worktree_common_dir(git_file: Path, candidate: Path) -> Path:
     """Resolve a worktree's `.git` file (`gitdir: ...`) to the main checkout's common dir.
 
     That directory's own `commondir` file holds the (usually relative) path
     back to the main checkout's `.git`, which is what makes a worktree see
-    the main checkout's gitignored files.
+    the main checkout's gitignored files. Raises `GitLayoutUnreadableError` instead
+    of guessing "not a worktree" on a read failure, so the caller that decides
+    what to do about a broken git layout sees the real cause.
     """
     try:
         content = git_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
+    except OSError as exc:
+        raise GitPathUnreadableError(path=git_file, exc=exc) from exc
     if not content.startswith("gitdir:"):
-        return None
+        raise GitdirLineMissingError(git_file=git_file)
     gitdir = Path(content.split(":", 1)[1].strip())
     if not gitdir.is_absolute():
         gitdir = (candidate / gitdir).resolve()
@@ -66,8 +88,8 @@ def _worktree_common_dir(git_file: Path, candidate: Path) -> Path | None:
         return gitdir
     try:
         relative = commondir_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return gitdir
+    except OSError as exc:
+        raise GitPathUnreadableError(path=commondir_file, exc=exc) from exc
     return (gitdir / relative).resolve()
 
 
@@ -94,14 +116,23 @@ def resolve_docs_root() -> Path:
     A `.claude/worktrees/*` checkout shares its `.git` with the main checkout
     but not the gitignored manual/readme copies, so the docs root is the
     parent of the git common dir, not this script's own directory. Falls
-    back to this script's own repo root when no `.git` is found, or when the
+    back to this script's own repo root when no `.git` is found, when the
     common dir is not a checkout's `.git` (a bare or separate git dir, whose
-    parent is not a checkout).
+    parent is not a checkout), or when the worktree's git layout could not be
+    read — reported to stderr rather than silently assumed to be no worktree.
     """
-    common_dir = git_common_dir(Path(__file__).resolve().parent)
+    here = Path(__file__).resolve().parent
+    errors: list[GitLayoutUnreadableError] = []
+    try:
+        common_dir = git_common_dir(here)
+    except GitLayoutUnreadableError as exc:
+        errors.append(exc)
+    if errors:
+        print(f"authority: {errors[0]}; using this checkout as the docs root", file=sys.stderr)
+        return here.parent
     if common_dir is not None and common_dir.name == ".git":
         return common_dir.parent
-    return Path(__file__).resolve().parent.parent
+    return here.parent
 
 
 ROOT = resolve_docs_root()
@@ -218,18 +249,36 @@ def cmd_find(term: str, cap: int) -> int:
     return 0
 
 
-def fetch_enumerations(url: str) -> dict[str, Any] | None:
-    """GET /api/enumerations, returning the decoded body or None after reporting why it failed."""
+class EnumerationFetchError(Exception):
+    """`GET /api/enumerations` could not be reached or its body could not be read as JSON."""
+
+
+class HttpxNotInstalledError(EnumerationFetchError):
+    """`enum` was run from an interpreter that does not have `httpx` installed."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording."""
+        super().__init__("httpx is not installed; run this from .venv/bin/python for `enum`.")
+
+
+class EnumerationRequestFailedError(EnumerationFetchError):
+    """The `GET /api/enumerations` request itself failed or its body did not parse as JSON."""
+
+    def __init__(self, *, url: str, exc: Exception) -> None:
+        """Name the requested `url` and the `exc` the request or its parse raised."""
+        super().__init__(f"{url}/api/enumerations: {exc}")
+
+
+def fetch_enumerations(url: str) -> dict[str, Any]:
+    """GET /api/enumerations, returning the decoded body or raising why it failed."""
     if httpx is None:
-        print("httpx is not installed; run this from .venv/bin/python for `enum`.", file=sys.stderr)
-        return None
+        raise HttpxNotInstalledError()
     try:
         response = httpx.get(f"{url}/api/enumerations", timeout=10.0)
         response.raise_for_status()
         body: dict[str, Any] = response.json()
     except (httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
-        print(f"{url}/api/enumerations: {exc}", file=sys.stderr)
-        return None
+        raise EnumerationRequestFailedError(url=url, exc=exc) from exc
     return body
 
 
@@ -257,8 +306,6 @@ def print_enumerations(body: dict[str, Any]) -> None:
 def cmd_enum(url: str) -> int:
     """Print the enumeration lists the running engine serves, or fail with the reason."""
     body = fetch_enumerations(url)
-    if body is None:
-        return 1
     print_enumerations(body)
     return 0
 
@@ -281,7 +328,16 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     if args.command == "find":
         return cmd_find(args.term, args.cap)
-    return cmd_enum(args.url)
+    errors: list[EnumerationFetchError] = []
+    result = 0
+    try:
+        result = cmd_enum(args.url)
+    except EnumerationFetchError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ To report a bug, please reach out with the following information:
 
 ## Setup
 
+Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
+
 Run:
 
 ```sh

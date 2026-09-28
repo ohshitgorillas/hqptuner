@@ -102,7 +102,7 @@ def test_a_wrong_typed_combine_mode_write_is_refused(tmp_path: Path, facet: str,
 def test_a_file_missing_a_combine_mode_reads_that_facet_at_its_default(tmp_path: Path, facet: str) -> None:
     path = stored(tmp_path, NON_DEFAULT)
     edit_facets(path, drop(facet))
-    assert store_at(tmp_path).read()[facet] == MODE_DEFAULTS[facet]
+    assert getattr(store_at(tmp_path).read(), facet) == MODE_DEFAULTS[facet]
 
 
 @pytest.mark.parametrize("facet", sorted(MODE_DEFAULTS))
@@ -110,7 +110,7 @@ def test_a_file_missing_a_combine_mode_reads_that_facet_at_its_default(tmp_path:
 def test_an_out_of_domain_stored_combine_mode_reads_as_its_default(tmp_path: Path, facet: str, value: str) -> None:
     path = stored(tmp_path, NON_DEFAULT)
     edit_facets(path, set_to(facet, value))
-    assert store_at(tmp_path).read()[facet] == MODE_DEFAULTS[facet]
+    assert getattr(store_at(tmp_path).read(), facet) == MODE_DEFAULTS[facet]
 
 
 @pytest.mark.parametrize("facet", sorted(MODE_DEFAULTS))
@@ -118,11 +118,11 @@ def test_an_out_of_domain_stored_combine_mode_reads_as_its_default(tmp_path: Pat
 def test_a_wrong_typed_stored_combine_mode_reads_as_its_default(tmp_path: Path, facet: str, value: object) -> None:
     path = stored(tmp_path, NON_DEFAULT)
     edit_facets(path, set_to(facet, value))
-    assert store_at(tmp_path).read()[facet] == MODE_DEFAULTS[facet]
+    assert getattr(store_at(tmp_path).read(), facet) == MODE_DEFAULTS[facet]
 
 
 # A damaged mode costs its own facet only.
 def test_a_damaged_genre_mode_leaves_the_focus_mode_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, NON_DEFAULT)
     edit_facets(path, set_to("genre_mode", "both"))
-    assert store_at(tmp_path).read()["focus_mode"] == "or"
+    assert store_at(tmp_path).read().focus_mode == "or"

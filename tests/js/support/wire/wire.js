@@ -155,7 +155,9 @@ export function stagingWire({ routes, fallback } = {}) {
     }
     if (path === "/api/config/pending") return ok(w.staged);
     const hit = routes && (await routes(path, opts, w));
-    return hit === undefined ? (fallback ? fallback(w) : ok({})) : hit;
+    if (hit !== undefined) return hit;
+    if (fallback) return fallback(w);
+    return ok(path === "/api/config/apply" ? { report: {} } : {});
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);

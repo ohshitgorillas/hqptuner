@@ -12,7 +12,12 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.errors import refuse
-from hqptuner.presets.store.descriptions import DescriptionError, DescriptionSchemaError, DescriptionStore
+from hqptuner.presets.store.descriptions import (
+    DescriptionEntry,
+    DescriptionError,
+    DescriptionSchemaError,
+    DescriptionStore,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -34,7 +39,7 @@ def _store(request: Request) -> DescriptionStore:
 
 
 @router.get("/descriptions")
-def descriptions(request: Request) -> dict[str, dict[str, dict[str, str]]]:
+def descriptions(request: Request) -> dict[str, dict[str, DescriptionEntry]]:
     """Every stored profile description, keyed by profile name.
 
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty map would be a lie about a file
@@ -47,7 +52,7 @@ def descriptions(request: Request) -> dict[str, dict[str, dict[str, str]]]:
 
 
 @router.put("/descriptions")
-def save_description(body: DescriptionBody, request: Request) -> dict[str, dict[str, dict[str, str]]]:
+def save_description(body: DescriptionBody, request: Request) -> dict[str, dict[str, DescriptionEntry]]:
     """Store one profile's description and answer with the whole map.
 
     One profile per write rather than the whole map, unlike favorites: a description is long, two browsers editing

@@ -17,15 +17,15 @@ import assert from "node:assert/strict";
 
 import { stageStructural, removeStructural, structuralBlock } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { pairInfo } from "../../../../hqptuner/static/lib/binaural-setup.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines, isDirty } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /**
- * @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../../../../hqptuner/static/lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/binaural/recognize.js").StructuralRecognition} StructuralRecognition
  */
 
 /**

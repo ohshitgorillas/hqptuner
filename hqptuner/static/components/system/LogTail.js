@@ -7,8 +7,8 @@
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { api } from "../../lib/api.js";
 import { effective } from "../../store/resolve.js";
+import { logLines, logMessage, refreshLogTail } from "../../store/logtail.js";
 import { Checkbox } from "../controls/index.js";
 import { truthy } from "../../lib/coerce.js";
 
@@ -22,30 +22,12 @@ const STICK_PX = 4;
 const COPIED_MS = 1500;
 
 const shown = signal(null); // null = follow log_enabled; true/false = user choice
-const lines = signal([]);
-const message = signal(""); // reason when the tail isn't available (logging off, unreadable)
 // `ReturnType` rather than `number`: this file is checked under both configs,
 // and the browser's `setInterval` answers a number where node's answers a
 // `Timeout`. The handle is only ever passed back to `clearInterval`, so which
 // one it is never matters here.
 /** @type {ReturnType<typeof setInterval> | null} the open poll interval, or null when not polling */
 let timer = null;
-
-async function refresh() {
-  try {
-    const r = await api.log(LINES);
-    if (r.available) {
-      lines.value = r.lines || [];
-      message.value = "";
-    } else {
-      lines.value = [];
-      message.value = r.reason ? `Log tail unavailable — ${r.reason}.` : "Log tail unavailable.";
-    }
-  } catch (e) {
-    lines.value = [];
-    message.value = `Log tail request failed: ${e}`;
-  }
-}
 
 // The hand-back runs over plain HTTP on the LAN, which is not a secure context,
 // so `navigator.clipboard` is simply absent in every browser but on localhost.
@@ -97,13 +79,13 @@ export function LogTail() {
   if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_PX;
   const [copied, setCopied] = useState("");
   const on = shown.value === null ? truthy(effective("log_enabled")) : shown.value;
-  const text = lines.value.join("\n");
+  const text = logLines.value.join("\n");
   // poll while shown; stop when hidden or the tab unmounts
   useEffect(() => {
     stop();
     if (on) {
-      refresh();
-      timer = setInterval(refresh, POLL_MS);
+      refreshLogTail(LINES);
+      timer = setInterval(() => refreshLogTail(LINES), POLL_MS);
     }
     return stop;
   }, [on]);
@@ -131,12 +113,12 @@ export function LogTail() {
           <${Checkbox} value=${on ? "1" : "0"} onChange=${(/** @type {string | number} */ v) => (shown.value = v === "1")} />
           Show live log tail (last ${LINES} lines)
         </label>
-        ${on && lines.value.length ? html`<button type="button" class="btn" data-copy=${copied || "idle"} onClick=${copy}>${label(copied)}</button>` : null}
+        ${on && logLines.value.length ? html`<button type="button" class="btn" data-copy=${copied || "idle"} onClick=${copy}>${label(copied)}</button>` : null}
       </div>
       ${
         on
-          ? message.value
-            ? html`<div class="log-tail-msg">${message.value}</div>`
+          ? logMessage.value
+            ? html`<div class="log-tail-msg">${logMessage.value}</div>`
             : html`<pre class="log-tail" ref=${pre}>${text}</pre>`
           : null
       }

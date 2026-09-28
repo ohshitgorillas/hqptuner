@@ -36,7 +36,10 @@ from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
+from hqptuner.core.engineread import RescanReport
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes import rescan
+from hqptuner.lanes.rescan import ReplayOutcome
 from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at
@@ -124,13 +127,18 @@ async def test_a_rescan_never_reloads_the_matrix_profile(
 # --- auto-save off: the rescan writes nothing to the engine ------------------
 
 
-async def test_a_rescan_with_autosave_off_sends_no_live_setters(
+async def test_a_rescan_with_autosave_off_sends_no_live_setters_but_with_it_on_it_sends_them(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    assert _setters(log[before:]) == []
+    off_manager, off_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
+    before_off = len(off_log)
+    await engineread.refresh_devices(off_manager)
+    off_setters = _setters(off_log[before_off:])
+    on_manager, on_log, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    before_on = len(on_log)
+    await engineread.refresh_devices(on_manager)
+    on_setters = _setters(on_log[before_on:])
+    assert (off_setters, on_setters != []) == ([], True)
 
 
 @pytest.mark.parametrize("reported", ["rate", "filter_junk"])
@@ -164,20 +172,28 @@ async def _nothing_to_carry(
     return manager, log
 
 
-async def test_a_rescan_with_no_live_settings_held_sends_no_live_setters(
+async def test_a_rescan_with_no_live_settings_held_sends_no_live_setters_but_held_settings_do(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
     before = len(log)
     await engineread.refresh_devices(manager)
-    assert _setters(log[before:]) == []
+    nothing_to_carry = _setters(log[before:])
+    held_manager, held_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    before_held = len(held_log)
+    await engineread.refresh_devices(held_manager)
+    with_held_settings = _setters(held_log[before_held:])
+    assert (nothing_to_carry, with_held_settings != []) == ([], True)
 
 
-async def test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_mapping(
+async def test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_mapping_but_held_settings_report_them(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
-    assert (await engineread.refresh_devices(manager))["restored"] == {}
+    nothing_to_carry = (await engineread.refresh_devices(manager)).restored
+    held_manager, _held_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    with_held = (await engineread.refresh_devices(held_manager)).restored
+    assert (nothing_to_carry, with_held != {}) == ({}, True)
 
 
 # --- the replay is best-effort ------------------------------------------------
@@ -187,24 +203,27 @@ async def test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_map
 
 async def _deaf_replay(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> dict[str, Any]:
+) -> RescanReport:
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _deaf=EVERY_SETTER
     )
-    return dict(await engineread.refresh_devices(manager))
+    return await engineread.refresh_devices(manager)
 
 
 async def test_a_rescan_whose_replay_fails_still_reports_refreshed(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["refreshed"] is True
+    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)).refreshed is True
 
 
-async def test_a_rescan_whose_replay_fails_restores_nothing(
+async def test_a_rescan_whose_replay_fails_restores_nothing_but_a_healthy_replay_restores_something(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     # nothing verified by readback, so nothing may be reported as put back
-    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path))["restored"] == {}
+    deaf = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
+    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    healthy = await engineread.refresh_devices(manager)
+    assert (deaf.restored, healthy.restored != {}) == ({}, True)
 
 
 # --- the engine is the source, never the store -------------------------------
@@ -234,7 +253,7 @@ async def test_a_rescan_reports_refreshed(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert (await engineread.refresh_devices(manager))["refreshed"] is True
+    assert (await engineread.refresh_devices(manager)).refreshed is True
 
 
 async def test_a_rescan_offers_a_device_that_only_the_new_scan_found(
@@ -281,15 +300,18 @@ async def test_a_rescan_the_control_lane_never_returns_from_still_reports_refres
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await engineread.refresh_devices(manager))["refreshed"] is True
+    assert (await engineread.refresh_devices(manager)).refreshed is True
 
 
-async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing(
+async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing_but_a_healthy_replay_restores_something(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await engineread.refresh_devices(manager))["restored"] == {}
+    closed = await engineread.refresh_devices(manager)
+    healthy_manager, _log2, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    healthy = await engineread.refresh_devices(healthy_manager)
+    assert (closed.restored, healthy.restored != {}) == ({}, True)
 
 
 # --- the replay raising mid-write --------------------------------------------
@@ -306,16 +328,19 @@ async def test_a_rescan_whose_replay_raises_still_reports_refreshed(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert (await engineread.refresh_devices(manager))["refreshed"] is True
+    assert (await engineread.refresh_devices(manager)).refreshed is True
 
 
-async def test_a_rescan_whose_replay_raises_restores_nothing(
+async def test_a_rescan_whose_replay_raises_restores_nothing_but_a_healthy_replay_restores_something(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert (await engineread.refresh_devices(manager))["restored"] == {}
+    raised = await engineread.refresh_devices(manager)
+    healthy_manager, _log2, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    healthy = await engineread.refresh_devices(healthy_manager)
+    assert (raised.restored, healthy.restored != {}) == ({}, True)
 
 
 # --- what the user is told when the settings could not be put back -----------
@@ -331,7 +356,9 @@ async def test_a_rescan_that_put_everything_back_warns_about_nothing(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert "warning" not in await engineread.refresh_devices(manager)
+    healthy = await engineread.refresh_devices(manager)
+    refused = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
+    assert (rescan.WARNINGS.get(healthy.replay), rescan.WARNINGS.get(refused.replay) is not None) == (None, True)
 
 
 async def test_a_rescan_with_autosave_off_warns_about_nothing(
@@ -339,4 +366,17 @@ async def test_a_rescan_with_autosave_off_warns_about_nothing(
 ) -> None:
     # nothing was going to be put back, so nothing was lost to report
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    assert "warning" not in await engineread.refresh_devices(manager)
+    off = await engineread.refresh_devices(manager)
+    refused = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
+    assert (rescan.WARNINGS.get(off.replay), rescan.WARNINGS.get(refused.replay) is not None) == (None, True)
+
+
+async def test_replay_reports_ok_after_a_successful_replay(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    snap = rescan.snapshot(manager)
+    await manager.require_http().refresh_devices()
+    await manager.refresh_http_forms()
+    result = await rescan.replay(manager, snap)
+    assert result.outcome is ReplayOutcome.RESTORED

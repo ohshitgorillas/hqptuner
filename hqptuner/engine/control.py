@@ -15,18 +15,25 @@ import re
 import socket
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
+from dataclasses import dataclass
 
-from defusedxml.ElementTree import fromstring as _safe_fromstring
-
-from hqptuner.errors import HQPTunerError
+from hqptuner.engine.controlerrors import (
+    CommandRefusedError,
+    ConnectionClosedError,
+    ControlChainedFailureError,
+    ControlConnectionFailedError,
+    ControlError,
+    ControlTimeoutError,
+    NotConnectedError,
+    ResponseTooLargeError,
+    StateMismatchError,
+)
+from hqptuner.engine.frames import parse_frame
 
 log = logging.getLogger(__name__)
 
 XML_HDR = '<?xml version="1.0" encoding="UTF-8"?>'
 MAX_RESPONSE = 4 * 1024 * 1024
-
-_BARE_AMP = re.compile(r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)")
-_ENTITIES = (("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&"))
 
 ENUM_COMMANDS = {
     "modes": "GetModes",
@@ -37,16 +44,24 @@ ENUM_COMMANDS = {
 }
 
 
-class ControlError(HQPTunerError):
-    """Base for every Control API failure: not connected, timed out, socket died, response would not parse."""
+@dataclass(frozen=True)
+class Reply:
+    """A setter's answer as the daemon gave it: the command, its ``result`` attribute, and its reason text."""
 
-    code = "daemon_unavailable"
+    element: str
+    result: str | None
+    text: str
 
+    @property
+    def ok(self) -> bool:
+        """Whether the daemon accepted it: result="OK", or absent (SetAdaptiveVolume quirk, protocol.md §6)."""
+        return self.result is None or self.result == "OK"
 
-class CommandError(ControlError):
-    """Daemon answered result="Error"."""
-
-    code = "daemon_refused"
+    def refusal(self) -> CommandRefusedError | None:
+        """Return the refusal this reply carries, or None when the daemon accepted the command."""
+        if self.result is None or self.ok:
+            return None
+        return CommandRefusedError(element_name=self.element, result=self.result, text=self.text)
 
 
 def _element_name(element: str) -> str:
@@ -68,65 +83,16 @@ def _as_control_error(what: str, timeout: float) -> Iterator[None]:
     try:
         yield
     except TimeoutError as exc:
-        raise ControlError(f"{what}: no reply within {timeout:g}s (the daemon may have restarted)") from exc
+        raise ControlTimeoutError(what=what, timeout=timeout) from exc
     except OSError as exc:
-        raise ControlError(f"{what}: connection failed: {exc}") from exc
+        raise ControlConnectionFailedError(what=what, error=exc) from exc
     except ControlError as exc:
         # `_recv_document`'s own failures ("connection closed by daemon", a frame
         # that will not parse) name no command, and which command died is the whole
         # diagnostic — a daemon that drops the connection under `SetFilter` fails
         # some LATER command, and the message is the only place that pairing
         # survives. Every other failure here already carries it.
-        raise ControlError(f"{what}: {exc}") from exc
-
-
-def _lenient_fromstring(body: str) -> ET.Element:
-    try:
-        root: ET.Element = _safe_fromstring(body)
-    except ET.ParseError:
-        root = _safe_fromstring(_BARE_AMP.sub("&amp;", body))
-    return root
-
-
-def _unescape_attrs(root: ET.Element) -> ET.Element:
-    for el in root.iter():
-        for key, val in el.attrib.items():
-            if "&" in val:
-                decoded = val
-                for ent, ch in _ENTITIES:
-                    decoded = decoded.replace(ent, ch)
-                el.attrib[key] = decoded
-    return root
-
-
-def _document_complete(body: str, tag: str) -> bool:
-    """Return True once the root element is closed.
-
-    Closed means self-closing (`<Tag .../>`) or its end tag arrived (`</Tag>`). Distinguishes a still-arriving frame
-    (keep reading) from a fully-received one that simply won't parse.
-    """
-    if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.DOTALL):
-        return True
-    return re.search(rf"</{re.escape(tag)}>\s*$", body) is not None
-
-
-def _recover_root(body: str) -> ET.Element | None:
-    """Salvage a COMPLETE frame whose children won't parse.
-
-    The daemon emits track `<metadata>` with unescaped `<`/`"` in artist/song tags that the bare-`&` repair can't fix
-    (hqpexporter-observed) — which would otherwise hang the receive loop until timeout on every poll while a track is
-    loaded. The live fields we need (active_filter/active_shaper/active_rate) are ROOT attributes, so drop the children
-    and parse the root open-tag alone. Returns None when the frame is merely still-arriving (caller keeps reading).
-    """
-    m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.DOTALL)
-    if m is None:
-        return None
-    if not _document_complete(body, m.group(1)):
-        return None
-    try:
-        return _lenient_fromstring(m.group(0).rstrip("/") + "/>")
-    except ET.ParseError as exc:
-        raise ControlError("unparseable response document") from exc
+        raise ControlChainedFailureError(what=what, error=exc) from exc
 
 
 class ControlClient:
@@ -169,7 +135,7 @@ class ControlClient:
             # queueing is a writer that can be gone by the time the lock is held.
             writer = self._writer
             if writer is None:
-                raise ControlError("not connected")
+                raise NotConnectedError()
             # covers the receive too: `_recv_document`'s own read deadline is the
             # one a stalled command trips, and it is this command's name that says
             # which command stalled
@@ -194,27 +160,21 @@ class ControlClient:
     async def _recv_document(self) -> ET.Element:
         reader = self._reader
         if reader is None:
-            raise ControlError("not connected")
+            raise NotConnectedError()
         data = b""
         while True:
             chunk = await asyncio.wait_for(reader.read(65536), self._timeout)
             if not chunk:
-                raise ControlError("connection closed by daemon")
+                raise ConnectionClosedError()
             data += chunk
             text = data.decode("utf-8", errors="replace")
             body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
             if body:
-                try:
-                    return _unescape_attrs(_lenient_fromstring(body))
-                except ET.ParseError:
-                    # Either still arriving, or complete-but-malformed (child
-                    # metadata with unescaped chars). Recover the root if the
-                    # frame is complete; otherwise keep reading.
-                    recovered = _recover_root(body)
-                    if recovered is not None:
-                        return _unescape_attrs(recovered)
+                frame = parse_frame(body)
+                if frame is not None:
+                    return frame
             if len(data) > MAX_RESPONSE:
-                raise ControlError("response exceeds size limit")
+                raise ResponseTooLargeError()
 
     # --- typed helpers -------------------------------------------------
 
@@ -291,18 +251,20 @@ class ControlClient:
         """Run every command in `ENUM_COMMANDS` in turn, keyed by its short name (modes, filters, shapers, ...)."""
         return {key: await self.get_enumeration(cmd) for key, cmd in ENUM_COMMANDS.items()}
 
-    async def set_command(self, element_name: str, **attrs: str) -> ET.Element:
-        """Setter with result check.
+    async def send(self, element_name: str, **attrs: str) -> Reply:
+        """Send one setter and return the daemon's answer to it, accepted or refused.
 
-        result="OK" or absent (SetAdaptiveVolume quirk, protocol.md §6) passes; result="Error" raises with the reason.
         Note result="OK" is not proof of application — callers verify by State readback (protocol.md §6 caveat).
         """
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
-        result = root.get("result")
-        if result is not None and result != "OK":
-            raise CommandError(f"{element_name}: {result}: {(root.text or '').strip()}")
-        return root
+        return Reply(element_name, root.get("result"), (root.text or "").strip())
+
+    async def set_command(self, element_name: str, **attrs: str) -> None:
+        """Setter with result check: a refusal (result="Error") raises with the reason."""
+        refused = (await self.send(element_name, **attrs)).refusal()
+        if refused is not None:
+            raise refused
 
     # --- typed setters (index domain; protocol.md §6) ------------------
     #
@@ -312,26 +274,42 @@ class ControlClient:
     # directly — a wrapper per setting was a second place for the element name
     # to be spelled, and spelling it twice is how it drifts.
 
-    async def set_filter(self, nx: str, x1: str | None = None) -> None:
+    async def send_filter(self, nx: str, x1: str | None = None) -> Reply:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value, 1x=value1x).
 
         Reference client omits value1x when the 1x arg is < 0.
         """
         if x1 is None:
-            await self.set_command("SetFilter", value=nx)
-        else:
-            await self.set_command("SetFilter", value=nx, value1x=x1)
+            return await self.send("SetFilter", value=nx)
+        return await self.send("SetFilter", value=nx, value1x=x1)
+
+    async def set_filter(self, nx: str, x1: str | None = None) -> None:
+        """Set the filter pair (``send_filter``), raising the daemon's refusal."""
+        refused = (await self.send_filter(nx, x1)).refusal()
+        if refused is not None:
+            raise refused
+
+    async def send_volume(self, db: str) -> Reply:
+        """Send absolute volume in dB via `<Volume value="..."/>`; refused when `VolumeRange` reports `enabled="0"`."""
+        return await self.send("Volume", value=db)
 
     async def set_volume(self, db: str) -> None:
-        """Set absolute volume in dB via `<Volume value="..."/>`; errors when `VolumeRange` reports `enabled="0"`."""
-        await self.set_command("Volume", value=db)
+        """Set absolute volume in dB, raising the daemon's refusal."""
+        refused = (await self.send_volume(db)).refusal()
+        if refused is not None:
+            raise refused
 
-    async def verify_state(self, expected: dict[str, str]) -> None:
-        """Re-read State and raise unless every expected attribute matches.
+    async def state_mismatch(self, expected: dict[str, str]) -> StateMismatchError | None:
+        """Re-read State and return the mismatch against ``expected``, or None when every attribute matches.
 
         result="OK" is not proof of application (protocol.md §6) — this is.
         """
         state = await self.get_state()
         mismatch = {k: (want, state.get(k)) for k, want in expected.items() if state.get(k) != want}
-        if mismatch:
-            raise CommandError(f"State readback mismatch (want, got): {mismatch}")
+        return StateMismatchError(mismatch=mismatch) if mismatch else None
+
+    async def verify_state(self, expected: dict[str, str]) -> None:
+        """Re-read State and raise unless every expected attribute matches."""
+        mismatch = await self.state_mismatch(expected)
+        if mismatch is not None:
+            raise mismatch

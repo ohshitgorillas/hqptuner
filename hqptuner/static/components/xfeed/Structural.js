@@ -9,10 +9,10 @@
 // which is also the thing the three controls actually move.
 import { html } from "../../lib/dom.js";
 import { effectivePipelines } from "../../store/resolve.js";
-import { bandFreqs } from "../../lib/dsp/curves.js";
-import { chainResponse } from "../../lib/dsp/chain.js";
-import { parseProcess } from "../../lib/matrixspec.js";
-import { midSideResponse, magDb } from "../../lib/binaural/response.js";
+import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
+import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
+import { parseProcess } from "../../vendor/eqlab/core/matrixspec.js";
+import { midSideResponse, magDb } from "../../vendor/eqlab/core/binaural/response.js";
 // One toggle over both crossfeeds: the button is on the RESPONSE card and the
 // state it writes lives with the compensation lens, so the two gate together.
 import { lensShown } from "./Comp.js";
@@ -28,7 +28,7 @@ import { structuralBlock, structuralParams } from "../../store/xfeed/mode.js";
 // compensation lens does, and why it works — the center shift shows as the gap
 // between the EQ alone and the EQ heard through the crossfeed.
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  */
 
 /**

@@ -20,7 +20,8 @@ import pytest
 from conftest import DaemonFactory
 from fake_control import CommandLog
 
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
 
 #: The per-command deadline these cases wait out, in real seconds — the same
 #: convention as `test_control_stall.STALL_TIMEOUT`, small because an unanswered

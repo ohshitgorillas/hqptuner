@@ -67,11 +67,8 @@ NOT covered here, and deliberately so:
   can be driven into without contorting the stack, so no case claims it.
 """
 
-import time
-from collections.abc import Callable
-
 import pytest
-from playwright.sync_api import Locator, Page
+from playwright.sync_api import Locator, Page, expect
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from e2e.support.stack import Stack
@@ -85,10 +82,6 @@ APPLY_MS = 90_000
 #: NOT how long the card is expected to hold the message for: nothing here
 #: asserts, or may assert, that the lifetime is any particular length.
 CLEAR_MS = 60_000
-
-#: Gap between passes of a condition poll. Not a wait anything is expected to
-#: take — it is how often the question gets asked again.
-POLL_S = 0.05
 
 SYSTEM_TAB = "[data-testid='tab-system']"
 APPLY = "[data-testid='hw-apply']"
@@ -158,19 +151,77 @@ _SIGNATURE = (
 )
 
 
-def settled(condition: Callable[[], bool], timeout_ms: int = SETTLE_MS) -> None:
-    """Poll `condition` until it holds, or give up quietly when the ceiling passes.
+#: The `_SIGNATURE` reader, reproduced for `page.wait_for_function`: it runs
+#: inside the browser's own event loop, polled by Playwright itself
+#: (docs/testing.md rule 7 — a bounded poll on a condition). `selector` is a
+#: full CSS selector (already including `CARD`), never just the `data-k` — the
+#: page, not this module, does the finding.
+_SIGNATURE_AT = (
+    "([selector, want, differs]) => {"
+    "  const root = document.querySelector(selector);"
+    "  if (!root) return false;"
+    "  const sig = [...root.querySelectorAll('input')]"
+    "    .map(el => (el.type === 'radio' || el.type === 'checkbox') ? el.value + ':' + el.checked : el.value)"
+    "    .join('|');"
+    "  return differs ? sig !== want : sig === want;"
+    "}"
+)
 
-    Bounded poll on a condition, never a fixed wait (docs/testing.md rule 7):
-    what is bounded is how long the question keeps being asked, and a poll that
-    runs out says nothing — the case then fails on its own assertion, which names
-    the behavior, instead of raising inside its setup.
-    """
-    deadline = time.monotonic() + timeout_ms / 1000
-    while time.monotonic() < deadline:
-        if condition():
-            return
-        time.sleep(POLL_S)
+
+def wait_for_signature(page: Page, key: str, want: str, *, differs: bool = False, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait, in the browser's own event loop, for `key`'s signature to equal (or differ from) `want`."""
+    page.wait_for_function(_SIGNATURE_AT, arg=[f"{CARD} [data-k='{key}']", want, differs], timeout=timeout_ms)
+
+
+def wait_for_every_setting(page: Page, want: str, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until every one of the six settings' signatures, joined the way `every_setting` reads them, equal `want`."""
+    selectors = [f"{CARD} [data-k='{key}']" for key, _ in SETTINGS]
+    page.wait_for_function(
+        "([selectors, want]) => {"
+        "  const sig = (root) => [...root.querySelectorAll('input')]"
+        "    .map(el => (el.type === 'radio' || el.type === 'checkbox') ? el.value + ':' + el.checked : el.value)"
+        "    .join('|');"
+        "  const parts = selectors.map((s) => { const r = document.querySelector(s); return r ? sig(r) : null; });"
+        "  return !parts.includes(null) && parts.join('|') === want;"
+        "}",
+        arg=[selectors, want],
+        timeout=timeout_ms,
+    )
+
+
+def wait_for_a_status_message(page: Page, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until the card's status line has something to say."""
+    page.wait_for_function(
+        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() !== ''; }}",
+        timeout=timeout_ms,
+    )
+
+
+def wait_for_status_to_change_from(page: Page, previous: str, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until the status line reads something other than empty or `previous` — a round trip concluding."""
+    page.wait_for_function(
+        "(previous) => {"
+        f"  const el = document.querySelector({STATUS!r});"
+        "  if (!el) return false;"
+        "  const text = el.textContent.trim();"
+        "  return text !== '' && text !== previous;"
+        "}",
+        arg=previous,
+        timeout=timeout_ms,
+    )
+
+
+def wait_for_status_to_clear(page: Page, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until the status line has gone quiet again."""
+    page.wait_for_function(
+        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() === ''; }}",
+        timeout=timeout_ms,
+    )
+
+
+def wait_for_concluded_applies(page: Page, count: int, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until the page's own fetch-counting init script has seen at least `count` engine applies conclude."""
+    page.wait_for_function("(count) => (window.__engine_applies || 0) >= count", arg=count, timeout=timeout_ms)
 
 
 def open_system_tab(page: Page, stack: Stack) -> None:
@@ -221,7 +272,7 @@ def loaded_card(page: Page, stack: Stack) -> None:
     value landed.
     """
     open_hardware_card(page, stack)
-    settled(lambda: signature(page, CUDA_DEV) != "")
+    wait_for_signature(page, CUDA_DEV, "", differs=True)
     flush_frames(page)
 
 
@@ -252,7 +303,7 @@ def set_number_setting(page: Page, key: str) -> str:
     want = bumped(box.input_value())
     box.fill(want)
     box.press("Tab")
-    settled(lambda: box.input_value() == want)
+    expect(box).to_have_value(want, timeout=SETTLE_MS)
     return want
 
 
@@ -284,7 +335,7 @@ def change_setting(page: Page, key: str, kind: str) -> str:
         _toggle_checkbox_setting(page, key)
     else:
         _pick_another_radio(page, key)
-    settled(lambda: signature(page, key) != was)
+    wait_for_signature(page, key, was, differs=True)
     flush_frames(page)
     return was
 
@@ -326,7 +377,7 @@ def apply_and_wait_for_a_message(page: Page) -> None:
     the stale-message case needs.
     """
     page.locator(APPLY).click()
-    settled(lambda: status_text(page) != "", timeout_ms=APPLY_MS)
+    wait_for_a_status_message(page, timeout_ms=APPLY_MS)
 
 
 def apply_and_wait_for_the_value_to_land(page: Page, stack: Stack, want: str) -> None:
@@ -337,7 +388,7 @@ def apply_and_wait_for_the_value_to_land(page: Page, stack: Stack, want: str) ->
     SUCCEEDED waits on the file-lane truth instead.
     """
     page.locator(APPLY).click()
-    settled(lambda: stack.http_state[CUDA_DEV_ATTR] == want, timeout_ms=APPLY_MS)
+    stack.wait_for_state(lambda: stack.http_state[CUDA_DEV_ATTR] == want, timeout=APPLY_MS / 1000)
 
 
 def apply_and_wait_for_it_to_conclude(page: Page, stack: Stack, want: str) -> None:
@@ -356,7 +407,7 @@ def apply_and_wait_for_it_to_conclude(page: Page, stack: Stack, want: str) -> No
     """
     apply_and_wait_for_the_value_to_land(page, stack, want)
     in_flight = status_text(page)
-    settled(lambda: status_text(page) not in ("", in_flight), timeout_ms=APPLY_MS)
+    wait_for_status_to_change_from(page, in_flight, timeout_ms=APPLY_MS)
 
 
 # --- the dirty marking --------------------------------------------------------
@@ -394,7 +445,7 @@ def test_reverting_restores_a_setting_to_what_the_daemon_reported(
     loaded_card(page, stack)
     was = change_setting(page, key, kind)
     page.locator(REVERT).click()
-    settled(lambda: signature(page, key) == was)
+    wait_for_signature(page, key, was)
     assert signature(page, key) == was
 
 
@@ -410,7 +461,7 @@ def test_reverting_restores_every_setting_that_was_changed(page: Page, stack: St
     for key, kind in EVERY_SETTING_IN_TURN:
         change_setting(page, key, kind)
     page.locator(REVERT).click()
-    settled(lambda: every_setting(page) == was)
+    wait_for_every_setting(page, was)
     assert every_setting(page) == was
 
 
@@ -447,12 +498,13 @@ def test_applying_leaves_the_card_reading_clean(page: Page, stack: Stack) -> Non
     try:
         want = set_number_setting(page, CUDA_DEV)
         flush_frames(page)
+        marked_before = DIRTY in apply_classes(page)
         apply_and_wait_for_it_to_conclude(page, stack, want)
         flush_frames(page)
-        marked = DIRTY in apply_classes(page)
+        marked_after = DIRTY in apply_classes(page)
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
-    assert marked is False
+    assert (marked_before, marked_after) == (True, False)
 
 
 # --- the status message -------------------------------------------------------
@@ -463,8 +515,9 @@ def test_changing_a_setting_clears_the_status_message(page: Page, stack: Stack, 
     """A message about the last apply is stale the moment ANY of the six moves again."""
     loaded_card(page, stack)
     apply_and_wait_for_a_message(page)
+    before = status_text(page)
     change_setting(page, key, kind)
-    assert status_text(page) == ""
+    assert (before != "", status_text(page)) == (True, "")
 
 
 # --- what the message says it was, and how long it lasts ----------------------
@@ -486,7 +539,7 @@ def test_an_apply_in_flight_carries_the_busy_outcome(page: Page, stack: Stack) -
         page.locator(APPLY).click()
         in_flight = saw_outcome(page, BUSY)
     finally:
-        settled(lambda: stack.http_state[CUDA_DEV_ATTR] == want, timeout_ms=APPLY_MS)
+        stack.wait_for_state(lambda: stack.http_state[CUDA_DEV_ATTR] == want, timeout=APPLY_MS / 1000)
         stack.http_state[CUDA_DEV_ATTR] = before
     assert in_flight is True
 
@@ -525,12 +578,12 @@ def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack) -> N
         want = set_number_setting(page, CUDA_DEV)
         flush_frames(page)
         apply_and_wait_for_the_value_to_land(page, stack, want)
-        saw_outcome(page, OK, timeout_ms=APPLY_MS)
-        settled(lambda: status_text(page) == "", timeout_ms=CLEAR_MS)
+        present = saw_outcome(page, OK, timeout_ms=APPLY_MS)
+        wait_for_status_to_clear(page, timeout_ms=CLEAR_MS)
         left = status_text(page)
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
-    assert left == ""
+    assert (present, left) == (True, "")
 
 
 def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> None:
@@ -559,23 +612,43 @@ def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> No
 
 
 def test_the_apply_button_is_enabled_while_the_card_is_dirty(page: Page, stack: Stack) -> None:
-    """User actions always proceed: a change is applicable whatever the engine is doing."""
+    """User actions always proceed: a change is applicable whatever the engine is doing — and applying it lands.
+
+    The fake's engine attribute is put back afterwards, so the session-scoped
+    stack does not carry this edit into later modules.
+    """
     loaded_card(page, stack)
-    change_setting(page, CUDA_DEV, NUMBER)
-    assert page.locator(APPLY).is_disabled() is False
+    before = stack.http_state[CUDA_DEV_ATTR]
+    try:
+        want = set_number_setting(page, CUDA_DEV)
+        flush_frames(page)
+        enabled = page.locator(APPLY).is_enabled()
+        apply_and_wait_for_the_value_to_land(page, stack, want)
+        landed = stack.http_state[CUDA_DEV_ATTR]
+    finally:
+        stack.http_state[CUDA_DEV_ATTR] = before
+    assert (enabled, landed) == (True, want)
 
 
 def test_the_revert_button_is_enabled_while_the_card_is_dirty(page: Page, stack: Stack) -> None:
-    """Having something to revert does not disable revert either."""
+    """Having something to revert does not disable revert either — and the enabled button reverts it."""
     loaded_card(page, stack)
-    change_setting(page, CUDA_DEV, NUMBER)
-    assert page.locator(REVERT).is_disabled() is False
+    original = change_setting(page, CUDA_DEV, NUMBER)
+    revert = page.locator(REVERT)
+    enabled = revert.is_enabled()
+    revert.click()
+    wait_for_signature(page, CUDA_DEV, original)
+    assert (enabled, signature(page, CUDA_DEV)) == (True, original)
 
 
 def test_the_revert_button_is_enabled_on_a_clean_card(page: Page, stack: Stack) -> None:
-    """Nothing disables revert, not even having nothing to revert."""
+    """Nothing disables revert or apply, not even having nothing to change — and the enabled apply still runs."""
     loaded_card(page, stack)
-    assert page.locator(REVERT).is_disabled() is False
+    unchanged = signature(page, CUDA_DEV)
+    revert_enabled = page.locator(REVERT).is_enabled()
+    apply_enabled = page.locator(APPLY).is_enabled()
+    apply_and_wait_for_a_message(page)
+    assert (revert_enabled, apply_enabled, signature(page, CUDA_DEV)) == (True, True, unchanged)
 
 
 # --- a receipt that went stale while its round trip was still out -------------
@@ -641,11 +714,6 @@ def watch_engine_applies(page: Page) -> None:
     page.add_init_script(COUNT_ENGINE_APPLIES)
 
 
-def concluded_applies(page: Page) -> int:
-    """How many of the card's applies have had their round trip come back so far."""
-    return int(page.evaluate("() => window.__engine_applies || 0"))
-
-
 def outcome_tokens(page: Page) -> list[str]:
     """Which machine-readable outcomes the status line carries right now.
 
@@ -687,12 +755,12 @@ def test_an_apply_edited_mid_flight_ends_saying_nothing_while_an_undisturbed_one
         page.locator(APPLY).click()
         saw_outcome(page, BUSY)
         change_setting(page, CUDA_CDEV, NUMBER)
-        settled(lambda: concluded_applies(page) >= 1, timeout_ms=APPLY_MS)
+        wait_for_concluded_applies(page, 1, timeout_ms=APPLY_MS)
         flush_frames(page)
         interrupted = outcome_tokens(page)
         stack.http_state["_lag"] = 0
         page.locator(APPLY).click()
-        settled(lambda: concluded_applies(page) >= 2, timeout_ms=APPLY_MS)
+        wait_for_concluded_applies(page, 2, timeout_ms=APPLY_MS)
         flush_frames(page)
         undisturbed = outcome_tokens(page)
     finally:

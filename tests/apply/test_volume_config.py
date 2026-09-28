@@ -13,10 +13,10 @@ stand in for the poll loop that normally fills it; it is the manager's public
 snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 """
 
-from typing import Any
-
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http import restore
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig, presetlane
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
@@ -133,8 +133,7 @@ def test_a_parked_level_is_reported_though_the_feature_is_off() -> None:
 
 
 async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(http_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
 
 
 async def test_a_live_adaptive_volume_is_saved_into_the_preset(http_manager: ConnectionManager) -> None:
@@ -145,19 +144,14 @@ async def test_a_live_adaptive_volume_is_saved_into_the_preset(http_manager: Con
 
 
 async def test_a_saved_preset_reports_success(http_manager: ConnectionManager) -> None:
-    result: dict[str, Any] = await http_manager.presetops.save_preset("Quiet")
-    assert result["ok"] is True
+    result = await http_manager.presetops.save_preset("Quiet")
+    assert result.name == "Quiet"
 
 
-async def test_an_apply_succeeds_though_the_daemon_rewrote_an_untouched_field(
+async def test_an_apply_with_a_daemon_rewrite_reports_applied(
     clamping_manager: ConnectionManager,
 ) -> None:
-    # this daemon pulls the startup volume into the volume range on every
-    # restore. Holding the apply to the whole config made that one field fail
-    # every apply, on every tab, forever — the user's changes stuck staged with
-    # nothing naming the setting at fault.
-    report = await clamping_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(clamping_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
 
 
 async def test_the_daemon_really_did_rewrite_the_untouched_field(clamping_manager: ConnectionManager) -> None:

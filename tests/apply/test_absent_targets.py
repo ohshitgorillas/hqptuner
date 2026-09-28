@@ -40,11 +40,11 @@ def test_a_setting_lands_on_a_config_that_never_carried_its_element(field: str) 
 
 @pytest.mark.parametrize(("tag", "parent"), sorted(xmledit.PARENT.items()))
 def test_a_created_element_lands_under_its_documented_parent(tag: str, parent: str) -> None:
-    assert _parent_of(xmledit.ensure_element(BARE, tag), tag) == parent
+    assert _parent_of(xmledit.ensure_element(BARE, tag)[0], tag) == parent
 
 
 def test_a_created_plugin_lands_in_the_post_process_container() -> None:
-    assert _parent_of(xmledit.ensure_plugin(BARE, "loudness"), "plugin") == "post_process"
+    assert _parent_of(xmledit.ensure_plugin(BARE, "loudness")[0], "plugin") == "post_process"
 
 
 def test_a_created_element_carries_only_the_attribute_that_was_set() -> None:
@@ -87,3 +87,19 @@ def test_an_unplaceable_edit_carries_no_angle_brackets() -> None:
     # the message is rendered in the pending bar; a browser eats "<alsa>" whole
     with pytest.raises(xmledit.GroundingError, match=r"^[^<>]*$"):
         presetconf.apply_edits(b"<nonsense/>", {"alsa_dop": "1"})
+
+
+def _no_place_code() -> str:
+    """The ``code`` carried by the ``NoKnownPlaceError`` an unschema'd element raises."""
+    with pytest.raises(xmledit.NoKnownPlaceError) as caught:
+        xmledit.ensure_element(BARE, "not_a_schema_element")
+    return caught.value.code
+
+
+def test_an_element_with_no_known_schema_position_raises_a_typed_error() -> None:
+    assert _no_place_code() == "no-place"
+
+
+def test_setting_an_attribute_on_a_malformed_tag_raises_a_typed_error() -> None:
+    with pytest.raises(xmledit.MalformedElementTagError):
+        xmledit.set_attr(b"not an open tag", "alsa_dop", "1")

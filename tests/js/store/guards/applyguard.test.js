@@ -230,7 +230,7 @@ async function fixture({
     routes: (path, opts, wire) => {
       if (path === "/api/config/apply") {
         wire.posts.push(JSON.parse(String(opts.body || "{}")));
-        return applyFails ? bad(503, "engine refused") : ok({});
+        return applyFails ? bad(503, "engine refused") : ok({ report: {} });
       }
       if (preset && path === `/api/preset/${preset.name}`) return ok({ name: preset.name, config: preset.config });
       if (path === "/api/config") return ok({ data: config.value });

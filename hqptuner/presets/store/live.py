@@ -42,11 +42,13 @@ that same omission for the switch — applied, it moves nothing.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
+from hqptuner.presets.store.jsonfile import read_stamped
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -56,6 +58,97 @@ if TYPE_CHECKING:
 # misread preset writes settings the user never chose. An unstamped file predates
 # the stamp and is adopted as the current schema on its next write.
 _SCHEMA = 3
+
+
+#: A live record's settings: each live setting's key to the value its setter sends.
+LiveFields = dict[str, str]
+
+
+class LiveRecordFile(TypedDict):
+    """One record as the store persists it and the REST surface answers with it: ``LiveRecord``'s fields."""
+
+    chain: str
+    fields: LiveFields
+    names: dict[str, str]
+    autopilot: bool | None
+
+
+class LiveFile(TypedDict, total=False):
+    """The on-disk envelope: a schema stamp beside the preset map, each entry a ``LiveRecordFile``."""
+
+    schema: int
+    presets: dict[str, LiveRecordFile]
+
+
+def _strings(stored: object) -> dict[str, str]:
+    """Return the entries of a stored map whose key and value are both strings; an absent or non-map member is empty."""
+    if not isinstance(stored, dict):
+        return {}
+    return {key: value for key, value in stored.items() if isinstance(key, str) and isinstance(value, str)}
+
+
+def _clean_record(stored: dict[object, object]) -> LiveRecordFile:
+    """Return one stored record with each member checked against the type ``LiveRecordFile`` names.
+
+    ``autopilot`` reads three ways, on purpose: the key entirely ABSENT reads as ``False``, auto-pilot off, an
+    explicit outcome; the key present but ``null`` (or any other non-bool value) reads as ``None``, an omission an
+    apply must leave alone; ``true``/``false`` read as themselves.
+    """
+    raw = stored.get("autopilot", False)
+    return LiveRecordFile(
+        chain=str(stored.get("chain", "")),
+        fields=_strings(stored.get("fields")),
+        names=_strings(stored.get("names")),
+        autopilot=raw if isinstance(raw, bool) else None,
+    )
+
+
+def _clean(stored: object) -> LiveFile:
+    """Return a read document's envelope, keeping each member only when it has the type ``LiveFile`` names.
+
+    A ``presets`` entry that is not an object is dropped here rather than failing every read that reaches it.
+    """
+    out: LiveFile = {}
+    if not isinstance(stored, dict):
+        return out
+    schema = stored.get("schema")
+    if isinstance(schema, int):
+        out["schema"] = schema
+    presets = stored.get("presets")
+    if isinstance(presets, dict):
+        out["presets"] = {
+            name: _clean_record(record)
+            for name, record in presets.items()
+            if isinstance(name, str) and isinstance(record, dict)
+        }
+    return out
+
+
+@dataclass(frozen=True)
+class LiveRecord:
+    """One live snapshot: the chain it was taken on, the settings it carries, their display names, and auto-pilot.
+
+    A record need not carry every setting: a save may name the ones it keeps, and an apply leaves the absent ones
+    where the engine has them. ``autopilot`` of ``None`` is that same omission for the switch.
+    """
+
+    chain: str
+    fields: LiveFields = field(default_factory=dict)
+    names: dict[str, str] = field(default_factory=dict)
+    autopilot: bool | None = None
+
+    @classmethod
+    def from_json(cls, data: LiveRecordFile) -> LiveRecord:
+        """Build from a stored record, already checked member by member (``_clean_record``)."""
+        return cls(
+            chain=data["chain"], fields=dict(data["fields"]), names=dict(data["names"]), autopilot=data["autopilot"]
+        )
+
+    def to_json(self) -> LiveRecordFile:
+        """Return the document form this store persists, and the shape the REST surface answers with."""
+        return LiveRecordFile(
+            chain=self.chain, fields=dict(self.fields), names=dict(self.names), autopilot=self.autopilot
+        )
 
 
 class LivePresetError(HQPTunerError, ValueError):
@@ -76,6 +169,43 @@ class LivePresetSchemaError(LivePresetError):
 
     code = "store_too_new"
 
+    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
+        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
+        super().__init__(
+            f"live snapshot store is schema {stamp}, this HQPTuner {__version__} understands "
+            f"{understood} — upgrade HQPTuner to read {what}"
+        )
+
+
+class SnapshotNotFoundError(LivePresetError):
+    """No live snapshot is stored under the given name."""
+
+    code = "not_found"
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the missing snapshot."""
+        super().__init__(f"no such live snapshot: {name!r}")
+
+
+class InvalidSnapshotNameError(LivePresetError):
+    """A staged live-snapshot name failed the shared naming rule (``names.validate_name``)."""
+
+    code = "name_invalid"
+
+    def __init__(self, *, label: str, reason: str) -> None:
+        """Render the wording naming the label and the shared rule's refusal reason."""
+        super().__init__(f"Invalid {label} name: {reason}")
+
+
+class MixedScriptSnapshotNameError(LivePresetError):
+    """A first-time live-snapshot name mixed Latin and Cyrillic letters (``names.validate_new_name``)."""
+
+    code = "name_invalid"
+
+    def __init__(self, *, label: str) -> None:
+        """Render the wording naming the label, with the shared rule's fixed mixed-scripts reason."""
+        super().__init__(f"Invalid {label} name: {names.MIXED_SCRIPTS}")
+
 
 def canonical_name(name: str) -> str:
     """Return the key the store files ``name`` under, raising ``LivePresetError`` when it is not a snapshot name.
@@ -83,7 +213,7 @@ def canonical_name(name: str) -> str:
     A live snapshot is a JSON key, never a filename, but it shares the config
     store's rule so a name that saves on one surface saves on the other.
     """
-    return names.validate_name(name, LivePresetError, "snapshot")
+    return names.validate_name(name, InvalidSnapshotNameError, "snapshot")
 
 
 class LivePresetStore:
@@ -97,32 +227,23 @@ class LivePresetStore:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
 
-    def _read_file(self) -> dict[str, Any]:
-        """Return the file as a dict, empty when absent or unreadable.
+    def _read_file(self) -> LiveFile:
+        """Return the file as a dict, empty when absent.
 
-        Every path goes through here, so a too-new store refuses uniformly instead of half-working.
+        Every path goes through here, so a too-new store refuses uniformly instead of half-working, and a file that
+        cannot be read as a JSON object raises ``StoreCorruptError`` rather than losing the snapshots silently.
         """
-        if not self._path.is_file():
-            return {}
-        try:
-            data = json.loads(self._path.read_text())
-        except (ValueError, OSError):
-            return {}
-        if not isinstance(data, dict):
-            return {}
-        schema = data.get("schema")
-        if isinstance(schema, int) and schema > _SCHEMA:
-            raise LivePresetSchemaError(
-                f"live snapshot store is schema {schema}, this HQPTuner {__version__} understands "
-                f"{_SCHEMA} — upgrade HQPTuner to read these presets"
-            )
-        return data
 
-    def _presets(self) -> dict[str, Any]:
-        presets = self._read_file().get("presets")
-        return presets if isinstance(presets, dict) else {}
+        def _too_new(stamp: int) -> LivePresetSchemaError:
+            return LivePresetSchemaError(stamp=stamp, understood=_SCHEMA, what="these presets")
 
-    def _write(self, presets: dict[str, Any]) -> None:
+        return _clean(read_stamped(self._path, store="live snapshot", schema=_SCHEMA, too_new=_too_new))
+
+    def _presets(self) -> dict[str, LiveRecordFile]:
+        """Return the on-disk record map, each entry checked into ``LiveRecordFile`` but not yet a ``LiveRecord``."""
+        return self._read_file().get("presets", {})
+
+    def _write(self, presets: dict[str, LiveRecordFile]) -> None:
         """Rewrite the whole file, stamped.
 
         Guards the schema first: a store we cannot read is not one we should be writing into.
@@ -131,25 +252,25 @@ class LivePresetStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
 
-    def all(self) -> dict[str, Any]:
+    def all(self) -> dict[str, LiveRecord]:
         """Every preset, name -> record, sorted by name."""
         presets = self._presets()
-        return {name: presets[name] for name in sorted(presets, key=names.sort_key)}
+        return {name: LiveRecord.from_json(presets[name]) for name in sorted(presets, key=names.sort_key)}
 
-    def read(self, name: str) -> dict[str, Any]:
+    def read(self, name: str) -> LiveRecord:
         """One preset's record. Raises ``LivePresetError`` if absent."""
         record = self._presets().get(canonical_name(name))
-        if not isinstance(record, dict):
-            raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
-        return record
+        if record is None:
+            raise SnapshotNotFoundError(name=name)
+        return LiveRecord.from_json(record)
 
-    def save(self, name: str, record: dict[str, Any]) -> None:
+    def save(self, name: str, record: LiveRecord) -> None:
         """Write (or overwrite) a preset. A name new to the store takes the stricter first-save rule."""
         presets = self._presets()
         key = canonical_name(name)
         if key not in presets:
-            names.validate_new_name(key, LivePresetError, "snapshot")
-        presets[key] = record
+            names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
+        presets[key] = record.to_json()
         self._write(presets)
 
     def delete(self, name: str) -> None:
@@ -157,6 +278,6 @@ class LivePresetStore:
         presets = self._presets()
         key = canonical_name(name)
         if key not in presets:
-            raise LivePresetError(f"no such live snapshot: {name!r}", code="not_found")
+            raise SnapshotNotFoundError(name=name)
         del presets[key]
         self._write(presets)

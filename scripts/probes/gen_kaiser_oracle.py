@@ -38,6 +38,10 @@ ROWS = [
 DEFAULT_OUT = Path("tests/support/fixtures/kaiser-oracle.json")
 
 
+class CliError(Exception):
+    """A condition that stops this generator cold; `main` prints it and owns the exit code."""
+
+
 def band_hz(atten_db: float, taps: int, rate: int) -> float:
     """Widest band, in hertz, that ``kaiserord`` still rounds up to ``taps`` at ``atten_db``."""
     lo, hi = 1e-9, 1.0
@@ -51,10 +55,11 @@ def band_hz(atten_db: float, taps: int, rate: int) -> float:
     return hi * rate / 2
 
 
-def main() -> None:
+def _run() -> None:
     """Write the oracle rows to the path in argv, or the default fixture path."""
     if not kaiser_beta(FLOOR_DB - 0.001) == 0 < kaiser_beta(FLOOR_DB + 0.001):
-        raise SystemExit(f"scipy's kaiser_beta does not floor at {FLOOR_DB} dB")
+        message = f"scipy's kaiser_beta does not floor at {FLOOR_DB} dB"
+        raise CliError(message)
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT
     rows = []
     for taps, width_hz, rate in ROWS:
@@ -73,5 +78,18 @@ def main() -> None:
     print(f"{len(rows)} rows -> {out}")
 
 
+def main() -> int:
+    """Run the generator, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    try:
+        _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

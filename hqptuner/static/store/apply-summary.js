@@ -31,7 +31,7 @@
  * @property {string} [endpoint] the output endpoint that was absent (endpoint-missing)
  * @property {string} [preset] the preset switched to, or saved into
  * @property {number} [changes] staged edits the apply carried
- * @property {string} [save] "ok" | "failed" | "warned", absent when nothing was saved
+ * @property {string} [save] "ok" | "warned", absent when nothing was saved; a failed save is a refusal
  *
  * @typedef {object} LiveResult
  *   One live setter's outcome (writer.py, readback-verified).
@@ -52,14 +52,13 @@
  * @property {boolean} [applied]
  * @property {string} [reason] unconverged | unavailable | credentials
  * @property {string} [error]
+ * @property {string} [code] the declined lane's refusal code
  * @property {Record<string, unknown>} [diff] the fields that did not converge
  * @property {{ net_device?: { want: string } }} [unfixable]
  *
  * @typedef {object} SaveResult
- *   The save lane's outcome. A WARNED save is still a save.
- * @property {boolean} ok
+ *   A save that reached the store; one that did not is a refusal. A WARNED save is still a save.
  * @property {string} name
- * @property {string} [error]
  * @property {string} [warning]
  *
  * @typedef {object} ApplyReport
@@ -67,7 +66,12 @@
  * @property {LiveResult[]} [live]
  * @property {SwitchResult} [switched]
  * @property {PersistentResult} [persistent]
+ *
+ * @typedef {object} ApplyAnswer
+ *   What POST /api/config/apply answers with: the report, and the preset save or auto-save beside it.
+ * @property {ApplyReport} report
  * @property {SaveResult} [saved]
+ * @property {SaveResult | null} [autosaved]
  */
 
 /**
@@ -117,7 +121,7 @@ function namedCause(p) {
   // `error` is optional on the report generally, so this reads it rather than
   // asserting it: a refusal that somehow arrived without its sentence falls
   // through to the generic paths, which is a worse caption but never an empty one.
-  if (p.reason === "credentials" && p.error) return failure("persist-credentials", p.error);
+  if (p.code === "no_credentials" && p.error) return failure("persist-credentials", p.error);
   return null;
 }
 
@@ -174,14 +178,6 @@ function success(sw, count) {
 function savedSummary(base, saved) {
   if (!saved) return base;
   const { text } = base;
-  if (!saved.ok)
-    return {
-      ...base,
-      ok: false,
-      text: `${text} — save to "${saved.name}" failed: ${saved.error}`,
-      save: "failed",
-      preset: saved.name,
-    };
   const caveat = saved.warning ? ` — ${saved.warning}` : "";
   return {
     ...base,
@@ -194,11 +190,12 @@ function savedSummary(base, saved) {
 /**
  * The one-line verdict for an apply: the first failure the report carries, or what the
  * apply did plus how its preset save went.
- * @param {ApplyReport} report
+ * @param {ApplyAnswer} answer
  * @param {number} count staged edits, captured before the apply cleared them
  * @returns {Verdict}
  */
-export function summarize(report, count) {
+export function summarize(answer, count) {
+  const { report } = answer;
   const sw = report.switched;
   const failed =
     liveFailure(report) ||
@@ -208,5 +205,5 @@ export function summarize(report, count) {
     persistentFailure(report.persistent);
   if (failed) return failed;
 
-  return savedSummary(success(sw, count), report.saved);
+  return savedSummary(success(sw, count), answer.saved);
 }

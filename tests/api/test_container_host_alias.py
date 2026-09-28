@@ -20,8 +20,10 @@ from pathlib import Path
 
 import fake_http
 import pytest
-from conftest import _closed_port, spawn_threaded_daemon
+from apps import closed_port
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -52,7 +54,7 @@ TRIES = 500
 def daemon_pairs() -> Iterator[tuple[int, int]]:
     """One hqplayerd pair per address, every pair on the same two port numbers
     so a single `Config` reaches whichever address the app resolves."""
-    control_port, http_port = _closed_port(), _closed_port()
+    control_port, http_port = closed_port(), closed_port()
     running: list[Iterator[object]] = []
     for address, marker in MARKERS.items():
         control = spawn_threaded_daemon(host=address, bind_port=control_port)
@@ -117,6 +119,6 @@ def test_a_start_dials_the_record_then_the_variable_and_falls_back_to_the_host_a
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         answered = served_title(client)
     assert answered == expected

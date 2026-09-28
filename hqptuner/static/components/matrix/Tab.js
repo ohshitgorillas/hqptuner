@@ -9,8 +9,8 @@ import { Field } from "../widgets/Field.js";
 import { noteFor } from "../../store/prose.js";
 import { pipelineBaseline, effectivePipelines, canonPipelines } from "../../store/resolve.js";
 import { stagePipelines } from "../../store/actions.js";
-import { planEqImport } from "../../lib/eqimport.js";
-import { pipelinesToRewText } from "../../lib/eqexport.js";
+import { planEqImport } from "../../vendor/eqlab/core/eqimport.js";
+import { pipelinesToRewText } from "../../vendor/eqlab/core/eqexport.js";
 import { notesVisible } from "../../store/ui/prefs.js";
 import { MatrixPlot, plottedRows } from "./Plot.js";
 import { LibraryPicker, clearLibrarySelection } from "./Library.js";
@@ -29,7 +29,7 @@ import { Section, Card } from "../common.js";
 import { BypassNote } from "./BypassNote.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  */
 
 const pipelinesCardOpen = signal(true);
@@ -214,7 +214,7 @@ function ExportEqButton({ rows }) {
 function PipelinesActions({ rows, add }) {
   return html`
     <div class="mtx-pipelines-actions">
-      <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>+ Add pipeline</button>
+      <button type="button" class="mtx-add-row" data-testid="matrix-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>+ Add pipeline</button>
       <div class="mtx-file-actions">
         <label class="mtx-import-mirror">
           <input type="checkbox" checked=${importMirror().value} onChange=${(/** @type {{ target: HTMLInputElement }} */ e) => (importMirror().value = e.target.checked)} />

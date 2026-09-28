@@ -61,7 +61,7 @@ Look a descriptor up with `eqlab`, which answers the entries those words reach i
 eqlab {"job": {"job": {"kind": "vocab", "terms": ["boomy", "warm"]}}}
 ```
 
-A miss answers `index`, every name the file can be looked up by, so a word that is not in the map costs one job rather than a read. Manuals: `scripts/eqlab/README.md` and `scripts/eqstage/README.md`. Measure before you stage, every time. A number you recalled is a number you made up; a number from a tool run is evidence, and it goes in the ledger with the job file it came from.
+A miss answers `index`, every name the file can be looked up by, so a word that is not in the map costs one job rather than a read. Manuals: `hqptuner/static/vendor/eqlab/src/README.md` and `scripts/eqstage/README.md`. Measure before you stage, every time. A number from memory is invented; only a number from a tool run is evidence, and the ledger carries it beside the path of the job file that computes it.
 
 ## The ledger
 

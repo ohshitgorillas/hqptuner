@@ -3,10 +3,11 @@ HTTP server on a real socket — no transport injection, no mock of our client
 (docs/testing.md rule 4). The server records each request so tests can assert
 what actually went over the wire."""
 
-import threading
 from collections.abc import AsyncIterator, Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
+from typing import Any
 
+import fake_http
 import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -42,13 +43,11 @@ def _handler(captured: list[tuple[str, str]]) -> type[BaseHTTPRequestHandler]:
 @pytest.fixture
 def http_server() -> Iterator[tuple[int, list[tuple[str, str]]]]:
     captured: list[tuple[str, str]] = []
-    server = HTTPServer(("127.0.0.1", 0), _handler(captured))
-    # poll_interval is what shutdown() waits on — teardown cost (docs/testing.md rule 7)
-    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-    thread.start()
-    yield server.server_address[1], captured
-    server.shutdown()
-    thread.join()
+    st: dict[str, Any] = {}
+    server = fake_http.spawn(st, handler=_handler(captured))
+    port = next(server)["_port"]
+    yield port, captured
+    next(server, None)
 
 
 @pytest.fixture

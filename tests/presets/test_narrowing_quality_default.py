@@ -76,13 +76,13 @@ def drop(facet: str) -> Callable[[dict[str, Any]], None]:
 
 
 def test_a_never_written_store_reads_quality_at_0(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
+    assert store_at(tmp_path).read().quality == QUALITY_DEFAULT
 
 
 def test_a_file_with_no_quality_entry_reads_quality_at_0(tmp_path: Path) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, drop("quality"))
-    assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
+    assert store_at(tmp_path).read().quality == QUALITY_DEFAULT
 
 
 # --- an explicitly stored value survives ------------------------------------------
@@ -94,14 +94,14 @@ def test_a_file_with_no_quality_entry_reads_quality_at_0(tmp_path: Path) -> None
 def test_a_stored_quality_of_3_survives_a_read(tmp_path: Path) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", 3))
-    assert store_at(tmp_path).read()["quality"] == 3
+    assert store_at(tmp_path).read().quality == 3
 
 
 @pytest.mark.parametrize("value", QUALITY_DOMAIN)
 def test_a_written_in_domain_quality_reads_back_as_written(tmp_path: Path, value: int) -> None:
     store = store_at(tmp_path)
     store.write({"quality": value})
-    assert store.read()["quality"] == value
+    assert store.read().quality == value
 
 
 # --- the domain, unchanged ---------------------------------------------------------
@@ -117,4 +117,4 @@ def test_an_invalid_quality_write_is_refused(tmp_path: Path, value: object) -> N
 def test_an_invalid_stored_quality_reads_as_the_default_of_0(tmp_path: Path, value: object) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", value))
-    assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
+    assert store_at(tmp_path).read().quality == QUALITY_DEFAULT

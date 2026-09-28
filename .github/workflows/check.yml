@@ -15,6 +15,8 @@ jobs:
       # Full history, not a shallow clone: the CSS gates enumerate their inputs
       # with `git ls-files`.
       - uses: actions/checkout@v5
+        with:
+          submodules: true
 
       - uses: actions/setup-python@v6
         with:
@@ -45,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: true
 
       - uses: actions/setup-python@v6
         with:

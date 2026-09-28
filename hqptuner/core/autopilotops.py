@@ -18,11 +18,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from hqptuner.engine.control import ControlError
-from hqptuner.engine.metering import context_from
+from hqptuner.engine.trackcontext import context_from
+from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import autopilot
-from hqptuner.lanes.live import lane, routing
-from hqptuner.presets.store.autopilot import AutopilotError
+from hqptuner.lanes.live import lane
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -31,12 +30,8 @@ log = logging.getLogger(__name__)
 
 
 def _enabled(mgr: ConnectionManager) -> bool:
-    """Return whether auto-pilot is on, and False when its state cannot be read at all."""
-    try:
-        return mgr.presetops.autopilot.enabled
-    except AutopilotError as exc:
-        log.warning("auto-pilot state unreadable: %s", exc)
-        return False
+    """Return whether auto-pilot is on; a corrupt or unreadable store raises."""
+    return mgr.presetops.autopilot.enabled
 
 
 def _junk_filters(mgr: ConnectionManager) -> list[dict[str, str]]:
@@ -67,19 +62,19 @@ async def act(mgr: ConnectionManager) -> None:
     A no-op unless the engaged filter differs from what the signature wants, so a settled track costs one comparison
     per poll and no daemon traffic at all.
     """
-    move = _move(mgr)
-    if move is None:
-        return
-    want, engaged = move
-    index = autopilot.junk_filter_index(_junk_filters(mgr), want)
-    if index is None:
-        log.warning("auto-pilot wanted junk filter %r, which the running enumeration does not carry", want)
-        return
-    log.info("auto-pilot: junk filter %s -> %s", engaged, want)
-    mgr.audit.autopilot_act(want, engaged)
     try:
+        move = _move(mgr)
+        if move is None:
+            return
+        want, engaged = move
+        index = autopilot.junk_filter_index(_junk_filters(mgr), want)
+        if index is None:
+            log.warning("auto-pilot wanted junk filter %r, which the running enumeration does not carry", want)
+            return
+        log.info("auto-pilot: junk filter %s -> %s", engaged, want)
+        mgr.audit.autopilot_act(want, engaged)
         await lane.apply_now(mgr, {"junk_filter": index})
-    except (ControlError, routing.LiveRouteError) as exc:
+    except HQPTunerError as exc:
         log.warning("auto-pilot write failed: %s", exc)
 
 
@@ -89,8 +84,8 @@ async def run(mgr: ConnectionManager, interval: float) -> None:
     A loop of its own rather than a step inside the manager's poll: what auto-pilot reads is the metering reader's
     live verdict, and the reader is a background task for the same reason. The cadence follows the status poll
     because everything the decision reads is refreshed by it, and ticking faster would only re-ask the same question.
-    The wait is the manager's own, which the test suite virtualizes (``docs/testing.md`` §7).
+    The wait is the manager clock's background wait.
     """
     while True:
         await act(mgr)
-        await mgr.sleep(interval)
+        await mgr.clock.pace(None, interval)

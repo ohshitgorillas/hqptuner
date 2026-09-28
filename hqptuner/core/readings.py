@@ -8,8 +8,9 @@ external preset load, the output DAC changing, HQPlayer's own web UI), so the /c
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 
+from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
+from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.lanes.live import lane
 
 
@@ -42,13 +43,13 @@ class Readings:
     # None until we have asked for one, which is different from having asked for
     # a level the engine is no longer reporting.
     last_volume_write: str | None = None
-    config_form: dict[str, Any] | None = None
+    config_form: ConfigForm | None = None
     config_error: str | None = None
-    matrix_form: dict[str, Any] | None = None
+    matrix_form: MatrixForm | None = None
     matrix_error: str | None = None
     # Speaker processing form (readme §1.9), a top-level config element absent
     # from /config — polled over the 8088 lane like /matrix, best-effort.
-    speakers_form: dict[str, Any] | None = None
+    speakers_form: SpeakersForm | None = None
     speakers_error: str | None = None
     # Whether the daemon accepts the configured management credentials: None until
     # the 8088 lane has answered at all, True once a /config read succeeded, False
@@ -79,7 +80,7 @@ class Readings:
     # None means nothing is known about it and no menu narrows. Refreshed on
     # connect and whenever the selected device changes (never per-poll: GET
     # /log pulls the whole log, and the announcement only moves on a connect).
-    device_caps: dict[str, Any] | None = None
+    device_caps: DeviceCaps | None = None
     # Which device the last capability read was for, and when it ran.
     caps_device: str | None = None
     caps_at: float = 0.0

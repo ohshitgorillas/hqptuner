@@ -8,7 +8,7 @@ Switching on captures nothing about the engine. Auto-pilot's resting state is no
 engaged when the switch was flipped is released on the next tick unless the playing track asks for it.
 """
 
-from typing import Any
+from dataclasses import dataclass
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -27,12 +27,19 @@ class AutopilotBody(BaseModel):
     enabled: bool
 
 
-def _reported(store: AutopilotStore) -> dict[str, Any]:
-    return {"enabled": store.enabled}
+@dataclass(frozen=True)
+class AutopilotReport:
+    """``GET``/``POST /api/autopilot``: auto-pilot's current switch state."""
+
+    enabled: bool
+
+
+def _reported(store: AutopilotStore) -> AutopilotReport:
+    return AutopilotReport(enabled=store.enabled)
 
 
 @router.get("/autopilot")
-def autopilot(manager: Mgr) -> dict[str, Any]:
+def autopilot(manager: Mgr) -> AutopilotReport:
     """Auto-pilot's state.
 
     409 when the store on disk is stamped newer than this HQPTuner reads — reporting "off" would be a lie about a file
@@ -45,7 +52,7 @@ def autopilot(manager: Mgr) -> dict[str, Any]:
 
 
 @router.post("/autopilot")
-def set_autopilot(body: AutopilotBody, manager: Mgr) -> dict[str, Any]:
+def set_autopilot(body: AutopilotBody, manager: Mgr) -> AutopilotReport:
     """Switch auto-pilot on or off, and answer with the state that was stored.
 
     Neither direction reads the engine: what is engaged when the switch is flipped has no bearing on what auto-pilot

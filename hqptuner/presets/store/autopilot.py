@@ -11,18 +11,22 @@ Two things are stored. ``enabled`` is the current state. ``presets`` is the per-
 name, so saving a preset records auto-pilot's state and loading it puts that state back. Nothing here records a filter
 to fall back to, because auto-pilot has none: its resting state is nothing engaged (``lanes/autopilot.py``).
 
-A damaged file costs auto-pilot rather than the app: anything unreadable or wrong-typed reads as off, on the narrow
-bar's reasoning. A too-new stamp is the one thing that raises, because acting on a misread store means writing filter
-settings the user never chose.
+A wrong-typed VALUE inside a readable file costs auto-pilot rather than the app: ``enabled`` that is not a real bool,
+or a ``presets`` entry that is not one, reads as off. The FILE itself is a different
+matter, like every other store here: one that cannot be read as a JSON object at all raises ``StoreCorruptError``
+rather than silently starting auto-pilot over, and a too-new stamp still raises because acting on a misread store
+means writing filter settings the user never chose.
 """
 
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
+from hqptuner.presets.store.jsonfile import read_stamped
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,6 +34,35 @@ if TYPE_CHECKING:
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
 # refused rather than guessed at. An unstamped file predates the stamp and is adopted as schema 1 on its next write.
 _SCHEMA = 1
+
+
+class AutopilotFile(TypedDict, total=False):
+    """The on-disk envelope: a schema stamp beside auto-pilot's own two fields."""
+
+    schema: int
+    enabled: bool
+    presets: dict[str, bool]
+
+
+def _clean(stored: object) -> AutopilotFile:
+    """Return a read document's envelope, keeping each member only when it has the type ``AutopilotFile`` names.
+
+    ``enabled`` survives only as a real bool, and a ``presets`` value reads as on only when it is ``true``; any other
+    member is not kept, so the next write drops it.
+    """
+    out: AutopilotFile = {}
+    if not isinstance(stored, dict):
+        return out
+    schema = stored.get("schema")
+    if isinstance(schema, int):
+        out["schema"] = schema
+    enabled = stored.get("enabled")
+    if isinstance(enabled, bool):
+        out["enabled"] = enabled
+    presets = stored.get("presets")
+    if isinstance(presets, dict):
+        out["presets"] = {name: value is True for name, value in presets.items() if isinstance(name, str)}
+    return out
 
 
 class AutopilotError(HQPTunerError, ValueError):
@@ -47,6 +80,30 @@ class AutopilotSchemaError(AutopilotError):
 
     code = "store_too_new"
 
+    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
+        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
+        super().__init__(
+            f"auto-pilot store is schema {stamp}, this HQPTuner {__version__} understands "
+            f"{understood} — upgrade HQPTuner to read {what}"
+        )
+
+
+@dataclass(frozen=True)
+class AutopilotState:
+    """Auto-pilot's whole recorded state: whether it is on, and which config presets carry it on."""
+
+    enabled: bool
+    presets: dict[str, bool] = field(default_factory=dict)
+
+    @classmethod
+    def from_json(cls, data: AutopilotFile) -> AutopilotState:
+        """Build from the on-disk envelope, missing fields reading as off / empty."""
+        return cls(enabled=data.get("enabled", False), presets=dict(data.get("presets", {})))
+
+    def to_json(self) -> AutopilotFile:
+        """Return the document form this store persists: the schema stamp beside both fields."""
+        return {"schema": _SCHEMA, "enabled": self.enabled, "presets": dict(self.presets)}
+
 
 class AutopilotStore:
     """Auto-pilot's state in one JSON file.
@@ -59,59 +116,46 @@ class AutopilotStore:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
 
-    def _read_file(self) -> dict[str, Any]:
-        """Return the file as a dict, empty when absent or unreadable.
+    def _read_file(self) -> AutopilotFile:
+        """Return the file as a dict, empty when absent.
 
-        Every path goes through here, so a too-new store refuses uniformly instead of half-working.
+        Raises ``AutopilotSchemaError`` when the store is stamped newer than this HQPTuner understands, and
+        ``StoreCorruptError`` when the file cannot be read as a JSON object at all.
         """
-        if not self._path.is_file():
-            return {}
-        try:
-            data = json.loads(self._path.read_text())
-        except (ValueError, OSError):
-            return {}
-        if not isinstance(data, dict):
-            return {}
-        schema = data.get("schema")
-        if isinstance(schema, int) and schema > _SCHEMA:
-            raise AutopilotSchemaError(
-                f"auto-pilot store is schema {schema}, this HQPTuner {__version__} understands "
-                f"{_SCHEMA} — upgrade HQPTuner to read this state"
-            )
-        return data
 
-    def _write(self, data: dict[str, Any]) -> None:
+        def _too_new(stamp: int) -> AutopilotSchemaError:
+            return AutopilotSchemaError(stamp=stamp, understood=_SCHEMA, what="this state")
+
+        return _clean(read_stamped(self._path, store="auto-pilot", schema=_SCHEMA, too_new=_too_new))
+
+    def _write(self, state: AutopilotState) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({**data, "schema": _SCHEMA}, indent=2))
+        self._path.write_text(json.dumps(state.to_json(), indent=2))
+
+    def read(self) -> AutopilotState:
+        """Auto-pilot's whole recorded state."""
+        return AutopilotState.from_json(self._read_file())
 
     @property
     def enabled(self) -> bool:
         """Whether auto-pilot is currently on."""
-        return self._read_file().get("enabled") is True
+        return self.read().enabled
 
     def enable(self) -> None:
-        """Switch auto-pilot on.
-
-        Drops any ``baseline`` key from the stored data: nothing reads it, and an unread key is worse on disk than
-        absent.
-        """
-        data = self._read_file()
-        data.pop("baseline", None)
-        self._write({**data, "enabled": True})
+        """Switch auto-pilot on."""
+        self._write(AutopilotState(enabled=True, presets=self.read().presets))
 
     def disable(self) -> None:
         """Switch auto-pilot off."""
-        self._write({**self._read_file(), "enabled": False})
+        self._write(AutopilotState(enabled=False, presets=self.read().presets))
 
     def for_preset(self, name: str) -> bool:
         """Whether the config preset saved under ``name`` carries auto-pilot on."""
-        stored = self._read_file().get("presets")
-        return isinstance(stored, dict) and stored.get(name) is True
+        return self.read().presets.get(name) is True
 
     def set_for_preset(self, name: str, *, enabled: bool) -> None:
         """Record ``enabled`` as the auto-pilot state the config preset ``name`` carries."""
-        data = self._read_file()
-        presets = data.get("presets")
-        stored = dict(presets) if isinstance(presets, dict) else {}
-        stored[name] = enabled
-        self._write({**data, "presets": stored})
+        state = self.read()
+        presets = dict(state.presets)
+        presets[name] = enabled
+        self._write(AutopilotState(enabled=state.enabled, presets=presets))

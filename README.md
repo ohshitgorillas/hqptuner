@@ -158,6 +158,8 @@ To try a beta build, point the image at `ohshitgorillas/hqptuner:beta` in your `
 
 ### From a clone (no Docker)
 
+Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
+
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -e .

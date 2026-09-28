@@ -144,6 +144,20 @@ def _result_sizes(rows):
     return sizes
 
 
+def _tool_uses(message):
+    return [b for b in message["content"] if isinstance(b, dict) and b.get("type") == "tool_use"]
+
+
+def _kinds(blocks, root, cwd):
+    """Each tool_use block with its budget kind; an unparsable past command counts as nothing."""
+    for b in blocks:
+        try:
+            kind = budget.classify(b.get("name") or "", b.get("input") or {}, root, cwd)
+        except budget.UnparsableCommandError:
+            continue
+        yield b, kind
+
+
 def calls_in(rows, cwd_default):
     """Every tool_use in order, with the facts the advisories need."""
     out = []
@@ -153,16 +167,13 @@ def calls_in(rows, cwd_default):
             continue
         cwd = row.get("cwd") or cwd_default
         root = budget._repo_root(cwd)
-        for block in message["content"]:
-            if not isinstance(block, dict) or block.get("type") != "tool_use":
-                continue
-            name = block.get("name") or ""
-            tool_input = block.get("input") or {}
+        for block, kind in _kinds(_tool_uses(message), root, cwd):
+            name, tool_input = block.get("name") or "", block.get("input") or {}
             out.append({
                 "id": block.get("id"),
                 "name": name,
                 "input": tool_input,
-                "kind": budget.classify(name, tool_input, root, cwd),
+                "kind": kind,
                 "paths": paths_of(name, tool_input, cwd),
             })
     return out
@@ -215,13 +226,12 @@ def _batch_follower(rows, tool_id, sizes):
         message = budget._msg(row)
         if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
             continue
-        blocks = [b for b in message["content"] if isinstance(b, dict) and b.get("type") == "tool_use"]
+        blocks = _tool_uses(message)
         if not any(b.get("id") == tool_id for b in blocks):
             continue
         cwd = row.get("cwd") or ""
         root = budget._repo_root(cwd)
-        pending = [b["id"] for b in blocks if b.get("id") not in sizes
-                   and budget.classify(b.get("name"), b.get("input"), root, cwd) == budget.FREE]
+        pending = [b["id"] for b, kind in _kinds(blocks, root, cwd) if b.get("id") not in sizes and kind == budget.FREE]
         return bool(pending) and pending[0] != tool_id
     return True
 
@@ -310,114 +320,5 @@ def main():
         }))
 
 
-# ---- self-test --------------------------------------------------------------
-
-
-def _call(uuid, tool_id, name, tool_input):
-    return _batch(uuid, [(tool_id, name, tool_input)])
-
-
-def _batch(uuid, calls):
-    """One assistant row holding several tool_use blocks: a parallel batch."""
-    content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}
-               for tool_id, name, tool_input in calls]
-    return {"uuid": uuid, "cwd": HOOK_DIR, "message": {"role": "assistant", "content": content}}
-
-
-def _result(tool_id, size):
-    block = {"type": "tool_result", "tool_use_id": tool_id, "content": "x" * size}
-    return {"message": {"role": "user", "content": [block]}}
-
-
-def _said(text):
-    return {"message": {"role": "user", "content": text}}
-
-
-def _read(index, path, size):
-    return [_call(f"a{index}", f"t{index}", "Read", {"file_path": path}), _result(f"t{index}", size)]
-
-
-def _post(name, tool_input, size, tool_id="pending"):
-    return {"cwd": HOOK_DIR, "tool_name": name, "tool_input": tool_input,
-            "tool_use_id": tool_id, "tool_response": "y" * size}
-
-
-def _metered(count, start=0):
-    """`count` completed metered calls, each with its result already recorded."""
-    rows = []
-    for i in range(start, start + count):
-        rows += [_call(f"m{i}", f"tm{i}", "Bash", {"command": f"sudo ls {i}"}),
-                 _result(f"tm{i}", 10)]
-    return rows
-
-
-def _check(label, condition):
-    print(f"  {'PASS' if condition else 'FAIL'}  {label}")
-    return condition
-
-
-def self_test():
-    one, two = os.path.join(HOOK_DIR, "one.py"), os.path.join(HOOK_DIR, "two.py")
-    small = 1000  # inside one threshold multiple, so the byte advisory cannot fire and mask the re-read checks
-
-    rows = [_said("go"), *_read(0, one, THRESHOLD - 1000), _call("c", "tc", "Read", {"file_path": two})]
-    fired = advise(_post("Read", {"file_path": two}, 5000, "tc"), rows)
-    ok = [_check("byte advisory fires on crossing the threshold", bool(fired))]
-    ok.append(_check("byte advisory names the read-only agent types", "Explore" in (fired or "")))
-    rows += [*_read(1, two, 5000)]
-    ok.append(_check("byte advisory does not fire again inside the same multiple",
-                     advise(_post("Read", {"file_path": os.path.join(HOOK_DIR, "three.py")}, 100), rows) is None))
-
-    three = os.path.join(HOOK_DIR, "three.py")
-    batch = [_said("go"), *_read(0, one, THRESHOLD - 1000),
-             _batch("b", [("t1", "Read", {"file_path": two}), ("t2", "Read", {"file_path": three})])]
-    pair = (advise(_post("Read", {"file_path": two}, 5000, "t1"), batch),
-            advise(_post("Read", {"file_path": three}, 5000, "t2"), batch))
-    ok.append(_check("a parallel batch crossing the threshold speaks once, from its first call",
-                     bool(pair[0]) and pair[1] is None))
-    ok.append(_check("a call whose assistant row is not in the transcript yet stays silent",
-                     advise(_post("Read", {"file_path": two}, 5000, "absent"), batch[:-1]) is None))
-
-    edited = [_said("go"), *_read(0, one, small),
-              _call("w", "tw", "Edit", {"file_path": one}), _result("tw", 10)]
-    ok.append(_check("re-read of a path edited since is never advised",
-                     advise(_post("Read", {"file_path": one}, 10), edited) is None))
-
-    plain = [_said("go"), *_read(0, one, small)]
-    logged = advise(_post("Read", {"file_path": one}, small, "t0"), plain)
-    first = advise(_post("Read", {"file_path": one}, small), plain)
-    ok.append(_check("an already-logged first read is not stale; the second read is, once",
-                     logged is None and bool(first) and "one.py" in first))
-    plain += [*_read(1, one, small)]
-    ok.append(_check("a third read in the same period says nothing",
-                     advise(_post("Read", {"file_path": one}, 10), plain) is None))
-    plain += [*_read(2, two, 10)]
-    ok.append(_check("another stale path in the same period says nothing",
-                     advise(_post("Read", {"file_path": two}, 10), plain) is None))
-    after_reply = plain + [_said("now do the next thing")]
-    ok.append(_check("a new period is advised again",
-                     bool(advise(_post("Read", {"file_path": one}, 10), after_reply))))
-
-    two = [_said("go"), *_metered(2)]
-    counted = advise(_post("Bash", {"command": "sed -E 's/a/b/' f"}, 10), two)
-    silent = (advise(_post("Bash", {"command": "grep -n x f"}, 10), two),
-              advise(_post("Edit", {"file_path": os.path.join(HOOK_DIR, "one.py")}, 10), two))
-    ok.append(_check("the third metered call in a period is counted, the free ones are not",
-                     "3/8" in (counted or "") and not any(silent)))
-    ok.append(_check("a metered Agent spawn is counted too",
-                     "3/8" in (advise(_post("Agent", {"subagent_type": "general-purpose"}, 10),
-                                      two) or "")))
-    full = [_said("go"), *_metered(budget.CHANGE_LIMIT - 1)]
-    ok.append(_check("the counter at the limit includes the call that just completed",
-                     f"{budget.CHANGE_LIMIT}/{budget.CHANGE_LIMIT}"
-                     in (advise(_post("Bash", {"command": "sudo ls"}, 10), full) or "")))
-    every = [advise(_post("Read", {"file_path": one}, n), plain) for n in (0, 10, 10**6)]
-    ok.append(_check("no advisory ever carries a permission decision",
-                     all("permissionDecision" not in (t or "") for t in every)))
-
-    print(f"\n{sum(ok)}/{len(ok)} passed")
-    return 0 if all(ok) else 1
-
-
 if __name__ == "__main__":
-    sys.exit(self_test()) if "--self-test" in sys.argv else main()
+    main()

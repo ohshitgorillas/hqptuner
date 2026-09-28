@@ -25,9 +25,11 @@ from typing import Any
 
 import fake_http
 import pytest
-from conftest import spawn_threaded_daemon, wait_for_api
+from apps import wait_for_api
+from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, restart_into
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -87,16 +89,11 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         hqp_http_port=pcm_file_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
-        alarm_threshold=0.05,
-        # the restore's self-restart is only visible to the manager on its next
-        # State poll (the fake cannot sever the 4321 socket the way a real
-        # restart does), so the poll runs at test pace rather than production's
-        poll_interval=0.02,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg)) as test_client:
+    with TestClient(create_app(cfg, VirtualClock())) as test_client:
         wait_for_api(test_client, _config_loaded)
         yield test_client
 
@@ -107,25 +104,19 @@ def _sent(log: CommandLog, name: str) -> list[dict[str, str]]:
 
 def _apply_staged(client: TestClient, fields: dict[str, str]) -> dict[str, Any]:
     client.post("/api/config/stage", json={"http": fields})
-    report: dict[str, Any] = client.post("/api/config/apply").json()
+    report: dict[str, Any] = client.post("/api/config/apply").json()["report"]
     return report
 
 
 # --- a batch of nothing but live-capable fields rides the Control API --------
 
 
-def test_a_pure_live_dither_apply_sends_setshaping_with_the_list_index(
-    client: TestClient, control_log: CommandLog
+def test_a_pure_live_dither_apply_reports_no_persistent_lane_but_a_restart_field_gets_one_applied(
+    client: TestClient,
 ) -> None:
-    # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
-    # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
-    # exactly one SetShaping goes out and it carries the index, never the ID
-    _apply_staged(client, {"dither": "5"})
-    assert [attrs.get("value") for attrs in _sent(control_log, "SetShaping")] == ["1"]
-
-
-def test_a_pure_live_dither_apply_reports_no_persistent_lane(client: TestClient) -> None:
-    assert _apply_staged(client, {"dither": "5"})["persistent"] is None
+    pure_live = _apply_staged(client, {"dither": "5"})["persistent"]
+    beside_restart = _apply_staged(client, {"dither": "5", "title": "Renamed"})["persistent"]
+    assert (pure_live, beside_restart["applied"]) == (None, True)
 
 
 def test_a_pure_live_dither_apply_never_restarts_the_daemon(
@@ -141,9 +132,19 @@ def test_a_pure_live_dither_apply_never_restarts_the_daemon(
 # --- one restart-required field defers the whole batch to the restore --------
 
 
-def test_a_dither_beside_a_restart_field_sends_no_setshaping(client: TestClient, control_log: CommandLog) -> None:
+def test_a_dither_beside_a_restart_field_sends_no_setshaping_but_alone_it_does(
+    client: TestClient, control_log: CommandLog
+) -> None:
+    # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
+    # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
+    # applied alone exactly one SetShaping goes out and it carries the index,
+    # never the ID; sharing the batch with a restart field defers it entirely.
+    _apply_staged(client, {"dither": "5"})
+    alone = [attrs.get("value") for attrs in _sent(control_log, "SetShaping")]
+    before = len(control_log)
     _apply_staged(client, {"dither": "5", "title": "Renamed"})
-    assert _sent(control_log, "SetShaping") == []
+    beside_restart = [attrs.get("value") for attrs in _sent(control_log[before:], "SetShaping")]
+    assert (beside_restart, alone) == ([], ["1"])
 
 
 def test_a_dither_beside_a_restart_field_lands_exactly_one_restore(
@@ -179,9 +180,15 @@ def test_the_config_file_view_reports_the_restored_dither(client: TestClient) ->
 # --- the mode defers the same way ---------------------------------------------
 
 
-def test_a_mode_beside_a_restart_field_sends_no_setmode(client: TestClient, control_log: CommandLog) -> None:
-    _apply_staged(client, {"mode": "sdm", "title": "Renamed"})
-    assert _sent(control_log, "SetMode") == []
+def test_a_mode_beside_a_restart_field_sends_no_setmode_but_alone_it_does(
+    client: TestClient, control_log: CommandLog
+) -> None:
+    _apply_staged(client, {"mode": "sdm"})
+    alone = [attrs.get("value") for attrs in _sent(control_log, "SetMode")]
+    before = len(control_log)
+    _apply_staged(client, {"mode": "pcm", "title": "Renamed"})
+    beside_restart = [attrs.get("value") for attrs in _sent(control_log[before:], "SetMode")]
+    assert (beside_restart, alone) == ([], ["2"])
 
 
 def test_the_shared_restore_carries_the_new_mode(client: TestClient, pcm_file_daemon: dict[str, Any]) -> None:

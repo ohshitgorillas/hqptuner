@@ -176,14 +176,7 @@ async function apply() {
     // This write restarts the daemon, so it rides the same pill lifecycle every other
     // engine write does — without it the pill reads Unreachable for the whole restart.
     const r = await duringEngineWrite(() => api.applyEngine({ overrides, all_presets: allPresets.value }));
-    // The lane answers `submitted: false` with an `error` and no `verified` at
-    // all when the restore itself was refused. Nothing reached the daemon, so
-    // this is a failure to act on, not a submission waiting to be confirmed.
-    if (r && r.submitted === false) {
-      say(`Failed: ${r.error}`, "err");
-      return;
-    }
-    const applied = Boolean(r && r.verified && r.verified.applied);
+    const applied = Boolean(r && r.report && r.report.verified && r.report.verified.applied);
     // Only a confirmed apply re-snapshots: an unconfirmed one leaves the card
     // marked, which is the honest reading of a submission nothing verified.
     if (applied) base.value = overrides;

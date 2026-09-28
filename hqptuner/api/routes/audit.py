@@ -1,10 +1,17 @@
 """Event-log read surface, built on demand so an install without the log has no endpoint at all."""
 
-from typing import Any
+from dataclasses import dataclass
 
 from fastapi import APIRouter
 
-from hqptuner.audit import AuditLog
+from hqptuner.audit import AuditLog, AuditRecord
+
+
+@dataclass(frozen=True)
+class AuditRecords:
+    """``GET /api/audit``: the last ``limit`` audit records, newest last."""
+
+    records: list[AuditRecord]
 
 
 def audit_router(audit: AuditLog) -> APIRouter:
@@ -16,8 +23,8 @@ def audit_router(audit: AuditLog) -> APIRouter:
     audit_api = APIRouter(prefix="/api")
 
     @audit_api.get("/audit")
-    def records(limit: int = 200) -> dict[str, Any]:
+    def records(limit: int = 200) -> AuditRecords:
         """Return the last ``limit`` audit records, newest last, read straight off the log file."""
-        return {"records": audit.tail(limit)}
+        return AuditRecords(records=audit.tail(limit))
 
     return audit_api

@@ -21,7 +21,7 @@ from typing import Any
 from fake_config_xml import cfg_xml
 from fake_http import state
 
-from hqptuner.conf import matrixconf, presetconf
+from hqptuner.conf import matrixconf, matrixprofiles, presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import fileconfig
 
@@ -40,7 +40,7 @@ NO_CHAIN = (
 )
 
 
-def cfg(**overrides: Any) -> bytes:
+def cfg(**overrides: object) -> bytes:
     """A full config snapshot from the fake's renderer, with no saved profiles
     unless a case asks for one."""
     return cfg_xml(state(_profiles={}, **overrides))
@@ -52,11 +52,11 @@ def save_value(name: str, *rows: dict[str, str]) -> str:
 
 
 def staged_save(name: str, *rows: dict[str, str]) -> dict[str, str]:
-    return {matrixconf.MATRIX_PROFILE_SAVE: save_value(name, *rows)}
+    return {matrixprofiles.MATRIX_PROFILE_SAVE: save_value(name, *rows)}
 
 
 def profiles_of(xml: bytes) -> dict[str, dict[str, Any]]:
-    profiles: dict[str, dict[str, Any]] = json.loads(matrixconf.read_profiles(xml))
+    profiles: dict[str, dict[str, Any]] = json.loads(matrixprofiles.read_profiles(xml))
     return profiles
 
 
@@ -87,33 +87,27 @@ async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, An
 # --- writing: the chain that was live at save time ----------------------------
 
 
-def test_a_written_profile_carries_the_live_chains_plugin_values() -> None:
-    written = matrixconf.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
-    assert post_of(written, "Night")["post_bauer_frequency"] == "850"
-
-
-def test_a_written_profile_carries_the_live_chains_plugin_switch() -> None:
-    written = matrixconf.write_profile(cfg(post_loudness_enabled=True), save_value("Night", ROW0))
-    assert post_of(written, "Night")["post_loudness_enabled"] == "1"
-
-
 def test_a_written_profile_carries_a_switch_that_was_off_as_off() -> None:
-    written = matrixconf.write_profile(cfg(post_loudness_enabled=False), save_value("Night", ROW0))
+    written = matrixprofiles.write_profile(cfg(post_loudness_enabled=False), save_value("Night", ROW0))
     assert post_of(written, "Night")["post_loudness_enabled"] == "0"
 
 
 def test_a_profile_written_from_a_matrix_with_no_chain_stores_the_profile() -> None:
-    assert "Night" in profiles_of(matrixconf.write_profile(NO_CHAIN, save_value("Night", ROW0)))
+    assert "Night" in profiles_of(matrixprofiles.write_profile(NO_CHAIN, save_value("Night", ROW0)))
 
 
-def test_a_profile_written_from_a_matrix_with_no_chain_carries_an_empty_post() -> None:
-    written = matrixconf.write_profile(NO_CHAIN, save_value("Night", ROW0))
-    assert post_of(written, "Night") == {}
+def test_a_profile_with_no_chain_carries_an_empty_post_and_one_with_a_chain_carries_it() -> None:
+    empty = post_of(matrixprofiles.write_profile(NO_CHAIN, save_value("Night", ROW0)), "Night")
+    chained = cfg(post_bauer_frequency="850")
+    with_chain = post_of(matrixprofiles.write_profile(chained, save_value("Night", ROW0)), "Night")
+    assert (empty, with_chain["post_bauer_frequency"]) == ({}, "850")
 
 
-def test_a_profile_written_against_a_config_with_no_matrix_at_all_carries_an_empty_post() -> None:
-    written = matrixconf.write_profile(BARE, save_value("Night", ROW0))
-    assert post_of(written, "Night") == {}
+def test_a_profile_with_no_matrix_carries_an_empty_post_and_one_with_a_switch_carries_it() -> None:
+    empty = post_of(matrixprofiles.write_profile(BARE, save_value("Night", ROW0)), "Night")
+    switched = cfg(post_loudness_enabled=True)
+    with_switch = post_of(matrixprofiles.write_profile(switched, save_value("Night", ROW0)), "Night")
+    assert (empty, with_switch["post_loudness_enabled"]) == ({}, "1")
 
 
 # --- writing: the rows are the payload's, not the live matrix's ---------------
@@ -122,12 +116,12 @@ def test_a_profile_written_against_a_config_with_no_matrix_at_all_carries_an_emp
 def test_a_written_profile_carries_the_payloads_rows_not_the_live_ones() -> None:
     # the live matrix in this snapshot holds two rows at gain 0; the user is
     # looking at one staged row at -3
-    written = matrixconf.write_profile(cfg(), save_value("Night", ROW1))
+    written = matrixprofiles.write_profile(cfg(), save_value("Night", ROW1))
     assert rows_of(written, "Night")[0]["gain"] == "-3"
 
 
 def test_a_written_profile_holds_only_the_payloads_rows() -> None:
-    written = matrixconf.write_profile(cfg(), save_value("Night", ROW1))
+    written = matrixprofiles.write_profile(cfg(), save_value("Night", ROW1))
     assert len(rows_of(written, "Night")) == 1
 
 
@@ -135,21 +129,21 @@ def test_a_written_profile_holds_only_the_payloads_rows() -> None:
 
 
 def test_rewriting_a_taken_name_leaves_exactly_one_profile_of_that_name() -> None:
-    once = matrixconf.write_profile(cfg(), save_value("Night", ROW0, ROW1))
-    twice = matrixconf.write_profile(once, save_value("Night", ROW0))
+    once = matrixprofiles.write_profile(cfg(), save_value("Night", ROW0, ROW1))
+    twice = matrixprofiles.write_profile(once, save_value("Night", ROW0))
     assert twice.count(b'<matrix_profile name="Night"') == 1
 
 
 def test_rewriting_a_taken_name_drops_the_replaced_copys_rows() -> None:
-    once = matrixconf.write_profile(cfg(), save_value("Night", ROW0, ROW1))
-    twice = matrixconf.write_profile(once, save_value("Night", ROW0))
+    once = matrixprofiles.write_profile(cfg(), save_value("Night", ROW0, ROW1))
+    twice = matrixprofiles.write_profile(once, save_value("Night", ROW0))
     assert len(rows_of(twice, "Night")) == 1
 
 
 def test_rewriting_a_taken_name_drops_the_replaced_copys_plugin_settings() -> None:
-    once = matrixconf.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
+    once = matrixprofiles.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
     retuned = presetconf.apply_edits(once, {"post_bauer_frequency": "300"})
-    twice = matrixconf.write_profile(retuned, save_value("Night", ROW0))
+    twice = matrixprofiles.write_profile(retuned, save_value("Night", ROW0))
     assert post_of(twice, "Night")["post_bauer_frequency"] == "300"
 
 
@@ -158,12 +152,12 @@ def test_rewriting_a_taken_name_drops_the_replaced_copys_plugin_settings() -> No
 
 def test_writing_a_profile_leaves_every_other_byte_of_the_snapshot_alone() -> None:
     snapshot = cfg(post_bauer_frequency="850")
-    written = matrixconf.write_profile(snapshot, save_value("Night", ROW0))
+    written = matrixprofiles.write_profile(snapshot, save_value("Night", ROW0))
     assert without_profile(written, "Night") == snapshot
 
 
 def test_writing_a_profile_leaves_the_live_chain_reading_as_it_did() -> None:
-    written = matrixconf.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
+    written = matrixprofiles.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
     assert presetconf.read_config(written)["post_bauer_frequency"] == "850"
 
 
@@ -171,36 +165,34 @@ def test_writing_a_profile_leaves_the_live_chain_reading_as_it_did() -> None:
 
 
 def test_the_readback_names_every_saved_profile() -> None:
-    once = matrixconf.write_profile(cfg(), save_value("Night", ROW0))
-    twice = matrixconf.write_profile(once, save_value("Day", ROW1))
+    once = matrixprofiles.write_profile(cfg(), save_value("Night", ROW0))
+    twice = matrixprofiles.write_profile(once, save_value("Day", ROW1))
     assert set(profiles_of(twice)) == {"Night", "Day"}
 
 
 def test_each_profile_reads_back_with_its_own_rows() -> None:
-    once = matrixconf.write_profile(cfg(), save_value("Night", ROW0))
-    twice = matrixconf.write_profile(once, save_value("Day", ROW1))
+    once = matrixprofiles.write_profile(cfg(), save_value("Night", ROW0))
+    twice = matrixprofiles.write_profile(once, save_value("Day", ROW1))
     assert rows_of(twice, "Day")[0]["source"] == "1"
 
 
-def test_a_profile_saved_before_chains_were_stored_reads_back_with_an_empty_post() -> None:
+def test_a_profile_saved_before_chains_were_stored_reads_back_empty_until_resaved_with_one() -> None:
     # "Stock" ships in the fake's config as a profile element with rows and no
     # <post_process> — nothing migrates it, and reading it is not an error
-    assert profiles_of(cfg_xml(state()))["Stock"]["post"] == {}
-
-
-def test_re_saving_a_chainless_profile_is_what_gives_it_a_chain() -> None:
+    empty = profiles_of(cfg_xml(state()))["Stock"]["post"]
     snapshot = cfg_xml(state(post_bauer_frequency="850"))
-    written = matrixconf.write_profile(snapshot, save_value("Stock", ROW0))
-    assert post_of(written, "Stock")["post_bauer_frequency"] == "850"
+    written = matrixprofiles.write_profile(snapshot, save_value("Stock", ROW0))
+    with_chain = post_of(written, "Stock")
+    assert (empty, with_chain["post_bauer_frequency"]) == ({}, "850")
 
 
 def test_post_settings_read_back_under_hqptuners_own_form_field_names() -> None:
-    written = matrixconf.write_profile(cfg(), save_value("Night", ROW0))
+    written = matrixprofiles.write_profile(cfg(), save_value("Night", ROW0))
     assert set(post_of(written, "Night")) <= set(matrixconf.PLUGIN_MAP)
 
 
 def test_a_profiles_post_settings_can_be_staged_straight_back_as_config_edits() -> None:
-    written = matrixconf.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
+    written = matrixprofiles.write_profile(cfg(post_bauer_frequency="850"), save_value("Night", ROW0))
     post = post_of(written, "Night")
     staged = presetconf.read_config(presetconf.apply_edits(BARE, post))
     assert {field: staged[field] for field in post} == post

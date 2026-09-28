@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from hqptuner.audit import MAX_VALUE_BYTES, AuditLog, resolve_level
+from hqptuner.audit import DEFAULT_MAX_BYTES, MAX_VALUE_BYTES, AuditLog, resolve_level
 
 HTTP: dict[str, str] = {"filter": "poly-sinc-gauss-long", "rate": "2"}
 LIVE: dict[str, dict[str, str]] = {"convolution": {"enabled": "1"}}
@@ -50,8 +50,8 @@ def log_path(tmp_path: Path) -> Path:
     return tmp_path / "audit.jsonl"
 
 
-def log_at(tmp_path: Path, **kwargs: Any) -> AuditLog:
-    return AuditLog(log_path(tmp_path), **kwargs)
+def log_at(tmp_path: Path, *, max_bytes: int = DEFAULT_MAX_BYTES) -> AuditLog:
+    return AuditLog(log_path(tmp_path), max_bytes=max_bytes)
 
 
 def rotated_path(tmp_path: Path) -> Path:
@@ -59,7 +59,7 @@ def rotated_path(tmp_path: Path) -> Path:
 
 
 def last_seq(log: AuditLog) -> int:
-    return int(log.records()[-1]["seq"])
+    return log.records()[-1].seq
 
 
 def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
@@ -67,7 +67,7 @@ def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
     the roll, so a caller can show that numbering carries across it."""
     highest = 0
     for index in range(limit):
-        seqs = [int(record["seq"]) for record in log.records()]
+        seqs = [record.seq for record in log.records()]
         highest = max([highest, *seqs])
         log.preset_write(f"preset-{index}", "save", 4096, "abc123", overwrote=False)
         if rotation.exists():
@@ -78,26 +78,29 @@ def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
 # --- the disabled instance --------------------------------------------------
 
 
-def test_disabled_log_writes_no_file_when_an_emitter_is_called(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_disabled_log_writes_no_file_but_an_enabled_one_does(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # cwd moved under tmp_path so a relative default path would land here too,
     # not only the path the enabled fixture names
     monkeypatch.chdir(tmp_path)
     AuditLog(None).preset_write("alpha", "save", 10, "abc123", overwrote=False)
-    assert not log_path(tmp_path).exists()
+    disabled_wrote = log_path(tmp_path).exists()
+    log_at(tmp_path).preset_write("alpha", "save", 10, "abc123", overwrote=False)
+    enabled_wrote = log_path(tmp_path).exists()
+    assert (disabled_wrote, enabled_wrote) == (False, True)
 
 
-def test_disabled_log_has_no_records() -> None:
-    log = AuditLog(None)
-    log.stage(HTTP, LIVE, DROPPED)
-    assert log.records() == []
+def test_disabled_log_has_no_records_but_an_enabled_one_does(tmp_path: Path) -> None:
+    disabled = AuditLog(None)
+    disabled.stage(HTTP, LIVE, DROPPED)
+    enabled = log_at(tmp_path)
+    enabled.stage(HTTP, LIVE, DROPPED)
+    assert (disabled.records(), len(enabled.records())) == ([], 1)
 
 
-def test_disabled_log_reports_itself_disabled() -> None:
-    assert AuditLog(None).enabled is False
-
-
-def test_log_given_a_path_reports_itself_enabled(tmp_path: Path) -> None:
-    assert log_at(tmp_path).enabled is True
+def test_a_log_given_no_path_reports_disabled_and_a_path_reports_enabled(tmp_path: Path) -> None:
+    disabled = AuditLog(None).enabled
+    enabled = log_at(tmp_path).enabled
+    assert (disabled, enabled) == (False, True)
 
 
 # --- the envelope -----------------------------------------------------------
@@ -117,32 +120,41 @@ def test_every_line_of_the_file_parses_as_json_on_its_own(tmp_path: Path) -> Non
     assert len([json.loads(line) for line in lines]) == len(log.records())
 
 
+def test_a_line_that_will_not_parse_is_skipped_rather_than_failing_the_whole_read(tmp_path: Path) -> None:
+    log = log_at(tmp_path)
+    log.preset_write("alpha", "save", 10, "abc123", overwrote=False)
+    with log_path(tmp_path).open("a", encoding="utf-8") as fh:
+        fh.write("not json at all\n")
+    log.preset_write("bravo", "save", 10, "abc123", overwrote=False)
+    assert [record.fields["name"] for record in log.records()] == ["alpha", "bravo"]
+
+
 def test_every_record_carries_a_timestamp(tmp_path: Path) -> None:
-    # presence only: ``ts`` is wall clock, so its value is never asserted on
+    # presence only: ``ts`` is wall clock, so its value is never asserted on beyond being populated
     log = log_at(tmp_path)
     log.active_set("alpha", None)
-    assert "ts" in log.records()[0]
+    assert log.records()[0].ts != ""
 
 
 def test_seq_strictly_increases_across_successive_records(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     for index in range(3):
         log.preset_write(f"preset-{index}", "save", 10, "abc123", overwrote=False)
-    seqs = [record["seq"] for record in log.records()]
+    seqs = [record.seq for record in log.records()]
     assert sorted(set(seqs)) == seqs
 
 
 def test_the_first_record_is_seq_one(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.active_set("alpha", None)
-    assert log.records()[0]["seq"] == 1
+    assert log.records()[0].seq == 1
 
 
 @pytest.mark.parametrize("event", list(EMITTERS))
 def test_each_emitter_writes_its_documented_event_name(tmp_path: Path, event: str) -> None:
     log = log_at(tmp_path)
     EMITTERS[event](log)
-    assert log.records()[0]["event"] == event
+    assert log.records()[0].event == event
 
 
 # --- per-event fields -------------------------------------------------------
@@ -151,32 +163,29 @@ def test_each_emitter_writes_its_documented_event_name(tmp_path: Path, event: st
 def test_profile_write_records_the_profile_name(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.profile_write("living-room", ROWS, "matrix", replaced=False)
-    assert log.records()[0]["name"] == "living-room"
+    assert log.records()[0].fields["name"] == "living-room"
 
 
 @pytest.mark.parametrize("replaced", [True, False])
 def test_profile_write_records_whether_it_replaced_a_profile(tmp_path: Path, *, replaced: bool) -> None:
     log = log_at(tmp_path)
     log.profile_write("living-room", ROWS, "matrix", replaced=replaced)
-    assert log.records()[0]["replaced"] is replaced
+    assert log.records()[0].fields["replaced"] is replaced
 
 
-def test_profile_write_counts_the_rows_it_was_handed(tmp_path: Path) -> None:
+def test_profile_write_counts_rows_only_when_the_payload_is_a_list(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.profile_write("living-room", ROWS, "matrix", replaced=False)
-    assert log.records()[0]["row_count"] == len(json.loads(ROWS))
-
-
-def test_profile_write_counts_no_rows_when_the_payload_is_not_a_list(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
+    counted = log.records()[0].fields["row_count"]
     log.profile_write("living-room", "not json at all", "matrix", replaced=False)
-    assert log.records()[0]["row_count"] == 0
+    uncounted = log.records()[-1].fields["row_count"]
+    assert (uncounted, counted) == (0, len(json.loads(ROWS)))
 
 
 def test_preset_write_records_its_trigger(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.preset_write("alpha", "autosave", 128, "abc123", overwrote=True)
-    assert log.records()[0]["trigger"] == "autosave"
+    assert log.records()[0].fields["trigger"] == "autosave"
 
 
 # --- oversized values -------------------------------------------------------
@@ -185,20 +194,20 @@ def test_preset_write_records_its_trigger(tmp_path: Path) -> None:
 def test_a_value_over_the_cap_is_stored_truncated_to_the_cap(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.live_write("convolution.filter", "x" * (MAX_VALUE_BYTES + 500), None, ok=True)
-    assert len(log.records()[0]["value"]) == MAX_VALUE_BYTES
+    assert len(log.records()[0].fields["value"]) == MAX_VALUE_BYTES
 
 
 def test_a_record_with_an_oversized_value_is_marked_truncated(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.live_write("convolution.filter", "x" * (MAX_VALUE_BYTES + 500), None, ok=True)
-    assert log.records()[0]["truncated"] is True
+    assert log.records()[0].fields["truncated"] is True
 
 
 def test_a_truncated_record_carries_the_digest_of_the_full_value(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     value = "x" * (MAX_VALUE_BYTES + 500)
     log.live_write("convolution.filter", value, None, ok=True)
-    assert log.records()[0]["full_digests"]["value"] == hashlib.sha256(value.encode()).hexdigest()
+    assert log.records()[0].fields["full_digests"]["value"] == hashlib.sha256(value.encode()).hexdigest()
 
 
 def test_a_nested_oversized_value_is_keyed_by_its_dotted_path(tmp_path: Path) -> None:
@@ -206,7 +215,7 @@ def test_a_nested_oversized_value_is_keyed_by_its_dotted_path(tmp_path: Path) ->
     value = "x" * (MAX_VALUE_BYTES + 500)
     log.stage({"matrix_profile_save": value}, LIVE, DROPPED)
     digest = hashlib.sha256(value.encode()).hexdigest()
-    assert log.records()[0]["full_digests"]["http.matrix_profile_save"] == digest
+    assert log.records()[0].fields["full_digests"]["http.matrix_profile_save"] == digest
 
 
 def test_two_oversized_values_in_one_record_get_a_digest_each(tmp_path: Path) -> None:
@@ -214,7 +223,7 @@ def test_two_oversized_values_in_one_record_get_a_digest_each(tmp_path: Path) ->
     oversized = "x" * (MAX_VALUE_BYTES + 500)
     second = oversized + "y"  # distinct value, so a shared digest cannot satisfy both
     log.stage({"matrix_profile_save": oversized, "convolution_filter": second}, LIVE, DROPPED)
-    digests = log.records()[0]["full_digests"]
+    digests = log.records()[0].fields["full_digests"]
     assert digests["http.convolution_filter"] == hashlib.sha256(second.encode()).hexdigest()
 
 
@@ -224,13 +233,13 @@ def test_an_oversized_multibyte_value_is_capped_in_bytes_not_characters(tmp_path
     # bytes it should, and a byte-counting cap that cuts mid-codepoint cannot
     # round-trip through the file at all
     log.live_write("convolution.filter", "é" * MAX_VALUE_BYTES, None, ok=True)
-    assert len(log.records()[0]["value"].encode("utf-8")) <= MAX_VALUE_BYTES
+    assert len(log.records()[0].fields["value"].encode("utf-8")) <= MAX_VALUE_BYTES
 
 
 def test_a_value_under_the_cap_is_not_marked_truncated(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.live_write("convolution.filter", "x" * 64, None, ok=True)
-    assert "truncated" not in log.records()[0]
+    assert "truncated" not in log.records()[0].fields
 
 
 # --- redaction --------------------------------------------------------------
@@ -240,14 +249,14 @@ def test_a_value_under_the_cap_is_not_marked_truncated(tmp_path: Path) -> None:
 def test_a_sensitive_field_is_redacted(tmp_path: Path, key: str) -> None:
     log = log_at(tmp_path)
     log.stage({key: "hunter2"}, LIVE, DROPPED)
-    assert log.records()[0]["http"][key] == "***"
+    assert log.records()[0].fields["http"][key] == "***"
 
 
 @pytest.mark.parametrize("key", ["password", "secret", "token"])
 def test_a_sensitive_field_nested_deeper_is_redacted(tmp_path: Path, key: str) -> None:
     log = log_at(tmp_path)
     log.discard(HTTP, {"convolution": {"enabled": "1", key: "hunter2"}})
-    assert log.records()[0]["live"]["convolution"][key] == "***"
+    assert log.records()[0].fields["live"]["convolution"][key] == "***"
 
 
 # --- tail -------------------------------------------------------------------
@@ -257,7 +266,7 @@ def test_tail_returns_the_most_recent_records_newest_last(tmp_path: Path) -> Non
     log = log_at(tmp_path)
     for index in range(4):
         log.preset_write(f"preset-{index}", "save", 10, "abc123", overwrote=False)
-    assert [record["name"] for record in log.tail(2)] == ["preset-2", "preset-3"]
+    assert [record.fields["name"] for record in log.tail(2)] == ["preset-2", "preset-3"]
 
 
 def test_tail_beyond_the_record_count_returns_every_record(tmp_path: Path) -> None:
@@ -280,14 +289,14 @@ def test_the_current_file_holds_records_appended_after_a_rotation(tmp_path: Path
     log = log_at(tmp_path, max_bytes=400)
     fill_until_rotated(log, rotated_path(tmp_path))
     log.preset_write("after-the-roll", "save", 10, "abc123", overwrote=False)
-    assert log.records()[-1]["name"] == "after-the-roll"
+    assert log.records()[-1].fields["name"] == "after-the-roll"
 
 
 def test_seq_keeps_climbing_across_a_rotation(tmp_path: Path) -> None:
     log = log_at(tmp_path, max_bytes=400)
     before = fill_until_rotated(log, rotated_path(tmp_path))
     log.preset_write("after-the-roll", "save", 10, "abc123", overwrote=False)
-    assert log.records()[-1]["seq"] > before
+    assert log.records()[-1].seq > before
 
 
 # --- reopening --------------------------------------------------------------
@@ -297,7 +306,7 @@ def test_reopening_the_same_path_appends_rather_than_truncates(tmp_path: Path) -
     log_at(tmp_path).preset_write("first", "save", 10, "abc123", overwrote=False)
     reopened = log_at(tmp_path)
     reopened.preset_write("second", "save", 10, "abc123", overwrote=False)
-    assert [record["name"] for record in reopened.records()] == ["first", "second"]
+    assert [record.fields["name"] for record in reopened.records()] == ["first", "second"]
 
 
 def test_seq_keeps_climbing_across_a_reopen(tmp_path: Path) -> None:

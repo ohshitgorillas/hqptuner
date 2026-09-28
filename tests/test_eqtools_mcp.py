@@ -3,7 +3,7 @@
 ``run_job(tool, job, root, env)`` takes a tool name, a job (a path to a job file
 under ``docs/eq-assistant/sessions/`` or an inline job object), the checkout root and
 the environment the tool runs in. It returns a ``JobResult`` carrying the tool's
-stdout, or raises ``JobRefusedError`` with a ``code``.
+stdout, or raises ``ToolError`` with a ``code``.
 
 Cases build a checkout root under ``tmp_path`` whose two tool scripts are shell stubs
 that print their own name, a colon, then their stdin, and put a ``node`` on the
@@ -24,11 +24,14 @@ import pytest
 class FixtureError(Exception):
     """A test's own scaffolding is wrong, not a failure of the behavior under test."""
 
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 
 #: each tool's script, as the stub checkout lays it out
-STUBS = {"eqlab": "scripts/eqlab/eqlab.js", "eqstage": "scripts/eqstage/eqstage.js"}
+STUBS = {"eqlab": "hqptuner/static/vendor/eqlab/src/eqlab.js", "eqstage": "scripts/eqstage/eqstage.js"}
 
 
 def _load(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
@@ -36,7 +39,7 @@ def _load(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     path = SCRIPTS_DIR / "eqtools_mcp.py"
     spec = importlib.util.spec_from_file_location("eqtools_mcp_under_test", path)
     if spec is None or spec.loader is None:
-        raise FixtureError(f"no importable module at {path}")
+        raise FixtureError(reason=f"no importable module at {path}")
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, "eqtools_mcp_under_test", module)
     spec.loader.exec_module(module)
@@ -61,7 +64,7 @@ def root(tmp_path: Path) -> Path:
 def _which(name: str) -> Path:
     found = shutil.which(name)
     if found is None:
-        raise FixtureError(f"no {name} on PATH")
+        raise FixtureError(reason=f"no {name} on PATH")
     return Path(found)
 
 
@@ -87,7 +90,7 @@ def _refusal(eqtools: ModuleType, tool: str, job: object, root: Path, env: dict[
     """Return the refusal code `run_job` raised, or an empty string when it ran the job."""
     try:
         eqtools.run_job(tool, job, root, env)
-    except eqtools.JobRefusedError as refused:
+    except eqtools.ToolError as refused:
         return str(refused.code)
     return ""
 

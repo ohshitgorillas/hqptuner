@@ -21,19 +21,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import wait_for_api
 from audit_records import last, records
-from conftest import wait_for_api
 from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
+from fixtures_clients import CREDENTIAL, app
 
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
-
-#: The daemon credential the app is built with — distinctive enough that finding
-#: it anywhere in the log is unambiguous.
-CREDENTIAL = "s3cr3t-hqp-passphrase"
 
 #: The value staged into a field literally keyed ``password`` — what a redactor
 #: has to keep out of the file.
@@ -46,34 +41,6 @@ ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process"
 # --- the app under test, with and without a debug log -------------------------
 
 
-def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | None) -> Iterator[TestClient]:
-    """The REST surface on the fake 8088 daemon (the `http_client` shape), with
-    the audit log pointed wherever the case wants it — or disabled."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=port,
-        hqp_http_port=daemon["_port"],
-        hqp_username="u",
-        hqp_password=CREDENTIAL,
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        # state-file stores in tmp — the preset saves and loads below write
-        # auto-pilot and live-snapshot state, whose defaults are the dev
-        # container's bind-mounted state/
-        live_preset_file=tmp_path / "live-presets.json",
-        favorites_file=tmp_path / "favorites.json",
-        narrowing_file=tmp_path / "narrowing.json",
-        description_file=tmp_path / "descriptions.json",
-        matrix_mode_file=tmp_path / "matrixmodes.json",
-        autopilot_file=tmp_path / "autopilot.json",
-        hqp_home="/x/home",
-        debug_log=debug_log,
-    )
-    with TestClient(create_app(cfg)) as client:
-        yield client
-
-
 @pytest.fixture
 def audit_log(tmp_path: Path) -> Path:
     return tmp_path / "audit.jsonl"
@@ -83,13 +50,13 @@ def audit_log(tmp_path: Path) -> Path:
 def audit_client(
     http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
 ) -> Iterator[TestClient]:
-    yield from _app(http_daemon, tmp_path, closed_port, audit_log)
+    yield from app(http_daemon, tmp_path, closed_port, audit_log)
 
 
 @pytest.fixture
 def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
     """The same app with the audit log unset — the disabled case."""
-    yield from _app(http_daemon, tmp_path, closed_port, None)
+    yield from app(http_daemon, tmp_path, closed_port, None)
 
 
 @pytest.fixture
@@ -99,7 +66,7 @@ def dual_lane_client(
     """Both lanes at once — control on the threaded fake 4321 daemon, http on
     the fake 8088 one — which is what a live control-lane write needs before it
     can happen at all (the `_dual_lane_client` shape in tests/presets)."""
-    for client in _app(http_daemon, tmp_path, threaded_daemon_port, audit_log):
+    for client in app(http_daemon, tmp_path, threaded_daemon_port, audit_log):
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield client
 
@@ -160,13 +127,19 @@ def arm_autosave(client: TestClient, name: str = "Kept") -> None:
 # --- the log is off unless asked for -----------------------------------------
 
 
-def test_an_unset_debug_log_writes_no_audit_file_at_all(unlogged_client: TestClient, tmp_path: Path) -> None:
+def test_an_unset_debug_log_writes_no_audit_file_but_a_configured_one_does(
+    unlogged_client: TestClient, audit_client: TestClient, tmp_path: Path
+) -> None:
     # a full stage-then-apply cycle leaves the app's own directories carrying
     # nothing but the artifacts it legitimately owns — checked by what is there
     # rather than by a name a log would have to be unlucky enough to use
     stage_title(unlogged_client)
     unlogged_client.post("/api/config/apply")
-    assert stray_files(tmp_path) == []
+    unlogged = stray_files(tmp_path)
+    stage_title(audit_client)
+    audit_client.post("/api/config/apply")
+    logged = stray_files(tmp_path)
+    assert (unlogged, logged) == ([], ["audit.jsonl"])
 
 
 # --- staging ------------------------------------------------------------------
@@ -223,12 +196,6 @@ def test_the_apply_record_carries_the_staged_value_the_apply_itself_cleared(
     assert last(audit_log, "apply")["http"]["title"] == "Renamed"
 
 
-def test_a_successful_apply_records_the_outcome_as_ok(audit_client: TestClient, audit_log: Path) -> None:
-    stage_title(audit_client)
-    audit_client.post("/api/config/apply")
-    assert last(audit_log, "apply")["ok"] is True
-
-
 def test_the_apply_record_names_the_preset_the_apply_switched_to(audit_client: TestClient, audit_log: Path) -> None:
     # switching preset is the write with the largest blast radius — the whole
     # config changes — so which preset was loaded belongs in the same record
@@ -244,10 +211,16 @@ def test_the_apply_record_names_the_preset_the_apply_switched_to(audit_client: T
 # not-applied without an exception — the soft failure the log has to explain.
 
 
-def test_a_refused_apply_records_the_outcome_as_not_ok(audit_client: TestClient, audit_log: Path) -> None:
+def test_an_apply_records_the_outcome_as_ok_when_it_lands_and_not_ok_when_refused(
+    audit_client: TestClient, audit_log: Path
+) -> None:
+    stage_title(audit_client)
+    audit_client.post("/api/config/apply")
+    ok = last(audit_log, "apply")["ok"]
     stage_title(audit_client, "REJECT")
     audit_client.post("/api/config/apply")
-    assert last(audit_log, "apply")["ok"] is False
+    refused = last(audit_log, "apply")["ok"]
+    assert (refused, ok) == (False, True)
 
 
 def test_a_refused_apply_still_records_the_staged_payload(audit_client: TestClient, audit_log: Path) -> None:
@@ -271,15 +244,13 @@ def test_the_profile_write_record_names_the_saved_profile(audit_client: TestClie
     assert last(audit_log, "profile.write")["name"] == "Crossfeed EQ"
 
 
-def test_a_profile_save_over_an_existing_name_records_it_as_replaced(audit_client: TestClient, audit_log: Path) -> None:
+def test_a_profile_save_records_whether_it_replaced_an_existing_name(audit_client: TestClient, audit_log: Path) -> None:
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0)
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0, ROW1)
-    assert last(audit_log, "profile.write")["replaced"] is True
-
-
-def test_a_profile_save_under_a_new_name_records_it_as_not_replaced(audit_client: TestClient, audit_log: Path) -> None:
+    replaced = last(audit_log, "profile.write")["replaced"]
     apply_profile_save(audit_client, "Brand New", ROW0)
-    assert last(audit_log, "profile.write")["replaced"] is False
+    not_replaced = last(audit_log, "profile.write")["replaced"]
+    assert (not_replaced, replaced) == (False, True)
 
 
 def test_a_fanned_out_profile_write_names_the_stored_preset_it_landed_in(
@@ -324,7 +295,8 @@ def test_an_applied_profile_delete_appends_a_profile_delete_record(audit_client:
     # destructive and silent: a profile the user cannot find afterwards is only
     # explainable if the deletion left a record
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0)
-    audit_client.post("/api/config/stage", json={"http": {"matrix_profile_delete": "Crossfeed EQ"}})
+    delete_payload = json.dumps({"name": "Crossfeed EQ", "presets": []})
+    audit_client.post("/api/config/stage", json={"http": {"matrix_profile_delete": delete_payload}})
     audit_client.post("/api/config/apply")
     assert "profile.delete" in events(audit_log)
 

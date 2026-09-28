@@ -8,28 +8,24 @@
 // are reachable through the exported store: config for the baseline, edit()
 // over the real staging wire for the staged override.
 //
+// This suite writes neither of the pane's `logLines` and `logMessage` signals,
+// so every pane it renders is empty.
+//
 // NOT REACHABLE from here, and deliberately not exported to make it so: the
-// module-private `shown`, `lines` and `message` signals. `shown` (the user's
-// manual override of the default) is written only by the checkbox's onChange;
-// `lines`/`message` (the tail text, and the unavailable/failed states) are
-// written only by the poll's refresh(), which runs from useEffect — and SSR
-// fires no events and runs no effects. So the pane is only observable EMPTY
-// here: its populated, unavailable and request-failed renderings, and the
-// 3-second polling machinery itself, belong to the playwright hand-back
-// protocol.
+// module-private `shown` signal. `shown` (the user's manual override of the
+// default) is written only by the checkbox's onChange — and SSR fires no events
+// and runs no effects, so the polling is not observable here.
 //
 // The COPY button and the SCROLL-PINNING behavior are subject to the same
-// limit, and it bites harder. Both were specified against a DOM the JS harness
-// does not have: docs/testing.md pins components to preact-render-to-string, so
-// there is no element to carry scrollTop/scrollHeight/clientHeight, no useEffect
-// to run the poll that fills the pane, and no event dispatch to click a button
-// with. Nothing is reachable here that needs LINES on screen. What IS reachable
-// is the button's ABSENCE, in both states this harness can reach — tail hidden,
-// and tail shown but empty — because absence is a property of the render alone.
-// Its presence over a populated pane, the clipboard/execCommand routes, the
-// Copied / Copy failed labels and every scroll case belong to tests/e2e/ and the
-// playwright hand-back protocol; they are NOT covered here and must not be
-// manufactured by exporting the module's private lines/message signals.
+// limit. Both need a DOM the JS harness does not have: components render
+// through preact-render-to-string, so there is no element to carry
+// scrollTop/scrollHeight/clientHeight, no useEffect to run the poll that fills
+// the pane, and no event dispatch to click a button with. What
+// this suite asserts is the button's ABSENCE, in the two states it renders —
+// tail hidden, and tail shown but empty — because absence is a property of the
+// render alone. Its presence over a populated pane, the clipboard/execCommand
+// routes, the Copied / Copy failed labels and every scroll case are NOT covered
+// here.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/logtail.test.js
 

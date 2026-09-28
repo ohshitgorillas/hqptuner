@@ -1,0 +1,3 @@
+[submodule "hqptuner/static/vendor/eqlab"]
+	path = hqptuner/static/vendor/eqlab
+	url = https://github.com/ohshitgorillas/eqlab.git

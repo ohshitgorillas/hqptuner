@@ -6,6 +6,15 @@ import re
 
 from hqptuner.conf.xmledit import GroundingError, find_element, get_attr, open_tag_re
 
+
+class RootAbsentError(GroundingError):
+    """This snapshot carries no ``<hqplayerd>`` root element to insert the fixed-volume line ahead of."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("<hqplayerd> root element absent from this snapshot")
+
+
 # Fixed volume is a top-level ``<fixed volume="X"/>`` element whose PRESENCE means
 # "enabled" — there is no ``enabled`` attribute (readme §1.13 + live config). The
 # two form fields fold onto that one element, reconciled together (reconcile_fixed).
@@ -89,7 +98,7 @@ def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
     """
     open_tag = re.search(rb"<hqplayerd\b[^>]*>", xml)
     if open_tag is None:
-        raise GroundingError("<hqplayerd> root element absent from this snapshot")
+        raise RootAbsentError()
     cut = open_tag.end()
     return xml[:cut] + b"\n\t" + tag + xml[cut:]
 

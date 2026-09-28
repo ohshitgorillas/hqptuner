@@ -38,11 +38,19 @@ TRANSCRIPT_DIR = Path.home() / ".claude" / "projects" / "-srv-hqptuner"
 PREVIEW = 140
 
 
+class HookImportError(RuntimeError):
+    """The change-budget hook module could not be loaded from its path."""
+
+    def __init__(self, *, hook_path: Path) -> None:
+        """Name the `hook_path` that failed to load."""
+        super().__init__(f"cannot import hook at {hook_path}")
+
+
 def load_hook() -> ModuleType:
     """Import the hook by path under a name that is not ``__main__``."""
     spec = importlib.util.spec_from_file_location("change_budget", HOOK_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover - unreachable in practice
-        raise RuntimeError(f"cannot import hook at {HOOK_PATH}")
+        raise HookImportError(hook_path=HOOK_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -144,7 +152,7 @@ def entry_for(block: JsonDict, root: str | None, cwd: str) -> JsonDict:
 # ---- transcript reading -----------------------------------------------------
 
 
-def text_of(content: Any) -> str:
+def text_of(content: object) -> str:
     """Flatten a message content field (str, or a list of blocks) to text."""
     if isinstance(content, str):
         return content

@@ -16,7 +16,6 @@ stored bauer stage sits at 300 Hz against a live 850 (default 700), so "nothing
 was adopted" and "the wrong matrix was adopted" read differently.
 """
 
-import asyncio
 import json
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -25,6 +24,7 @@ from typing import Any
 import fake_http
 import pytest
 from fake_http import state
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
@@ -67,8 +67,9 @@ async def _dual_manager(control_port: int, daemon: dict[str, Any], tmp_path: Pat
             preset_dir=tmp_path / "presets",
         ),
         http,
+        VirtualClock(),
     )
-    task = asyncio.create_task(manager.run())
+    task = manager.clock.spawn(manager.run())
     yield manager
     manager.stop()
     await task

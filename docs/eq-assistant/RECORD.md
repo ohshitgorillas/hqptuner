@@ -66,4 +66,4 @@ Four of these have a length rule, because all four have run long in practice:
 
 ## Tooling and truth
 
-Design and measure with `scripts/eqlab` (keep job files beside the record); stage with `scripts/eqstage` — never raw `curl` writes. `POST /api/config/apply` is forbidden; Apply is the user's click. The running engine (`/api/matrix`) is truth for the live chain; `data/eqlab/` snapshots are truth for what each turn measured.
+Design and measure with `hqptuner/static/vendor/eqlab` (keep job files beside the record); stage with `scripts/eqstage` — never raw `curl` writes. `POST /api/config/apply` is forbidden; Apply is the user's click. The running engine (`/api/matrix`) is truth for the live chain; `data/eqlab/` snapshots are truth for what each turn measured.

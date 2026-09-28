@@ -15,8 +15,12 @@ round-trips here.
 import json
 from typing import Any
 
+from fastapi.testclient import TestClient
+
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlClient
+from hqptuner.lanes.http import restore
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
@@ -26,6 +30,11 @@ ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process"
 def save(name: str, *rows: dict[str, str]) -> dict[str, str]:
     """The staged save field: a name and the rows to store under it."""
     return {"matrix_profile_save": json.dumps({"name": name, "rows": list(rows) or [ROW0]})}
+
+
+def delete(name: str) -> dict[str, str]:
+    """The staged delete field: a name, untargeted at any stored preset."""
+    return {"matrix_profile_delete": json.dumps({"name": name, "presets": []})}
 
 
 async def saved_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
@@ -63,8 +72,7 @@ async def test_saved_profile_row_count_is_its_own(http_manager: ConnectionManage
 
 
 async def test_save_reports_applied(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(http_manager, save("Crossfeed EQ", ROW0))).outcome is RestoreOutcome.APPLIED
 
 
 async def test_save_to_an_existing_name_replaces_it(http_manager: ConnectionManager) -> None:
@@ -88,15 +96,14 @@ async def test_save_leaves_post_process_untouched(http_manager: ConnectionManage
 
 
 async def test_delete_removes_the_profile_from_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_profile_delete": "Stock"})
+    await http_manager.applyops.apply({}, delete("Stock"))
     assert "Stock" not in await saved_profiles(http_manager)
 
 
 async def test_deleting_an_unknown_profile_still_applies(http_manager: ConnectionManager) -> None:
     # a profile the daemon holds in memory only has no element to remove, and the
     # edit's whole intent — "not in the config" — is already satisfied
-    report = await http_manager.applyops.apply({}, {"matrix_profile_delete": "never saved"})
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(http_manager, delete("never saved"))).outcome is RestoreOutcome.APPLIED
 
 
 async def test_a_profile_survives_an_unrelated_apply(http_manager: ConnectionManager) -> None:
@@ -105,14 +112,16 @@ async def test_a_profile_survives_an_unrelated_apply(http_manager: ConnectionMan
     assert "Crossfeed EQ" in await saved_profiles(http_manager)
 
 
-async def test_an_empty_profile_name_is_refused_before_any_write(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("   ", ROW0))
-    assert report["persistent"]["submitted"] is False
+def test_an_empty_profile_name_is_refused_before_any_write(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": save("   ", ROW0)})
+    resp = http_client.post("/api/config/apply")
+    assert resp.json()["code"] == "invalid_input"
 
 
-async def test_a_control_character_in_a_profile_name_is_refused(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("bad\x07name", ROW0))
-    assert report["persistent"]["submitted"] is False
+def test_a_control_character_in_a_profile_name_is_refused(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": save("bad\x07name", ROW0)})
+    resp = http_client.post("/api/config/apply")
+    assert resp.json()["code"] == "invalid_input"
 
 
 async def test_a_quote_in_a_profile_name_survives_the_round_trip(http_manager: ConnectionManager) -> None:
@@ -120,6 +129,7 @@ async def test_a_quote_in_a_profile_name_survives_the_round_trip(http_manager: C
     assert '12" driver' in await saved_profiles(http_manager)
 
 
-async def test_an_invalid_row_in_a_save_is_refused_before_any_write(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", {**ROW0, "gain": "loud"}))
-    assert report["persistent"]["submitted"] is False
+def test_an_invalid_row_in_a_save_is_refused_before_any_write(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": save("Crossfeed EQ", {**ROW0, "gain": "loud"})})
+    resp = http_client.post("/api/config/apply")
+    assert resp.json()["code"] == "invalid_input"

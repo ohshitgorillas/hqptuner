@@ -15,19 +15,22 @@ that particular apply, so sequential applies clobber each other. See
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from enum import Enum
+from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner import voltrace
-from hqptuner.conf import engineconf, httpauth, presetconf, presetzip, xmledit
-from hqptuner.conf.matrixconf import (
+from hqptuner.conf import engineconf, httpauth, presetconf, presetzip
+from hqptuner.conf.matrixpayload import parse_delete
+from hqptuner.conf.matrixprofiles import (
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
     MATRIX_PROFILES,
-    parse_delete,
 )
 from hqptuner.conf.matrixscope import has_profile
+from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -47,6 +50,87 @@ _PROVEN_BY = {MATRIX_PROFILE_SAVE: MATRIX_PROFILES, MATRIX_PROFILE_DELETE: MATRI
 # and the engine follows the source's 44.1/48 base — which requires auto_family
 # on and the fixed sample/bit rate left on Auto. Not exposed in the UI.
 FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
+
+
+class RestoreOutcome(Enum):
+    """What a persistent (restore-lane) apply came back with."""
+
+    NOT_SUBMITTED = "not_submitted"  # never got a write through, or the edit could not be built
+    APPLIED = "applied"  # converged: the running config now reflects the intended fields
+    UNCONVERGED = "unconverged"  # submitted, but the running config never matched after the retries
+    UNAVAILABLE = "unavailable"  # submitted, unconverged, and unfixable (an endpoint is gone)
+
+
+Diff = dict[str, dict[str, str | None]]
+
+
+class RestoreWriteFailedError(HQPTunerError):
+    """No restore pass got a write through to the daemon: every one died on the wire."""
+
+    code = "daemon_write_failed"
+
+    def __init__(self, *, passes: int) -> None:
+        """Render the wording naming how many passes were tried."""
+        super().__init__(
+            f"Could not reach HQPlayer to restore your settings after {passes} attempts. "
+            "Check that HQPlayer is running, then try again."
+        )
+
+
+@dataclass(frozen=True)
+class UnfixableDevice:
+    """An intended output endpoint absent from the daemon's offered endpoints, beside the endpoints it offers."""
+
+    want: str | None
+    available: list[str]
+
+
+@dataclass(frozen=True)
+class RestoreResult:
+    """The persistent lane's outcome. The fields are the wire keys; each outcome has its own constructor.
+
+    ``submitted`` is False only for a lane that declined (``error`` and ``code``). ``applied`` marks
+    convergence (``attempts``, ``active``). Otherwise ``reason`` says why not and ``diff`` what diverged,
+    with ``unfixable`` naming an endpoint that is gone.
+    """
+
+    submitted: bool
+    applied: bool = False
+    reason: RestoreOutcome | None = None
+    error: str | None = None
+    code: str | None = None
+    attempts: int | None = None
+    active: str | None = None
+    diff: Diff | None = None
+    unfixable: dict[str, UnfixableDevice] | None = None
+
+    @property
+    def outcome(self) -> RestoreOutcome:
+        """The verdict as one enum."""
+        if not self.submitted:
+            return RestoreOutcome.NOT_SUBMITTED
+        if self.applied:
+            return RestoreOutcome.APPLIED
+        return self.reason or RestoreOutcome.UNCONVERGED
+
+    @classmethod
+    def declined(cls, refusal: httpauth.HttpLaneDeclinedError) -> RestoreResult:
+        """Answer for a lane that was never usable for this apply: no client, or a credential already refused."""
+        return cls(submitted=False, error=str(refusal), code=refusal.code)
+
+    @classmethod
+    def converged(cls, attempts: int, active: str | None) -> RestoreResult:
+        """Answer for a running config that reflects every field this apply wrote, after ``attempts`` passes."""
+        return cls(submitted=True, applied=True, attempts=attempts, active=active)
+
+    @classmethod
+    def diverged(cls, diff: Diff, unfixable: UnfixableDevice | None) -> RestoreResult:
+        """Answer for a running config that never matched; ``unfixable`` names the endpoint that makes it final."""
+        if unfixable is None:
+            return cls(submitted=True, reason=RestoreOutcome.UNCONVERGED, diff=diff)
+        return cls(
+            submitted=True, reason=RestoreOutcome.UNAVAILABLE, diff=diff, unfixable={presetconf.NET_DEVICE: unfixable}
+        )
 
 
 def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
@@ -71,35 +155,20 @@ def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[st
     return {k: {"want": intended.get(k), "got": realized.get(k)} for k in keys if realized.get(k) != intended.get(k)}
 
 
-def _credentials_refusal() -> dict[str, Any]:
-    """Return the lane's answer to a refused credential, wherever it was established.
+@dataclass(frozen=True)
+class PassVerdict:
+    """One judged restore pass: what diverged, and the gone endpoint that makes the divergence final."""
 
-    One builder for both sites — the guard that reads the recorded verdict and
-    the pass that meets the refusal on the wire — so the two cannot drift into
-    reporting the same fault two ways. ``error`` rides beside ``reason``
-    because the caption branch reads both, and a reason alone falls through to
-    the generic wording and loses the sentence.
-    """
-    return {"submitted": False, "reason": "credentials", "error": httpauth.AUTH_REFUSED_MESSAGE}
+    diff: Diff
+    unfixable: UnfixableDevice | None
 
-
-def _declined_before_starting(mgr: ConnectionManager) -> dict[str, Any] | None:
-    """Return the lane's answer when there is no point starting, or None to go ahead.
-
-    Both cases are settled before the first pass rather than discovered inside
-    it: every pass opens with ``await_http_ready``, which polls /config to the
-    alarm deadline before giving up, so a daemon that has already refused us
-    costs three deadlines to tell the user something the poll loop established
-    seconds after startup.
-    """
-    if mgr.http_client is None:
-        return {"submitted": False, "error": "no credentials for HTTP config lane"}
-    if mgr.readings.credentials_ok is False:
-        return _credentials_refusal()
-    return None
+    @property
+    def final(self) -> bool:
+        """Whether another pass could not change the answer: converged, or an endpoint is gone."""
+        return not self.diff or self.unfixable is not None
 
 
-async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]:
+async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
     ``switched`` marks an apply that just loaded a different preset: the restart
@@ -113,10 +182,17 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     done. Diverged but correctable → retry. Diverged on a net_device the daemon
     no longer offers (endpoint gone) → unfixable: surface and stop, since no
     restart conjures absent hardware.
+
+    Raises ``HttpLaneDeclinedError`` when the lane is not usable, settled before the
+    first pass: every pass opens with ``await_http_ready``, which polls to the alarm
+    deadline, so a daemon that has already refused us would cost three deadlines to
+    say what the poll loop established long ago. Raises ``RestoreWriteFailedError``
+    when no pass got a write through at all, and ``GroundingError`` for an edit that
+    cannot be built against the running config.
     """
-    declined = _declined_before_starting(mgr)
+    declined = httpauth.decline_error(mgr)
     if declined is not None:
-        return declined
+        raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
     # along (store as fallback), under the staged edits, which win (presetfields)
@@ -125,30 +201,55 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
     active_profile = "" if switched else _active_profile(mgr, edits)
-    diff: dict[str, dict[str, str | None]] = {}
-    last_error: str | None = None
     # taken before the first pass, not inside it: a pass refused with 503 and the
     # next one adopted are one restore the caller has to outlast
     mark = settle.mark_connect(mgr)
-    for attempt in range(_PERSIST_RETRIES + 1):
-        final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile, mark=mark)
-        if final is not None:
-            if final.get("submitted"):
-                # the restore restarted the daemon and `verify` proves only that the
-                # 8088 lane serves the new config; the 4321 control connection is still
-                # the dead one, so wait for the reconnect before answering the user
-                await settle.await_ready(mgr, mark)
-            return final
-        # a transient write failure must not erase the divergence an earlier pass
-        # found: a daemon that accepts the restore and then dies is unconverged,
-        # not un-submitted, and the caller has to see applied=False
-        if pass_diff:
-            diff = pass_diff
-        if pass_error is not None:
-            last_error = pass_error
-    if last_error is not None and not diff:
-        return {"submitted": False, "error": last_error}  # never got a write through
-    return {"submitted": True, "applied": False, "reason": "unconverged", "diff": diff}
+    verdict: PassVerdict | None = None
+    attempts = 0
+    for attempt in range(1, _PERSIST_RETRIES + 2):
+        # a preset switch (or a prior attempt) just restarted the daemon and the
+        # active label flips before the restart finishes — wait for the HTTP lane
+        # to actually serve before writing, rather than racing it
+        await settle.await_http_ready(mgr)
+        try:
+            intended = await _restore_once(mgr, merged, active_profile, mark=mark)
+        except httpauth.AuthRefused as exc:
+            # Terminal, not retryable: two more passes cannot turn a refused
+            # password into an accepted one. Reached only when the refusal began
+            # inside the window between two polls; recorded here, so the guard
+            # above answers for it from now on, and its refusal is this one's.
+            mgr.readings.credentials_ok = False
+            declined = httpauth.decline_error(mgr)
+            if declined is not None:
+                raise declined from exc
+            raise
+        except httpx.HTTPError as exc:
+            # the daemon dropped mid-write: transient, so the next pass retries.
+            # A pass that dies must not erase the divergence an earlier one found:
+            # a daemon that accepts the restore and then dies is unconverged.
+            log.warning("restore pass %d dropped mid-write: %s", attempt, exc)
+            await mgr.clock.sleep(RECONNECT_FAST)
+            continue
+        verdict, attempts = await _judge(mgr, merged, intended, attempt), attempt
+        if verdict.final:
+            break
+    return await _outcome(mgr, mark, verdict, attempts)
+
+
+async def _outcome(
+    mgr: ConnectionManager, mark: settle.Mark | None, verdict: PassVerdict | None, attempts: int
+) -> RestoreResult:
+    """Answer for the passes that ran: the last judged one decides, and none judged means none got through."""
+    if verdict is None:
+        raise RestoreWriteFailedError(passes=_PERSIST_RETRIES + 1)
+    if verdict.final:
+        # the restore restarted the daemon and `verify` proves only that the
+        # 8088 lane serves the new config; the 4321 control connection is still
+        # the dead one, so wait for the reconnect before answering the user
+        await settle.await_ready(mgr, mark)
+    if not verdict.diff:
+        return RestoreResult.converged(attempts, mgr.readings.active_config)
+    return RestoreResult.diverged(verdict.diff, verdict.unfixable)
 
 
 def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
@@ -156,7 +257,6 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
 
     Empty for the default matrix, and empty too when this batch deletes the
     profile that is active — a matrix about to be removed is not one to adopt.
-    Both staged delete shapes count (a plain name, or the fan-out JSON).
     """
     name = (mgr.readings.state or {}).get("matrix_profile", "")
     if not name or MATRIX_PROFILE_DELETE not in edits:
@@ -164,34 +264,8 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
     return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
 
 
-async def _one_pass(
-    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = "", *, mark: settle.Mark | None
-) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
-    """One restore+verify pass.
-
-    Returns ``(final, diff, error)`` — a non-None ``final`` is a terminal answer for the caller; otherwise the pass is
-    retryable and ``diff``/``error`` describe why. ``mark`` is the caller's connect mark, handed to the restore.
-    """
-    # a preset switch (or a prior attempt) just restarted the daemon and the
-    # active label flips before the restart finishes — wait for the HTTP lane
-    # to actually serve before writing, rather than racing it
-    await settle.await_http_ready(mgr)
-    try:
-        intended = await _restore_once(mgr, merged, active_profile, mark=mark)
-    except xmledit.GroundingError as exc:
-        return {"submitted": False, "error": str(exc)}, {}, None
-    except httpauth.AuthRefused:
-        # Terminal, not retryable: the clause below exists for a daemon that
-        # dropped mid-write, and two more passes of that cannot turn a refused
-        # password into an accepted one. Reached only when the refusal began
-        # inside the window between two polls — with it recorded, the guard in
-        # `apply` answered before this pass started. Carries `error` as well as
-        # `reason` because the caption branch reads both, and a reason alone
-        # falls through to the generic wording and loses the sentence.
-        return _credentials_refusal(), {}, None
-    except httpx.HTTPError as exc:
-        await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
-        return None, {}, str(exc)
+async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
+    """Read the running config back after one restore and say how it differs from what the pass intended."""
     keys = verified_keys(merged, intended)
     # both sides of the persistent apply, recorded whether or not it converged: a
     # pass that converges on every key it verified can still have carried the wrong
@@ -201,21 +275,11 @@ async def _one_pass(
     voltrace.observe(mgr, "apply_realized", voltrace.subset(realized))
     diff = config_diff(intended, realized, keys)
     if not diff:
-        final: dict[str, Any] = {
-            "submitted": True,
-            "applied": True,
-            "attempts": attempt + 1,
-            "active": mgr.readings.active_config,
-        }
-        return final, {}, None
+        return PassVerdict(diff, None)
     # the diff is the whole diagnosis of an unconverged apply, and the UI has room
     # for field names but not for want/got pairs — so it goes to the log too
-    log.warning("apply pass %d did not converge: %s", attempt + 1, diff)
-    unfixable = await _unfixable_device(mgr, diff)
-    if unfixable:
-        final = {"submitted": True, "applied": False, "reason": "unavailable", "unfixable": unfixable, "diff": diff}
-        return final, diff, None
-    return None, diff, None
+    log.warning("apply pass %d did not converge: %s", attempt, diff)
+    return PassVerdict(diff, await _unfixable_device(mgr, diff))
 
 
 async def _restore_once(
@@ -227,8 +291,8 @@ async def _restore_once(
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
-    backup = await mgr.presetops.backup_or_cached(for_write=True)
-    mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
+    backup = await mgr.require_http().backup()
+    mgr.presetops.persist_backup_for_restore(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
     running = presetzip.snapshot_member(backup, None, mgr.readings.active_config)
@@ -266,41 +330,47 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
     async def probe() -> dict[str, str] | None:
         nonlocal realized
         fresh = await settle.fresh_backup(mgr)
-        if fresh is None:
+        try:
+            xml = None if fresh is None else engineconf.base_config_xml(fresh, mgr.readings.active_config)
+        except engineconf.UnreadableArchiveError:
+            xml = None
+        if xml is None:
             return None
-        realized = presetconf.read_config(engineconf.base_config_xml(fresh, mgr.readings.active_config))
+        realized = presetconf.read_config(xml)
         mgr.readings.file_config = realized  # fresh file truth for the lossy-form fields
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 
     # the restore just restarted the daemon: nothing has landed yet, so spend the
     # first interval waiting rather than on a read that cannot succeed
-    await mgr.sleep(RECONNECT_FAST)
+    await mgr.clock.sleep(RECONNECT_FAST)
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 
 
-async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
-    """Endpoint values the daemon currently offers for net_device, or None when the form can't be read.
+def _net_device_options(mgr: ConnectionManager) -> set[str] | None:
+    """Endpoint values the daemon offers for net_device, off the /config form snapshot; None when there is none.
 
-    An unreadable form is treated as 'no evidence', never as 'gone'.
+    An absent form is treated as 'no evidence', never as 'gone'.
     """
-    try:
-        form = await mgr.require_http().get_config()
-    except httpx.HTTPError:
+    form = mgr.readings.config_form
+    if form is None:
         return None
-    field = next((f for f in form["fields"] if f.get("name") == "net_device"), None)
-    return {o.get("value") for o in (field or {}).get("options", [])}
+    field = next((f for f in form["fields"] if f.get("name") == presetconf.NET_DEVICE), None)
+    return {o["value"] for o in (field or {}).get("options", [])}
 
 
-async def _unfixable_device(mgr: ConnectionManager, diff: dict[str, dict[str, str | None]]) -> dict[str, Any]:
+async def _unfixable_device(mgr: ConnectionManager, diff: Diff) -> UnfixableDevice | None:
     """Report a divergence as unfixable only when the intended net_device is no longer in the daemon's endpoint list.
 
-    The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry.
+    The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry. The
+    endpoint list is re-read first: the restore restarted the daemon, so the snapshot predates it, and the refresh
+    keeps whatever it last had when the daemon does not answer.
     """
     if presetconf.NET_DEVICE not in diff:
-        return {}
+        return None
+    await mgr.refresh_http_forms()
     want = diff[presetconf.NET_DEVICE]["want"]
-    options = await _net_device_options(mgr)
+    options = _net_device_options(mgr)
     if options is None or want in options:
-        return {}
-    return {"net_device": {"want": want, "available": sorted(o for o in options if o)}}
+        return None
+    return UnfixableDevice(want, sorted(o for o in options if o))

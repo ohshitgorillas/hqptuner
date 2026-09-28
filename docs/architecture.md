@@ -86,7 +86,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `route_unknown` | 404 | no route at that path |
 | `method_not_allowed` | 405 | a real path, wrong method |
 
-Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`).
+Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`). A standalone preset save that fails is a refusal like load and delete; the apply response carries the autosave outcome as data.
 
 ## 5. Behavior rules
 

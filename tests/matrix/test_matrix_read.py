@@ -12,9 +12,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import StartManager
+from narrow import present
 
-from hqptuner.conf.httpconf import HttpConfigClient, parse_matrix_form
+from hqptuner.api.routes.matrix.matrix import matrix as matrix_report
+from hqptuner.conf.formparse import parse_matrix_form
+from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.engine.control import ControlClient
+from hqptuner.lanes import matrixlane
 
 REAL_PAGE = (Path(__file__).parent.parent / "support" / "fixtures" / "matrix-6.0.4.html").read_text()
 
@@ -47,24 +52,21 @@ async def test_gainunit_survives_daemons_malformed_option_markup(matrix_client: 
     assert form["rows"][0]["gainunit"] == "dB"
 
 
-async def test_row_fields_do_not_leak_into_flat_fields(matrix_client: HttpConfigClient) -> None:
+async def test_row_fields_do_not_leak_into_flat_fields_while_global_controls_stay_there(
+    matrix_client: HttpConfigClient,
+) -> None:
     form = await matrix_client.get_matrix()
-    assert not [f for f in form["fields"] if f["name"].startswith(("source_", "gain_", "process_"))]
+    leaked = [f for f in form["fields"] if (f["name"] or "").startswith(("source_", "gain_", "process_"))]
+    controls = {f["name"] for f in form["fields"]}
+    assert (leaked, controls >= {"enabled", "engine", "expand_hf", "iir2fir"}) == ([], True)
 
 
-async def test_global_matrix_controls_stay_flat_fields(matrix_client: HttpConfigClient) -> None:
+async def test_profile_datalist_leads_with_the_unnamed_default_and_also_carries_a_saved_one(
+    matrix_client: HttpConfigClient,
+) -> None:
     form = await matrix_client.get_matrix()
-    assert {f["name"] for f in form["fields"]} >= {"enabled", "engine", "expand_hf", "iir2fir"}
-
-
-async def test_profile_datalist_captures_a_saved_profile_name(matrix_client: HttpConfigClient) -> None:
-    form = await matrix_client.get_matrix()
-    assert "Mch-to-Stereo mixdown" in [o["value"] for o in form["profiles"]["options"]]
-
-
-async def test_profile_datalist_leads_with_the_unnamed_default(matrix_client: HttpConfigClient) -> None:
-    form = await matrix_client.get_matrix()
-    assert form["profiles"]["options"][0]["value"] == ""
+    options = present(form["profiles"])["options"]
+    assert (options[0]["value"], "Mch-to-Stereo mixdown" in [o["value"] for o in options]) == ("", True)
 
 
 async def test_active_profile_label_is_parsed(matrix_client: HttpConfigClient) -> None:
@@ -91,20 +93,17 @@ def test_real_page_active_profile_is_the_default() -> None:
     assert parse_matrix_form(REAL_PAGE)["active"] == "[Default]"
 
 
-def test_real_page_datalist_carries_the_saved_profile() -> None:
-    assert "Mch-to-Stereo mixdown" in [o["value"] for o in parse_matrix_form(REAL_PAGE)["profiles"]["options"]]
-
-
 def test_real_page_engine_select_reads_current_value() -> None:
     engine = next(f for f in parse_matrix_form(REAL_PAGE)["fields"] if f["name"] == "engine")
     assert engine["value"] == "1"
 
 
-def test_page_without_profile_input_yields_no_profiles() -> None:
-    assert (
-        parse_matrix_form('<form method="post"><input type="checkbox" name="enabled" value="1"/></form>')["profiles"]
-        is None
-    )
+def test_a_page_without_profile_input_yields_no_profiles_and_a_real_page_carries_its_saved_one() -> None:
+    absent = parse_matrix_form('<form method="post"><input type="checkbox" name="enabled" value="1"/></form>')[
+        "profiles"
+    ]
+    present_options = [o["value"] for o in present(parse_matrix_form(REAL_PAGE)["profiles"])["options"]]
+    assert (absent, "Mch-to-Stereo mixdown" in present_options) == (None, True)
 
 
 # --- 4321 live lane ----------------------------------------------------------
@@ -112,3 +111,28 @@ def test_page_without_profile_input_yields_no_profiles() -> None:
 
 async def test_matrix_list_profiles_includes_a_saved_profile(live_client: ControlClient) -> None:
     assert "Mch-to-Stereo mixdown" in await live_client.get_matrix_profiles()
+
+
+# --- MatrixReport, read off the `matrix` route function directly -------------
+
+
+async def test_matrix_report_carries_the_daemons_live_profile_names(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    manager = await start_manager(http_daemon["_port"])
+    assert matrix_report(manager).data.live_profiles == ["Default", "Mch-to-Stereo mixdown"]
+
+
+async def test_matrix_report_reads_the_live_active_profile_from_state(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    manager = await start_manager(http_daemon["_port"])
+    await matrixlane.switch_profile(manager, "Default")
+    assert matrix_report(manager).data.live_active == "Default"
+
+
+async def test_matrix_report_carries_the_config_files_saved_profiles(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    manager = await start_manager(http_daemon["_port"])
+    assert "Stock" in matrix_report(manager).data.file_profiles

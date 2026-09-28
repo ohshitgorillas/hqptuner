@@ -6,14 +6,14 @@
 // coefficients) and non-iir stages keep the docked editor only.
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { parseProcess, serializeProcess, stageArgs, IIR_TYPES } from "../../lib/matrixspec.js";
+import { parseProcess, serializeProcess, stageArgs, IIR_TYPES } from "../../vendor/eqlab/core/matrixspec.js";
 import { clamp } from "../../lib/coerce.js";
 import { stagePipelines } from "../../store/actions.js";
 import { Knob } from "../widgets/Knob.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
  * @typedef {{ row: number, stage: number }} StageSel
  *   Which pipeline row and which stage within it the editor points at.
  * @typedef {{ name: string, min: number, max: number, step: number, unit?: string, scale?: string,

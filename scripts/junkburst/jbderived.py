@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import numpy as np
@@ -31,29 +32,43 @@ def track_key(meta: dict[str, Any]) -> str:
     )
 
 
-def stats(values: list[float]) -> dict[str, float]:
+@dataclass
+class Stats:
+    """Count and percentile spread of one side's values; every field but ``n`` is ``None`` when there are none."""
+
+    n: int
+    min: float | None = None
+    p10: float | None = None
+    p25: float | None = None
+    median: float | None = None
+    p75: float | None = None
+    p90: float | None = None
+    max: float | None = None
+
+
+def stats(values: list[float]) -> Stats:
     """Return the count and the percentile spread of one side's values, or a bare count when there are none."""
     arr = np.asarray(values, dtype=np.float64)
     if arr.size == 0:
-        return {"n": 0}
-    return {
-        "n": int(arr.size),
-        "min": float(arr.min()),
-        "p10": float(np.percentile(arr, 10)),
-        "p25": float(np.percentile(arr, 25)),
-        "median": float(np.median(arr)),
-        "p75": float(np.percentile(arr, 75)),
-        "p90": float(np.percentile(arr, 90)),
-        "max": float(arr.max()),
-    }
+        return Stats(n=0)
+    return Stats(
+        n=int(arr.size),
+        min=float(arr.min()),
+        p10=float(np.percentile(arr, 10)),
+        p25=float(np.percentile(arr, 25)),
+        median=float(np.median(arr)),
+        p75=float(np.percentile(arr, 75)),
+        p90=float(np.percentile(arr, 90)),
+        max=float(arr.max()),
+    )
 
 
-def fmt_stats(values: dict[str, float]) -> str:
-    """Return one markdown table row of a ``stats`` mapping, empty cells when it counts nothing."""
-    if not values.get("n"):
+def fmt_stats(values: Stats) -> str:
+    """Return one markdown table row of a ``Stats``, empty cells when it counts nothing."""
+    if not values.n:
         return "| 0 | | | | | | | |"
     return "| {n} | {min:.2f} | {p10:.2f} | {p25:.2f} | {median:.2f} | {p75:.2f} | {p90:.2f} | {max:.2f} |".format(
-        **values
+        **asdict(values)
     )
 
 

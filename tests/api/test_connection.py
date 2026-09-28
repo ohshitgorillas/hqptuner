@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -46,7 +47,7 @@ def app_factory(
     the install with none."""
     with ExitStack() as stack:
 
-        def build(**overrides: Any) -> TestClient:
+        def build(**overrides: object) -> TestClient:
             cfg = Config(
                 **{
                     "hqp_host": "127.0.0.1",
@@ -60,7 +61,7 @@ def app_factory(
                     **overrides,
                 }
             )
-            return stack.enter_context(TestClient(create_app(cfg)))
+            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
 
         yield build
 

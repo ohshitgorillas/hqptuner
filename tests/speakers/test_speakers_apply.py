@@ -3,12 +3,13 @@ daemon would receive is captured and asserted (docs/testing.md rule 4 — a real
 server, never a stub of our client). The apply overlays the desired state onto a
 fresh GET of the complete form, so the fixture is served on every GET."""
 
-import threading
 from collections.abc import AsyncIterator, Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs
 
+import fake_http
 import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -39,13 +40,11 @@ def _handler(posts: list[dict[str, list[str]]]) -> type[BaseHTTPRequestHandler]:
 @pytest.fixture
 def server() -> Iterator[tuple[int, list[dict[str, list[str]]]]]:
     posts: list[dict[str, list[str]]] = []
-    srv = HTTPServer(("127.0.0.1", 0), _handler(posts))
-    # poll_interval is what shutdown() waits on — teardown cost (docs/testing.md rule 7)
-    thread = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-    thread.start()
-    yield srv.server_address[1], posts
-    srv.shutdown()
-    thread.join()
+    st: dict[str, Any] = {}
+    srv = fake_http.spawn(st, handler=_handler(posts))
+    port = next(srv)["_port"]
+    yield port, posts
+    next(srv, None)
 
 
 @pytest.fixture

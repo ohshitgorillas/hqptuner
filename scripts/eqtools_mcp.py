@@ -44,7 +44,9 @@ _JOB_SCHEMA = {
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "eqlab",
-        "description": "Run one eqlab job (design, measure, vocab lookup). Manual: scripts/eqlab/README.md.",
+        "description": (
+            "Run one eqlab job (design, measure, vocab lookup). Manual: hqptuner/static/vendor/eqlab/src/README.md."
+        ),
         "inputSchema": _JOB_SCHEMA,
     },
     {
@@ -55,7 +57,7 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 
-class JobRefusedError(Exception):
+class ToolError(Exception):
     """A job this server will not run; `code` says why."""
 
     def __init__(self, code: str, message: str) -> None:
@@ -78,11 +80,15 @@ def _job_bytes(job: object, root: Path) -> bytes:
     if isinstance(job, dict):
         return json.dumps(job).encode()
     if not isinstance(job, str) or not job:
-        raise JobRefusedError("bad_job", "job must be a job file path or a job object.")
+        code = "bad_job"
+        message = "job must be a job file path or a job object."
+        raise ToolError(code, message)
     sessions = (root / SESSIONS).resolve()
     path = (root / job).resolve()
     if not path.is_relative_to(sessions):
-        raise JobRefusedError("job_outside_sessions", f"job files live under {SESSIONS}/, not {job}.")
+        code = "job_outside_sessions"
+        message = f"job files live under {SESSIONS}/, not {job}."
+        raise ToolError(code, message)
     return path.read_bytes()
 
 
@@ -90,7 +96,7 @@ def _spawn(tool: str, stdin: bytes, root: Path, env: dict[str, str] | None) -> s
     """Start the tool's script under `node`, one literal argv per tool."""
     if tool == "eqlab":
         return subprocess.run(
-            ["node", "scripts/eqlab/eqlab.js"],
+            ["node", "hqptuner/static/vendor/eqlab/src/eqlab.js"],
             input=stdin,
             capture_output=True,
             cwd=root,
@@ -112,7 +118,9 @@ def _spawn(tool: str, stdin: bytes, root: Path, env: dict[str, str] | None) -> s
 def run_job(tool: str, job: object, root: Path = ROOT, env: dict[str, str] | None = None) -> JobResult:
     """Run one job through eqlab or eqstage, with the job on stdin and no shell."""
     if tool not in TOOL_NAMES:
-        raise JobRefusedError("unknown_tool", f"no tool {tool!r}; the tools are eqlab and eqstage.")
+        code = "unknown_tool"
+        message = f"no tool {tool!r}; the tools are eqlab and eqstage."
+        raise ToolError(code, message)
     proc = _spawn(tool, _job_bytes(job, root), root, env)
     return JobResult(proc.stdout.decode(errors="replace"), proc.stderr.decode(errors="replace"), proc.returncode)
 
@@ -124,23 +132,26 @@ def _text(text: str, *, is_error: bool) -> dict[str, Any]:
 def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Run one `tools/call`, turning a refusal, a timeout or a failed exit into an isError result."""
     job = arguments.get("job", arguments.get("job_path"))
+    errors: list[str] = []
     try:
         result = run_job(name, job)
-    except JobRefusedError as exc:
-        return _text(f"{exc.code}: {exc}", is_error=True)
+    except ToolError as exc:
+        errors.append(f"{exc.code}: {exc}")
     except subprocess.TimeoutExpired:
-        return _text(f"{name} ran past {TIMEOUT_S} s and was stopped.", is_error=True)
+        errors.append(f"{name} ran past {TIMEOUT_S} s and was stopped.")
     except OSError as exc:
-        return _text(f"{name} could not run: {exc}", is_error=True)
+        errors.append(f"{name} could not run: {exc}")
+    if errors:
+        return _text(errors[0], is_error=True)
     body = result.stdout if not result.stderr else f"{result.stdout}\n--- stderr ---\n{result.stderr}"
     return _text(body, is_error=result.returncode != 0)
 
 
-def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
+def _error(msg_id: object, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
-def _tools_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+def _tools_call(msg_id: object, params: dict[str, Any]) -> dict[str, Any]:
     name = params.get("name")
     if not isinstance(name, str) or name not in TOOL_NAMES:
         return _error(msg_id, -32602, f"unknown tool {name!r}.")
@@ -152,7 +163,7 @@ def _tools_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "result": call_tool(name, arguments)}
 
 
-def _initialize(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+def _initialize(msg_id: object, params: dict[str, Any]) -> dict[str, Any]:
     result = {
         "protocolVersion": params.get("protocolVersion", PROTOCOL_VERSION_FALLBACK),
         "capabilities": {"tools": {}},
@@ -161,7 +172,7 @@ def _initialize(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "result": result}
 
 
-METHODS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
+METHODS: dict[str, Callable[[object, dict[str, Any]], dict[str, Any]]] = {
     "initialize": _initialize,
     "tools/list": lambda msg_id, _params: {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}},
     "tools/call": _tools_call,
@@ -169,7 +180,7 @@ METHODS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
 }
 
 
-def handle_request(msg: Any) -> dict[str, Any] | None:
+def handle_request(msg: object) -> dict[str, Any] | None:
     """Route one parsed JSON-RPC message to its handler, or None for a notification (no `id`)."""
     if not isinstance(msg, dict):
         return _error(None, -32600, "invalid request: expected a JSON object.")

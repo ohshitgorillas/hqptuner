@@ -55,15 +55,14 @@ def test_resaving_a_name_returns_the_newer_bytes(tmp_path: Path) -> None:
 # --- listing and existence --------------------------------------------------
 
 
-def test_names_lists_the_saved_presets_in_ascending_order(tmp_path: Path) -> None:
+def test_names_is_empty_when_the_directory_was_never_created_but_lists_saved_presets_in_ascending_order(
+    tmp_path: Path,
+) -> None:
+    never_created = PresetStore(tmp_path / "never-created").names()
     store = store_at(tmp_path)
     for name in ("zulu", "alpha", "mike"):
         store.save(name, PAYLOAD)
-    assert store.names() == ["alpha", "mike", "zulu"]
-
-
-def test_names_is_empty_when_the_directory_was_never_created(tmp_path: Path) -> None:
-    assert PresetStore(tmp_path / "never-created").names() == []
+    assert (never_created, store.names()) == ([], ["alpha", "mike", "zulu"])
 
 
 @pytest.mark.parametrize(("name", "expected"), [("alpha", True), ("never-saved", False)])
@@ -76,11 +75,12 @@ def test_exists_answers_for_saved_and_unsaved_names(tmp_path: Path, name: str, *
 # --- delete -----------------------------------------------------------------
 
 
-def test_a_deleted_preset_no_longer_exists(tmp_path: Path) -> None:
+def test_a_deleted_preset_no_longer_exists_but_a_saved_one_does(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
+    saved = store.exists("alpha")
     store.delete("alpha")
-    assert store.exists("alpha") is False
+    assert (saved, store.exists("alpha")) == (True, False)
 
 
 def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
@@ -95,7 +95,7 @@ def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("name", ESCAPING_NAMES)
-def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> None:
+def test_a_refused_name_puts_no_payload_on_disk_but_a_saved_one_does(tmp_path: Path, name: str) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
     # this test owns is the disk check (scripts/gates/testing/check_test_assertions.py counts
     # a `pytest.raises` block as an assertion). A refused save may still
@@ -104,41 +104,48 @@ def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> No
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
         store.save(name, PAYLOAD)
-    assert [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()] == []
+    refused = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
+    store.save("alpha", PAYLOAD)
+    accepted = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
+    assert (refused, accepted != []) == ([], True)
 
 
 @pytest.mark.parametrize("name", UNSAFE_NAMES)
-def test_a_refused_name_does_not_join_the_listing(tmp_path: Path, name: str) -> None:
+def test_a_refused_name_does_not_join_the_listing_but_a_saved_one_does(tmp_path: Path, name: str) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
         store.save(name, PAYLOAD)
-    assert store.names() == []
+    refused = store.names()
+    store.save("alpha", PAYLOAD)
+    assert (refused, store.names()) == ([], ["alpha"])
 
 
 # --- the active pointer -----------------------------------------------------
 
 
-def test_active_is_none_when_nothing_was_made_active(tmp_path: Path) -> None:
-    assert store_at(tmp_path).active is None
-
-
 # The pointer is written and compared under the stored name: a caller handing in
 # the name with trailing whitespace points at, and clears, the same preset.
 @pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
-def test_the_active_preset_survives_a_new_store_over_the_same_directory(tmp_path: Path, name: str) -> None:
+def test_active_is_none_when_nothing_was_made_active_but_survives_a_new_store_once_set(
+    tmp_path: Path, name: str
+) -> None:
+    unset = store_at(tmp_path).active
     first = store_at(tmp_path)
     first.save("alpha", PAYLOAD)
     first.set_active(name)
-    assert PresetStore(tmp_path / "presets").active == "alpha"
+    assert (unset, PresetStore(tmp_path / "presets").active) == (None, "alpha")
 
 
 @pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
-def test_deleting_the_active_preset_clears_the_active_pointer(tmp_path: Path, name: str) -> None:
+def test_deleting_the_active_preset_clears_the_active_pointer_which_was_set_before_that(
+    tmp_path: Path, name: str
+) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
     store.set_active("alpha")
+    before = store.active
     store.delete(name)
-    assert store.active is None
+    assert (before, store.active) == ("alpha", None)
 
 
 @pytest.mark.parametrize(("saved", "expected"), [((), []), (("bravo", "alpha"), ["alpha", "bravo"])])

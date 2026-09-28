@@ -26,8 +26,8 @@ from jblabels import (
     primary_artist,
 )
 
-from hqptuner.engine import junkadvisor
-from hqptuner.engine.junkadvisor import _Curve
+from hqptuner.engine import junkcurve
+from hqptuner.engine.junkcurve import Curve
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -58,20 +58,20 @@ def spur_label_for(freq: float) -> str:
     return SPUR50
 
 
-def excesses_from_20k(curve: _Curve) -> dict[int, float]:
-    """``junkadvisor._excesses``, but reading from 20 kHz up rather than ``SPUR_MIN_HZ``, keyed by bin index."""
-    limit = curve.floor + junkadvisor.CONTRAST_DB
+def excesses_from_20k(curve: Curve) -> dict[int, float]:
+    """Map each bin from 20 kHz up whose level clears floor plus contrast to its excess over the baseline."""
+    limit = curve.floor + junkcurve.CONTRAST_DB
     start = curve.at(READ_FLOOR_HZ)
     return {i: curve.levels[i] - curve.baseline[i] for i in range(start, len(curve.levels)) if curve.levels[i] > limit}
 
 
-def excess_at(curve: _Curve, freq: float) -> float:
+def excess_at(curve: Curve, freq: float) -> float:
     """Return the raw excess (level minus wide baseline) of the bin nearest a frequency, threshold or not."""
     i = curve.at(freq)
     return curve.levels[i] - curve.baseline[i]
 
 
-def has_partner(curve: _Curve, freq: float, excess: float) -> bool:
+def has_partner(curve: Curve, freq: float, excess: float) -> bool:
     """Whether a bin within 3 dB of this excess stands at 44100 or 48000 minus this frequency."""
     for total in IMAGE_TOTALS_HZ:
         partner_freq = total - freq
@@ -82,21 +82,21 @@ def has_partner(curve: _Curve, freq: float, excess: float) -> bool:
     return False
 
 
-def window_curves(meta: dict[str, Any], summed: np.ndarray) -> dict[Any, _Curve]:
+def window_curves(meta: dict[str, Any], summed: np.ndarray) -> dict[Any, Curve]:
     """Per-bin minimum curves at 1 s, 2 s, 3 s and the full burst, each from the burst's own start."""
     arrived = meta["arrived"]
     bandwidth = float(meta["bandwidth"])
-    curves: dict[Any, _Curve] = {}
+    curves: dict[Any, Curve] = {}
     for window in CUMULATIVE_WINDOWS_S:
         idx = [i for i, t in enumerate(arrived) if t - arrived[0] < window]
         mins = summed[idx].min(axis=0)
-        curves[window] = _Curve([float(v) for v in mins], bandwidth)
+        curves[window] = Curve([float(v) for v in mins], bandwidth)
     full_mins = summed.min(axis=0)
-    curves["full"] = _Curve([float(v) for v in full_mins], bandwidth)
+    curves["full"] = Curve([float(v) for v in full_mins], bandwidth)
     return curves
 
 
-def read_burst(stamp: str) -> tuple[list[dict[str, Any]], _Curve]:
+def read_burst(stamp: str) -> tuple[list[dict[str, Any]], Curve]:
     """One burst's candidate bins at or over 16 dB on the full window, each with its four-window excess and partner."""
     meta, db = load_burst(stamp)
     summed = summed_db(db)

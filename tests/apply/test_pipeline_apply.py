@@ -8,7 +8,11 @@ daemon would store round-trips."""
 
 import json
 
+from fastapi.testclient import TestClient
+
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http import restore
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
@@ -61,8 +65,9 @@ async def test_process_string_with_xml_specials_round_trips(http_manager: Connec
 
 
 async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)})
-    assert report["persistent"]["applied"] is True
+    assert (
+        await restore.apply(http_manager, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)})
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_pipeline_apply_leaves_other_settings_untouched(http_manager: ConnectionManager) -> None:
@@ -70,14 +75,16 @@ async def test_pipeline_apply_leaves_other_settings_untouched(http_manager: Conn
     assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
 
 
-async def test_invalid_gain_is_refused_before_any_write(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"})})
-    assert report["persistent"]["submitted"] is False
+def test_invalid_gain_is_refused_before_any_write(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"})}})
+    resp = http_client.post("/api/config/apply")
+    assert resp.json()["code"] == "invalid_input"
 
 
-async def test_out_of_range_channel_is_refused_before_any_write(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "source": "128"})})
-    assert report["persistent"]["submitted"] is False
+def test_out_of_range_channel_is_refused_before_any_write(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "source": "128"})}})
+    resp = http_client.post("/api/config/apply")
+    assert resp.json()["code"] == "invalid_input"
 
 
 async def test_matrix_engine_field_reaches_the_running_config(http_manager: ConnectionManager) -> None:

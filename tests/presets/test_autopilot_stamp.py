@@ -25,8 +25,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import wait_for_api
+from apps import wait_for_api
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -50,7 +51,7 @@ def stamp_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_pat
         autopilot_file=tmp_path / "autopilot.json",
         hqp_home="/x/home",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield client
 
@@ -83,41 +84,40 @@ def make_active(client: TestClient, name: str = ACTIVE) -> None:
 # --- auto-save armed, a preset active: the switch folds in --------------------
 
 
-def test_switching_on_under_autosave_records_the_active_preset_as_carrying_it_on(
+def test_switching_on_under_autosave_records_it_on_and_switching_off_records_it_off(
     stamp_client: TestClient, tmp_path: Path
 ) -> None:
     # saved with auto-pilot off, so the stored copy starts False and only the
-    # fold can turn it True: a build that never stamped would leave False here
+    # fold can turn it True: a build that never stamped would leave False here.
+    # then, set up so the stored copy is True before the switch: the explicit
+    # save records auto-pilot as it stands, so a build that folded nothing in
+    # leaves True behind and only a real fold writes False
     make_active(stamp_client)
     arm_autosave(stamp_client)
     switch(stamp_client, enabled=True)
-    assert stamped(tmp_path, ACTIVE) is True
-
-
-def test_switching_off_under_autosave_records_the_active_preset_as_carrying_it_off(
-    stamp_client: TestClient, tmp_path: Path
-) -> None:
-    # the pairing case, set up so the stored copy is True before the switch:
-    # the explicit save records auto-pilot as it stands, so a build that folded
-    # nothing in leaves True behind and only a real fold writes False
-    switch(stamp_client, enabled=True)
-    make_active(stamp_client)
-    arm_autosave(stamp_client)
+    on = stamped(tmp_path, ACTIVE)
     switch(stamp_client, enabled=False)
-    assert stamped(tmp_path, ACTIVE) is False
+    off = stamped(tmp_path, ACTIVE)
+    assert (on, off) == (True, False)
 
 
 # --- auto-save off: the switch touches no preset ------------------------------
 
 
-def test_switching_on_with_autosave_off_leaves_the_presets_stored_flag_alone(
+def test_switching_on_with_autosave_off_leaves_the_flag_alone_but_under_autosave_it_folds_in(
     stamp_client: TestClient, tmp_path: Path
 ) -> None:
     # saved with auto-pilot off, and auto-save never armed: the switch is the
-    # user's own, not an applied change the active preset asked to carry
+    # user's own, not an applied change the active preset asked to carry —
+    # unlike with auto-save armed, where the same switch folds into the store
     make_active(stamp_client)
     switch(stamp_client, enabled=True)
-    assert stamped(tmp_path, ACTIVE) is False
+    without_autosave = stamped(tmp_path, ACTIVE)
+    switch(stamp_client, enabled=False)
+    arm_autosave(stamp_client)
+    switch(stamp_client, enabled=True)
+    with_autosave = stamped(tmp_path, ACTIVE)
+    assert (without_autosave, with_autosave) == (False, True)
 
 
 # --- auto-save armed, nothing active ------------------------------------------

@@ -293,7 +293,7 @@ async function applyLane(run, what, restarts) {
  * @param {{ name: string }} [save] preset to save into as part of the apply. An
  *   OBJECT, not a bare name: it goes out as the request body's `save`, and the
  *   backend reads `body.save.name` (api/routes/apply.py:58, models.py SaveTarget).
- * @returns {Promise<import("./apply-summary.js").ApplyReport | null>} null when a
+ * @returns {Promise<import("./apply-summary.js").ApplyAnswer | null>} null when a
  *   guard question was declined and nothing was sent.
  */
 export async function applyAll(save) {
@@ -333,11 +333,12 @@ async function commitApply(save) {
       const body = {};
       if (save) body.save = save;
       if (switchTo !== null) body.switch_to = switchTo;
-      const report = await api.apply(Object.keys(body).length ? body : undefined);
-      await refreshConfig(); // re-mirror pending + fresh values (dropdown picks up a new preset)
-      lastApply.value = summarize(report, count);
+      // re-mirror pending + fresh values (dropdown picks up a new preset), on a refusal too: an
+      // apply whose preset save failed has already landed and cleared the staged set
+      const answer = await api.apply(Object.keys(body).length ? body : undefined).finally(refreshConfig);
+      lastApply.value = summarize(answer, count);
       if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
-      return report;
+      return answer;
     },
     "Apply",
     restarts,
@@ -356,11 +357,8 @@ async function commitApply(save) {
 export async function savePresetOnly(name) {
   return applyLane(
     async () => {
-      const r = await api.profile("save", name);
-      lastApply.value = r.ok
-        ? { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" }
-        : { ok: false, code: "saved", text: `Save to "${r.name}" failed: ${r.error}`, preset: r.name, save: "failed" };
-      await refreshConfig();
+      const r = await api.profile("save", name).finally(refreshConfig);
+      lastApply.value = { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" };
       return r;
     },
     "Save",

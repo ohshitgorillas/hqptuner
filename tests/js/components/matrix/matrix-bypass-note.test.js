@@ -86,9 +86,9 @@ import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { matrixMode } from "../../../../hqptuner/static/store/matrix/mode.js";
 import { xfMode } from "../../../../hqptuner/static/store/xfeed/mode.js";
-import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
-import { BAUER_PRESETS } from "../../../../hqptuner/static/lib/xfeed.js";
+import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
+import { BAUER_PRESETS } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { plottedRows, previewEq } from "../../../../hqptuner/static/components/matrix/Plot.js";
@@ -108,7 +108,7 @@ const ENGAGE = "matrix-bypass-engage";
 const CUSTOM = "matrix-bypass-custom";
 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 /** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });

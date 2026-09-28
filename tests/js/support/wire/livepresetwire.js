@@ -11,7 +11,7 @@
 //
 // The fake answers the real REST paths with the real shapes —
 // GET /api/livepresets -> {presets}, PUT /api/livepresets/{name} -> the record,
-// POST /api/livepresets/{name}/apply -> {live, stored}, DELETE -> {deleted} —
+// POST /api/livepresets/{name}/apply -> {report: {live, stored}}, DELETE -> {deleted} —
 // and it HOLDS the list the way the backend does, so "a save re-reads the list"
 // is observable as the list having moved. No store function is ever stubbed.
 
@@ -24,7 +24,7 @@ import { ok, bad } from "./wire.js";
 
 /**
  * The fake's own state: the defaults `presetWire` starts from, plus whatever a
- * suite overrode. `report` is the body /apply answers with and `mirrored` the
+ * suite overrode. `report` is the report /apply answers with and `mirrored` the
  * engine state /api/state serves, both suite-supplied shapes.
  *
  * @typedef {{
@@ -173,7 +173,7 @@ function storeDelete(w, name) {
  * @returns {FakeResponse}
  */
 function onePreset(w, c, { name, isApply, method }) {
-  if (isApply) return c.applyStatus === 200 ? ok(c.report) : bad(c.applyStatus, c.applyDetail);
+  if (isApply) return c.applyStatus === 200 ? ok({ report: c.report }) : bad(c.applyStatus, c.applyDetail);
   if (method === "PUT") return storeSave(w, c, name);
   if (method === "DELETE") return storeDelete(w, name);
   return ok({});

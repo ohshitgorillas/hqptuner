@@ -20,9 +20,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import _closed_port, spawn_threaded_daemon
+from apps import closed_port as build_closed_port
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from httpx import Response
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -71,7 +73,7 @@ def test_a_zero_search_window_still_serves_the_daemon_the_host_alias_names(
 ) -> None:
     cfg = Config(
         discovery_timeout=0.0,
-        discovery_target=f"{ALIAS}:{_closed_port()}",
+        discovery_target=f"{ALIAS}:{build_closed_port()}",
         container_host_alias=ALIAS,
         hqp_control_port=control_port if alias_is_listening else closed_port,
         metering_enabled=False,
@@ -81,6 +83,6 @@ def test_a_zero_search_window_still_serves_the_daemon_the_host_alias_names(
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         answered = served(client.get("/api/discover"))
     assert answered == expected

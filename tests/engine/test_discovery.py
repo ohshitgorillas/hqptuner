@@ -24,9 +24,10 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 
 import fake_discovery
 import pytest
-from conftest import _closed_port, spawn_threaded_daemon
+from apps import closed_port
+from conftest import spawn_threaded_daemon
 
-from hqptuner.engine.discovery import Daemon, Search, dedupe, discover, enrich, parse_reply
+from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
 
 OPAL_REPLY = b'<discover name="Opal" result="OK" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>'
 SAPPHIRE_REPLY = (
@@ -51,6 +52,7 @@ def five(record: Daemon) -> tuple[str, str, str, str | None, str | None]:
 
 async def answering_daemon(_address: str) -> dict[str, str]:
     """A daemon that answers GetInfo with the attribute set of docs/protocol.md §6."""
+    await asyncio.sleep(0)
     return {
         "engine": "6.0.4",
         "name": "Opal",
@@ -62,6 +64,7 @@ async def answering_daemon(_address: str) -> dict[str, str]:
 
 async def refusing_daemon(_address: str) -> dict[str, str]:
     """A daemon inside the ten-second window where 4321 refuses connections."""
+    await asyncio.sleep(0)
     raise ConnectionRefusedError(111, "Connection refused")
 
 
@@ -76,6 +79,16 @@ def test_a_reply_reads_as_the_sender_address_beside_the_bodys_name_and_version(
     payload: bytes, sender: str, expected: tuple[str, str, str]
 ) -> None:
     assert triple(parse_reply(payload, sender)) == expected
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b"not xml at all", b'<other name="Opal">hqplayer</other>'],
+    ids=["unparseable body", "wrong root tag"],
+)
+def test_a_non_reply_datagram_raises_notareply(payload: bytes) -> None:
+    with pytest.raises(NotAReplyError):
+        parse_reply(payload, "10.0.0.238")
 
 
 @pytest.mark.parametrize(
@@ -170,7 +183,7 @@ async def test_the_host_alias_is_listed_only_where_no_datagram_was_answered(
     datagram_answered: bool,
     expected: list[str],
 ) -> None:
-    target = f"{SEARCH_HOST}:{answering_port}" if datagram_answered else f"127.0.0.1:{_closed_port()}"
+    target = f"{SEARCH_HOST}:{answering_port}" if datagram_answered else f"127.0.0.1:{closed_port()}"
     clock, sleep = virtual_time()
     search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
     found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)

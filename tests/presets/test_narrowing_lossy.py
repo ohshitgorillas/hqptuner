@@ -65,19 +65,19 @@ def seeded_with(tmp_path: Path, legacy: str) -> Path:
 
 
 def test_a_store_that_was_never_written_reports_the_lossy_control_at_both(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read()["lossy_1x"] == DEFAULT_STATE
+    assert store_at(tmp_path).read().lossy_1x == DEFAULT_STATE
 
 
 @pytest.mark.parametrize("state", STATES)
 def test_a_written_lossy_state_reads_back_as_written(tmp_path: Path, state: str) -> None:
     store = store_at(tmp_path)
     store.write({"lossy_1x": state})
-    assert store.read()["lossy_1x"] == state
+    assert store.read().lossy_1x == state
 
 
 @pytest.mark.parametrize("state", STATES)
 def test_a_write_answers_with_the_lossy_state_it_stored(tmp_path: Path, state: str) -> None:
-    assert store_at(tmp_path).write({"lossy_1x": state})["lossy_1x"] == state
+    assert store_at(tmp_path).write({"lossy_1x": state}).lossy_1x == state
 
 
 # --- what the control refuses --------------------------------------------------
@@ -109,7 +109,7 @@ def test_a_write_of_a_retired_hires_key_is_refused_naming_that_key(tmp_path: Pat
 @pytest.mark.parametrize("legacy", sorted(RETIRED_HIRES))
 def test_a_stored_retired_hires_key_does_not_surface_on_read(tmp_path: Path, legacy: str) -> None:
     seeded_with(tmp_path, legacy)
-    assert legacy not in store_at(tmp_path).read()
+    assert legacy not in store_at(tmp_path).read().to_json()
 
 
 # Nor does a retired key migrate into the new control: the file below carries
@@ -120,7 +120,7 @@ def test_a_file_carrying_a_retired_hires_key_reads_the_lossy_control_at_its_defa
     tmp_path: Path, legacy: str
 ) -> None:
     seeded_with(tmp_path, legacy)
-    assert store_at(tmp_path).read()["lossy_1x"] == DEFAULT_STATE
+    assert store_at(tmp_path).read().lossy_1x == DEFAULT_STATE
 
 
 @pytest.mark.parametrize("legacy", sorted(RETIRED_HIRES))

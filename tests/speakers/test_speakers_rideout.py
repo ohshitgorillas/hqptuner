@@ -7,21 +7,24 @@ The fake is a stateful /speakers daemon at the wire (docs/testing.md rule 4): a
 GET renders the current state as the real 6.0.4 form markup, a POST adopts the
 fields and opens the reload window, during which every GET answers 502."""
 
-import threading
 from collections.abc import AsyncIterator, Callable, Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
+import fake_http
 import pytest
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import speakerprocessing
+from hqptuner.lanes.http.speakerprocessing import SpeakerApplyOutcome
 
 _CHANNELS = ("Left", "Right")
+_NO_FORM: dict[str, object] = {}
 
 ManagerBuilder = Callable[..., ConnectionManager]
 
@@ -77,14 +80,7 @@ def _spawn(reload_window: int) -> Iterator[dict[str, Any]]:
     for i in range(len(_CHANNELS)):
         st[f"level_{i}"] = "0"
         st[f"distance_{i}"] = "0"
-    server = HTTPServer(("127.0.0.1", 0), _handler(st))
-    # poll_interval is what shutdown() waits on — teardown cost (docs/testing.md)
-    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-    thread.start()
-    st["_port"] = server.server_address[1]
-    yield st
-    server.shutdown()
-    thread.join()
+    yield from fake_http.spawn(st, handler=_handler(st))
 
 
 @pytest.fixture
@@ -107,7 +103,7 @@ async def speakers_manager(tmp_path: Path) -> AsyncIterator[ManagerBuilder]:
         http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
         clients.append(http)
         cfg = Config(alarm_threshold=alarm_threshold, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-        return ConnectionManager(cfg, http)
+        return ConnectionManager(cfg, http, VirtualClock())
 
     yield build
     for http in clients:
@@ -119,7 +115,7 @@ async def test_apply_rides_out_the_reload_window_and_confirms(
 ) -> None:
     manager = speakers_manager(reloading_daemon)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
-    assert result["applied"] is True
+    assert result.outcome is SpeakerApplyOutcome.CONFIRMED
 
 
 async def test_the_applied_level_lands_on_the_daemon(
@@ -135,7 +131,7 @@ async def test_a_confirmed_apply_reports_the_refreshed_form(
 ) -> None:
     manager = speakers_manager(reloading_daemon)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
-    assert result["speakers"]["enabled"] is True
+    assert (result.speakers or _NO_FORM)["enabled"] is True
 
 
 async def test_apply_gives_up_honestly_when_the_daemon_never_returns(
@@ -144,4 +140,4 @@ async def test_apply_gives_up_honestly_when_the_daemon_never_returns(
     # the deadline passes with only 502s: report unconfirmed, never claim success
     manager = speakers_manager(dead_after_write_daemon, alarm_threshold=2.0)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
-    assert result["applied"] is False
+    assert result.outcome is SpeakerApplyOutcome.UNCONFIRMED

@@ -14,15 +14,15 @@ import {
   validateStage,
   newStage,
   editedStage,
-} from "../../lib/matrixspec.js";
-import { rowToRewText } from "../../lib/eqexport.js";
+} from "../../vendor/eqlab/core/matrixspec.js";
+import { rowToRewText } from "../../vendor/eqlab/core/eqexport.js";
 import { isPlotted, togglePlotted } from "./Plot.js";
 import { selectedStage } from "./BandStrip.js";
 import { StageEditor, setSelected } from "./StageEditor.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
  * @typedef {(patch: Partial<PipelineRow>) => void} RowWriter
  *   Stages a partial edit of one pipeline row.
  * @typedef {(stages: Stage[]) => void} StageWriter
@@ -124,6 +124,7 @@ function RawEditor({ row, update }) {
       <input
         type="text"
         class="mtx-raw-input"
+        data-testid="raw-input"
         value=${row.process}
         placeholder="iir:type=peak;f=1000;q=1;g=-3,impulse.wav"
         onChange=${(/** @type {InputEv} */ e) => commit(e.target.value)}
@@ -237,7 +238,13 @@ function RowTools({ row, index, raw, canRemove, loaded, update, remove, toggleRa
   return html`
     <div class="mtx-row-tools">
       <${EqTools} row=${row} index=${index} loaded=${loaded} importHere=${importHere} />
-      <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>
+      <button
+        type="button"
+        class="mtx-tool ${raw ? "active" : ""}"
+        data-testid="raw-toggle"
+        title="Edit the raw process string"
+        onClick=${toggleRaw}
+      >
         { }
       </button>
       <button

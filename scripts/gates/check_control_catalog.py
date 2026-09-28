@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from hqptuner.conf import fixedvol, matrixconf, presetconf
+from hqptuner.conf import fixedvol, matrixconf, matrixprofiles, presetconf
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 SCHEMA_JS = ROOT / "hqptuner" / "static" / "store" / "schema.js"
@@ -77,8 +77,8 @@ def write_targets() -> set[str]:
             matrixconf.MATRIX_PIPELINES,
             # atomic saved-profile verbs: routed by name like the pipeline set,
             # not through FIELD_MAP (they write a whole element, not an attribute)
-            matrixconf.MATRIX_PROFILE_SAVE,
-            matrixconf.MATRIX_PROFILE_DELETE,
+            matrixprofiles.MATRIX_PROFILE_SAVE,
+            matrixprofiles.MATRIX_PROFILE_DELETE,
         }
     )
 

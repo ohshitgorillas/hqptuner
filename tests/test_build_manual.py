@@ -23,6 +23,9 @@ import pytest
 class FixtureError(Exception):
     """A test's own scaffolding is wrong, not a failure of the behavior under test."""
 
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
 
 #: The scripts directory, found relative to this file rather than through an import.
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
@@ -39,7 +42,7 @@ def load(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     module_name = f"{name}_under_test"
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
-        raise FixtureError(f"no importable module at {path}")
+        raise FixtureError(reason=f"no importable module at {path}")
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)

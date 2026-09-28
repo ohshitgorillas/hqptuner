@@ -71,6 +71,10 @@ _STAGE_RE = re.compile(r"iir:type=(?P<type>\w+);(?P<args>.+)")
 _RANGE_RE = re.compile(r"plot magnitude value range:\s*(-?[\d.]+),(-?[\d.]+)")
 
 
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
 def _peak_biquad(w0: float, alpha: float, amp: float) -> tuple[float, ...]:
     """RBJ cookbook peakingEQ, normalized to a0 = 1."""
     a0 = 1 + alpha / amp
@@ -104,7 +108,8 @@ def _predict(chain: str, fs: float, *, as_ee_q: bool) -> tuple[float, float]:
     for part in chain.split(",iir:"):
         m = _STAGE_RE.match(part if part.startswith("iir:") else "iir:" + part)
         if m is None or m.group("type") != "peak":
-            raise SystemExit(f"probe chains are peaking-only, got: {part!r}")
+            message = f"probe chains are peaking-only, got: {part!r}"
+            raise CliError(message)
         args = dict(kv.split("=") for kv in m.group("args").split(";"))
         f0, q, g = float(args["f"]), float(args["q"]), float(args["g"])
         amp = 10 ** (g / 40)
@@ -125,7 +130,8 @@ def _row_gain_db(fields: dict[str, str]) -> float:
     if unit.startswith("db"):
         return raw
     if raw <= 0:
-        raise SystemExit(f"row-0 linear gain {raw} is not positive — cannot take its dB")
+        message = f"row-0 linear gain {raw} is not positive — cannot take its dB"
+        raise CliError(message)
     return 20 * math.log10(raw)
 
 
@@ -182,12 +188,13 @@ async def _measure(client: httpx.AsyncClient, fields: dict[str, str], chain: str
     return None
 
 
-async def main() -> int:
+async def _run() -> int:
     """Establish whether the iir plugin's q is the RBJ cookbook Q or the classic EE Q, by plotting skirt chains."""
     user = os.environ.get("HQPTUNER_HQP_USERNAME")
     password = os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
 
     client = httpx.AsyncClient(
         base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0
@@ -238,6 +245,20 @@ async def main() -> int:
     finally:
         await client.aclose()
     return 0
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

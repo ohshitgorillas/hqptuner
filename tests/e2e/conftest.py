@@ -87,7 +87,6 @@ import urllib.parse
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -121,7 +120,7 @@ def stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[stack_support.St
     yield from stack_support.stack(tmp_path_factory.mktemp("e2e"))
 
 
-def _call(url: str, method: str, payload: dict[str, Any] | None = None) -> Any:
+def _call(url: str, method: str, payload: dict[str, object] | None = None) -> object:
     """Send one JSON call to the running stack and return the decoded body, or None for an empty one."""
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Content-Type": "application/json"} if data is not None else {}
@@ -140,13 +139,26 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     separate store with their own endpoint, `/api/livepresets`, so they are read
     from there — a live snapshot a test saves never shows up under `/api/config`.
     """
-    data = _call(f"{base_url}/api/config", "GET")["data"]
-    options = (data.get("profiles") or {}).get("options") or []
-    live = _call(f"{base_url}/api/livepresets", "GET")["presets"]
+    empty: tuple[set[str], bool, set[str]] = (set(), False, set())
+    config = _call(f"{base_url}/api/config", "GET")
+    if not isinstance(config, dict):
+        return empty
+    data = config["data"]
+    if not isinstance(data, dict):
+        return empty
+    profiles = data.get("profiles")
+    options = profiles.get("options") if isinstance(profiles, dict) else None
+    livepresets = _call(f"{base_url}/api/livepresets", "GET")
+    if not isinstance(livepresets, dict):
+        return empty
+    live = livepresets["presets"]
+    if not isinstance(live, list):
+        return empty
     # The unnamed default is not a preset a test could have saved, and it is not
     # deletable, so it never belongs in the set that gets diffed for cleanup.
-    presets = {option["value"] for option in options if option.get("value")}
-    return presets, bool(data.get("autosave")), {record["name"] for record in live}
+    presets = {str(option["value"]) for option in options or [] if isinstance(option, dict) and option.get("value")}
+    names = {str(record["name"]) for record in live if isinstance(record, dict)}
+    return presets, bool(data.get("autosave")), names
 
 
 @pytest.fixture(scope="session")

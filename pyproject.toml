@@ -58,7 +58,16 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 # Fakes and shared fixtures live in tests/support/; tests import them bare
 # (`from fake_control import serve`), so both directories go on sys.path.
-pythonpath = ["tests", "tests/support"]
+# scripts/junkcal and scripts/junkburst carry offline tools that are otherwise
+# only mypy-covered (mypy_path below); tests reach them the same bare way.
+pythonpath = [
+    "tests",
+    "tests/support",
+    "scripts/junkcal",
+    "scripts/junkburst",
+    "scripts/junkburst/features",
+    "scripts/junkburst/views",
+]
 markers = [
     "live: requires a reachable hqplayerd (deselect with '-m \"not live\"')",
     "e2e: browser tests driving a real server (deselected by default)",
@@ -127,6 +136,12 @@ forwarders = [
 [tool.filepawl.named_results]
 include = ["hqptuner/**/*.py"]
 
+[tool.filepawl.judge]
+enabled = true
+model = "claude-sonnet-5"
+batch = 6
+timeout = 300
+
 [tool.filepawl.python]
 include = ["**/*.py"]
 mover = "rope"
@@ -164,6 +179,9 @@ force-exclude = "\\.claude/hooks/"
 target-version = ["py312"]
 
 [tool.ruff.lint]
+# Preview rules run only where selected by exact code below.
+preview = true
+explicit-preview-rules = true
 select = [
     "E", "W", "F",      # pycodestyle, pyflakes
     "I",                # isort
@@ -193,6 +211,12 @@ select = [
     "ASYNC",            # async antipatterns: busy-wait loops, timeout parameters
     "BLE",              # blind except: name the exception set or say why not
     "RUF",
+    "RUF029",           # async function that never awaits (preview)
+    "ANN401",           # no explicit Any
+    "TRY003",           # exception message built inside the exception class
+    "EM",               # no literal or f-string message at the raise site
+    "PLC2701",          # no import of another module's private name (preview)
+    "PLR6301",          # method that never uses self (preview)
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
     # tests/ is exempt by decision: docs/testing.md rule 6 already requires a
     # test name to state its behavior in plain words, so a docstring there
@@ -303,3 +327,7 @@ packages = [
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
 hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json"]
+
+[tool.setuptools.exclude-package-data]
+# The eqlab submodule ships only core/, the part the browser imports.
+hqptuner = ["static/vendor/eqlab/src/**/*", "static/vendor/eqlab/tests/**/*", "static/vendor/eqlab/.claude/**/*", "static/vendor/eqlab/.git"]

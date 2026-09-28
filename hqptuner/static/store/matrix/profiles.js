@@ -48,18 +48,17 @@ function stagedSave() {
   }
 }
 
-// The staged delete's profile name. The staged value is either the plain name
-// (no fan-out) or JSON {name, presets} when stored presets were targeted too.
+// The staged delete's profile name. The staged value is always JSON
+// {name, presets}, presets empty when no stored presets are targeted.
 function stagedDeleteName() {
   const value = effective(DELETE);
   if (!value) return null;
   try {
     const parsed = JSON.parse(/** @type {string} */ (value));
-    if (parsed && typeof parsed === "object") return parsed.name;
+    return parsed && typeof parsed === "object" ? parsed.name : null;
   } catch {
-    // not JSON — the value is the name itself
+    return null; // corrupt staged value — treat as nothing staged
   }
-  return value;
 }
 
 export const savedProfiles = computed(() => {
@@ -117,17 +116,19 @@ export function profilePost(name) {
 }
 
 // Rows arrive canonical from effectivePipelines, so they go out as they came.
-// `presets` names the stored presets the verb also fans out to at apply; the
-// no-target payloads keep the original shapes on the wire.
+// `presets` names the stored presets the verb also fans out to at apply; a
+// save with no targets goes on the wire as {name, rows}.
 /** Stage a profile save carrying the given rows, and the stored presets it fans out to. */
 export const stageProfileSave = (
   /** @type {string} */ name,
   /** @type {import("../resolve.js").PipelineRow[]} */ rows,
   /** @type {string[]} */ presets = [],
 ) => edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
+// A delete is always {name, presets} on the wire, `presets` empty when
+// nothing was targeted.
 /** Stage a profile delete, and the stored presets it fans out to. */
 export const stageProfileDelete = (/** @type {string} */ name, /** @type {string[]} */ presets = []) =>
-  edit(DELETE, presets.length ? JSON.stringify({ name, presets }) : name);
+  edit(DELETE, JSON.stringify({ name, presets }));
 
 // Whether a profile save is staged and waiting for an apply. The card's save
 // consequence line follows this: a save that is still staged has not reached

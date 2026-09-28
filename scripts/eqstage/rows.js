@@ -5,11 +5,11 @@
 //
 // Nothing here talks to the daemon: the reads are HQPTuner's own REST surface.
 
-import { parseProcess, serializeProcess } from "../../hqptuner/static/lib/matrixspec.js";
-import { bandToStage, eqTail, resolveChain } from "../eqlab/chain.js";
+import { parseProcess, serializeProcess } from "../../hqptuner/static/vendor/eqlab/core/matrixspec.js";
+import { bandToStage, eqTail, resolveChain } from "../../hqptuner/static/vendor/eqlab/src/chain.js";
 
-/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
-/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../hqptuner/static/vendor/eqlab/core/matrixspec.js").MatrixStage} MatrixStage */
 /** @typedef {import("./post.js").FetchImpl} FetchImpl */
 
 /**
@@ -138,7 +138,7 @@ export async function readBaseline(base, fetchImpl) {
  * `resolveChain` accepts as a chain source. Narrowing it here would duplicate
  * eqlab's source schema in a second place that could drift from it.
  *
- * @param {import("../eqlab/chain.js").ChainSpec & { process?: string }} spec
+ * @param {import("../../hqptuner/static/vendor/eqlab/src/chain.js").ChainSpec & { process?: string }} spec
  * @returns {Promise<MatrixStage[]>}
  */
 export async function resolveEq(spec) {

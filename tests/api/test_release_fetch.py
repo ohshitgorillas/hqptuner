@@ -9,8 +9,10 @@ from typing import Any
 
 import fake_http
 import pytest
-from conftest import spawn_threaded_daemon, wait_for_api
+from apps import wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -37,7 +39,7 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
     https: list[Iterator[dict[str, Any]]] = []
     apps: list[TestClient] = []
 
-    def build(**overrides: Any) -> TestClient:
+    def build(**overrides: object) -> TestClient:
         daemon = spawn_threaded_daemon()
         daemons.append(daemon)
         http = fake_http.spawn(fake_http.state(**overrides))
@@ -52,7 +54,7 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
         )
-        client = TestClient(create_app(cfg))
+        client = TestClient(create_app(cfg, VirtualClock()))
         client.__enter__()
         apps.append(client)
         return client
@@ -66,22 +68,28 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
         next(daemon, None)
 
 
-def test_health_release_is_the_daemon_version_from_the_about_page(dual_client: Callable[..., TestClient]) -> None:
-    client = dual_client()
-    wait_for_api(client, lambda c: c.get("/api/health").json().get("release", "") != "")
-    assert client.get("/api/health").json()["release"] == "6.0.2"
+def test_release_is_empty_when_the_about_page_is_unreachable_but_the_version_when_it_answers(
+    dual_client: Callable[..., TestClient],
+) -> None:
+    working = dual_client()
+    wait_for_api(working, lambda c: c.get("/api/health").json().get("release", "") != "")
+    present = working.get("/api/health").json()["release"]
+    broken = dual_client(_fail_paths=["/about"])
+    _settle(broken)
+    empty = broken.get("/api/health").json()["release"]
+    assert (empty, present) == ("", "6.0.2")
 
 
-def test_release_is_empty_when_the_about_page_is_unreachable(dual_client: Callable[..., TestClient]) -> None:
-    client = dual_client(_fail_paths=["/about"])
-    _settle(client)
-    assert client.get("/api/health").json()["release"] == ""
-
-
-def test_release_is_empty_when_the_about_page_carries_no_version(dual_client: Callable[..., TestClient]) -> None:
-    client = dual_client(_about_body="<html><body><h1>About</h1></body></html>")
-    _settle(client)
-    assert client.get("/api/health").json()["release"] == ""
+def test_release_is_empty_when_the_about_page_carries_no_version_but_the_version_when_it_does(
+    dual_client: Callable[..., TestClient],
+) -> None:
+    working = dual_client()
+    wait_for_api(working, lambda c: c.get("/api/health").json().get("release", "") != "")
+    present = working.get("/api/health").json()["release"]
+    versionless = dual_client(_about_body="<html><body><h1>About</h1></body></html>")
+    _settle(versionless)
+    empty = versionless.get("/api/health").json()["release"]
+    assert (empty, present) == ("", "6.0.2")
 
 
 def test_daemon_still_reachable_when_the_about_page_is_unreachable(dual_client: Callable[..., TestClient]) -> None:

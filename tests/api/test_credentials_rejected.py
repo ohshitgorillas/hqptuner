@@ -13,13 +13,16 @@ three cycles' worth of arrivals have landed is a fresh /config verdict whatever
 the ordering."""
 
 from collections.abc import Callable, Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
-from conftest import spawn_threaded_daemon, wait_for_api
+from apps import advance_app, app_manager, wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -37,14 +40,14 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
     8088 daemon's live state dict — assigning `_refuse_auth` or `_down` on it is
     how a case says the daemon's answer changed with no request from the app.
 
-    ``poll_interval`` is the caller's: a case that needs poll cycles asks for a
-    fast one, and a case that must be the only traffic on the lane parks the
-    background poll out past itself."""
+    ``poll_interval`` is the caller's: a case that must be the only traffic on
+    the lane parks the background poll out past itself; the rest keep the
+    production pacing and advance the clock through the cycles they need."""
     daemons: list[Iterator[int]] = []
     https: list[Iterator[dict[str, Any]]] = []
     apps: list[TestClient] = []
 
-    def build(poll_interval: float = 0.02, **overrides: Any) -> tuple[TestClient, dict[str, Any]]:
+    def build(poll_interval: float | None = None, **overrides: object) -> tuple[TestClient, dict[str, Any]]:
         daemon = spawn_threaded_daemon()
         daemons.append(daemon)
         http = fake_http.spawn(fake_http.state(**overrides))
@@ -63,7 +66,6 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
             hqp_username="u",
             hqp_password="p",
             alarm_threshold=1.0,
-            poll_interval=poll_interval,
             backup_dir=area / "backups",
             preset_dir=area / "presets",
             live_preset_file=area / "live-presets.json",
@@ -73,7 +75,9 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
             matrix_mode_file=area / "matrixmodes.json",
             autopilot_file=area / "autopilot.json",
         )
-        client = TestClient(create_app(cfg))
+        if poll_interval is not None:
+            cfg = replace(cfg, poll_interval=poll_interval)
+        client = TestClient(create_app(cfg, VirtualClock()))
         client.__enter__()
         apps.append(client)
         return client, state
@@ -91,42 +95,32 @@ def _connected(client: TestClient) -> None:
     wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
 
 
-def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, passes: int = 1200) -> None:
-    """Spin on real requests — never a wall-clock sleep — until the 8088 lane has
-    taken `cycles` more poll cycles' worth of arrivals, so whatever the daemon
-    was just told to answer has been read and recorded.
+def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: int = 20) -> None:
+    """Advance the app's clock one poll interval at a time until the 8088 lane
+    has taken `cycles` more poll cycles' worth of arrivals, so whatever the
+    daemon was just told to answer has been read and recorded.
 
-    Requests are what let the app's loop run: a spin that issues none advances
-    the lane's arrival count by zero however long it turns. Two cycles is the
-    smallest settle that cannot land inside the cycle it is waiting on, and the
-    pass bound only turns a lane that stopped polling into a loud failure."""
+    Two cycles is the smallest settle that cannot land inside the cycle it is
+    waiting on, and the poll bound only turns a lane that stopped polling into
+    a loud failure."""
     target = state["_requests"] + cycles * _PER_CYCLE
-    for _ in range(passes):
-        client.get("/api/health")
+    interval = app_manager(client).cfg.poll_interval
+    for _ in range(polls):
         if state["_requests"] >= target:
             return
+        advance_app(client, interval)
     pytest.fail("the 8088 lane took no further polls")
 
 
-def _loaded(client: TestClient, state: dict[str, Any], quiet: int = 50, passes: int = 2000) -> None:
-    """Spin on real requests — never a wall-clock sleep — until the app's startup
-    load has finished and the archive reads it spends have stopped arriving.
+def _loaded(client: TestClient) -> None:
+    """Return once the app's startup load has finished: `ready` says the app has
+    loaded what a caller reads off it, and the settle `wait_for_api` starts with
+    leaves no load in flight, so no archive read of its own is still arriving.
 
     `reachable` is the 4321 handshake, which turns true before the 8088 lane's
     loads have run, so a case that counts archive fetches off its own request
-    has to wait for `ready` — the app has loaded what a caller reads off it —
-    and then for the archive count to hold still across `quiet` further passes.
-    The pass bound only turns a lane that never stops fetching into a loud
-    failure."""
+    has to wait for `ready`."""
     wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
-    still = 0
-    for _ in range(passes):
-        seen = state["_backup_reads"]
-        client.get("/api/health")
-        still = still + 1 if state["_backup_reads"] == seen else 0
-        if still >= quiet:
-            return
-    pytest.fail("the 8088 lane never stopped fetching the archive")
 
 
 def _require_recorded_refusal(client: TestClient) -> None:
@@ -138,8 +132,9 @@ def _require_recorded_refusal(client: TestClient) -> None:
         pytest.fail("the lane never recorded the refusal, so the recorded case never set itself up")
 
 
-def _credentials_ok(client: TestClient) -> Any:
-    return client.get("/api/health").json().get("credentials_ok")
+def _credentials_ok(client: TestClient) -> bool | None:
+    value: bool | None = client.get("/api/health").json().get("credentials_ok")
+    return value
 
 
 def test_health_credentials_ok_reports_unknown_then_accepted_then_refused(
@@ -162,7 +157,7 @@ def test_health_credentials_ok_reports_unknown_then_accepted_then_refused(
     assert (unread, accepted, refused) == (None, True, False)
 
 
-def test_a_credential_refusal_outlives_the_daemon_going_down(
+def test_an_accepted_credential_flips_to_refused_and_the_refusal_outlives_the_daemon_going_down(
     credential_client: CredClient,
 ) -> None:
     # A restore restarts the daemon, so the lane answers 503 on every path for a
@@ -172,11 +167,13 @@ def test_a_credential_refusal_outlives_the_daemon_going_down(
     client, state = credential_client()
     _connected(client)
     _settle(client, state)
+    accepted = _credentials_ok(client)
     state["_refuse_auth"] = True
     _settle(client, state)
     state["_down"] = True
     _settle(client, state)
-    assert _credentials_ok(client) is False
+    survives_the_outage = _credentials_ok(client)
+    assert (survives_the_outage, accepted) == (False, True)
 
 
 @pytest.mark.parametrize(("case", "fetches"), [("recorded", 0), ("unrecorded", 1)])
@@ -199,8 +196,8 @@ def test_a_persistent_apply_fetches_the_archive_once_at_most_when_credentials_ar
     # the same archive, so a count taken while it is still in flight measures
     # its reads as well as the apply's.
     recorded = case == "recorded"
-    client, state = credential_client(poll_interval=0.02 if recorded else 30.0)
-    _loaded(client, state)
+    client, state = credential_client() if recorded else credential_client(poll_interval=30.0)
+    _loaded(client)
     if recorded:
         state["_refuse_auth"] = True
         _settle(client, state)
@@ -212,3 +209,20 @@ def test_a_persistent_apply_fetches_the_archive_once_at_most_when_credentials_ar
     before = state["_backup_reads"]
     client.post("/api/config/apply")
     assert state["_backup_reads"] - before == fetches
+
+
+def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
+    credential_client: CredClient,
+) -> None:
+    # A refusal met mid-pass (nothing on the lane has recorded it yet, so the
+    # apply's own fetch is what meets it) is a failed request: the route lets
+    # `refuse(exc)` answer with the cause's code, and `store.clear()` — which
+    # would drop the staged edit — runs only after a successful apply, never
+    # reached here.
+    client, state = credential_client(poll_interval=30.0)
+    _loaded(client)
+    client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    state["_refuse_auth"] = True
+    resp = client.post("/api/config/apply")
+    pending = client.get("/api/config/pending").json()
+    assert (resp.json()["code"], pending["http"]["title"]) == ("no_credentials", "Renamed")

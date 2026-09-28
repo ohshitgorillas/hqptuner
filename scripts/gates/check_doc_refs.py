@@ -131,10 +131,10 @@ def ordinal_re(stems: list[str]) -> re.Pattern[str]:
 
 def relabel(path: Path) -> str:
     """Repo-relative display path; falls back to whatever was passed in."""
-    try:
-        return str(path.resolve().relative_to(ROOT))
-    except ValueError:
-        return str(path)
+    resolved = path.resolve()
+    if resolved.is_relative_to(ROOT):
+        return str(resolved.relative_to(ROOT))
+    return str(path)
 
 
 def exempt(lines: list[str], index: int) -> bool:
@@ -159,10 +159,15 @@ def resolve(cited: str, available: list[str]) -> str | None:
 def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
     """Every citation problem in one file."""
     problems = []
+    lines: list[str] = []
+    read_ok = True
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
-        return []
+    except (OSError, UnicodeDecodeError) as exc:
+        problems.append(f"{relabel(path)}: unreadable: {exc}")
+        read_ok = False
+    if not read_ok:
+        return problems
     ordinal = ordinal_re([k for k in docs if not k.endswith(".md")])
     label = relabel(path)
     for index, line in enumerate(lines, start=1):

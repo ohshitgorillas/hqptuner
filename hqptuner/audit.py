@@ -23,11 +23,16 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
+
+from hqptuner import audit_narrow, audit_types
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 #: Per-value ceiling. Above this a value is truncated and digested instead.
 MAX_VALUE_BYTES = 131_072
@@ -38,6 +43,21 @@ DEFAULT_MAX_BYTES = 16_000_000
 #: Field names whose value never reaches the log, at any depth.
 _REDACT_KEYS = frozenset({"password", "secret", "token"})
 _REDACTED = "***"
+
+
+@dataclass(frozen=True)
+class AuditRecord:
+    """One parsed JSONL row: HQPTuner's own envelope, and the event's own fields.
+
+    ``fields`` is everything the line carried beyond the envelope — the shape differs per ``event``, which is
+    exactly why it is not itself named field by field here (R1: the envelope is ours to name; the payload is
+    per-emitter and lives in the vocabulary below).
+    """
+
+    seq: int
+    ts: str
+    event: str
+    fields: audit_types.AuditFields
 
 
 def resolve_level(value: str) -> int:
@@ -54,7 +74,11 @@ def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _scrub(value: Any, path: str, digests: dict[str, str]) -> Any:
+def _is_object_map(value: object) -> TypeGuard[dict[str, audit_types.Json]]:
+    return isinstance(value, dict) and all(isinstance(k, str) for k in value)
+
+
+def _scrub(value: audit_types.Json, path: str, digests: dict[str, str]) -> audit_types.Json:
     """``value`` fit to store: secrets replaced, oversized strings truncated.
 
     Walks to any depth, because the interesting payloads arrive nested — a
@@ -84,23 +108,10 @@ def _cap(value: str, path: str, digests: dict[str, str]) -> str:
     return encoded[:MAX_VALUE_BYTES].decode("utf-8", "ignore")
 
 
-def _scrub_member(key: str, value: Any, path: str, digests: dict[str, str]) -> Any:
+def _scrub_member(key: str, value: audit_types.Json, path: str, digests: dict[str, str]) -> audit_types.Json:
     if key.lower() in _REDACT_KEYS and isinstance(value, str):
         return _REDACTED
     return _scrub(value, f"{path}.{key}" if path else key, digests)
-
-
-def _row_count(rows: str) -> int:
-    """Count the pipeline rows ``rows`` carries — 0 when it is not a row set at all.
-
-    A payload that does not parse is exactly what a reader needs to see recorded, so this reports rather than
-    raises.
-    """
-    try:
-        parsed = json.loads(rows)
-    except ValueError:
-        return 0
-    return len(parsed) if isinstance(parsed, list) else 0
 
 
 class AuditLog:
@@ -126,19 +137,39 @@ class AuditLog:
 
     # --- reading -----------------------------------------------------------
 
-    def records(self) -> list[dict[str, Any]]:
+    def records(self) -> list[AuditRecord]:
         """Every record in the CURRENT file, oldest first.
 
         A rotated-away file is deliberately not merged in: this reads what is live, and the rolled copy sits
-        beside it under the same name plus ``.1``.
+        beside it under the same name plus ``.1``. A line that will not parse as JSON is skipped with a warning
+        rather than losing the whole tail behind it — the reader answers with what parsed.
         """
         if self._path is None or not self._path.is_file():
             return []
         lines = self._path.read_text(encoding="utf-8").splitlines()
-        out: list[dict[str, Any]] = [json.loads(line) for line in lines if line.strip()]
+        out: list[AuditRecord] = []
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                raw: object = json.loads(line)
+            except ValueError:
+                log.warning("audit log: skipping a line that will not parse as JSON")
+                continue
+            if not _is_object_map(raw):
+                log.warning("audit log: skipping a line that did not parse to a JSON object")
+                continue
+            data = dict(raw)
+            seq_raw = data.pop("seq", 0)
+            seq = seq_raw if isinstance(seq_raw, int) else 0
+            ts_raw = data.pop("ts", "")
+            ts = ts_raw if isinstance(ts_raw, str) else ""
+            event_raw = data.pop("event", "")
+            event = event_raw if isinstance(event_raw, str) else ""
+            out.append(AuditRecord(seq=seq, ts=ts, event=event, fields=audit_narrow.narrow_fields(data)))
         return out
 
-    def tail(self, n: int) -> list[dict[str, Any]]:
+    def tail(self, n: int) -> list[AuditRecord]:
         """Return the ``n`` most recent records, newest last."""
         return self.records()[-n:] if n > 0 else []
 
@@ -148,7 +179,7 @@ class AuditLog:
         Reopening a log therefore does not restart the counter and make two records look like the same event.
         """
         records = self.records()
-        return int(records[-1].get("seq", 0)) if records else 0
+        return records[-1].seq if records else 0
 
     # --- writing -----------------------------------------------------------
 
@@ -164,12 +195,7 @@ class AuditLog:
         digests: dict[str, str] = {}
         scrubbed = {k: _scrub_member(k, v, "", digests) for k, v in fields.items()}
         self._seq += 1
-        record: dict[str, Any] = {
-            "ts": datetime.now(UTC).isoformat(),
-            "seq": self._seq,
-            "event": event,
-            **scrubbed,
-        }
+        record: dict[str, Any] = {"ts": datetime.now(UTC).isoformat(), "seq": self._seq, "event": event, **scrubbed}
         if digests:
             record["truncated"] = True
             record["full_digests"] = digests
@@ -216,14 +242,21 @@ class AuditLog:
 
         Rows are stored whole alongside their count and digest, so a profile that landed on the wrong name is
         recovered from the log rather than merely described by it. ``replaced`` is read before the edit, because
-        the write is what erases the answer.
+        the write is what erases the answer. A payload that will not parse as JSON records a count of 0 rather
+        than raising: the row set itself is kept verbatim right beside it, so nothing is lost either way.
         """
+        row_count = 0
+        try:
+            parsed = json.loads(rows)
+            row_count = len(parsed) if isinstance(parsed, list) else 0
+        except ValueError:
+            log.warning("profile.write: rows did not parse as JSON")
         self._write(
             "profile.write",
             {
                 "name": name,
                 "rows": rows,
-                "row_count": _row_count(rows),
+                "row_count": row_count,
                 "rows_digest": _digest(rows),
                 "replaced": replaced,
                 "target": target,

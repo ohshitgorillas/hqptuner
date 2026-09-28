@@ -71,7 +71,7 @@ export async function writeLive(field, value) {
   liveBusy.value = field;
   setError(field, "");
   try {
-    const report = await api.live({ [field]: String(value) });
+    const { report } = await api.live({ [field]: String(value) });
     await remirrorLive([field], report);
     setError(field, reportError(report));
   } catch (e) {

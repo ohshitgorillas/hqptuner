@@ -15,13 +15,13 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { structuralLensTraces, StructuralBadge } from "../../../../hqptuner/static/components/xfeed/Structural.js";
 import { lensOn } from "../../../../hqptuner/static/components/xfeed/Comp.js";
-import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
-import { HEAD_RADIUS } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
+import { HEAD_RADIUS } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { staticWire } from "../../support/wire/wire.js";
 
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-6";
 const EQ2 = "iir:type=peak;f=2000;q=1;g=-3";

@@ -41,7 +41,7 @@ PLUGIN_SWITCH = "post_loudness_enabled"
 PLUGIN_SWITCHES = ["post_correction_enabled", "post_bauer_enabled", "post_loudness_enabled"]
 
 
-def cfg(**overrides: Any) -> bytes:
+def cfg(**overrides: object) -> bytes:
     return cfg_xml(state(**overrides))
 
 
@@ -108,26 +108,23 @@ def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix(
 
 
 @pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_matrix_bypassed(
+async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_matrix_switch_as_it_was(
     http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
 ) -> None:
+    # the switch is not merely left at some fixed value, it is left where the
+    # daemon had it. A lane that ignored the key entirely could satisfy only
+    # one side of this.
     http_daemon["matrix_enabled"] = False
     http_daemon[plugin] = False
     await http_manager.applyops.apply({}, {plugin: "1"})
-    assert http_daemon["matrix_enabled"] is False
+    bypassed_stays_bypassed = http_daemon["matrix_enabled"]
 
-
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_engaged_matrix_engaged(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
-) -> None:
-    # the companion of the bypassed case above: the switch is not merely left at
-    # some fixed value, it is left where the daemon had it. A lane that ignored
-    # the key entirely could satisfy one of the pair, never both.
     http_daemon["matrix_enabled"] = True
     http_daemon[plugin] = False
     await http_manager.applyops.apply({}, {plugin: "1"})
-    assert http_daemon["matrix_enabled"] is True
+    engaged_stays_engaged = http_daemon["matrix_enabled"]
+
+    assert (bypassed_stays_bypassed, engaged_stays_engaged) == (False, True)
 
 
 @pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)

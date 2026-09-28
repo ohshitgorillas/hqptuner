@@ -59,7 +59,7 @@ import { StageEditor, setSelected } from "../../../../hqptuner/static/components
 import { SpeakersCard, chooseSet } from "../../../../hqptuner/static/components/speakers/Card.js";
 import { Header } from "../../../../hqptuner/static/components/Header.js";
 import { CrossfeedCard } from "../../../../hqptuner/static/components/xfeed/Card.js";
-import { parseProcess } from "../../../../hqptuner/static/lib/matrixspec.js";
+import { parseProcess } from "../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js";
 import {
   config,
   matrixConfig,
@@ -75,8 +75,8 @@ import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
-import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce, ok } from "../../support/wire/wire.js";
 import { renderWith, controlsIn, wheelAt, formValues } from "../../support/wheel.js";
@@ -353,7 +353,7 @@ async function speakersCard() {
     routes: (path, opts, x) => {
       if (path === "/api/speakers" && opts.method === "POST") {
         x.posts.push(JSON.parse(String(opts.body)));
-        return ok({ applied: true, speakers: SPK });
+        return ok({ report: { applied: true, speakers: SPK } });
       }
       return undefined; // unhandled path: the wire's own fallback answers it
     },

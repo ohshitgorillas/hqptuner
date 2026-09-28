@@ -27,10 +27,10 @@ import { XfeedStrip, xfeedLensTraces, lensOn } from "../../../../hqptuner/static
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { setShowDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { msCompile, fitComp, BAUER_PRESETS } from "../../../../hqptuner/static/lib/xfeed.js";
+import { msCompile, fitComp, BAUER_PRESETS } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
 import { staticWire, stagingWire } from "../../support/wire/wire.js";
 
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";

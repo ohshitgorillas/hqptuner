@@ -23,11 +23,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import wait_for_api
 from audit_records import last, records
-from conftest import wait_for_api
 from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -107,7 +108,7 @@ def autopilot_client(
         hqp_home="/x/home",
         debug_log=audit_log,
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield client
 
@@ -158,26 +159,24 @@ def test_switching_auto_pilot_off_records_the_switch_as_the_source(
     assert first_after(audit_log, mark, "autopilot.set")["source"] == "switch"
 
 
-def test_switching_off_a_store_that_was_on_records_the_previous_state(
+def test_switching_off_records_the_previous_state_whether_it_was_on_or_already_off(
     autopilot_client: TestClient, audit_log: Path
 ) -> None:
     # what it was before, not only what it became: a record of the new state
-    # alone cannot tell a real change from a switch that was already off
+    # alone cannot tell a real change from a switch that was already off. The
+    # pairing case: an implementation that never reads the store and writes
+    # `previous` as the negation of what was asked for answers True for both,
+    # and only a switch-off against an already-off store tells them apart.
     switch_on(autopilot_client)
     mark = highest_seq(audit_log)
     autopilot_client.post("/api/autopilot", json={"enabled": False})
-    assert first_after(audit_log, mark, "autopilot.set")["previous"] is True
+    was_on = first_after(audit_log, mark, "autopilot.set")["previous"]
 
-
-def test_switching_off_a_store_that_was_already_off_records_the_previous_state(
-    autopilot_client: TestClient, audit_log: Path
-) -> None:
-    # the pairing case: an implementation that never reads the store and writes
-    # `previous` as the negation of what was asked for answers True here too,
-    # and only a switch-off against an already-off store tells the two apart
     mark = highest_seq(audit_log)
     autopilot_client.post("/api/autopilot", json={"enabled": False})
-    assert first_after(audit_log, mark, "autopilot.set")["previous"] is False
+    was_already_off = first_after(audit_log, mark, "autopilot.set")["previous"]
+
+    assert (was_already_off, was_on) == (False, True)
 
 
 # --- a live write of the junk filter -----------------------------------------
@@ -191,10 +190,14 @@ def test_a_live_junk_filter_write_records_the_live_write_source(autopilot_client
     assert last(audit_log, "autopilot.set")["source"] == "live.write"
 
 
-def test_a_live_junk_filter_write_records_auto_pilot_as_left_off(autopilot_client: TestClient, audit_log: Path) -> None:
+def test_a_live_junk_filter_write_records_autopilot_as_left_off_but_the_switch_as_asked(
+    autopilot_client: TestClient, audit_log: Path
+) -> None:
     switch_on(autopilot_client)
+    turned_on = last(audit_log, "autopilot.set")["enabled"]
     autopilot_client.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
-    assert last(audit_log, "autopilot.set")["enabled"] is False
+    left_off = last(audit_log, "autopilot.set")["enabled"]
+    assert (left_off, turned_on) == (False, True)
 
 
 def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(

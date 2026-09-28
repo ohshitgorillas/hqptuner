@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -38,7 +39,7 @@ def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | No
         hqp_home="/x/home",
         debug_log=debug_log,
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         yield client
 
 
@@ -82,7 +83,7 @@ def highest_seq(path: Path) -> int:
     return max(int(json.loads(line)["seq"]) for line in lines)
 
 
-def fetched(client: TestClient, **params: Any) -> list[dict[str, Any]]:
+def fetched(client: TestClient, **params: int) -> list[dict[str, Any]]:
     response = client.get("/api/audit", params=params)
     records: list[dict[str, Any]] = response.json()["records"]
     return records

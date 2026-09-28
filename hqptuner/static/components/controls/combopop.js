@@ -9,8 +9,27 @@ import { useEffect, useLayoutEffect } from "preact/hooks";
  *   A preact ref pointed at one of the combobox's own elements.
  */
 
-// Flip above the button only when below can't fit the natural height AND above
-// is roomier; cap to the chosen side minus an 8px viewport margin.
+/**
+ * Flip above the button only when below can't fit the natural height AND above
+ * is roomier; cap to the chosen side minus an 8px viewport margin, 4px clear of
+ * the trigger on either side.
+ * @param {{ top: number, bottom: number }} trigger the trigger's rect
+ * @param {number} natural the pop's uncapped height
+ * @param {number} viewportHeight
+ * @returns {{ top: number, maxHeight: number, scrolls: boolean }}
+ */
+export function verticalPlacement(trigger, natural, viewportHeight) {
+  const below = viewportHeight - trigger.bottom - 4;
+  const above = trigger.top - 4;
+  const up = natural > below - 8 && above > below;
+  const maxHeight = Math.min(natural, (up ? above : below) - 8);
+  return {
+    top: up ? trigger.top - 4 - maxHeight : trigger.bottom + 4,
+    maxHeight,
+    scrolls: natural > maxHeight,
+  };
+}
+
 /**
  * @param {HTMLElement} b the trigger button
  * @param {HTMLElement} p the pop
@@ -20,17 +39,14 @@ function placePop(b, p) {
   p.style.minWidth = `${br.width}px`;
   p.style.maxHeight = ""; // natural height first, then cap for the chosen side
   const natural = p.offsetHeight;
-  const below = window.innerHeight - br.bottom - 4;
-  const above = br.top - 4;
-  const up = natural > below - 8 && above > below;
-  const maxH = Math.min(natural, (up ? above : below) - 8);
+  const { top, maxHeight, scrolls } = verticalPlacement(br, natural, window.innerHeight);
   // The pop sizes shrink-to-fit, so a classic scrollbar would take its width
   // out of the rows and clip the right-pinned marks. Reserve the gutter only
   // when the cap makes the list scroll — an unconditional reserve reads as
   // dead space beside the marks whenever the list fits.
-  p.style.scrollbarGutter = natural > maxH ? "stable" : "auto";
-  p.style.maxHeight = `${maxH}px`;
-  p.style.top = `${up ? br.top - 4 - maxH : br.bottom + 4}px`;
+  p.style.scrollbarGutter = scrolls ? "stable" : "auto";
+  p.style.maxHeight = `${maxHeight}px`;
+  p.style.top = `${top}px`;
   // Right edges flush with the trigger: a pop wider than its button (the
   // grouped Simplified lists) grows leftward into the card, never rightward
   // off it. minWidth above keeps the pop at least trigger-wide, so the
@@ -43,16 +59,25 @@ function placePop(b, p) {
 // every scrollable ancestor — the document included — which shifts the page
 // under a fixed-position pop and detaches it from its button.
 /**
+ * Measured between the two bounding rects, so the pop's padding counts and the
+ * row lands whole inside it.
+ * @param {{ top: number, bottom: number }} popRect the pop's rect
+ * @param {{ top: number, bottom: number }} rowRect the highlighted row's rect
+ * @returns {number} the scrollTop delta that brings the row inside the pop
+ */
+function revealDelta(popRect, rowRect) {
+  if (rowRect.top < popRect.top) return rowRect.top - popRect.top;
+  if (rowRect.bottom > popRect.bottom) return rowRect.bottom - popRect.bottom;
+  return 0;
+}
+
+/**
  * @param {HTMLElement} p the pop
  * @param {Element} row the highlighted row
  */
 function revealRow(p, row) {
-  // Rect deltas, not offsetTop arithmetic — offset coordinates and
-  // clientHeight disagree by the pop's padding and the row ends up clipped.
-  const pr = p.getBoundingClientRect();
-  const rr = row.getBoundingClientRect();
-  if (rr.top < pr.top) p.scrollTop += rr.top - pr.top;
-  else if (rr.bottom > pr.bottom) p.scrollTop += rr.bottom - pr.bottom;
+  const delta = revealDelta(p.getBoundingClientRect(), row.getBoundingClientRect());
+  if (delta) p.scrollTop += delta;
 }
 
 // Tip sits beside the highlighted row: left of the pop, narrowing itself into
@@ -61,19 +86,29 @@ function revealRow(p, row) {
 // the one the markup opens with (Combobox.js TipPop), re-applied here because
 // a narrowed tip must widen back when the same widget reopens with more room.
 /**
+ * The tip takes whichever side of the pop has more room to the viewport edge,
+ * and its width is capped to that room.
+ * @param {number} popLeft the pop's left edge
+ * @param {number} popRight the pop's right edge
+ * @param {number} vw the viewport width
+ * @returns {{ left: boolean, maxWidth: number }} whether the tip sits left of the pop, and its width cap
+ */
+export function tipSide(popLeft, popRight, vw) {
+  const leftRoom = popLeft - 16; // 8px to the pop, 8px viewport margin
+  const rightRoom = vw - popRight - 16;
+  const left = leftRoom >= 240 || leftRoom >= rightRoom;
+  return { left, maxWidth: Math.min(340, Math.max(200, left ? leftRoom : rightRoom)) };
+}
+
+/**
  * @param {HTMLElement} t the tip
  * @param {HTMLElement} p the pop
  * @param {Element} row the highlighted row
  */
 function placeTip(t, p, row) {
   const pr = p.getBoundingClientRect();
-  const leftRoom = pr.left - 16; // 8px to the pop, 8px viewport margin
-  const rightRoom = window.innerWidth - pr.right - 16;
-  // The far side is not automatically roomier: a pop against the right edge of
-  // the page leaves less room there than the narrow gap on the left, and a tip
-  // sized for neither runs off the page. Take the wider side and size to it.
-  const left = leftRoom >= 240 || leftRoom >= rightRoom;
-  t.style.maxWidth = `${Math.min(340, Math.max(200, left ? leftRoom : rightRoom))}px`;
+  const { left, maxWidth } = tipSide(pr.left, pr.right, window.innerWidth);
+  t.style.maxWidth = `${maxWidth}px`;
   const tr = t.getBoundingClientRect();
   const tl = left ? pr.left - tr.width - 8 : pr.right + 8;
   t.style.left = `${Math.max(8, Math.min(tl, window.innerWidth - 8 - tr.width))}px`;

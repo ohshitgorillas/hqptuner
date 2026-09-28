@@ -15,7 +15,8 @@ it for that reason — the user decides when.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from hqptuner.conf import engineconf, presetconf
 from hqptuner.lanes import presetfields, settle
@@ -31,7 +32,25 @@ _VERIFY_WINDOW = 10.0
 _VERIFY_INTERVAL = 0.5
 
 
-async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str, Any]:
+@dataclass(frozen=True)
+class EngineVerification:
+    """An engine-attribute readback: whether every override landed, and the ``<engine>`` attributes last read."""
+
+    applied: bool
+    engine: dict[str, str]
+
+
+@dataclass(frozen=True)
+class EngineAttrsResult:
+    """An engine-attribute restore: its readback, the archive members edited, and the size of the backup it edited."""
+
+    submitted: bool
+    verified: EngineVerification
+    members: list[str]
+    backup_bytes: int
+
+
+async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> EngineVerification:
     """Poll a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
 
     Returns the last-read attributes either way, so a caller can report what actually landed.
@@ -41,15 +60,19 @@ async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str,
     async def probe() -> dict[str, str] | None:
         nonlocal got
         fresh = await settle.fresh_backup(mgr)
-        if fresh is None:
+        try:
+            xml = None if fresh is None else engineconf.base_config_xml(fresh, mgr.readings.active_config)
+        except engineconf.UnreadableArchiveError:
+            xml = None
+        if xml is None:
             return None
-        got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh, mgr.readings.active_config))
+        got = engineconf.read_engine_attrs(xml)
         return got if all(got.get(key) == want for key, want in overrides.items()) else None
 
     # the restore just restarted the daemon — spend the first interval waiting
-    await mgr.sleep(_VERIFY_INTERVAL)
+    await mgr.clock.sleep(_VERIFY_INTERVAL)
     applied = await settle.poll_until(mgr, probe, interval=_VERIFY_INTERVAL, deadline=_VERIFY_WINDOW)
-    return {"applied": applied is not None, "engine": got}
+    return EngineVerification(applied=applied is not None, engine=got)
 
 
 def _with_carried_live_fields(mgr: ConnectionManager, backup: bytes, active: str | None) -> bytes:
@@ -61,10 +84,8 @@ def _with_carried_live_fields(mgr: ConnectionManager, backup: bytes, active: str
     """
     stored = presetfields.carried_live_fields(mgr)
     working = engineconf.base_config_xml(backup, active or None)
-    if not stored or not working:
-        return backup
     member = engineconf.working_member_name(backup, active or None)
-    if member is None:
+    if not stored or not working or member is None:
         return backup
     return engineconf.rewrite_zip(backup, {member: presetconf.apply_edits(working, stored)})
 
@@ -76,7 +97,7 @@ async def apply(
     active: str | None,
     *,
     all_presets: bool,
-) -> dict[str, Any]:
+) -> EngineAttrsResult:
     """Edit ``overrides`` into ``backup``'s ``<engine>`` tags and restore it.
 
     ``all_presets`` edits every snapshot in the archive; otherwise just the base
@@ -99,4 +120,4 @@ async def apply(
     # which is still the dead one the restart left behind. After it rather than before,
     # so verify's own window is unchanged and this only adds the lane it cannot see.
     await settle.await_ready(mgr, mark)
-    return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}
+    return EngineAttrsResult(submitted=True, verified=verified, members=members, backup_bytes=len(backup))

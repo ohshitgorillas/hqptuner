@@ -34,10 +34,12 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
+from hqptuner.presets.store.jsonfile import StoreCorruptError
+from hqptuner.presets.store.narrowing import Facets, NarrowingError, NarrowingSchemaError, NarrowingStore
 
 #: Every facet at its default — the table the feature is specified by.
 DEFAULTS: dict[str, object] = {
@@ -114,8 +116,9 @@ WRONG_TYPE: dict[str, object] = {
 TOO_NEW = 99
 
 #: Content that is not our record: not JSON at all, and JSON that is not an
-#: object. Both read as every facet at its default — a corrupt file loses the
-#: narrowing, it does not brick the narrow bar.
+#: object. Both are refused as corrupt rather than read as every facet at its
+#: default — a damaged file costs the user a clear error naming it, not the
+#: narrowing it silently drops.
 UNREADABLE = ["not json at all {", "[]", '"linear"', "17", "null"]
 
 
@@ -203,7 +206,7 @@ def narrowing_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], Tes
             hqp_password="",
             narrowing_file=tmp_path / "narrowing.json",
         )
-        client = TestClient(create_app(cfg))
+        client = TestClient(create_app(cfg, VirtualClock()))
         clients.append(client)
         client.__enter__()
         return client
@@ -222,12 +225,32 @@ def nar_client(narrowing_api: Callable[[], TestClient]) -> TestClient:
 
 
 def test_reading_a_store_with_no_file_yields_every_facet_at_its_default(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read() == DEFAULTS
+    assert store_at(tmp_path).read() == Facets(
+        genre=[],
+        genre_mode="or",
+        quality=0,
+        focus=[],
+        focus_mode="and",
+        phase=[],
+        length=[],
+        hide_limited="auto",
+        odd_rate_only=False,
+        downsafe_only=False,
+        apod_1x="all",
+        apod_nx="all",
+        lossy_1x="both",
+        src_format="pcm",
+    )
 
 
-def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
+    tmp_path: Path,
+) -> None:
     store_at(tmp_path).read()
-    assert list(tmp_path.iterdir()) == []
+    unwritten = list(tmp_path.iterdir())
+    written_store = NarrowingStore(tmp_path / "never-created" / "narrowing.json")
+    written_store.write(SET)
+    assert (unwritten, (tmp_path / "never-created" / "narrowing.json").is_file()) == ([], True)
 
 
 # --- the round trip ----------------------------------------------------------
@@ -237,7 +260,7 @@ def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
 def test_a_written_facet_reads_back_as_written(tmp_path: Path, facet: str) -> None:
     store = store_at(tmp_path)
     store.write(SET)
-    assert store.read()[facet] == SET[facet]
+    assert getattr(store.read(), facet) == SET[facet]
 
 
 # Order within a genre list is not specified, so both orderings pass: what is
@@ -245,18 +268,12 @@ def test_a_written_facet_reads_back_as_written(tmp_path: Path, facet: str) -> No
 def test_both_entries_of_a_two_genre_write_read_back(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"genre": ["classical", "jazz"]})
-    assert store.read()["genre"] in (["classical", "jazz"], ["jazz", "classical"])
+    assert store.read().genre in (["classical", "jazz"], ["jazz", "classical"])
 
 
 def test_write_answers_with_what_a_following_read_answers(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     assert store.write(SET) == store.read()
-
-
-def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
-    store = NarrowingStore(tmp_path / "never-created" / "narrowing.json")
-    store.write(SET)
-    assert (tmp_path / "never-created" / "narrowing.json").is_file()
 
 
 # --- a partial write ---------------------------------------------------------
@@ -265,55 +282,65 @@ def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> No
 def test_a_partial_write_stores_the_facet_it_names(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"quality": 4})
-    assert store.read()["quality"] == 4
+    assert store.read().quality == 4
 
 
 def test_a_partial_write_stores_the_facets_it_omits_at_their_defaults(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write(SET)
     store.write({"quality": 4})
-    assert store.read() == {**DEFAULTS, "quality": 4}
+    assert store.read() == Facets(
+        genre=[],
+        genre_mode="or",
+        quality=4,
+        focus=[],
+        focus_mode="and",
+        phase=[],
+        length=[],
+        hide_limited="auto",
+        odd_rate_only=False,
+        downsafe_only=False,
+        apod_1x="all",
+        apod_nx="all",
+        lossy_1x="both",
+        src_format="pcm",
+    )
 
 
 # --- what a stored file may hold ---------------------------------------------
 
 
-def test_a_file_holding_only_some_facets_reads_those_facets_as_stored(tmp_path: Path) -> None:
+def test_a_file_holding_only_some_facets_reads_those_stored_and_the_rest_at_their_defaults(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, keep_only({"phase", "quality"}))
-    assert store_at(tmp_path).read()["phase"] == ["linear"]
-
-
-def test_a_file_holding_only_some_facets_reads_the_rest_at_their_defaults(tmp_path: Path) -> None:
-    path = stored(tmp_path, SET)
-    edit_facets(path, keep_only({"phase", "quality"}))
-    assert store_at(tmp_path).read()["length"] == []
+    read = store_at(tmp_path).read()
+    assert (read.phase, read.length) == (["linear"], [])
 
 
 def test_a_key_that_is_not_a_facet_is_ignored_on_read(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("wombat", "yes"))
-    assert "wombat" not in store_at(tmp_path).read()
+    assert "wombat" not in store_at(tmp_path).read().to_json()
 
 
 @pytest.mark.parametrize("facet", sorted(WRONG_TYPE))
 def test_a_wrong_typed_stored_facet_reads_as_its_default(tmp_path: Path, facet: str) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to(facet, WRONG_TYPE[facet]))
-    assert store_at(tmp_path).read()[facet] == DEFAULTS[facet]
+    assert getattr(store_at(tmp_path).read(), facet) == DEFAULTS[facet]
 
 
 def test_a_wrong_typed_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("quality", "4"))
-    assert store_at(tmp_path).read()["phase"] == ["linear"]
+    assert store_at(tmp_path).read().phase == ["linear"]
 
 
 @pytest.mark.parametrize("facet", sorted(OUT_OF_DOMAIN))
 def test_an_out_of_domain_stored_facet_reads_as_its_default(tmp_path: Path, facet: str) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to(facet, OUT_OF_DOMAIN[facet]))
-    assert store_at(tmp_path).read()[facet] == DEFAULTS[facet]
+    assert getattr(store_at(tmp_path).read(), facet) == DEFAULTS[facet]
 
 
 # The retired half of a merged genre option: pop and rock became one option
@@ -322,19 +349,26 @@ def test_an_out_of_domain_stored_facet_reads_as_its_default(tmp_path: Path, face
 def test_a_stored_retired_rock_genre_reads_as_the_genre_default(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("genre", ["rock"]))
-    assert store_at(tmp_path).read()["genre"] == DEFAULTS["genre"]
+    assert store_at(tmp_path).read().genre == DEFAULTS["genre"]
 
 
 def test_an_out_of_domain_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("phase", ["banana"]))
-    assert store_at(tmp_path).read()["length"] == ["long"]
+    assert store_at(tmp_path).read().length == ["long"]
+
+
+def _corrupt_code(tmp_path: Path) -> str:
+    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
+    with pytest.raises(StoreCorruptError) as caught:
+        store_at(tmp_path).read()
+    return caught.value.code
 
 
 @pytest.mark.parametrize("content", UNREADABLE)
-def test_a_file_that_is_not_our_record_reads_as_every_facet_at_its_default(tmp_path: Path, content: str) -> None:
+def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
     seed(tmp_path, content)
-    assert store_at(tmp_path).read() == DEFAULTS
+    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 # --- what a write may carry ---------------------------------------------------
@@ -355,7 +389,7 @@ def test_a_write_carrying_the_retired_rock_genre_is_refused(tmp_path: Path) -> N
 def test_the_merged_pop_genre_is_written_and_read_back(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"genre": ["pop"]})
-    assert store.read()["genre"] == ["pop"]
+    assert store.read().genre == ["pop"]
 
 
 @pytest.mark.parametrize("facet", sorted(WRONG_TYPE))
@@ -393,7 +427,7 @@ def test_a_write_of_a_retired_rate_facet_is_refused(tmp_path: Path, legacy: str)
 def test_a_stored_retired_rate_facet_does_not_surface_on_read(tmp_path: Path, legacy: str) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to(legacy, RETIRED[legacy]))
-    assert legacy not in store_at(tmp_path).read()
+    assert legacy not in store_at(tmp_path).read().to_json()
 
 
 def drop_new_switches(facets: dict[str, Any]) -> None:
@@ -413,12 +447,12 @@ def test_a_legacy_rate_file_reads_the_replacement_switch_at_its_default(
 ) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, drop_new_switches)
-    assert store_at(tmp_path).read()[switch] == default
+    assert getattr(store_at(tmp_path).read(), switch) == default
 
 
 def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path: Path) -> None:
     answered = store_at(tmp_path).write({"hide_limited": "on"})
-    assert {"hide_limited", "odd_rate_only", "downsafe_only"} <= answered.keys()
+    assert {"hide_limited", "odd_rate_only", "downsafe_only"} <= answered.to_json().keys()
 
 
 # --- the multi-select facets --------------------------------------------------
@@ -456,25 +490,25 @@ def test_a_write_of_the_old_scalar_shape_is_refused_naming_the_facet(tmp_path: P
 def test_a_write_of_the_no_phase_token_is_stored_and_read_back(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"phase": [""]})
-    assert store.read()["phase"] == [""]
+    assert store.read().phase == [""]
 
 
 def test_a_write_of_the_no_phase_token_beside_a_named_phase_reads_back_whole(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"phase": ["linear", ""]})
-    assert store.read()["phase"] == ["linear", ""]
+    assert store.read().phase == ["linear", ""]
 
 
 def test_a_write_of_the_unspecified_length_token_is_stored_and_read_back(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"length": [""]})
-    assert store.read()["length"] == [""]
+    assert store.read().length == [""]
 
 
 def test_a_write_of_the_unspecified_length_token_beside_a_named_length_reads_back_whole(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write({"length": ["", "medium"]})
-    assert store.read()["length"] == ["", "medium"]
+    assert store.read().length == ["", "medium"]
 
 
 # The length domain also carries the overlay-era picks: "stupid" and "xshort"
@@ -487,7 +521,7 @@ def test_a_write_of_the_unspecified_length_token_beside_a_named_length_reads_bac
 def test_a_write_of_an_overlay_era_length_pick_is_stored_and_read_back(tmp_path: Path, token: str) -> None:
     store = store_at(tmp_path)
     store.write({"length": [token]})
-    assert store.read()["length"] == [token]
+    assert store.read().length == [token]
 
 
 # The length domain is closed everywhere else: widening it by one real pick did
@@ -498,25 +532,29 @@ def test_a_length_write_holding_an_unknown_token_is_refused_naming_the_facet(tmp
 
 
 @pytest.mark.parametrize("facet", ["phase", "length"])
-def test_a_stored_bare_string_reads_as_the_empty_selection(tmp_path: Path, facet: str) -> None:
+def test_a_stored_bare_string_reads_as_the_empty_selection_but_a_two_entry_write_reads_back_whole(
+    tmp_path: Path, facet: str
+) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to(facet, LIST_FACETS[facet]))
-    assert store_at(tmp_path).read()[facet] == []
-
-
-@pytest.mark.parametrize("facet", ["phase", "length"])
-def test_a_file_holding_no_entry_for_the_facet_reads_as_the_empty_selection(tmp_path: Path, facet: str) -> None:
-    path = stored(tmp_path, SET)
-    edit_facets(path, keep_only({"quality"}))
-    assert store_at(tmp_path).read()[facet] == []
-
-
-@pytest.mark.parametrize("facet", ["phase", "length"])
-def test_a_two_entry_write_reads_back_whole(tmp_path: Path, facet: str) -> None:
+    bare = getattr(store_at(tmp_path).read(), facet)
     picks = ["linear", "minimum"] if facet == "phase" else ["short", "xlong"]
     store = store_at(tmp_path)
     store.write({facet: picks})
-    assert store.read()[facet] == picks
+    assert (bare, getattr(store.read(), facet)) == ([], picks)
+
+
+@pytest.mark.parametrize("facet", ["phase", "length"])
+def test_a_file_holding_no_entry_for_the_facet_reads_as_the_empty_selection_but_a_two_entry_write_reads_back_whole(
+    tmp_path: Path, facet: str
+) -> None:
+    path = stored(tmp_path, SET)
+    edit_facets(path, keep_only({"quality"}))
+    missing = getattr(store_at(tmp_path).read(), facet)
+    picks = ["linear", "minimum"] if facet == "phase" else ["short", "xlong"]
+    store = store_at(tmp_path)
+    store.write({facet: picks})
+    assert (missing, getattr(store.read(), facet)) == ([], picks)
 
 
 # The cap is on the list's length exactly as given: the store does not
@@ -533,7 +571,7 @@ def test_a_write_of_exactly_32_entries_reads_back_whole(tmp_path: Path, facet: s
     value = LIST_FACETS[facet]
     store = store_at(tmp_path)
     store.write({facet: [value] * 32})
-    assert store.read()[facet] == [value] * 32
+    assert getattr(store.read(), facet) == [value] * 32
 
 
 # --- the on-disk layout stamp ------------------------------------------------
@@ -570,7 +608,7 @@ def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp
 
 def test_an_unstamped_file_is_read_rather_than_refused(tmp_path: Path) -> None:
     unstamp(stored(tmp_path, SET))
-    assert store_at(tmp_path).read()["phase"] == ["linear"]
+    assert store_at(tmp_path).read().phase == ["linear"]
 
 
 # The stamp is the one number here that is not free to move. Every narrowing
@@ -585,19 +623,15 @@ def test_an_unstamped_file_is_read_rather_than_refused(tmp_path: Path) -> None:
 RELEASED_SCHEMA = 1
 
 
-def test_a_file_stamped_by_the_released_hqptuner_still_reads_its_facets(tmp_path: Path) -> None:
-    restamp(stored(tmp_path, SET), RELEASED_SCHEMA)
-    assert store_at(tmp_path).read()["quality"] == SET["quality"]
-
-
 # The real shape of such a file: stamped by the release, holding the scalar
 # phase that release stored. It loads, and the entry the new domain cannot take
-# falls back to the empty selection.
-def test_a_released_file_holding_the_old_scalar_phase_still_loads(tmp_path: Path) -> None:
+# falls back to the empty selection, while the release's other facets still read.
+def test_a_released_file_holding_the_old_scalar_phase_still_loads_but_reads_its_other_facets(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("phase", "linear"))
     restamp(path, RELEASED_SCHEMA)
-    assert store_at(tmp_path).read()["phase"] == []
+    read = store_at(tmp_path).read()
+    assert (read.phase, read.quality) == ([], SET["quality"])
 
 
 # Any stamp at all is not enough: the number a write puts on the file has to be
@@ -613,7 +647,7 @@ def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) 
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     restamp(stored(elsewhere, {"phase": ["minimum"]}), stamp)
-    assert store_at(elsewhere).read()["phase"] == ["minimum"]
+    assert store_at(elsewhere).read().phase == ["minimum"]
 
 
 # --- the REST pair -----------------------------------------------------------

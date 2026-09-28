@@ -12,18 +12,52 @@ their behalf that they may not do it right now (project rule: never idle-gate a
 user action).
 """
 
-from typing import Annotated, Any
+import contextlib
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
+from typing import Annotated
 
+import httpx
 from fastapi import Depends, Request
 
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, InvalidInputError, NotLoadedError, refuse
+from hqptuner.conf.xmledit import GroundingError
+from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
+from hqptuner.presets.presetlane import PresetSaveResult
+
+
+class NoCredentialsConfiguredError(ErrorBody):
+    """No hqplayerd management credentials were ever configured, so the 8088 lane does not exist."""
+
+    code = "no_credentials"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("no hqplayerd credentials configured")
+
+
+class GetFormFailedError(ErrorBody):
+    """A polled 8088 form's own GET failed, naming which form and the underlying error."""
+
+    code = "daemon_read_failed"
+
+    def __init__(self, *, label: str, error: str) -> None:
+        """Render the wording naming the failed form's ``label`` and the ``error`` it answered with."""
+        super().__init__(f"GET {label} failed: {error}")
 
 
 def manager_of(request: Request) -> ConnectionManager:
     """Return the app's connection manager. Reads never touch the socket."""
     mgr: ConnectionManager = request.app.state.manager
     return mgr
+
+
+def config_of(request: Request) -> Config:
+    """Return the app's own ``Config``, the one it was built from — never a fresh default."""
+    cfg: Config = request.app.state.config
+    return cfg
 
 
 def require_credentials(request: Request) -> None:
@@ -37,7 +71,7 @@ def require_credentials(request: Request) -> None:
     after the pair arrived.
     """
     if manager_of(request).http_client is None:
-        raise refuse("no_credentials", "no hqplayerd credentials configured")
+        raise refuse(NoCredentialsConfiguredError())
 
 
 def _http_manager(request: Request) -> ConnectionManager:
@@ -47,26 +81,91 @@ def _http_manager(request: Request) -> ConnectionManager:
 
 Mgr = Annotated[ConnectionManager, Depends(manager_of)]
 HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
+Cfg = Annotated[Config, Depends(config_of)]
 
 
-def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
+@dataclass(frozen=True)
+class Snapshot[T]:
+    """Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded."""
+
+    stale: bool
+    loaded_at: float | None
+    data: T
+
+
+def snapshot[T](manager: ConnectionManager, data: T | None) -> Snapshot[T]:
     """Serve last-loaded state, flagged stale when the daemon is unreachable.
 
     Never a socket wait (connection-manager fail-fast rule).
     """
     if data is None:
-        raise refuse("not_loaded", "not yet loaded from daemon")
-    return {"stale": not manager.reachable, "loaded_at": manager.readings.loaded_at, "data": data}
+        raise refuse(NotLoadedError())
+    return Snapshot(not manager.reachable, manager.readings.loaded_at, data)
 
 
-def ensure_form(form: dict[str, Any] | None, error: str | None, label: str) -> dict[str, Any]:
+@dataclass(frozen=True)
+class WithAutosave[T]:
+    """A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded."""
+
+    report: T
+    autosaved: PresetSaveResult | None
+
+    @classmethod
+    def from_json(cls, body: Mapping[str, object]) -> "WithAutosave[object]":
+        """Read an answer back into its two halves: the report, and the fold."""
+        folded = body["autosaved"]
+        if not isinstance(folded, Mapping):
+            return WithAutosave(body["report"], None)
+        name, warning = folded.get("name"), folded.get("warning")
+        autosaved = PresetSaveResult(
+            name=name if isinstance(name, str) else "",
+            warning=warning if isinstance(warning, str) else None,
+        )
+        return WithAutosave(body["report"], autosaved)
+
+
+@dataclass(frozen=True)
+class WithSaved[T]:
+    """A write's report, and the named preset save that followed it."""
+
+    report: T
+    saved: PresetSaveResult
+
+
+@contextlib.contextmanager
+def preset_refusals() -> Iterator[None]:
+    """Refuse a preset load, save or auto-save the daemon failed, with the code a load answers.
+
+    ``ControlError`` and ``PresetError`` carry their own codes to the registered handler; the two failures that do
+    not are mapped here, so every preset write answers a daemon failure the same way.
+    """
+    try:
+        yield
+    except httpx.HTTPError as exc:
+        raise refuse(DaemonReadFailedError(error=exc)) from exc
+    except GroundingError as exc:
+        raise refuse(InvalidInputError(error=exc)) from exc
+
+
+async def with_autosave[T](report: T, manager: ConnectionManager) -> WithAutosave[T]:
+    """Fold a clean write into the active preset when auto-save is armed, and carry the fold beside the report.
+
+    A fold that fails refuses the request with the save's own code, as a standalone save does.
+    """
+    with preset_refusals():
+        autosaved = await presetlane.autosave(manager)
+    return WithAutosave(report, autosaved)
+
+
+def ensure_form[F](form: F | None, error: str | None, label: str) -> F:
     """Return a polled 8088 form, or the honest reason it is missing.
 
     502 when the fetch itself failed (the daemon answered badly), 503 when nothing has been loaded yet (the first poll
-    has not landed). Returns the form so callers can build a response off it without re-checking for None.
+    has not landed). Returns the form so callers can build a response off it without re-checking for None. ``F`` is
+    presence, never shape: the form's own snapshot type rides through unchanged.
     """
     if form is not None:
         return form
     if error:
-        raise refuse("daemon_read_failed", f"GET {label} failed: {error}")
-    raise refuse("not_loaded", "not yet loaded from daemon")
+        raise refuse(GetFormFailedError(label=label, error=error))
+    raise refuse(NotLoadedError())

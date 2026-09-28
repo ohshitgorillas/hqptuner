@@ -157,10 +157,7 @@ def main() -> int:
             print(f"hard-wrapped: {path}")
         return 1 if bad else 0
 
-    try:
-        payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
-        return 0
+    payload = json.load(sys.stdin)
     target = (payload.get("tool_input") or {}).get("file_path")
     if not target or not _offenders([target]):
         return 0

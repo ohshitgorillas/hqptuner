@@ -18,8 +18,10 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from conftest import spawn_threaded_daemon, wait_for_api
+from apps import wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -40,7 +42,7 @@ def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, _reachable)
         yield client
 
@@ -86,7 +88,7 @@ def test_an_edit_to_the_dormant_sdm_chain_is_reported_as_held(
 ) -> None:
     client = chain_api(mode="1")
     resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["stored"] == {field: value}
+    assert resp.json()["report"]["stored"] == {field: value}
 
 
 @pytest.mark.parametrize(("field", "value"), [("filter1x", "40"), ("filter", "25"), ("dither", "5")])
@@ -95,7 +97,7 @@ def test_an_edit_to_the_dormant_pcm_chain_is_reported_as_held(
 ) -> None:
     client = chain_api(mode="2")
     resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["stored"] == {field: value}
+    assert resp.json()["report"]["stored"] == {field: value}
 
 
 def test_a_held_filter_edit_leaves_the_running_filter_alone(chain_api: Callable[..., TestClient]) -> None:
@@ -125,7 +127,7 @@ def test_an_edit_is_held_when_no_chain_can_be_named(
     # chain's edit can be resolved — holding both beats refusing the page.
     client = chain_api(mode="0", _active_mode="")
     resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["stored"] == {field: value}
+    assert resp.json()["report"]["stored"] == {field: value}
 
 
 # --- an edit to the chain the engine IS running -------------------------------
@@ -134,13 +136,18 @@ def test_an_edit_is_held_when_no_chain_can_be_named(
 def test_an_edit_to_the_loaded_chain_is_reported_as_applied(chain_api: Callable[..., TestClient]) -> None:
     client = chain_api(mode="1")
     resp = client.post("/api/config/live", json={"fields": {"filter": "40"}})
-    assert resp.json()["live"] == [{"setting": "filter", "ok": True}]
+    assert resp.json()["report"]["live"] == [{"setting": "filter", "ok": True}]
 
 
-def test_an_edit_to_the_loaded_chain_holds_nothing(chain_api: Callable[..., TestClient]) -> None:
-    client = chain_api(mode="1")
-    resp = client.post("/api/config/live", json={"fields": {"filter": "40"}})
-    assert resp.json()["stored"] == {}
+def test_an_edit_to_the_loaded_chain_holds_nothing_while_a_dormant_edit_is_held(
+    chain_api: Callable[..., TestClient],
+) -> None:
+    loaded = chain_api(mode="1")
+    loaded_resp = loaded.post("/api/config/live", json={"fields": {"filter": "40"}})
+    dormant = chain_api(mode="1")
+    dormant_resp = dormant.post("/api/config/live", json={"fields": {"oversampling1x": "38"}})
+    loaded_stored, dormant_stored = loaded_resp.json()["report"]["stored"], dormant_resp.json()["report"]["stored"]
+    assert (loaded_stored, dormant_stored) == ({}, {"oversampling1x": "38"})
 
 
 # --- what is still refused ----------------------------------------------------

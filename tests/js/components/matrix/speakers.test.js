@@ -30,15 +30,15 @@ import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.
 import { effective, effectivePipelines } from "../../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../../../hqptuner/static/lib/xfeed.js";
-import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
-import { HEAD_RADIUS } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
+import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
+import { HEAD_RADIUS } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { structuralBlock } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { ok, bad, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
@@ -59,7 +59,7 @@ function wire() {
     routes: (path, opts, w) => {
       if (path === "/api/speakers" && opts.method === "POST") {
         w.posts.push(JSON.parse(String(opts.body)));
-        return ok({ applied: true, speakers: SPK });
+        return ok({ report: { applied: true, speakers: SPK } });
       }
       return undefined; // unhandled path: the wire's own fallback answers it
     },

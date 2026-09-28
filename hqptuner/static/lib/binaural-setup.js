@@ -30,7 +30,7 @@
 // carries post_bauer_enabled) has to be visible for the same reason.
 
 /**
- * @typedef {import("./matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  *   A type-only reference: JSDoc `import()` is erased, so this file still pulls
  *   in nothing at runtime (see the header).
  * @typedef {string | number | boolean | undefined} ConfigValue

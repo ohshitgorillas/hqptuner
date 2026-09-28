@@ -66,21 +66,29 @@ function callFor(path) {
   return call;
 }
 
-// Routes are keyed "METHOD /path"; anything unrouted gets a minimal valid
-// answer so the surrounding flow (refreshConfig after a delete/save) completes.
+// The minimal valid answer for a path no case routed, so the surrounding
+// flow (refreshConfig after a delete/save) completes.
+/**
+ * @param {string} path
+ * @returns {FakeResponse}
+ */
+function defaultAnswerFor(path) {
+  if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
+  if (path === "/api/config") return ok({ data: config.value });
+  if (path === "/api/matrix") return ok({ data: matrixConfig.value });
+  if (path === "/api/enumerations") return ok({ data: null });
+  if (path === "/api/config/apply") return ok({ report: {} });
+  return ok({});
+}
+
+// Routes are keyed "METHOD /path"; anything unrouted falls back to defaultAnswerFor.
 /** @param {Record<string, FakeResponse>} [routes] */
 function wire(routes = {}) {
   CALLS.length = 0;
   env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     const method = opts.method || "GET";
     CALLS.push({ path, method, body: opts.body ? JSON.parse(opts.body) : null });
-    const hit = routes[`${method} ${path}`];
-    if (hit) return hit;
-    if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
-    if (path === "/api/config") return ok({ data: config.value });
-    if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-    if (path === "/api/enumerations") return ok({ data: null });
-    return ok({});
+    return routes[`${method} ${path}`] || defaultAnswerFor(path);
   };
 }
 
@@ -238,7 +246,7 @@ test("test_deleting_a_blank_name_is_a_no_op", async () => {
 // --- savePresetOnly ---------------------------------------------------------------
 
 test("test_a_standalone_save_posts_the_preset_name", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
+  await reset({ routes: { "POST /api/profile/save": ok({ name: "P" }) } });
   await savePresetOnly("P");
   assert.equal(callFor("/api/profile/save").body?.name, "P");
 });
@@ -262,33 +270,33 @@ function verdict(signal) {
 }
 
 test("test_a_successful_standalone_save_is_reported_as_saved", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
+  await reset({ routes: { "POST /api/profile/save": ok({ name: "P" }) } });
   await savePresetOnly("P");
   assert.equal(verdict(lastApply).code, "saved");
 });
 
 test("test_a_successful_standalone_save_is_ok", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
+  await reset({ routes: { "POST /api/profile/save": ok({ name: "P" }) } });
   await savePresetOnly("P");
   assert.equal(verdict(lastApply).ok, true);
 });
 
 test("test_a_standalone_save_the_server_refused_is_reported_as_failed", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: false, error: "disk" }) } });
-  await savePresetOnly("P");
-  assert.equal(verdict(lastApply).save, "failed");
+  await reset({ routes: { "POST /api/profile/save": bad(502, "disk") } });
+  await savePresetOnly("P").catch(() => {});
+  assert.equal(verdict(lastApply).code, "lane-failed");
 });
 
 test("test_a_failed_standalone_save_is_not_ok", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: false, error: "disk" }) } });
-  await savePresetOnly("P");
+  await reset({ routes: { "POST /api/profile/save": bad(502, "disk") } });
+  await savePresetOnly("P").catch(() => {});
   assert.equal(verdict(lastApply).ok, false);
 });
 
 test("test_a_standalone_save_refreshes_the_active_preset", async () => {
   await reset({
     routes: {
-      "POST /api/profile/save": ok({ name: "P", ok: true }),
+      "POST /api/profile/save": ok({ name: "P" }),
       "GET /api/config": ok({ data: { fields: [], file: {}, active: "P" } }),
     },
   });
@@ -308,7 +316,7 @@ test("test_a_rejected_save_request_leaves_a_lane_failure_verdict", async () => {
 });
 
 test("test_the_save_lane_releases_the_applying_flag", async () => {
-  await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
+  await reset({ routes: { "POST /api/profile/save": ok({ name: "P" }) } });
   await savePresetOnly("P");
   assert.equal(applying.value, false);
 });

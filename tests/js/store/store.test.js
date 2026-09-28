@@ -35,7 +35,7 @@ import {
   discardAll,
   stagePipelines,
 } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../support/wire/wire.js";
+import { bad, ok, stagingWire } from "../support/wire/wire.js";
 
 /**
  * One /config or /matrix form field, as `field()` below builds it. `value` is a
@@ -66,12 +66,13 @@ import { ok, stagingWire } from "../support/wire/wire.js";
  */
 const env = globalThis;
 
-// Fake wire. `apply` is the body /api/config/apply answers with; every other
-// path gets a minimal valid response so the surrounding flow completes.
-/** @param {{ apply?: unknown, staged?: { live: unknown, http: unknown } }} [seams] */
-function route({ apply = {}, staged = { live: {}, http: {} } } = {}) {
+// Fake wire. `apply` is the report /api/config/apply answers with and `saved`
+// the preset save beside it, or `refusal` the refusal it answers instead; every
+// other path gets a minimal valid response so the surrounding flow completes.
+/** @param {{ apply?: unknown, saved?: unknown, refusal?: unknown, staged?: { live: unknown, http: unknown } }} [seams] */
+function route({ apply = {}, saved = undefined, refusal = null, staged = { live: {}, http: {} } } = {}) {
   env.fetch = async (/** @type {string} */ path) => {
-    if (path === "/api/config/apply") return ok(apply);
+    if (path === "/api/config/apply") return refusal || ok(saved ? { report: apply, saved } : { report: apply });
     if (path === "/api/config/stage") return ok(staged);
     if (path === "/api/config/pending") return ok(staged);
     if (path === "/api/config") return ok({ data: config.value });
@@ -294,7 +295,8 @@ test("test_several_failed_live_settings_are_listed", async () => {
 test("test_a_live_failure_outranks_a_failed_switch_and_a_failed_save", async () => {
   await trees();
   route({
-    apply: { live: [{ setting: "a", ok: false }], switched: { name: "N", active: false }, saved: { ok: false } },
+    apply: { live: [{ setting: "a", ok: false }], switched: { name: "N", active: false } },
+    saved: { ok: false },
   });
   await applyAll();
   assert.equal(verdict(lastApply).code, "live-failed");
@@ -476,7 +478,7 @@ test("test_a_switch_and_edits_are_reported_together", async () => {
 test("test_a_successful_save_rides_alongside_the_apply", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: true, name: "P" } } });
+  route({ saved: { name: "P" } });
   await applyAll();
   assert.equal(verdict(lastApply).save, "ok");
 });
@@ -484,48 +486,27 @@ test("test_a_successful_save_rides_alongside_the_apply", async () => {
 test("test_a_failed_save_is_appended_and_makes_the_apply_not_ok", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
+  route({ refusal: bad(502, "disk") });
+  await applyAll().catch(() => {});
   assert.equal(verdict(lastApply).ok, false);
 });
 
 test("test_a_failed_save_is_reported_as_failed", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).save, "failed");
+  route({ refusal: bad(502, "disk") });
+  await applyAll().catch(() => {});
+  assert.equal(verdict(lastApply).code, "lane-failed");
 });
-
-// A failed save decorates the base verdict rather than replacing it: the
-// sentence is the base apply's own sentence plus the save failure, and the
-// code stays the base outcome's. The base sentence is read off a save-free run
-// of the same apply, so no owner wording is pinned — only the composition.
 
 // As with the persistent lane's daemon error above: the error string is
 // test-invented, so asserting it back pins no shipped wording.
 test("test_the_save_errors_own_text_reaches_the_user", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
+  route({ refusal: bad(502, "disk") });
+  await applyAll().catch(() => {});
   assert.ok(String(verdict(lastApply).text).includes("disk"));
-});
-
-test("test_a_failed_save_keeps_the_applied_code", async () => {
-  await trees();
-  await discardAll();
-  route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).code, "applied");
-});
-
-test("test_a_failed_save_keeps_the_switched_code", async () => {
-  await trees();
-  await discardAll();
-  route({ apply: { switched: { name: "N", active: true }, saved: { ok: false, name: "P", error: "disk" } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).code, "switched");
 });
 
 // A WARNED save is a save: only hqplayerd's own mirror of the preset is behind,
@@ -535,7 +516,7 @@ test("test_a_failed_save_keeps_the_switched_code", async () => {
 test("test_a_warned_save_is_reported_as_warned", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: true, name: "P", warning: "list not updated" } } });
+  route({ saved: { name: "P", warning: "list not updated" } });
   await applyAll();
   assert.equal(verdict(lastApply).save, "warned");
 });
@@ -543,7 +524,7 @@ test("test_a_warned_save_is_reported_as_warned", async () => {
 test("test_a_warned_save_is_still_ok", async () => {
   await trees();
   await discardAll();
-  route({ apply: { saved: { ok: true, name: "P", warning: "list not updated" } } });
+  route({ saved: { name: "P", warning: "list not updated" } });
   await applyAll();
   assert.equal(verdict(lastApply).ok, true);
 });

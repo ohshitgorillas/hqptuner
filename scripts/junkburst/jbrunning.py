@@ -28,7 +28,7 @@ import numpy as np
 from jbconfig import HEADLINE_WINDOW
 from jbcurves import Grid, content_curves, median_smooth, musical_frames
 from jbderived import load_burst, musical_groups, summed_db
-from jbframeonlyscore import PLATEAU_SMOOTH_BINS, _band_slope, _median_band, _steady_bursts
+from jbframeonlyscore import PLATEAU_SMOOTH_BINS, band_slope, median_band, steady_bursts
 
 #: Where the report is written, and the command that writes it.
 REPORT = Path(__file__).resolve().parents[2] / ".junkburst-report-running.md"
@@ -77,8 +77,8 @@ def _step_reading(frames: np.ndarray, grid: Grid) -> tuple[np.ndarray, np.ndarra
     best_hz = np.full(n, np.nan, dtype=np.float64)
     any_valid = False
     for hz in STEP_SWEEP_HZ:
-        lower = _median_band(frames, grid, hz - STEP_BAND_HZ, hz)
-        upper = _median_band(frames, grid, hz, hz + STEP_BAND_HZ)
+        lower = median_band(frames, grid, hz - STEP_BAND_HZ, hz)
+        upper = median_band(frames, grid, hz, hz + STEP_BAND_HZ)
         if lower is None or upper is None:
             continue
         any_valid = True
@@ -178,9 +178,9 @@ def _burst_calc(entry: dict[str, str]) -> BurstCalc:
         hz = mean_hz[i]
         if not np.isfinite(hz):
             continue
-        b = _band_slope(smooth_mean[i], grid, hz - SLOPE_GAP_HZ - SLOPE_SPAN_HZ, hz - SLOPE_GAP_HZ)
-        a = _band_slope(smooth_mean[i], grid, hz - ACROSS_HALF_HZ, hz + ACROSS_HALF_HZ)
-        v = _band_slope(smooth_mean[i], grid, hz + SLOPE_GAP_HZ, hz + SLOPE_GAP_HZ + SLOPE_SPAN_HZ)
+        b = band_slope(smooth_mean[i], grid, hz - SLOPE_GAP_HZ - SLOPE_SPAN_HZ, hz - SLOPE_GAP_HZ)
+        a = band_slope(smooth_mean[i], grid, hz - ACROSS_HALF_HZ, hz + ACROSS_HALF_HZ)
+        v = band_slope(smooth_mean[i], grid, hz + SLOPE_GAP_HZ, hz + SLOPE_GAP_HZ + SLOPE_SPAN_HZ)
         below[i], across[i], above[i] = b, a, v
         if np.isfinite(b) and np.isfinite(a) and np.isfinite(v):
             break_val[i] = min(b - a, v - a)
@@ -216,7 +216,7 @@ def _resolve(bc: BurstCalc, point: Point) -> Outcome:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and resolve it at every sweep point."""
-    bursts = _steady_bursts()
+    bursts = steady_bursts()
     corpus = Corpus()
     for n, entry in enumerate(bursts, 1):
         stamp, track, label = entry["stamp"], entry["track"], entry["label"]

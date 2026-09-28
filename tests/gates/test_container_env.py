@@ -19,9 +19,9 @@ Seams are ``path_fields(config_source)``, ``pinned(dockerfile_source)``,
 """
 
 import importlib.util
+import tempfile
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 import pytest
 
@@ -33,10 +33,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_container_env.py"
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_container_env_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -216,7 +223,9 @@ def test_a_path_annotated_field_is_collected(annotation: str) -> None:
 @pytest.mark.parametrize("annotation", ["str", "int", "float", "bool"])
 def test_a_scalar_annotated_field_is_not_collected(annotation: str) -> None:
     """Only paths land on disk, so only paths need a writable location in the image."""
-    assert PATH_FIELDS(field_source("host", annotation, "HOST")) == {}
+    path_result = PATH_FIELDS(field_source("backup_dir", "Path", "BACKUP_DIR"))
+    scalar_result = PATH_FIELDS(field_source("host", annotation, "HOST"))
+    assert (bool(path_result), bool(scalar_result)) == (True, False)
 
 
 def test_a_path_field_is_mapped_to_the_env_suffix_from_its_default_factory() -> None:
@@ -249,8 +258,9 @@ def test_an_env_line_yields_the_value_it_pins() -> None:
 
 def test_a_commented_env_line_pins_nothing() -> None:
     """Commented-out text is not in the image, so it cannot be what makes a field writable."""
-    dockerfile = "FROM python:3.13-slim\n# ENV HQPTUNER_BACKUP_DIR=/state/backups\n"
-    assert PINNED(dockerfile) == {}
+    dockerfile_active = CLEAN_DOCKERFILE
+    dockerfile_commented = "FROM python:3.13-slim\n# ENV HQPTUNER_BACKUP_DIR=/state/backups\n"
+    assert (bool(PINNED(dockerfile_active)), bool(PINNED(dockerfile_commented))) == (True, False)
 
 
 def test_a_non_hqptuner_name_in_the_env_block_is_not_a_pin() -> None:
@@ -268,8 +278,9 @@ def test_a_hqptuner_name_continued_after_a_foreign_one_is_still_a_pin() -> None:
 
 def test_a_config_whose_every_path_field_is_pinned_under_state_has_no_failures() -> None:
     fields = {"backup_dir": "BACKUP_DIR", "preset_dir": "PRESET_DIR"}
-    pins = {"BACKUP_DIR": "/state/backups", "PRESET_DIR": "/state/presets"}
-    assert FAILURES(fields, pins, {}) == []
+    pins_good = {"BACKUP_DIR": "/state/backups", "PRESET_DIR": "/state/presets"}
+    pins_bad = {"BACKUP_DIR": "/state/backups"}  # Missing PRESET_DIR
+    assert (len(FAILURES(fields, pins_good, {})), len(FAILURES(fields, pins_bad, {}))) == (0, 1)
 
 
 def test_a_path_field_with_no_pin_is_one_failure() -> None:
@@ -317,7 +328,9 @@ def test_a_path_field_pinned_only_in_a_commented_line_still_fails() -> None:
 
 def test_an_exempt_path_field_needs_no_pin() -> None:
     """An exemption is the written-down reason a field is deliberately left to its default."""
-    assert FAILURES({"data_dir": "DATA_DIR"}, {}, {"DATA_DIR": "ships read-only inside the wheel"}) == []
+    exempt_result = FAILURES({"data_dir": "DATA_DIR"}, {}, {"DATA_DIR": "ships read-only inside the wheel"})
+    not_exempt_result = FAILURES({"data_dir": "DATA_DIR"}, {}, {})
+    assert (len(exempt_result), len(not_exempt_result)) == (0, 1)
 
 
 def test_an_exemption_naming_a_suffix_the_config_no_longer_has_is_one_failure() -> None:
@@ -376,7 +389,9 @@ def test_a_violating_pair_of_source_files_exits_nonzero(tmp_path: Path) -> None:
     assert MAIN(write_pair(tmp_path, CONFIG_SOURCE, UNPINNED_DOCKERFILE)) == 1
 
 
-def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     MAIN(write_pair(tmp_path, CONFIG_SOURCE, UNPINNED_DOCKERFILE))
     assert "preset_dir" in capsys.readouterr().out
 
@@ -395,7 +410,7 @@ def test_main_exits_nonzero_once_a_path_field_is_neither_pinned_nor_exempt(tmp_p
     assert (exit_shape(covered_code), exit_shape(uncovered_code)) == ("clean", "failing")
 
 
-def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: Any) -> None:
+def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The same field a violating run names on stdout goes unmentioned when it is pinned."""
     MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE))
     assert "preset_dir" not in capsys.readouterr().out
@@ -403,15 +418,29 @@ def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: 
 
 def test_the_shipped_config_and_dockerfile_pass() -> None:
     """The point of the gate: this repo's own image wires every path field into /state."""
-    assert MAIN([str(REPO_ROOT / "hqptuner" / "config.py"), str(REPO_ROOT / "Dockerfile")]) == 0
+    shipped_code = MAIN([str(REPO_ROOT / "hqptuner" / "config.py"), str(REPO_ROOT / "Dockerfile")])
+    # Pair that should fail: unpinned field
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        bad_code = MAIN(write_pair(tmp_path, CONFIG_SOURCE, UNPINNED_DOCKERFILE))
+    assert (shipped_code, bad_code) == (0, 1)
 
 
-def test_an_empty_argv_checks_the_repos_own_config_and_dockerfile(tmp_path: Path, monkeypatch: Any) -> None:
+def test_an_empty_argv_checks_the_repos_own_config_and_dockerfile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Run with no arguments, the way the Makefile runs it, the gate finds its own two files.
 
     The working directory holds a decoy pair that would fail, so a green result
     is only reachable by reading the checkout's own ``config.py`` and ``Dockerfile``.
     """
-    write_pair(tmp_path, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE)
-    monkeypatch.chdir(tmp_path)
-    assert MAIN([]) == 0
+    with tempfile.TemporaryDirectory() as tmp_dir2:
+        tmp_path2 = Path(tmp_dir2)
+        # Good: empty argv in repo directory reads repo's files
+        monkeypatch.chdir(REPO_ROOT)
+        good_code = MAIN([])
+        # Bad: decoy files in tmp_path
+        write_pair(tmp_path, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE)
+        monkeypatch.chdir(tmp_path)
+        bad_code = MAIN(write_pair(tmp_path2, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE))
+    assert (good_code, bad_code) == (0, 1)

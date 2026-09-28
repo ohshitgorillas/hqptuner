@@ -20,7 +20,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.conf.matrixconf import delete_profile
+from hqptuner.conf.matrixprofiles import delete_profile
 from hqptuner.engine.control import ControlClient
 
 DOOMED = (os.environ.get("PROBE_DOOMED") or "hqptuner-probe,hqptuner-probe-post").split(",")
@@ -30,6 +30,10 @@ SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
 
 
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
 async def _settle(http: HttpConfigClient) -> None:
     for _ in range(SETTLE_TRIES):
         try:
@@ -37,7 +41,8 @@ async def _settle(http: HttpConfigClient) -> None:
             return
         except (httpx.HTTPError, OSError):
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit("daemon never came back")
+    message = "daemon never came back"
+    raise CliError(message)
 
 
 async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
@@ -48,24 +53,27 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
         except (httpx.HTTPError, OSError) as exc:
             last = exc
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit(f"daemon never answered: {last}")
+    message = f"daemon never answered: {last}"
+    raise CliError(message)
 
 
 def _names(xml: bytes) -> list[str]:
     return [m.decode() for m in re.findall(rb'<matrix_profile\b[^>]*name="([^"]*)"', xml)]
 
 
-async def main() -> int:
+async def _run() -> int:
     """Delete the named probe-authored matrix profiles from the running config and confirm their removal by readback."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to write")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
+        raise CliError(message)
     active = (await control.get_active_config()) or None
     await control.close()
 
@@ -84,7 +92,8 @@ async def main() -> int:
     with zipfile.ZipFile(io.BytesIO(backup)) as z:
         member = engineconf.running_config_name(z.namelist(), active)
     if member is None:
-        raise SystemExit("cannot resolve the working config member")
+        message = "cannot resolve the working config member"
+        raise CliError(message)
     await _rpc(lambda: http.restore(engineconf.rewrite_zip(backup, {member: xml}), scope="system"))
     await _settle(http)
 
@@ -92,6 +101,20 @@ async def main() -> int:
     print(f"profiles after: {after}")
     print(f"removed {doomed}: {all(name not in after for name in doomed)}")
     return 0 if all(name not in after for name in doomed) else 1
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

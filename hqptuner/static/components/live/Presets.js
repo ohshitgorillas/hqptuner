@@ -74,10 +74,11 @@ function shown(key, value) {
 
 // One checkbox row per setting the engine reports, all checked.
 /**
+ * The save popover's setting rows for a snapshot.
  * @param {Snapshot} snap
  * @returns {ChoiceOption[]}
  */
-function choiceRows(snap) {
+export function choiceRows(snap) {
   /** @param {string} key */
   const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot : snap.fields[key].name);
   return LABELS.filter(([key]) => key === AUTOPILOT || key in snap.fields).map(([key, label]) => ({
@@ -113,24 +114,27 @@ function unplayable(record) {
 // cannot play leads with why — the row itself is grayed, and a gray row with no
 // reason on it is the failure this whole path exists to stop.
 /**
+ * The preset picker's per-option tip builder.
  * @param {LivePreset[]} presets
  * @returns {(o: { value: string | number }) => TipContent}
  */
-const presetTips = (presets) => (o) => {
-  const record = presets.find((p) => p.name === o.value);
-  /** @type {TipContent} */
-  const tip = { name: "", text: "", rows: [], chips: [] };
-  if (!record) return tip;
-  tip.text = unplayable(record);
-  const names = record.names || {};
-  for (const [key, label] of LABELS) {
-    const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
-    if (key === AUTOPILOT ? record.autopilot != null : key in record.fields) {
-      tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value)), []]);
+function presetTips(presets) {
+  return (o) => {
+    const record = presets.find((p) => p.name === o.value);
+    /** @type {TipContent} */
+    const tip = { name: "", text: "", rows: [], chips: [] };
+    if (!record) return tip;
+    tip.text = unplayable(record);
+    const names = record.names || {};
+    for (const [key, label] of LABELS) {
+      const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
+      if (key === AUTOPILOT ? record.autopilot != null : key in record.fields) {
+        tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value)), []]);
+      }
     }
-  }
-  return tip;
-};
+    return tip;
+  };
+}
 
 // Which chain the engine is running never gates a preset: a preset carries its
 // own output mode, so one taken on the other chain applies by switching to it,

@@ -1,20 +1,36 @@
 """Pending/staging REST surface — the server-side staged-changes buffer.
 
 A self-contained feature surface mounted alongside ``app``.
-The apply route stays in ``app`` and reads the buffer through ``_pending``.
 """
 
-from typing import Any
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Request
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
+from hqptuner.core.applyops import ApplyReport
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.writer import known_live_settings
 
 router = APIRouter(prefix="/api")
+
+
+@dataclass(frozen=True)
+class PendingSnapshot:
+    """The staged buffer as every staging route answers with it: live-lane buckets and restore-lane fields."""
+
+    live: dict[str, dict[str, str]]
+    http: dict[str, str]
+
+
+@dataclass(frozen=True)
+class AutosaveState:
+    """``POST /api/autosave``'s answer: whether auto-save is now armed."""
+
+    autosave: bool
 
 
 class PendingStore:
@@ -59,12 +75,13 @@ class PendingStore:
         self.live = {}
         self.http = {}
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self) -> PendingSnapshot:
         """Return both buckets as the wire shape every staging route answers with."""
-        return {"live": self.live, "http": self.http}
+        return PendingSnapshot(live=self.live, http=self.http)
 
 
-def _pending(request: Request) -> PendingStore:
+def pending_store(request: Request) -> PendingStore:
+    """Return the app's staged-changes buffer."""
     store: PendingStore = request.app.state.pending
     return store
 
@@ -74,24 +91,32 @@ def _audit(request: Request) -> AuditLog:
     return log
 
 
-def _apply_succeeded(report: dict[str, Any]) -> bool:
+def apply_succeeded(report: ApplyReport) -> bool:
     """Whether every staged change actually took.
 
     A live edit counts only if its readback verified (`ok`); the persistent lane only if the running config reflected
     the change after the restart (`applied`). A soft failure — a value never converged, or a preset's endpoint is gone
     — returns False here so the caller keeps the pending buffer instead of silently dropping the edits.
     """
-    if any(not entry.get("ok") for entry in report.get("live", [])):
+    if any(not entry.ok for entry in report.live):
         return False
-    switched = report.get("switched")
-    if switched is not None and not switched.get("active"):
+    if report.switched is not None and not report.switched.active:
         return False  # the preset switch never took — don't clear the preview
-    persistent = report.get("persistent")
-    return not (persistent is not None and not persistent.get("applied"))
+    return report.persistent is None or report.persistent.outcome is RestoreOutcome.APPLIED
+
+
+class UnknownLiveSettingsError(ErrorBody):
+    """A stage request named live keys that are not known live settings at all."""
+
+    code = "fields_unknown"
+
+    def __init__(self, *, unknown: set[str]) -> None:
+        """Render the wording naming the ``unknown`` keys, sorted."""
+        super().__init__(f"unknown live settings: {sorted(unknown)}")
 
 
 @router.post("/config/stage")
-def stage(body: StageBody, request: Request) -> dict[str, Any]:
+def stage(body: StageBody, request: Request) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
     422 when a live key is not a known live setting — the daemon would have no setter to call for it. Nothing is
@@ -99,8 +124,8 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     """
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
-        raise refuse("fields_unknown", f"unknown live settings: {sorted(unknown)}")
-    store = _pending(request)
+        raise refuse(UnknownLiveSettingsError(unknown=unknown))
+    store = pending_store(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
     store.stage(body.live, body.http)
@@ -112,18 +137,18 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
 
 
 @router.get("/config/pending")
-def pending(request: Request) -> dict[str, Any]:
+def pending(request: Request) -> PendingSnapshot:
     """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
-    return _pending(request).snapshot()
+    return pending_store(request).snapshot()
 
 
 @router.delete("/config/pending")
-def discard(request: Request, manager: Mgr) -> dict[str, Any]:
+def discard(request: Request, manager: Mgr) -> PendingSnapshot:
     """Throw away everything staged, recording it first, and release the filter uploads parked for it.
 
     Touches the daemon not at all — the discarded edits were never written to it.
     """
-    store = _pending(request)
+    store = pending_store(request)
     # snapshot before the clear: the discard's whole effect is to destroy this,
     # so the record is the only surviving copy of what was thrown away
     lost_http, lost_live = dict(store.http), dict(store.live)
@@ -135,10 +160,10 @@ def discard(request: Request, manager: Mgr) -> dict[str, Any]:
 
 
 @router.post("/autosave")
-def set_autosave(body: AutosaveBody, manager: Mgr) -> dict[str, Any]:
+def set_autosave(body: AutosaveBody, manager: Mgr) -> AutosaveState:
     """Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.
 
     Pure store flag — no daemon touch.
     """
     manager.presetops.store.set_autosave(enabled=body.enabled)
-    return {"autosave": manager.presetops.store.autosave}
+    return AutosaveState(manager.presetops.store.autosave)

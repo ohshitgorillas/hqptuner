@@ -10,7 +10,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { effectivePipelines, pipelineBaseline } from "../../store/resolve.js";
-import { parseProcess, stageArgs } from "../../lib/matrixspec.js";
+import { parseProcess, stageArgs } from "../../vendor/eqlab/core/matrixspec.js";
 import { PlotFrame } from "../plots.js";
 import { xfeedLensTraces } from "../xfeed/Comp.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
@@ -25,7 +25,7 @@ import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HU
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
  *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
  *   string, because the config XML and the /matrix form both carry text.
- * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
  *   One parsed `process` stage: a plugin spec with `args`, or a convolution
  *   stage carrying `file`.
  * @typedef {{

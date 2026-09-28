@@ -61,11 +61,15 @@ def current_spec() -> str:
 
 
 def compare(committed: str, current: str) -> list[str]:
-    """Unified-diff lines between the committed snapshot and the current surface; empty when equal."""
+    """Unified-diff lines between the committed snapshot and the current surface; empty when equal.
+
+    Both texts are parsed and re-rendered first, so two spellings of one
+    document compare equal and only a change in content shows up as a diff.
+    """
     return list(
         difflib.unified_diff(
-            committed.splitlines(),
-            current.splitlines(),
+            render(json.loads(committed)).splitlines(),
+            render(json.loads(current)).splitlines(),
             fromfile="docs/openapi.json",
             tofile="current",
             lineterm="",
@@ -73,8 +77,10 @@ def compare(committed: str, current: str) -> list[str]:
     )
 
 
-def check(snapshot: Path, current: str, *, write: bool = False) -> int:
+def check(snapshot: Path = SNAPSHOT, current: str | None = None, *, write: bool = False) -> int:
     """Compare the surface against ``snapshot``, or regenerate it. 0 pass, 1 fail."""
+    if current is None:
+        current = current_spec()
     if write:
         snapshot.write_text(current)
         print(f"[ok] wrote {snapshot.name}, {len(current.splitlines())} lines")
@@ -93,10 +99,10 @@ def check(snapshot: Path, current: str, *, write: bool = False) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Check this repo's snapshot, or rewrite it when handed ``--write``."""
+def main(argv: list[str] | None = None, snapshot: Path = SNAPSHOT) -> int:
+    """Check ``snapshot``, or rewrite it when handed ``--write``."""
     args = sys.argv[1:] if argv is None else argv
-    return check(SNAPSHOT, current_spec(), write="--write" in args)
+    return check(snapshot, current_spec(), write="--write" in args)
 
 
 if __name__ == "__main__":

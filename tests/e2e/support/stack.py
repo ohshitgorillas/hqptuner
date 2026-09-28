@@ -12,9 +12,10 @@ its configuration surface (hqptuner/config.py). Nothing is stubbed inside it:
 what the browser drives is the shipped app over real HTTP.
 
 `stack()` is a generator shaped for a yield fixture. It yields a `Stack` only
-after both `/api/health` and `/api/config` have answered 200 — a bounded poll,
-never a fixed sleep — and on the way out terminates the app and drains the three
-fake generators so each runs its own teardown.
+after both `/api/health` and `/api/config` have answered 200 — woken by the
+app's own traffic to the two fakes, never a fixed sleep — and on the way out
+terminates the app and drains the three fake generators so each runs its own
+teardown.
 """
 
 import asyncio
@@ -25,9 +26,8 @@ import socket
 import subprocess
 import sys
 import threading
-import time
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -39,12 +39,50 @@ from fake_control import DEFAULTS, CommandLog, serve
 #: from here so that a source checkout's `hqptuner` package is importable.
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-#: Hard deadline on app startup, and the gap between readiness probes.
+#: Hard deadline on app startup.
 READY_TIMEOUT = 30.0
-READY_POLL = 0.05
 
 #: How long a terminated app gets to exit before it is killed.
 TERMINATE_TIMEOUT = 5.0
+
+
+class NotifyingLog(list[tuple[str, dict[str, str]]]):
+    """A control-command log that wakes every waiter the moment the fake appends to it.
+
+    The fake only ever calls `.append` and knows nothing of waiters, so notifying from `append`
+    itself reaches every command. It reads as a plain `list` otherwise.
+    """
+
+    def __init__(self) -> None:
+        """Start empty, with the condition every append below notifies."""
+        super().__init__()
+        self.condition = threading.Condition()
+
+    def append(self, item: tuple[str, dict[str, str]]) -> None:
+        """Record the command and wake every `wait_for_command` blocked on it."""
+        with self.condition:
+            super().append(item)
+            self.condition.notify_all()
+
+
+class NotifyingState(dict[str, Any]):
+    """The HTTP config fake's state dict, wired to wake every waiter the moment a key is set.
+
+    The fakes write every engine attribute a test waits on through `st[key] = value`, so overriding
+    `__setitem__` reaches every one of those writes. `dict.update` and construction do not notify;
+    nothing waits on either.
+    """
+
+    def __init__(self, initial: Mapping[str, Any] | None = None) -> None:
+        """Copy in the starting state, then arm the condition every write from here on notifies."""
+        super().__init__(initial or {})
+        self.condition = threading.Condition()
+
+    def __setitem__(self, key: str, value: object) -> None:
+        """Record the value and wake every `wait_for_state` blocked on it."""
+        with self.condition:
+            super().__setitem__(key, value)
+            self.condition.notify_all()
 
 
 @dataclass(frozen=True)
@@ -53,12 +91,29 @@ class Stack:
 
     #: Origin of the app under test, e.g. ``http://127.0.0.1:41213`` — no trailing slash.
     base_url: str
-    #: Every control-API command the app has sent, in order: ``(name, attrs)``.
-    control_log: CommandLog
+    #: Every control-API command the app has sent, in order: ``(name, attrs)``. Notifies on append.
+    control_log: NotifyingLog
     #: The control fake's live State, shared across connections — writing to it moves the engine.
     control_state: dict[str, str]
-    #: The HTTP config fake's live state (``fake_http.state()``), plus ``_port``.
-    http_state: dict[str, Any]
+    #: The HTTP config fake's live state (``fake_http.state()``), plus ``_port``. Notifies on write.
+    http_state: NotifyingState
+
+    def wait_for_command(self, predicate: Callable[[], bool], timeout: float) -> bool:
+        """Block until `predicate()` holds or `timeout` seconds pass, woken by every command the fake logs.
+
+        Quiet on a timeout: it reports whether the predicate held when the wait ended, and never
+        raises on its own.
+        """
+        with self.control_log.condition:
+            return self.control_log.condition.wait_for(predicate, timeout=timeout)
+
+    def wait_for_state(self, predicate: Callable[[], bool], timeout: float) -> bool:
+        """Block until `predicate()` holds or `timeout` seconds pass, woken by every write to `http_state`.
+
+        Quiet on a timeout, the same as `wait_for_command`.
+        """
+        with self.http_state.condition:
+            return self.http_state.condition.wait_for(predicate, timeout=timeout)
 
 
 def _free_port() -> int:
@@ -152,8 +207,23 @@ def _answers(url: str) -> bool:
         return False
 
 
-def _wait_for_ready(base_url: str, proc: "subprocess.Popen[bytes]", log_path: Path) -> None:
-    """Poll until the app serves daemon-derived state, or fail loudly with the app's output.
+def _watch_condition(
+    condition: threading.Condition, predicate: Callable[[], bool], timeout: float, mark: Callable[[], None]
+) -> None:
+    """Block on `condition` until `predicate` holds or `timeout` elapses, then `mark()` if it held."""
+    with condition:
+        if condition.wait_for(predicate, timeout=timeout):
+            mark()
+
+
+def _wait_for_ready(
+    base_url: str,
+    proc: "subprocess.Popen[bytes]",
+    log_path: Path,
+    control_log: NotifyingLog,
+    http_state: NotifyingState,
+) -> None:
+    """Wait until the app serves daemon-derived state, or fail loudly with the app's output.
 
     `/api/health` alone is not readiness. It reports on the connection manager
     and answers 200 before any lane has loaded anything (api/routes/status.py), while
@@ -162,18 +232,54 @@ def _wait_for_ready(base_url: str, proc: "subprocess.Popen[bytes]", log_path: Pa
     session its first fixture call in that window, and every test in the run
     errors in setup rather than failing on anything it asserts. So readiness is
     both: the app is up AND it has something from the daemon to serve.
+
+    Nothing here sleeps or reads the clock. The app's own traffic is the
+    wake-up: every control command it sends notifies `control_log`, and every
+    request that reaches the 8088 fake notifies `http_state` (`_count_request`
+    writes `_requests` through `NotifyingState.__setitem__`), so a thread
+    blocked on either condition wakes the moment the app has done something
+    that could have made it ready, and re-checks the two routes itself. A
+    third thread blocks on `proc.wait()` — a real OS wait, not a poll — so an
+    app that exits during startup is noticed as soon as it happens rather than
+    only at the deadline.
     """
     urls = [f"{base_url}/api/health", f"{base_url}/api/config"]
-    refusing = urls[0]
-    deadline = time.monotonic() + READY_TIMEOUT
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            raise RuntimeError(_startup_failure(f"app exited with status {proc.returncode}", log_path))
-        still = [url for url in urls if not _answers(url)]
-        if not still:
-            return
-        refusing = still[0]
-        time.sleep(READY_POLL)
+
+    def _ready() -> bool:
+        return all(_answers(url) for url in urls)
+
+    signaled = threading.Event()
+    outcome: dict[str, bool] = {}
+
+    def _mark(key: str) -> None:
+        outcome[key] = True
+        signaled.set()
+
+    def _mark_ready() -> None:
+        _mark("ready")
+
+    def _watch_process() -> None:
+        proc.wait()
+        _mark("crashed")
+
+    watchers = [
+        threading.Thread(
+            target=_watch_condition, args=(control_log.condition, _ready, READY_TIMEOUT, _mark_ready), daemon=True
+        ),
+        threading.Thread(
+            target=_watch_condition, args=(http_state.condition, _ready, READY_TIMEOUT, _mark_ready), daemon=True
+        ),
+        threading.Thread(target=_watch_process, daemon=True),
+    ]
+    for watcher in watchers:
+        watcher.start()
+    signaled.wait(timeout=READY_TIMEOUT)
+    if outcome.get("crashed"):
+        raise RuntimeError(_startup_failure(f"app exited with status {proc.returncode}", log_path))
+    if outcome.get("ready"):
+        return
+    still = [url for url in urls if not _answers(url)]
+    refusing = still[0] if still else urls[0]
     raise RuntimeError(_startup_failure(f"{refusing} never answered within {READY_TIMEOUT:.0f}s", log_path))
 
 
@@ -206,9 +312,9 @@ def stack(tmp: Path) -> Iterator[Stack]:
     nothing a test does reaches the repo's own `state/`.
     """
     control_state: dict[str, str] = dict(DEFAULTS)
-    control_log: CommandLog = []
+    control_log = NotifyingLog()
     control = spawn_control(control_state, control_log)
-    http_state = fake_http.state()
+    http_state = NotifyingState(fake_http.state())
     http = fake_http.spawn(http_state)
     proc: subprocess.Popen[bytes] | None = None
     try:
@@ -220,7 +326,7 @@ def stack(tmp: Path) -> Iterator[Stack]:
         env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
         proc = _launch_app(env, log_path)
         base_url = f"http://127.0.0.1:{listen_port}"
-        _wait_for_ready(base_url, proc, log_path)
+        _wait_for_ready(base_url, proc, log_path, control_log, http_state)
         yield Stack(
             base_url=base_url,
             control_log=control_log,

@@ -7,20 +7,18 @@ filter and the main filter's name.
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
-from hqptuner.engine.junkadvisor import treated, treats
-
-Verdict = dict[str, Any]
+from hqptuner.engine.junkadvisor import JunkVerdict, treated, treats
 
 CORNER_30K = "30k"
 
-VERDICT_40K: Verdict = {
-    "filter": "40k",
-    "families": ["poly-sinc-gauss-hires", "poly-sinc-ext2-hires"],
-}
+VERDICT_40K = JunkVerdict(
+    filter="40k",
+    reason="",
+    ceiling_khz=40.0,
+    families=("poly-sinc-gauss-hires", "poly-sinc-ext2-hires"),
+)
 
 
 @pytest.mark.parametrize(
@@ -63,3 +61,7 @@ def test_a_main_filter_treats_a_verdict_only_when_a_family_starts_its_name(
     filter_name: str | None, *, already_treated: bool
 ) -> None:
     assert treats(VERDICT_40K, None, filter_name) is already_treated
+
+
+def test_a_verdicts_ceiling_khz_is_the_value_it_was_built_with() -> None:
+    assert VERDICT_40K.ceiling_khz == 40.0

@@ -9,13 +9,13 @@ the blocks close.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
 from hqptuner.engine import junkrun
 from hqptuner.engine.blockstats import block_record
-from hqptuner.engine.junkadvisor import classify
+from hqptuner.engine.junkadvisor import JunkVerdict, classify
 from hqptuner.engine.metering import SpectralAggregate
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
     from hqptuner.engine.blockstats import BlockRecord
 
-Verdict = dict[str, Any]
+Verdict = JunkVerdict
 Band = tuple[float, float, float]
 Corner = str | None
 Frame = list[float]
@@ -99,7 +99,7 @@ def _fold_after(seq: str) -> float | None:
 
 def _corner(verdict: Verdict | None) -> Corner:
     """The corner a verdict names, or None where there is no verdict."""
-    return None if verdict is None else str(verdict["filter"])
+    return None if verdict is None else verdict.filter
 
 
 def _corner_after(name: str, blocks: int) -> Corner:

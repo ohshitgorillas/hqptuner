@@ -20,7 +20,8 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from conftest import _live_app, spawn_threaded_daemon, wait_for_api
+from apps import live_app, wait_for_api
+from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog
 from fastapi.testclient import TestClient
 
@@ -98,7 +99,7 @@ def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
     state = dict(DEFAULTS)
     log: CommandLog = []
     daemon = spawn_threaded_daemon(state=state, log=log)
-    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
+    app = live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
     _await_first_poll(client, log)  # see FIRST_POLL_SENTINEL: flipped earlier, the knob catches the poll
     state["_close"] = HOUSEKEEPING_COMMAND
@@ -133,7 +134,7 @@ def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
 ) -> None:
     client, _ = closing_api
     resp = client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    entry = next(e for e in resp.json()["live"] if e["setting"] == CLOSING_FIELD)
+    entry = next(e for e in resp.json()["report"]["live"] if e["setting"] == CLOSING_FIELD)
     assert entry["ok"] is True
 
 
@@ -161,7 +162,7 @@ def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_appl
 ) -> None:
     client, _ = closing_mode_api
     resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
-    entry = next(e for e in resp.json()["live"] if e["setting"] == "mode")
+    entry = next(e for e in resp.json()["report"]["live"] if e["setting"] == "mode")
     assert entry["ok"] is True
 
 

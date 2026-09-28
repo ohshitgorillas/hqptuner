@@ -12,12 +12,12 @@
 // preset -> (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
 import { effective } from "../resolve.js";
 import { stagePipelines, edit } from "../actions.js";
-import { BAUER_PRESETS, msRecognize } from "../../lib/xfeed.js";
+import { BAUER_PRESETS, msRecognize } from "../../vendor/eqlab/core/xfeed.js";
 import { truthy } from "../../lib/coerce.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../../lib/xfeed.js").MsRecognition} MsRecognition
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/xfeed.js").MsRecognition} MsRecognition
  * @typedef {{ enabled: boolean, fc: number, feed: number }} BauerSettings
  *   The running Bauer crossfeed the correction is fitted against: its on/off
  *   flag and the (corner, feed) pair the preset or the two knobs resolve to.

@@ -22,19 +22,17 @@ is not a value, it is the absence of one.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from hqptuner.config import Config
-
-log = logging.getLogger(__name__)
 
 # The record's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. Stamped on every write so a
 # later layout can tell the shapes apart.
@@ -44,6 +42,14 @@ SCHEMA = 1
 _ENV_HOST = "HQPTUNER_HQP_HOST"
 _ENV_USERNAME = "HQPTUNER_HQP_USERNAME"
 _ENV_CREDENTIAL = "HQPTUNER_HQP_PASSWORD"
+
+
+class ConnectionStoreCorruptError(StoreCorruptError):
+    """The connection record exists but cannot be read as one, naming this store as ``"connection"``."""
+
+    def __init__(self, path: Path) -> None:
+        """Render ``StoreCorruptError``'s wording for the connection store at ``path``."""
+        super().__init__("connection", path)
 
 
 @dataclass(frozen=True)
@@ -70,9 +76,9 @@ class ConnectionStore:
     def read(self) -> ConnectionRecord | None:
         """Return the stored record, or None when nothing has been saved.
 
-        A file that is absent, unreadable or malformed reads as nothing saved, which puts HQPTuner in the state a
-        fresh install is in: the defaults, and a surface the user can save a working connection over. Refusing to
-        start over a damaged record would leave them nowhere to type one.
+        Raises ``StoreCorruptError`` when the file exists but cannot be read as a connection record: a saved
+        connection is a host and credentials the user typed, and losing that quietly would strand them on the wrong
+        daemon with no card saying why.
         """
         if not self._path.is_file():
             return None
@@ -84,9 +90,8 @@ class ConnectionStore:
                 password=str(data.get("password", "")),
                 remember=bool(data.get("remember")),
             )
-        except (ValueError, OSError, TypeError, KeyError):
-            log.warning("connection store at %s is unreadable — starting on the defaults", self._path)
-            return None
+        except (ValueError, OSError, TypeError, KeyError) as exc:
+            raise ConnectionStoreCorruptError(self._path) from exc
 
     def write(self, record: ConnectionRecord) -> None:
         """Replace the record with ``record``, whole.

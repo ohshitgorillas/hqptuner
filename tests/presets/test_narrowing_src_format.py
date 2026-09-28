@@ -57,19 +57,19 @@ def store_src_format(tmp_path: Path, value: object) -> Path:
 
 
 def test_a_store_that_was_never_written_reports_the_source_format_at_pcm(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read()["src_format"] == DEFAULT_STATE
+    assert store_at(tmp_path).read().src_format == DEFAULT_STATE
 
 
 @pytest.mark.parametrize("state", STATES)
 def test_a_written_source_format_reads_back_as_written(tmp_path: Path, state: str) -> None:
     store = store_at(tmp_path)
     store.write({"src_format": state})
-    assert store.read()["src_format"] == state
+    assert store.read().src_format == state
 
 
 @pytest.mark.parametrize("state", STATES)
 def test_a_write_answers_with_the_source_format_it_stored(tmp_path: Path, state: str) -> None:
-    assert store_at(tmp_path).write({"src_format": state})["src_format"] == state
+    assert store_at(tmp_path).write({"src_format": state}).src_format == state
 
 
 # --- what the control refuses --------------------------------------------------
@@ -97,9 +97,9 @@ def test_an_out_of_domain_source_format_write_is_refused_naming_the_value(tmp_pa
 @pytest.mark.parametrize("value", OUT_OF_DOMAIN)
 def test_an_out_of_domain_stored_source_format_reads_as_pcm(tmp_path: Path, value: str) -> None:
     store_src_format(tmp_path, value)
-    assert store_at(tmp_path).read()["src_format"] == DEFAULT_STATE
+    assert store_at(tmp_path).read().src_format == DEFAULT_STATE
 
 
 def test_an_out_of_domain_stored_source_format_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     store_src_format(tmp_path, "dsd")
-    assert store_at(tmp_path).read()["phase"] == ["linear"]
+    assert store_at(tmp_path).read().phase == ["linear"]

@@ -37,6 +37,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions, take_descriptions
@@ -96,7 +97,7 @@ def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], 
             hqp_password="",
             description_file=tmp_path / "descriptions.json",
         )
-        client = TestClient(create_app(cfg))
+        client = TestClient(create_app(cfg, VirtualClock()))
         clients.append(client)
         client.__enter__()
         return client
@@ -130,12 +131,13 @@ def carriage_client(
         preset_dir=tmp_path / "presets",
         description_file=tmp_path / "descriptions.json",
     )
-    with TestClient(create_app(cfg)) as test_client:
+    with TestClient(create_app(cfg, VirtualClock())) as test_client:
         yield test_client, DescriptionStore(tmp_path / "descriptions.json")
 
 
-def upload(client: TestClient, data: bytes) -> Any:
-    return client.post("/api/restore", files={"cfgfile": ("settings.zip", data, "application/zip")})
+def upload(client: TestClient, data: bytes) -> httpx.Response:
+    response: httpx.Response = client.post("/api/restore", files={"cfgfile": ("settings.zip", data, "application/zip")})
+    return response
 
 
 # --- the REST pair -------------------------------------------------------------------
@@ -145,15 +147,11 @@ def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
     assert desc_client.get("/api/descriptions").status_code == 200
 
 
-def test_put_then_get_answers_with_the_stored_text(desc_client: TestClient) -> None:
+def test_put_then_get_answers_with_the_stored_text_and_the_stamp_of_its_write(desc_client: TestClient) -> None:
     desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
-    assert desc_client.get("/api/descriptions").json()["profiles"][NAME]["text"] == TEXT
-
-
-def test_a_served_entry_carries_the_stamp_of_its_write(desc_client: TestClient) -> None:
-    desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
-    served = desc_client.get("/api/descriptions").json()["profiles"][NAME]["updated"]
-    assert datetime.fromisoformat(served).utcoffset().total_seconds() == 0  # type: ignore[union-attr]
+    served = desc_client.get("/api/descriptions").json()["profiles"][NAME]
+    offset = datetime.fromisoformat(served["updated"]).utcoffset().total_seconds()  # type: ignore[union-attr]
+    assert (served["text"], offset) == (TEXT, 0)
 
 
 def test_put_answers_with_the_whole_map_so_no_follow_up_get_is_needed(desc_client: TestClient) -> None:
@@ -247,12 +245,6 @@ def test_a_description_is_written_with_no_daemon_reachable(desc_client: TestClie
 # --- the two zip helpers -------------------------------------------------------------
 
 
-def test_an_embedded_payload_comes_back_out() -> None:
-    base = stamped({NAME: entry("warm")})
-    archive = embed_descriptions(members_zip(), base)
-    assert take_descriptions(archive)[1] == base
-
-
 def test_taking_the_payload_removes_its_member() -> None:
     archive = embed_descriptions(members_zip(), stamped({NAME: entry("warm")}))
     assert DESCRIPTIONS_MEMBER not in members(take_descriptions(archive)[0])
@@ -264,8 +256,11 @@ def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
     assert members(take_descriptions(archive)[0]) == members(plain)
 
 
-def test_an_archive_with_no_payload_yields_no_payload() -> None:
-    assert take_descriptions(members_zip())[1] is None
+def test_an_archive_with_no_payload_yields_no_payload_but_an_embedded_one_comes_back_out() -> None:
+    base = stamped({NAME: entry("warm")})
+    archive = embed_descriptions(members_zip(), base)
+    plain = members_zip()
+    assert (take_descriptions(plain)[1], take_descriptions(archive)[1]) == (None, base)
 
 
 def test_an_archive_with_no_payload_comes_back_unchanged() -> None:

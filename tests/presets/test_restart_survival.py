@@ -145,7 +145,7 @@ def test_an_active_preset_with_no_stored_snapshot_folds_nothing(http_client: Tes
 def test_an_active_preset_with_no_stored_snapshot_still_applies(http_client: TestClient, tmp_path: Path) -> None:
     PresetStore(tmp_path / "presets").set_active("Ghost")
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    report = http_client.post("/api/config/apply").json()
+    report = http_client.post("/api/config/apply").json()["report"]
     assert report["persistent"]["applied"] is True
 
 
@@ -207,7 +207,7 @@ FOLDED = {"mode": "pcm", "modulator": "3", "filter": "25"}
 def test_an_apply_that_folds_stored_settings_still_reports_applied(http_client: TestClient, tmp_path: Path) -> None:
     _active_preset_carrying(http_client, tmp_path / "presets", FOLDED)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    report = http_client.post("/api/config/apply").json()
+    report = http_client.post("/api/config/apply").json()["report"]
     assert report["persistent"]["applied"] is True
 
 
@@ -221,5 +221,5 @@ def test_an_apply_that_folds_stored_settings_converges_on_its_first_pass(
     # cost a second pass.
     _active_preset_carrying(http_client, tmp_path / "presets", FOLDED)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    report = http_client.post("/api/config/apply").json()
+    report = http_client.post("/api/config/apply").json()["report"]
     assert report["persistent"]["attempts"] == 1

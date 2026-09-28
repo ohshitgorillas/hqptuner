@@ -5,7 +5,8 @@ Each costs what the poll loop cannot afford every interval — a whole ``GET /lo
 """
 
 import logging
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -41,10 +42,10 @@ async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) 
     """
     readings = mgr.readings
     selected = devicecaps.agreed_device(readings.config_form, readings.file_config)
-    stale = readings.device_caps is None and mgr.monotonic() - readings.caps_at >= _CAPS_RETRY
+    stale = readings.device_caps is None and mgr.clock.monotonic() - readings.caps_at >= _CAPS_RETRY
     if not force and not stale and selected == readings.caps_device:
         return
-    readings.caps_device, readings.caps_at = selected, mgr.monotonic()
+    readings.caps_device, readings.caps_at = selected, mgr.clock.monotonic()
     if selected is None:
         readings.device_caps = None
         return
@@ -59,22 +60,37 @@ async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) 
     readings.device_caps = devicecaps.caps_for(text, selected)
 
 
-async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> dict[str, Any]:
+@dataclass(frozen=True)
+class LogTail:
+    """A log-tail read: the daemon's configured log file, whether it logs to it, and the last lines. Wire keys."""
+
+    path: str | None
+    enabled: bool
+    lines: list[str]
+
+
+@dataclass(frozen=True)
+class RescanReport:
+    """A device rescan's answer: it ran, what the replay put back, and how the replay came out."""
+
+    refreshed: bool
+    restored: dict[str, str]
+    replay: rescan.ReplayOutcome
+
+
+async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     """Return a static tail of the daemon's log for the System-tab live view.
 
     Not a stream — a fresh GET /log per call over the 8088 web interface, so it works regardless
-    of the daemon's `<log file>` setting and needs no host mount. Reports `available` false (with
-    a reason) when /log can't be read.
+    of the daemon's `<log file>` setting and needs no host mount. A daemon that cannot be reached,
+    or answers with an error status, raises ``httpx.HTTPError``: a failed read, not an absent log.
     """
     path, enabled = logtail.log_file_field(mgr.readings.config_form)
-    try:
-        text = await logtail.fetch_log(mgr.http_base_url)
-    except httpx.HTTPError as exc:
-        return {"path": path, "enabled": enabled, "available": False, "reason": str(exc), "lines": []}
-    return {"path": path, "enabled": enabled, "available": True, "lines": logtail.tail_text(text, lines)}
+    text = await logtail.fetch_log(mgr.http_base_url)
+    return LogTail(path, enabled, logtail.tail_text(text, lines))
 
 
-async def refresh_devices(mgr: "ConnectionManager") -> dict[str, Any]:
+async def refresh_devices(mgr: "ConnectionManager") -> RescanReport:
     """Trigger a daemon output-device re-scan, then refetch the /config and /matrix forms.
 
     The refetch makes the device dropdowns serve the new endpoint list (an NAA powered back on,
@@ -83,13 +99,14 @@ async def refresh_devices(mgr: "ConnectionManager") -> dict[str, Any]:
     The rescan stops the engine, and the engine comes back on the config file —
     which never learned a live-routed setting. With auto-save on, what it was
     running is read first and put back afterwards (``lanes/rescan``): ``restored``
-    names what landed, and a ``warning`` says so when the replay could not run.
+    names what landed, and ``replay`` says whether the replay put everything back.
     No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
     """
     snap = rescan.snapshot(mgr)
     await mgr.require_http().refresh_devices()
     await mgr.refresh_http_forms()
-    return {"refreshed": True, **await rescan.replay(mgr, snap)}
+    replayed = await rescan.replay(mgr, snap)
+    return RescanReport(refreshed=True, restored=replayed.restored, replay=replayed.outcome)
 
 
 def current_mode_name(mgr: "ConnectionManager") -> str:

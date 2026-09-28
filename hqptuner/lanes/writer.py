@@ -18,15 +18,55 @@ pauses briefly before resuming. Nothing here restarts the daemon or drops the
 client; that is the http lane's `POST /restore`, above.
 """
 
+import re
 from collections.abc import Awaitable, Callable
-from typing import Any, NamedTuple
+from dataclasses import dataclass
+from enum import Enum
+from typing import NamedTuple
 
 from hqptuner.audit import AuditLog
-from hqptuner.engine.control import CommandError, ControlClient, ControlError
+from hqptuner.engine.control import ControlClient, Reply
+from hqptuner.engine.controlerrors import CommandError
 
 _VOLUME_TOLERANCE = 0.05
+# a decimal level as the volume control sends it: sign, digits, optional fraction and exponent
+_NUMBER = re.compile(r"\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*")
 
-Handler = Callable[[ControlClient, dict[str, str]], Awaitable[None]]
+# A setter answers with the daemon's refusal, or None when its readback verified.
+Handler = Callable[[ControlClient, dict[str, str]], Awaitable[CommandError | None]]
+
+
+class LiveWriteOutcome(Enum):
+    """Whether a live-lane setter's write verified by readback."""
+
+    OK = "ok"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class LiveWriteResult:
+    """One live-lane setter's outcome — the setting written, and whether its readback verified.
+
+    The fields are the wire keys. ``error``/``code`` are set only on a setter that did not verify.
+    """
+
+    setting: str
+    ok: bool
+    error: str | None = None
+    code: str | None = None
+
+    @property
+    def outcome(self) -> LiveWriteOutcome:
+        """The verdict as an enum, for callers that branch on it."""
+        return LiveWriteOutcome.OK if self.ok else LiveWriteOutcome.FAILED
+
+
+class VolumeMismatchError(CommandError):
+    """A post-apply volume readback landed outside ``_VOLUME_TOLERANCE`` of what was set."""
+
+    def __init__(self, *, want: str, got: str | None) -> None:
+        """Render the mismatch wording naming the wanted and the read-back value."""
+        super().__init__(f"Volume readback mismatch: want {want} got {got}")
 
 
 class LiveSetting(NamedTuple):
@@ -39,21 +79,32 @@ class LiveSetting(NamedTuple):
     state: str  # State attribute carrying it back
 
 
-async def _apply_filter(client: ControlClient, params: dict[str, str]) -> None:
+async def _verified(client: ControlClient, reply: Reply, expected: dict[str, str]) -> CommandError | None:
+    """Return the daemon's refusal of ``reply``, else the State readback's mismatch against ``expected``."""
+    refused = reply.refusal()
+    if refused is not None:
+        return refused
+    return await client.state_mismatch(expected)
+
+
+async def _apply_filter(client: ControlClient, params: dict[str, str]) -> CommandError | None:
     nx = params["value"]
     x1 = params.get("value1x")
-    await client.set_filter(nx, x1)
     # value alone sets both 1x and Nx; value1x splits them (protocol.md §6)
-    await client.verify_state({"filterNx": nx, "filter1x": x1 if x1 is not None else nx})
+    reply = await client.send_filter(nx, x1)
+    return await _verified(client, reply, {"filterNx": nx, "filter1x": x1 if x1 is not None else nx})
 
 
-async def _apply_volume(client: ControlClient, params: dict[str, str]) -> None:
+async def _apply_volume(client: ControlClient, params: dict[str, str]) -> CommandError | None:
     want = params["value"]
-    await client.set_volume(want)
+    refused = (await client.send_volume(want)).refusal()
+    if refused is not None:
+        return refused
     state = await client.get_state()  # volume is a float — verify with tolerance
     got = state.get("volume")
     if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
-        raise CommandError(f"Volume readback mismatch: want {want} got {got}")
+        return VolumeMismatchError(want=want, got=got)
+    return None
 
 
 # The live lane, one row per setting — and INSERTION ORDER IS APPLY ORDER, so a
@@ -80,16 +131,17 @@ def known_live_settings() -> tuple[str, ...]:
 
 async def apply_live(
     client: ControlClient, edits: dict[str, dict[str, str]], audit: AuditLog | None = None
-) -> list[dict[str, Any]]:
+) -> list[LiveWriteResult]:
     """Apply each live edit in the safe order, verifying by readback.
 
-    One edit failing does not abort the rest — each reports its own outcome.
+    One refused edit does not abort the rest — each reports its own outcome. A ``ControlError``
+    (a dead transport is not an answer) propagates and aborts the batch.
 
     ``audit`` arrives from the caller rather than a module-level handle so this
     stays a pure function of its arguments; omitting it logs nothing.
     """
     log = audit if audit is not None else AuditLog(None)
-    report: list[dict[str, Any]] = []
+    report: list[LiveWriteResult] = []
     for setting in SETTINGS:
         if setting not in edits:
             continue
@@ -97,28 +149,43 @@ async def apply_live(
     return report
 
 
-async def _apply_uniform(client: ControlClient, spec: LiveSetting, params: dict[str, str]) -> None:
+async def _apply_uniform(client: ControlClient, spec: LiveSetting, params: dict[str, str]) -> CommandError | None:
     value = params["value"]
-    await client.set_command(spec.command, value=value)
-    await client.verify_state({spec.state: value})
+    reply = await client.send(spec.command, value=value)
+    return await _verified(client, reply, {spec.state: value})
 
 
-async def _apply_one(client: ControlClient, setting: str, params: dict[str, str], audit: AuditLog) -> dict[str, Any]:
+def _malformed(setting: str, params: dict[str, str]) -> str | None:
+    """Return why an edit cannot be sent at all, or None when it is well formed.
+
+    Checked before the wire is touched: every setter reads ``value``, and volume parses it as a number.
+    """
+    if "value" not in params:
+        return str(KeyError("value"))
+    if setting == "volume" and _NUMBER.fullmatch(params["value"]) is None:
+        return f"could not convert string to float: {params['value']!r}"
+    return None
+
+
+async def _send(client: ControlClient, setting: str, params: dict[str, str]) -> CommandError | None:
     spec = SETTINGS[setting]
+    if isinstance(spec, LiveSetting):
+        return await _apply_uniform(client, spec, params)
+    return await spec(client, params)
+
+
+async def _apply_one(client: ControlClient, setting: str, params: dict[str, str], audit: AuditLog) -> LiveWriteResult:
     value = params.get("value", "")
-    try:
-        if isinstance(spec, LiveSetting):
-            await _apply_uniform(client, spec, params)
-        else:
-            await spec(client, params)
-    except (ControlError, KeyError, ValueError) as exc:
+    malformed = _malformed(setting, params)
+    if malformed is not None:
         audit.live_write(setting, value, None, ok=False)
-        # The error's own code travels with the message: daemon_unavailable for a
-        # transport that died, daemon_refused for a refusal or readback mismatch.
-        # A KeyError/ValueError is a malformed edit and has no code of its own.
-        code = getattr(exc, "code", "invalid_input")
-        return {"setting": setting, "ok": False, "error": str(exc), "code": code}
-    # returning without raising means the readback matched, so the value sent is
-    # also the value confirmed — there is no other way for a setter to succeed
+        return LiveWriteResult(setting=setting, ok=False, error=malformed, code="invalid_input")
+    # daemon_refused for a refusal or a readback mismatch: the refusal's own code is the verdict
+    refused = await _send(client, setting, params)
+    if refused is not None:
+        audit.live_write(setting, value, None, ok=False)
+        return LiveWriteResult(setting=setting, ok=False, error=str(refused), code=refused.code)
+    # no refusal means the readback matched, so the value sent is also the
+    # value confirmed — there is no other way for a setter to succeed
     audit.live_write(setting, value, value, ok=True)
-    return {"setting": setting, "ok": True}
+    return LiveWriteResult(setting=setting, ok=True)

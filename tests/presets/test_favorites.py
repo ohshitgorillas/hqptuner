@@ -20,17 +20,19 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "filters": ["gauss-long"]}
 
 #: Content that is not our record: not JSON at all, and JSON that is not an
-#: object. Both are read as empty rather than raising — a corrupt file loses
-#: stars, it does not brick the page.
+#: object. Both are refused as corrupt rather than read as empty — a damaged file
+#: costs the user a clear error naming it, not the stars it silently drops.
 UNREADABLE = ["not json at all {", "[]", '"gauss-long"', "17", "null"]
 
 NAMES = ["poly-sinc-gauss-long", "sinc-M"]
@@ -69,7 +71,7 @@ def favorites_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], Tes
             hqp_password="",
             favorites_file=tmp_path / "favorites.json",
         )
-        client = TestClient(create_app(cfg))
+        client = TestClient(create_app(cfg, VirtualClock()))
         clients.append(client)
         client.__enter__()
         return client
@@ -87,22 +89,24 @@ def fav_client(favorites_api: Callable[[], TestClient]) -> TestClient:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_favorites(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read() == []
+def test_reading_a_store_with_no_file_yields_no_favorites_but_written_names_read_back(tmp_path: Path) -> None:
+    empty = store_at(tmp_path).read()
+    store = store_at(tmp_path)
+    store.write(NAMES)
+    assert (empty, sorted(store.read())) == ([], sorted(NAMES))
 
 
-def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
+    tmp_path: Path,
+) -> None:
     store_at(tmp_path).read()
-    assert list(tmp_path.iterdir()) == []
+    unwritten = list(tmp_path.iterdir())
+    written_store = FavoriteStore(tmp_path / "never-created" / "favorites.json")
+    written_store.write(["alpha"])
+    assert (unwritten, (tmp_path / "never-created" / "favorites.json").is_file()) == ([], True)
 
 
 # --- the round trip ----------------------------------------------------------
-
-
-def test_written_names_read_back(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.write(NAMES)
-    assert sorted(store.read()) == sorted(NAMES)
 
 
 def test_write_answers_with_the_names_deduplicated_and_sorted(tmp_path: Path) -> None:
@@ -122,12 +126,6 @@ def test_a_write_replaces_the_whole_previous_set(tmp_path: Path) -> None:
     store.write(["alpha", "bravo"])
     store.write(["alpha"])
     assert store.read() == ["alpha"]
-
-
-def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
-    store = FavoriteStore(tmp_path / "never-created" / "favorites.json")
-    store.write(["alpha"])
-    assert (tmp_path / "never-created" / "favorites.json").is_file()
 
 
 # --- the on-disk layout stamp ------------------------------------------------
@@ -181,10 +179,17 @@ def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) 
     assert store_at(elsewhere).read() == ["charlie"]
 
 
+def _corrupt_code(tmp_path: Path) -> str:
+    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
+    with pytest.raises(StoreCorruptError) as caught:
+        store_at(tmp_path).read()
+    return caught.value.code
+
+
 @pytest.mark.parametrize("content", UNREADABLE)
-def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: str) -> None:
+def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
     seed(tmp_path, content)
-    assert store_at(tmp_path).read() == []
+    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 # --- what a name list may contain --------------------------------------------

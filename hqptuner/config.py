@@ -4,6 +4,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 from hqptuner.paths import bundled, user_data_dir
 
@@ -18,20 +19,25 @@ def _env(name: str, default: str) -> str:
 STOCK_CREDENTIAL = "password"
 
 
-def _store(name: str) -> Path:
+def _store(name: str, *, frozen: bool | None = None) -> Path:
     """Default location of one store file: the user's data directory when frozen, the repo's ``state/`` otherwise.
 
     A frozen build installs where the user cannot write, or unpacks somewhere it deletes on exit, so the two
-    cases cannot share a directory.
+    cases cannot share a directory. ``frozen`` defaults to the live ``sys.frozen``, resolved fresh on every
+    call that omits it; ``Config`` is the public surface that pins it, through its own ``frozen`` field.
     """
-    if getattr(sys, "frozen", False):
+    if frozen is None:
+        frozen = getattr(sys, "frozen", False)
+    if frozen:
         return user_data_dir() / name
     return Path(__file__).resolve().parent.parent / "state" / name
 
 
-def _store_dir(name: str) -> Path:
+def _store_dir(name: str, *, frozen: bool | None = None) -> Path:
     """Default location of one store directory, on the same split as ``_store``."""
-    if getattr(sys, "frozen", False):
+    if frozen is None:
+        frozen = getattr(sys, "frozen", False)
+    if frozen:
         return user_data_dir() / name
     return Path(__file__).resolve().parent.parent / name
 
@@ -48,6 +54,16 @@ def _optional_path(name: str) -> Path | None:
     """
     raw = _env(name, "").strip()
     return Path(raw) if raw else None
+
+
+# Sentinel for a store/bundle-derived `Path` field left at its default: its own
+# `HQPTUNER_*` variable was unset, and no caller passed the field directly either.
+# `__post_init__` resolves it (by equality, since it round-trips through `str()`
+# inside `_env`'s own fallback) once `frozen`/`bundle` are known. Kept as an `_env`
+# fallback, never as a bare field default, so `scripts/gates/check_container_env.py`
+# — which walks each field's default for a literal `_env(...)` call to learn its
+# variable name — still sees every one of these fields.
+_UNSET_PATH = Path()
 
 
 @dataclass
@@ -73,7 +89,7 @@ class Config:
     # JSON file beside the other install-owned stores. The three fields it carries are layered UNDER the variables
     # above, so a container's pins keep their meaning and an install with no variables at all still has somewhere to
     # keep what the user typed.
-    connection_file: Path = field(default_factory=lambda: Path(_env("CONNECTION_FILE", str(_store("connection.json")))))
+    connection_file: Path = field(default_factory=lambda: Path(_env("CONNECTION_FILE", str(_UNSET_PATH))))
     hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
     hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", STOCK_CREDENTIAL))
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
@@ -95,47 +111,48 @@ class Config:
     # nor HQPTUNER_HQP_HOST has named a daemon. Settable because the name
     # resolves inside a container only.
     container_host_alias: str = field(default_factory=lambda: _env("CONTAINER_HOST_ALIAS", "host.docker.internal"))
-    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", str(bundled("data")))))
-    backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", str(_store_dir("backups")))))
+    # Whether this install resolves its bundled assets and per-user stores as a frozen
+    # build would, and where its unpacked bundle sits — the two facts PyInstaller's
+    # bootloader would otherwise leave on `sys.frozen`/`sys._MEIPASS`. Both default to
+    # that live state, read fresh in `__post_init__`; a caller pins either to choose a
+    # branch without touching `sys` itself.
+    frozen: bool | None = None
+    bundle: Path | None = None
+    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", str(_UNSET_PATH))))
+    backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", str(_UNSET_PATH))))
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
     # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
-    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", str(_store_dir("presets")))))
+    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", str(_UNSET_PATH))))
     # The LIVE view's named live snapshots (see presets/store/live.py) — one JSON file, not a
     # directory, because a live snapshot is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.
-    live_preset_file: Path = field(
-        default_factory=lambda: Path(_env("LIVE_PRESET_FILE", str(_store("live-presets.json"))))
-    )
+    live_preset_file: Path = field(default_factory=lambda: Path(_env("LIVE_PRESET_FILE", str(_UNSET_PATH))))
     # Starred filter names (see presets/store/favorites.py) — one JSON file beside the live
     # presets, in the same bind-mounted state dir, because favorites belong to
     # the install rather than to whichever browser starred them.
-    favorites_file: Path = field(default_factory=lambda: Path(_env("FAVORITES_FILE", str(_store("favorites.json")))))
+    favorites_file: Path = field(default_factory=lambda: Path(_env("FAVORITES_FILE", str(_UNSET_PATH))))
     # Narrow-bar facets (see presets/store/narrowing.py) — one JSON file beside the
     # favorites, in the same bind-mounted state dir. The narrow bar is
     # presentational and has no daemon field behind it, so the install is the
     # only place it can live; a browser that reloads picks the facets back up.
-    narrowing_file: Path = field(default_factory=lambda: Path(_env("NARROWING_FILE", str(_store("narrowing.json")))))
+    narrowing_file: Path = field(default_factory=lambda: Path(_env("NARROWING_FILE", str(_UNSET_PATH))))
     # Matrix-profile descriptions (see presets/store/descriptions.py) — one JSON file beside
     # the favorites, in the same bind-mounted state dir. A description belongs to
     # the install for the same reason a favorite does, and there is nowhere in
     # hqplayerd's config for it: <matrix_profile> carries only `name`.
-    description_file: Path = field(
-        default_factory=lambda: Path(_env("DESCRIPTION_FILE", str(_store("descriptions.json"))))
-    )
+    description_file: Path = field(default_factory=lambda: Path(_env("DESCRIPTION_FILE", str(_UNSET_PATH))))
     # Per-preset Matrix-tab modes (see presets/store/matrixmode.py) — one JSON file beside
     # the descriptions, in the same bind-mounted state dir. Which half of the
     # Matrix tab a preset is listened through belongs to the preset, so it has to
     # outlive the browser that chose it, and hqplayerd's config has nowhere to
     # carry it.
-    matrix_mode_file: Path = field(
-        default_factory=lambda: Path(_env("MATRIX_MODE_FILE", str(_store("matrixmodes.json"))))
-    )
+    matrix_mode_file: Path = field(default_factory=lambda: Path(_env("MATRIX_MODE_FILE", str(_UNSET_PATH))))
     # Auto-pilot state (see presets/store/autopilot.py) — one JSON file beside the
     # matrix modes, in the same bind-mounted state dir. Whether the high-frequency
     # filter is being driven for the listener is a property of the install, and
     # hqplayerd's config file has no junk-filter field to carry it in.
-    autopilot_file: Path = field(default_factory=lambda: Path(_env("AUTOPILOT_FILE", str(_store("autopilot.json")))))
+    autopilot_file: Path = field(default_factory=lambda: Path(_env("AUTOPILOT_FILE", str(_UNSET_PATH))))
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files
@@ -161,6 +178,35 @@ class Config:
     # number; anything unparseable falls back to INFO rather than refusing to
     # start (audit.resolve_level).
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
+
+    # Every store field driven by `_store`/`_store_dir`: its attribute name, the
+    # name it passes down, and whether that name is a directory (`_store_dir`)
+    # rather than a file (`_store`).
+    _STORES: ClassVar[tuple[tuple[str, str, bool], ...]] = (
+        ("connection_file", "connection.json", False),
+        ("backup_dir", "backups", True),
+        ("preset_dir", "presets", True),
+        ("live_preset_file", "live-presets.json", False),
+        ("favorites_file", "favorites.json", False),
+        ("narrowing_file", "narrowing.json", False),
+        ("description_file", "descriptions.json", False),
+        ("matrix_mode_file", "matrixmodes.json", False),
+        ("autopilot_file", "autopilot.json", False),
+    )
+
+    def __post_init__(self) -> None:
+        """Resolve every store/bundle field its own ``HQPTUNER_*`` variable left at the sentinel.
+
+        Each field's own ``default_factory`` already gave its variable, and any direct constructor
+        argument, first say; only a field still at ``_UNSET_PATH`` reaches here, and what it becomes
+        now honors ``self.frozen``/``self.bundle`` instead of always reading ``sys`` live.
+        """
+        for attr, name, is_dir in self._STORES:
+            if getattr(self, attr) == _UNSET_PATH:
+                resolver = _store_dir if is_dir else _store
+                setattr(self, attr, resolver(name, frozen=self.frozen))
+        if self.data_dir == _UNSET_PATH:
+            self.data_dir = bundled("data", bundle=self.bundle)
 
     @property
     def hqp_password_chosen(self) -> bool:

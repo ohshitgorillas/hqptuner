@@ -7,6 +7,9 @@ unrelated engine settings survive."""
 import io
 import zipfile
 
+import pytest
+
+from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import fileconfig
 
@@ -37,3 +40,13 @@ async def test_applied_cuda_device_id_is_reflected_in_readback(http_manager: Con
 async def test_restored_archive_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
     await http_manager.require_http().restore(_archive_with_nblocks("4"))
     assert (await fileconfig.read_engine(http_manager))["nblocks"] == "4"
+
+
+async def test_apply_engine_decline_carries_no_credentials_code(http_manager: ConnectionManager) -> None:
+    http_manager.readings.credentials_ok = False
+    try:
+        await http_manager.applyops.apply_engine({"cuda": "0"})
+    except HttpLaneDeclinedError as exc:
+        assert exc.code == "no_credentials"
+    else:
+        pytest.fail("expected HttpLaneDeclinedError")

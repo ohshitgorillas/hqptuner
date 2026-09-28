@@ -2,7 +2,7 @@
 
 Every other document in this base calibrates for **voicing**: a plain-language complaint, translated through `vocabulary.json`, nudging a chain that an AutoEq baseline already corrected (`vocabulary.json` `_meta.use_case` says so verbatim). This document covers the other mode — the user hands over a **measurement**, names a **yardstick**, and asks for the error between them to be driven toward zero. The two modes share tools and share nothing else: different magnitude source, different Q discipline, different definition of done.
 
-Claims tagged `[session]` are sourced to `sessions/ori/ori3-tuning.json` (ZMF Ori 3.0, factory 5128 measurement, DF target) and `sessions/blackwood/blackwood-tuning.json` (ZMF Blackwood, user's own REW measurement, flat-on-rig target); everything else cites the standing corpus. The mechanics of every eqlab job mentioned live in `scripts/eqlab/README.md`; this document carries when and why, never how.
+Claims tagged `[session]` are sourced to `sessions/ori/ori3-tuning.json` (ZMF Ori 3.0, factory 5128 measurement, DF target) and `sessions/blackwood/blackwood-tuning.json` (ZMF Blackwood, user's own REW measurement, flat-on-rig target); everything else cites the standing corpus. The mechanics of every eqlab job mentioned live in `hqptuner/static/vendor/eqlab/src/README.md`; this document carries when and why, never how.
 
 This document answers four questions, and governs from the turn a measurement arrives:
 
@@ -77,7 +77,7 @@ Also outside the fit:
 
 ## 7. Fitting doctrine
 
-The fit is search plus refine against the error curve; job mechanics in `scripts/eqlab/README.md`. What the sessions established about *driving* it `[session]`:
+The fit is search plus refine against the error curve; job mechanics in `hqptuner/static/vendor/eqlab/src/README.md`. Driving it `[session]`:
 
 - **Target-relative objectives, ERB-weighted where the ear is the judge.** `rmse` with `domain: "erb"` over the region under correction weights error by auditory bandwidth rather than log-frequency. Add a secondary weighted term for a second region rather than widening the primary.
 - **Constraints are collateral guards.** Every region the fit is *not* meant to touch that borders one it is gets an explicit bound (bass mean within ±0.75 dB, neighbor-band collateral bounded). A fit scored only where it aims will happily wreck the neighborhood.

@@ -64,17 +64,37 @@ _spans: dict[str, list[Any]] = {}
 DAMAGED: list[str] = []
 
 
-def _read_blob(path: Path) -> dict[str, Any] | None:
-    """Return the capture's JSON, tolerating a bad CRC and a stray control character, or ``None``."""
+class CaptureUnreadableError(Exception):
+    """A junkburst capture's gzip member or JSON body could not be read."""
+
+
+class CaptureDecompressError(CaptureUnreadableError):
+    """A capture's gzip member could not be read from disk or decompressed."""
+
+    def __init__(self, *, path: Path, exc: Exception) -> None:
+        """Name the unreadable capture `path` and the `exc` it raised."""
+        super().__init__(f"{path}: {exc}")
+
+
+class CaptureJsonError(CaptureUnreadableError):
+    """A capture's decompressed body did not parse as JSON."""
+
+    def __init__(self, *, path: Path, exc: json.JSONDecodeError) -> None:
+        """Name the capture `path` and the `exc` its JSON parse raised."""
+        super().__init__(f"{path}: {exc}")
+
+
+def _read_blob(path: Path) -> dict[str, Any]:
+    """Return the capture's JSON, tolerating a bad CRC and a stray control character."""
     try:
         raw = zlib.decompressobj(zlib.MAX_WBITS | 16).decompress(path.read_bytes())
-    except (OSError, zlib.error):
-        return None
+    except (OSError, zlib.error) as exc:
+        raise CaptureDecompressError(path=path, exc=exc) from exc
     try:
         blob: dict[str, Any] = json.loads(raw.decode("utf-8", "replace"), strict=False)
-        return blob
-    except json.JSONDecodeError:
-        return None
+    except json.JSONDecodeError as exc:
+        raise CaptureJsonError(path=path, exc=exc) from exc
+    return blob
 
 
 def _load_cache() -> None:
@@ -100,9 +120,13 @@ def burst_span(stamp: str, src: Path = SRC) -> tuple[datetime, float]:
     if stamp in _spans:
         began, span = _spans[stamp]
         return datetime.fromisoformat(began), float(span)
-    blob = _read_blob(src / f"junkburst-{stamp}.json.gz")
-    if blob is None:
+    damaged = False
+    try:
+        blob = _read_blob(src / f"junkburst-{stamp}.json.gz")
+    except CaptureUnreadableError:
         DAMAGED.append(stamp)
+        damaged = True
+    if damaged:
         began, span = parse_stamp(stamp), DEFAULT_SPAN_S
     else:
         began = datetime.fromisoformat(blob["started"]).astimezone(UTC)

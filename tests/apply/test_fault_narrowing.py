@@ -28,11 +28,14 @@ from typing import Any
 import pytest
 from conftest import ManagerFactory, StartManager
 from narrow import present
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpforms import MatrixForm
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import forms
+from hqptuner.lanes.http.forms import FormsOutcome
 
 #: The three pages the 8088 web UI is read from in one pass, each with the field
 #: of its parsed form that is non-empty on any real daemon — so "this form was
@@ -55,16 +58,6 @@ SURVIVORS = [(broken, intact) for broken in FORMS for intact in FORMS if broken 
 # whole subsystem a daemon can be without, and the matrix and config pages can
 # refuse alone just as readily. Such a fault belongs to its own form and stops
 # there.
-
-
-@pytest.mark.parametrize("form", sorted(FORMS))
-async def test_a_refusing_form_route_records_that_forms_error(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any], form: str
-) -> None:
-    http_daemon["_fail_paths"] = [f"/{form}"]
-    await forms.refresh(http_manager)
-    # the refused route's own path rides in the recorded error: that form's, not another's
-    assert f"/{form}" in str(getattr(http_manager.readings, f"{form}_error"))
 
 
 @pytest.mark.parametrize(("broken", "intact"), SURVIVORS)
@@ -94,12 +87,14 @@ async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
 # fabricated truth and imports nothing.
 
 
-async def test_a_refusing_backup_route_leaves_file_config_unset(
+async def test_a_refusing_backup_route_leaves_file_config_unset_but_a_healthy_one_sets_it(
     start_manager: StartManager, http_daemon: dict[str, Any]
 ) -> None:
+    healthy = await start_manager(http_daemon["_port"])
+    got_file_config = healthy.readings.file_config is not None
     http_daemon["_fail_paths"] = ["/backup/settings.zip"]
-    manager = await start_manager(http_daemon["_port"])
-    assert manager.readings.file_config is None
+    refused = await start_manager(http_daemon["_port"])
+    assert (refused.readings.file_config, got_file_config) == (None, True)
 
 
 def _newer_store(tmp_path: Path) -> Path:
@@ -113,28 +108,37 @@ def _newer_store(tmp_path: Path) -> Path:
     return presets
 
 
-async def test_a_store_stamped_by_a_newer_hqptuner_imports_nothing(
+async def test_a_store_stamped_by_a_newer_hqptuner_imports_nothing_but_an_ordinary_store_gets_the_daemons_preset(
     start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    # the inverse of the healthy migration (test_manager_connect_load.py): the
-    # daemon's own snapshots must NOT land in a store that refused. store.json is
-    # the store's on-disk layout contract (tests/presets/test_presetstore.py);
-    # anything beside it would be an imported payload.
-    presets = _newer_store(tmp_path)
-    await start_manager(http_daemon["_port"], preset_dir=presets)
-    assert [p.name for p in presets.rglob("*") if p.name != "store.json"] == []
+    # the daemon's own snapshots must NOT land in a store that refused. store.json
+    # is the store's on-disk layout contract; anything beside it would be an
+    # imported payload — and an ordinary store gets exactly that payload, the
+    # daemon's own `Test.xml`.
+    ordinary = tmp_path / "presets"
+    await start_manager(http_daemon["_port"], preset_dir=ordinary)
+    imported = [p.name for p in ordinary.rglob("*") if p.name != "store.json"]
+    newer = _newer_store(tmp_path)
+    await start_manager(http_daemon["_port"], preset_dir=newer)
+    blocked = [p.name for p in newer.rglob("*") if p.name != "store.json"]
+    assert (blocked, any("Test" in name for name in imported)) == ([], True)
 
 
 # --- baseline: a healthy pass records nothing ---------------------------------
 
 
 @pytest.mark.parametrize("form", sorted(FORMS))
-async def test_a_healthy_pass_records_no_error_for_any_form(
+async def test_a_healthy_pass_records_no_error_but_a_refusing_route_does(
     http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], form: str
 ) -> None:
     manager = http_manager_factory(http_daemon)
     await forms.refresh(manager)
-    assert getattr(manager.readings, f"{form}_error") is None
+    healthy = getattr(manager.readings, f"{form}_error")
+    http_daemon["_fail_paths"] = [f"/{form}"]
+    await forms.refresh(manager)
+    # the refused route's own path rides in the recorded error: that form's, not another's
+    refused = getattr(manager.readings, f"{form}_error")
+    assert (healthy, f"/{form}" in str(refused)) == (None, True)
 
 
 # --- the other half: an UNEXPECTED fault must not be swallowed ----------------
@@ -153,8 +157,10 @@ class FaultingMatrixClient(HttpConfigClient):
     bugs would — a TypeError, which is neither an ``httpx.HTTPError`` nor the
     control protocol's error type."""
 
-    async def get_matrix(self) -> Any:
-        raise TypeError("unexpected fault: our bug, not the daemon's")
+    @staticmethod
+    async def get_matrix() -> MatrixForm:
+        message = "unexpected fault: our bug, not the daemon's"
+        raise TypeError(message)
 
 
 @pytest.fixture
@@ -170,11 +176,11 @@ async def faulting_matrix(
         Config(
             hqp_host="127.0.0.1",
             hqp_control_port=live_daemon_port,
-            poll_interval=0.02,
             backup_dir=tmp_path / "backups",
             preset_dir=tmp_path / "presets",
         ),
         client,
+        VirtualClock(),
     )
     yield manager, client
     await manager.aclose()
@@ -189,12 +195,25 @@ async def test_an_unexpected_fault_propagates_out_of_the_form_refresh(
         await forms.refresh(manager)
 
 
-async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
+async def test_an_unexpected_matrix_fault_is_not_recorded_but_a_refused_configs_error_is(
     faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
+    http_daemon: dict[str, Any],
 ) -> None:
     # recording our own bug as the matrix form's error would hide it behind a
-    # message that reads like the daemon refusing
+    # message that reads like the daemon refusing — unlike an ordinary refused
+    # route, which the SAME refresh call records plainly. /config is read
+    # before /matrix (the table above), so its refusal is already recorded by
+    # the time the matrix client's own TypeError aborts the pass.
     manager, _client = faulting_matrix
+    http_daemon["_fail_paths"] = ["/config"]
     with contextlib.suppress(TypeError):
         await forms.refresh(manager)
-    assert manager.readings.matrix_error is None
+    assert (manager.readings.matrix_error, "/config" in str(manager.readings.config_error)) == (None, True)
+
+
+async def test_a_refresh_reports_refused_when_the_daemon_answers_401(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_refuse_auth"] = True
+    report = await forms.refresh(http_manager)
+    assert report.outcome is FormsOutcome.REFUSED

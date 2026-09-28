@@ -22,7 +22,6 @@ positionally is how a case gets its own excuses in front of the checker, and
 import importlib.util
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 import pytest
 
@@ -31,10 +30,17 @@ import pytest
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_gates_wired.py"
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_gates_wired_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -85,7 +91,7 @@ def wired_tree(tmp_path: Path, gates: list[str]) -> Path:
     )
 
 
-def test_a_gate_absent_from_the_makefile_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_gate_absent_from_the_makefile_is_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = build_tree(
         tmp_path,
         ["check_orphan.py"],
@@ -106,7 +112,9 @@ def test_a_gate_absent_from_the_makefile_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(root, {}) == 1
 
 
-def test_a_gate_only_on_a_commented_makefile_line_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_gate_only_on_a_commented_makefile_line_is_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     root = build_tree(
         tmp_path,
         ["check_shelved.py"],
@@ -127,7 +135,7 @@ def test_a_gate_only_on_a_commented_makefile_line_fails_the_gate(tmp_path: Path)
     assert CHECK(root, {}) == 1
 
 
-def test_a_gate_absent_from_pre_commit_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_gate_absent_from_pre_commit_is_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = build_tree(
         tmp_path,
         ["check_unhooked.py"],
@@ -148,7 +156,9 @@ def test_a_gate_absent_from_pre_commit_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(root, {}) == 1
 
 
-def test_a_gate_only_on_a_commented_pre_commit_line_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_gate_only_on_a_commented_pre_commit_line_is_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     root = build_tree(
         tmp_path,
         ["check_shelved.py"],
@@ -169,7 +179,9 @@ def test_a_gate_only_on_a_commented_pre_commit_line_fails_the_gate(tmp_path: Pat
     assert CHECK(root, {}) == 1
 
 
-def test_an_exempt_gate_absent_from_pre_commit_is_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_an_exempt_gate_absent_from_pre_commit_is_not_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     root = build_tree(
         tmp_path,
         ["check_slow.py"],
@@ -181,16 +193,24 @@ def test_an_exempt_gate_absent_from_pre_commit_is_not_named_on_stdout(tmp_path: 
 
 
 def test_an_exempt_gate_absent_from_pre_commit_passes_the_gate(tmp_path: Path) -> None:
-    root = build_tree(
+    root_exempt = build_tree(
         tmp_path,
         ["check_slow.py"],
         "check:\n" + make_line("check_slow.py"),
         "repos:\n  - repo: local\n    hooks: []\n",
     )
-    assert CHECK(root, {"check_slow.py": "too slow for a commit hook"}) == 0
+    root_not_exempt = build_tree(
+        tmp_path / "other",
+        ["check_fast.py"],
+        "check:\n" + make_line("check_fast.py"),
+        "repos:\n  - repo: local\n    hooks: []\n",
+    )
+    assert (CHECK(root_exempt, {"check_slow.py": "too slow for a commit hook"}), CHECK(root_not_exempt, {})) == (0, 1)
 
 
-def test_an_exemption_naming_no_gate_file_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_an_exemption_naming_no_gate_file_is_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     root = wired_tree(tmp_path, ["check_present.py"])
     CHECK(root, {"check_deleted_last_year.py": "excused for a reason nobody remembers"})
     assert "check_deleted_last_year.py" in capsys.readouterr().out
@@ -203,7 +223,7 @@ def test_an_exemption_naming_no_gate_file_fails_the_gate(tmp_path: Path) -> None
 
 @pytest.mark.parametrize("expected", ["check_unwired.py", "check_unhooked.py"])
 def test_both_the_makefile_and_pre_commit_failures_are_reported_together(
-    tmp_path: Path, capsys: Any, expected: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
 ) -> None:
     root = build_tree(
         tmp_path,
@@ -226,8 +246,14 @@ def test_a_tree_failing_both_checks_fails_the_gate(tmp_path: Path) -> None:
 
 
 def test_a_fully_wired_tree_passes_the_gate(tmp_path: Path) -> None:
-    root = wired_tree(tmp_path, ["check_one.py", "check_two.py"])
-    assert CHECK(root, {}) == 0
+    root_wired = wired_tree(tmp_path, ["check_one.py", "check_two.py"])
+    root_unwired = build_tree(
+        tmp_path / "other",
+        ["check_unhooked.py"],
+        "check:\n" + make_line("check_unhooked.py"),
+        "repos:\n  - repo: local\n    hooks: []\n",
+    )
+    assert (CHECK(root_wired, {}), CHECK(root_unwired, {})) == (0, 1)
 
 
 def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:

@@ -216,9 +216,9 @@ def _describe(finding: Finding) -> str:
     return f"{where}: {category}"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Refuse on any finding; with ``--report`` first, print the findings and return 0."""
-    args = sys.argv[1:]
+    args = sys.argv[1:] if argv is None else argv
     report = args[:1] == ["--report"]
     findings = [finding for name in (args[1:] if report else args) for finding in check_file(Path(name))]
     for finding in findings:

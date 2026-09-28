@@ -3,9 +3,9 @@
 // ghosts and the library-picker preview. Pure client math (lib/dsp/chain.js),
 // recomputed per render off the staged pipeline signals — no server
 // round-trip.
-import { parseProcess, serializeProcess } from "../../lib/matrixspec.js";
-import { chainResponse } from "../../lib/dsp/chain.js";
-import { bandFreqs } from "../../lib/dsp/curves.js";
+import { parseProcess, serializeProcess } from "../../vendor/eqlab/core/matrixspec.js";
+import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
+import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
 import { structuralBlock } from "../../store/xfeed/mode.js";
 import { withDrag, dragEq } from "./BandStrip.js";
@@ -14,7 +14,7 @@ import { withDrag, dragEq } from "./BandStrip.js";
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
  *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
  *   string, because the config XML and the /matrix form both carry text.
- * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
  *   One parsed `process` stage, as lib/matrixspec.js parseProcess emits it.
  * @typedef {{ min: number, max: number }} Bounds
  *   The dB window the plot auto-scales to. Widened IN PLACE by every builder

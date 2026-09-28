@@ -14,15 +14,22 @@ from typing import Any
 
 import fake_http
 import pytest
-from conftest import ManagerFactory, StartManager, wait_for_api
+from apps import wait_for_api
+from conftest import ManagerFactory, StartManager
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
+from hqptuner.conf.httpforms import ConfigForm
 from hqptuner.config import Config
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
+from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.presets import fileconfig
+
+#: The zero value of ``DeviceCaps | None``, so an assertion reads a field without a conjunction (docs/testing.md 2).
+NO_CAPS = DeviceCaps(device="", pcm_rates=[], dsd_rates=[])
 
 PREAMBLE = "2026/08/01 02:03:30 Engine started\n2026/08/01 02:03:31 Opening output device\n"
 
@@ -42,26 +49,23 @@ SELECTED_LOG = PREAMBLE + announcement("S26", "hw:CARD=Output,DEV=0", PI)
 OTHER_LOG = PREAMBLE + announcement("S30", "hw:CARD=Other,DEV=0", PI)
 
 
-def form(**fields: Any) -> dict[str, Any]:
-    return {"fields": [{"name": name, "value": value} for name, value in fields.items()]}
+def form(**fields: str) -> ConfigForm:
+    return {"fields": [{"name": name, "value": value} for name, value in fields.items()], "profiles": None}
 
 
 # --- parse_caps: reading one announcement out of log text -------------------
 
 
-def test_device_identity_is_endpoint_and_device_joined_by_slash() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=sndrpihifiberry,DEV=0", PI))
-    assert (caps or {})["device"] == "naa-office/hw:CARD=sndrpihifiberry,DEV=0"
+def test_parse_caps_is_none_with_no_announcement_and_names_the_device_with_one() -> None:
+    absent = devicecaps.parse_caps("\n".join(f"log line {i}" for i in range(1, 61)))
+    acting = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=sndrpihifiberry,DEV=0", PI))
+    assert (absent, (acting or NO_CAPS).device) == (None, "naa-office/hw:CARD=sndrpihifiberry,DEV=0")
 
 
-def test_pcm_marked_formats_become_integer_pcm_rates() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert (caps or {})["pcm_rates"] == [44100, 192000]
-
-
-def test_dsd_marked_formats_become_integer_dsd_rates() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert (caps or {})["dsd_rates"] == [2822400, 3072000]
+def test_parse_caps_is_none_with_no_format_lines_and_reads_pcm_rates_with_some() -> None:
+    absent = devicecaps.parse_caps(PREAMBLE + announcement("naa-office", "hw:CARD=X,DEV=0", []))
+    acting = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
+    assert (absent, (acting or NO_CAPS).pcm_rates) == (None, [44100, 192000])
 
 
 #: One announcement whose PCM lines and DSD lines are BOTH out of order and both
@@ -82,107 +86,99 @@ UNTIDY = [
 
 def test_pcm_rates_come_back_sorted_ascending_whatever_order_the_log_listed() -> None:
     caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or {})["pcm_rates"] == [44100, 96000, 192000]
+    assert (caps or NO_CAPS).pcm_rates == [44100, 96000, 192000]
 
 
 def test_dsd_rates_come_back_sorted_ascending_whatever_order_the_log_listed() -> None:
     caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or {})["dsd_rates"] == [2822400, 3072000, 5644800]
+    assert (caps or NO_CAPS).dsd_rates == [2822400, 3072000, 5644800]
 
 
 def test_a_pcm_rate_announced_twice_appears_once() -> None:
     caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or {})["pcm_rates"].count(44100) == 1
+    assert (caps or NO_CAPS).pcm_rates.count(44100) == 1
 
 
 def test_a_dsd_rate_announced_twice_appears_once() -> None:
     caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or {})["dsd_rates"].count(2822400) == 1
+    assert (caps or NO_CAPS).dsd_rates.count(2822400) == 1
 
 
 PCM_ONLY = [f"{rate}/24/2 [pcm]" for rate in (32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000)]
 
 
-def test_a_device_with_no_dsd_path_reports_an_empty_dsd_list() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
-    assert (caps or {})["dsd_rates"] == []
+def test_dsd_rates_are_empty_with_no_dsd_path_and_populated_when_the_log_announces_dsd() -> None:
+    pcm_only = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
+    with_dsd = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
+    assert ((pcm_only or NO_CAPS).dsd_rates, (with_dsd or NO_CAPS).dsd_rates) == ([], [2822400, 3072000])
 
 
 def test_a_device_with_no_dsd_path_is_still_a_capability() -> None:
     caps = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
-    assert (caps or {})["device"] == "naa-pi2aes/hw:CARD=Pi2AES,DEV=0"
-
-
-def test_log_without_any_announcement_yields_nothing() -> None:
-    assert devicecaps.parse_caps("\n".join(f"log line {i}" for i in range(1, 61))) is None
-
-
-def test_an_announcement_with_no_format_lines_yields_nothing() -> None:
-    assert devicecaps.parse_caps(PREAMBLE + announcement("naa-office", "hw:CARD=X,DEV=0", [])) is None
+    assert (caps or NO_CAPS).device == "naa-pi2aes/hw:CARD=Pi2AES,DEV=0"
 
 
 def test_only_the_most_recent_announcement_names_the_device() -> None:
     text = announcement("old", "hw:CARD=Old,DEV=0", PCM_ONLY) + announcement("new", "hw:CARD=New,DEV=0", PI)
     caps = devicecaps.parse_caps(text)
-    assert (caps or {})["device"] == "new/hw:CARD=New,DEV=0"
+    assert (caps or NO_CAPS).device == "new/hw:CARD=New,DEV=0"
 
 
 def test_an_earlier_devices_rates_are_not_merged_into_the_later_one() -> None:
     text = announcement("old", "hw:CARD=Old,DEV=0", PCM_ONLY) + announcement("new", "hw:CARD=New,DEV=0", PI)
     caps = devicecaps.parse_caps(text)
     # 32000 is the old device's alone; seeing it would mean the blocks were merged
-    assert 32000 not in (caps or {})["pcm_rates"]
+    assert 32000 not in (caps or NO_CAPS).pcm_rates
 
 
 def test_format_lines_before_any_announcement_are_ignored() -> None:
     stray = "2026/08/01 02:03:20 NAA output network format: 384000/32/2 [pcm]\n"
     caps = devicecaps.parse_caps(stray + announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert 384000 not in (caps or {})["pcm_rates"]
+    assert 384000 not in (caps or NO_CAPS).pcm_rates
 
 
 # --- selected_device: which device the menus should narrow to ---------------
 
 
-def test_network_backend_narrows_to_the_net_device() -> None:
-    parsed = form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
-    assert devicecaps.selected_device(parsed) == SELECTED
-
-
-def test_alsa_backend_narrows_to_the_alsa_device() -> None:
-    parsed = form(backend="alsa", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
-    assert devicecaps.selected_device(parsed) == "hw:CARD=NVidia,DEV=3"
-
-
-def test_combo_backend_narrows_nothing() -> None:
+def test_selected_device_is_none_for_combo_backend_and_the_net_device_for_network() -> None:
+    combo = devicecaps.selected_device(form(backend="combo", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"))
     # combo drives an ALSA and a network device at once while the log announces
     # one: which device's limits bind is unknown, and unknown means no narrowing
-    parsed = form(backend="combo", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
-    assert devicecaps.selected_device(parsed) is None
+    network = devicecaps.selected_device(
+        form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
+    )
+    assert (combo, network) == (None, SELECTED)
 
 
-def test_no_form_loaded_yet_narrows_nothing() -> None:
-    assert devicecaps.selected_device(None) is None
+def test_selected_device_is_none_with_no_form_loaded_and_the_alsa_device_for_alsa_backend() -> None:
+    absent = devicecaps.selected_device(None)
+    alsa = devicecaps.selected_device(form(backend="alsa", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"))
+    assert (absent, alsa) == (None, "hw:CARD=NVidia,DEV=3")
 
 
-def test_an_empty_device_field_narrows_nothing() -> None:
-    assert devicecaps.selected_device(form(backend="network", net_device="")) is None
+def test_selected_device_is_none_with_an_empty_device_field_and_present_with_one_filled() -> None:
+    empty = devicecaps.selected_device(form(backend="network", net_device=""))
+    populated = devicecaps.selected_device(
+        form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
+    )
+    assert (empty, populated) == (None, SELECTED)
 
 
 # --- caps_for: matching the announcement against the selection --------------
 
 
-def test_capability_comes_back_when_the_announcement_names_the_selected_device() -> None:
-    assert (devicecaps.caps_for(SELECTED_LOG, SELECTED) or {})["device"] == SELECTED
-
-
-def test_capability_is_nothing_when_the_announcement_names_a_different_device() -> None:
+def test_caps_for_is_none_when_the_announcement_names_a_different_device_and_serves_it_when_it_matches() -> None:
     # staged device change: the daemon has not opened the new device yet, so the
     # log still describes the old one and must not narrow the new one
-    assert devicecaps.caps_for(OTHER_LOG, SELECTED) is None
+    different = devicecaps.caps_for(OTHER_LOG, SELECTED)
+    matching = devicecaps.caps_for(SELECTED_LOG, SELECTED)
+    assert (different, (matching or NO_CAPS).device) == (None, SELECTED)
 
 
-def test_capability_is_nothing_when_no_device_is_selected() -> None:
-    assert devicecaps.caps_for(SELECTED_LOG, None) is None
+def test_caps_for_is_none_with_no_device_selected_and_serves_it_when_one_is() -> None:
+    absent = devicecaps.caps_for(SELECTED_LOG, None)
+    present = devicecaps.caps_for(SELECTED_LOG, SELECTED)
+    assert (absent, (present or NO_CAPS).device) == (None, SELECTED)
 
 
 # --- agreed_device: the two config views, compared --------------------------
@@ -197,14 +193,12 @@ FORM = form(backend="network", net_device=SELECTED, alsa_device=ALSA)
 FILE: dict[str, str] = {"backend": "network", "net_device": SELECTED, "alsa_device": ALSA}
 
 
-def test_both_views_naming_one_device_agree_on_it() -> None:
-    assert devicecaps.agreed_device(FORM, FILE) == SELECTED
-
-
-def test_views_naming_different_devices_agree_on_nothing() -> None:
+def test_agreed_device_is_none_when_the_views_name_different_devices_and_agrees_when_they_match() -> None:
     # the preset-load window: the file already carries the new preset's device
     # while the form still reports the previous one
-    assert devicecaps.agreed_device(FORM, {**FILE, "net_device": OTHER}) is None
+    disagreeing = devicecaps.agreed_device(FORM, {**FILE, "net_device": OTHER})
+    agreeing = devicecaps.agreed_device(FORM, FILE)
+    assert (disagreeing, agreeing) == (None, SELECTED)
 
 
 def test_no_file_view_leaves_the_form_the_sole_authority() -> None:
@@ -233,12 +227,16 @@ def test_a_file_view_silent_about_the_device_falls_back_to_the_form(file_view: d
         pytest.param("network", "combo", id="only the file says combo"),
     ],
 )
-def test_the_combo_backend_agrees_on_no_device(form_backend: str, file_backend: str) -> None:
+def test_the_combo_backend_agrees_on_no_device_and_a_named_backend_agrees_on_it(
+    form_backend: str, file_backend: str
+) -> None:
     # combo drives an ALSA and a network device at once while the daemon
     # announces one, so neither view can name the device whose limits bind
     parsed = form(backend=form_backend, net_device=SELECTED, alsa_device=ALSA)
     file_view = {**FILE, "backend": file_backend}
-    assert devicecaps.agreed_device(parsed, file_view) is None
+    combo_result = devicecaps.agreed_device(parsed, file_view)
+    agreeing = devicecaps.agreed_device(FORM, FILE)
+    assert (combo_result, agreeing) == (None, SELECTED)
 
 
 # --- the connection manager -------------------------------------------------
@@ -267,44 +265,53 @@ async def _loaded(factory: ManagerFactory, daemon: dict[str, Any]) -> Connection
     return manager
 
 
-def test_a_fresh_manager_reports_no_device_capability(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]
+async def test_a_fresh_manager_reports_no_capability_and_a_loaded_one_reports_it(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
 ) -> None:
-    assert _manager(http_manager_factory, http_daemon).readings.device_caps is None
+    fresh = _manager(http_manager_factory, http_daemon)
+    loaded = await _loaded(http_manager_factory, announcing_daemon)
+    assert (fresh.readings.device_caps, (loaded.readings.device_caps or NO_CAPS).pcm_rates) == (
+        None,
+        [44100, 192000],
+    )
 
 
-async def test_manager_reports_the_capability_of_the_announced_selected_device(
-    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
-) -> None:
-    manager = await _loaded(http_manager_factory, announcing_daemon)
-    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
-
-
-async def test_manager_reports_nothing_when_the_log_announces_another_device(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]
+async def test_manager_reports_nothing_with_another_devices_log_and_the_capability_with_its_own(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
 ) -> None:
     http_daemon["_log"] = OTHER_LOG
-    manager = await _loaded(http_manager_factory, http_daemon)
-    assert manager.readings.device_caps is None
+    other = await _loaded(http_manager_factory, http_daemon)
+    matching = await _loaded(http_manager_factory, announcing_daemon)
+    assert (other.readings.device_caps, (matching.readings.device_caps or NO_CAPS).pcm_rates) == (
+        None,
+        [44100, 192000],
+    )
 
 
-async def test_manager_reports_nothing_when_the_log_carries_no_announcement(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]
+async def test_manager_reports_nothing_with_no_announcement_and_the_capability_when_one_exists(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
 ) -> None:
-    manager = await _loaded(http_manager_factory, http_daemon)
-    assert manager.readings.device_caps is None
+    absent = await _loaded(http_manager_factory, http_daemon)
+    present = await _loaded(http_manager_factory, announcing_daemon)
+    assert (absent.readings.device_caps, (present.readings.device_caps or NO_CAPS).pcm_rates) == (
+        None,
+        [44100, 192000],
+    )
 
 
-async def test_a_log_that_cannot_be_fetched_stores_no_capability(
+async def test_a_log_that_cannot_be_fetched_stores_no_capability_and_a_readable_one_stores_it(
     http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
 ) -> None:
     # this daemon's config form has selected the device its log announces, so a
-    # readable log narrows the menus here (the announced-device case above) —
-    # what must stop it is the 8088 lane refusing GET /log, which leaves nothing
-    # known about the device
+    # readable log narrows the menus here — what must stop it is the 8088 lane
+    # refusing GET /log, which leaves nothing known about the device
+    readable = await _loaded(http_manager_factory, announcing_daemon)
     announcing_daemon["_fail_paths"] = ["/log"]
-    manager = await _loaded(http_manager_factory, announcing_daemon)
-    assert manager.readings.device_caps is None
+    unreadable = await _loaded(http_manager_factory, announcing_daemon)
+    assert (unreadable.readings.device_caps, (readable.readings.device_caps or NO_CAPS).pcm_rates) == (
+        None,
+        [44100, 192000],
+    )
 
 
 # --- what a refresh costs: the log is re-read only when there is something to
@@ -371,20 +378,18 @@ async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> Connec
     return manager
 
 
-async def test_manager_serves_the_capability_when_both_views_name_the_announced_device(
-    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
+async def test_manager_serves_nothing_when_the_two_views_disagree_and_the_capability_when_they_agree(
+    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
 ) -> None:
-    manager = await _both_views(http_manager_factory, announcing_daemon)
-    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
-
-
-async def test_manager_serves_nothing_while_the_two_views_name_different_devices(
-    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any]
-) -> None:
-    # the log agrees with the form here, so the announcement alone would narrow:
-    # what must stop it is the file naming another generation's device
-    manager = await _both_views(http_manager_factory, disagreeing_daemon)
-    assert manager.readings.device_caps is None
+    # the log agrees with the form in the agreeing case, so the announcement
+    # alone would narrow: what must stop it in the disagreeing case is the file
+    # naming another generation's device
+    disagreeing = await _both_views(http_manager_factory, disagreeing_daemon)
+    agreeing = await _both_views(http_manager_factory, announcing_daemon)
+    assert (disagreeing.readings.device_caps, (agreeing.readings.device_caps or NO_CAPS).pcm_rates) == (
+        None,
+        [44100, 192000],
+    )
 
 
 async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agree(
@@ -397,7 +402,7 @@ async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agre
     # one ordinary refresh, unforced and with no virtual time passed: a retry
     # interval charged for the disagreement would still be closed here
     await engineread.refresh_devices(manager)
-    assert (manager.readings.device_caps or {})["device"] == SELECTED
+    assert (manager.readings.device_caps or NO_CAPS).device == SELECTED
 
 
 async def test_manager_serves_the_capability_when_the_archive_read_failed(
@@ -409,7 +414,7 @@ async def test_manager_serves_the_capability_when_the_archive_read_failed(
     port = backupless_daemon["_port"]
     manager = await start_manager(port, hqp_http_port=port)
     await engineread.refresh_devices(manager)
-    assert (manager.readings.device_caps or {})["pcm_rates"] == [44100, 192000]
+    assert (manager.readings.device_caps or NO_CAPS).pcm_rates == [44100, 192000]
 
 
 # --- the REST surface -------------------------------------------------------
@@ -436,7 +441,7 @@ def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg)) as test_client:
+    with TestClient(create_app(cfg, VirtualClock())) as test_client:
         wait_for_api(test_client, _config_loaded)
         yield test_client
 
@@ -459,19 +464,20 @@ def disagreeing_client(
     yield from _wired_client(disagreeing_daemon, threaded_daemon_port, tmp_path)
 
 
-def test_api_config_carries_the_selected_devices_capability(announcing_client: TestClient) -> None:
-    body = announcing_client.get("/api/config").json()
-    assert (body["data"]["device_caps"] or {})["pcm_rates"] == [44100, 192000]
-
-
-def test_api_config_carries_a_null_capability_when_none_is_known(http_client: TestClient) -> None:
+def test_api_config_carries_a_null_capability_when_none_is_known_and_the_real_one_when_it_is(
+    http_client: TestClient, announcing_client: TestClient
+) -> None:
     # the stock fake's log has no device announcement at all
     http_client.post("/api/config/refresh")
-    assert http_client.get("/api/config").json()["data"]["device_caps"] is None
+    absent = http_client.get("/api/config").json()["data"]["device_caps"]
+    present = announcing_client.get("/api/config").json()["data"]["device_caps"]
+    assert (absent, present["pcm_rates"]) == (None, [44100, 192000])
 
 
-def test_api_config_carries_a_null_capability_while_the_two_views_disagree(
-    disagreeing_client: TestClient,
+def test_api_config_carries_a_null_capability_while_the_two_views_disagree_and_the_real_one_when_they_agree(
+    disagreeing_client: TestClient, announcing_client: TestClient
 ) -> None:
     disagreeing_client.post("/api/config/refresh")
-    assert disagreeing_client.get("/api/config").json()["data"]["device_caps"] is None
+    disagreeing = disagreeing_client.get("/api/config").json()["data"]["device_caps"]
+    agreeing = announcing_client.get("/api/config").json()["data"]["device_caps"]
+    assert (disagreeing, agreeing["pcm_rates"]) == (None, [44100, 192000])

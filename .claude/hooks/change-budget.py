@@ -98,6 +98,7 @@ is_free_bash = _free.is_free_bash
 reason_metered = _free.reason_metered
 _curl_ok = _free._curl_ok
 _strip_prefix = _free._strip_prefix
+UnparsableCommandError = _free.UnparsableCommandError
 _cmd_name = _free._cmd_name
 READERS = _free.READERS
 
@@ -216,10 +217,7 @@ def _in_tree(path, root, cwd):
     if not root or not path:
         return False
     p = os.path.abspath(os.path.join(cwd or root, path))
-    try:
-        return os.path.commonpath([p, root]) == root
-    except ValueError:
-        return False  # unrelated roots -> not in tree -> meters
+    return os.path.commonpath([p, root]) == root
 
 
 def classify(name, tool_input, root, cwd):
@@ -265,7 +263,10 @@ def count_blocks(ev, root, cwd, labels=None):
     for b in content:
         if not isinstance(b, dict) or b.get("type") != "tool_use":
             continue
-        kind = classify(b.get("name"), b.get("input"), root, cwd)
+        try:
+            kind = classify(b.get("name"), b.get("input"), root, cwd)
+        except UnparsableCommandError:
+            continue  # an unparsable past command counts as nothing
         if kind == CHANGE:
             changes += 1
             if labels is not None:
@@ -343,10 +344,7 @@ def evaluate(data, rows):
     name, tool_input = data.get("tool_name"), data.get("tool_input")
 
     kind = classify(name, tool_input, root, cwd)
-    if kind == FREE:            # costs nothing: allow regardless of prior counts
-        return None
-
-    if kind == EDIT:            # in-tree, reviewable, `git restore`-able: free
+    if kind in (FREE, EDIT):    # free, or an in-tree edit: allow regardless of prior counts
         return None
 
     win = window(rows)
@@ -393,10 +391,13 @@ def main():
     # denied, and parsing a multi-megabyte file to learn that would put the
     # cost of the budget on the calls the budget deliberately does not price.
     cwd = data.get("cwd") or os.getcwd()
-    if classify(data.get("tool_name"), data.get("tool_input"),
-                _repo_root(cwd), cwd) in (FREE, EDIT):
+    try:
+        kind = classify(data.get("tool_name"), data.get("tool_input"), _repo_root(cwd), cwd)
+    except UnparsableCommandError as exc:
+        _deny(str(exc))
         return
-
+    if kind in (FREE, EDIT):
+        return
     tp = data.get("transcript_path")
     if not tp:
         return
@@ -404,18 +405,14 @@ def main():
         rows = _rows(tp)
     except Exception:
         return
-
     reason = evaluate(data, rows)
-    if not reason:
-        return
+    if reason:
+        _deny(reason)
 
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": reason,
-        }
-    }))
+
+def _deny(reason):
+    hso = {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}
+    print(json.dumps({"hookSpecificOutput": hso}))
 
 
 if __name__ == "__main__":

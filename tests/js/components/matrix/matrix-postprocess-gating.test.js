@@ -87,7 +87,7 @@ import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { matrixMode } from "../../../../hqptuner/static/store/matrix/mode.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
@@ -242,7 +242,7 @@ const CONFIG_FORM = [
 ];
 
 // A stereo pipeline pair, so the matrix table has rows carrying controls.
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 /** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });

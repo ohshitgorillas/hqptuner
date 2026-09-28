@@ -23,16 +23,18 @@ would stop constraining the moment the report format changed.
 """
 
 import importlib.util
-import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any, cast
+from typing import cast
 
 import pytest
 
 
 class FixtureError(Exception):
     """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
 
 
 #: The gate script under test, found relative to this file rather than through
@@ -43,7 +45,7 @@ GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_c
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_changelog_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise FixtureError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -86,7 +88,7 @@ def line_of(path: Path, needle: str) -> int:
     """The 1-indexed line number of the single line of ``path`` holding ``needle``."""
     hits = [n for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1) if needle in line]
     if len(hits) != 1:
-        raise FixtureError(f"expected {needle!r} on exactly one line, found it on {hits}")
+        raise FixtureError(reason=f"expected {needle!r} on exactly one line, found it on {hits}")
     return hits[0]
 
 
@@ -120,7 +122,10 @@ def body_of(path: Path) -> list[tuple[int, str]]:
 
 
 def test_a_conformant_unreleased_section_passes_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(CLEAN))) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(CLEAN))),
+        CHECK(write_changelog(tmp_path, under_added(NO_LEAD))),
+    ) == (0, 1)
 
 
 # --- the word cap -----------------------------------------------------------
@@ -131,12 +136,10 @@ def test_the_word_cap_is_seventy_five() -> None:
     assert WORD_CAP == 75
 
 
-def test_a_bullet_over_the_word_cap_fails_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP + 1)))) == 1
-
-
 @pytest.mark.parametrize("expected", [str(WORD_CAP + 1), str(WORD_CAP)], ids=["actual count", "the cap"])
-def test_an_over_long_bullet_is_reported_with_its_count_and_the_cap(tmp_path: Path, capsys: Any, expected: str) -> None:
+def test_an_over_long_bullet_is_reported_with_its_count_and_the_cap(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
     bullet = sized_bullet(WORD_CAP + 1)
     path = write_changelog(tmp_path, under_added(bullet))
     CHECK(path)
@@ -145,12 +148,18 @@ def test_an_over_long_bullet_is_reported_with_its_count_and_the_cap(tmp_path: Pa
 
 def test_a_bullet_at_exactly_the_word_cap_passes_the_gate(tmp_path: Path) -> None:
     """The cap is inclusive: hitting it is reaching it, not exceeding it."""
-    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP)))) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP)))),
+        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP + 1)))),
+    ) == (0, 1)
 
 
 def test_an_em_dash_added_to_a_bullet_at_the_cap_does_not_push_it_over(tmp_path: Path) -> None:
     """Punctuation carrying no letter or digit is not a word, so it costs nothing."""
-    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP, middle="— ")))) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP, middle="— ")))),
+        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP + 1, middle="— ")))),
+    ) == (0, 1)
 
 
 # --- word counting ----------------------------------------------------------
@@ -187,18 +196,19 @@ def test_words_ignores_a_standalone_underscore_emphasis_marker() -> None:
 CONTINUED = "- **Lead.** First block of text.\n\n  A second block indented beneath it."
 
 
-def test_a_bullet_running_to_a_second_paragraph_fails_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(CONTINUED))) == 1
-
-
-def test_a_bullet_running_to_a_second_paragraph_is_reported_as_such(tmp_path: Path, capsys: Any) -> None:
+def test_a_bullet_running_to_a_second_paragraph_is_reported_as_such(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, under_added(CONTINUED))
     CHECK(path)
     assert "paragraph" in report(capsys.readouterr().out, path, CONTINUED).lower()
 
 
 def test_a_blank_line_between_two_bullets_does_not_make_the_second_a_continuation(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(CLEAN, CLEAN))) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(CLEAN, CLEAN))),
+        CHECK(write_changelog(tmp_path, under_added(CONTINUED))),
+    ) == (0, 1)
 
 
 # --- the bold lead ----------------------------------------------------------
@@ -212,7 +222,7 @@ def test_a_bullet_without_a_bold_lead_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(write_changelog(tmp_path, under_added(NO_LEAD))) == 1
 
 
-def test_a_bullet_without_a_bold_lead_is_reported_as_such(tmp_path: Path, capsys: Any) -> None:
+def test_a_bullet_without_a_bold_lead_is_reported_as_such(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = write_changelog(tmp_path, under_added(NO_LEAD))
     CHECK(path)
     assert "bold" in report(capsys.readouterr().out, path, NO_LEAD).lower()
@@ -237,7 +247,7 @@ def test_a_bullet_in_second_person_fails_the_gate(tmp_path: Path, bullet: str) -
 
 @pytest.mark.parametrize("bullet,word", SECOND_PERSON, ids=[w for _, w in SECOND_PERSON])
 def test_a_bullet_in_second_person_is_reported_with_the_offending_word(
-    tmp_path: Path, capsys: Any, bullet: str, word: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], bullet: str, word: str
 ) -> None:
     path = write_changelog(tmp_path, under_added(bullet))
     CHECK(path)
@@ -246,8 +256,12 @@ def test_a_bullet_in_second_person_is_reported_with_the_offending_word(
 
 def test_a_word_merely_containing_a_second_person_word_passes_the_gate(tmp_path: Path) -> None:
     """The match is word-bounded: ``younger`` is not ``you``."""
-    bullet = "- **Lead.** The younger release did the same."
-    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 0
+    bullet_ok = "- **Lead.** The younger release did the same."
+    bullet_fail = "- **Lead.** This is the one you asked for."
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
+        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
+    ) == (0, 1)
 
 
 # --- marketing register -----------------------------------------------------
@@ -273,7 +287,7 @@ def test_a_bullet_in_marketing_register_fails_the_gate(tmp_path: Path, bullet: s
 
 @pytest.mark.parametrize("bullet,word", HYPE, ids=[w for _, w in HYPE])
 def test_a_bullet_in_marketing_register_is_reported_with_the_offending_word(
-    tmp_path: Path, capsys: Any, bullet: str, word: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], bullet: str, word: str
 ) -> None:
     path = write_changelog(tmp_path, under_added(bullet))
     CHECK(path)
@@ -282,8 +296,12 @@ def test_a_bullet_in_marketing_register_is_reported_with_the_offending_word(
 
 def test_a_marketing_word_inside_a_longer_word_passes_the_gate(tmp_path: Path) -> None:
     """The match is word-bounded: ``simplynoise`` is not ``simply``."""
-    bullet = "- **Lead.** The simplynoise generator is gone."
-    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 0
+    bullet_ok = "- **Lead.** The simplynoise generator is gone."
+    bullet_fail = "- **Lead.** The knob simply moves now."
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
+        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
+    ) == (0, 1)
 
 
 # --- narration by negation --------------------------------------------------
@@ -309,7 +327,7 @@ def test_a_bullet_narrating_by_negation_fails_the_gate(tmp_path: Path, bullet: s
 
 @pytest.mark.parametrize("bullet,phrase", NEGATION, ids=[p for _, p in NEGATION])
 def test_a_bullet_narrating_by_negation_is_reported_with_the_offending_phrase(
-    tmp_path: Path, capsys: Any, bullet: str, phrase: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], bullet: str, phrase: str
 ) -> None:
     path = write_changelog(tmp_path, under_added(bullet))
     CHECK(path)
@@ -318,15 +336,21 @@ def test_a_bullet_narrating_by_negation_is_reported_with_the_offending_phrase(
 
 def test_a_negation_phrase_inside_a_longer_word_passes_the_gate(tmp_path: Path) -> None:
     """The match is word-bounded: ``unaffectedness`` is not ``unaffected``."""
-    bullet = "- **Lead.** The unaffectedness score is gone."
-    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 0
+    bullet_ok = "- **Lead.** The unaffectedness score is gone."
+    bullet_fail = "- **Lead.** The dial is unaffected."
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
+        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
+    ) == (0, 1)
 
 
 #: One marketing word and one negation phrase — two rules, one bullet.
 HYPE_AND_NEGATION = "- **Lead.** The knob simply moves and the rest is unchanged."
 
 
-def test_a_bullet_breaking_the_marketing_and_negation_rules_is_reported_twice(tmp_path: Path, capsys: Any) -> None:
+def test_a_bullet_breaking_the_marketing_and_negation_rules_is_reported_twice(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The two wordlists are separate rules, so a bullet on both lists earns both reports."""
     path = write_changelog(tmp_path, under_added(HYPE_AND_NEGATION))
     CHECK(path)
@@ -334,7 +358,9 @@ def test_a_bullet_breaking_the_marketing_and_negation_rules_is_reported_twice(tm
 
 
 @pytest.mark.parametrize("expected", ["simply", "is unchanged"])
-def test_both_wordlist_rules_a_single_bullet_breaks_are_named(tmp_path: Path, capsys: Any, expected: str) -> None:
+def test_both_wordlist_rules_a_single_bullet_breaks_are_named(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
     path = write_changelog(tmp_path, under_added(HYPE_AND_NEGATION))
     CHECK(path)
     assert expected in report(capsys.readouterr().out, path, HYPE_AND_NEGATION).lower()
@@ -346,7 +372,9 @@ def test_both_wordlist_rules_a_single_bullet_breaks_are_named(tmp_path: Path, ca
 TRIPLE = "- you should simply try it."
 
 
-def test_a_bullet_breaking_three_rules_is_reported_three_times(tmp_path: Path, capsys: Any) -> None:
+def test_a_bullet_breaking_three_rules_is_reported_three_times(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Once per rule broken, not once per bullet: a fixed entry has to clear them all."""
     path = write_changelog(tmp_path, under_added(TRIPLE))
     CHECK(path)
@@ -354,7 +382,9 @@ def test_a_bullet_breaking_three_rules_is_reported_three_times(tmp_path: Path, c
 
 
 @pytest.mark.parametrize("expected", ["bold", "you", "simply"])
-def test_each_rule_a_single_bullet_breaks_is_named(tmp_path: Path, capsys: Any, expected: str) -> None:
+def test_each_rule_a_single_bullet_breaks_is_named(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
     path = write_changelog(tmp_path, under_added(TRIPLE))
     CHECK(path)
     assert expected in report(capsys.readouterr().out, path, TRIPLE).lower()
@@ -379,14 +409,16 @@ def test_a_repeated_heading_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(write_changelog(tmp_path, DUPLICATE)) == 1
 
 
-def test_a_repeated_heading_is_reported_with_its_kind(tmp_path: Path, capsys: Any) -> None:
+def test_a_repeated_heading_is_reported_with_its_kind(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The report has to say which heading came twice, so the writer knows what to merge."""
     path = write_changelog(tmp_path, DUPLICATE)
     CHECK(path)
     assert "Changed" in report(capsys.readouterr().out, path, CLEAN)
 
 
-def test_a_repeated_heading_report_leaves_the_sections_other_headings_alone(tmp_path: Path, capsys: Any) -> None:
+def test_a_repeated_heading_report_leaves_the_sections_other_headings_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """``Added`` appears once and is fine; a report naming it too is naming everything."""
     path = write_changelog(tmp_path, DUPLICATE)
     CHECK(path)
@@ -397,7 +429,9 @@ def test_a_heading_of_an_unknown_kind_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(write_changelog(tmp_path, UNKNOWN)) == 1
 
 
-def test_a_heading_of_an_unknown_kind_is_reported_with_its_kind(tmp_path: Path, capsys: Any) -> None:
+def test_a_heading_of_an_unknown_kind_is_reported_with_its_kind(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, UNKNOWN_DEEP)
     CHECK(path)
     assert "Tweaked" in report(capsys.readouterr().out, path, CLEAN, "### Added")
@@ -407,7 +441,9 @@ def test_headings_out_of_keep_a_changelog_order_fail_the_gate(tmp_path: Path) ->
     assert CHECK(write_changelog(tmp_path, OUT_OF_ORDER)) == 1
 
 
-def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(tmp_path: Path, capsys: Any) -> None:
+def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, OUT_OF_ORDER)
     CHECK(path)
     assert "order" in report(capsys.readouterr().out, path, CLEAN).lower()
@@ -416,12 +452,16 @@ def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(tmp_path: P
 @pytest.mark.parametrize("kind", KINDS)
 def test_an_accepted_heading_kind_passes_the_gate(tmp_path: Path, kind: str) -> None:
     """All seven kinds are known; alone in a section, each is trivially in order."""
-    assert CHECK(write_changelog(tmp_path, f"### {kind}\n\n{CLEAN}\n")) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, f"### {kind}\n\n{CLEAN}\n")),
+        CHECK(write_changelog(tmp_path, f"### Unknown\n\n{CLEAN}\n")),
+    ) == (0, 1)
 
 
 def test_every_accepted_heading_kind_in_canonical_order_passes_the_gate(tmp_path: Path) -> None:
-    section = "".join(f"### {kind}\n\n{CLEAN}\n\n" for kind in KINDS)
-    assert CHECK(write_changelog(tmp_path, section)) == 0
+    section_ok = "".join(f"### {kind}\n\n{CLEAN}\n\n" for kind in KINDS)
+    section_fail = OUT_OF_ORDER
+    assert (CHECK(write_changelog(tmp_path, section_ok)), CHECK(write_changelog(tmp_path, section_fail))) == (0, 1)
 
 
 # --- scope ------------------------------------------------------------------
@@ -432,38 +472,51 @@ HISTORY = "\n## [1.2.3] — 2026-01-01\n\n### Nonsense\n\n- you simply get seaml
 
 def test_problems_in_a_released_section_pass_the_gate(tmp_path: Path) -> None:
     """Released sections are history: the scan stops at the next ``## `` heading."""
-    assert CHECK(write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)) == 0
+    assert (
+        CHECK(write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)),
+        CHECK(write_changelog(tmp_path, under_added(NO_LEAD))),
+    ) == (0, 1)
 
 
-def test_a_released_sections_offending_words_are_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_released_sections_offending_words_are_not_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)
     CHECK(path)
     assert "seamless" not in capsys.readouterr().out
 
 
 def test_a_changelog_with_no_unreleased_section_passes_the_gate(tmp_path: Path) -> None:
-    path = tmp_path / "CHANGELOG.md"
-    path.write_text("# Changelog\n\nNotable changes." + HISTORY, encoding="utf-8")
-    assert CHECK(path) == 0
+    # Good case: no unreleased section
+    path_ok = tmp_path / "CHANGELOG.md"
+    path_ok.write_text("# Changelog\n\nNotable changes." + HISTORY, encoding="utf-8")
+    # Bad case: unreleased section with a problem
+    path_bad = tmp_path / "CHANGELOG2.md"
+    path_bad.write_text(HEAD + under_added(NO_LEAD), encoding="utf-8")
+    assert (CHECK(path_ok), CHECK(path_bad)) == (0, 1)
 
 
 # --- how a problem is printed -----------------------------------------------
 
 
-def test_a_problem_is_printed_with_the_file_path(tmp_path: Path, capsys: Any) -> None:
+def test_a_problem_is_printed_with_the_file_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = write_changelog(tmp_path, under_added(NO_LEAD))
     CHECK(path)
     assert str(path) in capsys.readouterr().out
 
 
-def test_a_problem_is_printed_with_the_1_indexed_line_number_of_the_bullet(tmp_path: Path, capsys: Any) -> None:
+def test_a_problem_is_printed_with_the_1_indexed_line_number_of_the_bullet(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, under_added(CLEAN, CLEAN, CLEAN, CLEAN, NO_LEAD))
     CHECK(path)
     reported = report(capsys.readouterr().out, path, NO_LEAD)
     assert str(line_of(path, NO_LEAD)) in reported
 
 
-def test_a_heading_problem_is_printed_with_the_line_number_of_the_heading(tmp_path: Path, capsys: Any) -> None:
+def test_a_heading_problem_is_printed_with_the_line_number_of_the_heading(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = write_changelog(tmp_path, UNKNOWN_DEEP)
     CHECK(path)
     reported = report(capsys.readouterr().out, path, CLEAN)
@@ -479,8 +532,13 @@ def test_unreleased_gives_a_body_line_with_its_1_indexed_line_number(tmp_path: P
 
 
 def test_unreleased_stops_at_the_next_version_heading(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)
-    assert not [text for _, text in body_of(path) if "seamless" in text]
+    path_good = write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)
+    bad_dir = tmp_path / "bad"
+    bad_dir.mkdir()
+    path_bad = write_changelog(bad_dir, under_added("- **Lead.** The knob simply moves and the rest is unchanged."))
+    good_has_seamless = bool([text for _, text in body_of(path_good) if "seamless" in text])
+    bad_has_seamless = bool([text for _, text in body_of(path_bad) if "simply" in text])
+    assert (good_has_seamless, bad_has_seamless) == (False, True)
 
 
 def test_entries_gives_one_tuple_per_bullet(tmp_path: Path) -> None:
@@ -511,33 +569,27 @@ def test_headings_gives_a_headings_1_indexed_line_number(tmp_path: Path) -> None
 # --- the command line -------------------------------------------------------
 
 
-def test_main_returns_zero_when_the_named_path_is_clean(tmp_path: Path, monkeypatch: Any) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN))
-    monkeypatch.setattr(sys, "argv", ["check_changelog.py", str(path)])
-    assert GATE.main() == 0
+def test_main_returns_zero_when_the_named_path_is_clean(tmp_path: Path) -> None:
+    path_clean = write_changelog(tmp_path, under_added(CLEAN))
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+    path_dirty = write_changelog(other_dir, under_added(NO_LEAD))
+    assert (GATE.main([str(path_clean)]), GATE.main([str(path_dirty)])) == (0, 1)
 
 
-def test_main_returns_one_when_the_named_path_has_a_problem(tmp_path: Path, monkeypatch: Any) -> None:
-    path = write_changelog(tmp_path, under_added(NO_LEAD))
-    monkeypatch.setattr(sys, "argv", ["check_changelog.py", str(path)])
-    assert GATE.main() == 1
-
-
-def test_main_returns_one_when_one_of_several_paths_has_a_problem(tmp_path: Path, monkeypatch: Any) -> None:
+def test_main_returns_one_when_one_of_several_paths_has_a_problem(tmp_path: Path) -> None:
     clean = write_changelog(tmp_path, under_added(CLEAN))
     dirty_dir = tmp_path / "other"
     dirty_dir.mkdir()
     dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    monkeypatch.setattr(sys, "argv", ["check_changelog.py", str(clean), str(dirty)])
-    assert GATE.main() == 1
+    assert GATE.main([str(clean), str(dirty)]) == 1
 
 
-def test_main_checks_every_path_it_is_given(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
+def test_main_checks_every_path_it_is_given(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The second path is read, not short-circuited away by the first one passing."""
     clean = write_changelog(tmp_path, under_added(CLEAN))
     dirty_dir = tmp_path / "other"
     dirty_dir.mkdir()
     dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    monkeypatch.setattr(sys, "argv", ["check_changelog.py", str(clean), str(dirty)])
-    GATE.main()
+    GATE.main([str(clean), str(dirty)])
     assert problem_lines(capsys.readouterr().out, dirty)

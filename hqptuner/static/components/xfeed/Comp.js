@@ -14,17 +14,24 @@ import { effectivePipelines } from "../../store/resolve.js";
 import { stagePipelines, edit } from "../../store/actions.js";
 import { notesVisible } from "../../store/ui/prefs.js";
 import { bauerSettings, xfeedBlock, removeBlock } from "../../store/xfeed/block.js";
-import { parseProcess } from "../../lib/matrixspec.js";
-import { chainResponse } from "../../lib/dsp/chain.js";
-import { bandFreqs } from "../../lib/dsp/curves.js";
+import { parseProcess } from "../../vendor/eqlab/core/matrixspec.js";
+import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
+import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { PlotFrame } from "../plots.js";
 import { SliderNumber } from "../controls/index.js";
-import { centerMagDb, sideMagDb, centerTiltDb, fitComp, compProcess, msCompile } from "../../lib/xfeed.js";
+import {
+  centerMagDb,
+  sideMagDb,
+  centerTiltDb,
+  fitComp,
+  compProcess,
+  msCompile,
+} from "../../vendor/eqlab/core/xfeed.js";
 import { db, hz } from "../../lib/units.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../../lib/xfeed.js").MsRecognition} MsRecognition
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/xfeed.js").MsRecognition} MsRecognition
  * @typedef {import("../../store/xfeed/block.js").BauerSettings} BauerSettings
  * @typedef {{ issue?: string, code?: string, eq?: string, gain?: number }} PairInfo
  *   `issue` is the sentence the reader gets; `code` names which check rejected

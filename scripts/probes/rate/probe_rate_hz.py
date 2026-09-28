@@ -38,7 +38,8 @@ is the pattern.
 import asyncio
 import sys
 
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
 
 IN_FAMILY_HZ = "96000"
 OUT_OF_FAMILY_HZ = "12288000"

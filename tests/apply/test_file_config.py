@@ -9,7 +9,11 @@ holds only because the persistent lane is a snapshot-XML restore rather than a
 form POST. If that lane ever goes back to posting the form, these fail.
 """
 
-from hqptuner.conf import presetconf
+from typing import Any
+
+import pytest
+
+from hqptuner.conf import engineconf, presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import fileconfig
 
@@ -73,3 +77,19 @@ async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionMan
 async def test_headroom_apply_preserves_unrelated_settings(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_fixed": "2"})
     assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
+
+
+async def test_reading_engine_attrs_from_an_unreadable_backup_archive_raises(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_corrupt_backup"] = True
+    with pytest.raises(engineconf.UnreadableArchiveError):
+        await fileconfig.read_engine(http_manager)
+
+
+async def test_loading_file_config_from_an_unreadable_backup_archive_raises(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_corrupt_backup"] = True
+    with pytest.raises(engineconf.UnreadableArchiveError):
+        await fileconfig.load_file_config(http_manager)

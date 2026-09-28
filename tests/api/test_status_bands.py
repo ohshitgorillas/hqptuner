@@ -18,8 +18,10 @@ from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from conftest import METADATA_MIN, spawn_threaded_daemon, wait_for_api
+from apps import wait_for_api
+from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -90,7 +92,7 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
         )
-        client = closing.enter_context(TestClient(create_app(cfg)))
+        client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
         wait_for_api(client, _bands_served)
         return client
 

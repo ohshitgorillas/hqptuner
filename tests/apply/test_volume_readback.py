@@ -15,18 +15,18 @@ import pytest
 from fixtures_daemons import DeafVolumeClient
 
 from hqptuner.engine.control import ControlClient
-from hqptuner.lanes.writer import apply_live
+from hqptuner.lanes.writer import LiveWriteOutcome, apply_live
 
 
 async def test_volume_read_back_exactly_applies(live_client: ControlClient) -> None:
     report = await apply_live(live_client, {"volume": {"value": "-20.0"}})
-    assert report[0]["ok"] is True
+    assert report[0].ok is True
 
 
 async def test_volume_read_back_inside_the_tolerance_applies(deaf_volume_client: DeafVolumeClient) -> None:
     client = await deaf_volume_client("-20.02")  # 0.02 dB off the -20.0 asked for
     report = await apply_live(client, {"volume": {"value": "-20.0"}})
-    assert report[0]["ok"] is True
+    assert report[0].ok is True
 
 
 async def test_volume_read_back_at_the_tolerance_boundary_applies(deaf_volume_client: DeafVolumeClient) -> None:
@@ -35,13 +35,13 @@ async def test_volume_read_back_at_the_tolerance_boundary_applies(deaf_volume_cl
     # the boundary rather than a float artifact either side of it.
     client = await deaf_volume_client("0.0")
     report = await apply_live(client, {"volume": {"value": "-0.05"}})
-    assert report[0]["ok"] is True
+    assert report[0].ok is True
 
 
 async def test_volume_read_back_beyond_the_tolerance_fails(deaf_volume_client: DeafVolumeClient) -> None:
     client = await deaf_volume_client("-14.0")
     report = await apply_live(client, {"volume": {"value": "-20.0"}})
-    assert report[0]["ok"] is False
+    assert report[0].outcome is LiveWriteOutcome.FAILED
 
 
 @pytest.mark.parametrize("level", ["-20.0", "-14.0"])
@@ -52,10 +52,10 @@ async def test_volume_mismatch_names_the_level_asked_for_and_the_one_reported(
     # data and stays out of the assertion (docs/testing.md rule 9)
     client = await deaf_volume_client("-14.0")
     report = await apply_live(client, {"volume": {"value": "-20.0"}})
-    assert level in report[0]["error"]
+    assert level in (report[0].error or "")
 
 
 async def test_volume_absent_from_the_readback_fails(deaf_volume_client: DeafVolumeClient) -> None:
     client = await deaf_volume_client(None)  # State frame with no volume attribute
     report = await apply_live(client, {"volume": {"value": "-20.0"}})
-    assert report[0]["ok"] is False
+    assert report[0].outcome is LiveWriteOutcome.FAILED

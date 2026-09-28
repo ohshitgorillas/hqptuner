@@ -74,7 +74,7 @@ LIVE = {
 }
 
 
-def cfg(plugins: list[dict[str, str]] | None = None, **overrides: Any) -> bytes:
+def cfg(plugins: list[dict[str, str]] | None = None, **overrides: object) -> bytes:
     """A 6.0.4-shaped snapshot whose live matrix is ``LIVE`` and which carries a
     saved "Night" profile with the given stored chain."""
     profiles = {"Night": {"rows": NIGHT_ROWS, "plugins": NIGHT_PLUGINS if plugins is None else plugins}}
@@ -178,12 +178,6 @@ def test_materializing_leaves_the_stored_profile_element_byte_identical() -> Non
     )
 
 
-def test_an_apply_under_an_active_profile_leaves_the_stored_profile_alone() -> None:
-    snapshot = cfg()
-    applied = presetconf.apply_edits(snapshot, {"post_bauer_frequency": "555"}, profile="Night")
-    assert stored_element(applied, "Night") == stored_element(snapshot, "Night")
-
-
 # --- a profile that stores no chain clears the live one -----------------------
 
 
@@ -214,28 +208,28 @@ def test_with_no_active_profile_the_staged_edit_still_lands(profile: str | None)
 
 # --- deleting the active profile in the same apply: nothing to adopt ----------
 
-DELETE_SHAPES = [
-    pytest.param("Night", id="plain-name"),
-    pytest.param(json.dumps({"name": "Night", "presets": []}), id="targeted-object"),
-]
+#: The one wire shape a staged delete arrives in: JSON, untargeted at any stored preset.
+DELETE_NIGHT = json.dumps({"name": "Night", "presets": []})
 
 
-@pytest.mark.parametrize("payload", DELETE_SHAPES)
-def test_deleting_the_active_profile_adopts_none_of_its_rows(payload: str) -> None:
-    applied = presetconf.apply_edits(cfg(), {"matrix_profile_delete": payload}, profile="Night")
+def test_deleting_the_active_profile_adopts_none_of_its_rows() -> None:
+    applied = presetconf.apply_edits(cfg(), {"matrix_profile_delete": DELETE_NIGHT}, profile="Night")
     assert live_state(applied)["_pipelines"][0]["gain"] == "-2"
 
 
-@pytest.mark.parametrize("payload", DELETE_SHAPES)
-def test_deleting_the_active_profile_adopts_none_of_its_chain(payload: str) -> None:
-    applied = presetconf.apply_edits(cfg(), {"matrix_profile_delete": payload}, profile="Night")
+def test_deleting_the_active_profile_adopts_none_of_its_chain() -> None:
+    applied = presetconf.apply_edits(cfg(), {"matrix_profile_delete": DELETE_NIGHT}, profile="Night")
     assert live_state(applied)["post_bauer_frequency"] == "850"
 
 
-@pytest.mark.parametrize("payload", DELETE_SHAPES)
-def test_deleting_the_active_profile_still_removes_the_element(payload: str) -> None:
-    applied = presetconf.apply_edits(cfg(), {"matrix_profile_delete": payload}, profile="Night")
-    assert stored_element(applied, "Night") == b""
+def test_deleting_the_active_profile_removes_the_element_and_an_ordinary_apply_leaves_it_alone() -> None:
+    snapshot = cfg()
+    deleted = presetconf.apply_edits(snapshot, {"matrix_profile_delete": DELETE_NIGHT}, profile="Night")
+    kept = presetconf.apply_edits(snapshot, {"post_bauer_frequency": "555"}, profile="Night")
+    assert (stored_element(deleted, "Night"), stored_element(kept, "Night") == stored_element(snapshot, "Night")) == (
+        b"",
+        True,
+    )
 
 
 # --- a profile the config does not carry: loud, never a silent fallback -------

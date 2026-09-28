@@ -25,6 +25,8 @@ import io
 import re
 import zipfile
 
+from hqptuner.conf.xmledit import GroundingError
+
 # Attribute → allowed value domain (manual §1.2). ``nblocks`` is an integer
 # (0 = default, else 1..N); its bound is validated by the caller/UI, not here.
 ENGINE_DOMAINS: dict[str, tuple[str, ...]] = {
@@ -106,6 +108,14 @@ def read_engine_attrs(xml: bytes) -> dict[str, str]:
     return out
 
 
+class NoEngineElementError(ValueError):
+    """The config XML handed in carries no ``<engine>`` element to edit."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("no <engine> element in config XML")
+
+
 def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
     """Return ``xml`` with each override applied to the ``<engine>`` tag.
 
@@ -114,7 +124,7 @@ def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
     """
     m = _ENGINE_TAG.search(xml)
     if not m:
-        raise ValueError("no <engine> element in config XML")
+        raise NoEngineElementError()
     tag = m.group(0)
     for attr, value in overrides.items():
         pat = re.compile(rb"\b" + attr.encode() + rb'="[^"]*"')
@@ -188,6 +198,19 @@ class ArchiveSummary:
         return f"{self.size} bytes, {len(self.members)} members: {shown}"
 
 
+class UnreadableArchiveError(GroundingError):
+    """Bytes handed in as a ``/backup`` archive that are not a readable zip.
+
+    A different fact from a readable archive with no working config, which the
+    readers answer as empty. The message is the archive's summary, so it names
+    the size of what arrived.
+    """
+
+    def __init__(self, zip_bytes: bytes) -> None:
+        """Describe ``zip_bytes`` as unreadable, under the code ``archive_unreadable``."""
+        super().__init__(str(ArchiveSummary(size=len(zip_bytes), readable=False)), code="archive_unreadable")
+
+
 def archive_summary(zip_bytes: bytes) -> ArchiveSummary:
     """Summarize what a ``/backup`` archive actually contains, for the log line when we refuse it.
 
@@ -195,28 +218,33 @@ def archive_summary(zip_bytes: bytes) -> ArchiveSummary:
     config" — the daemon's post-profile-load bug serves a bare ``data/`` entry,
     while an archive we simply cannot resolve a working member in is full of
     files. The member list tells them apart at a glance, and nothing else does.
-    Never raises: this runs on the failure path, where the bytes may not be a zip
-    at all.
+    This runs on the failure path, where the bytes may not be a zip at all, so
+    it classifies them before opening anything.
     """
+    if not zipfile.is_zipfile(io.BytesIO(zip_bytes)):
+        return ArchiveSummary(size=len(zip_bytes), readable=False)
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+        return ArchiveSummary(size=len(zip_bytes), readable=True, members=tuple(z.namelist()))
+
+
+def _member_names(zip_bytes: bytes) -> list[str]:
+    """Every member name in the archive; raises ``UnreadableArchiveError`` when the bytes are not a zip."""
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             names = z.namelist()
-    except (zipfile.BadZipFile, OSError):
-        return ArchiveSummary(size=len(zip_bytes), readable=False)
-    return ArchiveSummary(size=len(zip_bytes), readable=True, members=tuple(names))
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise UnreadableArchiveError(zip_bytes) from exc
+    return names
 
 
 def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | None:
     """Which member ``base_config_xml`` reads.
 
     For a caller that has to write the working config back rather than only read
-    it. None on unreadable bytes, on the same terms as every other reader here.
+    it. None when no member resolves; raises ``UnreadableArchiveError`` on bytes that
+    are not a zip.
     """
-    try:
-        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-            return running_config_name(z.namelist(), active)
-    except (zipfile.BadZipFile, OSError):
-        return None
+    return running_config_name(_member_names(zip_bytes), active)
 
 
 def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
@@ -227,19 +255,17 @@ def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     active-profile label wherever it is known — it is what resolves an archive
     carrying several root-level XMLs.
 
-    Bytes that are not a readable archive answer empty rather than raising. A
-    restarting daemon serves an error page here, and every caller already treats
-    empty as "unusable, fall back or refuse" — while an escaping ``BadZipFile``
-    reached the API as a 500 instead of the retry the outage path exists for.
+    Bytes that are not a readable archive raise ``UnreadableArchiveError``: a
+    restarting daemon serves an error page here, and the caller that knows what
+    proceeding without a config means decides whether to fall back or refuse.
     """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             name = running_config_name(z.namelist(), active)
-            if name:
-                return z.read(name)
-    except (zipfile.BadZipFile, OSError):
-        return b""
-    return b""
+            xml = z.read(name) if name else b""
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise UnreadableArchiveError(zip_bytes) from exc
+    return xml
 
 
 def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets: bool) -> list[str]:
@@ -249,14 +275,10 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets
     ``<Profile>.xml`` when a named preset is active). Plus every preset snapshot
     when ``all_presets`` is set, or just the active preset's snapshot otherwise.
 
-    Unreadable bytes answer "no members" for the same reason ``base_config_xml``
-    answers empty: the lane above reports an unconfirmed apply, which is true,
-    instead of dying on a ``BadZipFile`` the outage path never sees.
+    Raises ``UnreadableArchiveError`` on bytes that are not a zip, so an empty list
+    always means a readable archive with nothing to edit.
     """
-    try:
-        names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
-    except (zipfile.BadZipFile, OSError):
-        return []
+    names = _member_names(zip_bytes)
     base = [n for n in [running_config_name(names, active_snapshot)] if n]
     snaps = [n for n in names if snapshot_name(n) is not None]
     if all_presets:
@@ -277,15 +299,39 @@ def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, s
     return rewrite_zip(zip_bytes, edited)
 
 
+class NotAnIntegerAttributeError(ValueError):
+    """A value staged for an integer-valued engine attribute does not parse as one."""
+
+    def __init__(self, *, attr: str, value: str) -> None:
+        """Render the wording naming the attribute and the non-integer value it was given."""
+        super().__init__(f"{attr} must be an integer, got {value!r}")
+
+
+class NotAnEditableAttributeError(ValueError):
+    """A staged attribute name is not one HQPTuner knows how to edit on the ``<engine>`` tag."""
+
+    def __init__(self, *, attr: str) -> None:
+        """Render the wording naming the attribute HQPTuner does not edit."""
+        super().__init__(f"not an editable engine attribute: {attr!r}")
+
+
+class AttributeValueNotInDomainError(ValueError):
+    """A staged value for an editable attribute falls outside that attribute's allowed domain."""
+
+    def __init__(self, *, attr: str, value: str) -> None:
+        """Render the wording naming the attribute, the rejected value, and the domain it must fall in."""
+        super().__init__(f"{attr}={value!r} not in {ENGINE_DOMAINS[attr]}")
+
+
 def _validate_one(attr: str, value: str) -> None:
     if attr in ENGINE_INTS:
         if not value.lstrip("-").isdigit():
-            raise ValueError(f"{attr} must be an integer, got {value!r}")
+            raise NotAnIntegerAttributeError(attr=attr, value=value)
         return
     if attr not in ENGINE_DOMAINS:
-        raise ValueError(f"not an editable engine attribute: {attr!r}")
+        raise NotAnEditableAttributeError(attr=attr)
     if value not in ENGINE_DOMAINS[attr]:
-        raise ValueError(f"{attr}={value!r} not in {ENGINE_DOMAINS[attr]}")
+        raise AttributeValueNotInDomainError(attr=attr, value=value)
 
 
 def validate_overrides(overrides: dict[str, str]) -> None:

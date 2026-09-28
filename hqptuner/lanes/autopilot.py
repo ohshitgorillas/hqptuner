@@ -17,12 +17,15 @@ back. That is still ``junkadvisor.treats`` and there is no case analysis here.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from hqptuner.engine import junkadvisor
 
+if TYPE_CHECKING:
+    from hqptuner.engine.junkadvisor import JunkVerdict
 
-def desired_junk_filter(verdict: dict[str, Any] | None, active_filter: str | None) -> str:
+
+def desired_junk_filter(verdict: JunkVerdict | None, active_filter: str | None) -> str:
     """Return the junk-filter NAME auto-pilot wants engaged right now.
 
     Nothing engaged when there is no verdict, or when the active main filter already covers the one there is;
@@ -32,7 +35,7 @@ def desired_junk_filter(verdict: dict[str, Any] | None, active_filter: str | Non
     """
     if verdict is None or junkadvisor.treats(verdict, junkadvisor.NO_FILTER, active_filter):
         return junkadvisor.NO_FILTER
-    return str(verdict["filter"])
+    return verdict.filter
 
 
 def junk_filter_index(items: list[dict[str, str]], name: str) -> str | None:

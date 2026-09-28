@@ -6,7 +6,8 @@ disabled."""
 
 import pytest
 
-from hqptuner.engine.control import CommandError, ControlClient
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import CommandError
 
 
 async def test_volume_range_reports_control_enabled(live_client: ControlClient) -> None:

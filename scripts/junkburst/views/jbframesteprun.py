@@ -30,7 +30,7 @@ from jbframestep import (
     lit_steps,
     step_share,
 )
-from jbimagesrun import IMAGE_NAMED_ALBUM, _steady_bursts
+from jbimagesrun import IMAGE_NAMED_ALBUM, steady_bursts
 from jbmirror import MIRROR_VETO_LEVEL
 from jbpolicy import POLICY_ENGAGE_RUN
 from jbpolicyyield import POLICY_RUN_RULE_YIELD_AT
@@ -90,7 +90,7 @@ def _burst_rows(stamp: str, album: str, label: str, corpus: Corpus) -> None:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score FS and the veto's inputs on its headline blocks."""
-    bursts = _steady_bursts()
+    bursts = steady_bursts()
     corpus = Corpus()
     for n, (stamp, album, label) in enumerate(bursts, 1):
         _burst_rows(stamp, album, label, corpus)

@@ -16,6 +16,7 @@ from collections.abc import Callable
 from typing import Any
 
 import hqpdoc_tools as tools
+from hqpdoc_errors import ToolError
 
 PROTOCOL_VERSION_FALLBACK = "2024-11-05"
 SERVER_NAME = "hqpdoc"
@@ -72,13 +73,37 @@ TOOLS: list[dict[str, Any]] = [
 _MISSING = object()
 
 
+class MissingArgumentError(ToolError):
+    """A required tool argument was not supplied at all."""
+
+    def __init__(self, *, key: str) -> None:
+        """Name the missing argument `key`."""
+        super().__init__(f"missing required argument {key!r}.")
+
+
+class NotAStringArgumentError(ToolError):
+    """A string argument was supplied as some other, unconvertible type."""
+
+    def __init__(self, *, key: str, value: object) -> None:
+        """Name the offending `key` and the `value`'s actual type."""
+        super().__init__(f"argument {key!r} must be a string, not {type(value).__name__}.")
+
+
+class NotAnIntegerArgumentError(ToolError):
+    """An integer argument was supplied as a value that does not parse as one."""
+
+    def __init__(self, *, key: str, value: object) -> None:
+        """Name the offending `key` and the unparsable `value`."""
+        super().__init__(f"argument {key!r} must be an integer, not {value!r}.")
+
+
 def _str_arg(args: dict[str, Any], key: str) -> str:
     """Return the required string argument `key`, or raise a `ToolError` naming what is wrong."""
     value = args.get(key, _MISSING)
     if value is _MISSING:
-        raise tools.ToolError(f"missing required argument {key!r}.")
+        raise MissingArgumentError(key=key)
     if isinstance(value, bool) or not isinstance(value, str | int | float):
-        raise tools.ToolError(f"argument {key!r} must be a string, not {type(value).__name__}.")
+        raise NotAStringArgumentError(key=key, value=value)
     return str(value)
 
 
@@ -88,12 +113,12 @@ def _int_arg(args: dict[str, Any], key: str, default: int | None = None) -> int:
     if value is _MISSING and default is not None:
         return default
     if value is _MISSING:
-        raise tools.ToolError(f"missing required argument {key!r}.")
+        raise MissingArgumentError(key=key)
     if isinstance(value, int) and not isinstance(value, bool):
         return value
     if isinstance(value, str) and re.fullmatch(r"\s*-?\d+\s*", value):
         return int(value)
-    raise tools.ToolError(f"argument {key!r} must be an integer, not {value!r}.")
+    raise NotAnIntegerArgumentError(key=key, value=value)
 
 
 DISPATCH: dict[str, Callable[[dict[str, Any]], str]] = {
@@ -107,22 +132,25 @@ DISPATCH: dict[str, Callable[[dict[str, Any]], str]] = {
 }
 
 
-def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
+def _error(msg_id: object, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
 def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Dispatch one `tools/call` to a known tool, turning a `ToolError` or unreadable file into an isError result."""
+    errors: list[str] = []
     try:
         text = DISPATCH[name](arguments)
-    except tools.ToolError as exc:
-        return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
+    except ToolError as exc:
+        errors.append(str(exc))
     except OSError as exc:
-        return {"content": [{"type": "text", "text": f"{name} could not read its source: {exc}"}], "isError": True}
+        errors.append(f"{name} could not read its source: {exc}")
+    if errors:
+        return {"content": [{"type": "text", "text": errors[0]}], "isError": True}
     return {"content": [{"type": "text", "text": tools.with_warning(text)}], "isError": False}
 
 
-def _tools_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+def _tools_call(msg_id: object, params: dict[str, Any]) -> dict[str, Any]:
     """Validate a `tools/call` request's name and arguments, then run it."""
     name = params.get("name")
     if not isinstance(name, str) or name not in DISPATCH:
@@ -135,7 +163,7 @@ def _tools_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "result": call_tool(name, arguments)}
 
 
-def _initialize(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+def _initialize(msg_id: object, params: dict[str, Any]) -> dict[str, Any]:
     result = {
         "protocolVersion": params.get("protocolVersion", PROTOCOL_VERSION_FALLBACK),
         "capabilities": {"tools": {}},
@@ -144,7 +172,7 @@ def _initialize(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "result": result}
 
 
-METHODS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
+METHODS: dict[str, Callable[[object, dict[str, Any]], dict[str, Any]]] = {
     "initialize": _initialize,
     "tools/list": lambda msg_id, _params: {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}},
     "tools/call": _tools_call,
@@ -152,7 +180,7 @@ METHODS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
 }
 
 
-def handle_request(msg: Any) -> dict[str, Any] | None:
+def handle_request(msg: object) -> dict[str, Any] | None:
     """Route one parsed JSON-RPC message to its handler, or None for a notification (no `id`)."""
     if not isinstance(msg, dict):
         return _error(None, -32600, "invalid request: expected a JSON object.")

@@ -4,11 +4,12 @@ The happy path runs the manager against the real-socket fake daemon: it
 connects on its own, applies a live edit, and the report reflects the
 State readback the daemon actually returns."""
 
-import asyncio
+import dataclasses
 from collections.abc import AsyncIterator
 
 import pytest
 from conftest import LiveManager
+from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -17,8 +18,8 @@ from hqptuner.lanes.live import overrides, routing
 
 @pytest.fixture
 async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionManager]:
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port))
-    task = asyncio.create_task(manager.run())
+    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port), clock=VirtualClock())
+    task = manager.clock.spawn(manager.run())
     yield manager
     manager.stop()
     await task
@@ -26,9 +27,9 @@ async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionMana
 
 
 async def test_http_edit_without_credentials_reports_error() -> None:
-    manager = ConnectionManager(Config())  # no http client configured
+    manager = ConnectionManager(Config(), clock=VirtualClock())  # no http client configured
     report = await manager.applyops.apply({}, {"channels": "2"})
-    assert report["persistent"]["submitted"] is False
+    assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"
 
 
 # --- live routing of persistent form fields (lanes/live/routing.py) ---------------
@@ -37,17 +38,17 @@ async def test_http_edit_without_credentials_reports_error() -> None:
 # both filter slots at index 0, and enum 40 is poly-sinc-gauss-long at PCM index 1.
 
 
-async def test_a_dormant_chains_field_stays_on_the_restore_lane(running_manager: ConnectionManager) -> None:
+def test_a_dormant_chains_field_stays_on_the_restore_lane(running_manager: ConnectionManager) -> None:
     _, rest = routing.split_live(running_manager, {"oversampling": "38"}, {})
     assert rest == {"oversampling": "38"}
 
 
-async def test_a_mode_change_beside_a_filter_defers_the_whole_batch(running_manager: ConnectionManager) -> None:
+def test_a_mode_change_beside_a_filter_defers_the_whole_batch(running_manager: ConnectionManager) -> None:
     _, rest = routing.split_live(running_manager, {"mode": "sdm", "filter": "40"}, {})
     assert rest == {"mode": "sdm", "filter": "40"}
 
 
-async def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManager) -> None:
+def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManager) -> None:
     assert "oversampling" not in overrides.live_overrides(running_manager)
 
 
@@ -75,18 +76,18 @@ async def test_a_mode_batch_with_a_leftover_field_keeps_the_mode_off_the_live_la
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert "mode" not in [r["setting"] for r in report["live"]]
+    assert "mode" not in [r.setting for r in report.live]
 
 
 async def test_a_mode_batch_with_a_leftover_field_keeps_the_chain_field_off_the_live_lane(
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert "shaper" not in [r["setting"] for r in report["live"]]
+    assert "shaper" not in [r.setting for r in report.live]
 
 
 async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:
     # running_manager has no HTTP credentials, so the restore lane reports the
     # submission it could not make rather than staying silent (persistent None).
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert report["persistent"]["submitted"] is False
+    assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"

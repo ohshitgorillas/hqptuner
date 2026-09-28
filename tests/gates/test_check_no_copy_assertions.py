@@ -42,10 +42,17 @@ SKELETON_INSTANCE = "log line 60"
 UNCOVERED = f"{PY_SEED} drifts"
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_no_copy_assertions_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

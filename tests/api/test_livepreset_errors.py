@@ -123,9 +123,14 @@ def test_saving_with_the_engines_chain_unknown_details_the_chain_field_alone(
     assert set(chainless_api.put("/api/livepresets/Warm").json()["detail"]) == {"chain"}
 
 
-def test_saving_with_the_engines_chain_unknown_stores_nothing(chainless_api: TestClient) -> None:
+def test_saving_stores_nothing_with_the_chain_unknown_but_the_preset_once_it_is_known(
+    chainless_api: TestClient, live_api: TestClient
+) -> None:
     chainless_api.put("/api/livepresets/Warm")
-    assert chainless_api.get("/api/livepresets").json()["presets"] == []
+    unknown_chain = [p["name"] for p in chainless_api.get("/api/livepresets").json()["presets"]]
+    live_api.put("/api/livepresets/Warm")
+    known_chain = [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]]
+    assert (unknown_chain, known_chain) == ([], ["Warm"])
 
 
 def test_saving_into_a_store_this_build_cannot_read_is_a_conflict(unreadable_api: TestClient) -> None:

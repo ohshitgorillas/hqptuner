@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.matrixmode import (
     MatrixModeError,
     MatrixModeSchemaError,
@@ -57,13 +58,18 @@ def seed(tmp_path: Path, content: str) -> Path:
 # --- an install that never chose ---------------------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_modes(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read() == {}
+def test_reading_a_store_with_no_file_yields_no_modes_but_a_written_one_reads_back(tmp_path: Path) -> None:
+    empty = store_at(tmp_path).read()
+    store = store_at(tmp_path)
+    store.write(NAME, "speakers")
+    assert (empty, store.read()[NAME]) == ({}, "speakers")
 
 
-def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file(tmp_path: Path) -> None:
     store_at(tmp_path).read()
-    assert list(tmp_path.iterdir()) == []
+    unwritten = list(tmp_path.iterdir())
+    store_at(tmp_path).write(NAME, "speakers")
+    assert (unwritten, (tmp_path / "matrixmodes.json").is_file()) == ([], True)
 
 
 # --- the round trip -----------------------------------------------------------
@@ -105,10 +111,6 @@ def test_a_write_answers_with_the_whole_map_so_no_follow_up_read_is_needed(tmp_p
     assert sorted(store.write(NAME, "speakers")) == ["Night", "Studio"]
 
 
-def test_the_map_a_write_answers_with_carries_the_mode_just_written(tmp_path: Path) -> None:
-    assert store_at(tmp_path).write(NAME, "speakers")[NAME] == "speakers"
-
-
 # --- what a mode may be ---------------------------------------------------------
 
 
@@ -138,11 +140,13 @@ def test_a_refused_mode_leaves_the_previous_mode_in_place(tmp_path: Path) -> Non
     assert store.read()[NAME] == "speakers"
 
 
-def test_a_refused_mode_stores_nothing_on_a_store_that_was_never_written(tmp_path: Path) -> None:
+def test_a_refused_mode_stores_nothing_on_a_never_written_store_but_a_valid_mode_is_stored(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(MatrixModeError):
         store.write(NAME, "stereo")
-    assert store.read() == {}
+    refused = store.read()
+    written = store.write(NAME, "speakers")[NAME]
+    assert (refused, written) == ({}, "speakers")
 
 
 # --- what a name may be -----------------------------------------------------------
@@ -167,11 +171,13 @@ def test_a_name_that_is_not_a_storable_preset_name_is_refused(tmp_path: Path, na
         store_at(tmp_path).write(name, "speakers")
 
 
-def test_a_refused_name_stores_nothing(tmp_path: Path) -> None:
+def test_a_refused_name_stores_nothing_but_an_accepted_name_carries_its_mode(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(MatrixModeError):
         store.write("a/b", "speakers")
-    assert store.read() == {}
+    refused = store.read()
+    accepted = store.write(NAME, "speakers")[NAME]
+    assert (refused, accepted) == ({}, "speakers")
 
 
 @pytest.mark.parametrize(
@@ -216,8 +222,16 @@ def test_exactly_two_hundred_and_fifty_six_presets_are_accepted(tmp_path: Path) 
 # --- a file this HQPTuner did not write ---------------------------------------------
 
 
-# A damaged file costs the recorded modes, not the page: the tab falls back to
-# the last-used side rather than raising at the user.
+def _corrupt_code(tmp_path: Path) -> str:
+    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
+    with pytest.raises(StoreCorruptError) as caught:
+        store_at(tmp_path).read()
+    return caught.value.code
+
+
+# A damaged file is refused as corrupt, naming the file, rather than read as
+# empty: the tab falling silently back to the last-used side would hide a
+# store whose recorded modes cannot be read.
 @pytest.mark.parametrize(
     "content",
     [
@@ -229,9 +243,9 @@ def test_exactly_two_hundred_and_fifty_six_presets_are_accepted(tmp_path: Path) 
         pytest.param("null", id="json-null"),
     ],
 )
-def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: str) -> None:
+def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
     seed(tmp_path, content)
-    assert store_at(tmp_path).read() == {}
+    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:

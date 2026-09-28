@@ -34,13 +34,15 @@ from hqptuner.presets.store.descriptions import (
     DescriptionSchemaError,
     DescriptionStore,
 )
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
 
 #: Content that is not our record: not JSON at all, and JSON that is not an
-#: object. All read as empty rather than raising — a corrupt store loses
-#: descriptions, it does not brick the page.
+#: object. Both are refused as corrupt rather than read as empty — a damaged
+#: store costs the user a clear error naming it, not the descriptions it
+#: silently drops.
 UNREADABLE = ["not json at all {", "[]", '"Living Room"', "17", "null"]
 
 #: A stamp left by an earlier write, far enough in the past that no write made
@@ -73,27 +75,23 @@ def entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_descriptions(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read() == {}
+def test_reading_a_store_with_no_file_yields_no_descriptions_but_written_text_reads_back(tmp_path: Path) -> None:
+    empty = store_at(tmp_path).read()
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    assert (empty, store.read()[NAME]["text"]) == ({}, TEXT)
 
 
-def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
+    tmp_path: Path,
+) -> None:
     store_at(tmp_path).read()
-    assert list(tmp_path.iterdir()) == []
-
-
-def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
+    unwritten = list(tmp_path.iterdir())
     DescriptionStore(tmp_path / "never-created" / "descriptions.json").write(NAME, TEXT)
-    assert (tmp_path / "never-created" / "descriptions.json").is_file()
+    assert (unwritten, (tmp_path / "never-created" / "descriptions.json").is_file()) == ([], True)
 
 
 # --- the round trip -----------------------------------------------------------
-
-
-def test_written_text_reads_back(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.write(NAME, TEXT)
-    assert store.read()[NAME]["text"] == TEXT
 
 
 def test_a_write_answers_with_the_whole_map_so_no_follow_up_read_is_needed(tmp_path: Path) -> None:
@@ -112,20 +110,15 @@ def test_writing_one_name_leaves_another_names_text_alone(tmp_path: Path) -> Non
 # --- the stamp on an entry -----------------------------------------------------
 
 
-def test_a_written_entry_carries_an_instant_in_utc(tmp_path: Path) -> None:
-    written = store_at(tmp_path).write(NAME, TEXT)
-    assert datetime.fromisoformat(written[NAME]["updated"]).utcoffset().total_seconds() == 0  # type: ignore[union-attr]
-
-
-# A stamp is the instant of THIS write, not a constant: the window is opened and
-# closed around the write itself, so an entry stamped with anything fixed —
-# however plausible the value — lands outside it. The floor drops the
-# microseconds because a store stamping whole seconds is still stamping the
-# instant of the write.
-def test_a_written_entry_is_stamped_with_the_instant_of_the_write(tmp_path: Path) -> None:
-    before = datetime.now(UTC).replace(microsecond=0)
-    written = store_at(tmp_path).write(NAME, TEXT)
-    assert before <= datetime.fromisoformat(written[NAME]["updated"]) <= datetime.now(UTC)
+# A stamp is the instant the store's clock hands back, not whatever the wall
+# clock says: the test fixes the clock to one instant and the entry must carry
+# exactly that instant, not merely fall in some window around it.
+def test_a_written_entry_carries_an_instant_in_utc_at_the_instant_its_clock_gives(tmp_path: Path) -> None:
+    instant = datetime(2024, 3, 17, 12, 30, 45, tzinfo=UTC)
+    store = DescriptionStore(tmp_path / "descriptions.json", now=lambda: instant)
+    written = store.write(NAME, TEXT)
+    offset = datetime.fromisoformat(written[NAME]["updated"]).utcoffset().total_seconds()  # type: ignore[union-attr]
+    assert (offset, written[NAME]["updated"]) == (0, "2024-03-17T12:30:45Z")
 
 
 def test_rewriting_a_name_replaces_its_text(tmp_path: Path) -> None:
@@ -154,30 +147,27 @@ def test_writing_blank_text_removes_the_entry(tmp_path: Path, blank: str) -> Non
     assert NAME not in store.read()
 
 
-def test_removing_one_name_leaves_another_alone(tmp_path: Path) -> None:
+def test_blanking_a_name_never_written_is_not_refused_but_blanking_one_of_several_leaves_the_other(
+    tmp_path: Path,
+) -> None:
+    never_written = store_at(tmp_path).write(NAME, "")
     store = store_at(tmp_path)
     store.write(NAME, TEXT)
     store.write("Study", "near field")
-    store.write(NAME, "")
-    assert store.read()["Study"]["text"] == "near field"
-
-
-def test_blanking_a_name_that_was_never_written_is_not_refused(tmp_path: Path) -> None:
-    assert store_at(tmp_path).write(NAME, "") == {}
+    remaining = store.write(NAME, "")
+    assert (never_written, remaining["Study"]["text"]) == ({}, "near field")
 
 
 # --- what a name may be ----------------------------------------------------------
 
 
-def test_a_name_of_exactly_128_characters_is_accepted(tmp_path: Path) -> None:
-    assert "x" * 128 in store_at(tmp_path).write("x" * 128, TEXT)
-
-
-def test_a_refused_name_stores_nothing(tmp_path: Path) -> None:
+def test_a_refused_name_stores_nothing_but_an_accepted_128_character_name_is_stored(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(DescriptionError):
         store.write("", TEXT)
-    assert store.read() == {}
+    refused = store.read()
+    accepted = "x" * 128 in store.write("x" * 128, TEXT)
+    assert (refused, accepted) == ({}, True)
 
 
 # --- what text may be -------------------------------------------------------------
@@ -238,10 +228,17 @@ def test_rewriting_a_name_is_allowed_with_the_store_full(tmp_path: Path) -> None
 # --- a file this HQPTuner did not write ---------------------------------------------
 
 
+def _corrupt_code(tmp_path: Path) -> str:
+    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
+    with pytest.raises(StoreCorruptError) as caught:
+        store_at(tmp_path).read()
+    return caught.value.code
+
+
 @pytest.mark.parametrize("content", UNREADABLE)
-def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: str) -> None:
+def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
     seed(tmp_path, content)
-    assert store_at(tmp_path).read() == {}
+    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:

@@ -19,7 +19,8 @@ import pytest
 from conftest import DaemonFactory
 from fake_control import DEFAULTS
 
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
 
 #: The per-command deadline, real seconds, as `test_control_stall.STALL_TIMEOUT`;
 #: a dropped connection is answered by the socket, not the deadline, so this is

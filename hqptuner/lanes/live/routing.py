@@ -240,7 +240,7 @@ class LiveRouteError(HQPTunerError):
         self.reasons = reasons
 
 
-_LIVE_ONLY: dict[str, LiveField] = {
+LIVE_ONLY: dict[str, LiveField] = {
     # Deliberately NOT here: the output rate. `SetRate` writes the FIXED slot
     # (`samplerate`/`bitrate`), and an exact rate there overrides automatic
     # base-rate selection — 44.1k material then goes out at a 48k base and the
@@ -260,7 +260,7 @@ _FILTER_FIELDS = tuple(field for field, spec in ROUTABLE.items() if spec.setting
 
 def live_fields() -> tuple[str, ...]:
     """Every config-form field the LIVE lane accepts."""
-    return (*ROUTABLE, *_LIVE_ONLY, *DIRECT)
+    return (*ROUTABLE, *LIVE_ONLY, *DIRECT)
 
 
 def _known_index(items: EnumItems, index: str) -> str | None:
@@ -272,7 +272,7 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
     """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
-    spec = _LIVE_ONLY.get(field)
+    spec = LIVE_ONLY.get(field)
     if spec is None:
         # Neither table carries it, so there is nothing to resolve against: it is
         # refused with the rest of the unresolvable fields rather than crashing.
@@ -283,7 +283,7 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
 
 def _why_unresolved(field: str, value: str) -> str:
     """Why a field would not resolve, in terms the control that sent it can show."""
-    spec = ROUTABLE.get(field) or _LIVE_ONLY.get(field)
+    spec = ROUTABLE.get(field) or LIVE_ONLY.get(field)
     if spec is None:
         return "not a live setting"
     return f"{value} is not in the engine's live {spec.enum} list"
@@ -329,7 +329,7 @@ def _route_live(
         if index is None:
             reasons[field] = _why_unresolved(field, value)
             continue
-        spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
+        spec = ROUTABLE.get(field) or LIVE_ONLY[field]
         edits.setdefault(spec.setting, {})[spec.arg] = index
     return edits, stored, reasons
 

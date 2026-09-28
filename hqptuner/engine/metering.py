@@ -21,26 +21,21 @@ import contextlib
 import logging
 import math
 import struct
-import time
 from collections import deque
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, Bands, band_levels, frame_power, frame_silent
+from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed
+from hqptuner.engine.trackcontext import TrackContext
 
 #: the reader's public surface, the band level and its ring included
-__all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "TrackContext", "band_levels", "context_from"]
-
-if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+__all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "band_levels"]
 
 log = logging.getLogger(__name__)
 
 HEADER = struct.Struct("<4I3fI")  # version, channels, bins, bits, bandwidth, xformTime, gain, reserved
-PLAYING = 2
 RECONNECT_DELAY = 5.0
 # How long the reader waits before re-checking whether the engine started playing again. Shorter than the manager's
 # own status poll, so the gate adds no latency of its own beyond the staleness of the status it reads.
@@ -62,55 +57,16 @@ BLOCK_SECONDS = 1.0
 WINDOW_BLOCKS = 30
 
 
-@dataclass(frozen=True)
-class TrackContext:
-    """What the advisor needs to know about the engine's current track."""
+class ImplausibleMeteringHeaderError(OSError):
+    """A metering frame's header carries a channel or bin count outside the sane range.
 
-    playing: bool
-    samplerate: int | None
-    sdm: bool
-    junk_filter: str | None
-    filter: str | None = None  # active main filter's display name
-
-
-def context_from(manager: "ConnectionManager") -> TrackContext | None:
-    """Return the reader's view of the manager's last poll — None while unreachable."""
-    status = manager.readings.status
-    if not manager.reachable or status is None:
-        return None
-    meta = manager.readings.status_metadata or {}
-    rate = meta.get("samplerate")
-    return TrackContext(
-        playing=_int(status.get("state")) == PLAYING,
-        samplerate=_int(rate) if rate else None,
-        sdm=meta.get("sdm") in ("1", "true"),
-        junk_filter=_junk_filter_name(manager.readings.state or {}, manager.readings.enums),
-        filter=status.get("active_filter") or None,
-    )
-
-
-def _junk_filter_name(state: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
-    """``State.filter_junk`` joined against the running enumeration.
-
-    The engine is the sole authority for index→name (architecture §2).
-
-    Read off State rather than Status, though both carry it: State's attribute table lists it unconditionally, while
-    Status's is documented as a superset (`protocol.md` §6) — the same caveat that makes `filter1x`/`filterNx` a
-    fall-back there. A frame that happens not to carry it would otherwise read as nothing engaged, which is the one
-    answer that must not be guessed: it decides whether the advisor's note goes quiet and what auto-pilot falls back to.
+    Subclasses ``OSError`` on purpose: the reader's callers already catch ``OSError`` as "this socket is
+    unusable", which a header this far off the wire's own limits is.
     """
-    idx = state.get("filter_junk")
-    for item in (enums or {}).get("junk_filters", []):
-        if item.get("index") == idx:
-            return item.get("name")
-    return None
 
-
-def _int(value: str | None) -> int | None:
-    try:
-        return int(value) if value is not None else None
-    except ValueError:
-        return None
+    def __init__(self, *, channels: int, bins: int) -> None:
+        """Render the wording naming the implausible channel and bin counts."""
+        super().__init__(f"implausible metering header (channels={channels}, bins={bins})")
 
 
 class SpectralAggregate:
@@ -195,19 +151,19 @@ class MeteringReader:
         port: int,
         context: Callable[[], TrackContext | None],
         *,
-        sleep: Callable[[float], Awaitable[None]] | None = None,
-        monotonic: Callable[[], float] = time.monotonic,
+        pace: Callable[[asyncio.Event, float], Awaitable[bool]],
+        monotonic: Callable[[], float],
     ) -> None:
         """Record where the metering port is and how to read track context; nothing connects until ``run``.
 
-        ``sleep`` is the test seam standing in for the reconnect backoff's wall clock, and ``monotonic`` the one the
-        band readout ages on: a stream that goes quiet without stopping leaves the ring standing, and only a clock
-        says the triples in it are stale.
+        ``pace`` and ``monotonic`` are the manager's clock: ``pace`` idles the reader for a number of
+        seconds or until the event it is given is set, and ``monotonic`` is what the band readout ages on, since a
+        stream that goes quiet without stopping leaves the ring standing and only a clock says it is stale.
         """
         self._host = host
         self._port = port
         self._context = context
-        self._sleep = sleep
+        self._pace = pace
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
@@ -243,7 +199,7 @@ class MeteringReader:
             return None
         return self._ring.mean()
 
-    def verdict(self) -> dict[str, Any] | None:
+    def verdict(self) -> junkadvisor.JunkVerdict | None:
         """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
 
         The cliff and the ramp are recomputed on every call and held by nothing: each is a property of the spectrum in
@@ -269,7 +225,7 @@ class MeteringReader:
             run=agg.junk_run,
         )
 
-    def recommendation(self) -> dict[str, Any] | None:
+    def recommendation(self) -> junkadvisor.JunkVerdict | None:
         """Return the advisor's note for the current track, or None.
 
         The live signature, minus the case where the engine already deals with it: the note goes quiet while the
@@ -305,22 +261,15 @@ class MeteringReader:
                 else:
                     keep = True  # paused: keep the aggregate for the resume
                     self._clear_bands()  # the level readout is of the moment, and a stopped engine has none
-            except (OSError, asyncio.IncompleteReadError) as exc:
+            except (OSError, asyncio.IncompleteReadError, ControlError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
-                delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
+                delay = RECONNECT_DELAY  # a refused or broken stream, an unparseable poll, not merely an idle engine
             if not keep:
                 self._agg = None  # a broken stream ends the track's evidence
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
                 self._clear_bands()
             if not self._stop.is_set():
-                await self._wait(delay)
-
-    async def _wait(self, seconds: float) -> None:
-        if self._sleep is not None:  # test seam — virtualized clock
-            await self._sleep(seconds)
-            return
-        with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(self._stop.wait(), seconds)
+                await self._pace(self._stop, delay)
 
     async def _stream(self) -> bool:
         """Ingest frames until the engine stops playing (True) or the loop is stopped (False).
@@ -340,7 +289,7 @@ class MeteringReader:
                 if ctx is None or not ctx.playing:
                     return ctx is not None  # paused keeps the evidence; unreachable does not
                 if read is None:
-                    read = asyncio.create_task(self._read_frame(reader))
+                    read = asyncio.create_task(_read_frame(reader))
                 if not await self._arrived(read):
                     continue  # the tick won: re-check the engine, leave the read running
                 header, body = read.result()
@@ -357,19 +306,10 @@ class MeteringReader:
 
     async def _arrived(self, read: "asyncio.Task[tuple[tuple[float, ...], bytes]]") -> bool:
         """Wait up to one idle tick for the pending frame; False means the tick won and the read is still running."""
-        tick = asyncio.ensure_future(self._wait(IDLE_RECHECK))
-        try:
-            await asyncio.wait({read, tick}, return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            tick.cancel()
+        arrived = asyncio.Event()
+        read.add_done_callback(lambda _: arrived.set())
+        await self._pace(arrived, IDLE_RECHECK)
         return read.done()
-
-    async def _read_frame(self, reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
-        header = HEADER.unpack(await reader.readexactly(HEADER.size))
-        channels, bins = int(header[1]), int(header[2])
-        if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
-            raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
-        return header, await reader.readexactly(channels * (16 + 8 * bins))
 
     def _clear_bands(self) -> None:
         """Drop the ring, so the bars park rather than hold the last thing that played."""
@@ -387,6 +327,14 @@ class MeteringReader:
         self._ring.add(band_levels(power, bandwidth), xform_time)
         self._ring_at = self._monotonic()
         self.feed.add(header, body)
+
+
+async def _read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
+    header = HEADER.unpack(await reader.readexactly(HEADER.size))
+    channels, bins = int(header[1]), int(header[2])
+    if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
+        raise ImplausibleMeteringHeaderError(channels=channels, bins=bins)
+    return header, await reader.readexactly(channels * (16 + 8 * bins))
 
 
 async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None") -> None:

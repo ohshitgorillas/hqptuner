@@ -55,12 +55,12 @@ test("test_a_save_with_presets_carries_them_alongside_name_and_rows", async () =
   });
 });
 
-// --- stageProfileDelete: plain name vs JSON object -------------------------------
+// --- stageProfileDelete: one JSON shape, presets empty when untargeted -----------
 
-test("test_a_delete_without_presets_stages_the_plain_name_string", async () => {
+test("test_a_delete_without_presets_stages_the_json_object_with_empty_presets", async () => {
   await reset();
   await stageProfileDelete("P");
-  assert.equal(effective("matrix_profile_delete"), "P");
+  assert.deepEqual(JSON.parse(String(effective("matrix_profile_delete"))), { name: "P", presets: [] });
 });
 
 test("test_a_delete_with_presets_stages_a_json_object_naming_them", async () => {

@@ -44,6 +44,13 @@ from free_bash_tables import (  # noqa: E402
 )
 
 
+class UnparsableCommandError(ValueError):
+    """A shell stage the tokenizer cannot split."""
+
+    def __init__(self, cause):
+        super().__init__(f"unparsable command: {cause}")
+
+
 def _cmd_name(tok):
     return tok.rsplit("/", 1)[-1]  # strip path: .venv/bin/pytest -> pytest
 
@@ -148,8 +155,8 @@ def _stage_ok(mstage, ostage, is_head, note=None):
         return _no(note, "redirect outside the scratchpad")
     try:
         raw = shlex.split(clean, comments=False, posix=True)
-    except ValueError:
-        return _no(note, "unparsable command")
+    except ValueError as exc:
+        raise UnparsableCommandError(exc) from exc
     if not raw:
         return _no(note, "empty command")
     # a stage that is only assignments binds names and runs nothing; the names
@@ -275,22 +282,19 @@ def is_free_bash(cmd, note=None):
     `note`, when given, collects the first reason the command was rejected —
     see _no(). Passing it changes no verdict.
     """
-    try:
-        if not cmd or not cmd.strip():
-            return _no(note, "empty command")
-        cmd = lex.SAFE_SUBST.sub("/SAFESUBST", cmd)
-        masked = lex.mask(cmd)
-        if masked is None:
-            return _no(note, "unbalanced quote")
-        for b in lex.BANNED_SUBSTR:
-            if b in masked:
-                return _no(note, f"`{b}` is never read-only")
-        segs = [(m, o) for m, o in lex.split(masked, cmd, r"&&|;") if o.strip()]
-        if not segs:
-            return _no(note, "empty command")
-        return all(_seg_ok(m, o, note) for m, o in segs)
-    except Exception:
-        return False  # parse failure -> not free -> meters (safe side)
+    if not cmd or not cmd.strip():
+        return _no(note, "empty command")
+    cmd = lex.SAFE_SUBST.sub("/SAFESUBST", cmd)
+    masked = lex.mask(cmd)
+    if masked is None:
+        return _no(note, "unbalanced quote")
+    for b in lex.BANNED_SUBSTR:
+        if b in masked:
+            return _no(note, f"`{b}` is never read-only")
+    segs = [(m, o) for m, o in lex.split(masked, cmd, r"&&|;") if o.strip()]
+    if not segs:
+        return _no(note, "empty command")
+    return all(_seg_ok(m, o, note) for m, o in segs)
 
 
 def reason_metered(cmd):

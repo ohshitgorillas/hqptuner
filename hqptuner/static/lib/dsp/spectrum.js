@@ -2,7 +2,7 @@
 // The frequency-domain readings the filter primer draws: magnitude, group
 // delay, the alias fold and the source wash. Pure functions.
 
-import { fftRadix2 } from "./fft.js";
+import { fftRadix2 } from "../../vendor/eqlab/core/dsp/fft.js";
 
 /** Magnitudes below this read as the floor; keeps log10 finite on exact zeros. */
 const MAG_FLOOR = 1e-10;

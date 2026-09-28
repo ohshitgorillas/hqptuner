@@ -10,7 +10,8 @@ import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { html } from "../../lib/dom.js";
 import { errText } from "../../lib/errtext.js";
-import { parseEqText } from "../../lib/eqimport.js";
+import { rankProfiles } from "../../lib/profilerank.js";
+import { parseEqText } from "../../vendor/eqlab/core/eqimport.js";
 import { previewEq } from "./Plot.js";
 
 const db = signal(null); // { meta, profiles } once fetched
@@ -26,11 +27,6 @@ const libSel = signal(null); // selected profile object
  */
 
 const LIMIT = 40;
-/**
- * @param {string} s a measurement source
- * @returns {number}
- */
-const sourceRank = (s) => (s === "oratory1990" ? 0 : 1);
 
 async function loadDb() {
   if (db.value || dbState.value === "loading…") return;
@@ -43,42 +39,8 @@ async function loadDb() {
   }
 }
 
-// All tokens must appear as substrings; rank by where they land
-// (start of model < word boundary < mid-word), then by source preference.
-/**
- * @param {string} model
- * @param {string[]} tokens
- * @returns {number} the rank, or -1 when a token is missing
- */
-function score(model, tokens) {
-  const m = model.toLowerCase();
-  let s = 0;
-  for (const t of tokens) {
-    const i = m.indexOf(t);
-    if (i === -1) return -1;
-    s += (i === 0 ? 0 : m[i - 1] === " " ? 1 : 2) + i / 1000;
-  }
-  return s;
-}
-
 function results() {
-  const d = db.value;
-  const q = query.value.trim().toLowerCase();
-  if (!d || !q) return { hits: [], more: 0 };
-  const tokens = q.split(/\s+/);
-  const scored = [];
-  for (const p of d.profiles) {
-    const s = score(p.model, tokens);
-    if (s >= 0) scored.push([s, p]);
-  }
-  scored.sort(
-    (a, b) =>
-      a[0] - b[0] ||
-      sourceRank(a[1].source) - sourceRank(b[1].source) ||
-      a[1].model.localeCompare(b[1].model) ||
-      a[1].source.localeCompare(b[1].source),
-  );
-  return { hits: scored.slice(0, LIMIT).map((h) => h[1]), more: Math.max(0, scored.length - LIMIT) };
+  return rankProfiles(db.value && db.value.profiles, query.value, LIMIT);
 }
 
 /** @param {Profile} p */

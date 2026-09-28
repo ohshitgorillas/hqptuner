@@ -8,6 +8,7 @@ nothing by doing so.
 
 import logging
 import multiprocessing
+from collections.abc import Callable
 
 import uvicorn
 
@@ -16,15 +17,19 @@ from hqptuner.audit import resolve_level
 from hqptuner.config import Config
 
 
-def main() -> None:
-    """Configure logging from the environment, then serve until interrupted."""
+def main(run: Callable[..., None] = uvicorn.run) -> None:
+    """Configure logging from the environment, then serve until interrupted.
+
+    ``run`` defaults to the live ``uvicorn.run``; a caller pins it to observe that serving was asked for
+    without starting a real server.
+    """
     # First statement of the entry point, per PyInstaller: a frozen build's child
     # processes re-enter the executable, and this is what stops them re-running main.
     multiprocessing.freeze_support()
     cfg = Config()
     level = resolve_level(cfg.log_level)
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    uvicorn.run(
+    run(
         create_app(cfg),
         host=cfg.listen_host,
         port=cfg.listen_port,

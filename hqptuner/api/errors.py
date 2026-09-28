@@ -1,16 +1,21 @@
 """One shape for every refusal the API sends: ``{"detail": ..., "code": ...}``.
 
-``detail`` is FastAPI's field and stays what it was, a sentence or the live
-lane's per-field reasons dict, so nothing reading it changes. ``code`` is the
-new half: a stable identifier from the table below that a client acts on
-without parsing the sentence. The status is a property of the code, not of the
+``detail`` is FastAPI's standard field, a sentence or the live lane's
+per-field reasons dict, so a client reading FastAPI's default error shape
+reads it as is. ``code`` is a stable identifier from the table below that a
+client acts on without parsing the sentence. The status is a property of the code, not of the
 raise site, so a route names the cause and the table answers the status; a
 code missing from the table is a programming error and fails loudly.
+
+A route never composes the sentence at the raise site: it hands ``refuse`` an
+``ErrorBody`` (one class per wording, keyword constructor) or an
+``HQPTunerError`` it already caught.
 """
 
 from __future__ import annotations
 
-from typing import Any, cast
+import inspect
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import http_exception_handler
@@ -19,10 +24,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hqptuner.errors import HQPTunerError
 
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
 # code -> HTTP status. Every code the API can answer with is here; the
 # vocabulary is documented for clients in docs/architecture.md "API errors".
 STATUS: dict[str, int] = {
     "no_credentials": 503,
+    "no_http_client": 503,
+    "backup_failed": 500,
     "not_loaded": 503,
     "daemon_read_failed": 502,
     "daemon_write_failed": 502,
@@ -34,6 +44,8 @@ STATUS: dict[str, int] = {
     "nothing_staged": 400,
     "fields_unknown": 422,
     "store_too_new": 409,
+    "store_corrupt": 500,
+    "archive_unreadable": 500,
     "chain_unknown": 409,
     "route_refused": 409,
     "route_unknown": 404,
@@ -46,44 +58,116 @@ STATUS: dict[str, int] = {
 # status of each code.
 _FRAMEWORK_CODES: dict[int, str] = {404: "route_unknown", 405: "method_not_allowed"}
 
+# What ``detail`` renders as: FastAPI's own field, either the sentence or the live lane's per-field reasons dict.
+type ErrorDetail = str | dict[str, str]
+
+
+class ErrorBody:
+    """A refusal not raised from an ``HQPTunerError``: a fixed API ``code`` and a rendered ``detail``.
+
+    Subclassed once per wording, next to the facts it names.
+    """
+
+    code: str
+
+    def __init__(self, detail: ErrorDetail) -> None:
+        """Carry the rendered ``detail`` this refusal answers with."""
+        self.detail = detail
+
+
+class NotLoadedError(ErrorBody):
+    """Nothing has been read from the daemon on this snapshot yet."""
+
+    code = "not_loaded"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("not yet loaded from daemon")
+
+
+class InvalidInputError(ErrorBody):
+    """A caught exception whose own message is the whole refusal, unembellished."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, error: Exception) -> None:
+        """Render ``error``'s own message, naming no further fact."""
+        super().__init__(str(error))
+
+
+class DaemonReadFailedError(ErrorBody):
+    """A daemon read that failed, whose own message is the whole refusal, unembellished."""
+
+    code = "daemon_read_failed"
+
+    def __init__(self, *, error: Exception) -> None:
+        """Render ``error``'s own message, naming no further fact."""
+        super().__init__(str(error))
+
 
 class ApiError(HTTPException):
     """An ``HTTPException`` that also knows its code; the handler below renders both."""
 
-    def __init__(self, code: str, detail: Any) -> None:
+    def __init__(self, code: str, detail: ErrorDetail) -> None:
         """Answer with the status ``code`` maps to, ``detail`` unchanged, ``code`` beside it."""
         super().__init__(status_code=STATUS[code], detail=detail)
         self.code = code
 
 
-def refuse(cause: HQPTunerError | str, detail: Any = None) -> ApiError:
-    """Build the refusal for ``cause``: an exception (its code and message) or a bare code with ``detail``.
+def refuse(cause: ErrorBody | HQPTunerError, detail: dict[str, str] | None = None) -> ApiError:
+    """Build the refusal for ``cause``: an ``ErrorBody`` (its own code and detail) or an ``HQPTunerError``.
 
-    ``detail`` given with an exception replaces its message, for the live lane's
-    reasons dict; given with a bare code it is the sentence to show.
+    ``detail`` is for the live lane's per-field reasons dict, overriding an ``HQPTunerError``'s own message; an
+    ``ErrorBody`` already carries its rendered detail and takes none.
     """
     if isinstance(cause, HQPTunerError):
         return ApiError(cause.code, str(cause) if detail is None else detail)
-    return ApiError(cause, detail)
+    return ApiError(cause.code, cause.detail)
 
 
-async def _render(_: Request, exc: Exception) -> Response:
-    # Registered for ApiError only; starlette types every handler over Exception.
-    err = cast("ApiError", exc)
-    return JSONResponse({"detail": err.detail, "code": err.code}, status_code=err.status_code)
+def _handler[ExcT: Exception](
+    kind: type[ExcT], render: Callable[[Request, ExcT], Response | Awaitable[Response]]
+) -> Callable[[Request, Exception], Awaitable[Response]]:
+    """Wrap ``render`` — which assumes its ``exc`` is already a ``kind`` — as a handler Starlette can register.
+
+    Starlette dispatches by the exact class it was registered under, so the isinstance always holds at runtime;
+    this is the one place that says so, and the one place that re-raises otherwise. ``render`` may answer sync or async
+    (``_render_framework`` awaits the framework's own handler), so this always awaits and only bridges the sync case.
+    """
+
+    async def dispatch(request: Request, exc: Exception) -> Response:
+        if isinstance(exc, kind):
+            result = render(request, exc)
+            return await result if inspect.isawaitable(result) else result
+        raise exc
+
+    return dispatch
 
 
-async def _render_framework(request: Request, exc: Exception) -> Response:
-    # Registered for starlette's HTTPException: the router's own 404 and 405
-    # get the shared shape and their code; anything else keeps FastAPI's default.
-    err = cast("StarletteHTTPException", exc)
-    code = _FRAMEWORK_CODES.get(err.status_code)
+def _render(_: Request, exc: ApiError) -> Response:
+    return JSONResponse({"detail": exc.detail, "code": exc.code}, status_code=exc.status_code)
+
+
+async def _render_framework(request: Request, exc: StarletteHTTPException) -> Response:
+    # The router's own 404 and 405 get the shared shape and their code; anything else keeps FastAPI's default.
+    code = _FRAMEWORK_CODES.get(exc.status_code)
     if code is None:
-        return await http_exception_handler(request, err)
-    return JSONResponse({"detail": err.detail, "code": code}, status_code=err.status_code, headers=err.headers)
+        return await http_exception_handler(request, exc)
+    return JSONResponse({"detail": exc.detail, "code": code}, status_code=exc.status_code, headers=exc.headers)
+
+
+def _render_error(_: Request, exc: HQPTunerError) -> Response:
+    # One no route turned into a refusal (a corrupt store read on a path that
+    # never expected one) still answers in the shared shape, at the status its
+    # code maps to.
+    return JSONResponse({"detail": str(exc), "code": exc.code}, status_code=STATUS.get(exc.code, 500))
 
 
 def install(app: FastAPI) -> None:
-    """Register the renderers so every refusal, the framework's own included, answers in the shared shape."""
-    app.add_exception_handler(ApiError, _render)
-    app.add_exception_handler(StarletteHTTPException, _render_framework)
+    """Register the renderers so every refusal, the framework's own included, answers in the shared shape.
+
+    An ``HQPTunerError`` that escapes a route renders the same way, under its own code.
+    """
+    app.add_exception_handler(ApiError, _handler(ApiError, _render))
+    app.add_exception_handler(StarletteHTTPException, _handler(StarletteHTTPException, _render_framework))
+    app.add_exception_handler(HQPTunerError, _handler(HQPTunerError, _render_error))

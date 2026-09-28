@@ -9,18 +9,21 @@ profile switch and the speaker apply were one-line pass-throughs, so their
 routes call ``lanes.matrixlane`` and ``lanes.http.speakerprocessing`` directly.
 """
 
-from typing import TYPE_CHECKING, Any
-
-import httpx
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth
-from hqptuner.engine.control import ControlError
+from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.http import engineattrs, restore
+from hqptuner.lanes.http.engineattrs import EngineVerification
+from hqptuner.lanes.http.restore import RestoreResult
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.writer import apply_live
+from hqptuner.lanes.writer import LiveWriteResult, apply_live
 from hqptuner.presets import presetlane
+from hqptuner.presets.presetlane import PresetActivation
+from hqptuner.presets.presetops import PresetAftermath, after_restore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -29,7 +32,7 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 def _trace_live_volume(
     mgr: "ConnectionManager",
     live_edits: dict[str, dict[str, str]],
-    report: list[dict[str, Any]],
+    report: list[LiveWriteResult],
 ) -> None:
     """Record a volume the live lane just set, where this batch carried one.
 
@@ -41,9 +44,65 @@ def _trace_live_volume(
     want = live_edits.get("volume", {}).get("value")
     if want is None:
         return
-    entry = next((row for row in report if row.get("setting") == "volume"), {})
-    ok = bool(entry.get("ok"))
+    entry = next((row for row in report if row.setting == "volume"), None)
+    ok = bool(entry and entry.ok)
     voltrace.write(mgr, "live_lane", want, want if ok else None, ok=ok)
+
+
+@dataclass(frozen=True)
+class ApplyReport:
+    """A staged apply's answer; the fields are the wire keys.
+
+    ``live`` holds the live setters' results, ``persistent`` the persistent lane's, ``aftermath`` the restore's
+    effect on stored presets, and ``switched`` the preset switch that runs before both lanes.
+    """
+
+    live: list[LiveWriteResult]
+    persistent: RestoreResult | None
+    aftermath: PresetAftermath | None
+    switched: PresetActivation | None
+
+
+async def _persistent_apply(
+    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None
+) -> RestoreResult:
+    """Return the persistent lane's outcome: declined as data, or the restore lane's own answer.
+
+    Checked before the lane is ever called: a compound action's outcome is data, while the restore
+    lane called alone raises the same refusal.
+    """
+    declined = httpauth.decline_error(mgr)
+    if declined is not None:
+        return RestoreResult.declined(declined)
+    return await restore.apply(mgr, http_fields, switched=switch_to is not None)
+
+
+async def _write_live(
+    mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]], staged: dict[str, str]
+) -> list[LiveWriteResult]:
+    """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on."""
+    client = mgr.require_control()
+    report = await apply_live(client, live_edits, mgr.audit)
+    _trace_live_volume(mgr, live_edits, report)
+    await lane.refresh_after_live(mgr, client, live_edits)
+    lane.remember_routed(mgr, report, staged)
+    return report
+
+
+@dataclass(frozen=True)
+class EngineApplyResult:
+    """The outcome of ``ApplyOps.apply_engine``. The fields are the wire keys."""
+
+    verified: EngineVerification
+    members: list[str]
+    backup_bytes: int
+
+
+@dataclass(frozen=True)
+class VolumeReport:
+    """A live volume write's readback: the level the engine reports after the write."""
+
+    volume: str | None
 
 
 class ApplyOps:
@@ -53,15 +112,13 @@ class ApplyOps:
         """Bind the operations to the manager whose clients, caches and lanes they write through."""
         self._mgr = mgr
 
-    async def set_volume(self, db: str) -> dict[str, Any]:
+    async def set_volume(self, db: str) -> VolumeReport:
         """Write the playback volume live, immediately, outside the staged-config apply flow.
 
         Raises CommandError when volume control is disabled (fixed volume / no-volume path;
         VolumeRange enabled=0). Returns the readback level so the caller echoes the applied value.
         """
-        client = self._mgr.control
-        if client is None:
-            raise ControlError("daemon not connected")
+        client = self._mgr.require_control()
         try:
             await client.set_volume(db)
         except ControlError:
@@ -72,7 +129,7 @@ class ApplyOps:
         self._mgr.readings.state = await client.get_state()
         readback = self._mgr.readings.state.get("volume")
         voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
-        return {"volume": readback}
+        return VolumeReport(readback)
 
     # --- write path (Phase 3) -----------------------------------------
 
@@ -81,7 +138,7 @@ class ApplyOps:
         live_edits: dict[str, dict[str, str]],
         http_fields: dict[str, str],
         switch_to: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ApplyReport:
         """Apply staged changes.
 
         When ``switch_to`` is set the user previewed a different preset — load it first so it
@@ -91,83 +148,47 @@ class ApplyOps:
         never survives — and self-corrects fixable divergence.
         """
         mgr = self._mgr
-        switched: dict[str, Any] | None = None
-        if switch_to is not None:
-            switched = await presetlane.switch(mgr, switch_to)
+        switched = await presetlane.switch(mgr, switch_to) if switch_to is not None else None
         # A fully routable batch routes live through the Control API and never
         # restarts — a staged mode goes first as its own batch
         # (lane.mode_then_split); one restore-lane field sends the whole
         # batch to the restore lane instead (routing.split_live). Skipped on a
         # LOAD, which reloads anyway; an unload does not, so its staged edits
         # still split.
-        staged = dict(http_fields)
-        live_report: list[dict[str, Any]] = []
-        if not switch_to:
-            live_report, live_edits, http_fields = await lane.mode_then_split(mgr, http_fields, live_edits)
-        if live_edits:
-            client = mgr.control
-            if client is None:
-                raise ControlError("daemon not connected")
-            live_report = live_report + await apply_live(client, live_edits, mgr.audit)
-            _trace_live_volume(mgr, live_edits, live_report)
-            await lane.refresh_after_live(mgr, client, live_edits)
-            lane.remember_routed(mgr, live_report, staged)
-        persistent = await restore.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
-        if persistent is not None and persistent.get("applied"):
-            # the restore restarted the daemon, so every live reading we hold belongs
-            # to the process it replaced — and the auto-save that follows this apply
-            # reads exactly those (settle.resync_engine_state)
-            await settle.resync_engine_state(mgr)
-            # the restore that just applied carried the parked filter files —
-            # they live on the daemon now, so the parking area is done with them
-            mgr.presetops.clear_parked_filters()
-            # profile verbs staged with fan-out targets also land in those
-            # stored preset files — after the restore, so a refused apply
-            # fans out nothing (presetops.fanout_profiles)
-            # the applied config was backfilled inside apply_edits; the stored
-            # presets carry their own copies of the same profiles and are filled
-            # from their own matrices here (presetops.backfill_profiles).
-            # BEFORE the fan-out below: backfill is a migration of profiles
-            # saved earlier, and the user's own save is the write that should
-            # land last on any preset both of them touch.
-            backfilled = mgr.presetops.backfill_profiles()
-            if backfilled:
-                persistent["profile_backfill"] = backfilled
-            fanout = mgr.presetops.fanout_profiles(http_fields)
-            if fanout:
-                persistent["profile_fanout"] = fanout
-        # OUTSIDE the branch above: a preset load is the FIRST step of an apply, so
-        # every checkpoint inside `presetlane.load` reads state the live setters and
-        # the restore have not touched yet. This one reads after all of it, and it
-        # reads on a live-only apply too — which is the apply that can move the
-        # volume without the config file ever hearing about it.
+        if switch_to:
+            plan = lane.SplitPlan([], live_edits, http_fields)
+        else:
+            plan = await lane.mode_then_split(mgr, http_fields, live_edits)
+        live = plan.report
+        if plan.live_edits:
+            live = live + await _write_live(mgr, plan.live_edits, dict(http_fields))
+        restore_fields = plan.restore_fields
+        persistent = await _persistent_apply(mgr, restore_fields, switch_to) if restore_fields else None
+        aftermath = await after_restore(mgr, persistent, restore_fields)
+        # after all of it: a preset load is the FIRST step of an apply, so every
+        # checkpoint inside the load reads state the live setters and the restore
+        # have not touched yet. This one reads on a live-only apply too —
+        # the apply that can move the volume without the config file hearing of it.
         voltrace.observe(mgr, "post_apply", {**voltrace.subset(mgr.readings.file_config), **voltrace.live_volume(mgr)})
-        return {"live": live_report, "persistent": persistent, "switched": switched}
+        return ApplyReport(live, persistent, aftermath, switched)
 
-    async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
+    async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> EngineApplyResult:
         """Apply hardware-acceleration engine attributes via the config-file-only lane (`http.engineattrs`).
 
         The restore restarts the daemon and interrupts playback; nothing gates on that — the user
-        decides when.
+        decides when. A declined lane raises ``HttpLaneDeclinedError``, and a daemon that fails the
+        write raises ``httpx.HTTPError``: the route turns either into a refusal.
         """
         mgr = self._mgr
         engineconf.validate_overrides(overrides)
-        if mgr.http_client is None:
-            return {"submitted": False, "error": "no credentials for HTTP config lane"}
-        if mgr.readings.credentials_ok is False:
-            # same guard, same reason as the staged-apply lane (http.restore.apply)
-            return {"submitted": False, "reason": "credentials", "error": httpauth.AUTH_REFUSED_MESSAGE}
-        try:
-            backup = await mgr.presetops.backup_or_cached()
-            mgr.presetops.persist_backup(backup)
-            result = await engineattrs.apply(
-                mgr, backup, overrides, mgr.readings.active_config, all_presets=all_presets
-            )
-        except httpx.HTTPError as exc:
-            return {"submitted": False, "error": str(exc)}
+        declined = httpauth.decline_error(mgr)
+        if declined is not None:
+            raise declined
+        backup = await mgr.require_http().backup()
+        mgr.presetops.persist_backup_for_apply(backup)
+        result = await engineattrs.apply(mgr, backup, overrides, mgr.readings.active_config, all_presets=all_presets)
         # same restart, same stale readings as the staged-apply path above
         await settle.resync_engine_state(mgr)
-        engine = result["verified"].get("engine")
-        if engine:
-            mgr.readings.engine = engine
-        return result
+        if result.verified.engine:
+            mgr.readings.engine = result.verified.engine
+        return EngineApplyResult(verified=result.verified, members=result.members, backup_bytes=result.backup_bytes)

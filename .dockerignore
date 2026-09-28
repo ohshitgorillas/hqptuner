@@ -1,6 +1,10 @@
 # build context = pyproject.toml, README.md, hqptuner/, data/ — exclude the rest
 .git
+**/.git
 .github
+hqptuner/static/vendor/eqlab/src
+hqptuner/static/vendor/eqlab/tests
+hqptuner/static/vendor/eqlab/.claude
 .venv
 **/__pycache__
 **/*.pyc

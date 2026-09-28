@@ -132,7 +132,7 @@ def replay(rows: list[Row], fixed: str | None) -> list[Tick]:
     return ticks
 
 
-def row_verdict(row: Row, holder: junkadvisor.SpurHolder) -> dict[str, Any] | None:
+def row_verdict(row: Row, holder: junkadvisor.SpurHolder) -> junkadvisor.JunkVerdict | None:
     """Return the signature one row's stored windowed minimum carries, or None where it carries none."""
     if row.get("spectrum") is None:
         return None

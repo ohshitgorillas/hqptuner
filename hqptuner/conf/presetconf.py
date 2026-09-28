@@ -42,20 +42,40 @@ from hqptuner.conf.fixedvol import (
 )
 from hqptuner.conf.matrixconf import (
     MATRIX_PIPELINES,
+    PLUGIN_MAP,
+    materialize_profile,
+    read_pipelines,
+    replace_pipelines,
+)
+from hqptuner.conf.matrixpayload import parse_delete, parse_save
+from hqptuner.conf.matrixprofiles import (
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
     MATRIX_PROFILES,
-    PLUGIN_MAP,
     backfill_profile_chains,
     delete_profile,
-    materialize_profile,
-    parse_delete,
-    read_pipelines,
+    profile_names,
     read_profiles,
-    replace_pipelines,
     write_profile,
 )
 from hqptuner.conf.xmledit import GroundingError, edit_element, edit_plugin, find_element, find_plugin, get_attr
+
+
+class FieldEditFailedError(GroundingError):
+    """A grounded edit failed, naming the setting whose edit it was rather than the element it touched."""
+
+    def __init__(self, *, field: str, error: GroundingError) -> None:
+        """Render the wording naming the failing setting and the underlying grounding failure."""
+        super().__init__(f"{field}: {error}")
+
+
+class UnknownFieldError(GroundingError):
+    """A staged edit named a config field this module has no route for."""
+
+    def __init__(self, *, field: str) -> None:
+        """Render the wording naming the unrouted field."""
+        super().__init__(f"unknown config field: {field!r}")
+
 
 # form field name -> (element tag, attribute). Every tag here occurs once in a
 # snapshot; multi-instance <plugin> lives in PLUGIN_MAP, keyed by its type attr.
@@ -125,9 +145,7 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
 }
 
 # PLUGIN_MAP (<post_process><plugin type="X">) is imported from matrixconf and
-# re-exported here, where its callers have always found it: a saved profile
-# carries a chain of its own, so naming those fields belongs to the module that
-# owns profiles.
+# re-exported here, where ``_route`` and ``read_config`` read it.
 
 # net_device fuses two XML attributes: value "S26/hw:CARD=Output,DEV=0" splits on
 # the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
@@ -138,52 +156,21 @@ NET_DEVICE = "net_device"
 CONFIG_TARGET = "config"
 
 
-def _profile_names(xml: bytes) -> set[str]:
-    """Read the profile names ``xml`` already carries.
-
-    Membership is what answers the audit log's ``replaced``/``found``, and only the pre-edit bytes can answer it.
-    """
-    try:
-        parsed = json.loads(read_profiles(xml))
-    except ValueError:
-        return set()
-    return set(parsed) if isinstance(parsed, dict) else set()
-
-
-def _save_payload(value: str) -> tuple[str, str]:
-    """(profile name, rows as they travel on the wire) of a staged save value.
-
-    Deliberately non-validating: the element writer rejects a bad payload with a
-    message of its own, and an audit emit must never be the thing that fails a
-    write. An unparseable value is logged whole — that is exactly what a reader
-    needs to see.
-    """
-    try:
-        raw = json.loads(value)
-    except ValueError:
-        return "", value
-    if not isinstance(raw, dict):
-        return "", value
-    name = raw.get("name")
-    rows = raw.get("rows")
-    return (name if isinstance(name, str) else ""), (json.dumps(rows) if isinstance(rows, list) else value)
-
-
 def audit_profile_write(audit: AuditLog, xml: bytes, value: str, target: str) -> None:
     """Record a ``<matrix_profile>`` save against the XML it is about to edit.
 
-    Lives here rather than in ``matrixconf``: the element writers are pure XML and
-    stay that way, so each of the two places a profile actually lands — the
-    running config and the fan-out into stored presets — emits at its own call
-    site with its own pre-edit bytes.
+    The element writers are pure XML with no audit side effect, so each place a
+    profile lands, the running config or a stored preset, emits its own record
+    with its own pre-edit bytes. Parses ``value`` with the same validator the writer uses, so the audit record
+    and the write see one payload.
     """
-    name, rows = _save_payload(value)
-    audit.profile_write(name, rows, target, replaced=name in _profile_names(xml))
+    payload = parse_save(value)
+    audit.profile_write(payload.name, json.dumps(payload.rows), target, replaced=payload.name in profile_names(xml))
 
 
 def audit_profile_delete(audit: AuditLog, xml: bytes, name: str, target: str) -> None:
     """Record a ``<matrix_profile>`` delete against the XML it is about to edit."""
-    audit.profile_delete(name, target, found=name in _profile_names(xml))
+    audit.profile_delete(name, target, found=name in profile_names(xml))
 
 
 def _apply_one(xml: bytes, field: str, value: str) -> bytes:
@@ -195,7 +182,7 @@ def _apply_one(xml: bytes, field: str, value: str) -> bytes:
     try:
         return _route(xml, field, value)
     except GroundingError as exc:
-        raise GroundingError(f"{field}: {exc}") from exc
+        raise FieldEditFailedError(field=field, error=exc) from exc
 
 
 def _route(xml: bytes, field: str, value: str) -> bytes:
@@ -207,7 +194,7 @@ def _route(xml: bytes, field: str, value: str) -> bytes:
         return edit_plugin(xml, *PLUGIN_MAP[field], value)
     if field in FIELD_MAP:
         return edit_element(xml, *FIELD_MAP[field], value)
-    raise GroundingError(f"unknown config field: {field!r}")
+    raise UnknownFieldError(field=field)
 
 
 def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
@@ -242,7 +229,7 @@ def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str |
     """Return the profile whose matrix this apply should install as the live one.
 
     ``None`` when nothing is active, and ``None`` too when this very apply deletes it, since a matrix about to be
-    removed is not one to adopt. Both staged delete shapes count (a plain name, or the fan-out JSON).
+    removed is not one to adopt.
     """
     if not profile or MATRIX_PROFILE_DELETE not in edits:
         return profile

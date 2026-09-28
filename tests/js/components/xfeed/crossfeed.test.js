@@ -42,14 +42,14 @@ import {
   removeStructural,
   structuralBlock,
 } from "../../../../hqptuner/static/store/xfeed/mode.js";
-import { compileRows } from "../../../../hqptuner/static/lib/binaural/compile.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { staticWire, stagingWire } from "../../support/wire/wire.js";
 import { hasLabel } from "../../support/markup.js";
 import { placed } from "../../support/order.js";
 
 /**
- * @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {Parameters<typeof compileRows>[0]} StructuralControls
  */
 

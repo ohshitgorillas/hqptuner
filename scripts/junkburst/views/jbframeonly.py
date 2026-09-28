@@ -6,8 +6,8 @@ spread, the shelf and slope-break percentiles, the latch grade at each cut, and 
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
@@ -26,6 +26,11 @@ from jbframeonlyscore import (
     score_corpus,
 )
 from jbframestep import FRAME_STEP_FOLDS_HZ
+
+#: A frame-level statistic reader, e.g. ``lambda f: f.edge_step``.
+Reader = Callable[[FrameRow], float]
+#: A frame predicate built from a `Reader` and a cut, e.g. what `_cut_pred` returns.
+Pred = Callable[[FrameRow], bool]
 
 #: Where the report is written, and the command that writes it.
 REPORT = Path(__file__).resolve().parents[2] / ".junkburst-report-frame-only.md"
@@ -49,7 +54,7 @@ BREAK_EDGE_CUT = 14.0
 BREAK_RUN_CUTS = (3.0, 5.0)
 
 #: The two graded statistics, each with the reader that takes it off a frame.
-STATS: tuple[tuple[str, Any], ...] = (("Fold step", lambda f: f.fold_step), ("Edge step", lambda f: f.edge_step))
+STATS: tuple[tuple[str, Reader], ...] = (("Fold step", lambda f: f.fold_step), ("Edge step", lambda f: f.edge_step))
 
 
 def _share(values: np.ndarray, cut: float) -> float:
@@ -83,7 +88,7 @@ def _by_track(rows: list[FrameRow]) -> dict[tuple[str, str], list[FrameRow]]:
     return out
 
 
-def _statistic_table(per: dict[tuple[str, str], list[FrameRow]], title: str, reader: Any) -> list[str]:
+def _statistic_table(per: dict[tuple[str, str], list[FrameRow]], title: str, reader: Reader) -> list[str]:
     """One share table for a single statistic: track, label, frame count, and its share at each cut."""
     out = [
         f"### {title}",
@@ -179,7 +184,7 @@ def _segments(frames: list[FrameRow]) -> list[list[FrameRow]]:
     return segments
 
 
-def _runs(segment: list[FrameRow], pred: Any) -> list[list[FrameRow]]:
+def _runs(segment: list[FrameRow], pred: Pred) -> list[list[FrameRow]]:
     """Maximal runs of consecutive frames meeting ``pred`` within one burst's segment, in order."""
     runs: list[list[FrameRow]] = []
     current: list[FrameRow] = []
@@ -195,7 +200,7 @@ def _runs(segment: list[FrameRow], pred: Any) -> list[list[FrameRow]]:
     return runs
 
 
-def _longest_run(frames: list[FrameRow], pred: Any) -> tuple[int, str | None]:
+def _longest_run(frames: list[FrameRow], pred: Pred) -> tuple[int, str | None]:
     """Return the longest run meeting ``pred`` over every burst of one track, and the stamp of the burst holding it."""
     best_len, best_stamp = 0, None
     for segment in _segments(frames):
@@ -205,7 +210,7 @@ def _longest_run(frames: list[FrameRow], pred: Any) -> tuple[int, str | None]:
     return best_len, best_stamp
 
 
-def _fake_first_run_seconds(frames: list[FrameRow], pred: Any, length: int) -> float | None:
+def _fake_first_run_seconds(frames: list[FrameRow], pred: Pred, length: int) -> float | None:
     """Seconds from the track's own first frame to the end of its first run meeting ``pred`` of ``length`` frames."""
     t0 = min(f.in_track_s for f in frames)
     segments = sorted(_segments(frames), key=lambda segment: segment[0].in_track_s)
@@ -216,18 +221,18 @@ def _fake_first_run_seconds(frames: list[FrameRow], pred: Any, length: int) -> f
     return None
 
 
-def _cut_pred(reader: Any, cut: float) -> Any:
+def _cut_pred(reader: Reader, cut: float) -> Pred:
     """Return a predicate a frame meets when ``reader`` reads at or over ``cut``."""
-    return lambda f: np.isfinite(reader(f)) and reader(f) >= cut
+    return lambda f: bool(np.isfinite(reader(f)) and reader(f) >= cut)
 
 
-def _cut_break_pred(reader: Any, cut: float, break_cut: float) -> Any:
+def _cut_break_pred(reader: Reader, cut: float, break_cut: float) -> Pred:
     """Return a predicate a frame meets when ``reader`` reaches ``cut`` and its slope break reaches ``break_cut``."""
     step, brk = _cut_pred(reader, cut), _cut_pred(lambda f: f.edge_break, break_cut)
     return lambda f: step(f) and brk(f)
 
 
-def run_length_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pred: Any) -> list[str]:
+def run_length_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pred: Pred) -> list[str]:
     """One per-track run-length table for one condition."""
     out = [
         f"### {title}",
@@ -252,7 +257,7 @@ def run_length_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pre
     return out
 
 
-def run_summary_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pred: Any) -> list[str]:
+def run_summary_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pred: Pred) -> list[str]:
     """One length-by-length count of real tracks reaching it and fake tracks reaching it at all, for one condition."""
     out = [
         f"### {title}",
@@ -271,7 +276,7 @@ def run_summary_table(per: dict[tuple[str, str], list[FrameRow]], title: str, pr
     return out
 
 
-def _latch_row(track: str, label: str, frames: list[FrameRow], reader: Any, cut: float) -> str:
+def _latch_row(track: str, label: str, frames: list[FrameRow], reader: Reader, cut: float) -> str:
     """One latch-grade row: a fake track's seconds to first over-cut frame, a real track's count and top stamp."""
     ordered = sorted(frames, key=lambda f: f.in_track_s)
     if label == "FAKE":
@@ -285,7 +290,7 @@ def _latch_row(track: str, label: str, frames: list[FrameRow], reader: Any, cut:
     return f"| {track} | {label} | | {count} | {top_stamp} |"
 
 
-def latch_table(per: dict[tuple[str, str], list[FrameRow]], title: str, reader: Any, cut: float) -> list[str]:
+def latch_table(per: dict[tuple[str, str], list[FrameRow]], title: str, reader: Reader, cut: float) -> list[str]:
     """One per-track latch grade at one cut of one statistic."""
     out = [
         f"### {title} at {cut:g} dB",
@@ -320,9 +325,9 @@ def _intro() -> str:
     )
 
 
-def _run_conditions() -> list[tuple[str, str, Any]]:
+def _run_conditions() -> list[tuple[str, str, Pred]]:
     """Every run condition graded: its run-length title, its summary title, and the predicate a frame must meet."""
-    out: list[tuple[str, str, Any]] = []
+    out: list[tuple[str, str, Pred]] = []
     for title, reader in STATS:
         for cut in RUN_CUTS:
             tail = f" at {cut:g} dB"

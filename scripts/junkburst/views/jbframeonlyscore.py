@@ -58,7 +58,7 @@ class Corpus:
     rows: list[FrameRow] = field(default_factory=list)
 
 
-def _median_band(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
+def median_band(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
     """Per frame: the median of that frame's own bins over one band, or ``None`` when the band is off the grid."""
     span = band_bins(grid, lo_hz, hi_hz)
     if span is None:
@@ -88,12 +88,12 @@ def edge_reading(frames: np.ndarray, grid: Grid) -> tuple[np.ndarray, np.ndarray
     best_shelf = np.full(n, np.nan, dtype=np.float64)
     any_valid = False
     for top_hz in EDGE_SWEEP_TOP_HZ:
-        lower = _median_band(frames, grid, top_hz - EDGE_BAND_HZ, top_hz)
-        upper = _median_band(frames, grid, top_hz, top_hz + EDGE_BAND_HZ)
+        lower = median_band(frames, grid, top_hz - EDGE_BAND_HZ, top_hz)
+        upper = median_band(frames, grid, top_hz, top_hz + EDGE_BAND_HZ)
         if lower is None or upper is None:
             continue
         any_valid = True
-        under = _median_band(frames, grid, top_hz - 2.0 * EDGE_BAND_HZ, top_hz - EDGE_BAND_HZ)
+        under = median_band(frames, grid, top_hz - 2.0 * EDGE_BAND_HZ, top_hz - EDGE_BAND_HZ)
         step = lower - upper
         better = step > best_step
         best_step = np.where(better, step, best_step)
@@ -120,7 +120,7 @@ def plateau_value(row: np.ndarray, grid: Grid, edge_hz: float, top_cap_hz: float
     return float(np.percentile(band, 90) - np.percentile(band, 10))
 
 
-def _band_slope(row: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> float:
+def band_slope(row: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> float:
     """Least-squares slope in dB/kHz of one band of one smoothed frame, its highest-dB bins dropped from the fit."""
     span = band_bins(grid, lo_hz, hi_hz)
     if span is None:
@@ -140,14 +140,14 @@ def slope_break(row: np.ndarray, grid: Grid, edge_hz: float) -> float:
     """One frame's slope break: the above-edge band's own slope minus the below-edge band's, in dB per kHz."""
     if not np.isfinite(edge_hz):
         return float("nan")
-    below = _band_slope(row, grid, edge_hz - SLOPE_GAP_HZ - SLOPE_BAND_HZ, edge_hz - SLOPE_GAP_HZ)
-    above = _band_slope(row, grid, edge_hz + SLOPE_GAP_HZ, edge_hz + SLOPE_GAP_HZ + SLOPE_BAND_HZ)
+    below = band_slope(row, grid, edge_hz - SLOPE_GAP_HZ - SLOPE_BAND_HZ, edge_hz - SLOPE_GAP_HZ)
+    above = band_slope(row, grid, edge_hz + SLOPE_GAP_HZ, edge_hz + SLOPE_GAP_HZ + SLOPE_BAND_HZ)
     if not (np.isfinite(below) and np.isfinite(above)):
         return float("nan")
     return above - below
 
 
-def _steady_bursts() -> list[dict[str, str]]:
+def steady_bursts() -> list[dict[str, str]]:
     """Every graded steady burst, duplicate arrivals collapsed: its stamp, track key, position and owner label."""
     tracks = load_tracks()
     by_album, by_track = load_labels()
@@ -205,7 +205,7 @@ def _burst_rows(entry: dict[str, str], corpus: Corpus) -> None:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score its raw frames, no lit gate, into the corpus."""
-    bursts = _steady_bursts()
+    bursts = steady_bursts()
     corpus = Corpus()
     for n, entry in enumerate(bursts, 1):
         _burst_rows(entry, corpus)

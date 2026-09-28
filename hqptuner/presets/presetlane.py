@@ -17,18 +17,20 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner import voltrace
-from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
-from hqptuner.engine.control import ControlError
+from hqptuner.conf import engineconf, presetconf, presetzip
+from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.autopilot import AutopilotError
-from hqptuner.presets.store.presets import PresetError, canonical_name
+from hqptuner.presets.store.matrixmode import MatrixModeSchemaError
+from hqptuner.presets.store.presets import canonical_name
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -38,7 +40,67 @@ log = logging.getLogger(__name__)
 RECONNECT_FAST = 1.0
 
 
-def listing(mgr: ConnectionManager) -> dict[str, Any]:
+@dataclass(frozen=True)
+class PresetSaveResult:
+    """A save or auto-save that reached the store; the fields are the wire keys.
+
+    ``warning`` rides when the daemon mirror did not land, which leaves the save itself standing.
+    """
+
+    name: str
+    warning: str | None = None
+
+
+@dataclass(frozen=True)
+class PresetOption:
+    """One entry of the preset picker: the preset name it selects, and the label it shows."""
+
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class PresetListing:
+    """The preset picker's contents: the selected name, every option, the active preset, and the auto-save flag."""
+
+    value: str
+    options: list[PresetOption]
+    active: str
+    autosave: bool
+
+
+@dataclass(frozen=True)
+class PresetActivation:
+    """A preset load, unload or switch: the preset now active ("" for the unnamed default), and whether it took."""
+
+    name: str
+    active: bool
+
+
+@dataclass(frozen=True)
+class PresetDeleted:
+    """A preset removed from the store, under the trimmed name it was stored as."""
+
+    name: str
+
+
+class NoRunningConfigToSaveError(ControlError):
+    """``save`` found no running config in the backup archive to fold the current settings into."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("no running config to save")
+
+
+class NoRunningConfigToAutosaveError(ControlError):
+    """``autosave`` found no running config in the backup archive to fold the current settings into."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("no running config to auto-save")
+
+
+def listing(mgr: ConnectionManager) -> PresetListing:
     """Preset list + active name for the API.
 
     Shaped like the daemon profile field the frontend already renders: an empty "(no preset)" option, then every
@@ -51,10 +113,10 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
     bookmark", and "(no preset)" says that without promising a settings reset it
     cannot deliver.
     """
-    options: list[dict[str, str]] = [{"value": "", "label": "(no preset)"}]
-    options += [{"value": n, "label": n} for n in mgr.presetops.store.names()]
+    options = [PresetOption("", "(no preset)")]
+    options += [PresetOption(n, n) for n in mgr.presetops.store.names()]
     active = mgr.presetops.store.active or ""
-    return {"value": active, "options": options, "active": active, "autosave": mgr.presetops.store.autosave}
+    return PresetListing(value=active, options=options, active=active, autosave=mgr.presetops.store.autosave)
 
 
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
@@ -67,7 +129,7 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     return presetconf.read_config(mgr.presetops.store.read(name))
 
 
-async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     """Load a stored preset.
 
     Restores its config as the ``[default]`` working config (the reliable primitive) and marks it active, mirroring
@@ -80,9 +142,9 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     # before the daemon has been told anything
     voltrace.observe(mgr, "preset.stored", voltrace.subset(presetconf.read_config(xml)), name=name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
-    await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
-    backup = await mgr.presetops.backup_or_cached(for_write=True)
-    mgr.presetops.persist_backup(backup)
+    await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
+    backup = await mgr.require_http().backup()
+    mgr.presetops.persist_backup_for_load(backup, name)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     mark = settle.mark_connect(mgr)
     await settle.restore(mgr, archive, mark=mark, scope="system")
@@ -102,7 +164,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     voltrace.observe(mgr, "post_restart_file", voltrace.subset(mgr.readings.file_config), name=name)
     await mgr.refresh_http_forms()
     _restore_autopilot(mgr, name)
-    return {"name": name, "active": True}
+    return PresetActivation(name, active=True)
 
 
 def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> None:
@@ -149,38 +211,32 @@ def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
         log.warning("auto-pilot state not restored for preset %r: %s", name, exc)
 
 
-async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+async def switch(mgr: ConnectionManager, name: str) -> PresetActivation:
     """Make ``name`` the active preset as the first step of an apply.
 
     A named preset loads (restore + mirror); the empty name is the picker's "(no preset)" and only drops the
     bookmark. Never hqplayerd's ``profile/load``.
     """
     if not name:
-        return await unload(mgr)
-    # cache a healthy backup BEFORE the load — the load bug empties /backup, and
-    # the persistent apply that follows needs the archive (docs/protocol.md)
-    with contextlib.suppress(httpx.HTTPError):
-        await mgr.presetops.backup_or_cached()
+        return unload(mgr)
     return await load(mgr, name)
 
 
-async def unload(mgr: ConnectionManager) -> dict[str, Any]:
+def unload(mgr: ConnectionManager) -> PresetActivation:
     """Select "(no preset)".
 
     Drops HQPTuner's active-preset bookmark and leaves the running config exactly as it is.
 
-    There is nothing to load and nothing to restart. HQPlayer runs one settings
-    file either way; an active preset is a note we keep about where that file's
-    contents came from, not a second place they live. Nobody stored the
-    before-the-preset version, so "unload" cannot mean "put the old settings
-    back" — it means we stop claiming the current settings belong to a preset.
-    Shaped like ``load``'s return so the apply report reads the same either way.
+    Nothing loads and nothing restarts. HQPlayer runs one settings file either way; the active preset is a label
+    HQPTuner keeps on that file, not a second copy of its contents. Unload restores nothing: it only stops attributing
+    the current settings to a preset. Answers the same ``PresetActivation`` ``load`` does, so the apply report reads
+    the same either way.
     """
     mgr.presetops.store.set_active(None)
-    return {"name": "", "active": True}
+    return PresetActivation("", active=True)
 
 
-async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+async def save(mgr: ConnectionManager, name: str) -> PresetSaveResult:
     """Persist the current running config as preset ``name``.
 
     Stores our copy and mirrors it into the daemon's ``data/cfgs``. Called after a successful apply, so the running
@@ -188,60 +244,48 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
     The store write is the save; the daemon mirror is a convenience for
     hqplayerd's own profile list. So the mirror runs AFTER the store commits and
-    reports a warning rather than a failure — a save that reached disk must never
-    come back as ``ok: False``, which is what sent a user looking for a preset
-    that was already there.
+    reports a warning rather than a failure: a save that reached disk is a save.
+    A daemon, store or grounding failure before the commit raises to the caller, the way ``load`` does.
     """
-    # Outside the try: a name the rule refuses is the caller's 422, not a save
-    # that failed. Everything after keys on the trimmed name.
-    name = canonical_name(name)
-    try:
-        await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
-        backup = await mgr.presetops.backup_or_cached(for_write=True)
-        working = engineconf.base_config_xml(backup, mgr.readings.active_config)
-        if not working:
-            raise ControlError("no running config to save")
-        # Live-routed edits (filters, dither/modulator, mode) never touched the
-        # file, so the working config is stale for exactly those settings. Fold
-        # the engine's current values in first — a save stores what the user is
-        # hearing, not what happens to be on disk.
-        working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
-        mgr.presetops.store.save(name, working, trigger="save")
-        mgr.presetops.store.set_active(name)
-    except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
-        return {"name": name, "ok": False, "error": str(exc)}
+    name = canonical_name(name)  # everything after keys on the trimmed name
+    await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
+    backup = await mgr.require_http().backup()
+    working = engineconf.base_config_xml(backup, mgr.readings.active_config)
+    if not working:
+        raise NoRunningConfigToSaveError()
+    # Live-routed edits (filters, dither/modulator, mode) never touched the
+    # file, so the working config is stale for exactly those settings. Fold
+    # the engine's current values in first — a save stores what the user is
+    # hearing, not what happens to be on disk.
+    working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
+    mgr.presetops.store.save(name, working, trigger="save")
+    mgr.presetops.store.set_active(name)
     _record_autopilot(mgr, name)
     warning = await _mirror(mgr, name, working, backup)
-    if warning is None:
-        return {"name": name, "ok": True}
-    return {"name": name, "ok": True, "warning": warning}
+    return PresetSaveResult(name, warning=warning)
 
 
-async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
+async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
     """Fold the current audible state back into the active preset's store file.
 
     This is the auto-save checkbox's whole write path. Store only, never the daemon
     mirror: the mirror costs a restore restart, so it catches up by riding the
     next restore that happens anyway (``lanes/presetfields.autosave_mirror``).
     Returns None when
-    auto-save is off or no preset is active; best-effort otherwise — a failed
-    auto-save reports itself and never fails the write it followed.
+    auto-save is off or no preset is active. A failed auto-save raises to the
+    caller, the same failure a standalone ``save`` raises.
     """
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.autosave:
         return None
-    try:
-        backup = await mgr.presetops.backup_or_cached(for_write=True)
-        working = engineconf.base_config_xml(backup, mgr.readings.active_config)
-        if not working:
-            raise ControlError("no running config to auto-save")
-        working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
-        mgr.presetops.store.save(name, working, trigger="autosave")
-    except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
-        log.warning("auto-save into preset %r failed: %s", name, exc)
-        return {"name": name, "ok": False, "error": str(exc)}
+    backup = await mgr.require_http().backup()
+    working = engineconf.base_config_xml(backup, mgr.readings.active_config)
+    if not working:
+        raise NoRunningConfigToAutosaveError()
+    working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
+    mgr.presetops.store.save(name, working, trigger="autosave")
     _record_autopilot(mgr, name)
-    return {"name": name, "ok": True}
+    return PresetSaveResult(name)
 
 
 def _record_autopilot(mgr: ConnectionManager, name: str) -> None:
@@ -287,7 +331,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     return "hqplayerd's own profile list was not updated"
 
 
-async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
     """Delete a preset from the store and remove its daemon mirror via ``profile/delete``.
 
     Restore is additive and cannot remove a member.
@@ -297,10 +341,14 @@ async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """
     name = canonical_name(name)  # the mirror was written under the trimmed name
     mgr.presetops.store.delete(name)
-    mgr.presetops.matrix_modes.forget(name)
+    # A store stamped by a newer HQPTuner must not stop a preset delete: one orphaned mode entry is cheaper than
+    # that. A corrupt store is a different matter: it refuses rather than reading empty, and that refusal
+    # propagates here too.
+    with contextlib.suppress(MatrixModeSchemaError):
+        mgr.presetops.matrix_modes.forget(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
         await mgr.require_http().post_profile("delete", profile=name)
-    return {"name": name, "ok": True}
+    return PresetDeleted(name)
 
 
 async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
@@ -309,7 +357,7 @@ async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
     Idempotent — existing store presets win. Seeds the active pointer from the daemon's reported active config when
     the store has none. Returns the imported names.
     """
-    snapshots = presetzip.snapshot_members(await mgr.presetops.backup_or_cached())
+    snapshots = presetzip.snapshot_members(await mgr.require_http().backup())
     imported = mgr.presetops.store.import_missing(snapshots)
     if mgr.presetops.store.active is None and active_hint and mgr.presetops.store.exists(active_hint):
         mgr.presetops.store.set_active(active_hint)

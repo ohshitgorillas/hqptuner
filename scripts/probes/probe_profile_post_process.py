@@ -39,6 +39,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
 PROFILE = "hqptuner-probe"
@@ -47,6 +48,10 @@ HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
 OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
 SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
+
+
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
 
 
 def _restart_daemon() -> None:
@@ -67,7 +72,8 @@ async def _settle(http: HttpConfigClient) -> None:
             return
         except (httpx.HTTPError, OSError):
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit("daemon never came back after a restore")
+    message = "daemon never came back after a restore"
+    raise CliError(message)
 
 
 async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
@@ -79,7 +85,8 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
         except (httpx.HTTPError, OSError) as exc:
             last = exc
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit(f"daemon never answered: {last}")
+    message = f"daemon never answered: {last}"
+    raise CliError(message)
 
 
 async def _working(http: HttpConfigClient, active: str | None) -> bytes:
@@ -90,7 +97,8 @@ async def _push(http: HttpConfigClient, backup: bytes, working: bytes, active: s
     with zipfile.ZipFile(io.BytesIO(backup)) as z:
         member = engineconf.running_config_name(z.namelist(), active)
     if member is None:
-        raise SystemExit("cannot resolve the working config member")
+        message = "cannot resolve the working config member"
+        raise CliError(message)
     archive = engineconf.rewrite_zip(backup, {member: working})
     await _rpc(lambda: http.restore(archive, scope="system"))
     await _settle(http)
@@ -100,7 +108,8 @@ async def _push(http: HttpConfigClient, backup: bytes, working: bytes, active: s
 def _matrix_body(xml: bytes) -> bytes:
     m = re.search(rb"<matrix\b[^>]*>", xml)
     if m is None or m.group(0).endswith(b"/>"):
-        raise SystemExit("the running config has no <matrix> body")
+        message = "the running config has no <matrix> body"
+        raise CliError(message)
     close = xml.find(b"</matrix>", m.end())
     return xml[m.end() : close]
 
@@ -108,7 +117,8 @@ def _matrix_body(xml: bytes) -> bytes:
 def _post_process_block(body: bytes) -> bytes:
     m = re.search(rb"[ \t]*<post_process>.*?</post_process>", body, re.DOTALL)
     if m is None:
-        raise SystemExit("the running config's matrix carries no <post_process>")
+        message = "the running config's matrix carries no <post_process>"
+        raise CliError(message)
     return m.group(0)
 
 
@@ -132,13 +142,15 @@ def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
     post-process one does not, the daemon's parser is rejecting the element.
     """
     if _profile_element(xml, PROFILE) is not None:
-        raise SystemExit(f"a {PROFILE!r} profile is already in the config — clean it out first")
+        message = f"a {PROFILE!r} profile is already in the config — clean it out first"
+        raise CliError(message)
     body = _matrix_body(xml)
     rows = b"".join(m.group(0) for m in re.finditer(rb"\n?[ \t]*<pipeline\b[^>]*/>", body))
     post = _post_process_block(body)
     anchor = re.search(rb"(?:\n([ \t]*))?<matrix\b", xml)
     if anchor is None:
-        raise SystemExit("the matrix element is absent")
+        message = "the matrix element is absent"
+        raise CliError(message)
     indent = anchor.group(1)
     lead = b"" if indent is None else b"\n" + indent
     tail = lead + post if carry_post else b""
@@ -146,21 +158,23 @@ def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
     return xml[: anchor.start()] + block + xml[anchor.start() :]
 
 
-def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
+def _correction(fields: list[FormField]) -> dict[str, object]:
     return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
-async def main() -> int:
+async def _run() -> int:
     """Establish whether the daemon keeps a profile's authored post_process and installs it on a live switch."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to write")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
+        raise CliError(message)
     original_profile = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original_profile!r}")
 
@@ -230,6 +244,20 @@ async def main() -> int:
         if not identical or readback != original_profile:
             rc = 1
     return rc
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

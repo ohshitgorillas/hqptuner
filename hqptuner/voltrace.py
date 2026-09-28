@@ -63,7 +63,7 @@ def subset(mapping: Mapping[str, Any] | None) -> dict[str, str | None]:
     return {field: _text(carried.get(field)) for field in sorted(VOLUME_FIELDS)}
 
 
-def _text(value: Any) -> str | None:
+def _text(value: object) -> str | None:
     """One field's value as the log carries it — None stays None, everything else is its string."""
     return None if value is None else str(value)
 

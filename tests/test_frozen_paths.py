@@ -16,7 +16,6 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-import uvicorn
 from conftest import METADATA_MIN
 from fastapi.testclient import TestClient
 
@@ -73,24 +72,19 @@ def _paths() -> ModuleType:
     return importlib.import_module("hqptuner.paths")
 
 
-def _freeze(monkeypatch: pytest.MonkeyPatch, bundle: Path | None) -> None:
-    """Present the process as PyInstaller's bootloader would, or as a plain
-    interpreter when ``bundle`` is None."""
-    if bundle is None:
-        monkeypatch.delattr(sys, "frozen", raising=False)
-        monkeypatch.delattr(sys, "_MEIPASS", raising=False)
-        return
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+def _freeze(bundle_root: str | None) -> Path | None:
+    """The ``bundle`` argument ``bundled()`` takes to answer as PyInstaller's bootloader would, or None for a
+    plain interpreter."""
+    return Path(bundle_root) if bundle_root is not None else None
 
 
-def _owed(paths: ModuleType, source: str) -> Path:
+def _owed(paths: ModuleType, source: str, bundle: Path | None = None) -> Path:
     """Where the field's value is owed to come from, in the frozen build's own
     terms."""
     if source == "user":
         return Path(paths.user_data_dir())
     if source == "bundle":
-        return Path(paths.bundled("data"))
+        return Path(paths.bundled("data", bundle=bundle))
     return Path(OVERRIDE)
 
 
@@ -135,14 +129,9 @@ def fresh_entry_point() -> Iterator[None]:
 def test_user_data_dir_follows_the_platform_and_the_environment_it_runs_in(
     monkeypatch: pytest.MonkeyPatch, platform: str, env: dict[str, str], expected: str
 ) -> None:
-    monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.setenv("HOME", HOME)
-    for name in ("LOCALAPPDATA", "APPDATA", "USERPROFILE", "XDG_DATA_HOME"):
-        monkeypatch.delenv(name, raising=False)
-    for name, value in env.items():
-        monkeypatch.setenv(name, value)
 
-    assert _paths().user_data_dir() == Path(expected)
+    assert _paths().user_data_dir(platform=platform, env=env) == Path(expected)
 
 
 @pytest.mark.parametrize(
@@ -155,11 +144,9 @@ def test_user_data_dir_follows_the_platform_and_the_environment_it_runs_in(
     ],
 )
 def test_bundled_asset_sits_under_the_bundle_when_frozen_and_beside_the_package_otherwise(
-    monkeypatch: pytest.MonkeyPatch, bundle_root: str | None, part: str, expected: Path
+    bundle_root: str | None, part: str, expected: Path
 ) -> None:
-    _freeze(monkeypatch, None if bundle_root is None else Path(bundle_root))
-
-    assert _paths().bundled(part) == expected
+    assert _paths().bundled(part, bundle=_freeze(bundle_root)) == expected
 
 
 @pytest.mark.parametrize(("field", "env", "source"), FROZEN_PATH_CASES)
@@ -168,38 +155,37 @@ def test_a_frozen_path_takes_the_environments_value_and_falls_back_to_the_user_d
 ) -> None:
     paths = _paths()
     _clear_hqptuner_env(monkeypatch)
-    _freeze(monkeypatch, Path(MEIPASS))
     for name, value in env.items():
         monkeypatch.setenv(name, value)
-    field_value = Path(getattr(Config(), field))
+    # `Config` itself now takes the frozen build PyInstaller's bootloader would set on
+    # `sys`, as its own public `frozen`/`bundle` fields.
+    field_value = Path(getattr(Config(frozen=True, bundle=Path(MEIPASS)), field))
     observed = field_value.parent if source == "user" else field_value
 
-    assert observed == _owed(paths, source)
+    assert observed == _owed(paths, source, bundle=Path(MEIPASS))
 
 
 @pytest.mark.parametrize(("route", "expected"), [("/", INDEX_BYTES), ("/api/autoeq", AUTOEQ_BYTES)])
 def test_a_frozen_build_serves_the_asset_bytes_that_sit_in_its_bundle(
-    monkeypatch: pytest.MonkeyPatch, bundle: Path, closed_port: int, route: str, expected: bytes
+    bundle: Path, closed_port: int, route: str, expected: bytes
 ) -> None:
-    _freeze(monkeypatch, bundle)
-    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port, data_dir=METADATA_MIN)
+    # api/spa.py and api/routes/matrix/matrix.py now read the bundle root off the
+    # app's own `Config` instead of calling `bundled()` bare.
+    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port, data_dir=METADATA_MIN, frozen=True, bundle=bundle)
 
     with TestClient(create_app(cfg)) as client:
         assert client.get(route).content == expected
 
 
 @pytest.mark.usefixtures("fresh_entry_point")
-def test_importing_the_entry_point_starts_no_server_and_calling_main_starts_one(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_importing_the_entry_point_starts_no_server_and_calling_main_starts_one() -> None:
     starts: list[object] = []
 
     def record(*args: object, **kwargs: object) -> None:
         starts.append((args, kwargs))
 
-    monkeypatch.setattr(uvicorn, "run", record)
     module = importlib.import_module("hqptuner.__main__")
     after_import = len(starts)
-    module.main()
+    module.main(run=record)
 
     assert (after_import, len(starts)) == (0, 1)

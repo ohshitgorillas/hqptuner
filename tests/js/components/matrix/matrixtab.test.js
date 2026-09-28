@@ -11,8 +11,8 @@
 // what makes these tests survive it.
 //
 // NOT covered, because the state that reaches those branches lives in
-// module-private signals with no public writer (see the report): the raw `{ }`
-// chain view (`rawRows`), the busy/note/name states of the profile card
+// module-private signals with no public writer: the
+// busy/note/name states of the profile card
 // (`profileBusy`, `profileNote`, `profileNewName`, `profileSel`), and the
 // enabled state of "Import EQ" (`importText`). Reaching through a private signal
 // is forbidden, so those branches are honestly uncovered rather than faked.
@@ -40,7 +40,7 @@ function wire() {
   stagingWire();
 }
 
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 /**
  * A stored profile as `matrixConfig.file_profiles` carries one.

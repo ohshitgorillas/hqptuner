@@ -201,13 +201,21 @@ def qualifier_block_grade(
     return total
 
 
+class NoKeptBlockForKeyError(ValueError):
+    """No kept block's row key names the requested album key."""
+
+    def __init__(self, *, needle: str) -> None:
+        """Name the unmatched `needle`."""
+        super().__init__(f"no kept block under a row key naming {needle}")
+
+
 def _keyed_stamp(mask_rows: list[MaskRow], keep: list[int], row_key_of: dict[str, str], needle: str) -> str:
     """Return the stamp of the first kept block whose row key names ``needle``."""
     for index in keep:
         stamp = mask_rows[index][0]
         if needle in row_key_of[stamp]:
             return stamp
-    raise ValueError(f"no kept block under a row key naming {needle}")
+    raise NoKeptBlockForKeyError(needle=needle)
 
 
 def tilt_block_rows(

@@ -1,6 +1,6 @@
 """Readers over the backup archive: the fields that live only in ``hqplayerd.xml``.
 
-Both fetch through ``presetops.backup_or_cached`` and cache what they parse in
+Both fetch through ``require_http().backup()`` and cache what they parse in
 ``readings``. Neither runs per poll, since the archive is large; each is fetched
 on connect, on demand, or after an apply's verify step.
 """
@@ -19,9 +19,8 @@ async def read_engine(mgr: "ConnectionManager") -> dict[str, str]:
     That backup is the only lane that carries them — they are not on the form.
     """
     readings = mgr.readings
-    readings.engine = engineconf.read_engine_attrs(
-        engineconf.base_config_xml(await mgr.presetops.backup_or_cached(), readings.active_config)
-    )
+    backup = await mgr.require_http().backup()
+    readings.engine = engineconf.read_engine_attrs(engineconf.base_config_xml(backup, readings.active_config))
     return readings.engine
 
 
@@ -31,6 +30,6 @@ async def load_file_config(mgr: "ConnectionManager") -> dict[str, str]:
     Serves the fields the ``/config`` form renders lossily (``volume_fixed``: 0/1/2 in XML, a
     bare checkbox on the form).
     """
-    backup = await mgr.presetops.backup_or_cached()
+    backup = await mgr.require_http().backup()
     mgr.readings.file_config = presetconf.read_config(engineconf.base_config_xml(backup, mgr.readings.active_config))
     return mgr.readings.file_config

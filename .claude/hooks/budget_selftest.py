@@ -7,9 +7,12 @@ has to stay under the repo's 500-line gate, and the fixtures are the part with
 no policy in them.
 """
 
+import contextlib
+import importlib.util
+import io
+import json
 import os
 import sys
-import importlib.util
 
 
 def _load(name):
@@ -60,6 +63,20 @@ def _verdict(rows, command="sudo pending"):
     return evaluate(data, rows)
 
 
+def _hook_reason(command):
+    """The deny reason main() prints for a pending Bash call, or None."""
+    data = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Bash", "tool_input": {"command": command}}
+    out, stdin = io.StringIO(), sys.stdin
+    sys.stdin = io.StringIO(json.dumps(data))
+    try:
+        with contextlib.redirect_stdout(out):
+            budget.main()
+    finally:
+        sys.stdin = stdin
+    printed = out.getvalue()
+    return json.loads(printed)["hookSpecificOutput"]["permissionDecisionReason"] if printed else None
+
+
 def _check(label, condition):
     print(f"  {'PASS' if condition else 'FAIL'}  {label}")
     return condition
@@ -83,6 +100,14 @@ def _budget_checks():
     )
     flushed = _verdict([_said("do it"), *_ran(limit), _call("z", "tz", "Bash", {"command": "sudo pending"})])
     ok.append(_check("same verdict when the pending row is already flushed", flushed == reason))
+    unparsable = _hook_reason("echo foo\\") or ""
+    ok.append(_check("an unparsable command is denied as unparsable", unparsable.startswith("unparsable command")))
+    history = [_said("do it"), _call("u", "tu", "Bash", {"command": "echo foo\\"}), _done("tu"), *_ran(limit)]
+    try:
+        tripped = bool(_verdict(history))
+    except budget.UnparsableCommandError:
+        tripped = False
+    ok.append(_check(f"an unparsable past command counts as nothing; action {limit + 1} still trips", tripped))
     ok.append(_check("a free call is never denied", _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
 
     spawn = {

@@ -37,14 +37,14 @@ from typing import Any
 
 import junkcal_seq as seq
 
-from hqptuner.engine import junkadvisor
-from hqptuner.engine.junkadvisor import (
-    _CORNER_KHZ,
-    _Curve,
-    _excesses,
-    _median_smooth,
-    _rank_correlation,
-    _spur_corner,
+from hqptuner.engine import junkadvisor, junkcurve
+from hqptuner.engine.junkcurve import (
+    CORNER_KHZ,
+    Curve,
+    excesses,
+    median_smooth,
+    rank_correlation,
+    spur_corner,
 )
 from hqptuner.lanes import autopilot
 
@@ -97,14 +97,14 @@ def _band_median(levels: list[float], lo: int, hi: int) -> float:
     return statistics.median(band) if band else -200.0
 
 
-def cliff_probe(curve: _Curve) -> str:
+def cliff_probe(curve: Curve) -> str:
     """Return the retired reference-band fall's outcome on one curve as a named code.
 
     The edge search is that rule's own, unrolled, because it collapsed three different refusals into
     one ``None`` and the three are the whole question here.
     """
     bottom, top = (curve.at(h) for h in CLIFF_WINDOW_HZ)
-    limit = curve.floor + junkadvisor.CONTRAST_DB
+    limit = curve.floor + junkcurve.CONTRAST_DB
     edge = -1
     for i in range(bottom, top + 1):
         if curve.smoothed[i] > limit:
@@ -125,12 +125,12 @@ def cliff_probe(curve: _Curve) -> str:
     return f"fires d={bucket(depth, DEPTH_BUCKET_DB)} ceil={curve.hz(edge) / 1000:.0f}k"
 
 
-def spur_probe(curve: _Curve, holder: junkadvisor.SpurHolder) -> str:
+def spur_probe(curve: Curve, holder: junkadvisor.SpurHolder) -> str:
     """Return the spur rule's outcome, advancing the holder exactly as ``_spur`` does."""
-    visible = _excesses(curve)
+    visible = excesses(curve)
     held = holder.decide(visible)
     if held:
-        corner = min((_spur_corner(f) for f in held), key=lambda n: _CORNER_KHZ[n])
+        corner = min((spur_corner(f) for f in held), key=lambda n: CORNER_KHZ[n])
         best = max(visible[f] for f in held) if any(f in visible for f in held) else float("nan")
         return f"held n={len(held)} {corner} x={bucket(best, EXCESS_BUCKET_DB)}"
     if not visible:
@@ -138,14 +138,14 @@ def spur_probe(curve: _Curve, holder: junkadvisor.SpurHolder) -> str:
     return f"not_held x={bucket(max(visible.values()), EXCESS_BUCKET_DB)}"
 
 
-def ramp_probe(curve: _Curve, samplerate: int) -> str:
+def ramp_probe(curve: Curve, samplerate: int) -> str:
     """Return the ramp rule's outcome: its rank against the threshold, or why it could not be read."""
     if samplerate < junkadvisor.RAMP_MIN_RATE:
         return "rate_too_low"
     band = curve.smoothed[curve.above(junkadvisor.RAMP_LO_HZ) :]
-    if len(band) < junkadvisor.SPUR_BASELINE_BINS:
+    if len(band) < junkcurve.SPUR_BASELINE_BINS:
         return "band_too_narrow"
-    rank = _rank_correlation(_median_smooth(band, junkadvisor.SPUR_BASELINE_BINS))
+    rank = rank_correlation(median_smooth(band, junkcurve.SPUR_BASELINE_BINS))
     return f"{'fires' if rank >= junkadvisor.RAMP_RANK else 'flat'} r={rank:.3f}"
 
 
@@ -157,12 +157,12 @@ def probe(row: Row, holder: junkadvisor.SpurHolder, label: str | None, capture: 
     seconds = float(row["seconds"])
     if levels is None or not junkadvisor.eligible(samplerate, bandwidth, len(levels), sdm=bool(row.get("sdm", False))):
         return Probe("ineligible", "ineligible", "ineligible", "-", "-", junkadvisor.NO_FILTER, label, capture, seconds)
-    curve = _Curve(levels, bandwidth)
+    curve = Curve(levels, bandwidth)
     cliff = cliff_probe(curve)
     spur = spur_probe(curve, holder)
     ramp = ramp_probe(curve, samplerate)
     verdict = junkadvisor.classify(levels, bandwidth, samplerate=samplerate, sdm=False, holder=_replay_holder(holder))
-    name = junkadvisor.NO_FILTER if verdict is None else str(verdict["filter"])
+    name = junkadvisor.NO_FILTER if verdict is None else verdict.filter
     want = autopilot.desired_junk_filter(verdict, row.get("filter"))
     mask = "masked_by_main" if verdict is not None and want != name else "-"
     return Probe(cliff, spur, ramp, mask, name, want, label, capture, seconds)

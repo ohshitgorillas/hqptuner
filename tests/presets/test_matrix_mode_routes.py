@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -79,7 +80,7 @@ def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[C
             matrix_mode_file=tmp_path / "matrixmodes.json",
             preset_dir=preset_dir,
         )
-        client = TestClient(create_app(cfg))
+        client = TestClient(create_app(cfg, VirtualClock()))
         clients.append(client)
         client.__enter__()
         return client
@@ -172,9 +173,12 @@ def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestC
     assert modes_client.put(PATH, json={"name": name, "mode": "speakers"}).status_code == 422
 
 
-def test_a_refused_put_stores_nothing(modes_client: TestClient) -> None:
+def test_a_refused_put_stores_nothing_but_a_valid_one_stores_the_mode(modes_client: TestClient) -> None:
     modes_client.put(PATH, json={"name": NAME, "mode": "stereo"})
-    assert modes_client.get(PATH).json()["presets"] == {}
+    refused = modes_client.get(PATH).json()["presets"]
+    modes_client.put(PATH, json={"name": NAME, "mode": "speakers"})
+    stored = modes_client.get(PATH).json()["presets"][NAME]
+    assert (refused, stored) == ({}, "speakers")
 
 
 # --- a store stamped by a newer HQPTuner ------------------------------------------------
@@ -230,9 +234,9 @@ def test_deleting_a_preset_drops_its_mode_and_leaves_the_other_presets_mode(
     assert client.get(PATH).json()["presets"] == {OTHER: "headphones"}
 
 
-def test_a_put_against_a_preset_store_stamped_by_a_newer_hqptuner_answers_422(
+def test_a_put_against_a_preset_store_stamped_by_a_newer_hqptuner_answers_409(
     preset_dir: Path, joined_api: Callable[..., TestClient]
 ) -> None:
     preset_dir.mkdir()
     (preset_dir / "store.json").write_text(json.dumps(TOO_NEW_PRESET_STORE))
-    assert joined_api().put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 422
+    assert joined_api().put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 409

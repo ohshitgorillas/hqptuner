@@ -32,7 +32,7 @@ import { stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
-/** @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 /** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });

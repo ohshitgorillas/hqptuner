@@ -88,6 +88,61 @@ function popActions({ rows, selIdx, visible, hl, setHl, setOpen, byKey, collapse
 // user meant as browsing. Open, the arrows move the highlight, Enter commits it,
 // Escape closes, Tab closes and lets focus move on.
 /**
+ * Index of the nearest visible option row from `from` in `dir`, or `from`
+ * itself when none is left in that direction. Rows folded under a collapsed
+ * group are skipped the same way headers are.
+ * @param {ListRow[]} rows
+ * @param {(row: ListRow | undefined) => boolean} visible
+ * @param {number} from
+ * @param {number} dir
+ * @returns {number}
+ */
+function nextVisible(rows, visible, from, dir) {
+  for (let j = from + dir; j >= 0 && j < rows.length; j += dir) {
+    if (visible(rows[j])) return j;
+  }
+  return from;
+}
+
+/**
+ * @typedef {{ kind: "show" | "move" | "commit" | "close" | "tab" | "none", index: number }} KeyAction
+ *   What one keydown does: open the list, move the highlight to `index`,
+ *   commit the row at `index`, close on Escape, close on Tab and let focus move
+ *   on, or nothing. `index` is -1 where no row is involved.
+ */
+
+/**
+ * @typedef {object} KeyState
+ *   The pop's state a keydown is decided against.
+ * @property {boolean} open
+ * @property {number} hl
+ * @property {ListRow[]} rows
+ * @property {(row: ListRow | undefined) => boolean} visible
+ */
+
+/**
+ * Decides what one keydown on the button does, given whether the list is open
+ * and where the highlight sits.
+ * @param {string} key
+ * @param {KeyState} state
+ * @returns {KeyAction}
+ */
+export function keyAction(key, { open, hl, rows, visible }) {
+  if (!open) {
+    return ["ArrowDown", "ArrowUp", " ", "Enter"].includes(key)
+      ? { kind: "show", index: -1 }
+      : { kind: "none", index: -1 };
+  }
+  /** @type {Record<string, [number, number]>} */
+  const moves = { ArrowDown: [hl, 1], ArrowUp: [hl, -1], Home: [-1, 1], End: [rows.length, -1] };
+  if (key in moves) return { kind: "move", index: nextVisible(rows, visible, ...moves[key]) };
+  if (key === "Enter") return { kind: "commit", index: hl };
+  if (key === "Escape") return { kind: "close", index: -1 };
+  if (key === "Tab") return { kind: "tab", index: -1 };
+  return { kind: "none", index: -1 };
+}
+
+/**
  * @param {{ open: boolean, setOpen: (v: boolean) => void, rows: ListRow[], hl: number,
  *   visible: (row: ListRow | undefined) => boolean,
  *   setHl: (i: number) => void, byKey: { current: boolean }, show: () => void,
@@ -95,45 +150,17 @@ function popActions({ rows, selIdx, visible, hl, setHl, setOpen, byKey, collapse
  * @returns {(e: KeyboardEvent) => void}
  */
 function comboKeyHandler({ open, setOpen, rows, hl, visible, setHl, byKey, show, commit }) {
-  // Arrow moves land on visible option rows only: from `from`, the nearest one
-  // in `dir`, or `from` itself when none is left in that direction. Rows folded
-  // under a collapsed group are skipped the same way headers are.
-  /**
-   * @param {number} from
-   * @param {number} dir
-   * @returns {number}
-   */
-  const nextOption = (from, dir) => {
-    for (let j = from + dir; j >= 0 && j < rows.length; j += dir) {
-      if (visible(rows[j])) return j;
-    }
-    return from;
-  };
   return (e) => {
-    if (!open) {
-      if (["ArrowDown", "ArrowUp", " ", "Enter"].includes(e.key)) {
-        e.preventDefault();
-        show();
-      }
-      return;
-    }
-    /** @param {number} i */
-    const move = (i) => {
-      e.preventDefault();
+    const { kind, index } = keyAction(e.key, { open, hl, rows, visible });
+    if (kind === "none") return;
+    if (kind !== "tab") e.preventDefault();
+    if (kind === "show") show();
+    else if (kind === "move") {
       byKey.current = true;
-      setHl(i);
-    };
-    if (e.key === "ArrowDown") move(nextOption(hl, 1));
-    else if (e.key === "ArrowUp") move(nextOption(hl, -1));
-    else if (e.key === "Home") move(nextOption(-1, 1));
-    else if (e.key === "End") move(nextOption(rows.length, -1));
-    else if (e.key === "Enter") {
-      e.preventDefault();
-      commit(rowOption(rows[hl])); // disabled row: no commit, stays open with tip showing
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-    } else if (e.key === "Tab") setOpen(false);
+      setHl(index);
+    } else if (kind === "commit")
+      commit(rowOption(rows[index])); // disabled row: no commit, stays open with tip showing
+    else setOpen(false);
   };
 }
 

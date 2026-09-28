@@ -104,6 +104,13 @@ def described(stack: Stack) -> Iterator[str]:
         _put_description(stack, DESCRIBED, "   ")
 
 
+class _NoProfilePickerError(RuntimeError):
+    """No combobox on the Matrix tab offered the described profile's row."""
+
+    def __init__(self) -> None:
+        super().__init__("no combobox on the Matrix tab offers the daemon's saved profiles")
+
+
 def _open_picker(page: Page, stack: Stack) -> None:
     """Load the SPA, open the Matrix tab and open the saved-profile picker.
 
@@ -125,7 +132,7 @@ def _open_picker(page: Page, stack: Stack) -> None:
             box.click()
         else:
             return
-    raise RuntimeError("no combobox on the Matrix tab offers the daemon's saved profiles")
+    raise _NoProfilePickerError()
 
 
 def _open_rows(page: Page) -> list[str]:

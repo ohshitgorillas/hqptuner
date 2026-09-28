@@ -108,8 +108,6 @@ Isolation matrix — one action from a clean service restart, against a healthy 
 
 So it is **not** a restart side effect (`/config` and `/restore` both restart and stay healthy) — it is specific to loading a *named* profile. Scope is `settings.zip` **only**: `GET /backup/library.xml` still returns 200 afterward. Not a path redirection either: the archive is genuinely empty, not pointed elsewhere — files present in a healthy archive, in the home data dir and in a preset's own subdir alike, are absent from the broken one. Nothing is logged; config, playback and presets are unaffected.
 
-**Workaround (`manager.backup_or_cached`, remove when fixed):** the snapshots inside `/backup` do not change across a `profile/load`, and `POST /restore`'s restart **recovers** backup generation. HQPTuner caches the last healthy archive, warms that cache **before** a switching load (`apply()` with `switch_to`), and falls back to it when the live `/backup` comes back empty; the subsequent `/restore` both applies the edit and heals the daemon. `http.restore.verify` still reads the **live** `/backup` (healthy post-restore) so verification is never against stale cache.
-
 ### Preset system — HQPTuner-owned (6.0.4)
 
 hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **not** use `profile/load` or `profile/save` for its preset feature. The disqualifying findings:

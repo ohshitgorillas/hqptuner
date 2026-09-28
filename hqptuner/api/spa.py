@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.routing import Match, Mount
 from starlette.types import Scope
 
+from hqptuner.config import Config
 from hqptuner.paths import bundled
 
 
@@ -40,11 +41,11 @@ class SpaMount(Mount):
         return super().matches(scope)
 
 
-def mount_spa(app: FastAPI) -> None:
+def mount_spa(app: FastAPI, cfg: Config) -> None:
     """Mount the bundled SPA at "/", if it was built into the package; a source checkout has no such directory."""
     # Appended last, so the /api routes win; the SPA's static assets and
     # index.html fall through to here. app.mount builds a plain Mount, so the
     # subclass goes onto the route table by hand.
-    static_dir = bundled("static")
+    static_dir = bundled("static", bundle=cfg.bundle)
     if static_dir.is_dir():
         app.router.routes.append(SpaMount("/", app=NoCacheStaticFiles(directory=static_dir, html=True), name="spa"))

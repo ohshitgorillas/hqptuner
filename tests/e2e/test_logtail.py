@@ -296,7 +296,13 @@ def test_a_tail_left_at_the_bottom_follows_new_lines_down(page: Page, stack: Sta
 
 
 def test_a_tail_scrolled_to_the_top_stays_at_the_top_across_a_poll(page: Page, stack: Stack) -> None:
-    """Reading the oldest lines in the window is not interrupted by a poll."""
+    """Reading the oldest lines in the window is not interrupted by a poll.
+
+    Paired against a pane parked away from the top (`test_a_tail_scrolled_to_the_middle_does_not_move_across_a_poll`'s
+    own case, reproduced here): a component that just never touches `scrollTop` would also leave a
+    pane at 0 across a poll, so the absent (0) case alone cannot tell "correctly held at the top" from
+    "scroll is never adjusted at all". The present (non-zero, parked) case rules that reading out.
+    """
     open_tail_with(page, stack, "TAG04", WINDOW)
     wait_for_overflow(page)
     # Let the open-time pin land BEFORE scrolling away, or it lands afterwards and
@@ -305,7 +311,14 @@ def test_a_tail_scrolled_to_the_top_stays_at_the_top_across_a_poll(page: Page, s
     scroll_to(page, 0)
     poll_with(page, stack, "TAG05", WINDOW)
     flush_frames(page)
-    assert scroll_top(page) == 0
+    at_top = scroll_top(page)
+
+    parked = scroll_to_middle(page)
+    poll_with(page, stack, "TAG16", WINDOW)
+    flush_frames(page)
+    at_middle = scroll_top(page)
+
+    assert (at_top, at_middle) == (0, parked)
 
 
 def test_a_tail_scrolled_to_the_middle_does_not_move_across_a_poll(page: Page, stack: Stack) -> None:

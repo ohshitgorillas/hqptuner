@@ -1,0 +1,43 @@
+"""The clock every wait in the manager and its lanes paces on (docs/testing.md rule 7).
+
+One pair of reads and waits, shared by the manager and every lane. Production takes the defaults below; the suite
+hands in a clock it advances, so a retry, poll or deadline loop runs the same passes against the fakes without the
+seconds.
+
+The waits come in two kinds because the two kinds of caller differ in what they are for. ``sleep`` and ``wait`` are
+a caller waiting on an outcome. ``pace`` is a background loop idling between passes. ``spawn`` starts such a loop,
+so a clock that advances itself knows every loop that paces on it from the moment it exists.
+"""
+
+import asyncio
+import contextlib
+import time
+from collections.abc import Awaitable, Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any
+
+
+async def wait_until(event: asyncio.Event, seconds: float) -> bool:
+    """Wait until ``event`` is set or ``seconds`` pass, and answer whether it was set."""
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(event.wait(), seconds)
+    return event.is_set()
+
+
+async def pace_until(wake: asyncio.Event | None, seconds: float) -> bool:
+    """Idle a background loop for ``seconds``, cut short by ``wake`` when it is given; answer whether it woke."""
+    if wake is None:
+        await asyncio.sleep(seconds)
+        return False
+    return await wait_until(wake, seconds)
+
+
+@dataclass(frozen=True)
+class Clock:
+    """The reads and waits one manager and its lanes pace on."""
+
+    monotonic: Callable[[], float] = time.monotonic
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
+    wait: Callable[[asyncio.Event, float], Awaitable[bool]] = wait_until
+    pace: Callable[[asyncio.Event | None, float], Awaitable[bool]] = pace_until
+    spawn: Callable[[Coroutine[Any, Any, None]], asyncio.Task[None]] = asyncio.create_task

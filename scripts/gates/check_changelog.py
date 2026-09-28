@@ -207,9 +207,10 @@ def check(path: Path) -> int:
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Check the paths given, or this repo's changelog."""
-    paths = [Path(arg) for arg in sys.argv[1:]] or [ROOT / "CHANGELOG.md"]
+    args = sys.argv[1:] if argv is None else argv
+    paths = [Path(arg) for arg in args] or [ROOT / "CHANGELOG.md"]
     return max(check(path) for path in paths)
 
 

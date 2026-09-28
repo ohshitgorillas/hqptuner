@@ -148,8 +148,10 @@ def test_an_apodizing_filters_tip_marks_the_apodizing_chip(page: Page, stack: St
 
 def test_the_pass_through_filters_tip_carries_no_chip(page: Page, stack: Stack) -> None:
     """It resamples nothing, so it apodizes nothing and its tip has no boolean facet to chip."""
+    hover_tip(page, stack, SHORT_MP)
+    with_a_chip = chips(page)
     hover_tip(page, stack, NONE)
-    assert chips(page) == []
+    assert (with_a_chip != [], chips(page)) == (True, [])
 
 
 def test_an_upsample_only_filters_tip_marks_the_upsample_only_chip(page: Page, stack: Stack) -> None:

@@ -8,7 +8,14 @@ own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
 parsing an error page as if it were a form.
 """
 
+from typing import TYPE_CHECKING
+
 import httpx
+
+from hqptuner.errors import HQPTunerError
+
+if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest layer
+    from hqptuner.core.manager import ConnectionManager
 
 # The one sentence every surface reports a refused credential with — the alert
 # row, the apply caption and the log line all carry exactly this. Owner-approved
@@ -17,6 +24,10 @@ AUTH_REFUSED_MESSAGE = (
     "Authentication rejected: username and password are bad. "
     "Open the Connection panel from the status pill and try again."
 )
+
+# The one sentence a caller gets when the app was never given HTTP credentials
+# at all — distinct from a credential the daemon refused (AUTH_REFUSED_MESSAGE).
+NO_HTTP_CLIENT_MESSAGE = "no credentials for HTTP config lane"
 
 # What the daemon answers when it will not accept who we say we are. 401 is the
 # challenge, which httpx.DigestAuth consumes and answers internally, so a 401
@@ -37,6 +48,51 @@ class AuthRefused(httpx.HTTPStatusError):
     message is a sentence rather than httpx's generated one with its link to
     MDN.
     """
+
+
+class HttpLaneDeclinedError(HQPTunerError):
+    """The 8088 config lane cannot be used for this request.
+
+    Two causes, one type: the app was never given HTTP credentials at all, or a
+    credential it does have was already recorded as refused by the daemon (the
+    same fault ``AuthRefused`` reports on the wire, established here for a
+    caller that has to decide before it writes rather than one meeting the
+    refusal live).
+    """
+
+
+class NoHttpClientError(HttpLaneDeclinedError):
+    """The app was never given HTTP management credentials for the 8088 config lane at all."""
+
+    code = "no_http_client"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__(NO_HTTP_CLIENT_MESSAGE)
+
+
+class CredentialsRefusedError(HttpLaneDeclinedError):
+    """A credential the app holds was already recorded as refused by the daemon."""
+
+    code = "no_credentials"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__(AUTH_REFUSED_MESSAGE)
+
+
+def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
+    """Return the refusal a use of the 8088 lane would meet, or None when the lane is usable.
+
+    The one owner of the cause-to-sentence mapping. A plain value, not a raise: a compound
+    action reads it to build its outcome as data before it ever calls the lane; a standalone
+    caller that wants the lane or nothing raises the returned error itself.
+    """
+    if mgr.http_client is None:
+        return NoHttpClientError()
+    if mgr.readings.credentials_ok is False:
+        return CredentialsRefusedError()
+    return None
 
 
 def raise_for_status(resp: httpx.Response) -> None:

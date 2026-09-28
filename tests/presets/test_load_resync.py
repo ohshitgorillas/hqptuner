@@ -20,19 +20,24 @@ interleaves with the load: what the picture holds when the load returns is what
 the load itself put there.
 """
 
-import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory
 from narrow import present
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
+from hqptuner.core.applyops import ApplyReport, EngineApplyResult
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import presetlane
+
+if TYPE_CHECKING:
+    import asyncio
 
 #: What the 4321 fake is moved to when the restore lands: the engine that comes
 #: back after the restart. SDM loaded, its chain enumerated, its own filter slot
@@ -65,8 +70,8 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
         )
-        manager = ConnectionManager(cfg, http)
-        task = asyncio.create_task(manager.run())
+        manager = ConnectionManager(cfg, http, VirtualClock())
+        task = manager.clock.spawn(manager.run())
         built.append((manager, task, http))
         return manager, state
 
@@ -78,20 +83,27 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
         await http.aclose()
 
 
-def _applied(report: dict[str, Any]) -> None:
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
+def _applied(report: ApplyReport) -> None:
     """A staged apply that reached the persistent lane, or a failure naming the
     setup that never got there — the restart is the premise of these cases, not
     the behavior under test, so it raises rather than spending an assertion."""
-    if not report["persistent"]["applied"]:
-        raise AssertionError(f"the apply never reached the persistent lane: {report['persistent']}")
+    if report.persistent is None or report.persistent.outcome is not RestoreOutcome.APPLIED:
+        raise FixtureError(reason=f"the apply never reached the persistent lane: {report.persistent}")
 
 
-def _submitted(result: dict[str, Any]) -> None:
+def _submitted(result: EngineApplyResult) -> None:
     """An engine apply that reached the daemon, or a failure naming the setup
     that never got there. Same premise as ``_applied``: no restore, no restart,
     and nothing the case is about could have happened."""
-    if not result["submitted"]:
-        raise AssertionError(f"the engine apply never reached the daemon: {result}")
+    if result.backup_bytes <= 0:
+        raise FixtureError(reason=f"the engine apply never reached the daemon: {result}")
 
 
 # --- when the engine cannot be re-read, the picture is empty -----------------
@@ -99,18 +111,22 @@ def _submitted(result: dict[str, Any]) -> None:
 # saved config would write settings off a process that is gone.
 
 
-async def test_a_preset_load_with_no_control_connection_leaves_no_state(
-    http_daemon: dict[str, Any], tmp_path: Path
+async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_staged_apply_leaves_post_restore_state(
+    http_daemon: dict[str, Any], tmp_path: Path, dual_lane: DualLane
 ) -> None:
     http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
     cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    manager = ConnectionManager(cfg, http)
+    manager = ConnectionManager(cfg, http, VirtualClock())
     try:
         await manager.presetops.save_preset("Stored")
         await presetlane.load(manager, "Stored")
     finally:
         await http.aclose()
-    assert manager.readings.state is None
+    no_state = manager.readings.state
+    acting_manager, state = await dual_lane()
+    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
+    _applied(await acting_manager.applyops.apply({}, {"title": "Renamed"}))
+    assert (no_state, present(acting_manager.readings.state).get("filterNx")) == (None, "2")
 
 
 # --- the other two restart-shaped writes -------------------------------------
@@ -119,19 +135,10 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state(
 # same way, so both leave the same picture of a process that no longer exists.
 
 
-async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
-    dual_lane: DualLane, http_daemon: dict[str, Any]
-) -> None:
-    manager, state = await dual_lane()
-    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
-    _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
-    assert present(manager.readings.state).get("filterNx") == "2"
-
-
 async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
     manager, state = await dual_lane()
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
-    _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
+    _submitted(await manager.applyops.apply_engine({"cuda": "0"}))
     assert present(manager.readings.state).get("filterNx") == "2"

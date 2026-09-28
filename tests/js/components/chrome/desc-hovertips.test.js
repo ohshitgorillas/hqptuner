@@ -40,7 +40,7 @@ import {
   setShowDescriptions,
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { xfMode, liveParams, remember } from "../../../../hqptuner/static/store/xfeed/mode.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/lib/binaural/geometry.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { reset as resetField } from "../../support/field-harness.js";
 import { staticWire, stagingWire } from "../../support/wire/wire.js";
 import { section } from "../../support/tabform.js";
@@ -48,7 +48,7 @@ import { attr, classes, elements, hasAttr, labeled, text } from "../../support/m
 
 /**
  * @typedef {import("../../support/markup.js").MarkupElement} MarkupElement
- * @typedef {import("../../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {[string[], string | undefined]} Reading
  */
 

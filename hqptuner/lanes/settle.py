@@ -1,7 +1,7 @@
 """The settle loop every write lane rides after a restart or an engine reload.
 
-A restore restarts the daemon (~5.6 s); a matrix/speakers form POST reloads the
-engine (~3 s). Either way the lane that wrote has to wait for the daemon to
+A restore restarts the daemon; a matrix/speakers form POST reloads the
+engine. Either way the lane that wrote has to wait for the daemon to
 serve again and then confirm what actually landed — HQPTuner never reports a
 success it did not read back.
 
@@ -11,23 +11,21 @@ transient rather than a failure, sleep, and give up honestly at the deadline.
 One implementation means the retry semantics cannot drift apart between lanes,
 which is exactly the class of bug a readback-verify path must not have.
 
-Pacing goes through ``ConnectionManager.sleep`` / ``.monotonic`` — the injectable
-clock seams the suite virtualizes (docs/testing.md §7). A lane that reaches for
+Pacing goes through the manager's clock, ``mgr.clock``, which the suite hands
+in advancing (docs/testing.md §7). A lane that reaches for
 ``asyncio.sleep`` or ``time.monotonic`` instead is a review flag.
 """
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
 
-from hqptuner.engine.control import ControlError
+from hqptuner.engine.controlerrors import ControlError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from collections.abc import Awaitable, Callable
@@ -99,11 +97,9 @@ async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
     first clause holds, any ``http_ok`` read here was stamped at or after that
     qualifying connect. A value carried over from before the write cannot satisfy it.
 
-    The deadline runs on the real clock, not the lanes' virtualized seams
-    (docs/testing.md rule 7, owner-approved for this site): what it waits for is
-    a reconnect the poll loop physically has to perform, so a virtual clock would
-    run the deadline out with no chance for it to happen. The wake is every edge either
-    lane reports (``mgr.changed``), so a lane returning 50 ms in returns 50 ms in.
+    The deadline runs on the manager's clock, like every other lane wait. The wake is
+    every edge either lane reports (``mgr.changed``), so the wait returns on the edge
+    that satisfies it.
 
     Only a caller whose write restarts the daemon belongs here. A reload that leaves the
     control connection standing never produces a qualifying connect, so this would spend
@@ -114,13 +110,12 @@ async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
     """
     if mark is None:
         return False
-    end = time.monotonic() + mgr.alarm_threshold
+    end = mgr.clock.monotonic() + mgr.alarm_threshold
     while not (mgr.connects > mark.connects and mgr.drops_at_connect > mark.drops and mgr.ready):
-        remaining = end - time.monotonic()
+        remaining = end - mgr.clock.monotonic()
         if remaining <= 0:
             return False
-        with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(mgr.changed.wait(), remaining)
+        await mgr.clock.wait(mgr.changed, remaining)
         mgr.changed.clear()
     return True
 
@@ -187,13 +182,13 @@ async def poll_until[T](
     manager already calls the daemon unreachable, so waiting longer here would
     only duplicate that alarm.
     """
-    end = mgr.monotonic() + (mgr.alarm_threshold if deadline is None else deadline)
-    while mgr.monotonic() < end:
+    end = mgr.clock.monotonic() + (mgr.alarm_threshold if deadline is None else deadline)
+    while mgr.clock.monotonic() < end:
         with contextlib.suppress(httpx.HTTPError):
             result = await probe()
             if result:
                 return result
-        await mgr.sleep(interval)
+        await mgr.clock.sleep(interval)
     return None
 
 

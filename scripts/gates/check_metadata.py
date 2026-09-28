@@ -28,9 +28,12 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from hqptuner.metadata import OVERLAYS, StaticMetadata
+
+if TYPE_CHECKING:
+    from hqptuner.metadata_types import SettingsDb, ShapersDb
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DATA = ROOT / "hqptuner" / "data"
@@ -51,10 +54,14 @@ def _file_problems(path: Path, key: str | None = None) -> list[str]:
     """One line naming ``path`` when it is missing, unparseable, or lacks ``key``."""
     if not path.is_file():
         return [f"{path.name}: missing"]
+    problems: list[str] = []
+    doc: dict[str, Any] = {}
     try:
         doc = json.loads(path.read_text())
     except ValueError as exc:
-        return [f"{path.name}: {exc}"]
+        problems.append(f"{path.name}: {exc}")
+    if problems:
+        return problems
     if key is not None and key not in doc:
         return [f"{path.name}: no {key!r} key"]
     return []
@@ -76,11 +83,11 @@ def _row_problems(name: str, entry: dict[str, Any] | None, fields: tuple[str, ..
     return [f"shapers.json: {db_key} {name!r} missing {field}" for field in required if field not in entry]
 
 
-def check_shapers(enums: dict[str, Any], shapers: dict[str, Any]) -> list[str]:
+def check_shapers(enums: dict[str, Any], shapers: ShapersDb) -> list[str]:
     """Every shaper the snapshot names has a row carrying its rate fields and a description."""
     problems: list[str] = []
     for list_key, db_key, fields in SHAPER_TABLES:
-        db: dict[str, Any] = shapers.get(db_key, {})
+        db: dict[str, Any] = shapers.sdm_modulators if db_key == "sdm_modulators" else shapers.pcm_dithers
         for item in enums.get(list_key, []):
             problems += _row_problems(item["name"], db.get(item["name"]), fields, db_key)
     return problems
@@ -96,12 +103,18 @@ def check_filters(enums: dict[str, Any], static: StaticMetadata) -> list[str]:
     ]
 
 
-def check_settings(settings: dict[str, Any]) -> list[str]:
+def check_settings(settings: SettingsDb) -> list[str]:
     """Every exposed control carries label, tooltip and source."""
+    groups: dict[str, dict[str, Any]] = {
+        "output": settings.output,
+        "dsp": settings.dsp,
+        "volume": settings.volume,
+        "system": settings.system,
+    }
     return [
         f"settings.json: {group}.{key} missing {field}"
         for group in SETTINGS_GROUPS
-        for key, entry in settings.get(group, {}).items()
+        for key, entry in groups[group].items()
         for field in PROSE_FIELDS
         if not entry.get(field)
     ]
@@ -119,7 +132,7 @@ def check(data_dir: Path) -> list[str]:
     static = StaticMetadata(data_dir)
     enums: dict[str, Any] = json.loads((data_dir / "engine-enums.json").read_text())
     raw = static.raw
-    return check_shapers(enums, raw["shapers"]) + check_filters(enums, static) + check_settings(raw["settings"])
+    return check_shapers(enums, raw.shapers) + check_filters(enums, static) + check_settings(raw.settings)
 
 
 def main(argv: list[str] | None = None) -> int:

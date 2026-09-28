@@ -151,7 +151,9 @@ const liveRoutes =
   ({ status = 200 } = {}) =>
   (/** @type {string} */ path) => {
     if (path === "/api/config/live")
-      return status === 200 ? ok({ live: [{ setting: "filter", ok: true }], stored: {} }) : bad(status, "no reply");
+      return status === 200
+        ? ok({ report: { live: [{ setting: "filter", ok: true }], stored: {} } })
+        : bad(status, "no reply");
     if (path === "/api/state") return ok({ data: STATE("pcm") });
     if (path === "/api/enumerations") return ok({ data: ENUMS("pcm") });
     if (path === "/api/config") return ok({ data: { fields: FIELDS(), file: { mode: "pcm" }, active: "" } });

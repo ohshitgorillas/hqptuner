@@ -17,6 +17,31 @@ import re
 
 from hqptuner.conf.xmledit import GroundingError, in_comment
 
+
+class MatrixNoBodyError(GroundingError):
+    """The ``<matrix>`` element is self-closing or otherwise carries no body in this snapshot."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("the matrix element has no body in this snapshot")
+
+
+class ProfileAbsentError(GroundingError):
+    """The named matrix profile is absent from this snapshot."""
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the absent profile."""
+        super().__init__(f"the matrix profile {name} is absent from this snapshot")
+
+
+class ProfileNoBodyError(GroundingError):
+    """The named matrix profile is self-closing or otherwise carries no body in this snapshot."""
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the bodyless profile."""
+        super().__init__(f"the matrix profile {name} has no body in this snapshot")
+
+
 # minimal XML attribute escaping for the process string (order matters on unescape)
 # ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
 # process string or a profile name comes back as the entity, and a table that
@@ -39,17 +64,29 @@ def attr_unescape(value: str) -> str:
     return value
 
 
-def matrix_body_span(xml: bytes) -> tuple[int, int]:
-    """(start, end) byte offsets of the ``<matrix>`` element's body."""
+def find_matrix_body_span(xml: bytes) -> tuple[int, int] | None:
+    """(start, end) byte offsets of the ``<matrix>`` element's body, or ``None`` when it has none.
+
+    Absence is a normal answer for a locator — a snapshot that never configured matrix processing has no
+    ``<matrix>`` body, and a reader is exactly the caller who knows what to do with that fact.
+    """
     # a commented element is not the live one — same rule the shared locators
     # follow (xmledit.live_tags); hqplayerd parks superseded blocks in comments
     m = next((c for c in re.finditer(rb"<matrix\b[^>]*>", xml) if not in_comment(xml, c.start())), None)
     if m is None or m.group(0).endswith(b"/>"):
-        raise GroundingError("the matrix element has no body in this snapshot")
+        return None
     close = xml.find(b"</matrix>", m.end())
     if close == -1:
-        raise GroundingError("the matrix element has no body in this snapshot")
+        return None
     return m.end(), close
+
+
+def matrix_body_span(xml: bytes) -> tuple[int, int]:
+    """(start, end) byte offsets of the ``<matrix>`` element's body; raises when it has none."""
+    span = find_matrix_body_span(xml)
+    if span is None:
+        raise MatrixNoBodyError()
+    return span
 
 
 # Reading a stored profile's matrix runs against a FRAGMENT: the profile's body
@@ -65,17 +102,22 @@ _SCOPE_OPEN = b"<hqplayerd><engine><matrix>"
 _SCOPE_CLOSE = b"</matrix></engine></hqplayerd>"
 
 
-def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
-    """Find the named profile's open tag.
+def find_profile_open(xml: bytes, name: str) -> re.Match[bytes] | None:
+    """Find the named profile's open tag, or ``None`` when the snapshot has no such profile.
 
-    Raises when the snapshot has no such profile — never a fallback to the live matrix: writing the Default context
-    while the caller believes it is editing a profile is the whole defect being fixed.
+    Never falls back to the live matrix: a caller editing a profile must never write the Default context. Absence is a
+    normal answer here; the caller decides whether it is an error.
     """
     escaped = re.escape(attr_escape(name).encode())
     pattern = re.compile(rb"<matrix_profile\b[^>]*name=\"" + escaped + rb"\"[^>]*?/?>")
-    m = next((c for c in pattern.finditer(xml) if not in_comment(xml, c.start())), None)
+    return next((c for c in pattern.finditer(xml) if not in_comment(xml, c.start())), None)
+
+
+def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
+    """Find the named profile's open tag; raises when the snapshot has no such profile."""
+    m = find_profile_open(xml, name)
     if m is None:
-        raise GroundingError(f"the matrix profile {name} is absent from this snapshot")
+        raise ProfileAbsentError(name=name)
     return m
 
 
@@ -85,11 +127,7 @@ def has_profile(xml: bytes, name: str) -> bool:
     A profile the daemon holds in memory only (saved through its own route, never persisted) is live but absent from
     the file, and scoping to it would refuse every apply the user makes while it is selected.
     """
-    try:
-        _profile_open(xml, name)
-    except GroundingError:
-        return False
-    return True
+    return find_profile_open(xml, name) is not None
 
 
 def _profile_body_span(xml: bytes, name: str) -> tuple[int, int]:
@@ -97,7 +135,7 @@ def _profile_body_span(xml: bytes, name: str) -> tuple[int, int]:
     m = _profile_open(xml, name)
     close = xml.find(b"</matrix_profile>", m.end())
     if m.group(0).endswith(b"/>") or close == -1:
-        raise GroundingError(f"the matrix profile {name} has no body in this snapshot")
+        raise ProfileNoBodyError(name=name)
     return m.end(), close
 
 

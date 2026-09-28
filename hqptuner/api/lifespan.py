@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager
 
@@ -9,12 +10,17 @@ from fastapi import FastAPI
 
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
-from hqptuner.core.connection import ConnectionStore, build_http_client, host_is_unchosen
+from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.discovery import probe
-from hqptuner.engine.metering import MeteringReader, context_from
+from hqptuner.engine.metering import MeteringReader
+from hqptuner.engine.trackcontext import context_from
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 SHUTDOWN_GRACE = 2.0  # seconds the poll loop gets to notice its stop flag
+
+log = logging.getLogger(__name__)
 
 
 async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: ConnectionManager) -> None:
@@ -26,10 +32,16 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
     built captured the address it was constructed with, which would leave the config lane on the old host
     while the control lane runs against the new one.
     """
-    if not host_is_unchosen(connections.read()):
+    record: ConnectionRecord | None = None
+    try:
+        record = connections.read()
+    except StoreCorruptError as exc:
+        log.warning("%s — starting unconfigured", exc)
+    if not host_is_unchosen(record):
         return
-    answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout)
-    if answered is None:
+    try:
+        answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout)
+    except (OSError, ControlError):
         return
     cfg.hqp_host = answered.address
     manager.http_client = build_http_client(cfg)
@@ -59,7 +71,7 @@ def make_lifespan(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Before the poll loop and the metering reader, both of which read the host as it stands now.
         await _adopt_alias(cfg, app.state.connections, manager)
-        task = asyncio.create_task(manager.run())
+        task = manager.clock.spawn(manager.run())
         # junk-filter advisor's metering reader — best-effort alongside the poll
         # loop; an absent 4322 stream just means "no recommendation". Switched off
         # entirely, nothing is constructed and nothing ever connects.
@@ -72,12 +84,18 @@ def make_lifespan(
         # The calibration capture reads the same verdict and writes files only.
         junkcal_task: asyncio.Task[None] | None = None
         if cfg.metering_enabled:
-            reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
+            reader = MeteringReader(
+                cfg.hqp_host,
+                cfg.hqp_metering_port,
+                lambda: context_from(manager),
+                pace=manager.clock.pace,
+                monotonic=manager.clock.monotonic,
+            )
             manager.metering = reader
-            metering_task = asyncio.create_task(reader.run())
-            autopilot_task = asyncio.create_task(autopilotops.run(manager, cfg.poll_interval))
+            metering_task = manager.clock.spawn(reader.run())
+            autopilot_task = manager.clock.spawn(autopilotops.run(manager, cfg.poll_interval))
             if cfg.junkcal_dir is not None:
-                junkcal_task = asyncio.create_task(junkcal.run(manager, cfg.junkcal_dir))
+                junkcal_task = manager.clock.spawn(junkcal.run(manager, cfg.junkcal_dir))
         yield
         manager.stop()
         if junkcal_task is not None:

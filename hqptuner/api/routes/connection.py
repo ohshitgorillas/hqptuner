@@ -10,19 +10,30 @@ reason to be readable afterwards (architecture section 3 keeps credentials serve
 """
 
 import contextlib
-from typing import Any
+from dataclasses import dataclass
 
 import httpx
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
-from hqptuner.lanes.http import forms
+from hqptuner.lanes.http.forms import FormsOutcome
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 router = APIRouter(prefix="/api")
+
+
+class StoreUnwritableError(ErrorBody):
+    """The connection record could not be written to disk, naming the underlying OS error."""
+
+    code = "store_unwritable"
+
+    def __init__(self, *, error: OSError) -> None:
+        """Render the wording naming the ``error`` that stopped the write."""
+        super().__init__(f"cannot save the connection: {error}")
 
 
 class ConnectionBody(BaseModel):
@@ -50,19 +61,36 @@ def _config(request: Request) -> Config:
     return cfg
 
 
-def _answer(cfg: Config, *, remembered: bool) -> dict[str, Any]:
+@dataclass(frozen=True)
+class ConnectionReport:
+    """``GET /api/connection``: where we dial, who we are, and whether a password is held."""
+
+    host: str
+    username: str
+    remember: bool
+    has_password: bool
+
+
+@dataclass(frozen=True)
+class ConnectionWriteReport(ConnectionReport):
+    """``POST /api/connection``: the connection as saved, plus the refresh's own answer."""
+
+    lane: FormsOutcome
+
+
+def _answer(cfg: Config, *, remembered: bool) -> ConnectionReport:
     """Return the connection as a client may see it: where we dial, who we are, and whether a password is held.
 
     ``has_password`` is whether one was CHOSEN, not whether the field is filled: the field carries hqplayerd's
     published default until somebody replaces it, and reporting that as a held password tells a fresh install it
     holds a credential nobody typed.
     """
-    return {
-        "host": cfg.hqp_host,
-        "username": cfg.hqp_username,
-        "remember": remembered,
-        "has_password": cfg.hqp_password_chosen,
-    }
+    return ConnectionReport(
+        host=cfg.hqp_host,
+        username=cfg.hqp_username,
+        remember=remembered,
+        has_password=cfg.hqp_password_chosen,
+    )
 
 
 def _remembered(store: ConnectionStore) -> bool:
@@ -71,12 +99,15 @@ def _remembered(store: ConnectionStore) -> bool:
     No is the default because storing a password is the choice with the consequence, and an install that
     has never made it has not asked for it.
     """
-    record = store.read()
+    try:
+        record = store.read()
+    except StoreCorruptError as exc:
+        raise refuse(exc) from exc
     return False if record is None else record.remember
 
 
 @router.get("/connection")
-def read_connection(request: Request) -> dict[str, Any]:
+def read_connection(request: Request) -> ConnectionReport:
     """Answer with the daemon address and username in force, and whether a password is held.
 
     Never the password itself: this surface is reachable by anything that reaches HQPTuner's own port.
@@ -85,7 +116,7 @@ def read_connection(request: Request) -> dict[str, Any]:
 
 
 @router.post("/connection")
-async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> dict[str, Any]:
+async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> ConnectionWriteReport:
     """Save the connection, then move HQPTuner onto it without a restart.
 
     The record is saved whatever the daemon says: verifying first would mean refusing to record a host the user is
@@ -105,13 +136,13 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     try:
         store.write(record)
     except OSError as exc:
-        raise refuse("store_unwritable", f"cannot save the connection: {exc}") from exc
+        raise refuse(StoreUnwritableError(error=exc)) from exc
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
     layer_onto_config(cfg, record)
     manager.http_client = build_http_client(cfg)
     await manager.retarget()
-    lane = forms.NO_CREDENTIALS
+    lane = FormsOutcome.NO_CREDENTIALS
     if manager.http_client is not None:
         # Fill the 8088 snapshots the new pair just unlocked, here rather than at the next poll: the user typed a
         # credential to make the configuration surface work, and a route that keeps answering 503 for a poll interval
@@ -121,8 +152,15 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
         # still holds the previous pair's verdict when this attempt failed on the wire, and a browser reading it
         # would report a rejection of a pair the daemon never saw. `lane` starts at the silence a capability read
         # that raises into the suppression leaves behind, which is the truthful reading of a half-finished refresh.
-        lane = forms.NO_ANSWER
+        lane = FormsOutcome.NO_ANSWER
         with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
             lane = await manager.refresh_http_forms()
     manager.audit.connection_set(cfg.hqp_host, cfg.hqp_username, remember=record.remember)
-    return _answer(cfg, remembered=record.remember) | {"lane": lane}
+    answer = _answer(cfg, remembered=record.remember)
+    return ConnectionWriteReport(
+        host=answer.host,
+        username=answer.username,
+        remember=answer.remember,
+        has_password=answer.has_password,
+        lane=lane,
+    )

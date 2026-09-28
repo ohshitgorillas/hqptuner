@@ -7,8 +7,9 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from conftest import wait_for_api
+from apps import wait_for_api
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -29,7 +30,7 @@ def nocreds_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         yield client
 
 
@@ -47,7 +48,7 @@ def deaf_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         yield client
 
 
@@ -65,7 +66,7 @@ def half_wired_client(threaded_daemon_port: int, closed_port: int, tmp_path: Pat
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         # /speakers is the last form the connect sequence fetches — once it
         # reports the failed fetch, all three errors are recorded
         wait_for_api(client, lambda c: c.get("/api/speakers").status_code == 502)
@@ -147,8 +148,12 @@ def test_engine_read_with_no_daemon_on_the_config_lane_is_bad_gateway(deaf_clien
     assert deaf_client.get("/api/engine").status_code == 502
 
 
-def test_engine_apply_reports_unsubmitted_when_the_daemon_is_unreachable(deaf_client: TestClient) -> None:
-    assert deaf_client.post("/api/engine", json={"overrides": {"cuda": "0"}}).json()["submitted"] is False
+def test_engine_apply_reports_submitted_only_when_the_daemon_is_reachable(
+    deaf_client: TestClient, http_client: TestClient
+) -> None:
+    unreachable = deaf_client.post("/api/engine", json={"overrides": {"cuda": "0"}}).status_code
+    reachable = http_client.post("/api/engine", json={"overrides": {"cuda": "0"}}).status_code
+    assert (unreachable, reachable) == (502, 200)
 
 
 def test_restore_with_no_daemon_on_the_config_lane_is_bad_gateway(deaf_client: TestClient) -> None:
@@ -164,5 +169,21 @@ def test_speakers_apply_with_no_daemon_on_the_config_lane_is_bad_gateway(deaf_cl
     assert deaf_client.post("/api/speakers", json={"enabled": True}).status_code == 502
 
 
-def test_log_tail_reports_unavailable_when_the_log_cannot_be_read(deaf_client: TestClient) -> None:
-    assert deaf_client.get("/api/log").json()["available"] is False
+def test_log_tail_is_bad_gateway_when_the_log_cannot_be_read(deaf_client: TestClient) -> None:
+    resp = deaf_client.get("/api/log")
+    assert (resp.status_code, resp.json()["code"]) == (502, "daemon_read_failed")
+
+
+def test_log_tail_reports_the_read_lines_when_the_log_can_be_read(http_client: TestClient) -> None:
+    assert http_client.get("/api/log").json()["lines"]
+
+
+# --- a raw framework refusal with no code in the shared table --------------------
+
+
+def test_a_malformed_multipart_upload_answers_without_our_error_shape(api_client: TestClient) -> None:
+    # Starlette rejects the body before the route runs, with a status our code table
+    # does not map — the shared handler falls back to FastAPI's own rendering, which
+    # carries no "code" field
+    resp = api_client.post("/api/restore", content=b"junk", headers={"content-type": "multipart/form-data; boundary=x"})
+    assert "code" not in resp.json()

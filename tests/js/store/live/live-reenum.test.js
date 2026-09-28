@@ -146,7 +146,7 @@ const env = globalThis;
 const FILE = () => ({ mode: "pcm" });
 
 // A live-lane server: the write path, plus the endpoints a write re-mirrors
-// from. `report` is what /api/config/live answers on 200; `status` + `detail`
+// from. `report` is the report /api/config/live answers on 200; `status` + `detail`
 // make it refuse instead. `gate(w)` is awaited BEFORE /api/enumerations answers,
 // which is the window this suite is about — a reader running then sees whatever
 // the store has already committed. `refreshed` is the running configuration the
@@ -175,7 +175,7 @@ function liveWire({
   env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
       w.posts.push(JSON.parse(String(opts.body)));
-      return status === 200 ? ok(report) : bad(status, detail);
+      return status === 200 ? ok({ report }) : bad(status, detail);
     }
     w.gets.push(path);
     if (path === "/api/state") return ok({ data: state });

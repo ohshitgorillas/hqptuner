@@ -6,7 +6,7 @@ import { startPolling } from "./store/sync.js";
 import { initTheme } from "./store/ui/theme.js";
 import { initFavicon } from "./store/ui/favicon.js";
 import { initHealth } from "./store/health.js";
-import { initSetup } from "./store/setup.js";
+import { initSetup, pageHost } from "./store/setup.js";
 import { initApodHistory } from "./store/apodhistory.js";
 import { initSpectrogram } from "./store/meter/spectrogram.js";
 import { openMeterFeed, closeMeterFeed } from "./store/meter/feed.js";
@@ -20,6 +20,7 @@ initHealth();
 // opened while the backend is still connecting does not read that as an
 // install with nowhere to dial.
 initSetup();
+pageHost.value = location.hostname;
 initApodHistory();
 initSpectrogram();
 effect(() => (metering.value ? openMeterFeed() : closeMeterFeed()));

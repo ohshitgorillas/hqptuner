@@ -17,12 +17,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { runJob } from "../../../scripts/eqstage/eqstage.js";
-import { near } from "../support/eqlab-helpers.js";
+import { near } from "../support/near.js";
 
 // --- fixtures -------------------------------------------------------------------
 
 /**
- * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {import("../../../scripts/eqstage/eqstage.js").Job} Job
  * @typedef {import("../../../scripts/eqstage/eqstage.js").Report} Report
  * @typedef {import("../../../scripts/eqstage/post.js").StagePayload} StagePayload

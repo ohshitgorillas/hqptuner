@@ -15,6 +15,7 @@ import {
   discovering,
   form,
   hostTouched,
+  pageHost,
   verdict,
   closeSetup,
   detectHosts,
@@ -116,8 +117,8 @@ const SERVER_SIDE_ONLY = ["127.0.0.1", "localhost", "::1", "host.docker.internal
 // navigating away from it would lose them.
 function eightyEightyEight() {
   const host = form.value.host.trim();
-  const reachable = !host || SERVER_SIDE_ONLY.includes(host) ? window.location.hostname : host;
-  return html`<a href=${`http://${reachable}:8088/auth`} target="_blank" rel="noreferrer">
+  const reachable = !host || SERVER_SIDE_ONLY.includes(host) ? pageHost.value : host;
+  return html`<a href=${`http://${reachable}:8088/auth`} target="_blank" rel="noreferrer" data-testid="daemon-auth-link">
     ${"default web page at port 8088"}
   </a>`;
 }

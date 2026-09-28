@@ -8,10 +8,20 @@ is a set and a partial answer would leave it guessing.
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 router = APIRouter(prefix="/api")
+
+
+class FavoritesFieldsUnknownError(ErrorBody):
+    """A favorites write named neither set to write."""
+
+    code = "fields_unknown"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("favorites write names no set: send filters, modulators, or both")
 
 
 class FavoritesBody(BaseModel):
@@ -57,7 +67,7 @@ def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]
     """
     store = _store(request)
     if body.filters is None and body.modulators is None:
-        raise refuse("fields_unknown", "favorites write names no set: send filters, modulators, or both")
+        raise refuse(FavoritesFieldsUnknownError())
     try:
         if body.filters is not None:
             store.write(list(body.filters))

@@ -67,7 +67,7 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
     """Daemon whose Status carries a track <metadata> child with unescaped chars
     — the real 6.0.4 quirk that hangs a strict receiver during playback. A bare
     '<' inside an attribute can't be repaired by the bare-'&' fix, so the root's
-    active_* must be recovered by dropping the child (control.py _recover_root)."""
+    active_* must be recovered by dropping the child."""
     bad = '<metadata artist="A&B" album="Foo <Bar> Baz"/>'
     handler = functools.partial(serve, overrides={"_metadata": bad})
     server = await asyncio.start_server(handler, "127.0.0.1", 0)

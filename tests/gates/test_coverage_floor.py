@@ -27,7 +27,6 @@ import importlib.util
 import json
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 import pytest
 
@@ -36,10 +35,17 @@ import pytest
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "testing" / "check_coverage_floor.py"
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_coverage_floor_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -86,7 +92,7 @@ def test_a_file_below_the_floor_fails_the_gate(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("expected", ["hqptuner/thin.py", "71.5", "90"])
 def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
-    tmp_path: Path, capsys: Any, expected: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
 ) -> None:
     report = write_report(tmp_path, {"hqptuner/thin.py": 71.5})
     CHECK(report, 90, {})
@@ -109,22 +115,36 @@ def test_one_file_below_the_floor_fails_a_report_whose_other_files_pass(tmp_path
 
 
 def test_every_file_above_the_floor_passes_the_gate(tmp_path: Path) -> None:
-    report = write_report(tmp_path, {"hqptuner/one.py": 97.0, "hqptuner/two.py": 100.0})
-    assert CHECK(report, 90, {}) == 0
+    report_ok = write_report(tmp_path, {"hqptuner/one.py": 97.0, "hqptuner/two.py": 100.0})
+    bad_dir = tmp_path / "bad"
+    bad_dir.mkdir()
+    report_bad = write_report(bad_dir, {"hqptuner/thin.py": 71.5})
+    assert (CHECK(report_ok, 90, {}), CHECK(report_bad, 90, {})) == (0, 1)
 
 
 def test_a_file_exactly_at_the_floor_passes_the_gate(tmp_path: Path) -> None:
     """The comparison is ``>=``: hitting the floor is reaching it, not missing it."""
-    report = write_report(tmp_path, {"hqptuner/borderline.py": 90.0})
-    assert CHECK(report, 90, {}) == 0
+    report_at_floor = write_report(tmp_path, {"hqptuner/borderline.py": 90.0})
+    bad_dir = tmp_path / "bad"
+    bad_dir.mkdir()
+    report_below = write_report(bad_dir, {"hqptuner/borderline.py": 89.9})
+    assert (CHECK(report_at_floor, 90, {}), CHECK(report_below, 90, {})) == (0, 1)
 
 
 def test_an_exempt_file_below_the_floor_passes_the_gate(tmp_path: Path) -> None:
-    report = write_report(tmp_path, {"hqptuner/legacy.py": 12.0})
-    assert CHECK(report, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"}) == 0
+    report_exempt = write_report(tmp_path, {"hqptuner/legacy.py": 12.0})
+    bad_dir = tmp_path / "bad"
+    bad_dir.mkdir()
+    report_not_exempt = write_report(bad_dir, {"hqptuner/other.py": 12.0})
+    assert (
+        CHECK(report_exempt, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"}),
+        CHECK(report_not_exempt, 90, {}),
+    ) == (0, 1)
 
 
-def test_an_exempt_file_below_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_an_exempt_file_below_the_floor_is_not_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """An exemption is silent — it excuses the file rather than warning about it."""
     report = write_report(tmp_path, {"hqptuner/legacy.py": 12.0})
     CHECK(report, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"})
@@ -142,7 +162,9 @@ def test_an_exemption_naming_no_file_in_the_report_fails_the_gate(tmp_path: Path
     assert CHECK(report, 90, {"hqptuner/deleted_last_year.py": "excused for a forgotten reason"}) == 1
 
 
-def test_an_exemption_naming_no_file_in_the_report_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_an_exemption_naming_no_file_in_the_report_is_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     report = write_report(tmp_path, {"hqptuner/present.py": 99.0})
     CHECK(report, 90, {"hqptuner/deleted_last_year.py": "excused for a forgotten reason"})
     assert "hqptuner/deleted_last_year.py" in capsys.readouterr().out
@@ -153,7 +175,7 @@ def test_a_missing_report_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(tmp_path / "never-written.json", 90, {}) == 1
 
 
-def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     missing = tmp_path / "never-written.json"
     CHECK(missing, 90, {})
     assert str(missing) in capsys.readouterr().out
@@ -164,14 +186,16 @@ def test_a_report_measuring_no_files_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(write_report(tmp_path, {}), 90, {}) == 1
 
 
-def test_a_report_measuring_no_files_says_so_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_report_measuring_no_files_says_so_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     report = write_report(tmp_path, {})
     CHECK(report, 90, {})
     assert "files" in without_the_report_path(capsys.readouterr().out, report).lower()
 
 
 @pytest.mark.parametrize("expected", ["hqptuner/first.py", "hqptuner/second.py", "hqptuner/third.py"])
-def test_every_file_below_the_floor_is_reported_not_only_the_first(tmp_path: Path, capsys: Any, expected: str) -> None:
+def test_every_file_below_the_floor_is_reported_not_only_the_first(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
     report = write_report(
         tmp_path,
         {
@@ -185,7 +209,7 @@ def test_every_file_below_the_floor_is_reported_not_only_the_first(tmp_path: Pat
     assert expected in capsys.readouterr().out
 
 
-def test_a_file_above_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_file_above_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The report lists offenders; a compliant file beside them is not one."""
     report = write_report(tmp_path, {"hqptuner/first.py": 10.0, "hqptuner/fine.py": 99.0})
     CHECK(report, 90, {})

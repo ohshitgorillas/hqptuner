@@ -76,7 +76,7 @@ def _burst_rows(stamp: str, album: str, label: str, corpus: Corpus) -> None:
         )
 
 
-def _steady_bursts() -> list[tuple[str, str, str]]:
+def steady_bursts() -> list[tuple[str, str, str]]:
     """Every graded steady burst as (stamp, album row key, owner label), duplicate arrivals collapsed."""
     tracks = load_tracks()
     by_album, by_track = load_labels()
@@ -101,7 +101,7 @@ def _steady_bursts() -> list[tuple[str, str, str]]:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score candidate I and the second question on its headline blocks."""
-    bursts = _steady_bursts()
+    bursts = steady_bursts()
     corpus = Corpus()
     for n, (stamp, album, label) in enumerate(bursts, 1):
         _burst_rows(stamp, album, label, corpus)

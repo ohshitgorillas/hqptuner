@@ -33,6 +33,7 @@ import sys
 from typing import Any
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
@@ -46,7 +47,11 @@ ARGC = 3  # script, profile-with-chain, profile-without-chain
 PREFIXES = ("post_correction", "post_bauer_enabled", "post_loudness_enabled")
 
 
-def _chain(fields: list[dict[str, Any]]) -> dict[str, Any]:
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
+def _chain(fields: list[FormField]) -> dict[str, Any]:
     return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith(PREFIXES)}
 
 
@@ -64,20 +69,23 @@ async def _switch(control: ControlClient, http: HttpConfigClient, name: str) -> 
     return chain
 
 
-async def main() -> int:
+async def _run() -> int:
     """Measure the running post-process chain either side of two live profile switches."""
     if len(sys.argv) != ARGC:
-        raise SystemExit("usage: probe_switch_post_effect.py <profile-with-chain> <profile-without-chain>")
+        message = "usage: probe_switch_post_effect.py <profile-with-chain> <profile-without-chain>"
+        raise CliError(message)
     with_chain, no_chain = sys.argv[1], sys.argv[2]
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
 
     control = ControlClient(HOST, CONTROL_PORT)
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to switch")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to switch"
+        raise CliError(message)
     original = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original!r}")
 
@@ -85,7 +93,8 @@ async def main() -> int:
     names = await control.get_matrix_profiles()
     for name in (with_chain, no_chain):
         if name not in names:
-            raise SystemExit(f"the daemon does not know a profile named {name!r}; it has {names}")
+            message = f"the daemon does not know a profile named {name!r}; it has {names}"
+            raise CliError(message)
 
     baseline = await _read(http)
     print(f"baseline running chain: {baseline}")
@@ -111,6 +120,20 @@ async def main() -> int:
         await http.aclose()
         await control.close()
     return rc
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

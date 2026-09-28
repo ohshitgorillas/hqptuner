@@ -27,32 +27,40 @@ from hqptuner.api.routes.matrix import matrix, matrixmodes
 from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
 from hqptuner.config import Config
-from hqptuner.core.connection import ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.core.clock import Clock
+from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
+from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.narrowing import NarrowingStore
 
 log = logging.getLogger(__name__)
 
 
-def create_app(cfg: Config | None = None) -> FastAPI:
+def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI:
     """Build the FastAPI app: shared state, the poll and metering background tasks, every router, and the SPA mount.
 
     Missing hqplayerd credentials are not fatal — the 8088 client is simply absent and the routes needing it 503.
+    ``clock`` is what the manager and its lanes pace on; production takes the default.
     """
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
     # The saved connection record layers under the environment, so this runs before anything reads the three fields
     # it can move (core/connection.py).
     connections = ConnectionStore(cfg.connection_file)
-    layer_onto_config(cfg, connections.read())
+    record: ConnectionRecord | None = None
+    try:
+        record = connections.read()
+    except StoreCorruptError as exc:
+        log.warning("%s — starting unconfigured", exc)
+    layer_onto_config(cfg, record)
     http_client = build_http_client(cfg)
     if http_client is None:
         log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
-    manager = ConnectionManager(cfg, http_client)
+    manager = ConnectionManager(cfg, http_client, clock)
 
     app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
     errors.install(app)
@@ -92,5 +100,5 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(discovery.router)
     app.include_router(connection.router)
     app.include_router(meter.router)
-    mount_spa(app)
+    mount_spa(app, cfg)
     return app

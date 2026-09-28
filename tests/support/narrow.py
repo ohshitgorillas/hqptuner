@@ -13,8 +13,15 @@ broken fixture, not the behavior under test, so it raises rather than asserts.
 from __future__ import annotations
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def present[T](value: T | None) -> T:
     """``value``, or a failure naming the fixture that came back empty."""
     if value is None:
-        raise AssertionError("expected a value, got None")
+        raise FixtureError(reason="expected a value, got None")
     return value

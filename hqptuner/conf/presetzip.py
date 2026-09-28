@@ -11,6 +11,18 @@ from hqptuner.conf import engineconf
 from hqptuner.conf.presetconf import apply_edits
 from hqptuner.conf.xmledit import GroundingError
 
+
+class NoWorkingConfigError(GroundingError):
+    """A backup archive carries no working config to build a restore from."""
+
+    def __init__(self, *, archive: engineconf.ArchiveSummary) -> None:
+        """Render the wording naming what the archive holds instead."""
+        super().__init__(
+            "backup archive has no working config (no hqplayerd.xml, no resolvable root-level preset XML) — "
+            f"cannot build a restore. The archive holds: {archive}"
+        )
+
+
 if TYPE_CHECKING:
     from hqptuner.audit import AuditLog
 
@@ -34,10 +46,7 @@ def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | N
         running = engineconf.running_config_name(names, running_label or active)
         if running:
             return z.read(running)
-        raise GroundingError(
-            "backup archive has no working config (no hqplayerd.xml, no resolvable root-level preset XML) — "
-            f"cannot build a restore. The archive holds: {engineconf.archive_summary(zip_bytes)}"
-        )
+        raise NoWorkingConfigError(archive=engineconf.archive_summary(zip_bytes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,20 +153,26 @@ def embed_descriptions(zip_bytes: bytes, payload: bytes) -> bytes:
     return engineconf.rewrite_zip(zip_bytes, {DESCRIPTIONS_MEMBER: payload})
 
 
+def is_archive(data: bytes) -> bool:
+    """Whether an upload is a zip archive at all, as opposed to a bare XML config file."""
+    return zipfile.is_zipfile(io.BytesIO(data))
+
+
 def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:
     """Split an uploaded archive into (archive without our member, the member's bytes or None).
 
     The daemon never sees the member: it is not a member hqplayerd wrote, and a restore is not the place to find out
-    what it does with one. A payload that is not a zip at all — the restore route also accepts a bare XML file — comes
-    back untouched with no payload.
+    what it does with one. A payload that is not a zip at all raises ``UnreadableArchiveError``; the caller decides
+    what that means.
     """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
-            if DESCRIPTIONS_MEMBER not in zin.namelist():
-                return zip_bytes, None
-            payload = zin.read(DESCRIPTIONS_MEMBER)
-            kept = [(item, zin.read(item.filename)) for item in zin.infolist() if item.filename != DESCRIPTIONS_MEMBER]
-    except (zipfile.BadZipFile, OSError):
+            payload = zin.read(DESCRIPTIONS_MEMBER) if DESCRIPTIONS_MEMBER in zin.namelist() else None
+            carried = zin.infolist() if payload is not None else []
+            kept = [(item, zin.read(item.filename)) for item in carried if item.filename != DESCRIPTIONS_MEMBER]
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise engineconf.UnreadableArchiveError(zip_bytes) from exc
+    if payload is None:
         return zip_bytes, None
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:

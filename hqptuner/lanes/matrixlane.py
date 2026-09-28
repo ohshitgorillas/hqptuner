@@ -6,7 +6,7 @@ matrix context, ``<post_process>`` included (readme §1.11.2), so the switch
 installs the profile's own plugin chain along with its rows. Nothing here writes
 config. Saving and deleting a profile are staged
 ``<matrix_profile>`` edits carried by the persistent restore lane instead
-(``conf/matrixconf.py``), because hqplayerd never persists a profile of its own
+because hqplayerd never persists a profile of its own
 accord — its ``/matrix/save`` registers a name in memory and the config it
 writes in the same breath omits the element.
 
@@ -19,20 +19,24 @@ post-process.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from hqptuner.engine.control import ControlError
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
 
 
-async def switch_profile(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+@dataclass(frozen=True)
+class MatrixProfileSwitch:
+    """A live matrix-profile switch's readback: the profile now active."""
+
+    active: str
+
+
+async def switch_profile(mgr: ConnectionManager, name: str) -> MatrixProfileSwitch:
     """Live switch + State readback + form resync. Empty name = ``[Default]``."""
-    client = mgr.control
-    if client is None:
-        raise ControlError("daemon not connected")
+    client = mgr.require_control()
     await client.set_matrix_profile(name)
     mgr.readings.state = await client.get_state()
     await mgr.refresh_http_forms()
-    return {"active": mgr.readings.state.get("matrix_profile", "")}
+    return MatrixProfileSwitch(active=mgr.readings.state.get("matrix_profile", ""))

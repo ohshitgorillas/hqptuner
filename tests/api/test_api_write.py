@@ -4,6 +4,8 @@ connection endpoints under test never reach a real daemon; the connected apply
 path is validated live on Opal. The `http_client` fixture (conftest) wires the
 http lane to the faithful fake 8088 daemon for the applies that need one."""
 
+from typing import Any
+
 from fastapi.testclient import TestClient
 
 
@@ -12,15 +14,12 @@ def test_stage_rejects_unknown_live_setting(api_client: TestClient) -> None:
     assert resp.status_code == 422
 
 
-def test_staged_edit_is_returned_by_pending(api_client: TestClient) -> None:
+def test_discard_clears_the_pending_buffer_but_a_stage_still_fills_it(api_client: TestClient) -> None:
     api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    assert api_client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
-
-
-def test_discard_clears_the_pending_buffer(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    staged = api_client.get("/api/config/pending").json()["live"]
     api_client.delete("/api/config/pending")
-    assert api_client.get("/api/config/pending").json()["live"] == {}
+    discarded = api_client.get("/api/config/pending").json()["live"]
+    assert (discarded, staged) == ({}, {"shaper": {"value": "5"}})
 
 
 def test_apply_with_nothing_staged_is_rejected(api_client: TestClient) -> None:
@@ -43,10 +42,12 @@ def test_soft_failed_http_apply_preserves_staging(http_client: TestClient) -> No
     assert http_client.get("/api/config/pending").json()["http"]["title"] == "REJECT"
 
 
-def test_successful_http_apply_clears_staging(http_client: TestClient) -> None:
+def test_successful_http_apply_clears_staging_that_was_present_before_it(http_client: TestClient) -> None:
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    staged = http_client.get("/api/config/pending").json()["http"]
     http_client.post("/api/config/apply")
-    assert http_client.get("/api/config/pending").json()["http"] == {}
+    cleared = http_client.get("/api/config/pending").json()["http"]
+    assert (cleared, staged) == ({}, {"title": "Renamed"})
 
 
 # --- unstaging: the stage body's optional `drop` member ------------------------
@@ -141,8 +142,10 @@ def test_a_stage_call_carrying_only_a_drop_still_unstages(api_client: TestClient
 
 def test_pending_reflects_a_drop_made_by_an_earlier_stage_call(api_client: TestClient) -> None:
     api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    staged = api_client.get("/api/config/pending").json()["live"]
     api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    assert api_client.get("/api/config/pending").json()["live"] == {}
+    dropped = api_client.get("/api/config/pending").json()["live"]
+    assert (dropped, staged) == ({}, {"shaper": {"value": "5"}})
 
 
 def test_a_stage_call_without_a_drop_member_still_merges(api_client: TestClient) -> None:
@@ -165,3 +168,11 @@ def test_profile_action_requires_a_name(api_client: TestClient) -> None:
     # the empty name is refused by the shared name rule, so it carries that rule's code
     resp = api_client.post("/api/profile/load", json={"name": ""})
     assert (resp.status_code, resp.json()["code"]) == (422, "name_invalid")
+
+
+def test_profile_save_when_the_daemon_goes_down_answers_the_same_as_load(
+    http_client: TestClient, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_down"] = True
+    resp = http_client.post("/api/profile/save", json={"name": "Kept"})
+    assert (resp.status_code, resp.json()["code"]) == (502, "daemon_read_failed")

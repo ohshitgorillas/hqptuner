@@ -99,9 +99,9 @@ export async function applyLivePreset(name) {
   await run(
     name,
     () => api.applyLivePreset(name),
-    async (/** @type {import("./state.js").LiveReport} */ report) => {
-      await remirrorLive(fields, report);
-      livePresetError.value = reportError(report);
+    async (/** @type {import("./state.js").LiveAnswer} */ answer) => {
+      await remirrorLive(fields, answer.report);
+      livePresetError.value = reportError(answer.report);
     },
   );
 }

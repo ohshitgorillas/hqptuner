@@ -78,9 +78,6 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     if name is None:
         return {}
     member = engineconf.snapshot_member_name(name)
-    if intended_xml is None:
+    if intended_xml is None or xmledit.find_element(intended_xml, xmledit.ROOT) is None:
         return {member: mgr.presetops.store.read(name)}
-    try:
-        return {member: presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))}
-    except xmledit.GroundingError:
-        return {member: mgr.presetops.store.read(name)}
+    return {member: presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))}

@@ -26,7 +26,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { StageEditor, setSelected } from "../../../../hqptuner/static/components/matrix/StageEditor.js";
-import { parseProcess } from "../../../../hqptuner/static/lib/matrixspec.js";
+import { parseProcess } from "../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js";
 
 // Render the editor docked on one stage of a process chain. Selection state is
 // cleared first: `selected`/`convDraft` are module-level and outlive a test.

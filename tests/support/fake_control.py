@@ -181,6 +181,16 @@ _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4"
 _SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
 
 
+def take_lane_down(state: dict[str, str]) -> None:
+    """Take the control lane down for good: the connection already open is
+    severed the next time either side uses it (a generation bump: the daemon
+    reading a stale generation off a live connection closes it unanswered), and
+    every later connect attempt is refused outright. Nothing here ever comes
+    back up."""
+    state["_generation"] = str(int(state.get("_generation", "0")) + 1)
+    state["_down"] = "1"
+
+
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
     """Move the fake's State to what a daemon reports after a restore's
     self-restart: it comes back up running the restored config file
@@ -194,6 +204,10 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     state["_cfg_dither"] = dither
     state["_cfg_modulator"] = modulator
     _reload_shaper(state)
+    # the restart itself, as the wire sees it: every open connection is severed,
+    # and the first connect inside the restart window is turned away
+    state["_generation"] = str(int(state.get("_generation", "0")) + 1)
+    state["_refuse_connects"] = "1"
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -418,10 +432,22 @@ async def serve(
     # (a new track changing `_active_mode`) and have the manager's open connection
     # see it. Without it each connection gets its own, and the move is invisible.
     state = state if state is not None else {**DEFAULTS, **(overrides or {})}
+    if state.get("_down") == "1":
+        # `take_lane_down`: refuse every connection from here on, the way a
+        # daemon that has gone away answers nothing at all
+        writer.close()
+        return
+    refused = int(state.get("_refuse_connects", "0"))
+    if refused:
+        # inside a restart window: the connect lands and goes away unanswered
+        state["_refuse_connects"] = str(refused - 1)
+        writer.close()
+        return
+    generation = state.get("_generation", "0")
     while True:
         data = await reader.read(4096)
-        if not data:
-            break
+        if not data or state.get("_generation", "0") != generation:
+            break  # closed by the client, or severed by a restart since it connected
         body = data.split(b"?>", 1)[-1].strip().decode()
         answer = handle(body, state, log)
         if isinstance(answer, Close):

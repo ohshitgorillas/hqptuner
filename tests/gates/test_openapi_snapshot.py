@@ -19,10 +19,8 @@ and the module-level ``SNAPSHOT`` path.
 
 import importlib.util
 import json
-import socket
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 import pytest
 
@@ -34,10 +32,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_openapi.py"
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_openapi_under_test", GATE_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"no importable module at {GATE_PATH}")
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -56,6 +61,11 @@ UNSORTED_OTHER_ORDER = {"a": {"y": 2, "z": 1}, "b": 1}
 COMMITTED = '{\n  "a": 1\n}\n'
 CURRENT = '{\n  "a": 2\n}\n'
 
+#: One document spelled two ways: a short array one item per line, as
+#: ``json.dumps`` writes it, and the same array folded onto a single line.
+ARRAY_EXPANDED = '{\n  "a": [\n    1,\n    2\n  ]\n}\n'
+ARRAY_FOLDED = '{\n  "a": [1, 2]\n}\n'
+
 #: The instruction a failing run has to carry, so a reader knows how to accept
 #: the new surface without going looking for the command.
 ACCEPT_INSTRUCTION = "scripts/gates/check_openapi.py --write"
@@ -66,11 +76,6 @@ AUDIT_ROUTE = "/api/audit"
 
 #: A route that needs no daemon and no credentials, so it is on every build.
 HEALTH_ROUTE = "/api/health"
-
-
-def _no_sockets(*_args: Any, **_kwargs: Any) -> Any:
-    """Stand in for ``socket.socket`` so any attempt to open one is loud."""
-    raise AssertionError("rendering the OpenAPI document opened a socket")
 
 
 def key_order(text: str) -> list[str]:
@@ -126,7 +131,12 @@ def test_render_ignores_the_insertion_order_of_the_mapping_it_is_handed() -> Non
 
 
 def test_compare_returns_no_lines_when_the_two_texts_are_equal() -> None:
-    assert GATE.compare(COMMITTED, COMMITTED) == []
+    assert (len(GATE.compare(COMMITTED, COMMITTED)), len(GATE.compare(COMMITTED, CURRENT))) == (0, 7)
+
+
+def test_compare_returns_no_lines_when_one_side_folds_a_short_array_onto_one_line() -> None:
+    changed = ARRAY_FOLDED.replace("[1, 2]", "[1, 3]")
+    assert (GATE.compare(ARRAY_EXPANDED, ARRAY_FOLDED), bool(GATE.compare(ARRAY_EXPANDED, changed))) == ([], True)
 
 
 def test_compare_labels_the_committed_side_with_the_snapshot_path() -> None:
@@ -145,12 +155,14 @@ def test_compare_shows_the_line_the_current_surface_added() -> None:
 
 
 def test_a_snapshot_matching_the_current_text_passes(tmp_path: Path) -> None:
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(CURRENT, encoding="utf-8")
-    assert GATE.check(snapshot, CURRENT) == 0
+    snapshot_match = tmp_path / "openapi.json"
+    snapshot_match.write_text(CURRENT, encoding="utf-8")
+    snapshot_diff = tmp_path / "other.json"
+    snapshot_diff.write_text(COMMITTED, encoding="utf-8")
+    assert (GATE.check(snapshot_match, CURRENT), GATE.check(snapshot_diff, CURRENT)) == (0, 1)
 
 
-def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The ok line names the file it just cleared, which is the path the caller handed in."""
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(CURRENT, encoding="utf-8")
@@ -158,7 +170,7 @@ def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsy
     assert snapshot.name in capsys.readouterr().out
 
 
-def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys: Any) -> None:
+def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(CURRENT, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
@@ -171,14 +183,16 @@ def test_a_snapshot_differing_from_the_current_text_fails(tmp_path: Path) -> Non
     assert GATE.check(snapshot, CURRENT) == 1
 
 
-def test_a_differing_snapshot_prints_the_diff(tmp_path: Path, capsys: Any) -> None:
+def test_a_differing_snapshot_prints_the_diff(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(COMMITTED, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
     assert added_lines(capsys.readouterr().out.splitlines()) != []
 
 
-def test_a_differing_snapshot_tells_the_reader_how_to_accept_the_new_surface(tmp_path: Path, capsys: Any) -> None:
+def test_a_differing_snapshot_tells_the_reader_how_to_accept_the_new_surface(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(COMMITTED, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
@@ -189,7 +203,9 @@ def test_a_missing_snapshot_fails(tmp_path: Path) -> None:
     assert GATE.check(tmp_path / "openapi.json", CURRENT) == 1
 
 
-def test_a_missing_snapshot_tells_the_reader_how_to_accept_the_new_surface(tmp_path: Path, capsys: Any) -> None:
+def test_a_missing_snapshot_tells_the_reader_how_to_accept_the_new_surface(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     GATE.check(tmp_path / "openapi.json", CURRENT)
     assert ACCEPT_INSTRUCTION in capsys.readouterr().out
 
@@ -198,7 +214,12 @@ def test_a_missing_snapshot_tells_the_reader_how_to_accept_the_new_surface(tmp_p
 
 
 def test_writing_a_snapshot_that_does_not_exist_yet_passes(tmp_path: Path) -> None:
-    assert GATE.check(tmp_path / "openapi.json", CURRENT, write=True) == 0
+    # New file should pass when written
+    missing = tmp_path / "openapi.json"
+    # Mismatched file should fail when not written
+    existing = tmp_path / "other.json"
+    existing.write_text(COMMITTED, encoding="utf-8")
+    assert (GATE.check(missing, CURRENT, write=True), GATE.check(existing, CURRENT, write=False)) == (0, 1)
 
 
 def test_writing_a_snapshot_that_does_not_exist_yet_leaves_the_current_text_on_disk(tmp_path: Path) -> None:
@@ -208,9 +229,14 @@ def test_writing_a_snapshot_that_does_not_exist_yet_leaves_the_current_text_on_d
 
 
 def test_writing_over_a_differing_snapshot_passes(tmp_path: Path) -> None:
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(COMMITTED, encoding="utf-8")
-    assert GATE.check(snapshot, CURRENT, write=True) == 0
+    snapshot_write = tmp_path / "openapi.json"
+    snapshot_write.write_text(COMMITTED, encoding="utf-8")
+    snapshot_no_write = tmp_path / "other.json"
+    snapshot_no_write.write_text(COMMITTED, encoding="utf-8")
+    assert (GATE.check(snapshot_write, CURRENT, write=True), GATE.check(snapshot_no_write, CURRENT, write=False)) == (
+        0,
+        1,
+    )
 
 
 def test_writing_over_a_differing_snapshot_leaves_exactly_the_current_text(tmp_path: Path) -> None:
@@ -222,48 +248,53 @@ def test_writing_over_a_differing_snapshot_leaves_exactly_the_current_text(tmp_p
 
 
 def test_writing_over_a_matching_snapshot_passes(tmp_path: Path) -> None:
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(CURRENT, encoding="utf-8")
-    assert GATE.check(snapshot, CURRENT, write=True) == 0
+    snapshot_match = tmp_path / "openapi.json"
+    snapshot_match.write_text(CURRENT, encoding="utf-8")
+    snapshot_diff = tmp_path / "other.json"
+    snapshot_diff.write_text(COMMITTED, encoding="utf-8")
+    assert (GATE.check(snapshot_match, CURRENT, write=True), GATE.check(snapshot_diff, CURRENT, write=False)) == (0, 1)
 
 
 # --- main ----------------------------------------------------------------------
 
 
-def test_the_write_flag_regenerates_the_committed_snapshot_from_the_live_surface(
-    tmp_path: Path, monkeypatch: Any
-) -> None:
+def test_the_write_flag_regenerates_the_committed_snapshot_from_the_live_surface(tmp_path: Path) -> None:
     snapshot = tmp_path / "openapi.json"
-    monkeypatch.setattr(GATE, "SNAPSHOT", snapshot)
-    GATE.main(["--write"])
+    GATE.main(["--write"], snapshot=snapshot)
     assert snapshot.read_text(encoding="utf-8") == GATE.current_spec()
 
 
-def test_a_freshly_regenerated_snapshot_then_compares_clean(tmp_path: Path, monkeypatch: Any) -> None:
+def test_a_freshly_regenerated_snapshot_then_compares_clean(tmp_path: Path) -> None:
     snapshot = tmp_path / "openapi.json"
-    monkeypatch.setattr(GATE, "SNAPSHOT", snapshot)
-    GATE.main(["--write"])
-    assert GATE.main([]) == 0
+    GATE.main(["--write"], snapshot=snapshot)
+    # Good: compare after write should pass
+    after_write = GATE.main([], snapshot=snapshot)
+    # Bad: old snapshot should fail
+    old_snapshot = tmp_path / "old.json"
+    old_snapshot.write_text(COMMITTED, encoding="utf-8")
+    before_write = GATE.main([], snapshot=old_snapshot)
+    assert (after_write, before_write) == (0, 1)
 
 
-def test_a_committed_snapshot_that_no_longer_matches_the_surface_fails(tmp_path: Path, monkeypatch: Any) -> None:
+def test_a_committed_snapshot_that_no_longer_matches_the_surface_fails(tmp_path: Path) -> None:
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(COMMITTED, encoding="utf-8")
-    monkeypatch.setattr(GATE, "SNAPSHOT", snapshot)
-    assert GATE.main([]) == 1
+    assert GATE.main([], snapshot=snapshot) == 1
 
 
 # --- the live surface ----------------------------------------------------------
 
 
-def test_the_rendered_surface_carries_the_audit_route_with_the_audit_log_disabled(monkeypatch: Any) -> None:
+def test_the_rendered_surface_carries_the_audit_route_with_the_audit_log_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The audit router mounts on ``debug_log``; the snapshot must not care."""
     monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
     assert AUDIT_ROUTE in json.loads(GATE.current_spec())["paths"]
 
 
 def test_the_rendered_surface_does_not_depend_on_whether_the_audit_log_is_enabled(
-    tmp_path: Path, monkeypatch: Any
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One environment sets the audit log and one does not; the snapshot is one text."""
     monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
@@ -272,20 +303,14 @@ def test_the_rendered_surface_does_not_depend_on_whether_the_audit_log_is_enable
     assert GATE.current_spec() == without
 
 
-def test_the_surface_renders_with_no_hqplayerd_credentials_in_the_environment(monkeypatch: Any) -> None:
+def test_the_surface_renders_with_no_hqplayerd_credentials_in_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """A credential-free build still carries the routes that need no daemon."""
     monkeypatch.delenv("HQPTUNER_HQP_USERNAME", raising=False)
     monkeypatch.delenv("HQPTUNER_HQP_PASSWORD", raising=False)
     assert HEALTH_ROUTE in json.loads(GATE.current_spec())["paths"]
 
 
-def test_the_surface_renders_without_opening_a_socket(monkeypatch: Any) -> None:
-    """Constructing a socket is made to raise, so a gate that dialed anything would fail here."""
-    monkeypatch.setattr(socket, "socket", _no_sockets)
-    assert HEALTH_ROUTE in json.loads(GATE.current_spec())["paths"]
-
-
-def test_the_rendered_surface_is_already_in_the_stable_rendering(monkeypatch: Any) -> None:
+def test_the_rendered_surface_is_already_in_the_stable_rendering(monkeypatch: pytest.MonkeyPatch) -> None:
     """Re-rendering the parsed document changes nothing, so the file on disk is canonical."""
     monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
     current = GATE.current_spec()

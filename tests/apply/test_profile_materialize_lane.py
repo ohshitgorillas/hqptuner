@@ -12,15 +12,20 @@ its own adopter. The live rows are read back off the fake's adopted state, at a
 gain no default in either fake produces.
 """
 
-import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory, ManagerFactory
 from fake_control import CommandLog
 
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http import restore
+from hqptuner.lanes.http.restore import RestoreOutcome
+from hqptuner.presets.presetops import PresetAftermath
+
+if TYPE_CHECKING:
+    import asyncio
 
 #: The rows "Night" stores in the config file: one row, at a gain neither fake's
 #: default pipeline carries, so an unmaterialized apply cannot read as a pass.
@@ -55,9 +60,8 @@ async def running_profile(
             hqp_host="127.0.0.1",
             hqp_control_port=port,
             hqp_http_port=http_daemon["_port"],
-            poll_interval=0.02,
         )
-        task = asyncio.create_task(manager.run())
+        task = manager.clock.spawn(manager.run())
         started.append((manager, task))
         return manager, log
 
@@ -91,8 +95,7 @@ async def test_an_apply_under_an_active_profile_reports_applied(
 ) -> None:
     with_night(http_daemon)
     manager, _log = await running_profile("Night")
-    report = await manager.applyops.apply({}, {"title": "Renamed"})
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(manager, {"title": "Renamed"})).outcome is RestoreOutcome.APPLIED
 
 
 async def test_an_apply_under_an_active_profile_reports_no_profile_restoration(
@@ -103,7 +106,9 @@ async def test_an_apply_under_an_active_profile_reports_no_profile_restoration(
     with_night(http_daemon)
     manager, _log = await running_profile("Night")
     report = await manager.applyops.apply({}, {"title": "Renamed"})
-    assert "profile_restored" not in report["persistent"]
+    # the apply converges, so aftermath itself is not None — the fact under
+    # test is that it names no fan-out
+    assert report.aftermath == PresetAftermath(None)
 
 
 # --- and the engine is never asked to re-select the profile -------------------
@@ -134,8 +139,7 @@ async def test_an_apply_under_a_profile_the_config_lacks_still_reports_applied(
 ) -> None:
     with_night(http_daemon)
     manager, _log = await running_profile("Ghost")
-    report = await manager.applyops.apply({}, {"title": "Renamed"})
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(manager, {"title": "Renamed"})).outcome is RestoreOutcome.APPLIED
 
 
 async def test_an_apply_under_a_profile_the_config_lacks_keeps_the_live_rows(

@@ -2,19 +2,11 @@
 version = 1
 
 [allowance]
-".claude/hooks/change-budget.py" = { lines = 423 }
-".claude/hooks/read-volume.py" = { lines = 423 }
-"hqptuner/conf/httpconf.py" = { lines = 427 }
-"hqptuner/conf/matrixconf.py" = { lines = 496 }
+".claude/hooks/change-budget.py" = { lines = 420 }
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
 "hqptuner/static/css/features/volume.css" = { lines = 407 }
-"hqptuner/static/lib/xfeed.js" = { lines = 462 }
-"hqptuner/static/store/actions.js" = { lines = 415 }
+"hqptuner/static/store/actions.js" = { lines = 413 }
 "hqptuner/static/store/schema.js" = { lines = 1203 }
 "hqptuner/static/store/ui/prefs.js" = { lines = 428 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
-"scripts/eqlab/chain.js" = { lines = 405 }
-"scripts/eqlab/render.js" = { lines = 441 }
-"scripts/eqlab/search/search.js" = { lines = 442 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }
-"scripts/probes/probe_absent_plugin.py" = { lines = 430 }

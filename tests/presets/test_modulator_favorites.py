@@ -52,14 +52,11 @@ FILTERS = ["poly-sinc-gauss-long", "sinc-M"]
 # --- the modulator set on its own --------------------------------------------
 
 
-def test_a_fresh_store_reads_no_modulator_favorites(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read_modulators() == []
-
-
-def test_written_modulator_names_read_back(tmp_path: Path) -> None:
+def test_a_fresh_store_reads_no_modulator_favorites_but_written_names_read_back(tmp_path: Path) -> None:
+    empty = store_at(tmp_path).read_modulators()
     store = store_at(tmp_path)
     store.write_modulators(MODULATORS)
-    assert sorted(store.read_modulators()) == sorted(MODULATORS)
+    assert (empty, sorted(store.read_modulators())) == ([], sorted(MODULATORS))
 
 
 def test_write_modulators_answers_with_the_names_deduplicated_and_sorted(tmp_path: Path) -> None:
@@ -100,9 +97,14 @@ def test_writing_filters_leaves_the_stored_modulators_alone(tmp_path: Path) -> N
 
 # The layout every HQPTuner before this one wrote: filters and nothing else.
 # An absent member is an empty set, never a malformed file.
-def test_a_file_holding_only_filters_reads_no_modulator_favorites(tmp_path: Path) -> None:
+def test_a_file_holding_only_filters_reads_no_modulator_favorites_but_one_holding_modulators_reads_them(
+    tmp_path: Path,
+) -> None:
     seed(tmp_path, json.dumps({"filters": ["alpha"]}))
-    assert store_at(tmp_path).read_modulators() == []
+    filters_only = store_at(tmp_path).read_modulators()
+    seed(tmp_path, json.dumps({"modulators": ["alpha"]}))
+    with_modulators = store_at(tmp_path).read_modulators()
+    assert (filters_only, with_modulators) == ([], ["alpha"])
 
 
 def test_a_file_holding_only_filters_still_reads_its_filters(tmp_path: Path) -> None:
@@ -152,11 +154,6 @@ def test_a_refused_modulator_write_leaves_the_newer_file_untouched(tmp_path: Pat
     with contextlib.suppress(FavoriteError):
         store_at(tmp_path).write_modulators(["alpha"])
     assert json.loads(path.read_text()) == TOO_NEW
-
-
-def test_an_unstamped_file_has_its_modulators_read_rather_than_refused(tmp_path: Path) -> None:
-    seed(tmp_path, json.dumps({"modulators": ["alpha"]}))
-    assert store_at(tmp_path).read_modulators() == ["alpha"]
 
 
 # The stamp this feature must not move. Adding a second member to the file was

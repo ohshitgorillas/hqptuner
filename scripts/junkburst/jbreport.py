@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import (
@@ -19,6 +19,10 @@ from jbconfig import (
     WINDOWS,
 )
 from jbderived import fmt_stats
+
+if TYPE_CHECKING:
+    # Type-only: a runtime import of jbscore here would form an import cycle.
+    from jbscore import CandidateScore
 
 CAND_TITLE = {
     "p90": "A — per-bin 90th percentile, cliff fall (dB)",
@@ -81,7 +85,7 @@ def _burst_label_section(track_rows: list[dict[str, Any]], burst_count: int) -> 
     return [*lines, ""]
 
 
-def _candidate_sections(scored: dict[float, dict[str, Any]]) -> list[str]:
+def _candidate_sections(scored: dict[float, dict[str, CandidateScore]]) -> list[str]:
     """One section per window and candidate: the two sides' spread, the gap and the wrong-side count."""
     intro = (
         f"Every block is labelled on its own frames: full when one musical frame in the block carries content above "
@@ -95,11 +99,11 @@ def _candidate_sections(scored: dict[float, dict[str, Any]]) -> list[str]:
         lines += [f"## Block length {window:g} s", ""]
         for name in CAND_NAMES:
             s = scored[window][name]
-            nr = s.get("no_reading", {"cliff": 0, "full": 0})
+            nr = s.no_reading
             summary = (
-                f"Gap between the facing edges (p10 of the high side minus p90 of the low side) {s['gap']:.2f}, "
-                f"median-to-median distance {s.get('median_gap', 0.0):.2f}, midpoint of the gap {s['midpoint']:.2f}, "
-                f"wrong-side blocks {s['wrong']} of {s['blocks']}, bursts with a flip {s['flips']}. Blocks with no "
+                f"Gap between the facing edges (p10 of the high side minus p90 of the low side) {s.gap:.2f}, "
+                f"median-to-median distance {s.median_gap:.2f}, midpoint of the gap {s.midpoint:.2f}, "
+                f"wrong-side blocks {s.wrong} of {s.blocks}, bursts with a flip {s.flips}. Blocks with no "
                 f"reading at all, counted as full verdicts and left out of the table above: {nr['cliff']} cliff, "
                 f"{nr['full']} full."
             )
@@ -108,8 +112,8 @@ def _candidate_sections(scored: dict[float, dict[str, Any]]) -> list[str]:
                 "",
                 "| side | n | min | p10 | p25 | median | p75 | p90 | max |",
                 "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-                f"| cliff {fmt_stats(s['cliff_stats'])[1:]}",
-                f"| full {fmt_stats(s['full_stats'])[1:]}",
+                f"| cliff {fmt_stats(s.cliff_stats)[1:]}",
+                f"| full {fmt_stats(s.full_stats)[1:]}",
                 "",
                 summary,
                 "",
@@ -117,14 +121,14 @@ def _candidate_sections(scored: dict[float, dict[str, Any]]) -> list[str]:
     return lines
 
 
-def _flip_section(scored: dict[float, dict[str, Any]]) -> list[str]:
+def _flip_section(scored: dict[float, dict[str, CandidateScore]]) -> list[str]:
     """Write the release test: every verdict change between adjacent blocks, per window and candidate."""
     lines = ["## Release test — verdict flips between adjacent blocks", ""]
     for window in WINDOWS:
         for name in CAND_NAMES:
             s = scored[window][name]
             lines += [f"### {window:g} s, candidate {CAND_TITLE[name]}", ""]
-            if not s["flip_list"]:
+            if not s.flip_list:
                 lines += ["No burst flips.", ""]
                 continue
             lines += [
@@ -134,7 +138,7 @@ def _flip_section(scored: dict[float, dict[str, Any]]) -> list[str]:
             lines += [
                 f"| {flip['stamp']} | {flip['label']} | {flip['block'] - 1}→{flip['block']} | "
                 f"{flip['from']:.2f} | {flip['to']:.2f} |"
-                for flip in s["flip_list"]
+                for flip in s.flip_list
             ]
             lines.append("")
     return lines
@@ -185,7 +189,7 @@ def _ceiling_section(ceiling_rows: list[dict[str, Any]]) -> list[str]:
     return [*lines, ""]
 
 
-def _window_section(scored: dict[float, dict[str, Any]]) -> list[str]:
+def _window_section(scored: dict[float, dict[str, CandidateScore]]) -> list[str]:
     """One row per window and candidate, so block length is read against accuracy in one table."""
     lines = [
         "## Window length",
@@ -197,31 +201,31 @@ def _window_section(scored: dict[float, dict[str, Any]]) -> list[str]:
         for name in CAND_NAMES:
             s = scored[window][name]
             lines.append(
-                f"| {window:g} s | {name} | {s['gap']:.2f} | {s.get('median_gap', 0.0):.2f} | {s['midpoint']:.2f} | "
-                f"{s['wrong']} | {s['blocks']} | {s['flips']} |"
+                f"| {window:g} s | {name} | {s.gap:.2f} | {s.median_gap:.2f} | {s.midpoint:.2f} | "
+                f"{s.wrong} | {s.blocks} | {s.flips} |"
             )
     return [*lines, ""]
 
 
-def _verdict_section(scored: dict[float, dict[str, Any]], result: SpectrumSweep) -> list[str]:
+def _verdict_section(scored: dict[float, dict[str, CandidateScore]], result: SpectrumSweep) -> list[str]:
     """Name the headline candidate and its threshold, and state what block length buys across the sweep."""
     best = None
     for name in CAND_NAMES:
         s = scored[HEADLINE_WINDOW][name]
-        key = (s["wrong"], s["flips"], -s["gap"])
+        key = (s.wrong, s.flips, -s.gap)
         if best is None or key < best[0]:
             best = (key, name, s)
     assert best is not None
     _, name, s = best
-    side = "above" if s["cliff_high"] else "below"
+    side = "above" if s.cliff_high else "below"
     wrong_rates = ", ".join(
-        f"{w:g} s {100 * scored[w][name]['wrong'] / max(1, scored[w][name]['blocks']):.1f}%" for w in WINDOWS
+        f"{w:g} s {100 * scored[w][name].wrong / max(1, scored[w][name].blocks):.1f}%" for w in WINDOWS
     )
-    flip_counts = ", ".join(f"{w:g} s {scored[w][name]['flips']}" for w in WINDOWS)
+    flip_counts = ", ".join(f"{w:g} s {scored[w][name].flips}" for w in WINDOWS)
     headline = (
         f"At the 1 s block the widest-gap, fewest-wrong-side, fewest-flip candidate is {CAND_TITLE[name]}: gap "
-        f"{s['gap']:.2f} between the facing edges, {s['wrong']} wrong-side blocks of {s['blocks']}, {s['flips']} "
-        f"bursts carrying a flip. Its threshold is {s['midpoint']:.2f}, a block reading {side} it being cliff. "
+        f"{s.gap:.2f} between the facing edges, {s.wrong} wrong-side blocks of {s.blocks}, {s.flips} "
+        f"bursts carrying a flip. Its threshold is {s.midpoint:.2f}, a block reading {side} it being cliff. "
         f"`junkadvisor.classify` on the same blocks' per-bin minimum scores {result.advisor_wrong} wrong-side blocks "
         f"of {len(result.advisor_rows)} against the same labels."
     )
@@ -240,7 +244,7 @@ def _verdict_section(scored: dict[float, dict[str, Any]], result: SpectrumSweep)
 
 def write_report(
     track_rows: list[dict[str, Any]],
-    scored: dict[float, dict[str, Any]],
+    scored: dict[float, dict[str, CandidateScore]],
     result: SpectrumSweep,
     burst_count: int,
 ) -> None:

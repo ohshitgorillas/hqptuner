@@ -36,6 +36,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
+from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
@@ -43,6 +44,10 @@ HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
 OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
 SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
+
+
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
 
 
 def _restart_daemon() -> None:
@@ -56,7 +61,8 @@ async def _settle(http: HttpConfigClient) -> None:
             return
         except (httpx.HTTPError, OSError):
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit("daemon never came back")
+    message = "daemon never came back"
+    raise CliError(message)
 
 
 async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
@@ -67,7 +73,8 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
         except (httpx.HTTPError, OSError) as exc:
             last = exc
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit(f"daemon never answered: {last}")
+    message = f"daemon never answered: {last}"
+    raise CliError(message)
 
 
 async def _working(http: HttpConfigClient, active: str | None) -> bytes:
@@ -94,7 +101,7 @@ def _profile_rows(xml: bytes, name: str) -> list[bytes]:
     return _rows(m.group(1)) if m else []
 
 
-def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
+def _correction(fields: list[FormField]) -> dict[str, object]:
     return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
@@ -108,7 +115,8 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
     form.raise_for_status()
     fields, _ = serialize_matrix_form(form.text)
     if not fields:
-        raise SystemExit("GET /matrix served no form fields — the POST would be a silent no-op")
+        message = "GET /matrix served no form fields — the POST would be a silent no-op"
+        raise CliError(message)
     for key, value in overlay.items():
         fields[key] = value
     for key in [k for k, v in fields.items() if v in ("0", "on", "")]:
@@ -139,18 +147,20 @@ async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> di
     return current
 
 
-async def main() -> int:
+async def _run() -> int:
     """Establish whether a POST /matrix re-asserts post-process wiped by a profile switch, and whether it persists."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
     target = os.environ.get("PROBE_PROFILE", "stereo")
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to write")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
+        raise CliError(message)
     original_profile = state.get("matrix_profile", "")
 
     http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
@@ -164,7 +174,8 @@ async def main() -> int:
     print(f"engine idle; active profile {original_profile!r}; switching to {target!r}")
     print(f"config <matrix> rows: {len(config_rows)}; {target!r} profile rows: {len(target_rows)}")
     if not target_rows or config_rows == target_rows:
-        raise SystemExit(f"{target!r} is not a discriminating target — pick one whose rows differ")
+        message = f"{target!r} is not a discriminating target — pick one whose rows differ"
+        raise CliError(message)
 
     # PROBE_MODE=toggle is the control: no profile switch at all, just flip the
     # correction plugin off and on through the same POST path. If THAT does not
@@ -213,7 +224,8 @@ async def main() -> int:
         with zipfile.ZipFile(io.BytesIO(pristine)) as z:
             member = engineconf.running_config_name(z.namelist(), active)
         if member is None:
-            raise SystemExit("cannot resolve the working config member")
+            message = "cannot resolve the working config member"
+            raise CliError(message)
         archive = engineconf.rewrite_zip(pristine, {member: before_xml})
         await _rpc(lambda: http.restore(archive, scope="system"))
         await _settle(http)
@@ -234,6 +246,20 @@ async def main() -> int:
         if not identical or readback != original_profile:
             rc = 1
     return rc
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

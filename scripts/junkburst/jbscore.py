@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -19,7 +19,7 @@ from jbconfig import (
     WINDOWS,
 )
 from jbcurves import Grid, content_curves, frame_content, musical_frames, readings
-from jbderived import load_burst, musical_groups, stats, summed_db, track_key
+from jbderived import Stats, load_burst, musical_groups, stats, summed_db, track_key
 from jbreport import SpectrumSweep, write_report
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
@@ -114,7 +114,7 @@ def _advisor_rows(
                 "block": index,
                 "label": lab,
                 "predicted": predicted,
-                "verdict": "20k" if junk else (verdict or {}).get("filter"),
+                "verdict": "20k" if junk else (None if verdict is None else verdict.filter),
             }
         )
     return out
@@ -245,68 +245,97 @@ def _flip_rows(
     return flips, flip_list
 
 
-def score_candidate(cand: dict[str, Any]) -> dict[str, Any]:
-    """Score one candidate at one window: its gap, its threshold, its wrong-side blocks and its flips."""
+@dataclass
+class CandidateScore:
+    """One candidate's score at one window: its gap, its threshold, its wrong-side blocks and its flips.
+
+    Every field is always present; a candidate with no finite reading on either side scores at the zero value for
+    the fields a real gap would otherwise fill, rather than omitting them.
+    """
+
+    gap: float
+    margin: float
+    midpoint: float
+    wrong: int
+    blocks: int
+    flips: int
+    flip_list: list[dict[str, Any]]
+    cliff_high: bool
+    cliff_stats: Stats
+    full_stats: Stats
+    median_gap: float
+    no_reading: dict[str, int] = field(default_factory=lambda: {"cliff": 0, "full": 0})
+
+
+@dataclass(frozen=True)
+class Threshold:
+    """Which side reads high, the gap between the two sides' facing edges, and the midpoint of that gap."""
+
+    cliff_high: bool
+    gap: float
+    midpoint: float
+
+
+def threshold(fin_cliff: list[float], fin_full: list[float]) -> Threshold:
+    """Place the threshold between two non-empty sides of finite readings.
+
+    The gap is between the two sides' facing edges, and the threshold sits at its midpoint: the two sides carry very
+    different block counts, so a midpoint between the medians falls inside the larger side's own spread.
+    """
+    cliff_high = float(np.median(fin_cliff)) >= float(np.median(fin_full))
+    high, low = (fin_cliff, fin_full) if cliff_high else (fin_full, fin_cliff)
+    edge_high, edge_low = float(np.percentile(high, 10)), float(np.percentile(low, 90))
+    return Threshold(cliff_high=cliff_high, gap=edge_high - edge_low, midpoint=(edge_high + edge_low) / 2.0)
+
+
+def score_candidate(cand: dict[str, Any]) -> CandidateScore | None:
+    """Score one candidate at one window: its gap, its threshold, its wrong-side blocks and its flips.
+
+    ``None`` where neither side has a finite reading: there is no gap, threshold or wrong-side
+    count to compute, so a caller skips the candidate rather than reading a zero-filled score.
+    """
     cliff, full = cand["cliff"], cand["full"]
     fin_cliff = [v for v in cliff if np.isfinite(v)]
     fin_full = [v for v in full if np.isfinite(v)]
     if not fin_cliff or not fin_full:
-        return {
-            "gap": 0.0,
-            "margin": 0.0,
-            "midpoint": 0.0,
-            "wrong": 0,
-            "blocks": len(cliff) + len(full),
-            "flips": 0,
-            "flip_list": [],
-            "cliff_high": True,
-            "cliff_stats": stats(cliff),
-            "full_stats": stats(full),
-            "median_gap": 0.0,
-        }
+        return None
     mc, mf = float(np.median(fin_cliff)), float(np.median(fin_full))
-    cliff_high = mc >= mf
-    # The gap is between the two sides' facing edges, and the threshold sits at its midpoint: the two sides carry very
-    # different block counts, so a midpoint between the medians falls inside the larger side's own spread.
-    high, low = (fin_cliff, fin_full) if cliff_high else (fin_full, fin_cliff)
-    edge_high, edge_low = float(np.percentile(high, 10)), float(np.percentile(low, 90))
-    gap = edge_high - edge_low
-    midpoint = (edge_high + edge_low) / 2.0
+    t = threshold(fin_cliff, fin_full)
 
     def reads_cliff(v: float) -> bool:
         """Read one block's side of the midpoint; a block with no reading cannot read cliff."""
-        return bool(np.isfinite(v)) and ((v >= midpoint) == cliff_high)
+        return bool(np.isfinite(v)) and ((v >= t.midpoint) == t.cliff_high)
 
     wrong = sum(1 for v in cliff if not reads_cliff(v)) + sum(1 for v in full if reads_cliff(v))
     flips, flip_list = _flip_rows(cand["series"], reads_cliff)
-    return {
-        "gap": gap,
-        "margin": gap,
-        "midpoint": midpoint,
-        "wrong": wrong,
-        "blocks": len(cliff) + len(full),
-        "flips": flips,
-        "flip_list": flip_list,
-        "cliff_high": cliff_high,
-        "cliff_stats": stats(fin_cliff),
-        "full_stats": stats(fin_full),
-        "median_gap": abs(mc - mf),
-        "no_reading": {"cliff": len(cliff) - len(fin_cliff), "full": len(full) - len(fin_full)},
-    }
+    return CandidateScore(
+        gap=t.gap,
+        margin=t.gap,
+        midpoint=t.midpoint,
+        wrong=wrong,
+        blocks=len(cliff) + len(full),
+        flips=flips,
+        flip_list=flip_list,
+        cliff_high=t.cliff_high,
+        cliff_stats=stats(fin_cliff),
+        full_stats=stats(fin_full),
+        median_gap=abs(mc - mf),
+        no_reading={"cliff": len(cliff) - len(fin_cliff), "full": len(full) - len(fin_full)},
+    )
 
 
-def _print_summary(scored: dict[float, dict[str, Any]], result: SpectrumSweep) -> None:
+def _print_summary(scored: dict[float, dict[str, CandidateScore]], result: SpectrumSweep) -> None:
     """Print the headline counts as JSON, then one line per window and candidate."""
     head = scored[HEADLINE_WINDOW]
     print(
         json.dumps(
             {
                 "report": str(REPORT),
-                "wrong_p90": head["p90"]["wrong"],
-                "wrong_mean": head["mean"]["wrong"],
-                "wrong_count": head["count"]["wrong"],
+                "wrong_p90": head["p90"].wrong,
+                "wrong_mean": head["mean"].wrong,
+                "wrong_count": head["count"].wrong,
                 "wrong_advisor": result.advisor_wrong,
-                "blocks": head["p90"]["blocks"],
+                "blocks": head["p90"].blocks,
                 "advisor_blocks": len(result.advisor_rows),
                 "cliff_blocks_no_reading": len(result.ceiling_rows),
             },
@@ -317,8 +346,8 @@ def _print_summary(scored: dict[float, dict[str, Any]], result: SpectrumSweep) -
         for name in ("p90", "mean", "count"):
             s = scored[w][name]
             print(
-                f"window={w} cand={name} gap={s['gap']:.2f} margin={s.get('margin', 0):.2f} "
-                f"wrong={s['wrong']}/{s['blocks']} flips={s['flips']}"
+                f"window={w} cand={name} gap={s.gap:.2f} margin={s.margin:.2f} "
+                f"wrong={s.wrong}/{s.blocks} flips={s.flips}"
             )
 
 
@@ -326,6 +355,9 @@ def report() -> None:
     """Score every candidate at every window and write the report."""
     bursts, burst_labels, result = _collect_and_score()
     track_rows = _track_rows(bursts, burst_labels)
-    scored = {w: {name: score_candidate(cand) for name, cand in cands.items()} for w, cands in result.sweep.items()}
+    scored = {
+        w: {name: sc for name, cand in cands.items() if (sc := score_candidate(cand)) is not None}
+        for w, cands in result.sweep.items()
+    }
     write_report(track_rows, scored, result, len(bursts))
     _print_summary(scored, result)

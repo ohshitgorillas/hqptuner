@@ -35,8 +35,10 @@ from pathlib import Path
 from typing import Any
 
 from hqptuner.config import Config
-from hqptuner.engine.control import ControlClient, ControlError
-from hqptuner.engine.metering import HEADER, MAX_BINS, MAX_CHANNELS, PLAYING
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.metering import HEADER, MAX_BINS, MAX_CHANNELS
+from hqptuner.engine.trackcontext import PLAYING
 
 #: Where bursts land, one file each.
 DEST = Path("/srv/hqptuner/state/junkburst")
@@ -55,11 +57,14 @@ RATE_FLOOR = 48_000
 
 
 def _int(value: str | None) -> int | None:
-    """Parse an attribute that should be an integer, returning None when it is absent or malformed."""
-    try:
-        return int(value) if value is not None else None
-    except ValueError:
+    """Parse an attribute that should be an integer.
+
+    None when the attribute is absent; a malformed value raises ``ValueError`` instead of reading as absent, since
+    a daemon attribute that fails to parse is a protocol fault, not "not playing".
+    """
+    if value is None:
         return None
+    return int(value)
 
 
 def _junk_filter_name(state: dict[str, str], enum: list[dict[str, str]]) -> str | None:
@@ -69,6 +74,14 @@ def _junk_filter_name(state: dict[str, str], enum: list[dict[str, str]]) -> str 
         if item.get("index") == idx:
             return item.get("name")
     return None
+
+
+class ImplausibleMeteringHeaderError(OSError):
+    """A metering frame's header carried a channel or bin count outside the daemon's known range."""
+
+    def __init__(self, *, channels: int, bins: int) -> None:
+        """Name the implausible `channels` and `bins` counts."""
+        super().__init__(f"implausible metering header (channels={channels}, bins={bins})")
 
 
 class BurstReader:
@@ -116,7 +129,8 @@ class BurstReader:
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
 
-    async def _read_frame(self, reader: asyncio.StreamReader) -> tuple[bytes, bytes]:
+    @staticmethod
+    async def _read_frame(reader: asyncio.StreamReader) -> tuple[bytes, bytes]:
         """Read one frame, returning the header and body bytes exactly as the daemon sent them.
 
         Sized as ``MeteringReader._read_frame`` sizes it: a fixed header, then ``channels * (16 + 8 * bins)`` of
@@ -126,7 +140,7 @@ class BurstReader:
         header = HEADER.unpack(raw)
         channels, bins = int(header[1]), int(header[2])
         if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
-            raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
+            raise ImplausibleMeteringHeaderError(channels=channels, bins=bins)
         return raw, await reader.readexactly(channels * (16 + 8 * bins))
 
 

@@ -1,226 +1,38 @@
-"""hqplayerd HTTP configuration interface (port 8088) — read side.
+"""hqplayerd HTTP configuration interface (port 8088) — transport and writes.
 
-GET /config under Digest auth returns the full persistent-settings form;
-parse_config_form() turns it into a settings model: every field with its
-current value and constraints, grouped by the form's own section/label
-structure. This is the sole persistent-config read path — no direct
-hqplayerd.xml parsing (docs/architecture.md §2).
+``HttpConfigClient`` is the Digest-authenticated client for the /config, /matrix,
+/speakers and /backup forms; each read parses the page it fetched, and each
+write serializes a complete form (the daemon silently ignores a partial POST)
+with the daemon's checkbox and range-validation contracts.
 """
-
-import re
-from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-from hqptuner.conf.httpauth import raise_for_status
+from hqptuner.conf.formparse import attr, parse_config_form, parse_matrix_form, parse_speakers_form
+from hqptuner.conf.httpauth import AuthRefused, raise_for_status
+from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
 
-
-def _attr(el: Tag, name: str) -> str | None:
-    value = el.get(name)
-    if isinstance(value, list):
-        return " ".join(value)
-    return value
-
-
-def _number(raw: str | None) -> Any:
-    try:
-        return int(raw)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        try:
-            return float(raw)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            return raw
-
-
-def _parse_input(el: Tag, section: str | None, label: str | None) -> dict[str, Any] | None:
-    itype = el.get("type", "text")
-    if itype in ("submit", "button", "hidden"):
-        return None
-    field: dict[str, Any] = {
-        "name": el.get("name"),
-        "type": itype,
-        "section": section,
-        "label": label,
-    }
-    if itype == "checkbox":
-        field["value"] = el.has_attr("checked")
-        # the value the daemon expects on submit when checked (verified: "1",
-        # not the HTML default "on") — carried so the serializer round-trips it
-        field["on_value"] = _attr(el, "value") or "on"
-    elif itype == "number":
-        field["value"] = _number(_attr(el, "value"))
-        for attr in ("min", "max", "step"):
-            if el.has_attr(attr):
-                field[attr] = _number(_attr(el, attr))
-    else:
-        field["value"] = el.get("value", "")
-    return field
-
-
-def _parse_select(el: Tag, section: str | None, label: str | None) -> dict[str, Any]:
-    options = [
-        {
-            "value": opt.get("value", ""),
-            "label": opt.get_text(strip=True),
-            "selected": opt.has_attr("selected"),
-        }
-        for opt in el.find_all("option")
-    ]
-    selected = next(
-        (o["value"] for o in options if o["selected"]),
-        options[0]["value"] if options else None,
-    )
-    return {
-        "name": el.get("name"),
-        "type": "select",
-        "section": section,
-        "label": label,
-        "value": selected,
-        "options": options,
-    }
-
-
-def parse_config_form(html: str) -> dict[str, Any]:
-    """Parse a settings form page into ``{fields, profiles}``.
-
-    ``fields`` is every value-bearing input and select across the page's POST forms, each with its current value,
-    its number constraints and the ``<h2>``/``<h3>`` section+label it sits under; submit, button and hidden inputs
-    are dropped. ``profiles`` is the preset ``profile`` select held apart from that list (the /config/profile/* CRUD
-    form), or None on a page that carries no such select.
-    """
-    soup = BeautifulSoup(html, "html.parser")
-    fields: list[dict[str, Any]] = []
-    profiles: dict[str, Any] | None = None
-
-    for form in soup.find_all("form", method="post"):
-        section: str | None = None
-        label: str | None = None
-        for el in form.descendants:
-            if not isinstance(el, Tag):
-                continue
-            if el.name == "h2":
-                section = el.get_text(strip=True)
-            elif el.name == "h3":
-                label = el.get_text(strip=True)
-            elif el.name == "input":
-                field = _parse_input(el, section, label)
-                if field is not None:
-                    fields.append(field)
-            elif el.name == "select":
-                field = _parse_select(el, section, label)
-                if field["name"] == "profile":
-                    # the profile CRUD form (POST /config/profile/*); [default]
-                    # is the empty-value unnamed base configuration
-                    profiles = field
-                else:
-                    fields.append(field)
-
-    return {"fields": fields, "profiles": profiles}
-
-
-# /matrix pipeline-table fields are indexed per row: source_0, gain_0, ... The
-# `plot` checkbox is a client-side toggle and `filter` the upload slot — neither
-# carries config state, so rows keep only the five value-bearing columns.
-_MATRIX_ROW_RE = re.compile(r"^(source|gain|gainunit|mixdown|process|plot|filter)_(\d+)$")
-_MATRIX_ROW_SKIP = ("plot", "filter")
-
-
-def _matrix_active(soup: BeautifulSoup) -> str:
-    """Read the active matrix profile name, printed as ``<b>Active: </b>NAME`` on the form.
-
-    ``[Default]`` = the unnamed default.
-    """
-    for b in soup.find_all("b"):
-        if b.get_text(strip=True).startswith("Active:"):
-            text = b.next_sibling
-            if isinstance(text, str):
-                return text.strip()
-    return ""
-
-
-def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Join the profile text input with its ``<datalist>`` options, the saved matrix profiles.
-
-    The generic parser sees only a bare text input — the options live in a
-    datalist the input references by id.
-    """
-    if profile_field is None:
-        return None
-    datalist = soup.find("datalist")
-    options = [
-        {"value": opt.get("value", ""), "label": opt.get_text(strip=True)}
-        for opt in (datalist.find_all("option") if isinstance(datalist, Tag) else [])
-    ]
-    return {**profile_field, "options": options}
-
-
-def parse_matrix_form(html: str) -> dict[str, Any]:
-    """Parse the /matrix form into ``{fields, rows, profiles, active}``.
-
-    ``fields`` are the flat controls (enabled/engine/expand_hf/iir2fir + the
-    post-process plugin table); ``rows`` groups the indexed pipeline-table fields
-    (``source_N``/``gain_N``/``gainunit_N``/``mixdown_N``/``process_N``) into one
-    dict per pipeline; ``profiles`` is the profile input with its datalist
-    options; ``active`` the printed active-profile name. Tolerates the daemon's
-    malformed gainunit markup (``value="dB""`` — stray quote), which the HTML
-    parser reads as a normal value plus a junk attribute.
-    """
-    base = parse_config_form(html)
-    soup = BeautifulSoup(html, "html.parser")
-    rows: dict[int, dict[str, Any]] = {}
-    fields: list[dict[str, Any]] = []
-    profile_field: dict[str, Any] | None = None
-    for f in base["fields"]:
-        m = _MATRIX_ROW_RE.match(f.get("name") or "")
-        if m:
-            if m.group(1) not in _MATRIX_ROW_SKIP:
-                rows.setdefault(int(m.group(2)), {})[m.group(1)] = f.get("value")
-            continue
-        if f.get("name") == "profile":
-            profile_field = f
-            continue
-        fields.append(f)
-    return {
-        "fields": fields,
-        "rows": [{"index": i, **rows[i]} for i in sorted(rows)],
-        "profiles": _matrix_profiles(soup, profile_field),
-        "active": _matrix_active(soup),
-    }
-
-
-_SPEAKER_FIELD_RE = re.compile(r"^(level|distance)_(\d+)$")
 # readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
 _SPK_LEVEL = (-60.0, 0.0)
 _SPK_DISTANCE = (0.0, 5000.0)
 
 
-def parse_speakers_form(html: str) -> dict[str, Any]:
-    """Parse the /speakers form into ``{enabled, channels}``.
+class SpeakerValueNotNumericError(ValueError):
+    """A staged speaker field did not parse as a number at all."""
 
-    Speaker processing is a top-level config element (readme §1.9), absent from
-    /config — this is its only read surface. Each channel is ``{index, label, level, distance}`` plus the
-    input min/max/step constraints; ``label`` is the daemon's own channel name (the
-    ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...).
-    """
-    base = parse_config_form(html)
-    enabled = False
-    chans: dict[int, dict[str, Any]] = {}
-    for f in base["fields"]:
-        name = f.get("name") or ""
-        if name == "enabled":
-            enabled = bool(f.get("value"))
-            continue
-        m = _SPEAKER_FIELD_RE.match(name)
-        if m is None:
-            continue
-        kind, idx = m.group(1), int(m.group(2))
-        ch = chans.setdefault(idx, {"index": idx, "label": f.get("section")})
-        ch[kind] = f.get("value")
-        for attr in ("min", "max", "step"):
-            if attr in f:
-                ch[f"{kind}_{attr}"] = f[attr]
-    return {"enabled": enabled, "channels": [chans[i] for i in sorted(chans)]}
+    def __init__(self, *, field: str, value: str) -> None:
+        """Render the wording naming the field and the non-numeric value it was given."""
+        super().__init__(f"speakers: {field}={value!r} is not numeric")
+
+
+class SpeakerValueOutOfRangeError(ValueError):
+    """A staged speaker field parsed but fell outside its allowed range."""
+
+    def __init__(self, *, field: str, value: str, bounds: tuple[float, float]) -> None:
+        """Render the wording naming the field, the rejected value, and the bounds it must fall in."""
+        lo, hi = bounds
+        super().__init__(f"speakers: {field}={value} out of range [{lo:g}, {hi:g}]")
 
 
 def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -> str:
@@ -233,9 +45,9 @@ def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -
     try:
         n = float(value)
     except (TypeError, ValueError):
-        raise ValueError(f"speakers: {field}={value!r} is not numeric") from None
+        raise SpeakerValueNotNumericError(field=field, value=value) from None
     if not (lo <= n <= hi):
-        raise ValueError(f"speakers: {field}={value} out of range [{lo:g}, {hi:g}]")
+        raise SpeakerValueOutOfRangeError(field=field, value=value, bounds=bounds)
     return value
 
 
@@ -270,7 +82,7 @@ def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
 def _selected_value(el: Tag) -> str:
     opts = el.find_all("option")
     sel = next((o for o in opts if o.has_attr("selected")), opts[0] if opts else None)
-    return (_attr(sel, "value") or "") if isinstance(sel, Tag) else ""
+    return (attr(sel, "value") or "") if isinstance(sel, Tag) else ""
 
 
 def _submitted_value(el: Tag) -> str | None:
@@ -283,12 +95,20 @@ def _submitted_value(el: Tag) -> str | None:
     if itype in ("submit", "button"):
         return None
     if itype == "checkbox":
-        return (_attr(el, "value") or "on") if el.has_attr("checked") else None
-    return _attr(el, "value") or ""
+        return (attr(el, "value") or "on") if el.has_attr("checked") else None
+    return attr(el, "value") or ""
 
 
 # The CRUD verbs /config/profile/{action} takes for the preset mirrors.
 _ACTIONS = ("load", "save", "delete")
+
+
+class UnknownProfileActionError(ValueError):
+    """A staged ``/config/profile`` action is not one of ``_ACTIONS``."""
+
+    def __init__(self, *, action: str) -> None:
+        """Render the wording naming the unrecognized action."""
+        super().__init__(f"unknown profile action: {action}")
 
 
 class HttpConfigClient:
@@ -305,6 +125,26 @@ class HttpConfigClient:
             auth=httpx.DigestAuth(username, password),
             timeout=timeout,
         )
+        #: What this client's own requests have proven about the credentials it was
+        #: built with — None until the first response lands, then True or False.
+        #: This field is never reset by a request that fails for a reason other
+        #: than the credentials (a plain wire fault leaves whatever verdict is
+        #: already here standing).
+        self.credentials_ok: bool | None = None
+
+    def _mark(self, resp: httpx.Response) -> None:
+        """Raise on any non-2xx, recording what this response proved about the credentials.
+
+        The one place ``AuthRefused`` is caught for that purpose: a side effect on
+        this client's own state, not a value — the exception propagates unchanged
+        to every caller on this lane.
+        """
+        try:
+            raise_for_status(resp)
+        except AuthRefused:
+            self.credentials_ok = False
+            raise
+        self.credentials_ok = True
 
     async def _get(self, path: str) -> httpx.Response:
         """GET, raising on any non-2xx.
@@ -313,24 +153,30 @@ class HttpConfigClient:
         the status and parse an error page as if it were a form.
         """
         resp = await self._client.get(path)
-        raise_for_status(resp)
+        self._mark(resp)
         return resp
 
-    async def _post(self, path: str, **kwargs: Any) -> None:
+    async def _post(
+        self,
+        path: str,
+        *,
+        data: dict[str, str] | None = None,
+        files: dict[str, tuple[str, bytes, str]] | None = None,
+    ) -> None:
         """POST, raising on any non-2xx.
 
         No caller needs the body — the daemon answers a write with its own HTML
         page, and what actually landed is established by readback, never by the
         response.
         """
-        resp = await self._client.post(path, **kwargs)
-        raise_for_status(resp)
+        resp = await self._client.post(path, data=data, files=files)
+        self._mark(resp)
 
-    async def get_config(self) -> dict[str, Any]:
+    async def get_config(self) -> ConfigForm:
         """GET /config — the persistent-settings form, parsed into fields plus the preset select."""
         return parse_config_form((await self._get("/config")).text)
 
-    async def get_matrix(self) -> dict[str, Any]:
+    async def get_matrix(self) -> MatrixForm:
         """GET /matrix — the pipeline/post-processing form.
 
         Carries pipeline rows, matrix profiles, Bauer crossfeed, DAC correction
@@ -344,7 +190,7 @@ class HttpConfigClient:
     # config edits and load rides 4321 ``MatrixSetProfile``. Nothing here
     # writes /matrix.
 
-    async def get_speakers(self) -> dict[str, Any]:
+    async def get_speakers(self) -> SpeakersForm:
         """GET /speakers — the multi-channel speaker-processing form (readme §1.9).
 
         Carries the enabled switch and per-channel level (dBFS) + distance (cm).
@@ -381,7 +227,7 @@ class HttpConfigClient:
         `load` also restarts the daemon.
         """
         if action not in _ACTIONS:
-            raise ValueError(f"unknown profile action: {action}")
+            raise UnknownProfileActionError(action=action)
         await self._post(f"/config/profile/{action}", data=fields)
 
     async def refresh_devices(self) -> None:

@@ -85,7 +85,7 @@ const env = globalThis;
  */
 
 /**
- * The /api/config/live success body.
+ * The report a /api/config/live success body carries.
  *
  * @typedef {{ live: LiveReportEntry[] }} LiveReport
  */
@@ -178,7 +178,7 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
   env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
       w.posts.push(JSON.parse(String(opts.body)));
-      return status === 200 ? ok(report) : bad(status, detail);
+      return status === 200 ? ok({ report }) : bad(status, detail);
     }
     const answer = reads[path];
     return answer ? answer() : ok({});

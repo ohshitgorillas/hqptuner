@@ -268,6 +268,8 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
 
 def _backup_response(st: dict[str, Any]) -> bytes:
     """The archive GET /backup/settings.zip serves right now."""
+    if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
+        return b"not a zip archive"
     if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
         return _empty_backup_zip()
     # after a restore the daemon serves the pre-restart archive for a read or two
@@ -495,7 +497,9 @@ class _Server(ThreadingHTTPServer):
     #: registered on it and severed on demand.
     st: dict[str, Any]
 
-    def process_request_thread(self, request: Any, client_address: Any) -> None:
+    def process_request_thread(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
+    ) -> None:
         # A keep-alive connection is held for as long as its handler thread runs,
         # so that thread's lifetime is the socket's: registering here is what
         # lets `_take_lane_down` drop the connections a dead daemon would.
@@ -508,7 +512,12 @@ class _Server(ThreadingHTTPServer):
                 self.st.get("_open_connections", set()).discard(request)
 
 
-def spawn(st: dict[str, Any], host: str = "127.0.0.1", bind_port: int = 0) -> Iterator[dict[str, Any]]:
+def spawn(
+    st: dict[str, Any],
+    host: str = "127.0.0.1",
+    bind_port: int = 0,
+    handler: type[BaseHTTPRequestHandler] | None = None,
+) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly.
 
@@ -518,23 +527,39 @@ def spawn(st: dict[str, Any], host: str = "127.0.0.1", bind_port: int = 0) -> It
     daemons one config can name one at a time. Everything else takes the
     defaults and lands on an ephemeral 127.0.0.1 port as before.
 
+    `handler` lets a case bring its own `BaseHTTPRequestHandler` — a test whose
+    fake speaks a shape this module's dict-driven `_http_handler` does not
+    cover — while still getting this function's teardown, with the same
+    handler-thread-per-connection server underneath. Left out, it defaults to
+    this module's own handler over `st`.
+
     `_take_lane_down` is the whole 8088 lane going away: the listener stops
     accepting, so a new connection is refused, and every connection the fake was
     holding is severed. It is idempotent and teardown calls it, so a case that
     takes the lane down mid-test costs nothing extra at the end."""
-    server = _Server((host, bind_port), _http_handler(st))
+    server = _Server((host, bind_port), handler or _http_handler(st))
     server.st = st
-    # poll_interval is what `shutdown()` waits on, so it is per-test teardown
-    # cost: the 0.5 s default charged every fixture half a second for nothing.
-    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-    thread.start()
+    server.timeout = None  # `handle_request` blocks in `select` rather than polling
     st["_port"] = server.server_address[1]
-    st["_listening"] = True
+    st["_listening"] = True  # set before the thread starts: it reads this flag on every pass
+
+    def serve() -> None:
+        while st.get("_listening"):
+            server.handle_request()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
 
     def take_lane_down() -> None:
         if st.get("_listening"):
             st["_listening"] = False
-            server.shutdown()
+            # `handle_request` is parked in `select` on the listening socket, not
+            # polling a timeout, so clearing the flag alone leaves it asleep: one
+            # loopback connection wakes it, it is accepted and handled (an empty
+            # request, harmless), and the loop then sees the flag cleared and
+            # returns instead of calling `handle_request` again.
+            with contextlib.suppress(OSError), socket.create_connection((host, st["_port"]), timeout=1):
+                pass
             thread.join()
             server.server_close()
         _sever_open_connections(st)
@@ -544,7 +569,7 @@ def spawn(st: dict[str, Any], host: str = "127.0.0.1", bind_port: int = 0) -> It
     take_lane_down()
 
 
-def state(**extra: Any) -> dict[str, Any]:
+def state(**extra: object) -> dict[str, Any]:
     # forced-field defaults deliberately DIFFER from what HQPTuner pins on write
     # (auto_family off, rates non-zero), so a forcing test proves a real change.
     return {

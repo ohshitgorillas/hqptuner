@@ -25,15 +25,18 @@ frontend says so beside the rescan control instead.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING
 
-from hqptuner.engine.control import ControlError
-from hqptuner.lanes import settle
+from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.live import lane, routing
 from hqptuner.lanes.live.snapshot import live_snapshot
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes.live.lane import LiveApplyReport
+    from hqptuner.lanes.writer import LiveWriteResult
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ def _setting_of(name: str) -> str:
     return routing.ROUTABLE[name].setting if name in routing.ROUTABLE else name
 
 
-def _restored(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str, str]:
+def _restored(report: list[LiveWriteResult], fields: dict[str, str]) -> dict[str, str]:
     """Return the snapshot fields whose setter came back verified by readback.
 
     A field held for the chain the engine did not load is not in here: it was
@@ -81,24 +84,28 @@ def _restored(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str,
     change nobody can hear (``lane.apply_now``). A replay that dies partway
     reports what landed before it did, for the same reason.
     """
-    landed = {entry["setting"] for entry in report if entry["ok"]}
+    landed = {entry.setting for entry in report if entry.ok}
     return {name: value for name, value in fields.items() if _setting_of(name) in landed}
 
 
-async def _reachable(mgr: ConnectionManager) -> bool:
-    """Whether the control lane is answering again: a read succeeds, not a flag.
+async def _await_engine(mgr: ConnectionManager) -> bool:
+    """Wait until the control lane answers again, polling to the alarm deadline; False when it never does.
 
-    The manager's reachable flag is flipped by its own poll loop, which races the
-    replay to a dead socket. Trusting the flag made the warning depend on which
-    task noticed first; asking the lane makes it depend on the lane. The probe
-    is the re-read itself, so a lane that answers leaves the manager holding
-    what the engine came back on.
+    Asks the lane, not the manager's reachable flag: that flag is flipped by the
+    poll loop, which races the replay to a dead socket, so trusting it would make
+    the answer depend on which task noticed first. The probe is the re-read itself,
+    so a lane that answers leaves the manager holding what the engine came back on.
     """
-    try:
-        await _reread_engine(mgr)
-    except ControlError:
-        return False
-    return True
+    end = mgr.clock.monotonic() + mgr.alarm_threshold
+    while mgr.clock.monotonic() < end:
+        try:
+            await _reread_engine(mgr)
+        except ControlError as exc:
+            log.debug("device rescan: engine not answering yet: %s", exc)
+            await mgr.clock.sleep(READY_INTERVAL)
+            continue
+        return True
+    return False
 
 
 async def _reread_engine(mgr: ConnectionManager) -> None:
@@ -112,9 +119,7 @@ async def _reread_engine(mgr: ConnectionManager) -> None:
     the filter and shaper enumerations the replay resolves against are the other
     chain's.
     """
-    client = mgr.control
-    if client is None:
-        raise ControlError("daemon not connected")
+    client = mgr.require_control()
     mgr.readings.state = await client.get_state()
     mgr.readings.enums = await client.get_all_enumerations()
 
@@ -155,36 +160,62 @@ def _lost(mgr: ConnectionManager, fields: dict[str, str], restored: dict[str, st
     return missing
 
 
-async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
+class ReplayOutcome(Enum):
+    """What a post-rescan replay of the live snapshot came back with."""
+
+    NOTHING_TO_RESTORE = "nothing_to_restore"  # no snapshot taken, or nothing the rescan actually moved
+    UNREACHABLE = "unreachable"  # the daemon is unreachable after the restart
+    WRITE_FAILED = "write_failed"  # the replay raised, or a field fails verification
+    RESTORED = "restored"  # every field the rescan moved verifies
+
+
+#: What the user is told for each outcome that left the engine off what it ran before the rescan.
+WARNINGS = {ReplayOutcome.UNREACHABLE: NO_DAEMON, ReplayOutcome.WRITE_FAILED: WRITE_FAILED}
+
+
+@dataclass(frozen=True)
+class ReplayResult:
+    """A replay's outcome, and the snapshot fields whose setter verified by readback."""
+
+    outcome: ReplayOutcome
+    restored: dict[str, str] = field(default_factory=dict)
+
+
+async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> ReplayResult:
     """Put a snapshot back on the engine once it answers again.
 
-    Answers ``restored`` — the fields whose setter verified by readback — and a
-    ``warning`` when the engine is not running what it was running before. The
-    rescan itself succeeded either way, so neither outcome is an error: the
-    caller reports the rescan as done and carries the warning.
+    Answers ``restored`` — the fields whose setter verified by readback — and an
+    outcome saying whether the engine is running what it ran before. The rescan
+    itself succeeded either way, so no outcome is an error: the caller reports the
+    rescan as done and words the outcome (``WARNINGS``).
 
-    Silence here is the original bug wearing a different hat. A rescan that
-    reports nothing but success while the engine sits on the config file's values
-    is exactly what this module exists to stop, so the check is on the outcome
-    and not on whether anything raised.
+    No outcome is silent. A rescan reported as a plain success while the engine
+    sits on the config file's values is exactly what this module exists to stop,
+    so the check is on the outcome and not on whether anything raised.
     """
     if not fields:
-        return {"restored": {}}
-    if not await settle.poll_until(mgr, lambda: _reachable(mgr), interval=READY_INTERVAL):
+        return ReplayResult(ReplayOutcome.NOTHING_TO_RESTORE)
+    if not await _await_engine(mgr):
         log.warning("device rescan: daemon never came back, live settings not restored")
-        return {"restored": {}, "warning": NO_DAEMON}
+        return ReplayResult(ReplayOutcome.UNREACHABLE)
+    moved = _moved(mgr, fields)
+    if not moved:
+        return ReplayResult(ReplayOutcome.NOTHING_TO_RESTORE)
+    report: LiveApplyReport | None = None
     try:
-        moved = _moved(mgr, fields)
-        if not moved:
-            return {"restored": {}}
         report = await lane.apply_preset(mgr, moved)
     except (ControlError, routing.LiveRouteError) as exc:
         log.warning("device rescan: restoring live settings failed: %s", exc)
-        return {"restored": {}, "warning": WRITE_FAILED}
-    restored = _restored(report["live"], moved)
-    result: dict[str, Any] = {"restored": restored}
-    lost = _lost(mgr, moved, restored, report["stored"])
+    return _judge(mgr, moved, report)
+
+
+def _judge(mgr: ConnectionManager, moved: dict[str, str], report: LiveApplyReport | None) -> ReplayResult:
+    """Say what a replay put back, on the readback-verified report; no report means the write itself died."""
+    if report is None:
+        return ReplayResult(ReplayOutcome.WRITE_FAILED)
+    restored = _restored(report.live, moved)
+    lost = _lost(mgr, moved, restored, report.stored)
     if lost:
         log.warning("device rescan: live settings not put back: %s", ", ".join(sorted(lost)))
-        result["warning"] = WRITE_FAILED
-    return result
+        return ReplayResult(ReplayOutcome.WRITE_FAILED, restored=restored)
+    return ReplayResult(ReplayOutcome.RESTORED, restored=restored)

@@ -7,6 +7,7 @@ more: the product string names the major but never the operating system, so each
 """
 
 import asyncio
+import contextlib
 import logging
 import socket
 import time
@@ -14,7 +15,8 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree
 
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
 
 log = logging.getLogger(__name__)
 
@@ -49,18 +51,38 @@ class Daemon:
     platform: str | None = None
 
 
-def parse_reply(payload: bytes, address: str) -> Daemon | None:
-    """Read one reply datagram into a record, or None where it is not a discovery reply.
+class NotAReplyError(ValueError):
+    """A datagram that is not a discovery reply: not XML, or the wrong root tag."""
+
+
+class NotXmlError(NotAReplyError):
+    """A discovery datagram that would not parse as XML at all."""
+
+    def __init__(self, *, error: ElementTree.ParseError) -> None:
+        """Render the wording naming the underlying XML parse error."""
+        super().__init__(f"not XML: {error}")
+
+
+class UnexpectedRootTagError(NotAReplyError):
+    """A datagram that parsed as XML but whose root tag was not ``discover``."""
+
+    def __init__(self, *, tag: str) -> None:
+        """Render the wording naming the unexpected root tag."""
+        super().__init__(f"unexpected root tag {tag!r}")
+
+
+def parse_reply(payload: bytes, address: str) -> Daemon:
+    """Read one reply datagram into a record, raising ``NotAReplyError`` where it is not a discovery reply.
 
     The address is the one the datagram arrived from, never one read out of the body: the body is not
     documented to carry an address at all, and a daemon behind any kind of forwarding would name the wrong one.
     """
     try:
         root = ElementTree.fromstring(payload)  # noqa: S314 - LAN datagram, attributes only, no entities read
-    except ElementTree.ParseError:
-        return None
+    except ElementTree.ParseError as exc:
+        raise NotXmlError(error=exc) from exc
     if root.tag != "discover":
-        return None
+        raise UnexpectedRootTagError(tag=root.tag)
     return Daemon(address=address, name=root.get("name", ""), version=root.get("version", ""))
 
 
@@ -112,16 +134,13 @@ async def _describe(address: str, port: int, request_timeout: float) -> dict[str
         await client.close()
 
 
-async def probe(address: str, control_port: int, request_timeout: float) -> Daemon | None:
-    """Answer the record for one address, or None where nothing answers there.
+async def probe(address: str, control_port: int, request_timeout: float) -> Daemon:
+    """Answer the record for one address, raising ``OSError`` or ``ControlError`` where nothing answers there.
 
-    The one path that names an address instead of waiting for a datagram, so an address that does not resolve
-    or refuses is a non-event rather than an error: it is the same "nothing there" a silent sweep reports.
+    The one path that names an address instead of waiting for a datagram. Whether "nothing there" is worth
+    reporting is the caller's call, not this function's: a silent sweep decides differently from a one-shot dial.
     """
-    try:
-        info = await _describe(address, control_port, request_timeout)
-    except (OSError, ControlError):
-        return None
+    info = await _describe(address, control_port, request_timeout)
     return Daemon(
         address=address,
         name=info.get("name", ""),
@@ -150,17 +169,14 @@ async def _collect(
     before it ends is read the buffer, and a socket answering without pause still ends on time.
     """
     replies: list[tuple[bytes, str]] = []
-    while True:
+    while clock() < deadline:
         try:
             data, addr = sock.recvfrom(65535)
         except BlockingIOError:
-            if clock() >= deadline:
-                return replies
             await sleep(POLL)
             continue
         replies.append((data, addr[0]))
-        if clock() >= deadline:
-            return replies
+    return replies
 
 
 @dataclass(frozen=True)
@@ -199,10 +215,16 @@ async def discover(
         replies = await _collect(sock, clock() + wait_seconds, clock, sleep)
     finally:
         sock.close()
-    found = [record for payload, address in replies if (record := parse_reply(payload, address))]
+    found: list[Daemon] = []
+    for payload, address in replies:
+        try:
+            found.append(parse_reply(payload, address))
+        except NotAReplyError:
+            continue
     if not found:
-        answered = await probe(search.alias, search.control_port, search.request_timeout)
-        return [answered] if answered is not None else []
+        with contextlib.suppress(OSError, ControlError):
+            found.append(await probe(search.alias, search.control_port, search.request_timeout))
+        return found
 
     async def describe(address: str) -> dict[str, str]:
         return await _describe(address, search.control_port, search.request_timeout)

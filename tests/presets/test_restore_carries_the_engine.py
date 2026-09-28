@@ -26,9 +26,11 @@ from typing import Any, NamedTuple
 
 import fake_http
 import pytest
-from conftest import spawn_threaded_daemon, wait_for_api
+from apps import wait_for_api
+from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, restart_into
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.conf import presetconf
@@ -76,16 +78,11 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         hqp_http_port=pcm_file_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
-        alarm_threshold=0.05,
-        # the restore's self-restart only reaches the manager on its next State
-        # poll (the fake cannot sever the 4321 socket a real restart does), so
-        # the poll runs at test pace rather than production's
-        poll_interval=0.02,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg)) as test_client:
+    with TestClient(create_app(cfg, VirtualClock())) as test_client:
         wait_for_api(test_client, _config_loaded)
         yield test_client
 

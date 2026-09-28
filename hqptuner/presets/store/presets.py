@@ -18,18 +18,58 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.audit import AuditLog
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
+from hqptuner.presets.store.jsonfile import read_stamped
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"
+
+
+class PresetStoreFile(TypedDict, total=False):
+    """The on-disk envelope of ``store.json``: the layout stamp beside the one per-store setting it carries."""
+
+    schema: int
+    autosave: bool
+
+
+class ActiveFile(TypedDict, total=False):
+    """The on-disk envelope of ``active.json``: the active preset's name, or ``None`` when nothing is loaded."""
+
+    active: str | None
+
+
+def _clean(stored: object) -> PresetStoreFile:
+    """Return a read ``store.json``'s envelope, keeping each member only when it has its ``PresetStoreFile`` type."""
+    out: PresetStoreFile = {}
+    if not isinstance(stored, dict):
+        return out
+    schema = stored.get("schema")
+    if isinstance(schema, int):
+        out["schema"] = schema
+    autosave = stored.get("autosave")
+    if isinstance(autosave, bool):
+        out["autosave"] = autosave
+    return out
+
+
+def _clean_active(stored: object) -> ActiveFile:
+    """Return a read ``active.json``'s envelope, keeping ``active`` only when it is a name or ``None``."""
+    out: ActiveFile = {}
+    if not isinstance(stored, dict):
+        return out
+    active = stored.get("active")
+    if active is None or isinstance(active, str):
+        out["active"] = active
+    return out
+
 
 # The store's on-disk layout version — what the directory MEANS, not which
 # HQPTuner wrote it. Bump only when an older HQPTuner would misread a newer
@@ -49,13 +89,61 @@ class PresetError(HQPTunerError, ValueError):
     code = "invalid_input"
 
 
+class PresetSchemaError(PresetError):
+    """The stored file is stamped newer than this HQPTuner understands.
+
+    A subclass of ``PresetError`` so a caller catching the general error catches this too, and separate from it so a
+    route can answer "this store is unreadable" rather than "no such preset", which would be a lie about a store that
+    is there and full.
+    """
+
+    code = "store_too_new"
+
+    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
+        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
+        super().__init__(
+            f"preset store is schema {stamp}, this HQPTuner {__version__} understands "
+            f"{understood} — upgrade HQPTuner to read {what}"
+        )
+
+
+class PresetNotFoundError(PresetError):
+    """No preset is stored under the given name."""
+
+    code = "not_found"
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the missing preset."""
+        super().__init__(f"no such preset: {name!r}")
+
+
+class InvalidPresetNameError(PresetError):
+    """A staged preset name failed the shared naming rule (``names.validate_name``)."""
+
+    code = "name_invalid"
+
+    def __init__(self, *, label: str, reason: str) -> None:
+        """Render the wording naming the label and the shared rule's refusal reason."""
+        super().__init__(f"Invalid {label} name: {reason}")
+
+
+class MixedScriptPresetNameError(PresetError):
+    """A first-time preset name mixed Latin and Cyrillic letters (``names.validate_new_name``)."""
+
+    code = "name_invalid"
+
+    def __init__(self, *, label: str) -> None:
+        """Render the wording naming the label, with the shared rule's fixed mixed-scripts reason."""
+        super().__init__(f"Invalid {label} name: {names.MIXED_SCRIPTS}")
+
+
 def canonical_name(name: str) -> str:
     """Return the name the store keys ``name`` under, raising ``PresetError`` when it is not a preset name.
 
     Trailing whitespace is trimmed, so a caller that goes on to use the name
     (mirror, pointer, audit, response) uses this value, never its argument.
     """
-    return names.validate_name(name, PresetError, "preset")
+    return names.validate_name(name, InvalidPresetNameError, "preset")
 
 
 class PresetStore:
@@ -74,29 +162,19 @@ class PresetStore:
     def _path(self, name: str) -> Path:
         return self._dir / f"{canonical_name(name)}.xml"
 
-    def _meta(self) -> dict[str, Any]:
-        """``store.json`` as a dict, empty when absent or unreadable.
+    def _meta(self) -> PresetStoreFile:
+        """Return ``store.json``'s envelope, validated by ``_clean``, empty when absent.
 
         Raises ``PresetError`` when the store is stamped newer than this HQPTuner
-        understands — every path that touches the store goes through here, so a
-        too-new store refuses uniformly instead of half-working.
+        understands, and ``StoreCorruptError`` when the file cannot be read as a
+        JSON object at all — every path that touches the store goes through
+        here, so both refuse uniformly instead of half-working.
         """
-        path = self._dir / _STORE_FILE
-        if not path.is_file():
-            return {}
-        try:
-            data = json.loads(path.read_text())
-        except (ValueError, OSError):
-            return {}
-        if not isinstance(data, dict):
-            return {}
-        schema = data.get("schema")
-        if isinstance(schema, int) and schema > _SCHEMA:
-            raise PresetError(
-                f"preset store is schema {schema}, this HQPTuner {__version__} understands "
-                f"{_SCHEMA} — upgrade HQPTuner to read these presets"
-            )
-        return data
+
+        def _too_new(stamp: int) -> PresetSchemaError:
+            return PresetSchemaError(stamp=stamp, understood=_SCHEMA, what="these presets")
+
+        return _clean(read_stamped(self._dir / _STORE_FILE, store="preset", schema=_SCHEMA, too_new=_too_new))
 
     def _ensure_dir(self) -> None:
         """Guard the schema, create the store directory, and stamp it if it carries no stamp yet.
@@ -132,7 +210,7 @@ class PresetStore:
         self._meta()
         path = self._path(name)
         if not path.is_file():
-            raise PresetError(f"no such preset: {name!r}", code="not_found")
+            raise PresetNotFoundError(name=name)
         return path.read_bytes()
 
     def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
@@ -150,7 +228,7 @@ class PresetStore:
         if not overwrote and trigger != "migration":
             # A first save takes the stricter rule; a migration copies a name the
             # daemon already holds rather than creating one, so it is exempt.
-            names.validate_new_name(name, PresetError, "preset")
+            names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
         path.write_bytes(xml)
         self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
@@ -162,7 +240,7 @@ class PresetStore:
         name = canonical_name(name)
         path = self._path(name)
         if not path.is_file():
-            raise PresetError(f"no such preset: {name!r}", code="not_found")
+            raise PresetNotFoundError(name=name)
         was_active = self.active == name  # unlinking does not touch the pointer
         path.unlink()
         self._audit.preset_delete(name, was_active=was_active)
@@ -180,32 +258,19 @@ class PresetStore:
         return bool(self._meta().get("autosave"))
 
     def set_autosave(self, *, enabled: bool) -> None:
-        """Record the autosave flag in ``store.json``, preserving the rest of the file, and audit the change."""
-        meta = self._meta()
-        previous = bool(meta.get("autosave"))
+        """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
+        previous = self._meta().get("autosave", False)
         self._ensure_dir()
-        meta["schema"] = meta.get("schema", _SCHEMA)
-        meta["autosave"] = bool(enabled)
-        (self._dir / _STORE_FILE).write_text(json.dumps(meta))
+        (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
         self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
     def active(self) -> str | None:
         """The active preset name, or ``None`` when nothing is loaded.
 
-        Also ``None`` when the pointer is unreadable.
+        Raises ``StoreCorruptError`` when the pointer file exists but cannot be read as a JSON object.
         """
-        path = self._dir / _ACTIVE_FILE
-        if not path.is_file():
-            return None
-        try:
-            data = json.loads(path.read_text())
-        except (ValueError, OSError):
-            return None
-        if isinstance(data, dict):
-            value = data.get("active")
-            return value if isinstance(value, str) else None
-        return None
+        return _clean_active(read_stamped(self._dir / _ACTIVE_FILE, store="preset active pointer")).get("active")
 
     def set_active(self, name: str | None) -> None:
         """Point ``active.json`` at ``name``, or clear it with ``None``, and audit the change.

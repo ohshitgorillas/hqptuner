@@ -35,12 +35,15 @@ import pytest
 class FixtureError(Exception):
     """A test's own scaffolding is wrong — not a failure of the behavior under test."""
 
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
 
 def tool(name: str) -> str:
     """The absolute path of an executable these cases drive, refusing to collect without it."""
     found = shutil.which(name)
     if found is None:
-        raise FixtureError(f"no {name} on this system, and these cases drive a real one")
+        raise FixtureError(reason=f"no {name} on this system, and these cases drive a real one")
     return found
 
 
@@ -130,7 +133,7 @@ def git(repo: Path, *args: str) -> None:
         timeout=60,
     )
     if done.returncode != 0:
-        raise FixtureError(f"git {' '.join(args)} failed: {done.stderr}")
+        raise FixtureError(reason=f"git {' '.join(args)} failed: {done.stderr}")
 
 
 def miniature_repo(tmp_path: Path, judge: str) -> Path:
@@ -141,7 +144,7 @@ def miniature_repo(tmp_path: Path, judge: str) -> Path:
     (repo / "hqptuner").mkdir()
     (repo / JUDGE_REL).parent.mkdir(parents=True)
     if not BUMP_PATH.is_file():
-        raise FixtureError(f"no release script at {BUMP_PATH}")
+        raise FixtureError(reason=f"no release script at {BUMP_PATH}")
     shutil.copy2(BUMP_PATH, repo / "scripts" / "bump.sh")
     (repo / "pyproject.toml").write_text(PYPROJECT, encoding="utf-8")
     (repo / "hqptuner" / "__init__.py").write_text(INIT_PY, encoding="utf-8")
@@ -175,7 +178,7 @@ def version_of(repo: Path) -> str:
     """The version ``pyproject.toml`` carries."""
     found = VERSION_LINE.search((repo / "pyproject.toml").read_text(encoding="utf-8"))
     if found is None:
-        raise FixtureError("no version line in the miniature repo's pyproject.toml")
+        raise FixtureError(reason="no version line in the miniature repo's pyproject.toml")
     return found.group(1)
 
 

@@ -18,15 +18,20 @@ from typing import TYPE_CHECKING, Any
 
 import fake_metering
 import pytest
+from apps import advance_app, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.engine.metering import IDLE_RECHECK
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, MutableMapping
     from pathlib import Path
+
+    from fastapi import FastAPI
 
 BINS = 1025
 TRANSFORM_BITS = 16
@@ -84,14 +89,14 @@ def _first_complete_event(text: str) -> tuple[str, str] | None:
     return None
 
 
-async def _read_first_event(app: Any, state: dict[str, Any]) -> tuple[str, str] | None:
+async def _read_first_event(app: FastAPI, state: dict[str, Any]) -> tuple[str, str] | None:
     """GET the feed, read until its first event, hang up; ``None`` where the
     response ends without one."""
     sent: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     hung_up = asyncio.Event()
     requested = False
 
-    async def receive() -> dict[str, Any]:
+    async def receive() -> MutableMapping[str, Any]:
         nonlocal requested
         if not requested:
             requested = True
@@ -99,8 +104,8 @@ async def _read_first_event(app: Any, state: dict[str, Any]) -> tuple[str, str] 
         await hung_up.wait()
         return {"type": "http.disconnect"}
 
-    async def send(message: dict[str, Any]) -> None:
-        await sent.put(message)
+    async def send(message: MutableMapping[str, Any]) -> None:
+        await sent.put(dict(message))
 
     scope = {
         "type": "http",
@@ -137,10 +142,17 @@ async def _read_first_event(app: Any, state: dict[str, Any]) -> tuple[str, str] 
     return event
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def _first_event(client: TestClient) -> tuple[str, Any] | None:
     portal = client.portal
     if portal is None:
-        raise RuntimeError("the client is not running its app")
+        raise FixtureError(reason="the client is not running its app")
     event = portal.call(_read_first_event, client.app, dict(getattr(client, "app_state", {})))
     if event is None:
         return None
@@ -172,7 +184,12 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
         )
-        return closing.enter_context(TestClient(create_app(cfg)))
+        client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
+        # connected, then one idle recheck of the reader's, which is when it
+        # sees the engine playing and dials the stream
+        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        advance_app(client, IDLE_RECHECK)
+        return client
 
     yield build
     closing.close()

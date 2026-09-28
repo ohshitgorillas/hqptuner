@@ -47,8 +47,6 @@ WRAPPER_VALUE_OPTS = {
 SHELLS = frozenset({"bash", "sh", "zsh"})
 #: `-c`, `-lc`, `-ec`: a shell option cluster that makes the next word the command string
 SHELL_C = re.compile(r"^-[A-Za-z]*c[A-Za-z]*$")
-#: fallback stage separators, for a command shlex cannot tokenize (unbalanced quotes)
-SEPARATORS = re.compile(r"\|\|?|&&?|;|\n|\$\(|[()`]")
 #: characters shlex splits out as operator tokens
 PUNCTUATION = "();<>|&\n"
 #: operator characters that end a stage; `&` alone or doubled does too, `>&` does not
@@ -59,6 +57,13 @@ _WHY = (
     "(hqp_find, hqp_section, hqp_page, hqp_readme, hqp_toc), not from the shell. "
     "They cite section and page and keep the dump out of context."
 )
+
+
+class UnparsableCommandError(ValueError):
+    """A command line the shell lexer cannot tokenize."""
+
+    def __init__(self, cause: ValueError) -> None:
+        super().__init__(f"unparsable command: {cause}")
 
 
 def _is_break(token: str) -> bool:
@@ -78,8 +83,8 @@ def _stages(cmd: str) -> list[list[str]]:
     lexer.whitespace_split = True
     try:
         tokens = list(lexer)
-    except ValueError:
-        return [stage.split() for stage in SEPARATORS.split(cmd)]
+    except ValueError as exc:
+        raise UnparsableCommandError(exc) from exc
     stages: list[list[str]] = [[]]
     for token in tokens:
         if _is_break(token):
@@ -135,7 +140,11 @@ def main() -> None:
         return
     if data.get("tool_name") != "Bash":
         return
-    reason = verdict((data.get("tool_input") or {}).get("command", ""))
+    try:
+        reason = verdict((data.get("tool_input") or {}).get("command", ""))
+    except UnparsableCommandError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(2)
     if reason is None:
         return
     print(

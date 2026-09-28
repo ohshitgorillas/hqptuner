@@ -47,10 +47,6 @@ def test_engine_read_serves_the_hardware_attrs(http_client: TestClient) -> None:
     assert http_client.get("/api/engine").json()["engine"]["cuda"] == "1"
 
 
-def test_engine_apply_submits_the_override(http_client: TestClient) -> None:
-    assert http_client.post("/api/engine", json={"overrides": {"cuda": "0"}}).json()["submitted"] is True
-
-
 def test_engine_apply_with_nothing_to_change_is_rejected(http_client: TestClient) -> None:
     assert http_client.post("/api/engine", json={"overrides": {}}).status_code == 400
 
@@ -67,7 +63,7 @@ def test_engine_apply_rejects_a_value_outside_its_domain(http_client: TestClient
 
 
 def test_profile_save_persists_a_named_preset(http_client: TestClient) -> None:
-    assert http_client.post("/api/profile/save", json={"name": "Kept"}).json()["ok"] is True
+    assert http_client.post("/api/profile/save", json={"name": "Kept"}).json()["name"] == "Kept"
 
 
 def test_saved_preset_previews_from_the_store(http_client: TestClient) -> None:
@@ -114,7 +110,7 @@ def test_loading_a_missing_preset_is_not_found(http_client: TestClient) -> None:
 
 def test_preset_delete_reports_ok(http_client: TestClient) -> None:
     http_client.post("/api/profile/save", json={"name": "Kept"})
-    assert http_client.delete("/api/preset/Kept").json()["ok"] is True
+    assert http_client.delete("/api/preset/Kept").json()["name"] == "Kept"
 
 
 def test_deleting_a_missing_preset_is_not_found(http_client: TestClient) -> None:
@@ -135,7 +131,7 @@ def test_profile_load_when_the_daemon_goes_down_is_bad_gateway(
 def test_apply_and_save_reports_the_saved_preset(http_client: TestClient) -> None:
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     resp = http_client.post("/api/config/apply", json={"save": {"name": "Kept"}})
-    assert resp.json()["saved"]["ok"] is True
+    assert resp.json()["saved"]["name"] == "Kept"
 
 
 def test_apply_and_save_persists_the_applied_edit_into_the_preset(http_client: TestClient) -> None:
@@ -155,7 +151,7 @@ def test_failed_apply_skips_the_save(http_client: TestClient) -> None:
 def test_apply_switches_to_the_previewed_preset(http_client: TestClient) -> None:
     http_client.post("/api/profile/save", json={"name": "Kept"})
     resp = http_client.post("/api/config/apply", json={"switch_to": "Kept"})
-    assert resp.json()["switched"]["active"] is True
+    assert resp.json()["report"]["switched"]["active"] is True
 
 
 # --- applying "(no preset)": drop the bookmark, leave the daemon alone ---------
@@ -166,18 +162,21 @@ def test_apply_switches_to_the_previewed_preset(http_client: TestClient) -> None
 # else: no restore, no restart, no backup fetch.
 
 
-def test_applying_no_preset_clears_the_active_preset(http_client: TestClient) -> None:
+def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestClient) -> None:
     http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
     http_client.post("/api/profile/save", json={"name": "Kept"})
+    http_client.post("/api/config/apply", json={"switch_to": "Kept"})
+    with_switch = http_client.get("/api/config").json()["data"]["active"]
     http_client.post("/api/config/apply", json={"switch_to": ""})
-    assert http_client.get("/api/config").json()["data"]["active"] == ""
+    without_switch = http_client.get("/api/config").json()["data"]["active"]
+    assert (without_switch, with_switch) == ("", "Kept")
 
 
 def test_applying_no_preset_reports_the_switch_as_taken(http_client: TestClient) -> None:
     # the report is what keeps the staging buffer: a switch that reads as not
     # taken makes the apply a soft failure and the picker snaps back
     http_client.post("/api/profile/save", json={"name": "Kept"})
-    switched = http_client.post("/api/config/apply", json={"switch_to": ""}).json()["switched"]
+    switched = http_client.post("/api/config/apply", json={"switch_to": ""}).json()["report"]["switched"]
     assert (switched["name"], switched["active"]) == ("", True)
 
 
@@ -197,7 +196,7 @@ def test_applying_no_preset_sends_no_restore_to_the_daemon(
 
 def test_speakers_apply_reports_the_verified_write(http_client: TestClient) -> None:
     resp = http_client.post("/api/speakers", json={"enabled": True, "channels": {"0": {"level": "-3"}}})
-    assert resp.json()["applied"] is True
+    assert resp.json()["report"]["applied"] is True
 
 
 def test_speakers_apply_rejects_an_out_of_range_level(http_client: TestClient) -> None:

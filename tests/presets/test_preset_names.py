@@ -19,18 +19,17 @@ import contextlib
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from hqptuner.presets.store.live import LivePresetError, LivePresetStore
+from hqptuner.presets.store.live import LivePresetError, LivePresetStore, LiveRecord
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
 
 # The shape a live snapshot record has on the wire (see tests/live/test_live_presets.py);
 # the store treats it as opaque, so the contents only need to survive a round trip.
-RECORD: dict[str, Any] = {"chain": "pcm", "fields": {"filter": "40"}, "names": {"filter": "poly-sinc-gauss-long"}}
+RECORD = LiveRecord(chain="pcm", fields={"filter": "40"}, names={"filter": "poly-sinc-gauss-long"})
 
 # Names that break nothing and must therefore be accepted verbatim. Measured
 # against hqplayerd 6.0.4 on 2026-08-02: every one of these round-trips
@@ -109,7 +108,7 @@ def live_store(tmp_path: Path, seeded: str | None = None) -> LivePresetStore:
     if seeded is not None:
         LivePresetStore(path).save("seed", RECORD)
         stamped = json.loads(path.read_text())
-        stamped["presets"] = {seeded: RECORD}
+        stamped["presets"] = {seeded: RECORD.to_json()}
         path.write_text(json.dumps(stamped))
     return LivePresetStore(path)
 
@@ -165,16 +164,10 @@ def test_a_live_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path
 # --- Unicode normalization is not the store's business -----------------------
 
 
-def test_a_decomposed_name_reads_back_still_decomposed(tmp_path: Path) -> None:
+def test_a_decomposed_name_reads_back_still_decomposed_but_not_under_the_precomposed_name(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.save(DECOMPOSED, PAYLOAD)
-    assert store.names() == [DECOMPOSED]
-
-
-def test_a_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save(DECOMPOSED, PAYLOAD)
-    assert store.exists(PRECOMPOSED) is False
+    assert (store.names(), store.exists(PRECOMPOSED)) == ([DECOMPOSED], False)
 
 
 def test_a_decomposed_live_preset_name_reads_back_still_decomposed(tmp_path: Path) -> None:
@@ -252,12 +245,6 @@ def test_import_takes_a_mixed_script_daemon_profile_that_a_later_new_save_is_ref
 # --- the 255-BYTE filename boundary -----------------------------------------
 
 
-def test_a_name_whose_utf8_bytes_plus_suffix_are_exactly_255_is_accepted(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save(LONGEST_ACCEPTED, PAYLOAD)
-    assert store.read(LONGEST_ACCEPTED) == PAYLOAD
-
-
 # --- a refusal writes nothing ------------------------------------------------
 
 
@@ -271,7 +258,7 @@ def test_a_name_whose_utf8_bytes_plus_suffix_are_exactly_255_is_accepted(tmp_pat
         pytest.param(FIRST_REFUSED_LENGTH, id="over-255-bytes"),
     ],
 )
-def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> None:
+def test_a_refused_name_puts_no_payload_on_disk_but_an_accepted_255_byte_name_does(tmp_path: Path, name: str) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
     # this test owns is the disk check. A refused save may still materialize the
     # store directory and its stamp — that is bookkeeping, not a payload, so the
@@ -279,4 +266,6 @@ def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> No
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
         store.save(name, PAYLOAD)
-    assert [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()] == []
+    refused = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
+    store.save(LONGEST_ACCEPTED, PAYLOAD)
+    assert (refused, store.read(LONGEST_ACCEPTED)) == ([], PAYLOAD)

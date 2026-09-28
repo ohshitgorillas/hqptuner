@@ -209,11 +209,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return args
 
 
+class CliError(Exception):
+    """A condition that stops the sweep cold; `main` prints it and owns the exit code."""
+
+
 def parse_viewport(value: str) -> tuple[int, int]:
     """Split a ``WxH`` viewport string into its two integers."""
     match = re.fullmatch(r"(\d+)x(\d+)", value.strip().lower())
     if not match:
-        raise SystemExit(f"bad --viewport {value!r}: expected WxH, e.g. 1280x900")
+        message = f"bad --viewport {value!r}: expected WxH, e.g. 1280x900"
+        raise CliError(message)
     return int(match.group(1)), int(match.group(2))
 
 
@@ -232,7 +237,8 @@ def keep_tabs(tabs: list[dict[str, Any]], wanted: list[str]) -> list[dict[str, A
     names = {w.strip().lower() for w in wanted}
     kept = [t for t in tabs if t["id"].lower() in names or t["label"].lower() in names]
     if not kept:
-        raise SystemExit(f"--tab matched nothing among {[t['id'] for t in tabs]}")
+        message = f"--tab matched nothing among {[t['id'] for t in tabs]}"
+        raise CliError(message)
     return kept
 
 
@@ -364,12 +370,19 @@ def main(argv: list[str]) -> int:
     """Parse arguments, run one sweep in one browser session, and close the browser after."""
     args = parse_args(argv)
     args.outdir.mkdir(parents=True, exist_ok=True)
-    with sync_playwright() as pw:
-        browser = launch(pw)
-        try:
-            sweep(browser, args)
-        finally:
-            browser.close()
+    errors: list[CliError] = []
+    try:
+        with sync_playwright() as pw:
+            browser = launch(pw)
+            try:
+                sweep(browser, args)
+            finally:
+                browser.close()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
     return 0
 
 

@@ -24,11 +24,6 @@ def _seed_presets(tmp_path: Path, store: dict[str, Any]) -> None:
     (tmp_path / "live-presets.json").write_text(json.dumps(store))
 
 
-def test_a_saved_live_preset_comes_back_in_the_list(live_api: TestClient) -> None:
-    live_api.put("/api/livepresets/Warm")
-    assert [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]] == ["Warm"]
-
-
 def test_a_saved_live_preset_holds_the_engines_current_filter(chain_api: Callable[..., TestClient]) -> None:
     # State reports the list INDEX, the preset stores the enum ID — which is what
     # the live lane translates back on apply. Index 1 is enum ID 40 on the PCM
@@ -86,7 +81,7 @@ def test_applying_a_live_preset_lands_on_the_engine(chain_api: Callable[..., Tes
 def test_applying_a_live_preset_reports_each_setting_it_applied(live_api: TestClient) -> None:
     live_api.put("/api/livepresets/Warm")
     resp = live_api.post("/api/livepresets/Warm/apply")
-    assert {"setting": "filter", "ok": True} in resp.json()["live"]
+    assert {"setting": "filter", "ok": True} in resp.json()["report"]["live"]
 
 
 def test_a_preset_saved_on_the_other_chain_applies(chain_api: Callable[..., TestClient]) -> None:
@@ -193,10 +188,13 @@ def test_an_invalid_live_preset_name_is_refused(live_api: TestClient) -> None:
     assert live_api.put("/api/livepresets/.hidden").status_code == 422
 
 
-def test_a_deleted_live_preset_is_gone_from_the_list(live_api: TestClient) -> None:
+def test_a_deleted_live_preset_is_gone_from_the_list_and_a_saved_one_is_in_it(live_api: TestClient) -> None:
     live_api.put("/api/livepresets/Warm")
     live_api.delete("/api/livepresets/Warm")
-    assert live_api.get("/api/livepresets").json()["presets"] == []
+    deleted = live_api.get("/api/livepresets").json()["presets"]
+    live_api.put("/api/livepresets/Warm")
+    saved = [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]]
+    assert (deleted, saved) == ([], ["Warm"])
 
 
 def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: TestClient, tmp_path: Path) -> None:

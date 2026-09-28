@@ -9,14 +9,15 @@ import contextlib
 import logging
 import time
 import zipfile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner import voltrace
 from hqptuner.core import engineread
 from hqptuner.engine import release
-from hqptuner.engine.control import CommandError, ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import CommandError, ControlError, NotConnectedError
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import PresetError
@@ -37,9 +38,14 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout)
     await client.connect()
     info = await _handshake(mgr, client)
-    # best-effort and credential-free: /about is not gated, and fetch_release
-    # answers any failure with "" — reachability is already decided above.
-    mgr.readings.release = await release.fetch_release(mgr.http_base_url)
+    # best-effort and credential-free: /about is not gated, and reachability is
+    # already decided above, so a failed lookup here leaves the release blank
+    # rather than failing the connect.
+    mgr.readings.release = ""
+    try:
+        mgr.readings.release = release.parse_release(await release.fetch_about(mgr.http_base_url))
+    except httpx.HTTPError as exc:
+        log.debug("release lookup failed: %s", exc)
     if mgr.http_client is not None:
         await _load_http_lane(mgr)
     # Last statements on purpose: the connect body has run to its end. `ready` is read
@@ -57,7 +63,7 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
 
-async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[str, Any]:
+async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[str, str]:
     """Take the GetInfo handshake and the 4321 readings, attach the client, and publish ``reachable``."""
     info = await client.get_info()  # the handshake — this defines "reachable"
     license_info = await client.get_license()  # static; licensee + valid flag
@@ -110,7 +116,7 @@ async def _load_http_lane(mgr: "ConnectionManager") -> None:
     except (httpx.HTTPError, ControlError) as exc:
         # the form still carries every field; only the lossy ones degrade.
         # A corrupt archive is not in this set on purpose: engineconf.base_config_xml
-        # already answers unreadable bytes with b"", so BadZipFile cannot arrive here.
+        # raises UnreadableArchiveError on unreadable bytes, caught inside the load.
         log.warning("file-config read failed: %s", exc)
     try:
         await mgr.presetops.migrate_once(mgr.readings.active_config)
@@ -129,7 +135,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     """
     client = mgr.control
     if client is None:
-        raise ControlError("not connected")
+        raise NotConnectedError()
     state = await client.get_state()
     # A mode switch swaps the lists wholesale (architecture §5), and playback
     # state moves the rate list: what fills that one is the transport as well

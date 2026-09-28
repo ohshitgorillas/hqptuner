@@ -8,13 +8,13 @@ corner the verdict names, or ``None`` where the spectrum earns no verdict.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
 from hqptuner.engine import junkadvisor, junkrun
 from hqptuner.engine.blockstats import block_record
-from hqptuner.engine.junkadvisor import classify, verdicts
+from hqptuner.engine.junkadvisor import JunkVerdict, classify, verdicts
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from hqptuner.engine.blockstats import BlockRecord
     from hqptuner.engine.junkadvisor import SpurHolder
 
-Verdict = dict[str, Any]
+Verdict = JunkVerdict
 Levels = list[float]
 Corner = str | None
 
@@ -80,7 +80,7 @@ def _classify_held(levels: Levels, holder: SpurHolder) -> Verdict | None:
 
 def _corner(verdict: Verdict | None) -> Corner:
     """The corner a verdict names, or None where there is no verdict."""
-    return None if verdict is None else str(verdict["filter"])
+    return None if verdict is None else verdict.filter
 
 
 # --- the cliff: content stopping at a ceiling -------------------------------------
@@ -202,7 +202,7 @@ def _verdict_corners(levels: Levels) -> Corners:
     """Every corner a caller reading one window with its closed block is offered."""
     run = _run_over(block_record(_rows(levels), BLOCK_HZ))
     found = verdicts(levels, BLOCK_HZ, samplerate=BLOCK_RATE, sdm=False, run=run)
-    return tuple(sorted(str(verdict["filter"]) for verdict in found))
+    return tuple(sorted(verdict.filter for verdict in found))
 
 
 @pytest.mark.parametrize(

@@ -17,20 +17,24 @@ change of bin grid. A file write that fails is logged and the loop keeps ticking
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import enum
 import json
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from hqptuner.engine import junkadvisor
-from hqptuner.engine.metering import context_from
+from hqptuner.engine import junkadvisor, junkcurve
+from hqptuner.engine.trackcontext import context_from
 from hqptuner.lanes import autopilot
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from hqptuner.core.manager import ConnectionManager
-    from hqptuner.engine.metering import SpectralAggregate
+    from hqptuner.engine.metering import MeteringReader, SpectralAggregate
+    from hqptuner.engine.trackcontext import TrackContext
 
 log = logging.getLogger(__name__)
 
@@ -46,33 +50,58 @@ def _spectrum(agg: SpectralAggregate) -> list[list[float]] | None:
     window = agg.window_min_db()
     if window is None:
         return None
-    pairs = ([junkadvisor.hz(i, agg.bins, agg.bandwidth), db] for i, db in enumerate(window))
+    pairs = ([junkcurve.hz(i, agg.bins, agg.bandwidth), db] for i, db in enumerate(window))
     return [pair for pair in pairs if pair[0] >= SPECTRUM_FLOOR_HZ]
 
 
-def _row(mgr: ConnectionManager) -> dict[str, Any] | None:
-    """Return this tick's row, an empty row while playing ineligible content, or None when nothing is playing."""
-    reader = mgr.metering
-    ctx = context_from(mgr)
-    agg = reader.aggregate() if reader is not None else None
-    if reader is None or ctx is None or not ctx.playing or agg is None:
-        return None
-    if not junkadvisor.eligible(ctx.samplerate, agg.bandwidth, agg.bins, sdm=ctx.sdm):
-        return {}
+class TickState(enum.Enum):
+    """What a tick's playback state has to say about capturing it."""
+
+    IDLE = "idle"
+    INELIGIBLE = "ineligible"
+    CAPTURE = "capture"
+
+
+def tick_state(samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> TickState:
+    """Whether this playing tick's spectrum carries enough to capture, given ``junkadvisor.eligible``."""
+    if junkadvisor.eligible(samplerate, bandwidth, bins, sdm=sdm):
+        return TickState.CAPTURE
+    return TickState.INELIGIBLE
+
+
+@dataclass(frozen=True)
+class CalRow:
+    """One capture tick, ready to append as one line of JSON."""
+
+    timestamp: str
+    verdict: junkadvisor.JunkVerdict | None
+    desired_junk_filter: str
+    junk_filter: str | None
+    filter: str | None
+    samplerate: int | None
+    seconds: float
+    frames: int
+    bandwidth: float
+    bins: int
+    spectrum: list[list[float]] | None
+
+
+def _build_row(reader: MeteringReader, ctx: TrackContext, agg: SpectralAggregate) -> CalRow:
+    """Build this tick's row from an already-eligible reading."""
     verdict = reader.verdict()
-    return {
-        "timestamp": datetime.now(UTC).isoformat(),
-        "verdict": verdict,
-        "desired_junk_filter": autopilot.desired_junk_filter(verdict, ctx.filter),
-        "junk_filter": ctx.junk_filter,
-        "filter": ctx.filter,
-        "samplerate": ctx.samplerate,
-        "seconds": agg.seconds,
-        "frames": agg.frames,
-        "bandwidth": agg.bandwidth,
-        "bins": agg.bins,
-        "spectrum": _spectrum(agg),
-    }
+    return CalRow(
+        timestamp=datetime.now(UTC).isoformat(),
+        verdict=verdict,
+        desired_junk_filter=autopilot.desired_junk_filter(verdict, ctx.filter),
+        junk_filter=ctx.junk_filter,
+        filter=ctx.filter,
+        samplerate=ctx.samplerate,
+        seconds=agg.seconds,
+        frames=agg.frames,
+        bandwidth=agg.bandwidth,
+        bins=agg.bins,
+        spectrum=_spectrum(agg),
+    )
 
 
 def _claim(dest: Path, started: datetime) -> Path:
@@ -100,27 +129,30 @@ class Capture:
         self._key: tuple[int | None, int, float] | None = None
         self._idle = 0.0
 
-    def _append(self, row: dict[str, Any]) -> None:
+    def _append(self, row: CalRow) -> None:
         if self._path is None:
-            self._path = _claim(self._dest, datetime.fromisoformat(row["timestamp"]))
+            self._path = _claim(self._dest, datetime.fromisoformat(row.timestamp))
         with self._path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row) + "\n")
+            fh.write(json.dumps(dataclasses.asdict(row)) + "\n")
 
     async def tick(self, mgr: ConnectionManager) -> None:
         """Capture once: close the period where it has ended, then append this tick's row where one is due.
 
         Every call counts as ``TICK_SECONDS`` toward the playback gap, so the gap is measured in ticks, not wall time.
         """
-        row = _row(mgr)
-        if row is None:
+        reader = mgr.metering
+        ctx = context_from(mgr)
+        agg = reader.aggregate() if reader is not None else None
+        if reader is None or ctx is None or not ctx.playing or agg is None:
             self._idle += TICK_SECONDS
             if self._idle >= PERIOD_GAP_SECONDS:
                 self._path = None
             return
         self._idle = 0.0
-        if not row:
+        if tick_state(ctx.samplerate, agg.bandwidth, agg.bins, sdm=ctx.sdm) is TickState.INELIGIBLE:
             return
-        key = (row["samplerate"], row["bins"], row["bandwidth"])
+        row = _build_row(reader, ctx, agg)
+        key = (row.samplerate, row.bins, row.bandwidth)
         if key != self._key:
             self._path, self._key = None, key
         try:
@@ -132,9 +164,9 @@ class Capture:
 async def run(mgr: ConnectionManager, dest: Path) -> None:
     """Capture once per tick until the task is cancelled, which is how the lifespan stops it.
 
-    The wait is the manager's own, which the test suite virtualizes (``docs/testing.md`` §7).
+    The wait is the manager clock's background wait.
     """
     capture = Capture(dest)
     while True:
         await capture.tick(mgr)
-        await mgr.sleep(TICK_SECONDS)
+        await mgr.clock.pace(None, TICK_SECONDS)

@@ -25,19 +25,22 @@ it, and ``PresetStore`` makes it the active preset — the same shape
 The apply path over the same contract is `test_restore_carries_the_engine.py`.
 """
 
-import asyncio
 from collections.abc import AsyncIterator, Callable, Coroutine
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory
 from fake_config_xml import cfg_xml
 from fake_http import state
+from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetconf
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+
+if TYPE_CHECKING:
+    import asyncio
 from hqptuner.lanes.presetfields import carried_live_fields
 from hqptuner.presets.store.presets import PresetStore
 
@@ -61,9 +64,10 @@ async def engine_manager(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator
                 poll_interval=30.0,
                 backup_dir=tmp_path / "backups",
                 preset_dir=tmp_path / "presets",
-            )
+            ),
+            clock=VirtualClock(),
         )
-        task = asyncio.create_task(manager.run())
+        task = manager.clock.spawn(manager.run())
         started.append((manager, task))
         return manager
 
@@ -127,10 +131,17 @@ async def test_a_stored_field_outside_the_live_domain_is_not_carried(
 # --- nothing to carry ---------------------------------------------------------
 
 
-def test_a_manager_with_neither_source_answers_empty_instead_of_raising(tmp_path: Path) -> None:
+async def test_a_manager_with_neither_source_answers_empty_but_one_with_a_store_answers_its_field(
+    engine_manager: EngineManager, tmp_path: Path
+) -> None:
     # a no-crash guard, not a coverage claim: a manager that never connected has
     # no State to read the engine off and its empty preset directory has no
     # active preset, so the only contract left is that the call still answers —
-    # a restore on a cold manager must not die on the way to the push
-    manager = ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"))
-    assert carried_live_fields(manager) == {}
+    # a restore on a cold manager must not die on the way to the push. Pinned
+    # beside a manager with both sources, so the empty case cannot be an
+    # accident of a call that never really reads either source.
+    cold = ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
+    empty = carried_live_fields(cold)
+    manager = await engine_manager(mode="1")
+    _active_preset_holding(tmp_path / "presets", {"oversampling": "23"})
+    assert (empty, carried_live_fields(manager)["oversampling"]) == ({}, "23")

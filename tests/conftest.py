@@ -6,26 +6,26 @@ The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
 registered below: the daemons themselves in `fixtures_daemons`, the
 `TestClient`s over the REST app in `fixtures_clients`. What stays here is the
 autouse guards, the helpers test modules import by name (`spawn_threaded_daemon`,
-`_live_app`, `wait_for_api`, `running_reader`, the type aliases),
-and the manager fixtures built on them."""
+the type aliases) — `live_app`/`closed_port`/`wait_for_api`/`advance_app`/
+`app_manager`/`settle_app`/`settled`/`advanced` (the plain functions, not the
+fixture below) live in `apps` now, imported from there directly by every test
+module that wants one — and the manager fixtures built on them."""
 
 import asyncio
 import functools
 import os
-import socket
 import struct
 import threading
-import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import apps
 import pytest
+from apps import settled
 from fake_control import CommandLog, serve
-from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -95,32 +95,11 @@ def _state_never_touches_the_repo(
         yield
 
 
-@pytest.fixture(autouse=True)
-def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Retry/verify loops pay their waits in virtual time, not wall clock.
-
-    Every lane deadline loop is paced by `ConnectionManager.sleep` against a
-    deadline read from `ConnectionManager.monotonic` — the two public seams the
-    lanes are written to. Here `sleep` advances an offset that `monotonic` reads
-    back, so a loop still runs the same iterations against the fake daemon and
-    still exits on the same condition, without the seconds. Real sleeps cost the
-    offline suite ~80 s of its 84 s.
-
-    The manager's own poll loop is deliberately left on the wall clock: `run()`
-    paces on the private stop-event wait (`_sleep`), which this does not touch,
-    so a running manager does not spin."""
-    offset = 0.0
-
-    async def sleep(_self: ConnectionManager, seconds: float) -> None:
-        nonlocal offset
-        offset += seconds
-        await asyncio.sleep(0)  # still yield: concurrent tasks must interleave
-
-    def monotonic(_self: ConnectionManager) -> float:
-        return time.monotonic() + offset
-
-    monkeypatch.setattr(ConnectionManager, "sleep", sleep)
-    monkeypatch.setattr(ConnectionManager, "monotonic", monotonic)
+@pytest.fixture
+def clock() -> VirtualClock:
+    """The clock every manager and app under test paces on: retry, verify and
+    poll loops run the same passes against the fakes, in virtual time."""
+    return VirtualClock()
 
 
 #: Invented metadata for the app under test: join and lookup mechanics run on
@@ -132,6 +111,13 @@ METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
 WAVE_HEADER_BYTES = 44
 
 
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
+
 def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
     """A minimal PCM WAVE container, one 16-bit channel at 44100 Hz, whose
     `data` chunk is padded with null samples so the whole file is exactly
@@ -140,7 +126,7 @@ def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
     container check accept the same bytes."""
     data_len = size - WAVE_HEADER_BYTES
     if data_len < 2:
-        raise ValueError("a WAVE container needs at least one sample")
+        raise FixtureError(reason="a WAVE container needs at least one sample")
     fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
     return b"".join(
         [
@@ -157,46 +143,6 @@ def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
     )
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
-def _live_app(
-    control_port: int,
-    tmp_path: Path,
-    request_timeout: float | None = None,
-    poll_interval: float | None = None,
-) -> Iterator[TestClient]:
-    """Control lane only — no credentials, so the app talks 4321 alone.
-
-    ``poll_interval`` reshapes the manager's background poll the same way
-    ``request_timeout`` reshapes the per-command deadline: a caller that must be
-    the only traffic its fake daemon sees parks the poll out past the case.
-    Passing nothing keeps the production pacing."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_username="",
-        hqp_password="",
-        data_dir=METADATA_MIN,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        # never the repo's own state/ — a live-snapshot write in a test would land
-        # in the dev container's bind mount and outlive the run
-        live_preset_file=tmp_path / "live-presets.json",
-        # the auto-pilot switch lands beside it for the same reason: a preset
-        # test that flips the switch must not stamp the dev container's store
-        autopilot_file=tmp_path / "autopilot.json",
-    )
-    if request_timeout is not None:  # real wall clock, unlike the virtualized one
-        cfg = replace(cfg, request_timeout=request_timeout)
-    if poll_interval is not None:
-        cfg = replace(cfg, poll_interval=poll_interval)
-    with TestClient(create_app(cfg)) as client:
-        wait_for_api(client, _reachable)
-        yield client
-
-
 DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog, dict[str, str]]]]
 
 #: A manager already connected to a fake daemon, that daemon's recorded traffic,
@@ -207,26 +153,24 @@ LiveManager = Callable[..., Awaitable[LiveBuilt]]
 
 
 @pytest.fixture
-async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
-    """Build managers on fake daemons, stopping each at teardown.
+async def live_manager(daemon: DaemonFactory, clock: VirtualClock) -> AsyncIterator[LiveManager]:
+    """Build managers on fake daemons, each connected and idle on the clock
+    when handed over, stopping each at teardown.
 
     Keyword arguments are the daemon's State overrides — ``rate="2"`` starts the
     engine already pinned, ``mode="2"`` starts it with the SDM chain loaded,
     ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying
     (protocol.md §4: OK is not proof). A case that waits on the manager's own
-    poll loop passes a small ``poll_interval``; the rest keep the production
-    pacing, so no background poll interleaves with what they assert on.
+    poll loop advances the clock by a ``poll_interval``.
     """
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
-    async def build(poll_interval: float | None = None, **overrides: str) -> LiveBuilt:
+    async def build(**overrides: str) -> LiveBuilt:
         port, log, state = await daemon(**overrides)
-        settings: dict[str, Any] = {"hqp_host": "127.0.0.1", "hqp_control_port": port}
-        if poll_interval is not None:
-            settings["poll_interval"] = poll_interval
-        manager = ConnectionManager(Config(**settings))
-        task = asyncio.create_task(manager.run())
+        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
+        task = clock.spawn(manager.run())
         started.append((manager, task))
+        await settled(clock)
         return manager, log, state
 
     yield build
@@ -244,23 +188,24 @@ StartManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]
 
 
 @pytest.fixture
-async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[StartManager]:
-    """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``;
+async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClock) -> AsyncIterator[StartManager]:
+    """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``,
+    handed over once its first connect has run and it idles on the clock;
     everything is torn down at exit."""
     started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
 
-    async def start(http_port: int, **overrides: Any) -> ConnectionManager:
+    async def start(http_port: int, **overrides: object) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", http_port, "u", "p")
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
             "hqp_control_port": live_daemon_port,
-            "poll_interval": 0.02,
             "backup_dir": tmp_path / "backups",
             "preset_dir": tmp_path / "presets",
         }
-        manager = ConnectionManager(Config(**{**defaults, **overrides}), http)
-        task = asyncio.create_task(manager.run())
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        task = clock.spawn(manager.run())
         started.append((manager, task, http))
+        await settled(clock)
         return manager
 
     yield start
@@ -312,7 +257,7 @@ ManagerFactory = Callable[..., ConnectionManager]
 
 
 @pytest.fixture
-async def http_manager_factory(tmp_path: Path) -> AsyncIterator[ManagerFactory]:
+async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIterator[ManagerFactory]:
     """Build managers on a fake 8088 daemon, closing every client at teardown.
 
     Six write-lane suites each hand-rolled this. The daemon is an argument
@@ -327,7 +272,7 @@ async def http_manager_factory(tmp_path: Path) -> AsyncIterator[ManagerFactory]:
     """
     clients: list[HttpConfigClient] = []
 
-    def build(daemon: dict[str, Any], **overrides: Any) -> ConnectionManager:
+    def build(daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
         clients.append(http)
         defaults: dict[str, Any] = {
@@ -335,7 +280,7 @@ async def http_manager_factory(tmp_path: Path) -> AsyncIterator[ManagerFactory]:
             "backup_dir": tmp_path,
             "preset_dir": tmp_path / "presets",
         }
-        return ConnectionManager(Config(**{**defaults, **overrides}), http)
+        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
 
     yield build
     for http in clients:
@@ -357,18 +302,9 @@ def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon:
 # --- ports and guards for the REST app under test ---------------------------
 
 
-def _closed_port() -> int:
-    """A port nothing listens on: bind one, read the number, hand back the hole."""
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port: int = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
 @pytest.fixture
 def closed_port() -> int:
-    return _closed_port()
+    return apps.closed_port()
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -378,19 +314,5 @@ def _never_the_hosts_metering_port(_no_inherited_environment: dict[str, str]) ->
     an app built without an explicit port then dials nothing. Cases that want a
     stream pass ``hqp_metering_port`` themselves and are unaffected."""
     with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("HQPTUNER_HQP_METERING_PORT", str(_closed_port()))
+        patch.setenv("HQPTUNER_HQP_METERING_PORT", str(apps.closed_port()))
         yield
-
-
-# --- metering reader harness (fake 4322 stream lives in fixtures_daemons) ---
-
-
-def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], tries: int = 10_000) -> None:
-    """Spin on real requests — never a wall-clock sleep — until the app under
-    test reports ready. The app's ConnectionManager loads from the fakes inside
-    the client's own loop, which progresses between requests, so this converges
-    in a handful of passes; the bound only turns a hang into a loud failure."""
-    for _ in range(tries):
-        if ready(client):
-            return
-    pytest.fail("app never became ready against the fake daemons")

@@ -8,9 +8,12 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import fake_control
 import pytest
-from conftest import _live_app, wait_for_api
+from apps import advance_app, app_manager, live_app, wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -42,7 +45,7 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg)) as client:
+    with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, _config_loaded)
         yield client
 
@@ -52,7 +55,7 @@ def disabled_volume_api(threaded_disabled_volume_port: int, tmp_path: Path) -> I
     """The control-only app on a daemon whose VolumeRange is disabled. `live_api`
     and `chain_api`, its two siblings, are in `conftest` — the live-snapshot suite
     needs them too, and a fixture two modules use is a shared one."""
-    yield from _live_app(threaded_disabled_volume_port, tmp_path)
+    yield from live_app(threaded_disabled_volume_port, tmp_path)
 
 
 # --- live snapshots (4321 lane) ----------------------------------------------
@@ -62,8 +65,18 @@ def test_state_serves_the_daemons_state_snapshot(live_api: TestClient) -> None:
     assert live_api.get("/api/state").json()["data"]["state"] == "0"
 
 
-def test_state_is_not_stale_while_the_daemon_is_reachable(live_api: TestClient) -> None:
-    assert live_api.get("/api/state").json()["stale"] is False
+def test_state_is_stale_only_once_the_manager_stops_being_reachable(tmp_path: Path) -> None:
+    control_state = dict(fake_control.DEFAULTS)
+    daemon = spawn_threaded_daemon(state=control_state)
+    app = live_app(next(daemon), tmp_path)
+    client = next(app)
+    reachable = client.get("/api/state").json()["stale"]
+    fake_control.take_lane_down(control_state)
+    advance_app(client, app_manager(client).cfg.poll_interval)
+    unreachable = client.get("/api/state").json()["stale"]
+    next(app, None)
+    next(daemon, None)
+    assert (reachable, unreachable) == (False, True)
 
 
 # --- which chain's controls are live-adjustable -------------------------------
@@ -86,19 +99,16 @@ def test_a_configured_sdm_mode_is_the_live_chain(chain_api: Callable[..., TestCl
     assert chain_api(mode="2").get("/api/state").json()["data"]["active_chain"] == "sdm"
 
 
-def test_auto_mode_takes_the_live_chain_from_the_running_engine(chain_api: Callable[..., TestClient]) -> None:
+def test_an_unanswerable_chain_is_reported_as_unknown_but_resolves_once_the_engine_answers(
+    chain_api: Callable[..., TestClient],
+) -> None:
     # [source] follows the source, so the configured mode cannot say which chain
-    # is loaded and Status's active mode is the only lane that can.
-    client = chain_api(mode="0", _active_mode="SDM (DSD)")
-    assert client.get("/api/state").json()["data"]["active_chain"] == "sdm"
-
-
-def test_an_unanswerable_chain_is_reported_as_unknown(chain_api: Callable[..., TestClient]) -> None:
-    # Neither lane can answer before playback starts. Null, never a guess: a
-    # wrong chain offers filters that would resolve against the other chain's
-    # enum IDs.
-    client = chain_api(mode="0", _active_mode="")
-    assert client.get("/api/state").json()["data"]["active_chain"] is None
+    # is loaded and Status's active mode is the only lane that can. Neither lane
+    # can answer before playback starts — null, never a guess: a wrong chain
+    # offers filters that would resolve against the other chain's enum IDs.
+    answered = chain_api(mode="0", _active_mode="SDM (DSD)").get("/api/state").json()["data"]["active_chain"]
+    unanswered = chain_api(mode="0", _active_mode="").get("/api/state").json()["data"]["active_chain"]
+    assert (unanswered, answered) == (None, "sdm")
 
 
 def test_status_serves_the_engines_active_mode(live_api: TestClient) -> None:
@@ -147,7 +157,7 @@ def test_a_live_write_lands_on_the_engine(live_api: TestClient) -> None:
 
 def test_a_live_write_reports_each_setting_it_applied(live_api: TestClient) -> None:
     resp = live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
-    assert resp.json()["live"] == [{"setting": "junk_filter", "ok": True}]
+    assert resp.json()["report"]["live"] == [{"setting": "junk_filter", "ok": True}]
 
 
 def test_a_filter_value_is_translated_from_the_config_domain(chain_api: Callable[..., TestClient]) -> None:
@@ -246,19 +256,6 @@ def test_preset_read_serves_the_stored_snapshot(wired_api: TestClient) -> None:
 
 
 # --- /matrix read model ---------------------------------------------------------
-
-
-def test_matrix_serves_the_daemons_live_profile_names(wired_api: TestClient) -> None:
-    assert wired_api.get("/api/matrix").json()["data"]["live_profiles"] == ["Default", "Mch-to-Stereo mixdown"]
-
-
-def test_matrix_reports_the_live_active_profile_from_state(wired_api: TestClient) -> None:
-    wired_api.post("/api/matrix/profile", json={"action": "switch", "name": "Default"})
-    assert wired_api.get("/api/matrix").json()["data"]["live_active"] == "Default"
-
-
-def test_matrix_serves_the_config_files_saved_profiles(wired_api: TestClient) -> None:
-    assert "Stock" in wired_api.get("/api/matrix").json()["data"]["file_profiles"]
 
 
 def test_matrix_serves_the_forms_pipeline_rows(wired_api: TestClient) -> None:

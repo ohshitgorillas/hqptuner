@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -55,7 +55,7 @@ _SUFFIX = ".xml"
 # such as MICRO SIGN start with something else and count for nothing.
 _CONFUSABLE_SCRIPTS = frozenset({"LATIN", "CYRILLIC"})
 
-_MIXED_SCRIPTS = "mixing Latin and Cyrillic characters is forbidden."
+MIXED_SCRIPTS = "mixing Latin and Cyrillic characters is forbidden."
 
 
 def _has_control_char(name: str) -> bool:
@@ -117,7 +117,27 @@ def sort_key(name: str) -> tuple[tuple[int, int, str], ...]:
     return tuple((1, int(part), "") if part.isdigit() else (0, 0, part) for part in re.split(r"(\d+)", name))
 
 
-def validate_name(name: str, error: type[HQPTunerError], label: str) -> str:
+class InvalidNameErrorType(Protocol):
+    """The ``__init__`` shape of a store's ``Invalid <label> name: <reason>`` exception class.
+
+    Every store that names things owns its own such class (a subclass of that store's own error, so an
+    ``except PresetError`` upstream still catches it) — ``validate_name`` takes the class itself and constructs it.
+    """
+
+    def __call__(self, *, label: str, reason: str) -> HQPTunerError:
+        """Build the exception, naming the caller's label and the shared rule's refusal reason."""
+        ...
+
+
+class MixedScriptsErrorType(Protocol):
+    """The ``__init__`` shape of a store's mixed-script name-refusal exception class (see ``InvalidNameErrorType``)."""
+
+    def __call__(self, *, label: str) -> HQPTunerError:
+        """Build the exception, naming the caller's label."""
+        ...
+
+
+def validate_name(name: str, error: InvalidNameErrorType, label: str) -> str:
     """``name`` with trailing whitespace removed when it is a usable preset name, else ``error`` saying why.
 
     ``label`` distinguishes the stores' messages ("preset" / "snapshot"); the
@@ -128,11 +148,11 @@ def validate_name(name: str, error: type[HQPTunerError], label: str) -> str:
     name = name.rstrip()
     reason = _reason_refused(name)
     if reason is not None:
-        raise error(f"Invalid {label} name: {reason}", code="name_invalid")
+        raise error(label=label, reason=reason)
     return name
 
 
-def validate_new_name(name: str, error: type[HQPTunerError], label: str) -> str:
+def validate_new_name(name: str, error: InvalidNameErrorType, mixed: MixedScriptsErrorType, label: str) -> str:
     """``validate_name`` plus the first-save check: a mix of Latin and Cyrillic letters is refused.
 
     For a name entering a store for the first time only. Reading, overwriting
@@ -140,5 +160,5 @@ def validate_new_name(name: str, error: type[HQPTunerError], label: str) -> str:
     """
     name = validate_name(name, error, label)
     if _mixes_confusable_scripts(name):
-        raise error(f"Invalid {label} name: {_MIXED_SCRIPTS}", code="name_invalid")
+        raise mixed(label=label)
     return name

@@ -19,11 +19,14 @@ import inspect
 import itertools
 import math
 import struct
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from hqptuner.engine.meterfeed import MeterFeed
+from hqptuner.engine.meterfeed import Event, MeterFeed
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
 
 HEADER = "<4I3fI"
 VERSION = 1
@@ -77,13 +80,13 @@ def _mono(levels: tuple[float, float, float, float], bandwidth: float = 22050.0)
     return _frame([(levels, 3000.0)], bandwidth, 1024 / (2 * bandwidth))
 
 
-async def _resolved(value: Any) -> Any:
+async def _resolved[T](value: T | Awaitable[T]) -> T:
     if inspect.isawaitable(value):
         return await value
     return value
 
 
-async def _drain(queue: Any) -> list[Item]:
+async def _drain(queue: asyncio.Queue[Event]) -> list[Item]:
     await asyncio.sleep(0)
     items: list[Item] = []
     while not queue.empty():

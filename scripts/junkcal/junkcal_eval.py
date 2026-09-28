@@ -128,9 +128,14 @@ def resolve(dotted: str) -> RowClassifier:
     A callable named directly takes the row alone; the pair-format drop is the
     adapter's, so a classifier of one's own is scored on everything it returns.
     """
+    fallback = False
     try:
         target: Any = importlib.import_module(dotted)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as exc:
+        if exc.name != dotted:
+            raise
+        fallback = True
+    if fallback:
         module, _, attr = dotted.rpartition(".")
         target = getattr(importlib.import_module(module), attr)
     if isinstance(target, ModuleType):

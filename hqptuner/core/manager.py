@@ -4,22 +4,17 @@ Rules:
 - "reachable" means a successful GetInfo handshake, not a mere TCP accept
 - State/Status polling doubles as heartbeat (and keeps traffic under the
   daemon's ~156 s idle-drop window, protocol.md §1)
-- unreachable beyond the alarm threshold (default 15 s; measured
-  restart-to-GetInfo on Opal is 9.3 s) is surfaced as `alarm`
+- unreachable beyond the alarm threshold (default 15 s, so a routine daemon
+  restart raises no alarm) is surfaced as `alarm`
 - poll aggressively during the initial outage window, then back off
 - API reads never touch the socket; they serve the last snapshot (fail-fast)
 
 This file is the composition root: it builds the collaborators, holds the lifecycle
-flags, runs the supervisor loop, and carries the clock seams and client accessors
+flags, runs the supervisor loop, and carries the clock and client accessors
 every lane reaches the daemon through. Nothing here fills a reading on demand.
-What the daemon told us lives in ``core/readings``; the connect and poll bodies
-that refill it live in ``core/loader``; post-restart resyncs and waits in
-``lanes/settle``; backup-archive readers in ``presets/fileconfig``; engine readers
-in ``core/engineread``.
 """
 
 import asyncio
-import contextlib
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -31,9 +26,12 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
+from hqptuner.core.clock import Clock
 from hqptuner.core.readings import Readings
-from hqptuner.engine.control import CommandError, ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import CommandError, ControlError, HttpCredentialsMissingError
 from hqptuner.lanes.http import forms
+from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.presetops import PresetOps
 
 if TYPE_CHECKING:
@@ -50,12 +48,28 @@ RECONNECT_SLOW = 5.0
 _WIRE_FAULTS = (ControlError, CommandError, httpx.HTTPError, OSError, TimeoutError)
 
 
+def _bug(stage: str) -> None:
+    """Report a fault that is ours, not the daemon's, and leave reachability alone.
+
+    The blind ``except`` around each call site is deliberate: ``run()`` is started with
+    ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
+    nowhere at all — the supervisor would die in silence while the API kept serving. A
+    fault outside ``_WIRE_FAULTS`` never reaches ``_drop``, which logs at most once per
+    outage and would report our own ``TypeError`` as the daemon being unreachable. Every
+    iteration logs a traceback instead, and the connection is left as it was: nothing
+    here is evidence the daemon went away.
+    """
+    log.exception("%s failed with a fault of ours, not the daemon's; retrying", stage)
+
+
 class ConnectionManager:
     """Hold the daemon connection and the last loaded snapshot every API read and write lane serves from."""
 
-    def __init__(self, cfg: Config, http_client: HttpConfigClient | None = None) -> None:
+    def __init__(self, cfg: Config, http_client: HttpConfigClient | None = None, clock: Clock | None = None) -> None:
         """Build the audit log, preset and apply collaborators, and start unreachable with every snapshot empty."""
         self.cfg = cfg
+        # What every wait here and in the lanes paces on; the suite hands in one it advances.
+        self.clock = clock or Clock()
         self._http = http_client
         # 8088 clients a runtime credential change replaced, closed at shutdown. See the `http_client` setter.
         self._retired: list[HttpConfigClient] = []
@@ -100,9 +114,8 @@ class ConnectionManager:
         # be told from one made after the daemon actually went away.
         self.drops_at_connect = 0
         self.unreachable_since: float | None = time.time()
-        # Stamped through `monotonic()`, the seam `alarm` reads it back through, so
-        # both sides of that subtraction run on one clock (virtual in the suite).
-        self._unreachable_mono: float = self.monotonic()
+        # Stamped on the clock `alarm` reads it back through, so both sides of that subtraction run on one clock.
+        self._unreachable_mono: float = self.clock.monotonic()
 
         # Everything the daemon last told us (core/readings). Refilled from scratch
         # on every fresh connection; read by every route and lane.
@@ -124,7 +137,7 @@ class ConnectionManager:
     @property
     def alarm(self) -> bool:
         """Report whether the daemon has been unreachable for longer than the alarm threshold."""
-        return not self.reachable and self.monotonic() - self._unreachable_mono > self.cfg.alarm_threshold
+        return not self.reachable and self.clock.monotonic() - self._unreachable_mono > self.cfg.alarm_threshold
 
     def stop(self) -> None:
         """Signal the poll loop to leave its next wait and finish; does not close the socket (see ``aclose``)."""
@@ -154,11 +167,11 @@ class ConnectionManager:
                     await loader.connect_and_load(self)
                 except _WIRE_FAULTS as exc:
                     await self._drop(f"connect/load failed: {exc}")
-                    await self._sleep(self._reconnect_delay())
+                    await self._idle(self._reconnect_delay())
                     continue
                 except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
-                    self._bug("connect/load")
-                    await self._sleep(self._reconnect_delay())
+                    _bug("connect/load")
+                    await self._idle(self._reconnect_delay())
                     continue
             try:
                 await loader.poll(self)
@@ -166,40 +179,22 @@ class ConnectionManager:
                 await self._drop(f"poll failed: {exc}")
                 continue
             except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
-                self._bug("poll")
-                await self._sleep(self.cfg.poll_interval)
+                _bug("poll")
+                await self._idle(self.cfg.poll_interval)
                 continue
-            await self._sleep(self.cfg.poll_interval)
+            await self._idle(self.cfg.poll_interval)
 
     def _reconnect_delay(self) -> float:
         """Retry aggressively inside the expected-restart window, then back off once in alarm."""
         return RECONNECT_FAST if not self.alarm else RECONNECT_SLOW
 
-    def _bug(self, stage: str) -> None:
-        """Report a fault that is ours, not the daemon's, and leave reachability alone.
-
-        The blind ``except`` above this is deliberate and stays: ``run()`` is started with
-        ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
-        nowhere at all — the supervisor would die in silence while the API kept serving. A
-        fault outside ``_WIRE_FAULTS`` never reaches ``_drop``, which logs at most once per
-        outage and would report our own ``TypeError`` as the daemon being unreachable. Every
-        iteration logs a traceback instead, and the connection is left as it was: nothing
-        here is evidence the daemon went away.
-        """
-        log.exception("%s failed with a fault of ours, not the daemon's; retrying", stage)
-
-    async def _sleep(self, seconds: float) -> None:
-        """Perform the poll loop's own wait.
-
-        NOT a duplicate of the public ``sleep``: the test suite virtualizes ``sleep``
-        (docs/testing.md §7) so lane deadlines cost no wall clock, and deliberately leaves this one
-        alone so a running manager polls at its real interval instead of spinning.
+    async def _idle(self, seconds: float) -> None:
+        """Idle the poll loop between passes on the clock's background wait.
 
         ``_wake`` cuts the wait short: ``restore`` sets it after dropping the control lane so the
         reconnect starts at once, and ``stop`` sets it so shutdown never waits out a poll interval.
         """
-        with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(self._wake.wait(), seconds)
+        await self.clock.pace(self._wake, seconds)
         self._wake.clear()
 
     async def _drop(self, reason: str, *, counts: bool = True) -> None:
@@ -222,7 +217,7 @@ class ConnectionManager:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
             self.unreachable_since = time.time()
-            self._unreachable_mono = self.monotonic()
+            self._unreachable_mono = self.clock.monotonic()
         if counts:
             self.drops += 1
         self.reachable = False
@@ -232,7 +227,7 @@ class ConnectionManager:
             await self._client.close()
             self._client = None
 
-    async def refresh_http_forms(self) -> str:
+    async def refresh_http_forms(self) -> FormsOutcome:
         """Refresh the three polled 8088 form snapshots (lanes/http/forms) and the device capability.
 
         The capability hangs off those forms: it is read for whichever device the config form says
@@ -240,12 +235,12 @@ class ConnectionManager:
         rescan route alike — rather than at the poll loop alone, which leaves every other path
         serving a stale answer or none.
 
-        Answers what the refresh did on /config (``lanes/http/forms``'s four outcomes), for the one
+        Answers what the refresh did on /config (``FormsOutcome``), for the one
         caller that reports it to a browser. Every other caller wants the snapshots filled and drops it.
         """
-        outcome = await forms.refresh(self)
+        refreshed = await forms.refresh(self)
         await engineread.refresh_device_caps(self)
-        return outcome
+        return refreshed.outcome
 
     # --- accessors for the extracted write lanes --------------------------
 
@@ -277,21 +272,6 @@ class ConnectionManager:
     def alarm_threshold(self) -> float:
         """Return the configured unreachable-to-alarm seconds, which the lanes reuse as their default deadline."""
         return self.cfg.alarm_threshold
-
-    def monotonic(self) -> float:
-        """Read the lanes' clock.
-
-        A method, not ``time.monotonic`` inline, because it is the seam the suite virtualizes
-        alongside ``sleep`` (docs/testing.md).
-        """
-        return time.monotonic()
-
-    async def sleep(self, seconds: float) -> None:
-        """Perform the lanes' wait — virtualized in tests.
-
-        See ``_sleep`` for why the poll loop deliberately does not share it.
-        """
-        await self._sleep(seconds)
 
     async def restarting(self) -> None:
         """Drop the control lane a restore just killed and start the reconnect now.
@@ -338,11 +318,21 @@ class ConnectionManager:
         """Attach the client ``core/loader`` just connected, so ``_drop`` owns closing it from here on."""
         self._client = client
 
+    def require_control(self) -> ControlClient:
+        """Return the live 4321 client, raising ControlError while the daemon is not connected.
+
+        The accessor for a write that cannot proceed without the control lane.
+        """
+        if self._client is None:
+            message = "daemon not connected"
+            raise ControlError(message)
+        return self._client
+
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 config client, raising ControlError when no credentials were configured.
 
         The accessor every write lane that cannot proceed without the HTTP lane uses instead of ``http_client``.
         """
         if self._http is None:
-            raise ControlError("no credentials for HTTP config lane")
+            raise HttpCredentialsMissingError()
         return self._http

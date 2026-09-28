@@ -8,14 +8,14 @@
 //
 // eqlab designs and measures; eqstage puts the result in front of the user.
 
-import { parseProcess, serializeProcess } from "../../hqptuner/static/lib/matrixspec.js";
-import { isEq } from "../eqlab/chain.js";
-import { curveOf, preampDb, round } from "../eqlab/curve.js";
+import { parseProcess, serializeProcess } from "../../hqptuner/static/vendor/eqlab/core/matrixspec.js";
+import { isEq } from "../../hqptuner/static/vendor/eqlab/src/chain.js";
+import { curveOf, preampDb, round } from "../../hqptuner/static/vendor/eqlab/src/curve.js";
 import { postStage, verifyPending } from "./post.js";
 import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows } from "./rows.js";
 
-/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
-/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../hqptuner/static/vendor/eqlab/core/matrixspec.js").MatrixStage} MatrixStage */
 /** @typedef {import("./post.js").StagePayload} StagePayload */
 /** @typedef {import("./post.js").FetchImpl} FetchImpl */
 

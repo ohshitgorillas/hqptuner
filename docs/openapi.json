@@ -29,6 +29,316 @@
         "title": "ApplyBody",
         "type": "object"
       },
+      "ApplyReport": {
+        "description": "A staged apply's answer; the fields are the wire keys.\n\n``live`` holds the live setters' results, ``persistent`` the persistent lane's, ``aftermath`` the restore's\neffect on stored presets, and ``switched`` the preset switch that runs before both lanes.",
+        "properties": {
+          "aftermath": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetAftermath"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "live": {
+            "items": {
+              "$ref": "#/components/schemas/LiveWriteResult"
+            },
+            "title": "Live",
+            "type": "array"
+          },
+          "persistent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestoreResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "switched": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetActivation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["live", "persistent", "aftermath", "switched"],
+        "title": "ApplyReport",
+        "type": "object"
+      },
+      "AuditFields": {
+        "description": "Every field key any vocabulary emitter in ``audit.py`` can write, as ``AuditRecord.fields`` reads it back.\n\nOne shared, all-optional bag rather than one TypedDict per event: a record's own ``event`` name already says\nwhich subset was written, and this is what a JSONL reader can narrow into without knowing the event in advance.",
+        "properties": {
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          },
+          "dropped": {
+            "$ref": "#/components/schemas/DroppedFields"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "engaged": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engaged"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "found": {
+            "title": "Found",
+            "type": "boolean"
+          },
+          "full_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Full Digests",
+            "type": "object"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "http": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Http",
+            "type": "object"
+          },
+          "last_write": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Write"
+          },
+          "live": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Live",
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "overwrote": {
+            "title": "Overwrote",
+            "type": "boolean"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          },
+          "previous_active": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Active"
+          },
+          "readback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readback"
+          },
+          "remember": {
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "replaced": {
+            "title": "Replaced",
+            "type": "boolean"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "string"
+          },
+          "rows_digest": {
+            "title": "Rows Digest",
+            "type": "string"
+          },
+          "save": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "switch_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Switch To"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "want": {
+            "title": "Want",
+            "type": "string"
+          },
+          "was_active": {
+            "title": "Was Active",
+            "type": "boolean"
+          }
+        },
+        "title": "AuditFields",
+        "type": "object"
+      },
+      "AuditRecord": {
+        "description": "One parsed JSONL row: HQPTuner's own envelope, and the event's own fields.\n\n``fields`` is everything the line carried beyond the envelope \u2014 the shape differs per ``event``, which is\nexactly why it is not itself named field by field here (R1: the envelope is ours to name; the payload is\nper-emitter and lives in the vocabulary below).",
+        "properties": {
+          "event": {
+            "title": "Event",
+            "type": "string"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/AuditFields"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": ["seq", "ts", "event", "fields"],
+        "title": "AuditRecord",
+        "type": "object"
+      },
+      "AuditRecords": {
+        "description": "``GET /api/audit``: the last ``limit`` audit records, newest last.",
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/AuditRecord"
+            },
+            "title": "Records",
+            "type": "array"
+          }
+        },
+        "required": ["records"],
+        "title": "AuditRecords",
+        "type": "object"
+      },
       "AutopilotBody": {
         "description": "Auto-pilot's wanted state for ``POST /api/autopilot``.",
         "properties": {
@@ -37,10 +347,20 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "enabled"
-        ],
+        "required": ["enabled"],
         "title": "AutopilotBody",
+        "type": "object"
+      },
+      "AutopilotReport": {
+        "description": "``GET``/``POST /api/autopilot``: auto-pilot's current switch state.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": ["enabled"],
+        "title": "AutopilotReport",
         "type": "object"
       },
       "AutosaveBody": {
@@ -51,10 +371,20 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "enabled"
-        ],
+        "required": ["enabled"],
         "title": "AutosaveBody",
+        "type": "object"
+      },
+      "AutosaveState": {
+        "description": "``POST /api/autosave``'s answer: whether auto-save is now armed.",
+        "properties": {
+          "autosave": {
+            "title": "Autosave",
+            "type": "boolean"
+          }
+        },
+        "required": ["autosave"],
+        "title": "AutosaveState",
         "type": "object"
       },
       "Body_matrix_filter_api_matrix_filter_post": {
@@ -72,9 +402,7 @@
             "title": "File"
           }
         },
-        "required": [
-          "file"
-        ],
+        "required": ["file"],
         "title": "Body_matrix_filter_api_matrix_filter_post",
         "type": "object"
       },
@@ -86,10 +414,51 @@
             "type": "string"
           }
         },
-        "required": [
-          "cfgfile"
-        ],
+        "required": ["cfgfile"],
         "title": "Body_restore_api_restore_post",
+        "type": "object"
+      },
+      "ConfigView": {
+        "description": "``GET /api/config`` data: the /config form's fields beside HQPTuner's presets and the running config.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "string"
+          },
+          "autosave": {
+            "title": "Autosave",
+            "type": "boolean"
+          },
+          "device_caps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviceCaps"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "file": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "File",
+            "type": "object"
+          },
+          "profiles": {
+            "$ref": "#/components/schemas/PresetChoice"
+          }
+        },
+        "required": ["fields", "profiles", "active", "autosave", "file", "device_caps"],
+        "title": "ConfigView",
         "type": "object"
       },
       "ConnectionBody": {
@@ -143,6 +512,99 @@
         "title": "ConnectionBody",
         "type": "object"
       },
+      "ConnectionReport": {
+        "description": "``GET /api/connection``: where we dial, who we are, and whether a password is held.",
+        "properties": {
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "remember": {
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": ["host", "username", "remember", "has_password"],
+        "title": "ConnectionReport",
+        "type": "object"
+      },
+      "ConnectionWriteReport": {
+        "description": "``POST /api/connection``: the connection as saved, plus the refresh's own answer.",
+        "properties": {
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "lane": {
+            "$ref": "#/components/schemas/FormsOutcome"
+          },
+          "remember": {
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": ["host", "username", "remember", "has_password", "lane"],
+        "title": "ConnectionWriteReport",
+        "type": "object"
+      },
+      "Daemon": {
+        "description": "One hqplayerd that answered discovery: where it is, what it calls itself, what it says it is.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": ["address", "name", "version"],
+        "title": "Daemon",
+        "type": "object"
+      },
       "DescriptionBody": {
         "description": "One profile's description for ``PUT /api/descriptions``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). Empty text is a legal body and means the\nuser cleared the description \u2014 the store turns that into a removal.",
         "properties": {
@@ -155,11 +617,50 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "text"
-        ],
+        "required": ["name", "text"],
         "title": "DescriptionBody",
+        "type": "object"
+      },
+      "DescriptionEntry": {
+        "description": "One profile's stored description: the text, and the instant it was written.",
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "string"
+          }
+        },
+        "required": ["text", "updated"],
+        "title": "DescriptionEntry",
+        "type": "object"
+      },
+      "DeviceCaps": {
+        "description": "One device's announced capability: the identity the log named it under, and the rates it accepts.",
+        "properties": {
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "dsd_rates": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Dsd Rates",
+            "type": "array"
+          },
+          "pcm_rates": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Pcm Rates",
+            "type": "array"
+          }
+        },
+        "required": ["device", "pcm_rates", "dsd_rates"],
+        "title": "DeviceCaps",
         "type": "object"
       },
       "DropBody": {
@@ -188,6 +689,58 @@
         "title": "DropBody",
         "type": "object"
       },
+      "DroppedFields": {
+        "description": "The ``dropped`` field of a ``stage`` record: the pending-buffer entries that request also reported clean.",
+        "properties": {
+          "http": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Http",
+            "type": "array"
+          },
+          "live": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Live",
+            "type": "object"
+          }
+        },
+        "title": "DroppedFields",
+        "type": "object"
+      },
+      "EasyDb": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Json"
+        },
+        "type": "object"
+      },
+      "EngineApplyResult": {
+        "description": "The outcome of ``ApplyOps.apply_engine``. The fields are the wire keys.",
+        "properties": {
+          "backup_bytes": {
+            "title": "Backup Bytes",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "verified": {
+            "$ref": "#/components/schemas/EngineVerification"
+          }
+        },
+        "required": ["verified", "members", "backup_bytes"],
+        "title": "EngineApplyResult",
+        "type": "object"
+      },
       "EngineBody": {
         "description": "Carry the hardware-accel attribute overrides for ``POST /api/engine``.\n\n``all_presets`` writes them into every snapshot in the backup archive instead of only the active preset's.",
         "properties": {
@@ -206,6 +759,388 @@
           }
         },
         "title": "EngineBody",
+        "type": "object"
+      },
+      "EngineReading": {
+        "description": "``GET /api/engine``: the hardware-acceleration attributes, and the active preset snapshot they were read from.",
+        "properties": {
+          "active_config": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Config"
+          },
+          "engine": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Engine",
+            "type": "object"
+          }
+        },
+        "required": ["engine", "active_config"],
+        "title": "EngineReading",
+        "type": "object"
+      },
+      "EngineVerification": {
+        "description": "An engine-attribute readback: whether every override landed, and the ``<engine>`` attributes last read.",
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "engine": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Engine",
+            "type": "object"
+          }
+        },
+        "required": ["applied", "engine"],
+        "title": "EngineVerification",
+        "type": "object"
+      },
+      "EnumFilterItem": {
+        "description": "One live filter enumeration item merged with its static prose (protocol.md \u00a76 ``FiltersItem``).",
+        "properties": {
+          "apodizing": {
+            "title": "Apodizing",
+            "type": "boolean"
+          },
+          "arg": {
+            "title": "Arg",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "static": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FilterEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["index", "name", "value", "arg", "description", "apodizing", "static"],
+        "title": "EnumFilterItem",
+        "type": "object"
+      },
+      "EnumShaperItem": {
+        "description": "One live shaper enumeration item merged with its static prose (protocol.md \u00a76 ``ShapersItem``).",
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "static": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShaperEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["index", "name", "value", "static"],
+        "title": "EnumShaperItem",
+        "type": "object"
+      },
+      "FacetBody": {
+        "additionalProperties": false,
+        "description": "A facet map on the wire: one optional field per key ``FacetInput`` names; any other key is a 422.",
+        "properties": {
+          "apod_1x": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apod 1X"
+          },
+          "apod_nx": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apod Nx"
+          },
+          "downsafe_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downsafe Only"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus"
+          },
+          "focus_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus Mode"
+          },
+          "genre": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre"
+          },
+          "genre_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre Mode"
+          },
+          "hide_limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hide Limited"
+          },
+          "length": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length"
+          },
+          "lossy_1x": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lossy 1X"
+          },
+          "odd_rate_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odd Rate Only"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "src_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Src Format"
+          }
+        },
+        "title": "FacetBody",
+        "type": "object"
+      },
+      "Facets": {
+        "description": "The narrow bar's whole facet set \u2014 every field always present, a stored value or that facet's default.",
+        "properties": {
+          "apod_1x": {
+            "title": "Apod 1X",
+            "type": "string"
+          },
+          "apod_nx": {
+            "title": "Apod Nx",
+            "type": "string"
+          },
+          "downsafe_only": {
+            "title": "Downsafe Only",
+            "type": "boolean"
+          },
+          "focus": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Focus",
+            "type": "array"
+          },
+          "focus_mode": {
+            "title": "Focus Mode",
+            "type": "string"
+          },
+          "genre": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genre",
+            "type": "array"
+          },
+          "genre_mode": {
+            "title": "Genre Mode",
+            "type": "string"
+          },
+          "hide_limited": {
+            "title": "Hide Limited",
+            "type": "string"
+          },
+          "length": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Length",
+            "type": "array"
+          },
+          "lossy_1x": {
+            "title": "Lossy 1X",
+            "type": "string"
+          },
+          "odd_rate_only": {
+            "title": "Odd Rate Only",
+            "type": "boolean"
+          },
+          "phase": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Phase",
+            "type": "array"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "integer"
+          },
+          "src_format": {
+            "title": "Src Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "genre",
+          "genre_mode",
+          "quality",
+          "focus",
+          "focus_mode",
+          "phase",
+          "length",
+          "hide_limited",
+          "odd_rate_only",
+          "downsafe_only",
+          "apod_1x",
+          "apod_nx",
+          "lossy_1x",
+          "src_format"
+        ],
+        "title": "Facets",
         "type": "object"
       },
       "FavoritesBody": {
@@ -243,6 +1178,227 @@
         "title": "FavoritesBody",
         "type": "object"
       },
+      "FilterEntry": {
+        "description": "One ``filters.json`` entry: the prose and taxonomy for one engine-reported filter name.",
+        "properties": {
+          "apodizing": {
+            "title": "Apodizing",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "focus": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Focus",
+            "type": "array"
+          },
+          "genre": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genre",
+            "type": "array"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "integer"
+          },
+          "ratio": {
+            "title": "Ratio",
+            "type": "string"
+          },
+          "sdm_two_stage": {
+            "title": "Sdm Two Stage",
+            "type": "boolean"
+          },
+          "sdm_two_stage_note": {
+            "title": "Sdm Two Stage Note",
+            "type": "string"
+          }
+        },
+        "title": "FilterEntry",
+        "type": "object"
+      },
+      "FiltersDb": {
+        "description": "``filters.json`` as loaded: the join tables ``filter_entry`` reads, plus the prose ``raw`` passes through.",
+        "properties": {
+          "_comment": {
+            "title": "Comment",
+            "type": "string"
+          },
+          "_join_rules": {
+            "title": "Join Rules",
+            "type": "string"
+          },
+          "_source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "aliases": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "object"
+          },
+          "filters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FilterEntry"
+            },
+            "title": "Filters",
+            "type": "object"
+          },
+          "guidance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Json"
+            },
+            "title": "Guidance",
+            "type": "object"
+          },
+          "sdm_two_stage_note": {
+            "title": "Sdm Two Stage Note",
+            "type": "string"
+          },
+          "two_stage_note": {
+            "title": "Two Stage Note",
+            "type": "string"
+          }
+        },
+        "title": "FiltersDb",
+        "type": "object"
+      },
+      "FormField": {
+        "description": "One control off a settings form. Keys past name/type/section/label vary by input type.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/SelectOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "FormField",
+        "type": "object"
+      },
+      "FormsOutcome": {
+        "description": "What a refresh did overall.\n\nThe individual forms report their own errors into `readings` and are not part of this answer: a daemon\nanswering /config while /matrix is unhappy is not a connection fault. Callers that only want the\nsnapshots filled ignore it. It is this pass's own verdict, which a refusal recorded in `readings`\ncannot give: that one cannot be told apart from one recorded a poll earlier.",
+        "enum": ["no_credentials", "refused", "ok", "no_answer"],
+        "title": "FormsOutcome",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -254,6 +1410,185 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthReport": {
+        "description": "``GET /api/health``: daemon reachability, connection age, info/license, versions, credential verdict.",
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "connected_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connected At"
+          },
+          "credentials_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentials Ok"
+          },
+          "info": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "release": {
+            "title": "Release",
+            "type": "string"
+          },
+          "unreachable_since": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unreachable Since"
+          }
+        },
+        "required": [
+          "reachable",
+          "ready",
+          "connected",
+          "unreachable_since",
+          "connected_at",
+          "info",
+          "release",
+          "license",
+          "app_version",
+          "credentials_ok"
+        ],
+        "title": "HealthReport",
+        "type": "object"
+      },
+      "Json": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "$ref": "#/components/schemas/Json"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Json"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "JunkVerdict": {
+        "description": "One rule's signature: the corner filter that treats it, why, and the offered families, if any.\n\n``families`` is empty for the 20k and ramp rules, which offer no alternative to the corner; the spur rule alone\nnames hires filters the caller may switch to instead of engaging the corner (``SPUR_FAMILIES``).",
+        "properties": {
+          "ceiling_khz": {
+            "title": "Ceiling Khz",
+            "type": "number"
+          },
+          "families": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "filter": {
+            "title": "Filter",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": ["filter", "reason", "ceiling_khz"],
+        "title": "JunkVerdict",
+        "type": "object"
+      },
+      "LiveApplyReport": {
+        "description": "One LIVE batch's answer: each setter's readback verdict, and the fields held for the chain not loaded.",
+        "properties": {
+          "live": {
+            "items": {
+              "$ref": "#/components/schemas/LiveWriteResult"
+            },
+            "title": "Live",
+            "type": "array"
+          },
+          "stored": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Stored",
+            "type": "object"
+          }
+        },
+        "title": "LiveApplyReport",
         "type": "object"
       },
       "LiveBody": {
@@ -271,6 +1606,134 @@
         "title": "LiveBody",
         "type": "object"
       },
+      "LivePresetDeleted": {
+        "description": "``DELETE /api/livepresets/{name}``: the key the store held.",
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "string"
+          }
+        },
+        "required": ["deleted"],
+        "title": "LivePresetDeleted",
+        "type": "object"
+      },
+      "LivePresetList": {
+        "description": "``GET /api/livepresets``: every saved live snapshot.",
+        "properties": {
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/NamedLiveRecord"
+            },
+            "title": "Presets",
+            "type": "array"
+          }
+        },
+        "required": ["presets"],
+        "title": "LivePresetList",
+        "type": "object"
+      },
+      "LiveSnapshotView": {
+        "description": "``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``, and auto-pilot.",
+        "properties": {
+          "autopilot": {
+            "title": "Autopilot",
+            "type": "boolean"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "fields": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Fields",
+            "type": "object"
+          }
+        },
+        "required": ["chain", "fields", "autopilot"],
+        "title": "LiveSnapshotView",
+        "type": "object"
+      },
+      "LiveWriteResult": {
+        "description": "One live-lane setter's outcome \u2014 the setting written, and whether its readback verified.\n\nThe fields are the wire keys. ``error``/``code`` are set only on a setter that did not verify.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "setting": {
+            "title": "Setting",
+            "type": "string"
+          }
+        },
+        "required": ["setting", "ok"],
+        "title": "LiveWriteResult",
+        "type": "object"
+      },
+      "LogTail": {
+        "description": "A log-tail read: the daemon's configured log file, whether it logs to it, and the last lines. Wire keys.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "required": ["path", "enabled", "lines"],
+        "title": "LogTail",
+        "type": "object"
+      },
       "MatrixModeBody": {
         "description": "One preset's Matrix-tab mode for ``PUT /api/matrixmodes``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). The mode is validated by the store rather\nthan by the type, so an unknown value answers 422 naming what is storable instead of a schema complaint.",
         "properties": {
@@ -283,10 +1746,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "mode"
-        ],
+        "required": ["name", "mode"],
         "title": "MatrixModeBody",
         "type": "object"
       },
@@ -303,25 +1763,478 @@
             "type": "string"
           }
         },
-        "required": [
-          "action"
-        ],
+        "required": ["action"],
         "title": "MatrixProfileBody",
         "type": "object"
       },
-      "NarrowingBody": {
-        "description": "The whole facet set for ``PUT /api/narrowing``.\n\nDeliberately untyped per facet: the store owns the domains, so a bad token comes back as its sentence naming the\nfacet rather than as pydantic's shape complaint about a dict.",
+      "MatrixProfileSwitch": {
+        "description": "A live matrix-profile switch's readback: the profile now active.",
         "properties": {
-          "facets": {
-            "additionalProperties": true,
-            "title": "Facets",
+          "active": {
+            "title": "Active",
+            "type": "string"
+          }
+        },
+        "required": ["active"],
+        "title": "MatrixProfileSwitch",
+        "type": "object"
+      },
+      "MatrixReport": {
+        "description": "``GET /api/matrix``: the /matrix form plus the live, file-saved, and per-preset profile lists.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "file_profiles": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StoredProfile"
+            },
+            "title": "File Profiles",
             "type": "object"
+          },
+          "live_active": {
+            "title": "Live Active",
+            "type": "string"
+          },
+          "live_profiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Live Profiles",
+            "type": "array"
+          },
+          "preset_profiles": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Preset Profiles",
+            "type": "object"
+          },
+          "profiles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileSelect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
           }
         },
         "required": [
-          "facets"
+          "fields",
+          "rows",
+          "profiles",
+          "active",
+          "live_profiles",
+          "live_active",
+          "file_profiles",
+          "preset_profiles"
         ],
+        "title": "MatrixReport",
+        "type": "object"
+      },
+      "MergedEnums": {
+        "description": "The live enumerations merged with static prose, as ``GET /api/enumerations`` serves them.",
+        "properties": {
+          "filters": {
+            "items": {
+              "$ref": "#/components/schemas/EnumFilterItem"
+            },
+            "title": "Filters",
+            "type": "array"
+          },
+          "junk_filters": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Junk Filters",
+            "type": "array"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModeInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modes": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Modes",
+            "type": "array"
+          },
+          "rates": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Rates",
+            "type": "array"
+          },
+          "shapers": {
+            "items": {
+              "$ref": "#/components/schemas/EnumShaperItem"
+            },
+            "title": "Shapers",
+            "type": "array"
+          }
+        },
+        "required": ["modes", "filters", "shapers", "rates", "junk_filters"],
+        "title": "MergedEnums",
+        "type": "object"
+      },
+      "ModeInfo": {
+        "description": "The active output mode, as the status route attaches it to ``MergedEnums`` after the merge.",
+        "properties": {
+          "index": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": ["index", "name"],
+        "title": "ModeInfo",
+        "type": "object"
+      },
+      "NamedLiveRecord": {
+        "description": "One saved live snapshot as the routes answer with it: its name beside the record's own fields.",
+        "properties": {
+          "autopilot": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autopilot"
+          },
+          "chain": {
+            "title": "Chain",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "object"
+          }
+        },
+        "required": ["name", "chain", "fields", "names", "autopilot"],
+        "title": "NamedLiveRecord",
+        "type": "object"
+      },
+      "NarrowingAnswer": {
+        "description": "Both narrowing routes' answer: the whole facet set as stored.",
+        "properties": {
+          "facets": {
+            "$ref": "#/components/schemas/Facets"
+          }
+        },
+        "required": ["facets"],
+        "title": "NarrowingAnswer",
+        "type": "object"
+      },
+      "NarrowingBody": {
+        "description": "The whole facet set for ``PUT /api/narrowing``.",
+        "properties": {
+          "facets": {
+            "$ref": "#/components/schemas/FacetBody"
+          }
+        },
+        "required": ["facets"],
         "title": "NarrowingBody",
+        "type": "object"
+      },
+      "PendingSnapshot": {
+        "description": "The staged buffer as every staging route answers with it: live-lane buckets and restore-lane fields.",
+        "properties": {
+          "http": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Http",
+            "type": "object"
+          },
+          "live": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Live",
+            "type": "object"
+          }
+        },
+        "required": ["live", "http"],
+        "title": "PendingSnapshot",
+        "type": "object"
+      },
+      "PlainNameEntry": {
+        "description": "One ``*-plain-names.json`` entry: the family/variant/leaf breakdown of one engine-reported name.",
+        "properties": {
+          "apod": {
+            "title": "Apod",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "leaf": {
+            "title": "Leaf",
+            "type": "string"
+          },
+          "rec": {
+            "title": "Rec",
+            "type": "boolean"
+          },
+          "short": {
+            "title": "Short",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "title": "PlainNameEntry",
+        "type": "object"
+      },
+      "PlainNamesOverlay": {
+        "description": "One OVERLAYS document as ``StaticMetadata`` reassembles it: the per-name entries plus the two glossaries.",
+        "properties": {
+          "entries": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlainNameEntry"
+            },
+            "title": "Entries",
+            "type": "object"
+          },
+          "families": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Families",
+            "type": "object"
+          },
+          "variants": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Variants",
+            "type": "object"
+          }
+        },
+        "required": ["entries", "families", "variants"],
+        "title": "PlainNamesOverlay",
+        "type": "object"
+      },
+      "PresetActivation": {
+        "description": "A preset load, unload or switch: the preset now active (\"\" for the unnamed default), and whether it took.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": ["name", "active"],
+        "title": "PresetActivation",
+        "type": "object"
+      },
+      "PresetAftermath": {
+        "description": "What an applied restore did to the stored presets: the staged profile fan-out.\n\nChain backfills run as part of the same restore but are not reported here. Maps a preset to \"ok\"\nor the error that preset met; None when nothing was targeted.",
+        "properties": {
+          "fanout": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fanout"
+          }
+        },
+        "title": "PresetAftermath",
+        "type": "object"
+      },
+      "PresetChoice": {
+        "description": "The preset picker as the form renders it: the selected preset and every option, \"(no preset)\" first.",
+        "properties": {
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PresetOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["value", "options"],
+        "title": "PresetChoice",
+        "type": "object"
+      },
+      "PresetDeleted": {
+        "description": "A preset removed from the store, under the trimmed name it was stored as.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": ["name"],
+        "title": "PresetDeleted",
+        "type": "object"
+      },
+      "PresetOption": {
+        "description": "One entry of the preset picker: the preset name it selects, and the label it shows.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["value", "label"],
+        "title": "PresetOption",
+        "type": "object"
+      },
+      "PresetPreview": {
+        "description": "``GET /api/preset/{name}``: a preset's saved settings in form-field terms, under the name that was asked for.",
+        "properties": {
+          "config": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Config",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": ["name", "config"],
+        "title": "PresetPreview",
+        "type": "object"
+      },
+      "PresetSaveResult": {
+        "description": "A save or auto-save that reached the store; the fields are the wire keys.\n\n``warning`` rides when the daemon mirror did not land, which leaves the save itself standing.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": ["name"],
+        "title": "PresetSaveResult",
         "type": "object"
       },
       "ProfileBody": {
@@ -334,6 +2247,230 @@
           }
         },
         "title": "ProfileBody",
+        "type": "object"
+      },
+      "ProfileSelect": {
+        "description": "The preset-profile select, always complete (name, value, options).",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/SelectOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": ["name", "type", "section", "label", "value", "options"],
+        "title": "ProfileSelect",
+        "type": "object"
+      },
+      "RescanAnswer": {
+        "description": "A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost.",
+        "properties": {
+          "refreshed": {
+            "title": "Refreshed",
+            "type": "boolean"
+          },
+          "restored": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Restored",
+            "type": "object"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": ["refreshed", "restored"],
+        "title": "RescanAnswer",
+        "type": "object"
+      },
+      "RestoreAnswer": {
+        "description": "``POST /api/restore``: the upload reached the daemon, and how many bytes of it did.",
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "restored": {
+            "title": "Restored",
+            "type": "boolean"
+          }
+        },
+        "required": ["restored", "bytes"],
+        "title": "RestoreAnswer",
+        "type": "object"
+      },
+      "RestoreOutcome": {
+        "description": "What a persistent (restore-lane) apply came back with.",
+        "enum": ["not_submitted", "applied", "unconverged", "unavailable"],
+        "title": "RestoreOutcome",
+        "type": "string"
+      },
+      "RestoreResult": {
+        "description": "The persistent lane's outcome. The fields are the wire keys; each outcome has its own constructor.\n\n``submitted`` is False only for a lane that declined (``error`` and ``code``). ``applied`` marks\nconvergence (``attempts``, ``active``). Otherwise ``reason`` says why not and ``diff`` what diverged,\nwith ``unfixable`` naming an endpoint that is gone.",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "applied": {
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempts"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestoreOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "boolean"
+          },
+          "unfixable": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/UnfixableDevice"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unfixable"
+          }
+        },
+        "required": ["submitted"],
+        "title": "RestoreResult",
         "type": "object"
       },
       "SaveBody": {
@@ -365,10 +2502,422 @@
             "type": "string"
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "SaveTarget",
+        "type": "object"
+      },
+      "SelectOption": {
+        "description": "One ``<option>`` of a parsed ``<select>``.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["value", "label", "selected"],
+        "title": "SelectOption",
+        "type": "object"
+      },
+      "SettingEntry": {
+        "description": "One ``settings.json`` leaf: a control's tooltip prose, its source citation, and its own option glossary.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "object"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "tooltip": {
+            "title": "Tooltip",
+            "type": "string"
+          }
+        },
+        "title": "SettingEntry",
+        "type": "object"
+      },
+      "SettingsDb": {
+        "description": "``settings.json`` as loaded: per-tab control tooltips, served whole and never read key by key here.",
+        "properties": {
+          "_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "_unexposed_candidates": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Json"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unexposed Candidates"
+          },
+          "dsp": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingEntry"
+            },
+            "title": "Dsp",
+            "type": "object"
+          },
+          "output": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingEntry"
+            },
+            "title": "Output",
+            "type": "object"
+          },
+          "system": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingEntry"
+            },
+            "title": "System",
+            "type": "object"
+          },
+          "volume": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingEntry"
+            },
+            "title": "Volume",
+            "type": "object"
+          }
+        },
+        "required": ["output", "dsp", "volume", "system"],
+        "title": "SettingsDb",
+        "type": "object"
+      },
+      "ShaperEntry": {
+        "description": "One ``shapers.json`` entry: the prose and rate guidance for one dither or modulator.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "max_rate_hz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rate Hz"
+          },
+          "min_rate_hz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Rate Hz"
+          },
+          "needs_external_volume": {
+            "title": "Needs External Volume",
+            "type": "boolean"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "ShaperEntry",
+        "type": "object"
+      },
+      "ShapersDb": {
+        "description": "``shapers.json`` as loaded: the two per-mode tables ``shaper_entry`` reads, plus its guidance prose.",
+        "properties": {
+          "_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "_join_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join Note"
+          },
+          "_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Json"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance"
+          },
+          "pcm_dithers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ShaperEntry"
+            },
+            "title": "Pcm Dithers",
+            "type": "object"
+          },
+          "sdm_modulators": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ShaperEntry"
+            },
+            "title": "Sdm Modulators",
+            "type": "object"
+          }
+        },
+        "required": ["sdm_modulators", "pcm_dithers"],
+        "title": "ShapersDb",
+        "type": "object"
+      },
+      "Snapshot_ConfigView_": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConfigView"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "Snapshot_MatrixReport_": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MatrixReport"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "Snapshot_MergedEnums_": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MergedEnums"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "Snapshot_SpeakersForm_": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SpeakersForm"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "Snapshot_StatusReport_": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StatusReport"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "Snapshot_dict_str__Union_str__NoneType___": {
+        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "properties": {
+          "data": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Data",
+            "type": "object"
+          },
+          "loaded_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded At"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": ["stale", "loaded_at", "data"],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "SpeakerApplyResult": {
+        "description": "A speaker-processing apply's confirmation, alongside the re-read (or last-cached) form. Fields are wire keys.",
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "speakers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeakersForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["applied", "speakers"],
+        "title": "SpeakerApplyResult",
         "type": "object"
       },
       "SpeakersBody": {
@@ -392,6 +2941,44 @@
           }
         },
         "title": "SpeakersBody",
+        "type": "object"
+      },
+      "SpeakersForm": {
+        "description": "``parse_speakers_form``'s result.",
+        "properties": {
+          "channels": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": ["enabled", "channels"],
+        "title": "SpeakersForm",
         "type": "object"
       },
       "StageBody": {
@@ -427,6 +3014,155 @@
         "title": "StageBody",
         "type": "object"
       },
+      "StaticDb": {
+        "description": "The four static databases plus the plain-names overlay, exactly as ``StaticMetadata.raw`` serves them.",
+        "properties": {
+          "easy": {
+            "$ref": "#/components/schemas/EasyDb"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/FiltersDb"
+          },
+          "plain_names": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlainNamesOverlay"
+            },
+            "title": "Plain Names",
+            "type": "object"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsDb"
+          },
+          "shapers": {
+            "$ref": "#/components/schemas/ShapersDb"
+          }
+        },
+        "required": ["filters", "shapers", "settings", "plain_names", "easy"],
+        "title": "StaticDb",
+        "type": "object"
+      },
+      "StatusReport": {
+        "description": "``GET /api/status`` data: the Status frame, its track metadata, the advisor's note, bands, and auto-pilot.",
+        "properties": {
+          "autopilot": {
+            "title": "Autopilot",
+            "type": "boolean"
+          },
+          "bands": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bands"
+          },
+          "junk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JunkVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "metering": {
+            "title": "Metering",
+            "type": "boolean"
+          },
+          "status": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Status",
+            "type": "object"
+          }
+        },
+        "required": ["status", "metadata", "junk", "bands", "autopilot", "metering"],
+        "title": "StatusReport",
+        "type": "object"
+      },
+      "StoredProfile": {
+        "description": "One saved profile as ``read_profiles`` serializes it: its pipeline rows and its post-process chain.",
+        "properties": {
+          "post": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Post",
+            "type": "object"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": ["rows", "post"],
+        "title": "StoredProfile",
+        "type": "object"
+      },
+      "UnfixableDevice": {
+        "description": "An intended output endpoint absent from the daemon's offered endpoints, beside the endpoints it offers.",
+        "properties": {
+          "available": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available",
+            "type": "array"
+          },
+          "want": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Want"
+          }
+        },
+        "required": ["want", "available"],
+        "title": "UnfixableDevice",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -459,11 +3195,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError",
         "type": "object"
       },
@@ -475,10 +3207,188 @@
             "type": "string"
           }
         },
-        "required": [
-          "level"
-        ],
+        "required": ["level"],
         "title": "VolumeBody",
+        "type": "object"
+      },
+      "VolumeReading": {
+        "description": "``GET /api/volume``: the live volume and its live bounds/enabled (VolumeRange).",
+        "properties": {
+          "adaptive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adaptive"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          }
+        },
+        "required": ["volume", "min", "max", "enabled", "adaptive"],
+        "title": "VolumeReading",
+        "type": "object"
+      },
+      "VolumeReport": {
+        "description": "A live volume write's readback: the level the engine reports after the write.",
+        "properties": {
+          "volume": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          }
+        },
+        "required": ["volume"],
+        "title": "VolumeReport",
+        "type": "object"
+      },
+      "WithAutosave_ApplyReport_": {
+        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
+        "properties": {
+          "autosaved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetSaveResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/ApplyReport"
+          }
+        },
+        "required": ["report", "autosaved"],
+        "title": "WithAutosave",
+        "type": "object"
+      },
+      "WithAutosave_EngineApplyResult_": {
+        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
+        "properties": {
+          "autosaved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetSaveResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/EngineApplyResult"
+          }
+        },
+        "required": ["report", "autosaved"],
+        "title": "WithAutosave",
+        "type": "object"
+      },
+      "WithAutosave_LiveApplyReport_": {
+        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
+        "properties": {
+          "autosaved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetSaveResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/LiveApplyReport"
+          }
+        },
+        "required": ["report", "autosaved"],
+        "title": "WithAutosave",
+        "type": "object"
+      },
+      "WithAutosave_SpeakerApplyResult_": {
+        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
+        "properties": {
+          "autosaved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetSaveResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/SpeakerApplyResult"
+          }
+        },
+        "required": ["report", "autosaved"],
+        "title": "WithAutosave",
+        "type": "object"
+      },
+      "WithSaved_ApplyReport_": {
+        "description": "A write's report, and the named preset save that followed it.",
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/ApplyReport"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/PresetSaveResult"
+          }
+        },
+        "required": ["report", "saved"],
+        "title": "WithSaved",
         "type": "object"
       }
     }
@@ -510,9 +3420,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Records Api Audit Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AuditRecords"
                 }
               }
             },
@@ -558,9 +3466,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Autopilot Api Autopilot Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AutopilotReport"
                 }
               }
             },
@@ -587,9 +3493,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set Autopilot Api Autopilot Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AutopilotReport"
                 }
               }
             },
@@ -628,9 +3532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set Autosave Api Autosave Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AutosaveState"
                 }
               }
             },
@@ -676,9 +3578,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Config Api Config Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_ConfigView_"
                 }
               }
             },
@@ -714,9 +3614,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Apply Api Config Apply Post",
-                  "type": "object"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WithSaved_ApplyReport_"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WithAutosave_ApplyReport_"
+                    }
+                  ],
+                  "title": "Response Apply Api Config Apply Post"
                 }
               }
             },
@@ -755,9 +3661,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Config Live Api Config Live Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WithAutosave_LiveApplyReport_"
                 }
               }
             },
@@ -786,9 +3690,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Discard Api Config Pending Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PendingSnapshot"
                 }
               }
             },
@@ -805,9 +3707,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Pending Api Config Pending Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PendingSnapshot"
                 }
               }
             },
@@ -826,9 +3726,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Config Refresh Api Config Refresh Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RescanAnswer"
                 }
               }
             },
@@ -857,9 +3755,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Stage Api Config Stage Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PendingSnapshot"
                 }
               }
             },
@@ -888,9 +3784,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Read Connection Api Connection Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConnectionReport"
                 }
               }
             },
@@ -917,9 +3811,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Write Connection Api Connection Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConnectionWriteReport"
                 }
               }
             },
@@ -950,10 +3842,7 @@
                 "schema": {
                   "additionalProperties": {
                     "additionalProperties": {
-                      "additionalProperties": {
-                        "type": "string"
-                      },
-                      "type": "object"
+                      "$ref": "#/components/schemas/DescriptionEntry"
                     },
                     "type": "object"
                   },
@@ -987,10 +3876,7 @@
                 "schema": {
                   "additionalProperties": {
                     "additionalProperties": {
-                      "additionalProperties": {
-                        "type": "string"
-                      },
-                      "type": "object"
+                      "$ref": "#/components/schemas/DescriptionEntry"
                     },
                     "type": "object"
                   },
@@ -1025,8 +3911,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/Daemon"
                   },
                   "title": "Response Discover Daemons Api Discover Get",
                   "type": "array"
@@ -1048,9 +3933,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Engine Get Api Engine Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/EngineReading"
                 }
               }
             },
@@ -1060,7 +3943,7 @@
         "summary": "Engine Get"
       },
       "post": {
-        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.\n\n400 with no overrides, 422 when one is not a valid engine attribute. The restore restarts the daemon and\ninterrupts playback \u2014 the user's call, never refused for it.",
+        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.\n\n400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The\nrestore restarts the daemon and interrupts playback \u2014 the user's call, never refused for it.",
         "operationId": "engine_apply_api_engine_post",
         "requestBody": {
           "content": {
@@ -1077,9 +3960,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Engine Apply Api Engine Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WithAutosave_EngineApplyResult_"
                 }
               }
             },
@@ -1108,9 +3989,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Enumerations Api Enumerations Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_MergedEnums_"
                 }
               }
             },
@@ -1199,9 +4078,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health Api Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/HealthReport"
                 }
               }
             },
@@ -1220,9 +4097,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Live Presets Api Livepresets Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LivePresetList"
                 }
               }
             },
@@ -1241,9 +4116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Live Snapshot Api Livepresets Snapshot Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LiveSnapshotView"
                 }
               }
             },
@@ -1273,9 +4146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Live Preset Api Livepresets  Name  Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LivePresetDeleted"
                 }
               }
             },
@@ -1330,9 +4201,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Save Live Preset Api Livepresets  Name  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NamedLiveRecord"
                 }
               }
             },
@@ -1372,9 +4241,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Apply Live Preset Api Livepresets  Name  Apply Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WithAutosave_LiveApplyReport_"
                 }
               }
             },
@@ -1396,7 +4263,7 @@
     },
     "/api/log": {
       "get": {
-        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket \u2014 reads the file the running config points at.",
+        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused.",
         "operationId": "log_tail_api_log_get",
         "parameters": [
           {
@@ -1415,9 +4282,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Log Tail Api Log Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LogTail"
                 }
               }
             },
@@ -1446,9 +4311,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Matrix Api Matrix Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_MatrixReport_"
                 }
               }
             },
@@ -1520,9 +4383,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Matrix Profile Api Matrix Profile Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/MatrixProfileSwitch"
                 }
               }
             },
@@ -1621,9 +4482,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Metadata Api Metadata Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StaticDb"
                 }
               }
             },
@@ -1659,12 +4518,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Narrowing Api Narrowing Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NarrowingAnswer"
                 }
               }
             },
@@ -1674,7 +4528,7 @@
         "summary": "Narrowing"
       },
       "put": {
-        "description": "Replace the whole facet set with the facets given, and answer with what was stored.\n\nWhole-set replace: a facet left out is stored at its default, so the client never needs a second route and two\nbrowsers racing is last-write-wins rather than a merge nobody asked for.",
+        "description": "Replace the whole facet set with the facets given, and answer with what was stored.\n\nWhole-set replace: a facet left out is stored at its default, so the client never needs a second route and two\nbrowsers racing is last-write-wins rather than a merge nobody asked for.\n\n422s a facet key ``FacetBody`` does not name \u2014 pydantic's own ``extra=\"forbid\"`` refuses it at the door.",
         "operationId": "save_narrowing_api_narrowing_put",
         "requestBody": {
           "content": {
@@ -1691,12 +4545,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Save Narrowing Api Narrowing Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NarrowingAnswer"
                 }
               }
             },
@@ -1736,9 +4585,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Preset Api Preset  Name  Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PresetDeleted"
                 }
               }
             },
@@ -1776,9 +4623,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Preset Api Preset  Name  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PresetPreview"
                 }
               }
             },
@@ -1828,9 +4673,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Profile Api Profile  Action  Post",
-                  "type": "object"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PresetActivation"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PresetSaveResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PresetDeleted"
+                    }
+                  ],
+                  "title": "Response Profile Api Profile  Action  Post"
                 }
               }
             },
@@ -1869,9 +4723,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Restore Api Restore Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RestoreAnswer"
                 }
               }
             },
@@ -1900,9 +4752,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Speakers Api Speakers Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_SpeakersForm_"
                 }
               }
             },
@@ -1929,9 +4779,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Speakers Apply Api Speakers Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WithAutosave_SpeakerApplyResult_"
                 }
               }
             },
@@ -1960,9 +4808,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response State Api State Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_dict_str__Union_str__NoneType___"
                 }
               }
             },
@@ -1974,16 +4820,14 @@
     },
     "/api/status": {
       "get": {
-        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An unreadable auto-pilot store reads as off here and\nsays so properly on ``GET /api/autopilot``, so one damaged file cannot take the whole status page down. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``bands`` carries the\nheader readout's three levels, null while the reader has nothing in front of it.",
+        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``bands`` carries the\nheader readout's three levels, null while the reader has nothing in front of it.",
         "operationId": "status_api_status_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Status Api Status Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Snapshot_StatusReport_"
                 }
               }
             },
@@ -2002,9 +4846,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Volume Get Api Volume Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/VolumeReading"
                 }
               }
             },
@@ -2031,9 +4873,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Volume Set Api Volume Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/VolumeReport"
                 }
               }
             },

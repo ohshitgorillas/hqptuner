@@ -14,7 +14,20 @@ resolve to ``None`` — and every menu stays whole.
 """
 
 import re
+from dataclasses import dataclass
 from typing import Any
+
+from hqptuner.conf.httpforms import ConfigForm
+
+
+@dataclass(frozen=True)
+class DeviceCaps:
+    """One device's announced capability: the identity the log named it under, and the rates it accepts."""
+
+    device: str
+    pcm_rates: list[int]
+    dsd_rates: list[int]
+
 
 # The announcement pair. The device line carries endpoint and device separately;
 # joined with "/" they are the `net_device` form value verbatim, which is what
@@ -31,11 +44,7 @@ _FORMAT_RE = re.compile(r"output (?:\w+ )?format: (\d+)/\d+/\d+ \[(pcm|dsd)\]")
 _DEVICE_FIELD = {"network": "net_device", "alsa": "alsa_device"}
 
 
-def _form_values(config_form: dict[str, Any] | None) -> dict[Any, Any]:
-    return {f.get("name"): f.get("value") for f in (config_form or {}).get("fields", [])}
-
-
-def parse_caps(text: str) -> dict[str, Any] | None:
+def parse_caps(text: str) -> DeviceCaps | None:
     """Return the most recent device announcement in ``text``, or None if it has none.
 
     The block is re-emitted on every connect and only for the device actually
@@ -57,11 +66,11 @@ def _rates(formats: list[tuple[str, str]], kind: str) -> list[int]:
     return sorted({int(rate) for rate, announced in formats if announced == kind})
 
 
-def _caps(device: str | None, formats: list[tuple[str, str]]) -> dict[str, Any] | None:
+def _caps(device: str | None, formats: list[tuple[str, str]]) -> DeviceCaps | None:
     """One announcement as the served shape, or None when it announced nothing."""
     if device is None or not formats:
         return None
-    return {"device": device, "pcm_rates": _rates(formats, "pcm"), "dsd_rates": _rates(formats, "dsd")}
+    return DeviceCaps(device=device, pcm_rates=_rates(formats, "pcm"), dsd_rates=_rates(formats, "dsd"))
 
 
 def _device(values: dict[Any, Any]) -> str | None:
@@ -72,17 +81,19 @@ def _device(values: dict[Any, Any]) -> str | None:
     return str(values.get(field) or "") or None
 
 
-def selected_device(config_form: dict[str, Any] | None) -> str | None:
+def selected_device(config_form: ConfigForm | None) -> str | None:
     """Return the device the menus should narrow to, from a parsed ``GET /config`` form.
 
     Network and ALSA backends each drive one device and narrow to it. Combo
     drives both at once, and the log announces one — which device's limits bind
     is unknown, so combo narrows nothing.
     """
-    return _device(_form_values(config_form))
+    fields = config_form["fields"] if config_form else []
+    values = {f.get("name"): f.get("value") for f in fields}
+    return _device(values)
 
 
-def agreed_device(config_form: dict[str, Any] | None, file_config: dict[str, str] | None) -> str | None:
+def agreed_device(config_form: ConfigForm | None, file_config: dict[str, str] | None) -> str | None:
     """Return the device both config views name, or None when they disagree.
 
     The ``/config`` form and the file view are refreshed on different schedules,
@@ -112,7 +123,7 @@ def agreed_device(config_form: dict[str, Any] | None, file_config: dict[str, str
     return selected if other is None or other == selected else None
 
 
-def caps_for(text: str, selected: str | None) -> dict[str, Any] | None:
+def caps_for(text: str, selected: str | None) -> DeviceCaps | None:
     """Capability for ``selected``, or None when the log cannot speak for it.
 
     A staged device change is exactly this case: the newly picked device has not
@@ -123,4 +134,4 @@ def caps_for(text: str, selected: str | None) -> dict[str, Any] | None:
     if not selected:
         return None
     caps = parse_caps(text)
-    return caps if caps is not None and caps["device"] == selected else None
+    return caps if caps is not None and caps.device == selected else None

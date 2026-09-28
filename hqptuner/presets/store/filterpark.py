@@ -34,13 +34,53 @@ _CONTROL_END = 0x20
 _DEL = 0x7F
 
 
+class FilterExtensionRefusedError(ValueError):
+    """An uploaded filter's name does not end in one of ``FILTER_EXTS``."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("filter upload must be a .wav or .txt file")
+
+
+class FilterNameRefusedError(ValueError):
+    """An uploaded filter's name carries a path, a daemon separator, or a control byte."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("filter upload name must be a plain filename")
+
+
+class FilterNotWaveError(ValueError):
+    """An upload named ``.wav`` is not a readable RIFF/WAVE container."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("filter upload is not a WAV file")
+
+
+class FilterNotTextError(ValueError):
+    """An upload not named ``.wav`` is not readable UTF-8 text with no NUL byte."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("filter upload is not a text file")
+
+
+class ParkAtCapacityError(ValueError):
+    """An upload would push the park's total bytes over ``PARK_MAX_BYTES``."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("parked filters are at their limit; apply or discard pending changes first")
+
+
 def _check_name(name: str) -> None:
     """Refuse anything but a plain ``.wav``/``.txt`` filename: no path, no daemon separator, no control byte."""
     if not name.lower().endswith(FILTER_EXTS):
-        raise ValueError("filter upload must be a .wav or .txt file")
+        raise FilterExtensionRefusedError()
     hostile = any(ch in _REFUSED_CHARS or ord(ch) < _CONTROL_END or ord(ch) == _DEL for ch in name)
     if hostile or name.startswith(".") or ".." in name:
-        raise ValueError("filter upload name must be a plain filename")
+        raise FilterNameRefusedError()
 
 
 def _chunks(data: bytes) -> Iterator[tuple[bytes, int]]:
@@ -68,24 +108,22 @@ def _is_wave(data: bytes) -> bool:
     return has_fmt and any(tag == b"data" for tag, _ in _chunks(data))
 
 
-def _is_text(data: bytes) -> bool:
-    """Non-empty UTF-8 with no NUL byte: the shape of a Room EQ Wizard filter export, whose layout is not parsed."""
-    if not data or b"\0" in data:
-        return False
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError:
-        return False
-    return True
-
-
 def _check_body(name: str, data: bytes) -> None:
-    """Refuse bytes that are not the container the extension claims."""
+    """Refuse bytes that are not the container the extension claims.
+
+    The text branch is non-empty UTF-8 with no NUL byte: the shape of a Room EQ Wizard filter export, whose layout is
+    not parsed further.
+    """
     if name.lower().endswith(".wav"):
         if not _is_wave(data):
-            raise ValueError("filter upload is not a WAV file")
-    elif not _is_text(data):
-        raise ValueError("filter upload is not a text file")
+            raise FilterNotWaveError()
+        return
+    if not data or b"\0" in data:
+        raise FilterNotTextError()
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise FilterNotTextError() from exc
 
 
 class FilterPark:
@@ -106,7 +144,7 @@ class FilterPark:
         _check_name(name)
         _check_body(name, data)
         if self._parked_bytes() + len(data) > PARK_MAX_BYTES:
-            raise ValueError("parked filters are at their limit; apply or discard pending changes first")
+            raise ParkAtCapacityError()
         self._dir.mkdir(parents=True, exist_ok=True)
         target = self._dir / name
         serial = 1

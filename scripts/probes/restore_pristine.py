@@ -28,6 +28,10 @@ SETTLE_TRIES = 60
 SETTLE_WAIT = 1.0
 
 
+class CliError(Exception):
+    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
 async def _settle(http: HttpConfigClient) -> None:
     for _ in range(SETTLE_TRIES):
         try:
@@ -35,16 +39,19 @@ async def _settle(http: HttpConfigClient) -> None:
             return
         except (httpx.HTTPError, OSError):
             await asyncio.sleep(SETTLE_WAIT)
-    raise SystemExit("daemon never came back")
+    message = "daemon never came back"
+    raise CliError(message)
 
 
-async def main() -> int:
+async def _run() -> int:
     """Restore the pristine archive over the daemon's settings and report whether the readback matches it exactly."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
-        raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")
+        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
+        raise CliError(message)
     if not ARCHIVE.is_file():
-        raise SystemExit(f"no pristine archive at {ARCHIVE}")
+        message = f"no pristine archive at {ARCHIVE}"
+        raise CliError(message)
     pristine = ARCHIVE.read_bytes()
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
@@ -53,7 +60,8 @@ async def main() -> int:
     active = (await control.get_active_config()) or None
     await control.close()
     if state.get("state") != "0":
-        raise SystemExit(f"engine is not stopped (state={state.get('state')!r}) — refusing to write")
+        message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
+        raise CliError(message)
 
     want = engineconf.base_config_xml(pristine, active)
     http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
@@ -66,6 +74,20 @@ async def main() -> int:
         print(f"  captured {len(want)} bytes, running {len(got)} bytes")
         return 1
     return 0
+
+
+async def main() -> int:
+    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await _run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":

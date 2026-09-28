@@ -8,15 +8,15 @@ gated, so this reads it without auth — the System-tab tail stays available
 before login, like the rest of the read-only surface.
 """
 
-from typing import Any
-
 import httpx
+
+from hqptuner.conf.httpforms import ConfigForm
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
 _HTTP_TIMEOUT = 10.0  # httpx would otherwise default to 5.0
 
 
-def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool]:
+def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
     """Return the configured log file path + whether logging is enabled, from a parsed GET /config form.
 
     Returns (None, False) when the form isn't loaded yet.
@@ -27,7 +27,8 @@ def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool
     enabled = False
     for field in config_form.get("fields", []):
         if field.get("name") == "log_file":
-            path = (field.get("value") or "").strip() or None
+            value = field.get("value")
+            path = (value.strip() or None) if isinstance(value, str) else None
         elif field.get("name") == "log_enabled":
             enabled = bool(field.get("value"))
     return path, enabled

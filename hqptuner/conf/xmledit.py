@@ -48,6 +48,30 @@ class GroundingError(ValueError):
         self.code = code
 
 
+class MalformedElementTagError(GroundingError):
+    """A byte string that does not open with a recognizable element tag."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("malformed element tag")
+
+
+class NoRootElementError(GroundingError):
+    """This snapshot carries no ``<hqplayerd>`` root element at all."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("this snapshot has no hqplayerd root element", code="no-root")
+
+
+class NoKnownPlaceError(GroundingError):
+    """The named element has no known schema position to be created at."""
+
+    def __init__(self, *, tag: str) -> None:
+        """Render the wording naming the element with no known place."""
+        super().__init__(f"there is no known place in the config for the {tag} element", code="no-place")
+
+
 ROOT = "hqplayerd"
 
 # Where each element hqptuner writes sits in hqplayerd's config tree, transcribed
@@ -167,14 +191,15 @@ def set_attr(tag: bytes, attr: str, value: str) -> bytes:
         return pat.sub(lambda _: replacement, tag, count=1)
     name = re.match(rb"<[\w:.-]+", tag)
     if name is None:  # not an open tag — unreachable for the tags we match
-        raise GroundingError("malformed element tag")
+        raise MalformedElementTagError()
     cut = name.end()
     return tag[:cut] + b" " + replacement + tag[cut:]
 
 
-def splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
-    """Replace the matched open tag with ``tag``; every other byte preserved."""
-    return xml[: at.start()] + tag + xml[at.end() :]
+def splice(xml: bytes, span: tuple[int, int], tag: bytes) -> bytes:
+    """Replace the open tag at ``span`` with ``tag``; every other byte preserved."""
+    start, end = span
+    return xml[:start] + tag + xml[end:]
 
 
 def line_lead(xml: bytes, at: int) -> bytes:
@@ -188,28 +213,32 @@ def line_lead(xml: bytes, at: int) -> bytes:
     return lead if lead.strip() == b"" else b""
 
 
-def _insert_child(xml: bytes, parent: str, child: bytes) -> bytes:
-    """Append ``child`` as the last child of ``parent``, which must have a body.
+def _insert_child(
+    xml: bytes, parent_span: tuple[int, int], parent_tag: str, child: bytes
+) -> tuple[bytes, tuple[int, int]]:
+    """Append ``child`` as the last child of ``parent_tag``, whose own open-tag span the caller already holds.
 
-    The child is indented one level in from the parent's own line.
+    The child is indented one level in from the parent's own line. Returns the edited xml and the byte
+    span ``child`` now occupies in it — computed, not searched for, since we just placed those exact bytes.
 
     Last, not first: appending never splits a run the daemon wrote, and for the
     elements that actually go missing — ``matrix``, ``post_process``, a
     ``plugin`` — last IS where 6.0.4 puts them.
     """
-    m = find_element(xml, parent)
-    if m is None:  # unreachable: every caller runs ensure_body first
-        raise GroundingError(f"the {parent} element is absent from this snapshot")
-    close = xml.find(b"</" + parent.encode() + b">", m.end())
+    parent_start, parent_end = parent_span
+    close = xml.find(b"</" + parent_tag.encode() + b">", parent_end)
     bol = xml.rfind(b"\n", 0, close) + 1
     # when the closing tag sits on its own line, go in ahead of that line's break
     # so the child lands inside the body rather than wedged against `</parent>`
     at = bol - 1 if bol and xml[bol:close].strip() == b"" else close
-    return xml[:at] + b"\n" + line_lead(xml, m.start()) + b"\t" + child + xml[at:]
+    lead = line_lead(xml, parent_start) + b"\t"
+    edited = xml[:at] + b"\n" + lead + child + xml[at:]
+    start = at + 1 + len(lead)
+    return edited, (start, start + len(child))
 
 
-def ensure_element(xml: bytes, tag_name: str) -> bytes:
-    """Return ``xml`` guaranteed to hold a live ``<tag_name>``.
+def ensure_element(xml: bytes, tag_name: str) -> tuple[bytes, tuple[int, int]]:
+    """Return ``xml`` guaranteed to hold a live ``<tag_name>``, and that element's byte span.
 
     The element — and any missing ancestor — is created at its schema position.
 
@@ -219,38 +248,45 @@ def ensure_element(xml: bytes, tag_name: str) -> bytes:
     with our idea of them. Only the attribute the user actually set gets written,
     by the caller, immediately after.
     """
-    if find_element(xml, tag_name) is not None:
-        return xml
+    m = find_element(xml, tag_name)
+    if m is not None:
+        return xml, m.span()
     if tag_name == ROOT:
-        raise GroundingError("this snapshot has no hqplayerd root element", code="no-root")
+        raise NoRootElementError()
     parent = PARENT.get(tag_name)
     if parent is None:
-        raise GroundingError(f"there is no known place in the config for the {tag_name} element", code="no-place")
-    return _insert_child(ensure_body(xml, parent), parent, b"<" + tag_name.encode() + b"/>")
+        raise NoKnownPlaceError(tag=tag_name)
+    xml, parent_span = ensure_body(xml, parent)
+    return _insert_child(xml, parent_span, parent, b"<" + tag_name.encode() + b"/>")
 
 
-def ensure_body(xml: bytes, tag_name: str) -> bytes:
+def ensure_body(xml: bytes, tag_name: str) -> tuple[bytes, tuple[int, int]]:
     """As ``ensure_element``, and additionally give ``<tag_name>`` a body.
 
     A self-closing ``<tag_name/>`` is expanded into an open/close pair so
     children can be placed in it.
     """
-    xml = ensure_element(xml, tag_name)
-    m = find_element(xml, tag_name)
-    if m is None or not m.group(0).endswith(b"/>"):
-        return xml
-    return splice(xml, m, m.group(0)[:-2] + b"></" + tag_name.encode() + b">")
+    xml, span = ensure_element(xml, tag_name)
+    start, end = span
+    tag = xml[start:end]
+    if not tag.endswith(b"/>"):
+        return xml, span
+    open_tag = tag[:-2] + b">"
+    close_tag = b"</" + tag_name.encode() + b">"
+    edited = splice(xml, span, open_tag + close_tag)
+    return edited, (start, start + len(open_tag))
 
 
-def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
-    """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``.
+def ensure_plugin(xml: bytes, plugin_type: str) -> tuple[bytes, tuple[int, int]]:
+    """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``, and that plugin's byte span.
 
     The plugin — and ``<post_process>``, and ``<matrix>`` — is created when absent.
     """
-    if find_plugin(xml, plugin_type) is not None:
-        return xml
-    xml = ensure_body(xml, "post_process")
-    return _insert_child(xml, "post_process", f'<plugin type="{plugin_type}"/>'.encode())
+    m = find_plugin(xml, plugin_type)
+    if m is not None:
+        return xml, m.span()
+    xml, post_span = ensure_body(xml, "post_process")
+    return _insert_child(xml, post_span, "post_process", f'<plugin type="{plugin_type}"/>'.encode())
 
 
 def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
@@ -258,11 +294,9 @@ def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
 
     The element is created at its schema position when the snapshot lacks it.
     """
-    xml = ensure_element(xml, tag_name)
-    m = find_element(xml, tag_name)
-    if m is None:  # unreachable: ensure_element either placed it or raised
-        raise GroundingError(f"the {tag_name} element is absent from this snapshot")
-    return splice(xml, m, set_attr(m.group(0), attr, value))
+    xml, span = ensure_element(xml, tag_name)
+    start, end = span
+    return splice(xml, span, set_attr(xml[start:end], attr, value))
 
 
 def edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
@@ -270,8 +304,6 @@ def edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
 
     The plugin (and its container) is created when the snapshot lacks it.
     """
-    xml = ensure_plugin(xml, plugin_type)
-    m = find_plugin(xml, plugin_type)
-    if m is None:  # unreachable: ensure_plugin either placed it or raised
-        raise GroundingError(f"the {plugin_type} plugin is absent from this snapshot")
-    return splice(xml, m, set_attr(m.group(0), attr, value))
+    xml, span = ensure_plugin(xml, plugin_type)
+    start, end = span
+    return splice(xml, span, set_attr(xml[start:end], attr, value))

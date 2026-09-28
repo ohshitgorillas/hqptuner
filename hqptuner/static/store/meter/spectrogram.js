@@ -20,14 +20,12 @@ const MAX_COLUMNS = 3600;
 const SLICE_FRAMES = 5;
 
 /** @typedef {import("./feed.js").Geometry} Geometry */
+/** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
 /**
  * @typedef {{ channels: Float32Array[], sum: Float32Array }} Slice
  *   One slice's band levels in dB, per channel and summed across channels.
  * @typedef {{ centres: number[], nyquist: number, slices: Slice[] }} Column
  *   One closed bin's worth of slices, oldest first.
- * @typedef {{ ms: number, slices: Float32Array[], centres: number[], nyquist: number }} Cell
- *   One visible column, in the picked channel; `slices` is empty where the
- *   interval carried no frame.
  */
 
 const columns = signal(/** @type {Array<Column | null>} */ ([]));
@@ -98,6 +96,25 @@ function closeColumn() {
   return col;
 }
 
+/**
+ * The column list for the bin-clock span from `span.seen` to `span.seq`: the
+ * prior columns, then the column just closed, then one empty column per bin
+ * between the two that no frame could reach, kept to the newest `max`.
+ *
+ * @param {Array<Column | null>} prior
+ * @param {Column | null} closed
+ * @param {{ seen: number, seq: number }} span
+ * @param {number} max
+ * @returns {Array<Column | null>}
+ */
+export function nextColumns(prior, closed, span, max) {
+  /** @type {Array<Column | null>} */
+  const added = [closed];
+  for (let i = span.seen + 1; i < span.seq; i++) added.push(null);
+  const next = prior.concat(added);
+  return next.length > max ? next.slice(next.length - max) : next;
+}
+
 /** @type {(() => void) | null} */
 let dispose = null;
 
@@ -121,12 +138,9 @@ export function initSpectrogram() {
       return;
     }
     if (seq === seen) return;
-    /** @type {Array<Column | null>} */
-    const added = [closeColumn()];
-    for (let i = seen + 1; i < seq; i++) added.push(null);
+    const next = nextColumns(columns.peek(), closeColumn(), { seen, seq }, MAX_COLUMNS);
     seen = seq;
-    const next = columns.peek().concat(added);
-    columns.value = next.length > MAX_COLUMNS ? next.slice(next.length - MAX_COLUMNS) : next;
+    columns.value = next;
   });
   dispose = registered;
   return registered;

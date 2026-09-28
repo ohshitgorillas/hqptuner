@@ -12,9 +12,19 @@ own route (docs/testing.md — `result="OK"` is not proof a setter applied).
 from fastapi.testclient import TestClient
 
 
-def test_a_preset_saved_without_autopilot_leaves_the_switch_where_it_is(live_api: TestClient) -> None:
+def test_a_preset_saved_without_autopilot_leaves_the_switch_where_it_is_and_a_preset_saved_with_it_restores_it(
+    live_api: TestClient,
+) -> None:
     live_api.post("/api/autopilot", json={"enabled": True})
     live_api.put("/api/livepresets/Warm", json={"fields": ["filter"]})
     live_api.post("/api/autopilot", json={"enabled": False})
     live_api.post("/api/livepresets/Warm/apply")
-    assert live_api.get("/api/autopilot").json()["enabled"] is False
+    without_it = live_api.get("/api/autopilot").json()["enabled"]
+
+    live_api.post("/api/autopilot", json={"enabled": True})
+    live_api.put("/api/livepresets/Cold", json={"fields": ["filter", "autopilot"]})
+    live_api.post("/api/autopilot", json={"enabled": False})
+    live_api.post("/api/livepresets/Cold/apply")
+    with_it = live_api.get("/api/autopilot").json()["enabled"]
+
+    assert (without_it, with_it) == (False, True)

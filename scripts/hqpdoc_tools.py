@@ -26,6 +26,20 @@ import re
 from collections.abc import Callable
 
 import authority
+from hqpdoc_errors import (
+    AmbiguousReadmeHeadingError,
+    EmptyKeyError,
+    EmptyTermError,
+    InvalidCapError,
+    InvalidContextError,
+    ManualMissingError,
+    PageNotFoundError,
+    ReadmeHeadingNotFoundError,
+    ReadmeHeadingNumberNotFoundError,
+    ReadmeMissingError,
+    SectionFileMissingError,
+    SectionNotFoundError,
+)
 
 Locate = Callable[["authority.Hit"], "tuple[list[str], int] | None"]
 
@@ -52,10 +66,6 @@ read_lines = authority.read_lines
 Heading = tuple[str, str, int, int]
 
 
-class ToolError(Exception):
-    """A tool-level failure: reported as isError true, never as a protocol error."""
-
-
 def staleness_warning() -> str | None:
     """One line naming `make manual` when the PDF outran the built index, else None."""
     if not MANUAL_PDF.is_file():
@@ -76,7 +86,7 @@ def with_warning(text: str) -> str:
 def require_manual() -> None:
     """Raise a `ToolError` naming `make manual` when docs/official/manual/INDEX.md is missing."""
     if not INDEX.is_file():
-        raise ToolError(f"{MANUAL.relative_to(ROOT)} is missing; it is gitignored and built by `make manual`.")
+        raise ManualMissingError(manual_rel=MANUAL.relative_to(ROOT))
 
 
 def _line_number_from_citation(citation: str) -> int | None:
@@ -153,11 +163,11 @@ def _render_group(name: str, hits: list["authority.Hit"], cap: int, context: int
 def tool_hqp_find(term: str, cap: int = 8, context: int = 0) -> str:
     """Search manual-facts.txt, the split manual and the readme, reusing authority's own search functions."""
     if not term.strip():
-        raise ToolError("hqp_find needs a non-empty term.")
+        raise EmptyTermError()
     if cap < 1:
-        raise ToolError(f"hqp_find cap must be at least 1, not {cap}.")
+        raise InvalidCapError(cap=cap)
     if context < 0:
-        raise ToolError(f"hqp_find context must be at least 0, not {context}.")
+        raise InvalidContextError(context=context)
     require_manual()
     needle = term.lower()
 
@@ -242,9 +252,9 @@ def tool_hqp_section(number: str) -> str:
             filename = row.group(3)
             path = MANUAL / filename
             if not path.is_file():
-                raise ToolError(f"section {number} names {filename}, which is missing from {MANUAL.relative_to(ROOT)}.")
+                raise SectionFileMissingError(number=number, filename=filename, manual_rel=MANUAL.relative_to(ROOT))
             return path.read_text(encoding="utf-8", errors="replace")
-    raise ToolError(f"no section {number!r} in {INDEX.relative_to(ROOT)}.")
+    raise SectionNotFoundError(number=number, index_rel=INDEX.relative_to(ROOT))
 
 
 def tool_hqp_page(page: int) -> str:
@@ -264,7 +274,7 @@ def tool_hqp_page(page: int) -> str:
             if current_page == target:
                 out.append(line)
     if not out:
-        raise ToolError(f"page {page} not found in {MANUAL.relative_to(ROOT)}.")
+        raise PageNotFoundError(page=page, manual_rel=MANUAL.relative_to(ROOT))
     return "\n".join(out)
 
 
@@ -274,7 +284,7 @@ def _find_readme_headings(key: str, headings: list[Heading]) -> list[Heading]:
         number = key.rstrip(".")
         numbered = [heading for heading in headings if heading[0] == number]
         if not numbered:
-            raise ToolError(f"no readme heading numbered {key!r}.")
+            raise ReadmeHeadingNumberNotFoundError(key=key)
         return numbered
 
     needle = key.lower()
@@ -288,8 +298,8 @@ def _find_readme_headings(key: str, headings: list[Heading]) -> list[Heading]:
         return partial
     if partial:
         candidates = ", ".join(f"{number} {title}" for number, title, _depth, _index0 in partial)
-        raise ToolError(f"{key!r} matches several readme headings: {candidates}.")
-    raise ToolError(f"no readme heading matching {key!r}.")
+        raise AmbiguousReadmeHeadingError(key=key, candidates=candidates)
+    raise ReadmeHeadingNotFoundError(key=key)
 
 
 def _readme_block(lines: list[str], headings: list[Heading], heading: Heading) -> str:
@@ -323,10 +333,10 @@ def tool_hqp_readme(key: str) -> str:
     """Print the readme heading block `key` names; a number two headings share prints both."""
     key = key.strip()
     if not key:
-        raise ToolError("hqp_readme needs a non-empty key.")
+        raise EmptyKeyError()
     lines = read_lines(README)
     headings = readme_headings(lines)
     if not headings:
-        raise ToolError(f"{README.relative_to(ROOT)} is missing or has no headings.")
+        raise ReadmeMissingError(readme_rel=README.relative_to(ROOT))
     matches = _find_readme_headings(key, headings)
     return "\n\n".join(_readme_block(lines, headings, heading) for heading in matches)

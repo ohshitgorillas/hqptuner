@@ -24,8 +24,8 @@ import { effective, effectivePipelines, isDirty } from "../../store/resolve.js";
 import { edit } from "../../store/actions.js";
 import { notesVisible } from "../../store/ui/prefs.js";
 import { noteFor } from "../../store/prose.js";
-import { pathParams } from "../../lib/binaural/geometry.js";
-import { midSideResponse, magDb } from "../../lib/binaural/response.js";
+import { pathParams } from "../../vendor/eqlab/core/binaural/geometry.js";
+import { midSideResponse, magDb } from "../../vendor/eqlab/core/binaural/response.js";
 import { PRESETS, matchPreset } from "../../lib/binaural-setup.js";
 import {
   activeMode,
@@ -43,15 +43,15 @@ import { BypassNote } from "../matrix/BypassNote.js";
 import { CrossfeedGeometry } from "./Geometry.js";
 import { XfeedStrip, CompMiniPlot, lensOn, lensShown, xfeedLensAvailable } from "./Comp.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
-import { uncompensatedRows } from "../../lib/xfeed.js";
+import { uncompensatedRows } from "../../vendor/eqlab/core/xfeed.js";
 import { Segment, SliderNumber } from "../controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "../plots.js";
-import { bandFreqs } from "../../lib/dsp/curves.js";
+import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { truthy } from "../../lib/coerce.js";
 import { db, dbOffset } from "../../lib/units.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {{ lambda: number, angle: number, headRadius: number }} StructParams
  *   The three physical controls the structural block compiles from
  *   (store/xfeed/mode.js DEFAULTS names the same trio).

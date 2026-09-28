@@ -6,13 +6,22 @@ import base64
 import json
 import zlib
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import DER, FLOOR_DB, HEADER, SRC
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+@dataclass
+class UnpackResult:
+    """One burst's outcome: its stamp, and one status line describing what happened to it."""
+
+    stamp: str
+    status: str
 
 
 def _first_member(path: Path) -> bytes:
@@ -43,19 +52,23 @@ def _longest_run(shapes: list[tuple[int, int, float]]) -> tuple[int, int]:
     return best_start, best_len
 
 
-def unpack_one(path: Path) -> str:
-    """Decode one burst into ``derived/<stamp>.npy`` and ``.json``; return a one-line result."""
+def unpack_one(path: Path) -> UnpackResult:
+    """Decode one burst into ``derived/<stamp>.npy`` and ``.json``; return its stamp and status."""
     stamp = path.name[len("junkburst-") : -len(".json.gz")]
     npy, meta = DER / f"{stamp}.npy", DER / f"{stamp}.json"
     if npy.exists() and meta.exists():
-        return f"{stamp} skip"
+        return UnpackResult(stamp, "skip")
+    corrupt = False
+    doc: dict[str, Any] = {}
     try:
         doc = json.loads(_first_member(path).decode("utf-8"))
     except (zlib.error, UnicodeDecodeError, json.JSONDecodeError):
-        return f"{stamp} corrupt"
+        corrupt = True
+    if corrupt:
+        return UnpackResult(stamp, "corrupt")
     frames = doc["frames"]
     if not frames:
-        return f"{stamp} empty"
+        return UnpackResult(stamp, "empty")
     geometry = [HEADER.unpack(base64.b64decode(f["header"]))[1:5] for f in frames]
     shapes = [(int(g[0]), int(g[1]), float(g[3])) for g in geometry]
     best_start, best_len = _longest_run(shapes)
@@ -90,7 +103,8 @@ def unpack_one(path: Path) -> str:
         ),
         encoding="utf-8",
     )
-    return f"{stamp} frames={best_len} dropped={dropped} channels={channels} bins={bins} bandwidth={bandwidth:g}"
+    status = f"frames={best_len} dropped={dropped} channels={channels} bins={bins} bandwidth={bandwidth:g}"
+    return UnpackResult(stamp, status)
 
 
 def unpack(workers: int) -> None:
@@ -103,7 +117,7 @@ def unpack(workers: int) -> None:
     print(f"bursts={len(paths)} todo={len(todo)} workers={workers}", flush=True)
     done = 0
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        for line in pool.map(unpack_one, todo, chunksize=1):
+        for result in pool.map(unpack_one, todo, chunksize=1):
             done += 1
-            if "corrupt" in line or "empty" in line or done % 25 == 0 or done == len(todo):
-                print(f"{done}/{len(todo)} {line}", flush=True)
+            if "corrupt" in result.status or "empty" in result.status or done % 25 == 0 or done == len(todo):
+                print(f"{done}/{len(todo)} {result.stamp} {result.status}", flush=True)

@@ -28,7 +28,7 @@ import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
 
-from hqptuner.conf import matrixconf
+from hqptuner.conf import matrixconf, matrixpayload, matrixprofiles
 from hqptuner.conf.xmledit import GroundingError
 
 PIPE = matrixconf.MATRIX_PIPELINES
@@ -61,7 +61,7 @@ def matrix_body(xml: bytes) -> bytes:
     return m.group(1) if m else b""
 
 
-def pipelines(value: Any) -> bytes:
+def pipelines(value: object) -> bytes:
     """Stage a ``matrix_pipelines`` value; a str goes through verbatim so a
     malformed-JSON case can be expressed."""
     return matrixconf.replace_pipelines(cfg(), value if isinstance(value, str) else json.dumps(value))
@@ -72,12 +72,12 @@ def rows(*extra: dict[str, Any]) -> list[dict[str, Any]]:
     return [{**ROW, **e} for e in extra] or [ROW]
 
 
-def profile(payload: Any) -> bytes:
+def profile(payload: object) -> bytes:
     """Stage a ``matrix_profile_save`` value against a valid snapshot."""
-    return matrixconf.write_profile(cfg(), payload if isinstance(payload, str) else json.dumps(payload))
+    return matrixprofiles.write_profile(cfg(), payload if isinstance(payload, str) else json.dumps(payload))
 
 
-def save_payload(**overrides: Any) -> dict[str, Any]:
+def save_payload(**overrides: object) -> dict[str, Any]:
     return {"name": "Crossfeed EQ", "rows": [ROW], **overrides}
 
 
@@ -91,7 +91,7 @@ def refusal_code(call: Callable[[], Any]) -> str:
 #: The two entry points that read a whole save payload.
 SAVE_ENTRIES = [
     pytest.param(profile, id="write_profile"),
-    pytest.param(matrixconf.save_targets, id="save_targets"),
+    pytest.param(matrixprofiles.save_targets, id="save_targets"),
 ]
 
 
@@ -187,7 +187,7 @@ BAD_ROW_LISTS = [
 
 
 @pytest.mark.parametrize("value", BAD_ROW_LISTS)
-def test_a_value_that_is_not_one_to_128_rows_is_refused(value: Any) -> None:
+def test_a_value_that_is_not_one_to_128_rows_is_refused(value: object) -> None:
     assert refusal_code(lambda: pipelines(value)) == "rows-bad-list"
 
 
@@ -263,33 +263,36 @@ BAD_PRESETS = [pytest.param("Office", id="bare-string"), pytest.param([1], id="l
 
 @pytest.mark.parametrize("entry", SAVE_ENTRIES)
 @pytest.mark.parametrize("presets", BAD_PRESETS)
-def test_a_presets_key_that_is_not_a_list_of_names_is_refused(entry: Callable[[str], Any], presets: Any) -> None:
+def test_a_presets_key_that_is_not_a_list_of_names_is_refused(entry: Callable[[str], Any], presets: object) -> None:
     assert refusal_code(lambda: entry(json.dumps(save_payload(presets=presets)))) == "targets-bad-list"
 
 
-def test_save_targets_returns_the_named_fanout_targets() -> None:
-    assert matrixconf.save_targets(json.dumps(save_payload(presets=["Office", "Den"]))) == ["Office", "Den"]
+def test_a_save_payload_without_a_presets_key_names_no_targets_and_one_with_it_names_them() -> None:
+    without = matrixprofiles.save_targets(json.dumps(save_payload()))
+    with_targets = matrixprofiles.save_targets(json.dumps(save_payload(presets=["Office", "Den"])))
+    assert (without, with_targets) == ([], ["Office", "Den"])
 
 
-def test_a_save_payload_without_a_presets_key_names_no_targets() -> None:
-    assert matrixconf.save_targets(json.dumps(save_payload())) == []
+def test_parse_save_returns_the_fanout_targets_from_the_payload() -> None:
+    payload = matrixpayload.parse_save(json.dumps(save_payload(presets=["Office", "Den"])))
+    assert payload.presets == ["Office", "Den"]
 
 
 # --- 18. a snapshot the writer cannot ground itself in -------------------------
 
 
-# `no-root` is raised in conf/xmledit.py, not in conf/matrixconf.py: the writer
+# `no-root` comes from the XML-edit helper the writer uses: the writer
 # grounds itself in the snapshot's <hqplayerd> root through that helper, which
 # refuses a document that has none.
 def test_a_snapshot_without_the_hqplayerd_root_is_refused() -> None:
     unrooted = b'<?xml version="1.0"?><other/>'
-    assert refusal_code(lambda: matrixconf.write_profile(unrooted, json.dumps(save_payload()))) == "no-root"
+    assert refusal_code(lambda: matrixprofiles.write_profile(unrooted, json.dumps(save_payload()))) == "no-root"
 
 
 def test_a_snapshot_with_no_matrix_element_still_receives_the_saved_profile() -> None:
     # a rooted snapshot that carries no live <matrix>: the save is not refused,
     # the element is created (see the report — the brief expected a refusal here)
-    written = matrixconf.write_profile(rooted_without_matrix(), json.dumps(save_payload(name="Night")))
+    written = matrixprofiles.write_profile(rooted_without_matrix(), json.dumps(save_payload(name="Night")))
     assert b'<matrix_profile name="Night">' in written
 
 
@@ -297,28 +300,25 @@ def test_a_snapshot_with_no_matrix_element_still_receives_the_saved_profile() ->
 
 
 def test_a_targeted_delete_payload_yields_its_profile_name() -> None:
-    assert matrixconf.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[0] == "Stock"
+    assert matrixpayload.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[0] == "Stock"
 
 
-def test_a_targeted_delete_payload_yields_its_preset_targets() -> None:
-    assert matrixconf.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[1] == ["Office"]
+def test_a_delete_payload_without_a_presets_key_names_no_targets_and_one_with_it_names_them() -> None:
+    without = matrixpayload.parse_delete(json.dumps({"name": "Stock"}))[1]
+    with_targets = matrixpayload.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[1]
+    assert (without, with_targets) == ([], ["Office"])
 
 
-def test_a_delete_object_without_a_name_key_is_taken_whole_as_the_profile_name() -> None:
-    payload = json.dumps({"presets": ["Office"]})
-    assert matrixconf.parse_delete(payload)[0] == payload
+def test_a_delete_value_that_is_not_json_is_refused() -> None:
+    assert refusal_code(lambda: matrixpayload.parse_delete("Stock")) == "delete-bad-json"
 
 
-def test_a_delete_object_without_a_name_key_names_no_targets() -> None:
-    assert matrixconf.parse_delete(json.dumps({"presets": ["Office"]}))[1] == []
+def test_a_delete_value_that_is_not_a_json_object_is_refused() -> None:
+    assert refusal_code(lambda: matrixpayload.parse_delete(json.dumps(["Stock"]))) == "delete-bad-shape"
 
 
-def test_a_bare_profile_name_delete_round_trips_as_its_own_name() -> None:
-    assert matrixconf.parse_delete("Stock")[0] == "Stock"
-
-
-def test_a_bare_profile_name_delete_names_no_targets() -> None:
-    assert matrixconf.parse_delete("Stock")[1] == []
+def test_a_delete_object_without_a_name_key_is_refused() -> None:
+    assert refusal_code(lambda: matrixpayload.parse_delete(json.dumps({"presets": ["Office"]}))) == "name-not-string"
 
 
 # --- the rejection type a caller can catch ------------------------------------

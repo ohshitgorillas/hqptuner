@@ -3,10 +3,10 @@
 A save or delete staged with a ``presets`` list also lands (or removes) the
 ``<matrix_profile>`` element in each named stored preset's XML — a pure file
 edit on the HQPTuner-owned store, no daemon traffic (matrix-spec.md
-"Profiles"). The old payload shapes (no ``presets`` key; a plain name string
-for delete) keep their exact old behavior: running config only, stored
-presets untouched. Stored preset XML here is rendered by the fake daemon's own
-config renderer, so the writer is exercised against 6.0.4-shaped documents,
+"Profiles"). The untargeted payload shape (no ``presets`` key for a save, an
+empty ``presets`` list for a delete) writes the running config only and
+leaves stored presets untouched. Stored preset XML here is rendered by
+the fake daemon's own config renderer, so the writer is exercised against 6.0.4-shaped documents,
 and readback goes through an independent regex over the documented element
 shape (hqplayerd-readme.txt §1.12), never through the writer.
 """
@@ -14,7 +14,7 @@ shape (hqplayerd-readme.txt §1.12), never through the writer.
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fake_config_xml import cfg_xml
@@ -22,8 +22,14 @@ from fake_http import state
 from fastapi.testclient import TestClient
 
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http import restore
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetops import PresetAftermath
 from hqptuner.presets.store.presets import PresetStore
+
+if TYPE_CHECKING:
+    from hqptuner.core.applyops import ApplyReport
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -117,20 +123,21 @@ async def test_fanout_preserves_the_presets_other_settings(http_manager: Connect
     assert without_profile(http_manager.presetops.store.read("Office"), "Crossfeed EQ") == seeded
 
 
-async def test_successful_fanout_target_reports_ok(http_manager: ConnectionManager) -> None:
-    http_manager.presetops.store.save("Office", preset_xml())
-    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Office"]))
-    assert report["persistent"]["profile_fanout"]["Office"] == "ok"
-
-
 async def test_fanout_to_a_missing_preset_still_applies(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
-    assert report["persistent"]["applied"] is True
+    assert (
+        await restore.apply(http_manager, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_missing_fanout_target_maps_to_an_error(http_manager: ConnectionManager) -> None:
     report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
-    assert report["persistent"]["profile_fanout"]["Ghost"] not in ("", "ok")
+    assert ((report.aftermath or PresetAftermath()).fanout or {})["Ghost"] not in ("", "ok")
+
+
+async def test_apply_reports_the_fanout_in_the_aftermath(http_manager: ConnectionManager) -> None:
+    http_manager.presetops.store.save("Office", preset_xml())
+    report: ApplyReport = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Office"]))
+    assert ((report.aftermath or PresetAftermath()).fanout or {})["Office"] == "ok"
 
 
 async def test_a_co_target_still_receives_the_profile_despite_a_missing_one(http_manager: ConnectionManager) -> None:
@@ -139,9 +146,16 @@ async def test_a_co_target_still_receives_the_profile_despite_a_missing_one(http
     assert "Crossfeed EQ" in stored_profiles(http_manager.presetops.store.read("Office"))
 
 
-async def test_apply_without_targets_carries_no_fanout_key(http_manager: ConnectionManager) -> None:
-    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
-    assert "profile_fanout" not in report["persistent"]
+async def test_apply_without_targets_carries_no_fanout_key_and_a_targeted_one_reports_ok(
+    http_manager: ConnectionManager,
+) -> None:
+    without_targets = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
+    http_manager.presetops.store.save("Office", preset_xml())
+    with_targets = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Office"]))
+    assert (
+        (without_targets.aftermath or PresetAftermath()).fanout,
+        ((with_targets.aftermath or PresetAftermath()).fanout or {})["Office"],
+    ) == (None, "ok")
 
 
 # --- delete: targeted (object) shape vs the old plain-string shape ------------
@@ -168,21 +182,20 @@ async def test_targeted_delete_reaches_the_second_named_preset(http_manager: Con
     assert "Stock" not in stored_profiles(http_manager.presetops.store.read("Den"))
 
 
-async def test_plain_string_delete_leaves_stored_presets_untouched(http_manager: ConnectionManager) -> None:
+async def test_an_untargeted_delete_leaves_stored_presets_untouched(http_manager: ConnectionManager) -> None:
     http_manager.presetops.store.save("Office", preset_xml({"Stock": [FILE_ROW]}))
-    await http_manager.applyops.apply({}, {"matrix_profile_delete": "Stock"})
+    await http_manager.applyops.apply({}, delete_from("Stock", []))
     assert "Stock" in stored_profiles(http_manager.presetops.store.read("Office"))
 
 
-async def test_plain_string_delete_still_removes_from_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_profile_delete": "Stock"})
+async def test_an_untargeted_delete_still_removes_from_the_running_config(http_manager: ConnectionManager) -> None:
+    await http_manager.applyops.apply({}, delete_from("Stock", []))
     assert "Stock" not in await running_profiles(http_manager)
 
 
 async def test_delete_targeting_a_preset_without_the_profile_still_applies(http_manager: ConnectionManager) -> None:
     http_manager.presetops.store.save("Office", preset_xml())
-    report = await http_manager.applyops.apply({}, delete_from("Stock", ["Office"]))
-    assert report["persistent"]["applied"] is True
+    assert (await restore.apply(http_manager, delete_from("Stock", ["Office"]))).outcome is RestoreOutcome.APPLIED
 
 
 async def test_delete_no_op_leaves_the_presets_file_unchanged(http_manager: ConnectionManager) -> None:
@@ -195,39 +208,46 @@ async def test_delete_no_op_leaves_the_presets_file_unchanged(http_manager: Conn
 # --- payload validation --------------------------------------------------------
 
 
-def bad_presets_save(presets: Any) -> dict[str, str]:
+def bad_presets_save(presets: object) -> dict[str, str]:
     return {"matrix_profile_save": json.dumps({"name": "Crossfeed EQ", "rows": [ROW0], "presets": presets})}
 
 
 @pytest.mark.parametrize("presets", ["Office", [1]])
-async def test_non_list_of_strings_presets_is_refused_naming_the_field(
-    http_manager: ConnectionManager, presets: Any
+def test_non_list_of_strings_presets_is_refused_naming_the_field(http_client: TestClient, presets: object) -> None:
+    http_client.post("/api/config/stage", json={"http": bad_presets_save(presets)})
+    resp = http_client.post("/api/config/apply")
+    assert (resp.json()["code"], "matrix_profile_save" in resp.json()["detail"]) == ("invalid_input", True)
+
+
+def test_refused_presets_value_leaves_the_stored_preset_unwritten(
+    http_manager: ConnectionManager, http_client: TestClient
 ) -> None:
-    report = await http_manager.applyops.apply({}, bad_presets_save(presets))
-    assert "matrix_profile_save" in report["persistent"]["error"]
-
-
-async def test_refused_presets_value_leaves_the_stored_preset_unwritten(http_manager: ConnectionManager) -> None:
     seeded = preset_xml()
     http_manager.presetops.store.save("Office", seeded)
-    await http_manager.applyops.apply({}, bad_presets_save("Office"))
-    assert http_manager.presetops.store.read("Office") == seeded
+    http_client.post("/api/config/stage", json={"http": bad_presets_save("Office")})
+    resp = http_client.post("/api/config/apply")
+    assert (resp.json()["code"], http_manager.presetops.store.read("Office")) == ("invalid_input", seeded)
 
 
-async def test_refused_presets_value_leaves_the_running_config_unwritten(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, bad_presets_save("Office"))
-    assert "Crossfeed EQ" not in await running_profiles(http_manager)
+async def test_refused_presets_value_leaves_the_running_config_unwritten(
+    http_manager: ConnectionManager, http_client: TestClient
+) -> None:
+    http_client.post("/api/config/stage", json={"http": bad_presets_save("Office")})
+    resp = http_client.post("/api/config/apply")
+    assert (resp.json()["code"], "Crossfeed EQ" in await running_profiles(http_manager)) == ("invalid_input", False)
 
 
 # --- GET /api/matrix: the preset_profiles read model ---------------------------
 
 
-def test_api_matrix_maps_each_stored_presets_profile_names_sorted(http_client: TestClient, tmp_path: Path) -> None:
+def test_api_matrix_with_an_empty_preset_store_serves_an_empty_mapping_and_a_populated_one_when_saved(
+    http_client: TestClient, tmp_path: Path
+) -> None:
+    http_client.post("/api/config/refresh")
+    empty = http_client.get("/api/matrix").json()["data"]["preset_profiles"]
+
     PresetStore(tmp_path / "presets").save("Office", preset_xml({"Zeta": [FILE_ROW], "Alpha": [FILE_ROW]}))
     http_client.post("/api/config/refresh")  # makes the form routes servable
-    assert http_client.get("/api/matrix").json()["data"]["preset_profiles"]["Office"] == ["Alpha", "Zeta"]
+    populated = http_client.get("/api/matrix").json()["data"]["preset_profiles"]["Office"]
 
-
-def test_api_matrix_with_an_empty_preset_store_serves_an_empty_mapping(http_client: TestClient) -> None:
-    http_client.post("/api/config/refresh")
-    assert http_client.get("/api/matrix").json()["data"]["preset_profiles"] == {}
+    assert (empty, populated) == ({}, ["Alpha", "Zeta"])

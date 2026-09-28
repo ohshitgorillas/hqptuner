@@ -19,6 +19,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
@@ -40,21 +41,19 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
     nothing at all."""
     with ExitStack() as stack:
 
-        def build(**overrides: Any) -> TestClient:
-            cfg = Config(
-                **{
-                    "hqp_host": "127.0.0.1",
-                    "hqp_control_port": closed_port,
-                    "hqp_http_port": closed_port,
-                    "hqp_username": "",
-                    "hqp_password": "",
-                    "connection_file": store_path,
-                    "backup_dir": tmp_path,
-                    "preset_dir": tmp_path / "presets",
-                    **overrides,
-                }
-            )
-            return stack.enter_context(TestClient(create_app(cfg)))
+        def build(**overrides: object) -> TestClient:
+            defaults: dict[str, Any] = {
+                "hqp_host": "127.0.0.1",
+                "hqp_control_port": closed_port,
+                "hqp_http_port": closed_port,
+                "hqp_username": "",
+                "hqp_password": "",
+                "connection_file": store_path,
+                "backup_dir": tmp_path,
+                "preset_dir": tmp_path / "presets",
+            }
+            cfg = Config(**{**defaults, **overrides})
+            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
 
         yield build
 

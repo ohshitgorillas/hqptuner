@@ -12,18 +12,31 @@ raw socket where the fake's framing is the thing under test.
 import asyncio
 from collections.abc import AsyncIterator, Callable
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import pytest
 from conftest import DaemonFactory, LiveManager
+from virtual_clock import VirtualClock
 
-from hqptuner.conf.matrixscope import has_profile, matrix_body_span, matrix_scope
+from hqptuner.conf.matrixscope import find_matrix_body_span, has_profile, matrix_body_span, matrix_scope
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.frames import parse_frame
 from hqptuner.lanes.live.lane import mode_then_split, reassert_chain, remember_routed
 from hqptuner.lanes.live.snapshot import live_snapshot
-from hqptuner.lanes.rescan import NO_DAEMON, WRITE_FAILED, replay
+from hqptuner.lanes.rescan import ReplayOutcome, replay
+from hqptuner.lanes.writer import LiveWriteOutcome, LiveWriteResult
+
+
+class FixtureError(Exception):
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
+
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
 
 #: A snapshot holding two stored profiles, each with a body of its own.
 XML0 = (
@@ -101,14 +114,22 @@ def test_matrix_body_span_selects_the_body_and_refuses_a_bodyless_element(
     assert _body_or_error(locate, xml) == expected
 
 
+def test_find_matrix_body_span_locates_the_body_when_present_and_answers_absent_without_raising() -> None:
+    xml = b"<matrix><a/></matrix>"
+    start, close = find_matrix_body_span(xml) or (0, 0)
+    present = xml[start:close]
+    absent = find_matrix_body_span(b"<matrix/>")
+    assert (absent, present) == (None, b"<a/>")
+
+
 # --- rescan replay -------------------------------------------------------------
 
 
 @pytest.fixture
-async def dead_manager(closed_port: int) -> AsyncIterator[ConnectionManager]:
+async def dead_manager(closed_port: int, clock: VirtualClock) -> AsyncIterator[ConnectionManager]:
     """A running manager whose control lane points at a port nothing listens on."""
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=closed_port))
-    task = asyncio.create_task(manager.run())
+    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=closed_port), clock=clock)
+    task = clock.spawn(manager.run())
     yield manager
     manager.stop()
     await task
@@ -124,13 +145,14 @@ async def _loaded(manager: ConnectionManager) -> dict[str, Any]:
         if snapshot is not None:
             return dict(snapshot)
         await asyncio.sleep(0)
-    raise AssertionError("the manager never loaded the fake engine")
+    raise FixtureError(reason="the manager never loaded the fake engine")
 
 
 async def test_a_replay_with_no_daemon_restores_nothing_and_says_the_engine_is_gone(
     dead_manager: ConnectionManager,
 ) -> None:
-    assert await replay(dead_manager, dict(DITHER_NS9)) == {"restored": {}, "warning": NO_DAEMON}
+    result = await replay(dead_manager, dict(DITHER_NS9))
+    assert (result.restored, result.outcome) == ({}, ReplayOutcome.UNREACHABLE)
 
 
 async def test_a_replay_of_fields_the_engine_already_holds_restores_nothing_and_warns_of_nothing(
@@ -138,7 +160,8 @@ async def test_a_replay_of_fields_the_engine_already_holds_restores_nothing_and_
 ) -> None:
     manager, _log, _state = await live_manager()
     await _loaded(manager)
-    assert await replay(manager, {"dither": "0"}) == {"restored": {}}
+    result = await replay(manager, {"dither": "0"})
+    assert (result.restored, result.outcome) == ({}, ReplayOutcome.NOTHING_TO_RESTORE)
 
 
 async def test_a_replay_the_daemon_refuses_restores_nothing_and_warns_of_the_loss(
@@ -146,7 +169,8 @@ async def test_a_replay_the_daemon_refuses_restores_nothing_and_warns_of_the_los
 ) -> None:
     manager, _log, _state = await live_manager(_error="SetShaping")
     await _loaded(manager)
-    assert await replay(manager, dict(DITHER_NS9)) == {"restored": {}, "warning": WRITE_FAILED}
+    result = await replay(manager, dict(DITHER_NS9))
+    assert (result.restored, result.outcome) == ({}, ReplayOutcome.WRITE_FAILED)
 
 
 async def test_a_replay_whose_readback_disagrees_restores_nothing_and_warns_of_the_loss(
@@ -154,7 +178,8 @@ async def test_a_replay_whose_readback_disagrees_restores_nothing_and_warns_of_t
 ) -> None:
     manager, _log, _state = await live_manager(_deaf="SetShaping")
     await _loaded(manager)
-    assert await replay(manager, dict(DITHER_NS9)) == {"restored": {}, "warning": WRITE_FAILED}
+    result = await replay(manager, dict(DITHER_NS9))
+    assert (result.restored, result.outcome) == ({}, ReplayOutcome.WRITE_FAILED)
 
 
 # --- the live lane's restore tail and chain memory ----------------------------
@@ -182,13 +207,15 @@ async def test_a_mode_the_engine_already_runs_is_skipped_and_the_rest_is_split(
 
 
 @pytest.fixture
-async def manager_and_client(daemon: DaemonFactory) -> AsyncIterator[tuple[ConnectionManager, ControlClient]]:
+async def manager_and_client(
+    daemon: DaemonFactory, clock: VirtualClock
+) -> AsyncIterator[tuple[ConnectionManager, ControlClient]]:
     """A running manager on a fake daemon, plus a second control connection to
     that same daemon (its State is shared across connections), for the lane
     entry points that take the client to write through as an argument."""
     port, _log, _state = await daemon()
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port))
-    task = asyncio.create_task(manager.run())
+    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
+    task = clock.spawn(manager.run())
     client = ControlClient("127.0.0.1", port, timeout=2.0)
     await client.connect()
     yield manager, client
@@ -201,20 +228,20 @@ async def manager_and_client(daemon: DaemonFactory) -> AsyncIterator[tuple[Conne
 @pytest.mark.parametrize(
     ("remembered", "expected"),
     [
-        pytest.param("5", ([{"setting": "shaper", "ok": True}], {"dither": "5"}), id="value-on-the-list"),
+        pytest.param("5", ([("shaper", LiveWriteOutcome.OK)], {"dither": "5"}), id="value-on-the-list"),
         pytest.param("999", ([], {}), id="value-off-the-list-is-dropped"),
     ],
 )
 async def test_reasserting_a_chain_sends_a_listed_value_and_forgets_an_unlisted_one(
     manager_and_client: tuple[ConnectionManager, ControlClient],
     remembered: str,
-    expected: tuple[list[Any], dict[str, str]],
+    expected: tuple[list[tuple[str, LiveWriteOutcome]], dict[str, str]],
 ) -> None:
     manager, client = manager_and_client
     await _loaded(manager)
     manager.readings.live.chain["pcm"] = {"dither": remembered}
     report = await reassert_chain(manager, client)
-    assert (report, manager.readings.live.chain["pcm"]) == expected
+    assert ([(r.setting, r.outcome) for r in report], manager.readings.live.chain["pcm"]) == expected
 
 
 def _readings(
@@ -225,7 +252,7 @@ def _readings(
     status = manager.readings.status
     enums = manager.readings.enums
     if state is None or status is None or enums is None:
-        raise RuntimeError("readings not loaded")
+        raise FixtureError(reason="readings not loaded")
     return state, status, enums
 
 
@@ -254,7 +281,7 @@ async def test_routed_fields_are_remembered_under_the_active_chain_only(
 ) -> None:
     manager, _log, _state = await live_manager()
     await _loaded(manager)
-    remember_routed(reshape(manager), [{"setting": "shaper", "ok": True}], dict(DITHER_NS9))
+    remember_routed(reshape(manager), [LiveWriteResult(setting="shaper", ok=True)], dict(DITHER_NS9))
     assert manager.readings.live.chain == expected
 
 
@@ -314,3 +341,24 @@ async def split_reply_client() -> AsyncIterator[ControlClient]:
 async def test_a_reply_cut_mid_tag_is_read_to_its_end_before_parsing(split_reply_client: ControlClient) -> None:
     el = await split_reply_client.request("<State/>")
     assert (el.tag, el.attrib) == ("State", {"result": "OK"})
+
+
+def _tag_attrib(el: ET.Element | None) -> tuple[str, dict[str, str]]:
+    """The root's tag and attributes, or an empty pair where nothing parsed."""
+    return (el.tag, dict(el.attrib)) if el is not None else ("", {})
+
+
+def test_parse_frame_recovers_the_root_from_a_complete_frame_with_unparseable_children() -> None:
+    body = '<Status result="OK"><metadata artist="Foo "Bar""/></Status>'
+    assert _tag_attrib(parse_frame(body)) == ("Status", {"result": "OK"})
+
+
+def test_parse_frame_recovers_the_root_from_a_frame_with_an_unescaped_ampersand_attribute() -> None:
+    body = '<Status result="Rock & Roll"/>'
+    assert _tag_attrib(parse_frame(body)) == ("Status", {"result": "Rock & Roll"})
+
+
+def test_parse_frame_raises_control_error_on_a_frame_carrying_an_entity_declaration() -> None:
+    body = '<!DOCTYPE x [<!ENTITY a "b">]><Status result="OK"/>'
+    with pytest.raises(ControlError):
+        parse_frame(body)

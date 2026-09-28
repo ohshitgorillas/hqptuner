@@ -22,6 +22,14 @@ if TYPE_CHECKING:
     from jbrun import LabelledRun, MaskRow
 
 
+class NoMeddleBurstEngagedError(ValueError):
+    """The `G90 at 11 dB (no veto)` rule engages no burst under any row key naming Meddle."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording."""
+        super().__init__("no Meddle burst engaged under G90 at 11 dB (no veto)")
+
+
 #: The loud-frame step lines that force the ``MIRROR_VETO_LEVEL`` ratio veto to yield, engaging the block whatever
 #: its ratio reads.
 POLICY_G90_YIELD_LEVELS = (12.0, 13.0, 14.0, 16.0, 20.0)
@@ -73,7 +81,7 @@ def _meddle_yield_stamp(rows: list[dict[str, Any]]) -> str:
         for key, entry in row["rows"].items():
             if "Meddle" in key and entry["engaged_real"]:
                 return str(entry["engaged_real"][0])
-    raise ValueError("no Meddle burst engaged under G90 at 11 dB (no veto)")
+    raise NoMeddleBurstEngagedError()
 
 
 def policy_yield_block_rows(

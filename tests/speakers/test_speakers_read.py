@@ -2,11 +2,11 @@
 form. Behavior only, one assertion per test (docs/testing.md)."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from hqptuner.conf.httpconf import parse_speakers_form
+from hqptuner.conf.formparse import parse_speakers_form
+from hqptuner.conf.httpforms import SpeakersForm
 
 _HTML = (Path(__file__).parent.parent / "support" / "fixtures" / "speakers-6.0.4.html").read_text()
 _PARSED = parse_speakers_form(_HTML)
@@ -14,7 +14,7 @@ _PARSED = parse_speakers_form(_HTML)
 _FORM = '<form method="post">{}</form>'
 
 
-def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> dict[str, Any]:
+def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> SpeakersForm:
     """Parse a minimal one-channel speakers form with the given field values —
     the fixture is all-zero/disabled, so cases that need live values build here."""
     body = (
@@ -27,12 +27,8 @@ def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> dict
     return parse_speakers_form(_FORM.format(body))
 
 
-def test_disabled_switch_parses_false() -> None:
-    assert _PARSED["enabled"] is False
-
-
-def test_enabled_switch_parses_true() -> None:
-    assert _speakers(enabled=" checked")["enabled"] is True
+def test_the_switch_parses_disabled_as_false_and_checked_as_true() -> None:
+    assert (_PARSED["enabled"], _speakers(enabled=" checked")["enabled"]) == (False, True)
 
 
 @pytest.mark.parametrize("index,name", [(0, "Left"), (2, "Center"), (3, "LFE")])

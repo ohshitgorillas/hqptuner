@@ -7,14 +7,21 @@ import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../../lib/dom.js";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { registerIr } from "../../lib/dsp/impulse.js";
-import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage, stageArgs } from "../../lib/matrixspec.js";
+import { registerIr } from "../../vendor/eqlab/core/dsp/impulse.js";
+import {
+  IIR_TYPES,
+  DELAY_ARGS,
+  validateStage,
+  newStage,
+  editedStage,
+  stageArgs,
+} from "../../vendor/eqlab/core/matrixspec.js";
 import { selectedStage } from "./BandStrip.js";
 import { hz } from "../../lib/units.js";
 
 /**
- * @typedef {import("../../lib/matrixspec.js").MatrixStage} MatrixStage
- * @typedef {import("../../lib/matrixspec.js").IirSchema} IirSchema
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} MatrixStage
+ * @typedef {import("../../vendor/eqlab/core/matrixspec.js").IirSchema} IirSchema
  * @typedef {{ row: number, stage: number }} StageRef
  *   Which stage the editor is docked under: pipeline row, then index within
  *   that row's parsed chain.
@@ -58,21 +65,34 @@ function ArgInput({ label, value, onInput }) {
   `;
 }
 
-// Sniff a WAV header's sample rate (fmt chunk) for the 352.8 kHz recommendation
-// (manual §7). Returns null for non-WAV/undetectable — no warning then.
+/**
+ * Sniff a WAV header's sample rate (fmt chunk) for the 352.8 kHz recommendation
+ * (manual §7). Returns null for non-WAV/undetectable — no warning then.
+ *
+ * @param {DataView} view
+ * @returns {number | null}
+ */
+export function wavRateFromHeader(view) {
+  try {
+    if (view.getUint32(0, false) !== 0x52494646 || view.getUint32(8, false) !== 0x57415645) return null;
+    let off = 12;
+    while (off + 8 < view.byteLength) {
+      if (view.getUint32(off, false) === 0x666d7420) return view.getUint32(off + 12, true);
+      off += 8 + view.getUint32(off + 4, true);
+    }
+  } catch {
+    /* a truncated header carries no rate */
+  }
+  return null;
+}
+
 /**
  * @param {File} file
  * @returns {Promise<number | null>}
  */
 async function wavSampleRate(file) {
   try {
-    const buf = new DataView(await file.slice(0, 64).arrayBuffer());
-    if (buf.getUint32(0, false) !== 0x52494646 || buf.getUint32(8, false) !== 0x57415645) return null;
-    let off = 12;
-    while (off + 8 < buf.byteLength) {
-      if (buf.getUint32(off, false) === 0x666d7420) return buf.getUint32(off + 12, true);
-      off += 8 + buf.getUint32(off + 4, true);
-    }
+    return wavRateFromHeader(new DataView(await file.slice(0, 64).arrayBuffer()));
   } catch {
     /* unreadable — skip the warning */
   }

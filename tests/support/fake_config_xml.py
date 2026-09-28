@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-def _b(v: Any) -> str:
+def _b(v: object) -> str:
     return "1" if v in (True, "1", 1) else "0"
 
 

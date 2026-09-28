@@ -16,6 +16,7 @@ import io
 import sys
 import unicodedata
 import zipfile
+from dataclasses import dataclass, field
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
@@ -61,20 +62,35 @@ async def _raw_control(cfg: Config, doc: bytes) -> bytes:
     return b"".join(chunks)
 
 
-async def _config_list(cfg: Config) -> tuple[str, list[str], bytes, str | None]:
-    """(active, names, raw bytes, parse error) via a fresh ControlClient."""
+@dataclass
+class ConfigListing:
+    """One ``ConfigurationList`` read: the active profile, its names, the raw reply, and any parse error."""
+
+    active: str
+    names: list[str]
+    raw: bytes
+    error: str | None = None
+
+
+async def _config_list(cfg: Config) -> ConfigListing:
+    """Read ``ConfigurationList`` via a fresh ``ControlClient``."""
     raw = await _raw_control(cfg, b"<ConfigurationList/>")
     client = ControlClient(host=cfg.hqp_host, port=cfg.hqp_control_port)
     await client.connect()
+    active = ""
+    names: list[str] = []
+    errors: list[str] = []
     try:
         root = await client.request("<ConfigurationList/>")
-        return root.attrib.get("active", ""), [i.attrib.get("name", "") for i in root], raw, None
+        active = root.attrib.get("active", "")
+        names = [i.attrib.get("name", "") for i in root]
     # A profile name the daemon emits unescaped can break the reply in any number of ways; whatever the parse throws
-    # is the observation, returned alongside the raw bytes rather than raised.
+    # is the observation, recorded alongside the raw bytes rather than raised.
     except Exception as exc:  # noqa: BLE001
-        return "", [], raw, f"{type(exc).__name__}: {exc}"
+        errors.append(f"{type(exc).__name__}: {exc}")
     finally:
         await client.close()
+    return ConfigListing(active, names, raw, errors[0] if errors else None)
 
 
 def _members(blob: bytes) -> list[zipfile.ZipInfo]:
@@ -96,43 +112,60 @@ def _describe(name: str, got: str) -> str:
     return "MANGLED"
 
 
-async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: set[str]) -> tuple[str, str, str]:
-    """Return (round-trip verdict, zip encoding note, deleted verdict)."""
-    print(f"\n{'=' * 72}\nNAME {name!r}\n  utf-8 bytes ({len(name.encode())}): {name.encode()!r}")
+@dataclass
+class ProbeResult:
+    """One candidate name's round trip: verdict, zip encoding note, deletion verdict, any exception, and its log."""
+
+    verdict: str = "n/a"
+    zipnote: str = "n/a"
+    deleted: str = "not created"
+    error: str | None = None
+    log: list[str] = field(default_factory=list)
+
+
+async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: set[str]) -> ProbeResult:
+    """Return one candidate name's round trip, its zip note, deletion verdict and diagnostic log; prints nothing."""
+    log = [f"\n{'=' * 72}\nNAME {name!r}\n  utf-8 bytes ({len(name.encode())}): {name.encode()!r}"]
     verdict = zipnote = "n/a"
+    error = None
     saved = False
+    save_errors: list[str] = []
     try:
         await http.post_profile("save", profile_name=name)
         saved = True
-        print("  POST /config/profile/save -> HTTP 2xx")
+        log.append("  POST /config/profile/save -> HTTP 2xx")
     # Rejecting a candidate name is a legitimate result for this probe, and the daemon may signal it as an HTTP error,
     # a transport failure or a mangled reply — all of them recorded as "save rejected" rather than aborting the sweep.
     except Exception as exc:  # noqa: BLE001
-        print(f"  POST /config/profile/save FAILED: {type(exc).__name__}: {exc}")
+        log.append(f"  POST /config/profile/save FAILED: {type(exc).__name__}: {exc}")
+        save_errors.append(f"{type(exc).__name__}: {exc}")
+    if save_errors:
         verdict = "save rejected"
+        error = save_errors[0]
 
     if saved:
-        active, names, raw, err = await _config_list(cfg)
-        new = [n for n in names if n.startswith("ZZprobe")]
-        print(f"  ConfigurationList parse: {err or 'ok'}")
-        print(f"    active={active!r} ZZprobe entries={new!r}")
+        listing = await _config_list(cfg)
+        new = [n for n in listing.names if n.startswith("ZZprobe")]
+        log.append(f"  ConfigurationList parse: {listing.error or 'ok'}")
+        log.append(f"    active={listing.active!r} ZZprobe entries={new!r}")
         if new:
-            print(f"    returned bytes: {new[0].encode()!r}")
-        print(f"    RAW document: {raw!r}")
-        verdict = _describe(name, new[0]) if new else ("XML PARSE FAILURE" if err else "ABSENT from list")
+            log.append(f"    returned bytes: {new[0].encode()!r}")
+        log.append(f"    RAW document: {listing.raw!r}")
+        verdict = _describe(name, new[0]) if new else ("XML PARSE FAILURE" if listing.error else "ABSENT from list")
+        error = listing.error
 
         blob = await http.backup()
         cands = [i for i in _members(blob) if i.filename not in base_zip]
-        print(f"  settings.zip new members: {[i.filename for i in cands]!r}")
+        log.append(f"  settings.zip new members: {[i.filename for i in cands]!r}")
         for info in cands:
-            print(f"    member repr : {info.filename!r}")
-            print(f"    raw bytes   : {_raw_name_bytes(info)!r}")
-            print(f"    flag_bits   : 0x{info.flag_bits:04x} (UTF-8 0x800 = {bool(info.flag_bits & 0x800)})")
+            log.append(f"    member repr : {info.filename!r}")
+            log.append(f"    raw bytes   : {_raw_name_bytes(info)!r}")
+            log.append(f"    flag_bits   : 0x{info.flag_bits:04x} (UTF-8 0x800 = {bool(info.flag_bits & 0x800)})")
             with zipfile.ZipFile(io.BytesIO(blob)) as zf:
                 data = zf.read(info)
-            print(f"    size        : {len(data)} bytes")
+            log.append(f"    size        : {len(data)} bytes")
             first = data.split(b"\n", 1)[0][:120].decode("utf-8", "replace")
-            print(f"    first line  : {first}")
+            log.append(f"    first line  : {first}")
         if cands:
             want = f"{CFG_PREFIX}{name}.xml"
             zipnote = ("utf8-flag" if cands[0].flag_bits & 0x800 else "cp437") + (
@@ -146,24 +179,24 @@ async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: s
     if saved:
         try:
             await http.post_profile("delete", profile=name)
-            print("  POST /config/profile/delete -> HTTP 2xx")
+            log.append("  POST /config/profile/delete -> HTTP 2xx")
         # Cleanup delete; whether the profile actually went away is adjudicated below by readback of ConfigurationList
         # and settings.zip, which sets deleted = "NO" on any stray — not by this handler, so the error is only logged.
         except Exception as exc:  # noqa: BLE001
-            print(f"  DELETE POST FAILED: {type(exc).__name__}: {exc}")
-        _, names2, raw2, err2 = await _config_list(cfg)
+            log.append(f"  DELETE POST FAILED: {type(exc).__name__}: {exc}")
+        readback = await _config_list(cfg)
         zip2 = {i.filename for i in _members(await http.backup())}
-        stray_list = [n for n in names2 if n.startswith("ZZprobe")]
+        stray_list = [n for n in readback.names if n.startswith("ZZprobe")]
         stray_zip = sorted(zip2 - base_zip)
-        print(f"  readback ConfigurationList ({err2 or 'ok'}): ZZprobe entries={stray_list!r}")
-        print(f"  readback settings.zip new members: {stray_zip!r}")
+        log.append(f"  readback ConfigurationList ({readback.error or 'ok'}): ZZprobe entries={stray_list!r}")
+        log.append(f"  readback settings.zip new members: {stray_zip!r}")
         if stray_list or stray_zip:
-            print(f"  *** CLEANUP FAILED *** stray list={stray_list!r} stray zip={stray_zip!r}")
-            print(f"  *** RAW list document: {raw2!r}")
+            log.append(f"  *** CLEANUP FAILED *** stray list={stray_list!r} stray zip={stray_zip!r}")
+            log.append(f"  *** RAW list document: {readback.raw!r}")
             deleted = "NO"
         else:
             deleted = "yes"
-    return verdict, zipnote, deleted
+    return ProbeResult(verdict, zipnote, deleted, error, log)
 
 
 async def main() -> int:
@@ -182,23 +215,30 @@ async def main() -> int:
     rc = 0
     try:
         before_active = await control.get_active_config()
-        _, before_names, _, _ = await _config_list(cfg)
+        baseline = await _config_list(cfg)
         base_zip = {i.filename for i in _members(await http.backup())}
         print(f"BASELINE ConfigurationGet active={before_active!r}")
-        print(f"BASELINE ConfigurationList names={before_names!r}")
+        print(f"BASELINE ConfigurationList names={baseline.names!r}")
         print(f"BASELINE settings.zip data/cfgs members={sorted(base_zip)!r}")
 
         wanted = [NAMES[int(a) - 1] for a in sys.argv[1:]] or NAMES
         for name in wanted:
             try:
-                verdict, zipnote, deleted = await _probe_one(cfg, http, name, base_zip)
+                result = await _probe_one(cfg, http, name, base_zip)
             # Outermost per-name guard: any unexpected failure inside a single candidate is recorded as its row with
             # deleted="UNKNOWN", which stops the loop below so the summary table still prints from the finally block.
             except Exception as exc:  # noqa: BLE001
-                print(f"  PROBE ERROR: {type(exc).__name__}: {exc}")
-                verdict, zipnote, deleted = f"ERROR {type(exc).__name__}", "n/a", "UNKNOWN"
-            rows.append((name, verdict, zipnote, deleted))
-            if deleted in ("NO", "UNKNOWN"):
+                result = ProbeResult(
+                    f"ERROR {type(exc).__name__}",
+                    "n/a",
+                    "UNKNOWN",
+                    f"{type(exc).__name__}: {exc}",
+                    [f"  PROBE ERROR: {type(exc).__name__}: {exc}"],
+                )
+            for line in result.log:
+                print(line)
+            rows.append((name, result.verdict, result.zipnote, result.deleted))
+            if result.deleted in ("NO", "UNKNOWN"):
                 print("\n*** STOPPING LOOP — a test profile could not be proven deleted ***")
                 rc = 1
                 break
@@ -210,9 +250,9 @@ async def main() -> int:
             print(f"{short!r:<44} {verdict:<22} {zipnote:<20} {deleted}")
         final_active = await control.get_active_config()
         print(f"\nactive config now {final_active!r}")
-        _, final_names, _, _ = await _config_list(cfg)
+        final = await _config_list(cfg)
         final_zip = sorted(i.filename for i in _members(await http.backup()))
-        print(f"final ConfigurationList names={final_names!r}")
+        print(f"final ConfigurationList names={final.names!r}")
         print(f"final settings.zip data/cfgs members={final_zip!r}")
         await http.aclose()
         await control.close()

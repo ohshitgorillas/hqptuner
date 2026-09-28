@@ -75,6 +75,7 @@ function ambient(path) {
   if (path === "/api/config") return ok({ data: config.value });
   if (path === "/api/matrix") return ok({ data: matrixConfig.value });
   if (path === "/api/enumerations") return ok({ data: null });
+  if (path === "/api/config/apply") return ok({ report: {} });
   return ok({});
 }
 

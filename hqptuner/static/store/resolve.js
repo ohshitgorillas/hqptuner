@@ -22,7 +22,6 @@ import { config, engineState, matrixConfig, staged, liveOverride, previewConfig,
  * @property {number} [min] number only
  * @property {number} [max]
  * @property {number} [step]
- * @property {string} [on_value] checkbox only: what the daemon expects on submit
  * @property {string} [section]
  * @property {string} [label]
  *

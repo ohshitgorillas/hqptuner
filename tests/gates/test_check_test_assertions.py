@@ -14,7 +14,6 @@ asserted. Every name and sentence below is invented for this file.
 """
 
 import importlib.util
-import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -199,13 +198,11 @@ def test_skip_decorator_and_private_attribute_are_reported_but_not_exempt_xfail_
 
 
 def test_main_refuses_a_plain_path_and_returns_zero_under_report(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """One file with one two-operand conjunction: exit 1 bare, exit 0 behind ``--report``."""
     path = write_test_file(tmp_path, ["def test_one() -> None:", "    assert a and b"])
-    monkeypatch.setattr(sys, "argv", ["check_test_assertions.py", str(path)])
-    plain = GATE.main()
-    monkeypatch.setattr(sys, "argv", ["check_test_assertions.py", "--report", str(path)])
-    report = GATE.main()
+    plain = GATE.main([str(path)])
+    report = GATE.main(["--report", str(path)])
     capsys.readouterr()
     assert (plain, report) == (1, 0)

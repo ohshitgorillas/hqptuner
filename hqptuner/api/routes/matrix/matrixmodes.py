@@ -12,12 +12,28 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.presets import names
-from hqptuner.presets.store.matrixmode import MatrixModeError, MatrixModeSchemaError, MatrixModeStore
+from hqptuner.presets.store.matrixmode import (
+    InvalidPresetNameError,
+    MatrixModeError,
+    MatrixModeSchemaError,
+    MatrixModeStore,
+    validate_mode,
+)
 from hqptuner.presets.store.presets import PresetError
 
 router = APIRouter(prefix="/api")
+
+
+class NoSuchPresetError(ErrorBody):
+    """A Matrix-tab mode names a preset the preset store does not carry."""
+
+    code = "not_found"
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the unrecognized preset ``name``."""
+        super().__init__(f"no such preset: {name!r}")
 
 
 class MatrixModeBody(BaseModel):
@@ -61,10 +77,10 @@ def save_matrix_mode(body: MatrixModeBody, request: Request, manager: Mgr) -> di
     """
     store = _store(request)
     try:
-        store.validate_mode(body.mode)
-        name = names.validate_name(body.name, MatrixModeError, "preset")
+        validate_mode(body.mode)
+        name = names.validate_name(body.name, InvalidPresetNameError, "preset")
         if name not in manager.presetops.store.names():
-            raise refuse("not_found", f"no such preset: {name!r}")
+            raise refuse(NoSuchPresetError(name=name))
         return {"presets": store.write(name, body.mode)}
     except MatrixModeSchemaError as exc:
         raise refuse(exc) from exc

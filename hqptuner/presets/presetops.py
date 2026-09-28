@@ -1,18 +1,21 @@
 """Preset lifecycle + filter parking + backup persistence (``manager.presetops``).
 
 The preset store, the parked filter uploads, and the settings-archive
-persistence (pre-apply disk copy plus the empty-``/backup`` workaround cache)
-form one self-contained collaborator. The daemon-driving operations delegate
-to ``presets/presetlane`` with the manager — this class owns the state, not a
-second wire lane.
+persistence (the pre-apply disk copy) form one self-contained collaborator.
+The daemon-driving operations delegate to the preset lane with the manager;
+this class owns the state.
 """
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from hqptuner.conf import engineconf, matrixconf, presetconf, xmledit
+from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
+from hqptuner.errors import HQPTunerError
+from hqptuner.lanes import settle
+from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import FilterPark
@@ -26,11 +29,91 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 log = logging.getLogger(__name__)
 
 
+class BackupFailedError(HQPTunerError):
+    """The pre-apply settings backup could not be written to disk.
+
+    The backup is taken before a destructive restore, so a caller that proceeds
+    without it is writing over the only copy; a failed write therefore raises
+    and the operation stops. Each subclass renders one sentence for its calling
+    context: the tail ("Check free space and permissions on {dir}, then try
+    again.") is shared, only the opening clause names what was being done when
+    the write failed.
+    """
+
+    code = "backup_failed"
+
+
+class BackupBeforeLoadFailedError(BackupFailedError):
+    """The pre-apply backup failed while about to restore a stored preset onto the daemon."""
+
+    def __init__(self, *, name: str, directory: Path) -> None:
+        """Render the load-specific wording, naming the preset and the backup directory."""
+        super().__init__(
+            f"The backup before loading {name} failed, so nothing was changed. "
+            f"Check free space and permissions on {directory}, then try again."
+        )
+
+
+class BackupBeforeApplyFailedError(BackupFailedError):
+    """The pre-apply backup failed while about to apply hardware-acceleration engine attributes."""
+
+    def __init__(self, *, directory: Path) -> None:
+        """Render the apply-specific wording, naming the backup directory."""
+        super().__init__(
+            "The backup before applying engine settings failed, so nothing was changed. "
+            f"Check free space and permissions on {directory}, then try again."
+        )
+
+
+class BackupBeforeRestoreFailedError(BackupFailedError):
+    """The pre-apply backup failed while about to push a persistent-lane restore."""
+
+    def __init__(self, *, directory: Path) -> None:
+        """Render the restore-specific wording, naming the backup directory."""
+        super().__init__(
+            "The backup before restoring the configuration failed, so nothing was changed. "
+            f"Check free space and permissions on {directory}, then try again."
+        )
+
+
+@dataclass(frozen=True)
+class PresetAftermath:
+    """What an applied restore did to the stored presets: the staged profile fan-out.
+
+    Chain backfills run as part of the same restore but are not reported here. Maps a preset to "ok"
+    or the error that preset met; None when nothing was targeted.
+    """
+
+    fanout: dict[str, str] | None = None
+
+
+async def after_restore(
+    mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str]
+) -> PresetAftermath | None:
+    """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
+
+    None unless the restore converged. It restarted the daemon, so every live reading
+    belongs to the process it replaced — and the auto-save that follows reads exactly those.
+    The parked filter files it carried live on the daemon now.
+    Backfill runs BEFORE the fan-out: it migrates profiles saved earlier, and the user's own
+    save is the write that should land last on any preset both touch. A refused apply fans out
+    nothing.
+    """
+    if persistent is None or persistent.outcome is not RestoreOutcome.APPLIED:
+        return None
+    await settle.resync_engine_state(mgr)
+    ops = mgr.presetops
+    ops.clear_parked_filters()
+    ops.backfill_profiles()
+    fanout = ops.fanout_profiles(http_fields)
+    return PresetAftermath(fanout or None)
+
+
 class PresetOps:
     """The manager's preset store, filter park, and settings-archive persistence as one collaborator."""
 
     def __init__(self, cfg: "Config", mgr: "ConnectionManager") -> None:
-        """Open the store and filter park from ``cfg``'s directories, with no migration run and no cached backup."""
+        """Open the store and filter park from ``cfg``'s directories, with no migration run."""
         self._cfg = cfg
         self._mgr = mgr
         # HQPTuner-owned preset store (store.presets) — the source of truth for
@@ -47,7 +130,6 @@ class PresetOps:
         self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
-        self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
 
     # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
 
@@ -81,10 +163,10 @@ class PresetOps:
         target never blocks another. Delete runs before save per preset, the
         same rename ordering the config edit uses.
         """
-        save_value = edits.get(matrixconf.MATRIX_PROFILE_SAVE)
-        delete_value = edits.get(matrixconf.MATRIX_PROFILE_DELETE)
-        save_to = matrixconf.save_targets(save_value) if save_value else []
-        delete_name, delete_from = matrixconf.parse_delete(delete_value) if delete_value else ("", [])
+        save_value = edits.get(matrixprofiles.MATRIX_PROFILE_SAVE)
+        delete_value = edits.get(matrixprofiles.MATRIX_PROFILE_DELETE)
+        save_to = matrixprofiles.save_targets(save_value) if save_value else []
+        delete_name, delete_from = matrixpayload.parse_delete(delete_value) if delete_value else ("", [])
         results: dict[str, str] = {}
         for preset in dict.fromkeys(delete_from + save_to):
             try:
@@ -94,10 +176,10 @@ class PresetOps:
                 before, target = xml, f"preset:{preset}"
                 if preset in delete_from:
                     presetconf.audit_profile_delete(self._mgr.audit, before, delete_name, target)
-                    xml = matrixconf.delete_profile(xml, delete_name)
+                    xml = matrixprofiles.delete_profile(xml, delete_name)
                 if save_value is not None and preset in save_to:
                     presetconf.audit_profile_write(self._mgr.audit, before, save_value, target)
-                    xml = matrixconf.write_profile(xml, save_value)
+                    xml = matrixprofiles.write_profile(xml, save_value)
                 self.store.save(preset, xml, trigger="fanout")
                 results[preset] = "ok"
             except (PresetError, xmledit.GroundingError, OSError) as exc:
@@ -121,7 +203,7 @@ class PresetOps:
         for preset in self.store.names():
             try:
                 xml = self.store.read(preset)
-                filled = matrixconf.backfill_profile_chains(xml)
+                filled = matrixprofiles.backfill_profile_chains(xml)
                 if filled != xml:
                     self.store.save(preset, filled, trigger="backfill")
                     results[preset] = "ok"
@@ -137,7 +219,7 @@ class PresetOps:
         out: dict[str, list[str]] = {}
         for name in self.store.names():
             try:
-                profiles = json.loads(matrixconf.read_profiles(self.store.read(name)))
+                profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
             except (PresetError, OSError, ValueError):
                 profiles = {}
             out[name] = sorted(profiles)
@@ -145,11 +227,44 @@ class PresetOps:
 
     # --- backup persistence ------------------------------------------------
 
-    def persist_backup(self, data: bytes) -> Path | None:
-        """Write the pre-apply settings backup to disk.
+    def persist_backup_for_load(self, data: bytes, name: str) -> Path:
+        """Write the pre-apply settings backup to disk ahead of loading preset ``name`` onto the daemon.
 
-        A crash mid-apply then still leaves a recoverable copy (memory-only last_backup does not survive one).
-        Best-effort: a write failure must not block the apply itself.
+        Raises ``BackupBeforeLoadFailedError`` on a write failure — see ``_write_backup``.
+        """
+        try:
+            return self._write_backup(data)
+        except OSError as exc:
+            raise BackupBeforeLoadFailedError(name=name, directory=self._cfg.backup_dir) from exc
+
+    def persist_backup_for_apply(self, data: bytes) -> Path:
+        """Write the pre-apply settings backup to disk ahead of applying hardware-acceleration engine attributes.
+
+        Raises ``BackupBeforeApplyFailedError`` on a write failure — see ``_write_backup``.
+        """
+        try:
+            return self._write_backup(data)
+        except OSError as exc:
+            raise BackupBeforeApplyFailedError(directory=self._cfg.backup_dir) from exc
+
+    def persist_backup_for_restore(self, data: bytes) -> Path:
+        """Write the pre-apply settings backup to disk ahead of pushing a persistent-lane restore.
+
+        Raises ``BackupBeforeRestoreFailedError`` on a write failure — see ``_write_backup``.
+        """
+        try:
+            return self._write_backup(data)
+        except OSError as exc:
+            raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
+
+    def _write_backup(self, data: bytes) -> Path:
+        """Write the pre-apply settings backup to disk, returning its path.
+
+        A crash mid-apply then still leaves a recoverable copy (memory-only last_backup does not survive one). The
+        backup is taken before a destructive restore, so a caller that proceeded on a failed write would be writing
+        over the only copy — a failed write here must stop the restore, not merely log it. Raises ``OSError`` on a
+        failed write; each public caller turns that into its own ``BackupFailedError`` subclass, naming the backup
+        directory.
         """
         path = self._cfg.backup_dir / "pre-apply-settings.zip"
         try:
@@ -157,42 +272,8 @@ class PresetOps:
             path.write_bytes(data)
         except OSError as exc:
             log.warning("could not persist pre-apply backup to %s: %s", path, exc)
-            return None
+            raise
         return path
-
-    async def backup_or_cached(self, *, for_write: bool = False) -> bytes:
-        """Fetch ``/backup``, caching it whenever it's a usable archive.
-
-        WORKAROUND (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
-        named ``profile/load`` (and after ``profile/save`` — observed live) until
-        the service is restarted. When that happens, fall back to the last healthy
-        archive we saw.
-
-        ``for_write=True`` refuses that fallback. The cached archive carries a
-        stale working config, and a restore built on it silently resurrects
-        whatever the user changed since it was cached — writing old values back
-        over new ones. A read may be stale; a write may not.
-        """
-        backup = await self._mgr.require_http().backup()
-        if engineconf.base_config_xml(backup, self._mgr.readings.active_config):  # working config resolved → usable
-            self.last_healthy_backup = backup
-            return backup
-        summary = engineconf.archive_summary(backup)
-        if for_write:
-            # State the OBSERVATION, not a cause: an unresolvable archive reads
-            # identically to the daemon's empty-backup bug, and asserting the bug
-            # sent a reader chasing something a restart would not have cleared.
-            log.warning("refusing to build a restore: unusable /backup — %s", summary)
-            raise xmledit.GroundingError(
-                "no working config in the daemon's /backup archive, so there is nothing to build a restore "
-                "from. Either hqplayerd is serving an empty archive (a 6.0.4 bug after a profile load/save, "
-                "cleared by restarting the service) or its working config is under a member name HQPTuner "
-                f"could not resolve. The archive holds: {summary}"
-            )
-        if self.last_healthy_backup is not None:
-            log.warning("unusable /backup from daemon (%s) — using cached archive", summary)
-            return self.last_healthy_backup
-        return backup  # no cache yet — let the caller fail with a clear message
 
     async def backup(self) -> bytes:
         """Return the daemon's current settings archive (a zip) for download."""
@@ -200,19 +281,19 @@ class PresetOps:
 
     # --- preset lane (presetlane) — thin delegators over the store + restore ---
 
-    def presets(self) -> dict[str, Any]:
+    def presets(self) -> presetlane.PresetListing:
         """Return the stored preset options plus the active name, shaped for the frontend's preset field."""
         return presetlane.listing(self._mgr)
 
-    async def load_preset(self, name: str) -> dict[str, Any]:
+    async def load_preset(self, name: str) -> presetlane.PresetActivation:
         """Restore the stored preset ``name`` onto the daemon's working config and mark it active."""
         return await presetlane.load(self._mgr, name)
 
-    async def save_preset(self, name: str) -> dict[str, Any]:
+    async def save_preset(self, name: str) -> presetlane.PresetSaveResult:
         """Snapshot the daemon's running config into the store as preset ``name`` and mirror it to ``data/cfgs``."""
         return await presetlane.save(self._mgr, name)
 
-    async def delete_preset(self, name: str) -> dict[str, Any]:
+    async def delete_preset(self, name: str) -> presetlane.PresetDeleted:
         """Remove preset ``name`` from the store and drop its mirror on the daemon."""
         return await presetlane.delete(self._mgr, name)
 

@@ -28,7 +28,6 @@ import hashlib
 import json
 import os
 import subprocess
-import time
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
@@ -69,10 +68,9 @@ RUN_PROFILE = "Mch-to-Stereo mixdown"
 #: while the daemon reports it is dangling and cannot be switched back to.
 ABSENT_PROFILE = "Profile The Engine Does Not Have"
 
-#: Ceiling on the app noticing a State the fake already reports. Bounded poll on a
+#: Ceiling on the app noticing a State the fake already reports. Bounded wait on a
 #: condition, not a duration anything is expected to take.
 OBSERVE_TIMEOUT = 30.0
-OBSERVE_POLL = 0.05
 
 
 def _digest(path: Path) -> str:
@@ -117,14 +115,25 @@ def _live_active(app: stack_support.Stack) -> str:
     return str(payload["data"]["live_active"])
 
 
+class _ActiveProfileMismatchError(RuntimeError):
+    """The app never settled on the expected active matrix profile within the deadline."""
+
+    def __init__(self, *, reported: str, expected: str) -> None:
+        super().__init__(f"app still reports {reported!r} as the active profile, not {expected!r}")
+
+
 def _await_active(app: stack_support.Stack, name: str) -> None:
-    """Wait until the app reports `name` as the active profile, so `open` records that baseline."""
-    deadline = time.monotonic() + OBSERVE_TIMEOUT
-    while time.monotonic() < deadline:
-        if _live_active(app) == name:
-            return
-        time.sleep(OBSERVE_POLL)
-    raise RuntimeError(f"app still reports {_live_active(app)!r} as the active profile, not {name!r}")
+    """Wait until the app reports `name` as the active profile, so `open` records that baseline.
+
+    Nothing here sleeps or reads the clock. `app.wait_for_command` blocks on
+    `control_log`'s own condition, which every control command the app sends —
+    including its periodic `State` poll — notifies, so the predicate is
+    re-checked (an `/api/matrix` read) each time the app has had a chance to
+    pick up the profile, not on a fixed cadence.
+    """
+    if app.wait_for_command(lambda: _live_active(app) == name, OBSERVE_TIMEOUT):
+        return
+    raise _ActiveProfileMismatchError(reported=_live_active(app), expected=name)
 
 
 def _switch(app: stack_support.Stack, name: str) -> None:
@@ -159,11 +168,18 @@ def _abuse(command: str, state: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+class _AbuseBracketError(RuntimeError):
+    """`scripts/abuse.sh` refused the bracket command, carrying its own stdout and stderr."""
+
+    def __init__(self, *, command: str, stdout: str, stderr: str) -> None:
+        super().__init__(f"abuse.sh {command} failed:\n{stdout}\n{stderr}")
+
+
 def _bracket(command: str, state: Path) -> subprocess.CompletedProcess[str]:
     """Run one end of the bracket, raising with the script's own output when it refuses."""
     result = _abuse(command, state)
     if result.returncode != 0:
-        raise RuntimeError(f"abuse.sh {command} failed:\n{result.stdout}\n{result.stderr}")
+        raise _AbuseBracketError(command=command, stdout=result.stdout, stderr=result.stderr)
     return result
 
 

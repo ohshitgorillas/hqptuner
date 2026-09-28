@@ -1,7 +1,8 @@
 """Typed Control API setters and readback verification against the stateful
 fake daemon (docs/testing.md — behavior via public API, one assertion each)."""
 
-from hqptuner.engine.control import CommandError, ControlClient
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import CommandError
 
 
 async def test_filter_value_alone_sets_both_1x_and_nx(live_client: ControlClient) -> None:

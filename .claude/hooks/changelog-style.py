@@ -23,10 +23,7 @@ GATE = ROOT / "scripts" / "gates" / "check_changelog.py"
 
 def main() -> int:
     """Gate the file this hook payload names, if it is the changelog."""
-    try:
-        payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
-        return 0
+    payload = json.load(sys.stdin)
     target = (payload.get("tool_input") or {}).get("file_path")
     if not target or Path(target).name != "CHANGELOG.md":
         return 0

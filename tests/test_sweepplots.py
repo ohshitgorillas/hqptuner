@@ -24,6 +24,9 @@ import pytest
 class FixtureError(Exception):
     """A test's own scaffolding is wrong — not a failure of the behavior under test."""
 
+    def __init__(self, *, reason: str) -> None:
+        super().__init__(reason)
+
 
 #: The script under test, found relative to this file rather than through an import.
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sweepplots.py"
@@ -33,7 +36,7 @@ SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sweepplots.py"
 def sweepplots() -> ModuleType:
     spec = importlib.util.spec_from_file_location("sweepplots_under_test", SCRIPT_PATH)
     if spec is None or spec.loader is None:
-        raise FixtureError(f"no importable module at {SCRIPT_PATH}")
+        raise FixtureError(reason=f"no importable module at {SCRIPT_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
