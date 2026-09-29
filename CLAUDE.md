@@ -42,7 +42,7 @@ This file is the project's rule sheet; procedure lives in the skills it names, l
 
 - `.claude/hooks/change-budget.py` meters actions you cannot take back, **one leash of 8**: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside the repo. A trip stops you and forces a report: what you did, found, plan next in one to three lines.
 - **In-tree `Write`/`Edit`/`NotebookEdit` are free and uncapped.** Only prose the user typed resets the leash; slash commands and local-command output buy nothing, except the first human row after a trip.
-- **Free, never counted:** reads, `Grep`/`Glob`, web, read-only agent types, the reviewer agents and `SendMessage`, and read-only Bash on the closed allowlist in `.claude/hooks/free_bash.py`. One unrecognized stage meters the whole pipeline; the hook names the token that decided it. Load `change-budget` at the first metered command for the free list, the misfires and the gate and worktree traps.
+- **Free, never counted:** reads, `Grep`/`Glob`, web, read-only agent types, the reviewer agents and `SendMessage`, and read-only Bash on the closed allowlist in `.claude/hooks/free_bash.py`. One unrecognized stage meters the whole pipeline; the hook names the token that decided it. Load `hqptuner-budget` at the first metered command for the free list, the misfires and the gate and worktree traps.
 - **Batch commands, not edits.** Report like it matters at a trip.
 
 ## Repo rules

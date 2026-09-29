@@ -1,5 +1,5 @@
 ---
-name: change-budget
+name: hqptuner-budget
 description: The change-budget hook's free list, the command shapes that meter by syntax, the three advisories, and the gate and worktree traps (parent-checkout venv, ls-files gates, S603, claude -p). Load at the first metered command.
 ---
 
@@ -38,6 +38,6 @@ Scan every Bash string before sending it:
 
 - **Worktree Python tests the parent checkout.** In `.claude/worktrees/*`, `.venv` symlinks into `/srv/hqptuner` and the console-script `pytest` never puts cwd on `sys.path`, so `make check` runs the main checkout's code and reads green while the worktree's changes never executed. Run `PYTHONPATH=$(pwd) scripts/gate.sh make check` there. `.venv/bin/python -m pytest` is safe, `.venv/bin/pytest` is not. Pre-commit has the same blind spot; the JS half is unaffected.
 - **`git ls-files` gates skip untracked files** (`check_test_assertions.py`, `check_doc_refs.py`). Green locally, red at commit or at `scripts/ship.sh`. `git add` a new or fast-growing file before trusting `make check`.
-- **Every `subprocess.run` needs an owner-granted `# noqa: S603`**: a bare binary name fires S607, a resolved path fires S603. Precedent is `shutil.which` plus inline noqa in `scripts/gates/check_binaural.py`. Request it in the plan.
+- **Every `subprocess.run` needs an owner-granted `# noqa: S603`**: a bare binary name fires S607, a resolved path fires S603. Precedent: the inline noqa at `scripts/gates/check_control_catalog.py:55`. Request it in the plan.
 - **`claude -p --bare` cannot log in.** Drop `--bare`, keep `--tools "" --setting-sources "" --no-session-persistence`, and strip `CLAUDECODE` from the env when calling from inside a session.
 - **Test gate commands** (`python scripts/gates/check_*.py tests/*.py`) are free by relative path; an absolute or out-of-tree path meters.
