@@ -23,16 +23,6 @@ def test_backup_archive_carries_the_working_config(http_client: TestClient) -> N
     assert "hqplayerd.xml" in archive.namelist()
 
 
-def test_restore_reports_the_restored_upload(http_client: TestClient) -> None:
-    data = http_client.get("/api/backup").content
-    resp = http_client.post("/api/restore", files={"cfgfile": ("settings.zip", data, "application/zip")})
-    assert resp.json()["restored"] is True
-
-
-def test_device_rescan_reports_refreshed(http_client: TestClient) -> None:
-    assert http_client.post("/api/config/refresh").json()["refreshed"] is True
-
-
 def test_device_rescan_makes_the_config_form_available(http_client: TestClient) -> None:
     # the rescan refetches the forms, so /config serves even though the manager
     # never completed a control-lane connect

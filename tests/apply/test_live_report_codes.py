@@ -14,7 +14,7 @@ from conftest import DaemonFactory
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes.writer import apply_live
+from hqptuner.lanes.writer import LiveWriteFailed, apply_live
 
 CASES = [
     pytest.param({"_error": "Volume"}, {"value": "-20.0"}, "daemon_refused", id="refused"),
@@ -50,6 +50,7 @@ async def test_a_failed_live_setter_reports_the_raised_errors_own_code(
         report = await apply_live(client, {"volume": edit})
     finally:
         await client.close()
+    assert isinstance(report[0], LiveWriteFailed)
     assert report[0].code == code
 
 
@@ -62,4 +63,5 @@ async def test_apply_live_yields_a_live_write_result_the_daemon_refused(daemon: 
         report = await apply_live(client, {"volume": {"value": "-20.0"}})
     finally:
         await client.close()
+    assert isinstance(report[0], LiveWriteFailed)
     assert report[0].code == "daemon_refused"

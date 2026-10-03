@@ -22,39 +22,15 @@ offending line back would satisfy a bare substring match, and the assertion
 would stop constraining the moment the report format changed.
 """
 
-import importlib.util
 from pathlib import Path
-from types import ModuleType
-from typing import cast
 
+import check_changelog
 import pytest
+from narrow import FixtureError
 
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
-
-#: The gate script under test, found relative to this file rather than through
-#: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_changelog.py"
-
-
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_changelog_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
-CHECK = GATE.check
-WORDS = GATE.words
-WORD_CAP = GATE.WORD_CAP
+CHECK = check_changelog.check
+WORDS = check_changelog.words
+WORD_CAP = check_changelog.WORD_CAP
 
 #: The seven headings Keep a Changelog accepts here, in the order they go in.
 #: Spelled out rather than read off the gate: the list is the contract.
@@ -114,8 +90,7 @@ def problem_lines(out: str, path: Path) -> list[str]:
 
 def body_of(path: Path) -> list[tuple[int, str]]:
     """The ``[Unreleased]`` body of a written changelog, as ``unreleased()`` reads it."""
-    body = GATE.unreleased(path.read_text(encoding="utf-8").splitlines())
-    return cast("list[tuple[int, str]]", body)
+    return check_changelog.unreleased(path.read_text(encoding="utf-8").splitlines())
 
 
 # --- a clean section --------------------------------------------------------
@@ -543,38 +518,35 @@ def test_unreleased_stops_at_the_next_version_heading(tmp_path: Path) -> None:
 
 def test_entries_gives_one_tuple_per_bullet(tmp_path: Path) -> None:
     path = write_changelog(tmp_path, under_added(CLEAN, CLEAN, CLEAN))
-    assert len(GATE.entries(body_of(path))) == 3
+    assert len(check_changelog.entries(body_of(path))) == 3
 
 
 def test_entries_gives_a_bullets_1_indexed_line_number(tmp_path: Path) -> None:
     path = write_changelog(tmp_path, under_added(NO_LEAD))
-    assert [number for number, _ in GATE.entries(body_of(path))] == [line_of(path, NO_LEAD)]
+    assert [number for number, _ in check_changelog.entries(body_of(path))] == [line_of(path, NO_LEAD)]
 
 
 def test_entries_carries_a_bullets_continuation_lines(tmp_path: Path) -> None:
     path = write_changelog(tmp_path, under_added(CONTINUED))
-    assert "indented beneath it" in " ".join(GATE.entries(body_of(path))[0][1])
+    assert "indented beneath it" in " ".join(check_changelog.entries(body_of(path))[0][1])
 
 
 def test_headings_gives_the_kind_of_every_heading_in_the_section(tmp_path: Path) -> None:
     path = write_changelog(tmp_path, OUT_OF_ORDER)
-    assert [kind for _, kind in GATE.headings(body_of(path))] == ["Fixed", "Added"]
+    assert [kind for _, kind in check_changelog.headings(body_of(path))] == ["Fixed", "Added"]
 
 
 def test_headings_gives_a_headings_1_indexed_line_number(tmp_path: Path) -> None:
     path = write_changelog(tmp_path, UNKNOWN)
-    assert [number for number, _ in GATE.headings(body_of(path))] == [line_of(path, "### Tweaked")]
+    assert [number for number, _ in check_changelog.headings(body_of(path))] == [line_of(path, "### Tweaked")]
 
 
 # --- the command line -------------------------------------------------------
 
 
-def test_main_returns_zero_when_the_named_path_is_clean(tmp_path: Path) -> None:
-    path_clean = write_changelog(tmp_path, under_added(CLEAN))
-    other_dir = tmp_path / "other"
-    other_dir.mkdir()
-    path_dirty = write_changelog(other_dir, under_added(NO_LEAD))
-    assert (GATE.main([str(path_clean)]), GATE.main([str(path_dirty)])) == (0, 1)
+@pytest.mark.parametrize(("entry", "code"), [(CLEAN, 0), (NO_LEAD, 1)], ids=["clean", "dirty"])
+def test_main_returns_zero_only_when_the_named_path_is_clean(tmp_path: Path, entry: str, code: int) -> None:
+    assert check_changelog.main([str(write_changelog(tmp_path, under_added(entry)))]) == code
 
 
 def test_main_returns_one_when_one_of_several_paths_has_a_problem(tmp_path: Path) -> None:
@@ -582,7 +554,7 @@ def test_main_returns_one_when_one_of_several_paths_has_a_problem(tmp_path: Path
     dirty_dir = tmp_path / "other"
     dirty_dir.mkdir()
     dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    assert GATE.main([str(clean), str(dirty)]) == 1
+    assert check_changelog.main([str(clean), str(dirty)]) == 1
 
 
 def test_main_checks_every_path_it_is_given(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -591,5 +563,6 @@ def test_main_checks_every_path_it_is_given(tmp_path: Path, capsys: pytest.Captu
     dirty_dir = tmp_path / "other"
     dirty_dir.mkdir()
     dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    GATE.main([str(clean), str(dirty)])
-    assert problem_lines(capsys.readouterr().out, dirty)
+    check_changelog.main([str(clean), str(dirty)])
+    located = [line.partition(": ")[0] for line in problem_lines(capsys.readouterr().out, dirty)]
+    assert located == [f"{dirty}:line {line_of(dirty, NO_LEAD)}"]

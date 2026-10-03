@@ -12,13 +12,32 @@ back out.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from hqptuner.errors import HQPTunerError
 from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
+
+_UNKNOWN_CHAIN = {"chain": "the engine's active chain is unknown, so there is no live state to snapshot"}
+
+
+class ChainUnknownError(HQPTunerError):
+    """The engine's active chain cannot be determined, so there is no live state to snapshot.
+
+    ``reasons`` is the per-field detail the API answers with, keyed by the one field it could not fill.
+    """
+
+    code = "chain_unknown"
+
+    def __init__(self) -> None:
+        """Carry the fixed per-field reasons dict; this template carries no interpolated fact."""
+        super().__init__(_UNKNOWN_CHAIN["chain"])
+        self.reasons = dict(_UNKNOWN_CHAIN)
+
 
 # Which enumeration-item attribute carries the value the LIVE lane takes back.
 # Filters and shapers translate ID<->index, so their stored value is the enum ID;
@@ -93,15 +112,23 @@ def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
     return snapshot
 
 
-def live_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]] | None:
-    """Every live setting the engine can currently report, as ``{value, name}``.
+@dataclass(frozen=True)
+class LiveSnapshot:
+    """The chain the engine has loaded, and every live setting it can report on it, as ``{value, name}``."""
 
-    None when ``active_chain`` cannot say which chain is loaded: the chain fields
-    would be missing and the record would claim a chain it never captured, so the
-    snapshot is refused rather than half-taken.
+    chain: str
+    fields: dict[str, dict[str, str]]
+
+
+def live_snapshot(mgr: ConnectionManager) -> LiveSnapshot:
+    """Read the engine's live settings and the chain they were read on, in one pass.
+
+    ``ChainUnknownError`` when ``active_chain`` cannot say which chain is loaded:
+    the chain fields would be missing and the record would claim a chain it never
+    captured, so the snapshot is refused rather than half-taken.
     """
     chain = active_chain(mgr)
     if chain is None:
-        return None
+        raise ChainUnknownError
     chained = {f: item for f in _SNAPSHOT_FIELDS if (item := _snapshot_field(mgr, f, chain)) is not None}
-    return {**chained, **_direct_snapshot(mgr)}
+    return LiveSnapshot(chain, {**chained, **_direct_snapshot(mgr)})

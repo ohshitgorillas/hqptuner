@@ -13,12 +13,14 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
+from fixtures_clients import app
 from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetzip
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets.presetlane import MirrorOutcome
 
 #: A preset name carrying an em dash, the character HQPlayer's charset rules bend around.
 DASHED_NAME = "Headphones — ZMF Ori 3.0"
@@ -151,19 +153,39 @@ async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
     assert manager.presetops.presets().active == "Studio"
 
 
-async def test_a_mirror_retries_rather_than_giving_up_on_one_refusal_but_a_refusal_without_recovery_still_warns(
-    restore_recovering_http_daemon: dict[str, Any],
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
+#: Each daemon a save's mirror meets, and how the mirror ends. The recovering one refuses
+#: twice then accepts: a single-shot POST would call that mirror failed the second before
+#: the daemon would have taken it.
+MIRROR_CASES = [
+    ("http_daemon", MirrorOutcome.LANDED),
+    ("restore_recovering_http_daemon", MirrorOutcome.LANDED),
+    ("restore_refusing_http_daemon", MirrorOutcome.NOT_LANDED),
+]
+
+
+@pytest.mark.parametrize(("daemon", "mirror"), MIRROR_CASES, ids=["healthy", "recovering", "refusing"])
+async def test_a_mirror_lands_unless_the_daemon_refuses_it_past_the_deadline(
+    request: pytest.FixtureRequest, http_manager_factory: ManagerFactory, daemon: str, mirror: MirrorOutcome
 ) -> None:
-    # two refusals then an accept: a single-shot POST would report a warning the
-    # next second would not have seen — pinned beside a daemon that never
-    # recovers, whose warning names the setup that never got there (docs/testing.md rule 9)
-    recovering = http_manager_factory(restore_recovering_http_daemon, alarm_threshold=3.0)
-    recovered = await recovering.presetops.save_preset("Studio")
-    refusing = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    refused = await refusing.presetops.save_preset("Studio")
-    assert (recovered.warning, refused.warning is not None) == (None, True)
+    manager = http_manager_factory(request.getfixturevalue(daemon), alarm_threshold=3.0)
+    assert (await manager.presetops.save_preset("Studio")).mirror is mirror
+
+
+@pytest.mark.parametrize(
+    ("daemon", "warned"),
+    [("http_daemon", False), ("restore_refusing_http_daemon", True)],
+    ids=["landed", "not landed"],
+)
+def test_a_save_answers_a_warning_only_when_its_mirror_did_not_land(
+    request: pytest.FixtureRequest, tmp_path: Path, closed_port: int, daemon: str, *, warned: bool
+) -> None:
+    served = app(request.getfixturevalue(daemon), tmp_path, closed_port, None)
+    client = next(served)
+    try:
+        body = client.post("/api/profile/save", json={"name": "Studio"}).json()
+    finally:
+        next(served, None)
+    assert bool(body.get("warning")) is warned
 
 
 async def test_a_mirror_stops_retrying_at_the_deadline(
@@ -175,17 +197,6 @@ async def test_a_mirror_stops_retrying_at_the_deadline(
     manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     await manager.presetops.save_preset("Studio")
     assert restore_refusing_http_daemon["_restore_attempts"] == 3
-
-
-async def test_a_healthy_save_reports_no_warning_but_a_failed_mirror_warns(
-    http_manager: ConnectionManager,
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
-) -> None:
-    healthy = await http_manager.presetops.save_preset("Studio")
-    failing = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    failed = await failing.presetops.save_preset("Studio")
-    assert (healthy.warning, failed.warning is not None) == (None, True)
 
 
 async def test_a_healthy_save_carries_the_mirror_to_the_daemon(

@@ -32,7 +32,7 @@ dev = [
     "triviajudge",
     # the length, directory-count, barrel and nesting gates; the mv extra is
     # rope, which `filepawl mv` uses to rewrite Python imports
-    "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@v0.10.0",
+    "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@v0.11.0",
     # hqptuner.spec builds the desktop binary with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
@@ -63,6 +63,8 @@ testpaths = ["tests"]
 pythonpath = [
     "tests",
     "tests/support",
+    "scripts",
+    "scripts/gates",
     "scripts/junkcal",
     "scripts/junkburst",
     "scripts/junkburst/features",
@@ -259,7 +261,7 @@ strict = true
 files = ["hqptuner", "tests", "scripts"]
 # Mirrors the pytest `pythonpath` above: the support modules and the budget
 # analyzers are imported by bare name, not by package path.
-mypy_path = ["tests", "tests/support", "scripts/budget", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
+mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/budget", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
 
 [[tool.mypy.overrides]]
 module = "defusedxml.*"

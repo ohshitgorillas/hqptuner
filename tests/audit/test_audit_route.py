@@ -12,7 +12,7 @@ nothing at all.
 """
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -105,9 +105,22 @@ def test_the_audit_route_answers_when_the_log_is_enabled(audit_client: TestClien
 # --- what it hands back -------------------------------------------------------
 
 
-def test_the_audit_route_returns_the_records_the_activity_produced(audit_client: TestClient) -> None:
-    stage_title(audit_client)
-    assert fetched(audit_client) != []
+def discard_pending(client: TestClient) -> None:
+    """Throw the staged buffer away, which leaves a discard record."""
+    client.delete("/api/config/pending")
+
+
+@pytest.mark.parametrize(
+    ("activity", "events"),
+    [([stage_title], ["stage"]), ([stage_title, discard_pending], ["stage", "discard"])],
+    ids=["one event", "two events"],
+)
+def test_the_audit_route_returns_the_records_the_activity_produced(
+    audit_client: TestClient, activity: list[Callable[[TestClient], None]], events: list[str]
+) -> None:
+    for act in activity:
+        act(audit_client)
+    assert [record["event"] for record in fetched(audit_client)] == events
 
 
 def test_a_returned_record_carries_the_event_key(audit_client: TestClient) -> None:

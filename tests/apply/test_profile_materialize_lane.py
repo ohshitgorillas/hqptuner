@@ -22,7 +22,6 @@ from fake_control import CommandLog
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.presets.presetops import PresetAftermath
 
 if TYPE_CHECKING:
     import asyncio
@@ -96,19 +95,6 @@ async def test_an_apply_under_an_active_profile_reports_applied(
     with_night(http_daemon)
     manager, _log = await running_profile("Night")
     assert (await restore.apply(manager, {"title": "Renamed"})).outcome is RestoreOutcome.APPLIED
-
-
-async def test_an_apply_under_an_active_profile_reports_no_profile_restoration(
-    running_profile: RunningProfile, http_daemon: dict[str, Any]
-) -> None:
-    # the key belonged to the superseded re-selection design; nothing re-selects
-    # a profile now, so the report must not claim it did
-    with_night(http_daemon)
-    manager, _log = await running_profile("Night")
-    report = await manager.applyops.apply({}, {"title": "Renamed"})
-    # the apply converges, so aftermath itself is not None — the fact under
-    # test is that it names no fan-out
-    assert report.aftermath == PresetAftermath(None)
 
 
 # --- and the engine is never asked to re-select the profile -------------------

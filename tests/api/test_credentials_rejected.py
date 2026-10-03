@@ -22,6 +22,7 @@ import pytest
 from apps import advance_app, app_manager, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -109,7 +110,7 @@ def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: i
         if state["_requests"] >= target:
             return
         advance_app(client, interval)
-    pytest.fail("the 8088 lane took no further polls")
+    raise FixtureError(reason="the 8088 lane took no further polls")
 
 
 def _loaded(client: TestClient) -> None:
@@ -129,7 +130,7 @@ def _require_recorded_refusal(client: TestClient) -> None:
     That precondition is what separates the two cases below, so a case that
     silently lost it would read as the other one passing."""
     if _credentials_ok(client) is not False:
-        pytest.fail("the lane never recorded the refusal, so the recorded case never set itself up")
+        raise FixtureError(reason="the lane never recorded the refusal, so the recorded case never set itself up")
 
 
 def _credentials_ok(client: TestClient) -> bool | None:

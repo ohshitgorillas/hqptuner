@@ -143,7 +143,7 @@ class SpurHolder:
 # Owner-approved for this site: the junk run is a sixth argument beside the window curve, its geometry and the
 # held spur set, and none of the five folds into another.
 def classify(  # noqa: PLR0913
-    min_levels_db: list[float] | None,
+    min_levels_db: list[float],
     bandwidth: float,
     *,
     samplerate: int | None,
@@ -154,7 +154,7 @@ def classify(  # noqa: PLR0913
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
     ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
-    Nyquist), or None while no frame has been folded at all — the reader has no other readiness gate, so the first
+    Nyquist), or empty while no frame has been folded at all — the reader has no other readiness gate, so the first
     frame past the decimator already carries a spectrum the rules can read. The verdict is spectrum-only — the
     metering tap sees the source, so engaging a filter never changes what the detector sees — which is why detection
     says nothing about what the engine has engaged. Whether
@@ -170,7 +170,7 @@ def classify(  # noqa: PLR0913
 
 # Owner-approved for this site: the same six arguments ``classify`` forwards, the junk run among them.
 def verdicts(  # noqa: PLR0913
-    min_levels_db: list[float] | None,
+    min_levels_db: list[float],
     bandwidth: float,
     *,
     samplerate: int | None,
@@ -183,7 +183,7 @@ def verdicts(  # noqa: PLR0913
     No rule excludes another, so a caller needing what a spectrum supported rather than what it is advised to engage
     reads this; ``classify`` is the lowest corner among them.
     """
-    if min_levels_db is None or not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
+    if not eligible(samplerate, bandwidth, len(min_levels_db), sdm=sdm):
         return []
     curve = Curve(min_levels_db, bandwidth)
     rules = (_junk20k(run, samplerate or 0), _spur(curve, holder), _ramp(curve, samplerate or 0))

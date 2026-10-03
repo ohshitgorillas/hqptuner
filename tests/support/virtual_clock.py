@@ -14,9 +14,13 @@ import asyncio
 import math
 from collections.abc import Coroutine
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from hqptuner.core.clock import Clock
+
+#: The wall-clock instant a clock built without one answers with.
+DEFAULT_INSTANT = datetime(2025, 1, 1, tzinfo=UTC)
 
 
 class NotInTaskError(RuntimeError):
@@ -127,7 +131,8 @@ class VirtualClock(Clock):
 
     _timeline: _Timeline
 
-    def __init__(self) -> None:
+    def __init__(self, *, now: datetime = DEFAULT_INSTANT) -> None:
+        """Start the timeline at zero; ``now`` is the fixed UTC instant every wall-clock read answers with."""
         timeline = _Timeline()
         super().__init__(
             monotonic=timeline.monotonic,
@@ -135,6 +140,7 @@ class VirtualClock(Clock):
             wait=timeline.wait,
             pace=timeline.pace,
             spawn=timeline.spawn,
+            now=lambda: now,
         )
         object.__setattr__(self, "_timeline", timeline)
 

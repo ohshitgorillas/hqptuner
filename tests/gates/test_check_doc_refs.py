@@ -13,17 +13,11 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from narrow import FixtureError
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_doc_refs.py"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:
@@ -41,8 +35,7 @@ GATE = _load_gate_module()
 def test_an_unreadable_path_is_the_only_thing_reported(tmp_path: Path) -> None:
     """A path that cannot be read is one problem line naming it, not silence."""
     ghost = tmp_path / "ghost.py"
-    lines = GATE.check(ghost, {})
-    assert (lines != [], [line for line in lines if ghost.name not in line]) == (True, [])
+    assert [ghost.name in line for line in GATE.check(ghost, {})] == [True]
 
 
 #: The numbered doc the section-number tests cite into.

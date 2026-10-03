@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.live import routing
 from hqptuner.lanes.live.chain import active_chain
-from hqptuner.lanes.writer import LiveWriteResult, apply_live
+from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -86,7 +86,7 @@ class LiveMemory:
 
 def _applied(report: list[LiveWriteResult], setting: str) -> bool:
     """Whether this setting is in the report and verified by readback."""
-    return any(entry.setting == setting and entry.ok for entry in report)
+    return any(entry.setting == setting and isinstance(entry, LiveWriteOk) for entry in report)
 
 
 def _held_fields(stored: dict[str, dict[str, str]]) -> dict[str, str]:

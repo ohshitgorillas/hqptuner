@@ -175,7 +175,7 @@ def test_log_tail_is_bad_gateway_when_the_log_cannot_be_read(deaf_client: TestCl
 
 
 def test_log_tail_reports_the_read_lines_when_the_log_can_be_read(http_client: TestClient) -> None:
-    assert http_client.get("/api/log").json()["lines"]
+    assert http_client.get("/api/log", params={"lines": 2}).json()["lines"] == ["log line 59", "log line 60"]
 
 
 # --- a raw framework refusal with no code in the shared table --------------------

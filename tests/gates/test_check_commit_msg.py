@@ -23,17 +23,11 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from narrow import FixtureError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_commit_msg.py"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:

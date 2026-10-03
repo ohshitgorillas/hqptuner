@@ -30,8 +30,9 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes.live import lane, routing
+from hqptuner.lanes.live import chain, lane, routing
 from hqptuner.lanes.live.snapshot import live_snapshot
+from hqptuner.lanes.writer import LiveWriteOk
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -59,16 +60,16 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
 
     Empty when auto-save is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
-    empty when the engine cannot say which chain it has loaded, which is
-    ``live_snapshot`` refusing to report a half-taken record rather than an error.
+    empty when the engine cannot say which chain it has loaded, which
+    ``live_snapshot`` refuses with ``ChainUnknownError`` rather than report a
+    half-taken record.
     """
     if not mgr.presetops.store.autosave:
         return {}
-    taken = live_snapshot(mgr)
-    if taken is None:
+    if chain.active_chain(mgr) is None:
         return {}
     accepted = routing.live_fields()
-    return {field: item["value"] for field, item in taken.items() if field in accepted}
+    return {field: item["value"] for field, item in live_snapshot(mgr).fields.items() if field in accepted}
 
 
 def _setting_of(name: str) -> str:
@@ -84,7 +85,7 @@ def _restored(report: list[LiveWriteResult], fields: dict[str, str]) -> dict[str
     change nobody can hear (``lane.apply_now``). A replay that dies partway
     reports what landed before it did, for the same reason.
     """
-    landed = {entry.setting for entry in report if entry.ok}
+    landed = {entry.setting for entry in report if isinstance(entry, LiveWriteOk)}
     return {name: value for name, value in fields.items() if _setting_of(name) in landed}
 
 
@@ -133,7 +134,7 @@ def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
     pin outright and ``SetFilter`` reloads the engine — so re-asserting a setting
     the rescan did not disturb would cost the user something for no gain.
     """
-    after = live_snapshot(mgr) or {}
+    after = live_snapshot(mgr).fields if chain.active_chain(mgr) is not None else {}
     return {field: value for field, value in fields.items() if (after.get(field) or {}).get("value") != value}
 
 

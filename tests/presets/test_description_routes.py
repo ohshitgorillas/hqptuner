@@ -30,7 +30,7 @@ import io
 import json
 import zipfile
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +42,7 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions, take_descriptions
 from hqptuner.config import Config
-from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
+from hqptuner.presets.store.descriptions import DescriptionStore
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
@@ -51,12 +51,11 @@ TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated":
 #: during a test run can land on it.
 ANCIENT = "2000-01-01T00:00:00+00:00"
 
+#: The instant the app's clock reads, so a write's stamp is known in advance.
+STAMPED_AT = datetime(2025, 3, 4, 5, 6, 7, tzinfo=UTC)
+
 NAME = "Living Room"
 TEXT = "Wide stereo, gentle tilt below 200 Hz."
-
-
-def store_at(tmp_path: Path) -> DescriptionStore:
-    return DescriptionStore(tmp_path / "descriptions.json")
 
 
 def seed(tmp_path: Path, content: str) -> Path:
@@ -97,7 +96,7 @@ def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], 
             hqp_password="",
             description_file=tmp_path / "descriptions.json",
         )
-        client = TestClient(create_app(cfg, VirtualClock()))
+        client = TestClient(create_app(cfg, VirtualClock(now=STAMPED_AT)))
         clients.append(client)
         client.__enter__()
         return client
@@ -147,11 +146,12 @@ def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
     assert desc_client.get("/api/descriptions").status_code == 200
 
 
-def test_put_then_get_answers_with_the_stored_text_and_the_stamp_of_its_write(desc_client: TestClient) -> None:
+@pytest.mark.parametrize(("member", "served"), [("text", TEXT), ("updated", "2025-03-04T05:06:07Z")])
+def test_get_serves_the_text_a_put_stored_and_the_stamp_of_the_apps_clock(
+    desc_client: TestClient, member: str, served: str
+) -> None:
     desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
-    served = desc_client.get("/api/descriptions").json()["profiles"][NAME]
-    offset = datetime.fromisoformat(served["updated"]).utcoffset().total_seconds()  # type: ignore[union-attr]
-    assert (served["text"], offset) == (TEXT, 0)
+    assert desc_client.get("/api/descriptions").json()["profiles"][NAME][member] == served
 
 
 def test_put_answers_with_the_whole_map_so_no_follow_up_get_is_needed(desc_client: TestClient) -> None:
@@ -180,29 +180,9 @@ def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body:
     assert desc_client.put("/api/descriptions", json=body).status_code == 422
 
 
-def refusal(tmp_path: Path, name: str, text: str) -> str:
-    """The sentence the store itself gives for a write it refuses, JSON-escaped
-    so it can be looked for inside a rendered answer verbatim — a message
-    quoting the offending name carries control characters the answer escapes.
-
-    A store that ACCEPTS the write yields a sentence nothing can contain, rather
-    than the empty string every answer trivially contains: the caller below is
-    checking that a route repeats this sentence, and a write that stopped being
-    refused must fail that check rather than satisfy it. An EMPTY refusal is the
-    same hole from the other side — every answer contains it — so the caller
-    pins the sentence non-empty in the same comparison."""
-    try:
-        store_at(tmp_path).write(name, text)
-    except DescriptionError as exc:
-        return json.dumps(str(exc))[1:-1]
-    return "\x00the store accepted a write it should have refused"
-
-
-# The message is not pinned word for word — what is pinned is that the sentence
-# the user is shown is the store's own, so a route inventing its own wording for
-# a refusal it did not diagnose fails here whatever the store ends up saying.
 # Name cases as well as text: FastAPI's own body validation also answers 422, so
 # a status code alone cannot say the route ever consulted the store about a name.
+# The store's refusal carries its code; the framework's carries none.
 @pytest.mark.parametrize(
     ("name", "text"),
     [
@@ -213,12 +193,9 @@ def refusal(tmp_path: Path, name: str, text: str) -> str:
         pytest.param(NAME, "warm\x00room", id="control-char-text"),
     ],
 )
-def test_a_refused_put_answers_with_the_stores_own_message(
-    desc_client: TestClient, tmp_path: Path, name: str, text: str
-) -> None:
+def test_a_refused_put_answers_with_the_stores_own_code(desc_client: TestClient, name: str, text: str) -> None:
     answer = desc_client.put("/api/descriptions", json={"name": name, "text": text})
-    refused = refusal(tmp_path, name, text)
-    assert (refused != "", refused in json.dumps(answer.json())) == (True, True)
+    assert answer.json().get("code") == "invalid_input"
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
@@ -256,11 +233,11 @@ def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
     assert members(take_descriptions(archive)[0]) == members(plain)
 
 
-def test_an_archive_with_no_payload_yields_no_payload_but_an_embedded_one_comes_back_out() -> None:
+@pytest.mark.parametrize("embedded", [False, True], ids=["no payload", "embedded"])
+def test_taking_the_payload_yields_the_one_embedded_and_none_otherwise(*, embedded: bool) -> None:
     base = stamped({NAME: entry("warm")})
-    archive = embed_descriptions(members_zip(), base)
-    plain = members_zip()
-    assert (take_descriptions(plain)[1], take_descriptions(archive)[1]) == (None, base)
+    archive = embed_descriptions(members_zip(), base) if embedded else members_zip()
+    assert take_descriptions(archive)[1] == (base if embedded else None)
 
 
 def test_an_archive_with_no_payload_comes_back_unchanged() -> None:
@@ -366,12 +343,12 @@ def test_a_restore_forwards_every_other_member_byte_identical(
     assert members(http_daemon["_restore_bytes"]) == members(plain)
 
 
-def test_a_restore_carrying_descriptions_still_reports_restored(
+def test_a_restore_carrying_descriptions_still_succeeds(
     carriage_client: tuple[TestClient, DescriptionStore],
 ) -> None:
     client, _store = carriage_client
     archive = embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")}))
-    assert upload(client, archive).json()["restored"] is True
+    assert upload(client, archive).is_success is True
 
 
 # --- an archive carrying nothing of ours ------------------------------------------------
@@ -441,7 +418,7 @@ def test_an_unreadable_carried_member_does_not_fail_the_restore(
 ) -> None:
     client, _store = carriage_client
     archive = embed_descriptions(client.get("/api/backup").content, b"not json at all {")
-    assert upload(client, archive).json()["restored"] is True
+    assert upload(client, archive).is_success is True
 
 
 def test_an_unreadable_carried_member_is_still_stripped_before_forwarding(

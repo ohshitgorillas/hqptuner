@@ -9,9 +9,8 @@ Policy: docs/testing.md — one condition per test, public API only.
 """
 
 import argparse
-from typing import cast
 
-from junkcal_view import BandStats, Row, band_stats
+from junkcal_view import Row, band_stats
 
 from hqptuner.core import junkcal
 from hqptuner.core.junkcal import tick_state
@@ -27,10 +26,12 @@ def test_tick_state_is_ineligible_for_a_rate_under_the_floor() -> None:
 
 
 def test_band_stats_argmax_hz_is_the_frequency_of_the_bands_highest_level() -> None:
-    stats = cast("BandStats", band_stats(_RISING_CURVE_ROW, (0.0, 10_000.0), _OPTS))
+    stats = band_stats(_RISING_CURVE_ROW, (0.0, 10_000.0), _OPTS)
+    assert stats is not None
     assert stats.argmax_hz == 3000.0
 
 
 def test_band_stats_slope_db_per_khz_is_the_bands_least_squares_slope() -> None:
-    stats = cast("BandStats", band_stats(_RISING_CURVE_ROW, (0.0, 10_000.0), _OPTS))
+    stats = band_stats(_RISING_CURVE_ROW, (0.0, 10_000.0), _OPTS)
+    assert stats is not None
     assert stats.slope_db_per_khz == 10.0

@@ -35,6 +35,11 @@ def store_at(tmp_path: Path) -> PresetStore:
     return PresetStore(tmp_path / "presets")
 
 
+def _payload_files(root: Path) -> int:
+    """How many files under ``root`` carry the payload bytes, wherever a save put them."""
+    return sum(1 for path in root.rglob("*") if path.is_file() and PAYLOAD in path.read_bytes())
+
+
 # --- save, read, overwrite --------------------------------------------------
 
 
@@ -55,14 +60,19 @@ def test_resaving_a_name_returns_the_newer_bytes(tmp_path: Path) -> None:
 # --- listing and existence --------------------------------------------------
 
 
-def test_names_is_empty_when_the_directory_was_never_created_but_lists_saved_presets_in_ascending_order(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("saved", "listed"),
+    [((), []), (("zulu", "alpha", "mike"), ["alpha", "mike", "zulu"])],
+    ids=["never created", "saved"],
+)
+def test_names_lists_the_saved_presets_in_ascending_order(
+    tmp_path: Path, saved: tuple[str, ...], listed: list[str]
 ) -> None:
-    never_created = PresetStore(tmp_path / "never-created").names()
+    # with nothing saved the directory is never created, and the listing reads empty
     store = store_at(tmp_path)
-    for name in ("zulu", "alpha", "mike"):
+    for name in saved:
         store.save(name, PAYLOAD)
-    assert (never_created, store.names()) == ([], ["alpha", "mike", "zulu"])
+    assert store.names() == listed
 
 
 @pytest.mark.parametrize(("name", "expected"), [("alpha", True), ("never-saved", False)])
@@ -75,12 +85,13 @@ def test_exists_answers_for_saved_and_unsaved_names(tmp_path: Path, name: str, *
 # --- delete -----------------------------------------------------------------
 
 
-def test_a_deleted_preset_no_longer_exists_but_a_saved_one_does(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("deleted", "exists"), [("alpha", False), ("bravo", True)], ids=["itself", "another"])
+def test_a_preset_exists_until_it_is_deleted(tmp_path: Path, deleted: str, *, exists: bool) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
-    saved = store.exists("alpha")
-    store.delete("alpha")
-    assert (saved, store.exists("alpha")) == (True, False)
+    store.save("bravo", PAYLOAD)
+    store.delete(deleted)
+    assert store.exists("alpha") is exists
 
 
 def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
@@ -94,30 +105,25 @@ def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
 # --- name refusal -----------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", ESCAPING_NAMES)
-def test_a_refused_name_puts_no_payload_on_disk_but_a_saved_one_does(tmp_path: Path, name: str) -> None:
+@pytest.mark.parametrize(("name", "files"), [*((name, 0) for name in ESCAPING_NAMES), ("alpha", 1)])
+def test_only_an_accepted_name_puts_its_payload_on_disk(tmp_path: Path, name: str, files: int) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the disk check (scripts/gates/testing/check_test_assertions.py counts
-    # a `pytest.raises` block as an assertion). A refused save may still
+    # this test owns is the disk check (docs/testing.md rule 2 counts a
+    # `pytest.raises` block as an assertion). A refused save may still
     # materialize the store directory and its empty stamp — that is bookkeeping,
     # not a payload, so the walk looks for the payload bytes specifically.
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
         store.save(name, PAYLOAD)
-    refused = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
-    store.save("alpha", PAYLOAD)
-    accepted = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
-    assert (refused, accepted != []) == ([], True)
+    assert _payload_files(tmp_path) == files
 
 
-@pytest.mark.parametrize("name", UNSAFE_NAMES)
-def test_a_refused_name_does_not_join_the_listing_but_a_saved_one_does(tmp_path: Path, name: str) -> None:
+@pytest.mark.parametrize(("name", "listed"), [*((name, []) for name in UNSAFE_NAMES), ("alpha", ["alpha"])])
+def test_only_an_accepted_name_joins_the_listing(tmp_path: Path, name: str, listed: list[str]) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
         store.save(name, PAYLOAD)
-    refused = store.names()
-    store.save("alpha", PAYLOAD)
-    assert (refused, store.names()) == ([], ["alpha"])
+    assert store.names() == listed
 
 
 # --- the active pointer -----------------------------------------------------
@@ -125,27 +131,39 @@ def test_a_refused_name_does_not_join_the_listing_but_a_saved_one_does(tmp_path:
 
 # The pointer is written and compared under the stored name: a caller handing in
 # the name with trailing whitespace points at, and clears, the same preset.
-@pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
-def test_active_is_none_when_nothing_was_made_active_but_survives_a_new_store_once_set(
-    tmp_path: Path, name: str
+@pytest.mark.parametrize(
+    ("pointed", "active"),
+    [
+        pytest.param(None, None, id="never-set"),
+        pytest.param("alpha", "alpha", id="exact"),
+        pytest.param("alpha ", "alpha", id="trailing-space"),
+    ],
+)
+def test_the_active_pointer_survives_a_new_store_once_set(
+    tmp_path: Path, pointed: str | None, active: str | None
 ) -> None:
-    unset = store_at(tmp_path).active
     first = store_at(tmp_path)
     first.save("alpha", PAYLOAD)
-    first.set_active(name)
-    assert (unset, PresetStore(tmp_path / "presets").active) == (None, "alpha")
+    if pointed is not None:
+        first.set_active(pointed)
+    assert PresetStore(tmp_path / "presets").active == active
 
 
-@pytest.mark.parametrize("name", [pytest.param("alpha", id="exact"), pytest.param("alpha ", id="trailing-space")])
-def test_deleting_the_active_preset_clears_the_active_pointer_which_was_set_before_that(
-    tmp_path: Path, name: str
-) -> None:
+@pytest.mark.parametrize(
+    ("deleted", "active"),
+    [
+        pytest.param("alpha", None, id="exact"),
+        pytest.param("alpha ", None, id="trailing-space"),
+        pytest.param("bravo", "alpha", id="another-preset"),
+    ],
+)
+def test_deleting_the_active_preset_clears_the_active_pointer(tmp_path: Path, deleted: str, active: str | None) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
+    store.save("bravo", PAYLOAD)
     store.set_active("alpha")
-    before = store.active
-    store.delete(name)
-    assert (before, store.active) == ("alpha", None)
+    store.delete(deleted)
+    assert store.active == active
 
 
 @pytest.mark.parametrize(("saved", "expected"), [((), []), (("bravo", "alpha"), ["alpha", "bravo"])])

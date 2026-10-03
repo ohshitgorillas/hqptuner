@@ -27,6 +27,7 @@ file's whole value is that it cannot fall behind the write path.
 """
 
 import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -87,6 +88,8 @@ def live_forms(_no_inherited_environment: dict[str, str]) -> dict[str, Any]:
     swallowing that would turn a misconfigured canary into a silent green.
     """
     with pytest.MonkeyPatch.context() as mp:
+        for name in [name for name in os.environ if name.startswith("HQPTUNER_")]:
+            mp.delenv(name)
         for name, value in _no_inherited_environment.items():
             mp.setenv(name, value)
         try:

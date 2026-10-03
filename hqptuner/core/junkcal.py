@@ -48,7 +48,7 @@ SPECTRUM_FLOOR_HZ = 13_000.0
 def _spectrum(agg: SpectralAggregate) -> list[list[float]] | None:
     """Return the windowed minimum as ``[hz, db]`` pairs at or above ``SPECTRUM_FLOOR_HZ``, or None with no evidence."""
     window = agg.window_min_db()
-    if window is None:
+    if not window:
         return None
     pairs = ([junkcurve.hz(i, agg.bins, agg.bandwidth), db] for i, db in enumerate(window))
     return [pair for pair in pairs if pair[0] >= SPECTRUM_FLOOR_HZ]

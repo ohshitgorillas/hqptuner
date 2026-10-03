@@ -23,7 +23,7 @@ const TOP_DB = 0;
 const levels = computed(() => {
   const bands = (engineStatus.value || {}).bands;
   /** @type {(number|null)[]} */
-  const triple = Array.isArray(bands) ? bands : [null, null, null];
+  const triple = Array.isArray(bands) && bands.length ? bands : [null, null, null];
   return triple;
 });
 

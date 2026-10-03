@@ -21,6 +21,7 @@ import pytest
 from apps import advance_app, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -142,13 +143,6 @@ async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, s
     return event
 
 
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
-
 def _first_event(client: TestClient) -> tuple[str, Any] | None:
     portal = client.portal
     if portal is None:
@@ -157,7 +151,7 @@ def _first_event(client: TestClient) -> tuple[str, Any] | None:
     if event is None:
         return None
     name, data = event
-    return name, (json.loads(data) or {}).get("channels")
+    return name, json.loads(data).get("channels")
 
 
 @pytest.fixture

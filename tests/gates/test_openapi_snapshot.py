@@ -23,6 +23,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from narrow import FixtureError
 
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -30,13 +31,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_openapi.py"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:
@@ -61,10 +55,13 @@ UNSORTED_OTHER_ORDER = {"a": {"y": 2, "z": 1}, "b": 1}
 COMMITTED = '{\n  "a": 1\n}\n'
 CURRENT = '{\n  "a": 2\n}\n'
 
-#: One document spelled two ways: a short array one item per line, as
-#: ``json.dumps`` writes it, and the same array folded onto a single line.
+#: One document in the two spellings a formatter leaves a short array in.
 ARRAY_EXPANDED = '{\n  "a": [\n    1,\n    2\n  ]\n}\n'
 ARRAY_FOLDED = '{\n  "a": [1, 2]\n}\n'
+
+#: How the change from COMMITTED to CURRENT reads in a diff: key ``a`` removed
+#: at the committed value and added at the current one.
+CHANGED = [("-", {"a": 1}), ("+", {"a": 2})]
 
 #: The instruction a failing run has to carry, so a reader knows how to accept
 #: the new surface without going looking for the command.
@@ -94,14 +91,14 @@ def indent_of(text: str, key: str) -> list[int]:
     return [len(line) - len(line.lstrip(" ")) for line in text.splitlines() if line.strip().startswith(needle)]
 
 
-def added_lines(diff: list[str]) -> list[str]:
-    """The ``+`` body lines of a unified diff, without the ``+++`` header."""
-    return [line for line in diff if line.startswith("+") and not line.startswith("+++")]
+def changed_entries(diff: list[str]) -> list[tuple[str, dict[str, object]]]:
+    """Each removed or added body line of a unified diff as its sign and the JSON entry it carries.
 
-
-def header_lines(diff: list[str], marker: str) -> list[str]:
-    """The unified-diff header lines that open with ``marker``."""
-    return [line for line in diff if line.startswith(marker)]
+    Headers are skipped, and the entry is parsed rather than matched as text, so
+    neither the header labels nor the indent width decide the reading.
+    """
+    body = [line for line in diff if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+    return [(line[0], json.loads("{" + line[1:].strip().rstrip(",") + "}")) for line in body]
 
 
 # --- render --------------------------------------------------------------------
@@ -130,25 +127,19 @@ def test_render_ignores_the_insertion_order_of_the_mapping_it_is_handed() -> Non
 # --- compare -------------------------------------------------------------------
 
 
-def test_compare_returns_no_lines_when_the_two_texts_are_equal() -> None:
-    assert (len(GATE.compare(COMMITTED, COMMITTED)), len(GATE.compare(COMMITTED, CURRENT))) == (0, 7)
+@pytest.mark.parametrize(
+    ("committed", "current", "differs"),
+    [(COMMITTED, COMMITTED, False), (ARRAY_EXPANDED, ARRAY_FOLDED, False), (COMMITTED, CURRENT, True)],
+    ids=["same text", "short array folded onto one line", "changed value"],
+)
+def test_compare_finds_a_difference_only_between_two_different_documents(
+    committed: str, current: str, *, differs: bool
+) -> None:
+    assert (GATE.compare(committed, current) != []) is differs
 
 
-def test_compare_returns_no_lines_when_one_side_folds_a_short_array_onto_one_line() -> None:
-    changed = ARRAY_FOLDED.replace("[1, 2]", "[1, 3]")
-    assert (GATE.compare(ARRAY_EXPANDED, ARRAY_FOLDED), bool(GATE.compare(ARRAY_EXPANDED, changed))) == ([], True)
-
-
-def test_compare_labels_the_committed_side_with_the_snapshot_path() -> None:
-    assert [line for line in header_lines(GATE.compare(COMMITTED, CURRENT), "---") if "docs/openapi.json" in line] != []
-
-
-def test_compare_labels_the_other_side_current() -> None:
-    assert [line for line in header_lines(GATE.compare(COMMITTED, CURRENT), "+++") if "current" in line] != []
-
-
-def test_compare_shows_the_line_the_current_surface_added() -> None:
-    assert [line for line in added_lines(GATE.compare(COMMITTED, CURRENT)) if '"a": 2' in line] != []
+def test_compare_shows_a_changed_key_as_one_removed_and_one_added_line_carrying_its_values() -> None:
+    assert changed_entries(GATE.compare(COMMITTED, CURRENT)) == CHANGED
 
 
 # --- check: the comparing half -------------------------------------------------
@@ -187,7 +178,7 @@ def test_a_differing_snapshot_prints_the_diff(tmp_path: Path, capsys: pytest.Cap
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(COMMITTED, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
-    assert added_lines(capsys.readouterr().out.splitlines()) != []
+    assert changed_entries(capsys.readouterr().out.splitlines()) == CHANGED
 
 
 def test_a_differing_snapshot_tells_the_reader_how_to_accept_the_new_surface(

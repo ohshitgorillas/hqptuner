@@ -24,6 +24,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from narrow import FixtureError
 
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -31,13 +32,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_container_env.py"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:
@@ -220,12 +214,13 @@ def test_a_path_annotated_field_is_collected(annotation: str) -> None:
     assert PATH_FIELDS(field_source("backup_dir", annotation, "BACKUP_DIR")) == {"backup_dir": "BACKUP_DIR"}
 
 
-@pytest.mark.parametrize("annotation", ["str", "int", "float", "bool"])
-def test_a_scalar_annotated_field_is_not_collected(annotation: str) -> None:
+@pytest.mark.parametrize(
+    ("annotation", "collected"),
+    [*((scalar, {}) for scalar in ("str", "int", "float", "bool")), ("Path", {"host": "HOST"})],
+)
+def test_only_a_path_annotated_field_is_collected(annotation: str, collected: dict[str, str]) -> None:
     """Only paths land on disk, so only paths need a writable location in the image."""
-    path_result = PATH_FIELDS(field_source("backup_dir", "Path", "BACKUP_DIR"))
-    scalar_result = PATH_FIELDS(field_source("host", annotation, "HOST"))
-    assert (bool(path_result), bool(scalar_result)) == (True, False)
+    assert PATH_FIELDS(field_source("host", annotation, "HOST")) == collected
 
 
 def test_a_path_field_is_mapped_to_the_env_suffix_from_its_default_factory() -> None:
@@ -256,11 +251,12 @@ def test_an_env_line_yields_the_value_it_pins() -> None:
     assert PINNED(CLEAN_DOCKERFILE)["BACKUP_DIR"] == "/state/backups"
 
 
-def test_a_commented_env_line_pins_nothing() -> None:
+@pytest.mark.parametrize(
+    ("prefix", "pins"), [("", {"BACKUP_DIR": "/state/backups"}), ("# ", {})], ids=["active", "commented"]
+)
+def test_a_commented_env_line_pins_nothing(prefix: str, pins: dict[str, str]) -> None:
     """Commented-out text is not in the image, so it cannot be what makes a field writable."""
-    dockerfile_active = CLEAN_DOCKERFILE
-    dockerfile_commented = "FROM python:3.13-slim\n# ENV HQPTUNER_BACKUP_DIR=/state/backups\n"
-    assert (bool(PINNED(dockerfile_active)), bool(PINNED(dockerfile_commented))) == (True, False)
+    assert PINNED(f"FROM python:3.13-slim\n{prefix}ENV HQPTUNER_BACKUP_DIR=/state/backups\n") == pins
 
 
 def test_a_non_hqptuner_name_in_the_env_block_is_not_a_pin() -> None:

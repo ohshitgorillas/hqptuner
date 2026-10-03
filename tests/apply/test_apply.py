@@ -2,7 +2,7 @@
 outcome reporting against the stateful fake daemon (docs/testing.md)."""
 
 from hqptuner.engine.control import ControlClient
-from hqptuner.lanes.writer import LiveWriteOutcome, apply_live
+from hqptuner.lanes.writer import LiveWriteFailed, LiveWriteOutcome, apply_live
 
 
 async def test_successful_edit_reports_ok(live_client: ControlClient) -> None:
@@ -18,6 +18,7 @@ async def test_readback_mismatch_reports_failure(live_client: ControlClient) -> 
 
 async def test_setter_error_reports_failure(live_client: ControlClient) -> None:
     report = await apply_live(live_client, {"shaper": {"value": "err"}})
+    assert isinstance(report[0], LiveWriteFailed)
     assert report[0].code == "daemon_refused"
 
 

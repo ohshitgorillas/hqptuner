@@ -153,19 +153,18 @@ def _tip_over(page: Page, stack: Stack, value: str) -> str | None:
         page.wait_for_selector(".dd-tip", state="attached", timeout=TIP_MS)
     except PlaywrightTimeoutError:
         return None
-    return page.locator(".dd-tip").first.text_content() or ""
+    return page.locator(".dd-tip").first.text_content()
 
 
-def test_only_the_described_profiles_row_pops_a_tip_and_it_states_the_description(
-    page: Page, stack: Stack, described: str
-) -> None:
-    """Exactly the described row shows a tip, and that tip carries the text the test wrote.
-
-    Two wrong pickers fail here: one that builds the tip out of the row's name
-    states the name instead of the description, and one that mounts a tip for
-    every row puts an empty popover beside the profile nobody described.
-    """
+def test_only_the_described_profiles_row_pops_a_tip(page: Page, stack: Stack, described: str) -> None:
+    """A picker that mounts a tip for every row puts an empty popover beside the profile nobody described."""
     _open_picker(page, stack)
-    seen = {value: _tip_over(page, stack, value) for value in _open_rows(page)}
-    tipped = {value for value, tip in seen.items() if tip is not None}
-    assert (tipped, DESCRIPTION in (seen.get(described) or "")) == ({described}, True)
+    rows = _open_rows(page)
+    assert {value for value in rows if _tip_over(page, stack, value) is not None} == {described}
+
+
+def test_the_described_profiles_tip_states_the_description(page: Page, stack: Stack, described: str) -> None:
+    """A picker that builds the tip out of the row's name states the name instead of the text the test wrote."""
+    tip = _tip_over(page, stack, described)
+    assert tip is not None
+    assert DESCRIPTION in tip

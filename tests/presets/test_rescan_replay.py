@@ -26,19 +26,23 @@ mode (`pcm`), and the bare flag for adaptive volume. That is the reading
 `tests/apply/test_live_snapshot.py` pins for those same names.
 """
 
+import contextlib
+from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import fixtures_clients
 import pytest
-from conftest import DaemonFactory, StartManager
-from fake_control import CommandLog
+from apps import wait_for_api
+from conftest import DaemonFactory, StartManager, spawn_threaded_daemon
+from fake_control import DEFAULTS, CommandLog
+from fastapi.testclient import TestClient
 from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
 from hqptuner.core.engineread import RescanReport
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import rescan
 from hqptuner.lanes.rescan import ReplayOutcome
 from hqptuner.presets.store.presets import PresetStore
 
@@ -78,6 +82,29 @@ ENGINE_AFTER_RESCAN = {
 EVERY_SETTER = "SetMode SetFilter SetShaping SetRate SetAdaptiveVolume SetJunkFilter Volume MatrixSetProfile"
 SETTERS = frozenset(EVERY_SETTER.split())
 
+#: What putting ENGINE_HELD back sends, in order: the mode first, so the rest
+#: resolves against the chain it loads. The rate is a persistent limit the rescan
+#: leaves alone, and the matrix profile is never replayed.
+HELD_SETTERS = [
+    ("SetMode", ENGINE_HELD["mode"]),
+    ("SetFilter", ENGINE_HELD["filterNx"]),
+    ("SetShaping", ENGINE_HELD["shaper"]),
+    ("SetJunkFilter", ENGINE_HELD["filter_junk"]),
+    ("SetAdaptiveVolume", ENGINE_HELD["adaptive"]),
+]
+
+#: The same settings as the engine's live record names them: the enum ID the
+#: fake's enumeration gives index 1 on the PCM chain (filter 40, dither 5), the
+#: form's word for the mode, and the bare flags.
+HELD_RESTORED = {
+    "mode": "pcm",
+    "filter": "40",
+    "filter1x": "40",
+    "dither": "5",
+    "adaptive_volume": ENGINE_HELD["adaptive"],
+    "junk_filter": ENGINE_HELD["filter_junk"],
+}
+
 
 def _setters(log: CommandLog) -> list[tuple[str, str]]:
     """The live setters that reached the daemon, in order, with their value."""
@@ -110,6 +137,58 @@ async def _rescanning(
     return manager, log, state
 
 
+#: Every command the fake knows, so `_close` covers the whole lane rather than
+#: one command: a daemon that is up enough to accept a socket and answers
+#: nothing on it, for as long as the test lasts.
+EVERY_COMMAND = (
+    "GetInfo GetLicense ConfigurationGet MatrixListProfiles MatrixGetProfile State VolumeRange Status "
+    "GetModes GetFilters GetShapers GetRates GetJunkFilters " + EVERY_SETTER
+)
+
+#: Each engine a rescan meets: whether auto-save is on, the control daemon's State
+#: overrides, and whether its whole lane stops answering once the rescan lands.
+#: - "held": the engine holds ENGINE_HELD and every setter applies.
+#: - "nothing to carry": the engine already sits at the config file's values, so the
+#:   rescan brings it back exactly where it was.
+#: - "deaf": every setter answers OK and applies nothing (`_deaf`, protocol.md §6),
+#:   so the verify readback never agrees.
+#: - "raising": the socket goes away underneath each write, so the lane raises
+#:   rather than reporting a setting that did not verify.
+#: - "never returns": the daemon accepts every connection and drops it again, so
+#:   the replay's bounded wait for the control lane runs out.
+SCENARIOS: dict[str, tuple[bool, dict[str, str], bool]] = {
+    "held": (True, {}, False),
+    "autosave off": (False, {}, False),
+    "nothing to carry": (True, {"matrix_profile": "", **ENGINE_AFTER_RESCAN}, False),
+    "deaf": (True, {"_deaf": EVERY_SETTER}, False),
+    "raising": (True, {"_close": EVERY_SETTER}, False),
+    "never returns": (True, {}, True),
+}
+
+
+Rescan = Callable[[str], Awaitable[tuple[RescanReport, CommandLog]]]
+
+
+@pytest.fixture
+def rescan_on(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> Rescan:
+    """Run one rescan against the named engine; hand back its report and the commands it sent."""
+
+    async def run(scenario: str) -> tuple[RescanReport, CommandLog]:
+        autosave, overrides, closes = SCENARIOS[scenario]
+        manager, log, state = await _rescanning(
+            daemon, start_manager, http_daemon, tmp_path, autosave=autosave, **overrides
+        )
+        if closes:
+            http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
+        before = len(log)
+        report = await engineread.refresh_devices(manager)
+        return report, log[before:]
+
+    return run
+
+
 # --- what a rescan never replays ---------------------------------------------
 
 
@@ -124,21 +203,28 @@ async def test_a_rescan_never_reloads_the_matrix_profile(
     assert "MatrixSetProfile" not in _sent(log[before:])
 
 
-# --- auto-save off: the rescan writes nothing to the engine ------------------
+# --- which live setters the rescan sends --------------------------------------
+# Auto-save off is the whole gate: nothing goes back. An engine already at the
+# file's values has nothing the user set live to lose, so anything written there
+# is a write the rescan had no reason to make.
 
 
-async def test_a_rescan_with_autosave_off_sends_no_live_setters_but_with_it_on_it_sends_them(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+@pytest.mark.parametrize(
+    ("scenario", "setters"),
+    [("autosave off", []), ("nothing to carry", []), ("held", HELD_SETTERS)],
+)
+async def test_a_rescan_sends_live_setters_only_for_settings_auto_save_has_to_carry(
+    rescan_on: Rescan, scenario: str, setters: list[tuple[str, str]]
 ) -> None:
-    off_manager, off_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    before_off = len(off_log)
-    await engineread.refresh_devices(off_manager)
-    off_setters = _setters(off_log[before_off:])
-    on_manager, on_log, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before_on = len(on_log)
-    await engineread.refresh_devices(on_manager)
-    on_setters = _setters(on_log[before_on:])
-    assert (off_setters, on_setters != []) == ([], True)
+    _report, sent = await rescan_on(scenario)
+    assert set(_setters(sent)) == set(setters)
+
+
+@pytest.mark.parametrize("scenario", ["held", "deaf"])
+async def test_a_rescan_that_sends_live_setters_sends_the_mode_first(rescan_on: Rescan, scenario: str) -> None:
+    """The mode switch re-enumerates the chain's lists, so a setter sent before it names an index from the old list."""
+    _report, sent = await rescan_on(scenario)
+    assert [name for name, _ in _setters(sent)][:1] == ["SetMode"]
 
 
 @pytest.mark.parametrize("reported", ["rate", "filter_junk"])
@@ -156,74 +242,78 @@ async def test_a_rescan_with_autosave_off_leaves_the_engine_where_the_rescan_lef
     assert state[reported] == ENGINE_AFTER_RESCAN[reported]
 
 
-# --- nothing live to carry ----------------------------------------------------
-# A connected manager whose engine is ALREADY sitting at the config file's
-# values: the rescan stops it and it comes back exactly where it was, so there
-# is nothing the user set live to lose. The lane is up and auto-save is on, so
-# anything written here is a write the rescan had no reason to make.
+# --- what the replay reports ---------------------------------------------------
+# The replay is best-effort: whatever it meets, the rescan itself succeeded. Only
+# a setting verified by readback may be reported as put back, and no outcome is
+# silent.
 
 
-async def _nothing_to_carry(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> tuple[ConnectionManager, CommandLog]:
-    manager, log, _state = await _rescanning(
-        daemon, start_manager, http_daemon, tmp_path, autosave=True, matrix_profile="", **ENGINE_AFTER_RESCAN
-    )
-    return manager, log
-
-
-async def test_a_rescan_with_no_live_settings_held_sends_no_live_setters_but_held_settings_do(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+@pytest.mark.parametrize(
+    ("scenario", "restored"),
+    [("nothing to carry", {}), ("deaf", {}), ("raising", {}), ("never returns", {}), ("held", HELD_RESTORED)],
+)
+async def test_a_rescan_reports_restored_only_the_settings_that_verified(
+    rescan_on: Rescan, scenario: str, restored: dict[str, str]
 ) -> None:
-    manager, log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    nothing_to_carry = _setters(log[before:])
-    held_manager, held_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before_held = len(held_log)
-    await engineread.refresh_devices(held_manager)
-    with_held_settings = _setters(held_log[before_held:])
-    assert (nothing_to_carry, with_held_settings != []) == ([], True)
+    report, _sent = await rescan_on(scenario)
+    assert report.restored == restored
 
 
-async def test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_mapping_but_held_settings_report_them(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+@pytest.mark.parametrize(
+    ("scenario", "outcome"),
+    [
+        ("held", ReplayOutcome.RESTORED),
+        ("autosave off", ReplayOutcome.NOTHING_TO_RESTORE),
+        ("nothing to carry", ReplayOutcome.NOTHING_TO_RESTORE),
+        ("deaf", ReplayOutcome.WRITE_FAILED),
+        ("raising", ReplayOutcome.WRITE_FAILED),
+        ("never returns", ReplayOutcome.UNREACHABLE),
+    ],
+)
+async def test_a_rescan_names_how_its_replay_came_out(rescan_on: Rescan, scenario: str, outcome: ReplayOutcome) -> None:
+    report, _sent = await rescan_on(scenario)
+    assert report.replay is outcome
+
+
+def _control_reachable(client: TestClient) -> bool:
+    """The app has connected to the control fake, so a rescan has a live snapshot to take."""
+    return bool(client.get("/api/health").json()["reachable"])
+
+
+@pytest.fixture
+def rescan_api(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[Callable[[str], dict[str, Any]]]:
+    """POST one rescan over REST against the named engine; hand back the body it answers.
+
+    Torn down in step: the client first, so the app hangs up, then the control fake behind it.
+    """
+    closing = contextlib.ExitStack()
+
+    def run(scenario: str) -> dict[str, Any]:
+        autosave, overrides, _closes = SCENARIOS[scenario]
+        state = {**DEFAULTS, **ENGINE_HELD, **overrides}
+        daemon = spawn_threaded_daemon(state=state)
+        port = next(daemon)
+        closing.callback(next, daemon, None)
+        if autosave:
+            PresetStore(tmp_path / "presets").set_autosave(enabled=True)
+        http_daemon["_on_refresh"] = lambda: state.update(ENGINE_AFTER_RESCAN)
+        served = fixtures_clients.app(http_daemon, tmp_path, port, None)
+        client = next(served)
+        closing.callback(next, served, None)
+        wait_for_api(client, _control_reachable)
+        body: dict[str, Any] = client.post("/api/config/refresh").json()
+        return body
+
+    yield run
+    closing.close()
+
+
+@pytest.mark.parametrize(("scenario", "warned"), [("held", False), ("nothing to carry", False), ("deaf", True)])
+def test_a_rescan_answers_a_warning_only_when_its_replay_left_the_engine_off(
+    rescan_api: Callable[[str], dict[str, Any]], scenario: str, *, warned: bool
 ) -> None:
-    manager, _log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
-    nothing_to_carry = (await engineread.refresh_devices(manager)).restored
-    held_manager, _held_log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    with_held = (await engineread.refresh_devices(held_manager)).restored
-    assert (nothing_to_carry, with_held != {}) == ({}, True)
-
-
-# --- the replay is best-effort ------------------------------------------------
-# Every live setter answers OK and applies nothing (`_deaf`, protocol.md §6), so
-# the verify readback can never agree — and the rescan still succeeded.
-
-
-async def _deaf_replay(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> RescanReport:
-    manager, _log, _state = await _rescanning(
-        daemon, start_manager, http_daemon, tmp_path, autosave=True, _deaf=EVERY_SETTER
-    )
-    return await engineread.refresh_devices(manager)
-
-
-async def test_a_rescan_whose_replay_fails_still_reports_refreshed(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    assert (await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)).refreshed is True
-
-
-async def test_a_rescan_whose_replay_fails_restores_nothing_but_a_healthy_replay_restores_something(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # nothing verified by readback, so nothing may be reported as put back
-    deaf = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    healthy = await engineread.refresh_devices(manager)
-    assert (deaf.restored, healthy.restored != {}) == ({}, True)
+    """The page tells the user live settings were lost exactly when the answer carries a warning (store/sync.js)."""
+    assert bool(rescan_api(scenario).get("warning")) is warned
 
 
 # --- the engine is the source, never the store -------------------------------
@@ -249,13 +339,6 @@ async def test_the_replay_carries_the_engines_value_and_not_the_stored_one(
 # --- unchanged: the rescan itself still does what it always did --------------
 
 
-async def test_a_rescan_reports_refreshed(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert (await engineread.refresh_devices(manager)).refreshed is True
-
-
 async def test_a_rescan_offers_a_device_that_only_the_new_scan_found(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
@@ -278,105 +361,3 @@ async def test_a_rescan_refetches_the_matrix_form(
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     await engineread.refresh_devices(manager)
     assert present(manager.readings.matrix_form)["active"] == "Mch-to-Stereo mixdown"
-
-
-# --- the daemon that never comes back ----------------------------------------
-# The replay waits for the control lane to settle, and the wait is bounded by
-# the alarm threshold. A daemon that accepts every connection and drops it
-# again — received, logged, nothing answered, socket gone — never settles, so
-# the wait runs out. Nothing about that may cost the rescan its result.
-
-#: Every command the fake knows, so `_close` covers the whole lane rather than
-#: one command: a daemon that is up enough to accept a socket and answers
-#: nothing on it, for as long as the test lasts.
-EVERY_COMMAND = (
-    "GetInfo GetLicense ConfigurationGet MatrixListProfiles MatrixGetProfile State VolumeRange Status "
-    "GetModes GetFilters GetShapers GetRates GetJunkFilters " + EVERY_SETTER
-)
-
-
-async def test_a_rescan_the_control_lane_never_returns_from_still_reports_refreshed(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await engineread.refresh_devices(manager)).refreshed is True
-
-
-async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing_but_a_healthy_replay_restores_something(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    closed = await engineread.refresh_devices(manager)
-    healthy_manager, _log2, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    healthy = await engineread.refresh_devices(healthy_manager)
-    assert (closed.restored, healthy.restored != {}) == ({}, True)
-
-
-# --- the replay raising mid-write --------------------------------------------
-# Distinct from a setter that answers OK and applies nothing (above): here the
-# socket goes away underneath the write, so the lane raises rather than
-# reporting a setting that did not verify. The daemon is otherwise healthy —
-# it answers every read, and drops the connection only on a write — so this is
-# the replay failing, not the lane being gone.
-
-
-async def test_a_rescan_whose_replay_raises_still_reports_refreshed(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(
-        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
-    )
-    assert (await engineread.refresh_devices(manager)).refreshed is True
-
-
-async def test_a_rescan_whose_replay_raises_restores_nothing_but_a_healthy_replay_restores_something(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(
-        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
-    )
-    raised = await engineread.refresh_devices(manager)
-    healthy_manager, _log2, _state2 = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    healthy = await engineread.refresh_devices(healthy_manager)
-    assert (raised.restored, healthy.restored != {}) == ({}, True)
-
-
-# --- what the user is told when the settings could not be put back -----------
-# The failures above are silent otherwise: the rescan succeeded, the devices
-# are re-scanned, and the settings the user had set live are quietly gone. The
-# `warning` key is the sentence that says so, and it has to name what was lost
-# rather than merely being a non-empty string. It is ABSENT when there is
-# nothing to say — a bar that renders whatever is in that slot must not be
-# handed an empty string to show.
-
-
-async def test_a_rescan_that_put_everything_back_warns_about_nothing(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    healthy = await engineread.refresh_devices(manager)
-    refused = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
-    assert (rescan.WARNINGS.get(healthy.replay), rescan.WARNINGS.get(refused.replay) is not None) == (None, True)
-
-
-async def test_a_rescan_with_autosave_off_warns_about_nothing(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # nothing was going to be put back, so nothing was lost to report
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    off = await engineread.refresh_devices(manager)
-    refused = await _deaf_replay(daemon, start_manager, http_daemon, tmp_path)
-    assert (rescan.WARNINGS.get(off.replay), rescan.WARNINGS.get(refused.replay) is not None) == (None, True)
-
-
-async def test_replay_reports_ok_after_a_successful_replay(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    snap = rescan.snapshot(manager)
-    await manager.require_http().refresh_devices()
-    await manager.refresh_http_forms()
-    result = await rescan.replay(manager, snap)
-    assert result.outcome is ReplayOutcome.RESTORED

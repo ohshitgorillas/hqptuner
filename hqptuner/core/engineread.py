@@ -71,9 +71,8 @@ class LogTail:
 
 @dataclass(frozen=True)
 class RescanReport:
-    """A device rescan's answer: it ran, what the replay put back, and how the replay came out."""
+    """A device rescan's answer: what the replay put back, and how the replay came out."""
 
-    refreshed: bool
     restored: dict[str, str]
     replay: rescan.ReplayOutcome
 
@@ -106,7 +105,7 @@ async def refresh_devices(mgr: "ConnectionManager") -> RescanReport:
     await mgr.require_http().refresh_devices()
     await mgr.refresh_http_forms()
     replayed = await rescan.replay(mgr, snap)
-    return RescanReport(refreshed=True, restored=replayed.restored, replay=replayed.outcome)
+    return RescanReport(restored=replayed.restored, replay=replayed.outcome)
 
 
 def current_mode_name(mgr: "ConnectionManager") -> str:

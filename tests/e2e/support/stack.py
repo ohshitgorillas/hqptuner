@@ -30,10 +30,11 @@ import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import fake_http
-from fake_control import DEFAULTS, CommandLog, serve
+from fake_control import DEFAULTS, CommandLog, serve_shared
 
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
 #: from here so that a source checkout's `hqptuner` package is importable.
@@ -73,9 +74,9 @@ class NotifyingState(dict[str, Any]):
     nothing waits on either.
     """
 
-    def __init__(self, initial: Mapping[str, Any] | None = None) -> None:
+    def __init__(self, initial: Mapping[str, Any] = MappingProxyType({})) -> None:
         """Copy in the starting state, then arm the condition every write from here on notifies."""
-        super().__init__(initial or {})
+        super().__init__(initial)
         self.condition = threading.Condition()
 
     def __setitem__(self, key: str, value: object) -> None:
@@ -136,7 +137,7 @@ def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    handler = functools.partial(serve, log=log, state=state)
+    handler = functools.partial(serve_shared, log=log, state=state)
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port

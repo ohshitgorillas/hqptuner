@@ -44,7 +44,6 @@ class EngineVerification:
 class EngineAttrsResult:
     """An engine-attribute restore: its readback, the archive members edited, and the size of the backup it edited."""
 
-    submitted: bool
     verified: EngineVerification
     members: list[str]
     backup_bytes: int
@@ -120,4 +119,4 @@ async def apply(
     # which is still the dead one the restart left behind. After it rather than before,
     # so verify's own window is unchanged and this only adds the lane it cannot see.
     await settle.await_ready(mgr, mark)
-    return EngineAttrsResult(submitted=True, verified=verified, members=members, backup_bytes=len(backup))
+    return EngineAttrsResult(verified=verified, members=members, backup_bytes=len(backup))

@@ -68,6 +68,7 @@ NOT covered here, and deliberately so:
 """
 
 import pytest
+from narrow import FixtureError
 from playwright.sync_api import Locator, Page, expect
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -342,7 +343,7 @@ def change_setting(page: Page, key: str, kind: str) -> str:
 
 def apply_classes(page: Page) -> list[str]:
     """The class tokens the apply button carries right now."""
-    return [token for token in (page.locator(APPLY).get_attribute("class") or "").split() if token]
+    return [str(token) for token in page.locator(APPLY).evaluate("el => [...el.classList]")]
 
 
 def status_text(page: Page) -> str:
@@ -510,14 +511,35 @@ def test_applying_leaves_the_card_reading_clean(page: Page, stack: Stack) -> Non
 # --- the status message -------------------------------------------------------
 
 
-@pytest.mark.parametrize(("key", "kind"), SETTINGS)
-def test_changing_a_setting_clears_the_status_message(page: Page, stack: Stack, key: str, kind: str) -> None:
-    """A message about the last apply is stale the moment ANY of the six moves again."""
+#: Each setting moved after a refused apply, and the outcome the status line is
+#: left carrying: any move clears it, and nothing moved leaves the refusal up.
+MESSAGE_CASES = [
+    *(pytest.param(key, kind, [], id=key) for key, kind in SETTINGS),
+    pytest.param(None, None, [ERR], id="nothing-moved"),
+]
+
+
+@pytest.mark.parametrize(("key", "kind", "tokens"), MESSAGE_CASES)
+def test_changing_a_setting_clears_the_status_message(
+    page: Page, stack: Stack, key: str | None, kind: str | None, tokens: list[str]
+) -> None:
+    """A message about the last apply is stale the moment ANY of the six moves again.
+
+    The apply is refused, because `err` is the outcome that stays until the user
+    moves something: a confirmed `ok` clears itself on its own, so it could not
+    tell the edit clearing the message from the message expiring.
+    """
     loaded_card(page, stack)
-    apply_and_wait_for_a_message(page)
-    before = status_text(page)
-    change_setting(page, key, kind)
-    assert (before != "", status_text(page)) == (True, "")
+    stack.http_state["_restore_refusals"] = REFUSE_EVERYTHING
+    try:
+        page.locator(APPLY).click()
+        if not saw_outcome(page, ERR, timeout_ms=APPLY_MS):
+            raise FixtureError(reason="the refused apply never showed err on the status line")
+        if key is not None and kind is not None:
+            change_setting(page, key, kind)
+    finally:
+        stack.http_state["_restore_refusals"] = 0
+    assert outcome_tokens(page) == tokens
 
 
 # --- what the message says it was, and how long it lasts ----------------------
@@ -722,8 +744,8 @@ def outcome_tokens(page: Page) -> list[str]:
     it saying something. Styling classes beside them are design, not contract
     (docs/testing.md rule 11), so they are filtered out rather than read back.
     """
-    classes = (page.locator(STATUS).get_attribute("class") or "").split()
-    return [token for token in classes if token in OUTCOMES]
+    classes = page.locator(STATUS).evaluate("el => [...el.classList]")
+    return [str(token) for token in classes if token in OUTCOMES]
 
 
 def test_an_apply_edited_mid_flight_ends_saying_nothing_while_an_undisturbed_one_reads_ok(

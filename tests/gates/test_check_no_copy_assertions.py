@@ -18,6 +18,8 @@ import importlib.util
 from pathlib import Path
 from types import ModuleType
 
+from narrow import FixtureError
+
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -40,13 +42,6 @@ SKELETON_INSTANCE = "log line 60"
 
 #: A sentence that contains ``PY_SEED`` but carries a word no seed supplies.
 UNCOVERED = f"{PY_SEED} drifts"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:

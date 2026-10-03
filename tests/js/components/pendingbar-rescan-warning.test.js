@@ -46,7 +46,7 @@ const EARLIER = "Applied 1 change";
 function wire(warning) {
   staticWire({ live: {}, http: {} }, (path) => {
     if (path === "/api/config/refresh") {
-      return ok(warning === undefined ? { refreshed: true, restored: {} } : { refreshed: true, restored: {}, warning });
+      return ok(warning === undefined ? { restored: {} } : { restored: {}, warning });
     }
     if (path === "/api/config") return ok({ data: config.value });
     if (path === "/api/matrix") return ok({ data: matrixConfig.value });

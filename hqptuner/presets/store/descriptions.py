@@ -187,8 +187,8 @@ def _validate_text(text: object) -> str:
 
 
 def _entry(text: str, now: datetime) -> DescriptionEntry:
-    """One stored entry: the text, and the instant it was written."""
-    return {"text": text, "updated": now.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    """One stored entry: the text, and the instant it was written, in UTC whatever zone the clock reads in."""
+    return {"text": text, "updated": now.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def _clean_entry(name: object, entry: object) -> DescriptionEntry | None:

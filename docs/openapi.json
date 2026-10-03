@@ -33,18 +33,18 @@
         "description": "A staged apply's answer; the fields are the wire keys.\n\n``live`` holds the live setters' results, ``persistent`` the persistent lane's, ``aftermath`` the restore's\neffect on stored presets, and ``switched`` the preset switch that runs before both lanes.",
         "properties": {
           "aftermath": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PresetAftermath"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/PresetAftermath"
           },
           "live": {
             "items": {
-              "$ref": "#/components/schemas/LiveWriteResult"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LiveWriteOk"
+                },
+                {
+                  "$ref": "#/components/schemas/LiveWriteFailed"
+                }
+              ]
             },
             "title": "Live",
             "type": "array"
@@ -52,12 +52,22 @@
           "persistent": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RestoreResult"
+                "$ref": "#/components/schemas/RestoreDeclined"
+              },
+              {
+                "$ref": "#/components/schemas/RestoreConverged"
+              },
+              {
+                "$ref": "#/components/schemas/RestoreUnconverged"
+              },
+              {
+                "$ref": "#/components/schemas/RestoreUnavailable"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Persistent"
           },
           "switched": {
             "anyOf": [
@@ -1603,7 +1613,14 @@
         "properties": {
           "live": {
             "items": {
-              "$ref": "#/components/schemas/LiveWriteResult"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LiveWriteOk"
+                },
+                {
+                  "$ref": "#/components/schemas/LiveWriteFailed"
+                }
+              ]
             },
             "title": "Live",
             "type": "array"
@@ -1676,15 +1693,8 @@
             "title": "Autopilot"
           },
           "chain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chain"
+            "title": "Chain",
+            "type": "string"
           },
           "fields": {
             "additionalProperties": {
@@ -1701,32 +1711,20 @@
         "title": "LiveSnapshotView",
         "type": "object"
       },
-      "LiveWriteResult": {
-        "description": "One live-lane setter's outcome \u2014 the setting written, and whether its readback verified.\n\nThe fields are the wire keys. ``error``/``code`` are set only on a setter that did not verify.",
+      "LiveWriteFailed": {
+        "description": "A live-lane setter that did not verify, with the reason and its code. The fields are the wire keys.",
         "properties": {
           "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code"
+            "title": "Code",
+            "type": "string"
           },
           "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
+            "title": "Error",
+            "type": "string"
           },
           "ok": {
+            "const": false,
+            "default": false,
             "title": "Ok",
             "type": "boolean"
           },
@@ -1735,8 +1733,26 @@
             "type": "string"
           }
         },
-        "required": ["setting", "ok"],
-        "title": "LiveWriteResult",
+        "required": ["setting", "error", "code"],
+        "title": "LiveWriteFailed",
+        "type": "object"
+      },
+      "LiveWriteOk": {
+        "description": "A live-lane setter whose readback verified. The fields are the wire keys.",
+        "properties": {
+          "ok": {
+            "const": true,
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "setting": {
+            "title": "Setting",
+            "type": "string"
+          }
+        },
+        "required": ["setting"],
+        "title": "LiveWriteOk",
         "type": "object"
       },
       "LogTail": {
@@ -2163,23 +2179,17 @@
         "type": "object"
       },
       "PresetAftermath": {
-        "description": "What an applied restore did to the stored presets: the staged profile fan-out.\n\nChain backfills run as part of the same restore but are not reported here. Maps a preset to \"ok\"\nor the error that preset met; None when nothing was targeted.",
+        "description": "What an applied restore did to the stored presets: the staged profile fan-out.\n\nChain backfills run as part of the same restore but are not reported here. Maps a preset to \"ok\"\nor the error that preset met; empty when nothing was targeted or the restore did not converge.",
         "properties": {
           "fanout": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fanout"
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fanout",
+            "type": "object"
           }
         },
+        "required": ["fanout"],
         "title": "PresetAftermath",
         "type": "object"
       },
@@ -2247,29 +2257,6 @@
         },
         "required": ["name", "config"],
         "title": "PresetPreview",
-        "type": "object"
-      },
-      "PresetSaveResult": {
-        "description": "A save or auto-save that reached the store; the fields are the wire keys.\n\n``warning`` rides when the daemon mirror did not land, which leaves the save itself standing.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "warning": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Warning"
-          }
-        },
-        "required": ["name"],
-        "title": "PresetSaveResult",
         "type": "object"
       },
       "ProfileBody": {
@@ -2350,10 +2337,6 @@
       "RescanAnswer": {
         "description": "A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost.",
         "properties": {
-          "refreshed": {
-            "title": "Refreshed",
-            "type": "boolean"
-          },
           "restored": {
             "additionalProperties": {
               "type": "string"
@@ -2373,34 +2356,24 @@
             "title": "Warning"
           }
         },
-        "required": ["refreshed", "restored"],
+        "required": ["restored"],
         "title": "RescanAnswer",
         "type": "object"
       },
       "RestoreAnswer": {
-        "description": "``POST /api/restore``: the upload reached the daemon, and how many bytes of it did.",
+        "description": "``POST /api/restore``: how many bytes of the upload reached the daemon.",
         "properties": {
           "bytes": {
             "title": "Bytes",
             "type": "integer"
-          },
-          "restored": {
-            "title": "Restored",
-            "type": "boolean"
           }
         },
-        "required": ["restored", "bytes"],
+        "required": ["bytes"],
         "title": "RestoreAnswer",
         "type": "object"
       },
-      "RestoreOutcome": {
-        "description": "What a persistent (restore-lane) apply came back with.",
-        "enum": ["not_submitted", "applied", "unconverged", "unavailable"],
-        "title": "RestoreOutcome",
-        "type": "string"
-      },
-      "RestoreResult": {
-        "description": "The persistent lane's outcome. The fields are the wire keys; each outcome has its own constructor.\n\n``submitted`` is False only for a lane that declined (``error`` and ``code``). ``applied`` marks\nconvergence (``attempts``, ``active``). Otherwise ``reason`` says why not and ``diff`` what diverged,\nwith ``unfixable`` naming an endpoint that is gone.",
+      "RestoreConverged": {
+        "description": "A running config that reflects every field this apply wrote, after ``attempts`` passes. Fields are wire keys.",
         "properties": {
           "active": {
             "anyOf": [
@@ -2414,98 +2387,103 @@
             "title": "Active"
           },
           "applied": {
-            "default": false,
+            "const": true,
+            "default": true,
             "title": "Applied",
             "type": "boolean"
           },
           "attempts": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attempts"
-          },
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code"
-          },
-          "diff": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Diff"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RestoreOutcome"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "submitted": {
-            "title": "Submitted",
-            "type": "boolean"
-          },
-          "unfixable": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/UnfixableDevice"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unfixable"
+            "title": "Attempts",
+            "type": "integer"
           }
         },
-        "required": ["submitted"],
-        "title": "RestoreResult",
+        "required": ["attempts", "active"],
+        "title": "RestoreConverged",
+        "type": "object"
+      },
+      "RestoreDeclined": {
+        "description": "A lane that was never usable for this apply: no client, or a credential already refused. Fields are wire keys.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": ["error", "code"],
+        "title": "RestoreDeclined",
+        "type": "object"
+      },
+      "RestoreUnavailable": {
+        "description": "A divergence made final by an endpoint that is gone, named in ``unfixable``. Fields are wire keys.",
+        "properties": {
+          "diff": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Diff",
+            "type": "object"
+          },
+          "reason": {
+            "const": "unavailable",
+            "default": "unavailable",
+            "title": "Reason",
+            "type": "string"
+          },
+          "unfixable": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnfixableDevice"
+            },
+            "title": "Unfixable",
+            "type": "object"
+          }
+        },
+        "required": ["diff", "unfixable"],
+        "title": "RestoreUnavailable",
+        "type": "object"
+      },
+      "RestoreUnconverged": {
+        "description": "A running config that never matched after the retries; ``diff`` says what diverged. Fields are wire keys.",
+        "properties": {
+          "diff": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Diff",
+            "type": "object"
+          },
+          "reason": {
+            "const": "unconverged",
+            "default": "unconverged",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": ["diff"],
+        "title": "RestoreUnconverged",
         "type": "object"
       },
       "SaveBody": {
@@ -2539,6 +2517,29 @@
         },
         "required": ["name"],
         "title": "SaveTarget",
+        "type": "object"
+      },
+      "SavedPreset": {
+        "description": "A preset save as the API answers it: the name stored, and ``warning`` when the daemon mirror did not land.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": ["name"],
+        "title": "SavedPreset",
         "type": "object"
       },
       "SelectOption": {
@@ -3092,28 +3093,11 @@
             "type": "boolean"
           },
           "bands": {
-            "anyOf": [
-              {
-                "maxItems": 3,
-                "minItems": 3,
-                "prefixItems": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "number"
-                  }
-                ],
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bands"
+            "items": {
+              "type": "number"
+            },
+            "title": "Bands",
+            "type": "array"
           },
           "junk": {
             "anyOf": [
@@ -3342,7 +3326,7 @@
           "autosaved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PresetSaveResult"
+                "$ref": "#/components/schemas/SavedPreset"
               },
               {
                 "type": "null"
@@ -3363,7 +3347,7 @@
           "autosaved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PresetSaveResult"
+                "$ref": "#/components/schemas/SavedPreset"
               },
               {
                 "type": "null"
@@ -3384,7 +3368,7 @@
           "autosaved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PresetSaveResult"
+                "$ref": "#/components/schemas/SavedPreset"
               },
               {
                 "type": "null"
@@ -3405,7 +3389,7 @@
           "autosaved": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PresetSaveResult"
+                "$ref": "#/components/schemas/SavedPreset"
               },
               {
                 "type": "null"
@@ -3427,7 +3411,7 @@
             "$ref": "#/components/schemas/ApplyReport"
           },
           "saved": {
-            "$ref": "#/components/schemas/PresetSaveResult"
+            "$ref": "#/components/schemas/SavedPreset"
           }
         },
         "required": ["report", "saved"],
@@ -4721,7 +4705,7 @@
                       "$ref": "#/components/schemas/PresetActivation"
                     },
                     {
-                      "$ref": "#/components/schemas/PresetSaveResult"
+                      "$ref": "#/components/schemas/SavedPreset"
                     },
                     {
                       "$ref": "#/components/schemas/PresetDeleted"
@@ -4863,7 +4847,7 @@
     },
     "/api/status": {
       "get": {
-        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``bands`` carries the\nheader readout's three levels, null while the reader has nothing in front of it. ``advisor`` says whether the\nadvisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, auto-pilot reads as\noff whatever its store holds.",
+        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``bands`` carries the\nheader readout's three levels, empty while the reader has nothing in front of it. ``advisor`` says whether the\nadvisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, auto-pilot reads as\noff whatever its store holds.",
         "operationId": "status_api_status_get",
         "responses": {
           "200": {

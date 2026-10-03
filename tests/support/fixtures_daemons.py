@@ -13,7 +13,7 @@ from typing import Any
 import fake_http
 import pytest
 from conftest import DaemonFactory, spawn_threaded_daemon
-from fake_control import DEFAULTS, CommandLog, serve
+from fake_control import DEFAULTS, CommandLog, serve, serve_shared
 
 from hqptuner.engine.control import ControlClient
 
@@ -43,7 +43,7 @@ async def daemon() -> AsyncIterator[DaemonFactory]:
     async def spawn(**overrides: str) -> tuple[int, CommandLog, dict[str, str]]:
         log: CommandLog = []
         state = {**DEFAULTS, **overrides}
-        handler = functools.partial(serve, log=log, state=state)
+        handler = functools.partial(serve_shared, log=log, state=state)
         server = await asyncio.start_server(handler, "127.0.0.1", 0)
         servers.append(server)
         return int(server.sockets[0].getsockname()[1]), log, state
@@ -113,9 +113,11 @@ async def deaf_volume_client(daemon: DaemonFactory) -> AsyncIterator[DeafVolumeC
     clients: list[ControlClient] = []
 
     async def build(reported: str | None) -> ControlClient:
-        port, _log, state = await daemon(_deaf="Volume", volume=reported or "")
         if reported is None:
+            port, _log, state = await daemon(_deaf="Volume")
             del state["volume"]
+        else:
+            port, _log, state = await daemon(_deaf="Volume", volume=reported)
         client = ControlClient("127.0.0.1", port, timeout=2.0)
         await client.connect()
         clients.append(client)

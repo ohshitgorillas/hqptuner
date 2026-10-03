@@ -19,14 +19,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong, not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
+from narrow import FixtureError
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 
@@ -154,9 +147,11 @@ def test_job_that_is_neither_path_nor_object_is_refused(
 
 def test_tools_call_without_a_job_is_an_error_result(eqtools: ModuleType) -> None:
     response = eqtools.handle_request({"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "eqlab"}})
-    assert (response or {}).get("result", {}).get("isError") is True
+    assert response is not None
+    assert response.get("result", {}).get("isError") is True
 
 
 def test_tools_list_names_exactly_the_two_tools(eqtools: ModuleType) -> None:
     response = eqtools.handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    assert sorted(t["name"] for t in (response or {})["result"]["tools"]) == ["eqlab", "eqstage"]
+    assert response is not None
+    assert sorted(t["name"] for t in response["result"]["tools"]) == ["eqlab", "eqstage"]

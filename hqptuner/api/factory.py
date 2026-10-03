@@ -74,7 +74,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
         app.include_router(audit_router(manager.audit))
     app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.state.favorites = FavoriteStore(cfg.favorites_file)
-    app.state.descriptions = DescriptionStore(cfg.description_file)
+    app.state.descriptions = DescriptionStore(cfg.description_file, now=manager.clock.now)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.

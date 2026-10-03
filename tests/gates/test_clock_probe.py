@@ -8,18 +8,11 @@ at once as expired or as satisfied, so nothing here waits on a real clock.
 Observable contract is ``Recorder.tests``: node id to seconds per kind.
 """
 
-import importlib.util
 import subprocess
 from collections.abc import Callable
-from pathlib import Path
-from types import ModuleType
-from typing import cast
 
+import clock_probe
 import pytest
-
-#: The plugin under test, found relative to this file: it lives in ``scripts/``,
-#: outside any package, and loads into pytest by ``-p`` rather than by import.
-PROBE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "clock_probe.py"
 
 NODE = "tests/x.py::test_x"
 
@@ -29,31 +22,12 @@ ASKED = 2.0
 Recorded = dict[str, dict[str, float]]
 
 
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
-
-def _load_probe_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("clock_probe_under_test", PROBE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {PROBE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-PROBE = _load_probe_module()
-
-
-def _recorded(wait: Callable[[object], None], *, node: str | None = NODE) -> Recorded:
+def _recorded(wait: Callable[[clock_probe.Recorder], None], *, node: str | None = NODE) -> Recorded:
     """Run ``wait`` against a fresh recorder with ``node`` running; what it recorded."""
-    recorder = PROBE.Recorder()
+    recorder = clock_probe.Recorder()
     recorder.current = node
     wait(recorder)
-    return cast("Recorded", recorder.tests)
+    return recorder.tests
 
 
 class _Loop:
@@ -64,13 +38,13 @@ class _Loop:
         return 0.0
 
 
-def _timer(recorder: object, *, fires: bool) -> None:
+def _timer(recorder: clock_probe.Recorder, *, fires: bool) -> None:
     callbacks: list[Callable[[], object]] = []
 
     def call_at(_loop: object, _when: float, callback: Callable[..., object], *args: object, **_kw: object) -> None:
         callbacks.append(lambda: callback(*args))
 
-    PROBE.timed_call_at(call_at, recorder)(_Loop(), ASKED, lambda: None)
+    clock_probe.timed_call_at(call_at, recorder)(_Loop(), ASKED, lambda: None)
     if fires:
         callbacks[0]()
 
@@ -86,15 +60,15 @@ def test_a_loop_timer_counts_its_delay_only_when_it_fires(*, fires: bool, expect
     ("seconds", "expected"), [(ASKED, {NODE: {"time.sleep": ASKED}}), (0, {})], ids=["wait", "yield"]
 )
 def test_a_sleep_counts_what_it_asked_for_and_a_zero_sleep_nothing(*, seconds: float, expected: Recorded) -> None:
-    assert _recorded(lambda recorder: PROBE.timed_sleep(lambda _s: None, recorder)(seconds)) == expected
+    assert _recorded(lambda recorder: clock_probe.timed_sleep(lambda _s: None, recorder)(seconds)) == expected
 
 
 @pytest.mark.parametrize(
     ("satisfied", "expected"), [(False, {NODE: {"Condition.wait": ASKED}}), (True, {})], ids=["expired", "satisfied"]
 )
 def test_a_condition_wait_counts_its_timeout_only_when_it_expires(*, satisfied: bool, expected: Recorded) -> None:
-    def wait(recorder: object) -> None:
-        PROBE.timed_condition_wait(lambda _c, _t: satisfied, recorder)(object(), ASKED)
+    def wait(recorder: clock_probe.Recorder) -> None:
+        clock_probe.timed_condition_wait(lambda _c, _t: satisfied, recorder)(object(), ASKED)
 
     assert _recorded(wait) == expected
 
@@ -111,22 +85,22 @@ class _Thread:
     ("alive", "expected"), [(True, {NODE: {"Thread.join": ASKED}}), (False, {})], ids=["expired", "joined"]
 )
 def test_a_thread_join_counts_its_timeout_only_when_the_thread_outlives_it(*, alive: bool, expected: Recorded) -> None:
-    def join(recorder: object) -> None:
-        PROBE.timed_join(lambda _thread, _t: None, recorder)(_Thread(alive=alive), ASKED)
+    def join(recorder: clock_probe.Recorder) -> None:
+        clock_probe.timed_join(lambda _thread, _t: None, recorder)(_Thread(alive=alive), ASKED)
 
     assert _recorded(join) == expected
 
 
-def _expiring_popen_wait(recorder: object) -> None:
-    sleep = PROBE.timed_sleep(lambda _s: None, recorder)
+def _expiring_popen_wait(recorder: clock_probe.Recorder) -> None:
+    sleep = clock_probe.timed_sleep(lambda _s: None, recorder)
     command = "fake"
 
-    def wait(_process: object, timeout: float | None = None) -> int:
+    def wait(_process: object, _timeout: float | None = 0.0) -> int:
         sleep(ASKED)
-        raise subprocess.TimeoutExpired(command, timeout or 0.0)
+        raise subprocess.TimeoutExpired(command, ASKED)
 
     with pytest.raises(subprocess.TimeoutExpired):
-        PROBE.timed_popen_wait(wait, recorder)(object(), ASKED)
+        clock_probe.timed_popen_wait(wait, recorder)(object(), ASKED)
 
 
 def test_a_popen_wait_that_expires_counts_once_whatever_it_sleeps_inside() -> None:
@@ -139,4 +113,4 @@ def test_a_popen_wait_that_expires_counts_once_whatever_it_sleeps_inside() -> No
 def test_a_wait_is_recorded_against_the_running_test_and_not_outside_one(
     *, node: str | None, expected: Recorded
 ) -> None:
-    assert _recorded(lambda recorder: PROBE.timed_sleep(lambda _s: None, recorder)(ASKED), node=node) == expected
+    assert _recorded(lambda recorder: clock_probe.timed_sleep(lambda _s: None, recorder)(ASKED), node=node) == expected

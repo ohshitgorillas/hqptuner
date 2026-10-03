@@ -24,7 +24,7 @@ foreign file hand-write one, the way a wire test hand-writes a frame.
 
 import contextlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -75,20 +75,24 @@ def entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_descriptions_but_written_text_reads_back(tmp_path: Path) -> None:
-    empty = store_at(tmp_path).read()
-    store = store_at(tmp_path)
-    store.write(NAME, TEXT)
-    assert (empty, store.read()[NAME]["text"]) == ({}, TEXT)
-
-
-def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
-    tmp_path: Path,
+@pytest.mark.parametrize(("written", "texts"), [((), {}), ((NAME,), {NAME: TEXT})], ids=["no file", "written"])
+def test_reading_a_store_yields_the_text_written_to_it(
+    tmp_path: Path, written: tuple[str, ...], texts: dict[str, str]
 ) -> None:
-    store_at(tmp_path).read()
-    unwritten = list(tmp_path.iterdir())
-    DescriptionStore(tmp_path / "never-created" / "descriptions.json").write(NAME, TEXT)
-    assert (unwritten, (tmp_path / "never-created" / "descriptions.json").is_file()) == ([], True)
+    store = store_at(tmp_path)
+    for name in written:
+        store.write(name, TEXT)
+    assert {name: entry["text"] for name, entry in store.read().items()} == texts
+
+
+@pytest.mark.parametrize("write", [False, True], ids=["read only", "written"])
+def test_only_a_write_creates_the_file_and_its_parent(tmp_path: Path, *, write: bool) -> None:
+    path = tmp_path / "never-created" / "descriptions.json"
+    store = DescriptionStore(path)
+    store.read()
+    if write:
+        store.write(NAME, TEXT)
+    assert path.is_file() is write
 
 
 # --- the round trip -----------------------------------------------------------
@@ -113,12 +117,16 @@ def test_writing_one_name_leaves_another_names_text_alone(tmp_path: Path) -> Non
 # A stamp is the instant the store's clock hands back, not whatever the wall
 # clock says: the test fixes the clock to one instant and the entry must carry
 # exactly that instant, not merely fall in some window around it.
-def test_a_written_entry_carries_an_instant_in_utc_at_the_instant_its_clock_gives(tmp_path: Path) -> None:
-    instant = datetime(2024, 3, 17, 12, 30, 45, tzinfo=UTC)
+@pytest.mark.parametrize(
+    "instant",
+    [
+        pytest.param(datetime(2024, 3, 17, 12, 30, 45, tzinfo=UTC), id="utc"),
+        pytest.param(datetime(2024, 3, 17, 14, 30, 45, tzinfo=timezone(timedelta(hours=2))), id="utc+2"),
+    ],
+)
+def test_a_written_entry_carries_the_instant_its_clock_gives_in_utc(tmp_path: Path, instant: datetime) -> None:
     store = DescriptionStore(tmp_path / "descriptions.json", now=lambda: instant)
-    written = store.write(NAME, TEXT)
-    offset = datetime.fromisoformat(written[NAME]["updated"]).utcoffset().total_seconds()  # type: ignore[union-attr]
-    assert (offset, written[NAME]["updated"]) == (0, "2024-03-17T12:30:45Z")
+    assert store.write(NAME, TEXT)[NAME]["updated"] == "2024-03-17T12:30:45Z"
 
 
 def test_rewriting_a_name_replaces_its_text(tmp_path: Path) -> None:
@@ -147,27 +155,29 @@ def test_writing_blank_text_removes_the_entry(tmp_path: Path, blank: str) -> Non
     assert NAME not in store.read()
 
 
-def test_blanking_a_name_never_written_is_not_refused_but_blanking_one_of_several_leaves_the_other(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("prior", "remaining"),
+    [((), []), ((NAME, "Study"), ["Study"])],
+    ids=["never written", "one of several"],
+)
+def test_blanking_a_name_answers_the_entries_left_and_is_never_refused(
+    tmp_path: Path, prior: tuple[str, ...], remaining: list[str]
 ) -> None:
-    never_written = store_at(tmp_path).write(NAME, "")
     store = store_at(tmp_path)
-    store.write(NAME, TEXT)
-    store.write("Study", "near field")
-    remaining = store.write(NAME, "")
-    assert (never_written, remaining["Study"]["text"]) == ({}, "near field")
+    for name in prior:
+        store.write(name, TEXT)
+    assert sorted(store.write(NAME, "")) == remaining
 
 
 # --- what a name may be ----------------------------------------------------------
 
 
-def test_a_refused_name_stores_nothing_but_an_accepted_128_character_name_is_stored(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("name", "stored"), [("", []), ("x" * 128, ["x" * 128])], ids=["empty", "128 characters"])
+def test_only_an_accepted_name_is_stored(tmp_path: Path, name: str, stored: list[str]) -> None:
     store = store_at(tmp_path)
     with contextlib.suppress(DescriptionError):
-        store.write("", TEXT)
-    refused = store.read()
-    accepted = "x" * 128 in store.write("x" * 128, TEXT)
-    assert (refused, accepted) == ({}, True)
+        store.write(name, TEXT)
+    assert sorted(store.read()) == stored
 
 
 # --- what text may be -------------------------------------------------------------

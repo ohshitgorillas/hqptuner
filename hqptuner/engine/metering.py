@@ -25,7 +25,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
-from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, Bands, band_levels, frame_power, frame_silent
+from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, band_levels, frame_power, frame_silent
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed
 from hqptuner.engine.trackcontext import TrackContext
@@ -128,8 +128,8 @@ class SpectralAggregate:
         """
         return self._latest
 
-    def window_min_db(self) -> list[float] | None:
-        """Per-bin minimum (dB) over whatever coverage is in hand, or None while no frame has been folded at all.
+    def window_min_db(self) -> list[float]:
+        """Per-bin minimum (dB) over whatever coverage is in hand, empty while no frame has been folded at all.
 
         The closed blocks and the current partial one are read together, full window or not: WINDOW_BLOCKS is how far
         back the minimum reaches, not a wait the reader serves before anything can be said.
@@ -138,7 +138,7 @@ class SpectralAggregate:
         if self._block_min is not None:
             arrays.append([10 * math.log10(p) if p > 0 else -200.0 for p in self._block_min])
         if not arrays:
-            return None
+            return []
         return [min(vals) for vals in zip(*arrays, strict=True)]
 
 
@@ -189,14 +189,14 @@ class MeteringReader:
         """Return the aggregate the reader is accumulating, or None while there is no evidence to read."""
         return self._agg
 
-    def bands(self) -> Bands | None:
-        """Return the mean of the last window of band triples, or None while the reading is empty or stale.
+    def bands(self) -> list[float]:
+        """Return the mean of the last window of band triples, empty while the reading is empty or stale.
 
         A stream that stops arriving without the engine leaving the playing state leaves the ring standing, so the
         reading ages here rather than at a seam that never fires.
         """
         if self._ring_at is None or self._monotonic() - self._ring_at > BAND_WINDOW_SECONDS:
-            return None
+            return []
         return self._ring.mean()
 
     def verdict(self) -> junkadvisor.JunkVerdict | None:

@@ -81,18 +81,18 @@ class PresetAftermath:
     """What an applied restore did to the stored presets: the staged profile fan-out.
 
     Chain backfills run as part of the same restore but are not reported here. Maps a preset to "ok"
-    or the error that preset met; None when nothing was targeted.
+    or the error that preset met; empty when nothing was targeted or the restore did not converge.
     """
 
-    fanout: dict[str, str] | None = None
+    fanout: dict[str, str]
 
 
 async def after_restore(
     mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str]
-) -> PresetAftermath | None:
+) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
 
-    None unless the restore converged. It restarted the daemon, so every live reading
+    An empty fan-out unless the restore converged. It restarted the daemon, so every live reading
     belongs to the process it replaced — and the auto-save that follows reads exactly those.
     The parked filter files it carried live on the daemon now.
     Backfill runs BEFORE the fan-out: it migrates profiles saved earlier, and the user's own
@@ -100,13 +100,12 @@ async def after_restore(
     nothing.
     """
     if persistent is None or persistent.outcome is not RestoreOutcome.APPLIED:
-        return None
+        return PresetAftermath({})
     await settle.resync_engine_state(mgr)
     ops = mgr.presetops
     ops.clear_parked_filters()
     ops.backfill_profiles()
-    fanout = ops.fanout_profiles(http_fields)
-    return PresetAftermath(fanout or None)
+    return PresetAftermath(ops.fanout_profiles(http_fields))
 
 
 class PresetOps:

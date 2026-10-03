@@ -15,12 +15,13 @@ import fake_http
 import pytest
 from conftest import ManagerFactory
 
+from hqptuner.conf import presetconf
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
-from hqptuner.lanes.http.restore import RestoreOutcome
+from hqptuner.lanes.http.restore import RestoreConverged, RestoreOutcome, RestoreUnavailable
 from hqptuner.presets import presetlane
 
 
@@ -43,6 +44,7 @@ async def test_apply_converges_after_one_5xx_restore_refusal(
 ) -> None:
     manager = http_manager_factory(once_refusing_http_daemon)
     result = await restore.apply(manager, {"title": "Renamed"})
+    assert isinstance(result, RestoreConverged)
     assert result.attempts == 2
 
 
@@ -138,14 +140,19 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     assert (await presetlane.read(manager, "Fresh"))["title"] == "Renamed"
 
 
-async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
+@pytest.mark.parametrize(
+    ("device", "outcome"),
+    [("GHOST/hw:CARD=Gone,DEV=0", RestoreOutcome.UNAVAILABLE), ("S30/hw:CARD=Other,DEV=0", RestoreOutcome.APPLIED)],
+    ids=["no longer offered", "offered, not running"],
+)
+async def test_a_net_device_converges_only_when_the_daemon_offers_it(
+    apply_via: tuple[ConnectionManager, HttpConfigClient], device: str, outcome: RestoreOutcome
 ) -> None:
-    # the staged endpoint is not among the daemon's bindable devices, so no restart
-    # can converge it — the apply must surface it as unfixable, never a false success
+    """An endpoint missing from the daemon's bindable devices can never converge, so it reads unfixable rather than a
+    false success; one on the list, though not the one running, is a real change that converges."""
     manager, _ = apply_via
-    result = await restore.apply(manager, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
-    assert result.outcome is RestoreOutcome.UNAVAILABLE
+    result = await restore.apply(manager, {"net_device": device})
+    assert result.outcome is outcome
 
 
 async def test_a_net_device_the_daemon_no_longer_offers_names_it_unfixable(
@@ -153,7 +160,8 @@ async def test_a_net_device_the_daemon_no_longer_offers_names_it_unfixable(
 ) -> None:
     manager, _ = apply_via
     result = await restore.apply(manager, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
-    assert (result.unfixable or {})["net_device"].want == "GHOST/hw:CARD=Gone,DEV=0"
+    assert isinstance(result, RestoreUnavailable)
+    assert result.unfixable[presetconf.NET_DEVICE].want == "GHOST/hw:CARD=Gone,DEV=0"
 
 
 async def test_loudness_edit_persists_to_the_loudness_plugin(

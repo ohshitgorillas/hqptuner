@@ -12,18 +12,22 @@ fixture below) live in `apps` now, imported from there directly by every test
 module that wants one — and the manager fixtures built on them."""
 
 import asyncio
+import contextlib
 import functools
 import os
+import socket
 import struct
 import threading
-from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator, Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import apps
 import pytest
 from apps import settled
-from fake_control import CommandLog, serve
+from fake_control import CommandLog, serve, serve_shared
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -95,6 +99,34 @@ def _state_never_touches_the_repo(
         yield
 
 
+#: A loopback address no fake binds, so a probe of it is refused at once.
+_UNSERVED_ADDRESS = "127.0.0.254"
+
+#: The daemon ports whose defaults are the host's own hqplayerd.
+_HELD_PORT_ENVS = ("HQPTUNER_HQP_CONTROL_PORT", "HQPTUNER_HQP_HTTP_PORT", "HQPTUNER_HQP_METERING_PORT")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_daemon_but_the_fakes(_no_inherited_environment: dict[str, str]) -> Iterator[None]:
+    """Backstop: a ``Config`` that names no daemon port or container-host alias reaches nothing.
+
+    The control, 8088 and metering defaults are the ports the host's own hqplayerd serves, and
+    the ungated readers (``/about``, ``/log``) fetch from 8088 whether or not a credential is set.
+    The alias defaults to a DNS name the start-up probe resolves. Any of these defaults makes a
+    test of the machine it ran on (docs/testing.md rule 16), and the control one can write to it.
+    Each port is held bound and never listened on for the whole session, so a connect to it is
+    refused and no later listener can take it. Cases that want a daemon pass its port themselves.
+    """
+    held = {env: socket.socket() for env in _HELD_PORT_ENVS}
+    with contextlib.ExitStack() as stack, pytest.MonkeyPatch.context() as mp:
+        for env, sock in held.items():
+            stack.enter_context(sock)
+            sock.bind(("127.0.0.1", 0))
+            mp.setenv(env, str(sock.getsockname()[1]))
+        mp.setenv("HQPTUNER_CONTAINER_HOST_ALIAS", _UNSERVED_ADDRESS)
+        yield
+
+
 @pytest.fixture
 def clock() -> VirtualClock:
     """The clock every manager and app under test paces on: retry, verify and
@@ -109,13 +141,6 @@ METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
 #: Bytes of a WAVE container before its samples: RIFF form header, a 16-byte
 #: PCM `fmt ` chunk, and the `data` chunk header.
 WAVE_HEADER_BYTES = 44
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
@@ -225,7 +250,7 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
 
 
 def spawn_threaded_daemon(
-    overrides: dict[str, str] | None = None,
+    overrides: Mapping[str, str] = MappingProxyType({}),
     state: dict[str, str] | None = None,
     log: CommandLog | None = None,
     host: str = "127.0.0.1",
@@ -240,7 +265,11 @@ def spawn_threaded_daemon(
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    handler = functools.partial(serve, overrides=overrides, state=state, log=log)
+    handler = (
+        functools.partial(serve, overrides=overrides, log=log)
+        if state is None
+        else functools.partial(serve_shared, state=state, log=log)
+    )
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port
@@ -305,14 +334,3 @@ def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon:
 @pytest.fixture
 def closed_port() -> int:
     return apps.closed_port()
-
-
-@pytest.fixture(autouse=True, scope="session")
-def _never_the_hosts_metering_port(_no_inherited_environment: dict[str, str]) -> Iterator[None]:
-    """No test may open the host daemon's metering side channel. The default
-    port is the running daemon's (config.py), so point the default at a hole:
-    an app built without an explicit port then dials nothing. Cases that want a
-    stream pass ``hqp_metering_port`` themselves and are unaffected."""
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("HQPTUNER_HQP_METERING_PORT", str(apps.closed_port()))
-        yield

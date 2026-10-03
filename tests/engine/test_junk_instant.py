@@ -27,4 +27,4 @@ def _frame(level_db: float) -> list[float]:
 def test_one_frame_reports_the_level_it_carried(level_db: float, covered_seconds: float) -> None:
     aggregate = SpectralAggregate(BINS, BANDWIDTH)
     aggregate.add(_frame(level_db), covered_seconds)
-    assert (aggregate.window_min_db() or [])[TONE_BIN] == pytest.approx(level_db, abs=0.5)
+    assert aggregate.window_min_db()[TONE_BIN] == pytest.approx(level_db, abs=0.5)

@@ -16,17 +16,11 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from narrow import FixtureError
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_clock_waits.py"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:

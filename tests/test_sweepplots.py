@@ -14,19 +14,13 @@ per px, two boxes at 0..50 and 40..90 overlap by 10 px. The module is loaded by 
 """
 
 import importlib.util
+from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
+from narrow import FixtureError
 
 #: The script under test, found relative to this file rather than through an import.
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sweepplots.py"
@@ -68,7 +62,7 @@ def text(label: str, left: float, right: float, top: float = 10.0, bottom: float
 def svg(
     selector: str,
     traces: list[dict[str, Any]],
-    texts: list[dict[str, Any]] | None = None,
+    texts: Sequence[dict[str, Any]] = (),
     width: float = 1000.0,
     clip: dict[str, float] | None = None,
 ) -> dict[str, Any]:
@@ -79,7 +73,7 @@ def svg(
         "clip": clip,
         "shapeRendering": "auto",
         "traces": traces,
-        "texts": texts or [],
+        "texts": list(texts),
     }
 
 

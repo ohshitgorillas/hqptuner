@@ -91,7 +91,7 @@ class ConnectionManager:
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
         # file, so a second copy would hand out numbers the first already used.
-        self.audit = AuditLog(cfg.debug_log)
+        self.audit = AuditLog(cfg.debug_log, now=self.clock.now)
         # Preset lifecycle + filter parking + backup persistence (presetops).
         self.presetops = PresetOps(cfg, self)
         # Apply/dispatch operations (applyops).

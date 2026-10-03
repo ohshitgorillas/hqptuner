@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory
-from narrow import present
+from narrow import FixtureError, present
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -81,13 +81,6 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
         await task
         await manager.aclose()
         await http.aclose()
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _applied(report: ApplyReport) -> None:

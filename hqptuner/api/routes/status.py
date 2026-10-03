@@ -15,7 +15,6 @@ from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import DaemonReadFailedError, NotLoadedError, refuse
 from hqptuner.core import engineread
 from hqptuner.core.engineread import LogTail
-from hqptuner.engine.bands import Bands
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.lanes.live import chain
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
@@ -62,7 +61,7 @@ class StatusReport:
     status: dict[str, str]
     metadata: dict[str, str] | None
     junk: JunkVerdict | None
-    bands: Bands | None
+    bands: list[float]
     autopilot: bool
     metering: bool
     advisor: bool
@@ -115,7 +114,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     a corrupt one refuses with ``store_corrupt``. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
     against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``bands`` carries the
-    header readout's three levels, null while the reader has nothing in front of it. ``advisor`` says whether the
+    header readout's three levels, empty while the reader has nothing in front of it. ``advisor`` says whether the
     advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, auto-pilot reads as
     off whatever its store holds.
     """
@@ -123,7 +122,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     if frame is None:
         raise refuse(NotLoadedError())
     junk = manager.metering.recommendation() if manager.metering is not None else None
-    bands = manager.metering.bands() if manager.metering is not None else None
+    bands = manager.metering.bands() if manager.metering is not None else []
     advisor = manager.cfg.advisor_enabled
     autopilot = False
     if advisor:

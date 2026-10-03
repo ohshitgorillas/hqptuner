@@ -25,7 +25,7 @@ from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import presetlane
-from hqptuner.presets.presetlane import PresetSaveResult
+from hqptuner.presets.presetlane import MirrorOutcome, PresetSaveResult
 
 
 class NoCredentialsConfiguredError(ErrorBody):
@@ -104,11 +104,26 @@ def snapshot[T](manager: ConnectionManager, data: T | None) -> Snapshot[T]:
 
 
 @dataclass(frozen=True)
+class SavedPreset:
+    """A preset save as the API answers it: the name stored, and ``warning`` when the daemon mirror did not land."""
+
+    name: str
+    warning: str | None = None
+
+    @classmethod
+    def of(cls, result: PresetSaveResult) -> "SavedPreset":
+        """Word a save's mirror outcome for the wire; a mirror that landed carries no warning."""
+        if result.mirror is MirrorOutcome.NOT_LANDED:
+            return cls(result.name, warning="hqplayerd's own profile list was not updated")
+        return cls(result.name)
+
+
+@dataclass(frozen=True)
 class WithAutosave[T]:
     """A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded."""
 
     report: T
-    autosaved: PresetSaveResult | None
+    autosaved: SavedPreset | None
 
     @classmethod
     def from_json(cls, body: Mapping[str, object]) -> "WithAutosave[object]":
@@ -117,7 +132,7 @@ class WithAutosave[T]:
         if not isinstance(folded, Mapping):
             return WithAutosave(body["report"], None)
         name, warning = folded.get("name"), folded.get("warning")
-        autosaved = PresetSaveResult(
+        autosaved = SavedPreset(
             name=name if isinstance(name, str) else "",
             warning=warning if isinstance(warning, str) else None,
         )
@@ -129,7 +144,7 @@ class WithSaved[T]:
     """A write's report, and the named preset save that followed it."""
 
     report: T
-    saved: PresetSaveResult
+    saved: SavedPreset
 
 
 @contextlib.contextmanager
@@ -154,7 +169,7 @@ async def with_autosave[T](report: T, manager: ConnectionManager) -> WithAutosav
     """
     with preset_refusals():
         autosaved = await presetlane.autosave(manager)
-    return WithAutosave(report, autosaved)
+    return WithAutosave(report, None if autosaved is None else SavedPreset.of(autosaved))
 
 
 def ensure_form[F](form: F | None, error: str | None, label: str) -> F:

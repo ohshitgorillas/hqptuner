@@ -13,10 +13,12 @@ import hashlib
 import json
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from narrow import FixtureError
 
 from hqptuner.audit import DEFAULT_MAX_BYTES, MAX_VALUE_BYTES, AuditLog, resolve_level
 
@@ -72,7 +74,7 @@ def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
         log.preset_write(f"preset-{index}", "save", 4096, "abc123", overwrote=False)
         if rotation.exists():
             return highest
-    pytest.fail(f"log never rotated after {limit} records")
+    raise FixtureError(reason=f"log never rotated after {limit} records")
 
 
 # --- the disabled instance --------------------------------------------------
@@ -129,11 +131,11 @@ def test_a_line_that_will_not_parse_is_skipped_rather_than_failing_the_whole_rea
     assert [record.fields["name"] for record in log.records()] == ["alpha", "bravo"]
 
 
-def test_every_record_carries_a_timestamp(tmp_path: Path) -> None:
-    # presence only: ``ts`` is wall clock, so its value is never asserted on beyond being populated
-    log = log_at(tmp_path)
+def test_every_record_is_stamped_with_the_instant_its_clock_reads(tmp_path: Path) -> None:
+    fixed = datetime(2025, 3, 4, 5, 6, 7, tzinfo=UTC)
+    log = AuditLog(log_path(tmp_path), now=lambda: fixed)
     log.active_set("alpha", None)
-    assert log.records()[0].ts != ""
+    assert log.records()[0].ts == "2025-03-04T05:06:07+00:00"
 
 
 def test_seq_strictly_increases_across_successive_records(tmp_path: Path) -> None:

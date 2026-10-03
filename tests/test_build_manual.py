@@ -18,14 +18,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong, not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
+from narrow import FixtureError
 
 #: The scripts directory, found relative to this file rather than through an import.
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"

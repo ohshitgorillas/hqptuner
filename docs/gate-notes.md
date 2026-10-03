@@ -82,3 +82,22 @@ Instructed gate commands run directly, which the lane hook reads as shell writes
 A `python` head is free when its first argument is the literal relative path `scripts/gates/check_<name>.py` (`GATE_SCRIPT` in `free_bash.py`): the repo's own verifiers, the same scripts `make check` runs. Relative only, so it resolves against the command's cwd; an absolute or out-of-tree path ending in that suffix meters. The judgment is syntactic, so a script planted under a scratch cwd at that path would run free, the same edge `cd <path> &&` and `make -C <dir>` already carry. The trivia judges are outside that shape — they are `triviajudge` console scripts, not files under `scripts/gates/` — so an agent shelling out to one meters, and only the plugin's own hook modes run off the leash.
 
 `HARNESS_TOOLS` (`SendMessage`, `Skill`, `Monitor`, `TaskStop`) classify free beside `FREE_TOOLS`, on the `FREE_SPAWN_AGENTS` reasoning: the recipient's tool calls are metered in its own context. `FREE_SPAWN_AGENTS` holds all seven chain agents. `task-notification` is stripped with the other harness wrappers, so a notification row is not the user speaking. Pinned in `budget_selftest.py`.
+
+## 2026-10-03
+
+A read-only `grep` whose double-quoted pattern carries an escaped double quote is metered as an unbalanced quote:
+
+```
+grep -rn -- "->\s*['\"]" hqptuner
+grep -rn "f\"{" tests
+```
+
+A read-only command wrapped in a runner prefix, or followed by a fallback branch, is metered on the prefix or the operator:
+
+```
+nice -n 10 scripts/gate.sh .venv/bin/pytest -m "not live and not e2e" -q --no-cov
+/usr/bin/time -v .venv/bin/pytest -m e2e --no-cov -q tests/e2e/test_abuse_bracket.py
+grep -rn 'MUTATION' hqptuner || echo none-left
+```
+
+`nice` and `time` change only scheduling and reporting, and `|| echo` prints a word when the grep finds nothing. Each command reads files and writes nothing in the tree.

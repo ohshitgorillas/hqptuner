@@ -76,9 +76,8 @@ class PresetPreview:
 
 @dataclass(frozen=True)
 class RestoreAnswer:
-    """``POST /api/restore``: the upload reached the daemon, and how many bytes of it did."""
+    """``POST /api/restore``: how many bytes of the upload reached the daemon."""
 
-    restored: bool
     bytes: int
 
 
@@ -214,7 +213,6 @@ async def preset(name: str, manager: HttpMgr) -> PresetPreview:
 class RescanAnswer:
     """A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost."""
 
-    refreshed: bool
     restored: dict[str, str]
     warning: str | None = None
 
@@ -229,7 +227,7 @@ async def config_refresh(manager: HttpMgr) -> RescanAnswer:
         report = await engineread.refresh_devices(manager)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(DeviceRefreshFailedError(error=exc)) from exc
-    return RescanAnswer(report.refreshed, report.restored, rescan.WARNINGS.get(report.replay))
+    return RescanAnswer(report.restored, rescan.WARNINGS.get(report.replay))
 
 
 @router.get("/backup")
@@ -328,4 +326,4 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     # done while both lanes are still down, and the page would read Unreachable a moment
     # after being told it succeeded; the answer waits for the daemon to come back whole.
     await settle.await_ready(manager, mark)
-    return RestoreAnswer(restored=True, bytes=len(data))
+    return RestoreAnswer(bytes=len(data))

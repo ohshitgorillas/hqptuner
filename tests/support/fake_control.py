@@ -14,6 +14,8 @@ The port-8088 HTTP fake is `fake_http`; the fixtures over both are in `conftest`
 """
 
 import asyncio
+from collections.abc import Mapping
+from types import MappingProxyType
 
 from defusedxml.ElementTree import fromstring as _fromstring
 
@@ -295,7 +297,7 @@ def _active_sdm(state: dict[str, str]) -> bool:
     mode = state.get("mode")
     if mode in ("1", "2"):
         return mode == "2"
-    return (state.get("_active_mode") or "").upper().startswith(("SDM", "DSD"))
+    return state["_active_mode"].upper().startswith(("SDM", "DSD"))
 
 
 def _reported_mode(state: dict[str, str]) -> str:
@@ -423,15 +425,23 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
 async def serve(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
-    overrides: dict[str, str] | None = None,
+    overrides: Mapping[str, str] = MappingProxyType({}),
     log: CommandLog | None = None,
-    state: dict[str, str] | None = None,
+) -> None:
+    """One connection to a daemon of its own: a State built from `DEFAULTS` and `overrides`."""
+    await serve_shared(reader, writer, {**DEFAULTS, **overrides}, log)
+
+
+async def serve_shared(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    state: dict[str, str],
+    log: CommandLog | None = None,
 ) -> None:
     # A caller that passes `state` shares ONE dict across every connection, the
     # way a real daemon does — which is what lets a test move the fake mid-session
     # (a new track changing `_active_mode`) and have the manager's open connection
     # see it. Without it each connection gets its own, and the move is invisible.
-    state = state if state is not None else {**DEFAULTS, **(overrides or {})}
     if state.get("_down") == "1":
         # `take_lane_down`: refuse every connection from here on, the way a
         # daemon that has gone away answers nothing at all

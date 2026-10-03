@@ -237,6 +237,18 @@ def option_names(page: Page, key: str) -> list[str]:
     return [re.sub(r"[\s★☆♥♡]+$", "", row).strip() for row in rows]
 
 
+def outcome_notes(page: Page) -> list[str]:
+    """The concluded outcome notes the pending bar shows, as their state classes, read in one pass.
+
+    A bar showing one failure reads ``["err"]``; a success, both outcomes at once, or none at all
+    reads otherwise.
+    """
+    classes: list[str] = page.locator(RESULT_NOTE).evaluate_all(
+        "els => els.map(e => e.classList.contains('err') ? 'err' : 'ok')"
+    )
+    return classes
+
+
 def test_the_index_page_renders_the_app_shell(page: Page, stack: Stack) -> None:
     """The served index brings up the whole chrome: header, tabs, body, pending bar."""
     open_app(page, stack)
@@ -338,11 +350,11 @@ def test_a_write_the_engine_ignores_is_reported_as_a_failed_apply(page: Page, st
         # conclude EITHER way, so an apply that wrongly concluded ok reaches the
         # assertion and fails there rather than timing out here.
         page.wait_for_selector(RESULT_NOTE, timeout=APPLY_MS)
-        failed = page.locator(FAIL_NOTE).count() == 1
+        notes = outcome_notes(page)
     finally:
         stack.control_state["_deaf"] = ""
         clear_staging(page)
-    assert failed
+    assert notes == ["err"]
 
 
 def test_a_write_the_engine_refuses_is_reported_as_a_failed_apply(page: Page, stack: Stack) -> None:
@@ -357,11 +369,11 @@ def test_a_write_the_engine_refuses_is_reported_as_a_failed_apply(page: Page, st
         page.locator("[data-testid='apply']").click()
         # Weaker than the assertion, for the same reason as the case above.
         page.wait_for_selector(RESULT_NOTE, timeout=APPLY_MS)
-        failed = page.locator(FAIL_NOTE).count() == 1
+        notes = outcome_notes(page)
     finally:
         stack.control_state["_error"] = ""
         clear_staging(page)
-    assert failed
+    assert notes == ["err"]
 
 
 def test_an_engine_change_sent_by_no_command_shows_in_the_live_view(page: Page, stack: Stack) -> None:

@@ -20,9 +20,9 @@ client; that is the http lane's `POST /restore`, above.
 
 import re
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 from hqptuner.audit import AuditLog
 from hqptuner.engine.control import ControlClient, Reply
@@ -44,21 +44,35 @@ class LiveWriteOutcome(Enum):
 
 
 @dataclass(frozen=True)
-class LiveWriteResult:
-    """One live-lane setter's outcome — the setting written, and whether its readback verified.
-
-    The fields are the wire keys. ``error``/``code`` are set only on a setter that did not verify.
-    """
+class LiveWriteOk:
+    """A live-lane setter whose readback verified. The fields are the wire keys."""
 
     setting: str
-    ok: bool
-    error: str | None = None
-    code: str | None = None
+    ok: Literal[True] = field(default=True, init=False)
 
     @property
     def outcome(self) -> LiveWriteOutcome:
         """The verdict as an enum, for callers that branch on it."""
-        return LiveWriteOutcome.OK if self.ok else LiveWriteOutcome.FAILED
+        return LiveWriteOutcome.OK
+
+
+@dataclass(frozen=True)
+class LiveWriteFailed:
+    """A live-lane setter that did not verify, with the reason and its code. The fields are the wire keys."""
+
+    setting: str
+    error: str
+    code: str
+    ok: Literal[False] = field(default=False, init=False)
+
+    @property
+    def outcome(self) -> LiveWriteOutcome:
+        """The verdict as an enum, for callers that branch on it."""
+        return LiveWriteOutcome.FAILED
+
+
+# One live-lane setter's outcome — the setting written, and whether its readback verified.
+LiveWriteResult = LiveWriteOk | LiveWriteFailed
 
 
 class VolumeMismatchError(CommandError):
@@ -179,13 +193,13 @@ async def _apply_one(client: ControlClient, setting: str, params: dict[str, str]
     malformed = _malformed(setting, params)
     if malformed is not None:
         audit.live_write(setting, value, None, ok=False)
-        return LiveWriteResult(setting=setting, ok=False, error=malformed, code="invalid_input")
+        return LiveWriteFailed(setting=setting, error=malformed, code="invalid_input")
     # daemon_refused for a refusal or a readback mismatch: the refusal's own code is the verdict
     refused = await _send(client, setting, params)
     if refused is not None:
         audit.live_write(setting, value, None, ok=False)
-        return LiveWriteResult(setting=setting, ok=False, error=str(refused), code=refused.code)
+        return LiveWriteFailed(setting=setting, error=str(refused), code=refused.code)
     # no refusal means the readback matched, so the value sent is also the
     # value confirmed — there is no other way for a setter to succeed
     audit.live_write(setting, value, value, ok=True)
-    return LiveWriteResult(setting=setting, ok=True)
+    return LiveWriteOk(setting=setting)

@@ -21,6 +21,9 @@ import shutil
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+from narrow import FixtureError
+
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -45,13 +48,6 @@ ABSENT_MODULATOR = "fixture-ghost-modulator"
 
 #: The data file the third case breaks.
 PLAIN_NAMES_FILE = "filter-plain-names.json"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def _load_gate_module() -> ModuleType:
@@ -93,18 +89,19 @@ def uncovered_modulator_copy(tmp_path: Path) -> Path:
 
 def test_an_enumerated_modulator_missing_from_shapers_is_the_only_thing_reported(tmp_path: Path) -> None:
     """Every line names the uncovered modulator, so covered names produce no line."""
-    lines = GATE.check(uncovered_modulator_copy(tmp_path))
-    assert (lines != [], [line for line in lines if ABSENT_MODULATOR not in line]) == (True, [])
+    assert [ABSENT_MODULATOR in line for line in GATE.check(uncovered_modulator_copy(tmp_path))] == [True]
 
 
-def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("name", "reported"), [(ABSENT_FILTER, True), (TWO_STAGE_FILTER, False)], ids=["unknown", "2s variant"]
+)
+def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(
+    tmp_path: Path, name: str, *, reported: bool
+) -> None:
     """Coverage goes through the filter join, so the ``-2s`` variant of a known base is not a problem."""
     copy = copy_fixture(tmp_path)
     add_enum_names(copy, "filters_sdm", [TWO_STAGE_FILTER, ABSENT_FILTER])
-    lines = GATE.check(copy)
-    reported = [line for line in lines if ABSENT_FILTER in line]
-    covered = [line for line in lines if TWO_STAGE_FILTER in line]
-    assert (reported != [], covered) == (True, [])
+    assert [name in line for line in GATE.check(copy)] == [reported]
 
 
 def test_a_plain_names_file_without_its_key_is_reported_by_filename_not_raised(tmp_path: Path) -> None:

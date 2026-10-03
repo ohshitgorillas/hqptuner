@@ -14,8 +14,9 @@ from hqptuner.api.deps import Mgr, WithAutosave, with_autosave
 from hqptuner.api.errors import ApiError, ErrorBody, refuse
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes.live import chain, lane, routing, snapshot
+from hqptuner.lanes.live import lane, routing, snapshot
 from hqptuner.lanes.live.lane import LiveApplyReport
+from hqptuner.lanes.live.snapshot import ChainUnknownError
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.live import (
     LiveFields,
@@ -41,19 +42,6 @@ class SaveBody(BaseModel):
     """Which settings ``PUT /api/livepresets/{name}`` stores; None keeps everything the engine reports."""
 
     fields: list[str] | None = None
-
-
-_UNKNOWN_CHAIN = {"chain": "the engine's active chain is unknown, so there is no live state to snapshot"}
-
-
-class ChainUnknownError(ErrorBody):
-    """The engine's active chain cannot be determined, so there is no live state to snapshot."""
-
-    code = "chain_unknown"
-
-    def __init__(self) -> None:
-        """Render the fixed per-field reasons dict; this template carries no interpolated fact."""
-        super().__init__(_UNKNOWN_CHAIN)
 
 
 class NotLiveSnapshotSettingsError(ErrorBody):
@@ -93,7 +81,7 @@ class LivePresetList:
 class LiveSnapshotView:
     """``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``, and auto-pilot."""
 
-    chain: str | None
+    chain: str
     fields: dict[str, dict[str, str]]
     autopilot: bool | None
 
@@ -147,13 +135,13 @@ def _autopilot_now(manager: ConnectionManager) -> bool | None:
 
 def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
     """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all). 409 chain unknown."""
-    taken = snapshot.live_snapshot(manager)
-    active = chain.active_chain(manager)
-    if taken is None or active is None:
-        raise refuse(ChainUnknownError())
-    kept = {field: item for field, item in taken.items() if keys is None or field in keys}
+    try:
+        taken = snapshot.live_snapshot(manager)
+    except ChainUnknownError as exc:
+        raise refuse(exc, exc.reasons) from exc
+    kept = {field: item for field, item in taken.fields.items() if keys is None or field in keys}
     return LiveRecord(
-        chain=active,
+        chain=taken.chain,
         fields={field: item["value"] for field, item in kept.items()},
         names={field: item["name"] for field, item in kept.items()},
         autopilot=_autopilot_now(manager) if keys is None or AUTOPILOT in keys else None,
@@ -166,10 +154,11 @@ def live_snapshot(manager: Mgr) -> LiveSnapshotView:
 
     409 when the loaded chain is unknowable, the same refusal a save gives.
     """
-    taken = snapshot.live_snapshot(manager)
-    if taken is None:
-        raise refuse(ChainUnknownError())
-    return LiveSnapshotView(chain.active_chain(manager), taken, _autopilot_now(manager))
+    try:
+        taken = snapshot.live_snapshot(manager)
+    except ChainUnknownError as exc:
+        raise refuse(exc, exc.reasons) from exc
+    return LiveSnapshotView(taken.chain, taken.fields, _autopilot_now(manager))
 
 
 @router.get("/livepresets")

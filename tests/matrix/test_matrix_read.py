@@ -23,6 +23,13 @@ from hqptuner.lanes import matrixlane
 
 REAL_PAGE = (Path(__file__).parent.parent / "support" / "fixtures" / "matrix-6.0.4.html").read_text()
 
+#: A matrix form with no profile input at all.
+BARE_PAGE = '<form method="post"><input type="checkbox" name="enabled" value="1"/></form>'
+
+#: The profile datalist as the fake and the captured 6.0.4 page both carry it:
+#: the unnamed default first, then the saved profiles.
+DATALIST = ["", "Default", "Mch-to-Stereo mixdown"]
+
 
 @pytest.fixture
 async def matrix_client(http_daemon: dict[str, Any]) -> AsyncIterator[HttpConfigClient]:
@@ -52,21 +59,25 @@ async def test_gainunit_survives_daemons_malformed_option_markup(matrix_client: 
     assert form["rows"][0]["gainunit"] == "dB"
 
 
-async def test_row_fields_do_not_leak_into_flat_fields_while_global_controls_stay_there(
+@pytest.mark.parametrize(
+    ("name", "flat"),
+    [
+        *((control, True) for control in ("enabled", "engine", "expand_hf", "iir2fir")),
+        *((row_field, False) for row_field in ("source_0", "gain_0", "process_0")),
+    ],
+)
+async def test_a_global_control_is_a_flat_field_and_a_row_field_is_not(
+    matrix_client: HttpConfigClient, name: str, *, flat: bool
+) -> None:
+    form = await matrix_client.get_matrix()
+    assert (name in {f["name"] for f in form["fields"]}) is flat
+
+
+async def test_profile_datalist_leads_with_the_unnamed_default_then_the_saved_profiles(
     matrix_client: HttpConfigClient,
 ) -> None:
     form = await matrix_client.get_matrix()
-    leaked = [f for f in form["fields"] if (f["name"] or "").startswith(("source_", "gain_", "process_"))]
-    controls = {f["name"] for f in form["fields"]}
-    assert (leaked, controls >= {"enabled", "engine", "expand_hf", "iir2fir"}) == ([], True)
-
-
-async def test_profile_datalist_leads_with_the_unnamed_default_and_also_carries_a_saved_one(
-    matrix_client: HttpConfigClient,
-) -> None:
-    form = await matrix_client.get_matrix()
-    options = present(form["profiles"])["options"]
-    assert (options[0]["value"], "Mch-to-Stereo mixdown" in [o["value"] for o in options]) == ("", True)
+    assert [o["value"] for o in present(form["profiles"])["options"]] == DATALIST
 
 
 async def test_active_profile_label_is_parsed(matrix_client: HttpConfigClient) -> None:
@@ -98,12 +109,15 @@ def test_real_page_engine_select_reads_current_value() -> None:
     assert engine["value"] == "1"
 
 
-def test_a_page_without_profile_input_yields_no_profiles_and_a_real_page_carries_its_saved_one() -> None:
-    absent = parse_matrix_form('<form method="post"><input type="checkbox" name="enabled" value="1"/></form>')[
-        "profiles"
-    ]
-    present_options = [o["value"] for o in present(parse_matrix_form(REAL_PAGE)["profiles"])["options"]]
-    assert (absent, "Mch-to-Stereo mixdown" in present_options) == (None, True)
+def _profile_values(page: str) -> list[str] | None:
+    """The profile datalist's option values a page carries, or None for a page with no profile input."""
+    profiles = parse_matrix_form(page)["profiles"]
+    return None if profiles is None else [o["value"] for o in profiles["options"]]
+
+
+@pytest.mark.parametrize(("page", "values"), [(BARE_PAGE, None), (REAL_PAGE, DATALIST)], ids=["bare", "real"])
+def test_only_a_page_with_a_profile_input_yields_its_profiles(page: str, values: list[str] | None) -> None:
+    assert _profile_values(page) == values
 
 
 # --- 4321 live lane ----------------------------------------------------------

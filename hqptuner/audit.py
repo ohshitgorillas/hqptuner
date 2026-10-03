@@ -25,11 +25,13 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from hqptuner import audit_narrow, audit_types
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -43,6 +45,8 @@ DEFAULT_MAX_BYTES = 16_000_000
 #: Field names whose value never reaches the log, at any depth.
 _REDACT_KEYS = frozenset({"password", "secret", "token"})
 _REDACTED = "***"
+
+_DEFAULT_NOW = partial(datetime.now, UTC)
 
 
 @dataclass(frozen=True)
@@ -117,14 +121,21 @@ def _scrub_member(key: str, value: audit_types.Json, path: str, digests: dict[st
 class AuditLog:
     """An append-only JSONL event log. ``path`` of None disables it entirely."""
 
-    def __init__(self, path: Path | None, *, max_bytes: int = DEFAULT_MAX_BYTES) -> None:
-        """Fix where records land and the size at which the file rolls, and pick up the sequence counter.
+    def __init__(
+        self,
+        path: Path | None,
+        *,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+        now: Callable[[], datetime] = _DEFAULT_NOW,
+    ) -> None:
+        """Fix where records land, the size at which the file rolls and the clock ``ts`` is read from.
 
         The counter resumes from the last record already on disk, so reopening an existing log continues its
         numbering instead of restarting it. Nothing is created here: a log that is never written stays absent.
         """
         self._path = path
         self._max_bytes = max_bytes
+        self._now = now
         self._seq = self._resume_seq()
 
     @property
@@ -195,7 +206,7 @@ class AuditLog:
         digests: dict[str, str] = {}
         scrubbed = {k: _scrub_member(k, v, "", digests) for k, v in fields.items()}
         self._seq += 1
-        record: dict[str, Any] = {"ts": datetime.now(UTC).isoformat(), "seq": self._seq, "event": event, **scrubbed}
+        record: dict[str, Any] = {"ts": self._now().isoformat(), "seq": self._seq, "event": event, **scrubbed}
         if digests:
             record["truncated"] = True
             record["full_digests"] = digests

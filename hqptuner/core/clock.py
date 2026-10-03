@@ -14,6 +14,7 @@ import contextlib
 import time
 from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -32,6 +33,11 @@ async def pace_until(wake: asyncio.Event | None, seconds: float) -> bool:
     return await wait_until(wake or asyncio.Event(), seconds)
 
 
+def utc_now() -> datetime:
+    """Answer the current wall-clock instant in UTC, for stamping what was written and when."""
+    return datetime.now(UTC)
+
+
 @dataclass(frozen=True)
 class Clock:
     """The reads and waits one manager and its lanes pace on."""
@@ -41,3 +47,4 @@ class Clock:
     wait: Callable[[asyncio.Event, float], Awaitable[bool]] = wait_until
     pace: Callable[[asyncio.Event | None, float], Awaitable[bool]] = pace_until
     spawn: Callable[[Coroutine[Any, Any, None]], asyncio.Task[None]] = asyncio.create_task
+    now: Callable[[], datetime] = utc_now

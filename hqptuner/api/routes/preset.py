@@ -6,12 +6,12 @@ Preset reads live in ``configapi``; this module holds only the routes that mutat
 import httpx
 from fastapi import APIRouter
 
-from hqptuner.api.deps import HttpMgr, Mgr, preset_refusals
+from hqptuner.api.deps import HttpMgr, Mgr, SavedPreset, preset_refusals
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import ProfileBody
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.presets.presetlane import PresetActivation, PresetDeleted, PresetSaveResult
+from hqptuner.presets.presetlane import PresetActivation, PresetDeleted
 from hqptuner.presets.store.presets import PresetError
 
 router = APIRouter(prefix="/api")
@@ -42,15 +42,15 @@ async def _load(manager: ConnectionManager, name: str) -> PresetActivation:
         return await manager.presetops.load_preset(name)
 
 
-async def _mutate(manager: ConnectionManager, action: str, name: str) -> PresetSaveResult | PresetDeleted:
+async def _mutate(manager: ConnectionManager, action: str, name: str) -> SavedPreset | PresetDeleted:
     with preset_refusals():
         if action == "save":
-            return await manager.presetops.save_preset(name)
+            return SavedPreset.of(await manager.presetops.save_preset(name))
         return await manager.presetops.delete_preset(name)
 
 
 @router.post("/profile/{action}", response_model_exclude_none=True)
-async def profile(action: str, body: ProfileBody, manager: Mgr) -> PresetActivation | PresetSaveResult | PresetDeleted:
+async def profile(action: str, body: ProfileBody, manager: Mgr) -> PresetActivation | SavedPreset | PresetDeleted:
     """Load, save, or delete a named preset, dispatching on the path segment.
 
     404 on an action outside those three or a name the store does not hold, 422 on an empty name.

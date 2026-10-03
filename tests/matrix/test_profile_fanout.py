@@ -13,7 +13,9 @@ shape (hqplayerd-readme.txt §1.12), never through the writer.
 
 import json
 import re
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -25,7 +27,6 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
-from hqptuner.presets.presetops import PresetAftermath
 from hqptuner.presets.store.presets import PresetStore
 
 if TYPE_CHECKING:
@@ -51,10 +52,10 @@ def delete_from(name: str, presets: list[str]) -> dict[str, str]:
     return {"matrix_profile_delete": json.dumps({"name": name, "presets": presets})}
 
 
-def preset_xml(profiles: dict[str, list[dict[str, str]]] | None = None) -> bytes:
+def preset_xml(profiles: Mapping[str, list[dict[str, str]]] = MappingProxyType({})) -> bytes:
     """A stored preset: a full 6.0.4-shaped config XML snapshot carrying the
     given saved profiles and a title the fan-out must not disturb."""
-    stored = {name: {"rows": rows, "plugins": []} for name, rows in (profiles or {}).items()}
+    stored = {name: {"rows": rows, "plugins": []} for name, rows in profiles.items()}
     return cfg_xml(state(title="Office desk", _profiles=stored))
 
 
@@ -131,13 +132,7 @@ async def test_fanout_to_a_missing_preset_still_applies(http_manager: Connection
 
 async def test_missing_fanout_target_maps_to_an_error(http_manager: ConnectionManager) -> None:
     report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
-    assert ((report.aftermath or PresetAftermath()).fanout or {})["Ghost"] not in ("", "ok")
-
-
-async def test_apply_reports_the_fanout_in_the_aftermath(http_manager: ConnectionManager) -> None:
-    http_manager.presetops.store.save("Office", preset_xml())
-    report: ApplyReport = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Office"]))
-    assert ((report.aftermath or PresetAftermath()).fanout or {})["Office"] == "ok"
+    assert report.aftermath.fanout["Ghost"] not in ("", "ok")
 
 
 async def test_a_co_target_still_receives_the_profile_despite_a_missing_one(http_manager: ConnectionManager) -> None:
@@ -146,16 +141,25 @@ async def test_a_co_target_still_receives_the_profile_despite_a_missing_one(http
     assert "Crossfeed EQ" in stored_profiles(http_manager.presetops.store.read("Office"))
 
 
-async def test_apply_without_targets_carries_no_fanout_key_and_a_targeted_one_reports_ok(
-    http_manager: ConnectionManager,
+@pytest.mark.parametrize(
+    ("presets", "fanout"), [(None, {}), (["Office"], {"Office": "ok"})], ids=["untargeted", "targeted"]
+)
+async def test_the_aftermath_reports_one_fanout_entry_per_targeted_preset(
+    http_manager: ConnectionManager, presets: list[str] | None, fanout: dict[str, str]
 ) -> None:
-    without_targets = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
     http_manager.presetops.store.save("Office", preset_xml())
-    with_targets = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Office"]))
-    assert (
-        (without_targets.aftermath or PresetAftermath()).fanout,
-        ((with_targets.aftermath or PresetAftermath()).fanout or {})["Office"],
-    ) == (None, "ok")
+    report: ApplyReport = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=presets))
+    assert report.aftermath.fanout == fanout
+
+
+@pytest.mark.parametrize(("title", "landed"), [("Renamed", True), ("REJECT", False)], ids=["converged", "unconverged"])
+async def test_only_a_converged_restore_lands_the_profile_in_the_targeted_preset(
+    http_manager: ConnectionManager, title: str, *, landed: bool
+) -> None:
+    # the fake refuses a `title` of REJECT on restore, so that apply never converges
+    http_manager.presetops.store.save("Office", preset_xml())
+    await http_manager.applyops.apply({}, {"title": title, **save("Crossfeed EQ", ROW0, presets=["Office"])})
+    assert ("Crossfeed EQ" in stored_profiles(http_manager.presetops.store.read("Office"))) is landed
 
 
 # --- delete: targeted (object) shape vs the old plain-string shape ------------

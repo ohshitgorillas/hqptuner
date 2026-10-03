@@ -18,9 +18,9 @@ from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.http import engineattrs, restore
 from hqptuner.lanes.http.engineattrs import EngineVerification
-from hqptuner.lanes.http.restore import RestoreResult
+from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.writer import LiveWriteResult, apply_live
+from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import PresetActivation
 from hqptuner.presets.presetops import PresetAftermath, after_restore
@@ -45,7 +45,7 @@ def _trace_live_volume(
     if want is None:
         return
     entry = next((row for row in report if row.setting == "volume"), None)
-    ok = bool(entry and entry.ok)
+    ok = isinstance(entry, LiveWriteOk)
     voltrace.write(mgr, "live_lane", want, want if ok else None, ok=ok)
 
 
@@ -59,7 +59,7 @@ class ApplyReport:
 
     live: list[LiveWriteResult]
     persistent: RestoreResult | None
-    aftermath: PresetAftermath | None
+    aftermath: PresetAftermath
     switched: PresetActivation | None
 
 
@@ -73,7 +73,7 @@ async def _persistent_apply(
     """
     declined = httpauth.decline_error(mgr)
     if declined is not None:
-        return RestoreResult.declined(declined)
+        return RestoreDeclined(str(declined), declined.code)
     return await restore.apply(mgr, http_fields, switched=switch_to is not None)
 
 

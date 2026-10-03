@@ -15,8 +15,9 @@ is formatting rather than contract (docs/testing.md rules 9 and 11).
 """
 
 import contextlib
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, NamedTuple
 
 import pytest
@@ -73,7 +74,7 @@ def levels(record: dict[str, Any]) -> list[float]:
     carries several volume fields and which one a level lands under is the
     implementation's business; that a level was recorded at all is not."""
     found: list[float] = []
-    for value in dict(record.get("fields") or {}).values():
+    for value in record["fields"].values():
         with contextlib.suppress(TypeError, ValueError):
             found.append(float(str(value)))
     return found
@@ -125,7 +126,9 @@ def control_client(http_daemon: dict[str, Any], tmp_path: Path, audit_log: Path)
     at all. Everything built here is torn down in reverse order."""
     stack = contextlib.ExitStack()
 
-    def build(overrides: dict[str, str] | None = None, control_state: dict[str, str] | None = None) -> TestClient:
+    def build(
+        overrides: Mapping[str, str] = MappingProxyType({}), control_state: dict[str, str] | None = None
+    ) -> TestClient:
         ports = spawn_threaded_daemon(overrides, control_state)
         port = next(ports)
         stack.callback(next, ports, None)
@@ -250,7 +253,7 @@ def test_a_volume_write_records_what_the_engine_reported_back(
     # `result="OK"` is not proof of application and a disabled volume control
     # refuses outright (docs/protocol.md §6), so a record that echoes the level
     # asked for reads as a landed write in both cases
-    client = control_client(None if enabled else {"_vol_enabled": "0"})
+    client = control_client({} if enabled else {"_vol_enabled": "0"})
     client.post("/api/volume", json={"level": POSTED})
     assert level(last_volume_write(audit_log)["readback"]) == expected
 

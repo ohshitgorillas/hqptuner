@@ -13,7 +13,7 @@ from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.lanes.writer import known_live_settings
+from hqptuner.lanes.writer import LiveWriteFailed, known_live_settings
 
 router = APIRouter(prefix="/api")
 
@@ -98,7 +98,7 @@ def apply_succeeded(report: ApplyReport) -> bool:
     the change after the restart (`applied`). A soft failure — a value never converged, or a preset's endpoint is gone
     — returns False here so the caller keeps the pending buffer instead of silently dropping the edits.
     """
-    if any(not entry.ok for entry in report.live):
+    if any(isinstance(entry, LiveWriteFailed) for entry in report.live):
         return False
     if report.switched is not None and not report.switched.active:
         return False  # the preset switch never took — don't clear the preview

@@ -16,6 +16,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 from conftest import DaemonFactory, LiveManager
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.matrixscope import find_matrix_body_span, has_profile, matrix_body_span, matrix_scope
@@ -26,17 +27,9 @@ from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.frames import parse_frame
 from hqptuner.lanes.live.lane import mode_then_split, reassert_chain, remember_routed
-from hqptuner.lanes.live.snapshot import live_snapshot
+from hqptuner.lanes.live.snapshot import ChainUnknownError, live_snapshot
 from hqptuner.lanes.rescan import ReplayOutcome, replay
-from hqptuner.lanes.writer import LiveWriteOutcome, LiveWriteResult
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
-
+from hqptuner.lanes.writer import LiveWriteOk, LiveWriteOutcome
 
 #: A snapshot holding two stored profiles, each with a body of its own.
 XML0 = (
@@ -62,18 +55,13 @@ DITHER_NS9 = {"dither": "5"}
 # --- matrixscope ---------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("profile", "expected"),
-    [
-        pytest.param(None, (True, True, True), id="unscoped-is-identity"),
-        pytest.param("A", (False, True, False), id="scoped-to-A-drops-B"),
-    ],
-)
-def test_matrix_scope_returns_the_whole_snapshot_unscoped_and_one_profiles_body_scoped(
-    profile: str | None, expected: tuple[bool, bool, bool]
-) -> None:
-    out = matrix_scope(XML0, profile)
-    assert (out == XML0, b"<a/>" in out, b"<b/>" in out) == expected
+def test_matrix_scope_returns_the_whole_snapshot_unscoped() -> None:
+    assert matrix_scope(XML0, None) == XML0
+
+
+@pytest.mark.parametrize(("body", "kept"), [(b"<a/>", True), (b"<b/>", False)], ids=["A's body", "B's body"])
+def test_matrix_scope_to_one_profile_keeps_only_that_profiles_body(body: bytes, *, kept: bool) -> None:
+    assert (body in matrix_scope(XML0, "A")) is kept
 
 
 @pytest.mark.parametrize(("name", "expected"), [("B", True), ("Z", False)])
@@ -114,12 +102,19 @@ def test_matrix_body_span_selects_the_body_and_refuses_a_bodyless_element(
     assert _body_or_error(locate, xml) == expected
 
 
-def test_find_matrix_body_span_locates_the_body_when_present_and_answers_absent_without_raising() -> None:
-    xml = b"<matrix><a/></matrix>"
-    start, close = find_matrix_body_span(xml) or (0, 0)
-    present = xml[start:close]
-    absent = find_matrix_body_span(b"<matrix/>")
-    assert (absent, present) == (None, b"<a/>")
+def _found_body(xml: bytes) -> bytes | None:
+    """The bytes the found span selects from ``xml``, or None where no body was found."""
+    span = find_matrix_body_span(xml)
+    return None if span is None else xml[span[0] : span[1]]
+
+
+@pytest.mark.parametrize(
+    ("xml", "body"), [(b"<matrix><a/></matrix>", b"<a/>"), (b"<matrix/>", None)], ids=["body", "self-closing"]
+)
+def test_find_matrix_body_span_locates_the_body_and_answers_absent_without_raising(
+    xml: bytes, body: bytes | None
+) -> None:
+    assert _found_body(xml) == body
 
 
 # --- rescan replay -------------------------------------------------------------
@@ -141,10 +136,10 @@ async def _loaded(manager: ConnectionManager) -> dict[str, Any]:
     load has landed, and hand back the live snapshot it read. The bound turns
     a manager that never connects into a loud failure."""
     for _ in range(100_000):
-        snapshot = live_snapshot(manager)
-        if snapshot is not None:
-            return dict(snapshot)
-        await asyncio.sleep(0)
+        try:
+            return dict(live_snapshot(manager).fields)
+        except ChainUnknownError:
+            await asyncio.sleep(0)
     raise FixtureError(reason="the manager never loaded the fake engine")
 
 
@@ -281,7 +276,7 @@ async def test_routed_fields_are_remembered_under_the_active_chain_only(
 ) -> None:
     manager, _log, _state = await live_manager()
     await _loaded(manager)
-    remember_routed(reshape(manager), [LiveWriteResult(setting="shaper", ok=True)], dict(DITHER_NS9))
+    remember_routed(reshape(manager), [LiveWriteOk(setting="shaper")], dict(DITHER_NS9))
     assert manager.readings.live.chain == expected
 
 
@@ -296,7 +291,7 @@ async def test_a_field_the_enumeration_cannot_name_is_left_out_of_the_snapshot(l
     del state["shaper"]  # a routable field's state attribute gone
     next(item for item in enums["filters"] if item["index"] == "0").pop("value")
     del state["adaptive"]
-    after = live_snapshot(manager) or {}
+    after = live_snapshot(manager).fields
     assert sorted(before) == sorted([*after, "adaptive_volume", "dither", "filter", "filter1x", "mode"])
 
 

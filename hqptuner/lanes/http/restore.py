@@ -15,9 +15,9 @@ that particular apply, so sequential applies clobber each other. See
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import httpx
 
@@ -86,51 +86,60 @@ class UnfixableDevice:
 
 
 @dataclass(frozen=True)
-class RestoreResult:
-    """The persistent lane's outcome. The fields are the wire keys; each outcome has its own constructor.
+class RestoreDeclined:
+    """A lane that was never usable for this apply: no client, or a credential already refused. Fields are wire keys."""
 
-    ``submitted`` is False only for a lane that declined (``error`` and ``code``). ``applied`` marks
-    convergence (``attempts``, ``active``). Otherwise ``reason`` says why not and ``diff`` what diverged,
-    with ``unfixable`` naming an endpoint that is gone.
-    """
-
-    submitted: bool
-    applied: bool = False
-    reason: RestoreOutcome | None = None
-    error: str | None = None
-    code: str | None = None
-    attempts: int | None = None
-    active: str | None = None
-    diff: Diff | None = None
-    unfixable: dict[str, UnfixableDevice] | None = None
+    error: str
+    code: str
 
     @property
     def outcome(self) -> RestoreOutcome:
         """The verdict as one enum."""
-        if not self.submitted:
-            return RestoreOutcome.NOT_SUBMITTED
-        if self.applied:
-            return RestoreOutcome.APPLIED
-        return self.reason or RestoreOutcome.UNCONVERGED
+        return RestoreOutcome.NOT_SUBMITTED
 
-    @classmethod
-    def declined(cls, refusal: httpauth.HttpLaneDeclinedError) -> RestoreResult:
-        """Answer for a lane that was never usable for this apply: no client, or a credential already refused."""
-        return cls(submitted=False, error=str(refusal), code=refusal.code)
 
-    @classmethod
-    def converged(cls, attempts: int, active: str | None) -> RestoreResult:
-        """Answer for a running config that reflects every field this apply wrote, after ``attempts`` passes."""
-        return cls(submitted=True, applied=True, attempts=attempts, active=active)
+@dataclass(frozen=True)
+class RestoreConverged:
+    """A running config that reflects every field this apply wrote, after ``attempts`` passes. Fields are wire keys."""
 
-    @classmethod
-    def diverged(cls, diff: Diff, unfixable: UnfixableDevice | None) -> RestoreResult:
-        """Answer for a running config that never matched; ``unfixable`` names the endpoint that makes it final."""
-        if unfixable is None:
-            return cls(submitted=True, reason=RestoreOutcome.UNCONVERGED, diff=diff)
-        return cls(
-            submitted=True, reason=RestoreOutcome.UNAVAILABLE, diff=diff, unfixable={presetconf.NET_DEVICE: unfixable}
-        )
+    attempts: int
+    active: str | None
+    applied: Literal[True] = field(default=True, init=False)
+
+    @property
+    def outcome(self) -> RestoreOutcome:
+        """The verdict as one enum."""
+        return RestoreOutcome.APPLIED
+
+
+@dataclass(frozen=True)
+class RestoreUnconverged:
+    """A running config that never matched after the retries; ``diff`` says what diverged. Fields are wire keys."""
+
+    diff: Diff
+    reason: Literal[RestoreOutcome.UNCONVERGED] = field(default=RestoreOutcome.UNCONVERGED, init=False)
+
+    @property
+    def outcome(self) -> RestoreOutcome:
+        """The verdict as one enum."""
+        return RestoreOutcome.UNCONVERGED
+
+
+@dataclass(frozen=True)
+class RestoreUnavailable:
+    """A divergence made final by an endpoint that is gone, named in ``unfixable``. Fields are wire keys."""
+
+    diff: Diff
+    unfixable: dict[str, UnfixableDevice]
+    reason: Literal[RestoreOutcome.UNAVAILABLE] = field(default=RestoreOutcome.UNAVAILABLE, init=False)
+
+    @property
+    def outcome(self) -> RestoreOutcome:
+        """The verdict as one enum."""
+        return RestoreOutcome.UNAVAILABLE
+
+
+RestoreResult = RestoreDeclined | RestoreConverged | RestoreUnconverged | RestoreUnavailable
 
 
 def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
@@ -248,8 +257,10 @@ async def _outcome(
         # the dead one, so wait for the reconnect before answering the user
         await settle.await_ready(mgr, mark)
     if not verdict.diff:
-        return RestoreResult.converged(attempts, mgr.readings.active_config)
-    return RestoreResult.diverged(verdict.diff, verdict.unfixable)
+        return RestoreConverged(attempts, mgr.readings.active_config)
+    if verdict.unfixable is None:
+        return RestoreUnconverged(verdict.diff)
+    return RestoreUnavailable(verdict.diff, {presetconf.NET_DEVICE: verdict.unfixable})
 
 
 def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:

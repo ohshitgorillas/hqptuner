@@ -48,7 +48,6 @@
  *
  * @typedef {object} PersistentResult
  *   The config lane's outcome (http.restore).
- * @property {boolean} [submitted]
  * @property {boolean} [applied]
  * @property {string} [reason] unconverged | unavailable | credentials
  * @property {string} [error]

@@ -16,6 +16,7 @@ than ``lanes`` because it depends on the store: the two readers that do not
 from __future__ import annotations
 
 import contextlib
+import enum
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -40,15 +41,22 @@ log = logging.getLogger(__name__)
 RECONNECT_FAST = 1.0
 
 
+class MirrorOutcome(enum.Enum):
+    """Whether a save's ``data/cfgs`` mirror reached the daemon; a mirror that did not land leaves the save standing."""
+
+    LANDED = "landed"
+    NOT_LANDED = "not_landed"
+
+
 @dataclass(frozen=True)
 class PresetSaveResult:
-    """A save or auto-save that reached the store; the fields are the wire keys.
+    """A save or auto-save that reached the store, and how its daemon mirror went.
 
-    ``warning`` rides when the daemon mirror did not land, which leaves the save itself standing.
+    An auto-save never mirrors, so it has no failed mirror to report and reads ``LANDED``.
     """
 
     name: str
-    warning: str | None = None
+    mirror: MirrorOutcome = MirrorOutcome.LANDED
 
 
 @dataclass(frozen=True)
@@ -266,8 +274,7 @@ async def save(mgr: ConnectionManager, name: str) -> PresetSaveResult:
     mgr.presetops.store.save(name, working, trigger="save")
     mgr.presetops.store.set_active(name)
     _record_autopilot(mgr, name)
-    warning = await _mirror(mgr, name, working, backup)
-    return PresetSaveResult(name, warning=warning)
+    return PresetSaveResult(name, mirror=await _mirror(mgr, name, working, backup))
 
 
 async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
@@ -310,10 +317,8 @@ def _record_autopilot(mgr: ConnectionManager, name: str) -> None:
         log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
 
 
-async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> str | None:
+async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> MirrorOutcome:
     """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile list mirrors our store.
-
-    Returns None when it landed, else a user-facing warning.
 
     Retries through the shared settle loop instead of firing once: this runs
     right after an apply's own restore, so the daemon is routinely still
@@ -331,9 +336,9 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
 
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
         await settle.await_ready(mgr, mark)
-        return None
+        return MirrorOutcome.LANDED
     log.warning("preset %r saved, but its daemon mirror did not land", name)
-    return "hqplayerd's own profile list was not updated"
+    return MirrorOutcome.NOT_LANDED
 
 
 async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:

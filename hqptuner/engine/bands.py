@@ -94,13 +94,13 @@ class BandRing:
         while len(self._entries) > 1 and self._covered - self._entries[0][0] >= self._window:
             self._covered -= self._entries.popleft()[0]
 
-    def mean(self) -> Bands | None:
-        """Return the mean of the triples in hand, or None while there are none."""
+    def mean(self) -> list[float]:
+        """Return the mean of the triples in hand, empty while there are none."""
         if not self._entries:
-            return None
+            return []
         count = len(self._entries)
-        return (
+        return [
             sum(entry[1][0] for entry in self._entries) / count,
             sum(entry[1][1] for entry in self._entries) / count,
             sum(entry[1][2] for entry in self._entries) / count,
-        )
+        ]

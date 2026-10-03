@@ -15,16 +15,10 @@ from types import ModuleType
 
 import httpx
 import pytest
+from narrow import FixtureError
 
 #: The fuzz scripts directory, found relative to this file rather than through an import.
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts" / "fuzz"
-
-
-class FixtureError(Exception):
-    """A test's own scaffolding is wrong, not a failure of the behavior under test."""
-
-    def __init__(self, *, reason: str) -> None:
-        super().__init__(reason)
 
 
 def load(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:

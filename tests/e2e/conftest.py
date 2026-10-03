@@ -147,7 +147,9 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     if not isinstance(data, dict):
         return empty
     profiles = data.get("profiles")
-    options = profiles.get("options") if isinstance(profiles, dict) else None
+    if not isinstance(profiles, dict):
+        return empty
+    options = profiles["options"]
     livepresets = _call(f"{base_url}/api/livepresets", "GET")
     if not isinstance(livepresets, dict):
         return empty
@@ -156,7 +158,7 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
         return empty
     # The unnamed default is not a preset a test could have saved, and it is not
     # deletable, so it never belongs in the set that gets diffed for cleanup.
-    presets = {str(option["value"]) for option in options or [] if isinstance(option, dict) and option.get("value")}
+    presets = {str(option["value"]) for option in options if isinstance(option, dict) and option.get("value")}
     names = {str(record["name"]) for record in live if isinstance(record, dict)}
     return presets, bool(data.get("autosave")), names
 

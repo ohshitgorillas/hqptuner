@@ -68,6 +68,10 @@ RUN_PROFILE = "Mch-to-Stereo mixdown"
 #: while the daemon reports it is dangling and cannot be switched back to.
 ABSENT_PROFILE = "Profile The Engine Does Not Have"
 
+#: The exit status `abuse.sh` refuses with: distinct from a step that failed and
+#: from a crash, either of which exits otherwise.
+REFUSED = 3
+
 #: Ceiling on the app noticing a State the fake already reports. Bounded wait on a
 #: condition, not a duration anything is expected to take.
 OBSERVE_TIMEOUT = 30.0
@@ -228,13 +232,33 @@ def test_close_leaves_every_store_as_open_found_it(app: stack_support.Stack, sta
     assert _snapshot(state) == before
 
 
-def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Stack, state: Path) -> None:
-    """Without the manifest the bracket cannot tell an empty store from a lost snapshot, so it refuses."""
+def _close_without_manifest(
+    app: stack_support.Stack, state: Path
+) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
+    """Open the bracket, write a store, lose the snapshot manifest, then close.
+
+    Answers the close and the stores as they stood just before it.
+    """
     _bracket("open", state)
     _call(app, "PUT", "/api/livepresets/junk", {})
     for manifest in (state / "abuse").rglob("manifest.json"):
         manifest.unlink()
-    assert _abuse("close", state).returncode == 1
+    left = _snapshot(state)
+    return _abuse("close", state), left
+
+
+def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Stack, state: Path) -> None:
+    """Without the manifest the bracket cannot tell an empty store from a lost snapshot, so it refuses."""
+    closed, _left = _close_without_manifest(app, state)
+    assert closed.returncode == REFUSED
+
+
+def test_a_close_refused_for_a_lost_manifest_leaves_the_stores_as_it_found_them(
+    app: stack_support.Stack, state: Path
+) -> None:
+    """A refusal restores nothing: putting back a snapshot it cannot vouch for could empty a live store."""
+    _closed, left = _close_without_manifest(app, state)
+    assert _snapshot(state) == left
 
 
 @pytest.mark.parametrize("baseline", ["Default", ""])
@@ -249,10 +273,22 @@ def test_close_puts_the_engine_back_on_the_profile_open_found(
     assert app.control_state["matrix_profile"] == baseline
 
 
-def test_close_refuses_when_the_recorded_profile_is_no_longer_offered(app: stack_support.Stack, state: Path) -> None:
-    """A baseline the daemon no longer lists is refused, never switched back to."""
+def _close_after_the_baseline_vanished(app: stack_support.Stack, state: Path) -> subprocess.CompletedProcess[str]:
+    """Open on a profile the daemon no longer lists, switch to the run profile, then close."""
     app.control_state["matrix_profile"] = ABSENT_PROFILE
     _await_active(app, ABSENT_PROFILE)
     _bracket("open", state)
     _switch(app, RUN_PROFILE)
-    assert _abuse("close", state).returncode != 0
+    return _abuse("close", state)
+
+
+def test_close_refuses_when_the_recorded_profile_is_no_longer_offered(app: stack_support.Stack, state: Path) -> None:
+    """A baseline the daemon no longer lists is refused, never switched back to."""
+    assert _close_after_the_baseline_vanished(app, state).returncode == REFUSED
+
+
+def test_a_close_refused_for_a_vanished_profile_leaves_the_run_profile_engaged(
+    app: stack_support.Stack, state: Path
+) -> None:
+    _close_after_the_baseline_vanished(app, state)
+    assert app.control_state["matrix_profile"] == RUN_PROFILE

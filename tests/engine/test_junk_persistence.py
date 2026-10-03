@@ -39,7 +39,7 @@ def test_window_min_appears_once_the_window_is_earned() -> None:
     aggregate = SpectralAggregate(AGG_BINS, 48000.0)
     for _ in range(WINDOW_BLOCKS):  # exactly the 30 s window, to the block
         aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
-    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+    assert aggregate.window_min_db()[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 def _earned_alternating() -> SpectralAggregate:
@@ -53,11 +53,11 @@ def _earned_alternating() -> SpectralAggregate:
 
 
 def test_a_bin_fed_the_same_power_reports_that_level() -> None:
-    assert (_earned_alternating().window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+    assert _earned_alternating().window_min_db()[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
 
 
 def test_an_intermittent_bin_reports_its_low_level() -> None:
-    assert (_earned_alternating().window_min_db() or [])[_VARYING_BIN] == pytest.approx(-90.0, abs=0.5)
+    assert _earned_alternating().window_min_db()[_VARYING_BIN] == pytest.approx(-90.0, abs=0.5)
 
 
 # --- SpectralAggregate: silent frames ---------------------------------------------
@@ -83,4 +83,4 @@ def test_silent_frames_never_lower_the_window_min() -> None:
     for _ in range(WINDOW_BLOCKS + 1):  # tone coverage alone earns the window
         aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
         aggregate.add(SILENT_FRAME, BLOCK_SECONDS, silent=True)
-    assert (aggregate.window_min_db() or [])[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
+    assert aggregate.window_min_db()[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)

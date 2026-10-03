@@ -92,7 +92,7 @@ async function refreshFast() {
 /**
  * Trigger a daemon output-device rescan, then re-pull the config forms.
  *
- * @returns {Promise<{ refreshed: boolean, restored: Record<string, string>, warning?: string }>}
+ * @returns {Promise<{ restored: Record<string, string>, warning?: string }>}
  *   The rescan report. `warning` is set when the rescan finished but the live
  *   settings it stopped the engine for could not be put back — the caller
  *   surfaces it, because a silent loss is the bug this reports on.

@@ -74,4 +74,4 @@ def _ring_after(low_band_db: float) -> BandRing:
 
 
 def test_the_ring_carries_the_louder_frame_into_the_next_reading() -> None:
-    assert (_ring_after(-20.0).mean() or [])[0] > (_ring_after(-40.0).mean() or [])[0]
+    assert _ring_after(-20.0).mean()[0] > _ring_after(-40.0).mean()[0]

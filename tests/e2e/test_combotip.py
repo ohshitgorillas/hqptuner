@@ -142,18 +142,15 @@ def test_every_facet_row_of_a_tip_carries_a_marking(page: Page, stack: Stack) ->
 # --- the chip markings --------------------------------------------------------
 
 
-def test_an_apodizing_filters_tip_marks_the_apodizing_chip(page: Page, stack: Stack) -> None:
-    """The enumeration sets the apodizing bit on this filter, and the chip says which boolean it is."""
-    hover_tip(page, stack, SHORT_MP)
-    assert "apodizing" in chips(page)
-
-
-def test_the_pass_through_filters_tip_carries_no_chip(page: Page, stack: Stack) -> None:
-    """It resamples nothing, so it apodizes nothing and its tip has no boolean facet to chip."""
-    hover_tip(page, stack, SHORT_MP)
-    with_a_chip = chips(page)
-    hover_tip(page, stack, NONE)
-    assert (with_a_chip != [], chips(page)) == (True, [])
+@pytest.mark.parametrize(("hovered", "chipped"), [(SHORT_MP, ["apodizing"]), (NONE, [])], ids=["apodizing", "none"])
+def test_a_filters_tip_chips_exactly_the_booleans_its_enumeration_sets(
+    page: Page, stack: Stack, hovered: str, chipped: list[str]
+) -> None:
+    """The enumeration sets the apodizing bit on the short minimum-phase filter, and the
+    chip says which boolean it is; the pass-through filter resamples nothing, so it
+    apodizes nothing and its tip has no boolean facet to chip."""
+    hover_tip(page, stack, hovered)
+    assert chips(page) == chipped
 
 
 def test_an_upsample_only_filters_tip_marks_the_upsample_only_chip(page: Page, stack: Stack) -> None:

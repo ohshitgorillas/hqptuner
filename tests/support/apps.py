@@ -8,9 +8,9 @@ from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -88,7 +88,7 @@ def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], polls:
         if ready(client):
             return
         advance_app(client, interval)
-    pytest.fail("app never became ready against the fake daemons")
+    raise FixtureError(reason="app never became ready against the fake daemons")
 
 
 def live_app(

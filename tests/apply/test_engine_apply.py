@@ -6,11 +6,14 @@ unrelated engine settings survive."""
 
 import io
 import zipfile
+from typing import Any
 
 import pytest
+from conftest import LiveManager
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http import forms
 from hqptuner.presets import fileconfig
 
 
@@ -42,11 +45,29 @@ async def test_restored_archive_is_reflected_in_readback(http_manager: Connectio
     assert (await fileconfig.read_engine(http_manager))["nblocks"] == "4"
 
 
-async def test_apply_engine_decline_carries_no_credentials_code(http_manager: ConnectionManager) -> None:
-    http_manager.readings.credentials_ok = False
-    try:
-        await http_manager.applyops.apply_engine({"cuda": "0"})
-    except HttpLaneDeclinedError as exc:
-        assert exc.code == "no_credentials"
-    else:
-        pytest.fail("expected HttpLaneDeclinedError")
+@pytest.fixture(params=[("refused credential", "no_credentials"), ("no http lane", "no_http_client")], ids=str)
+async def declining(
+    request: pytest.FixtureRequest,
+    http_manager: ConnectionManager,
+    http_daemon: dict[str, Any],
+    live_manager: LiveManager,
+) -> tuple[ConnectionManager, str]:
+    """A manager whose http lane cannot be used, and the code its decline carries.
+
+    The refused credential is earned off the wire: the fake 8088 rejects the pair and a forms refresh records what it
+    answered. The other manager is built on the control lane alone.
+    """
+    case, code = request.param
+    if case == "refused credential":
+        http_daemon["_refuse_auth"] = True
+        await forms.refresh(http_manager)
+        return http_manager, code
+    control_only, _log, _state = await live_manager()
+    return control_only, code
+
+
+async def test_apply_engine_decline_carries_the_code_of_its_cause(declining: tuple[ConnectionManager, str]) -> None:
+    manager, code = declining
+    with pytest.raises(HttpLaneDeclinedError) as declined:
+        await manager.applyops.apply_engine({"cuda": "0"})
+    assert declined.value.code == code

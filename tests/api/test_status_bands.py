@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import wait_for_api
+from apps import advance_app, app_manager, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -49,6 +49,9 @@ TONE_REAL = 1.0
 #: in which the reader holds its 4322 socket.
 PLAYING = "2"
 
+#: Poll passes the reader gets to fill the bars before a case reads them.
+POLLS = 20
+
 
 def _frame(tone_hz: float) -> bytes:
     """One metering frame whose transform carries the tone in the bin nearest
@@ -61,12 +64,10 @@ def _frame(tone_hz: float) -> bytes:
     return header + channel * CHANNELS
 
 
-def _bands_served(client: TestClient) -> bool:
-    """The app has read enough of the stream to serve the three bar heights."""
-    response = client.get("/api/status")
-    if response.status_code != 200:
-        return False
-    return response.json()["data"].get("bands") is not None
+def _status_served(client: TestClient) -> bool:
+    """The app answers `/api/status`, whatever the reader has read so far."""
+    status: int = client.get("/api/status").status_code
+    return status == 200
 
 
 @pytest.fixture
@@ -94,7 +95,7 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
             advisor_enabled=True,
         )
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
-        wait_for_api(client, _bands_served)
+        wait_for_api(client, _status_served)
         return client
 
     yield build
@@ -103,9 +104,17 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
         next(fake, None)
 
 
-def _low_bar(client: TestClient) -> float:
-    return float((client.get("/api/status").json()["data"]["bands"] or [])[0])
+def _served_bands(client: TestClient) -> list[float]:
+    """The bars `/api/status` serves once the reader has filled them, or empty if it never does in ``POLLS`` passes."""
+    interval = app_manager(client).cfg.poll_interval
+    for _ in range(POLLS):
+        bands: list[float] = client.get("/api/status").json()["data"]["bands"]
+        if bands:
+            return bands
+        advance_app(client, interval)
+    return []
 
 
 def test_the_low_bar_stands_higher_on_a_bass_stream(bands_api: Callable[[float], TestClient]) -> None:
-    assert _low_bar(bands_api(100.0)) > _low_bar(bands_api(10000.0))
+    """Compared as one-bar slices, so a reader that serves no bars fails here rather than in setup."""
+    assert _served_bands(bands_api(100.0))[:1] > _served_bands(bands_api(10000.0))[:1]

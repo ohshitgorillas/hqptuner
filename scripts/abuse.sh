@@ -33,6 +33,10 @@
 # Everything goes through HQPTuner's own routes on 127.0.0.1:8090, never
 # hqplayerd directly. The pre-apply zip HQPTuner writes on every apply is not
 # the baseline: two applies in one run would overwrite it.
+#
+# Exit status: 0 done, 2 usage, 3 refused (a precondition the operator has to
+# put right; nothing was changed by the refused step), 1 or any other a step
+# that failed.
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
 API=${HQPTUNER_ABUSE_API:-http://127.0.0.1:8090}
@@ -50,6 +54,7 @@ STORES="presets live-presets.json favorites.json descriptions.json narrowing.jso
 TRIES=60
 say()  { echo; echo "== $* =="; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
+refuse() { echo "REFUSED: $*" >&2; exit 3; }
 usage() { echo "usage: scripts/abuse.sh open | close | status" >&2; exit 2; }
 get()  { curl -sf "$API$1"; }
 
@@ -85,15 +90,15 @@ digest_of() {
 idle_or_die() {
   local s
   s=$(state_of) || die "GET /api/state failed: daemon unreachable or not loaded"
-  [ "$s" = "0" ] || die "daemon is not idle (State state=\"$s\"); stop playback first"
+  [ "$s" = "0" ] || refuse "daemon is not idle (State state=\"$s\"); stop playback first"
 }
 
 case "$CMD" in
   open)
-    [ ! -e "$CURRENT" ] || die "a run is already open ($(cat "$CURRENT")); close it first"
+    [ ! -e "$CURRENT" ] || refuse "a run is already open ($(cat "$CURRENT")); close it first"
     idle_or_die
     pend=$(pending_of) || die "GET /api/config/pending failed"
-    [ "$pend" = '{"http":{},"live":{}}' ] || die "staged buffer is not empty: $pend"
+    [ "$pend" = '{"http":{},"live":{}}' ] || refuse "staged buffer is not empty: $pend"
     get /api/audit?limit=1 >/dev/null || die "audit log is off (no /api/audit); close could not tell apply from no apply"
     stamp=$(date -u +%Y%m%dT%H%M%SZ)
     mkdir -p "$DIR/$stamp"
@@ -128,14 +133,14 @@ case "$CMD" in
     echo "  seq:      $since"
     ;;
   close)
-    [ -e "$CURRENT" ] || die "no run open"
+    [ -e "$CURRENT" ] || refuse "no run open"
     read -r stamp since < "$CURRENT"
     zip=$DIR/$stamp/settings.zip
     base=$DIR/$stamp/form.json
     livebase=$DIR/$stamp/live.json
-    [ -s "$zip" ] || die "baseline missing: $zip"
-    [ -s "$base" ] || die "form snapshot missing: $base"
-    [ -s "$livebase" ] || die "live snapshot missing: $livebase"
+    [ -s "$zip" ] || refuse "baseline missing: $zip"
+    [ -s "$base" ] || refuse "form snapshot missing: $base"
+    [ -s "$livebase" ] || refuse "live snapshot missing: $livebase"
     say "discard"
     curl -sf -X DELETE "$API/api/config/pending" | jq -c . || die "DELETE /api/config/pending failed"
     say "audit since seq $since"
@@ -156,7 +161,7 @@ case "$CMD" in
       s=$(state_of) || s="?"
       if [ "$s" != "0" ]; then
         echo "  buffer discarded, but the daemon is not idle (State state=\"$s\")."
-        die "config still carries the run's apply; stop playback and re-run close"
+        refuse "config still carries the run's apply; stop playback and re-run close"
       fi
       # The daemon reloads on every persistent apply and again on the restore,
       # dropping 4321 and refusing 8088 while it does, and it reconnects before
@@ -218,7 +223,7 @@ case "$CMD" in
       else
         known=$(get /api/matrix | jq -c '.data.live_profiles // []') || die "GET /api/matrix failed"
         if [ -n "$pwant" ] && [ "$(echo "$known" | jq -r --arg w "$pwant" 'index($w) != null')" != "true" ]; then
-          die "open recorded profile \"$pwant\", which the daemon no longer has ($known); switching to it would leave the engine resetting on its next reinit. Put that profile back or switch by hand, then re-run close"
+          refuse "open recorded profile \"$pwant\", which the daemon no longer has ($known); switching to it would leave the engine resetting on its next reinit. Put that profile back or switch by hand, then re-run close"
         fi
         curl -sf -X POST -H 'Content-Type: application/json' -d "$(jq -nc --arg n "$pwant" '{action: "switch", name: $n}')" "$API/api/matrix/profile" >/dev/null \
           || die "POST /api/matrix/profile failed; profile left at ${phave:-[Default]}, was ${pwant:-[Default]}"
@@ -237,7 +242,7 @@ case "$CMD" in
     manfile=$DIR/$stamp/stores/manifest.json
     # Without the manifest there is no telling an install whose stores were empty
     # at open from a snapshot that went missing, and those want opposite actions.
-    [ -s "$manfile" ] || die "store manifest missing: $manfile; stores left untouched"
+    [ -s "$manfile" ] || refuse "store manifest missing: $manfile; stores left untouched"
     for s in $STORES; do
       want=$(jq -Sc --arg s "$s" '.[$s].files // null' "$manfile")
       now=$(digest_of "$STATE/$s")

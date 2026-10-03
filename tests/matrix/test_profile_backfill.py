@@ -124,7 +124,7 @@ def test_every_chainless_profile_gains_the_chain(name: str) -> None:
 
 def test_a_backfilled_chain_reads_back_as_a_non_empty_post() -> None:
     backfilled = matrixprofiles.backfill_profile_chains(snapshot({"Stock": CHAINLESS}))
-    assert json.loads(matrixprofiles.read_profiles(backfilled))["Stock"]["post"] != {}
+    assert json.loads(matrixprofiles.read_profiles(backfilled))["Stock"]["post"]["post_bauer_frequency"] == "850"
 
 
 # --- a profile that already carries a chain is left exactly as it was ----------

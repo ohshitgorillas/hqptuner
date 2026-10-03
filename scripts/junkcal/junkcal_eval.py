@@ -60,7 +60,7 @@ class Advisor(Protocol):
     """The module surface the adapter needs: one verdict per rule the spectrum fires."""
 
     def verdicts(
-        self, min_levels_db: list[float] | None, bandwidth: float, *, samplerate: int | None, sdm: bool
+        self, min_levels_db: list[float], bandwidth: float, *, samplerate: int | None, sdm: bool
     ) -> list[dict[str, Any]]:
         """Return one verdict per rule this spectrum fires."""
 

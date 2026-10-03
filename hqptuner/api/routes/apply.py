@@ -8,7 +8,7 @@ import contextlib
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr, WithAutosave, WithSaved, preset_refusals, with_autosave
+from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, preset_refusals, with_autosave
 from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import apply_succeeded, pending_store
@@ -69,7 +69,7 @@ async def _persist_after_apply(
         return await with_autosave(report, manager)
     with preset_refusals():
         saved = await manager.presetops.save_preset(save)
-    return WithSaved(report, saved)
+    return WithSaved(report, SavedPreset.of(saved))
 
 
 @router.post("/config/apply")

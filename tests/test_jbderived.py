@@ -26,7 +26,8 @@ def test_stats_p75_is_the_75th_percentile_of_the_ranked_values() -> None:
 def test_score_candidate_is_none_when_neither_side_has_a_finite_reading() -> None:
     absent = {"cliff": [float("nan")], "full": [float("nan")]}
     present = {"cliff": _CLIFF_LOW, "full": _FULL_HIGH, "series": {}}
-    assert (score_candidate(absent), score_candidate(present) is not None) == (None, True)
+    scored = [score.blocks for score in (score_candidate(absent), score_candidate(present)) if score is not None]
+    assert scored == [4]
 
 
 def test_threshold_midpoint_sits_between_the_facing_edges_when_the_cliff_side_is_lower() -> None:
