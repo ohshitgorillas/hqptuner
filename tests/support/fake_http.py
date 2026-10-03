@@ -596,6 +596,9 @@ def state(**extra: object) -> dict[str, Any]:
         "channels": "2",
         "auto_family": False,
         "net_ipv6": False,
+        # <upnp interface>, the host interface the UPnP renderer binds (readme
+        # §1.4); empty renders no attribute, which leaves the daemon on its default
+        "upnp_interface": "",
         "net_device": "S26/hw:CARD=Output,DEV=0",
         # the device GET /config renders while the file above already names
         # another: the window after a preset load, before the form catches up.

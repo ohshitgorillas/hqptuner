@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Loading a preset keeps this machine's network interface settings.** The UPnP and network discovery interfaces stay as they are when a preset loads, so HQPlayer remains visible as a UPnP renderer and starts normally.
+
 ## [1.15.3] — 2026-09-28
 
 ### Added

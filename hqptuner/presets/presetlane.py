@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from hqptuner import voltrace
-from hqptuner.conf import engineconf, presetconf, presetzip
+from hqptuner.conf import engineconf, presetconf, presetiface, presetzip
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
@@ -153,6 +153,7 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
     backup = await mgr.require_http().backup()
     mgr.presetops.persist_backup_for_load(backup, name)
+    xml = presetiface.keep_interfaces(xml, engineconf.base_config_xml(backup, mgr.readings.active_config))
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     mark = settle.mark_connect(mgr)
     await settle.restore(mgr, archive, mark=mark, scope="system")

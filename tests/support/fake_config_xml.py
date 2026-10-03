@@ -16,6 +16,12 @@ def _b(v: object) -> str:
     return "1" if v in (True, "1", 1) else "0"
 
 
+def _upnp_line(st: dict[str, Any]) -> str:
+    """The `<upnp>` element, carrying `interface` only while state names one."""
+    interface = st.get("upnp_interface", "")
+    return f'<upnp freewheel="0" interface="{interface}"/>' if interface else '<upnp freewheel="0"/>'
+
+
 def _fixed_line(st: dict[str, Any]) -> str:
     """The top-level fixed-volume line as 6.0.4 writes it.
 
@@ -52,7 +58,8 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f'samplerate="{st["samplerate"]}"/>'
         f'<sdm oversampling="{st["oversampling"]}" oversampling1x="{st["oversampling1x"]}" '
         f'modulator="{st["modulator"]}" bitrate="{st["bitrate"]}"/>'
-        '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
+        '<log enabled="1" file="/tmp/hqplayerd.log"/>'
+        f"{_upnp_line(st)}"
         # volume_fixed's XML domain is 0/1/2 (off / -3 dB / -6 dB) while the /config
         # form below renders it as a plain checkbox — the daemon's own lossy render,
         # modeled so the file-truth read path is genuinely exercised.
@@ -321,6 +328,8 @@ def adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     ipv6 = elem_attr(xml, "network", "ipv6")
     if ipv6 is not None:
         st["net_ipv6"] = ipv6 == "1"
+    interface = elem_attr(xml, "upnp", "interface")
+    st["upnp_interface"] = "" if interface is None else interface
     _adopt_net_device(st, xml)
     _adopt_matrix(st, xml)
     _adopt_plugins(st, xml)

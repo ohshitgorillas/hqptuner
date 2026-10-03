@@ -196,6 +196,11 @@ def set_attr(tag: bytes, attr: str, value: str) -> bytes:
     return tag[:cut] + b" " + replacement + tag[cut:]
 
 
+def drop_attr(tag: bytes, attr: str) -> bytes:
+    """Remove ``attr="value"`` and the whitespace before it from an element's open-tag bytes; unchanged when absent."""
+    return re.sub(rb"\s+" + attr_re(attr).pattern, b"", tag, count=1)
+
+
 def splice(xml: bytes, span: tuple[int, int], tag: bytes) -> bytes:
     """Replace the open tag at ``span`` with ``tag``; every other byte preserved."""
     start, end = span
