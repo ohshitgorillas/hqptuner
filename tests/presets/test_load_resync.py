@@ -45,6 +45,12 @@ if TYPE_CHECKING:
 #: carried over from before the restart is visible as the PCM reading surviving.
 RESTARTED_INTO_SDM = {"mode": "2", "_active_mode": "SDM (DSD)", "filterNx": "2"}
 
+#: What `_filter_nx` answers: the picture holds no State at all, its State
+#: carries no ``filterNx``, or the ``filterNx`` of the engine that came back.
+NO_STATE = "<no State>"
+NO_FILTER_NX = "<no filterNx>"
+POST_RESTORE_FILTER_NX = RESTARTED_INTO_SDM["filterNx"]
+
 #: A manager on both lanes plus its 4321 fake's live State.
 DualLane = Callable[..., Awaitable[tuple[ConnectionManager, dict[str, str]]]]
 
@@ -104,9 +110,15 @@ def _submitted(result: EngineApplyResult) -> None:
 # saved config would write settings off a process that is gone.
 
 
-async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_staged_apply_leaves_post_restore_state(
-    http_daemon: dict[str, Any], tmp_path: Path, dual_lane: DualLane
-) -> None:
+def _filter_nx(manager: ConnectionManager) -> str:
+    """The ``filterNx`` the manager's picture holds: ``NO_STATE`` or ``NO_FILTER_NX`` when it holds none."""
+    state = manager.readings.state
+    return NO_STATE if state is None else state.get("filterNx", NO_FILTER_NX)
+
+
+async def _preset_load_with_no_control_connection(
+    http_daemon: dict[str, Any], tmp_path: Path, _dual_lane: DualLane
+) -> ConnectionManager:
     http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
     cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
     manager = ConnectionManager(cfg, http, VirtualClock())
@@ -115,11 +127,31 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_stag
         await presetlane.load(manager, "Stored")
     finally:
         await http.aclose()
-    no_state = manager.readings.state
-    acting_manager, state = await dual_lane()
+    return manager
+
+
+async def _staged_apply(http_daemon: dict[str, Any], _tmp_path: Path, dual_lane: DualLane) -> ConnectionManager:
+    manager, state = await dual_lane()
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
-    _applied(await acting_manager.applyops.apply({}, {"title": "Renamed"}))
-    assert (no_state, present(acting_manager.readings.state).get("filterNx")) == (None, "2")
+    _applied(await manager.applyops.apply({}, {"title": "Renamed"}))
+    return manager
+
+
+@pytest.mark.parametrize(
+    ("write", "expected"),
+    [
+        pytest.param(_preset_load_with_no_control_connection, NO_STATE, id="preset-load-no-control-connection"),
+        pytest.param(_staged_apply, POST_RESTORE_FILTER_NX, id="staged-apply"),
+    ],
+)
+async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_staged_apply_leaves_post_restore_state(
+    http_daemon: dict[str, Any],
+    tmp_path: Path,
+    dual_lane: DualLane,
+    write: Callable[[dict[str, Any], Path, DualLane], Awaitable[ConnectionManager]],
+    expected: str,
+) -> None:
+    assert _filter_nx(await write(http_daemon, tmp_path, dual_lane)) == expected
 
 
 # --- the other two restart-shaped writes -------------------------------------

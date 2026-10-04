@@ -27,6 +27,7 @@ lifted from ``tests/presets/test_preset_names.py``.
 
 import contextlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -58,28 +59,59 @@ def seed(tmp_path: Path, content: str) -> Path:
 # --- an install that never chose ---------------------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_modes_but_a_written_one_reads_back(tmp_path: Path) -> None:
-    empty = store_at(tmp_path).read()
-    store = store_at(tmp_path)
-    store.write(NAME, "speakers")
-    assert (empty, store.read()[NAME]) == ({}, "speakers")
-
-
-def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file(tmp_path: Path) -> None:
-    store_at(tmp_path).read()
-    unwritten = list(tmp_path.iterdir())
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        pytest.param("unwritten.json", {}, id="no-file"),
+        pytest.param("matrixmodes.json", {NAME: "speakers"}, id="written"),
+    ],
+)
+def test_reading_a_store_with_no_file_yields_no_modes_but_a_written_one_reads_back(
+    tmp_path: Path, filename: str, expected: dict[str, str]
+) -> None:
     store_at(tmp_path).write(NAME, "speakers")
-    assert (unwritten, (tmp_path / "matrixmodes.json").is_file()) == ([], True)
+    assert MatrixModeStore(tmp_path / filename).read() == expected
+
+
+def _read(store: MatrixModeStore) -> None:
+    store.read()
+
+
+def _write(store: MatrixModeStore) -> None:
+    store.write(NAME, "speakers")
+
+
+@pytest.mark.parametrize(
+    ("act", "expected"),
+    [pytest.param(_read, [], id="read"), pytest.param(_write, ["matrixmodes.json"], id="write")],
+)
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file(
+    tmp_path: Path, act: Callable[[MatrixModeStore], None], expected: list[str]
+) -> None:
+    act(store_at(tmp_path))
+    assert sorted(p.name for p in tmp_path.iterdir()) == expected
 
 
 # --- the round trip -----------------------------------------------------------
 
 
-@pytest.mark.parametrize("mode", [pytest.param("speakers", id="speakers"), pytest.param("headphones", id="headphones")])
-def test_a_written_mode_reads_back_for_its_preset(tmp_path: Path, mode: str) -> None:
+@pytest.mark.parametrize(
+    ("name", "mode", "expected"),
+    [
+        pytest.param(NAME, "stereo", {}, id="refused-mode"),
+        pytest.param("a/b", "speakers", {}, id="refused-name"),
+        pytest.param(NAME, "speakers", {NAME: "speakers"}, id="valid"),
+    ],
+)
+def test_a_write_on_a_never_written_store_stores_its_mode_only_when_name_and_mode_are_storable(
+    tmp_path: Path, name: str, mode: str, expected: dict[str, str]
+) -> None:
+    # The refusals themselves are pinned below; suppressed here so the one
+    # assertion this test owns is what the store was left holding.
     store = store_at(tmp_path)
-    store.write(NAME, mode)
-    assert store.read()[NAME] == mode
+    with contextlib.suppress(MatrixModeError):
+        store.write(name, mode)
+    assert store.read() == expected
 
 
 def test_a_mode_reads_back_through_a_second_store_over_the_same_file(tmp_path: Path) -> None:
@@ -140,15 +172,6 @@ def test_a_refused_mode_leaves_the_previous_mode_in_place(tmp_path: Path) -> Non
     assert store.read()[NAME] == "speakers"
 
 
-def test_a_refused_mode_stores_nothing_on_a_never_written_store_but_a_valid_mode_is_stored(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    with contextlib.suppress(MatrixModeError):
-        store.write(NAME, "stereo")
-    refused = store.read()
-    written = store.write(NAME, "speakers")[NAME]
-    assert (refused, written) == ({}, "speakers")
-
-
 # --- what a name may be -----------------------------------------------------------
 # The rule is the preset store's (hqptuner/presets/names.py): a denylist that
 # refuses what breaks a filename or a store and accepts the rest of Unicode
@@ -169,15 +192,6 @@ def test_a_refused_mode_stores_nothing_on_a_never_written_store_but_a_valid_mode
 def test_a_name_that_is_not_a_storable_preset_name_is_refused(tmp_path: Path, name: str) -> None:
     with pytest.raises(MatrixModeError):
         store_at(tmp_path).write(name, "speakers")
-
-
-def test_a_refused_name_stores_nothing_but_an_accepted_name_carries_its_mode(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    with contextlib.suppress(MatrixModeError):
-        store.write("a/b", "speakers")
-    refused = store.read()
-    accepted = store.write(NAME, "speakers")[NAME]
-    assert (refused, accepted) == ({}, "speakers")
 
 
 @pytest.mark.parametrize(

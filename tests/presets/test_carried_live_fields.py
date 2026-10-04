@@ -131,8 +131,27 @@ async def test_a_stored_field_outside_the_live_domain_is_not_carried(
 # --- nothing to carry ---------------------------------------------------------
 
 
-async def test_a_manager_with_neither_source_answers_empty_but_one_with_a_store_answers_its_field(
-    engine_manager: EngineManager, tmp_path: Path
+def _cold(_connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:
+    """A manager that never connected, over a preset directory with no active preset."""
+    return ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
+
+
+def _with_a_store(connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:
+    """The connected manager, its active preset storing ``oversampling``."""
+    _active_preset_holding(tmp_path / "presets", {"oversampling": "23"})
+    return connected
+
+
+@pytest.mark.parametrize(
+    ("build", "connected"),
+    [pytest.param(_cold, False, id="cold"), pytest.param(_with_a_store, True, id="connected")],
+)
+async def test_a_manager_with_neither_source_answers_empty_but_a_connected_one_does_not(
+    engine_manager: EngineManager,
+    tmp_path: Path,
+    build: Callable[[ConnectionManager, Path], ConnectionManager],
+    *,
+    connected: bool,
 ) -> None:
     # a no-crash guard, not a coverage claim: a manager that never connected has
     # no State to read the engine off and its empty preset directory has no
@@ -140,8 +159,12 @@ async def test_a_manager_with_neither_source_answers_empty_but_one_with_a_store_
     # a restore on a cold manager must not die on the way to the push. Pinned
     # beside a manager with both sources, so the empty case cannot be an
     # accident of a call that never really reads either source.
-    cold = ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
-    empty = carried_live_fields(cold)
-    manager = await engine_manager(mode="1")
-    _active_preset_holding(tmp_path / "presets", {"oversampling": "23"})
-    assert (empty, carried_live_fields(manager)["oversampling"]) == ({}, "23")
+    manager = build(await engine_manager(mode="1"), tmp_path)
+    assert bool(carried_live_fields(manager)) is connected
+
+
+async def test_a_connected_manager_with_a_store_answers_its_field(
+    engine_manager: EngineManager, tmp_path: Path
+) -> None:
+    manager = _with_a_store(await engine_manager(mode="1"), tmp_path)
+    assert carried_live_fields(manager)["oversampling"] == "23"

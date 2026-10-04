@@ -89,21 +89,37 @@ def fav_client(favorites_api: Callable[[], TestClient]) -> TestClient:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_no_favorites_but_written_names_read_back(tmp_path: Path) -> None:
-    empty = store_at(tmp_path).read()
-    store = store_at(tmp_path)
-    store.write(NAMES)
-    assert (empty, sorted(store.read())) == ([], sorted(NAMES))
-
-
-def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [pytest.param("unwritten.json", [], id="no-file"), pytest.param("favorites.json", sorted(NAMES), id="written")],
+)
+def test_reading_a_store_with_no_file_yields_no_favorites_but_written_names_read_back(
+    tmp_path: Path, filename: str, expected: list[str]
 ) -> None:
-    store_at(tmp_path).read()
-    unwritten = list(tmp_path.iterdir())
-    written_store = FavoriteStore(tmp_path / "never-created" / "favorites.json")
-    written_store.write(["alpha"])
-    assert (unwritten, (tmp_path / "never-created" / "favorites.json").is_file()) == ([], True)
+    store_at(tmp_path).write(NAMES)
+    assert sorted(FavoriteStore(tmp_path / filename).read()) == expected
+
+
+def _read(store: FavoriteStore) -> None:
+    store.read()
+
+
+def _write(store: FavoriteStore) -> None:
+    store.write(["alpha"])
+
+
+@pytest.mark.parametrize(
+    ("act", "expected"),
+    [
+        pytest.param(_read, [], id="read"),
+        pytest.param(_write, ["never-created", "never-created/favorites.json"], id="write"),
+    ],
+)
+def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
+    tmp_path: Path, act: Callable[[FavoriteStore], None], expected: list[str]
+) -> None:
+    act(FavoriteStore(tmp_path / "never-created" / "favorites.json"))
+    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")) == expected
 
 
 # --- the round trip ----------------------------------------------------------
@@ -282,10 +298,7 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert favorites_api().put("/api/favorites", json={"filters": ["alpha"]}).status_code == 409
 
 
-# Both directions of the pair, in one case, because the point being pinned is
-# the pair itself: with hqplayerd unreachable (see `favorites_api`), reading and
-# writing favorites both still answer. The other REST cases each pin one route's
-# content; this one pins that neither route needs the daemon.
-def test_favorites_are_served_in_both_directions_with_no_daemon_reachable(fav_client: TestClient) -> None:
-    written = fav_client.put("/api/favorites", json={"filters": ["alpha"]})
-    assert (written.status_code, fav_client.get("/api/favorites").status_code) == (200, 200)
+# With hqplayerd unreachable (see `favorites_api`), writing favorites still
+# answers; the read direction is `test_a_fresh_install_answers_get_with_200`.
+def test_favorites_are_written_with_no_daemon_reachable(fav_client: TestClient) -> None:
+    assert fav_client.put("/api/favorites", json={"filters": ["alpha"]}).status_code == 200

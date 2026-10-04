@@ -99,8 +99,10 @@ WRONG_TYPE: dict[str, object] = {
     # Phase and length are deliberately absent. Their wrong-typed value is the
     # scalar an older HQPTuner stored, and both sides of it are pinned by name
     # further down — `test_a_write_of_the_old_scalar_shape_is_refused_naming_the_facet`
-    # and `test_a_stored_bare_string_reads_as_the_empty_selection` — so putting
-    # them in this table too would only make one regression fail four tests.
+    # and the bare-string cases of
+    # `test_a_stored_bare_string_or_a_missing_entry_reads_as_the_empty_selection_but_two_entries_read_back_whole`
+    # — so putting them in this table too would only make one regression fail
+    # four tests.
     "hide_limited": True,
     # The two switches are real booleans: a truthy string is refused, never
     # coerced.
@@ -243,14 +245,26 @@ def test_reading_a_store_with_no_file_yields_every_facet_at_its_default(tmp_path
     )
 
 
+def _read(store: NarrowingStore) -> None:
+    store.read()
+
+
+def _write(store: NarrowingStore) -> None:
+    store.write(SET)
+
+
+@pytest.mark.parametrize(
+    ("act", "expected"),
+    [
+        pytest.param(_read, [], id="read"),
+        pytest.param(_write, ["never-created", "never-created/narrowing.json"], id="write"),
+    ],
+)
 def test_reading_a_store_with_no_file_creates_nothing_but_a_write_creates_the_file_and_its_parent(
-    tmp_path: Path,
+    tmp_path: Path, act: Callable[[NarrowingStore], None], expected: list[str]
 ) -> None:
-    store_at(tmp_path).read()
-    unwritten = list(tmp_path.iterdir())
-    written_store = NarrowingStore(tmp_path / "never-created" / "narrowing.json")
-    written_store.write(SET)
-    assert (unwritten, (tmp_path / "never-created" / "narrowing.json").is_file()) == ([], True)
+    act(NarrowingStore(tmp_path / "never-created" / "narrowing.json"))
+    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")) == expected
 
 
 # --- the round trip ----------------------------------------------------------
@@ -310,11 +324,16 @@ def test_a_partial_write_stores_the_facets_it_omits_at_their_defaults(tmp_path: 
 # --- what a stored file may hold ---------------------------------------------
 
 
-def test_a_file_holding_only_some_facets_reads_those_stored_and_the_rest_at_their_defaults(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("facet", "expected"),
+    [pytest.param("phase", ["linear"], id="stored-facet"), pytest.param("length", [], id="dropped-facet")],
+)
+def test_a_file_holding_only_some_facets_reads_those_stored_and_the_rest_at_their_defaults(
+    tmp_path: Path, facet: str, expected: list[str]
+) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, keep_only({"phase", "quality"}))
-    read = store_at(tmp_path).read()
-    assert (read.phase, read.length) == (["linear"], [])
+    assert getattr(store_at(tmp_path).read(), facet) == expected
 
 
 def test_a_key_that_is_not_a_facet_is_ignored_on_read(tmp_path: Path) -> None:
@@ -531,30 +550,26 @@ def test_a_length_write_holding_an_unknown_token_is_refused_naming_the_facet(tmp
         store_at(tmp_path).write({"length": ["gigantic"]})
 
 
-@pytest.mark.parametrize("facet", ["phase", "length"])
-def test_a_stored_bare_string_reads_as_the_empty_selection_but_a_two_entry_write_reads_back_whole(
-    tmp_path: Path, facet: str
-) -> None:
-    path = stored(tmp_path, SET)
-    edit_facets(path, set_to(facet, LIST_FACETS[facet]))
-    bare = getattr(store_at(tmp_path).read(), facet)
-    picks = ["linear", "minimum"] if facet == "phase" else ["short", "xlong"]
-    store = store_at(tmp_path)
-    store.write({facet: picks})
-    assert (bare, getattr(store.read(), facet)) == ([], picks)
+#: Two in-domain picks for each facet an older HQPTuner stored as a scalar.
+TWO_PICKS: dict[str, list[str]] = {"phase": ["linear", "minimum"], "length": ["short", "xlong"]}
 
 
-@pytest.mark.parametrize("facet", ["phase", "length"])
-def test_a_file_holding_no_entry_for_the_facet_reads_as_the_empty_selection_but_a_two_entry_write_reads_back_whole(
-    tmp_path: Path, facet: str
+@pytest.mark.parametrize(
+    ("facet", "mutate", "expected"),
+    [
+        pytest.param("phase", set_to("phase", LIST_FACETS["phase"]), [], id="phase-bare-string"),
+        pytest.param("phase", keep_only({"quality"}), [], id="phase-absent"),
+        pytest.param("length", set_to("length", LIST_FACETS["length"]), [], id="length-bare-string"),
+        pytest.param("length", keep_only({"quality"}), [], id="length-absent"),
+        pytest.param("phase", keep_only({"quality", "phase"}), TWO_PICKS["phase"], id="phase-two-entries"),
+        pytest.param("length", keep_only({"quality", "length"}), TWO_PICKS["length"], id="length-two-entries"),
+    ],
+)
+def test_a_stored_bare_string_or_a_missing_entry_reads_as_the_empty_selection_but_two_entries_read_back_whole(
+    tmp_path: Path, facet: str, mutate: Callable[[dict[str, Any]], None], expected: list[str]
 ) -> None:
-    path = stored(tmp_path, SET)
-    edit_facets(path, keep_only({"quality"}))
-    missing = getattr(store_at(tmp_path).read(), facet)
-    picks = ["linear", "minimum"] if facet == "phase" else ["short", "xlong"]
-    store = store_at(tmp_path)
-    store.write({facet: picks})
-    assert (missing, getattr(store.read(), facet)) == ([], picks)
+    edit_facets(stored(tmp_path, {**SET, facet: TWO_PICKS[facet]}), mutate)
+    assert getattr(store_at(tmp_path).read(), facet) == expected
 
 
 # The cap is on the list's length exactly as given: the store does not
@@ -626,12 +641,17 @@ RELEASED_SCHEMA = 1
 # The real shape of such a file: stamped by the release, holding the scalar
 # phase that release stored. It loads, and the entry the new domain cannot take
 # falls back to the empty selection, while the release's other facets still read.
-def test_a_released_file_holding_the_old_scalar_phase_still_loads_but_reads_its_other_facets(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("facet", "expected"),
+    [pytest.param("phase", [], id="old-scalar-phase"), pytest.param("quality", SET["quality"], id="other-facet")],
+)
+def test_a_released_file_holding_the_old_scalar_phase_still_loads_but_reads_its_other_facets(
+    tmp_path: Path, facet: str, expected: object
+) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("phase", "linear"))
     restamp(path, RELEASED_SCHEMA)
-    read = store_at(tmp_path).read()
-    assert (read.phase, read.quality) == ([], SET["quality"])
+    assert getattr(store_at(tmp_path).read(), facet) == expected
 
 
 # Any stamp at all is not enough: the number a write puts on the file has to be

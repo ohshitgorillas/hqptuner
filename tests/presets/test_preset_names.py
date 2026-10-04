@@ -164,10 +164,25 @@ def test_a_live_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path
 # --- Unicode normalization is not the store's business -----------------------
 
 
-def test_a_decomposed_name_reads_back_still_decomposed_but_not_under_the_precomposed_name(tmp_path: Path) -> None:
+def decomposed_store(tmp_path: Path) -> PresetStore:
+    """A config store holding one preset, saved under the decomposed name."""
     store = store_at(tmp_path)
     store.save(DECOMPOSED, PAYLOAD)
-    assert (store.names(), store.exists(PRECOMPOSED)) == ([DECOMPOSED], False)
+    return store
+
+
+def test_a_decomposed_name_reads_back_still_decomposed(tmp_path: Path) -> None:
+    assert decomposed_store(tmp_path).names() == [DECOMPOSED]
+
+
+@pytest.mark.parametrize(
+    ("name", "exists"),
+    [pytest.param(DECOMPOSED, True, id="decomposed"), pytest.param(PRECOMPOSED, False, id="precomposed")],
+)
+def test_a_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(
+    tmp_path: Path, name: str, *, exists: bool
+) -> None:
+    assert decomposed_store(tmp_path).exists(name) is exists
 
 
 def test_a_decomposed_live_preset_name_reads_back_still_decomposed(tmp_path: Path) -> None:
@@ -221,25 +236,36 @@ def test_a_first_save_refuses_a_mixed_script_name_and_takes_a_single_script_one(
     assert save_outcome(build(tmp_path), name) == expected
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        pytest.param(MIXED_SCRIPT, [MIXED_SCRIPT], id="held-name"),
+        pytest.param(MIXED_SCRIPT + "2", "name_invalid", id="new-name"),
+    ],
+)
 @pytest.mark.parametrize("build", STORES)
 def test_a_mixed_script_name_the_store_already_holds_saves_while_a_new_one_is_refused(
-    tmp_path: Path, build: Callable[[Path, str], PresetStore | LivePresetStore]
+    tmp_path: Path, build: Callable[[Path, str], PresetStore | LivePresetStore], name: str, expected: list[str] | str
 ) -> None:
-    # seeded the way an older build left it, so the first save is a re-save of a
-    # held name and the second is a new mixed-script name entering the store
-    store = build(tmp_path, MIXED_SCRIPT)
-    assert [save_outcome(store, MIXED_SCRIPT), save_outcome(store, MIXED_SCRIPT + "2")] == [
-        [MIXED_SCRIPT],
-        "name_invalid",
-    ]
+    # seeded the way an older build left it, so saving the held name is a
+    # re-save and saving the other is a new mixed-script name entering the store
+    assert save_outcome(build(tmp_path, MIXED_SCRIPT), name) == expected
 
 
-def test_import_takes_a_mixed_script_daemon_profile_that_a_later_new_save_is_refused(tmp_path: Path) -> None:
+def imported_mixed_script(tmp_path: Path) -> tuple[PresetStore, list[str]]:
+    """A config store that imported a mixed-script daemon profile, and what the import answered."""
     store = store_at(tmp_path)
-    assert [store.import_missing({MIXED_SCRIPT: PAYLOAD}), save_outcome(store, MIXED_SCRIPT + "2")] == [
-        [MIXED_SCRIPT],
-        "name_invalid",
-    ]
+    return store, store.import_missing({MIXED_SCRIPT: PAYLOAD})
+
+
+def test_import_takes_a_mixed_script_daemon_profile(tmp_path: Path) -> None:
+    _, imported = imported_mixed_script(tmp_path)
+    assert imported == [MIXED_SCRIPT]
+
+
+def test_after_importing_a_mixed_script_daemon_profile_a_new_mixed_script_save_is_refused(tmp_path: Path) -> None:
+    store, _ = imported_mixed_script(tmp_path)
+    assert save_outcome(store, MIXED_SCRIPT + "2") == "name_invalid"
 
 
 # --- the 255-BYTE filename boundary -----------------------------------------
@@ -248,24 +274,29 @@ def test_import_takes_a_mixed_script_daemon_profile_that_a_later_new_save_is_ref
 # --- a refusal writes nothing ------------------------------------------------
 
 
+def _payload_anywhere(root: Path) -> bool:
+    """Whether any file under ``root`` carries the preset payload."""
+    return any(p.is_file() and PAYLOAD in p.read_bytes() for p in root.rglob("*"))
+
+
 @pytest.mark.parametrize(
-    "name",
+    ("name", "accepted"),
     [
-        pytest.param("a/b", id="forward-slash"),
-        pytest.param("../escape", id="parent-directory-hop"),
-        pytest.param(".hidden", id="leading-dot"),
-        pytest.param("a\x1fb", id="unit-separator"),
-        pytest.param(FIRST_REFUSED_LENGTH, id="over-255-bytes"),
+        pytest.param("a/b", False, id="forward-slash"),
+        pytest.param("../escape", False, id="parent-directory-hop"),
+        pytest.param(".hidden", False, id="leading-dot"),
+        pytest.param("a\x1fb", False, id="unit-separator"),
+        pytest.param(FIRST_REFUSED_LENGTH, False, id="over-255-bytes"),
+        pytest.param(LONGEST_ACCEPTED, True, id="exactly-255-bytes"),
     ],
 )
-def test_a_refused_name_puts_no_payload_on_disk_but_an_accepted_255_byte_name_does(tmp_path: Path, name: str) -> None:
+def test_a_refused_name_puts_no_payload_on_disk_but_an_accepted_255_byte_name_does(
+    tmp_path: Path, name: str, *, accepted: bool
+) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
     # this test owns is the disk check. A refused save may still materialize the
     # store directory and its stamp — that is bookkeeping, not a payload, so the
     # walk looks for the payload bytes specifically.
-    store = store_at(tmp_path)
     with contextlib.suppress(PresetError):
-        store.save(name, PAYLOAD)
-    refused = [p for p in tmp_path.rglob("*") if p.is_file() and PAYLOAD in p.read_bytes()]
-    store.save(LONGEST_ACCEPTED, PAYLOAD)
-    assert (refused, store.read(LONGEST_ACCEPTED)) == ([], PAYLOAD)
+        store_at(tmp_path).save(name, PAYLOAD)
+    assert _payload_anywhere(tmp_path) is accepted

@@ -28,7 +28,7 @@ import test_favorites
 from fastapi.testclient import TestClient
 from test_favorites import TOO_NEW, UNSTORABLE, seed, store_at
 
-from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError
+from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 # The two fixtures this suite shares with `test_favorites.py`, bound here so
 # pytest finds them in this module's namespace. Bound by assignment rather than
@@ -52,11 +52,15 @@ FILTERS = ["poly-sinc-gauss-long", "sinc-M"]
 # --- the modulator set on its own --------------------------------------------
 
 
-def test_a_fresh_store_reads_no_modulator_favorites_but_written_names_read_back(tmp_path: Path) -> None:
-    empty = store_at(tmp_path).read_modulators()
-    store = store_at(tmp_path)
-    store.write_modulators(MODULATORS)
-    assert (empty, sorted(store.read_modulators())) == ([], sorted(MODULATORS))
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [pytest.param("unwritten.json", [], id="fresh"), pytest.param("favorites.json", sorted(MODULATORS), id="written")],
+)
+def test_a_fresh_store_reads_no_modulator_favorites_but_written_names_read_back(
+    tmp_path: Path, filename: str, expected: list[str]
+) -> None:
+    store_at(tmp_path).write_modulators(MODULATORS)
+    assert sorted(FavoriteStore(tmp_path / filename).read_modulators()) == expected
 
 
 def test_write_modulators_answers_with_the_names_deduplicated_and_sorted(tmp_path: Path) -> None:
@@ -97,14 +101,18 @@ def test_writing_filters_leaves_the_stored_modulators_alone(tmp_path: Path) -> N
 
 # The layout every HQPTuner before this one wrote: filters and nothing else.
 # An absent member is an empty set, never a malformed file.
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param({"filters": ["alpha"]}, [], id="filters-only"),
+        pytest.param({"modulators": ["alpha"]}, ["alpha"], id="with-modulators"),
+    ],
+)
 def test_a_file_holding_only_filters_reads_no_modulator_favorites_but_one_holding_modulators_reads_them(
-    tmp_path: Path,
+    tmp_path: Path, content: dict[str, list[str]], expected: list[str]
 ) -> None:
-    seed(tmp_path, json.dumps({"filters": ["alpha"]}))
-    filters_only = store_at(tmp_path).read_modulators()
-    seed(tmp_path, json.dumps({"modulators": ["alpha"]}))
-    with_modulators = store_at(tmp_path).read_modulators()
-    assert (filters_only, with_modulators) == ([], ["alpha"])
+    seed(tmp_path, json.dumps(content))
+    assert store_at(tmp_path).read_modulators() == expected
 
 
 def test_a_file_holding_only_filters_still_reads_its_filters(tmp_path: Path) -> None:

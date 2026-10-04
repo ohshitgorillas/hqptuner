@@ -40,10 +40,13 @@ def _corrupt_code(call: Callable[[], object]) -> str:
     return caught.value.code
 
 
-def test_a_missing_file_reads_as_an_empty_document(tmp_path: Path) -> None:
-    path = tmp_path / "present.json"
-    path.write_text('{"x": 2}')
-    assert (read_stamped(tmp_path / "absent.json", store="test"), read_stamped(path, store="test")) == ({}, {"x": 2})
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [pytest.param("absent.json", {}, id="missing"), pytest.param("present.json", {"x": 2}, id="present")],
+)
+def test_a_missing_file_reads_as_an_empty_document(tmp_path: Path, filename: str, expected: dict[str, int]) -> None:
+    (tmp_path / "present.json").write_text('{"x": 2}')
+    assert read_stamped(tmp_path / filename, store="test") == expected
 
 
 def test_an_existing_file_reads_its_content(tmp_path: Path) -> None:

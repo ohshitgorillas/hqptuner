@@ -173,12 +173,15 @@ def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestC
     assert modes_client.put(PATH, json={"name": name, "mode": "speakers"}).status_code == 422
 
 
-def test_a_refused_put_stores_nothing_but_a_valid_one_stores_the_mode(modes_client: TestClient) -> None:
-    modes_client.put(PATH, json={"name": NAME, "mode": "stereo"})
-    refused = modes_client.get(PATH).json()["presets"]
-    modes_client.put(PATH, json={"name": NAME, "mode": "speakers"})
-    stored = modes_client.get(PATH).json()["presets"][NAME]
-    assert (refused, stored) == ({}, "speakers")
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [pytest.param("stereo", {}, id="refused"), pytest.param("speakers", {NAME: "speakers"}, id="valid")],
+)
+def test_a_refused_put_stores_nothing_but_a_valid_one_stores_the_mode(
+    modes_client: TestClient, mode: str, expected: dict[str, str]
+) -> None:
+    modes_client.put(PATH, json={"name": NAME, "mode": mode})
+    assert modes_client.get(PATH).json()["presets"] == expected
 
 
 # --- a store stamped by a newer HQPTuner ------------------------------------------------

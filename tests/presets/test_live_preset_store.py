@@ -92,11 +92,15 @@ def understood_schema(tmp_path_factory: pytest.TempPathFactory) -> int:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_a_store_whose_file_was_never_written_lists_no_presets_but_a_saved_one_lists_it(tmp_path: Path) -> None:
-    never_written = LivePresetStore(tmp_path / "never-created" / "live-presets.json").all()
-    store = store_at(tmp_path)
-    store.save("alpha", RECORD)
-    assert (never_written, store.all()) == ({}, {"alpha": RECORD})
+@pytest.mark.parametrize(
+    ("directory", "expected"),
+    [pytest.param("never-created", {}, id="never-written"), pytest.param("saved", {"alpha": RECORD}, id="saved")],
+)
+def test_a_store_whose_file_was_never_written_lists_no_presets_but_a_saved_one_lists_it(
+    tmp_path: Path, directory: str, expected: dict[str, LiveRecord]
+) -> None:
+    store_at(tmp_path / "saved").save("alpha", RECORD)
+    assert store_at(tmp_path / directory).all() == expected
 
 
 def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
@@ -105,12 +109,24 @@ def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> No
     assert (tmp_path / "never-created" / "live-presets.json").is_file()
 
 
+def seeded_store(directory: Path, content: str) -> LivePresetStore:
+    """A store over a file holding ``content``, in a directory of its own."""
+    directory.mkdir()
+    seed(directory, content)
+    return store_at(directory)
+
+
 @pytest.mark.parametrize("content", EMPTY)
-def test_a_file_with_no_presets_key_lists_no_presets_but_a_saved_one_lists_it(tmp_path: Path, content: str) -> None:
-    seed(tmp_path, content)
-    empty = store_at(tmp_path).all()
-    store_at(tmp_path).save("alpha", RECORD)
-    assert (empty, store_at(tmp_path).all()) == ({}, {"alpha": RECORD})
+@pytest.mark.parametrize(
+    ("directory", "expected"),
+    [pytest.param("as-seeded", {}, id="as-seeded"), pytest.param("saved-into", {"alpha": RECORD}, id="saved-into")],
+)
+def test_a_file_with_no_presets_key_lists_no_presets_but_a_saved_one_lists_it(
+    tmp_path: Path, content: str, directory: str, expected: dict[str, LiveRecord]
+) -> None:
+    seeded_store(tmp_path / "as-seeded", content)
+    seeded_store(tmp_path / "saved-into", content).save("alpha", RECORD)
+    assert store_at(tmp_path / directory).all() == expected
 
 
 def _corrupt_code(tmp_path: Path) -> str:

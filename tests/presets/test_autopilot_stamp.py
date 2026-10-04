@@ -85,40 +85,35 @@ def make_active(client: TestClient, name: str = ACTIVE) -> None:
 # --- auto-save armed, a preset active: the switch folds in --------------------
 
 
+@pytest.mark.parametrize("enabled", [pytest.param(True, id="on"), pytest.param(False, id="off")])
 def test_switching_on_under_autosave_records_it_on_and_switching_off_records_it_off(
-    stamp_client: TestClient, tmp_path: Path
+    stamp_client: TestClient, tmp_path: Path, *, enabled: bool
 ) -> None:
-    # saved with auto-pilot off, so the stored copy starts False and only the
-    # fold can turn it True: a build that never stamped would leave False here.
-    # then, set up so the stored copy is True before the switch: the explicit
-    # save records auto-pilot as it stands, so a build that folded nothing in
-    # leaves True behind and only a real fold writes False
+    # the explicit save records auto-pilot as it stands, so the preset is saved
+    # with auto-pilot the other way round: the stored copy only matches the
+    # switch if the fold wrote it, and a build that folded nothing in leaves the
+    # saved copy behind
+    switch(stamp_client, enabled=not enabled)
     make_active(stamp_client)
     arm_autosave(stamp_client)
-    switch(stamp_client, enabled=True)
-    on = stamped(tmp_path, ACTIVE)
-    switch(stamp_client, enabled=False)
-    off = stamped(tmp_path, ACTIVE)
-    assert (on, off) == (True, False)
+    switch(stamp_client, enabled=enabled)
+    assert stamped(tmp_path, ACTIVE) is enabled
 
 
 # --- auto-save off: the switch touches no preset ------------------------------
 
 
+@pytest.mark.parametrize("autosave", [pytest.param(False, id="autosave-off"), pytest.param(True, id="autosave-armed")])
 def test_switching_on_with_autosave_off_leaves_the_flag_alone_but_under_autosave_it_folds_in(
-    stamp_client: TestClient, tmp_path: Path
+    stamp_client: TestClient, tmp_path: Path, *, autosave: bool
 ) -> None:
-    # saved with auto-pilot off, and auto-save never armed: the switch is the
-    # user's own, not an applied change the active preset asked to carry —
-    # unlike with auto-save armed, where the same switch folds into the store
+    # saved with auto-pilot off: with auto-save off the switch is the user's
+    # own, not an applied change the active preset asked to carry, so the stored
+    # copy stays off; with auto-save armed the same switch folds into the store
     make_active(stamp_client)
+    stamp_client.post("/api/autosave", json={"enabled": autosave})
     switch(stamp_client, enabled=True)
-    without_autosave = stamped(tmp_path, ACTIVE)
-    switch(stamp_client, enabled=False)
-    arm_autosave(stamp_client)
-    switch(stamp_client, enabled=True)
-    with_autosave = stamped(tmp_path, ACTIVE)
-    assert (without_autosave, with_autosave) == (False, True)
+    assert stamped(tmp_path, ACTIVE) is autosave
 
 
 # --- auto-save armed, nothing active ------------------------------------------
