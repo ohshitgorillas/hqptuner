@@ -37,6 +37,12 @@ const streak = signal({ warn: 0, crit: 0 });
 const outputActive = signal(false);
 export const outputBufferApplies = computed(() => outputActive.value);
 
+// A clip flash per frame whose clip counter rose over the frame before it on the
+// same track: `level` is 1 on that frame and 0 on any other, and `seq` counts the
+// rises, so a reader can restart a flash on each one.
+export const clipFlash = signal({ seq: 0, level: 0 });
+let prevClips = 0;
+
 /**
  * @typedef {object} StatusFrame
  *   The daemon's Status frame as /api/status serves it under `status`. Every
@@ -83,6 +89,7 @@ export function initHealth() {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rebaseline(st);
+    flashClips(st);
     if (Number(st.state) === PLAYING && (num(st.output_fill) || 0) > 0 && !outputActive.peek()) {
       outputActive.value = true; // this output populates a buffer — latch for the track
     }
@@ -104,6 +111,19 @@ function rebaseline(st) {
   if (st.track_serial === t.serial) return;
   track.value = { serial: st.track_serial, clips0: num(st.clips) || 0, apod0: num(st.apod) || 0 };
   outputActive.value = false; // re-prove the buffer applies on each new track
+  prevClips = num(st.clips) || 0;
+}
+
+/**
+ * @param {StatusFrame} st
+ * @returns {void}
+ */
+function flashClips(st) {
+  const clips = num(st.clips) || 0;
+  const f = clipFlash.peek();
+  if (clips > prevClips) clipFlash.value = { seq: f.seq + 1, level: 1 };
+  else if (f.level !== 0) clipFlash.value = { seq: f.seq, level: 0 };
+  prevClips = clips;
 }
 
 // One streak step: count up while the reading qualifies, drop to zero the moment

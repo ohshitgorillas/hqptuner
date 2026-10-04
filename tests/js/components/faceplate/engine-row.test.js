@@ -2,7 +2,7 @@
 // event counters, drawn from the Status poll. The readings themselves are store/faceplate/engine.js's, pinned in
 // tests/js/store/faceplate/engine.test.js; this suite pins how the row draws them: the needle swings with the speed,
 // the figure and each buffer take their zone, a reading with nothing to show prints no figure and no zone, and a
-// counter's lamp lights while this track has counted.
+// counter's lamp flashes on a frame that counted and fades.
 //
 // The wire is the seam: each case writes Status frames into `engineStatus`, as the poll does, with the health store's
 // baseline effect registered so this track's deltas and the output buffer's latch follow the frames. Every case starts
@@ -18,12 +18,15 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { EngineRow } from "../../../../hqptuner/static/components/faceplate/EngineRow.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
+import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {Record<string, string>} Frame */
 
 initHealth();
+initApodHistory();
 
 /** A Status frame while playing. @type {Frame} */
 const PLAYING = {
@@ -37,6 +40,22 @@ const PLAYING = {
 
 let track = 0;
 
+/** Playback position in seconds, advanced on every frame so each one observes playback. */
+let position = 0;
+
+/**
+ * The row's elements after the poll reads `frame` on the current track.
+ *
+ * @param {Frame} frame  overrides on PLAYING
+ */
+function poll(frame) {
+  position += 2;
+  engineStatus.value = {
+    status: { ...PLAYING, ...frame, track_serial: String(track), position: String(position) },
+  };
+  return elements(render(html`<${EngineRow} />`));
+}
+
 /**
  * The row's elements after a track starts on `first` and the poll then reads `frame` on the same track.
  *
@@ -45,10 +64,8 @@ let track = 0;
  */
 function row(frame, first = frame) {
   track += 1;
-  const serial = String(track);
-  engineStatus.value = { status: { ...PLAYING, ...first, track_serial: serial } };
-  engineStatus.value = { status: { ...PLAYING, ...frame, track_serial: serial } };
-  return elements(render(html`<${EngineRow} />`));
+  poll(first);
+  return poll(frame);
 }
 
 /** @param {MarkupElement[]} all @param {string} cls */
@@ -77,14 +94,15 @@ const meter = (f, k) => keyed(row(f), k);
 const inside = (e, cls) => (e ? byClass(elements(e.html), cls) : undefined);
 
 /**
- * Whether a counter's lamp is lit.
+ * A counter lamp's `--lamp` inline style value; NaN when the lamp or the property is missing.
  *
  * @param {MarkupElement[]} all
  * @param {string} k
  */
-const lit = (all, k) => {
+const lampOf = (all, k) => {
   const lamp = inside(keyed(all, k), "lamp");
-  return lamp ? classes(lamp).includes("bad") : undefined;
+  const m = /--lamp:\s*([^;]+)/.exec(lamp ? (attr(lamp, "style") ?? "") : "");
+  return m ? Number(m[1]) : NaN;
 };
 
 /**
@@ -148,16 +166,28 @@ test("test_an_output_buffer_that_never_filled_this_track_prints_no_figure_and_no
 
 // --- the counters ------------------------------------------------------------------------------------------------
 
-test("test_the_clip_lamp_lights_while_this_track_has_clipped", () => {
-  const clipped = row({ clips: "5" }, { clips: "3" });
-  const clean = row({ clips: "3" });
-  assert.deepEqual([lit(clipped, "clips"), lit(clean, "clips")], [true, false]);
+test("test_the_apodizing_lamp_reads_dark_on_a_frame_with_no_new_events_after_one_that_counted", () => {
+  const counted = lampOf(row({ apod: "5410" }, { apod: "5398" }), "apod");
+  const held = lampOf(poll({ apod: "5410" }), "apod");
+  assert.deepEqual([counted > 0, held], [true, 0], `--lamp read ${counted} counting, then ${held}`);
 });
 
-test("test_the_apodizing_lamp_lights_while_this_track_has_counted", () => {
-  const counted = row({ apod: "5410" }, { apod: "5398" });
-  const clean = row({ apod: "5398" });
-  assert.deepEqual([lit(counted, "apod"), lit(clean, "apod")], [true, false]);
+test("test_the_apodizing_lamp_lights_on_a_frame_that_counted_while_the_header_light_is_off", () => {
+  const was = apodLight.value;
+  apodLight.value = "off";
+  let reading = NaN;
+  try {
+    reading = lampOf(row({ apod: "5410" }, { apod: "5398" }), "apod");
+  } finally {
+    apodLight.value = was;
+  }
+  assert.ok(reading > 0, `the Apodizing lamp's --lamp reads ${reading}`);
+});
+
+test("test_the_clip_lamp_reads_full_on_a_frame_whose_clips_rose_and_dark_on_the_next_where_they_held", () => {
+  const rose = row({ clips: "5" }, { clips: "3" });
+  const held = poll({ clips: "5" });
+  assert.deepEqual([lampOf(rose, "clips"), lampOf(held, "clips")], [1, 0]);
 });
 
 test("test_a_counter_prints_this_tracks_count_over_the_total", () => {

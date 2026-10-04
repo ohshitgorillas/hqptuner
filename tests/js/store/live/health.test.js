@@ -24,6 +24,7 @@ import {
   engineAlerts,
   trackCounters,
   outputBufferApplies,
+  clipFlash,
 } from "../../../../hqptuner/static/store/health.js";
 
 initHealth();
@@ -208,6 +209,14 @@ test("test_the_track_counter_reports_the_delta_not_the_total", () => {
   reset({ clips: "100" });
   poll({ clips: "104" });
   assert.equal(trackCounters.value.clips, 4);
+});
+
+test("test_the_clip_flash_is_full_after_a_frame_whose_clips_rose_and_dark_after_the_next_where_they_held", () => {
+  reset({ clips: "10" });
+  poll({ clips: "13" });
+  const rose = clipFlash.value.level;
+  poll({ clips: "13" });
+  assert.deepEqual([rose, clipFlash.value.level], [1, 0]);
 });
 
 // --- apodizing events -------------------------------------------------------

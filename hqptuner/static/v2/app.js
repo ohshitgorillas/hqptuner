@@ -28,6 +28,7 @@ import { railStages, railNow } from "../store/faceplate/chain.js";
 import { startPolling } from "../store/sync.js";
 import { initFavicon } from "../store/ui/favicon.js";
 import { initHealth } from "../store/health.js";
+import { initApodHistory } from "../store/apodhistory.js";
 import { bookWanted } from "../store/live/presets.js";
 import { loadSpeakers } from "../store/matrix/speakers.js";
 import { initSetup, pageHost } from "../store/setup.js";
@@ -85,6 +86,7 @@ const root = globalThis.document?.getElementById?.("app");
 if (root) {
   initFavicon();
   initHealth();
+  initApodHistory();
   bookWanted.value = true;
   loadSpeakers();
   initSetup();
