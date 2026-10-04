@@ -8,22 +8,19 @@
 // so there is nothing here to fall out of step with the fields a user can also
 // edit by hand in the chain cards.
 //
-// Clicking is an ordinary field edit, four of them at most and only for the
-// fields whose value actually changes, through whichever lane the page is on
-// (store/easy/easylane.js). No idle gate: a tile is honored whether or not the
-// daemon is playing, which is the binding product rule.
+// Clicking writes the preset through store/easy/apply.js, which also says which
+// mark the tile wears.
 import { html } from "../../lib/dom.js";
 import { Segment } from "../controls/index.js";
 import { Apod } from "../controls/apod.js";
 import { easyProse, paragraphs } from "../../store/prose.js";
-import { rememberKnobs } from "../../store/easy/easyview.js";
-import { filterFor, writeSet } from "../../store/easy/easy.js";
+import { filterFor } from "../../store/easy/easy.js";
 import { knobsOffered } from "../../store/easy/easyoffer.js";
 import { pipsFor } from "../../store/easy/easycost.js";
 import { easyLane } from "../../store/easy/easylane.js";
+import { applyPreset, markFor } from "../../store/easy/apply.js";
 import { sourceIsNx } from "../../store/live/derive.js";
 import { plainEntry } from "../../store/plainnames.js";
-import { filterFacets } from "../../store/narrow/facets.js";
 import { MARK_LABEL } from "./marks.js";
 
 // The hi-res badge's two strings. Constants rather than copy read through
@@ -34,70 +31,14 @@ import { MARK_LABEL } from "./marks.js";
 // One string serves as both the hover tip and the badge's accessible name. The
 // badge reads "Hi-Res", which names the thing without saying anything about it,
 // so the sentence is what a screen reader should hear.
-const HIRES_LABEL = "Hi-Res";
-const HIRES_TIP =
+export const HIRES_LABEL = "Hi-Res";
+export const HIRES_TIP =
   "Uses a special hi-res-optimized filter at rates above 48 kHz; these filters can also be used for Lossy content";
 
 /**
  * @typedef {import("../../store/easy/easy.js").Preset} Preset
  * @typedef {import("../../store/easy/easy.js").Knob} Knob
  */
-
-// The fields go one at a time because both lanes write one at a time: staging
-// returns the whole pending set on each POST, and a live write re-mirrors the
-// engine behind it. Sequential is the honest shape of both.
-/**
- * Write one preset's filters at the given knob positions, through this page's lane.
- *
- * @param {string} lane
- * @param {Preset} preset
- * @param {Record<string, string>} knobs
- * @returns {Promise<void>}
- */
-async function applyPreset(lane, preset, knobs) {
-  // Recorded before the write, not after: the positions are what the user asked
-  // for, and a write that resolves no filter name still leaves the tile showing
-  // where they put its knobs. Unconditional, so a press that writes nothing
-  // still moves the record. The card's knobs are the card's, so the record
-  // keeps the tile's own.
-  const own = Object.fromEntries(
-    Object.entries(knobs).filter(([id]) => !preset.knobs.some((k) => k.card && k.id === id)),
-  );
-  rememberKnobs(preset.id, own);
-  const l = easyLane(lane);
-  for (const [key, name] of Object.entries(writeSet(preset.id, l.mode, knobs))) {
-    // A field already holding this filter is skipped. On LIVE every write is a
-    // POST the engine acts on, so writing a value a field already holds reloads
-    // that filter and interrupts playback to arrive where it already was.
-    // This is not an idle gate: the button is never disabled and never refuses,
-    // and the state a press leaves behind is the state it names.
-    if (l.values[key] === name) continue;
-    await l.write(key, name);
-  }
-}
-
-// Which mark a tile wears. The filters a preset writes all share one apodizing
-// class — checked across the whole table, 1x and Nx, PCM and SDM, `-2s` and
-// plain — so any one of them answers for the tile, and the PCM chain is asked
-// rather than this page's actual output mode. That keeps the mark off the lane
-// entirely: building one per tile per render to learn a mode all four fields
-// agree on is work for an answer already known.
-//
-// Derived from the same facet map the health card reads (store/health.js), not
-// from a table here: apodizing is a fact about a filter, and a preset naming it
-// again is a second place to keep true.
-/**
- * @param {string} presetId
- * @param {Record<string, string>} knobs
- * @returns {"full" | "half" | "none" | undefined} undefined when nothing is known about the filter
- */
-function markFor(presetId, knobs) {
-  const name = Object.values(writeSet(presetId, "pcm", knobs))[0];
-  const facet = name ? filterFacets.value[name] : undefined;
-  if (!facet) return undefined;
-  if (facet.apodizing) return "full";
-  return facet.apodizingHalf ? "half" : "none";
-}
 
 // A knob's positions are the preset's own option ids; their words come from the
 // same file the titles do, keyed by knob id and option id. Moving one writes the
