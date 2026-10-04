@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Header } from "../../../../hqptuner/static/components/faceplate/Header.js";
+import { Header, noteId } from "../../../../hqptuner/static/components/faceplate/Header.js";
 import { health, config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
@@ -30,6 +30,7 @@ import {
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
@@ -56,6 +57,8 @@ function answer(path) {
   if (path === "/api/config/apply") return ok({ report: {} });
   if (path === "/api/livepresets") return ok({ presets: [], stations: {} });
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: {} });
+  if (path === "/api/connection") return ok({ host: "", username: "", remember: true, has_password: false });
+  if (path === "/api/discover") return ok([]);
   return ok({ report: {} });
 }
 
@@ -96,7 +99,12 @@ beforeEach(async () => {
 
 afterEach(() => {
   env.fetch = REAL_FETCH;
+  setupOpen.value = false;
 });
+
+const refuse = () => {
+  health.value = { reachable: true, ready: true, connected: true, credentials_ok: false, info: {} };
+};
 
 /** Every element of the rendered header carrying a test id, optionally for one station. */
 const marked = (/** @type {string} */ testid, /** @type {string} */ station = "") =>
@@ -142,6 +150,17 @@ test("test_the_knob_reads_lost_while_the_engine_is_not_ready", () => {
 test("test_the_knob_reads_busy_while_an_apply_is_in_flight", () => {
   applying.value = true;
   assert.equal(attrOf("conn", "data-state"), "busy");
+});
+
+test("test_tapping_the_knob_with_no_alert_opens_the_connection_settings", async () => {
+  await tap("conn");
+  assert.equal(setupOpen.value, true);
+});
+
+test("test_tapping_the_knob_with_an_alert_opens_the_connection_settings_and_its_note", async () => {
+  refuse();
+  await tap("conn");
+  assert.deepEqual({ setup: setupOpen.value, note: openPopover.value }, { setup: true, note: noteId("conn") });
 });
 
 test("test_the_tree_trigger_names_the_loaded_station_alone", () => {

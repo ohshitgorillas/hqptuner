@@ -2,7 +2,7 @@
 // the two builders and the gear. The builders and the gear swap the plate's body and read pressed while it shows.
 // In the tree a station's name loads that station, and a snapshot of the loaded station applies to the running engine;
 // another station's snapshots wait for it to be loaded. An alert homed on the knob or the gear blinks it in the alert's
-// colour; with one on the knob its tap opens a popover of the lines homed there, and with none the tap does nothing.
+// colour. The knob's tap opens the connection panel, with a popover of the alert lines homed there over it when any are.
 
 import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
@@ -10,6 +10,7 @@ import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
 import { body, showBody, openPopover, plate } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
+import { openSetup } from "../../store/setup.js";
 import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
 import { clampToPlate } from "../../model/shell/place.js";
@@ -81,12 +82,17 @@ export function AlertNote({ el }) {
 }
 
 /**
- * The brand knob: its ring lights the connection state, which is also its name and its tooltip's lead. An alert homed
- * on it blinks the ring, and its tap then opens the alert lines.
+ * The brand knob: its ring lights the connection state, which is also its name and its tooltip's lead. Its tap opens the
+ * connection panel. An alert homed on it blinks the ring, and the tap then also opens the alert lines over the panel.
  */
 function Knob() {
   const s = connState();
   const alert = alertsNow.value.blinks.el.get("conn");
+  const note = alert ? triggerProps(noteId("conn"), "dialog") : null;
+  const onTap = () => {
+    openSetup();
+    note?.onClick();
+  };
   return html`
     <button
       type="button"
@@ -96,7 +102,8 @@ function Knob() {
       data-alert=${alert}
       aria-label=${`${STATES[s]}. Connection settings`}
       title=${`${STATES[s]} — ${HINT}`}
-      ...${alert ? triggerProps(noteId("conn"), "dialog") : {}}
+      ...${note ?? {}}
+      onClick=${onTap}
     >
       <svg viewBox="0 0 32 32" aria-hidden="true">
         <circle class="ring" cx="16" cy="16" r="11.5" />
