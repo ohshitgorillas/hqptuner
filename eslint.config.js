@@ -224,12 +224,14 @@ export default [
   },
   {
     // The v2 mockup: plain DOM code under the same rule set as the served
-    // frontend. The hand-rolled-card rule is absent because it names v1's card
-    // component, which the mockup does not have.
+    // frontend. The hand-rolled-card rule runs in its v2 mode here: it refuses
+    // v1's card frame classes (card, card-head, card-body) and its pack grid
+    // class wherever they would reach an element's class list, since the mockup
+    // ships neither.
     files: ["mockup/scripts/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
-    plugins: PLUGINS,
-    rules: RULES,
+    plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
+    rules: { ...RULES, "hqptuner/no-hand-rolled-card": ["error", { v2: true }] },
   },
   {
     // mockup/scripts/model is what v2 lifts as it stands, so it reaches no
