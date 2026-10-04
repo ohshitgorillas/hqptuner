@@ -1,6 +1,6 @@
 // Behavioral suite for store/ui/faceplate.js, the faceplate's browser-held
-// preferences: DAC type, DAC chip, top of page, bottom bar, the stages hidden
-// from the chain rail, and Allow pinned rates.
+// preferences: DAC type, DAC chip, top of page, bottom bar, the page meter's
+// Range, the stages hidden from the chain rail, and Allow pinned rates.
 //
 // Each preference has three halves. On the way in: the value the browser holds
 // is the value the page comes up with, and a stored value outside the
@@ -45,6 +45,7 @@ const CHOICES = [
   { pref: "dacChip", key: "hqptuner.dacChip", pick: "ess", other: "other", outside: "sabre" },
   { pref: "topOfPage", key: "hqptuner.topOfPage", pick: "spectrum", other: "profile", outside: "matrix" },
   { pref: "bottomBar", key: "hqptuner.bottomBar", pick: "none", other: "switcher", outside: "volume" },
+  { pref: "pageRange", key: "hqptuner.pageRange", pick: "120", other: "60", outside: "200" },
 ];
 
 const K_HIDDEN = "hqptuner.hiddenStages";
@@ -68,6 +69,7 @@ const SURFACE = {
   dacChip: { sig: faceplate.dacChip, set: faceplate.setDacChip, offered: faceplate.DAC_CHIPS },
   topOfPage: { sig: faceplate.topOfPage, set: faceplate.setTopOfPage, offered: faceplate.TOP_OF_PAGE },
   bottomBar: { sig: faceplate.bottomBar, set: faceplate.setBottomBar, offered: faceplate.BOTTOM_BARS },
+  pageRange: { sig: faceplate.pageRange, set: faceplate.setPageRange, offered: faceplate.PAGE_RANGES },
 };
 
 // Captured before any case can write: what the module came up with, having read
@@ -80,6 +82,10 @@ const PINNED_AT_LOAD = faceplate.allowPinnedRates.value;
 // A second instance, loaded against a storage holding every out-of-set value.
 for (const c of CHOICES) storage.setItem(c.key, c.outside);
 const outsider = await import(`${MODULE.replace(/\.js$/, ".fresh-outside.js")}`);
+
+// A third instance, loaded against a storage holding no page Range at all.
+storage.removeItem("hqptuner.pageRange");
+const unset = await import(`${MODULE.replace(/\.js$/, ".fresh-unset.js")}`);
 
 // --- what the browser had stored is what the page comes up with -----------------
 
@@ -95,6 +101,10 @@ for (const c of CHOICES) {
 
 test("test_a_stored_hidden_stage_list_loads_without_the_stage_the_rail_cannot_hide", () => {
   assert.deepEqual(HIDDEN_AT_LOAD, ["speakers"]);
+});
+
+test("test_a_browser_with_no_stored_page_range_loads_the_90_db_range", () => {
+  assert.equal(unset.pageRange.value, "90");
 });
 
 test("test_a_stored_pinned_rates_opt_in_loads_on", () => {

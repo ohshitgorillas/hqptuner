@@ -6,6 +6,8 @@
 //                      over the Matrix section folded to its header line),
 //                      "profile" (the Matrix section alone) or "spectrum".
 //   bottomBar        — "switcher" (the Setting Switcher) or "none".
+//   pageRange        — the page's Source meter Range, dB: "60", "90" or "120",
+//                      the spectrum's span and the levels' floor (−range) both.
 //   hiddenStages     — the stages hidden from the chain rail, a subset of
 //                      HIDEABLE_STAGES, held in that order.
 //   allowPinnedRates — the opt-in for pinning an output rate; off by default.
@@ -20,6 +22,7 @@ export const DAC_TYPES = ["other", "r2r"];
 export const DAC_CHIPS = ["other", "ess"];
 export const TOP_OF_PAGE = ["auto", "profile", "spectrum"];
 export const BOTTOM_BARS = ["switcher", "none"];
+export const PAGE_RANGES = ["60", "90", "120"];
 export const HIDEABLE_STAGES = ["dsd", "speakers", "crossfeed", "loudness", "correction"];
 
 const K_HIDDEN = "hqptuner.hiddenStages";
@@ -29,6 +32,7 @@ export const [dacType, setDacType] = enumPref("hqptuner.dacType", DAC_TYPES, "ot
 export const [dacChip, setDacChip] = enumPref("hqptuner.dacChip", DAC_CHIPS, "other");
 export const [topOfPage, setTopOfPage] = enumPref("hqptuner.topOfPage", TOP_OF_PAGE, "auto");
 export const [bottomBar, setBottomBar] = enumPref("hqptuner.bottomBar", BOTTOM_BARS, "switcher");
+export const [pageRange, setPageRange] = enumPref("hqptuner.pageRange", PAGE_RANGES, "90");
 
 /**
  * The strings in a stored JSON list. Unset, junk, a value that is not a list
