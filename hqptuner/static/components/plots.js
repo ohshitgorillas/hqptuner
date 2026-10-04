@@ -17,6 +17,7 @@ import { loudnessSide } from "../store/ui/ui.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../vendor/eqlab/core/dsp/curves.js";
 import { clamp, num } from "../lib/coerce.js";
 import { db as fmtLevel, dbOffset } from "../lib/units.js";
+import { percentApplied } from "../model/gauges/loudness.js";
 
 /**
  * @typedef {PlotTrace & { ghost?: boolean }} FrameTrace
@@ -345,7 +346,6 @@ export function LoudnessPlot() {
   const vol = num(volumeShown.value, rangeHigh);
   const scale = shelfScale(vol, rangeLow, rangeHigh);
   const freqs = bandFreqs(256);
-  const pct = Math.round(scale * 100);
   // REW-style drag handles at each band's (frequency, level) corner — dragging
   // streams live overrides (instant repaint) and stages both params on release.
   // Steepness/Q/type stay on their own controls.
@@ -391,7 +391,7 @@ export function LoudnessPlot() {
     yMax: 24,
     dbStep: 6,
     height: 210,
-    caption: `at ${fmtLevel(vol, 1)} volume: ${pct}% of maximum shelving applied`,
+    caption: `at ${fmtLevel(vol, 1)} volume: ${percentApplied(scale)}% of maximum shelving applied`,
     handles: [
       handle("low", ["loudness_low_freq", "loudness_low_level"], p.lowFreq, p.lowLevel),
       handle("high", ["loudness_high_freq", "loudness_high_level"], p.highFreq, p.highLevel),
