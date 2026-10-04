@@ -40,7 +40,7 @@ flowchart TD
         DIS3 --> RATE
         DIS4 --> RATE
 
-        RATE{"§1.5 Rate detection:<br/>how does DAC receive input?"}
+        RATE{"§1.6 Rate detection:<br/>how does DAC receive input?"}
         RATE -->|"AES/EBU or S/PDIF coax"| FIX1["Limits fixed:<br/>4x PCM, DSD64 via DoP"]
         RATE -->|"S/PDIF Toslink"| FIX2["Limits fixed:<br/>2x PCM, no DSD"]
         RATE -->|"USB or I2S"| QD["Query daemon:<br/>48kHz-family DSD support"]
@@ -50,7 +50,7 @@ flowchart TD
         FIX2 --> VOLQ
         CONF --> VOLQ
 
-        VOLQ{"§1.6 HQPlayer for<br/>volume control?"}
+        VOLQ{"§1.7 HQPlayer for<br/>volume control?"}
         VOLQ -->|"yes"| VY["Fixed volume off<br/>range −60..−3 dB<br/>startup −40 dB"]
         VOLQ -->|"no"| CLIP{"Frequently clipped<br/>material?"}
         CLIP -->|"yes"| H6["−6 dB auto headroom / optimal ISO"]

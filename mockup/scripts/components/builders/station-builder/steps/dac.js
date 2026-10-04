@@ -1,4 +1,4 @@
-// DAC bits · Gain step (wizard §1.5, its last two paragraphs): DAC bits with the manual's known values, then PCM gain
+// DAC bits · Gain step (wizard §1.6, its last two paragraphs): DAC bits with the manual's known values, then PCM gain
 // compensation (grayed without native DSD).
 
 import { h } from "../../../../lib/shell/dom.js";

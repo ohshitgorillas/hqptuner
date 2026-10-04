@@ -1,4 +1,4 @@
-// Rates step (wizard §1.5): over USB the 48k-family check runs first (its lines print in the guide line), then what the
+// Rates step (wizard §1.6): over USB the 48k-family check runs first (its lines print in the guide line), then what the
 // hardware supports: the readouts, the rate dial, DSD support and DSD rates. A connection that fixes the limits caps the
 // dial there.
 

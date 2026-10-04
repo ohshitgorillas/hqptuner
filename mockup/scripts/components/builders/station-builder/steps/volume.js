@@ -1,4 +1,4 @@
-// Volume step (wizard §1.6): HQPlayer's volume or another; No asks about clipped material and offers the two hints,
+// Volume step (wizard §1.7): HQPlayer's volume or another; No asks about clipped material and offers the two hints,
 // the second opening the pitch for HQPlayer's volume control.
 
 import { h } from "../../../../lib/shell/dom.js";

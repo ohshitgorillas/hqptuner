@@ -26,7 +26,7 @@ The answer sets the number of presets; the rest of this section loops once per.
 
 Once named, the user must select the appropriate device from the available devices list.
 
-> If the device isn't plugged in and/or powered on yet, do that now, give it a minute to boot up, and click Next. Or, see the instructions for setting up a network endpoint here (§1.1 NAA bring-up).
+> If the device isn't plugged in and/or powered on yet, do that now, give it a minute to boot up, and click Next. Or, see the instructions for setting up a network endpoint here (§1.2 NAA bring-up).
 
 ### 1.1 Backend
 
@@ -105,7 +105,7 @@ or...
 
 > Either this device or your home LAN doesn't seem to support IPv6. Don't worry: this doesn't affect performance at all, only how HQPlayer discovers and talks to this NAA.
 
-#### 1.5 USB Disambiguation
+### 1.5 USB Disambiguation
 
 > Using a DDC or transport before your DAC and connecting it to the DAC over USB generates two device listings for the same hardware, but only one of them actually works (produces sound). To ensure you actually hear music once you press Play, we need to figure out which of those listings is correct.
 >
@@ -122,7 +122,7 @@ Or...
 > HQPTuner wasn't able to disambiguate which device is correct, since {both devices disappeared / neither device went down}. You'll need to experiment later: load each device and try to play content back. The one that produces sound is (obviously) correct.
 
 
-### 1.5 Rate detection
+### 1.6 Rate detection
 
 Per preset. The interface answer sets the rate ceilings the daemon can't see for itself — a DAC behind a DDC or transport is invisible to it.
 
@@ -157,7 +157,7 @@ The wizard then queries the daemon for the 48k-family answer:
 >
 > Finally, if you plan on switching between PCM and DSD, you'll want to set PCM Gain Compensation so that the levels are even. A table in the HQPlayer manual (p. 16) shows levels for common DACs. If you can't find yours, leave it at 0dB for now.
 
-### 1.6 Volume control
+### 1.7 Volume control
 
 > Do you plan on using HQPlayer/HQPTuner for volume control for this preset, or using a different means of volume control?
 >
@@ -351,7 +351,7 @@ The Apply button is highlighted. Once the daemon reloads, the tour resumes.
 > Live snapshots also allow you to keep combinations of live settings for applying on the fly all at once.
 
 
-## 4. Fin
+## 6. Fin
 
 > That's the end of the tour. Hopefully by now, you're feeling much more confident and knowledgeable about configuring HQPlayer.
 >

@@ -1,4 +1,4 @@
-// Connection step (wizard §1.5 Rate detection): how the DAC takes its input; the last two answers fix the limits.
+// Connection step (wizard §1.6 Rate detection): how the DAC takes its input; the last two answers fix the limits.
 
 import { STB_IFACES } from "../../../../data/builders/station-builder.js";
 import { withConnection } from "../../../../model/builders/station.js";

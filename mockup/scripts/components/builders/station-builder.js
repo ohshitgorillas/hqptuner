@@ -1,5 +1,5 @@
 // Station builder: the header's Station builder button swaps the chain body for this one, as the gear does for Settings.
-// Header, engine row and bottom bar stay. It is the setup wizard's station walk (repo docs/wizard/wizard.md §1–§1.6 and
+// Header, engine row and bottom bar stay. It is the setup wizard's station walk (repo docs/wizard/wizard.md §1–§1.7 and
 // §4), one station at a time, in the Profile builder's grammar: it edits a copy (nothing reaches the engine until Save;
 // saving the loaded station restarts the engine), × on its title, Back / Next, nothing forces the order.
 //   Rail   Overview, then Name, Backend, Device, IPv6, USB listings, Connection, Rates, DAC bits · Gain, Volume, Hardware,

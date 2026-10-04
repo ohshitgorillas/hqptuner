@@ -1,4 +1,4 @@
-// Station builder (header button): the setup wizard's station walk (repo docs/wizard/wizard.md §1, §1.1–§1.6, §4), one
+// Station builder (header button): the setup wizard's station walk (repo docs/wizard/wizard.md §1, §1.1–§1.7, §4), one
 // station at a time. Copy marked `wizard` is the owner's wizard copy, verbatim, with the wizard's `preset` renamed
 // `station` (v2 naming: a Station is the whole hqplayerd config; the Settings hardware drawer made the same rename).
 // Copy marked DRAFT is agent copy awaiting the owner. Manual copy comes from data/output.js, data/volume.js and
@@ -79,20 +79,20 @@ export const STB_STEPS = [
     title: "Connection", // DRAFT title
     guide: () =>
       "How does your DAC receive its input signal from HQPlayer? If you use a separate streamer, DDC, or transport, how does *that* send the signal to your DAC?",
-  }, // wizard §1.5 Rate detection
+  }, // wizard §1.6 Rate detection
   { id: "rates", title: "Rates", guide: (x) => (x.iface === "usb" ? null : "Your connection sets these limits.") }, // USB: the 48k check prints here; DRAFT otherwise
   {
     id: "dac",
     title: "DAC bits · Gain", // DRAFT title
     guide: () =>
       "If you're planning on outputting PCM, especially on a DAC with R-2R ladder topology, you'll want to find the \"DAC bits\" setting. This tells HQPlayer where the noise floor of your DAC is so that it can apply dithering correctly.",
-  }, // wizard §1.5
+  }, // wizard §1.6
   {
     id: "volume",
     title: "Volume",
     guide: () =>
       "Do you plan on using HQPlayer/HQPTuner for volume control for this station, or using a different means of volume control?",
-  }, // wizard §1.6
+  }, // wizard §1.7
   {
     id: "hardware",
     title: "Hardware",
@@ -218,7 +218,7 @@ export const STB_USB = {
   locked: "locked in", // DRAFT tag on the surviving listing
 };
 
-/** Connection (wizard §1.5 Rate detection): the interface answers; the last two fix the limits themselves. */
+/** Connection (wizard §1.6 Rate detection): the interface answers; the last two fix the limits themselves. */
 export const STB_IFACES = [
   { v: "usb", label: "USB or I2S/IIS" },
   {
@@ -229,7 +229,7 @@ export const STB_IFACES = [
   { v: "toslink", label: "S/PDIF Toslink (2x PCM, no DSD)", fixed: { pcm: 1, sdm: null, dsd: "dop", dsd48: "44k" } },
 ];
 
-/** Rates step (wizard §1.5): the 48k-family check, then what the hardware supports. */
+/** Rates step (wizard §1.6): the 48k-family check, then what the hardware supports. */
 export const STB_RATES = {
   check: "Checking whether your hardware supports 48kHz-family DSD rates...",
   ok: "Got it.",
@@ -240,7 +240,7 @@ export const STB_RATES = {
   sdmNoneWhy: "This connection carries no DSD.", // DRAFT: the SDM band's reason under Toslink
 };
 
-/** DAC bits · Gain step (wizard §1.5, its last two paragraphs). */
+/** DAC bits · Gain step (wizard §1.6, its last two paragraphs). */
 export const STB_DAC = {
   known: "Known good DAC bits values (from the HQPlayer manual):",
   values: [
@@ -253,7 +253,7 @@ export const STB_DAC = {
   gainSkip: "PCM gain compensation evens the levels between PCM and native DSD; this connection carries no native DSD.", // DRAFT
 };
 
-/** Volume (wizard §1.6). */
+/** Volume (wizard §1.7). */
 export const STB_VOLUME = {
   warn: "Fair warning: there will always be a delay between HQPlayer controls and playback, including volume changes. This delay can be mitigated with careful configuration, but if instant volume changes are critical for you, skip this.",
   use: [
@@ -280,7 +280,7 @@ export const STB_VOLUME = {
   ],
   more: "… see more",
   less: "see less", // spec's `… see more` grammar
-  /** What each answer writes (wizard §1.6): Yes = adjustable; No = Fixed volume Auto at the picked headroom. */
+  /** What each answer writes (wizard §1.7): Yes = adjustable; No = Fixed volume Auto at the picked headroom. */
   adjustable: { vfixmode: "off", vmin: -60, vmax: -3, vstart: -40 },
 };
 
