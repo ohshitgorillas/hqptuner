@@ -1,0 +1,284 @@
+/* Stage drawer: a sheet out of the rail's right edge, over the page only.
+   Rail, header, engine row and Setting Switcher stay in view. Tabs = the parts of one stage.
+   Every drawer setting is restart-lane, so it stages (dirty dot on its tab).
+   left = rail 168 + gap 26 + rule 1. */
+.drawer{position:absolute;top:0;bottom:0;left:195px;right:0;z-index:4;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#25282d,#1f2226);border-left:1px solid var(--line-2);box-shadow:inset 1px 0 0 #4a4f5833;
+  clip-path:inset(0 0 0 0);transition:clip-path .2s ease-out}
+.drawer[data-closed]{clip-path:inset(0 100% 0 0);pointer-events:none}
+.drawer.snap{transition:none}   /* closing because another drawer opens (or the body swaps): no second wipe */
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+
+.dhead{height:52px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 12px 0 26px;border-bottom:1px solid var(--line)}
+.dhead .t{font-family:var(--f-eng);font-weight:700;font-size:18px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+/* Head, right end: [Discard  Apply] | ×. Discard and Apply sit together as one group (the builders' Discard / Save
+   grammar: two .btn.sm); a hairline and an even 16px either side set close apart (no misclicks); close matches the
+   buttons' 34px height and keeps the same 12px from the drawer's edge. The group shows while the open tab holds a
+   restart setting or edits are staged; its buttons live only with staged edits. Apply writes the station and restarts:
+   no split button, no Apply & save (there is no applied-but-unsaved state). */
+.apply{display:flex;align-items:center;gap:8px;height:34px;padding-right:16px;border-right:1px solid var(--line)}
+.apply .btn.sm{height:34px}
+.apply .aapply{background:var(--raised);box-shadow:var(--raised-shadow);border-color:var(--line-2)}   /* the act: raised over Discard's flat face */
+.apply .aapply:disabled{background:var(--plate-2);box-shadow:none}
+.dhead .round.dx{width:34px;height:34px;font-size:18px}
+.pop.amenu{width:auto;min-width:150px}   /* check menu (the builders' Stations menus): the pipelines menu's rows (.pmrow), the checked ones ticked */
+.amenu .pmrow::before{content:"";width:12px;flex-shrink:0;text-align:center;color:var(--acc)}
+.amenu .pmrow[aria-checked="true"]::before{content:"✓"}
+.dtabs button{position:relative;height:36px;font-size:13.5px;padding:0 16px}
+.dtabs button.dirty::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+.dhead .t{position:relative}
+.dhead .t.dirty::after{content:"";position:absolute;top:2px;right:-10px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+
+.dpanel{flex-grow:1;min-height:0;overflow-y:auto;padding:2px 4px 10px 26px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+
+/* Backend groups: only the active backend's rows show. Combo shows every group, each under its own subhead. */
+.begrp{display:flex;flex-direction:column}
+.dsec{display:flex;align-items:center;gap:14px;padding:14px 0 2px}
+.drawer:not(.combo) .dsec{display:none}
+.dsec .t{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.dsec .ln{flex-grow:1;height:1px;background:var(--line)}
+
+/* Row: control column | manual copy. .drow-full stacks them (wide controls like the rate dial). */
+.drow{display:grid;grid-template-columns:360px minmax(0,1fr);gap:0 32px;align-items:start;padding:8px 0;border-bottom:1px solid var(--row-rule)}
+.drow-full{grid-template-columns:minmax(0,1fr);gap:8px 0}
+.dpanel>.drow:last-child,.begrp .drow:last-child{border-bottom:0}
+.dpanel>.drow+.begrp,.begrp+.begrp{border-top:1px solid var(--row-rule)}
+.drow .ctl{display:flex;flex-direction:column;gap:7px;min-width:0}
+.drow .ctl>.seg{align-self:flex-start}
+.drow .seg button{height:36px;font-size:13px;padding:0 12px;white-space:nowrap}
+.drow .man{padding-top:1px;max-width:none;line-height:1.45}
+
+.num{display:flex;align-items:center;gap:10px}
+.num .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.num .h{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:var(--lh-text)}
+.act{display:flex;align-items:center;gap:12px}
+
+/* ── Output device picker ────────────────────────────────────────────────
+   Engine strings split on ": ". Network = host: card: interface; ALSA = card: interface.
+   Button shows the card big, host · interface small; the list groups by host (ALSA: by card). */
+.devpick{position:relative}
+.devbtn{width:100%;height:52px;flex-direction:row;align-items:center;gap:10px;padding:0 12px;cursor:pointer;text-align:left}
+.devbtn .tx{display:flex;flex-direction:column;gap:2px;min-width:0;flex-grow:1}
+.devbtn .v{font-family:var(--f-body);font-size:14px;font-weight:500;line-height:var(--lh-text)}
+.devbtn .l{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.devbtn .ar{color:var(--acc-dim);font-size:11px;flex-shrink:0}
+.devlist{position:absolute;left:0;top:calc(100% + 6px);width:560px;background:var(--pop);border:1px solid var(--line-2);border-radius:6px;box-shadow:var(--pop-shadow);padding:6px;z-index:6;display:flex;flex-direction:column;gap:2px}
+.devlist .gh{display:flex;align-items:center;gap:10px;padding:8px 8px 3px;font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:var(--lh-text)}
+.devlist .gh:first-child{padding-top:3px}
+.devlist .gh .ln{flex-grow:1;height:1px;background:var(--line)}
+.devrow{display:grid;grid-template-columns:10px minmax(0,1fr);align-items:center;gap:2px 12px;padding:7px 10px;border:0;border-radius:4px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.devrow:hover{background:var(--hover)}
+.devrow.cur{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}
+.devrow .lamp{width:7px;height:7px;grid-row:1/3}
+.devrow .m{font-size:14px;font-weight:500;line-height:1.25}
+.devrow.cur .m{color:var(--acc)}
+.devrow .d{grid-column:2;font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:1.3}
+
+/* ── Rate dial ───────────────────────────────────────────────────────────
+   Tuner band scale. Tiers are octaves, so evenly spaced; each shows its 44.1k and 48k member.
+   Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
+   Hatched = device announced it cannot carry that tier; greyed, never blocked.
+   Layers (rate-dial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
+.dial{position:relative;height:106px;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
+/* Each band is its own slider: a transparent region over its half of the glass (rate-dial.js). */
+.bandsl{position:absolute;top:0;bottom:0;touch-action:none}
+.bandsl:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;border-radius:4px}
+/* Band legends (engraved, over a bracket spanning the band) + bezel seam at the 32x|64x family boundary.
+   Both bands always live: mode never grays a band. */
+.dial .legend{font-family:var(--f-eng);font-weight:700;font-size:12px;letter-spacing:.22em;fill:var(--ink-2);line-height:var(--lh-eng)}
+.dial .bl{fill:none;stroke:var(--ink-3);stroke-width:1}
+.dial .seam .sd{stroke:#000;stroke-width:2}
+.dial .seam .sl{stroke:var(--highlight);stroke-width:1;opacity:.5}
+
+.dial svg{display:block}
+.dial svg text{paint-order:stroke;stroke:var(--glass);stroke-width:4px;stroke-linejoin:round}
+.dial .legend{stroke-width:8px}   /* knocks the bracket out behind the band name */
+.dial .hatch line{stroke:var(--hatch);stroke-width:3}
+.dial .rule{stroke:var(--line-2);stroke-width:1}
+.dial .minor{stroke:var(--edge);stroke-width:1}
+.dial .major{stroke:var(--ink-3);stroke-width:1.5}
+.dial .tier{font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:1.2px;fill:var(--ink-2);line-height:var(--lh-eng)}
+.dial .freq{font-family:var(--f-mono);font-size:9.5px;fill:var(--ink-2);line-height:var(--lh-text)}
+.dial .note{font-family:var(--f-body);font-style:italic;font-size:10.5px;fill:var(--ink-2);line-height:var(--lh-text)}
+.dial .unav .major{stroke:var(--edge)}
+.dial .unav .tier,.dial .unav .freq{fill:var(--ink-4)}
+.dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
+.dial .playing{fill:var(--ok);filter:drop-shadow(0 0 3px var(--ok))}
+.dial .needle{fill:var(--acc);filter:drop-shadow(0 0 4px var(--acc))}
+.dial .ndl{transition:transform .14s ease-out}
+.dial.drag .ndl{transition:none}
+@media (prefers-reduced-motion:reduce){.dial .ndl{transition:none}}
+
+/* Manual copy in a row: the row's own paragraph. optMan adds every option with its manual copy as a list
+   spanning the whole row under control and copy. Selected option lit (amber token, bright text, amber edge);
+   tapping an option selects it. */
+.drow .man p{margin:0}
+/* Drawer intro (schema {intro}): the lead over a tab's rows, full width, body ink; links to the drawers it names. */
+.dintro{margin:0;padding:8px 0 10px;border-bottom:1px solid var(--row-rule);font-size:13px;line-height:1.5;color:var(--ink);max-width:880px}
+.optlist{grid-column:1/-1;display:flex;flex-direction:column;gap:1px;margin-top:10px}
+.optrow{display:grid;grid-template-columns:40px minmax(0,1fr);gap:0 10px;align-items:baseline;padding:4px 8px 4px 10px;border:0;border-left:2px solid transparent;border-radius:0 4px 4px 0;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;line-height:1.45;text-align:left;cursor:pointer}
+.optrow:hover{background:var(--hover)}
+.optrow code{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);line-height:var(--lh-text)}
+.optrow.cur{background:var(--acc-lo);border-left-color:var(--acc);color:var(--ink)}
+.optrow.cur code{color:var(--acc)}
+
+/* Engine-enum segments (HF filter: none, 20k … 8x): the engine's own tokens, so mono and case kept, like <code>. */
+.seg.enum button{font-family:var(--f-mono);font-weight:500;font-size:13px;letter-spacing:0;text-transform:none;padding:0 11px;line-height:var(--lh-text)}
+
+/* Paragraph copy for a row holding several sub-settings: each paragraph opens with its sub-setting's label. */
+.drow .man p+p{margin-top:4px}
+.drow .man b{color:var(--ink);font-weight:600}
+
+/* Grouped controls in one row (Volume: Fixed level switch + level; Range min / max / startup). Item labels sit above. */
+.cgrp{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.ci{display:flex;flex-direction:column;gap:4px}
+.ci .cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.cgrp input.vfd{width:74px}
+
+/* Gray: a control its gray reason disables (owner copy under the row's controls). */
+.grayed{opacity:.4}
+.grayed button,.grayed input{cursor:not-allowed}
+.gr{font-size:11.5px;color:var(--ink-2);font-style:italic;line-height:1.4}
+
+/* Choice: vertical radio lines spanning the row (Volume: Fixed volume Off | Manual | Auto). Each line = radio, name,
+   its detail control (grayed, never hidden, until picked) | its manual paragraph. Picked line lit like the HF list. */
+.chlist{grid-column:1/-1;display:flex;flex-direction:column;gap:0;margin-top:0}
+.chline{display:grid;grid-template-columns:360px minmax(0,1fr);gap:0 32px;align-items:start;padding:2px 0 2px 10px;margin-left:-12px;border-left:2px solid transparent;border-radius:0 4px 4px 0}
+.chline.cur{background:var(--acc-lo);border-left-color:var(--acc)}
+.chline .man{color:var(--ink-2);line-height:1.45;padding-top:1px}
+.chline.cur .man{color:var(--ink)}
+.chl{display:flex;align-items:center;gap:12px;min-height:40px}
+.chline .man:empty{display:none}
+.chline[data-v="off"] .chl{min-height:34px}
+.chn{display:flex;align-items:baseline;gap:8px;width:118px;flex-shrink:0;cursor:pointer}
+.chn b{font-weight:600;font-size:14px;color:var(--ink-2)}
+.chline.cur .chn b{color:var(--acc)}
+.chn .s{font-size:12px;color:var(--ink-2)}
+.radio{width:18px;height:18px;flex-shrink:0;border-radius:50%;border:1px solid #000;background:var(--glass);box-shadow:inset 0 1px 3px #000;cursor:pointer;padding:0;display:grid;place-items:center}
+.radio[aria-checked="true"]::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 5px var(--acc)}
+.radio:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ── Volume range bar (Volume drawer, Range tab) ─────────────────────────────
+   v1's shared dBFS axis on tuner glass. Amber = the settings (Min/Max brackets, Startup pin, reachable span);
+   ink-2 = loudness bounds (reference only, set in the Loudness drawer); green = live playback volume (a readout,
+   like the rate dial's playing lamp). Heavy ticks at 0 and −3 dBFS. */
+.dblock[data-block="range"]{display:flex;flex-direction:column;gap:8px;padding-top:10px}
+.vrwell{background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);padding:6px 0 2px}
+.vrbar{display:block;width:100%;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
+.vrbar .trk{fill:#1d2025}
+.vrbar .span{fill:var(--acc-dim)}
+.vrbar .brk{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:miter;filter:drop-shadow(0 0 3px var(--acc-glow))}
+.vrbar .pin{fill:var(--glass);stroke:var(--acc);stroke-width:2;filter:drop-shadow(0 0 3px var(--acc-glow))}
+.vrbar .act{stroke:var(--acc-rim)}
+.vrbar .lband{fill:var(--ink-2);opacity:.6}
+.vrbar .paren{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+.vrbar .needle line{stroke:var(--ok);stroke-width:2;filter:drop-shadow(0 0 3px var(--ok))}
+.vrbar .needle circle{fill:var(--ok)}
+.vrbar .tk{stroke:var(--ink-3);stroke-width:1}
+.vrbar .tk.major{stroke:var(--ink-2)}
+.vrbar .tk.strong{stroke:var(--ink);stroke-width:2}
+.vrbar .tl{font-family:var(--f-mono);font-size:10.5px;fill:var(--ink-2);line-height:var(--lh-text)}
+.vrbar .bub{font-family:var(--f-mono);font-size:11.5px;font-weight:600;fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:7px;stroke-linejoin:round;line-height:var(--lh-text)}
+
+.vrrow{display:grid;grid-template-columns:360px minmax(0,1fr);gap:0 32px;align-items:start;padding:8px 0}
+.vrrow+.vrrow{border-top:1px solid var(--row-rule)}
+.vrctl{display:flex;flex-direction:column;gap:9px;min-width:0}
+.vrboxes{display:flex;flex-direction:column;gap:6px}
+.vrbox{display:flex;align-items:center;gap:8px}
+.vrbox .cl{font-size:var(--fs-cl);color:var(--ink-2);width:58px}
+.vrbox input.vfd{width:74px}
+.vrbox .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.vrkey{flex-shrink:0;overflow:visible}
+.vrkey .brk{fill:none;stroke:var(--acc);stroke-width:2}
+.vrkey .pin{fill:var(--glass);stroke:var(--acc);stroke-width:1.6}
+.vrkey .paren{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+.vrkey .nl{stroke:var(--ok);stroke-width:2}
+.vrkey .nd{fill:var(--ok)}
+/* Read-only readouts beside the boxes: Playback (live, bright ink: a readout here, not the control), loudness bounds (reference,
+   ink-2: set in the Loudness drawer). Same box geometry as the inputs so the stack stays one column. */
+.vrbox .ro{box-sizing:border-box;width:74px;height:40px;flex-direction:row;align-items:center;justify-content:flex-end;padding:0 10px;font-size:15px;font-weight:500;color:var(--ink-2)}
+.vrbox .ro.live{color:var(--ink)}   /* live playback: a bright readout (its key and needle are the green lamp); amber = settings */
+.vrboxes.inl{flex-direction:row;gap:22px}
+.vrboxes.inl .cl{width:auto}
+.vrloud .fh{gap:18px}
+.xref{align-self:flex-start;font-family:var(--f-eng);font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:4px;line-height:var(--lh-eng)}
+.xref[aria-disabled="true"]{cursor:not-allowed}
+/* Inline in a line of copy (gray reason, note, meter state; lib/xref.js): the line's own height, upright. */
+:is(.gr,.spsdm,.mnone p,.dintro) .xref{font-size:var(--fs-cl);font-style:normal;line-height:inherit;white-space:nowrap;text-underline-offset:3px}
+.grayed-range .vrwell,.grayed-range .vrboxes{opacity:.4}
+.grayed-range .vrbar{cursor:not-allowed}
+
+/* Band tag on a family-only row (Format tab): the same engraved name as the rate dial's band legend. */
+.fh .band{font-family:var(--f-eng);font-weight:700;font-size:11px;letter-spacing:.18em;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:0 5px;line-height:16px;align-self:center}
+
+/* ── Resampling · Shaping drawer (conv-drawer.js) ──────────────────────────
+   One chain at a time. Head row = the expanded chain (name, state, its section tabs); bottom bar = the collapsed chain.
+   Running chain = its name lit amber, head or bar (no lamp). Idle expanded = hatched head band + darker
+   plate + boxed `idle`, so it can't pass for what plays.
+   Rows, one grammar (the HF drawer's): control | the setting's paragraph; the picked option's line full width under the row,
+   lit like the HF drawer's picked option. */
+.cvhead{gap:12px}
+.cvhead .round.dx{margin-left:4px}   /* the head gap here is 12px: close keeps its 16px from the hairline */
+.cvhead .cst:empty,.cvbar .cst:empty{display:none}
+.cvhead .cst,.cvbar .cst{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.cvhead .t.run,.cvbar .t.run{color:var(--acc)}
+.cvhead .dtabs{margin-left:10px}
+.cvdrawer.idle .cvhead{background:repeating-linear-gradient(135deg,#2b2e34 0 2px,transparent 2px 9px)}
+.cvdrawer.idle .cvhead .cst{color:var(--ink);border:1px solid var(--ink-2);border-radius:3px;padding:0 6px;line-height:20px}
+.cvbody{flex-grow:1;min-height:0;display:flex;flex-direction:column}
+.cvdrawer.idle .cvbody{background:var(--pop);box-shadow:inset 0 0 0 1px var(--line)}
+.cvpanel{padding-top:4px;padding-bottom:4px}
+.cvrow[hidden]{display:none}
+.cvrow{grid-template-columns:300px minmax(0,1fr);gap:0 28px;padding:5px 0}
+.cvrow .ctl>select.vfd,.cvrow .ctl>button.vfd.vpick{width:100%;font-size:13px;padding:0 24px 0 10px;background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%}
+.cvrow .ctl>.seg{align-self:flex-start}
+/* Picked option's line: full width under the row, lit like .optrow.cur (amber edge, amber token, bright text). */
+.cvrow .optfull{grid-column:1/-1;margin-top:5px}
+.optman{margin:0 0 0 -12px;padding:3px 10px;border-left:2px solid var(--acc);border-radius:0 4px 4px 0;background:var(--acc-lo);font-size:12.5px;line-height:1.45;color:var(--ink)}
+.optman code{font-family:var(--f-mono);font-size:12px;color:var(--acc);line-height:var(--lh-text)}
+.cvbar{position:relative;flex-shrink:0;height:40px;display:flex;align-items:center;gap:12px;padding:0 18px 0 26px;border:0;border-top:1px solid var(--line-2);background:var(--plate-2);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.cvbar:hover{background:var(--hover)}
+.cvbar .t{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap;line-height:var(--lh-eng)}
+.cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.cvbar .ar{color:var(--ink-2);font-size:12px}
+.cvbar.dirty .t::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+/* Rules between rows, not after the last visible one (the FFT row may be the hidden last child). */
+.cvpanel .cvrow{border-bottom:0;border-top:1px solid var(--row-rule)}
+.cvpanel .cvrow:first-child{border-top:0}
+/* One section left in the running chain: no tab strip; the head names it as the drawer's title (dirty dot like a tab). */
+.cvhead .csec{position:relative;font-family:var(--f-eng);font-weight:700;font-size:18px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);padding-left:18px;margin-left:6px;border-left:1px solid var(--line-2);line-height:30px;white-space:nowrap}
+.cvhead .csec.dirty::after{content:"";position:absolute;top:4px;right:-10px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+
+/* Output → Format: copy in closer (overflow rule): 220px control column, the DSD support seg's width. */
+#output-p-format .drow:not(.drow-full){grid-template-columns:220px minmax(0,1fr);gap:0 28px}
+#output-p-device .drow:not(.drow-full){grid-template-columns:300px minmax(0,1fr);gap:0 28px}   /* copy closer: the tab fits (Channels moved in) */
+#output-p-format .drow,#output-p-device .drow{padding:5px 0}   /* rhythm one step tighter (as the Matrix engine drawer) */
+#output-p-format .fh{flex-wrap:wrap;row-gap:0}   /* a long sub drops under its label, never splits it */
+#output-p-format .fh b{white-space:nowrap}
+
+/* Alert line (alerts.js): pinned under a drawer's head, one line per alert, in a glass
+   well. crit --bad, warn --warn, advice ink-2; never the accent. The row that fixes it reads in the alert's colour, the glyph
+   before its label. */
+.dalert{display:flex;flex-direction:column;gap:2px;flex-shrink:0;margin:6px 0 0;padding:4px 10px;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well)}
+.aline{display:grid;grid-template-columns:14px minmax(0,1fr);gap:0 6px;margin:0;font-family:var(--f-body);font-size:12.5px;line-height:var(--lh-text);color:var(--ink-2)}
+.aline .ag{text-align:center}
+.aline[data-sev="crit"]{color:var(--bad)}
+.aline[data-sev="warn"]{color:var(--warn)}
+.drow[data-alert="crit"] > .ctl > .fh > b{color:var(--bad)}
+.drow[data-alert="warn"] > .ctl > .fh > b{color:var(--warn)}
+.drow[data-alert] > .ctl > .fh > b::before{content:"⚠ "}
+.pop.alnote{width:420px;gap:8px}
+.pop.alnote .aline{line-height:1.45}
+
+/* Stage drawers with output-mode tabs (mode-drawer.js): PCM out | SDM out; the mode that isn't running carries `idle`
+   inside its tab, small, as the idle chain's head did. */
+.mtabs button{display:inline-flex;align-items:center;gap:8px}
+.mtabs button .cst{font-size:10.5px;letter-spacing:.14em;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:0 5px;line-height:15px}
+.cvdrawer.idle .mtabs button .cst{color:var(--ink);border-color:var(--ink-2)}
+.mdrawer .cvrow .num input.vfd{width:84px;height:40px}
+.mnote{margin:6px 0 0;padding:8px 0 0;border-top:1px solid var(--row-rule);font-size:12.5px;color:var(--ink-2);line-height:var(--lh-text)}
+/* Mode drawer section header (Resampling, SDM out: PCM sources | DSD sources): the combo drawer's backend subhead grammar. */
+.msec{display:flex;align-items:center;gap:14px;padding:10px 0 2px}
+.msec .t{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.msec .ln{flex-grow:1;border-top:1px solid var(--line-2)}
+.cvpanel .msec+.cvrow{border-top:0}

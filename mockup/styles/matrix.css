@@ -1,0 +1,306 @@
+/* Matrix engine family drawers: Matrix engine, Crossfeed, Loudness, DAC correction (drawer.js family 'matrix'), plus the
+   Speakers drawer. Plots reuse the page plot's glass (.eq, page.css). */
+
+/* Drawers whose body is one stretching block (plot takes the height left): the panel is a column. */
+:is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel{display:flex;flex-direction:column}
+.dblock[data-block="crossfeed"],.dblock[data-block="loudness"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+
+/* Plot traces (resp-plot.js): amber = what you get; ghost = the reference (dashed ink-3); side = ink-2.
+   Each trace named once at its right end, in its own ink. Handles = draggable dots (v1 REW-style). */
+.eq .trace.ghost{stroke:var(--ink-3);stroke-width:1.25;stroke-dasharray:4 3}
+.eq .trace.side{stroke:var(--ink-2);stroke-width:1.25}
+.eq .tl text{font-family:var(--f-mono);font-size:10px;fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:4px;stroke-linejoin:round;line-height:var(--lh-text)}
+.eq .tl text.ghost{fill:var(--ink-2)}
+.eq .tl text.side{fill:var(--ink-2)}
+.eq .hdl{fill:var(--glass);stroke:var(--acc);stroke-width:2;cursor:grab;filter:drop-shadow(0 0 3px var(--acc-glow))}
+.eq .hdl.act{fill:var(--acc);cursor:grabbing}
+.eq .hdl.off{display:none}
+.lplot svg,.xfplot svg{touch-action:none}
+
+/* ── Crossfeed ───────────────────────────────────────────────────────────
+   Choice lines (Volume's grammar, drawer.css .chline): radio + name; the picked line holds its controls (left, under the
+   name) and its copy (right); an unpicked implementation folds to one mono summary line. */
+.xlist .chline{grid-template-columns:360px minmax(0,1fr)}
+.xleft{display:flex;flex-direction:column;gap:6px;min-width:0}
+.xline .chl{min-height:36px}
+.xline .chn{width:auto;flex-shrink:0}
+.xsum{min-width:0;flex:1 1 0;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.xctl{display:flex;flex-direction:column;gap:9px;padding:0 0 8px 30px}
+.xctl .ci{gap:5px}
+.xctl .seg button{height:34px;font-size:13px;padding:0 11px}
+.xctl .cgrp{gap:16px}
+.xctl .cgrp input.vfd{width:74px;height:34px;font-size:14px}
+.xspre{height:34px!important;line-height:34px!important;width:200px!important;font-size:13px!important}
+.xsl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 12px}
+.xsl .cl{grid-column:1/-1;font-size:var(--fs-cl);color:var(--ink-2)}
+.xsl input[type=range]{accent-color:var(--acc);height:24px;margin:0;width:100%;min-width:0}
+.xsl input.vfd{width:86px;height:34px;font-size:14px}
+.xsl .num .u{width:20px}
+.xsl .num{gap:8px}
+.xsl .cl .h{margin-left:10px;font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:var(--lh-text)}
+.xline .man{font-size:12px;line-height:1.42}
+.xline .man p+p{margin-top:3px}
+.xline .man b{color:var(--ink);font-weight:600}
+.xfplot{flex:1 1 0;min-height:120px;margin-top:6px}
+.dblock[data-block="crossfeed"]>.gr,.dblock[data-block="loudness"]>.gr{margin-top:6px}
+
+/* ── Loudness ────────────────────────────────────────────────────────────
+   Bands: Bass | Treble, one row per parameter inside the 360px control column; both manual lines beside the row.
+   Range: the bounds on their own −120 … 0 dBFS axis; here they are the settings, so amber (the Volume bar draws the
+   same parentheses in ink-2, as a reference). Plot right of the range, filling the height left. */
+.lbands{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0 32px;padding:6px 0 0;border-top:1px solid var(--row-rule)}
+.lleft{display:flex;flex-direction:column;gap:3px}
+.lsw{align-self:flex-start;margin-bottom:3px}
+.lsw button{position:relative;height:32px;font-size:13px;padding:0 14px}
+.lsw button.dirty::after{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+.lrow{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;justify-items:start;min-height:32px}
+.lrow .ll{font-size:13px;color:var(--ink-2)}
+.lrow input.vfd{width:84px;height:32px;font-size:14px}
+.lrow .num{gap:8px}
+.lrc{display:flex;flex-direction:column;gap:6px;padding-top:8px}
+.lrc .gr{min-height:26px}
+.lrc .gr[hidden]+.lcopy{margin-top:32px}
+.lcopy{font-size:12px;line-height:1.4}
+.lcopy p{margin:0}
+.lcopy p+p{margin-top:4px}
+.lcopy b{color:var(--ink);font-weight:600}
+.seg.mini2 button{height:30px;font-size:12px;padding:0 7px}
+.lbot{flex:1 1 0;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr);gap:0 32px;margin-top:4px;padding-top:6px;border-top:1px solid var(--row-rule)}
+.lrange{display:flex;flex-direction:column;gap:5px;min-width:0}
+.lrange .vrboxes.inl{gap:14px}
+.lrange .vrbox .cl{width:auto}
+.lrange .vrbox input.vfd{width:64px;height:34px;font-size:14px}
+.lrange .vrbox .ro{width:64px;height:34px;font-size:14px}
+.lrange .man{font-size:12px;line-height:1.4}
+.lrange .man p{margin:0}
+.lrange .man p+p{margin-top:3px}
+.lrange .man b{color:var(--ink);font-weight:600}
+.lrbar{cursor:ew-resize;touch-action:none}
+.lrbar .lspan{fill:var(--acc-dim)}
+.lrbar .paren{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linecap:round;filter:drop-shadow(0 0 3px var(--acc-glow))}
+.lrbar .paren.act{stroke:var(--acc-rim)}
+.lrange .vrkey .paren{stroke:var(--acc)}
+.lplot{min-height:140px}
+/* Matrix engine drawer: copy in closer (overflow rule: narrow the control column first); option tokens are words here,
+   so the option list's token column widens to fit `overlap-save`. */
+:is(#drawer-matrix,#pb-drawer-matrix) .drow{grid-template-columns:250px minmax(0,1fr)}
+:is(#drawer-matrix,#pb-drawer-matrix) .optrow{grid-template-columns:104px minmax(0,1fr)}
+:is(#drawer-loudness,#pb-drawer-loudness) .drow{grid-template-columns:300px minmax(0,1fr)}
+.lrh{justify-content:space-between;align-items:center}
+.lrh .lpb .ro{height:28px;font-size:13px;width:64px}
+.lrh .lpb .cl{font-size:var(--fs-cl)}
+/* …and its rhythm tightened a step (rows, option lines) so all four settings and every option fit without scrolling. */
+:is(#drawer-matrix,#pb-drawer-matrix) .drow{padding:6px 0}
+:is(#drawer-matrix,#pb-drawer-matrix) .drow .man{line-height:1.42}
+:is(#drawer-matrix,#pb-drawer-matrix) .optlist{margin-top:6px}
+:is(#drawer-matrix,#pb-drawer-matrix) .optrow{padding:3px 8px 3px 10px;line-height:1.42}
+:is(#drawer-matrix,#pb-drawer-matrix) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel,:is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel{padding-bottom:4px}
+:is(#drawer-matrix,#pb-drawer-matrix) .dpanel>.drow:first-child{padding-top:3px}
+.lbound{display:flex;flex-direction:column;gap:2px}
+.lbound .man{margin:0 0 0 22px;font-size:12px;line-height:1.35}
+.lrange .vrbox input.vfd{width:72px}
+.lrange .vrbox .cl{width:44px}
+
+/* ── Speakers ────────────────────────────────────────────────────────────
+   Set + channel rows left (control column), v1's room plan right, filling the height left. Speakers in the set amber,
+   the rest dimmed (drawn, never hidden: v1). */
+#drawer-speakers .dpanel{display:flex;flex-direction:column}
+.dblock[data-block="speakers"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.spbody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:360px minmax(0,1fr);gap:0 32px;padding-top:10px;border-top:1px solid var(--row-rule)}
+.spleft{display:flex;flex-direction:column;gap:10px}
+.spset{width:260px!important;height:36px!important;line-height:36px!important;font-size:13px!important}
+.sprows{display:flex;flex-direction:column;gap:4px}
+.sprow{display:grid;grid-template-columns:96px 1fr 1fr;align-items:center;gap:0 10px;min-height:36px}
+.spn{font-size:13px;color:var(--ink-2)}
+.sprow input.vfd{width:76px;height:32px;font-size:14px}
+.sprow .num{gap:6px}
+.spright{min-height:0;display:flex}
+.spplan{width:100%;height:100%;max-height:100%}
+.spplan .ring{fill:none;stroke:var(--line);stroke-dasharray:2 4}
+.spplan .head{fill:var(--plate-2);stroke:var(--ink-3);stroke-width:1.2}
+.spplan .nose{fill:none;stroke:var(--ink-3);stroke-width:1.2}
+.spplan .spk rect{fill:var(--glass);stroke:var(--ink-2);stroke-width:1.5}   /* drawings in ink; amber only on the values they carry */
+.spplan .spk .drv{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.spplan .spk .sl{font-family:var(--f-eng);font-weight:700;font-size:11px;letter-spacing:.1em;fill:var(--ink);line-height:var(--lh-eng)}
+.spplan .spk .sv{font-family:var(--f-mono);font-size:9.5px;fill:var(--acc);line-height:var(--lh-text)}
+.spplan .spk.off rect,.spplan .spk.off .drv{stroke:var(--ink-4)}
+.spplan .spk.off text{fill:var(--ink-4)}
+
+/* Crossfeed gate (ENGAGE | BYPASS) heads the drawer; its reason sits beside it. Segments in the picked line hug their
+   options (no dead space after the last one). */
+.xgate{display:flex;align-items:center;gap:16px;padding:6px 0 8px;border-bottom:1px solid var(--row-rule);margin-bottom:4px}
+.xgate b{font-weight:600;font-size:14px;color:var(--ink)}
+.xgate .seg button{height:34px;font-size:13px;padding:0 12px}
+.xgate .gr{flex:1 1 0}
+.xctl .ci{align-items:flex-start}
+
+/* Structural cartoon (v1 Geometry.js conventions): near paths solid amber, far paths dashed ink-2, ±30° ticks. */
+.xfgeo{flex:1 1 0;min-height:120px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:0 32px;padding-top:6px}
+.xfpic{min-height:0;display:flex;justify-content:center}
+.xfdiag{display:block;width:100%;height:100%}
+.xfro{margin:0;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.xfro dt{font-size:12px;color:var(--ink-2);margin-bottom:2px}
+.xfro dd{margin:0;font-family:var(--f-mono);font-size:15px;font-weight:500;color:var(--acc);line-height:var(--lh-text)}
+.xfro dd span{font-size:12px;font-weight:400;color:var(--ink-2)}
+.xfdiag .axis{stroke:var(--line-2);stroke-dasharray:2 4}
+.xfdiag .ref{stroke:var(--ink-4);stroke-width:1.5}
+.xfdiag .arc{fill:none;stroke:var(--ink-3)}
+.xfdiag .ang{font-family:var(--f-mono);font-size:10px;fill:var(--acc);line-height:var(--lh-text)}
+.xfdiag .near{stroke:var(--ink);stroke-width:1.5}
+.xfdiag .far{fill:none;stroke:var(--ink-2);stroke-width:1.25;stroke-dasharray:4 3}
+.xfdiag .head{fill:var(--plate-2);stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .nose{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .ear{fill:var(--ink-3)}
+.xfdiag .spk rect{fill:var(--glass);stroke:var(--ink-2);stroke-width:1.5}
+.xfdiag .spk .drv{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .spk .sl{font-family:var(--f-eng);font-weight:700;font-size:12px;letter-spacing:.1em;fill:var(--ink);line-height:var(--lh-eng)}
+
+/* ── DSP pipelines ───────────────────────────────────────────────────────
+   Tabs: Overview = the pin grid + totals, actions, manual; Out x = the input switch, a fixed page of 8
+   lines + page buttons, the selected pipeline's strip, then dock | plot filling the height left. */
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dtabs button{padding:0 10px}
+:is(#drawer-pipelines,#pb-drawer-pipelines).pl-short .dtabs button:not([data-tab="overview"]){text-transform:none}   /* channel names keep their case, like the grid */
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dpanel{display:flex;flex-direction:column;padding-bottom:4px}
+.dblock[data-block^="pl-"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.obody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 36px;padding-top:8px}
+.oleft{display:flex;flex-direction:column;gap:10px}
+.oright{display:flex;flex-direction:column;gap:10px;min-width:0;padding-top:4px}
+.oright .man{font-size:12px;line-height:1.42;margin:0;max-width:none}
+.oright .man p{margin:0 0 6px}
+.oacts{display:flex;gap:8px;flex-wrap:wrap}
+.ofiles{display:flex;flex-wrap:wrap;gap:4px}
+.ofiles:empty{display:none}
+.ofiles .pfile{min-width:0;height:26px;font-size:11.5px}
+.ogrid{display:grid;gap:6px;align-items:center;justify-items:center}
+.pch.otab{border:0;background:none;padding:2px 6px;border-bottom:2px solid transparent;cursor:pointer}
+.pch.otab:hover{color:var(--ink);border-bottom-color:var(--line-2)}
+.pin .pgn{font-family:var(--f-eng);font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.oout{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:6px;padding-top:6px}
+.ohead{display:flex;align-items:center;gap:10px;min-height:34px}
+.ohead>.cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.oin{display:flex;align-items:center;gap:6px}
+.seg.oinseg button{font-family:var(--f-mono);font-size:12px;padding:0 10px;text-transform:none;letter-spacing:0;line-height:var(--lh-text)}
+.ohead .gr{flex-shrink:1;min-width:0}
+.olist{display:flex;flex-direction:column;gap:4px}
+.plrows.orows{flex:none}   /* as many lines as the input has, 8 at most: the plot keeps the rest */
+.opg{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.opg:empty{display:none}
+.opb{min-width:26px;height:22px;padding:0 5px;border:1px solid #000;border-radius:3px;background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:11.5px;cursor:pointer;line-height:var(--lh-text)}
+.pedit{display:flex;flex-direction:column;border-left:2px solid var(--acc);border-radius:0 4px 4px 0;background:linear-gradient(var(--acc-lo),var(--acc-lo)) top/100% 35px no-repeat}
+.pedit .pstrip.ped{border-left:0;background:none}
+.pedit .pdock{border-top:1px solid var(--row-rule);padding:7px 8px 6px 10px;gap:7px;min-width:0}
+.pdr{display:flex;align-items:center;gap:10px;min-height:30px}
+.pdl{font-size:12.5px;color:var(--ink-2)}
+.pdcopy{display:flex;flex-direction:column;gap:3px}
+.pmp{margin:0;font-size:12px;line-height:1.4;color:var(--ink-2)}
+.phint{margin:0;font-size:12px;line-height:1.4;color:var(--ink)}
+.opr{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);margin-left:6px;line-height:var(--lh-text)}
+.opg>.cl{font-size:var(--fs-cl);color:var(--ink-2);margin-right:2px}
+/* Pin grid: tuner-glass wells; a routed pin is an amber jewel with its gain engraved under it. */
+.pgrid{display:grid;gap:6px;align-items:center;justify-items:center}
+.pcorner{position:relative;width:48px;height:34px;align-self:end;justify-self:start}
+.pcorner::after{content:"";position:absolute;left:2px;right:2px;top:50%;border-top:1px solid var(--ink-3);transform:rotate(35deg)}
+.pcorner span{position:absolute;font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);line-height:var(--lh-eng)}
+.pcorner span:first-child{right:2px;top:-2px}
+.pcorner span:last-child{left:0;bottom:-2px}
+.pch{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.1em;color:var(--ink-2);line-height:var(--lh-eng)}   /* case kept: Lr / Rr / Sub */
+.pch.in{justify-self:start;padding-left:4px}
+.pin{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid #000;border-radius:6px;background:var(--glass);box-shadow:var(--well);cursor:pointer;padding:0}
+.pin .dot{width:12px;height:12px;border-radius:50%;background:var(--lamp-off);box-shadow:inset 0 1px 2px #000}
+.pin.on .dot{background:var(--acc);box-shadow:0 0 8px var(--acc),inset 0 0 2px #fff}
+.pin .pg{font-family:var(--f-mono);font-size:11px;color:var(--acc);line-height:var(--lh-text)}
+.pin .pol{position:absolute;top:3px;right:5px;font-family:var(--f-mono);font-size:11px;color:var(--acc);line-height:var(--lh-text)}
+.pin:hover{border-color:var(--line-2)}
+.pin.sel{border-color:var(--acc);box-shadow:var(--well),0 0 0 1px var(--acc)}
+.ptot{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);line-height:var(--lh-text)}
+
+.pstrips{display:flex;flex-direction:column;gap:2px}
+.pstrip{display:flex;align-items:center;gap:6px;min-height:33px;padding:1px 4px 1px 8px;border-left:2px solid transparent;border-radius:0 4px 4px 0}
+.pstrip.sel{background:var(--acc-lo);border-left-color:var(--acc)}
+.ppn{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);width:24px;flex-shrink:0;line-height:var(--lh-text)}
+.pchips{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden}
+.pwire{flex:1 1 0;min-width:4px;height:1px;background:var(--line-2)}
+.chip{flex-shrink:0;height:26px;padding:0 7px;border:1px solid var(--line-2);border-radius:13px;background:var(--glass);color:var(--ink);font-family:var(--f-mono);font-size:11.5px;white-space:nowrap;cursor:pointer;line-height:var(--lh-text)}
+.chip.k-gain{color:var(--acc)}
+.chip.add{width:28px;padding:0;color:var(--ink-2)}
+.chip.chipw{display:inline-flex;align-items:center;padding:0;cursor:default}
+.chipl{height:100%;padding:0 4px 0 9px;border:0;background:none;color:inherit;font:inherit;cursor:pointer}
+.chipx{width:24px;height:100%;padding:0 4px 0 0;border:0;background:none;color:var(--ink-2);font-size:15px;line-height:1;cursor:pointer}
+.chipx:hover{color:var(--bad)}
+.chip.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+input.vfd.praw{flex:1 1 0;min-width:0;height:30px;font-size:12px;text-align:left;width:auto}
+.prerr{position:absolute}
+.praw-t[aria-pressed="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
+.round.px{width:28px;height:28px;font-size:16px;line-height:1;flex-shrink:0}
+
+.pdock{display:flex;flex-direction:column;gap:6px;padding:6px 0 2px;border-top:1px solid var(--row-rule)}
+.pdock[hidden]{display:none}
+.pdhead{display:flex;align-items:center;gap:12px;min-height:28px}
+.pdhead b{font-weight:600;font-size:14px;color:var(--ink)}
+.pbands{display:flex;gap:3px;flex-wrap:wrap}
+.pband{min-width:26px;height:24px;padding:0 4px;border:1px solid #000;border-radius:3px;background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:11.5px;cursor:pointer;line-height:var(--lh-text)}
+.pband.add{color:var(--ink-2)}
+.pfields{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.pfield{display:flex;align-items:center;gap:6px}
+.pfield .cl,.pfields>.cl{font-family:var(--f-mono);font-size:var(--fs-cl);color:var(--ink-2);line-height:var(--lh-text)}
+.pfield input.vfd,.pfields>input.vfd{height:32px;font-size:14px}
+.pfield .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.pfile{height:32px;flex-direction:row;align-items:center;padding:0 10px;font-size:12.5px;min-width:200px}
+.ptl{margin:0;font-size:12px;line-height:1.4;color:var(--ink-2)}
+.ptl code{font-family:var(--f-mono);font-size:12px;color:var(--acc);line-height:var(--lh-text)}
+select.vfd.ptype{height:30px;line-height:30px;width:270px;font-size:13px;text-align:left}
+select.vfd.pkind{height:30px;line-height:30px;width:180px;font-size:13px;text-align:left}
+.pbnav{display:flex;align-items:center;gap:6px}
+.round.pbn{width:26px;height:26px;font-size:15px;line-height:1;padding:0}
+.pbl{font-family:var(--f-mono);font-size:12.5px;color:var(--ink);min-width:44px;text-align:center;line-height:var(--lh-text)}
+.pman{font-size:12px;line-height:1.4;max-width:none}
+.pman p{margin:0}
+.pplotwrap{flex:1 1 0;min-height:90px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.pplotwrap[hidden]{display:none}
+.pscope{display:flex;align-items:center;gap:10px}
+.pscope .cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.pplot{flex:1 1 0;min-height:50px;min-width:0}
+.pplot svg{touch-action:none}
+/* Pipeline popovers: the stage-kind menu and Import EQ. */
+.pmenu{width:200px}
+.pmrow{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border:0;border-radius:4px;background:none;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.pmrow:hover{background:var(--hover)}
+.pmrow b{font-weight:500}
+.pmrow span{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:var(--lh-text)}
+.pimp{width:380px;left:auto;gap:6px}
+input.vfd.pq{height:36px;width:100%;text-align:left;font-size:13px}
+.phits{display:flex;flex-direction:column}
+.pimpf{display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--line)}
+/* Crossfeed blocks in the grid: dashed pins (the locked chips' dashed edge; hatch is reserved for unavailable, as on the
+   rate dial); one line naming the block on its crosspoints; its own chips locked. */
+.pin.gen{border:1px dashed var(--acc-dim)}
+.pin.gen:hover{border-color:var(--ink-2)}
+.chip.lock{border-style:dashed;color:var(--ink-2)}
+.pro{color:var(--ink-2)!important}
+.pu{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.pstrip .praw-t{height:28px;padding:0 9px}
+/* Pipeline list: 22px lines, a block folded to one line (dashed edge, like its pins). */
+.plrows{flex:1 1 0;min-width:0;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--row-rule);border-bottom:1px solid var(--row-rule)}
+.plrow{flex:0 0 22px;display:flex;align-items:center;gap:10px;height:22px;padding:0 6px 0 8px;border-left:2px solid transparent;cursor:pointer;white-space:nowrap}
+.plrow:hover{background:var(--hover)}
+.plrow.sel{background:var(--acc-lo);border-left-color:var(--acc)}
+.plrow .ppn{width:30px}
+.plc{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.plrow.sel .plc{color:var(--ink)}
+.plg{font-family:var(--f-mono);font-size:11.5px;color:var(--acc);min-width:76px;text-align:right;line-height:var(--lh-text)}
+.plrow.inblk{padding-left:22px}
+.plrow.inblk .plg{color:var(--ink-2)}
+.plfold{gap:8px;border-left:2px dashed var(--acc-dim)}
+.plfold.sel{border-left-style:solid}
+.pltw{width:18px;height:18px;padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:11px}
+.pls{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);line-height:var(--lh-text)}
+.plfold .xref{font-size:12.5px;align-self:center}
+.pstrip.ped{border-left:2px solid var(--acc);background:var(--acc-lo);border-radius:0 4px 4px 0}
+.pin .pfill{position:absolute;left:4px;bottom:3px;height:2px;border-radius:1px;background:var(--acc-dim)}
+.ptot .over{color:var(--bad)}
+.pdock input.vfd[type=number]{-moz-appearance:textfield}
+.pdock input.vfd[type=number]::-webkit-inner-spin-button,.pdock input.vfd[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* Speakers under Direct SDM (mock scenario): level boxes dead, distances live; v1's note under the rows. */
+.spleft.sdm .sprow .num:first-of-type input{color:var(--ink-4);cursor:not-allowed}
+.spsdm{margin:10px 0 0;font-size:12px;line-height:1.45;color:var(--ink-2);max-width:380px}

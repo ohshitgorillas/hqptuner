@@ -1,0 +1,131 @@
+/* Body: rail | hairline | page. The page shows engaged stages only; each section = engraved header + rule. */
+.body{position:relative;flex-grow:1;min-height:0;display:grid;grid-template-columns:168px 1px minmax(0,1fr);gap:0 26px}
+.vrule{background:var(--line)}
+/* Spare height is never spread as random gaps between sections: spacing is fixed (22px between sections, 10px header→body),
+   and the one section with stretchable content (.fill: plot + text) takes whatever height is left. */
+.page{display:flex;flex-direction:column;gap:22px;padding:12px 0 10px;min-height:0;overflow:hidden}
+
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec.fill{flex:1 1 0;min-height:150px}
+.sec.fill > .two{flex:1 1 0;min-height:0}
+.sh{display:flex;align-items:center;gap:14px}
+.sh .t{font-family:var(--f-eng);font-weight:700;font-size:16px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap;line-height:var(--lh-eng)}
+.sh .ln{flex-grow:1;height:1px;background:var(--line)}
+/* Narrowing tags: as many as fit between the rule and the buttons; the rest fold into a `+n` tag that opens Narrow filters
+   (too many facets pushed the buttons off the page). narrow-filters.js measures. */
+.sh .ln{min-width:24px}
+.sh > .btn{flex-shrink:0}
+.tag.tmore{background:none;font:inherit;font-size:11.5px;cursor:pointer;flex-shrink:0}
+.tag.tmore:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* Section body: control column (524px) | manual copy. .stretch = equal-height columns. */
+.two{display:grid;grid-template-columns:440px minmax(0,1fr);gap:0 40px;align-items:start}
+.two.stretch{align-items:stretch}
+.two .man{padding-top:2px}
+.two > .lede{align-self:center}
+.row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+
+/* Field: head + control, stacked. */
+.fld,.stack{display:flex;flex-direction:column;gap:6px;max-width:100%}
+/* Resampling with the matrix engine bypassed (conversion.js setBoth): 1x and Nx both open, a row each. */
+.rsboth{display:flex;flex-direction:column;gap:14px}
+.inline{display:flex;gap:10px;align-items:center}
+
+
+/* Matrix engine left column: profile head + select, then the description fills down to the plot's bottom edge. */
+.mstack{min-height:0}
+.mstack .desc{flex:1 1 0;min-height:44px;margin-top:4px}
+
+/* Profile description: the user's own text, so ink not amber. Recessed well; pencil marks it editable. */
+.desc{position:relative;display:block}
+.desc textarea{box-sizing:border-box;display:block;width:100%;height:100%;margin:0;resize:none;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);padding:9px 30px 9px 12px;font:12.5px/1.55 var(--f-body);color:var(--ink-2)}
+.desc textarea:focus{outline:none;border-color:var(--acc-dim);color:var(--ink)}
+.desc svg{position:absolute;right:10px;top:11px;color:var(--ink-2);pointer-events:none}
+.desc:hover svg{color:var(--ink-2)}
+.desc:focus-within svg{color:var(--acc)}
+
+/* Matrix response plot (±12 dB, 20 Hz–20 kHz, log f). Stretches with the section; matrix-plot.js redraws 1:1 on resize. */
+.eq{position:relative;min-height:100px;border:1px solid #000;border-radius:4px;box-shadow:var(--well);overflow:hidden;background:var(--glass)}
+.eq svg{position:absolute;inset:0;display:block}
+.eq .grid{stroke:#1f2227}
+.eq .grid.minor{stroke:#16181c}
+.eq .zero{stroke:var(--zero)}
+.eq .trace{fill:none;stroke:var(--acc);stroke-width:1.75;stroke-linejoin:round}
+.eq .lbl{fill:var(--ink-2);font-family:var(--f-mono);font-size:9.5px;line-height:var(--lh-text)}
+
+/* One-line fold (conversion.js): a field or chain that isn't open — ▸, its name, why, its value; tapping opens it and
+   folds the open one (one open per section, so the height never changes). Never accented. */
+.fline{display:flex;align-items:center;gap:10px;width:460px;max-width:100%;height:24px;padding:0;border:0;background:none;
+  color:var(--ink-2);font:inherit;font-size:13px;white-space:nowrap;text-align:left;cursor:pointer}
+.fline::before{content:"▸";color:var(--ink-2);font-size:12px;width:10px;flex-shrink:0}
+.fline b{font-weight:600;color:var(--ink-2)}
+.fline .fn{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:12px;color:var(--ink-2);line-height:var(--lh-text)}
+.fline .band{flex-shrink:0}
+.fline:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:2px}
+.fld>.fline+.fline{margin-top:-2px}
+.fld>select+.fline,.fld>.vpick+.fline{margin-top:4px}
+
+/* Collapsed secondary control (Nx filter): one summary line, expands in place. */
+details.fold{width:460px;max-width:100%}
+.fld>details.fold+details.fold{margin-top:-2px}
+details.fold summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;height:24px;color:var(--ink-2);font-size:13px;white-space:nowrap}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary::before{content:"▸";color:var(--ink-2);font-size:12px;width:10px}
+details.fold[open] summary::before{content:"▾"}
+details.fold summary b{font-weight:600;color:var(--ink-2)}
+details.fold summary .fn{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:12px;color:var(--ink-2);line-height:var(--lh-text)}
+details.fold summary .band{flex-shrink:0}
+/* Resampling / Shaping bodies are mount points (conversion.js); their .two sits in the section as if written there. One
+   section holds both (the drawer's name); a rule between the two bodies keeps the two stages apart. */
+#rs-body,#sh-body{display:contents}
+details.fold .in{padding:4px 0 0 20px;display:flex;flex-direction:column;gap:6px}
+
+/* Output rate picker (output-tuner.js; only while Allow pinned rates is On). Two rows. Head column (Auto | 44.1k · 48k) | a
+   column per tier of the running band: name, then its two rates side by side as pins + the tier's unit once. Playing =
+   ringed (ink); pin = accent. Rows fixed height. */
+.otglass{flex-direction:row;align-items:stretch;gap:0;padding:4px 12px 5px;color:var(--ink)}
+.otheads{display:flex;flex-direction:column;flex-shrink:0;padding-right:12px;margin-right:4px;border-right:1px solid var(--ink-4)}
+.otautop{height:20px;padding:0;border:0;background:none;font:600 11px/20px var(--f-eng);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;text-align:left}
+.otautop.otpinned{color:var(--acc)}
+.otautop:hover{color:var(--ink)}
+.otfh{height:20px;display:flex;align-items:center;font:500 11px/1 var(--f-mono);color:var(--ink-2)}
+.otgrid{flex:1 1 auto;min-width:0;display:grid}
+.otcol{display:flex;flex-direction:column;align-items:center;min-width:0}
+.otcol+.otcol{border-left:1px solid var(--line)}
+.otcol.otunav{background:repeating-linear-gradient(45deg,transparent 0 3px,var(--hatch) 3px 5px)}
+.ottn{height:20px;font:600 11px/20px var(--f-eng);letter-spacing:.12em;color:var(--ink-2)}
+.otp{height:20px;display:flex;align-items:center;padding:0 7px;border:1.5px solid transparent;border-radius:999px;background:none;font:500 11.5px/1 var(--f-mono);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.otpair{display:flex;align-items:center;gap:2px;min-width:0}
+.otpair .otu{font-size:10px;margin-left:2px;color:var(--ink-2)}
+.otpair .otu.otno{color:var(--ink-3)}
+.otp{padding:0 4px;font-size:11px}
+.otp:hover{color:var(--ink)}
+.otp.otplay{border-color:var(--ink);color:var(--ink)}
+.otp.otpinned{color:var(--acc)}
+.otp.otplay.otpinned{border-color:var(--acc)}
+.otp.otno{cursor:default;color:var(--ink-3)}
+.otp:focus-visible,.otautop:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+
+
+/* Alert glyph on a page section's title (alerts.js): the stage's alert, in its colour; the text is the title tooltip. */
+/* Section alert (alerts.js): the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
+.sh .salert{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+/* Matrix engine folded to its header line (main.js paintFill: the spectrum has the top of the page): the profile picker
+   and Profile builder sit on the header, after the hairline; the section body is gone. */
+.sec.mxfold .sh > .inline{flex-shrink:0}
+
+/* Chain picker (Resampling 1x / Nx, Shaping): nameplate glass.
+   components/chain-pick.js. */
+.cpk{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fld>.cpk+.fline{margin-top:4px}
+button.vfd.cplate{height:52px;padding:5px 12px 4px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-items:center;justify-content:stretch;justify-items:stretch;align-content:stretch;gap:1px;text-align:left;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+.cplate:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.cpf{display:flex;align-items:baseline;gap:7px;min-width:0;white-space:nowrap;overflow:hidden;line-height:var(--lh-text)}
+.cpfam{flex-shrink:0;font:600 14px var(--f-body);color:var(--ink)}
+.cpsep{flex-shrink:0;font-size:13px;color:var(--ink-2)}
+.cpvar{min-width:0;font:500 14px var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.cpl{font:500 15px var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
+.cplate.dim .cpl{color:var(--ink-2)}
+
+

@@ -164,6 +164,9 @@ export default [
       // only report the same files twice or, as it did, fail on a copy pinned to
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
+      // The v2 mockup is reference material published from elsewhere, read
+      // while building and never shipped or imported.
+      "mockup/**",
       "**/*.mjs",
     ],
   },

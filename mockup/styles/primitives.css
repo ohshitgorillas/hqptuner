@@ -1,0 +1,80 @@
+/* Faceplate primitives: lamps, legends, VFD glass, segments, buttons, tags, text blocks.
+   Every region stylesheet builds on these; none of them know about layout. */
+
+/* Lamps: round indicator. .on = green, .bad = red. .big = bezelled engine-row lamp. */
+.lamp{width:10px;height:10px;border-radius:50%;background:var(--lamp-off);border:1px solid #0a0c0f;box-shadow:inset 0 1px 2px #000;flex-shrink:0}
+.lamp.on{background:var(--ok);box-shadow:0 0 6px var(--ok),inset 0 0 2px #fff}
+.lamp.bad{background:var(--bad);box-shadow:0 0 6px var(--bad),inset 0 0 2px #fff}
+.lamp.big{width:15px;height:15px;border:2px solid var(--line-2);box-shadow:inset 0 1px 3px #000,0 0 0 1px #0a0c0f}
+.lamp.big.on{border-color:var(--ok-rim)}
+.lamp.big.bad{border-color:var(--bad-rim)}
+
+/* Backlit legend: the word itself is the light (tuner TUNED/STEREO style). Distinct from round lamps. */
+.legend{display:inline-flex;align-items:center;height:28px;padding:0 10px;box-sizing:border-box;background:var(--glass);border:1px solid #000;border-radius:3px;box-shadow:inset 0 1px 4px #000;font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dead);white-space:nowrap;line-height:var(--lh-eng)}
+.legend.on{color:var(--ok);text-shadow:0 0 6px var(--ok-glow),0 0 1px var(--ok)}
+.legend.bad{color:var(--bad);text-shadow:0 0 6px var(--bad-glow),0 0 1px var(--bad)}
+
+/* VFD glass: amber readout window. .l = small label, .v = value. Also the skin for selects, number inputs, picker buttons. */
+.vfd{box-sizing:border-box;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);padding:4px 10px;font-family:var(--f-mono);color:var(--acc);display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0;line-height:var(--lh-text)}
+/* Window label: one size everywhere. lh 1.1 fits label + value in a 40px window. */
+.vfd .l{font-family:var(--f-eng);font-weight:600;font-size:12px;letter-spacing:.16em;color:var(--ink-2);text-transform:uppercase;line-height:1.1}
+.vfd .v{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vfd.dim{color:var(--ink-2)}   /* auto / idle value: neutral ink, not dim amber (text never darker than ink-2) */
+select.vfd{appearance:none;-webkit-appearance:none;height:40px;line-height:40px;font-size:13.5px;padding:0 32px 0 12px;cursor:pointer;width:100%;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+input.vfd{height:40px;width:92px;font-size:15px;font-weight:500;text-align:right;padding:0 10px;color:var(--acc);-moz-appearance:textfield}
+input.vfd::-webkit-inner-spin-button{opacity:.35}
+/* Native list popups: family headers (optgroup) ink-2, options the window's amber, on glass. Never inherit a window's
+   neutral / dim ink (rate pin on Auto). */
+select optgroup{background:var(--glass);color:var(--ink-2);font-style:normal}
+select option{background:var(--glass);color:var(--acc)}
+
+/* Segmented switch. Exactly one button carries .on. Size variants live with the region that uses them. */
+.seg{display:inline-flex;border:1px solid #000;border-radius:5px;overflow:hidden;background:var(--glass);box-shadow:inset 0 1px 4px #000}
+.seg button{height:40px;padding:0 14px;border:0;border-right:1px solid var(--seam);background:transparent;color:var(--ink-2);font-family:var(--f-eng);font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--acc);color:var(--on-acc)}
+.seg .su{text-transform:none;letter-spacing:.02em}   /* unit inside a seg option: case kept */
+.seg.mini button{height:20px;font-size:10.5px;padding:0 7px;letter-spacing:.08em}
+/* View / navigation pick (drawer tabs, meter views, which input / band / page / plot): ink on a lifted key with an accent
+   foot. The solid accent fill is only for a setting's value, so the accent stays scarce. */
+.seg.view button.on,.dtabs button[aria-selected="true"],.opb.on,.pband.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 -2px 0 var(--acc)}
+
+/* Raised push button. aria-expanded="true" = its popover is open. */
+.btn{height:40px;padding:0 14px;border-radius:5px;border:1px solid var(--line-2);background:var(--raised);color:var(--ink);font-family:var(--f-eng);font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:var(--raised-shadow);white-space:nowrap;line-height:var(--lh-eng)}
+.btn[aria-expanded="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
+.btn:disabled{color:var(--ink-2);background:var(--plate-2);box-shadow:none;cursor:default}
+.btn.hb{height:38px;padding:0 10px;font-size:13px}   /* header row */
+.btn.sm{height:34px;font-size:13px}                  /* popover footers */
+.btn.xs{height:32px;font-size:12.5px;flex-shrink:0}  /* inline row actions */
+
+/* Round raised button (gear, volume ±, drawer close). */
+.round{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-2);background:var(--raised);color:var(--ink-2);cursor:pointer;box-shadow:var(--raised-shadow)}
+.round.gear{display:inline-flex;align-items:center;justify-content:center;margin-left:6px}
+.round.vbtn{color:var(--ink);font-size:22px;line-height:1;font-family:var(--f-body)}
+.round.dx{font-size:20px;line-height:1;font-family:var(--f-body);flex-shrink:0}
+
+/* Removable tag (active narrowing, shown in the Resampling header). */
+.tag{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:1px solid var(--line-2);border-radius:12px;font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.tag b{color:var(--ink-2);font-weight:500;cursor:pointer}
+
+.chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.chk input{width:16px;height:16px;margin:0;accent-color:var(--acc)}
+
+/* Field head: <b>label</b> + optional .s subtitle. */
+.fh{display:flex;align-items:baseline;gap:10px}
+.fh b{font-weight:600;font-size:14px;color:var(--ink)}
+.fh .s{font-size:12px;color:var(--ink-2)}
+
+/* Manual copy block. Full manual / owner / engine text only; never paraphrased. <code> = engine enum. */
+.man{font-size:12.5px;line-height:1.5;color:var(--ink-2);max-width:560px}
+.man code{font-family:var(--f-mono);color:var(--ink);font-size:12px;line-height:var(--lh-text)}
+.lede{font-size:12.5px;color:var(--ink-2);font-style:italic;max-width:640px;line-height:1.5}
+.cap{font-size:11.5px;color:var(--ink-2);line-height:1.4}
+.adv{font-size:11.5px;color:var(--ink-2);font-style:italic}
+
+/* "↻ restart" mark: setting or station that needs an engine restart. */
+.rs{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:400;line-height:var(--lh-text)}
+/* Two-stage note collapsed to its lead-in (vselect.js optCopy): `… see more` expands it in place. */
+.seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:3px}
+.seemore:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:2px}

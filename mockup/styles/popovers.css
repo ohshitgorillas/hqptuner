@@ -1,0 +1,122 @@
+/* Popover sheets. All are direct children of the plate (so the page's overflow clip can't cut them),
+   except the station tree, which anchors inside the header's .station group. popover.js parks them. */
+.pop{position:absolute;left:132px;top:50px;width:330px;background:var(--pop);border:1px solid var(--line-2);border-radius:6px;box-shadow:var(--pop-shadow);padding:6px;display:flex;flex-direction:column;z-index:5}
+.pn{flex-grow:1}
+
+/* ── Station · Snapshot tree ─────────────────────────────────────────────
+   Station rows (engraved) with a chevron that folds their snapshots; snapshot rows indented (mono).
+   .cur = active. Non-active stations carry "↻ restart". */
+.prow,.srow{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border-radius:4px;font-size:13.5px;color:var(--ink)}
+.prow{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;line-height:var(--lh-eng)}
+.srow{padding-left:40px;font-family:var(--f-mono);font-size:12.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.prow.cur,.srow.cur{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
+.prow.cur .pn,.srow.cur .pn{color:var(--acc)}
+.chev{width:24px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);border-radius:3px;font-family:var(--f-body);font-size:12px;font-weight:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;flex-shrink:0;line-height:var(--lh-text)}
+.chev:hover{background:var(--line)}
+.chev.none{visibility:hidden}
+.pfoot{display:flex;gap:8px;padding:8px 4px 2px;border-top:1px solid var(--line);margin-top:6px}
+
+/* ── Filter presets ──────────────────────────────────────────────────────
+   One vertical list, every description in view. Emoji spans the name + description lines.
+   Columns: preset | filter | adjust (knobs) | correction | resources. Lit row = running and selected. */
+.fpop{--fcols:minmax(0,1fr) 176px 196px 64px 104px;left:auto;top:auto;width:940px;padding:6px 6px 8px}
+.fhead{display:grid;grid-template-columns:var(--fcols);gap:0 12px;padding:4px 8px 6px 76px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.fhead span{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
+.fhead .r{text-align:right}
+.frow{display:grid;grid-template-columns:var(--fcols);align-items:center;gap:0 12px;padding:0 8px 0 0;border-radius:4px;color:var(--ink)}
+.frow.cur{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}
+.frow .pick{display:grid;grid-template-columns:10px 36px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:1px 12px;padding:5px 8px;background:none;border:0;color:inherit;cursor:pointer;text-align:left;font:inherit;min-width:0;border-radius:4px}
+.frow .pick:hover{background:var(--hover)}
+.frow .pick .lamp{grid-row:1/3}
+.frow .em{grid-row:1/3;font-size:24px;line-height:1;text-align:center}
+.frow .pn{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;gap:8px;line-height:1.1}
+.frow.cur .pn{color:var(--acc)}
+.frow .ds{grid-column:3;font-size:11.5px;line-height:1.3;color:var(--ink-2)}
+.frow .fl{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.frow .fl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frow .fl .k{font-family:var(--f-eng);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-right:5px;line-height:var(--lh-eng)}
+.frow .kn{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.frow .ap{display:flex;align-items:center;justify-self:start;padding-left:16px}
+.frow .seg{display:inline-flex}
+.frow .seg button{height:22px;font-size:11px;padding:0 8px;letter-spacing:.08em}
+.hires{font-family:var(--f-eng);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:1px 4px;line-height:1.2;white-space:nowrap}
+.kseg{display:flex;align-items:center;gap:6px}
+.kseg .kl{font-family:var(--f-eng);font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);width:62px;white-space:nowrap;line-height:var(--lh-eng)}
+.apod{width:14px;height:14px;flex-shrink:0;display:block}
+.pips{display:flex;align-items:center;gap:2px;justify-content:flex-end;white-space:nowrap;justify-self:end}
+.pip{width:4px;height:4px;border-radius:50%;background:var(--ink-3);flex-shrink:0}
+.frow.cur .pip{background:var(--acc)}
+
+/* Subsets (filter-presets.js): Concert Hall and The Crucible fold under each flagship. Folded: one
+   fold line on the name column (▸, emoji + name each; the picked one amber). Open: both as nested rows, stepped in with a
+   rule down their left like a tree; ▾ in the first one's gutter folds them. One flagship open at a time. */
+.fsubs{display:flex;align-items:center;gap:18px;width:100%;height:26px;margin:-4px 0 2px;padding:0 0 0 76px;border:0;border-radius:4px;background:none;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;text-align:left;position:relative}
+.fsubs::before{content:"▸";position:absolute;left:58px;font-size:12px;color:var(--ink-2)}
+.fsubs:hover{background:var(--hover);color:var(--ink)}
+.fsubs>span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.fsubs .em{font-size:14px;line-height:1}
+.fsubs .cur{color:var(--acc)}
+.frow.sub{position:relative;margin-left:48px;border-left:1px solid var(--line-2);border-radius:0 4px 4px 0}
+.frow.sub .pick{grid-template-columns:10px 28px minmax(0,1fr)}
+.frow.sub .em{font-size:19px}
+.frow.sub .pn{font-size:13.5px}
+.fsubx{position:absolute;left:-34px;top:8px;width:20px;height:20px;padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:12px}
+.fsubx::before{content:"▾"}
+.fsubx:hover{color:var(--ink)}
+
+.pips .w{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);line-height:var(--lh-text)}
+
+/* ── Narrow filters: facet controls (the sheet itself is styles/sheets.css) ──
+   Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
+   Ordered / per-stage facets are segments. Counts preview the list sizes the click would leave (1x·Nx, or that stage's
+   for a staged row); the head readout is the live result. */
+.ng{display:flex;flex-direction:column;gap:5px}
+.ngh{display:flex;align-items:center;gap:10px;height:18px}
+.ngl{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
+.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-2)}
+.nchips{display:flex;flex-wrap:wrap;gap:5px}
+.nchip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px 0 10px;border:1px solid var(--line-2);border-radius:13px;background:none;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.nchip .c{font-family:var(--f-mono);font-size:10px;color:var(--ink-2);letter-spacing:0;line-height:var(--lh-text)}
+.nchip:hover{border-color:var(--ink-2);color:var(--ink)}
+.nchip[aria-pressed="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
+.nchip[aria-pressed="true"] .c{color:var(--ink-2)}
+.nchip:disabled{opacity:.4;cursor:default}
+.nchip:disabled:hover{border-color:var(--line-2);color:var(--ink-2)}
+.nrow{display:flex;align-items:center;gap:10px;min-height:26px}
+.nrow .stg{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);width:22px;line-height:var(--lh-eng)}
+.nrow .seg button{height:26px;font-size:12px;padding:0 10px;white-space:nowrap}
+.nrow .chk{font-size:12px;white-space:normal;align-items:flex-start;line-height:1.3}
+.nrow .chk input{margin-top:1px}
+.nrow .chk .c{font-family:var(--f-mono);font-size:10px;color:var(--ink-2);margin-left:4px;line-height:var(--lh-text)}
+
+/* Volume popover: slider only. Drops from the engine-row readout, right edge flush with it. */
+.vpop{width:340px;padding:12px 14px 10px;gap:8px}
+.vpop .vh{display:flex;align-items:baseline;justify-content:space-between}
+.vpop .vh .v{font-family:var(--f-mono);font-size:20px;font-weight:500;color:var(--acc);line-height:var(--lh-text)}
+.vpop input[type=range]{accent-color:var(--acc);height:28px;margin:0;width:100%}
+/* Scale marks sit at their true linear positions (left set from data); end marks anchor to the track ends. */
+.vpop .scale{position:relative;height:13px;margin:0 7px;font-family:var(--f-mono);font-size:10px;color:var(--ink-2);line-height:var(--lh-text)}
+.vpop .scale span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.vpop .scale span:first-child{transform:none;margin-left:-7px}
+.vpop .scale span:last-child{transform:translateX(-100%);margin-left:7px}
+
+/* Two-stage note popover (vselect.js): the full filters.json note, parked under its `see more` link. */
+.notepop{width:400px;padding:10px 14px}
+.notepop p{margin:0;font-size:12.5px;line-height:1.5;color:var(--ink)}
+.notepop p+p{margin-top:8px}
+
+/* Loudness bounds on the volume sliders (popover + bottom bar; volume.js loudMarks): the Range bar's grammar, ink-2
+   reference marks. ( and ) straddle the track at the bounds; a strip under the track joins them. 7px insets = the native
+   thumb's half width, the same inset the scale marks use. Only while loudness is in effect. */
+.vsl{position:relative}
+.lmk{position:absolute;inset:0 7px;pointer-events:none}
+.lmk .lband{position:absolute;bottom:3px;height:3px;background:var(--ink-2);opacity:.6;border-radius:1px}
+.lmk .lpw{position:absolute;top:50%;width:10px;height:18px;margin:-9px 0 0 -10px}
+.lmk .lpw.r{margin-left:0}
+.lmk .lp{display:block}
+.lmk .lp path{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+/* Fixed volume: the slider and ± gray; the window shows the fixed level and opens nothing. */
+.vpop input[type=range]:disabled,.vbsl input[type=range]:disabled{accent-color:var(--ink-4);cursor:default}
+.round.vbtn:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
+.volrd.fixed{cursor:default}
+.vbar.fixed .vbsl{opacity:.45}

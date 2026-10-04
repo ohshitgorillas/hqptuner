@@ -1,0 +1,93 @@
+/* Header row (connection knob, mark, Station · Snapshot tree trigger, builders, gear) and engine row (gauge, buffers, counters, volume). */
+.hdr{height:42px;flex-shrink:0;display:flex;align-items:center;gap:10px}
+.mark{font-family:var(--f-eng);font-weight:700;font-size:26px;letter-spacing:.14em;color:var(--ink);text-shadow:0 1px 0 #000,0 -1px 0 var(--highlight);line-height:var(--lh-eng)}
+.ver{font-size:12px;color:var(--ink-2);margin-left:-6px;align-self:flex-end;padding-bottom:6px}
+/* Brand knob = connection lamp: v1's knob glyph (ring + pointer) on a raised round face, its ring the
+   light. ok: green ring, pointer at v1's 45°; busy (applying): amber ring, pointer sweeping; lost (unreachable): red ring,
+   pointer turned down to off. Semantic colours (lamps), never the accent. Tap → connection settings. */
+.conn{width:38px;height:38px;flex-shrink:0;padding:0;border-radius:50%;border:1px solid var(--line-2);background:var(--raised);box-shadow:var(--raised-shadow);cursor:pointer;display:grid;place-items:center;margin-right:2px}
+.conn svg{width:30px;height:30px;overflow:visible}
+.conn .ring{fill:var(--glass);stroke:var(--lamp-off);stroke-width:2.5}
+.conn .ptr{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;transform-origin:16px 16px;transform:rotate(45deg);transition:transform .35s ease-out}
+.conn .hub{fill:var(--ink)}
+.conn[data-state="ok"] .ring{stroke:var(--ok);filter:drop-shadow(0 0 3px var(--ok))}
+.conn[data-state="busy"] .ring{stroke:var(--busy);filter:drop-shadow(0 0 3px var(--busy))}
+.conn[data-state="busy"] .ptr{animation:conn-sweep 1.6s linear infinite}
+.conn[data-state="lost"] .ring{stroke:var(--bad);filter:drop-shadow(0 0 3px var(--bad))}
+.conn[data-state="lost"] .ptr{transform:rotate(-135deg);stroke:var(--ink-2)}
+.conn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@keyframes conn-sweep{from{transform:rotate(45deg)}to{transform:rotate(405deg)}}
+@media (prefers-reduced-motion:reduce){.conn .ptr{transition:none}.conn[data-state="busy"] .ptr{animation:none}}
+
+/* Station · Snapshot: label + tree trigger. Positioned so the tree popover can anchor to the trigger. */
+.station{display:flex;align-items:center;gap:10px;position:relative;flex:1 1 auto;min-width:0;margin-left:14px}
+button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;padding:0 12px}
+.tree .v{font-size:14px}
+.tree .sep,.tree .ar{color:var(--acc-dim)}
+.tree .ar{font-size:11px}
+
+/* Engine row */
+.engine{height:50px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 6px}
+.gauge{display:flex;align-items:center;gap:10px}
+.gauge .trk{stroke:var(--lamp-off)}
+.gauge .z-bad{stroke:var(--bad)}
+.gauge .z-warn{stroke:var(--warn)}
+.gauge .z-ok{stroke:var(--ok)}
+.gauge .ndl{stroke:var(--ink)}
+.gauge .hub{fill:var(--ink)}
+.readout{display:flex;flex-direction:column}
+.gauge .val{font-size:17px;line-height:1;color:var(--ink-2)}
+/* Zones (main.js zone()): the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colours,
+   never the accent; no zone (nothing playing) = neutral ink. */
+[data-zone="bad"]{--z:var(--bad)} [data-zone="warn"]{--z:var(--warn)} [data-zone="ok"]{--z:var(--ok)}
+.gauge .val[data-zone]:not([data-zone=""]){color:var(--z)}   /* gauge 62×34 (smaller) */
+
+.meters{display:flex;flex-direction:column;gap:5px}
+.meter{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2)}
+.meter .ml{width:76px}
+.meter .bar{display:block;flex-shrink:0;width:72px;height:8px;background:var(--glass);border:1px solid #000;border-radius:2px;box-shadow:inset 0 1px 3px #000;overflow:hidden}
+.meter .fill{display:block;height:100%;background:linear-gradient(90deg,color-mix(in srgb,var(--z,var(--ink-3)) 47%,#000),var(--z,var(--ink-3)))}
+.meter .mv{width:34px;text-align:right;font-family:var(--f-mono);color:var(--z,var(--ink-2));line-height:var(--lh-text)}
+
+/* Event counter: big lamp, its name centred beside it, then the counts stacked to the right:
+   "N this track" over "M total". */
+.counter{display:flex;align-items:center;gap:10px}
+.counter .eng{color:var(--ink)}
+.counter .cnts{display:flex;flex-direction:column;gap:1px;margin-left:2px}
+.counter .cnts .cnt{line-height:1.25}
+
+/* Volume: the engine row's one control. Hairline sets it apart from the readouts; ends flush with the page's right edge.
+   Readout = labelled VFD window (same pattern as Output's Rate); tapping it opens the slider popover. */
+.volc{display:flex;align-items:center;gap:6px;padding-left:14px;border-left:1px solid var(--line);height:40px}
+.volc .round{width:38px;height:38px}
+.volc .round:disabled{color:var(--ink-4);cursor:default}
+.volrd{width:104px;height:40px;cursor:pointer;text-align:left;align-items:flex-start}
+.volrd{gap:2px}
+.volrd .v{font-size:15px;line-height:1.1}
+.volrd[aria-expanded="true"]{border-color:var(--acc-dim)}
+
+/* Alerts (alerts.js) on the header homes: the knob's ring, the gear's glyph, the speed figure
+   blink red (crit) or amber (warn), dark between blinks. The knob's blink (credentials rejected) never reads as its steady red
+   (Unreachable). A home with an alert takes taps (popover). */
+.conn[data-alert="crit"] .ring{animation:al-ring-crit 1s step-end infinite}
+.conn[data-alert="warn"] .ring{animation:al-ring-warn 1s step-end infinite}
+@keyframes al-ring-crit{0%{stroke:var(--bad);filter:drop-shadow(0 0 4px var(--bad))}50%{stroke:var(--lamp-off);filter:none}}
+@keyframes al-ring-warn{0%{stroke:var(--warn);filter:drop-shadow(0 0 4px var(--warn))}50%{stroke:var(--lamp-off);filter:none}}
+.gear[data-alert="crit"]{animation:al-ink-crit 1s step-end infinite}
+.gear[data-alert="warn"]{animation:al-ink-warn 1s step-end infinite}
+.gauge[data-alert="crit"] .val{animation:al-ink-crit 1s step-end infinite}
+.gauge[data-alert="warn"] .val{animation:al-ink-warn 1s step-end infinite}
+@keyframes al-ink-crit{0%{color:var(--bad);text-shadow:0 0 6px var(--bad)}50%{color:var(--ink-2);text-shadow:none}}
+@keyframes al-ink-warn{0%{color:var(--warn);text-shadow:0 0 6px var(--warn)}50%{color:var(--ink-2);text-shadow:none}}
+.gauge[data-alert]{cursor:pointer}
+.gauge[data-alert]:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){
+  .conn[data-alert] .ring,.gear[data-alert],.gauge[data-alert] .val{animation:none}
+  .conn[data-alert="crit"] .ring{animation:al-ring-crit 2s step-end infinite}   /* steady red = Unreachable: keep a slow blink */
+  .conn[data-alert="warn"] .ring{stroke:var(--warn)}
+  .gear[data-alert="crit"],.gauge[data-alert="crit"] .val{color:var(--bad)} .gear[data-alert="warn"],.gauge[data-alert="warn"] .val{color:var(--warn)}
+}
+
+/* Buffer bars take part of the spare width the larger displays give the engine row (lib/plate.js SIZES). */
+.plate[data-size="11"] .meter .bar{width:130px}
+.plate[data-size="13"] .meter .bar{width:240px}

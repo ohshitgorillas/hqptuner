@@ -1,0 +1,180 @@
+// Signal path (Settings → Signal path): every path HQPlayer can take, one map, drawn in the faceplate's grammar, with the
+// path playing now lit. The chain rail shows the running path one stage at a time; this is the whole map behind it.
+//   Lit (playing now)   wire and lettering in ink; the rest stays dim (ink-2 lettering, line-2 wire). No accent: this is
+//                       running state, not a setting (spec: accent marks what you set and where you are).
+//   PCM / SDM tag       runs only in that output mode (the Output drawer's band-tag grammar). `PCM · SDM` = both modes, each
+//                       its own list (the 1x / Nx filters).
+//   Hatched             on the path but bypassed (gate off, filter none): hatch is for what doesn't run.
+//   Rate zones          source rate | output rate, tinted bands; the seam runs through Resampling (it converts).
+//   Dashed              position not confirmed by a source (DAC correction, Volume: output rate, before Shaping).
+// Sources: manual 6 §2.8 (HF filter: 2x and higher sources), §5 (Speakers at target rate), §7.2 (pipelines at source
+// rate), §2.15 (volume before dither); Jussi (Audiophile Style, as Miska): convolution "at the source rate … after
+// conversion to PCM" for DSD → PCM; "DAC correction runs at the output rate"; DAC correction needs the matrix enabled.
+// State: main.js dispatches `sigpath` {p, stage} on every path change; gates are read off the chain rail's lamps on every
+// `resize` (railSet fires one), so the map follows Apply without its own wiring.
+
+import { h, s } from '../lib/dom.js';
+
+const W = 1040, H = 606;
+const ZONE_Y = 22;   // the rate zones' labels
+const NW = 118, NH = 50;
+// Column centres: sources | DSD front end · HF | matrix | resampling | DAC correction ↓ Volume | shaping | Speakers ↓ Output.
+const X = [66, 214, 366, 518, 668, 816, 962];
+
+/** Nodes: id → {x, y, label, sub?, tag?, unv?, src?, rail?} (rail: the chain stage whose lamp says engaged). */
+const N = {
+  p1: { x: X[0], y: 77, label: 'PCM source', sub: '1x · ≤ 50 kHz', src: true },
+  pn: { x: X[0], y: 187, label: 'PCM source', sub: 'Nx · > 50 kHz', src: true },
+  ds: { x: X[0], y: 385, label: 'DSD source', src: true },
+  hf: { x: X[1], y: 187, label: 'HF filter', rail: 'hf' },
+  nf: { x: X[1], y: 341, label: 'Noise filter', tag: 'PCM' },
+  de: { x: X[1], y: 429, label: 'Decimation', tag: 'PCM' },
+  rm: { x: X[1], y: 528, label: 'Remodulator', tag: 'SDM' },
+  pl: { x: X[2], y: 132, label: 'DSP pipelines', rail: 'pipelines' },
+  xf: { x: X[2], y: 231, label: 'Crossfeed', rail: 'crossfeed' },
+  ld: { x: X[2], y: 330, label: 'Loudness', rail: 'loudness' },
+  f1: { x: X[3], y: 132, label: '1x filter', sub: '1x sources', tag: 'PCM · SDM' },
+  fn: { x: X[3], y: 231, label: 'Nx filter', sub: 'Nx · DSD → PCM', tag: 'PCM · SDM' },
+  rc: { x: X[3], y: 330, label: 'Rate conversion', sub: 'DSD → SDM', tag: 'SDM' },
+  dc: { x: X[4], y: 182, label: 'DAC correction', unv: true, rail: 'correction' },
+  vo: { x: X[4], y: 281, label: 'Volume', unv: true },
+  di: { x: X[5], y: 231, label: 'Dither', tag: 'PCM' },
+  mo: { x: X[5], y: 330, label: 'Modulator', tag: 'SDM' },
+  sp: { x: X[6], y: 281, label: 'Speakers', rail: 'speakers' },
+  out: { x: X[6], y: 402, label: 'Output', src: true },
+};
+
+/** Group frames: engraved title over a hairline box. */
+const GROUPS = [
+  { label: 'DSD Processing', ids: ['nf', 'de', 'rm'] },
+  { label: 'Matrix engine', ids: ['pl', 'xf', 'ld'] },
+  { label: 'Resampling', ids: ['f1', 'fn', 'rc'] },
+  { label: 'Shaping', ids: ['di', 'mo'] },
+];
+
+/** Edges: [from, to, label?]. Vertical ones (inside a group) join bottom → top. */
+const E = [
+  ['p1', 'pl'], ['pn', 'hf'], ['hf', 'pl'], ['ds', 'nf'], ['nf', 'de', null, 'v'], ['de', 'pl'], ['ds', 'rm'], ['rm', 'pl'],
+  ['pl', 'xf', null, 'v'], ['xf', 'ld', null, 'v'],
+  ['ld', 'f1'], ['ld', 'fn'], ['ld', 'rc'],
+  ['f1', 'dc'], ['fn', 'dc'], ['rc', 'dc'], ['dc', 'vo', null, 'v'], ['vo', 'di'], ['vo', 'mo'], ['di', 'sp'], ['mo', 'sp'], ['sp', 'out', null, 'v'],
+];
+
+/** What each path runs (main.js / data/scenarios.js path ids; stage = the source's 1x | nx). */
+function litOf(p, stage) {
+  const tail = (sh) => ['dc', 'vo', sh, 'sp', 'out'];
+  const mx = ['pl', 'xf', 'ld'];
+  const src = stage === 'nx' ? ['pn', 'hf', 'fn'] : ['p1', 'f1'];
+  switch (p) {
+    case 'pcm-pcm': return [...src, ...mx, ...tail('di')];
+    case 'pcm-sdm': return [...src, ...mx, ...tail('mo')];
+    case 'dsd-pcm': return ['ds', 'nf', 'de', ...mx, 'fn', ...tail('di')];
+    case 'sdm-sdm': return ['ds', 'rm', ...mx, 'rc', ...tail('mo')];
+    case 'direct': return ['ds', 'sp', 'out'];
+    default: return [];
+  }
+}
+
+export const PATH_NAME = {   // DRAFT (agent): the Settings rail readout
+  idle: 'Not playing', 'pcm-pcm': 'PCM → PCM', 'pcm-sdm': 'PCM → SDM', 'dsd-pcm': 'DSD → PCM',
+  'sdm-sdm': 'DSD → SDM', direct: 'DSD → Direct SDM',
+};
+
+// DRAFT (agent): the drawer's key, one line per mark.
+const KEY = [
+  ['lit', 'Playing now'],
+  ['tag', 'PCM or SDM: that output mode only'],
+  ['tags', 'Both output modes, a separate list each'],
+  ['hatch', 'Bypassed'],
+  ['dash', 'Position not confirmed (output rate, before Shaping)'],
+];
+
+/** @param {HTMLElement} host  the drawer block */
+export function mountSignalPath(host) {
+  let state = { p: 'idle', stage: '1x' };
+  const svg = s('svg.sgp', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMin meet', role: 'img', 'aria-label': 'Signal path' });
+  const key = h('div.sgkey', {}, KEY.map(([k, t]) => h('span', {}, h('i', { class: `k-${k}` }), t)));
+  host.append(svg, key);
+
+  const edgeEls = [], nodeEls = {};
+  const L = (n) => n.x - NW / 2, R = (n) => n.x + NW / 2, T = (n) => n.y - NH / 2, B = (n) => n.y + NH / 2;
+
+  // Hatch pattern (the rate dial's unavailable stripes).
+  svg.append(s('defs', {}, s('pattern', { id: 'sg-hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
+    s('rect', { width: 6, height: 6, class: 'sghb' }), s('line', { x1: 0, y1: 0, x2: 0, y2: 6, class: 'sghl' }))));
+
+  // Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
+  // at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.
+  const seam = N.f1.x;
+  svg.append(
+    s('rect.sgz.zs', { x: 0, y: 0, width: seam, height: H - 34, rx: 6 }),
+    s('rect.sgz.zo', { x: seam, y: 0, width: W - seam, height: H - 34, rx: 6 }),
+    s('line.sgseam', { x1: seam, y1: 0, x2: seam, y2: H - 34 }),
+    s('text.sgzt', { x: 12, y: ZONE_Y }, 'SOURCE RATE'),
+    s('text.sgzt', { x: W - 12, y: ZONE_Y, 'text-anchor': 'end' }, 'OUTPUT RATE'),
+  );
+
+  for (const g of GROUPS) {
+    const ns = g.ids.map((id) => N[id]);
+    const x0 = Math.min(...ns.map(L)) - 9, x1 = Math.max(...ns.map(R)) + 9;
+    const y0 = Math.min(...ns.map(T)) - (g.sub ? 46 : 30), y1 = Math.max(...ns.map(B)) + 12;
+    svg.append(s('rect.sgg', { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 5 }),
+      s('text.sggt', { x: x0 + 9, y: y0 + 18 }, g.label.toUpperCase()), g.sub && s('text.sggs', { x: x0 + 9, y: y0 + 34, text: g.sub }));
+  }
+
+  // Direct SDM: from the DSD source down under everything, then up into Speakers.
+  // Down under everything, along the foot, up the right edge, into Speakers' right side (Output hangs under Speakers).
+  const ds = N.ds, sp = N.sp, yb = H - 18, xr = W - 8, r = 10;
+  const direct = s('path.sge', { d: `M ${ds.x} ${B(ds)} V ${yb - r} Q ${ds.x} ${yb} ${ds.x + r} ${yb} H ${xr - r} Q ${xr} ${yb} ${xr} ${yb - r} V ${sp.y + r} Q ${xr} ${sp.y} ${xr - r} ${sp.y} H ${R(sp)}` });
+  svg.append(direct, s('text.sgel', { x: (ds.x + xr) / 2, y: yb + 5, 'text-anchor': 'middle' }, 'DIRECT SDM'));
+  edgeEls.push({ el: direct, a: 'ds', b: 'sp', direct: true });
+
+  for (const [a, b, , v] of E) {
+    const na = N[a], nb = N[b];
+    let d;
+    if (v) d = `M ${na.x} ${B(na)} V ${T(nb)}`;
+    else {
+      const x0 = R(na), x1 = L(nb), mx = (x0 + x1) / 2;
+      d = `M ${x0} ${na.y} C ${mx} ${na.y} ${mx} ${nb.y} ${x1} ${nb.y}`;
+    }
+    const el = s('path.sge', { d });
+    svg.append(el);
+    edgeEls.push({ el, a, b });
+  }
+
+  for (const [id, n] of Object.entries(N)) {
+    const g = s('g.sgn', { class: [n.src && 'src', n.unv && 'unv'].filter(Boolean).join(' ') });
+    g.append(s('rect', { x: L(n), y: T(n), width: NW, height: NH, rx: n.src ? NH / 2 : 4 }));
+    g.append(s('rect.hx', { x: L(n), y: T(n), width: NW, height: NH, rx: 4 }));
+    const ty = n.sub ? n.y - 3 : n.y + 6;
+    g.append(s('text.sgl', { x: n.x, y: ty, 'text-anchor': 'middle' }, n.label));
+    if (n.sub) g.append(s('text.sgs', { x: n.x, y: n.y + 15, 'text-anchor': 'middle' }, n.sub));
+    if (n.tag) {
+      const tw = n.tag.length * 7.6 + 10;
+      g.append(s('rect.sgtb', { x: R(n) - tw + 6, y: T(n) - 9, width: tw, height: 17, rx: 2 }),
+        s('text.sgt', { x: R(n) - tw / 2 + 6, y: T(n) + 4, 'text-anchor': 'middle' }, n.tag));
+    }
+    nodeEls[id] = g;
+    svg.append(g);
+  }
+
+  /** An engaged stage, read off the chain rail (its lamp), so the map follows every Apply. HF filter: on = a filter picked. */
+  const engaged = (stage) => !!document.querySelector(`#rail [data-stage="${stage}"] .lamp.on`);
+
+  function paint() {
+    const lit = new Set(litOf(state.p, state.stage));
+    const mxOn = engaged('matrix');
+    for (const [id, g] of Object.entries(nodeEls)) {
+      const n = N[id];
+      // Bypassed on the path: the matrix gate takes its parts and DAC correction with it (DAC correction needs the matrix).
+      const off = !!lit.has(id) && !! ((['pl', 'xf', 'ld', 'dc'].includes(id) && !mxOn) || (n.rail && n.rail !== 'matrix' && !engaged(n.rail)));
+      g.classList.toggle('lit', lit.has(id));
+      g.classList.toggle('off', !!off);
+    }
+    for (const { el, a, b, direct } of edgeEls) el.classList.toggle('lit', direct ? state.p === 'direct' : lit.has(a) && lit.has(b));
+  }
+
+  window.addEventListener('sigpath', (e) => { state = e.detail; paint(); });
+  window.addEventListener('resize', paint);
+  paint();
+}

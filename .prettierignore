@@ -1,5 +1,7 @@
 # Vendored upstream (preact, htm, signals, AutoEq snapshot) — never ours to format.
 hqptuner/static/vendor/
 node_modules/
+# The v2 mockup stays byte-identical to what was published.
+mockup/
 build/
 dist/
