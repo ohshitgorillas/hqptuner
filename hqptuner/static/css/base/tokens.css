@@ -85,12 +85,12 @@
   --fg: #d7dbe3;
   --fg-2: #9299a5;
   --muted: #7f8794;
-  --line: #2e333f;
-  /* signature accent — default blue; overridden per :root[data-accent]. --glow
+  --line: #33373e;
+  /* signature accent — default amber; overridden per :root[data-accent]. --glow
      is the brighter sibling reserved for the one hero spot (active signal
      stage), so "active" pops without repainting the stingy accent everywhere. */
-  --accent: #4f9dde;
-  --accent-glow: #74b6ec;
+  --accent: #e9a63c;
+  --accent-glow: #ffd48a;
   /* ── Density scale (binding, floor + 5 levels) ────────────────────────
      The apodizing strip's colormap, and the ONE palette in this file that is
      deliberately independent of --accent. A measurement scale must not change
@@ -127,8 +127,7 @@
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
-  /* referenced as `var(--warn, #e0a030)` in narrowing.css — keep in step */
-  --warn: #e0a030;
+  --warn: #e9a63c;
   /* ink for text sitting ON an accent fill (primary buttons, active segments) —
      near-black with the accent's hue, so it stays legible on every accent */
   --on-accent: #08121c;
@@ -302,13 +301,13 @@
   font-family: var(--font-ui);
 }
 
+:root[data-accent="blue"] {
+  --accent: #4f9dde;
+  --accent-glow: #74b6ec;
+}
 :root[data-accent="green"] {
   --accent: #3fe0a0; /* phosphor — oscilloscope readout */
   --accent-glow: #6affc0;
-}
-:root[data-accent="amber"] {
-  --accent: #e0a63a; /* VU-meter warmth */
-  --accent-glow: #f5c14a;
 }
 :root[data-accent="violet"] {
   --accent: #a78bfa; /* plasma display */

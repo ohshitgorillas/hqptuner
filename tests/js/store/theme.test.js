@@ -113,7 +113,7 @@ test("test_an_unknown_swatch_name_falls_back_to_the_default", () => {
   setup();
   applyAccent("green");
   applyAccent("magenta");
-  assert.equal(accent.value, "blue");
+  assert.equal(accent.value, "amber");
 });
 
 test("test_a_preset_swatch_drops_a_custom_hex_override", () => {

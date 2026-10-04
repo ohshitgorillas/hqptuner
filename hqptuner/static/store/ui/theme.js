@@ -13,14 +13,14 @@ const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
 const KEY_DYSLEXIC = "hqptuner.dyslexic";
 export const ACCENTS = ["blue", "green", "amber", "violet"];
-const DEFAULT = "blue";
+const DEFAULT = "amber";
 // each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
 // hex box when a swatch is picked, so custom colors start from the preset
 /** @type {Record<string, string>} */
 export const ACCENT_HEX = {
   blue: "#4f9dde",
   green: "#3fe0a0",
-  amber: "#e0a63a",
+  amber: "#e9a63c",
   violet: "#a78bfa",
 };
 
