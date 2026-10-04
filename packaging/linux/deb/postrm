@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = remove ] && [ -d /run/systemd/system ] ; then
+	systemctl --system daemon-reload >/dev/null || true
+fi
+
+if [ "$1" = "purge" ]; then
+	if [ -f /usr/share/debconf/confmodule ]; then
+		. /usr/share/debconf/confmodule
+		db_input high hqptuner/purge-data || true
+		db_go || true
+		db_get hqptuner/purge-data || true
+		if [ "$RET" = "true" ]; then
+			# Delete the state directory and the private directory it links to.
+			rm -rf /var/lib/hqptuner /var/lib/private/hqptuner
+		fi
+		db_purge || true
+	fi
+	deb-systemd-helper purge hqptuner.service >/dev/null || true
+fi

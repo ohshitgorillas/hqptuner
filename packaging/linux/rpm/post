@@ -1,0 +1,14 @@
+#!/bin/sh
+# $1 is the count of installed copies; 1 means first install.
+if [ "$1" -eq 1 ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl enable hqptuner.service || :
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || :
+        systemctl start hqptuner.service || :
+        if systemctl --quiet is-active hqptuner.service; then
+            # First address hostname -I prints, empty when it prints none.
+            address=$(hostname -I 2>/dev/null | cut -d ' ' -f 1)
+            printf 'HQPTuner is running. Open http://%s:8090 in a browser.\n' "${address:-yourserverIP}"
+        fi
+    fi
+fi

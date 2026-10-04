@@ -1,0 +1,157 @@
+name: release
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "packaging/**"
+      - scripts/package-linux.sh
+      - hqptuner.spec
+      - pyproject.toml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  # glibc 2.28 is the floor the packages promise, so the bundle is frozen on
+  # AlmaLinux 8 and runs on anything newer.
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+            nfpm: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            nfpm: arm64
+    runs-on: ${{ matrix.runner }}
+    container: almalinux:8
+    steps:
+      - run: dnf -y install git binutils tar gzip
+
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - run: curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+      - run: uv venv --python 3.14 .venv
+      - run: uv pip install . pyinstaller
+
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: 2.47.0
+        run: |
+          tarball="nfpm_${NFPM_VERSION}_Linux_${{ matrix.nfpm }}.tar.gz"
+          base="https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}"
+          curl -LsSfO "$base/$tarball"
+          curl -LsSfO "$base/checksums.txt"
+          grep " $tarball\$" checksums.txt | sha256sum -c -
+          tar -xzf "$tarball" -C /usr/local/bin nfpm
+
+      - run: scripts/package-linux.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
+
+  # Install, run and remove in a container with no systemd, on the oldest
+  # supported release of each family and the newest Fedora.
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { runner: ubuntu-24.04, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64 }
+        distro:
+          - { image: "debian:12", ext: deb }
+          - { image: "ubuntu:22.04", ext: deb }
+          - { image: "almalinux:8", ext: rpm }
+          - { image: "fedora:latest", ext: rpm }
+    runs-on: ${{ matrix.platform.runner }}
+    container: ${{ matrix.distro.image }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.platform.arch }}
+          path: dist
+
+      - name: Install curl
+        run: |
+          if command -v curl >/dev/null; then
+            exit 0
+          fi
+          if [ "${{ matrix.distro.ext }}" = deb ]; then
+            apt-get update
+            apt-get install -y curl
+          else
+            dnf -y install curl
+          fi
+
+      - run: bash packaging/linux/smoke.sh dist/*.${{ matrix.distro.ext }}
+
+  # The runner VM boots systemd, so the deb lifecycle runs on it directly.
+  lifecycle-deb:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist
+
+      - run: sudo GITHUB_ACTIONS=true bash packaging/linux/lifecycle.sh dist/*.deb
+
+  # The rpm lifecycle needs systemd as PID 1 in an rpm distro, which a
+  # `container:` job cannot give, so it boots one with docker.
+  lifecycle-rpm:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist
+
+      - name: Start AlmaLinux 8 with systemd
+        run: |
+          docker run -d --name alma --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw almalinux/8-init
+          rpm=(dist/*.rpm)
+          docker cp "${rpm[0]}" alma:/tmp/hqptuner.rpm
+          docker cp packaging/linux/lifecycle.sh alma:/tmp/lifecycle.sh
+          docker exec alma systemctl is-system-running --wait || true
+
+      - run: docker exec -e GITHUB_ACTIONS=true alma bash /tmp/lifecycle.sh /tmp/hqptuner.rpm
+
+      - if: always()
+        run: docker rm -f alma

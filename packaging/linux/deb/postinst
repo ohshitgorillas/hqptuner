@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+
+# Load debconf, which registers the templates the purge question reads.
+if [ -e /usr/share/debconf/confmodule ]; then
+	. /usr/share/debconf/confmodule
+	db_stop || true
+fi
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	# True unless the admin disabled the unit.
+	if deb-systemd-helper --quiet was-enabled hqptuner.service; then
+		# Enable the unit and add any symlinks a changed unit file needs.
+		deb-systemd-helper enable hqptuner.service >/dev/null || true
+	else
+		# Record the unit's symlinks for purge without enabling it.
+		deb-systemd-helper update-state hqptuner.service >/dev/null || true
+	fi
+fi
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -z "$DPKG_ROOT" ] && [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		if [ -n "$2" ]; then
+			_dh_action=restart
+		else
+			_dh_action=start
+		fi
+		deb-systemd-invoke "$_dh_action" hqptuner.service >/dev/null || true
+
+		# Print the address on a fresh install once the service is running.
+		if [ "$1" = "configure" ] && [ -z "$2" ] && systemctl --quiet is-active hqptuner.service; then
+			address=$(hostname -I 2>/dev/null | cut -d ' ' -f 1) || true
+			[ -n "$address" ] || address=yourserverIP
+			echo "HQPTuner is running. Open http://$address:8090 in a browser." >&2
+		fi
+	fi
+fi
+
+exit 0
