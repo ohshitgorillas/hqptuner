@@ -1,12 +1,12 @@
-// Behavioral suite for mockup/scripts/model/settings.js: how a settings readout prints a control's value, and which
+// Behavioral suite for hqptuner/static/model/shell/settings.js: how a settings readout prints a control's value, and which
 // visual effect a live setting change causes with the values it carries.
 //
-// Run: node --test tests/js/mockup/settings.test.js
+// Run: node --test tests/js/model/shell/settings.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { readoutOf, effectOf } from "../../../../mockup/scripts/model/shell/settings.js";
+import { readoutOf, effectOf } from "../../../../hqptuner/static/model/shell/settings.js";
 
 //: Accents the test writes: a known pick carries its own swatch color and name.
 const ACCENTS = [
@@ -47,28 +47,28 @@ const TEXT = { type: "text" };
 
 /**
  * The value of one accent token, or undefined when the effect is not an accent change.
- * @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx
+ * @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx
  * @param {string} name
  */
 const tokenOf = (fx, name) => (fx.kind === "accent" ? fx.tokens[name] : undefined);
 
 /**
  * Whether stage `id` is hidden, or undefined when the effect is not a hide change or does not name it.
- * @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx
+ * @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx
  * @param {string} id
  */
 const hiddenOf = (fx, id) => (fx.kind === "hide" ? fx.stages.find((s) => s.id === id)?.hidden : undefined);
 
-/** @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx */
+/** @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx */
 const stageCount = (fx) => (fx.kind === "hide" ? fx.stages.length : undefined);
 
-/** @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx */
+/** @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx */
 const onOf = (fx) => (fx.kind === "pinallow" ? fx.on : undefined);
 
-/** @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx */
+/** @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx */
 const familyOf = (fx) => (fx.kind === "font" ? fx.family : undefined);
 
-/** @param {import("../../../../mockup/scripts/model/shell/settings.js").Effect} fx */
+/** @param {import("../../../../hqptuner/static/model/shell/settings.js").Effect} fx */
 const valueOf = (fx) => (fx.kind === "fill" || fx.kind === "bottom" || fx.kind === "style" ? fx.value : undefined);
 
 // ── readoutOf ───────────────────────────────────────────────────────────────

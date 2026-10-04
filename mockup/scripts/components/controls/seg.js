@@ -2,7 +2,7 @@
 
 import { h } from "../../lib/shell/dom.js";
 
-/** @typedef {import('../../model/shell/settings.js').Option & { title?: string }} SegOption */
+/** @typedef {import('../../../../hqptuner/static/model/shell/settings.js').Option & { title?: string }} SegOption */
 
 /**
  * A segmented switch: one button per option, the one matching `value` on; a click on another moves the selection and

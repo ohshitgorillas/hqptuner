@@ -74,6 +74,7 @@
 
   /* Surfaces */
   --page:#0e0f12;          /* room behind the plate */
+  --plate:#1c1e22;         /* the plate's flat fill */
   --plate-2:#212429;       /* a flat face on the plate: a disabled button, a bar */
   --glass:#08090b;         /* VFD windows, segments, meters, plots */
   --pop:#16181c;           /* popover sheets */
@@ -137,6 +138,7 @@
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */
   --shade-deep:#000c;          /* cast shadow under the plate */
   --glint:#fff;                /* hot point inside a lit lamp */
+  --glint-lo:#fff4;            /* top-edge light on a colour swatch */
   --highlight-lo:#4a4f5833;    /* --highlight at 20%: the edge of a drawer or sheet */
   --lamp-rim:#0a0c0f;          /* lamp bezel */
   --plate-face:linear-gradient(180deg,#23262b,#1b1d21 40%,#1e2126);   /* the plate */

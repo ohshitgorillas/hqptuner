@@ -1,6 +1,4 @@
-/* HQPTuner v2 faceplate mockup: the tokens no served stylesheet reads yet. Every other token is in
-   hqptuner/static/css/v2/tokens.css, linked ahead of this file; a token moves there with its first reader. */
+/* HQPTuner v2 faceplate mockup: every token now lives in hqptuner/static/css/v2/tokens.css, linked ahead of
+   this file; a token moves there with its first reader. */
 :root{
-  --plate:#1c1e22;         /* the plate's flat fill */
-  --glint-lo:#fff4;            /* top-edge light on a colour swatch */
 }

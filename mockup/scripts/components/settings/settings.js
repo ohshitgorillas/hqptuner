@@ -12,7 +12,7 @@ import { h } from "../../lib/shell/dom.js";
 import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
 import { rowsOf } from "../../model/builders/schema.js";
-import { readoutOf, effectOf } from "../../model/shell/settings.js";
+import { readoutOf, effectOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { secHead, manPara } from "../../lib/controls/controls.js";
 import { swapBody, escapeLeaves } from "../../lib/builder/builder.js";
 import { mountDrawer } from "../drawers/drawer.js";
@@ -26,7 +26,7 @@ import { MIRROR } from "../../data/settings/hardware.js";
 
 /** @typedef {import('../../lib/shell/bus.js').Bus} Bus */
 /** @typedef {import('../../../../hqptuner/static/lib/clock.js').Clock} Clock */
-/** @typedef {import('../../model/shell/settings.js').Control & { id?: string, value?: string | number, items?: SettingControl[] }} SettingControl */
+/** @typedef {import('../../../../hqptuner/static/model/shell/settings.js').Control & { id?: string, value?: string | number, items?: SettingControl[] }} SettingControl */
 /** @typedef {{ label?: string, live?: boolean, control: SettingControl }} SettingRow */
 /** @typedef {(typeof SETTINGS_RAIL)[number]} Category */
 /** @typedef {{ dd: HTMLElement, fmt: (v: string) => string | [HTMLElement, string] }} Readout  a readout's value cell and how it prints */
