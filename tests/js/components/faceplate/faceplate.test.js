@@ -187,6 +187,10 @@ test("test_the_gear_takes_the_option_list_sheet_off_the_plate", () => {
   assert.ok(!frame().some((e) => e.name === "aside" && classes(e).includes("osheet")));
 });
 
+test("test_the_frame_holds_the_connection_panel", () => {
+  assert.ok(frame().some((e) => e.name === "aside" && attr(e, "data-testid") === "conn-panel"));
+});
+
 /** The plate's own element. */
 const plateEl = () => frame().find((e) => e.name === "div" && classes(e).includes("plate"));
 

@@ -2,8 +2,9 @@
 // Header and engine row stay; under them the chain body (rail, page, one drawer per rail stage over the page, each
 // drawn from its registered schema, the page's plate-level popovers, and the option list a chain picker opens over the
 // body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body, the Profile builder's
-// body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The faceplate theme is stamped on the
-// document root before the first render.
+// body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The connection
+// panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
+// first render.
 import { render } from "preact";
 import { html } from "../lib/dom.js";
 import { Plate } from "../components/faceplate/Plate.js";
@@ -20,6 +21,7 @@ import { SettingsBody } from "../components/faceplate/settings/SettingsBody.js";
 import { SnapshotBuilder } from "../components/faceplate/builders/SnapshotBuilder.js";
 import { ProfileBuilder } from "../components/faceplate/builders/ProfileBuilder.js";
 import { Switcher } from "../components/faceplate/bottom/Switcher.js";
+import { ConnPanel } from "../components/faceplate/ConnPanel.js";
 import { body } from "../store/faceplate/view.js";
 import { watchFaceplateTheme } from "../store/faceplate/settings/visual.js";
 import { railStages, railNow } from "../store/faceplate/chain.js";
@@ -28,6 +30,7 @@ import { initFavicon } from "../store/ui/favicon.js";
 import { initHealth } from "../store/health.js";
 import { bookWanted } from "../store/live/presets.js";
 import { loadSpeakers } from "../store/matrix/speakers.js";
+import { initSetup, pageHost } from "../store/setup.js";
 
 /** The chain body: rail, hairline, page, and the stage drawers over the page. */
 function ChainBody() {
@@ -67,6 +70,7 @@ export function Faceplate() {
   return html`
     <${Plate}>
       <${Header} />
+      <${ConnPanel} />
       <div class="rule"></div>
       <${EngineRow} />
       <div class="rule"></div>
@@ -83,6 +87,8 @@ if (root) {
   initHealth();
   bookWanted.value = true;
   loadSpeakers();
+  initSetup();
+  pageHost.value = location.hostname;
   startPolling();
   watchFaceplateTheme(document.documentElement);
   render(html`<${Faceplate} />`, root);

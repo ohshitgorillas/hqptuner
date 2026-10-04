@@ -91,3 +91,17 @@ button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-
 /* Buffer bars take part of the spare width the larger displays give the engine row (lib/plate.js SIZES). */
 .plate[data-size="11"] .meter .bar{width:130px}
 .plate[data-size="13"] .meter .bar{width:240px}
+
+/* Connection panel (components/faceplate/ConnPanel.js): a sheet from the body's top (set inline) to the plate's foot, v1's
+   fields in one column. Text fields are the builders' name windows, radios `.chk`, prose `.man`. */
+.csheet{bottom:0}
+.cbody{flex-grow:1;min-height:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px 22px}
+.cbody .bname{width:320px}
+.cbody .bnin::placeholder{color:var(--ink-2);opacity:1}
+.cbody a{color:var(--acc)}
+.crow{display:flex;align-items:center;gap:10px}
+.copts{margin:0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:4px}
+.cfill{border:0;background:none;padding:0;font-family:var(--f-body);font-size:inherit;line-height:inherit;color:var(--acc);text-decoration:underline;cursor:pointer}
+.cfill:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.crem{display:flex;gap:18px}
+.cbtns{display:flex;gap:10px}
