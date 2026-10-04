@@ -1,6 +1,6 @@
 // The v2 entry, served at /v2/ beside the v1 shell: the faceplate's root, mounted where the page has a mount point.
-// Header and engine row stay; under them the chain body (rail, page, and one drawer per rail stage over the page) or
-// the body a builder or the gear swaps in.
+// Header and engine row stay; under them the chain body (rail, page, and one drawer per rail stage over the page,
+// each drawn from its registered schema) or the body a builder or the gear swaps in.
 import { render } from "preact";
 import { html } from "../lib/dom.js";
 import { Plate } from "../components/faceplate/Plate.js";
@@ -9,6 +9,7 @@ import { EngineRow } from "../components/faceplate/EngineRow.js";
 import { Rail } from "../components/faceplate/Rail.js";
 import { Page } from "../components/faceplate/Page.js";
 import { Drawer } from "../components/faceplate/drawer/Drawer.js";
+import { stageDrawer } from "../components/faceplate/drawers/index.js";
 import { body } from "../store/faceplate/view.js";
 import { railStages, railNow } from "../store/faceplate/chain.js";
 import { startPolling } from "../store/sync.js";
@@ -16,16 +17,6 @@ import { initFavicon } from "../store/ui/favicon.js";
 import { initHealth } from "../store/health.js";
 import { bookWanted } from "../store/live/presets.js";
 import { loadSpeakers } from "../store/matrix/speakers.js";
-
-/** @typedef {import("../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-
-/**
- * A rail stage's drawer before its rows are drawn: its title and nothing under it.
- *
- * @param {{ id: string, name: string }} stage
- * @returns {DrawerSchema}
- */
-const bare = ({ id, name }) => ({ id, title: name, aria: name, tabs: [{ id: "main", label: name, body: [] }] });
 
 /** The chain body: rail, hairline, page, and the stage drawers over the page. */
 function ChainBody() {
@@ -35,7 +26,10 @@ function ChainBody() {
       <${Rail} />
       <div class="vrule"></div>
       <${Page} />
-      ${stages.map((st) => html`<${Drawer} key=${st.id} schema=${bare(st)} />`)}
+      ${stages.map((st) => {
+        const { schema, blocks } = stageDrawer(st);
+        return html`<${Drawer} key=${st.id} schema=${schema} blocks=${blocks} />`;
+      })}
     </div>
   `;
 }

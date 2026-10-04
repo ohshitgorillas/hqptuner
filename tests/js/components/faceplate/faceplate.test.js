@@ -82,3 +82,14 @@ test("test_the_body_shown_is_named_on_the_plate", () => {
     .map((e) => attr(e, "data-body"));
   assert.deepEqual(shown, ["station"]);
 });
+
+test("test_a_stage_with_a_registered_drawer_draws_that_drawers_body", () => {
+  toggleStage("source");
+  const open = frame().find((e) => e.name === "aside" && !hasAttr(e, "data-closed"));
+  const blocks = open
+    ? elements(open.html)
+        .map((e) => attr(e, "data-block"))
+        .filter((b) => b !== undefined)
+    : [];
+  assert.deepEqual(blocks, ["meter"]);
+});
