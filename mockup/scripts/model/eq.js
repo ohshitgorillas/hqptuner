@@ -66,3 +66,47 @@ export const searchHits = (hits, query) => {
   const t = query.trim().toLowerCase();
   return hits.filter((x) => !t || x.name.toLowerCase().includes(t));
 };
+
+/**
+ * The hits a search shows: none for a blank query, else the first `max` matches, and how many matches lie past them.
+ *
+ * @template {{ name: string }} T
+ * @param {readonly T[]} hits
+ * @param {string} query
+ * @param {number} max
+ * @returns {{ shown: T[], more: number }}
+ */
+export const shownHits = (hits, query, max) => {
+  const all = query.trim() ? searchHits(hits, query) : [];
+  return { shown: all.slice(0, max), more: Math.max(0, all.length - max) };
+};
+
+/**
+ * An AutoEq hit: its name, measurement source, bands and preamp in dB.
+ *
+ * @typedef {{ name: string, src: string, bands: readonly Band[], pre: number | null }} Hit
+ */
+
+/**
+ * A picked hit's band summary: how many bands it holds and its preamp.
+ *
+ * @param {Hit} hit
+ * @returns {{ count: number, pre: number | null }}
+ */
+export const hitSummary = (hit) => ({ count: hit.bands.length, pre: hit.pre });
+
+/**
+ * A picked hit as a pipeline to preview: its bands as stages, its preamp as the gain in dB.
+ *
+ * @param {Hit} hit
+ * @returns {{ stages: IirStage[], gain: number | null, unit: 'dB' }}
+ */
+export const hitPipe = (hit) => ({ stages: bandsToStages(hit.bands), gain: hit.pre, unit: 'dB' });
+
+/**
+ * How many peak and shelf stages a pipeline holds.
+ *
+ * @param {readonly Stage[]} stages
+ * @returns {number}
+ */
+export const peqCount = (stages) => stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type ?? '')).length;

@@ -3,7 +3,7 @@
 
 import { $ } from '../lib/dom.js';
 import { closeSheets } from '../lib/sheet.js';
-import { familyOf } from '../components/drawer.js';
+import { loadValues } from '../components/drawer.js';
 import { mountSettings } from '../components/settings.js';
 import { mountSnapshotBuilder } from '../components/snapshot-builder.js';
 import { mountProfileBuilder } from '../components/profile-builder.js';
@@ -43,12 +43,7 @@ export function wireBuilders(app) {
         app.conn.applying();
         // Saved to the loaded station: it runs now (the restart Save causes, then the switch). The chain's Matrix engine family
         // takes its values as applied: drawers, rail lamps and values, the page section follow.
-        if (run && rec) {
-          const fam = familyOf('matrix');
-          Object.assign(fam.base, rec.vals);
-          for (const d of fam.members) d.discarded();
-          for (const d of fam.members) { d.settle(); d.applied(); }
-        }
+        if (run && rec) loadValues('matrix', rec.vals);
         // The page lists the loaded station's profiles (mock: the builder's records are the source).
         const home = STATIONS.find((st) => st.active).name;
         const mine = touched.find(([st]) => st === home);

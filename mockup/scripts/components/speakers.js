@@ -11,8 +11,29 @@ import { withXref } from '../lib/xref.js';
 import { numBox } from '../lib/controls.js';
 import { headGlyph, speakerGlyph } from '../lib/glyphs.js';
 import { minus } from '../model/format.js';
+import { HEAD, placeSpeakers, planExtent } from '../model/speakers.js';
 
-const CX = 0, CY = 0, HEAD = 13, R_MAX = 122, DIST_FULL = 600, SUB_OUT = 1.35, SUB_MAX = 140;
+/**
+ * Draws the set's speakers on the plan, the box fitted to them (v1), centred on the listener so left/right and
+ * front/back stay true to each other.
+ *
+ * @param {SVGElement} svg
+ * @param {object[]} ch   every channel: name, short, level, distance
+ * @param {number[]} channels   the set's channel indices
+ * @param {number[]} layout   each channel's angle
+ */
+function drawPlan(svg, ch, channels, layout) {
+  const pts = placeSpeakers(channels, layout, ch.map((c) => c.distance));
+  const R = planExtent(pts);
+  svg.setAttribute('viewBox', `${-R} ${-R} ${2 * R} ${2 * R}`);
+  svg.replaceChildren(...[
+    headGlyph(0, 0, HEAD, 5),
+    pts.map((p) => s('g', { class: 'spk ' },
+      speakerGlyph(p.x, p.y, p.deg, p.sub),
+      s('text.sl', { x: p.x, y: p.y + 22, 'text-anchor': 'middle', text: ch[p.i].short }),
+      s('text.sv', { x: p.x, y: p.y + 33, 'text-anchor': 'middle', text: minus(ch[p.i].level, 1) }))),
+  ].flat(2).filter(Boolean));
+}
 
 /**
  * @param {HTMLElement} host
@@ -54,27 +75,7 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
     h('div.spleft', {}, h('label.ci', {}, h('span.cl', { text: 'Speaker set' }), setSel), rowsHost),
     h('div.spright', {}, svg)));
 
-  const radius = (i, d) => {
-    const r = HEAD + (Math.max(0, Math.min(DIST_FULL, d)) / DIST_FULL) * (R_MAX - HEAD);
-    return i === 3 ? Math.min(r * SUB_OUT, SUB_MAX) : r;
-  };
-  function plan() {
-    const pts = set.channels.map((i) => {
-      const c = ch[i], a = cfg.layout[i] * Math.PI / 180, r = radius(i, c.distance);
-      return { c, i, deg: cfg.layout[i], x: CX + r * Math.sin(a), y: CY - r * Math.cos(a), on: true };
-    });
-    // Fit the box to what is drawn (v1), centred on the listener so left/right and front/back stay true to each other.
-    const R = Math.max(HEAD + 20, ...pts.map((p) => Math.max(Math.abs(p.x) + 26, Math.abs(p.y) + 40)));
-    svg.setAttribute('viewBox', `${-R} ${-R} ${2 * R} ${2 * R}`);
-    svg.replaceChildren(...[
-      headGlyph(CX, CY, HEAD, 5),
-      // Out-of-set first so the set's speakers draw on top.
-      pts.map((p) => s('g', { class: `spk ${p.on ? '' : 'off'}` },
-        speakerGlyph(p.x, p.y, p.deg, p.i === 3),
-        s('text.sl', { x: p.x, y: p.y + 22, 'text-anchor': 'middle', text: p.c.short }),
-        s('text.sv', { x: p.x, y: p.y + 33, 'text-anchor': 'middle', text: minus(p.c.level, 1) }))),
-    ].flat(2).filter(Boolean));
-  }
+  function plan() { drawPlan(svg, ch, set.channels, cfg.layout); }
 
   // Direct SDM playing (mock scenario): the level trims do nothing, the delays still apply (v1 Card.js): the level column
   // grays with v1's note under the rows (it links to DSD playback, where Direct SDM is set); distances stay live.

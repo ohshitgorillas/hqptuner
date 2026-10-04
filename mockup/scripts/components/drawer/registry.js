@@ -1,6 +1,7 @@
 // Every stage drawer on the page: the one-open-at-a-time rule, the open/close wipe, Escape, and the drawer families.
 
 import { anyOpen } from '../../lib/popover.js';
+import { commit } from '../../model/drawer.js';
 
 const DRAWERS = [];
 // Drawer families: drawers that edit one shared object (the Matrix engine family edits the matrix profile in focus:
@@ -14,6 +15,13 @@ export const family = (name) => {
 };
 /** A family's shared store: {vals, base, members} (the Profile builder reads the chain's applied matrix for New). */
 export const familyOf = (name) => family(name);
+/** Load a saved record's values into a family as applied: every member drops its staged edits and repaints on them. */
+export function loadValues(name, vals) {
+  const fam = family(name);
+  Object.assign(fam.base, commit(vals, fam.base));   // in place: every member holds this store by reference
+  for (const d of fam.members) d.discarded();
+  for (const d of fam.members) { d.settle(); d.applied(); }
+}
 
 /** Bespoke drawers (Resampling · Shaping) join the one-open-at-a-time rule through these. api = {setOpen(open, snap)}. */
 export function registerDrawer(api) { DRAWERS.push(api); }

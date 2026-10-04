@@ -13,8 +13,7 @@
 import { h } from '../lib/dom.js';
 import { scale } from '../lib/plate.js';
 import { classNames } from '../model/format.js';
-
-const CHAMFER = 5;
+import { lampDots, wirePath } from '../model/wire.js';
 
 /**
  * @param {HTMLElement} rail  nav.rail containing svg.wire
@@ -52,55 +51,18 @@ export function mountRail(rail, chain, style, bus) {
 function dots(rail) {
   const rr = rail.getBoundingClientRect();
   const k = scale();
-  return [...rail.querySelectorAll('.st:not([hidden]) > .lamp')].map((l) => {
-    const b = l.getBoundingClientRect();
-    return {
-      x: Math.round((b.left + b.width / 2 - rr.left) / k) + 0.5,   // +.5 = crisp 1.5px stroke on the pixel grid
-      y: Math.round((b.top + b.height / 2 - rr.top) / k) + 0.5,
-      level: Number(l.parentElement.dataset.level),
-      on: l.classList.contains('on') && !l.parentElement.matches('.byp, .dead'),   // byp: not in this track's path; dead: nothing reaches it
-    };
-  });
+  const lamps = [...rail.querySelectorAll('.st:not([hidden]) > .lamp')].map((l) => ({
+    box: l.getBoundingClientRect(),
+    level: Number(l.parentElement.dataset.level),
+    on: l.classList.contains('on') && !l.parentElement.matches('.byp, .dead'),   // byp: not in this track's path; dead: nothing reaches it
+  }));
+  return lampDots({ rail: rr, lamps, scale: k });
 }
 
 function drawWire(rail, svg, style) {
   const pts = dots(rail);
   if (!pts.length) return;
-  const d = [];
-  const M = (x, y) => d.push(`M${x},${y}`);
-  const L = (x, y) => d.push(`L${x},${y}`);
-  const c = CHAMFER;
-
-  if (style === 'routed') {
-    M(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i];
-      if (Math.abs(a.x - b.x) < 1) { L(b.x, b.y); continue; }
-      const sx = b.x > a.x ? 1 : -1;
-      const ym = sx > 0 ? b.y - 11 : Math.round((a.y + b.y) / 2) + 0.5;
-      L(a.x, ym - c); L(a.x + sx * c, ym); L(b.x - sx * c, ym); L(b.x, ym + c); L(b.x, b.y);
-    }
-  } else {
-    const top = pts.filter((p) => p.level === 0);
-    const trunkEnd = top[top.length - 1];
-    M(top[0].x, top[0].y); L(trunkEnd.x, trunkEnd.y);
-    pts.forEach((parent, i) => {
-      if (!parent.on) return;
-      const kids = [];
-      for (let j = i + 1; j < pts.length && pts[j].level > parent.level; j++) {
-        if (pts[j].level === parent.level + 1 && pts[j].on) kids.push(pts[j]);
-      }
-      if (!kids.length) return;
-      const last = kids[kids.length - 1];
-      const busContinues = parent.level === 0 && trunkEnd.y > last.y;
-      for (const k of kids) {
-        if (k === last && !busContinues) { M(parent.x, parent.y); L(parent.x, k.y - c); L(parent.x + c, k.y); L(k.x, k.y); }
-        else { M(parent.x, k.y); L(k.x, k.y); }
-      }
-    });
-  }
-
   svg.setAttribute('width', rail.offsetWidth);
   svg.setAttribute('height', rail.offsetHeight);
-  svg.firstElementChild.setAttribute('d', d.join(' '));
+  svg.firstElementChild.setAttribute('d', wirePath(pts, style));
 }

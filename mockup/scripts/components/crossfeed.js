@@ -23,11 +23,21 @@ import { BAUER_PRESETS, bauerMS, pathParams, toDb } from '../lib/xdsp.js';
 import { grayReason, manPara, numBox } from '../lib/controls.js';
 import { headGlyph, speakerGlyph } from '../lib/glyphs.js';
 import { minus, plusMinus } from '../model/format.js';
-import { bauerPreset, structuralPreset } from '../model/crossfeed.js';
+import {
+  bauerPlot, bauerSummary, crossfeedGray, geometryReadouts, listeningGeometry, structuralPreset, structuralSummary,
+} from '../model/crossfeed.js';
 import { ENGAGE_BYPASS } from '../data/matrix.js';
 
 const OFF_REASON = 'Enable crossfeed to adjust.';   // v1 gray.js crossfeedOff
 const S_TOL = { angle: 0.05, lambda: 0.005 };        // a slider's Structural values still read as their preset
+const ID = { gate: 'xfgate', impl: 'xfimpl', preset: 'xfpreset', freq: 'xffreq', level: 'xflevel', comp: 'xfcomp', angle: 'xsangle', circ: 'xscirc', lambda: 'xslambda' };
+
+/**
+ * One mounted drawer: its state, staging setter, matrix-family environment and the elements the paint passes reach.
+ *
+ * @typedef {{ host: HTMLElement, cfg: any, st: any, set: (k: string, val: any) => void,
+ *   env: { iir2fir: string, mxWhy: string }, [el: string]: any }} View
+ */
 
 /**
  * @param {HTMLElement} host
@@ -37,229 +47,286 @@ const S_TOL = { angle: 0.05, lambda: 0.005 };        // a slider's Structural va
  */
 export function mountCrossfeed(host, cfg, ctx, bypassed) {
   const st = { gate: cfg.mode === 'off' ? '0' : '1', impl: cfg.mode === 'off' ? 'bauer' : cfg.mode, ...cfg.bauer, ...cfg.structural };
-  const ID = { gate: 'xfgate', impl: 'xfimpl', preset: 'xfpreset', freq: 'xffreq', level: 'xflevel', comp: 'xfcomp', angle: 'xsangle', circ: 'xscirc', lambda: 'xslambda' };
   for (const [k, id] of Object.entries(ID)) ctx.init(id, st[k]);
   const mode = () => (st.gate === '1' ? st.impl : 'off');
   ctx.init('xfmode', mode());   // what runs: off | bauer | structural (main.js reads it on Apply)
-  let iir2fir = '0', mxWhy = '';
-  const M = cfg.man;
+  /** @type {View} */
+  const v = { host, cfg, st, env: { iir2fir: '0', mxWhy: '' },
+    set: (k, val) => { st[k] = val; ctx.set(ID[k], val); if (k === 'gate' || k === 'impl') ctx.set('xfmode', mode()); } };
+  Object.assign(v, controls(v));
+  v.lines = buildLines(v);
+  Object.assign(v, pictureHosts());
+  host.append(
+    h('div.xgate', {}, h('b', { text: 'Crossfeed' }), v.gateSeg, v.reason.el),
+    h('div.chlist.xlist', { role: 'radiogroup', 'aria-label': 'Crossfeed implementation' }, v.lines.map((l) => l.el)),
+    v.plotHost, v.diagHost);
+  v.rp = mountRespPlot(v.plotHost, { lo: -15, hi: 3, step: 3, aria: 'Bauer crossfeed response' });
 
-  const set = (k, v) => { st[k] = v; ctx.set(ID[k], v); if (k === 'gate' || k === 'impl') ctx.set('xfmode', mode()); };
+  // Discard (mock): the staged values go back; the picture follows.
+  ctx.onDiscard((b) => {
+    for (const [k, id] of Object.entries(ID)) st[k] = ['gate', 'impl', 'preset'].includes(k) ? b[id] : Number(b[id]);
+    paintAll(v);
+  });
 
-  // ── Controls ──────────────────────────────────────────────────────────
-  /** Slider + number box, one value (v1 SliderNumber): drag streams the picture, release stages. mul = shown per stored unit. */
-  function slider({ k, label, min, max, step, unit, dp, sub, mul = 1 }) {
-    const range = h('input', { type: 'range', min, max, step, 'aria-label': label });
-    const { el: num, input: box } = numBox({ min, max, step, aria: label, unit });
-    const subEl = sub && h('span.h', {});   // e.g. the radius the model works from, beside the label
-    const show = (v) => { range.value = v; box.value = Number(v).toFixed(dp); if (subEl) subEl.textContent = sub(v); };
-    const paint = () => show(st[k] * mul);
-    range.addEventListener('input', () => { st[k] = Number(range.value) / mul; show(Number(range.value)); picture(); paintPreset(); });
-    const commit = (v) => { set(k, Math.max(min, Math.min(max, v)) / mul); paintAll(); };
-    range.addEventListener('change', () => commit(Number(range.value)));
-    box.addEventListener('change', () => commit(Number(box.value)));
-    const el = h('div.xsl', {}, h('span.cl', {}, label, subEl), range, num);
-    return { el, paint };
-  }
+  ctx.watch((vals) => {
+    v.env.iir2fir = vals.mxiir2fir ?? '0';
+    v.env.mxWhy = bypassed(vals);
+    gray(v);
+  });
 
+  paintAll(v);
+  return { mode, state: st };
+}
+
+// ── Controls ──────────────────────────────────────────────────────────
+
+/**
+ * The gate, Bauer's and Structural's controls, in mount order.
+ *
+ * @param {View} v
+ */
+function controls(v) {
+  const { st, cfg } = v, M = cfg.man;
   const gateSeg = seg({ aria: 'Crossfeed', value: st.gate,
     options: ENGAGE_BYPASS,   // default leftmost
-    onChange: (v) => { set('gate', v); paintAll(); } });
+    onChange: (/** @type {string} */ x) => { v.set('gate', x); paintAll(v); } });
 
   // Bauer
   const presetSeg = seg({ aria: 'Preset', options: cfg.presets, value: st.preset,
-    onChange: (v) => { set('preset', v); paintAll(); } });
-  const num = (k, label, unit, step, min, max) => {
-    const { el, input } = numBox({ step, min, max, aria: label, unit });
-    input.addEventListener('change', () => { set(k, Number(input.value)); paintAll(); });
-    return { input, el: h('label.ci', {}, h('span.cl', { text: label }), el) };
-  };
-  const freq = num('freq', 'Frequency', 'Hz', 1, 300, 2000);
-  const level = num('level', 'Level', 'dB', 0.1, 1, 15);
+    onChange: (/** @type {string} */ x) => { v.set('preset', x); paintAll(v); } });
+  const freq = numField(v, 'freq', 'Frequency', 'Hz', 1, 300, 2000);
+  const level = numField(v, 'level', 'Level', 'dB', 0.1, 1, 15);
   const custom = h('div.cgrp', {}, freq.el, level.el);
-  const comp = slider({ k: 'comp', label: 'Crossfeed compensation', min: 0, max: 150, step: 1, unit: '%', dp: 0 });
+  const comp = slider(v, { k: 'comp', label: 'Crossfeed compensation', min: 0, max: 150, step: 1, unit: '%', dp: 0 });
   const tilt = h('span.cap');
 
   // Structural
   const sPreset = h('select.vfd.xspre', { 'aria-label': 'Preset' });
   sPreset.addEventListener('change', () => {
-    const p = cfg.sPresets.find((x) => x.v === sPreset.value);
-    if (p) { set('angle', p.angle); set('lambda', p.lambda); }
-    paintAll();
+    const p = cfg.sPresets.find((/** @type {{ v: string }} */ x) => x.v === sPreset.value);
+    if (p) { v.set('angle', p.angle); v.set('lambda', p.lambda); }
+    paintAll(v);
   });
-  const angle = slider({ k: 'angle', label: 'Speaker angle', min: 5, max: 60, step: 0.5, unit: '°', dp: 1 });
-  const circ = slider({ k: 'circ', label: 'Head circumference', min: 41, max: 66, step: 0.25, unit: 'cm', dp: 2,
-    sub: (c) => `${(c / (2 * Math.PI)).toFixed(2)} cm radius` });
-  const lambda = slider({ k: 'lambda', label: 'Center character', min: 0, max: 150, step: 1, unit: '%', dp: 0, mul: 100 });
+  const angle = slider(v, { k: 'angle', label: 'Speaker angle', min: 5, max: 60, step: 0.5, unit: '°', dp: 1 });
+  const circ = slider(v, { k: 'circ', label: 'Head circumference', min: 41, max: 66, step: 0.25, unit: 'cm', dp: 2,
+    sub: (/** @type {number} */ c) => `${(c / (2 * Math.PI)).toFixed(2)} cm radius` });
+  const lambda = slider(v, { k: 'lambda', label: 'Center character', min: 0, max: 150, step: 1, unit: '%', dp: 0, mul: 100 });
   const conflict = h('span.gr', { hidden: true, text: M.linear });
+  return { gateSeg, presetSeg, freq, level, custom, comp, tilt, sPreset, angle, circ, lambda, conflict };
+}
 
-  // ── Lines ─────────────────────────────────────────────────────────────
-  const paras = (list) => h('div.man', {}, list.map(([k, text]) => manPara({ k, text })));
-  const line = (v, label, controls, copy) => {
-    const radio = h('button.radio', { type: 'button', role: 'radio', 'aria-label': label, on: { click: () => pick(v) } });
-    const sum = h('span.xsum');
-    const body = h('div.xctl', {}, controls);
-    const el = h('div.chline.xline', { data: { v } },
-      h('div.xleft', {},
-        h('div.chl', {}, radio, h('span.chn', { on: { click: () => pick(v) } }, h('b', { text: label })), sum),
-        body),
-      copy);
-    return { v, el, radio, sum, body, copy };
-  };
-  const lines = [
-    line('bauer', 'Bauer', [
-      h('div.ci', {}, h('span.cl', { text: 'Preset' }), presetSeg),
-      custom,
-      h('div.ci', {}, comp.el, tilt, h('span.cap', { text: M.compScale })),
+/**
+ * A labelled number box that stages its value on change.
+ *
+ * @param {View} v
+ * @param {string} k
+ * @param {string} label
+ * @param {string} unit
+ * @param {number} step
+ * @param {number} min
+ * @param {number} max
+ */
+function numField(v, k, label, unit, step, min, max) {
+  const { el, input } = numBox({ step, min, max, aria: label, unit });
+  input.addEventListener('change', () => { v.set(k, Number(input.value)); paintAll(v); });
+  return { input, el: h('label.ci', {}, h('span.cl', { text: label }), el) };
+}
+
+/**
+ * Slider + number box, one value (v1 SliderNumber): drag streams the picture, release stages. mul = shown per stored unit.
+ *
+ * @param {View} v
+ * @param {{ k: string, label: string, min: number, max: number, step: number, unit: string, dp: number,
+ *   sub?: (v: number) => string, mul?: number }} spec
+ */
+function slider(v, { k, label, min, max, step, unit, dp, sub, mul = 1 }) {
+  const range = h('input', { type: 'range', min, max, step, 'aria-label': label });
+  const { el: num, input: box } = numBox({ min, max, step, aria: label, unit });
+  const subEl = sub && h('span.h', {});   // e.g. the radius the model works from, beside the label
+  const show = (/** @type {number} */ x) => { range.value = x; box.value = Number(x).toFixed(dp); if (subEl) subEl.textContent = sub(x); };
+  const paint = () => show(v.st[k] * mul);
+  range.addEventListener('input', () => { v.st[k] = Number(range.value) / mul; show(Number(range.value)); picture(v); paintPreset(v); });
+  const commit = (/** @type {number} */ x) => { v.set(k, Math.max(min, Math.min(max, x)) / mul); paintAll(v); };
+  range.addEventListener('change', () => commit(Number(range.value)));
+  box.addEventListener('change', () => commit(Number(box.value)));
+  const el = h('div.xsl', {}, h('span.cl', {}, label, subEl), range, num);
+  return { el, paint };
+}
+
+// ── Lines ─────────────────────────────────────────────────────────────
+
+/**
+ * The Bauer and Structural lines, each with its controls and copy.
+ *
+ * @param {View} v
+ */
+function buildLines(v) {
+  const M = v.cfg.man;
+  return [
+    line(v, 'bauer', 'Bauer', [
+      h('div.ci', {}, h('span.cl', { text: 'Preset' }), v.presetSeg),
+      v.custom,
+      h('div.ci', {}, v.comp.el, v.tilt, h('span.cap', { text: M.compScale })),
     ], paras([[null, M.bauer], ['Preset', M.preset], ['Frequency', M.freq], ['Level', M.level], ['Crossfeed compensation', M.comp]])),
-    line('structural', 'Structural', [
-      h('div.ci', {}, h('span.cl', { text: 'Preset' }), sPreset),
-      angle.el, circ.el, lambda.el, conflict,
+    line(v, 'structural', 'Structural', [
+      h('div.ci', {}, h('span.cl', { text: 'Preset' }), v.sPreset),
+      v.angle.el, v.circ.el, v.lambda.el, v.conflict,
     ], paras([['Speaker angle', M.angle], ['Head circumference', M.circ], ['Center character', M.lambda]])),
   ];
+}
+
+/** @param {[string | null, string][]} list */
+const paras = (list) => h('div.man', {}, list.map(([k, text]) => manPara({ k, text })));
+
+/**
+ * One implementation line: radio, name, folded summary, controls and copy.
+ *
+ * @param {View} v
+ * @param {string} val
+ * @param {string} label
+ * @param {HTMLElement[]} ctl
+ * @param {HTMLElement} copy
+ */
+function line(v, val, label, ctl, copy) {
+  const radio = h('button.radio', { type: 'button', role: 'radio', 'aria-label': label, on: { click: () => pick(v, val) } });
+  const sum = h('span.xsum');
+  const body = h('div.xctl', {}, ctl);
+  const el = h('div.chline.xline', { data: { v: val } },
+    h('div.xleft', {},
+      h('div.chl', {}, radio, h('span.chn', { on: { click: () => pick(v, val) } }, h('b', { text: label })), sum),
+      body),
+    copy);
+  return { v: val, el, radio, sum, body, copy };
+}
+
+/**
+ * @param {View} v
+ * @param {string} val
+ */
+function pick(v, val) { if (val !== v.st.impl) { v.set('impl', val); paintAll(v); } }
+
+/** The gray reason, the Bauer plot host and the Structural cartoon with its readouts. */
+function pictureHosts() {
   const reason = grayReason();
   const plotHost = h('div.eq.xfplot');
   // Structural: no plot glass. v1's card layout: the cartoon drawn on the plate under the controls column, and v1's
   // three readouts (owner copy) beside it, where the copy column sits above.
   const diagram = s('svg.xfdiag', { role: 'img', 'aria-label': 'Top-down view: the simulated speakers, toed in toward the listener', viewBox: '52 6 296 172', preserveAspectRatio: 'xMidYMid meet' });
-  const ro = (label) => { const v = h('dd'), sub = h('span'); return { v, sub, el: h('div', {}, h('dt', { text: label }), h('dd', {}, v, sub)) }; };
+  const ro = (/** @type {string} */ label) => { const val = h('dd'), sub = h('span'); return { v: val, sub, el: h('div', {}, h('dt', { text: label }), h('dd', {}, val, sub)) }; };
   const RO = { itd: ro('Ear-to-ear delay'), far: ro('Far ear, treble'), center: ro('Center shift') };
   const diagHost = h('div.xfgeo', {}, h('div.xfpic', {}, diagram), h('dl.xfro', {}, Object.values(RO).map((r) => r.el)));
-  host.append(
-    h('div.xgate', {}, h('b', { text: 'Crossfeed' }), gateSeg, reason.el),
-    h('div.chlist.xlist', { role: 'radiogroup', 'aria-label': 'Crossfeed implementation' }, lines.map((l) => l.el)),
-    plotHost, diagHost);
-  const rp = mountRespPlot(plotHost, { lo: -15, hi: 3, step: 3, aria: 'Bauer crossfeed response' });
+  return { reason, plotHost, diagram, RO, diagHost };
+}
 
-  function pick(v) { if (v !== st.impl) { set('impl', v); paintAll(); } }
+// ── Paint ─────────────────────────────────────────────────────────────
 
-  // ── Paint ─────────────────────────────────────────────────────────────
-  const bauerFc = () => (st.preset === 'custom' ? [st.freq, st.level] : BAUER_PRESETS[st.preset]);
-  const sMatch = () => structuralPreset(cfg.sPresets, st.angle, st.lambda, S_TOL);
-  const presetName = (v) => bauerPreset(cfg.presets, v).label;
+/** @param {View} v */
+function paintPreset(v) {
+  const { st, cfg, sPreset } = v;
+  const m = structuralPreset(cfg.sPresets, st.angle, st.lambda, S_TOL);
+  sPreset.replaceChildren(...cfg.sPresets.map((/** @type {{ v: string, label: string }} */ p) => h('option', { value: p.v, text: p.label })),
+    !m && h('option', { value: 'custom', text: 'Custom' }));
+  sPreset.value = m ? m.v : 'custom';
+}
 
-  function paintPreset() {
-    const m = sMatch();
-    sPreset.replaceChildren(...cfg.sPresets.map((p) => h('option', { value: p.v, text: p.label })),
-      !m && h('option', { value: 'custom', text: 'Custom' }));
-    sPreset.value = m ? m.v : 'custom';
+/** @param {View} v */
+function paintAll(v) {
+  const { st, cfg, lines } = v;
+  select(v.gateSeg, st.gate);
+  for (const l of lines) {
+    const on = l.v === st.impl;
+    l.el.classList.toggle('cur', on);
+    l.el.classList.toggle('fold', !on);
+    l.radio.setAttribute('aria-checked', String(on));
+    l.body.hidden = !on;
+    l.copy.hidden = !on;
+    l.sum.hidden = on;
   }
+  // Folded summaries: what the line would install (engine names / numbers, no new words).
+  const b = bauerSummary(st, cfg.presets, BAUER_PRESETS);
+  lines[0].sum.textContent = `${b.label} · ${b.fc} Hz · ${minus(b.feed, 1)} dB · ${b.comp}%`;
+  const sm = structuralSummary(st, cfg.sPresets, S_TOL);
+  lines[1].sum.textContent = `${sm.label || 'Custom'} · ${minus(sm.angle, 1)}° · ${minus(sm.circ, 2)} cm · ${sm.lambda}%`;
+  select(v.presetSeg, st.preset);
+  v.freq.input.value = st.freq; v.level.input.value = st.level;
+  v.comp.paint(); v.angle.paint(); v.circ.paint(); v.lambda.paint();
+  paintPreset(v);
+  gray(v);
+  picture(v);
+}
 
-  function paintAll() {
-    select(gateSeg, st.gate);
-    for (const l of lines) {
-      const on = l.v === st.impl;
-      l.el.classList.toggle('cur', on);
-      l.el.classList.toggle('fold', !on);
-      l.radio.setAttribute('aria-checked', String(on));
-      l.body.hidden = !on;
-      l.copy.hidden = !on;
-      l.sum.hidden = on;
-    }
-    // Folded summaries: what the line would install (engine names / numbers, no new words).
-    const [fc, fd] = bauerFc();
-    lines[0].sum.textContent = `${presetName(st.preset)} · ${fc} Hz · ${minus(fd, 1)} dB · ${Math.round(st.comp)}%`;
-    lines[1].sum.textContent = `${sMatch()?.label || 'Custom'} · ${minus(st.angle, 1)}° · ${minus(st.circ, 2)} cm · ${Math.round(st.lambda * 100)}%`;
-    select(presetSeg, st.preset);
-    freq.input.value = st.freq; level.input.value = st.level;
-    comp.paint(); angle.paint(); circ.paint(); lambda.paint();
-    paintPreset();
-    gray();
-    picture();
+/**
+ * Gray: matrix bypassed → everything (family reason); crossfeed bypassed → the lines (v1 reason); Custom-only fields.
+ *
+ * @param {View} v
+ */
+function gray(v) {
+  const { host, env } = v;
+  const g = crossfeedGray(v.st, env.mxWhy, env.iir2fir);
+  grayBut(host, v.reason.el, g.matrix);   // the reason stays legible: it links to the Matrix engine
+  // Bypassed here: the implementations' controls gray; the Bauer | Structural pick stays live (a view choice, v1).
+  for (const l of v.lines) l.body.classList.toggle('grayed', g.linesGrayed);
+  for (const x of host.querySelectorAll('button,input,select')) {
+    /** @type {any} */ (x).disabled = !(x.closest('.cgrp') ? g.custom : x.closest('.xctl') ? g.controls : g.gate);
   }
+  v.custom.classList.toggle('grayed', g.customGrayed);
+  v.reason.say(env.mxWhy || (g.off ? OFF_REASON : ''));
+  v.conflict.hidden = !g.conflict;
+}
 
-  /** Gray: matrix bypassed → everything (family reason); crossfeed bypassed → the lines (v1 reason); Custom-only fields. */
-  function gray() {
-    const off = st.gate === '0';
-    const why = mxWhy || (off ? OFF_REASON : '');
-    grayBut(host, reason.el, !!mxWhy);   // the reason stays legible: it links to the Matrix engine
-    // Bypassed here: the implementations' controls gray; the Bauer | Structural pick stays live (a view choice, v1).
-    for (const l of lines) l.body.classList.toggle('grayed', off && !mxWhy);
-    for (const x of host.querySelectorAll('button,input,select')) {
-      const inCtl = x.closest('.xctl');
-      x.disabled = !!mxWhy || (!!inCtl && off) || (!!x.closest('.cgrp') && st.preset !== 'custom');
-    }
-    custom.classList.toggle('grayed', st.preset !== 'custom');
-    reason.say(why);
-    conflict.hidden = !(st.impl === 'structural' && iir2fir === '2');
-  }
+/** @param {View} v */
+function picture(v) {
+  const bauer = v.st.impl === 'bauer';
+  v.plotHost.hidden = !bauer;
+  v.diagHost.hidden = bauer;
+  if (bauer) drawBauer(v);
+  else drawGeometry(v);
+}
 
-  function picture() {
-    const bauer = st.impl === 'bauer';
-    plotHost.hidden = !bauer;
-    diagHost.hidden = bauer;
-    if (bauer) {
-      const [fc, feed] = bauerFc();
-      const k = st.comp / 100;
-      tilt.textContent = `crossfeed dulls the center by ${minus(-toDb(bauerMS(fc, feed, 20000).mid), 1)} dB`;   // v1 Comp.js readout
-      rp.draw([
-        k > 0 && { cls: 'ghost', label: 'center, uncorrected', fn: (f) => toDb(bauerMS(fc, feed, f).mid) },
-        { label: k > 0 ? `center, corrected ${Math.round(st.comp)}%` : 'center, uncorrected', fn: (f) => (1 - k) * toDb(bauerMS(fc, feed, f).mid) },
-        { cls: 'side', label: 'stereo sides', fn: (f) => toDb(bauerMS(fc, feed, f).side) },
-      ].filter(Boolean));
-    } else {
-      drawGeometry();
-    }
-  }
+/** @param {View} v */
+function drawBauer(v) {
+  const { fc, feed, k, ghost, pct } = bauerPlot(v.st, BAUER_PRESETS);
+  const mid = (/** @type {number} */ f) => toDb(bauerMS(fc, feed, f).mid);
+  v.tilt.textContent = `crossfeed dulls the center by ${minus(-mid(20000), 1)} dB`;   // v1 Comp.js readout
+  v.rp.draw([
+    ghost && { cls: 'ghost', label: 'center, uncorrected', fn: mid },
+    { label: ghost ? `center, corrected ${pct}%` : 'center, uncorrected', fn: (/** @type {number} */ f) => (1 - k) * mid(f) },
+    { cls: 'side', label: 'stereo sides', fn: (/** @type {number} */ f) => toDb(bauerMS(fc, feed, f).side) },
+  ].filter(Boolean));
+}
 
-  // Top-down cartoon (v1 Geometry.js conventions). Listener low and facing up; speaker distance fixed (angle is the
-  // variable); head radius mapped across a narrow band so 41–66 cm reads without the head becoming a boulder.
-  function drawGeometry() {
-    const CX = 200, CY = 140, R = 112;
-    const a = st.circ / (2 * Math.PI);                        // cm radius, ~6.5–10.5
-    const r = 15 + (Math.max(6.5, Math.min(10.5, a)) - 6.5) * 2.5;
-    const rad = (d) => d * Math.PI / 180;
-    const at = (deg, rr) => [CX + rr * Math.sin(rad(deg)), CY - rr * Math.cos(rad(deg))];
-    const earL = [CX - r, CY], earR = [CX + r, CY];
-    const spk = [-st.angle, st.angle].map((d) => ({ d, p: at(d, R) }));
-    // Far path: speaker → tangent over the front of the head → around to the far ear.
-    const farPath = (P, ear, side) => {
-      const dx = P[0] - CX, dy = P[1] - CY, d = Math.hypot(dx, dy);
-      const phi = Math.atan2(dy, dx), al = Math.acos(r / d);
-      const t = [phi + al, phi - al].map((q) => [CX + r * Math.cos(q), CY + r * Math.sin(q)])
-        .sort((u, v) => u[1] - v[1])[0];                     // the tangent point on the front (upper) side
-      return `M${P[0].toFixed(1)},${P[1].toFixed(1)} L${t[0].toFixed(1)},${t[1].toFixed(1)} A${r},${r} 0 0 ${side} ${ear[0].toFixed(1)},${ear[1].toFixed(1)}`;
-    };
-    const ref = [-30, 30].map((d) => { const [x1, y1] = at(d, R - 16), [x2, y2] = at(d, R + 16); return s('line.ref', { x1, y1, x2, y2 }); });
-    const [ax, ay] = at(st.angle / 2, 54);   // label beyond the arc, clear of the near path
-    // v1 Readouts: ITD (ray) · its low-frequency value (+ shadow-filter group delays), far-ear treble, center shift at λ.
-    const pp = pathParams(st.angle, a / 100);
-    RO.itd.v.textContent = `${Math.round(pp.itd * 1e6)} µs`;
-    RO.itd.sub.textContent = ` · ${Math.round((pp.itd + pp.gdF - pp.gdN) * 1e6)} µs at low frequencies`;
-    RO.far.v.textContent = `${minus(20 * Math.log10(pp.af), 1)} dB`;
-    const cs = 20 * Math.log10(st.lambda * (pp.an + pp.af) / 2 + (1 - st.lambda));
-    RO.center.v.textContent = `${plusMinus(cs, 2)} dB`;
-    diagram.replaceChildren(...[
-      s('line.axis', { x1: CX, y1: CY - r, x2: CX, y2: CY - R - 14 }),
-      ref,
-      s('path.arc', { d: `M${CX},${CY - 40} A40,40 0 0 1 ${at(st.angle, 40).map((v) => v.toFixed(1)).join(',')}` }),
-      s('text.ang', { x: ax, y: ay, 'text-anchor': 'middle', text: `${minus(st.angle, 1)}°` }),
-      // Far paths first (dashed, under), then near paths (solid).
-      s('path.far', { d: farPath(spk[0].p, earR, 1) }),
-      s('path.far', { d: farPath(spk[1].p, earL, 0) }),
-      s('line.near', { x1: spk[0].p[0], y1: spk[0].p[1], x2: earL[0], y2: earL[1] }),
-      s('line.near', { x1: spk[1].p[0], y1: spk[1].p[1], x2: earR[0], y2: earR[1] }),
-      headGlyph(CX, CY, r, 6),
-      s('rect.ear', { x: CX - r - 3, y: CY - 5, width: 4, height: 10, rx: 1.5 }),
-      s('rect.ear', { x: CX + r - 1, y: CY - 5, width: 4, height: 10, rx: 1.5 }),
-      spk.map(({ d, p }, i) => s('g.spk', {},
-        speakerGlyph(p[0], p[1], d),
-        s('text.sl', { x: p[0] + (i ? 18 : -18), y: p[1] + 4, 'text-anchor': i ? 'start' : 'end', text: i ? 'R' : 'L' }))),
-    ].flat(2).filter(Boolean));
-  }
+/** @param {[number, number]} p */
+const xy = (p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
 
-  // Discard (mock): the staged values go back; the picture follows.
-  ctx.onDiscard((b) => {
-    for (const [k, id] of Object.entries(ID)) st[k] = ['gate', 'impl', 'preset'].includes(k) ? b[id] : Number(b[id]);
-    paintAll();
-  });
-
-  ctx.watch((v) => {
-    iir2fir = v.mxiir2fir ?? '0';
-    mxWhy = bypassed(v);
-    gray();
-  });
-
-  paintAll();
-  return { mode, state: st };
+// Top-down cartoon (v1 Geometry.js conventions), coordinates from model/crossfeed.js listeningGeometry.
+/** @param {View} v */
+function drawGeometry(v) {
+  const { st } = v;
+  const g = listeningGeometry(st.angle, st.circ);
+  const { cx, cy, r, earL, earR, speakers: spk, arc } = g;
+  // v1 Readouts: ITD (ray) · its low-frequency value (+ shadow-filter group delays), far-ear treble, center shift at λ.
+  const ro = geometryReadouts(pathParams(st.angle, g.a / 100), st.lambda);
+  v.RO.itd.v.textContent = `${ro.itd} µs`;
+  v.RO.itd.sub.textContent = ` · ${ro.itdLow} µs at low frequencies`;
+  v.RO.far.v.textContent = `${minus(ro.far, 1)} dB`;
+  v.RO.center.v.textContent = `${plusMinus(ro.center, 2)} dB`;
+  // Far path: speaker → tangent over the front of the head → around to the far ear.
+  const far = (/** @type {typeof g.far[0]} */ p) => `M${xy(p.from)} L${xy(p.via)} A${r},${r} 0 0 ${p.sweep} ${xy(p.to)}`;
+  v.diagram.replaceChildren(...[
+    s('line.axis', g.axis),
+    g.ref.map((l) => s('line.ref', l)),
+    s('path.arc', { d: `M${arc.from[0]},${arc.from[1]} A${arc.r},${arc.r} 0 0 1 ${arc.to.map((x) => x.toFixed(1)).join(',')}` }),
+    s('text.ang', { x: g.label[0], y: g.label[1], 'text-anchor': 'middle', text: `${minus(st.angle, 1)}°` }),
+    // Far paths first (dashed, under), then near paths (solid).
+    s('path.far', { d: far(g.far[0]) }),
+    s('path.far', { d: far(g.far[1]) }),
+    s('line.near', { x1: spk[0].p[0], y1: spk[0].p[1], x2: earL[0], y2: earL[1] }),
+    s('line.near', { x1: spk[1].p[0], y1: spk[1].p[1], x2: earR[0], y2: earR[1] }),
+    headGlyph(cx, cy, r, 6),
+    s('rect.ear', { x: earL[0] - 3, y: cy - 5, width: 4, height: 10, rx: 1.5 }),
+    s('rect.ear', { x: earR[0] - 1, y: cy - 5, width: 4, height: 10, rx: 1.5 }),
+    spk.map(({ d, p }, i) => s('g.spk', {},
+      speakerGlyph(p[0], p[1], d),
+      s('text.sl', { x: p[0] + (i ? 18 : -18), y: p[1] + 4, 'text-anchor': i ? 'start' : 'end', text: i ? 'R' : 'L' }))),
+  ].flat(2).filter(Boolean));
 }

@@ -11,7 +11,7 @@
 
 import { h } from '../lib/dom.js';
 import { classNames } from '../model/format.js';
-import { tierIndex } from '../model/output.js';
+import { tunerColumns } from '../model/output.js';
 
 const FAMS = [['f44', '44.1k'], ['f48', '48k']];
 
@@ -33,18 +33,14 @@ export function mountOutputTuner(host, rt, { onPin, bus }) {
   function paint() {
     section.hidden = !allowed;
     if (!allowed) return;
-    const idx = tierIndex(rt.tiers, st.run);
-    const playing = st.src != null && st.tier != null;
-    const playFam = pin ? pin.fam : st.fam;
-    grid.style.gridTemplateColumns = `repeat(${idx.length}, 1fr)`;
-    grid.replaceChildren(...idx.map((i) => {
+    const cols = tunerColumns(rt.tiers, st, pin, FAMS.map(([f]) => f));
+    grid.style.gridTemplateColumns = `repeat(${cols.length}, 1fr)`;
+    grid.replaceChildren(...cols.map(({ i, cells }) => {
       const t = rt.tiers[i];
       const pair = h('div.otpair', {});
       const col = h('div.otcol', { class: t.unavailable && 'otunav' }, h('span.ottn', { text: t.name }), pair);
-      for (const [f] of FAMS) {
+      for (const { fam: f, pinned: on, playing: play } of cells) {
         if (t.unavailable) { pair.append(h('span.otp.otno', { text: t[f] })); continue; }
-        const on = pin?.tier === i && pin.fam === f;
-        const play = playing && st.tier === i && playFam === f;
         pair.append(h('button.otp', { type: 'button', class: classNames(on && 'otpinned', play && 'otplay'),
           aria: { pressed: on, label: `Pin ${t[f]} ${t.unit}${play ? ', playing' : ''}` },
           on: { click: () => { pin = { tier: i, fam: f }; onPin({ ...pin }); paint(); } } }, t[f]));

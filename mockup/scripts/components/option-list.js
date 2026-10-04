@@ -31,6 +31,7 @@ import { BAR } from '../data/narrow-facets.js';
 import { ENGINE_ORDER } from '../data/engine-order.js';
 import { dacType } from '../lib/dactype.js';
 import { PLATFORM } from '../lib/clock.js';
+import { tipContent, tipAt, parkAt, groupTree, columns, flatColumns } from '../model/option-list.js';
 
 
 /**
@@ -68,30 +69,13 @@ const PLACE = {
 const PANEL = new Set(['modulators', 'dithers']);
 
 const STD_COLS = { filters: 3, modulators: 2, dithers: 1 };   // filters: the longest engine name + marks won't fit four across at 10.2″
-const engIdx = (list, v) => { const i = ENGINE_ORDER[list].indexOf(String(v)); return i < 0 ? Infinity : i; };
 
 // ── Hover tip (v1 components/controls/Combobox.js TipPop + narrowbar/facettip.js) ─────────────────────────────────
 // The card beside a hovered row: the raw engine name while Simplified display hides it, the option's manual prose (v1
 // prose.js: Simplified keeps description + notes; Standard adds the two-stage notes), then the facet rows in the narrowing
 // bar's own words and the boolean chips. Modulators add their Generation row. Labels come from the facet bar so the tip and
-// the chips never disagree on a spelling (v1 rule).
+// the chips never disagree on a spelling (v1 rule). What it says and where it lands: model/option-list.js.
 const FACET = Object.fromEntries(BAR.flat().filter((f) => f.options).map((f) => [f.key, Object.fromEntries(f.options.map((o) => [o.v, o.label]))]));
-const RATIO = { integer: 'Integer', '2x': '2x', '1:1': '1:1', any: 'Any' };   // v1 facet-data.js RATIOS + "Any" (facettip.js)
-const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];       // v1 options.js GENERATION_ORDINALS
-function tipRows(o) {
-  const f = o.f, rows = [];
-  if (!f) return o.gen && ORD[o.gen] ? [['Generation', ORD[o.gen]]] : [];
-  if (f.q != null) rows.push(['Quality', `${f.q}/5`]);
-  if (f.genre.length) rows.push(['Genre', f.genre.map((g) => FACET.genre[g] ?? g).join(', ')]);
-  if (f.focus.length) rows.push(['Focus', f.focus.map((g) => FACET.focus[g] ?? g).join(', ')]);
-  if (f.phase) rows.push(['Phase', FACET.phase[f.phase] ?? f.phase]);
-  if (f.len || f.adaptive) rows.push(['Length', f.adaptive ? (f.len ? `${FACET.length[f.len]}, adaptive` : FACET.length.adaptive) : FACET.length[f.len]]);
-  const ratio = f.ratio != null ? RATIO[f.ratio] ?? f.ratio
-    : [f.ratioPcm != null && `PCM ${RATIO[f.ratioPcm] ?? f.ratioPcm}`, f.ratioSdm != null && `SDM ${RATIO[f.ratioSdm] ?? f.ratioSdm}`].filter(Boolean).join(' · ');
-  if (ratio) rows.push(['Ratio', ratio]);
-  return rows;
-}
-const tipChips = (o) => (o.f ? [o.f.apod === 'half' ? 'Half apodizing' : o.f.apod === 'full' ? 'Apodizing' : '', o.f.up ? 'Upsample only' : ''].filter(Boolean) : []);
 
 const folded = new Set();   // collapsed groups, keyed per kind (v1: the two chains' filter lists share one fold)
 // DAC type (lib/dactype.js) collapses the groups the manual calls the wrong fit; a tap still opens them. `byDac` = the keys
@@ -112,7 +96,21 @@ dacFolds(dacType());
  * @param {import('../lib/clock.js').Clock} [clock]
  */
 export function mountOptionList(plate, bus, clock = PLATFORM) {
-  bus.on('dactype', (d) => { dacFolds(d); render(); });
+  const ui = chrome(plate);
+  bus.on('dactype', (d) => { dacFolds(d); render(ui); });
+  ui.sh.onClose = () => hideTip(ui);
+  // A panel closes on a tap outside it (its picker toggles it; facet popovers and notes opened from it count as inside).
+  document.addEventListener('click', (e) => outside(ui, e));
+  subscribe(() => render(ui));
+  bus.on('relayout', () => clock.requestAnimationFrame(() => render(ui)));
+  return { open: (o) => open(ui, o), close: () => ui.sh.close(), sheet: ui.sh };
+}
+
+/**
+ * The one sheet, its head (title over its count, facet bar, ×), the columns' host and the plate-level tip; `cur` is the
+ * open list ({list, stage, value, onPick, title}), `tipRow` / `tipOpt` the row and option the tip shows.
+ */
+function chrome(plate) {
   const sh = sheet(plate, { id: 'osheet', aria: 'Options', cls: 'osheet' });
   const t = h('span.t'), n = h('span.ocount');
   const bar = mountFacetBar(plate);
@@ -122,225 +120,200 @@ export function mountOptionList(plate, bus, clock = PLATFORM) {
   sh.body.append(cols);
   const tip = h('div.otip', { role: 'tooltip', hidden: true });
   plate.append(tip);
-  let tipRow = null, tipOpt = null;
-  function showTip(o, rowEl) {
-    tipOpt = o;
-    const std = optionStyle() === 'standard';
-    const text = std ? o.d2 || o.d : o.d;
-    const rows = tipRows(o), chips = tipChips(o);
-    tip.replaceChildren(...[
-      !std && h('div.tn', { text: o.v }),
-      text && h('div.td', { text }),
-      rows.length && h('div.tr', {}, rows.map(([k, v]) => [h('span.tk', { text: k }), h('span.tv', { text: v })])),
-      chips.length && h('div.tc', {}, chips.map((c) => h('span', { text: c }))),
-    ].filter(Boolean));
-    tip.hidden = false;
-    tipRow = rowEl;
-    // Beside the row's column: right of it when there's room, else left; top on the row, clamped inside the plate.
-    const col = rowEl.closest('.ocol') || rowEl;
-    const c = toPlate(col.getBoundingClientRect()), r = toPlate(rowEl.getBoundingClientRect());
-    const w = tip.offsetWidth, hgt = tip.offsetHeight;
-    const right = c.x + col.offsetWidth + 10;
-    const x = right + w <= PLATE_W - 12 ? right : Math.max(12, c.x - w - 10);
-    tip.style.left = `${Math.round(x)}px`;
-    tip.style.top = `${Math.round(Math.max(12, Math.min(r.y - 4, PLATE_H - 12 - hgt)))}px`;
-  }
-  const hideTip = (rowEl) => { if (!rowEl || rowEl === tipRow) { tip.hidden = true; tipRow = null; tipOpt = null; } };
-  sh.onClose = () => hideTip();
+  return { sh, t, n, bar, cols, tip, cur: null, tipRow: null, tipOpt: null };
+}
 
-  let cur = null;   // {list, stage, value, onPick, title}
-
-  function open(o) {
-    const kind0 = kindOf(o.list);
-    // A panel's picker toggles it: a second tap on the same picker closes it.
-    if (sh.isOpen && PANEL.has(kind0) && cur?.trigger && cur.trigger === o.trigger) { sh.close(); return; }
-    cur = o;
-    t.textContent = o.title;
-    t.title = o.sub || '';
-    const kind = kindOf(o.list);
-    bar.show(kind, o.stage);
-    sh.el.dataset.kind = kind;
-    sh.el.dataset.style = optionStyle();
-    sh.el.classList.toggle('opanel', PANEL.has(kind));
-    sh.open();
-    if (PANEL.has(kind)) sh.el.style.height = 'auto'; else sh.el.style.left = '';   // the sheet: sheet.js sets top / height
-    bar.fit();
-    render();
-  }
-
-  /**
-   * Park the panel at its picker: left edges aligned (clamped inside the plate), below it when it fits, else above, else
-   * as low as the plate allows (the picker may sit under it then; the list is what's needed).
-   */
-  function park() {
-    const el = sh.el, tr = cur?.trigger;
-    const w = el.offsetWidth, hh = el.offsetHeight;
-    let x = (PLATE_W - w) / 2, y = (PLATE_H - hh) / 2;
-    if (tr?.isConnected && tr.offsetParent) {
-      const r = toPlate(tr.getBoundingClientRect()), th = tr.offsetHeight;
-      x = r.x;
-      const below = r.y + th + 6, above = r.y - hh - 6;
-      y = below + hh <= PLATE_H - 12 ? below : above >= 12 ? above : PLATE_H - 12 - hh;
-    }
-    el.style.left = `${Math.round(Math.max(12, Math.min(x, PLATE_W - 12 - w)))}px`;
-    el.style.top = `${Math.round(Math.max(12, y))}px`;
-  }
-
-  // A panel closes on a tap outside it (its picker toggles it; facet popovers and notes opened from it count as inside).
-  document.addEventListener('click', (e) => {
-    if (!sh.isOpen || !sh.el.classList.contains('opanel') || !e.target.isConnected) return;
-    if (sh.el.contains(e.target) || cur?.trigger?.contains(e.target) || e.target.closest('.pop')) return;
-    hideTip();
-    sh.close();
+function showTip(ui, o, rowEl) {
+  const tip = ui.tip;
+  ui.tipOpt = o;
+  const c = tipContent(o, optionStyle() === 'standard', FACET);
+  tip.replaceChildren(...[
+    c.name !== null && h('div.tn', { text: c.name }),
+    c.text && h('div.td', { text: c.text }),
+    c.rows.length && h('div.tr', {}, c.rows.map(([k, v]) => [h('span.tk', { text: k }), h('span.tv', { text: v })])),
+    c.chips.length && h('div.tc', {}, c.chips.map((x) => h('span', { text: x }))),
+  ].filter(Boolean));
+  tip.hidden = false;
+  ui.tipRow = rowEl;
+  const col = rowEl.closest('.ocol') || rowEl;
+  const at = tipAt({
+    col: { x: toPlate(col.getBoundingClientRect()).x, w: col.offsetWidth },
+    rowY: toPlate(rowEl.getBoundingClientRect()).y,
+    tip: { w: tip.offsetWidth, h: tip.offsetHeight },
+    plate: { w: PLATE_W, h: PLATE_H },
   });
+  tip.style.left = `${at.left}px`;
+  tip.style.top = `${at.top}px`;
+}
 
-  // ── Parts ─────────────────────────────────────────────────────────────────────────────────────────────────────
-  const gr = () => GROUPS[kindOf(cur.list)];
-  const vkey = (f, v) => `${kindOf(cur.list)}|${f}|${v}`;
-  function toggle(k) { folded.has(k) ? folded.delete(k) : folded.add(k); render(); }
+function hideTip(ui, rowEl) {
+  if (!rowEl || rowEl === ui.tipRow) { ui.tip.hidden = true; ui.tipRow = null; ui.tipOpt = null; }
+}
 
-  /**
-   * Family header: `<Family> family`, engraved, its rule running to the column's (band's) right edge and turning down there,
-   * so the header visibly covers every column it heads; its blurb under it (v1). Families don't fold.
-   */
-  function famHead(f, sub) {
-    // A family without variants (dithers) folds at its header when DAC type collapses it (or the user taps it).
-    const bare = kindOf(cur.list) === 'dithers';
-    const k = vkey(f, '*');
-    const shut = bare && folded.has(k);
-    const name = bare
-      ? h('button.ohd.ofold', { type: 'button', aria: { expanded: !shut }, on: { click: () => toggle(k) } }, `${f} family`)
-      : h('span.ohd', { text: `${f} family` });
-    return h('div.ofam', { class: sub && 'sub' },
-      h('div.ofh', {}, name, !sub && h('span.ln')),
-      !shut && gr().families[f] && h('div.oblurb', { text: gr().families[f] }));
-  }
-  /** Variant: subheader + its blurb (v1), then its rows; or bare rows for a family without variants. */
-  function group(f, v, rows) {
-    const k = vkey(f, v || '*');
-    const shut = folded.has(k);
-    const b = v && gr().variants[`${f}|${v}`];
-    return h('div.ogrp', { class: v ? 'var' : 'bare' },
-      v && h('button.osub', { type: 'button', aria: { expanded: !shut }, on: { click: () => toggle(k) } }, v),
-      v && !shut && b && h('div.oblurb', { text: b }),
-      !shut && rows.map(row));
-  }
-  function row(o) {
-    const on = String(o.v) === String(cur.value);
-    const kind = kindOf(cur.list);
-    const q = o.f?.q;
-    const fav = isFav(cur.list, o.v);
-    return h('div.orow', { role: 'option', tabindex: -1, data: { v: o.v }, aria: { selected: on }, on: {
-      click: () => pick(o.v),
-      pointerenter: (e) => e.pointerType !== 'touch' && showTip(o, e.currentTarget),
-      pointerleave: (e) => hideTip(e.currentTarget),
-      focus: (e) => showTip(o, e.currentTarget),
-      blur: (e) => hideTip(e.currentTarget),
-    } },
-      h('span.nm', { text: optionStyle() === 'standard' ? o.v : o.leaf }),   // Visual settings → Option style
-      kind === 'filters' && h('span.mk', {}, apodMark(o.f?.apod)),
-      kind === 'filters' && h('span.qst', { aria: { label: q ? `Quality ${q}/5` : null }, text: q ? '★'.repeat(q) : '' }),
-      kind === 'modulators' && h('span.mk', {}, o.tier && h('span.otier', { role: 'img', aria: { label: `Needs DSD${o.tier.slice(0, -1)} or higher` }, text: o.tier })),
-      kind !== 'dithers' && h('button.fav', { type: 'button', class: fav && 'on', aria: { pressed: fav, label: `${fav ? 'Unfavorite' : 'Favorite'} ${o.v}` },
-        text: fav ? '♥' : '♡', on: { click: (e) => { e.stopPropagation(); toggleFav(cur.list, o.v); } } }),
-    );
-  }
+function open(ui, o) {
+  const { sh, bar } = ui;
+  const kind0 = kindOf(o.list);
+  // A panel's picker toggles it: a second tap on the same picker closes it.
+  if (sh.isOpen && PANEL.has(kind0) && ui.cur?.trigger && ui.cur.trigger === o.trigger) { sh.close(); return; }
+  ui.cur = o;
+  ui.t.textContent = o.title;
+  ui.t.title = o.sub || '';
+  const kind = kindOf(o.list);
+  bar.show(kind, o.stage);
+  sh.el.dataset.kind = kind;
+  sh.el.dataset.style = optionStyle();
+  sh.el.classList.toggle('opanel', PANEL.has(kind));
+  sh.open();
+  if (PANEL.has(kind)) sh.el.style.height = 'auto'; else sh.el.style.left = '';   // the sheet: sheet.js sets top / height
+  bar.fit();
+  render(ui);
+}
 
-  /**
-   * Key to the filter rows' marks, under the Polyphase sinc family: v1's `glyph = word` legend grammar (Combobox
-   * `✓ = recommended`), words from v1's own labels for each mark (apod.js APOD_LABEL, the Quality facet, Favorite).
-   */
-  const legend = () => h('div.olegend', { role: 'presentation' },
-    h('span', {}, apodMark('full'), ' = Apodizing'),
-    h('span', {}, apodMark('half'), ' = Half apodizing'),
-    h('span', {}, h('span.lq', { text: '★' }), ' = Quality'),
-    h('span', {}, h('span.lf', { text: '♥' }), ' = Favorite'));
+/** Park the panel at its picker (model/option-list.js parkAt); centered when the picker isn't showing. */
+function park(ui) {
+  const el = ui.sh.el, tr = ui.cur?.trigger;
+  const panel = { w: el.offsetWidth, h: el.offsetHeight };
+  const shown = tr?.isConnected && tr.offsetParent;
+  const trigger = shown ? { ...toPlate(tr.getBoundingClientRect()), h: tr.offsetHeight } : null;
+  const at = parkAt({ panel, trigger, plate: { w: PLATE_W, h: PLATE_H } });
+  el.style.left = `${at.left}px`;
+  el.style.top = `${at.top}px`;
+}
 
-  /** The list as families → groups (variant or bare) → options, after narrowing, in overlay order. */
-  function tree() {
-    const opts = narrowed(cur.list, cur.stage, cur.value);
-    const fams = new Map();
-    for (const o of opts) {
-      if (!fams.has(o.fam)) fams.set(o.fam, new Map());
-      const g = fams.get(o.fam);
-      const v = o.var ?? '';
-      if (!g.has(v)) g.set(v, []);
-      g.get(v).push(o);
-    }
-    return { opts, fams };
-  }
+function outside(ui, e) {
+  const { sh } = ui;
+  if (!sh.isOpen || !sh.el.classList.contains('opanel') || !e.target.isConnected) return;
+  if (sh.el.contains(e.target) || ui.cur?.trigger?.contains(e.target) || e.target.closest('.pop')) return;
+  hideTip(ui);
+  sh.close();
+}
 
-  // ── Layout ────────────────────────────────────────────────────────────────────────────────────────────────────
-  function render() {
-    if (!cur || !sh.isOpen) return;
-    const keepTip = tipOpt;   // the rows are rebuilt (narrowing, favorites, folds, a late font): the tip follows its option
-    const { opts, fams } = tree();
-    n.textContent = `${opts.length} of ${LISTS[cur.list].length}`;
-    sh.el.dataset.style = optionStyle();
-    if (optionStyle() === 'standard') { cols.replaceChildren(...flat(opts)); placed(keepTip); return; }
-    const H = cols.clientHeight;
-    cols.replaceChildren();
-    const out = [];
-    const titled = (title, fs) => [h('div.ofam.ctitle', {}, h('div.ofh', {}, h('span.ohd.static', { text: title }), h('span.ln'))),
-      fs.map((f) => h('div.ostack', {}, parts(f, true)))];
-    const parts = (f, sub) => [famHead(f, sub), ...[...fams.get(f)].map(([v, rows]) => group(f, v, rows))];
-    for (const c of PLACE[kindOf(cur.list)]) {
-      const fs = c.fams.filter((f) => fams.has(f));
-      const more = c.then ? c.then.fams.filter((f) => fams.has(f)) : [];
-      if (!fs.length && !more.length) continue;
-      if (c.split) {
-        // Two columns in the given variant order.
-        const f = fs[0];
-        const head = famHead(f);
-        const vs = fams.get(f);
-        const colOf = (names) => names.filter((v) => vs.has(v)).map((v) => group(f, v, vs.get(v)));
-        const [a, b] = c.split.map(colOf);
-        // Always two columns while both halves have rows, so the columns keep their places as narrowing thins the list.
-        const key = kindOf(cur.list) === 'filters' && legend();   // the row marks' key, under Polyphase sinc
-        out.push(a.length && b.length
-          ? h('div.oband', {}, head, h('div.osubs', {}, h('div.ocol', {}, a), h('div.ocol', {}, b)), key)
-          : h('div.ocol', {}, head, a, b, key));
-        continue;
-      }
-      out.push(h('div.ocol', { class: c.title && 'titled' },
-        c.title ? titled(c.title, fs) : fs.map((f) => h('div.ostack', {}, parts(f, false))),
-        more.length > 0 && h('div.othen', {}, titled(c.then.title, more))));
-    }
-    cols.replaceChildren(...out);
-    placed(keepTip);
-  }
+// ── Parts ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const gr = (ui) => GROUPS[kindOf(ui.cur.list)];
+const vkey = (ui, f, v) => `${kindOf(ui.cur.list)}|${f}|${v}`;
+function toggle(ui, k) { folded.has(k) ? folded.delete(k) : folded.add(k); render(ui); }
 
-  /** After a render: a panel re-parks (its size follows the list), then the tip follows its option. */
-  function placed(keepTip) {
-    if (sh.el.classList.contains('opanel')) park();
-    keep(keepTip);
-  }
+/**
+ * Family header: `<Family> family`, engraved, its rule running to the column's (band's) right edge and turning down there,
+ * so the header visibly covers every column it heads; its blurb under it (v1). Families don't fold.
+ */
+function famHead(ui, f, sub) {
+  // A family without variants (dithers) folds at its header when DAC type collapses it (or the user taps it).
+  const bare = kindOf(ui.cur.list) === 'dithers';
+  const k = vkey(ui, f, '*');
+  const shut = bare && folded.has(k);
+  const name = bare
+    ? h('button.ohd.ofold', { type: 'button', aria: { expanded: !shut }, on: { click: () => toggle(ui, k) } }, `${f} family`)
+    : h('span.ohd', { text: `${f} family` });
+  return h('div.ofam', { class: sub && 'sub' },
+    h('div.ofh', {}, name, !sub && h('span.ln')),
+    !shut && gr(ui).families[f] && h('div.oblurb', { text: gr(ui).families[f] }));
+}
+/** Variant: subheader + its blurb (v1), then its rows; or bare rows for a family without variants. */
+function group(ui, f, v, rows) {
+  const k = vkey(ui, f, v || '*');
+  const shut = folded.has(k);
+  const b = v && gr(ui).variants[`${f}|${v}`];
+  return h('div.ogrp', { class: v ? 'var' : 'bare' },
+    v && h('button.osub', { type: 'button', aria: { expanded: !shut }, on: { click: () => toggle(ui, k) } }, v),
+    v && !shut && b && h('div.oblurb', { text: b }),
+    !shut && rows.map((o) => row(ui, o)));
+}
+function row(ui, o) {
+  const cur = ui.cur;
+  const on = String(o.v) === String(cur.value);
+  const kind = kindOf(cur.list);
+  const q = o.f?.q;
+  const fav = isFav(cur.list, o.v);
+  return h('div.orow', { role: 'option', tabindex: -1, data: { v: o.v }, aria: { selected: on }, on: {
+    click: () => pick(ui, o.v),
+    pointerenter: (e) => e.pointerType !== 'touch' && showTip(ui, o, e.currentTarget),
+    pointerleave: (e) => hideTip(ui, e.currentTarget),
+    focus: (e) => showTip(ui, o, e.currentTarget),
+    blur: (e) => hideTip(ui, e.currentTarget),
+  } },
+    h('span.nm', { text: optionStyle() === 'standard' ? o.v : o.leaf }),   // Visual settings → Option style
+    kind === 'filters' && h('span.mk', {}, apodMark(o.f?.apod)),
+    kind === 'filters' && h('span.qst', { aria: { label: q ? `Quality ${q}/5` : null }, text: q ? '★'.repeat(q) : '' }),
+    kind === 'modulators' && h('span.mk', {}, o.tier && h('span.otier', { role: 'img', aria: { label: `Needs DSD${o.tier.slice(0, -1)} or higher` }, text: o.tier })),
+    kind !== 'dithers' && h('button.fav', { type: 'button', class: fav && 'on', aria: { pressed: fav, label: `${fav ? 'Unfavorite' : 'Favorite'} ${o.v}` },
+      text: fav ? '♥' : '♡', on: { click: (e) => { e.stopPropagation(); toggleFav(ui.cur.list, o.v); } } }),
+  );
+}
 
-  function keep(keepTip) {
-    if (!keepTip) return;
-    const again = [...cols.querySelectorAll('.orow')].find((r) => r.dataset.v === String(keepTip.v));
-    again ? showTip(keepTip, again) : hideTip();
-  }
+/**
+ * Key to the filter rows' marks, under the Polyphase sinc family: v1's `glyph = word` legend grammar (Combobox
+ * `✓ = recommended`), words from v1's own labels for each mark (apod.js APOD_LABEL, the Quality facet, Favorite).
+ */
+const legend = () => h('div.olegend', { role: 'presentation' },
+  h('span', {}, apodMark('full'), ' = Apodizing'),
+  h('span', {}, apodMark('half'), ' = Half apodizing'),
+  h('span', {}, h('span.lq', { text: '★' }), ' = Quality'),
+  h('span', {}, h('span.lf', { text: '♥' }), ' = Favorite'));
 
-  /** Standard: the narrowed list in engine order, down column after column; the filter marks' key along the foot. */
-  function flat(opts) {
-    const kind = kindOf(cur.list);
-    const per = Math.ceil(LISTS[cur.list].length / STD_COLS[kind]);
-    const list = [...opts].sort((a, b) => engIdx(cur.list, a.v) - engIdx(cur.list, b.v));
-    const out = [];
-    for (let i = 0; i < list.length; i += per) out.push(h('div.ocol.flat', {}, list.slice(i, i + per).map(row)));
-    if (kind === 'filters') out.push(legend());
-    return out;
-  }
+/** A family's header, then its groups in list order. */
+const parts = (ui, fams, f, sub) => [famHead(ui, f, sub), ...[...fams.get(f)].map(([v, rows]) => group(ui, f, v, rows))];
+/** A column title (`Other`) over its families. */
+const titled = (ui, fams, title, fs) => [h('div.ofam.ctitle', {}, h('div.ofh', {}, h('span.ohd.static', { text: title }), h('span.ln'))),
+  fs.map((f) => h('div.ostack', {}, parts(ui, fams, f, true)))];
 
-  function pick(v) {
-    hideTip();
-    cur.value = v;
-    cur.onPick?.(v);
-    sh.close();
-  }
+// ── Layout ────────────────────────────────────────────────────────────────────────────────────────────────────
+function render(ui) {
+  const { cur, sh, cols } = ui;
+  if (!cur || !sh.isOpen) return;
+  const keepTip = ui.tipOpt;   // the rows are rebuilt (narrowing, favorites, folds, a late font): the tip follows its option
+  const opts = narrowed(cur.list, cur.stage, cur.value);
+  ui.n.textContent = `${opts.length} of ${LISTS[cur.list].length}`;
+  sh.el.dataset.style = optionStyle();
+  if (optionStyle() === 'standard') { cols.replaceChildren(...flat(ui, opts)); placed(ui, keepTip); return; }
+  cols.replaceChildren();
+  const fams = groupTree(opts);
+  cols.replaceChildren(...columns(PLACE[kindOf(cur.list)], fams).map((c) => (c.kind === 'split' ? splitCol(ui, fams, c) : stackCol(ui, fams, c))));
+  placed(ui, keepTip);
+}
 
-  subscribe(() => render());
-  bus.on('relayout', () => clock.requestAnimationFrame(render));
-  return { open, close: () => sh.close(), sheet: sh };
+/** A split family: two columns under one header while both halves have rows, else one; the filter marks' key under it. */
+function splitCol(ui, fams, c) {
+  const head = famHead(ui, c.fam);
+  const vs = fams.get(c.fam);
+  const [a, b] = c.halves.map((names) => names.map((v) => group(ui, c.fam, v, vs.get(v))));
+  const key = kindOf(ui.cur.list) === 'filters' && legend();   // the row marks' key, under Polyphase sinc
+  return c.band
+    ? h('div.oband', {}, head, h('div.osubs', {}, h('div.ocol', {}, a), h('div.ocol', {}, b)), key)
+    : h('div.ocol', {}, head, a, b, key);
+}
+
+/** A column of stacked families, or of titled ones; its `then` block under them. */
+function stackCol(ui, fams, c) {
+  return h('div.ocol', { class: c.title && 'titled' },
+    c.title ? titled(ui, fams, c.title, c.fams) : c.fams.map((f) => h('div.ostack', {}, parts(ui, fams, f, false))),
+    c.then && h('div.othen', {}, titled(ui, fams, c.then.title, c.then.fams)));
+}
+
+/** After a render: a panel re-parks (its size follows the list), then the tip follows its option. */
+function placed(ui, keepTip) {
+  if (ui.sh.el.classList.contains('opanel')) park(ui);
+  keep(ui, keepTip);
+}
+
+function keep(ui, keepTip) {
+  if (!keepTip) return;
+  const again = [...ui.cols.querySelectorAll('.orow')].find((r) => r.dataset.v === String(keepTip.v));
+  again ? showTip(ui, keepTip, again) : hideTip(ui);
+}
+
+/** Standard: the narrowed list in engine order, down column after column; the filter marks' key along the foot. */
+function flat(ui, opts) {
+  const kind = kindOf(ui.cur.list);
+  const order = { total: LISTS[ui.cur.list].length, cols: STD_COLS[kind], order: ENGINE_ORDER[ui.cur.list] };
+  const out = flatColumns(opts, order).map((rows) => h('div.ocol.flat', {}, rows.map((o) => row(ui, o))));
+  if (kind === 'filters') out.push(legend());
+  return out;
+}
+
+function pick(ui, v) {
+  hideTip(ui);
+  ui.cur.value = v;
+  ui.cur.onPick?.(v);
+  ui.sh.close();
 }

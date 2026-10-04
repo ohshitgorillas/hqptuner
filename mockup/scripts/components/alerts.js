@@ -14,13 +14,57 @@ import { h } from '../lib/dom.js';
 import { popover } from '../lib/popover.js';
 import { placeBy } from '../lib/plate.js';
 import { HOMES } from '../data/alerts.js';
+import { alertPlan, alertsAt, noteHomes, worseBlink } from '../model/alerts.js';
 
 const GLYPH = { crit: '⚠', warn: '⚠', advice: '♪' };
-const RANK = { crit: 2, warn: 1, advice: 0 };
-const blink = (sev) => (sev === 'crit' ? 'crit' : 'warn');   // advice blinks amber, like a warning
 
 const line = (a, tag = 'p') => h(`${tag}.aline`, { data: { sev: a.sev } },
   h('span.ag', { 'aria-hidden': 'true', text: GLYPH[a.sev] }), h('span', { text: a.text }));
+
+/** Worst severity wins on a shared home. */
+function mark(el, sev) {
+  if (!el) return;
+  const next = worseBlink(el.dataset.alert, sev);
+  if (next !== el.dataset.alert) el.dataset.alert = next;
+}
+
+function clear(plate) {
+  for (const el of plate.querySelectorAll('[data-alert]')) el.removeAttribute('data-alert');
+  for (const el of plate.querySelectorAll('.dalert, .salert')) el.remove();
+  for (const el of plate.querySelectorAll('.st.dead')) el.classList.remove('dead');
+  for (const el of plate.querySelectorAll('.gauge[role="button"]')) { el.removeAttribute('role'); el.removeAttribute('tabindex'); }
+}
+
+/**
+ * Pin a plan (model/alerts.js alertPlan) on the plate: blink its homes, darken its dead stages, pin its lines.
+ *
+ * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement}} at
+ * @param {import('../model/alerts.js').AlertPlan} plan
+ */
+function pin({ plate, stages, srail }, plan) {
+  for (const [id, b] of plan.blinks.stage) mark(stages.get(id), b);
+  for (const [sel, b] of plan.blinks.el) mark(plate.querySelector(sel), b);
+  for (const [id, b] of plan.blinks.set) mark(srail.querySelector(`.sst[data-stage="${id}"]`), b);
+  for (const id of plan.dark) stages.get(id)?.classList.add('dead');
+  if (plan.blinks.el.has('.gauge')) { const g = plate.querySelector('.gauge'); g.setAttribute('role', 'button'); g.tabIndex = 0; }
+  // Drawer: the alert lines under the head; the fixing rows in the alert's colour.
+  for (const [id, { alerts, rows }] of plan.drawers) {
+    const d = plate.querySelector(`#drawer-${id}`);
+    if (!d) continue;
+    d.querySelector(':scope > .dhead').after(h('div.dalert', { role: 'status' }, alerts.map((a) => line(a))));
+    for (const { label, chain, sev } of rows) {
+      // chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).
+      const scope = chain ? `.dpanel[aria-label^="${chain === 'sdm' ? 'SDM' : 'PCM'}"] ` : '';
+      for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`)) if (b.textContent === label) mark(b.closest('.drow'), sev);
+    }
+  }
+  // Page: the section header carries the lines, beside the title (the hairline gives way).
+  for (const [name, as] of plan.sections) {
+    const t = plate.querySelector(`#body > main.page > section[aria-label="${name}"] .sh .t`);
+    if (!t) continue;
+    t.after(h('div.salert', { role: 'status' }, as.map((a) => line(a))));
+  }
+}
 
 /**
  * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement, bus: import('../lib/bus.js').Bus}} o
@@ -38,7 +82,7 @@ export function mountAlerts({ plate, stages, srail, bus }) {
     plate.append(panel);
     const pop = popover({ trigger, panel, onToggle: (open) => {
       if (!open) return;
-      const mine = list.filter((a) => HOMES[a.kind].el === sel);
+      const mine = alertsAt(list, HOMES, sel);
       if (!mine.length) { pop.close(); return; }
       panel.replaceChildren(...mine.map((a) => line(a)));
       const { left, top } = placeBy(panel, trigger, { side: 22, foot: 14, at: { x: 'start', y: 'below', gap: 8 } });
@@ -49,53 +93,11 @@ export function mountAlerts({ plate, stages, srail, bus }) {
     notes.set(sel, n);
     return n;
   }
-  for (const sel of new Set(Object.values(HOMES).filter((x) => x.el && !x.set).map((x) => x.el))) noteFor(sel);
-
-  function clear() {
-    for (const el of plate.querySelectorAll('[data-alert]')) el.removeAttribute('data-alert');
-    for (const el of plate.querySelectorAll('.dalert, .salert')) el.remove();
-    for (const el of plate.querySelectorAll('.st.dead')) el.classList.remove('dead');
-    for (const el of plate.querySelectorAll('.gauge[role="button"]')) { el.removeAttribute('role'); el.removeAttribute('tabindex'); }
-  }
-
-  /** Worst severity wins on a shared home. */
-  function mark(el, sev) {
-    if (!el) return;
-    const cur = el.dataset.alert;
-    if (!cur || RANK[sev] > RANK[cur === 'crit' ? 'crit' : 'warn']) el.dataset.alert = blink(sev);
-  }
+  for (const sel of noteHomes(HOMES)) noteFor(sel);
 
   function paint() {
-    clear();
-    const byDrawer = new Map(), bySection = new Map();
-    for (const a of list) {
-      const home = HOMES[a.kind];
-      if (!home) continue;
-      if (home.stage) mark(stages.get(home.stage), a.sev);
-      if (home.el) mark(plate.querySelector(home.el), a.sev);
-      if (home.set) mark(srail.querySelector(`.sst[data-stage="${home.set}"]`), a.sev);
-      if (home.drawer) { if (!byDrawer.has(home.drawer)) byDrawer.set(home.drawer, []); byDrawer.get(home.drawer).push(a); }
-      if (home.section) { if (!bySection.has(home.section)) bySection.set(home.section, []); bySection.get(home.section).push(a); }
-      for (const id of home.dark || []) stages.get(id)?.classList.add('dead');
-      if (home.el === '.gauge') { const g = plate.querySelector('.gauge'); g.setAttribute('role', 'button'); g.tabIndex = 0; }
-    }
-    // Drawer: the alert lines under the head; the fixing rows in the alert's colour.
-    for (const [id, as] of byDrawer) {
-      const d = plate.querySelector(`#drawer-${id}`);
-      if (!d) continue;
-      d.querySelector(':scope > .dhead').after(h('div.dalert', { role: 'status' }, as.map((a) => line(a))));
-      for (const a of as) for (const label of a.rows || HOMES[a.kind].row || []) {
-        // a.chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).
-        const scope = a.chain ? `.dpanel[aria-label^="${a.chain === 'sdm' ? 'SDM' : 'PCM'}"] ` : '';
-        for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`)) if (b.textContent === label) mark(b.closest('.drow'), a.sev);
-      }
-    }
-    // Page: the section header carries the lines, beside the title (the hairline gives way).
-    for (const [name, as] of bySection) {
-      const t = plate.querySelector(`#body > main.page > section[aria-label="${name}"] .sh .t`);
-      if (!t) continue;
-      t.after(h('div.salert', { role: 'status' }, as.map((a) => line(a))));
-    }
+    clear(plate);
+    pin({ plate, stages, srail }, alertPlan(list, HOMES));
     bus.emit('relayout');   // rail wire: dark stages drop their taps; drawers refit
   }
 

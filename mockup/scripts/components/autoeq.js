@@ -13,7 +13,7 @@ import { pipeH, cplx, toDb } from '../lib/xdsp.js';
 import { AUTOEQ } from '../data/pipelines.js';
 import { AEQ_COPY } from '../data/profiles.js';
 import { signed } from '../model/format.js';
-import { PEQ_TYPES, bandsToStages, searchHits } from '../model/eq.js';
+import { PEQ_TYPES, hitPipe, hitSummary, peqCount, shownHits } from '../model/eq.js';
 
 const HITS = 3;
 const TYPE = { PK: 'peak', PEQ: 'peak', LS: 'lshelf', LSC: 'lshelf', HS: 'hshelf', HSC: 'hshelf' };
@@ -28,6 +28,34 @@ function parseEq(text) {
   }
   return { bands, pre: pre ? +pre[1] : null };
 }
+
+/** One side of the pair in the holds line: `L 9 bands −3.5 dB`, plus its convolution file. */
+const side = (p, k) => {
+  if (!p) return '';
+  const conv = p.stages.find((st) => st.kind === 'conv');
+  return `${k} ${peqCount(p.stages)} bands${conv ? ' + ' + conv.file.split('/').pop() : ''} ${p.unit === 'Lin' ? 'Lin ' + p.gain : signed(+p.gain, 1) + ' dB'}`;
+};
+const summary = (p) => p && p.stages.some((st) => (st.kind === 'iir' && PEQ_TYPES.has(st.type)) || st.kind === 'conv');
+const db = (p, fs) => (f) => toDb(cplx.mag(pipeH(p, f, fs)));
+
+/** One hit in the list: `pick` toggles it. */
+const hitRow = (x, on, pick) => h('div.peqhit', { role: 'option', class: on && 'on', aria: { selected: on } },
+  h('button.peqpick', { type: 'button', on: { click: pick } }, h('span', { text: x.name }), h('span.src', { text: x.src })));
+
+/** The picked hit's selection strip. */
+function selStrip(x, clear, load) {
+  const { count, pre } = hitSummary(x);
+  return [h('span.cap', { text: AEQ_COPY.bands(count, pre) }), h('span.grow'),
+    h('button.btn.xs', { type: 'button', text: AEQ_COPY.clear, on: { click: clear } }),
+    h('button.btn.xs.peqload', { type: 'button', text: AEQ_COPY.load, on: { click: load } })];
+}
+
+/** The plot's traces: the picked hit dashed, then the pair. */
+const traces = (sel, l, r, fs) => [
+  ...(sel ? [{ cls: 'ghost', label: AEQ_COPY.preview, fn: db(hitPipe(sel), fs) }] : []),
+  ...(l ? [{ label: 'L', fn: db(l, fs) }] : []),
+  ...(r ? [{ cls: 'side', label: 'R', fn: db(r, fs) }] : []),
+];
 
 /**
  * @param {{core: object, name: () => string, land: (name: string) => void}} o
@@ -67,37 +95,20 @@ export function mountAutoEq({ core, name, land }) {
     q.value = ''; sel = null;
     land(from);
   }
-  const side = (p, k) => {
-    if (!p) return '';
-    const n = p.stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type)).length;
-    const conv = p.stages.find((st) => st.kind === 'conv');
-    return `${k} ${n} bands${conv ? ' + ' + conv.file.split('/').pop() : ''} ${p.unit === 'Lin' ? 'Lin ' + p.gain : signed(+p.gain, 1) + ' dB'}`;
-  };
 
   function paint() {
-    const all = q.value.trim() ? searchHits(AUTOEQ.hits, q.value) : [];   // hits only while searching
-    hits.hidden = !all.length;
-    hits.replaceChildren(...all.slice(0, HITS).map((x) => h('div.peqhit', { role: 'option', class: sel === x && 'on', aria: { selected: sel === x } },
-      h('button.peqpick', { type: 'button', on: { click: () => { sel = sel === x ? null : x; paint(); } } },
-        h('span', { text: x.name }), h('span.src', { text: x.src })))),
-    ...(all.length > HITS ? [h('div.peqmore', { text: AEQ_COPY.more(all.length - HITS) })] : []));
+    const { shown, more } = shownHits(AUTOEQ.hits, q.value, HITS);   // hits only while searching
+    hits.hidden = !shown.length;
+    hits.replaceChildren(...shown.map((x) => hitRow(x, sel === x, () => { sel = sel === x ? null : x; paint(); })),
+      ...(more ? [h('div.peqmore', { text: AEQ_COPY.more(more) })] : []));
     selLine.hidden = !sel;
-    selLine.replaceChildren(...(sel ? [h('span.cap', { text: AEQ_COPY.bands(sel.bands.length, sel.pre) }), h('span.grow'),
-      h('button.btn.xs', { type: 'button', text: AEQ_COPY.clear, on: { click: () => { sel = null; paint(); } } }),
-      h('button.btn.xs.peqload', { type: 'button', text: AEQ_COPY.load, on: { click: () => put({ bands: sel.bands, pre: sel.pre }, true, `${sel.name} · ${sel.src}`) } })] : []));
+    selLine.replaceChildren(...(sel ? selStrip(sel, () => { sel = null; paint(); },
+      () => put({ bands: sel.bands, pre: sel.pre }, true, `${sel.name} · ${sel.src}`)) : []));
     const [l, r] = core.ears();
     holds.replaceChildren(h('b', { text: name() || (summary(l) ? '' : 'None') }), h('span', { text: [side(l, 'L'), side(r, 'R')].filter(Boolean).join('   ') }));
-    const fs = core.rate, traces = [];
-    if (sel) {
-      const p = { stages: bandsToStages(sel.bands), gain: sel.pre, unit: 'dB' };
-      traces.push({ cls: 'ghost', label: AEQ_COPY.preview, fn: (f) => toDb(cplx.mag(pipeH(p, f, fs))) });
-    }
-    if (l) traces.push({ label: 'L', fn: (f) => toDb(cplx.mag(pipeH(l, f, fs))) });
-    if (r) traces.push({ cls: 'side', label: 'R', fn: (f) => toDb(cplx.mag(pipeH(r, f, fs))) });
-    rp.draw(traces);
+    rp.draw(traces(sel, l, r, core.rate));
   }
-  const summary = (p) => p && p.stages.some((st) => (st.kind === 'iir' && PEQ_TYPES.has(st.type)) || st.kind === 'conv');
   return { search, files, holds, plot, paint, reset: () => { q.value = ''; sel = null; paint(); },
     /** The pair's EQ in one line: where it came from, else its band count, else None (rail / overview). */
-    answer: () => name() || (() => { const l = core.ears()[0]; const n = l ? l.stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type)).length : 0; return n ? `${n} bands` : 'None'; })() };
+    answer: () => name() || (() => { const l = core.ears()[0]; const n = l ? peqCount(l.stages) : 0; return n ? `${n} bands` : 'None'; })() };
 }

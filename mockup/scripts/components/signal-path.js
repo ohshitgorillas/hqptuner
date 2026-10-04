@@ -16,6 +16,7 @@
 import { h, s } from '../lib/dom.js';
 import { hatchDefs } from '../lib/glyphs.js';
 import { classNames } from '../model/format.js';
+import { groupFrame, pathLamps } from '../model/wire.js';
 
 const W = 1040, H = 606;
 const ZONE_Y = 22;   // the rate zones' labels
@@ -91,6 +92,14 @@ const KEY = [
   ['dash', 'Position not confirmed (output rate, before Shaping)'],
 ];
 
+const L = (n) => n.x - NW / 2, R = (n) => n.x + NW / 2, T = (n) => n.y - NH / 2, B = (n) => n.y + NH / 2;
+const box = (n) => ({ left: L(n), top: T(n), width: NW, height: NH });
+
+// Bypassed on the path: the matrix gate takes its parts and DAC correction with it (DAC correction needs the matrix).
+const MATRIX_PARTS = ['pl', 'xf', 'ld', 'dc'];
+const NODES = Object.entries(N).map(([id, n]) => ({ id, rail: n.rail }));
+const STAGES = ['matrix', ...NODES.map((n) => n.rail).filter(Boolean)];
+
 /**
  * @param {HTMLElement} host  the drawer block
  * @param {import('../lib/bus.js').Bus} bus   repaints on `sigpath` (the path playing) and `relayout`
@@ -101,14 +110,36 @@ export function mountSignalPath(host, bus) {
   const key = h('div.sgkey', {}, KEY.map(([k, t]) => h('span', {}, h('i', { class: `k-${k}` }), t)));
   host.append(svg, key);
 
-  const edgeEls = [], nodeEls = {};
-  const L = (n) => n.x - NW / 2, R = (n) => n.x + NW / 2, T = (n) => n.y - NH / 2, B = (n) => n.y + NH / 2;
-
   // Hatch pattern (the rate dial's unavailable stripes).
   svg.append(hatchDefs('sg-hatch', { back: 'sghb', line: 'sghl' }));
+  drawZones(svg);
+  drawGroups(svg);
+  const edgeEls = drawEdges(svg);
+  const nodeEls = drawNodes(svg);
 
-  // Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
-  // at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.
+  /** An engaged stage, read off the chain rail (its lamp), so the map follows every Apply. HF filter: on = a filter picked. */
+  const engaged = (stage) => !!document.querySelector(`#rail [data-stage="${stage}"] .lamp.on`);
+
+  function paint() {
+    const m = pathLamps({
+      lit: new Set(litOf(state.p, state.stage)), engaged: new Set(STAGES.filter(engaged)),
+      nodes: NODES, edges: edgeEls, matrix: MATRIX_PARTS, direct: state.p === 'direct',
+    });
+    for (const [id, g] of Object.entries(nodeEls)) {
+      g.classList.toggle('lit', m.nodes[id].lit);
+      g.classList.toggle('off', m.nodes[id].off);
+    }
+    edgeEls.forEach(({ el }, i) => el.classList.toggle('lit', m.edges[i]));
+  }
+
+  bus.on('sigpath', (d) => { state = d; paint(); });
+  bus.on('relayout', paint);
+  paint();
+}
+
+// Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
+// at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.
+function drawZones(svg) {
   const seam = N.f1.x;
   svg.append(
     s('rect.sgz.zs', { x: 0, y: 0, width: seam, height: H - 34, rx: 6 }),
@@ -117,15 +148,18 @@ export function mountSignalPath(host, bus) {
     s('text.sgzt', { x: 12, y: ZONE_Y }, 'SOURCE RATE'),
     s('text.sgzt', { x: W - 12, y: ZONE_Y, 'text-anchor': 'end' }, 'OUTPUT RATE'),
   );
+}
 
+function drawGroups(svg) {
   for (const g of GROUPS) {
-    const ns = g.ids.map((id) => N[id]);
-    const x0 = Math.min(...ns.map(L)) - 9, x1 = Math.max(...ns.map(R)) + 9;
-    const y0 = Math.min(...ns.map(T)) - (g.sub ? 46 : 30), y1 = Math.max(...ns.map(B)) + 12;
-    svg.append(s('rect.sgg', { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 5 }),
-      s('text.sggt', { x: x0 + 9, y: y0 + 18 }, g.label.toUpperCase()), g.sub && s('text.sggs', { x: x0 + 9, y: y0 + 34, text: g.sub }));
+    const { frame, title, sub } = groupFrame({ boxes: g.ids.map((id) => box(N[id])), sub: !!g.sub });
+    svg.append(s('rect.sgg', { ...frame, rx: 5 }),
+      s('text.sggt', title, g.label.toUpperCase()), g.sub && s('text.sggs', { ...sub, text: g.sub }));
   }
+}
 
+function drawEdges(svg) {
+  const edgeEls = [];
   // Direct SDM: from the DSD source down under everything, then up into Speakers.
   // Down under everything, along the foot, up the right edge, into Speakers' right side (Output hangs under Speakers).
   const ds = N.ds, sp = N.sp, yb = H - 18, xr = W - 8, r = 10;
@@ -145,7 +179,11 @@ export function mountSignalPath(host, bus) {
     svg.append(el);
     edgeEls.push({ el, a, b });
   }
+  return edgeEls;
+}
 
+function drawNodes(svg) {
+  const nodeEls = {};
   for (const [id, n] of Object.entries(N)) {
     const g = s('g.sgn', { class: classNames(n.src && 'src', n.unv && 'unv') });
     g.append(s('rect', { x: L(n), y: T(n), width: NW, height: NH, rx: n.src ? NH / 2 : 4 }));
@@ -161,24 +199,5 @@ export function mountSignalPath(host, bus) {
     nodeEls[id] = g;
     svg.append(g);
   }
-
-  /** An engaged stage, read off the chain rail (its lamp), so the map follows every Apply. HF filter: on = a filter picked. */
-  const engaged = (stage) => !!document.querySelector(`#rail [data-stage="${stage}"] .lamp.on`);
-
-  function paint() {
-    const lit = new Set(litOf(state.p, state.stage));
-    const mxOn = engaged('matrix');
-    for (const [id, g] of Object.entries(nodeEls)) {
-      const n = N[id];
-      // Bypassed on the path: the matrix gate takes its parts and DAC correction with it (DAC correction needs the matrix).
-      const off = !!lit.has(id) && !! ((['pl', 'xf', 'ld', 'dc'].includes(id) && !mxOn) || (n.rail && n.rail !== 'matrix' && !engaged(n.rail)));
-      g.classList.toggle('lit', lit.has(id));
-      g.classList.toggle('off', !!off);
-    }
-    for (const { el, a, b, direct } of edgeEls) el.classList.toggle('lit', direct ? state.p === 'direct' : lit.has(a) && lit.has(b));
-  }
-
-  bus.on('sigpath', (d) => { state = d; paint(); });
-  bus.on('relayout', paint);
-  paint();
+  return nodeEls;
 }

@@ -12,6 +12,7 @@ import { parkLeftOf } from '../lib/plate.js';
 import { seg } from './seg.js';
 import { PRESET_COLUMNS, CORRECTION_LABELS, HIRES_TIP, LINEAGE } from '../data/presets.js';
 import { classNames } from '../model/format.js';
+import { subsetVersion } from '../model/presets.js';
 
 export function mountFilterPresets(plate, trigger, presets) {
   const by = Object.fromEntries(presets.map((p) => [p.id, p]));
@@ -31,12 +32,13 @@ export function mountFilterPresets(plate, trigger, presets) {
 
   const isCur = (id, lane = null) => cur.id === id && cur.lane === lane;
   const pick = (id, lane = null) => { cur = { id, lane }; render(); };
+  const ui = { subs, by, corr, isCur, pick, render, fold: () => { open = null; render(); } };
 
   function render() {
     rows.replaceChildren(...presets.filter((p) => !subs.includes(p.id)).flatMap((p) => {
       if (!LINEAGE.lanes.includes(p.id)) return [presetRow(p)];
       const shown = open === p.id;
-      return [presetRow(p), ...(shown ? subs.map((id) => subRow(by[id], p.id)) : [foldLine(p)])];
+      return [presetRow(p), ...(shown ? subs.map((id) => subRow(by[id], p.id, ui)) : [foldLine(p)])];
     }));
     if (panel.offsetParent) parkLeftOf(panel, trigger);   // height changed: stay inside the plate
   }
@@ -64,35 +66,36 @@ export function mountFilterPresets(plate, trigger, presets) {
     );
   }
 
-  /** A subset preset nested under a flagship, in that flagship's version; ▾ on the first one folds the pair again. */
-  function subRow(p, lane) {
-    const c = LINEAGE.rows[p.id][lane];
-    const on = corr[p.id] === 'on';
-    const name = c.fixed || (on ? c.on : c.off);
-    // Correction Off costs one pip less (v1 easycost.js); a fixed version or a captioned cost doesn't move.
-    const cst = c.cost.pips && !c.fixed && !on ? { pips: Math.max(1, c.cost.pips - 1) } : c.cost;
-    const k = p.knobs[0];
-    const first = p.id === subs[0];
-    return h('div.frow.sub', { class: classNames(isCur(p.id, lane) && 'cur', first && 'first'), data: { preset: p.id, lane } },
-      h('button.pick', { type: 'button', on: { click: () => pick(p.id, lane) } },
-        h('span.lamp', { class: isCur(p.id, lane) && 'on' }),
-        h('span.em', { 'aria-hidden': 'true', text: p.emoji }),
-        h('span.pn', { text: p.name }),
-        h('span.ds', { text: p.desc }),
-      ),
-      h('span.fl', {}, h('span', { text: name })),
-      // Correction only where this version has a non-correcting twin (v1 `when`); The Crucible's Lifelike has none.
-      h('span.kn', {}, !c.fixed && h('span.kseg', { title: k.title },
-        h('span.kl', { text: k.label }),
-        seg({ tag: 'span', aria: `${p.name} ${k.label}`, value: on ? 'On' : 'Off', options: k.options.map((o) => ({ v: o.label, label: o.label })),
-          onChange: (v) => { corr[p.id] = v === 'On' ? 'on' : 'off'; render(); } }))),
-      h('span.ap', {}, correctionGlyph(c.fixed || on ? 'full' : 'none')),
-      cost(cst),
-      first && h('button.fsubx', { type: 'button', 'aria-label': `Hide ${subs.map((id) => by[id].name).join(' and ')}`, on: { click: () => { open = null; render(); } } }),
-    );
-  }
-
   render();
+}
+
+/**
+ * A subset preset nested under a flagship, in that flagship's version; ▾ on the first one folds the pair again.
+ * ui: the popover's pick state and actions (mountFilterPresets).
+ */
+function subRow(p, lane, { subs, by, corr, isCur, pick, render, fold }) {
+  const on = corr[p.id] === 'on';
+  // Correction Off costs one pip less (v1 easycost.js); a fixed version or a captioned cost doesn't move.
+  const v = subsetVersion(LINEAGE.rows, p.id, lane, on);
+  const k = p.knobs[0];
+  const first = p.id === subs[0];
+  return h('div.frow.sub', { class: classNames(isCur(p.id, lane) && 'cur', first && 'first'), data: { preset: p.id, lane } },
+    h('button.pick', { type: 'button', on: { click: () => pick(p.id, lane) } },
+      h('span.lamp', { class: isCur(p.id, lane) && 'on' }),
+      h('span.em', { 'aria-hidden': 'true', text: p.emoji }),
+      h('span.pn', { text: p.name }),
+      h('span.ds', { text: p.desc }),
+    ),
+    h('span.fl', {}, h('span', { text: v.filter })),
+    // Correction only where this version has a non-correcting twin (v1 `when`); The Crucible's Lifelike has none.
+    h('span.kn', {}, v.toggle && h('span.kseg', { title: k.title },
+      h('span.kl', { text: k.label }),
+      seg({ tag: 'span', aria: `${p.name} ${k.label}`, value: on ? 'On' : 'Off', options: k.options.map((o) => ({ v: o.label, label: o.label })),
+        onChange: (val) => { corr[p.id] = val === 'On' ? 'on' : 'off'; render(); } }))),
+    h('span.ap', {}, correctionGlyph(v.correction)),
+    cost(v.cost),
+    first && h('button.fsubx', { type: 'button', 'aria-label': `Hide ${subs.map((id) => by[id].name).join(' and ')}`, on: { click: fold } }),
+  );
 }
 
 function knob(k) {

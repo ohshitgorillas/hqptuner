@@ -34,7 +34,7 @@ import { drawerState, setFrom, regrayDrawer, paintApply } from './drawer/state.j
 import { drawerApplyGroup, applied, discarded, settle, remark } from './drawer/apply.js';
 import { tabStrip, tabPanels, drawerShell, prefixIds, showTab } from './drawer/head.js';
 
-export { familyOf, registerDrawer, closeOthers, wipe, drawerOpener } from './drawer/registry.js';
+export { familyOf, loadValues, registerDrawer, closeOthers, wipe, drawerOpener } from './drawer/registry.js';
 export { onApplied, applyGroup } from './drawer/apply.js';
 
 /** The drawer's api: what main.js, the family's other members and the Profile builder call. */
