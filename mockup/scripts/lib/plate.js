@@ -5,6 +5,8 @@
 // Anything that measures the DOM (rail wire, popover parking) must divide screen px by scale().
 // PLATE_W / PLATE_H are live bindings: importers read the current size, never cache it.
 
+import { clampToPlate } from '../model/place.js';
+
 /**
  * iPad landscape viewports in points (Apple: 10.2" iPad 7th–9th gen; 11" iPad / iPad Air 11"; 13" iPad Air 13").
  * both: tall enough to open both Resampling filters (1x and Nx) instead of stretching the Matrix section (conversion.js).
@@ -68,11 +70,29 @@ export function toPlate(rect) {
 }
 
 /**
+ * Where a plate-level panel lands against its trigger (model/place.js clampToPlate): the trigger's screen rect from the
+ * plate's corner, the panel's layout size, the plate's size and scale, and the margins and placement given.
+ *
+ * @param {HTMLElement} panel
+ * @param {Element} trigger
+ * @param {{side: import('../model/place.js').Side, foot: import('../model/place.js').Margin, at: import('../model/place.js').Place}} how
+ */
+export function placeBy(panel, trigger, { side, foot, at }) {
+  const r = trigger.getBoundingClientRect(), p = plate.getBoundingClientRect();
+  return clampToPlate({
+    anchor: { left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
+    panel: { w: panel.offsetWidth, h: panel.offsetHeight },
+    plate: { w: PLATE_W, h: PLATE_H },
+    scale: current, side, foot, at,
+  });
+}
+
+/**
  * Park a plate-level popover to the LEFT of its trigger, tops aligned, clamped inside the plate
- * (22px side padding, 14px bottom margin). Used by Filter presets and Narrow filters.
+ * (22px left padding, 14px bottom margin). Used by Filter presets.
  */
 export function parkLeftOf(panel, trigger) {
-  const b = toPlate(trigger.getBoundingClientRect());
-  panel.style.left = Math.round(Math.max(22, b.x - panel.offsetWidth - 12)) + 'px';
-  panel.style.top = Math.round(Math.min(b.y, PLATE_H - 14 - panel.offsetHeight)) + 'px';
+  const { left, top } = placeBy(panel, trigger, { side: [22, null], foot: 14, at: { x: 'before', y: 'top', gap: 12 } });
+  panel.style.left = Math.round(left) + 'px';
+  panel.style.top = Math.round(top) + 'px';
 }

@@ -69,5 +69,4 @@ export function installSheets() {
   }, true);
 }
 
-/** Round × close button, the stage drawers' own. */
-export const closeBtn = (onClick, label = 'Close') => h('button.round.dx', { type: 'button', 'aria-label': label, text: '×', on: { click: onClick } });
+export { closeBtn } from './controls.js';

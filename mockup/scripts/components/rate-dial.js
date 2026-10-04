@@ -12,6 +12,7 @@
 // Layers: hatch → seam → band legends → rule + minor ticks → needles → tier printing → playing lamp → band sliders.
 
 import { h, s } from '../lib/dom.js';
+import { hatchDefs } from '../lib/glyphs.js';
 import { tierIndex } from '../model/output.js';
 
 const W = 806;          // viewBox width = the Format row at the 1080 plate, so the printing is 1:1
@@ -42,8 +43,7 @@ export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
   const seamX = (xs[span('pcm').hi] + xs[span('sdm').lo]) / 2;
 
   // Layer 1: hatch behind unavailable tiers
-  add(s('defs', {}, s('pattern#hatch.hatch', { width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
-    s('line', { x1: 0, y1: 0, x2: 0, y2: 6 }))));
+  add(hatchDefs('hatch', { pattern: 'hatch' }));
   tiers.forEach((t, i) => t.unavailable && add(s('rect', { x: xs[i] - DX / 2, y: 0, width: DX, height: H, fill: 'url(#hatch)' })));
 
   // Layer 2: bezel seam between the bands

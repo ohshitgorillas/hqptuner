@@ -5,7 +5,7 @@
 import { h } from '../lib/dom.js';
 import { TWO_STAGE, CATALOG } from '../data/conversion-catalog.js';
 import { popover } from '../lib/popover.js';
-import { toPlate, scale, PLATE_W, PLATE_H } from '../lib/plate.js';
+import { placeBy } from '../lib/plate.js';
 import { optionOf } from '../model/options.js';
 
 /**
@@ -124,13 +124,10 @@ function notePop(trigger, label, paras) {
   plate.append(panel);
   const pop = popover({ trigger, panel, onToggle: (open) => {
     if (!open) return;
-    const r = trigger.getBoundingClientRect();
-    const at = toPlate(r);
-    const w = panel.offsetWidth, hgt = panel.offsetHeight;
-    let x = Math.min(at.x, PLATE_W - 22 - w), y = at.y + r.height / scale() + 6;
-    if (y + hgt > PLATE_H - 14) y = at.y - hgt - 6;   // no room below: open above the link
-    panel.style.left = `${Math.max(22, x)}px`;
-    panel.style.top = `${y}px`;
+    // No room below: open above the link.
+    const { left, top } = placeBy(panel, trigger, { side: 22, foot: 14, at: { x: 'start', y: 'flip', gap: 6 } });
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
   } });
   pop.open();
 }

@@ -10,11 +10,11 @@
 // Page-held fields (the running mode's filters and shaper) show here too: two homes, one state (set(id, v) moves a pick in).
 
 import { h } from '../lib/dom.js';
-import { anyOpen } from '../lib/popover.js';
-import { registerDrawer, closeOthers, applyGroup, wipe } from './drawer.js';
+import { registerDrawer, applyGroup, drawerOpener } from './drawer.js';
 import { seg, select } from './seg.js';
 import { vselect, optCopy } from './vselect.js';
 import { xref } from '../lib/xref.js';
+import { secHead, closeBtn, numBox } from '../lib/controls.js';
 import { isFft, MODE_TABS } from '../data/conversion.js';
 
 /**
@@ -41,9 +41,9 @@ export function mountModeDrawer(body, stages, spec, values, { running, on, onApp
       el = vselect({ id, aria: c.aria, options: c.options, value: vals[r.id], onChange: (v) => pick(r, m, v) });
       if (c.options.some((x) => x.man)) copy = h('p.optman', {}, optCopy(c.options, vals[r.id]));
     } else if (c.type === 'number') {
-      const input = h('input.vfd', { type: 'number', id, value: vals[r.id], min: c.min, max: c.max, 'aria-label': c.aria });
+      const { el: num, input } = numBox({ id, value: vals[r.id], min: c.min, max: c.max, aria: c.aria, hint: c.hint });
       input.addEventListener('change', () => pick(r, m, input.value));
-      el = h('div.num', {}, input, c.hint && h('span.h', { text: c.hint }));
+      el = num;
       el._ui = (v) => { input.value = v; };
     } else {
       el = seg({ aria: c.aria, options: c.options, value: vals[r.id], attrs: { id }, onChange: (v) => pick(r, m, v) });
@@ -92,14 +92,14 @@ export function mountModeDrawer(body, stages, spec, values, { running, on, onApp
   const panels = {};
   for (const m of ['pcm', 'sdm']) {
     panels[m] = h('div.dpanel.cvpanel', { role: 'tabpanel', 'aria-label': `${MODE_TABS[m].split(' ')[0]} ${spec.title}`, hidden: true },
-      spec.modes[m].map((r) => (r.head ? h('div.msec', {}, h('span.t', { text: r.head }), h('span.ln')) : row(r, m))), (spec.notes?.[m] || []).map(noteEl));
+      spec.modes[m].map((r) => (r.head ? secHead('msec', r.head) : row(r, m))), (spec.notes?.[m] || []).map(noteEl));
   }
   const tabs = ['pcm', 'sdm'].map((m) => h('button', { type: 'button', role: 'tab', data: { tab: m },
     on: { click: () => { shown = m; paint(); } } }, h('span', { text: MODE_TABS[m] }), h('span.cst')));
 
   const title = h('span.t', { text: spec.title });
   const tabHost = h('div.seg.dtabs.mtabs', { role: 'tablist', 'aria-label': `${spec.title}: output mode` }, tabs);
-  const close = h('button.round.dx', { type: 'button', 'aria-label': 'Close drawer', text: '×', on: { click: () => setOpen(false) } });
+  const close = closeBtn(() => setOpen(false), 'Close drawer');
   const grp = applyGroup(() => { base = { ...vals }; dirty.clear(); paintDirty(); onApplied?.({ ...vals }); }, () => discard());
   const head = h('div.dhead.cvhead', {}, title, tabHost, h('span.grow'), grp.el, close);
   const frame = h('div.cvbody', {}, panels.pcm, panels.sdm);
@@ -124,15 +124,6 @@ export function mountModeDrawer(body, stages, spec, values, { running, on, onApp
     grp.paint(restarts || dirty.size > 0, dirty.size > 0);
   }
 
-  function setOpen(open, snap) {
-    if (open) closeOthers(api);
-    wipe(drawer, !open, snap);
-    for (const st of stages) {
-      st.classList.toggle('open', open && !st.hidden);
-      st.setAttribute('aria-expanded', String(open));
-    }
-  }
-
   for (const st of stages) {
     st.setAttribute('aria-controls', drawer.id);
     st.addEventListener('click', () => {
@@ -140,7 +131,7 @@ export function mountModeDrawer(body, stages, spec, values, { running, on, onApp
       else { shown = run; paint(); setOpen(true); }
     });
   }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !anyOpen()) setOpen(false); });
+  const setOpen = drawerOpener(drawer, stages, () => api);
 
   paint();
   const api = {

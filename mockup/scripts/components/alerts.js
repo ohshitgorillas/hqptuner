@@ -12,7 +12,7 @@
 
 import { h } from '../lib/dom.js';
 import { popover } from '../lib/popover.js';
-import { toPlate, scale, PLATE_W, PLATE_H } from '../lib/plate.js';
+import { placeBy } from '../lib/plate.js';
 import { HOMES } from '../data/alerts.js';
 
 const GLYPH = { crit: '⚠', warn: '⚠', advice: '♪' };
@@ -41,9 +41,9 @@ export function mountAlerts({ plate, stages, srail, bus }) {
       const mine = list.filter((a) => HOMES[a.kind].el === sel);
       if (!mine.length) { pop.close(); return; }
       panel.replaceChildren(...mine.map((a) => line(a)));
-      const r = trigger.getBoundingClientRect(), at = toPlate(r);
-      panel.style.left = `${Math.max(22, Math.min(at.x, PLATE_W - 22 - panel.offsetWidth))}px`;
-      panel.style.top = `${Math.min(at.y + r.height / scale() + 8, PLATE_H - 14 - panel.offsetHeight)}px`;
+      const { left, top } = placeBy(panel, trigger, { side: 22, foot: 14, at: { x: 'start', y: 'below', gap: 8 } });
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
     } });
     const n = { panel, pop };
     notes.set(sel, n);

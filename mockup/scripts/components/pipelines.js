@@ -16,8 +16,10 @@
 // crossfeed blocks follow the Crossfeed drawer's staged values; everything grays while the matrix engine is bypassed.
 
 import { h, s, grayBut } from '../lib/dom.js';
-import { withXref } from '../lib/xref.js';
+import { withXref, xref, xrefGo } from '../lib/xref.js';
+import { pageButtons } from '../lib/pager.js';
 import { popover } from '../lib/popover.js';
+import { placeBy, scale } from '../lib/plate.js';
 import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { pipeH, cplx, toDb } from '../lib/xdsp.js';
@@ -26,12 +28,13 @@ import { structuralRows, compRows } from '../lib/xblocks.js';
 import { chShort, chName, PMAN, IIR_TYPES, ARG_NAME, ARG_UNIT, DELAY_ARGS, DELAY_V, KINDS, AUTOEQ } from '../data/pipelines.js';
 import { classNames, minus, signed } from '../model/format.js';
 import { PEQ_TYPES, bandsToStages, replacePeq, searchHits } from '../model/eq.js';
+import { paging } from '../model/pager.js';
 
 const PAGE = 6, MAXP = 128;
 const BLOCK_NAME = { structural: 'Structural Crossfeed', comp: 'Bauer Crossfeed compensation' };
 const fmtHz = (f) => (f >= 1000 ? `${+(f / 1000).toFixed(2)}k` : `${+f}`);
 const range = (n) => Array.from({ length: n }, (_, k) => k);
-const xref = (go, label) => h('a.xref', { href: '#', on: { click: (e) => { e.preventDefault(); go(); } } }, label, h('span', { 'aria-hidden': 'true', text: ' ›' }));
+let made = 0;   // drawers built: each registers its own Crossfeed link target, since each caller opens Crossfeed its own way
 
 /** Chain → chip groups: a run of ≥2 peak/shelf iir stages = one PEQ group (a block's own stages never join); gain last. */
 function groups(p) {
@@ -79,6 +82,14 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
   const at = (src, mix) => pipes.map((p, i) => [p, i]).filter(([p]) => p.src === src && p.mix === mix);
   const paint = () => { for (const v of views) v.paint(); };
   const stage = (ctx) => ctx.set('mxpipes', JSON.stringify(pipes));
+  const toCrossfeed = `pipelines-crossfeed-${++made}`;
+  xrefGo(toCrossfeed, openCrossfeed);
+  /** Gray a tab's body under the matrix bypass but its reason, which stays legible and links to the Matrix engine. */
+  const grayed = (body, reason) => {
+    grayBut(body, reason, !!mxWhy);
+    for (const x of body.querySelectorAll('button,input')) x.disabled = !!mxWhy;
+    reason.replaceChildren(...withXref(mxWhy)); reason.hidden = !mxWhy;
+  };
 
   // ── Crossfeed blocks (follow the Crossfeed drawer's staged values) ──────
   function want(v) {
@@ -127,10 +138,12 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
 
   // ── Shared popovers: add-stage / add-input menu, Import EQ ─────────────
   const place = (panel, btn, alignRight) => {
-    const r = btn.getBoundingClientRect(), pr = plate.getBoundingClientRect(), k = pr.width / plate.offsetWidth;
-    panel.style.top = `${(r.bottom - pr.top) / k + 6}px`;
-    if (alignRight) { panel.style.left = 'auto'; panel.style.right = `${(pr.right - r.right) / k}px`; }
-    else { panel.style.right = 'auto'; panel.style.left = `${(r.left - pr.left) / k}px`; }
+    const { left, top } = placeBy(panel, btn, { side: null, foot: null, at: { x: 'start', y: 'below', gap: 6 } });
+    panel.style.top = `${top}px`;
+    if (alignRight) {
+      panel.style.left = 'auto';
+      panel.style.right = `${(plate.getBoundingClientRect().right - btn.getBoundingClientRect().right) / scale()}px`;
+    } else { panel.style.right = 'auto'; panel.style.left = `${left}px`; }
   };
   const menu = h('div.pop.pmenu', { role: 'menu' });
   plate.append(menu);
@@ -224,9 +237,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       ].flat(3));
       const over = pipes.length > MAXP;
       totals.replaceChildren(`${nIn} in · `, h('span', { class: over && 'over', text: over ? `${pipes.length} / ${MAXP} pipelines` : `${pipes.length} pipelines` }), ` · ${nOut} out`);
-      grayBut(body, reason, !!mxWhy);   // the reason stays legible: it links to the Matrix engine
-      for (const x of body.querySelectorAll('button,input')) x.disabled = !!mxWhy;
-      reason.replaceChildren(...withXref(mxWhy)); reason.hidden = !mxWhy;
+      grayed(body, reason);
     }
     views.push({ paint: paintOv });
     paintOv();
@@ -299,25 +310,15 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       ].filter(Boolean));
       // A fixed page of rows, numbered page buttons.
       const its = items(here);
-      const pages = Math.max(1, Math.ceil(its.length / PAGE));
-      page = Math.min(page, pages - 1);
-      rows.replaceChildren(...its.slice(page * PAGE, (page + 1) * PAGE).map(listRow));
-      const go = (k) => { page = (k + pages) % pages; paintOut(); };
-      pager.replaceChildren(...(pages > 1 ? [
-        h('span.cl', { text: 'Page' }),
-        h('button.round.pbn', { type: 'button', text: '‹', 'aria-label': 'Previous page', on: { click: () => go(page - 1) } }),
-        range(pages).map((k) => h('button.opb', { type: 'button', class: k === page && 'on', text: String(k + 1),
-          'aria-label': `Page ${k + 1}`, 'aria-current': String(k === page), on: { click: () => go(k) } })),
-        h('button.round.pbn', { type: 'button', text: '›', 'aria-label': 'Next page', on: { click: () => go(page + 1) } }),
-        h('span.opr', { text: `${page * PAGE + 1}–${Math.min(its.length, (page + 1) * PAGE)} of ${its.length}` }),
-      ].flat() : []));
+      const pg = paging(its.length, PAGE, page);
+      page = pg.page;
+      rows.replaceChildren(...its.slice(pg.start, pg.end).map(listRow));
+      pager.replaceChildren(...pageButtons({ n: its.length, per: PAGE, page, count: true, go: (k) => { page = k; paintOut(); } }));
       // Editor, dock, plot.
       const p = pipes[selPipe];
       editor.replaceChildren(...(p ? [strip(p, selPipe)] : []));
       paintDock(); plot();
-      grayBut(body, reason, !!mxWhy);
-      for (const x of body.querySelectorAll('button,input')) x.disabled = !!mxWhy;
-      reason.replaceChildren(...withXref(mxWhy)); reason.hidden = !mxWhy;
+      grayed(body, reason);
     }
     function listRow(x) {
       if (x.fold || x.head) {
@@ -325,7 +326,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
         const el = h('div.plrow.plfold', { class: !open && pipes[selPipe]?.gen === kind && 'sel', role: 'option' },
           h('button.pltw', { type: 'button', text: open ? '▾' : '▸', 'aria-expanded': String(open), 'aria-label': `${open ? 'Fold' : 'Unfold'} ${BLOCK_NAME[kind]}`,
             on: { click: () => { if (open) openBlocks.delete(kind); else openBlocks.add(kind); paint(); } } }),
-          xref(openCrossfeed, BLOCK_NAME[kind]), h('span.pls', { text: `${x.n} rows · ${block.sum || ''}` }));
+          xref(toCrossfeed, BLOCK_NAME[kind]), h('span.pls', { text: `${x.n} rows · ${block.sum || ''}` }));
         el.addEventListener('click', (e) => { if (!e.target.closest('button,a')) pick(x.first); });
         return el;
       }
@@ -473,7 +474,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
     }
     function lockedDock(p, gr) {
       const st = p.stages[gr.idx[0]];
-      const right = xref(openCrossfeed, BLOCK_NAME[p.gen]);
+      const right = xref(toCrossfeed, BLOCK_NAME[p.gen]);
       const ro = (txt) => h('span.vfd.pfile.pro', { text: txt });
       if (gr.kind === 'gain') return { right, values: [h('div.pfield', {}, lab('Gain'), ro(minus(+p.gain)), h('span.u.pu', { text: p.unit }))], copy: paras(PMAN.gain) };
       if (gr.kind === 'delay') {

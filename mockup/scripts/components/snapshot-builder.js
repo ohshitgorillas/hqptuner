@@ -26,6 +26,8 @@ import { NEW, homeOf } from '../model/builder.js';
 import { SNAP_ROWS, SNAP_COPY } from '../data/snapshots.js';
 import { CHAIN_NAMES } from '../data/conversion.js';
 import { classNames } from '../model/format.js';
+import { paging } from '../model/pager.js';
+import { pageButtons } from '../lib/pager.js';
 
 const CHAIN_IDS = ['1x', 'nx', 'sh'];
 const isChain = (id) => CHAIN_IDS.includes(id);
@@ -146,20 +148,12 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     };
     const nw = { st: home, name: NEW };
     const pager = (st, n) => {
-      const pages = Math.ceil(n / per);
-      if (pages < 2) return [];
-      const pg = Math.min(pageOf.get(st) ?? 0, pages - 1);
-      const goPg = (k) => { pageOf.set(st, (k + pages) % pages); paintRail(); };
-      return [h('div.opg.bpg', {},
-        h('button.round.pbn', { type: 'button', text: '‹', 'aria-label': 'Previous page', on: { click: () => goPg(pg - 1) } }),
-        Array.from({ length: pages }, (_, k) => h('button.opb', { type: 'button', class: k === pg && 'on', text: String(k + 1),
-          'aria-label': `Page ${k + 1}`, 'aria-current': String(k === pg), on: { click: () => goPg(k) } })),
-        h('button.round.pbn', { type: 'button', text: '›', 'aria-label': 'Next page', on: { click: () => goPg(pg + 1) } }))];
+      const kids = pageButtons({ n, per, page: pageOf.get(st) ?? 0, go: (k) => { pageOf.set(st, k); paintRail(); } });
+      return kids.length ? [h('div.opg.bpg', {}, kids)] : [];
     };
     const pageItems = (st, names) => {
-      const pages = Math.max(1, Math.ceil(names.length / per));
-      const pg = first ? 0 : Math.min(pageOf.get(st) ?? 0, pages - 1);
-      return names.slice(pg * per, (pg + 1) * per);
+      const pg = paging(names.length, per, first ? 0 : pageOf.get(st) ?? 0);
+      return names.slice(pg.start, pg.end);
     };
     rail.replaceChildren(
       // Each station a fold, one open at a time; its snapshots under it. The loaded station's name amber.

@@ -26,6 +26,8 @@ import { closeOthers } from './drawer.js';
 import { seg, select } from './seg.js';
 import { mountRateDial } from './rate-dial.js';
 import { mountBuilder, paras as parasOf, drow as row, chainPic, holdRow } from '../lib/builder.js';
+import { numBox } from '../lib/controls.js';
+import { rowsOf, rowOf } from '../model/schema.js';
 import { NEW, OVERVIEW, homeOf, namesAfterSave } from '../model/builder.js';
 import { OUTPUT_DRAWER, DEVICES, RATE_TIERS } from '../data/output.js';
 import { VOLUME_DRAWER } from '../data/volume.js';
@@ -42,28 +44,21 @@ const TIERS = RATE_TIERS.tiers;
 const TICK = 700;   // mock: one line of a check
 
 // Manual copy, read from the drawers that own it (one home per setting; the builder borrows the paragraph).
-const rowsOf = (drawer) => drawer.tabs.flatMap((t) => t.body.flatMap((it) => (it.row ? [it.row] : it.rows ?? [])));
-const outRow = (label, group) => {
-  for (const t of OUTPUT_DRAWER.tabs) for (const it of t.body) {
-    if (it.row?.label === label && !group) return it.row;
-    if (group && it.group === group) { const r = it.rows.find((x) => x.label === label); if (r) return r; }
-  }
-  return null;
-};
 const MAN = {
-  netDevice: outRow('Output device', 'network').man, alsaDevice: outRow('Output device', 'alsa').man,
-  discovery: outRow('Discovery', 'network').man, rate: outRow('Rate').man[0].text,
-  dsd: outRow('DSD support', 'network').man, dsd48: outRow('DSD rates', 'network').man, bits: outRow('DAC bits', 'network').man,
+  netDevice: rowOf(OUTPUT_DRAWER, 'Output device', 'network').man, alsaDevice: rowOf(OUTPUT_DRAWER, 'Output device', 'alsa').man,
+  discovery: rowOf(OUTPUT_DRAWER, 'Discovery', 'network').man, rate: rowOf(OUTPUT_DRAWER, 'Rate').man[0].text,
+  dsd: rowOf(OUTPUT_DRAWER, 'DSD support', 'network').man, dsd48: rowOf(OUTPUT_DRAWER, 'DSD rates', 'network').man,
+  bits: rowOf(OUTPUT_DRAWER, 'DAC bits', 'network').man,
 };
-const FIXED = VOLUME_DRAWER.tabs[0].body[0].row.control.options;   // Off / Manual / Auto lines: their manual copy
+const FIXED = rowOf(VOLUME_DRAWER, 'Fixed volume').control.options;   // Off / Manual / Auto lines: their manual copy
 const VMAN = { off: FIXED.find((x) => x.v === 'off').man, iso: FIXED.find((x) => x.v === 'auto').man,
-  gain: rowsOf(VOLUME_DRAWER).find((r) => r.label === 'PCM gain compensation').man };
+  gain: rowOf(VOLUME_DRAWER, 'PCM gain compensation').man };
 const HW = Object.fromEntries(rowsOf(HARDWARE_DRAWER).map((r) => [r.control.id ?? r.label, r]));
 const HWMAN = { cuda: HW.cuda.man, devs: HW['CUDA devices'].man, ecores: HW.ecores.man, multicore: HW.multicore.man };
 const optLabel = (id, v) => HW[id].control.options.find((x) => x.v === v)?.label ?? v;
-const DSD_OPTS = outRow('DSD support', 'network').control.options;
-const DSD48_OPTS = outRow('DSD rates', 'network').control.options;
-const DISCOVERY = outRow('Discovery', 'network').control.options;
+const DSD_OPTS = rowOf(OUTPUT_DRAWER, 'DSD support', 'network').control.options;
+const DSD48_OPTS = rowOf(OUTPUT_DRAWER, 'DSD rates', 'network').control.options;
+const DISCOVERY = rowOf(OUTPUT_DRAWER, 'Discovery', 'network').control.options;
 
 /** Rich inline copy: strings, {a, href}, {code}, *emphasis* (the wizard's markdown). */
 const rich = (bits) => (Array.isArray(bits) ? bits : [bits]).flatMap((b) => (typeof b === 'string'
@@ -183,11 +178,11 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
           h('div.man', {}, paras(op.man)));
       })));
   }
-  const numBox = (label, unit, value, attrs, onSet, hint) => {
-    const input = h('input.vfd', { type: 'number', 'aria-label': label, value, ...attrs });
+  const num = (label, unit, value, attrs, onSet, hint) => {
+    const { el, input } = numBox({ ...attrs, value, aria: label, unit, hint });
     input.value = value;
     input.addEventListener('change', () => { const n = Number(input.value); if (Number.isFinite(n)) onSet(n); });
-    return h('div.num', {}, input, unit && h('span.u', { text: unit }), hint && h('span.h', { text: hint }));
+    return el;
   };
   /** A check's printed lines (the wizard's `...` lines, then its verdict). */
   const lines = (run) => run && h('div.stbrun', { role: 'status' }, run.lines.map((t, i) => h('p', { class: i === run.lines.length - 1 && run.done ? (run.ok ? 'ok' : 'no') : 'go', text: t })));
@@ -377,8 +372,8 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
       const native = x.limits.sdm != null && x.dsd === 'native';
       const known = h('div.stbknown', {}, h('p', { text: STB_DAC.known }), STB_DAC.values.map((k) => h('button.stbkv', { type: 'button', class: Number(x.bits) === k.v && 'on',
         on: { click: () => set((y) => { y.bits = k.v; }) } }, h('span', { text: k.k }), h('b', { text: String(k.v) }))));
-      const bits = numBox('DAC bits', '', x.bits, { min: 0, max: 32, step: 1 }, (n) => set((y) => { y.bits = n; }), '0 = default');
-      const gain = numBox('PCM gain compensation', 'dB', x.gaincomp, { min: -6, max: 0, step: 0.5 }, (n) => set((y) => { y.gaincomp = n; }));
+      const bits = num('DAC bits', '', x.bits, { min: 0, max: 32, step: 1 }, (n) => set((y) => { y.bits = n; }), '0 = default');
+      const gain = num('PCM gain compensation', 'dB', x.gaincomp, { min: -6, max: 0, step: 0.5 }, (n) => set((y) => { y.gaincomp = n; }));
       return [
         drow('DAC bits', [bits, known], MAN.bits, 'stbset'),
         h('div.stbnotes', {}, h('p', { text: STB_DAC.gain })),
@@ -418,8 +413,8 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
         // The GPU questions: the wizard's two in the control column, the manual's CUDA paragraph beside them.
         const two = seg({ aria: 'Nvidia GPUs', options: STB_HW.twoOpts, value: w.gpus, onChange: (v) => setHw((y) => { y.gpus = v; }) });
         const idx = w.gpus === '2' && h('div.cgrp.stbidx', {},
-          h('label.ci', {}, h('span.cl', { text: STB_HW.idx.hi }), numBox(STB_HW.idx.hi, '', w.hi, { min: 0, max: 15, step: 1 }, (n) => setHw((y) => { y.hi = n; }))),
-          h('label.ci', {}, h('span.cl', { text: STB_HW.idx.lo }), numBox(STB_HW.idx.lo, '', w.lo, { min: 0, max: 15, step: 1 }, (n) => setHw((y) => { y.lo = n; }))),
+          h('label.ci', {}, h('span.cl', { text: STB_HW.idx.hi }), num(STB_HW.idx.hi, '', w.hi, { min: 0, max: 15, step: 1 }, (n) => setHw((y) => { y.hi = n; }))),
+          h('label.ci', {}, h('span.cl', { text: STB_HW.idx.lo }), num(STB_HW.idx.lo, '', w.lo, { min: 0, max: 15, step: 1 }, (n) => setHw((y) => { y.lo = n; }))),
           h('label.stbcb', {}, h('button.binc', { type: 'button', role: 'checkbox', aria: { checked: w.same, label: STB_HW.idx.same }, on: { click: () => setHw((y) => { y.same = !y.same; }) } }),
             h('span', { text: STB_HW.idx.same })));
         const power = w.gpus !== '2' && h('div.stbpow', {}, h('div.fh', {}, h('b', { text: STB_HW.power })),

@@ -27,6 +27,8 @@ import { mountAutoEq } from './autoeq.js';
 import { seg, select } from './seg.js';
 import { shelfScale, BAUER_PRESETS } from '../lib/xdsp.js';
 import { mountBuilder, paras, drow as row, chainPic, holdRow } from '../lib/builder.js';
+import { numBox } from '../lib/controls.js';
+import { rowOf } from '../model/schema.js';
 import { NEW, OVERVIEW, homeOf } from '../model/builder.js';
 import { bauerPreset, modeName, structuralPreset } from '../model/crossfeed.js';
 import { percentApplied } from '../model/loudness.js';
@@ -49,9 +51,8 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = o.pipelines;
   const home = homeOf(stations);
   const applied = familyOf('matrix').base;   // the chain's applied matrix (what's loaded)
-  const row0 = (drawer, id) => drawer.tabs.flatMap((t) => t.body).find((it) => it.row?.control.id === id).row;
-  const R = { engine: row0(MATRIX_DRAWER, 'mxengine'), expand: row0(MATRIX_DRAWER, 'mxexpand'), iir: row0(MATRIX_DRAWER, 'mxiir2fir'),
-    dcen: row0(CORRECTION_DRAWER, 'dcen'), dcdac: row0(CORRECTION_DRAWER, 'dcdac') };
+  const R = { engine: rowOf(MATRIX_DRAWER, 'Engine'), expand: rowOf(MATRIX_DRAWER, 'Expand HF'), iir: rowOf(MATRIX_DRAWER, 'IIR to FIR'),
+    dcen: rowOf(CORRECTION_DRAWER, 'DAC correction'), dcdac: rowOf(CORRECTION_DRAWER, 'DAC model') };
   const MODELS = R.dcdac.control.options;
   const M = CROSSFEED.man, LM = LOUDNESS.man;
 
@@ -188,9 +189,9 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
     return { el, paint: (fold) => { for (const l of lines) { const on = l.op.v === get(); l.el.classList.toggle('cur', on); l.el.classList.toggle('fold', !!fold && !on); l.radio.setAttribute('aria-checked', String(on)); } } };
   }
   const num = (label, unit, k, attrs, man, mul = 1) => {
-    const input = h('input.vfd', { type: 'number', 'aria-label': label, ...attrs });
+    const { el: box, input } = numBox({ ...attrs, aria: label, unit });
     input.addEventListener('change', () => { const n = Number(input.value); if (Number.isFinite(n)) set({ [k]: +(n / mul).toFixed(4) }); });
-    return { label, man, el: h('label.ci', {}, h('span.cl', { text: label }), h('div.num', {}, input, h('span.u', { text: unit }))),
+    return { label, man, el: h('label.ci', {}, h('span.cl', { text: label }), box),
       paint: () => { input.value = +(Number(v[k]) * mul).toFixed(2); } };
   };
   /** Several values in one row (the drawers' `group` grammar): boxes side by side, each with its label above; the

@@ -20,6 +20,7 @@ import { FIELDS, CHAIN_LISTS, CHAIN_NAMES, runningChain } from '../data/conversi
 import { pathOf } from '../data/scenarios.js';
 import { subscribe } from '../lib/narrow.js';
 import { PLATFORM } from '../lib/clock.js';
+import { scale } from '../lib/plate.js';
 
 /**
  * @param {object} hosts   {rs, sh: section body hosts; mode: Output Mode seg host; rate: Rate readout .v; stages: rail Map;
@@ -103,7 +104,7 @@ export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
     if (!page || !page.offsetParent) return;
     // In layout px: the plate is scaled below 1080×810 (screen px = layout px × k), so screen rects are divided by k before
     // the padding (layout px) is taken off.
-    const k = page.getBoundingClientRect().height / page.offsetHeight || 1;
+    const k = scale();
     const overrun = () => {
       const kids = [...page.children].filter((c) => c.offsetParent);
       const low = Math.max(...kids.map((c) => c.getBoundingClientRect().bottom));

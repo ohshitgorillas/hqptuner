@@ -13,8 +13,10 @@ import { PLATFORM } from '../lib/clock.js';
 import { revertAfter } from '../model/timing.js';
 import { minusText } from '../model/format.js';
 import { optionOf } from '../model/options.js';
-import { anyOpen } from '../lib/popover.js';
-import { mountDrawer, closeOthers } from './drawer.js';
+import { rowsOf } from '../model/schema.js';
+import { secHead, manPara } from '../lib/controls.js';
+import { swapBody, escapeLeaves } from '../lib/builder.js';
+import { mountDrawer } from './drawer.js';
 import { setOptionStyle } from './vselect.js';
 import { mountSignalPath, PATH_NAME } from './signal-path.js';
 import { SETTINGS_RAIL, READOUT_LABEL, ABOUT, LOG_TAIL, ACCENTS, HIDEABLE, MIRROR } from '../data/settings.js';
@@ -69,7 +71,7 @@ export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PL
   // About HQPlayer (renamed, its read-only line cut, expanded): the identity as a row of labelled VFD
   // windows across the full width (the Rate / Volume window grammar), then Backup / restore | its line.
   const sec = (title, ...cells) => h('section.sec', { 'aria-label': title },
-    h('div.sh', {}, h('span.t', { text: title }), h('span.ln')),
+    secHead('sh', title),
     h('div.two.pairs', {}, cells));
   page.append(
     sec('About HQPlayer',
@@ -78,31 +80,23 @@ export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PL
       h('div.inline.bkup', {},
         h('button.btn', { type: 'button', text: 'Download backup' }),
         h('button.btn', { type: 'button', text: 'Upload backup' })),
-      h('div.man', {}, h('p', { text: ABOUT.backup }))),
+      h('div.man', {}, manPara({ text: ABOUT.backup }))),
     sec('About HQPTuner',
       h('div.stack', {}, h('span.cap', {}, `HQPTuner ${ABOUT.app} · Released under the `,
         h('a', { href: 'https://opensource.org/license/mit', target: '_blank', rel: 'noopener noreferrer', text: 'MIT License' }), '.')),
-      h('div.man.prose', {}, ABOUT.prose.map((p) => h('p', {}, [].concat(p).map((x) =>
-        typeof x === 'string' ? x : h('a', { href: x.href, target: '_blank', rel: 'noopener noreferrer', text: x.a })))))),
+      h('div.man.prose', {}, ABOUT.prose.map((p) => manPara({ text: [].concat(p).map((x) =>
+        typeof x === 'string' ? x : h('a', { href: x.href, target: '_blank', rel: 'noopener noreferrer', text: x.a })) })))),
   );
 
   // ── Swap ────────────────────────────────────────────────────────────────
   function setOn(on) {
-    closeOthers(null);   // every drawer, chain and settings
-    chain.hidden = on;
-    body.hidden = !on;
-    gear.setAttribute('aria-pressed', String(on));
+    swapBody({ btn: gear, chain, body, bus }, on);
     gear.setAttribute('aria-label', on ? 'Close settings' : 'Settings');
-    bus.emit('relayout');   // chain rail wire re-measures on return
   }
   gear.setAttribute('aria-pressed', 'false');
   gear.setAttribute('aria-label', 'Settings');
   gear.addEventListener('click', () => setOn(body.hidden));
-  // Capture: runs before the drawers' own Escape handlers, so one Escape closes a drawer OR leaves settings, not both.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || body.hidden || anyOpen()) return;
-    if (!body.querySelector('.drawer:not([data-closed])')) setOn(false);
-  }, true);
+  escapeLeaves(body, () => setOn(false));
 
   return { setOn };
 }
@@ -110,9 +104,7 @@ export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PL
 /** Control id → {c, r, label} across a schema (group items included). */
 function controlsOf(schema) {
   const m = new Map();
-  for (const t of schema.tabs) for (const it of t.body) {
-    const r = it.row;
-    if (!r) continue;
+  for (const r of rowsOf(schema)) {
     const add = (c) => c.id && m.set(c.id, { c, r, label: r.label });
     add(r.control);
     for (const i of r.control.items || []) add(i);
@@ -193,7 +185,7 @@ function logTail(host, clock) {
     h('div.drow.ltrow', {},
       h('div.ctl', {}, h('div.fh', {}, h('b', { text: 'Live log tail' })),
         h('div.act', {}, copy)),
-      h('div.man', {}, h('p', { text: LOG_TAIL.man }))),
+      h('div.man', {}, manPara({ text: LOG_TAIL.man }))),
     pre);
   const restore = revertAfter(1500, () => { copy.textContent = 'Copy'; }, clock);
   copy.addEventListener('click', () => { copy.textContent = 'Copied'; restore(); });

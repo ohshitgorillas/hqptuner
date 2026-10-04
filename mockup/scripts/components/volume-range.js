@@ -16,8 +16,8 @@
 // Grays whole while Fixed volume is not Off (gray reason from the data, re-read on every drawer change).
 
 import { h, s } from '../lib/dom.js';
-import { withXref } from '../lib/xref.js';
 import { paintSvg } from '../lib/gauge.js';
+import { grayReason, manPara } from '../lib/controls.js';
 import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
 import { signed } from '../model/format.js';
 import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from '../model/range-axis.js';
@@ -50,15 +50,15 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
   const bound = (v) => h('output.vfd.ro', { text: signed(v) });
   const lowOut = bound(loudness.low), highOut = bound(loudness.high);
 
-  const reason = h('span.gr', { hidden: true });
+  const reason = grayReason();
   host.append(
     h('div.fh', {}, h('b', { text: cfg.label })),
     well,
     h('div.vrrow', {},
       h('div.vrctl', {},
         h('div.vrboxes', {}, boxes.min.el, boxes.startup.el, boxes.max.el, readout('needle', 'Playback', levelOut, 'dB')),
-        reason),
-      h('div.man', {}, cfg.man.map((m) => h('p', {}, h('b', { text: m.k }), ' — ', m.text))),
+        reason.el),
+      h('div.man', {}, cfg.man.map(manPara)),
     ),
     // Loudness: reference + (dead) link out to its own drawer, where the bounds are set.
     h('div.vrrow.vrloud', {},
@@ -70,7 +70,7 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
           readout('lparen', 'Lower', lowOut, 'dBFS'),
           readout('rparen', 'Upper', highOut, 'dBFS')),
       ),
-      h('div.man', {}, loudness.man.map((m) => h('p', {}, h('b', { text: m.k }), ' — ', m.text))),
+      h('div.man', {}, loudness.man.map(manPara)),
     ),
   );
 
@@ -135,8 +135,7 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
     grayed = !!why;
     host.classList.toggle('grayed-range', grayed);
     for (const b of Object.values(boxes)) b.input.disabled = grayed;
-    reason.replaceChildren(...withXref(why));
-    reason.hidden = !why;
+    reason.say(why);
   });
 
   const paintLevel = () => { levelOut.textContent = level === null ? '—' : signed(level, 1); };

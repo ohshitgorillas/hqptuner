@@ -28,6 +28,7 @@ import { seg, select } from './seg.js';
 import { mountDevicePicker } from './device-picker.js';
 import { mountRateDial } from './rate-dial.js';
 import { withXref, hasXref, xref } from '../lib/xref.js';
+import { secHead, closeBtn, numBox, sliderBox, manPara, choiceLines } from '../lib/controls.js';
 
 const DRAWERS = [];
 // Drawer families: drawers that edit one shared object (the Matrix engine family edits the matrix profile in focus:
@@ -80,6 +81,31 @@ export function wipe(el, closed, snap) {
   if (snap) { void el.offsetWidth; el.classList.remove('snap'); }   // flush with no transition, then restore it
 }
 
+// Escape closes the stage drawers: one document listener for every drawer, each drawer's close in mount order.
+const escClosers = [];
+function closeOnEscape(close) {
+  if (!escClosers.length) document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !anyOpen()) for (const fn of escClosers) fn(); });
+  escClosers.push(close);
+}
+
+/**
+ * A stage drawer's setOpen(open, snap), shared by mountDrawer and mountModeDrawer: opening closes the others (self() is
+ * the drawer's api), then runs onOpen; the drawer wipes, and each of its stages reads open (a hidden stage never lights).
+ * Escape closes it.
+ */
+export function drawerOpener(drawer, stages, self, onOpen) {
+  function setOpen(open, snap) {
+    if (open) { closeOthers(self()); onOpen?.(); }
+    wipe(drawer, !open, snap);
+    for (const st of stages) {
+      st.classList.toggle('open', open && !st.hidden);
+      st.setAttribute('aria-expanded', String(open));
+    }
+  }
+  closeOnEscape(() => setOpen(false));
+  return setOpen;
+}
+
 /**
  * @param {HTMLElement} body       .body grid the drawer overlays
  * @param {HTMLButtonElement} stage rail stage button that toggles it
@@ -113,7 +139,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
     on: { click: () => showTab(t.id) },
   }, t.label));
 
-  const close = h('button.round.dx', { type: 'button', 'aria-label': 'Close drawer', text: '×', on: { click: () => setOpen(false) } });
+  const close = closeBtn(() => setOpen(false), 'Close drawer');
 
   const panels = schema.tabs.map((t, i) => h('div.dpanel', {
     role: tabs.length === 1 ? null : 'tabpanel', id: panelId(t.id), aria: { labelledby: tabs.length === 1 ? null : tabId(t.id) }, data: { tab: t.id }, hidden: i > 0,
@@ -153,14 +179,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
 
   stage.setAttribute('aria-controls', drawer.id);
   stage.addEventListener('click', () => setOpen(drawer.hasAttribute('data-closed')));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !anyOpen()) setOpen(false); });
-
-  function setOpen(open, snap) {
-    if (open) { closeOthers(api); regray(); paintApply(); }
-    wipe(drawer, !open, snap);
-    stage.classList.toggle('open', open);
-    stage.setAttribute('aria-expanded', String(open));
-  }
+  const setOpen = drawerOpener(drawer, [stage], () => api, () => { regray(); paintApply(); });
 
   function showTab(t) {
     tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
@@ -256,7 +275,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
 
   function group({ group: be, rows }) {
     return h('div.begrp', { data: { be }, hidden: !groupVisible(be) },
-      h('div.dsec', {}, h('span.t', { text: groupNames[be] }), h('span.ln')),
+      secHead('dsec', groupNames[be]),
       rows.map(row),
     );
   }
@@ -295,7 +314,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
       r.advisory && h('span.adv', { text: r.advisory }),
     );
     return h('div.drow', { class: r.full && 'drow-full' }, ctl,
-      h('div.man', {}, paras.map((m) => h('p', {}, m.k && h('b', { text: m.k }), m.k && ' — ', m.text))), opt, spans && ctlEl);
+      h('div.man', {}, paras.map(manPara)), opt, spans && ctlEl);
   }
 
   function control(c, r = {}, paintOpt = () => {}) {
@@ -332,8 +351,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
         return el;
       }
       case 'number': {
-        const input = h('input.vfd', { type: 'number', id: c.id, value: c.value, min: c.min, max: c.max, step: c.step, 'aria-label': c.aria });
-        const el = h('div.num', {}, input, c.unit && h('span.u', { text: c.unit }), c.hint && h('span.h', { text: c.hint }));
+        const { el, input } = numBox(c);
         input.addEventListener('change', () => changed(el, c, r, input.value, paintOpt));
         el._setValue = (v) => { input.value = v; };
         return el;
@@ -348,11 +366,9 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
         // Slider + box, one value (crossfeed's .xsl grammar). With `auto`, a `Set manually` box gates it (v1 Blocks per
         // cycle): off = auto.v (the daemon decides) and auto.note under it; on = the slider, starting at auto.manual.
         const a = c.auto;
-        const range = h('input', { type: 'range', min: c.min, max: c.max, step: c.step, 'aria-label': c.aria });
-        const box = h('input.vfd', { type: 'number', min: c.min, max: c.max, step: c.step, 'aria-label': c.aria });
+        const { el: sl, range, box } = sliderBox(c);
         const chk = a && h('input', { type: 'checkbox' });
         const note = a && h('span.cap', { text: a.note });
-        const sl = h('div.xsl.slx', {}, range, h('div.num', {}, box));
         const el = h('div.slctl', { id: c.id }, a && h('label.chk', {}, chk, a.label), sl, note);
         const paint = (v) => {
           const manual = !a || String(v) !== String(a.v);
@@ -425,41 +441,7 @@ export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rat
 
   /** Vertical radio lines; each line's detail control is live only while that line is picked. */
   function choice(c, r) {
-    let cur = String(c.value);
-    const lines = c.options.map((o) => {
-      const radio = h('button.radio', { type: 'button', role: 'radio', aria: { checked: false, label: o.label },
-        on: { click: () => pick(o.v) } });
-      const detail = o.control && control(o.control, r);
-      return {
-        o, radio, detail,
-        el: h('div.chline', { data: { v: o.v } },
-          h('div.chl', {},
-            radio,
-            h('span.chn', { on: { click: () => pick(o.v) } }, h('b', { text: o.label }), o.sub && h('span.s', { text: o.sub })),
-            detail),
-          h('div.man', {}, o.man && h('p', { text: o.man }))),
-      };
-    });
-    const el = h('div.chlist', { role: 'radiogroup', 'aria-label': c.aria, id: c.id }, lines.map((l) => l.el));
-    function paint() {
-      for (const l of lines) {
-        const on = String(l.o.v) === cur;
-        l.el.classList.toggle('cur', on);
-        l.radio.setAttribute('aria-checked', String(on));
-        if (l.detail) {
-          l.detail.classList.toggle('grayed', !on);
-          for (const x of l.detail.querySelectorAll('button,input')) x.disabled = !on;
-        }
-      }
-    }
-    function pick(v) {
-      if (String(v) === cur) return;
-      cur = String(v);
-      paint();
-      changed(el, c, r, cur, () => {});
-    }
-    paint();
-    el._setValue = (v) => { cur = String(v); paint(); };
+    const el = choiceLines(c, (ctl) => control(ctl, r), (v) => changed(el, c, r, v, () => {}));
     return el;
   }
 

@@ -11,6 +11,7 @@ import { h } from './dom.js';
 import { anyOpen, popover } from './popover.js';
 import { closeSheets, sheetOpen } from './sheet.js';
 import { closeOthers } from '../components/drawer.js';
+import { closeBtn, manPara } from './controls.js';
 import { CHAIN } from '../data/chain.js';
 import {
   NEW, OVERVIEW, keyOf, shownName, nextStep, prevStep, dirtyAt, stashed, stateOf, toggleStation, heldAt, savePlan,
@@ -212,7 +213,11 @@ export function mountBuilder({ btn, chain, body, bus }, spec) {
   }
 
   // ── Page parts ──────────────────────────────────────────────────────────
-  const close = () => h('button.round.dx.pbx', { type: 'button', 'aria-label': spec.closeLabel, text: '×', on: { click: () => setOn(false) } });
+  const close = () => {
+    const x = closeBtn(() => setOn(false), spec.closeLabel);
+    x.classList.add('pbx');
+    return x;
+  };
   /** A page title in the section header grammar (engraved + rule), × at its end. */
   const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) =>
     h('div.sh.btitle', {}, h('span.t', { text }), n, h('span.ln'), mid, close());
@@ -293,24 +298,15 @@ export function mountBuilder({ btn, chain, body, bus }, spec) {
 
   // ── Swap ────────────────────────────────────────────────────────────────
   function setOn(/** @type {boolean} */ on, toChain = true) {
-    closeOthers(null);
-    closeSheets();
-    if (on) spec.leave();
-    body.hidden = !on;
-    if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-    btn.setAttribute('aria-pressed', String(on));
-    if (on) { ask = null; spec.opened(); }
-    bus.emit('relayout');
+    swapBody({ btn, chain, body, bus }, on, { toChain, leave: () => spec.leave(), opened: () => { ask = null; spec.opened(); } });
   }
   /** Arm the builder's button and Escape; the builder's public face. */
   function start() {
     btn.addEventListener('click', () => setOn(spec.toggles ? body.hidden : true));
-    // Capture: an open drawer, popover or sheet hears Escape first; with nothing open it leaves the builder.
-    body.ownerDocument.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen() || body.querySelector('.drawer:not([data-closed])')) return;
+    escapeLeaves(body, () => {
       if (ask) { ask = null; spec.view(null); return; }
       setOn(false);
-    }, true);
+    });
     return { setOn, isOn: () => !body.hidden };
   }
 
@@ -328,13 +324,47 @@ export function mountBuilder({ btn, chain, body, bus }, spec) {
 }
 
 /**
+ * Swap a body in for the chain's, or back out: every drawer and sheet closes, the button reads pressed while it shows,
+ * the rail wire re-measures. `leave` runs as it swaps in (the other bodies turn off), `opened` once it shows; with
+ * `toChain` false, leaving keeps the chain hidden (another body takes over).
+ *
+ * @param {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} el
+ * @param {boolean} on
+ * @param {{ toChain?: boolean, leave?: () => void, opened?: () => void }} [o]
+ */
+export function swapBody({ btn, chain, body, bus }, on, { toChain = true, leave, opened } = {}) {
+  closeOthers(null);
+  closeSheets();
+  if (on) leave?.();
+  body.hidden = !on;
+  if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
+  btn.setAttribute('aria-pressed', String(on));
+  if (on) opened?.();
+  bus.emit('relayout');
+}
+
+/**
+ * Escape while the body shows runs `onEscape`. Capture: an open drawer, popover or sheet hears Escape first, so one
+ * Escape closes it or leaves the body, not both.
+ *
+ * @param {HTMLElement} body
+ * @param {() => void} onEscape
+ */
+export function escapeLeaves(body, onEscape) {
+  body.ownerDocument.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen() || body.querySelector('.drawer:not([data-closed])')) return;
+    onEscape();
+  }, true);
+}
+
+/**
  * The manual's paragraphs: strings, or {k, text} (a keyed paragraph). `inline` renders a paragraph's text.
  *
  * @param {any} m
  * @param {(t: any) => any} [inline]
  */
 export const paras = (m, inline = (t) => t) => (Array.isArray(m) ? m : [m]).filter(Boolean)
-  .map((t) => (typeof t === 'string' ? h('p', {}, inline(t)) : h('p', {}, h('b', { text: t.k }), ' — ', inline(t.text))));
+  .map((t) => manPara(typeof t === 'string' ? { text: inline(t) } : { k: t.k, text: inline(t.text) }));
 
 /**
  * A drawer row: label and control on the left, the manual's paragraphs on the right.

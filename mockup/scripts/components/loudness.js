@@ -13,6 +13,7 @@ import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { loudnessDb, shelfScale } from '../lib/xdsp.js';
 import { paintSvg } from '../lib/gauge.js';
+import { grayReason, manPara, numBox } from '../lib/controls.js';
 import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
 import { signed } from '../model/format.js';
 import { percentApplied } from '../model/loudness.js';
@@ -43,17 +44,17 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   const typeSeg = (sd) => seg({ aria: `${sd === 'low' ? 'Bass' : 'Treble'} type`, cls: 'enum mini2',
     options: cfg.types[sd].map((t) => ({ v: t, label: t })), value: p[sd].type,
     onChange: (v) => { p[sd].type = v; stage(sd, 'type', v); plot(); } });
-  const numIn = (sd, k, step, min, max) => {
-    const input = h('input.vfd', { type: 'number', step, min, max, 'aria-label': `${sd === 'low' ? 'Bass' : 'Treble'} ${k}` });
-    input.addEventListener('change', () => { p[sd][k] = Number(input.value); stage(sd, k, p[sd][k]); plot(); });
-    return input;
+  const numIn = (sd, k, step, min, max, unit) => {
+    const box = numBox({ step, min, max, aria: `${sd === 'low' ? 'Bass' : 'Treble'} ${k}`, unit });
+    box.input.addEventListener('change', () => { p[sd][k] = Number(box.input.value); stage(sd, k, p[sd][k]); plot(); });
+    return box;
   };
   for (const sd of ['low', 'high']) {
-    ctl[sd] = { type: typeSeg(sd), freq: numIn(sd, 'freq', 1, 20, 20000), steep: numIn(sd, 'steep', 0.1, 0.1, 10), level: numIn(sd, 'level', 0.1, -20, 20) };
+    ctl[sd] = { type: typeSeg(sd), freq: numIn(sd, 'freq', 1, 20, 20000, 'Hz'), steep: numIn(sd, 'steep', 0.1, 0.1, 10), level: numIn(sd, 'level', 0.1, -20, 20, 'dB') };
   }
   // One side at a time (v1's own Bass | Treble switch): its four rows left, its four manual lines right. A side holding
   // staged edits keeps a dot on its switch button while hidden (v1: staged edits on the hidden side are never invisible).
-  const ROWS = [['type', 'Type', ''], ['freq', 'Frequency', 'Hz'], ['steep', 'Steepness / Q', ''], ['level', 'Level', 'dB']];
+  const ROWS = [['type', 'Type'], ['freq', 'Frequency'], ['steep', 'Steepness / Q'], ['level', 'Level']];
   let side = 'low';
   const dirtySide = { low: false, high: false };
   const sideSeg = seg({ aria: 'Band', cls: 'lsw view', value: side,
@@ -61,15 +62,15 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   const rowsHost = h('div.lrows');
   const copyHost = h('div.man.lcopy');
   // The gray reason sits at the head of the copy column, beside the switch it explains (no height of its own).
-  const reason = h('span.gr', { hidden: true });
-  const bands = h('div.lbands', {}, h('div.lleft', {}, sideSeg, rowsHost), h('div.lrc', {}, reason, copyHost));
+  const reason = grayReason(false);
+  const bands = h('div.lbands', {}, h('div.lleft', {}, sideSeg, rowsHost), h('div.lrc', {}, reason.el, copyHost));
   function showSide(v) {
     side = v;
     select(sideSeg, v);
-    rowsHost.replaceChildren(...ROWS.map(([k, label, unit]) => h('div.lrow', {},
+    rowsHost.replaceChildren(...ROWS.map(([k, label]) => h('div.lrow', {},
       h('span.ll', { text: label }),
-      k === 'type' ? ctl[v].type : h('div.num', {}, ctl[v][k], unit && h('span.u', { text: unit })))));
-    copyHost.replaceChildren(...ROWS.map(([k, label]) => h('p', {}, h('b', { text: label }), ' — ', cfg.man[v][k])));
+      k === 'type' ? ctl[v].type : ctl[v][k].el)));
+    copyHost.replaceChildren(...ROWS.map(([k, label]) => manPara({ k: label, text: cfg.man[v][k] })));
     paintSideDots();
   }
   function paintSideDots() {
@@ -136,7 +137,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   function paintBands() {
     for (const sd of ['low', 'high']) {
       select(ctl[sd].type, p[sd].type);
-      for (const k of ['freq', 'steep', 'level']) ctl[sd][k].value = p[sd][k];
+      for (const k of ['freq', 'steep', 'level']) ctl[sd][k].input.value = p[sd][k];
     }
   }
   // Grabbing a dot points the switch at that dot's side (v1).
@@ -163,7 +164,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     // Controls, bar and plot gray; the copy and the reason stay legible (as in every drawer).
     for (const el of [bands.querySelector('.lleft'), host.querySelector('.lrange'), plotHost]) el.classList.toggle('grayed', grayed);
     for (const x of host.querySelectorAll('button,input')) x.disabled = grayed;
-    reason.textContent = why; reason.hidden = !why;
+    reason.say(why);
     plot();
   });
   levelBus.addEventListener('level', (e) => { level = e.detail; paintRange(); plot(); });

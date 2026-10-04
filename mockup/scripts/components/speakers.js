@@ -8,6 +8,8 @@
 
 import { h, s } from '../lib/dom.js';
 import { withXref } from '../lib/xref.js';
+import { numBox } from '../lib/controls.js';
+import { headGlyph, speakerGlyph } from '../lib/glyphs.js';
 import { minus } from '../model/format.js';
 
 const CX = 0, CY = 0, HEAD = 13, R_MAX = 122, DIST_FULL = 600, SUB_OUT = 1.35, SUB_MAX = 140;
@@ -28,9 +30,9 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
   setSel.addEventListener('change', () => { set = cfg.sets.find((x) => x.id === setSel.value); rows(); plan(); onSet(set); });
 
   const num = (i, k, step, unit) => {
-    const input = h('input.vfd', { type: 'number', step, value: ch[i][k], 'aria-label': `${ch[i].name} ${k}` });
+    const { el, input } = numBox({ step, value: ch[i][k], aria: `${ch[i].name} ${k}`, unit });
     input.addEventListener('change', () => { ch[i][k] = Number(input.value); ctx.set(`sp${k[0]}${i}`, ch[i][k]); plan(); });
-    return h('div.num', {}, input, h('span.u', { text: unit }));
+    return el;
   };
   const cells = ch.map((c, i) => ({ level: num(i, 'level', 0.1, 'dBFS'), distance: num(i, 'distance', 1, 'cm') }));
   // Discard (mock): every channel's level and distance go back; the plan follows.
@@ -65,13 +67,10 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
     const R = Math.max(HEAD + 20, ...pts.map((p) => Math.max(Math.abs(p.x) + 26, Math.abs(p.y) + 40)));
     svg.setAttribute('viewBox', `${-R} ${-R} ${2 * R} ${2 * R}`);
     svg.replaceChildren(...[
-      s('circle.head', { cx: CX, cy: CY, r: HEAD }),
-      s('path.nose', { d: `M${CX - 4},${CY - HEAD + 1} L${CX},${CY - HEAD - 5} L${CX + 4},${CY - HEAD + 1}` }),
+      headGlyph(CX, CY, HEAD, 5),
       // Out-of-set first so the set's speakers draw on top.
       pts.map((p) => s('g', { class: `spk ${p.on ? '' : 'off'}` },
-        s('g', { transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.deg})` },
-          p.i === 3 ? s('rect', { x: -9, y: -9, width: 18, height: 18, rx: 2 })
-            : [s('rect', { x: -10, y: -8, width: 20, height: 16, rx: 2 }), s('circle.drv', { cx: 0, cy: 3.5, r: 3 })]),
+        speakerGlyph(p.x, p.y, p.deg, p.i === 3),
         s('text.sl', { x: p.x, y: p.y + 22, 'text-anchor': 'middle', text: p.c.short }),
         s('text.sv', { x: p.x, y: p.y + 33, 'text-anchor': 'middle', text: minus(p.c.level, 1) }))),
     ].flat(2).filter(Boolean));

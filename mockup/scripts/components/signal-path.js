@@ -14,6 +14,7 @@
 // every `relayout` (railSet emits one), so the map follows Apply without its own wiring.
 
 import { h, s } from '../lib/dom.js';
+import { hatchDefs } from '../lib/glyphs.js';
 import { classNames } from '../model/format.js';
 
 const W = 1040, H = 606;
@@ -104,8 +105,7 @@ export function mountSignalPath(host, bus) {
   const L = (n) => n.x - NW / 2, R = (n) => n.x + NW / 2, T = (n) => n.y - NH / 2, B = (n) => n.y + NH / 2;
 
   // Hatch pattern (the rate dial's unavailable stripes).
-  svg.append(s('defs', {}, s('pattern', { id: 'sg-hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
-    s('rect', { width: 6, height: 6, class: 'sghb' }), s('line', { x1: 0, y1: 0, x2: 0, y2: 6, class: 'sghl' }))));
+  svg.append(hatchDefs('sg-hatch', { back: 'sghb', line: 'sghl' }));
 
   // Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
   // at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.

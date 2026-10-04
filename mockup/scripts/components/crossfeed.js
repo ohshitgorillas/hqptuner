@@ -20,7 +20,8 @@ import { h, s, grayBut } from '../lib/dom.js';
 import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { BAUER_PRESETS, bauerMS, pathParams, toDb } from '../lib/xdsp.js';
-import { withXref } from '../lib/xref.js';
+import { grayReason, manPara, numBox } from '../lib/controls.js';
+import { headGlyph, speakerGlyph } from '../lib/glyphs.js';
 import { minus, plusMinus } from '../model/format.js';
 import { bauerPreset, structuralPreset } from '../model/crossfeed.js';
 import { ENGAGE_BYPASS } from '../data/matrix.js';
@@ -49,7 +50,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   /** Slider + number box, one value (v1 SliderNumber): drag streams the picture, release stages. mul = shown per stored unit. */
   function slider({ k, label, min, max, step, unit, dp, sub, mul = 1 }) {
     const range = h('input', { type: 'range', min, max, step, 'aria-label': label });
-    const box = h('input.vfd', { type: 'number', min, max, step, 'aria-label': label });
+    const { el: num, input: box } = numBox({ min, max, step, aria: label, unit });
     const subEl = sub && h('span.h', {});   // e.g. the radius the model works from, beside the label
     const show = (v) => { range.value = v; box.value = Number(v).toFixed(dp); if (subEl) subEl.textContent = sub(v); };
     const paint = () => show(st[k] * mul);
@@ -57,7 +58,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
     const commit = (v) => { set(k, Math.max(min, Math.min(max, v)) / mul); paintAll(); };
     range.addEventListener('change', () => commit(Number(range.value)));
     box.addEventListener('change', () => commit(Number(box.value)));
-    const el = h('div.xsl', {}, h('span.cl', {}, label, subEl), range, h('div.num', {}, box, h('span.u', { text: unit })));
+    const el = h('div.xsl', {}, h('span.cl', {}, label, subEl), range, num);
     return { el, paint };
   }
 
@@ -69,9 +70,9 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   const presetSeg = seg({ aria: 'Preset', options: cfg.presets, value: st.preset,
     onChange: (v) => { set('preset', v); paintAll(); } });
   const num = (k, label, unit, step, min, max) => {
-    const input = h('input.vfd', { type: 'number', step, min, max, 'aria-label': label });
+    const { el, input } = numBox({ step, min, max, aria: label, unit });
     input.addEventListener('change', () => { set(k, Number(input.value)); paintAll(); });
-    return { input, el: h('label.ci', {}, h('span.cl', { text: label }), h('div.num', {}, input, h('span.u', { text: unit }))) };
+    return { input, el: h('label.ci', {}, h('span.cl', { text: label }), el) };
   };
   const freq = num('freq', 'Frequency', 'Hz', 1, 300, 2000);
   const level = num('level', 'Level', 'dB', 0.1, 1, 15);
@@ -93,7 +94,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   const conflict = h('span.gr', { hidden: true, text: M.linear });
 
   // ── Lines ─────────────────────────────────────────────────────────────
-  const paras = (list) => h('div.man', {}, list.map(([k, t]) => h('p', {}, k && h('b', { text: k }), k && ' — ', t)));
+  const paras = (list) => h('div.man', {}, list.map(([k, text]) => manPara({ k, text })));
   const line = (v, label, controls, copy) => {
     const radio = h('button.radio', { type: 'button', role: 'radio', 'aria-label': label, on: { click: () => pick(v) } });
     const sum = h('span.xsum');
@@ -116,7 +117,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
       angle.el, circ.el, lambda.el, conflict,
     ], paras([['Speaker angle', M.angle], ['Head circumference', M.circ], ['Center character', M.lambda]])),
   ];
-  const reason = h('span.gr', { hidden: true });
+  const reason = grayReason();
   const plotHost = h('div.eq.xfplot');
   // Structural: no plot glass. v1's card layout: the cartoon drawn on the plate under the controls column, and v1's
   // three readouts (owner copy) beside it, where the copy column sits above.
@@ -125,7 +126,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   const RO = { itd: ro('Ear-to-ear delay'), far: ro('Far ear, treble'), center: ro('Center shift') };
   const diagHost = h('div.xfgeo', {}, h('div.xfpic', {}, diagram), h('dl.xfro', {}, Object.values(RO).map((r) => r.el)));
   host.append(
-    h('div.xgate', {}, h('b', { text: 'Crossfeed' }), gateSeg, reason),
+    h('div.xgate', {}, h('b', { text: 'Crossfeed' }), gateSeg, reason.el),
     h('div.chlist.xlist', { role: 'radiogroup', 'aria-label': 'Crossfeed implementation' }, lines.map((l) => l.el)),
     plotHost, diagHost);
   const rp = mountRespPlot(plotHost, { lo: -15, hi: 3, step: 3, aria: 'Bauer crossfeed response' });
@@ -171,7 +172,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   function gray() {
     const off = st.gate === '0';
     const why = mxWhy || (off ? OFF_REASON : '');
-    grayBut(host, reason, !!mxWhy);   // the reason stays legible: it links to the Matrix engine
+    grayBut(host, reason.el, !!mxWhy);   // the reason stays legible: it links to the Matrix engine
     // Bypassed here: the implementations' controls gray; the Bauer | Structural pick stays live (a view choice, v1).
     for (const l of lines) l.body.classList.toggle('grayed', off && !mxWhy);
     for (const x of host.querySelectorAll('button,input,select')) {
@@ -179,7 +180,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
       x.disabled = !!mxWhy || (!!inCtl && off) || (!!x.closest('.cgrp') && st.preset !== 'custom');
     }
     custom.classList.toggle('grayed', st.preset !== 'custom');
-    reason.replaceChildren(...withXref(why)); reason.hidden = !why;
+    reason.say(why);
     conflict.hidden = !(st.impl === 'structural' && iir2fir === '2');
   }
 
@@ -238,13 +239,11 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
       s('path.far', { d: farPath(spk[1].p, earL, 0) }),
       s('line.near', { x1: spk[0].p[0], y1: spk[0].p[1], x2: earL[0], y2: earL[1] }),
       s('line.near', { x1: spk[1].p[0], y1: spk[1].p[1], x2: earR[0], y2: earR[1] }),
-      s('circle.head', { cx: CX, cy: CY, r }),
-      s('path.nose', { d: `M${CX - 4},${CY - r + 1} L${CX},${CY - r - 6} L${CX + 4},${CY - r + 1}` }),
+      headGlyph(CX, CY, r, 6),
       s('rect.ear', { x: CX - r - 3, y: CY - 5, width: 4, height: 10, rx: 1.5 }),
       s('rect.ear', { x: CX + r - 1, y: CY - 5, width: 4, height: 10, rx: 1.5 }),
       spk.map(({ d, p }, i) => s('g.spk', {},
-        s('g', { transform: `translate(${p[0].toFixed(1)} ${p[1].toFixed(1)}) rotate(${d})` },
-          s('rect', { x: -10, y: -8, width: 20, height: 16, rx: 2 }), s('circle.drv', { cx: 0, cy: 3.5, r: 3 })),
+        speakerGlyph(p[0], p[1], d),
         s('text.sl', { x: p[0] + (i ? 18 : -18), y: p[1] + 4, 'text-anchor': i ? 'start' : 'end', text: i ? 'R' : 'L' }))),
     ].flat(2).filter(Boolean));
   }

@@ -19,7 +19,8 @@
 // Modulators: name | rate floor badge | heart. Dithers: name.
 
 import { h } from '../lib/dom.js';
-import { sheet, closeBtn } from '../lib/sheet.js';
+import { sheet } from '../lib/sheet.js';
+import { closeBtn } from '../lib/controls.js';
 import { LISTS, GROUPS } from '../data/option-lists.js';
 import { narrowed, subscribe, isFav, toggleFav, kindOf } from '../lib/narrow.js';
 import { mountFacetBar } from './narrow-filters.js';
