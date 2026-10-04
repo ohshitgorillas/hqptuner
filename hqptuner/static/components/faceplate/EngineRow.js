@@ -11,7 +11,7 @@ import { PLATFORM } from "../../lib/clock.js";
 import { gaugeReading, zone } from "../../model/shell/frame.js";
 import { engineStatus } from "../../store/signals.js";
 import { clipFlash, outputBufferApplies, trackCounters } from "../../store/health.js";
-import { apodLampLevel } from "../../store/apodlamp.js";
+import { apodLampLevel } from "../../store/meter/apodlamp.js";
 import { apodBinSeq } from "../../store/apodhistory.js";
 import { fastPollMs } from "../../store/ui/ui.js";
 import { engineReadings } from "../../store/faceplate/engine.js";

@@ -1,11 +1,11 @@
 // The apodizing lamps' level, the header jewel's and the engine row's: the newest
 // apodizing bin's reading times what the running filter is already correcting of it.
 import { computed } from "@preact/signals";
-import { rateOf, intensity } from "../lib/apodscale.js";
-import { apodBins } from "./apodhistory.js";
-import { apodLight } from "./ui/prefs.js";
-import { engineStatus } from "./signals.js";
-import { filterFacets } from "./narrow/facets.js";
+import { rateOf, intensity } from "../../lib/apodscale.js";
+import { apodBins } from "../apodhistory.js";
+import { apodLight } from "../ui/prefs.js";
+import { engineStatus } from "../signals.js";
+import { filterFacets } from "../narrow/facets.js";
 
 // The newest bin's reading. An empty history is dark rather than absent: the
 // preference is on, so the lamp is on the panel, unlit, which is the state that

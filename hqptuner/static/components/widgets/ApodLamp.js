@@ -12,7 +12,7 @@
 // painting every event, while the lamp reports only what the running filter left
 // uncorrected, so a full apodizing filter paints the strip hot and leaves the
 // jewel dark. The scale is still shared; the correction is applied after it,
-// in store/apodlamp.js and nowhere else.
+// in store/meter/apodlamp.js and nowhere else.
 //
 // What the component publishes is the PEAK for the newest bin TIMES that
 // correction, on the --lamp custom property. The decay is CSS's affair (css/base/header.css), and what
@@ -31,7 +31,7 @@
 // playback on an apodizing filter never stops producing events.
 import { html } from "../../lib/dom.js";
 import { apodBinSeq } from "../../store/apodhistory.js";
-import { apodLampLevel } from "../../store/apodlamp.js";
+import { apodLampLevel } from "../../store/meter/apodlamp.js";
 import { apodLight } from "../../store/ui/prefs.js";
 import { fastPollMs } from "../../store/ui/ui.js";
 
