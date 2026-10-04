@@ -106,7 +106,12 @@ The Overview and its five steps, on the existing matrix profile, AutoEq and desc
 - New backend probes: NAA bring-up, IPv6 detection, USB listings, the Connection check, and the 48k-family DSD check. Each one touches the production daemon, so each follows the idle gate, restores what it changes and verifies by readback.
 - The Overview and its ten steps, on those probes.
 
-## Phase 10: cutover
+## Phase 10: connection panel
+
+- Tapping the brand knob opens the connection panel: v1's Setup screen moved over with its fields and copy as they are, in the faceplate's style.
+- It runs on the existing connection routes and the credential verdict in the health route; the backend does not change.
+
+## Phase 11: cutover
 
 - The v2 entry becomes the only entry. The v1 components, CSS, LIVE and METER modes and their tests are deleted.
 - `docs/architecture.md` is rewritten where it describes the v1 shell: §4.2, §4.3, §5.3, §6.2, §7 and §9. `README.md` and the bug-report directions in `CONTRIBUTING.md` follow.
@@ -125,4 +130,4 @@ Each phase waits on these before it ships.
 | 9 | The lines marked DRAFT in `mockup/scripts/data/builders/station-builder.js`. |
 | Any | Renaming Resampling to Rate conversion. Whether Auto output mode is offered. The buffer zone seams. |
 
-The mockup leaves these undrawn: the connection settings panel, the Combo backend's DAC model per sub-device, and tips on touch. Selection in the station tree is unwired.
+The mockup leaves these undrawn: the Combo backend's DAC model per sub-device, and tips on touch. Selection in the station tree is unwired.
