@@ -1,0 +1,22 @@
+/* Page frame, plate, and type utilities. */
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:13px;overflow:hidden;line-height:var(--lh-text)}
+/* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
+button,input,select,textarea{line-height:inherit}
+
+/* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: at exactly 1080×810 it renders 1:1. */
+#stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:14px 22px 0;display:flex;flex-direction:column;
+  background:var(--plate-face);border:1px solid var(--edge);border-radius:10px;
+  box-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums}
+.rule{height:1px;background:var(--line);flex-shrink:0}
+
+/* Engraved legend text. */
+.eng{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);text-shadow:0 1px 0 var(--shade);white-space:nowrap;line-height:var(--lh-eng)}
+.mono{font-family:var(--f-mono);line-height:var(--lh-text)}
+.acc{color:var(--acc)}
+.cnt{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.grow{flex-grow:1}
+
+select.vfd:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}

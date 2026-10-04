@@ -1,110 +1,23 @@
-/* HQPTuner v2 faceplate — design tokens.
-   Layout: faceplate at an iPad landscape size in points: 1080×810 (10.2", default, the smallest target), 1180×820 (11"),
-   1366×1024 (13"); picked on the mock strip (plate.js SIZES sets --plate-w / --plate-h), scaled to fit smaller viewports.
-   One surface, no cards; sections = engraved header + hairline.
-   Default accent amber; Visual settings can swap --acc / --acc-dim / --acc-lo (settings.js). Lamp green/red are semantic, never accent.
-   Deliberately dark-only: this is a hardware faceplate, not a themed document. */
+/* HQPTuner v2 faceplate mockup: the tokens no served stylesheet reads yet. Every other token is in
+   hqptuner/static/css/v2/tokens.css, linked ahead of this file; a token moves there with its first reader. */
 :root{
-  color-scheme:dark;
-
-  /* Faceplate geometry: the 10.2" default; plate.js overrides both on .plate for 11" / 13" (SIZES). */
-  --plate-w:1080px; --plate-h:810px;
-
-  /* Surfaces */
-  --page:#0e0f12;          /* room behind the plate */
-  --plate:#1c1e22; --plate-2:#212429;
-  --glass:#08090b;         /* VFD windows, segments, meters, plots */
-  --pop:#16181c;           /* popover sheets */
-  --hover:#1c1f24;         /* row hover inside popovers */
-  --lamp-off:#2c3036;
-
-  /* Lines */
-  --line:#33373e;          /* hairline rules */
-  --line-2:#454a53;        /* control borders, wire trace */
-  --edge:#3a3e46;          /* plate bezel, dial minor ticks */
-  --seam:#15181d;          /* divider between segment buttons */
-  --row-rule:#2a2d33;      /* drawer row separators */
-  --highlight:#4a4f58;     /* top-edge bevel light */
-
-  /* Ink */
-  --ink:#d8dbe0; --ink-2:#9ba1ab; --ink-3:#6c727c; --ink-4:#4d525b;
-  /* Text is never darker than ink-2. ink-3 / ink-4 are for strokes, rules and dead states (disabled,
-     unavailable, off) only. */
-  --ink-dead:#262a2f;      /* unlit legend lettering */
-
-  /* Accent (amber): marks what you set (values in VFD windows, the chosen seg position) and where you are (the left-hand
-     selection bar, the open stage, a view's foot). Never measurements, never semantics, never a button's resting face.
-     Visual settings can swap it (settings.js), so nothing that must stay amber may use it. */
-  --acc:#e9a63c; --acc-dim:#6e5124; --acc-lo:#2a2215;
-  --on-acc:#0b0a08;        /* ink on an amber fill */
-  --acc-rim:#ffd48a;       /* pale of the accent: peak hold, lit parens / handles (settings.js derives it on an accent swap) */
-  --zero:#3a3324;          /* 0 dB line on plots */
-  /* Glows follow the accent (Visual settings swap --acc): never write the amber hex into a glow. */
-  --acc-glow:color-mix(in srgb,var(--acc) 40%,transparent);      /* drop-shadow under amber strokes / handles */
-  --acc-glow-hi:color-mix(in srgb,var(--acc) 53%,transparent);   /* selection bar, lit legend text */
+  --plate:#1c1e22;         /* the plate's flat fill */
   --acc-halo:color-mix(in srgb,var(--acc) 20%,transparent);      /* wide halo round a live slot */
 
   /* Spectrogram ramp, floor to full scale: glass → amber → pale gold (HQPlayer: lowest black, highest yellow). */
   --spec-0:#08090b; --spec-1:#221508; --spec-2:#5c3811; --spec-3:#a9681f; --spec-4:#e9a63c; --spec-5:#fff0c4;
 
-  /* Instrument amber: measurements (engine-row gauge + buffers, the Source meter's spectrum and levels) stay the faceplate's
-     amber whatever the accent, like the spectrogram ramp (phosphor green everywhere was a lot). */
+  /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
+     accent, like the spectrogram ramp. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
 
-  /* Semantic lamps */
-  --ok:#5fcf86; --ok-rim:#3c8a5a;
-  --hatch:#1b1e23;         /* unavailable stripes (rate dial, Output tuner) */
-  --busy:#e9a63c;          /* applying (engine restarting): fixed amber, never the user's accent */
-  --warn:#e9a63c;          /* marginal zone (process-speed gauge): fixed amber, never the user's accent */
-  --bad:#e0584b; --bad-rim:#8a3c35;
-  --ok-glow:color-mix(in srgb,var(--ok) 67%,transparent); --bad-glow:color-mix(in srgb,var(--bad) 67%,transparent);
-
-  /* Recurring finishes */
-  --raised:linear-gradient(180deg,#33373e,#262930);
-  --raised-shadow:0 1px 0 var(--highlight) inset,0 2px 3px #0008;
-  --well:inset 0 2px 8px #000;
-  --pop-shadow:0 14px 40px #000c;
   --key:linear-gradient(180deg,#121418,#0b0c0e);   /* glass key face: the ▾ end of a split control */
-
-  /* Type */
-  --f-eng:'Saira Extra Condensed',sans-serif;   /* engraved legends */
-  --f-mono:'IBM Plex Mono',monospace;           /* readouts, engine strings */
-  --f-body:'IBM Plex Sans',system-ui,sans-serif;
-  /* Line heights pinned to the numbers Chrome derives from these fonts' own metrics (the public link
-     rendered taller text). `normal` follows each font file's metrics, which differ by browser and by the file a browser is
-     served (and by the fallback while web fonts load), so it moved text and pushed the page off the plate. Pinned, every
-     line box is the same everywhere. Any rule that sets a font family sets its line height (or inherits one). */
-  --lh-eng:1.575;          /* Saira Extra Condensed */
-  --lh-text:1.3;           /* IBM Plex Sans / Mono (and Atkinson when the dyslexic font is on) */
-  /* Small-print roles, one size each wherever they appear. */
-  --fs-cl:12px;            /* control label beside or above a box / seg (.cl) */
-  --fs-u:11.5px;           /* unit after a value (.u): dB, Hz, dBFS, ms */
-
-  /* Blacks, glints and one-off shades */
-  --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */
   --shade-soft:#0008;          /* cast shadow under a raised part */
-  --shade-deep:#000c;          /* cast shadow under the plate */
-  --glint:#fff;                /* hot point inside a lit lamp */
   --glint-lo:#fff4;            /* top-edge light on a colour swatch */
   --glint-faint:#ffffff0d;     /* lip under a facet window */
-  --highlight-lo:#4a4f5833;    /* --highlight at 20%: the edge of a drawer or sheet */
-  --lamp-rim:#0a0c0f;          /* lamp bezel */
-  --plate-face:linear-gradient(180deg,#23262b,#1b1d21 40%,#1e2126);   /* the plate */
-  --panel-hi:#25282d; --panel-lo:#1f2226;   /* drawer / sheet body gradient stops */
   --console:linear-gradient(180deg,#121418,#181a1f);       /* narrowing console trough */
   --facet:linear-gradient(180deg,#0d0f12,#08090b);         /* facet window */
   --facet-hover:linear-gradient(180deg,#14171b,#0b0c0f);   /* facet window under the pointer */
   --key-lo:#0b0c0e;            /* dark stop of a glass key and of an open facet window */
-  --grid:#1f2227; --grid-minor:#16181c;     /* plot grid lines */
-  --track:#1d2025;             /* range bar track */
-  --hatch-head:#2b2e34;        /* stripes on an idle drawer head */
-
-  /* Motion: a transition or animation names one of these or `none`. */
-  --blink:1s step-end infinite;        /* alert blink */
-  --blink-slow:2s step-end infinite;   /* the one blink kept under reduced motion */
-  --knob-sweep:1.6s linear infinite;   /* brand knob pointer while applying */
-  --knob-turn:.35s ease-out;           /* brand knob pointer settling on a state */
-  --wipe:.2s ease-out;                 /* drawer and sheet wipe */
-  --needle:.14s ease-out;              /* rate dial needle */
   --fade:.12s ease-out;                /* panel fade */
 }

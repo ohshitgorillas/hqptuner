@@ -1,32 +1,14 @@
-/* Page frame, plate, and type utilities. */
-html,body{height:100%}
-[hidden]{display:none!important}
-body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:13px;overflow:hidden;line-height:var(--lh-text)}
-/* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
-button,input,select,textarea{line-height:inherit}
-
-/* #stage centers the plate; plate.js scales it down to fit (never up). No padding: at exactly 1080×810 it renders 1:1. */
-#stage{position:absolute;inset:var(--scene-h) 0 0 0;display:flex;align-items:center;justify-content:center}
-/* Mock scenario strip (what is playing): above the plate, outside it; not part of the app. plate.js fits the plate under it. */
+/* The mockup's own frame: the scenario strip above the plate and its pickers. The plate, the page frame and the type
+   utilities are in hqptuner/static/css/v2/base.css, linked ahead of this file. */
 :root{--scene-h:40px}
+/* The plate sits under the strip; lib/shell/plate.js fits it into what is left. */
+#stage{top:var(--scene-h)}
+/* Mock scenario strip (what is playing): above the plate, outside it; not part of the app. */
 .scene{position:fixed;top:0;left:0;right:0;height:var(--scene-h);display:flex;align-items:center;justify-content:center;gap:12px;background:var(--page);border-bottom:1px dashed var(--line);z-index:5}
 .scene .seg button{height:28px;font-size:12.5px;padding:0 12px;white-space:nowrap}
 /* Three groups (Scenario · Alerts · Display) share the strip: below 1300 px of window the notes (pt size, `mockup only`)
    give way so the groups never wrap or clip; the size's points stay in each Display button's tooltip. */
 @media (max-width:1300px){.scene{gap:10px}.scene .seg button{padding:0 10px}.scene > .cnt{display:none}}
-.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:14px 22px 0;display:flex;flex-direction:column;
-  background:var(--plate-face);border:1px solid var(--edge);border-radius:10px;
-  box-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums}
-.rule{height:1px;background:var(--line);flex-shrink:0}
-
-/* Engraved legend text. */
-.eng{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);text-shadow:0 1px 0 var(--shade);white-space:nowrap;line-height:var(--lh-eng)}
-.mono{font-family:var(--f-mono);line-height:var(--lh-text)}
-.acc{color:var(--acc)}
-.cnt{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
-.grow{flex-grow:1}
-
-select.vfd:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 /* Mock alert picker on the scenario strip (scenario.js mountAlertPicker): a checklist under its button. Mockup only. */
 .scene .scalerts{height:28px;font-size:12px}
 .scene .scalerts.on{color:var(--warn);border-color:var(--warn)}
