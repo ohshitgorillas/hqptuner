@@ -11,6 +11,7 @@ import { effective } from "../../store/resolve.js";
 import { logLines, logMessage, refreshLogTail } from "../../store/logtail.js";
 import { Checkbox } from "../controls/index.js";
 import { truthy } from "../../lib/coerce.js";
+import { expireIf } from "../../lib/expiry.js";
 
 const LINES = 50;
 const POLL_MS = 3000;
@@ -93,11 +94,7 @@ export function LogTail() {
     const node = pre.current;
     if (node && stick.current) node.scrollTop = node.scrollHeight;
   });
-  useEffect(() => {
-    if (!copied) return undefined;
-    const t = setTimeout(() => setCopied(""), COPIED_MS);
-    return () => clearTimeout(t);
-  }, [copied]);
+  useEffect(() => expireIf(copied !== "", COPIED_MS, () => setCopied("")), [copied]);
   const copy = async () => {
     try {
       await copyToClipboard(text);

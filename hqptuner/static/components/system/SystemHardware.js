@@ -9,6 +9,7 @@ import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { api } from "../../lib/api.js";
+import { expireIf } from "../../lib/expiry.js";
 import { metadata } from "../../store/signals.js";
 import { duringEngineWrite } from "../../store/enginewrite.js";
 import { notesVisible } from "../../store/ui/prefs.js";
@@ -83,8 +84,17 @@ const loaded = signal(false);
 
 const outcome = signal(/** @type {Outcome} */ (""));
 
-// A confirmed apply is a receipt and expires; anything else carries a reason the
-// user has to act on and stays until they edit, revert, or apply again.
+/**
+ * Whether a status message with this outcome clears itself. A confirmed apply is
+ * a receipt and expires; anything else carries a reason the user has to act on,
+ * or is still under way, and stays until they edit, revert, or apply again.
+ *
+ * @param {Outcome} kind
+ * @returns {boolean}
+ */
+export const receiptExpires = (kind) => kind === "ok";
+
+// How long a receipt stays up.
 const APPLIED_MS = 5000;
 
 /**
@@ -263,14 +273,9 @@ export function HardwareCard() {
   useEffect(() => {
     if (!loaded.value) load().catch((e) => say(`Load failed: ${e}`, "err"));
   }, []);
-  // A confirmed apply's message clears itself; every other outcome stays until
-  // the user edits, reverts, or applies again. Keyed on the outcome rather than
-  // the sentence so a re-apply that lands the same words restarts the clock.
-  useEffect(() => {
-    if (outcome.value !== "ok") return undefined;
-    const t = setTimeout(() => say("", ""), APPLIED_MS);
-    return () => clearTimeout(t);
-  }, [outcome.value]);
+  // Keyed on the outcome rather than the sentence so a re-apply that lands the
+  // same words restarts the clock.
+  useEffect(() => expireIf(receiptExpires(outcome.value), APPLIED_MS, () => say("", "")), [outcome.value]);
   return html`
     <${Card} id="hardware-acceleration" title="Hardware acceleration">
         <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU

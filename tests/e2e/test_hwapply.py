@@ -50,15 +50,14 @@ Policy notes (docs/testing.md):
 
 NOT covered here, and deliberately so:
 
-- **That a `warn` or `err` message does NOT self-clear.** The only way to state
-  "this is still here later" is to wait a fixed amount of time and look, which is
-  a wall-clock wait and forbidden outright (docs/testing.md rule 7, which allows
-  a bounded poll on a condition and nothing else). There is no condition to poll
-  for the absence of a future event, and the frontend has no clock to inject
-  across the subprocess boundary. So the cases below pin that a failed apply
-  reaches the `err` outcome and that a confirmed one clears itself; the asymmetry
-  between them is unpinned. A regression that made every message self-clear would
-  pass this suite.
+- **Which messages clear themselves.** That a confirmed apply's message expires
+  and every other outcome's stays is pinned in
+  `tests/js/components/chrome/hardware-receipt.test.js`, and the timer in
+  `tests/js/lib/expiry.test.js`, both on a fake clock. Here it could only be
+  watched on the wall clock (docs/testing.md rule 7). The card's effect handing
+  the one to the other is covered by no test: SSR never runs an effect, and a
+  browser case would wait out the receipt. A JS harness that runs effects on an
+  injectable clock would close that gap.
 - **The `warn` outcome** — submitted but not confirmed. The daemon fake can be
   made to answer nothing after adopting a restore (`_down` / `_die`), but that
   takes the whole 8088 lane down for a session-scoped stack that every later test
@@ -81,10 +80,6 @@ from e2e.support.stack import Stack
 LOAD_MS = 30_000
 SETTLE_MS = 20_000
 APPLY_MS = 90_000
-#: Ceiling on "the confirmed message has gone again". A ceiling on a condition,
-#: NOT how long the card is expected to hold the message for: nothing here
-#: asserts, or may assert, that the lifetime is any particular length.
-CLEAR_MS = 60_000
 
 SYSTEM_TAB = "[data-testid='tab-system']"
 APPLY = "[data-testid='hw-apply']"
@@ -332,14 +327,6 @@ def apply_classes(page: Page) -> list[str]:
     return [str(token) for token in page.locator(APPLY).evaluate("el => [...el.classList]")]
 
 
-def wait_for_status_to_clear(page: Page, timeout_ms: int = SETTLE_MS) -> None:
-    """Wait until the status line has gone quiet again."""
-    page.wait_for_function(
-        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() === ''; }}",
-        timeout=timeout_ms,
-    )
-
-
 def status_text(page: Page) -> str:
     """What the card's status line reads. The element is always rendered, and
     reads empty when the card has nothing to say."""
@@ -564,34 +551,6 @@ def test_a_confirmed_apply_carries_the_ok_outcome(page: Page, stack: Stack) -> N
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
     assert confirmed is True
-
-
-@pytest.mark.parametrize(
-    "waited", [pytest.param(True, id="polled-until-quiet"), pytest.param(False, id="read-at-once")]
-)
-def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack, *, waited: bool) -> None:
-    """A confirmed apply's message goes away on its own, with no further interaction.
-
-    Nothing is clicked, typed or navigated between the message landing and the
-    reading: in the polled case the only thing in between is the poll asking
-    whether it has gone yet, and the read-at-once case shows the message was up
-    to begin with. The arrange step refuses unless the `ok` message is up, so
-    neither case can pass on a card that never spoke.
-    """
-    loaded_card(page, stack)
-    before = stack.http_state[CUDA_DEV_ATTR]
-    try:
-        want = set_number_setting(page, CUDA_DEV)
-        flush_frames(page)
-        apply_and_wait_for_the_value_to_land(page, stack, want)
-        if not saw_outcome(page, OK, timeout_ms=APPLY_MS):
-            raise FixtureError(reason="the confirmed apply never showed ok on the status line")
-        if waited:
-            wait_for_status_to_clear(page, timeout_ms=CLEAR_MS)
-        left = status_text(page)
-    finally:
-        stack.http_state[CUDA_DEV_ATTR] = before
-    assert bool(left) is not waited
 
 
 def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> None:
