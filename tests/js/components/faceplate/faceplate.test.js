@@ -29,8 +29,9 @@ beforeEach(() => {
 /** Every element of the rendered frame. */
 const frame = () => elements(render(html`<${Faceplate} />`));
 
-/** The rail's stage buttons. */
-const stages = () => frame().filter((e) => e.name === "button" && classes(e).includes("st"));
+/** The chain rail's stage buttons. */
+const stages = () =>
+  frame().filter((e) => e.name === "button" && classes(e).includes("st") && !classes(e).includes("sst"));
 
 /** The ids of the stages whose drawer is rendered open. */
 const openDrawers = () =>
@@ -62,6 +63,23 @@ test("test_the_gear_swaps_the_rail_off_the_plate", () => {
   const before = stages().length;
   showBody("settings");
   assert.deepEqual([before > 0, stages().length], [true, 0]);
+});
+
+/** The settings rail's entries inside the settings body. */
+const settingsEntries = () => {
+  const setbody = frame().find((e) => classes(e).includes("setbody"));
+  return setbody ? elements(setbody.html).filter((e) => e.name === "button" && classes(e).includes("sst")) : [];
+};
+
+test("test_the_gear_draws_the_settings_rail_in_place_of_the_chain_rail", () => {
+  body.value = "settings";
+  assert.deepEqual([settingsEntries().length > 0, stages().length], [true, 0]);
+});
+
+test("test_the_gear_reads_pressed_while_the_settings_body_shows", () => {
+  body.value = "settings";
+  const gear = frame().find((e) => e.name === "button" && attr(e, "data-testid") === "settings");
+  assert.equal(gear ? attr(gear, "aria-pressed") : undefined, "true");
 });
 
 /** How many elements carry a class. */

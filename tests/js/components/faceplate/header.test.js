@@ -225,6 +225,13 @@ test("test_the_gear_is_pressed_while_the_settings_body_shows", () => {
   assert.equal(attrOf("settings", "aria-pressed"), "true");
 });
 
+test("test_the_gear_label_differs_while_the_settings_body_shows", () => {
+  body.value = "settings";
+  const open = attrOf("settings", "aria-label");
+  body.value = "chain";
+  assert.notEqual(open, attrOf("settings", "aria-label"));
+});
+
 test("test_the_gear_is_not_pressed_while_the_chain_shows", () => {
   assert.equal(attrOf("settings", "aria-pressed"), "false");
 });

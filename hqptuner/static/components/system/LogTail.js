@@ -12,6 +12,7 @@ import { logLines, logMessage, refreshLogTail } from "../../store/logtail.js";
 import { Checkbox } from "../controls/index.js";
 import { truthy } from "../../lib/coerce.js";
 import { expireIf } from "../../lib/expiry.js";
+import { copyToClipboard } from "../../lib/clipboard.js";
 
 const LINES = 50;
 const POLL_MS = 3000;
@@ -29,29 +30,6 @@ const shown = signal(null); // null = follow log_enabled; true/false = user choi
 // one it is never matters here.
 /** @type {ReturnType<typeof setInterval> | null} the open poll interval, or null when not polling */
 let timer = null;
-
-// The hand-back runs over plain HTTP on the LAN, which is not a secure context,
-// so `navigator.clipboard` is simply absent in every browser but on localhost.
-// The deprecated execCommand path is the only one that works there.
-/** @param {string} text @returns {Promise<void>} resolves once the text is on the clipboard, rejects if it isn't */
-async function copyToClipboard(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.setAttribute("readonly", "");
-  ta.style.position = "fixed";
-  ta.style.opacity = "0";
-  document.body.appendChild(ta);
-  ta.select();
-  try {
-    if (!document.execCommand("copy")) throw new Error("clipboard rejected the copy");
-  } finally {
-    ta.remove();
-  }
-}
 
 /** @param {string} state "ok" after a copy, "fail" after a failed one, "" at rest @returns {string} the copy button's label */
 function label(state) {

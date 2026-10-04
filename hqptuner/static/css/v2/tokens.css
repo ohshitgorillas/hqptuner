@@ -63,6 +63,22 @@
   font-display: swap;
   src: url("/fonts/plexmono-600.woff2") format("woff2");
 }
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  size-adjust: 108%;
+  src: url("/fonts/atkinson-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  size-adjust: 108%;
+  src: url("/fonts/atkinson-700.woff2") format("woff2");
+}
 
 /* The faceplate's tokens. Dark only. The plate is laid out at an iPad landscape size in points;
    model/shell/plate.js picks the size and sets --plate-w and --plate-h on the plate. */
@@ -172,3 +188,6 @@
   /* Spectrogram ramp, floor to full scale: glass → amber → pale gold (HQPlayer: lowest black, highest yellow). */
   --spec-0:#08090b; --spec-1:#221508; --spec-2:#5c3811; --spec-3:#a9681f; --spec-4:#e9a63c; --spec-5:#fff0c4;
 }
+
+/* The dyslexic switch swaps the body face only; engraved legends and readouts keep theirs. */
+:root[data-dyslexic]{--f-body:'Atkinson Hyperlegible',system-ui,sans-serif}

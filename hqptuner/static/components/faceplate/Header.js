@@ -216,7 +216,7 @@ export function Header() {
         class="round gear"
         data-testid="settings"
         data-alert=${alertsNow.value.blinks.el.get("gear")}
-        aria-label="Settings"
+        aria-label=${body.value === "settings" ? "Close settings" : "Settings"}
         ...${bodyProps("settings")}
       >
         <svg
