@@ -7,12 +7,29 @@ import { html } from "../../../lib/dom.js";
 import { answer, cancel } from "../../../store/ask.js";
 import { openStage } from "../../../store/faceplate/view.js";
 import { drawerHead, drawerQuestion, shownTab } from "../../../store/faceplate/drawer.js";
+import { alertsNow } from "../../../store/faceplate/alerts.js";
+import { AlertLines } from "../AlertLines.js";
 import { Head, panelId, tabId } from "./Head.js";
 import { item } from "./Rows.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerTab} DrawerTab */
 /** @typedef {import("./Rows.js").Blocks} Blocks */
+
+/**
+ * The alerts homed on this drawer, one line each under the head; nothing when none.
+ *
+ * @param {DrawerSchema} schema
+ */
+function alertLines(schema) {
+  const alerts = alertsNow.value.drawers.get(schema.id)?.alerts;
+  if (!alerts?.length) return null;
+  return html`
+    <div class="dalert" role="status">
+      <${AlertLines} alerts=${alerts} />
+    </div>
+  `;
+}
 
 /**
  * The open question, pinned under the head as an alert line with its two answers; nothing when none is this drawer's.
@@ -89,7 +106,7 @@ export function Drawer({ schema, blocks = {} }) {
       data-closed=${openStage.value === schema.id ? undefined : ""}
     >
       <${Head} schema=${schema} shown=${shown} head=${head} />
-      ${pinnedQuestion(schema)} ${schema.tabs.map((t) => panel(schema, t, shown, blocks))}
+      ${alertLines(schema)} ${pinnedQuestion(schema)} ${schema.tabs.map((t) => panel(schema, t, shown, blocks))}
     </aside>
   `;
 }

@@ -12,6 +12,8 @@ import { isDirty } from "../../../store/resolve.js";
 import { grayReason } from "../../../store/ui/graying.js";
 import { edit } from "../../../store/actions.js";
 import { groupShown, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
+import { alertsNow } from "../../../store/faceplate/alerts.js";
+import { worseBlink } from "../../../model/shell/alerts.js";
 import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
 import { field } from "./Field.js";
 import { choice } from "./Choice.js";
@@ -80,8 +82,11 @@ function row(spec, here) {
   const label = spec.label ?? described;
   const gray = grayReason(key);
   const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
+  const lit = (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
+    .filter((r) => r.label === key && (!r.chain || r.chain === here.tab))
+    .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
   return html`
-    <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined}>
+    <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
       <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(gray, here)}</div>
       <div class="man"><p>${tooltip}</p></div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry)}

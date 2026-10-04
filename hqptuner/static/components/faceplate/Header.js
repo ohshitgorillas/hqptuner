@@ -1,16 +1,20 @@
 // The faceplate's header row: the brand knob that lights the connection state, the mark, the Station · Snapshot tree,
 // the two builders and the gear. The builders and the gear swap the plate's body and read pressed while it shows.
 // In the tree a station's name loads that station, and a snapshot of the loaded station applies to the running engine;
-// another station's snapshots wait for it to be loaded.
+// another station's snapshots wait for it to be loaded. An alert homed on the knob or the gear blinks it in the alert's
+// colour; with one on the knob its tap opens a popover of the lines homed there, and with none the tap does nothing.
 
 import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
 import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
-import { body, showBody, openPopover } from "../../store/faceplate/view.js";
+import { body, showBody, openPopover, plate } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
 import { applyLivePreset } from "../../store/live/presets.js";
+import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
+import { clampToPlate } from "../../model/shell/place.js";
 import { Popover, triggerProps } from "./Popover.js";
+import { AlertLines } from "./AlertLines.js";
 
 /** @typedef {import("../../store/faceplate/conn.js").ConnState} ConnState */
 /** @typedef {import("../../store/faceplate/stations.js").Station} Station */
@@ -27,17 +31,72 @@ const HINT = "Open connection settings to set the HQPlayer Embedded server's IP 
 const TREE = "stations";
 const MIN_WIDTH = 330;
 
-/** The brand knob: its ring lights the connection state, which is also its name and its tooltip's lead. */
+/**
+ * The popover id of a header home's alert lines.
+ *
+ * @param {string} el  the home's name
+ */
+export const noteId = (el) => `alerts-${el}`;
+
+/**
+ * Park an alert popover 8 px under its home, kept off the plate's sides and foot. The home is any element carrying the
+ * popover's id, the gauge being no button.
+ *
+ * @param {HTMLElement} panel
+ */
+function parkNote(panel) {
+  const face = panel.closest(".plate");
+  const home = face?.querySelector(`[data-pop="${panel.dataset.pop}"]:not(.pop)`);
+  if (!face || !home) return;
+  const box = home.getBoundingClientRect(),
+    origin = face.getBoundingClientRect();
+  const fit = plate.value;
+  const at = clampToPlate({
+    anchor: { left: box.left - origin.left, top: box.top - origin.top, width: box.width, height: box.height },
+    panel: { w: panel.offsetWidth, h: panel.offsetHeight },
+    plate: { w: fit.w, h: fit.h },
+    scale: fit.scale,
+    side: 22,
+    foot: 14,
+    at: { x: "start", y: "below", gap: 8 },
+  });
+  panel.style.left = `${Math.round(at.left)}px`;
+  panel.style.top = `${Math.round(at.top)}px`;
+}
+
+/**
+ * The popover of the alert lines homed on a header element, one line per alert in raised order. Draws nothing while
+ * none is homed there.
+ *
+ * @param {{ el: string }} props  the home's name
+ */
+export function AlertNote({ el }) {
+  const lines = alertNotes(el);
+  if (!lines.length) return null;
+  return html`
+    <${Popover} id=${noteId(el)} cls="notepop alnote" role="dialog" label="Alert" park=${parkNote}>
+      <${AlertLines} alerts=${lines} />
+    <//>
+  `;
+}
+
+/**
+ * The brand knob: its ring lights the connection state, which is also its name and its tooltip's lead. An alert homed
+ * on it blinks the ring, and its tap then opens the alert lines.
+ */
 function Knob() {
   const s = connState();
+  const alert = alertsNow.value.blinks.el.get("conn");
   return html`
     <button
       type="button"
       class="conn"
       data-testid="conn"
       data-state=${s}
+      data-alert=${alert}
       aria-label=${`${STATES[s]}. Connection settings`}
       title=${`${STATES[s]} — ${HINT}`}
+      ...${alert ? triggerProps(noteId("conn"), "dialog") : {}}
     >
       <svg viewBox="0 0 32 32" aria-hidden="true">
         <circle class="ring" cx="16" cy="16" r="11.5" />
@@ -140,6 +199,7 @@ export function Header() {
   return html`
     <header class="hdr">
       <${Knob} />
+      <${AlertNote} el="conn" />
       <div class="mark">HQPTUNER</div>
       <div class="station">
         <span class="eng">Station · Snapshot</span>
@@ -151,7 +211,14 @@ export function Header() {
       <button type="button" class="btn hb" data-testid="snapshot-builder" ...${bodyProps("snapshots")}>
         Snapshot builder
       </button>
-      <button type="button" class="round gear" data-testid="settings" aria-label="Settings" ...${bodyProps("settings")}>
+      <button
+        type="button"
+        class="round gear"
+        data-testid="settings"
+        data-alert=${alertsNow.value.blinks.el.get("gear")}
+        aria-label="Settings"
+        ...${bodyProps("settings")}
+      >
         <svg
           viewBox="0 0 24 24"
           width="20"

@@ -2,7 +2,9 @@
 // playback volume at the right end. Every reading is live off the Status poll (store/faceplate/engine.js); one with
 // nothing to show prints — and takes no zone. The speed figure and each buffer read the gauge's own arcs, red | amber |
 // green, and a counter's lamp lights while this track has counted. The volume's slider popover renders beside the row,
-// so that it is a child of the plate as every popover is.
+// so that it is a child of the plate as every popover is. An alert homed on the gauge blinks it in the alert's colour,
+// and while one is up the gauge takes a tap or Enter like a button, opening the alert lines; its popover renders beside
+// the row too.
 
 import { html } from "../../lib/dom.js";
 import { PLATFORM } from "../../lib/clock.js";
@@ -10,6 +12,10 @@ import { gaugeReading, zone } from "../../model/shell/frame.js";
 import { engineStatus } from "../../store/signals.js";
 import { outputBufferApplies, trackCounters } from "../../store/health.js";
 import { engineReadings } from "../../store/faceplate/engine.js";
+import { alertsNow } from "../../store/faceplate/alerts.js";
+import { togglePopover } from "../../store/faceplate/view.js";
+import { triggerProps } from "./Popover.js";
+import { AlertNote, noteId } from "./Header.js";
 import { Volume, VolumePopover } from "./Volume.js";
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
@@ -24,11 +30,26 @@ const BUFFER = [25, 50];
 /** @param {number | null} n */
 const figure = (n) => (n === null ? "—" : n.toLocaleString("en-US"));
 
+const NOTE = noteId("gauge");
+
+/** @param {KeyboardEvent} e */
+const enter = (e) => {
+  if (e.key === "Enter") togglePopover(NOTE);
+};
+
+/**
+ * What the gauge carries while an alert is homed on it: the blink, and a button's role, focus and tap.
+ *
+ * @param {string | undefined} alert  the blink up on the gauge, if any
+ */
+const alertProps = (alert) =>
+  alert ? { "data-alert": alert, role: "button", tabIndex: 0, onKeyDown: enter, ...triggerProps(NOTE, "dialog") } : {};
+
 /** @param {{ speed: number | null }} props */
 function Gauge({ speed }) {
   const g = gaugeReading(speed, SPEED);
   return html`
-    <div class="gauge">
+    <div class="gauge" ...${alertProps(alertsNow.value.blinks.el.get("gauge"))}>
       <svg viewBox="0 0 110 60" width="62" height="34" aria-label="Process speed gauge" role="img">
         <path class="trk" d="M10 54 A45 45 0 0 1 100 54" fill="none" stroke-width="6" />
         <path class="z-bad" d="M10 54 A45 45 0 0 1 32 17" fill="none" stroke-width="6" />
@@ -84,5 +105,6 @@ export function EngineRow({ clock = PLATFORM }) {
       <${Volume} clock=${clock} />
     </div>
     <${VolumePopover} />
+    <${AlertNote} el="gauge" />
   `;
 }

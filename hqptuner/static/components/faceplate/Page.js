@@ -14,6 +14,8 @@ import { playbackPath } from "../../store/faceplate/path.js";
 import { pageMeter } from "../../store/faceplate/page/meter.js";
 import { conversionSections } from "../../store/faceplate/page/conversion.js";
 import { topOfPage, allowPinnedRates } from "../../store/ui/faceplate.js";
+import { alertsNow } from "../../store/faceplate/alerts.js";
+import { AlertLines } from "./AlertLines.js";
 import { SourceMeter } from "./page/SourceMeter.js";
 import { MatrixProfileBody, ProfileLine } from "./page/MatrixProfile.js";
 import { Conversion } from "./page/Conversion.js";
@@ -48,9 +50,14 @@ const TITLES = {
  */
 export function Section({ id, title, fill = false, fold = false, cls, bodyCls, two = true, head, children }) {
   const body = two ? html`<div class=${classNames("two", bodyCls)}>${children}</div>` : children;
+  const alerts = alertsNow.value.sections.get(id);
   return html`
     <section class=${classNames("sec", fill && "fill", fold && "mxfold", cls)} data-stage=${id} aria-label=${title}>
-      <div class="sh"><span class="t">${title}</span><span class="ln"></span>${head}</div>
+      <div class="sh">
+        <span class="t">${title}</span>
+        ${alerts?.length ? html`<div class="salert" role="status"><${AlertLines} alerts=${alerts} /></div>` : null}
+        <span class="ln"></span>${head}
+      </div>
       ${!fold && body}
     </section>
   `;
