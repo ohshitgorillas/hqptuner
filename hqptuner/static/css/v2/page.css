@@ -129,3 +129,5 @@ button.vfd.cplate{height:52px;padding:5px 12px 4px;display:grid;grid-template-co
 .cplate.dim .cpl{color:var(--ink-2)}
 
 
+/* Resampling with both filters open (13″, Conversion.js): a row per filter, field | its copy, with the fold's gap between them. */
+.two.both{row-gap:14px}

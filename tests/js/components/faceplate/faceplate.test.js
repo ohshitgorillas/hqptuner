@@ -35,11 +35,11 @@ const stages = () => frame().filter((e) => e.name === "button" && classes(e).inc
 /** The ids of the stages whose drawer is rendered open. */
 const openDrawers = () =>
   frame()
-    .filter((e) => e.name === "aside" && !hasAttr(e, "data-closed"))
+    .filter((e) => e.name === "aside" && classes(e).includes("drawer") && !hasAttr(e, "data-closed"))
     .map((e) => attr(e, "id"));
 
 test("test_the_chain_body_holds_one_drawer_for_each_rail_stage", () => {
-  const drawers = frame().filter((e) => e.name === "aside");
+  const drawers = frame().filter((e) => e.name === "aside" && classes(e).includes("drawer"));
   assert.equal(drawers.length, stages().length);
 });
 
@@ -92,4 +92,28 @@ test("test_a_stage_with_a_registered_drawer_draws_that_drawers_body", () => {
         .filter((b) => b !== undefined)
     : [];
   assert.deepEqual(blocks, ["meter"]);
+});
+
+/** The ids of the plate-level popover panels the chain body holds. */
+const panels = () =>
+  frame()
+    .filter((e) => e.name === "div" && classes(e).includes("pop"))
+    .map((e) => attr(e, "data-pop"));
+
+test("test_the_chain_body_holds_the_filter_presets_popover", () => {
+  assert.ok(panels().includes("presets"));
+});
+
+test("test_the_gear_takes_the_filter_presets_popover_off_the_plate", () => {
+  showBody("settings");
+  assert.ok(!panels().includes("presets"));
+});
+
+test("test_the_chain_body_holds_the_option_list_sheet", () => {
+  assert.ok(frame().some((e) => e.name === "aside" && classes(e).includes("osheet")));
+});
+
+test("test_the_gear_takes_the_option_list_sheet_off_the_plate", () => {
+  showBody("settings");
+  assert.ok(!frame().some((e) => e.name === "aside" && classes(e).includes("osheet")));
 });

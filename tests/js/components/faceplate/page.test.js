@@ -18,7 +18,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Page, Section, Fields } from "../../../../hqptuner/static/components/faceplate/Page.js";
+import { Page, Section } from "../../../../hqptuner/static/components/faceplate/Page.js";
+import { Fields } from "../../../../hqptuner/static/components/faceplate/page/Fields.js";
 import {
   config,
   matrixConfig,
@@ -28,6 +29,7 @@ import {
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
 import { topOfPage, allowPinnedRates } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 
@@ -47,6 +49,7 @@ const DSD256 = "11289600";
  * @property {boolean} [matrix]   the matrix engine as the daemon runs it
  * @property {string} [top]       Top of page
  * @property {boolean} [pins]     Allow pinned rates
+ * @property {{ w: number, h: number }} [win]  the window the plate is fitted to
  */
 
 /**
@@ -55,7 +58,16 @@ const DSD256 = "11289600";
  *
  * @param {Running} r
  */
-function run({ source = CD, output = PCM_8X, direct = false, matrix = true, top = "auto", pins = false }) {
+function run({
+  source = CD,
+  output = PCM_8X,
+  direct = false,
+  matrix = true,
+  top = "auto",
+  pins = false,
+  win = { w: 1080, h: 810 },
+}) {
+  viewport.value = win;
   engineState.value = { state: "2" };
   engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
   config.value = { fields: [{ name: "direct_sdm", value: direct }] };
@@ -146,6 +158,102 @@ test("test_a_folded_matrix_section_has_no_body", () => {
 test("test_an_unfolded_matrix_section_has_its_body", () => {
   run({ top: "profile" });
   assert.equal(bodiesIn("matrix"), 1);
+});
+
+/**
+ * The classes of the elements inside one section that carry `cls`, or a string naming the stage when the page has no
+ * such section.
+ *
+ * @param {string} stage
+ * @param {string} cls
+ * @returns {string[][] | string}
+ */
+function partsOf(stage, cls) {
+  const sec = sectionEls().find((e) => attr(e, "data-stage") === stage);
+  if (!sec) return `no ${stage} section`;
+  return elements(sec.html)
+    .filter((e) => classes(e).includes(cls))
+    .map(classes);
+}
+
+/**
+ * Whether one section's header holds an element a predicate picks, or a string naming the stage when the page has no
+ * such section.
+ *
+ * @param {string} stage
+ * @param {(e: MarkupElement) => boolean} pick
+ * @returns {boolean | string}
+ */
+function headHolds(stage, pick) {
+  const sec = sectionEls().find((e) => attr(e, "data-stage") === stage);
+  if (!sec) return `no ${stage} section`;
+  const head = elements(sec.html).find((e) => classes(e).includes("sh"));
+  return !!head && elements(head.html).some(pick);
+}
+
+test("test_the_source_section_is_the_page_meters_home", () => {
+  assert.deepEqual(stagesWith("psrc"), ["source"]);
+});
+
+test("test_the_source_section_is_slim_on_a_small_plate", () => {
+  assert.deepEqual(stagesWith("slim"), ["source"]);
+});
+
+test("test_the_source_section_is_full_on_a_13_inch_plate", () => {
+  run({ win: { w: 1366, h: 1024 } });
+  assert.deepEqual(stagesWith("slim"), []);
+});
+
+test("test_the_source_section_holds_the_page_meter_outside_a_two_column_body", () => {
+  assert.deepEqual([partsOf("source", "pmeter").length, bodiesIn("source")], [1, 0]);
+});
+
+test("test_a_folded_matrix_section_carries_the_profile_select_on_its_header_line", () => {
+  assert.equal(
+    headHolds("matrix", (e) => e.name === "select"),
+    true,
+  );
+});
+
+test("test_an_unfolded_matrix_section_keeps_the_profile_select_in_its_body", () => {
+  run({ top: "profile" });
+  assert.equal(
+    headHolds("matrix", (e) => e.name === "select"),
+    false,
+  );
+});
+
+test("test_an_unfolded_matrix_section_stretches_its_two_columns", () => {
+  run({ top: "profile" });
+  assert.deepEqual(partsOf("matrix", "two"), [["two", "stretch"]]);
+});
+
+test("test_the_resampling_header_carries_the_filter_presets_trigger", () => {
+  assert.equal(
+    headHolds("resampling", (e) => attr(e, "data-pop") === "presets"),
+    true,
+  );
+});
+
+test("test_the_shaping_header_carries_no_filter_presets_trigger", () => {
+  assert.equal(
+    headHolds("shaping", (e) => attr(e, "data-pop") === "presets"),
+    false,
+  );
+});
+
+test("test_the_resampling_body_holds_a_chain_picker", () => {
+  assert.equal(partsOf("resampling", "cplate").length, 1);
+});
+
+test("test_a_13_inch_plate_opens_both_resampling_filters_in_one_body", () => {
+  run({ win: { w: 1366, h: 1024 } });
+  assert.deepEqual([partsOf("resampling", "cplate").length, partsOf("resampling", "two")], [2, [["two", "both"]]]);
+});
+
+test("test_the_output_section_holds_the_rate_pins_glass", () => {
+  run({ pins: true });
+  assert.equal(partsOf("output", "otglass").length, 1);
 });
 
 // --- a section ---------------------------------------------------------------------

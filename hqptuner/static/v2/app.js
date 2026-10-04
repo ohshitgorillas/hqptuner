@@ -1,6 +1,7 @@
 // The v2 entry, served at /v2/ beside the v1 shell: the faceplate's root, mounted where the page has a mount point.
-// Header and engine row stay; under them the chain body (rail, page, and one drawer per rail stage over the page,
-// each drawn from its registered schema) or the body a builder or the gear swaps in.
+// Header and engine row stay; under them the chain body (rail, page, one drawer per rail stage over the page, each
+// drawn from its registered schema, the page's plate-level popovers, and the option list a chain picker opens over the
+// body with its hover tip) or the body a builder or the gear swaps in.
 import { render } from "preact";
 import { html } from "../lib/dom.js";
 import { Plate } from "../components/faceplate/Plate.js";
@@ -10,6 +11,9 @@ import { Rail } from "../components/faceplate/Rail.js";
 import { Page } from "../components/faceplate/Page.js";
 import { Drawer } from "../components/faceplate/drawer/Drawer.js";
 import { stageDrawer } from "../components/faceplate/drawers/index.js";
+import { FilterPresets } from "../components/faceplate/page/FilterPresets.js";
+import { OptionList } from "../components/faceplate/lists/OptionList.js";
+import { ListTip } from "../components/faceplate/lists/Tip.js";
 import { body } from "../store/faceplate/view.js";
 import { railStages, railNow } from "../store/faceplate/chain.js";
 import { startPolling } from "../store/sync.js";
@@ -30,6 +34,9 @@ function ChainBody() {
         const { schema, blocks } = stageDrawer(st);
         return html`<${Drawer} key=${st.id} schema=${schema} blocks=${blocks} />`;
       })}
+      <${FilterPresets} />
+      <${OptionList} />
+      <${ListTip} />
     </div>
   `;
 }

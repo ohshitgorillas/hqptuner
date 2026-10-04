@@ -120,3 +120,8 @@
 .round.vbtn:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 .volrd.fixed{cursor:default}
 .vbar.fixed .vbsl{opacity:.45}
+/* The rows' host; a flagship opened over its two nested rows joins them; a preset the engine cannot run reads dead. */
+.frows{display:flex;flex-direction:column}
+.frow.opened{border-radius:4px 4px 0 0}
+.frow.sub.first{margin-top:1px}
+.frow[data-grayed] .pick{color:var(--ink-2)}
