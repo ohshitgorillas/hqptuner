@@ -26,8 +26,15 @@ from hqptuner.metadata_json import (
 )
 
 
-def test_filter_entry_on_a_non_dict_raw_value_is_empty() -> None:
-    assert (filter_entry("not a mapping"), filter_entry({"quality": 3})) == ({}, {"quality": 3})
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("not a mapping", {}), ({"quality": 3}, {"quality": 3})],
+    ids=["non-dict", "dict"],
+)
+def test_filter_entry_on_a_non_dict_raw_value_is_empty_and_on_a_dict_keeps_its_fields(
+    raw: object, expected: object
+) -> None:
+    assert filter_entry(raw) == expected
 
 
 def test_filter_entry_keeps_a_well_formed_sdm_two_stage_note() -> None:
@@ -71,53 +78,100 @@ def test_shaper_entry_drops_a_rate_label_that_is_not_a_string() -> None:
     assert shaper_entry({"min_rate_label": 256}) == UNBOUNDED_RATES
 
 
-def test_filter_entry_map_on_a_non_dict_value_is_empty() -> None:
-    assert (filter_entry_map(["not", "a", "mapping"]), filter_entry_map({"poly-sinc": {"quality": 3}})) == (
-        {},
-        {"poly-sinc": {"quality": 3}},
-    )
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(["not", "a", "mapping"], {}), ({"poly-sinc": {"quality": 3}}, {"poly-sinc": {"quality": 3}})],
+    ids=["non-dict", "dict"],
+)
+def test_filter_entry_map_on_a_non_dict_value_is_empty_and_on_a_dict_keeps_its_entries(
+    value: object, expected: object
+) -> None:
+    assert filter_entry_map(value) == expected
 
 
-def test_shaper_entry_on_a_non_dict_raw_value_is_empty() -> None:
-    entry = {"min_rate_hz": None, "max_rate_hz": None, "order": 7}
-    assert (shaper_entry(42), shaper_entry(entry)) == ({}, entry)
+#: A well-formed shaper entry, every field it carries already in the shape ``shaper_entry`` keeps.
+SHAPER_ENTRY = {"min_rate_hz": None, "max_rate_hz": None, "order": 7}
 
 
-def test_shaper_entry_map_on_a_non_dict_value_is_empty() -> None:
-    entry = {"min_rate_hz": None, "max_rate_hz": None, "order": 7}
-    assert (shaper_entry_map(None), shaper_entry_map({"ASDM7": entry})) == ({}, {"ASDM7": entry})
+@pytest.mark.parametrize(("raw", "expected"), [(42, {}), (SHAPER_ENTRY, SHAPER_ENTRY)], ids=["non-dict", "dict"])
+def test_shaper_entry_on_a_non_dict_raw_value_is_empty_and_on_a_dict_keeps_its_fields(
+    raw: object, expected: object
+) -> None:
+    assert shaper_entry(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, {}), ({"ASDM7": SHAPER_ENTRY}, {"ASDM7": SHAPER_ENTRY})],
+    ids=["non-dict", "dict"],
+)
+def test_shaper_entry_map_on_a_non_dict_value_is_empty_and_on_a_dict_keeps_its_entries(
+    value: object, expected: object
+) -> None:
+    assert shaper_entry_map(value) == expected
 
 
 def test_settings_db_drops_a_group_entry_whose_own_value_is_not_a_mapping() -> None:
     assert settings_db({"output": {"gain": "not a mapping"}}).output == {"gain": {}}
 
 
-def test_plain_name_entry_on_a_non_dict_raw_value_is_empty() -> None:
-    entry = {"family": "sinc", "variant": None}
-    assert (plain_name_entry(()), plain_name_entry(entry)) == ({}, entry)
+#: A well-formed plain-name entry, every field it carries already in the shape ``plain_name_entry`` keeps.
+PLAIN_NAME_ENTRY = {"family": "sinc", "variant": None}
 
 
-def test_plain_name_entry_map_on_a_non_dict_value_is_empty() -> None:
-    entry = {"family": "sinc", "variant": None}
-    assert (plain_name_entry_map(1), plain_name_entry_map({"sinc-M": entry})) == ({}, {"sinc-M": entry})
+@pytest.mark.parametrize(
+    ("raw", "expected"), [((), {}), (PLAIN_NAME_ENTRY, PLAIN_NAME_ENTRY)], ids=["non-dict", "dict"]
+)
+def test_plain_name_entry_on_a_non_dict_raw_value_is_empty_and_on_a_dict_keeps_its_fields(
+    raw: object, expected: object
+) -> None:
+    assert plain_name_entry(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(1, {}), ({"sinc-M": PLAIN_NAME_ENTRY}, {"sinc-M": PLAIN_NAME_ENTRY})],
+    ids=["non-dict", "dict"],
+)
+def test_plain_name_entry_map_on_a_non_dict_value_is_empty_and_on_a_dict_keeps_its_entries(
+    value: object, expected: object
+) -> None:
+    assert plain_name_entry_map(value) == expected
 
 
 def test_filters_db_on_a_non_dict_raw_value_still_carries_an_empty_filters_table() -> None:
     assert filters_db("not a mapping") == {"filters": {}}
 
 
-def test_shapers_db_on_a_non_dict_raw_value_still_carries_empty_tables() -> None:
-    tables = {
-        "sdm_modulators": {"ASDM7": {"min_rate_hz": None, "max_rate_hz": None, "order": 7}},
-        "pcm_dithers": {"TPDF": {"min_rate_hz": None, "max_rate_hz": None, "order": 1}},
-    }
-    absent = shapers_db(3.5)
-    present = shapers_db(tables)
-    assert ((absent.sdm_modulators, absent.pcm_dithers), (present.sdm_modulators, present.pcm_dithers)) == (
-        ({}, {}),
-        (tables["sdm_modulators"], tables["pcm_dithers"]),
-    )
+#: A well-formed ``shapers.json`` document, both per-mode tables populated.
+SHAPER_TABLES = {
+    "sdm_modulators": {"ASDM7": {"min_rate_hz": None, "max_rate_hz": None, "order": 7}},
+    "pcm_dithers": {"TPDF": {"min_rate_hz": None, "max_rate_hz": None, "order": 1}},
+}
 
 
-def test_easy_db_drops_a_value_holding_a_json_incompatible_nested_type() -> None:
-    assert (easy_db({"a": {1, 2}}), easy_db({"a": [1, 2]})) == ({}, {"a": [1, 2]})
+@pytest.mark.parametrize(
+    ("raw", "expected"), [(3.5, {}), (SHAPER_TABLES, SHAPER_TABLES["sdm_modulators"])], ids=["non-dict", "dict"]
+)
+def test_shapers_db_on_a_non_dict_raw_value_still_carries_an_empty_sdm_modulators_table(
+    raw: object, expected: object
+) -> None:
+    assert shapers_db(raw).sdm_modulators == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"), [(3.5, {}), (SHAPER_TABLES, SHAPER_TABLES["pcm_dithers"])], ids=["non-dict", "dict"]
+)
+def test_shapers_db_on_a_non_dict_raw_value_still_carries_an_empty_pcm_dithers_table(
+    raw: object, expected: object
+) -> None:
+    assert shapers_db(raw).pcm_dithers == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [({"a": {1, 2}}, {}), ({"a": [1, 2]}, {"a": [1, 2]})],
+    ids=["json-incompatible nested set", "json-compatible nested list"],
+)
+def test_easy_db_drops_a_value_holding_a_json_incompatible_nested_type(raw: object, expected: object) -> None:
+    assert easy_db(raw) == expected

@@ -5,7 +5,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from hqptuner.engine.blockstats import block_record
+from hqptuner.engine.blockstats import BlockRecord, block_record
 from hqptuner.engine.metering import SpectralAggregate
 
 BINS = 1025
@@ -48,10 +48,15 @@ def _silent_frame() -> list[float]:
     return _frame(48000.0, [])
 
 
-def _latest_above(aggregate: SpectralAggregate) -> float | None:
-    """The closed block's level above the fold, or None where no block stands."""
+#: What ``_latest_above`` reads where no block record stands: a behavior here (a silent block clears the
+#: reading), not a broken fixture, so it is a value of its own rather than None.
+NO_BLOCK = "no block record"
+
+
+def _latest_above(aggregate: SpectralAggregate) -> float | str:
+    """The closed block's level above the fold, or ``NO_BLOCK`` where no block record stands."""
     record = aggregate.latest_block()
-    return None if record is None else round(record.above_db, 1)
+    return NO_BLOCK if record is None else round(record.above_db, 1)
 
 
 def test_above_fold_level_follows_the_fold_carrying_the_loud_band() -> None:
@@ -74,28 +79,40 @@ def test_ratio_is_per_hz_not_per_band(music_db: float, expected: float) -> None:
     assert record.ratio_db == pytest.approx(expected, abs=0.5)
 
 
-def test_minimum_and_p90_read_the_same_bin_differently() -> None:
+def _half_loud_half_quiet_record() -> BlockRecord:
+    """One block whose bin 200 sits at -20 dB for half its frames and -90 dB for the other half."""
     loud = _spike_frame(200, -20.0)
     quiet = _spike_frame(200, -90.0)
-
-    record = block_record([loud] * 5 + [quiet] * 5, 48000.0)
-    curves = (record.minimum[200], record.p90[200])
-
-    assert curves == pytest.approx((-90.0, -20.0), abs=0.5)
+    return block_record([loud] * 5 + [quiet] * 5, 48000.0)
 
 
-def test_block_closes_at_one_second_of_coverage() -> None:
+def test_minimum_reads_a_bins_quietest_level() -> None:
+    assert _half_loud_half_quiet_record().minimum[200] == pytest.approx(-90.0, abs=0.5)
+
+
+def test_p90_reads_a_bins_loud_level() -> None:
+    assert _half_loud_half_quiet_record().p90[200] == pytest.approx(-20.0, abs=0.5)
+
+
+#: One added frame: the seconds it covers, and whether it is silent (a silent frame carries the silent spectrum).
+Step = tuple[float, bool]
+
+
+@pytest.mark.parametrize(
+    ("steps", "expected"),
+    [
+        ([(1.0, False)], -66.7),
+        ([(1.0, False), (1.0, True)], NO_BLOCK),
+        ([(0.5, False), (0.5, True)], -66.7),
+    ],
+    ids=["one loud second", "a loud second then a silent one", "half a loud second then half a silent one"],
+)
+def test_block_closes_at_one_second_of_coverage(steps: list[Step], expected: float | str) -> None:
     aggregate = SpectralAggregate(BINS, 48000.0)
+    for seconds, silent in steps:
+        aggregate.add(_silent_frame() if silent else _junk_frame(), seconds, silent=silent)
 
-    aggregate.add(_junk_frame(), 1.0)
-    after_loud = _latest_above(aggregate)
-    aggregate.add(_silent_frame(), 1.0, silent=True)
-    after_silence = _latest_above(aggregate)
-    aggregate.add(_junk_frame(), 0.5)
-    aggregate.add(_silent_frame(), 0.5, silent=True)
-    after_half_loud = _latest_above(aggregate)
-
-    assert (after_loud, after_silence, after_half_loud) == (-66.7, None, -66.7)
+    assert _latest_above(aggregate) == expected
 
 
 def test_fold_the_grid_cannot_reach_carries_no_above_fold_level() -> None:

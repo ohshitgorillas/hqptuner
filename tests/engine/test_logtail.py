@@ -2,19 +2,17 @@
 config-form field reader, and read_log_tail fetching GET /log off the fake
 daemon's 8088 lane (docs/testing.md — public API, fake speaks the wire)."""
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 import pytest
 from virtual_clock import VirtualClock
 
+from hqptuner.conf.httpforms import ConfigForm
 from hqptuner.config import Config
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import logtail
-
-if TYPE_CHECKING:
-    from hqptuner.conf.httpforms import ConfigForm
 
 
 def test_tail_text_returns_the_last_n_lines() -> None:
@@ -26,17 +24,24 @@ def test_tail_text_returns_all_lines_when_fewer_than_requested() -> None:
     assert logtail.tail_text("only\ntwo", 50) == ["only", "two"]
 
 
-def test_log_file_field_is_empty_with_no_form_and_reads_the_configured_path_and_state() -> None:
-    absent = logtail.log_file_field(None)
-    form: ConfigForm = {
-        "fields": [
-            {"name": "log_file", "value": "/tmp/hqplayerd.log"},
-            {"name": "log_enabled", "value": True},
-        ],
-        "profiles": None,
-    }
-    acting = logtail.log_file_field(form)
-    assert (absent, acting) == ((None, False), ("/tmp/hqplayerd.log", True))
+CONFIGURED_LOG: ConfigForm = {
+    "fields": [
+        {"name": "log_file", "value": "/tmp/hqplayerd.log"},
+        {"name": "log_enabled", "value": True},
+    ],
+    "profiles": None,
+}
+
+
+@pytest.mark.parametrize(
+    ("form", "expected"),
+    [(None, (None, False)), (CONFIGURED_LOG, ("/tmp/hqplayerd.log", True))],
+    ids=["no form", "configured form"],
+)
+def test_log_file_field_reads_the_configured_path_and_state_and_nothing_with_no_form(
+    form: ConfigForm | None, expected: tuple[str | None, bool]
+) -> None:
+    assert logtail.log_file_field(form) == expected
 
 
 async def test_read_log_tail_returns_the_last_lines_of_the_daemon_log(http_daemon: dict[str, Any]) -> None:

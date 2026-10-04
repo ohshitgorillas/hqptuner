@@ -53,19 +53,51 @@ def form(**fields: str) -> ConfigForm:
     return {"fields": [{"name": name, "value": value} for name, value in fields.items()], "profiles": None}
 
 
+def _device(caps: DeviceCaps | None) -> str | None:
+    """The capability's device, or None where no capability is known."""
+    return None if caps is None else caps.device
+
+
+def _pcm_rates(caps: DeviceCaps | None) -> list[int] | None:
+    """The capability's PCM rates, or None where no capability is known."""
+    return None if caps is None else caps.pcm_rates
+
+
+def _dsd_rates(caps: DeviceCaps | None) -> list[int] | None:
+    """The capability's DSD rates, or None where no capability is known."""
+    return None if caps is None else caps.dsd_rates
+
+
 # --- parse_caps: reading one announcement out of log text -------------------
 
 
-def test_parse_caps_is_none_with_no_announcement_and_names_the_device_with_one() -> None:
-    absent = devicecaps.parse_caps("\n".join(f"log line {i}" for i in range(1, 61)))
-    acting = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=sndrpihifiberry,DEV=0", PI))
-    assert (absent, (acting or NO_CAPS).device) == (None, "naa-office/hw:CARD=sndrpihifiberry,DEV=0")
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\n".join(f"log line {i}" for i in range(1, 61)), None),
+        (
+            announcement("naa-office", "hw:CARD=sndrpihifiberry,DEV=0", PI),
+            "naa-office/hw:CARD=sndrpihifiberry,DEV=0",
+        ),
+    ],
+    ids=["no announcement", "one announcement"],
+)
+def test_parse_caps_is_none_with_no_announcement_and_names_the_device_with_one(text: str, expected: str | None) -> None:
+    assert _device(devicecaps.parse_caps(text)) == expected
 
 
-def test_parse_caps_is_none_with_no_format_lines_and_reads_pcm_rates_with_some() -> None:
-    absent = devicecaps.parse_caps(PREAMBLE + announcement("naa-office", "hw:CARD=X,DEV=0", []))
-    acting = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert (absent, (acting or NO_CAPS).pcm_rates) == (None, [44100, 192000])
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (PREAMBLE + announcement("naa-office", "hw:CARD=X,DEV=0", []), None),
+        (announcement("naa-office", "hw:CARD=X,DEV=0", PI), [44100, 192000]),
+    ],
+    ids=["no format lines", "format lines"],
+)
+def test_parse_caps_is_none_with_no_format_lines_and_reads_pcm_rates_with_some(
+    text: str, expected: list[int] | None
+) -> None:
+    assert _pcm_rates(devicecaps.parse_caps(text)) == expected
 
 
 #: One announcement whose PCM lines and DSD lines are BOTH out of order and both
@@ -107,10 +139,18 @@ def test_a_dsd_rate_announced_twice_appears_once() -> None:
 PCM_ONLY = [f"{rate}/24/2 [pcm]" for rate in (32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000)]
 
 
-def test_dsd_rates_are_empty_with_no_dsd_path_and_populated_when_the_log_announces_dsd() -> None:
-    pcm_only = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
-    with_dsd = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert ((pcm_only or NO_CAPS).dsd_rates, (with_dsd or NO_CAPS).dsd_rates) == ([], [2822400, 3072000])
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY), []),
+        (announcement("naa-office", "hw:CARD=X,DEV=0", PI), [2822400, 3072000]),
+    ],
+    ids=["no dsd path", "dsd announced"],
+)
+def test_dsd_rates_are_empty_with_no_dsd_path_and_populated_when_the_log_announces_dsd(
+    text: str, expected: list[int]
+) -> None:
+    assert _dsd_rates(devicecaps.parse_caps(text)) == expected
 
 
 def test_a_device_with_no_dsd_path_is_still_a_capability() -> None:
@@ -140,45 +180,76 @@ def test_format_lines_before_any_announcement_are_ignored() -> None:
 # --- selected_device: which device the menus should narrow to ---------------
 
 
-def test_selected_device_is_none_for_combo_backend_and_the_net_device_for_network() -> None:
-    combo = devicecaps.selected_device(form(backend="combo", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"))
-    # combo drives an ALSA and a network device at once while the log announces
-    # one: which device's limits bind is unknown, and unknown means no narrowing
-    network = devicecaps.selected_device(
-        form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
-    )
-    assert (combo, network) == (None, SELECTED)
+@pytest.mark.parametrize(
+    ("config_form", "expected"),
+    [
+        # combo drives an ALSA and a network device at once while the log announces
+        # one: which device's limits bind is unknown, and unknown means no narrowing
+        (form(backend="combo", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), None),
+        (form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), SELECTED),
+    ],
+    ids=["combo", "network"],
+)
+def test_selected_device_is_none_for_combo_backend_and_the_net_device_for_network(
+    config_form: ConfigForm, expected: str | None
+) -> None:
+    assert devicecaps.selected_device(config_form) == expected
 
 
-def test_selected_device_is_none_with_no_form_loaded_and_the_alsa_device_for_alsa_backend() -> None:
-    absent = devicecaps.selected_device(None)
-    alsa = devicecaps.selected_device(form(backend="alsa", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"))
-    assert (absent, alsa) == (None, "hw:CARD=NVidia,DEV=3")
+@pytest.mark.parametrize(
+    ("config_form", "expected"),
+    [
+        (None, None),
+        (form(backend="alsa", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), "hw:CARD=NVidia,DEV=3"),
+    ],
+    ids=["no form loaded", "alsa"],
+)
+def test_selected_device_is_none_with_no_form_loaded_and_the_alsa_device_for_alsa_backend(
+    config_form: ConfigForm | None, expected: str | None
+) -> None:
+    assert devicecaps.selected_device(config_form) == expected
 
 
-def test_selected_device_is_none_with_an_empty_device_field_and_present_with_one_filled() -> None:
-    empty = devicecaps.selected_device(form(backend="network", net_device=""))
-    populated = devicecaps.selected_device(
-        form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3")
-    )
-    assert (empty, populated) == (None, SELECTED)
+@pytest.mark.parametrize(
+    ("config_form", "expected"),
+    [
+        (form(backend="network", net_device=""), None),
+        (form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), SELECTED),
+    ],
+    ids=["empty device field", "device field filled"],
+)
+def test_selected_device_is_none_with_an_empty_device_field_and_present_with_one_filled(
+    config_form: ConfigForm, expected: str | None
+) -> None:
+    assert devicecaps.selected_device(config_form) == expected
 
 
 # --- caps_for: matching the announcement against the selection --------------
 
 
-def test_caps_for_is_none_when_the_announcement_names_a_different_device_and_serves_it_when_it_matches() -> None:
-    # staged device change: the daemon has not opened the new device yet, so the
-    # log still describes the old one and must not narrow the new one
-    different = devicecaps.caps_for(OTHER_LOG, SELECTED)
-    matching = devicecaps.caps_for(SELECTED_LOG, SELECTED)
-    assert (different, (matching or NO_CAPS).device) == (None, SELECTED)
+@pytest.mark.parametrize(
+    ("log", "expected"),
+    [
+        # staged device change: the daemon has not opened the new device yet, so the
+        # log still describes the old one and must not narrow the new one
+        (OTHER_LOG, None),
+        (SELECTED_LOG, SELECTED),
+    ],
+    ids=["different device", "matching device"],
+)
+def test_caps_for_is_none_when_the_announcement_names_a_different_device_and_serves_it_when_it_matches(
+    log: str, expected: str | None
+) -> None:
+    assert _device(devicecaps.caps_for(log, SELECTED)) == expected
 
 
-def test_caps_for_is_none_with_no_device_selected_and_serves_it_when_one_is() -> None:
-    absent = devicecaps.caps_for(SELECTED_LOG, None)
-    present = devicecaps.caps_for(SELECTED_LOG, SELECTED)
-    assert (absent, (present or NO_CAPS).device) == (None, SELECTED)
+@pytest.mark.parametrize(
+    ("selected", "expected"), [(None, None), (SELECTED, SELECTED)], ids=["no device selected", "device selected"]
+)
+def test_caps_for_is_none_with_no_device_selected_and_serves_it_when_one_is(
+    selected: str | None, expected: str | None
+) -> None:
+    assert _device(devicecaps.caps_for(SELECTED_LOG, selected)) == expected
 
 
 # --- agreed_device: the two config views, compared --------------------------
@@ -193,12 +264,20 @@ FORM = form(backend="network", net_device=SELECTED, alsa_device=ALSA)
 FILE: dict[str, str] = {"backend": "network", "net_device": SELECTED, "alsa_device": ALSA}
 
 
-def test_agreed_device_is_none_when_the_views_name_different_devices_and_agrees_when_they_match() -> None:
-    # the preset-load window: the file already carries the new preset's device
-    # while the form still reports the previous one
-    disagreeing = devicecaps.agreed_device(FORM, {**FILE, "net_device": OTHER})
-    agreeing = devicecaps.agreed_device(FORM, FILE)
-    assert (disagreeing, agreeing) == (None, SELECTED)
+@pytest.mark.parametrize(
+    ("file_view", "expected"),
+    [
+        # the preset-load window: the file already carries the new preset's device
+        # while the form still reports the previous one
+        ({**FILE, "net_device": OTHER}, None),
+        (FILE, SELECTED),
+    ],
+    ids=["views disagree", "views agree"],
+)
+def test_agreed_device_is_none_when_the_views_name_different_devices_and_agrees_when_they_match(
+    file_view: dict[str, str], expected: str | None
+) -> None:
+    assert devicecaps.agreed_device(FORM, file_view) == expected
 
 
 def test_no_file_view_leaves_the_form_the_sole_authority() -> None:
@@ -220,23 +299,22 @@ def test_a_file_view_silent_about_the_device_falls_back_to_the_form(file_view: d
 
 
 @pytest.mark.parametrize(
-    ("form_backend", "file_backend"),
+    ("form_backend", "file_backend", "expected"),
     [
-        pytest.param("combo", "combo", id="both views say combo"),
-        pytest.param("combo", "network", id="only the form says combo"),
-        pytest.param("network", "combo", id="only the file says combo"),
+        pytest.param("combo", "combo", None, id="both views say combo"),
+        pytest.param("combo", "network", None, id="only the form says combo"),
+        pytest.param("network", "combo", None, id="only the file says combo"),
+        pytest.param("network", "network", SELECTED, id="both views name the network backend"),
     ],
 )
 def test_the_combo_backend_agrees_on_no_device_and_a_named_backend_agrees_on_it(
-    form_backend: str, file_backend: str
+    form_backend: str, file_backend: str, expected: str | None
 ) -> None:
     # combo drives an ALSA and a network device at once while the daemon
     # announces one, so neither view can name the device whose limits bind
     parsed = form(backend=form_backend, net_device=SELECTED, alsa_device=ALSA)
     file_view = {**FILE, "backend": file_backend}
-    combo_result = devicecaps.agreed_device(parsed, file_view)
-    agreeing = devicecaps.agreed_device(FORM, FILE)
-    assert (combo_result, agreeing) == (None, SELECTED)
+    assert devicecaps.agreed_device(parsed, file_view) == expected
 
 
 # --- the connection manager -------------------------------------------------
@@ -265,53 +343,35 @@ async def _loaded(factory: ManagerFactory, daemon: dict[str, Any]) -> Connection
     return manager
 
 
-async def test_a_fresh_manager_reports_no_capability_and_a_loaded_one_reports_it(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
+@pytest.mark.parametrize(
+    ("daemon", "overrides", "load", "expected"),
+    [
+        # the announcing daemon unread: loading is all that separates this from the loaded case
+        pytest.param("announcing_daemon", {}, False, None, id="fresh"),
+        pytest.param("http_daemon", {"_log": OTHER_LOG}, True, None, id="another device's log"),
+        pytest.param("http_daemon", {}, True, None, id="no announcement"),
+        # this daemon's config form has selected the device its log announces, so a
+        # readable log narrows the menus — what stops it is the 8088 lane refusing
+        # GET /log, which leaves nothing known about the device
+        pytest.param("announcing_daemon", {"_fail_paths": ["/log"]}, True, None, id="log refused"),
+        pytest.param("announcing_daemon", {}, True, [44100, 192000], id="loaded"),
+    ],
+)
+async def test_a_manager_reports_the_capability_only_once_it_has_read_its_own_devices_announcement(
+    request: pytest.FixtureRequest,
+    http_manager_factory: ManagerFactory,
+    daemon: str,
+    overrides: dict[str, Any],
+    *,
+    load: bool,
+    expected: list[int] | None,
 ) -> None:
-    fresh = _manager(http_manager_factory, http_daemon)
-    loaded = await _loaded(http_manager_factory, announcing_daemon)
-    assert (fresh.readings.device_caps, (loaded.readings.device_caps or NO_CAPS).pcm_rates) == (
-        None,
-        [44100, 192000],
-    )
-
-
-async def test_manager_reports_nothing_with_another_devices_log_and_the_capability_with_its_own(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
-) -> None:
-    http_daemon["_log"] = OTHER_LOG
-    other = await _loaded(http_manager_factory, http_daemon)
-    matching = await _loaded(http_manager_factory, announcing_daemon)
-    assert (other.readings.device_caps, (matching.readings.device_caps or NO_CAPS).pcm_rates) == (
-        None,
-        [44100, 192000],
-    )
-
-
-async def test_manager_reports_nothing_with_no_announcement_and_the_capability_when_one_exists(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
-) -> None:
-    absent = await _loaded(http_manager_factory, http_daemon)
-    present = await _loaded(http_manager_factory, announcing_daemon)
-    assert (absent.readings.device_caps, (present.readings.device_caps or NO_CAPS).pcm_rates) == (
-        None,
-        [44100, 192000],
-    )
-
-
-async def test_a_log_that_cannot_be_fetched_stores_no_capability_and_a_readable_one_stores_it(
-    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
-) -> None:
-    # this daemon's config form has selected the device its log announces, so a
-    # readable log narrows the menus here — what must stop it is the 8088 lane
-    # refusing GET /log, which leaves nothing known about the device
-    readable = await _loaded(http_manager_factory, announcing_daemon)
-    announcing_daemon["_fail_paths"] = ["/log"]
-    unreadable = await _loaded(http_manager_factory, announcing_daemon)
-    assert (unreadable.readings.device_caps, (readable.readings.device_caps or NO_CAPS).pcm_rates) == (
-        None,
-        [44100, 192000],
-    )
+    served: dict[str, Any] = request.getfixturevalue(daemon)
+    served.update(overrides)
+    manager = _manager(http_manager_factory, served)
+    if load:
+        await engineread.refresh_devices(manager)
+    assert _pcm_rates(manager.readings.device_caps) == expected
 
 
 # --- what a refresh costs: the log is re-read only when there is something to
@@ -378,18 +438,19 @@ async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> Connec
     return manager
 
 
+@pytest.mark.parametrize(
+    ("daemon", "expected"),
+    [("disagreeing_daemon", None), ("announcing_daemon", [44100, 192000])],
+    ids=["views disagree", "views agree"],
+)
 async def test_manager_serves_nothing_when_the_two_views_disagree_and_the_capability_when_they_agree(
-    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any], announcing_daemon: dict[str, Any]
+    request: pytest.FixtureRequest, http_manager_factory: ManagerFactory, daemon: str, expected: list[int] | None
 ) -> None:
     # the log agrees with the form in the agreeing case, so the announcement
     # alone would narrow: what must stop it in the disagreeing case is the file
     # naming another generation's device
-    disagreeing = await _both_views(http_manager_factory, disagreeing_daemon)
-    agreeing = await _both_views(http_manager_factory, announcing_daemon)
-    assert (disagreeing.readings.device_caps, (agreeing.readings.device_caps or NO_CAPS).pcm_rates) == (
-        None,
-        [44100, 192000],
-    )
+    manager = await _both_views(http_manager_factory, request.getfixturevalue(daemon))
+    assert _pcm_rates(manager.readings.device_caps) == expected
 
 
 async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agree(
@@ -464,20 +525,25 @@ def disagreeing_client(
     yield from _wired_client(disagreeing_daemon, threaded_daemon_port, tmp_path)
 
 
-def test_api_config_carries_a_null_capability_when_none_is_known_and_the_real_one_when_it_is(
-    http_client: TestClient, announcing_client: TestClient
-) -> None:
-    # the stock fake's log has no device announcement at all
-    http_client.post("/api/config/refresh")
-    absent = http_client.get("/api/config").json()["data"]["device_caps"]
-    present = announcing_client.get("/api/config").json()["data"]["device_caps"]
-    assert (absent, present["pcm_rates"]) == (None, [44100, 192000])
+def _served_pcm_rates(client: TestClient) -> object:
+    """The PCM rates ``/api/config`` serves, or None where it carries a null capability."""
+    caps = client.get("/api/config").json()["data"]["device_caps"]
+    return None if caps is None else caps["pcm_rates"]
 
 
-def test_api_config_carries_a_null_capability_while_the_two_views_disagree_and_the_real_one_when_they_agree(
-    disagreeing_client: TestClient, announcing_client: TestClient
+@pytest.mark.parametrize(
+    ("client", "refresh", "expected"),
+    [
+        # the stock fake's log has no device announcement at all
+        pytest.param("http_client", True, None, id="none known"),
+        pytest.param("disagreeing_client", True, None, id="views disagree"),
+        pytest.param("announcing_client", False, [44100, 192000], id="known and views agree"),
+    ],
+)
+def test_api_config_carries_the_real_capability_only_when_it_is_known_and_the_two_views_agree(
+    request: pytest.FixtureRequest, client: str, *, refresh: bool, expected: list[int] | None
 ) -> None:
-    disagreeing_client.post("/api/config/refresh")
-    disagreeing = disagreeing_client.get("/api/config").json()["data"]["device_caps"]
-    agreeing = announcing_client.get("/api/config").json()["data"]["device_caps"]
-    assert (disagreeing, agreeing["pcm_rates"]) == (None, [44100, 192000])
+    served: TestClient = request.getfixturevalue(client)
+    if refresh:
+        served.post("/api/config/refresh")
+    assert _served_pcm_rates(served) == expected

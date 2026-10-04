@@ -31,14 +31,17 @@ def test_an_unparseable_status_attribute_raises_the_typed_error(http_manager: Co
         trackcontext.context_from(http_manager)
 
 
-def test_a_junk_filter_index_with_no_matching_enum_reads_as_no_filter_engaged(
-    http_manager: ConnectionManager,
+@pytest.mark.parametrize(
+    ("junk_filters", "expected"),
+    [([], None), ([{"index": "3", "name": "junk-three"}], "junk-three")],
+    ids=["no matching enum", "matching enum"],
+)
+def test_a_junk_filter_index_reads_as_its_matching_enum_and_as_no_filter_engaged_without_one(
+    http_manager: ConnectionManager, junk_filters: list[dict[str, str]], expected: str | None
 ) -> None:
     http_manager.reachable = True
     http_manager.readings.status = {}
     http_manager.readings.status_metadata = {}
     http_manager.readings.state = {"filter_junk": "3"}
-    http_manager.readings.enums = {"junk_filters": []}
-    absent = _context(http_manager).junk_filter
-    http_manager.readings.enums = {"junk_filters": [{"index": "3", "name": "junk-three"}]}
-    assert (absent, _context(http_manager).junk_filter) == (None, "junk-three")
+    http_manager.readings.enums = {"junk_filters": junk_filters}
+    assert _context(http_manager).junk_filter == expected

@@ -24,6 +24,14 @@ BASE_DESCRIPTION = _FILTERS["filters"][BASE_NAME]["description"]
 TWO_STAGE_NOTE = _FILTERS["two_stage_note"]
 
 
-def test_a_2s_name_answers_the_base_prose_extended_by_the_two_stage_note() -> None:
-    description = present(StaticMetadata(FIXTURE_DIR).filter_entry(f"{BASE_NAME}-2s"))["description"]
-    assert (BASE_DESCRIPTION in description, TWO_STAGE_NOTE in description) == (True, True)
+def _two_stage_description() -> str:
+    """The description the join answers for the base filter's ``-2s`` name."""
+    return str(present(StaticMetadata(FIXTURE_DIR).filter_entry(f"{BASE_NAME}-2s"))["description"])
+
+
+def test_a_2s_name_answers_the_base_filters_prose() -> None:
+    assert BASE_DESCRIPTION in _two_stage_description()
+
+
+def test_a_2s_name_extends_the_base_prose_with_the_two_stage_note() -> None:
+    assert TWO_STAGE_NOTE in _two_stage_description()

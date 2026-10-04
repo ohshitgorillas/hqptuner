@@ -136,24 +136,18 @@ def _geometry_before_first_frame(items: list[Item]) -> dict[str, Any]:
 # --- line 1: each channel's tone lights its own bar ------------------------
 
 
-def _loudest_bars(items: list[Item]) -> tuple[int, int]:
-    channels = _first_frame(items)["channels"]
-    bands = [list(channels[index]["bands"]) for index in (0, 1)]
-    left, right = (max(range(len(values)), key=values.__getitem__) for values in bands)
-    return left, right
+def _loudest_bar(items: list[Item], channel: int) -> int:
+    bands = list(_first_frame(items)["channels"][channel]["bands"])
+    return max(range(len(bands)), key=bands.__getitem__)
 
 
-def _nearest_centres(items: list[Item], tones: tuple[float, float], bandwidth: float) -> tuple[int, int]:
+def _nearest_centre(items: list[Item], tone_hz: float, bandwidth: float) -> int:
     centres = [float(centre) for centre in _geometry_before_first_frame(items)["centres"]]
-    bin_hz = bandwidth / (BINS - 1)
-
-    def nearest(tone_hz: float) -> int:
-        frequency = _tone_bin(tone_hz, bandwidth) * bin_hz
-        return min(range(len(centres)), key=lambda index: abs(math.log(centres[index] / frequency)))
-
-    return nearest(tones[0]), nearest(tones[1])
+    frequency = _tone_bin(tone_hz, bandwidth) * (bandwidth / (BINS - 1))
+    return min(range(len(centres)), key=lambda index: abs(math.log(centres[index] / frequency)))
 
 
+@pytest.mark.parametrize("channel", [0, 1], ids=["left", "right"])
 @pytest.mark.parametrize("bandwidth", [22050.0, 48000.0], ids=["22.05 kHz", "48 kHz"])
 @pytest.mark.parametrize(
     "tones",
@@ -161,33 +155,45 @@ def _nearest_centres(items: list[Item], tones: tuple[float, float], bandwidth: f
     ids=["3 kHz left, 12 kHz right", "12 kHz left, 3 kHz right"],
 )
 async def test_each_channels_tone_lights_the_bar_whose_centre_is_nearest_it(
-    tones: tuple[float, float], bandwidth: float
+    tones: tuple[float, float], bandwidth: float, channel: int
 ) -> None:
     stereo = _frame([(LEVELS, tones[0]), (LEVELS, tones[1])], bandwidth, 1024 / (2 * bandwidth))
     items = await _items([], then=stereo)
-    assert _loudest_bars(items) == _nearest_centres(items, tones, bandwidth)
+    assert _loudest_bar(items, channel) == _nearest_centre(items, tones[channel], bandwidth)
 
 
 # --- line 2: a frame item holds the stride's peak and a blend of its rms ----
 
 
-def _levels_read(items: list[Item], rms_low: float, rms_high: float) -> tuple[float, bool]:
-    channel = _first_frame(items)["channels"][0]
-    return float(channel["peak"]), rms_low < float(channel["rms"]) < rms_high
+#: Two frames' (peak, rms) in dBFS: frame A first, then frame B repeated until a frame item is queued.
+STRIDES = [
+    pytest.param(-6.0, -20.0, -12.0, -40.0, id="A -6 over B -12"),
+    pytest.param(-3.0, -10.0, -9.0, -30.0, id="A -3 over B -9"),
+]
 
 
-@pytest.mark.parametrize(
-    ("a_peak", "a_rms", "b_peak", "b_rms", "expected"),
-    [(-6.0, -20.0, -12.0, -40.0, (-6.0, True)), (-3.0, -10.0, -9.0, -30.0, (-3.0, True))],
-    ids=["A -6 over B -12", "A -3 over B -9"],
-)
-async def test_a_frame_item_holds_the_loudest_peak_and_an_rms_between_the_frames_it_covers(
-    a_peak: float, a_rms: float, b_peak: float, b_rms: float, expected: tuple[float, bool]
-) -> None:
+async def _first_channel(a_peak: float, a_rms: float, b_peak: float, b_rms: float) -> dict[str, Any]:
+    """The first channel of the first frame item queued for frame A followed by frame B."""
     first = _mono((a_peak, a_peak, a_rms, a_rms))
     rest = _mono((b_peak, b_peak, b_rms, b_rms))
     items = await _items([first], then=rest)
-    assert _levels_read(items, b_rms, a_rms) == expected
+    return dict(_first_frame(items)["channels"][0])
+
+
+@pytest.mark.parametrize(("a_peak", "a_rms", "b_peak", "b_rms"), STRIDES)
+async def test_a_frame_item_holds_the_loudest_peak_of_the_frames_it_covers(
+    a_peak: float, a_rms: float, b_peak: float, b_rms: float
+) -> None:
+    channel = await _first_channel(a_peak, a_rms, b_peak, b_rms)
+    assert float(channel["peak"]) == a_peak
+
+
+@pytest.mark.parametrize(("a_peak", "a_rms", "b_peak", "b_rms"), STRIDES)
+async def test_a_frame_item_holds_an_rms_between_the_frames_it_covers(
+    a_peak: float, a_rms: float, b_peak: float, b_rms: float
+) -> None:
+    channel = await _first_channel(a_peak, a_rms, b_peak, b_rms)
+    assert b_rms < float(channel["rms"]) < a_rms
 
 
 # --- line 3: a faster source is thinned harder ------------------------------

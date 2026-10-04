@@ -16,21 +16,23 @@ def test_metering_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.parametrize(
-    ("falsey", "truthy"),
+    ("value", "expected"),
     [
-        ("0", "1"),
-        ("false", "true"),
-        ("FALSE", "TRUE"),
-        ("No", "yes"),
-        ("off", "on"),
-        ("OFF", "on"),
+        ("0", False),
+        ("false", False),
+        ("FALSE", False),
+        ("No", False),
+        ("off", False),
+        ("OFF", False),
+        ("1", True),
+        ("true", True),
+        ("TRUE", True),
+        ("yes", True),
+        ("on", True),
     ],
 )
 def test_a_falsey_env_value_disables_metering_and_a_truthy_one_leaves_it_enabled(
-    monkeypatch: pytest.MonkeyPatch, falsey: str, truthy: str
+    monkeypatch: pytest.MonkeyPatch, value: str, *, expected: bool
 ) -> None:
-    monkeypatch.setenv("HQPTUNER_METERING_ENABLED", falsey)
-    disabled = Config().metering_enabled
-    monkeypatch.setenv("HQPTUNER_METERING_ENABLED", truthy)
-    enabled = Config().metering_enabled
-    assert (disabled, enabled) == (False, True)
+    monkeypatch.setenv("HQPTUNER_METERING_ENABLED", value)
+    assert Config().metering_enabled is expected
