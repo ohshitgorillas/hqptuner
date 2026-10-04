@@ -79,11 +79,15 @@ export function togglePopover(id) {
   openPopover.value = openPopover.value === id ? null : id;
 }
 
-/** Escape: the open popover closes; with none open, the open list does; with neither, the open drawer does. */
+/**
+ * Escape: the open popover closes; with none open, the open list does; with neither, the open drawer does; with
+ * nothing open, the body returns to the chain.
+ */
 export function closeTop() {
   if (openPopover.value !== null) openPopover.value = null;
   else if (openList.value !== null) openList.value = null;
-  else openStage.value = null;
+  else if (openStage.value !== null) openStage.value = null;
+  else body.value = "chain";
 }
 
 /**

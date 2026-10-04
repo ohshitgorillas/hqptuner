@@ -1,6 +1,7 @@
 // Behavioral suite for hqptuner/static/store/faceplate/view.js: which body the plate shows, which stage's drawer is
 // open, which option list is open and which popover is open. One drawer, one list and one popover at a time; a body
-// swap closes all three; Escape closes the popover first, then the list, and the drawer only when neither is open.
+// swap closes all three; Escape closes the popover first, then the list, then the drawer, and returns the body to the
+// chain last.
 //
 // Run: node --test tests/js/store/faceplate/view.test.js
 
@@ -66,6 +67,31 @@ test("test_escape_with_only_a_drawer_open_closes_the_drawer", () => {
   toggleStage("volume");
   closeTop();
   assert.equal(openStage.value, null);
+});
+
+test("test_escape_with_nothing_open_returns_another_body_to_the_chain", () => {
+  showBody("settings");
+  closeTop();
+  assert.equal(body.value, "chain");
+});
+
+test("test_escape_with_a_drawer_open_on_settings_closes_the_drawer", () => {
+  showBody("settings");
+  toggleStage("volume");
+  closeTop();
+  assert.equal(openStage.value, null);
+});
+
+test("test_escape_with_a_drawer_open_on_settings_keeps_the_settings_body", () => {
+  showBody("settings");
+  toggleStage("volume");
+  closeTop();
+  assert.equal(body.value, "settings");
+});
+
+test("test_escape_on_the_chain_with_nothing_open_keeps_the_chain", () => {
+  closeTop();
+  assert.equal(body.value, "chain");
 });
 
 test("test_a_body_swap_closes_the_open_drawer", () => {
