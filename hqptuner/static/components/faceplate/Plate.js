@@ -5,6 +5,7 @@
 import { useEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { plate, viewport, closeTop, closeOutside } from "../../store/faceplate/view.js";
+import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
 
 /** Read the window's inner size into the store. */
 function measure() {
@@ -42,10 +43,11 @@ function listen() {
 export function Plate({ children }) {
   useEffect(listen, []);
   const p = plate.value;
+  const b = plateBottom();
   const style = `--plate-w:${p.w}px;--plate-h:${p.h}px;transform:scale(${p.scale})`;
   return html`
     <div id="stage">
-      <div class="plate" data-size=${p.id} style=${style}>${children}</div>
+      <div class="plate" data-size=${p.id} data-bottom=${b?.bottom} data-sw=${b?.sw} style=${style}>${children}</div>
     </div>
   `;
 }

@@ -49,9 +49,12 @@ export const bookWanted = signal(false);
 // switching the engine to it (lanes/live/lane.apply_preset) — there is no
 // mismatch to gray, and graying it would have hidden the very thing it is for.
 
-// Read the list. Private: every caller is in this module — nothing outside it
-// decides when the store is stale, because nothing outside it changes the store.
-async function refreshLivePresets() {
+/**
+ * Read the list. Re-read here and by the Snapshot builder's shell after its own
+ * saves and deletes.
+ * @returns {Promise<void>}
+ */
+export async function refreshLivePresets() {
   try {
     const body = await api.livePresets();
     livePresets.value = body.presets || [];
@@ -134,10 +137,11 @@ export async function applyLivePreset(name) {
  * @param {string} name
  * @param {string[]} [fields] the settings to keep; omitted keeps every one
  * @param {string[]} [stations] the stations to save under; omitted saves under the loaded one
+ * @param {Record<string, string>} [values] the settings' values to store; omitted stores the engine's
  * @returns {Promise<void>}
  */
-export async function saveLivePreset(name, fields, stations) {
-  await run(name, () => api.saveLivePreset(name, fields, stations), refreshLivePresets);
+export async function saveLivePreset(name, fields, stations, values) {
+  await run(name, () => api.saveLivePreset(name, fields, stations, values), refreshLivePresets);
 }
 
 /**

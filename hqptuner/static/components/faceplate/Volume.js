@@ -139,37 +139,74 @@ function LoudMarks() {
 }
 
 /**
+ * The slider over its loudness marks, grayed while the level is pinned.
+ *
+ * @param {{ clock: Clock }} props  the clock the slider's writes pace on
+ */
+function Track({ clock }) {
+  const v = volumeNow();
+  const { min, max, step } = volumeGrid();
+  const edit = userEdit(v.level, (/** @type {ControlEvent} */ e) => writeVolume(Number(e.target.value), clock));
+  return html`
+    <div class="vsl">
+      <input
+        type="range"
+        min=${min}
+        max=${max}
+        step=${step}
+        value=${v.level}
+        aria-label="Playback volume"
+        disabled=${v.fixed}
+        onInput=${edit}
+        onChange=${edit}
+        onWheel=${wheelGuard}
+      />
+      <${LoudMarks} />
+    </div>
+  `;
+}
+
+/**
  * The slider popover: heading with the level, the slider over its loudness marks, the scale. A child of the plate.
  *
  * @param {{ clock?: Clock }} props  the clock the slider's writes pace on
  */
 export function VolumePopover({ clock = PLATFORM }) {
   const v = volumeNow();
-  const { min, max, step } = volumeGrid();
+  const { min, max } = volumeGrid();
   // A level that becomes pinned has nothing to slide: an open popover closes.
   useEffect(() => {
     if (v.fixed && openPopover.value === ID) togglePopover(ID);
   }, [v.fixed]);
-  const edit = userEdit(v.level, (/** @type {ControlEvent} */ e) => writeVolume(Number(e.target.value), clock));
   return html`
     <${Popover} id=${ID} cls="vpop" role="dialog" label="Playback volume" park=${park}>
       <div class="vh"><span class="eng">Playback volume</span><span class="v">${v.txt}</span></div>
-      <div class="vsl">
-        <input
-          type="range"
-          min=${min}
-          max=${max}
-          step=${step}
-          value=${v.level}
-          aria-label="Playback volume"
-          disabled=${v.fixed}
-          onInput=${edit}
-          onChange=${edit}
-          onWheel=${wheelGuard}
-        />
-        <${LoudMarks} />
-      </div>
+      <${Track} clock=${clock} />
       <${ScaleMarks} min=${min} max=${max} />
     <//>
+  `;
+}
+
+/**
+ * The Setting Switcher's volume bar while its target is Volume: − / the slider over its scale / + / the readout.
+ *
+ * @param {{ clock?: Clock }} props  the clock a held ± repeats and every write paces on
+ */
+export function VolumeBar({ clock = PLATFORM }) {
+  const v = volumeNow();
+  const { min, max } = volumeGrid();
+  const down = useHold(-1, clock);
+  const up = useHold(1, clock);
+  return html`
+    <div class="vbar" role="group" aria-label="Playback volume">
+      <span class="vbt">Playback volume</span>
+      <button class="round vbtn" type="button" aria-label="Volume down" disabled=${v.off.down} ...${down}>−</button>
+      <div class="vbsl">
+        <${Track} clock=${clock} />
+        <${ScaleMarks} min=${min} max=${max} />
+      </div>
+      <button class="round vbtn" type="button" aria-label="Volume up" disabled=${v.off.up} ...${up}>+</button>
+      <div class="vfd vbrd" role="status" title=${v.why || undefined}><span class="v">${v.txt}</span></div>
+    </div>
   `;
 }

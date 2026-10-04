@@ -128,9 +128,8 @@ export const api = {
   // the LIVE view's whole write path: applied on the spot, readback-verified,
   // never staged (store/live/write.js)
   live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
-  // Live snapshots — HQPTuner's own record, never the daemon's. A save sends no
-  // values: the backend snapshots the running engine itself, so the browser has
-  // nothing to send that the daemon has not already reported.
+  // Live snapshots — HQPTuner's own record, never the daemon's. A save sends, at most, which settings to keep,
+  // which stations to keep them under and the values the Snapshot builder edited; the backend snapshots the rest.
   livePresets: () => getJSON("/api/livepresets"),
   liveSnapshot: () => getJSON("/api/livepresets/snapshot"),
   // `fields` names the settings the preset keeps; omitted, the backend keeps them all.
@@ -141,9 +140,14 @@ export const api = {
     /** @type {string} */ name,
     /** @type {string[] | undefined} */ fields,
     /** @type {string[] | undefined} */ stations,
+    /** @type {Record<string, string> | undefined} */ values,
   ) => {
-    const body = { ...(fields ? { fields } : {}), ...(stations ? { stations } : {}) };
-    return send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields || stations ? body : undefined);
+    const body = {
+      ...(fields ? { fields } : {}),
+      ...(stations ? { stations } : {}),
+      ...(values ? { values } : {}),
+    };
+    return send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields || stations || values ? body : undefined);
   },
   applyLivePreset: (/** @type {string} */ name, /** @type {string | undefined} */ station) =>
     send(`/api/livepresets/${encodeURIComponent(name)}/apply${stationQuery(station)}`, "POST"),
