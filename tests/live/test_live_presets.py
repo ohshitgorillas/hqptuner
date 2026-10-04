@@ -273,3 +273,64 @@ def test_applying_a_schema_3_record_leaves_the_engines_junk_filter_where_it_is(
     live_api.post("/api/config/live", json={"fields": {"junk_filter": engine}})
     live_api.post("/api/livepresets/Legacy/apply")
     assert live_api.get("/api/state").json()["data"]["filter_junk"] == engine
+
+
+def test_a_save_given_a_filter_value_stores_that_id_over_the_engines(live_api: TestClient) -> None:
+    resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter1x"], "values": {"filter1x": "25"}})
+    assert resp.json()["fields"]["filter1x"] == "25"
+
+
+def test_a_save_given_a_filter_value_labels_it_with_that_items_name(live_api: TestClient) -> None:
+    resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter1x"], "values": {"filter1x": "25"}})
+    assert resp.json()["names"]["filter1x"] == "sinc-M"
+
+
+#: An SDM preset composed while the engine runs PCM: sinc-M and ASDM7EC by their SDM enum IDs.
+_SDM_SAVE = {
+    "fields": ["mode", "oversampling", "modulator"],
+    "values": {"mode": "sdm", "oversampling": "23", "modulator": "3"},
+}
+
+
+def test_a_save_given_sdm_values_while_the_engine_runs_pcm_records_the_sdm_chain(live_api: TestClient) -> None:
+    assert live_api.put("/api/livepresets/Dark", json=_SDM_SAVE).json()["chain"] == "sdm"
+
+
+def test_a_save_given_sdm_values_while_the_engine_runs_pcm_stores_them(live_api: TestClient) -> None:
+    assert live_api.put("/api/livepresets/Dark", json=_SDM_SAVE).json()["fields"] == _SDM_SAVE["values"]
+
+
+def test_a_save_given_an_adaptive_volume_value_stores_it_over_the_engines(live_api: TestClient) -> None:
+    body = {"fields": ["adaptive_volume"], "values": {"adaptive_volume": "1"}}
+    assert live_api.put("/api/livepresets/Warm", json=body).json()["fields"]["adaptive_volume"] == "1"
+
+
+#: Values the record's chain does not enumerate: an ID no list carries, and an SDM ID
+#: on a PCM record.
+NOT_ENUMERATED = [
+    pytest.param({"fields": ["filter1x"], "values": {"filter1x": "9999"}}, id="unknown-id"),
+    pytest.param({"fields": ["filter1x"], "values": {"filter1x": "38"}}, id="sdm-id-on-pcm"),
+]
+
+
+@pytest.mark.parametrize("body", NOT_ENUMERATED)
+def test_saving_a_value_the_records_chain_does_not_enumerate_is_refused(
+    live_api: TestClient, body: dict[str, Any]
+) -> None:
+    assert live_api.put("/api/livepresets/Warm", json=body).json().get("code") == "values_unknown"
+
+
+def test_saving_a_value_for_a_setting_the_save_does_not_name_is_refused(live_api: TestClient) -> None:
+    body = {"fields": ["filter"], "values": {"filter1x": "25"}}
+    assert live_api.put("/api/livepresets/Warm", json=body).json().get("code") == "values_unknown"
+
+
+@pytest.mark.parametrize("value", ["2", "01"])
+def test_saving_an_adaptive_volume_value_outside_the_flag_is_refused(live_api: TestClient, value: str) -> None:
+    body = {"fields": ["adaptive_volume"], "values": {"adaptive_volume": value}}
+    assert live_api.put("/api/livepresets/Warm", json=body).json().get("code") == "values_unknown"
+
+
+def test_a_save_naming_fields_without_values_stores_the_engines_own(chain_api: Callable[..., TestClient]) -> None:
+    resp = chain_api(filter1x="2").put("/api/livepresets/Warm", json={"fields": ["filter1x"]})
+    assert resp.json()["fields"]["filter1x"] == "25"

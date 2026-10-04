@@ -20,8 +20,9 @@ from hqptuner.api.errors import ApiError, ErrorBody, refuse
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.live import lane, routing, snapshot
+from hqptuner.lanes.live.chain import PCM, SDM
 from hqptuner.lanes.live.lane import LiveApplyReport
-from hqptuner.lanes.live.snapshot import ChainUnknownError
+from hqptuner.lanes.live.snapshot import ChainUnknownError, LiveSnapshot
 from hqptuner.presets.store.live import (
     DEFAULT_STATION,
     LiveFields,
@@ -38,6 +39,8 @@ router = APIRouter(prefix="/api")
 # any of them has to say which chain to be on — mode rides along unasked.
 _CHAIN_SCOPED = frozenset(field for field, spec in routing.ROUTABLE.items() if spec.chain is not None)
 
+_FLAGS = frozenset({"0", "1"})
+
 
 class SaveBody(BaseModel):
     """Which settings ``PUT /api/livepresets/{name}`` stores, and under which stations.
@@ -47,6 +50,7 @@ class SaveBody(BaseModel):
 
     fields: list[str] | None = None
     stations: list[str] | None = Field(default=None, min_length=1)
+    values: dict[str, str] | None = None
 
 
 class NotLiveSnapshotSettingsError(ErrorBody):
@@ -57,6 +61,16 @@ class NotLiveSnapshotSettingsError(ErrorBody):
     def __init__(self, *, unknown: list[str]) -> None:
         """Render the per-field reasons dict naming the ``unknown`` field names, in the order given."""
         super().__init__({"fields": f"not live snapshot settings: {', '.join(unknown)}"})
+
+
+class ValuesUnknownError(ErrorBody):
+    """A save gave values its record cannot hold: a setting it does not keep, or a value its chain does not offer."""
+
+    code = "values_unknown"
+
+    def __init__(self, *, reasons: dict[str, str]) -> None:
+        """Render the per-field reasons dict, one reason per refused value, keyed by its field."""
+        super().__init__(dict(reasons))
 
 
 @dataclass(frozen=True)
@@ -126,15 +140,83 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     return keys
 
 
-def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
-    """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all). 409 chain unknown."""
+def _mode_name(manager: ConnectionManager, value: str) -> str | None:
+    """Return the display name of a given output mode, or None when it is not pcm or sdm."""
+    if value not in (PCM, SDM):
+        return None
+    want = routing.MODE_NAMES[value]
+    items = (manager.readings.enums or {}).get("modes") or []
+    return next((str(item["name"]) for item in items if str(item.get("name") or "").startswith(want)), want)
+
+
+def _given_name(manager: ConnectionManager, loaded: str, field: str, value: str) -> str | None:
+    """Return the display name a given value is stored under, or None when the record cannot hold it.
+
+    A field of the chain the engine has not loaded has no enumeration to join through, so it is its own name.
+    """
+    if field == "mode":
+        return _mode_name(manager, value)
+    if field in routing.DIRECT:
+        return value if value in _FLAGS else None
+    spec = routing.ROUTABLE[field]
+    if spec.chain != loaded:
+        return value
+    items = (manager.readings.enums or {}).get(spec.enum) or []
+    return next((str(item.get("name") or value) for item in items if str(item.get("value")) == value), None)
+
+
+def _why_refused(field: str, value: str) -> str:
+    """Why a given value of a kept field cannot be stored, in terms the save popover can show."""
+    if field == "mode":
+        return f"{value!r} is not pcm or sdm"
+    if field in routing.DIRECT:
+        return f"{value!r} is not a 0/1 flag"
+    return f"{value} is not in the engine's live {routing.ROUTABLE[field].enum} list"
+
+
+def _given(
+    manager: ConnectionManager, loaded: str, keys: set[str] | None, values: dict[str, str]
+) -> dict[str, dict[str, str]]:
+    """Return each given value as ``{value, name}``. 422 naming every value the record cannot hold."""
+    allowed = set(snapshot.SNAPSHOT_FIELDS) if keys is None else keys
+    given: dict[str, dict[str, str]] = {}
+    reasons: dict[str, str] = {}
+    for field, value in values.items():
+        if field not in allowed:
+            reasons[field] = "not a setting this save keeps"
+        elif (name := _given_name(manager, loaded, field, value)) is None:
+            reasons[field] = _why_refused(field, value)
+        else:
+            given[field] = {"value": value, "name": name}
+    if reasons:
+        raise refuse(ValuesUnknownError(reasons=reasons))
+    return given
+
+
+def _kept(taken: LiveSnapshot, keys: set[str] | None, chain: str) -> dict[str, dict[str, str]]:
+    """Return the snapshot's fields among ``keys`` (None = all), less the old chain's when ``chain`` is another."""
+    return {
+        field: item
+        for field, item in taken.fields.items()
+        if (keys is None or field in keys) and (chain == taken.chain or field not in _CHAIN_SCOPED)
+    }
+
+
+def _record(manager: ConnectionManager, keys: set[str] | None, values: dict[str, str] | None) -> LiveRecord:
+    """Return the record a save stores: the engine's snapshot cut down to ``keys`` (None = all), ``values`` over it.
+
+    A given mode sets the record's chain; on a change the snapshot's fields of the old chain leave the record.
+    409 chain unknown.
+    """
     try:
         taken = snapshot.live_snapshot(manager)
     except ChainUnknownError as exc:
         raise refuse(exc, exc.reasons) from exc
-    kept = {field: item for field, item in taken.fields.items() if keys is None or field in keys}
+    given = _given(manager, taken.chain, keys, values or {})
+    chain = given["mode"]["value"] if "mode" in given else taken.chain
+    kept = _kept(taken, keys, chain) | given
     return LiveRecord(
-        chain=taken.chain,
+        chain=chain,
         fields={field: item["value"] for field, item in kept.items()},
         names={field: item["name"] for field, item in kept.items()},
     )
@@ -174,10 +256,11 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     """Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.
 
     A body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them
-    where the engine has them. A body naming ``stations`` writes the one record under each; none named writes it
+    where the engine has them. A body naming ``values`` stores each over the engine's own, a given mode setting the
+    record's chain. A body naming ``stations`` writes the one record under each; none named writes it
     under the loaded station. 409 when the loaded chain is unknowable — the record would claim a chain it never
-    captured. 422 when a named field is not a live snapshot setting, or a named station is not one the preset store
-    holds.
+    captured. 422 when a named field is not a live snapshot setting, a given value is one the record cannot hold, or a
+    named station is not one the preset store holds.
     """
     # Name first, engine second: a name the rule refuses is refused as one whatever
     # the engine is doing, rather than being answered by whatever the snapshot
@@ -186,7 +269,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
         name = canonical_name(name)  # the response names the key the store holds
     except LivePresetError as exc:
         raise refuse(exc) from exc
-    record = _record(manager, _selected(None if body is None else body.fields))
+    record = _record(manager, _selected(None if body is None else body.fields), None if body is None else body.values)
     stations = body.stations if body is not None and body.stations is not None else [_loaded(manager)]
     try:
         _store(request).save(name, record, stations)

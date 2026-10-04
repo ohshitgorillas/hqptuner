@@ -254,6 +254,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `invalid_input` | 422 | a value a store or the config editor rejects |
 | `nothing_staged` | 400 | apply with nothing to apply |
 | `fields_unknown` | 422 | a field no lane accepts |
+| `values_unknown` | 422 | `PUT /api/livepresets/{name}` body `values` names a value that is not an enumerated id of the record's chain, a value for a field not named in `fields`, a mode other than `pcm` or `sdm`, or a flag outside 0/1 |
 | `stations_unknown` | 422 | a live snapshot save naming a station the preset store does not hold |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |

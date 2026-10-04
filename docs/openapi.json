@@ -2709,6 +2709,20 @@
               }
             ],
             "title": "Stations"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
           }
         },
         "title": "SaveBody",
@@ -4511,7 +4525,7 @@
         "summary": "Delete Live Preset"
       },
       "put": {
-        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. A body naming ``stations`` writes the one record under each; none named writes it\nunder the loaded station. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting, or a named station is not one the preset store\nholds.",
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. A body naming ``values`` stores each over the engine's own, a given mode setting the\nrecord's chain. A body naming ``stations`` writes the one record under each; none named writes it\nunder the loaded station. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting, a given value is one the record cannot hold, or a\nnamed station is not one the preset store holds.",
         "operationId": "save_live_preset_api_livepresets__name__put",
         "parameters": [
           {
