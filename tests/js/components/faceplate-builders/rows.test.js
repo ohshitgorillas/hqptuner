@@ -24,13 +24,15 @@ import { propsOf } from "../../support/wheel.js";
 /** @typedef {{ index: string, value: string, name: string }} EnumItem */
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { config, engineState, engineStatus, enums, metadata } =
+const { config, engineState, engineStatus, enums, matrixConfig, metadata } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { plainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { liveBook } = await import("../../../../hqptuner/static/store/live/presets.js");
 const { openList, openPopover } = await import("../../../../hqptuner/static/store/faceplate/view.js");
+const { profileChoices } = await import("../../../../hqptuner/static/store/faceplate/page/profile.js");
 const { cur, staged } = await import("../../../../hqptuner/static/store/faceplate/builders/shell.js");
-const { editNow, snapshotRows } = await import("../../../../hqptuner/static/store/faceplate/builders/snapshot.js");
+const { editNow } = await import("../../../../hqptuner/static/store/faceplate/builders/snapshot.js");
+const { snapshotRows } = await import("../../../../hqptuner/static/store/faceplate/builders/rows.js");
 const { SnapshotRows } = await import("../../../../hqptuner/static/components/faceplate/builders/SnapshotRows.js");
 const { StationsMenu } = await import("../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js");
 
@@ -57,7 +59,7 @@ const SDM_SHAPERS = [
 ];
 
 /** The rows a snapshot can hold, sorted. */
-const IDS = ["1x", "adaptive", "mode", "nx", "sh"];
+const IDS = ["1x", "adaptive", "mode", "nx", "profile", "sh"];
 
 /**
  * One /config form field quoting a list in the enum-ID domain.
@@ -123,6 +125,7 @@ function wire({ f1x = "1", adaptive = "1" } = {}) {
     profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
     active: "Headphones",
   };
+  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Room EQ", "Desk"], live_active: "Room EQ" };
   metadata.value = overlays();
   plainNames.value = false;
 }
@@ -241,9 +244,9 @@ const rowControl = (cls, id) => controls("button", cls)[rowIds().indexOf(id)];
  * @param {VNode | undefined} v
  * @param {string} handler
  */
-async function fire(v, handler = "onClick") {
+async function fire(v, handler = "onClick", extra = {}) {
   const fn = v ? propsOf(v)[handler] : undefined;
-  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {} });
+  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
 }
 
 // --- the column heads --------------------------------------------------------------------------------------------
@@ -306,6 +309,7 @@ test("test_the_include_box_carries_the_rows_hold_and_is_disabled_while_gated", (
       nx: { role: "checkbox", checked: "false", label: true, disabled: true },
       sh: { role: "checkbox", checked: "false", label: true, disabled: true },
       mode: { role: "checkbox", checked: "false", label: true, disabled: false },
+      profile: { role: "checkbox", checked: "false", label: true, disabled: false },
     },
   );
 });
@@ -345,7 +349,7 @@ test("test_the_value_cell_grays_and_locks_its_controls_while_the_row_is_off", ()
   assert.deepEqual(
     byId((r) => {
       const cell = first(r, "div", "bval");
-      const ctl = every(inside(cell), "button");
+      const ctl = [...every(inside(cell), "button"), ...every(inside(cell), "select")];
       return {
         grayed: cell ? classes(cell).includes("grayed") : null,
         locked: ctl.length > 0 ? ctl.every((b) => hasAttr(b, "disabled")) : null,
@@ -362,14 +366,16 @@ test("test_a_seg_row_draws_segment_buttons_and_a_list_row_a_picker", () => {
       return {
         seg: every(inside(cell), "div", "seg").length,
         pick: every(inside(cell), "button", "vfd", "vpick").length,
+        sel: every(inside(cell), "select", "vfd").length,
       };
     }),
     {
-      adaptive: { seg: 1, pick: 0 },
-      "1x": { seg: 0, pick: 1 },
-      nx: { seg: 0, pick: 1 },
-      sh: { seg: 0, pick: 1 },
-      mode: { seg: 1, pick: 0 },
+      adaptive: { seg: 1, pick: 0, sel: 0 },
+      "1x": { seg: 0, pick: 1, sel: 0 },
+      nx: { seg: 0, pick: 1, sel: 0 },
+      sh: { seg: 0, pick: 1, sel: 0 },
+      mode: { seg: 1, pick: 0, sel: 0 },
+      profile: { seg: 0, pick: 0, sel: 1 },
     },
   );
 });
@@ -423,6 +429,38 @@ test("test_a_pick_from_the_open_list_writes_the_edit", async () => {
   assert.equal(editNow()?.vals?.pcm?.["1x"], "42");
 });
 
+/** The profile row's select in the markup. */
+const profileSelect = () =>
+  first(
+    first(
+      rows().find((r) => attr(r, "data-id") === "profile"),
+      "div",
+      "bval",
+    ),
+    "select",
+    "vfd",
+  );
+
+test("test_the_profile_select_lists_the_pages_profile_choices", () => {
+  assert.deepEqual(
+    every(inside(profileSelect()), "option").map((o) => attr(o, "value") ?? ""),
+    profileChoices().options.map((o) => o.value),
+  );
+});
+
+test("test_the_profile_select_is_disabled_while_the_row_is_off_and_enabled_once_held", async () => {
+  const off = profileSelect();
+  await fire(rowControl("binc", "profile"));
+  const held = profileSelect();
+  assert.deepEqual([off && hasAttr(off, "disabled"), held && hasAttr(held, "disabled")], [true, false]);
+});
+
+test("test_changing_the_profile_select_writes_the_edit", async () => {
+  await fire(rowControl("binc", "profile"));
+  await fire(controls("select", "vfd")[0], "onChange", { currentTarget: { value: "Desk" } });
+  assert.equal(editNow()?.vals?.profile, "Desk");
+});
+
 // --- the take button ---------------------------------------------------------------------------------------------
 
 test("test_the_take_button_is_disabled_unless_the_row_can_take", () => {
@@ -431,7 +469,7 @@ test("test_the_take_button_is_disabled_unless_the_row_can_take", () => {
       const take = first(r, "button", "round", "btake");
       return take && hasAttr(take, "disabled");
     }),
-    { adaptive: false, "1x": false, nx: true, sh: false, mode: true },
+    { adaptive: false, "1x": false, nx: true, sh: false, mode: true, profile: true },
   );
 });
 
@@ -454,6 +492,7 @@ test("test_the_live_cell_marks_a_held_row_that_differs", () => {
       nx: { diff: false, title: true },
       sh: { diff: true, title: true },
       mode: { diff: false, title: true },
+      profile: { diff: false, title: true },
     },
   );
 });
@@ -476,11 +515,21 @@ test("test_the_live_cell_prints_the_engines_name_for_a_list_row", () => {
   assert.deepEqual([bt["1x"], bt.nx, bt.sh], ["sinc-M", "IIR", "NS9"]);
 });
 
+test("test_the_profile_rows_live_cell_names_the_engines_active_profile", () => {
+  const live = first(
+    rows().find((r) => attr(r, "data-id") === "profile"),
+    "div",
+    "vfd",
+    "blive",
+  );
+  assert.match(live ? text(live) : "", /Room EQ/);
+});
+
 test("test_the_idle_mark_shows_only_on_a_chain_the_engine_is_not_running", () => {
   editing("Speakers", "S01");
   assert.deepEqual(
     byId((r) => every(inside(first(r, "div", "vfd", "blive")), "span", "bidle").length),
-    { adaptive: 0, "1x": 1, nx: 1, sh: 1, mode: 0 },
+    { adaptive: 0, "1x": 1, nx: 1, sh: 1, mode: 0, profile: 0 },
   );
 });
 

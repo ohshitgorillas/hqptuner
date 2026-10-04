@@ -7,17 +7,11 @@ import { html } from "../../../lib/dom.js";
 import { classNames } from "../../../model/shell/format.js";
 import { isChain } from "../../../model/builders/snapshot.js";
 import { openOptionList } from "../../../store/faceplate/view.js";
-import {
-  SNAP_ROWS,
-  change,
-  editNow,
-  liveNow,
-  snapshotRows,
-  takeAll,
-} from "../../../store/faceplate/builders/snapshot.js";
+import { SNAP_ROWS, change, editNow, liveNow, takeAll } from "../../../store/faceplate/builders/snapshot.js";
+import { snapshotRows } from "../../../store/faceplate/builders/rows.js";
 import { segButtons } from "../drawer/controls.js";
 
-/** @typedef {import("../../../store/faceplate/builders/snapshot.js").SnapView} SnapView */
+/** @typedef {import("../../../store/faceplate/builders/rows.js").SnapView} SnapView */
 /** @typedef {(v: string) => void} Set  writes one row's value into the edit */
 
 /**
@@ -92,21 +86,42 @@ function picker(v, set) {
 }
 
 /**
- * The row's control: segment buttons over a seg row's options, else the list picker.
+ * A select row's native select over its options, the snapshot's value selected.
+ *
+ * @param {SnapView} v
+ * @param {Set} set
+ */
+const select = (v, set) => html`
+  <select
+    class="vfd"
+    aria-label=${v.label}
+    disabled=${!v.on}
+    onChange=${(/** @type {{ currentTarget: { value: string } }} */ e) => set(e.currentTarget.value)}
+  >
+    ${(v.options ?? []).map(
+      (o) => html`<option value=${o.v} selected=${o.v === v.value} disabled=${o.disabled}>${o.label}</option>`,
+    )}
+  </select>
+`;
+
+/**
+ * The row's control: a select row's native select, segment buttons over a seg row's options, else the list picker.
  *
  * @param {SnapView} v
  * @param {Set} set
  */
 const control = (v, set) =>
-  v.options
-    ? segButtons({
-        options: v.options.map((o) => ({ value: o.v, label: o.label })),
-        value: v.value,
-        label: v.label,
-        off: !v.on,
-        pick: set,
-      })
-    : picker(v, set);
+  v.kind === "select"
+    ? select(v, set)
+    : v.options
+      ? segButtons({
+          options: v.options.map((o) => ({ value: o.v, label: o.label })),
+          value: v.value,
+          label: v.label,
+          off: !v.on,
+          pick: set,
+        })
+      : picker(v, set);
 
 /**
  * The engine's value, marked where it differs on a held row and where its chain is idle.

@@ -12,7 +12,14 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  matrixConfig,
+  metadata,
+} from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
@@ -28,9 +35,10 @@ import {
   change,
   recordOf,
   takeAll,
-  snapshotRows,
 } from "../../../../hqptuner/static/store/faceplate/builders/snapshot.js";
+import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
+import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
 
 const SHELL = "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 
@@ -108,10 +116,17 @@ const SPEAKER_NAMES = Array.from({ length: 12 }, (_, i) => `S${String(i + 1).pad
  */
 const book = () => ({
   Speakers: Object.fromEntries(
-    SPEAKER_NAMES.map((n) => [
-      n,
-      { chain: "sdm", fields: { mode: "sdm", oversampling1x: "38", oversampling: "39", modulator: "3" }, names: {} },
-    ]),
+    SPEAKER_NAMES.map((n) => {
+      /** @type {Record<string, string>} */
+      const fields = { mode: "sdm", oversampling1x: "38", oversampling: "39", modulator: "3" };
+      /** @type {Record<string, string>} */
+      const names = {};
+      if (n === "S12") {
+        fields.matrix_profile = "Desk";
+        names.matrix_profile = "Desk";
+      }
+      return [n, { chain: "sdm", fields, names }];
+    }),
   ),
   Headphones: {
     Desk: {
@@ -132,7 +147,17 @@ const book = () => ({
  * @property {string} [adaptive]  Adaptive volume's State flag
  * @property {string} [mode]      the /config form's Output mode
  * @property {string} [active]    the loaded station
+ * @property {string} [profile]   the matrix profile the engine has loaded
  */
+
+/**
+ * Write the matrix forms with two engine-loaded profiles, the one given running.
+ *
+ * @param {string} [profile]
+ */
+function wireMatrix(profile = "") {
+  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Room EQ", "Desk"], live_active: profile };
+}
 
 /**
  * Write one idle engine onto the wire-side signals: by default the PCM chain loaded, the SDM chain dormant on the
@@ -148,6 +173,7 @@ function wire({
   adaptive = "1",
   mode = "pcm",
   active = "Headphones",
+  profile,
 } = {}) {
   const sdm = chain === "sdm";
   engineState.value = { state: "0", active_chain: chain, filter1x: f1x, filterNx: fnx, shaper, adaptive };
@@ -168,6 +194,7 @@ function wire({
     active,
   };
   metadata.value = overlays();
+  wireMatrix(profile);
   plainNames.value = false;
 }
 
@@ -209,6 +236,7 @@ const FIELDS = [
   ["nx", { pcm: "filter", sdm: "oversampling" }],
   ["sh", { pcm: "dither", sdm: "modulator" }],
   ["mode", "mode"],
+  ["profile", "matrix_profile"],
 ];
 for (const [id, field] of FIELDS) {
   test(`test_the_${id}_row_writes_its_live_wire_field`, () => {
@@ -222,6 +250,7 @@ const KEYS = [
   ["nx", { pcm: "pcm_filter_nx", sdm: "sdm_filter_nx" }],
   ["sh", { pcm: "pcm_dither", sdm: "sdm_modulator" }],
   ["mode", "output_mode"],
+  ["profile", "matrix_profile"],
 ];
 for (const [id, key] of KEYS) {
   test(`test_the_${id}_row_reads_its_catalog_key`, () => {
@@ -307,6 +336,15 @@ test("test_live_adaptive_volume_reads_the_engines_flag_off", () => {
   assert.equal(liveNow()?.adaptive, "0");
 });
 
+test("test_live_profile_reads_the_engines_named_matrix_profile", () => {
+  wire({ profile: "Room EQ" });
+  assert.equal(liveNow()?.profile, "Room EQ");
+});
+
+test("test_live_profile_reads_the_unnamed_matrix_profile_as_empty", () => {
+  assert.equal(liveNow()?.profile, "");
+});
+
 // --- the book and its stations -------------------------------------------------------------------
 
 test("test_the_book_lists_each_stations_snapshots_in_order", () => {
@@ -334,7 +372,7 @@ test("test_home_is_the_loaded_speakers", () => {
 // --- a record as an edit -------------------------------------------------------------------------
 
 test("test_a_new_snapshot_holds_every_row", () => {
-  assert.deepEqual([...(fromRecord(null)?.inc ?? [])].sort(), ["1x", "adaptive", "mode", "nx", "sh"]);
+  assert.deepEqual([...(fromRecord(null)?.inc ?? [])].sort(), ["1x", "adaptive", "mode", "nx", "profile", "sh"]);
 });
 
 test("test_a_new_snapshot_takes_the_chain_the_engine_runs", () => {
@@ -361,6 +399,11 @@ test("test_a_record_holds_the_rows_its_fields_carry", () => {
 test("test_a_row_the_record_leaves_out_reads_the_engine", () => {
   wire({ chain: "sdm" });
   assert.equal(fromRecord(rec("Speakers", "S01"))?.vals?.adaptive, "1");
+});
+
+test("test_a_records_matrix_profile_holds_the_profile_row_at_its_value", () => {
+  const e = fromRecord(rec("Speakers", "S12"));
+  assert.deepEqual({ held: e?.inc?.has("profile"), value: e?.vals?.profile }, { held: true, value: "Desk" });
 });
 
 // --- what a save sends ---------------------------------------------------------------------------
@@ -390,6 +433,10 @@ test("test_a_save_without_mode_drops_the_chain_rows", () => {
 
 test("test_a_save_sends_each_held_row_at_the_edits_value", () => {
   assert.equal(recordOf(fromRecord(rec("Speakers", "S01")))?.values?.oversampling1x, "38");
+});
+
+test("test_a_save_sends_the_held_profile_as_matrix_profile", () => {
+  assert.equal(recordOf(fromRecord(rec("Speakers", "S12")))?.values?.matrix_profile, "Desk");
 });
 
 // --- use live settings ---------------------------------------------------------------------------
@@ -512,6 +559,29 @@ test("test_a_list_rows_value_text_is_its_plain_leaf_in_simplified", async () => 
 test("test_a_list_rows_live_text_is_its_engine_name_in_standard", async () => {
   await editing({ st: "Headphones", name: "Desk" });
   assert.equal(viewOf("1x")?.liveText, "sinc-M");
+});
+
+test("test_the_profile_row_offers_the_pages_profile_choices", async () => {
+  await editing({ st: "Headphones", name: "Desk" });
+  assert.deepEqual(
+    viewOf("profile")?.options?.map((o) => o.v),
+    profileChoices().options.map((o) => o.value),
+  );
+});
+
+test("test_the_unnamed_profiles_value_text_is_default", async () => {
+  await editing({ st: "Headphones", name: "Desk" });
+  assert.equal(viewOf("profile")?.valueText, "[Default]");
+});
+
+test("test_the_profile_row_is_a_select", async () => {
+  await editing({ st: "Headphones", name: "Desk" });
+  assert.equal(viewOf("profile")?.kind, "select");
+});
+
+test("test_the_profile_row_without_mode_is_not_gated", async () => {
+  await editing({ st: "Headphones", name: "Bed" });
+  assert.equal(viewOf("profile")?.gated, false);
 });
 
 // --- the rail ------------------------------------------------------------------------------------

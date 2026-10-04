@@ -1,29 +1,27 @@
 // The Snapshot builder's store half: what a snapshot can hold, the engine now, the book and its stations, the edit
-// showing and how a change stages it, the record a save sends and each row's view. Sits on the builders' shell
-// (./shell.js) for the record being edited and its staged edits.
+// showing and how a change stages it, and the record a save sends; each row's view is ./rows.js's. Sits on the
+// builders' shell (./shell.js) for the record being edited and its staged edits.
 
 import { NEW, keyOf, homeOf } from "../../../model/builders/builder.js";
-import { isChain, valOf, snapRow } from "../../../model/builders/snapshot.js";
+import { isChain, valOf } from "../../../model/builders/snapshot.js";
 import { schema } from "../../schema.js";
 import { MODES } from "../../schema/options.js";
 import { runningValue } from "../../resolve.js";
-import { plainNames } from "../../ui/prefs.js";
 import { liveBook } from "../../live/presets.js";
 import { chainControls } from "../../live/chains.js";
 import { CHAINS, stateOf } from "../../live/derive.js";
 import { loadedChain } from "../../live/rates.js";
 import { runningChain } from "../path.js";
 import { stationTree } from "../stations.js";
-import { rawOptions, listOptions } from "../lists/options.js";
+import { profileChoices } from "../page/profile.js";
 import { cur, staged, stage, refused } from "./shell.js";
 
 /** @typedef {import('../../../model/builders/builder.js').Ref} Ref */
 /** @typedef {import('../../../model/builders/snapshot.js').Chain} Chain */
 /** @typedef {import('../../../model/builders/snapshot.js').Edit} Edit */
 /** @typedef {import('../../../model/builders/snapshot.js').Engine} Engine */
-/** @typedef {import('../../../model/builders/snapshot.js').RowView} RowView */
 /** @typedef {import('../../live/chains.js').ChainControl} ChainControl */
-/** @typedef {{ v: string, label: string }} Option  a seg's option: the wire value and its label */
+/** @typedef {{ v: string, label: string, disabled?: boolean }} Option  a seg's or select's option: the wire value and its label */
 
 /**
  * One row a snapshot can hold. A chain row's `label`, `field` and `key` follow the snapshot's chain.
@@ -32,7 +30,7 @@ import { cur, staged, stage, refused } from "./shell.js";
  * @property {string} id
  * @property {string} [stage]
  * @property {string | Record<Chain, string>} label
- * @property {'seg' | 'list'} kind
+ * @property {'seg' | 'list' | 'select'} kind
  * @property {Option[]} [options]  a seg's options
  * @property {boolean} [chain]     the row's value indexes the snapshot's chain
  * @property {boolean} [gate]      the row the chain rows need (Output mode)
@@ -53,19 +51,6 @@ import { cur, staged, stage, refused } from "./shell.js";
  * @typedef {{ fields: string[], values: Record<string, string> }} RecordOut
  */
 
-/**
- * One row of the page: the row against the engine, plus what it shows.
- *
- * @typedef {RowView & {
- *   id: string,
- *   stage?: string,
- *   label: string,
- *   options?: Option[],
- *   valueText: string,
- *   liveText: string,
- * }} SnapView
- */
-
 /** The chain rows' ids, in the order each chain's controls run. */
 const CHAIN_IDS = ["1x", "nx", "sh"];
 
@@ -76,8 +61,6 @@ const OFF_ON = [
 
 /** @param {{ value: string, label: string }} m */
 const toOption = (m) => ({ v: m.value, label: m.label });
-/** Output mode's Auto, which a live engine can run and a snapshot cannot hold. */
-const AUTO = MODES.filter((m) => m.value === "auto").map(toOption);
 
 /**
  * One value per chain, read off each chain's control at position `i`.
@@ -120,6 +103,14 @@ export const SNAP_ROWS = [
     field: "adaptive_volume",
     key: "adaptive_volume",
   },
+  {
+    id: "profile",
+    stage: "Matrix engine",
+    label: "Matrix profile",
+    kind: "select",
+    field: "matrix_profile",
+    key: "matrix_profile",
+  },
   chainRow(0, "Resampling"),
   chainRow(1),
   chainRow(2, "Shaping"),
@@ -152,7 +143,7 @@ export const SNAP_COPY = {
  * @param {Chain} ch
  * @returns {string}
  */
-const byChain = (v, ch) => (typeof v === "string" ? v : v[ch]);
+export const byChain = (v, ch) => (typeof v === "string" ? v : v[ch]);
 
 /**
  * The chain a wire value names; anything but SDM reads as PCM.
@@ -173,7 +164,7 @@ const chainVals = (ch, loaded) =>
   Object.fromEntries(chainControls(ch, loaded).map((c, i) => [CHAIN_IDS[i], String(c.value)]));
 
 /**
- * The engine now: Output mode, the chain it runs, each chain's rows as enum IDs, and Adaptive volume.
+ * The engine now: Output mode, the chain it runs, each chain's rows as enum IDs, Adaptive volume and the matrix profile.
  *
  * @returns {Engine}
  */
@@ -185,6 +176,7 @@ export function liveNow() {
     pcm: chainVals("pcm", loaded),
     sdm: chainVals("sdm", loaded),
     adaptive: String(stateOf("adaptive") ?? ""),
+    profile: profileChoices().value,
   };
 }
 
@@ -258,7 +250,7 @@ export function fromRecord(rec) {
   const L = liveNow();
   const mode = rec ? asChain(rec.fields.mode ?? rec.chain) : L.run;
   /** @type {Edit['vals']} */
-  const vals = { mode, adaptive: String(L.adaptive), pcm: { ...L.pcm }, sdm: { ...L.sdm } };
+  const vals = { mode, adaptive: String(L.adaptive), profile: String(L.profile), pcm: { ...L.pcm }, sdm: { ...L.sdm } };
   if (!rec) return { name: "", stations: [home()], inc: new Set(SNAP_ROWS.map((r) => r.id)), vals };
   const inc = heldOf(rec, vals);
   const c = cur.value;
@@ -342,55 +334,4 @@ export function takeAll(x) {
     if (!x.inc.has(row.id) || row.id === "mode") continue;
     setVal(x.vals, row.id, isChain(row.id) ? L[x.vals.mode][row.id] : String(L[row.id]));
   }
-}
-
-/**
- * A list row's text for enum ID `v` on catalog key `key`: the option's plain leaf in Simplified, else its engine name;
- * the ID itself where no option holds it.
- *
- * @param {string} key
- * @param {string} v
- * @returns {string}
- */
-function listText(key, v) {
-  const name = rawOptions(key).find((o) => String(o.value) === v)?.label;
-  if (!name) return v;
-  if (!plainNames.value) return name;
-  return listOptions(key).find((o) => o.v === name)?.leaf ?? name;
-}
-
-/**
- * A row's text for value `v` on chain `ch`: a seg's option label, a list's option name.
- *
- * @param {SnapRow} row
- * @param {Chain} ch
- * @param {string} v
- * @returns {string}
- */
-function textOf(row, ch, v) {
-  if (row.kind === "list") return listText(byChain(row.key, ch), v);
-  return [...(row.options ?? []), ...AUTO].find((o) => o.v === v)?.label ?? v;
-}
-
-/**
- * Every row's view against the edit showing and the engine now.
- *
- * @returns {SnapView[]}
- */
-export function snapshotRows() {
-  const e = editNow();
-  const L = liveNow();
-  const ch = e.vals.mode;
-  return SNAP_ROWS.map((row) => {
-    const d = snapRow(row, e, L);
-    return {
-      ...d,
-      id: row.id,
-      ...(row.stage ? { stage: row.stage } : {}),
-      label: byChain(row.label, ch),
-      ...(row.options ? { options: row.options } : {}),
-      valueText: textOf(row, ch, d.value),
-      liveText: textOf(row, ch, String(d.live)),
-    };
-  });
 }
