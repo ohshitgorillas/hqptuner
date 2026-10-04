@@ -20,7 +20,12 @@ import { paintSvg } from "../../lib/plots/gauge.js";
 import { grayReason, manPara } from "../../lib/controls/controls.js";
 import { barMarks, bindBar, rangeBox, readout } from "../../lib/plots/range-bar.js";
 import { signed } from "../../../../hqptuner/static/model/shell/format.js";
-import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from "../../model/gauges/range-axis.js";
+import {
+  clampVolume,
+  pickVolumeHandle,
+  tickMarks,
+  ticksEvery,
+} from "../../../../hqptuner/static/model/gauges/range-axis.js";
 
 const PADX = 16; // track inset, room for the end labels
 const Y = { pin: 3, bar: 30, barH: 14, tick: 56, label: 80, H: 86 };
@@ -28,8 +33,8 @@ const Y = { pin: 3, bar: 30, barH: 14, tick: 56, label: 80, H: 86 };
 const KEYS = ["min", "startup", "max"];
 
 /**
- * @typedef {import('../../model/gauges/range-axis.js').Axis} Axis
- * @typedef {import('../../model/gauges/range-axis.js').VolumeKey} VolumeKey
+ * @typedef {import('../../../../hqptuner/static/model/gauges/range-axis.js').Axis} Axis
+ * @typedef {import('../../../../hqptuner/static/model/gauges/range-axis.js').VolumeKey} VolumeKey
  * @typedef {import('../../lib/plots/range-bar.js').KeyGlyph} KeyGlyph
  * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx
  * @typedef {import('./drawer/state.js').Store} Store

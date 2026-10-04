@@ -2,7 +2,7 @@
 // one lit, ›. The decisions are model/pager.js; this only draws them.
 
 import { h } from "../shell/dom.js";
-import { paging, stepPage } from "../../model/builders/pager.js";
+import { paging, stepPage } from "../../../../hqptuner/static/model/builders/pager.js";
 
 /**
  * Whether a pager slot holds a node (the `count` slots are falsy without it).

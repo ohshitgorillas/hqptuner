@@ -9,7 +9,7 @@ import {
   spectrogramIndex,
   timeTicks,
   windowSpan,
-} from "../../../model/gauges/meter-plot.js";
+} from "../../../../../hqptuner/static/model/gauges/meter-plot.js";
 import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
 
@@ -102,7 +102,7 @@ function readRamp() {
  *
  * @param {Uint8ClampedArray} d  spectrogram pixels
  * @param {Uint8ClampedArray} a  strip pixels
- * @param {import('../../../model/gauges/meter-plot.js').SpectrogramIndex} idx
+ * @param {import('../../../../../hqptuner/static/model/gauges/meter-plot.js').SpectrogramIndex} idx
  * @param {Colours} colours
  */
 function fillPixels(d, a, idx, colours) {

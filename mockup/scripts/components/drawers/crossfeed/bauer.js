@@ -5,7 +5,7 @@ import { seg } from "../../controls/seg.js";
 import { BAUER_PRESETS, bauerMS, toDb } from "../../../lib/dsp/xdsp.js";
 import { numBox } from "../../../lib/controls/controls.js";
 import { minus } from "../../../../../hqptuner/static/model/shell/format.js";
-import { bauerPlot } from "../../../model/gauges/crossfeed.js";
+import { bauerPlot } from "../../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { paintAll, slider } from "../crossfeed.js";
 
 /**

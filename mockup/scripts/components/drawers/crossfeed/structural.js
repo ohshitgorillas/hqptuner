@@ -5,7 +5,11 @@ import { h, s } from "../../../lib/shell/dom.js";
 import { pathParams } from "../../../lib/dsp/xdsp.js";
 import { headGlyph, speakerGlyph } from "../../../lib/controls/glyphs.js";
 import { minus, plusMinus } from "../../../../../hqptuner/static/model/shell/format.js";
-import { geometryReadouts, listeningGeometry, structuralPreset } from "../../../model/gauges/crossfeed.js";
+import {
+  geometryReadouts,
+  listeningGeometry,
+  structuralPreset,
+} from "../../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { paintAll, slider } from "../crossfeed.js";
 
 /** @typedef {import("../crossfeed.js").View} View */

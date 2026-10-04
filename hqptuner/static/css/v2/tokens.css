@@ -152,4 +152,8 @@
   --knob-turn:.35s ease-out;           /* brand knob pointer settling on a state */
   --wipe:.2s ease-out;                 /* drawer and sheet wipe */
   --needle:.14s ease-out;              /* rate dial needle */
+
+  /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
+     accent, like the spectrogram ramp. */
+  --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
 }

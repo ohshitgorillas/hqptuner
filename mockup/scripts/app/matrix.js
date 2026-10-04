@@ -21,7 +21,7 @@ import {
 import { SPEAKERS, SPEAKERS_DRAWER, SETS } from "../data/stages/speakers.js";
 import { MATRIX_PROFILES } from "../data/builders/snapshots.js";
 import { PROFILES } from "../data/builders/profiles.js";
-import { modeName } from "../model/gauges/crossfeed.js";
+import { modeName } from "../../../hqptuner/static/model/gauges/crossfeed.js";
 import { profileRecords } from "../../../hqptuner/static/model/shell/frame.js";
 import { el } from "./markup.js";
 

@@ -2,7 +2,7 @@
 // the routing grid are lit and what they carry, and the overview's and an output tab's summaries.
 
 import { PEQ_TYPES } from "../gauges/eq.js";
-import { minus, signed } from "../../../../hqptuner/static/model/shell/format.js";
+import { minus, signed } from "./format.js";
 import { paging } from "../builders/pager.js";
 
 /**

@@ -4,7 +4,7 @@
 import { h } from "../../../lib/shell/dom.js";
 import { chShort, chName, PMAN } from "../../../data/stages/pipelines.js";
 import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
-import { MAXP, overviewSummary, pinState, range } from "../../../model/shell/pipelines.js";
+import { MAXP, overviewSummary, pinState, range } from "../../../../../hqptuner/static/model/shell/pipelines.js";
 import { grayed, paint, stage, watch } from "./state.js";
 import { openImport } from "./popovers.js";
 

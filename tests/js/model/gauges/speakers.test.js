@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { HEAD, placeSpeakers, planExtent } from "../../../../mockup/scripts/model/gauges/speakers.js";
+import { HEAD, placeSpeakers, planExtent } from "../../../../hqptuner/static/model/gauges/speakers.js";
 
 const LAYOUT = [0, 90, -90, 0];
 const EPS = 1e-9;

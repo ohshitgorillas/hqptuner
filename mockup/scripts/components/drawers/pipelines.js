@@ -23,7 +23,7 @@ import { mountPopovers } from "./pipelines/popovers.js";
 import { overview } from "./pipelines/overview.js";
 import { output } from "./pipelines/output.js";
 
-/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
 /** @typedef {import('./pipelines/state.js').Config} Config */
 /** @typedef {import('./pipelines/state.js').Deps} Deps */
 /** @typedef {import('./pipelines/state.js').Ctx} Ctx */

@@ -11,7 +11,7 @@ import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from "../../../
 /** @typedef {import('./values.js').Buffer} Buffer */
 /** @typedef {import('../../../lib/builder/builder.js').Builder<ProfileRecord, Buffer>} Builder */
 /** @typedef {ReturnType<typeof import('../autoeq.js').mountAutoEq>} AutoEq */
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
 /** @typedef {import('../../drawers/pipelines.js').Pipelines} Pipelines */
 /** @typedef {import('../../drawers/drawer.js').DrawerApi} DrawerApi */
 /** @typedef {import('../../drawers/drawer.js').Store} Store */

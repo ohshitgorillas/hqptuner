@@ -5,13 +5,13 @@ import { h } from "../../../lib/shell/dom.js";
 import { seg } from "../../controls/seg.js";
 import { pipeH, cplx, toDb } from "../../../lib/dsp/xdsp.js";
 import { chShort, chName } from "../../../data/stages/pipelines.js";
-import { groups, stageAt } from "../../../model/shell/pipelines.js";
-import { bandGain, plotInputs } from "../../../model/shell/pipelines-edit.js";
+import { groups, stageAt } from "../../../../../hqptuner/static/model/shell/pipelines.js";
+import { bandGain, plotInputs } from "../../../../../hqptuner/static/model/shell/pipelines-edit.js";
 import { paint, stage } from "./state.js";
 import { strip } from "./strip.js";
 import { paintDock } from "./dock.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
 /** @typedef {import('./output.js').Tab} Tab */
 /** @typedef {ReturnType<typeof plotInputs>} PlotView */
 

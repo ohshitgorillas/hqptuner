@@ -10,9 +10,16 @@ import { s } from "../../lib/shell/dom.js";
 import { scale } from "../../lib/shell/plate.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { mountPlotSvg, plotGrid, plotLabels } from "../../lib/plots/plot-frame.js";
-import { PAD, round1 as r, levelGrid, plotGeometry, pointAt, tracePath } from "../../model/gauges/plot-axes.js";
+import {
+  PAD,
+  round1 as r,
+  levelGrid,
+  plotGeometry,
+  pointAt,
+  tracePath,
+} from "../../../../hqptuner/static/model/gauges/plot-axes.js";
 
-/** @typedef {import('../../model/gauges/plot-axes.js').PlotGeometry} PlotGeometry */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/plot-axes.js').PlotGeometry} PlotGeometry */
 /** @typedef {{lo: number, hi: number, step: number, minor?: number, fMin?: number, fMax?: number, aria: string}} PlotCfg */
 /** @typedef {{fn: (f: number) => number, cls?: string, label?: string}} Trace  one line: dB at f */
 /**

@@ -10,15 +10,22 @@ import { mountRespPlot } from "../../controls/resp-plot.js";
 import { processSpec } from "../../../lib/dsp/procspec.js";
 import { chShort, chName } from "../../../data/stages/pipelines.js";
 import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
-import { PAGE, chipText, listItems, outputView, pageOf, rowText } from "../../../model/shell/pipelines.js";
+import {
+  PAGE,
+  chipText,
+  listItems,
+  outputView,
+  pageOf,
+  rowText,
+} from "../../../../../hqptuner/static/model/shell/pipelines.js";
 import { BLOCK_NAME, at, grayed, paint, stage, watch } from "./state.js";
 import { openMenu } from "./popovers.js";
 import { strip } from "./strip.js";
 import { paintDock } from "./dock.js";
 import { plot } from "./plot.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../../model/shell/pipelines.js').Item} Item */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Item} Item */
 /** @typedef {import('./state.js').Drawer} Drawer */
 /** @typedef {import('./state.js').Ctx} Ctx */
 /** @typedef {ReturnType<typeof outputView>} OutputView */

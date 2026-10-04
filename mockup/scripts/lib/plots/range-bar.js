@@ -6,13 +6,13 @@
 import { h, s } from "../shell/dom.js";
 import { scale } from "../shell/plate.js";
 import { signed } from "../../../../hqptuner/static/model/shell/format.js";
-import { barValueAt, barX, labelAnchor } from "../../model/gauges/range-axis.js";
+import { barValueAt, barX, labelAnchor } from "../../../../hqptuner/static/model/gauges/range-axis.js";
 
 /**
  * One bar's layout.
  *
  * @typedef {object} BarLayout
- * @property {import('../../model/gauges/range-axis.js').Axis} axis
+ * @property {import('../../../../hqptuner/static/model/gauges/range-axis.js').Axis} axis
  * @property {number} padX   track inset, room for the end labels
  * @property {{ bar: number, barH: number, tick: number, label: number }} Y  row tops in px
  */
@@ -84,7 +84,7 @@ export function barMarks(W, { axis, padX, Y }) {
     track: () => s("rect.trk", { x: padX - 3, y: by, width: W - 2 * padX + 6, height: bh, rx: 3 }),
     /** @param {string} cls  @param {number} a  @param {number} b */
     span: (cls, a, b) => s("rect", { class: cls, x: x(a), y: by, width: Math.max(0, x(b) - x(a)), height: bh }),
-    /** @param {import('../../model/gauges/range-axis.js').TickMark[]} marks  @param {string} minorCls */
+    /** @param {import('../../../../hqptuner/static/model/gauges/range-axis.js').TickMark[]} marks  @param {string} minorCls */
     ticks: (marks, minorCls) =>
       marks.map(({ d, weight, len }) =>
         s("line", {

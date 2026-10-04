@@ -8,7 +8,7 @@
 // layout. Descriptions are the user's own text (v1 profile descriptions), keyed by profile.
 //
 import { AUTOEQ } from "../stages/pipelines.js";
-import { PEQ_TYPES, bandsToStages, replacePeq } from "../../model/gauges/eq.js";
+import { PEQ_TYPES, bandsToStages, replacePeq } from "../../../../hqptuner/static/model/gauges/eq.js";
 
 // Copy: v1 verbatim (ProfileCard placeholders, Ask.js `Enter a name first`); the confirm lines are v1's Ask grammar
 // (`Preset "x" already exists. Overwrite it?`, `Delete preset "x"? This cannot be undone.`) with `Profile`, as the
@@ -54,7 +54,7 @@ const reshape =
 /**
  * An AutoEq hit (data/pipelines.js AUTOEQ) on the stereo pair: its bands replace the pair's peak / shelf stages.
  *
- * @param {{ bands: readonly import('../../model/gauges/eq.js').Band[], pre: number }} hit
+ * @param {{ bands: readonly import('../../../../hqptuner/static/model/gauges/eq.js').Band[], pre: number }} hit
  * @returns {Rewrite}
  */
 const autoeq = (hit) => (pipes) =>

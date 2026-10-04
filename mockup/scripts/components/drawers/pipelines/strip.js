@@ -5,13 +5,13 @@ import { h } from "../../../lib/shell/dom.js";
 import { processSpec, parseProcess } from "../../../lib/dsp/procspec.js";
 import { KINDS } from "../../../data/stages/pipelines.js";
 import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
-import { NEW_STAGE, chipText, groups, stageAt } from "../../../model/shell/pipelines.js";
+import { NEW_STAGE, chipText, groups, stageAt } from "../../../../../hqptuner/static/model/shell/pipelines.js";
 import { paint, stage } from "./state.js";
 import { openMenu } from "./popovers.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../../model/shell/pipelines.js').Stage} Stage */
-/** @typedef {import('../../../model/shell/pipelines.js').Group} Group */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Stage} Stage */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Group} Group */
 /** @typedef {import('./state.js').Raw} Raw */
 /** @typedef {import('./output.js').Tab} Tab */
 

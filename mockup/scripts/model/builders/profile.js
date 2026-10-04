@@ -3,9 +3,9 @@
 // step must be laid out again, and what the picker, the name box and Delete show. Each takes its tables as arguments,
 // returns a value and leaves its arguments as they were.
 
-import { bauerPreset, structuralPreset } from "../gauges/crossfeed.js";
+import { bauerPreset, structuralPreset } from "../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { percentApplied } from "../../../../hqptuner/static/model/gauges/loudness.js";
-import { shelfScale } from "../gauges/shelf.js";
+import { shelfScale } from "../../../../hqptuner/static/model/gauges/shelf.js";
 import { NEW, OVERVIEW, keyOf } from "./builder.js";
 
 /** The station's unnamed profile: the daemon's own name, kept and never deleted (v1). */

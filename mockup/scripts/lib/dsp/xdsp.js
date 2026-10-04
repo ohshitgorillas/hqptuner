@@ -35,7 +35,7 @@ export const toDb = (m) => 20 * Math.log10(Math.max(m, 1e-9));
 /**
  * Bauer presets (bs2b constants; v1 matrix-spec "Model"). Custom uses the form's frequency + level.
  *
- * @type {import('../../model/gauges/crossfeed.js').BauerCorners}
+ * @type {import('../../../../hqptuner/static/model/gauges/crossfeed.js').BauerCorners}
  */
 export const BAUER_PRESETS = { default: [700, 4.5], cmoy: [700, 6.0], jmeier: [650, 9.5] };
 

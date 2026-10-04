@@ -11,7 +11,7 @@ import { withXref } from "../../lib/controls/xref.js";
 import { numBox } from "../../lib/controls/controls.js";
 import { headGlyph, speakerGlyph } from "../../lib/controls/glyphs.js";
 import { minus } from "../../../../hqptuner/static/model/shell/format.js";
-import { HEAD, placeSpeakers, planExtent } from "../../model/gauges/speakers.js";
+import { HEAD, placeSpeakers, planExtent } from "../../../../hqptuner/static/model/gauges/speakers.js";
 
 /**
  * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx

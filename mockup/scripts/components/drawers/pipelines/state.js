@@ -4,14 +4,14 @@
 import { grayBut } from "../../../lib/shell/dom.js";
 import { withXref, xrefGo } from "../../../lib/controls/xref.js";
 import { structuralRows, compRows } from "../../../lib/dsp/xblocks.js";
-import { bandsToStages, replacePeq } from "../../../model/gauges/eq.js";
-import { crosspoint } from "../../../model/shell/pipelines.js";
+import { bandsToStages, replacePeq } from "../../../../../hqptuner/static/model/gauges/eq.js";
+import { crosspoint } from "../../../../../hqptuner/static/model/shell/pipelines.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../../model/shell/pipelines.js').Placed} Placed */
-/** @typedef {import('../../../model/gauges/eq.js').Band} Band */
-/** @typedef {import('../../../model/gauges/crossfeed.js').StructuralFields} StructuralFields */
-/** @typedef {import('../../../model/gauges/crossfeed.js').BauerFields} BauerFields */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Placed} Placed */
+/** @typedef {import('../../../../../hqptuner/static/model/gauges/eq.js').Band} Band */
+/** @typedef {import('../../../../../hqptuner/static/model/gauges/crossfeed.js').StructuralFields} StructuralFields */
+/** @typedef {import('../../../../../hqptuner/static/model/gauges/crossfeed.js').BauerFields} BauerFields */
 /** @typedef {import('./popovers.js').Pop} Pop */
 
 /** @typedef {Record<string, string>} Values  the matrix family's values by id */

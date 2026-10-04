@@ -21,7 +21,7 @@ import {
   pageOf,
   pinState,
   stageAt,
-} from "../../../../mockup/scripts/model/shell/pipelines.js";
+} from "../../../../hqptuner/static/model/shell/pipelines.js";
 import {
   bandGain,
   delayFields,
@@ -31,12 +31,12 @@ import {
   lockedFields,
   plotInputs,
   retypeStage,
-} from "../../../../mockup/scripts/model/shell/pipelines-edit.js";
+} from "../../../../hqptuner/static/model/shell/pipelines-edit.js";
 import { near } from "../../support/near.js";
 
 /**
- * @typedef {import("../../../../mockup/scripts/model/shell/pipelines.js").Pipe} Pipe
- * @typedef {import("../../../../mockup/scripts/model/shell/pipelines.js").Stage} Stage
+ * @typedef {import("../../../../hqptuner/static/model/shell/pipelines.js").Pipe} Pipe
+ * @typedef {import("../../../../hqptuner/static/model/shell/pipelines.js").Stage} Stage
  */
 
 /**

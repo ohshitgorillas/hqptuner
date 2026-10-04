@@ -15,7 +15,7 @@ import {
   spectrumPoints,
   timeTicks,
   windowSpan,
-} from "../../../../mockup/scripts/model/gauges/meter-plot.js";
+} from "../../../../hqptuner/static/model/gauges/meter-plot.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.

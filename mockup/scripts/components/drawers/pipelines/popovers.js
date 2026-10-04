@@ -5,14 +5,14 @@ import { h } from "../../../lib/shell/dom.js";
 import { popover } from "../../../lib/shell/popover.js";
 import { placeBy, scale } from "../../../lib/shell/plate.js";
 import { AUTOEQ } from "../../../data/stages/pipelines.js";
-import { bandsToStages, replacePeq, searchHits } from "../../../model/gauges/eq.js";
+import { bandsToStages, replacePeq, searchHits } from "../../../../../hqptuner/static/model/gauges/eq.js";
 import { paint, rebuild, stage } from "./state.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
 /** @typedef {import('./state.js').Drawer} Drawer */
 /** @typedef {import('./state.js').Ctx} Ctx */
 /** @typedef {ReturnType<typeof popover>} Popover */
-/** @typedef {import('../../../model/gauges/eq.js').Band} Band */
+/** @typedef {import('../../../../../hqptuner/static/model/gauges/eq.js').Band} Band */
 /** @typedef {{ name: string, src: string, bands: readonly Band[], pre: number }} Hit  one of AUTOEQ's hits */
 /** @typedef {[string, () => void]} MenuRow  a menu row's label and what it does */
 

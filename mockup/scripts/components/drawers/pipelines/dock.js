@@ -8,15 +8,15 @@
 import { h } from "../../../lib/shell/dom.js";
 import { xref } from "../../../lib/controls/xref.js";
 import { PMAN, IIR_TYPES, DELAY_ARGS, KINDS } from "../../../data/stages/pipelines.js";
-import { dockState, lockedFields } from "../../../model/shell/pipelines-edit.js";
+import { dockState, lockedFields } from "../../../../../hqptuner/static/model/shell/pipelines-edit.js";
 import { BLOCK_NAME, paint, stage } from "./state.js";
 import { FRESH, focusStage } from "./strip.js";
 import { delayEditor, fileDock, gainDock, iirEditor, lab, paras, riaaDock, tline } from "./editors.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../../model/shell/pipelines.js').Group} Group */
-/** @typedef {import('../../../model/shell/pipelines-edit.js').DelayArg} DelayArg */
-/** @typedef {import('../../../model/shell/pipelines-edit.js').IirType} IirType */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Group} Group */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines-edit.js').DelayArg} DelayArg */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines-edit.js').IirType} IirType */
 /** @typedef {import('./output.js').Tab} Tab */
 /** @typedef {import('./editors.js').Dock} Dock */
 /** @typedef {import('./editors.js').After} After */

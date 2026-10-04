@@ -4,11 +4,16 @@
 import { h } from "../../../lib/shell/dom.js";
 import { seg } from "../../controls/seg.js";
 import { PMAN, IIR_TYPES, ARG_NAME, ARG_UNIT, DELAY_ARGS, DELAY_V } from "../../../data/stages/pipelines.js";
-import { delayFields, gainSwitch, iirFields, retypeStage } from "../../../model/shell/pipelines-edit.js";
+import {
+  delayFields,
+  gainSwitch,
+  iirFields,
+  retypeStage,
+} from "../../../../../hqptuner/static/model/shell/pipelines-edit.js";
 
-/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../../model/shell/pipelines.js').Stage} Stage */
-/** @typedef {import('../../../model/shell/pipelines-edit.js').DelayArg} DelayArg */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines.js').Stage} Stage */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/pipelines-edit.js').DelayArg} DelayArg */
 /** @typedef {ReturnType<typeof iirFields>} IirFields */
 /** @typedef {IirFields['args'][number]} IirArg */
 /** @typedef {() => void} After  stage the set and repaint, once an edit lands */

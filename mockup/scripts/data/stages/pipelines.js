@@ -7,7 +7,7 @@
 // (REW-style PEQ + headroom gain). `#mch` in the URL loads a 5.1 → stereo mixdown instead (the daemon's stock
 // `Mch-to-Stereo mixdown` profile shape), to show a fuller grid; `#dense` loads 120 pipelines in two channels, `#71` a 7.1 → 7.1 bass-managed layout (the 8-channel ceiling).
 
-import { bandsToStages } from "../../model/gauges/eq.js";
+import { bandsToStages } from "../../../../hqptuner/static/model/gauges/eq.js";
 
 // Channel names: slots 1–8 carry the daemon's channel order (readme §1.9; v1 short names, LFE shown as Sub), beyond that
 // numbers (label channels when you can, numbers beyond that).
@@ -65,7 +65,7 @@ export const chName = (i) => CH_NAME[i] ?? `Channel ${i + 1}`;
  */
 
 /**
- * @param {import('../../model/gauges/eq.js').Band[]} bands
+ * @param {import('../../../../hqptuner/static/model/gauges/eq.js').Band[]} bands
  * @returns {Stage[]}
  */
 const room = (bands) => [...bandsToStages(bands), { kind: "iir", type: "hshelf", f: 8000, g: -1.5, q: 0.7 }];
@@ -240,7 +240,7 @@ export const KINDS = [
 
 // Import EQ popover (v1 Library.js lane): vendored AutoEq library, mock hits.
 /**
- * @type {{ placeholder: string, mirror: string, hits: { name: string, src: string, pre: number, bands: import('../../model/gauges/eq.js').Band[] }[] }}
+ * @type {{ placeholder: string, mirror: string, hits: { name: string, src: string, pre: number, bands: import('../../../../hqptuner/static/model/gauges/eq.js').Band[] }[] }}
  */
 export const AUTOEQ = {
   placeholder: "Search headphone model — e.g. HD 650…", // v1 Library.js

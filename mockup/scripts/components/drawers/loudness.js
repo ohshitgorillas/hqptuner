@@ -12,13 +12,19 @@ import { h, s } from "../../lib/shell/dom.js";
 import { seg, select } from "../controls/seg.js";
 import { mountRespPlot } from "../controls/resp-plot.js";
 import { loudnessDb } from "../../lib/dsp/xdsp.js";
-import { shelfScale } from "../../model/gauges/shelf.js";
+import { shelfScale } from "../../../../hqptuner/static/model/gauges/shelf.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { grayReason, manPara, numBox } from "../../lib/controls/controls.js";
 import { barMarks, bindBar, rangeBox, readout } from "../../lib/plots/range-bar.js";
 import { signed } from "../../../../hqptuner/static/model/shell/format.js";
 import { percentApplied } from "../../../../hqptuner/static/model/gauges/loudness.js";
-import { clampBounds, clampToAxis, pickBound, tickMarks, ticksEvery } from "../../model/gauges/range-axis.js";
+import {
+  clampBounds,
+  clampToAxis,
+  pickBound,
+  tickMarks,
+  ticksEvery,
+} from "../../../../hqptuner/static/model/gauges/range-axis.js";
 
 const AXIS = { min: -120, max: 0 };
 const Y = { bar: 10, barH: 14, tick: 33, label: 54, H: 59 };
@@ -33,7 +39,7 @@ const LABELS = new Map([
 const MARKS = tickMarks(ticksEvery(AXIS.min, AXIS.max, 10), LABELS, []);
 /**
  * @typedef {import('../../lib/dsp/xdsp.js').LoudnessBand} LoudnessBand
- * @typedef {import('../../model/gauges/range-axis.js').BoundKey} Side
+ * @typedef {import('../../../../hqptuner/static/model/gauges/range-axis.js').BoundKey} Side
  * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx
  * @typedef {import('./drawer/state.js').Store} Store
  * @typedef {'freq' | 'steep' | 'level'} NumKey

@@ -1,7 +1,7 @@
 // Volume and loudness: the Loudness rail value that follows the live level, and the Volume drawer (Fixed volume, Range).
 
 import { xrefGo } from "../lib/controls/xref.js";
-import { shelfScale } from "../model/gauges/shelf.js";
+import { shelfScale } from "../../../hqptuner/static/model/gauges/shelf.js";
 import { mountDrawer } from "../components/drawers/drawer.js";
 import { mountVolumeRange } from "../components/drawers/volume-range.js";
 import { VOLUME, VOLUME_DRAWER } from "../data/stages/volume.js";

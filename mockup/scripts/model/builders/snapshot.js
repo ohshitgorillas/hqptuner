@@ -4,7 +4,7 @@
 // and leaves its arguments as they were.
 
 import { NEW, keyOf } from "./builder.js";
-import { paging } from "./pager.js";
+import { paging } from "../../../../hqptuner/static/model/builders/pager.js";
 
 /** @typedef {import('./builder.js').Ref} Ref */
 /** @typedef {import('../../data/stages/conversion.js').Chain} Chain */

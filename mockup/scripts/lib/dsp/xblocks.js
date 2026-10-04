@@ -12,8 +12,8 @@
 
 import { pathParams, bauerMS, BAUER_PRESETS, toDb, gainLin } from "./xdsp.js";
 
-/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
-/** @typedef {import('../../model/shell/pipelines.js').Stage} Stage */
+/** @typedef {import('../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../hqptuner/static/model/shell/pipelines.js').Stage} Stage */
 
 /** @param {number} v */
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -22,7 +22,7 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
  * Structural crossfeed: 16 rows (8 per ear present), each carrying that ear's EQ.
  *
  * @param {Record<number, Pipe | null | undefined>} ear  the pair's pipelines (In L→Out L, In R→Out R)
- * @param {import('../../model/gauges/crossfeed.js').StructuralFields} prm
+ * @param {import('../../../../hqptuner/static/model/gauges/crossfeed.js').StructuralFields} prm
  * @returns {Pipe[]}
  */
 export function structuralRows(ear, { angle, circ, lambda }) {
@@ -69,7 +69,7 @@ export function structuralRows(ear, { angle, circ, lambda }) {
  * Bauer compensation: 8 M/S rows (v1 wire shape), comp on the M rows.
  *
  * @param {Record<number, Pipe | null | undefined>} ear  the pair's pipelines (In L→Out L, In R→Out R)
- * @param {import('../../model/gauges/crossfeed.js').BauerFields} prm
+ * @param {import('../../../../hqptuner/static/model/gauges/crossfeed.js').BauerFields} prm
  * @returns {Pipe[]}
  */
 export function compRows(ear, { preset, freq, level, comp }) {

@@ -22,7 +22,7 @@ import { mountRespPlot } from "../controls/resp-plot.js";
 import { BAUER_PRESETS } from "../../lib/dsp/xdsp.js";
 import { grayReason, manPara, numBox } from "../../lib/controls/controls.js";
 import { minus } from "../../../../hqptuner/static/model/shell/format.js";
-import { bauerSummary, crossfeedGray, structuralSummary } from "../../model/gauges/crossfeed.js";
+import { bauerSummary, crossfeedGray, structuralSummary } from "../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { ENGAGE_BYPASS } from "../../data/stages/matrix.js";
 import { bauerControls, drawBauer } from "./crossfeed/bauer.js";
 import { S_TOL, drawGeometry, geometryHost, paintPreset, structuralControls } from "./crossfeed/structural.js";
@@ -41,8 +41,8 @@ const ID = {
 };
 
 /**
- * @typedef {import('../../model/gauges/crossfeed.js').BauerFields} BauerFields
- * @typedef {import('../../model/gauges/crossfeed.js').StructuralFields} StructuralFields
+ * @typedef {import('../../../../hqptuner/static/model/gauges/crossfeed.js').BauerFields} BauerFields
+ * @typedef {import('../../../../hqptuner/static/model/gauges/crossfeed.js').StructuralFields} StructuralFields
  * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx
  * @typedef {import('./drawer/state.js').Store} Store
  */

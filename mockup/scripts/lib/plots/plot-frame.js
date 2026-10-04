@@ -4,7 +4,7 @@
 
 import { s } from "../shell/dom.js";
 import { signed } from "../../../../hqptuner/static/model/shell/format.js";
-import { GUTTER, PAD, round1 as r } from "../../model/gauges/plot-axes.js";
+import { GUTTER, PAD, round1 as r } from "../../../../hqptuner/static/model/gauges/plot-axes.js";
 
 /**
  * A frequency axis label: kHz above 1 kHz (`10k`), Hz below.
@@ -32,8 +32,8 @@ export function mountPlotSvg(host, aria, draw) {
  * The grid behind the trace: decade lines and the lines between them, the level grid (minors only with room), and the
  * 0 dB line when the scale crosses it.
  *
- * @param {import('../../model/gauges/plot-axes.js').PlotGeometry} geo
- * @param {import('../../model/gauges/plot-axes.js').LevelGrid} grid
+ * @param {import('../../../../hqptuner/static/model/gauges/plot-axes.js').PlotGeometry} geo
+ * @param {import('../../../../hqptuner/static/model/gauges/plot-axes.js').LevelGrid} grid
  */
 export function plotGrid({ x, y, lo, hi, x0, x1, yb }, grid) {
   /** @param {number} f */
@@ -50,8 +50,8 @@ export function plotGrid({ x, y, lo, hi, x0, x1, yb }, grid) {
 /**
  * The axis labels: dB in the gutter, frequency in the band.
  *
- * @param {import('../../model/gauges/plot-axes.js').PlotGeometry} geo
- * @param {import('../../model/gauges/plot-axes.js').LevelGrid} grid
+ * @param {import('../../../../hqptuner/static/model/gauges/plot-axes.js').PlotGeometry} geo
+ * @param {import('../../../../hqptuner/static/model/gauges/plot-axes.js').LevelGrid} grid
  */
 export function plotLabels({ x, y, H, x0, x1 }, grid) {
   return s(

@@ -13,12 +13,12 @@ import { pipeH, cplx, toDb } from "../../lib/dsp/xdsp.js";
 import { AUTOEQ } from "../../data/stages/pipelines.js";
 import { AEQ_COPY } from "../../data/builders/profiles.js";
 import { signed } from "../../../../hqptuner/static/model/shell/format.js";
-import { PEQ_TYPES, hitPipe, hitSummary, peqCount, shownHits } from "../../model/gauges/eq.js";
+import { PEQ_TYPES, hitPipe, hitSummary, peqCount, shownHits } from "../../../../hqptuner/static/model/gauges/eq.js";
 
-/** @typedef {import('../../model/gauges/eq.js').Band} Band */
-/** @typedef {import('../../model/gauges/eq.js').Hit} Hit */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/eq.js').Band} Band */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/eq.js').Hit} Hit */
 /** @typedef {import('../controls/resp-plot.js').Trace} Trace */
-/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../../hqptuner/static/model/shell/pipelines.js').Pipe} Pipe */
 /** @typedef {Pipe | null | undefined} Ear  one side of the stereo pair, when it has a pipeline */
 /** @typedef {Parameters<typeof pipeH>[0]} DbPipe  what the response reads */
 /** @typedef {{ bands?: readonly Band[], pre?: number | null, conv?: string }} EqLoad  an EQ (or a convolution file) to land */

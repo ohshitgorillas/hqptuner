@@ -3,7 +3,7 @@
 // {kind:'conv', file} (WAV) · {kind:'peqfile', file} (REW / AutoEq .txt). Raw input that won't parse is kept verbatim and
 // flagged, never dropped (v1 round-trip contract).
 
-/** @typedef {import('../../model/shell/pipelines.js').Stage} Stage */
+/** @typedef {import('../../../../hqptuner/static/model/shell/pipelines.js').Stage} Stage */
 /** @typedef {{ stages: Stage[] | null, error: string }} Parsed  the stages, or null and why the string won't parse */
 
 /** @type {Readonly<Record<string, readonly string[]>>} */

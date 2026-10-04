@@ -3,7 +3,12 @@
 
 import { h, s } from "../../../lib/shell/dom.js";
 import { emptySpectrum, stepSpectrum } from "../../../model/gauges/meter.js";
-import { freqTicks, freqX, spectrumAxes, spectrumPoints } from "../../../model/gauges/meter-plot.js";
+import {
+  freqTicks,
+  freqX,
+  spectrumAxes,
+  spectrumPoints,
+} from "../../../../../hqptuner/static/model/gauges/meter-plot.js";
 import { binLevels } from "../../../model/gauges/meter-source.js";
 import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
@@ -14,7 +19,7 @@ const SW = 600,
 
 /**
  * @typedef {import('../../../model/gauges/meter.js').SpectrumHold} SpectrumHold
- * @typedef {import('../../../model/gauges/meter-plot.js').SpectrumPlot} SpectrumPlot
+ * @typedef {import('../../../../../hqptuner/static/model/gauges/meter-plot.js').SpectrumPlot} SpectrumPlot
  * @typedef {import('../../../model/gauges/meter-source.js').MockSource} MockSource
  * @typedef {import('../../../model/gauges/meter-source.js').MockColumn} MockColumn
  */

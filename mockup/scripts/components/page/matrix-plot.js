@@ -5,7 +5,12 @@
 import { s } from "../../lib/shell/dom.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { mountPlotSvg, plotGrid, plotLabels } from "../../lib/plots/plot-frame.js";
-import { centredLevelY, levelGrid, plotGeometry, tracePath } from "../../model/gauges/plot-axes.js";
+import {
+  centredLevelY,
+  levelGrid,
+  plotGeometry,
+  tracePath,
+} from "../../../../hqptuner/static/model/gauges/plot-axes.js";
 
 /** @typedef {{ from: number, dbPerOct: number }} Slope  a slope in dB per octave above `from` Hz */
 

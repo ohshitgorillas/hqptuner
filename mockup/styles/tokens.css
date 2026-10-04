@@ -7,10 +7,6 @@
   /* Spectrogram ramp, floor to full scale: glass → amber → pale gold (HQPlayer: lowest black, highest yellow). */
   --spec-0:#08090b; --spec-1:#221508; --spec-2:#5c3811; --spec-3:#a9681f; --spec-4:#e9a63c; --spec-5:#fff0c4;
 
-  /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
-     accent, like the spectrogram ramp. */
-  --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
-
   --shade-soft:#0008;          /* cast shadow under a raised part */
   --glint-lo:#fff4;            /* top-edge light on a colour swatch */
   --glint-faint:#ffffff0d;     /* lip under a facet window */

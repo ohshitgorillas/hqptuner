@@ -15,10 +15,10 @@ import {
   replacePeq,
   searchHits,
   shownHits,
-} from "../../../../mockup/scripts/model/gauges/eq.js";
+} from "../../../../hqptuner/static/model/gauges/eq.js";
 
 //: Two bands with distinct f, g and Q: the first typed, the second left to the default.
-/** @type {import("../../../../mockup/scripts/model/gauges/eq.js").Band[]} */
+/** @type {import("../../../../hqptuner/static/model/gauges/eq.js").Band[]} */
 const BANDS = [
   [105, 5.5, 0.71, "lshelf"],
   [3000, -2.1, 1.6],
