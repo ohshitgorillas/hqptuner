@@ -15,7 +15,7 @@
 .sro dd{margin:0 0 0 auto;font-family:var(--f-mono);font-size:10.5px;color:var(--acc);text-align:right;min-width:0;display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;line-height:var(--lh-text)}
 .sro .wide{flex-direction:column;align-items:flex-start;gap:1px}
 .sro .wide dd{margin:0;text-align:left;justify-content:flex-start;overflow-wrap:anywhere}
-.sro i.sw,.st .sro i.sw{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sw);border:1px solid #000;margin-right:5px}
+.sro i.sw,.st .sro i.sw{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sw);border:1px solid var(--shade);margin-right:5px}
 
 /* Page: About (engine identity + Backup / restore), About HQPTuner. Same two-column grammar as the chain page. */
 dl.about{margin:0;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 18px;align-items:baseline}
@@ -32,7 +32,7 @@ dl.about dd{margin:0;font-family:var(--f-mono);font-size:13px;color:var(--ink);l
 input.vfd.txt{width:100%;text-align:left;font-size:13px;font-weight:400}
 input.vfd.txt:disabled{color:var(--acc-dim)}
 .accpick{display:flex;align-items:center;gap:10px}
-.swatch{width:30px;height:30px;padding:0;border-radius:50%;border:1px solid #000;background:var(--sw);box-shadow:inset 0 1px 0 #fff4,0 1px 3px #0008;cursor:pointer}
+.swatch{width:30px;height:30px;padding:0;border-radius:50%;border:1px solid var(--shade);background:var(--sw);box-shadow:inset 0 1px 0 var(--glint-lo),0 1px 3px var(--shade-soft);cursor:pointer}
 .swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:3px}
 input.vfd.hex{width:100px;text-align:left;font-size:13px;margin-left:6px}
 
@@ -40,7 +40,7 @@ input.vfd.hex{width:100px;text-align:left;font-size:13px;margin-left:6px}
 .dblock[data-block="logtail"]{border-top:1px solid var(--row-rule)}
 .ltrow{border-bottom:0}
 .ltrow .act{flex-wrap:wrap}
-pre.logtail{flex:1 1 0;min-height:60px;margin:2px 0 6px;overflow:auto;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);
+pre.logtail{flex:1 1 0;min-height:60px;margin:2px 0 6px;overflow:auto;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);
   padding:8px 12px;font:11.5px/1.5 var(--f-mono);color:var(--ink-2);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 
 /* Overflow rule: copy in closer to its setting first (control column 300, the CUDA offload seg's width); then tabs. */
@@ -96,8 +96,8 @@ pre.logtail{flex:1 1 0;min-height:60px;margin:2px 0 6px;overflow:auto;background
 .seg.tgl{align-self:flex-start}
 
 /* Settings rail category holding an alert (alerts.js; the gear blinks with it): its name blinks red / amber. */
-.sst[data-alert="crit"] .n{animation:al-ink-crit 1s step-end infinite}
-.sst[data-alert="warn"] .n{animation:al-ink-warn 1s step-end infinite}
+.sst[data-alert="crit"] .n{animation:al-ink-crit var(--blink)}
+.sst[data-alert="warn"] .n{animation:al-ink-warn var(--blink)}
 @media (prefers-reduced-motion:reduce){.sst[data-alert] .n{animation:none}.sst[data-alert="crit"] .n{color:var(--bad)}.sst[data-alert="warn"] .n{color:var(--warn)}}
 
 /* Signal path (components/signal-path.js): the whole map, the path playing now lit. Running state is lettering + wire in ink,

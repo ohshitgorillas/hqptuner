@@ -8,7 +8,7 @@
 .switcher .target select.vfd{height:34px;line-height:34px;font-size:13px;width:150px}
 
 .slots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
-.slot{display:flex;height:52px;background:var(--glass);border:1px solid #000;border-radius:5px;box-shadow:var(--well);overflow:hidden}
+.slot{display:flex;height:52px;background:var(--glass);border:1px solid var(--shade);border-radius:5px;box-shadow:var(--well);overflow:hidden}
 .slot.on{border-color:var(--acc);box-shadow:var(--well),0 0 0 1px var(--acc-dim),0 0 10px var(--acc-halo)}
 
 .sbody{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;padding:0 12px;border:0;background:none;text-align:left;font:inherit;cursor:pointer}

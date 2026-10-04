@@ -15,12 +15,12 @@ button,input,select,textarea{line-height:inherit}
    give way so the groups never wrap or clip; the size's points stay in each Display button's tooltip. */
 @media (max-width:1300px){.scene{gap:10px}.scene .seg button{padding:0 10px}.scene > .cnt{display:none}}
 .plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:14px 22px 0;display:flex;flex-direction:column;
-  background:linear-gradient(180deg,#23262b,#1b1d21 40%,#1e2126);border:1px solid var(--edge);border-radius:10px;
-  box-shadow:0 30px 80px #000c,inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums}
+  background:var(--plate-face);border:1px solid var(--edge);border-radius:10px;
+  box-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums}
 .rule{height:1px;background:var(--line);flex-shrink:0}
 
 /* Engraved legend text. */
-.eng{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);text-shadow:0 1px 0 #000;white-space:nowrap;line-height:var(--lh-eng)}
+.eng{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);text-shadow:0 1px 0 var(--shade);white-space:nowrap;line-height:var(--lh-eng)}
 .mono{font-family:var(--f-mono);line-height:var(--lh-text)}
 .acc{color:var(--acc)}
 .cnt{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}

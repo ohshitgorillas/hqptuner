@@ -1,7 +1,23 @@
 #!/usr/bin/env python3
-"""Gate: static CSS uses tokens, never literal type, color, shape, space, or shading.
+"""Gate: a stylesheet uses tokens, by the rules its directory is held to.
 
-Left ungated, the stylesheet drifts to free-chosen font-size values and a
+Two rule sets, chosen by where the stylesheet lives. A stylesheet in one of the
+v1 concern directories (``css/base``, ``css/cards``, ``css/controls``,
+``css/features``) is held to the v1 ladder described below. Every other
+stylesheet is a faceplate stylesheet and is held to the faceplate rules
+(docs/design-system.md):
+
+- no raw color outside tokens.css, on any property, custom ones included;
+- ``line-height`` is never ``normal``: it follows each font file's metrics,
+  which differ by browser, and moves text off the plate;
+- ``font-family`` names a ``--f-*`` token;
+- a ``transition`` or ``animation`` carries no literal duration: it is
+  ``none`` or it names a motion token.
+
+The faceplate is laid out in pixels at its design size, so a literal size,
+space or radius is legal there.
+
+The v1 ladder. Left ungated, the stylesheet drifts to free-chosen font-size values and a
 spread of effective text grays, and new text lands looking out of place
 because nothing says which value to pick. tokens.css owns the ladder; this
 gate keeps it that way.
@@ -67,7 +83,19 @@ VERTICAL_MARGINS = frozenset({"margin-top", "margin-bottom", "margin-block-start
 MARGIN_SHORTHANDS = frozenset({"margin", "margin-block"})
 _SIDES_SPLIT = 3  # shorthand arity at which top and bottom stop sharing one component
 
-DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
+#: the v1 concern directories, each a child of a `css` directory
+V1_CONCERNS = frozenset({"base", "cards", "controls", "features"})
+#: CSS-wide keywords: legal anywhere, they name no value of their own
+CSS_WIDE = frozenset({"inherit", "initial", "unset", "revert"})
+#: a literal time — what a faceplate transition or animation may not carry
+DURATION = re.compile(r"(?<![\w-])[\d.]+m?s\b")
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+DECL = re.compile(r"(--)?([a-zA-Z][\w-]*)\s*:\s*(.+)", re.DOTALL)
+#: a v1 declaration: one to a line, closed by its semicolon, as prettier writes it
+V1_DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
+
+#: (line the declaration starts on, custom property?, property, value)
+Declaration = tuple[int, bool, str, str]
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 #: the raw elevation ladder — legal only where it is defined
 PRIMITIVE = re.compile(r"var\(\s*--bg\b")
@@ -205,23 +233,91 @@ def check_decl(prop: str, value: str, *, custom: bool) -> str:
     return ""
 
 
+def faceplate_complaint(prop: str, value: str) -> str:
+    """Return a complaint about one faceplate declaration, or '' if it is clean."""
+    if COLOUR.search(value):
+        return f"{prop}: {value} — use a color token from {DEFINITION_SITE}"
+    if prop == "line-height" and value == "normal":
+        return f"{prop}: {value} — pin it: var(--lh-eng), var(--lh-text) or a number"
+    if prop == "font-family" and value not in CSS_WIDE and not value.startswith("var(--f-"):
+        return f"{prop}: {value} — name a --f-* family token from {DEFINITION_SITE}"
+    if prop.startswith(("transition", "animation")) and DURATION.search(value):
+        return f"{prop}: {value} — name a motion token from {DEFINITION_SITE}"
+    return ""
+
+
+def statements(text: str) -> list[tuple[int, str, str]]:
+    """Return (start line, text, terminator) for every run of CSS between `{`, `}` and `;`.
+
+    A terminator inside parentheses or a quoted string belongs to the value
+    holding it, so a data URL or a `content` string is one statement.
+    """
+    found: list[tuple[int, str, str]] = []
+    line, start, parens, quote, current = 1, 1, 0, "", ""
+    for char in text:
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "\"'":
+            quote = char
+        elif char in "()":
+            parens += 1 if char == "(" else -1
+        elif char in "{};" and not parens:
+            found.append((start, current.strip(), char))
+            current = ""
+            continue
+        if not current.strip():
+            start = line
+        current += char
+        line += char == "\n"
+    return found
+
+
+def declarations(text: str) -> list[Declaration]:
+    """Return every declaration in a stylesheet, however many share a line.
+
+    A statement is a declaration when it sits inside a block and does not open
+    one: `a:hover {` ends in a brace and is a selector, and anything at depth
+    zero is an at-rule.
+    """
+    found: list[Declaration] = []
+    depth = 0
+    blanked = BLOCK_COMMENT.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+    for line, body, terminator in statements(blanked):
+        match = DECL.fullmatch(body) if depth and terminator != "{" else None
+        if match is not None:
+            found.append((line, bool(match.group(1)), match.group(2), " ".join(match.group(3).split())))
+        depth += (terminator == "{") - (terminator == "}")
+    return found
+
+
+def v1_declarations(lines: list[str]) -> list[Declaration]:
+    """Return the declaration opening each line of a v1 stylesheet."""
+    matches = [(num, V1_DECL.match(line)) for num, line in enumerate(lines, 1)]
+    return [(num, bool(m.group(1)), m.group(2), m.group(3).strip()) for num, m in matches if m is not None]
+
+
+def is_v1(path: Path) -> bool:
+    """Report whether this stylesheet sits in a v1 concern directory."""
+    return path.parent.name in V1_CONCERNS and path.parent.parent.name == "css"
+
+
 def check_file(path: Path) -> list[str]:
-    """Return one complaint per offending line in ``path``."""
+    """Return one complaint per offending declaration in ``path``."""
+    text = path.read_text()
+    lines = text.splitlines()
+    v1 = is_v1(path)
     problems = []
-    for num, line in enumerate(path.read_text().splitlines(), 1):
-        if EXEMPT.search(line):
+    for num, custom, prop, value in v1_declarations(lines) if v1 else declarations(text):
+        if EXEMPT.search(lines[num - 1]):
             continue
-        match = DECL.match(line)
-        if match is None:
-            continue
-        complaint = check_decl(match.group(2), match.group(3).strip(), custom=bool(match.group(1)))
+        complaint = check_decl(prop, value, custom=custom) if v1 else faceplate_complaint(prop, value)
         if complaint:
             problems.append(f"{path}:{num}: {complaint}")
     return problems
 
 
 def main() -> int:
-    """Refuse a CSS value off the token ladder, a rhythm token off gap, or a vertical margin spending space."""
+    """Refuse a CSS value off its directory's rules: the v1 ladder, or the faceplate's tokens."""
     problems: list[str] = []
     for name in sys.argv[1:]:
         path = Path(name)
@@ -230,7 +326,7 @@ def main() -> int:
     for problem in problems:
         print(problem)
     if problems:
-        print(f"\n{len(problems)} value(s) off the ladder. Add the value to tokens.css — or, for a")
+        print(f"\n{len(problems)} value(s) off the tokens. Add the value to tokens.css — or, for a v1")
         print("vertical margin, move the space to the parent's gap, which is the one mechanism")
         print(f"for it. Mark the line /* {PRAGMA} <reason> */ if neither applies; the reason is")
         print("required, and for a margin it has to say why the space is not between siblings.")

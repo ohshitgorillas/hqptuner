@@ -33,10 +33,10 @@
 
 /* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold line. */
 .sgrid1{display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:160px 14px;gap:4px 8px}
-.splot{position:relative;background:var(--glass);border:1px solid #000;border-radius:3px;box-shadow:var(--well);overflow:hidden}
+.splot{position:relative;background:var(--glass);border:1px solid var(--shade);border-radius:3px;box-shadow:var(--well);overflow:hidden}
 .spectrum{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 .spectrum line,.spectrum path{vector-effect:non-scaling-stroke}
-.sgridl line{stroke:#1f2227;stroke-width:1}
+.sgridl line{stroke:var(--grid);stroke-width:1}
 .sarea{fill:var(--meter);fill-opacity:.16;stroke:none}
 .strace{fill:none;stroke:var(--meter);stroke-width:1.5;stroke-linejoin:round}
 .shold{fill:none;stroke:var(--meter-hi);stroke-opacity:.55;stroke-width:1}
@@ -51,7 +51,7 @@
 .lvs span.first{transform:none}
 .lvs span.last{transform:translateY(-100%)}
 .lvb{display:flex;flex-direction:column;align-items:center;gap:4px}
-.lvb .trough{position:relative;flex-grow:1;width:24px;background:var(--glass);border:1px solid #000;border-radius:2px;box-shadow:inset 0 1px 3px #000;overflow:hidden}
+.lvb .trough{position:relative;flex-grow:1;width:24px;background:var(--glass);border:1px solid var(--shade);border-radius:2px;box-shadow:inset 0 1px 3px var(--shade);overflow:hidden}
 .lvb .trough i{position:absolute;bottom:0;display:block}
 .lvb .pk{left:0;right:0;background:var(--meter-lo);border-top:1px solid var(--meter-dim)}
 .lvb .rm{left:5px;right:5px;background:linear-gradient(0deg,var(--meter-dim),var(--meter))}
@@ -68,7 +68,7 @@
 /* Spectrogram grid: gutter | plot. Row 1 apodizing strip, row 2 spectrogram (kHz, linear), row 3 time axis. */
 .sgrid2{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:12px minmax(0,1fr) 14px;gap:4px 8px}
 .rowl{font-family:var(--f-eng);font-weight:600;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:12px}
-.spec,.apodstrip{display:block;width:100%;height:100%;border:1px solid #000;border-radius:2px;box-sizing:border-box;box-shadow:var(--well)}
+.spec,.apodstrip{display:block;width:100%;height:100%;border:1px solid var(--shade);border-radius:2px;box-sizing:border-box;box-shadow:var(--well)}
 
 /* No meter (mock scenario: nothing plays, or a DSD source with the matrix bypassed): v1's owner copy, centred in the drawer. */
 .mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:200px}
@@ -81,7 +81,7 @@
 .pmeter .sside,.pmeter .lside{min-height:0}
 .pmeter .sgrid1{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) 14px}
 .pmeter .lvwrap{flex:1 1 0;height:auto;min-height:0}
-.pmeter>.mnone{min-height:0;background:var(--glass);border:1px solid #000;border-radius:3px;box-shadow:var(--well)}
+.pmeter>.mnone{min-height:0;background:var(--glass);border:1px solid var(--shade);border-radius:3px;box-shadow:var(--well)}
 /* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads (Range / Floor stay at their
    defaults) and no readout table; every other axis label drops so the short scales stay legible.
    Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 90 dB span is a smear, not a reading; the

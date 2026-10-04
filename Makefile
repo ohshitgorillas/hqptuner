@@ -49,8 +49,8 @@ lint-js:
 	npx tsc -p tsconfig.node.json
 	npx knip
 	npx jscpd
-	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
-	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css' 'mockup/styles/*.css')
+	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css' 'mockup/styles/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py
 	$(VENV)/python scripts/gates/css/check_css_dead.py
 	$(VENV)/python scripts/gates/css/check_css_dirty.py

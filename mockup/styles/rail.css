@@ -30,10 +30,10 @@
 
 /* Stage dots: a touch smaller than header/engine lamps, centred on the wire column. */
 .rail .lamp{width:9px;height:9px;justify-self:center}   /* bigger */
-.rail .lamp.on{box-shadow:0 0 5px var(--ok),inset 0 0 1px #fff}
+.rail .lamp.on{box-shadow:0 0 5px var(--ok),inset 0 0 1px var(--glint)}
 
 /* Mock scenario: an engaged stage this track's path doesn't run (Direct SDM) reads unlit, like an off stage; never grayed. */
-.rail .st.byp .lamp.on,.rail .st.dead .lamp.on{background:var(--lamp-off);box-shadow:inset 0 1px 2px #000}
+.rail .st.byp .lamp.on,.rail .st.dead .lamp.on{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}
 
 /* Chain wire: silkscreen trace drawn by rail.js from the dot positions; dots sit above it. */
 .wire{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
@@ -43,10 +43,10 @@
 
 /* Alerts (alerts.js): the stage's lamp blinks over its state, red = crit, amber = warn / advice. Fixed colours, never the
    accent. Reduced motion: steady. Keyframes shared with the header homes (header.css). */
-.rail .st[data-alert="crit"] .lamp{animation:al-crit 1s step-end infinite}
-.rail .st[data-alert="warn"] .lamp{animation:al-warn 1s step-end infinite}
-@keyframes al-crit{0%{background:var(--bad);box-shadow:0 0 7px var(--bad),inset 0 0 1px #fff}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px #000}}
-@keyframes al-warn{0%{background:var(--warn);box-shadow:0 0 7px var(--warn),inset 0 0 1px #fff}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px #000}}
+.rail .st[data-alert="crit"] .lamp{animation:al-crit var(--blink)}
+.rail .st[data-alert="warn"] .lamp{animation:al-warn var(--blink)}
+@keyframes al-crit{0%{background:var(--bad);box-shadow:0 0 7px var(--bad),inset 0 0 1px var(--glint)}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}}
+@keyframes al-warn{0%{background:var(--warn);box-shadow:0 0 7px var(--warn),inset 0 0 1px var(--glint)}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}}
 @media (prefers-reduced-motion:reduce){
   .rail .st[data-alert] .lamp{animation:none}
   .rail .st[data-alert="crit"] .lamp{background:var(--bad);box-shadow:0 0 7px var(--bad)}

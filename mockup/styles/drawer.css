@@ -3,8 +3,8 @@
    Every drawer setting is restart-lane, so it stages (dirty dot on its tab).
    left = rail 168 + gap 26 + rule 1. */
 .drawer{position:absolute;top:0;bottom:0;left:195px;right:0;z-index:4;display:flex;flex-direction:column;
-  background:linear-gradient(180deg,#25282d,#1f2226);border-left:1px solid var(--line-2);box-shadow:inset 1px 0 0 #4a4f5833;
-  clip-path:inset(0 0 0 0);transition:clip-path .2s ease-out}
+  background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));border-left:1px solid var(--line-2);box-shadow:inset 1px 0 0 var(--highlight-lo);
+  clip-path:inset(0 0 0 0);transition:clip-path var(--wipe)}
 .drawer[data-closed]{clip-path:inset(0 100% 0 0);pointer-events:none}
 .drawer.snap{transition:none}   /* closing because another drawer opens (or the body swaps): no second wipe */
 @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
@@ -79,7 +79,7 @@
    Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
    Hatched = device announced it cannot carry that tier; greyed, never blocked.
    Layers (rate-dial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
-.dial{position:relative;height:106px;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
+.dial{position:relative;height:106px;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
 /* Each band is its own slider: a transparent region over its half of the glass (rate-dial.js). */
 .bandsl{position:absolute;top:0;bottom:0;touch-action:none}
 .bandsl:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;border-radius:4px}
@@ -87,7 +87,7 @@
    Both bands always live: mode never grays a band. */
 .dial .legend{font-family:var(--f-eng);font-weight:700;font-size:12px;letter-spacing:.22em;fill:var(--ink-2);line-height:var(--lh-eng)}
 .dial .bl{fill:none;stroke:var(--ink-3);stroke-width:1}
-.dial .seam .sd{stroke:#000;stroke-width:2}
+.dial .seam .sd{stroke:var(--shade);stroke-width:2}
 .dial .seam .sl{stroke:var(--highlight);stroke-width:1;opacity:.5}
 
 .dial svg{display:block}
@@ -105,7 +105,7 @@
 .dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
 .dial .playing{fill:var(--ok);filter:drop-shadow(0 0 3px var(--ok))}
 .dial .needle{fill:var(--acc);filter:drop-shadow(0 0 4px var(--acc))}
-.dial .ndl{transition:transform .14s ease-out}
+.dial .ndl{transition:transform var(--needle)}
 .dial.drag .ndl{transition:none}
 @media (prefers-reduced-motion:reduce){.dial .ndl{transition:none}}
 
@@ -154,7 +154,7 @@
 .chn b{font-weight:600;font-size:14px;color:var(--ink-2)}
 .chline.cur .chn b{color:var(--acc)}
 .chn .s{font-size:12px;color:var(--ink-2)}
-.radio{width:18px;height:18px;flex-shrink:0;border-radius:50%;border:1px solid #000;background:var(--glass);box-shadow:inset 0 1px 3px #000;cursor:pointer;padding:0;display:grid;place-items:center}
+.radio{width:18px;height:18px;flex-shrink:0;border-radius:50%;border:1px solid var(--shade);background:var(--glass);box-shadow:inset 0 1px 3px var(--shade);cursor:pointer;padding:0;display:grid;place-items:center}
 .radio[aria-checked="true"]::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 5px var(--acc)}
 .radio:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
@@ -163,9 +163,9 @@
    ink-2 = loudness bounds (reference only, set in the Loudness drawer); green = live playback volume (a readout,
    like the rate dial's playing lamp). Heavy ticks at 0 and −3 dBFS. */
 .dblock[data-block="range"]{display:flex;flex-direction:column;gap:8px;padding-top:10px}
-.vrwell{background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well);padding:6px 0 2px}
+.vrwell{background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);padding:6px 0 2px}
 .vrbar{display:block;width:100%;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
-.vrbar .trk{fill:#1d2025}
+.vrbar .trk{fill:var(--track)}
 .vrbar .span{fill:var(--acc-dim)}
 .vrbar .brk{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:miter;filter:drop-shadow(0 0 3px var(--acc-glow))}
 .vrbar .pin{fill:var(--glass);stroke:var(--acc);stroke-width:2;filter:drop-shadow(0 0 3px var(--acc-glow))}
@@ -223,7 +223,7 @@
 .cvhead .cst,.cvbar .cst{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
 .cvhead .t.run,.cvbar .t.run{color:var(--acc)}
 .cvhead .dtabs{margin-left:10px}
-.cvdrawer.idle .cvhead{background:repeating-linear-gradient(135deg,#2b2e34 0 2px,transparent 2px 9px)}
+.cvdrawer.idle .cvhead{background:repeating-linear-gradient(135deg,var(--hatch-head) 0 2px,transparent 2px 9px)}
 .cvdrawer.idle .cvhead .cst{color:var(--ink);border:1px solid var(--ink-2);border-radius:3px;padding:0 6px;line-height:20px}
 .cvbody{flex-grow:1;min-height:0;display:flex;flex-direction:column}
 .cvdrawer.idle .cvbody{background:var(--pop);box-shadow:inset 0 0 0 1px var(--line)}
@@ -259,7 +259,7 @@
 /* Alert line (alerts.js): pinned under a drawer's head, one line per alert, in a glass
    well. crit --bad, warn --warn, advice ink-2; never the accent. The row that fixes it reads in the alert's colour, the glyph
    before its label. */
-.dalert{display:flex;flex-direction:column;gap:2px;flex-shrink:0;margin:6px 0 0;padding:4px 10px;background:var(--glass);border:1px solid #000;border-radius:4px;box-shadow:var(--well)}
+.dalert{display:flex;flex-direction:column;gap:2px;flex-shrink:0;margin:6px 0 0;padding:4px 10px;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well)}
 .aline{display:grid;grid-template-columns:14px minmax(0,1fr);gap:0 6px;margin:0;font-family:var(--f-body);font-size:12.5px;line-height:var(--lh-text);color:var(--ink-2)}
 .aline .ag{text-align:center}
 .aline[data-sev="crit"]{color:var(--bad)}
