@@ -8,14 +8,14 @@ import { optionStyle } from "../vselect.js";
 import { toPlate, PLATE_W, PLATE_H } from "../../../lib/shell/plate.js";
 import { ENGINE_ORDER } from "../../../data/lists/engine-order.js";
 import { dacType } from "../../../lib/narrowing/dactype.js";
-import { parkAt, groupTree, columns, flatColumns } from "../../../model/shell/option-list.js";
+import { parkAt, groupTree, columns, flatColumns } from "../../../../../hqptuner/static/model/shell/option-list.js";
 import { showTip, hideTip } from "./tip.js";
 import { cur, legend, row } from "./rows.js";
 
 /** @typedef {import('../option-list.js').ListUi} ListUi */
-/** @typedef {import('../../../model/shell/option-list.js').Opt} Opt */
-/** @typedef {import('../../../model/shell/option-list.js').Placement} Placement */
-/** @typedef {import('../../../model/shell/option-list.js').Column} Column */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/option-list.js').Placement} Placement */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/option-list.js').Column} Column */
 /** @typedef {Extract<Column, { kind: 'split' }>} SplitColumn */
 /** @typedef {Extract<Column, { kind: 'stack' }>} StackColumn */
 /** @typedef {Map<string, Map<string, Opt[]>>} Families */

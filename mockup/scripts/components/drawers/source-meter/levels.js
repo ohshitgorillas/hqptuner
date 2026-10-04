@@ -2,13 +2,14 @@
 // the held peak and RMS readings.
 
 import { h } from "../../../lib/shell/dom.js";
-import { levelTarget, stepLevel } from "../../../model/gauges/meter.js";
+import { stepLevel } from "../../../../../hqptuner/static/model/gauges/meter.js";
+import { levelTarget } from "../../../model/gauges/meter-source.js";
 import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, pct } from "./axes.js";
 import { chName } from "./controls.js";
 
 /**
- * @typedef {import('../../../model/gauges/meter.js').LevelReading} LevelReading
+ * @typedef {import('../../../../../hqptuner/static/model/gauges/meter.js').LevelReading} LevelReading
  * @typedef {import('../../../model/gauges/meter-source.js').MockColumn} MockColumn
  */
 

@@ -28,7 +28,7 @@ import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { PANEL, dacFolds, render } from "./option-list/columns.js";
 import { hideTip } from "./option-list/tip.js";
 
-/** @typedef {import('../../model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
 /**
  * The list a picker opens: its picker (a panel parks at it; a second tap on it closes the panel), the list, stage and
  * value, the chain and field it picks for, the pick's callback, the sheet's title and its tooltip, and the chain's name.

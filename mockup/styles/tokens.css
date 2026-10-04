@@ -2,17 +2,5 @@
    hqptuner/static/css/v2/tokens.css, linked ahead of this file; a token moves there with its first reader. */
 :root{
   --plate:#1c1e22;         /* the plate's flat fill */
-  --acc-halo:color-mix(in srgb,var(--acc) 20%,transparent);      /* wide halo round a live slot */
-
-  /* Spectrogram ramp, floor to full scale: glass → amber → pale gold (HQPlayer: lowest black, highest yellow). */
-  --spec-0:#08090b; --spec-1:#221508; --spec-2:#5c3811; --spec-3:#a9681f; --spec-4:#e9a63c; --spec-5:#fff0c4;
-
-  --shade-soft:#0008;          /* cast shadow under a raised part */
   --glint-lo:#fff4;            /* top-edge light on a colour swatch */
-  --glint-faint:#ffffff0d;     /* lip under a facet window */
-  --console:linear-gradient(180deg,#121418,#181a1f);       /* narrowing console trough */
-  --facet:linear-gradient(180deg,#0d0f12,#08090b);         /* facet window */
-  --facet-hover:linear-gradient(180deg,#14171b,#0b0c0f);   /* facet window under the pointer */
-  --key-lo:#0b0c0e;            /* dark stop of a glass key and of an open facet window */
-  --fade:.12s ease-out;                /* panel fade */
 }

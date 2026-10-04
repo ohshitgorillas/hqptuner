@@ -6,7 +6,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { binLevels, jitter, mockColumn, power } from "../../../../mockup/scripts/model/gauges/meter-source.js";
+import {
+  binLevels,
+  jitter,
+  levelTarget,
+  mockColumn,
+  power,
+} from "../../../../mockup/scripts/model/gauges/meter-source.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.
@@ -171,4 +177,30 @@ test("test_the_sum_spectrum_lies_between_the_two_channels", () => {
   const c = mockColumn(7, SRC);
   const [l, r, sum] = ["0", "1", "sum"].map((ch) => binLevels(c, [1000], ch, CD)[0]);
   assert.ok((sum - l) * (sum - r) < 0);
+});
+
+/**
+ * One mock column for the target.
+ *
+ * @param {{ env?: number, kick?: boolean }} o
+ */
+const column = ({ env = 0, kick = false }) => ({ idx: 7, env, kick });
+
+// ── Level target ─────────────────────────────────────────────────────────
+
+test("test_the_target_peak_never_rises_past_the_ceiling", () => {
+  assert.equal(levelTarget(column({ env: 40 }), 0, 0).peak, -0.6);
+});
+
+test("test_the_target_rms_follows_the_column_envelope_one_for_one", () => {
+  assert.ok(...near(levelTarget(column({ env: 6 }), 0, 0).rms - levelTarget(column({}), 0, 0).rms, 6, EPS));
+});
+
+test("test_a_kick_lifts_the_target_peak_three_db", () => {
+  assert.ok(...near(levelTarget(column({ kick: true }), 1, 0).peak - levelTarget(column({}), 1, 0).peak, 3, EPS));
+});
+
+test("test_the_target_peak_sits_at_least_eight_db_over_the_rms", () => {
+  const t = levelTarget(column({}), 0, 500);
+  assert.ok(t.peak - t.rms >= 8);
 });

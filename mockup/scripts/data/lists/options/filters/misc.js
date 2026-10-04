@@ -1,4 +1,4 @@
-/** @type {import("../../../../model/shell/option-list.js").Opt[]} */
+/** @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt[]} */
 export const PCM_MISC = [
   {
     v: "none",

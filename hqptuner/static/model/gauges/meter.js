@@ -2,13 +2,10 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
-import { hash } from "./meter-source.js";
-
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_DB = 3; // shown spectrum fall per frame, ~30 dB/s at 10 Hz
 const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
 const SPEC_DECAY_DB = 1; // spectrum peak decay per frame once released
-const PEAK_CEIL_DB = -0.6; // highest peak the mock source reaches
 const PEAK_FALL_DBPS = 20; // level peak fall, dB/s
 const RMS_TAU_S = 0.3; // level RMS integration time
 const HOLD_MS = 1500; // level hold before it decays
@@ -94,21 +91,6 @@ export function stepSpectrum(prev, levels, now, jump) {
     next.peakAt[i] = d >= prev.peak[i] ? now : prev.peakAt[i];
   }
   return next;
-}
-
-/**
- * Where a channel's level is heading for one mock column: RMS rides the column's envelope, the peak sits a crest
- * factor above it (redrawn every 60 ms, lifted on a kick) and never past the ceiling.
- *
- * @param {{ idx: number, env: number, kick: boolean }} c  the mock column
- * @param {number} ch                                      channel index
- * @param {number} now                                     ms
- * @returns {LevelTarget}
- */
-export function levelTarget(c, ch, now) {
-  const rms = -21 + c.env + (ch ? -1.3 : 0) + (hash(c.idx, 11 + ch) - 0.5) * 1.5;
-  const pk = rms + 8 + hash(c.idx * 3 + Math.floor(now / 60), 13 + ch) * 5 + (c.kick ? 3 : 0);
-  return { rms, peak: Math.min(PEAK_CEIL_DB, pk) };
 }
 
 /**

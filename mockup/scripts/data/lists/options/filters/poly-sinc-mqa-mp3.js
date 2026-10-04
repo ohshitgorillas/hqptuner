@@ -1,6 +1,6 @@
 import { derive, same } from "../../derive.js";
 
-/** @type {import("../../../../model/shell/option-list.js").Opt[]} */
+/** @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt[]} */
 const POLY_SINC_MQA_MP3 = [
   {
     v: "poly-sinc-mqa/mp3-mp",

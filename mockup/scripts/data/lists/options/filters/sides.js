@@ -3,7 +3,7 @@
 import { TWO_STAGE } from "../../conversion-catalog.js";
 import { AT_16X_FILTERS, at16x } from "../../derive.js";
 
-/** @typedef {import("../../../../model/shell/option-list.js").Opt} Opt */
+/** @typedef {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt} Opt */
 /** @typedef {import("../../derive.js").Delta<Opt>} OptDelta */
 
 /**

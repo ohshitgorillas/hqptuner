@@ -7,9 +7,9 @@
 import { h } from "../../lib/shell/dom.js";
 import { LISTS } from "../../data/lists/option-lists.js";
 import { openPicker, optionStyle } from "../lists/vselect.js";
-import { optionOf } from "../../model/shell/options.js";
+import { optionOf } from "../../../../hqptuner/static/model/shell/options.js";
 
-/** @typedef {import('../../model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
 
 /**
  * The nameplate picker for one chain field: family › variant over the running option's name; a tap opens the whole list.

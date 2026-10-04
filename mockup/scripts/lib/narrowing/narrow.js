@@ -5,11 +5,11 @@
 import { COLUMNS, DEFAULT_MODES, INITIAL, FAVORITES } from "../../data/lists/narrow-facets.js";
 import { LISTS } from "../../data/lists/option-lists.js";
 
-/** @typedef {import('../../model/shell/narrow-view.js').Facet} Facet */
-/** @typedef {import('../../model/shell/narrow-view.js').Row} Row */
-/** @typedef {import('../../model/shell/narrow-view.js').Item} Item */
-/** @typedef {import('../../model/shell/option-list.js').Opt} Opt */
-/** @typedef {import('../../model/shell/option-list.js').Facets} Facets */
+/** @typedef {import('../../../../hqptuner/static/model/shell/narrow-view.js').Facet} Facet */
+/** @typedef {import('../../../../hqptuner/static/model/shell/narrow-view.js').Row} Row */
+/** @typedef {import('../../../../hqptuner/static/model/shell/narrow-view.js').Item} Item */
+/** @typedef {import('../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../hqptuner/static/model/shell/option-list.js').Facets} Facets */
 
 /** @typedef {string | number | boolean | string[]} FacetValue  picked chips, a toggle or check, a row's value, a mode */
 

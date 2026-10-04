@@ -14,7 +14,7 @@ import {
   narrowing,
   stateKeys,
   summary,
-} from "../../../../mockup/scripts/model/shell/narrow-view.js";
+} from "../../../../hqptuner/static/model/shell/narrow-view.js";
 
 // ── Facet tables ──────────────────────────────────────────────────────────
 

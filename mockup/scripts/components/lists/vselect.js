@@ -6,7 +6,7 @@ import { h } from "../../lib/shell/dom.js";
 import { TWO_STAGE, CATALOG } from "../../data/lists/conversion-catalog.js";
 import { popover } from "../../lib/shell/popover.js";
 import { placeBy } from "../../lib/shell/plate.js";
-import { optionOf } from "../../model/shell/options.js";
+import { optionOf } from "../../../../hqptuner/static/model/shell/options.js";
 
 /** @typedef {keyof typeof import('../../data/lists/option-lists.js').LISTS} ListName */
 

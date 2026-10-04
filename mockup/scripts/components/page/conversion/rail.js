@@ -5,7 +5,13 @@ import { optCopy, fitCopy } from "../../lists/vselect.js";
 import { CHAIN_LISTS, runningChain } from "../../../data/stages/conversion.js";
 import { pathOf } from "../../../data/shell/scenarios.js";
 import { scale } from "../../../lib/shell/plate.js";
-import { FIT_PASSES, fitStep, overrunOf, overruns, railValues } from "../../../model/shell/conversion.js";
+import {
+  FIT_PASSES,
+  fitStep,
+  overrunOf,
+  overruns,
+  railValues,
+} from "../../../../../hqptuner/static/model/shell/conversion.js";
 
 /** @typedef {import('../conversion.js').ConvState} ConvState */
 /** @typedef {import('../conversion.js').ConvHosts} ConvHosts */

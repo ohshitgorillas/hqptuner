@@ -20,7 +20,7 @@
 
 import { h } from "../../lib/shell/dom.js";
 import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
-import { stepFrame } from "../../model/gauges/meter.js";
+import { stepFrame } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { floorCtl, pageRangeColumn, spectrogramControls, spectrumRange } from "./source-meter/controls.js";
 import { levelsPainter, levelsView } from "./source-meter/levels.js";
 import { mockFeed, mockHistory } from "./source-meter/mock.js";
@@ -231,7 +231,7 @@ function shownTest(host, compact) {
  * @param {LoopHooks} o
  */
 function runLoop(host, root, clock, o) {
-  /** @type {import('../../model/gauges/meter.js').FrameLoop} */
+  /** @type {import('../../../../hqptuner/static/model/gauges/meter.js').FrameLoop} */
   let loop = { prev: clock.now(), acc: 0 };
   /** @param {number} now  rAF stamp, ms */
   function tick(now) {

@@ -19,12 +19,12 @@ import {
   groupTree,
   columns,
   flatColumns,
-} from "../../../../mockup/scripts/model/shell/option-list.js";
+} from "../../../../hqptuner/static/model/shell/option-list.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/shell/option-list.js").Opt} Opt */
-/** @typedef {import("../../../../mockup/scripts/model/shell/option-list.js").Facets} Facets */
-/** @typedef {import("../../../../mockup/scripts/model/shell/option-list.js").Column} Column */
-/** @typedef {import("../../../../mockup/scripts/model/shell/option-list.js").Placement} Placement */
+/** @typedef {import("../../../../hqptuner/static/model/shell/option-list.js").Opt} Opt */
+/** @typedef {import("../../../../hqptuner/static/model/shell/option-list.js").Facets} Facets */
+/** @typedef {import("../../../../hqptuner/static/model/shell/option-list.js").Column} Column */
+/** @typedef {import("../../../../hqptuner/static/model/shell/option-list.js").Placement} Placement */
 
 const PLATE = { w: 1000, h: 800 };
 

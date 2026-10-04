@@ -6,18 +6,18 @@ import { seg } from "../../controls/seg.js";
 import { apodMark } from "../../../lib/controls/apod.js";
 import { state, change, preview, count, chainList } from "../../../lib/narrowing/narrow.js";
 
-/** @typedef {import('../../../model/shell/narrow-view.js').Facet} Facet */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/narrow-view.js').Facet} Facet */
 /** @typedef {import('../../../lib/narrowing/narrow.js').FacetValue} FacetValue */
 /** @typedef {import('../narrow-filters.js').Bar} Bar */
-/** @typedef {import('../../../model/shell/narrow-view.js').Option & { v: string, tag?: string }} ChipOption */
-/** @typedef {import('../../../model/shell/narrow-view.js').Option & { v: string | number, tag?: string }} SegOption */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/narrow-view.js').Option & { v: string, tag?: string }} ChipOption */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/narrow-view.js').Option & { v: string | number, tag?: string }} SegOption */
 /**
  * One segmented row: its state key and options, the stage it narrows, whether that stage shows, its aria label.
  *
- * @typedef {Omit<import('../../../model/shell/narrow-view.js').Row, 'options'>
+ * @typedef {Omit<import('../../../../../hqptuner/static/model/shell/narrow-view.js').Row, 'options'>
  *   & { options: SegOption[], aria: string, stage?: string, showStage?: boolean }} BarRow
  */
-/** @typedef {import('../../../model/shell/narrow-view.js').Item & { label: string }} BarItem */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/narrow-view.js').Item & { label: string }} BarItem */
 /**
  * A facet as data/narrow-facets.js writes it for the bar: the model's Facet with its label, its hint paragraphs, a
  * toggle's chip, and the rows', options' and items' own words.

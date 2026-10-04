@@ -8,7 +8,14 @@ import { popover } from "../../lib/shell/popover.js";
 import { toPlate, PLATE_W } from "../../lib/shell/plate.js";
 import { select } from "../controls/seg.js";
 import { BAR, MOD_BAR, DITHER_BAR } from "../../data/lists/narrow-facets.js";
-import { chipPressed, deadChip, facetShown, narrowing, stateKeys, summary } from "../../model/shell/narrow-view.js";
+import {
+  chipPressed,
+  deadChip,
+  facetShown,
+  narrowing,
+  stateKeys,
+  summary,
+} from "../../../../hqptuner/static/model/shell/narrow-view.js";
 import { defaults, state, change, reset, subscribe } from "../../lib/narrowing/narrow.js";
 import { facetBody, hint, itemsOf, mark, modeSeg, optionsOf, rowsOf } from "./narrow-filters/controls.js";
 

@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { optionOf } from "../../../../mockup/scripts/model/shell/options.js";
+import { optionOf } from "../../../../hqptuner/static/model/shell/options.js";
 
 //: Options the test writes: numeric and string values mixed, as the catalogs carry them.
 const OPTS = [

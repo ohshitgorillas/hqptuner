@@ -8,14 +8,14 @@ import { h } from "../../../lib/shell/dom.js";
 import { optionStyle } from "../vselect.js";
 import { toPlate, PLATE_W, PLATE_H } from "../../../lib/shell/plate.js";
 import { BAR } from "../../../data/lists/narrow-facets.js";
-import { tipContent, tipAt } from "../../../model/shell/option-list.js";
+import { tipContent, tipAt } from "../../../../../hqptuner/static/model/shell/option-list.js";
 
 /** @typedef {import('../option-list.js').ListUi} ListUi */
-/** @typedef {import('../../../model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
 
-/** @type {import('../../../model/shell/narrow-view.js').Facet[]} */
+/** @type {import('../../../../../hqptuner/static/model/shell/narrow-view.js').Facet[]} */
 const FACETS = BAR.flat();
-/** @type {import('../../../model/shell/option-list.js').Labels} */
+/** @type {import('../../../../../hqptuner/static/model/shell/option-list.js').Labels} */
 const FACET = Object.fromEntries(
   FACETS.flatMap((f) =>
     f.options ? [[String(f.key), Object.fromEntries(f.options.map((o) => [String(o.v), o.label]))]] : [],

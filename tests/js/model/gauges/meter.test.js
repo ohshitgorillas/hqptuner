@@ -1,22 +1,16 @@
-// Behavioral suite for the mockup's meter model (mockup/scripts/model/gauges/meter.js): spectrum peak-hold decay, the
-// level target a column sets, the level ballistics and hold, and the frame-loop step that clamps dt and owes
+// Behavioral suite for the mockup's meter model (hqptuner/static/model/gauges/meter.js): spectrum peak-hold decay, the
+// level ballistics and hold, and the frame-loop step that clamps dt and owes
 // spectrogram columns.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
 // Nothing here reads a clock or waits on one.
 //
-// Run: node --test tests/js/mockup/gauges/meter.test.js
+// Run: node --test tests/js/model/gauges/meter.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  emptySpectrum,
-  levelTarget,
-  stepFrame,
-  stepLevel,
-  stepSpectrum,
-} from "../../../../mockup/scripts/model/gauges/meter.js";
+import { emptySpectrum, stepFrame, stepLevel, stepSpectrum } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.
@@ -99,13 +93,6 @@ const REST = { peak: -60, rms: -60, hold: -60, holdAt: 0 };
 /** @type {Reading} */
 const HELD = { peak: -10, rms: -30, hold: -10, holdAt: 0 };
 
-/**
- * One mock column for the target.
- *
- * @param {{ env?: number, kick?: boolean }} o
- */
-const column = ({ env = 0, kick = false }) => ({ idx: 7, env, kick });
-
 // ── Spectrum ─────────────────────────────────────────────────────────────
 
 test("test_a_jump_frame_shows_a_level_below_the_one_shown", () => {
@@ -174,25 +161,6 @@ test("test_the_spectrum_peak_never_falls_below_the_shown_level", () => {
     ]).peak,
     -10.5,
   );
-});
-
-// ── Level target ─────────────────────────────────────────────────────────
-
-test("test_the_target_peak_never_rises_past_the_ceiling", () => {
-  assert.equal(levelTarget(column({ env: 40 }), 0, 0).peak, -0.6);
-});
-
-test("test_the_target_rms_follows_the_column_envelope_one_for_one", () => {
-  assert.ok(...near(levelTarget(column({ env: 6 }), 0, 0).rms - levelTarget(column({}), 0, 0).rms, 6, EPS));
-});
-
-test("test_a_kick_lifts_the_target_peak_three_db", () => {
-  assert.ok(...near(levelTarget(column({ kick: true }), 1, 0).peak - levelTarget(column({}), 1, 0).peak, 3, EPS));
-});
-
-test("test_the_target_peak_sits_at_least_eight_db_over_the_rms", () => {
-  const t = levelTarget(column({}), 0, 500);
-  assert.ok(t.peak - t.rms >= 8);
 });
 
 // ── Level ballistics and hold ────────────────────────────────────────────

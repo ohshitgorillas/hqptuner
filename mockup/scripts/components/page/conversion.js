@@ -19,11 +19,11 @@ import { chainPick } from "./chain-pick.js";
 import { FIELDS, CHAIN_NAMES } from "../../data/stages/conversion.js";
 import { subscribe } from "../../lib/narrowing/narrow.js";
 import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
-import { bothRows, fieldRuns, openOn, sectionRows } from "../../model/shell/conversion.js";
+import { bothRows, fieldRuns, openOn, sectionRows } from "../../../../hqptuner/static/model/shell/conversion.js";
 import { fit, listOf, path, playOf, rail, running, wraps } from "./conversion/rail.js";
 
 /** @typedef {import('../../data/shell/scenarios.js').Scene} Scene */
-/** @typedef {import('../../model/shell/conversion.js').Open} Open */
+/** @typedef {import('../../../../hqptuner/static/model/shell/conversion.js').Open} Open */
 /** @typedef {import('../lists/vselect.js').ListName} ListName */
 /** @typedef {{ label: string, sub: string, man: string }} Field */
 /** @typedef {{ tier: number | null, rate: string, rest: string, value: string }} OutReadout  the Output readouts */

@@ -2,7 +2,7 @@
 // live setting change causes, with the values it carries (components/settings.js acts on them).
 
 import { minusText } from "../../../../hqptuner/static/model/shell/format.js";
-import { optionOf } from "./options.js";
+import { optionOf } from "../../../../hqptuner/static/model/shell/options.js";
 
 /**
  * @typedef {{ v: string | number, label: string, unit?: string }} Option

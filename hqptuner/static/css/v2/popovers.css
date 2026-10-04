@@ -66,7 +66,7 @@
 
 .pips .w{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);line-height:var(--lh-text)}
 
-/* ── Narrow filters: facet controls (the sheet itself is styles/sheets.css) ──
+/* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
    Ordered / per-stage facets are segments. Counts preview the list sizes the click would leave (1x·Nx, or that stage's
    for a staged row); the head readout is the live result. */

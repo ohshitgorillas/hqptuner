@@ -1,11 +1,11 @@
 import { derive, same } from "../../derive.js";
 
-/** @typedef {import("../../../../model/shell/option-list.js").Opt} Opt */
+/** @typedef {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt} Opt */
 
 /**
  * Both polynomial interpolators' facets.
  *
- * @type {import("../../../../model/shell/option-list.js").Facets}
+ * @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Facets}
  */
 const POLYNOMIAL = {
   genre: [],

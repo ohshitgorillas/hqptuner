@@ -12,7 +12,7 @@ const XLONG = {
   hires: false,
 };
 
-/** @type {import("../../../../model/shell/option-list.js").Opt[]} */
+/** @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt[]} */
 const POLY_SINC_EXTENDED_V2 = [
   {
     v: "poly-sinc-ext2",

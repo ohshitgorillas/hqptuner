@@ -1,7 +1,7 @@
 import { derive, same } from "../../derive.js";
 import { twoStage } from "./sides.js";
 
-/** @type {import("../../../../model/shell/option-list.js").Opt[]} */
+/** @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt[]} */
 const POLY_SINC_BASE = [
   {
     v: "poly-sinc-mp",

@@ -2,7 +2,7 @@
 // hover / touch readout of frequency and level under the pointer.
 
 import { h, s } from "../../../lib/shell/dom.js";
-import { emptySpectrum, stepSpectrum } from "../../../model/gauges/meter.js";
+import { emptySpectrum, stepSpectrum } from "../../../../../hqptuner/static/model/gauges/meter.js";
 import {
   freqTicks,
   freqX,
@@ -18,7 +18,7 @@ const SW = 600,
   SH = 170; // spectrum viewBox
 
 /**
- * @typedef {import('../../../model/gauges/meter.js').SpectrumHold} SpectrumHold
+ * @typedef {import('../../../../../hqptuner/static/model/gauges/meter.js').SpectrumHold} SpectrumHold
  * @typedef {import('../../../../../hqptuner/static/model/gauges/meter-plot.js').SpectrumPlot} SpectrumPlot
  * @typedef {import('../../../model/gauges/meter-source.js').MockSource} MockSource
  * @typedef {import('../../../model/gauges/meter-source.js').MockColumn} MockColumn

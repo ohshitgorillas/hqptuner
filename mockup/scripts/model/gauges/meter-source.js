@@ -1,6 +1,7 @@
 // Source meter mock source: a deterministic music-like signal, free of the DOM. Each spectrogram column and spectrum
 // bin it yields is a pure function of the track column and the source, so a test reads one from a table.
 
+const PEAK_CEIL_DB = -0.6; // highest peak the mock source reaches
 const DSD_NOISE_HZ = 12000; // where a DSD source's modulator noise starts to climb
 //: The mock track's four chords (MIDI notes), 2.4 s each.
 const CHORDS = [
@@ -160,9 +161,24 @@ export function binLevels(c, binHz, channel, src) {
  * @param {number} b
  * @returns {number}
  */
-export function hash(a, b) {
+function hash(a, b) {
   let x = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0;
   x = Math.imul(x ^ (x >>> 13), 1274126177);
   x ^= x >>> 16;
   return (x >>> 0) / 4294967296;
+}
+
+/**
+ * Where a channel's level is heading for one mock column: RMS rides the column's envelope, the peak sits a crest
+ * factor above it (redrawn every 60 ms, lifted on a kick) and never past the ceiling.
+ *
+ * @param {{ idx: number, env: number, kick: boolean }} c  the mock column
+ * @param {number} ch                                      channel index
+ * @param {number} now                                     ms
+ * @returns {{ rms: number, peak: number }}
+ */
+export function levelTarget(c, ch, now) {
+  const rms = -21 + c.env + (ch ? -1.3 : 0) + (hash(c.idx, 11 + ch) - 0.5) * 1.5;
+  const pk = rms + 8 + hash(c.idx * 3 + Math.floor(now / 60), 13 + ch) * 5 + (c.kick ? 3 : 0);
+  return { rms, peak: Math.min(PEAK_CEIL_DB, pk) };
 }

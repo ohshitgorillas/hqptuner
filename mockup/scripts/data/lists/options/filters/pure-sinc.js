@@ -15,7 +15,7 @@ const GAUSSIAN_CONSTANT = {
 /**
  * The million-tap extended v2 pair's facets.
  *
- * @type {import("../../../../model/shell/option-list.js").Facets}
+ * @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Facets}
  */
 const EXTENDED_V2_MILLION = {
   genre: ["classical", "jazz"],
@@ -30,7 +30,7 @@ const EXTENDED_V2_MILLION = {
   ratio: "2x",
 };
 
-/** @type {import("../../../../model/shell/option-list.js").Opt[]} */
+/** @type {import("../../../../../../hqptuner/static/model/shell/option-list.js").Opt[]} */
 const PURE_SINC = [
   {
     v: "sinc-Ls",

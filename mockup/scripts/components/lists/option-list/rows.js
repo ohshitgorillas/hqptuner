@@ -8,7 +8,7 @@ import { showTip, hideTip } from "./tip.js";
 
 /** @typedef {import('../option-list.js').ListUi} ListUi */
 /** @typedef {import('../option-list.js').ListRequest} ListRequest */
-/** @typedef {import('../../../model/shell/option-list.js').Opt} Opt */
+/** @typedef {import('../../../../../hqptuner/static/model/shell/option-list.js').Opt} Opt */
 /** @typedef {import('../../../lib/narrowing/narrow.js').Kind} Kind */
 
 /**
