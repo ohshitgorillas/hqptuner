@@ -1,11 +1,11 @@
-// Behavioral suite for hqptuner/static/model/shell/app.js: the decisions the faceplate's wiring paints. The speed gauge and
+// Behavioral suite for hqptuner/static/model/shell/frame.js: the decisions the faceplate's wiring paints. The speed gauge and
 // its zones, the source meter's no-stream line, a profile's records, the page's top section, what a playback path
 // shows, the mock alerts a pick raises and the engine row that follows them, and a Setting Switcher target change.
 //
 // Every table here is the test's own: engine figures, seams, scenes, option lists and alert lines that return the one
 // argument a test reads.
 //
-// Run: node --test tests/js/model/shell/app.test.js
+// Run: node --test tests/js/model/shell/frame.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,12 +20,12 @@ import {
   raisedAlerts,
   switcherChange,
   zone,
-} from "../../../../hqptuner/static/model/shell/app.js";
+} from "../../../../hqptuner/static/model/shell/frame.js";
 
-/** @typedef {import("../../../../hqptuner/static/model/shell/app.js").Scene} Scene */
-/** @typedef {import("../../../../hqptuner/static/model/shell/app.js").RaiseNow} RaiseNow */
-/** @typedef {import("../../../../hqptuner/static/model/shell/app.js").SlotFace} SlotFace */
-/** @typedef {import("../../../../hqptuner/static/model/shell/app.js").ListOption} ListOption */
+/** @typedef {import("../../../../hqptuner/static/model/shell/frame.js").Scene} Scene */
+/** @typedef {import("../../../../hqptuner/static/model/shell/frame.js").RaiseNow} RaiseNow */
+/** @typedef {import("../../../../hqptuner/static/model/shell/frame.js").SlotFace} SlotFace */
+/** @typedef {import("../../../../hqptuner/static/model/shell/frame.js").ListOption} ListOption */
 /** @typedef {[number, number]} Seams */
 
 //: Speed seams [bad|warn, warn|ok] the gauge tests read.

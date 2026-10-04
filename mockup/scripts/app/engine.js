@@ -19,11 +19,11 @@ import {
   noStream,
   pathView,
   profileRecords,
-} from "../../../hqptuner/static/model/shell/app.js";
+} from "../../../hqptuner/static/model/shell/frame.js";
 import { el } from "./markup.js";
 
 /** @typedef {import("./state.js").App} App */
-/** @typedef {import("../../../hqptuner/static/model/shell/app.js").Seams} Seams */
+/** @typedef {import("../../../hqptuner/static/model/shell/frame.js").Seams} Seams */
 /** @typedef {Element & { _setPlaying: (i: number | null) => void }} RateDial */
 
 // Not in a Direct path: Direct runs nothing but Speakers (Resampling and Shaping leave the chain on DSD → DSD).

@@ -4,7 +4,7 @@
 import { h } from "../lib/shell/dom.js";
 import { mountSwitcher } from "../components/shell/switcher.js";
 import { FIELDS, CHAIN_NAMES, CATALOG } from "../data/stages/conversion.js";
-import { switcherChange } from "../../../hqptuner/static/model/shell/app.js";
+import { switcherChange } from "../../../hqptuner/static/model/shell/frame.js";
 import { el } from "./markup.js";
 
 /** @typedef {import("./state.js").App} App */

@@ -2,7 +2,7 @@
 
 /** @typedef {import("../lib/shell/bus.js").Bus} Bus */
 /** @typedef {import("../model/shell/flags.js").Flags} Flags */
-/** @typedef {import("../../../hqptuner/static/model/shell/app.js").SlotFace} SlotFace */
+/** @typedef {import("../../../hqptuner/static/model/shell/frame.js").SlotFace} SlotFace */
 
 /** A scenario the mock can play (data/scenarios.js). @typedef {(typeof import("../data/shell/scenarios.js").SCENES)[number]} Scene */
 

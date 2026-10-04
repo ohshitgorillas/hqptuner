@@ -5,7 +5,7 @@ import { mountAlerts } from "../components/shell/alerts.js";
 import { ALERT_COPY, MOCK_FIG } from "../data/shell/alerts.js";
 import { LISTS } from "../data/lists/option-lists.js";
 import { ENGINE } from "../data/shell/scenarios.js";
-import { engineRow, raisedAlerts } from "../../../hqptuner/static/model/shell/app.js";
+import { engineRow, raisedAlerts } from "../../../hqptuner/static/model/shell/frame.js";
 import { el } from "./markup.js";
 
 /** @typedef {import("./state.js").App} App */
