@@ -8,4 +8,5 @@ version = 1
 "hqptuner/static/store/actions.js" = { lines = 413 }
 "hqptuner/static/store/ui/prefs.js" = { lines = 428 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
+"scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

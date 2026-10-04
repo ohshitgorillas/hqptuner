@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **The modulator picker shows the DSD1024 modulators together under Multi-bit.** The group's caption reads "Multi-bit designs for the highest rates".
+
 ### Fixed
 
 - **Loading a preset keeps this machine's network interface settings.** The UPnP and network discovery interfaces stay as they are when a preset loads, so HQPlayer remains visible as a UPnP renderer and starts normally.
