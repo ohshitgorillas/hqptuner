@@ -11,7 +11,6 @@
      accent, like the spectrogram ramp. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
 
-  --key:linear-gradient(180deg,#121418,#0b0c0e);   /* glass key face: the ▾ end of a split control */
   --shade-soft:#0008;          /* cast shadow under a raised part */
   --glint-lo:#fff4;            /* top-edge light on a colour swatch */
   --glint-faint:#ffffff0d;     /* lip under a facet window */

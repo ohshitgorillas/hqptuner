@@ -116,6 +116,7 @@
   /* Recurring finishes */
   --raised:linear-gradient(180deg,#33373e,#262930);
   --raised-shadow:0 1px 0 var(--highlight) inset,0 2px 3px #0008;
+  --key:linear-gradient(180deg,#121418,#0b0c0e);   /* glass key face: the ▾ end of a split control */
   --well:inset 0 2px 8px #000;
   --pop-shadow:0 14px 40px #000c;
 

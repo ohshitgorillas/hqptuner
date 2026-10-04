@@ -11,15 +11,20 @@
 
 .dhead{height:52px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 12px 0 26px;border-bottom:1px solid var(--line)}
 .dhead .t{font-family:var(--f-eng);font-weight:700;font-size:18px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
-/* Head, right end: [Discard  Apply] | ×. Discard and Apply sit together as one group (the builders' Discard / Save
-   grammar: two .btn.sm); a hairline and an even 16px either side set close apart (no misclicks); close matches the
-   buttons' 34px height and keeps the same 12px from the drawer's edge. The group shows while the open tab holds a
-   restart setting or edits are staged; its buttons live only with staged edits. Apply writes the station and restarts:
-   no split button, no Apply & save (there is no applied-but-unsaved state). */
+/* Head, right end: [Discard  Apply ▾] | ×. Discard and the split apply button sit together as one group (the builders'
+   Discard / Save grammar: .btn.sm); a hairline and an even 16px either side set close apart (no misclicks); close
+   matches the buttons' 34px height and keeps the same 12px from the drawer's edge. The group shows while the open tab
+   holds a restart setting or edits are staged; its buttons live only with staged edits. The split body runs Apply or
+   Apply & save; its ▾ key, a glass key face, opens the menu that switches which, parked under the key. */
 .apply{display:flex;align-items:center;gap:8px;height:34px;padding-right:16px;border-right:1px solid var(--line)}
 .apply .btn.sm{height:34px}
 .apply .aapply{background:var(--raised);box-shadow:var(--raised-shadow);border-color:var(--line-2)}   /* the act: raised over Discard's flat face */
 .apply .aapply:disabled{background:var(--plate-2);box-shadow:none}
+.asplit{position:relative;display:flex;align-items:center}
+.asplit .aapply{border-radius:5px 0 0 5px}
+.asplit .akey{width:30px;padding:0;border-left:0;border-radius:0 5px 5px 0;background:var(--key);box-shadow:none;color:var(--acc-dim);font-family:var(--f-body);line-height:1}
+.asplit .akey[aria-expanded="true"]{color:var(--acc)}
+.asplit .pop.amenu{left:auto;right:0;top:calc(100% + 6px)}
 .dhead .round.dx{width:34px;height:34px;font-size:18px}
 .pop.amenu{width:auto;min-width:150px}   /* check menu (the builders' Stations menus): the pipelines menu's rows (.pmrow), the checked ones ticked */
 .amenu .pmrow::before{content:"";width:12px;flex-shrink:0;text-align:center;color:var(--acc)}
