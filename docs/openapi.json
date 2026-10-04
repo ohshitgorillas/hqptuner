@@ -4525,7 +4525,7 @@
         "summary": "Delete Live Preset"
       },
       "put": {
-        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. A body naming ``values`` stores each over the engine's own, a given mode setting the\nrecord's chain. A body naming ``stations`` writes the one record under each; none named writes it\nunder the loaded station. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting, a given value is one the record cannot hold, or a\nnamed station is not one the preset store holds.",
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. A body naming ``values`` stores each over the engine's own, a given mode setting the\nrecord's chain. A matrix profile is held as the engine names it, ``\"\"`` for none. A body naming ``stations``\nwrites the one record under each; none named writes it under the loaded station. 409 when the loaded chain is\nunknowable \u2014 the record would claim a chain it never captured. 422 when a named field is not a live snapshot\nsetting, a given value is one the record cannot hold, or a named station is not one the preset store holds.",
         "operationId": "save_live_preset_api_livepresets__name__put",
         "parameters": [
           {
@@ -4582,7 +4582,7 @@
     },
     "/api/livepresets/{name}/apply": {
       "post": {
-        "description": "Apply a preset saved under ``station``, the loaded one when absent, readback-verified.\n\nIts output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),\nso a preset taken on the other chain applies by switching to it.\n\nThe live lane's all-or-nothing 409 carries over unchanged: a stored ID the\nrunning enumerations no longer offer refuses the whole preset, naming the\nfield.",
+        "description": "Apply a preset saved under ``station``, the loaded one when absent, readback-verified.\n\nIts output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),\nso a preset taken on the other chain applies by switching to it. Its matrix profile is checked against the engine's\nlist before anything applies and switched to last, only when the engine is on another.\n\nThe live lane's all-or-nothing 409 carries over unchanged: a stored ID the\nrunning enumerations no longer offer refuses the whole preset, naming the\nfield.",
         "operationId": "apply_live_preset_api_livepresets__name__apply_post",
         "parameters": [
           {

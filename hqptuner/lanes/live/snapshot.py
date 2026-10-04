@@ -6,7 +6,7 @@ applying a preset is the same batch the LIVE view would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 
-A snapshot holds the routable settings and the DIRECT flags. The junk filter is
+A snapshot holds the routable settings, the DIRECT flags and the matrix profile. The junk filter is
 read only by ``live_state``, the post-rescan replay's reader: it follows the
 material, so no saved snapshot holds it.
 
@@ -25,6 +25,9 @@ from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, 
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
+
+MATRIX_PROFILE = "matrix_profile"
+DEFAULT_PROFILE_NAME = "[Default]"
 
 _UNKNOWN_CHAIN = {"chain": "the engine's active chain is unknown, so there is no live state to snapshot"}
 
@@ -54,8 +57,8 @@ _STATE_VALUE = {"junk_filter": "index"}
 # `lane.apply_preset` writes the mode, re-enumerates, then applies the rest
 # against the lists the switch produced. Leaving mode out made a preset unable to
 # say "run SDM like this", which is most of what a preset is for.
-#: Every setting a saved snapshot can hold: the routable settings and the DIRECT flags.
-SNAPSHOT_FIELDS = (*ROUTABLE, *DIRECT)
+#: Every setting a saved snapshot can hold: the routable settings, the DIRECT flags and the matrix profile.
+SNAPSHOT_FIELDS = (*ROUTABLE, *DIRECT, MATRIX_PROFILE)
 
 # The enumerated settings ``live_state`` reads: the routable ones and the junk filter.
 _STATE_FIELDS = (*ROUTABLE, *LIVE_ONLY)
@@ -148,4 +151,8 @@ def live_snapshot(mgr: ConnectionManager) -> LiveSnapshot:
     ``ChainUnknownError`` as ``live_state`` raises it.
     """
     state = live_state(mgr)
-    return LiveSnapshot(state.chain, {f: item for f, item in state.fields.items() if f in SNAPSHOT_FIELDS})
+    fields = {f: item for f, item in state.fields.items() if f in SNAPSHOT_FIELDS}
+    profile = (mgr.readings.state or {}).get(MATRIX_PROFILE)
+    if profile is not None:
+        fields[MATRIX_PROFILE] = {"value": profile, "name": DEFAULT_PROFILE_NAME if profile == "" else profile}
+    return LiveSnapshot(state.chain, fields)

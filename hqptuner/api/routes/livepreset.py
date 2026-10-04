@@ -10,6 +10,7 @@ whole book; a save writes to the stations its body names, the loaded one when it
 names none; apply and delete take ``?station=``, the loaded one when absent.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Request
@@ -17,12 +18,14 @@ from pydantic import BaseModel, Field
 
 from hqptuner.api.deps import Mgr, WithAutosave, with_autosave
 from hqptuner.api.errors import ApiError, ErrorBody, refuse
+from hqptuner.api.routes.matrix.matrix import MatrixSwitchRefusedError
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.lanes import matrixlane
 from hqptuner.lanes.live import lane, routing, snapshot
 from hqptuner.lanes.live.chain import PCM, SDM
 from hqptuner.lanes.live.lane import LiveApplyReport
-from hqptuner.lanes.live.snapshot import ChainUnknownError, LiveSnapshot
+from hqptuner.lanes.live.snapshot import DEFAULT_PROFILE_NAME, MATRIX_PROFILE, ChainUnknownError, LiveSnapshot
 from hqptuner.presets.store.live import (
     DEFAULT_STATION,
     LiveFields,
@@ -149,13 +152,28 @@ def _mode_name(manager: ConnectionManager, value: str) -> str | None:
     return next((str(item["name"]) for item in items if str(item.get("name") or "").startswith(want)), want)
 
 
+def _profile_name(manager: ConnectionManager, value: str) -> str | None:
+    """Return DEFAULT_PROFILE_NAME for ``""``, the name itself when the engine lists it, else None."""
+    if value == "":
+        return DEFAULT_PROFILE_NAME
+    return value if value in (manager.readings.matrix_profiles or []) else None
+
+
+def _profile_unlisted(value: str) -> str:
+    """Why a matrix profile cannot be stored or applied: the engine does not list it."""
+    return f"{value!r} is not a matrix profile the engine lists"
+
+
+_NAMERS: dict[str, Callable[[ConnectionManager, str], str | None]] = {"mode": _mode_name, MATRIX_PROFILE: _profile_name}
+
+
 def _given_name(manager: ConnectionManager, loaded: str, field: str, value: str) -> str | None:
     """Return the display name a given value is stored under, or None when the record cannot hold it.
 
     A field of the chain the engine has not loaded has no enumeration to join through, so it is its own name.
     """
-    if field == "mode":
-        return _mode_name(manager, value)
+    if (namer := _NAMERS.get(field)) is not None:
+        return namer(manager, value)
     if field in routing.DIRECT:
         return value if value in _FLAGS else None
     spec = routing.ROUTABLE[field]
@@ -171,6 +189,8 @@ def _why_refused(field: str, value: str) -> str:
         return f"{value!r} is not pcm or sdm"
     if field in routing.DIRECT:
         return f"{value!r} is not a 0/1 flag"
+    if field == MATRIX_PROFILE:
+        return _profile_unlisted(value)
     return f"{value} is not in the engine's live {routing.ROUTABLE[field].enum} list"
 
 
@@ -222,6 +242,23 @@ def _record(manager: ConnectionManager, keys: set[str] | None, values: dict[str,
     )
 
 
+def _check_profile(manager: ConnectionManager, profile: str | None) -> None:
+    """409 when a preset's matrix profile is one the engine does not list, before anything is applied."""
+    if profile is not None and _profile_name(manager, profile) is None:
+        exc = routing.LiveRouteError({MATRIX_PROFILE: _profile_unlisted(profile)})
+        raise refuse(exc, exc.reasons)
+
+
+async def _switch_profile(manager: ConnectionManager, profile: str | None) -> None:
+    """Switch the engine to a preset's matrix profile when it is on another; a daemon refusal is translated."""
+    if profile is None or (manager.readings.state or {}).get(MATRIX_PROFILE, "") == profile:
+        return
+    try:
+        await matrixlane.switch_profile(manager, profile)
+    except ControlError as exc:
+        raise refuse(MatrixSwitchRefusedError(error=exc)) from exc
+
+
 @router.get("/livepresets/snapshot")
 def live_snapshot(manager: Mgr) -> LiveSnapshotView:
     """Return what a save would store right now, per setting with its display name — what the save popover lists.
@@ -257,10 +294,10 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
 
     A body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them
     where the engine has them. A body naming ``values`` stores each over the engine's own, a given mode setting the
-    record's chain. A body naming ``stations`` writes the one record under each; none named writes it
-    under the loaded station. 409 when the loaded chain is unknowable — the record would claim a chain it never
-    captured. 422 when a named field is not a live snapshot setting, a given value is one the record cannot hold, or a
-    named station is not one the preset store holds.
+    record's chain. A matrix profile is held as the engine names it, ``""`` for none. A body naming ``stations``
+    writes the one record under each; none named writes it under the loaded station. 409 when the loaded chain is
+    unknowable — the record would claim a chain it never captured. 422 when a named field is not a live snapshot
+    setting, a given value is one the record cannot hold, or a named station is not one the preset store holds.
     """
     # Name first, engine second: a name the rule refuses is refused as one whatever
     # the engine is doing, rather than being answered by whatever the snapshot
@@ -287,7 +324,8 @@ async def apply_live_preset(
     """Apply a preset saved under ``station``, the loaded one when absent, readback-verified.
 
     Its output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),
-    so a preset taken on the other chain applies by switching to it.
+    so a preset taken on the other chain applies by switching to it. Its matrix profile is checked against the engine's
+    list before anything applies and switched to last, only when the engine is on another.
 
     The live lane's all-or-nothing 409 carries over unchanged: a stored ID the
     running enumerations no longer offer refuses the whole preset, naming the
@@ -303,12 +341,15 @@ async def apply_live_preset(
     # A preset record may carry a "rate" field. No snapshot holds a pinned rate
     # (`lanes/live/rate`), so it is dropped and the rest applies.
     fields.pop("rate", None)
+    profile = fields.pop(MATRIX_PROFILE, None)
+    _check_profile(manager, profile)
     try:
         report = await lane.apply_preset(manager, fields) if fields else LiveApplyReport()
     except routing.LiveRouteError as exc:
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
         raise refuse(exc) from exc
+    await _switch_profile(manager, profile)
     return await with_autosave(report, manager)
 
 

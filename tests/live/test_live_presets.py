@@ -241,7 +241,7 @@ def test_saving_a_preset_naming_the_junk_filter_or_auto_pilot_is_refused(live_ap
 
 def test_a_full_save_stores_every_live_setting_the_engine_reports_but_the_junk_filter(live_api: TestClient) -> None:
     fields = live_api.put("/api/livepresets/Warm").json()["fields"]
-    assert set(fields) == {"mode", "filter1x", "filter", "dither", "adaptive_volume"}
+    assert set(fields) == {"mode", "filter1x", "filter", "dither", "adaptive_volume", "matrix_profile"}
 
 
 #: Each snapshot surface's response keys: the record, and the preview a save
