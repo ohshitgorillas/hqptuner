@@ -5,8 +5,9 @@
 // The contract has two halves. The percent follows the shown volume across the
 // running range: the volume under a dragged knob, never a range bound or a
 // switch the user has edited but not applied. And it is nothing while loudness
-// cannot reach the output: a bypassed matrix engine, loudness switched off, or a
-// pinned volume each take the whole of it away.
+// cannot reach the output: a bypassed matrix engine, loudness switched off, a
+// pinned volume or a running Direct SDM, which pins the volume too, each take the
+// whole of it away.
 //
 // The wire is the seam: every case writes the daemon's own /config and /matrix
 // form fields into `config` and `matrixConfig`, the engine's reported volume
@@ -34,32 +35,38 @@ import {
 import { loudnessApplied } from "../../../hqptuner/static/store/matrix/loudness.js";
 
 /**
- * @typedef {{ matrix?: boolean, loudness?: boolean, fixedVolume?: boolean, low?: string, high?: string,
- *             at?: string, drag?: number | null, override?: Record<string, unknown> }} Running
+ * @typedef {{ matrix?: boolean, loudness?: boolean, fixedVolume?: boolean, directSdm?: boolean, low?: string,
+ *             high?: string, at?: string, drag?: number | null, override?: Record<string, unknown> }} Running
  */
 
 // A running chain with loudness audible: matrix engaged, loudness on, an
 // adjustable -60..0 dB volume, the loudness range -60..-20 dB, the volume at -40.
+/** @type {Required<Running>} */
+const AUDIBLE = {
+  matrix: true,
+  loudness: true,
+  fixedVolume: false,
+  directSdm: false,
+  low: "-60",
+  high: "-20",
+  at: "-40",
+  drag: null,
+  override: {},
+};
+
 /**
  * The applied percent for one running state.
  *
  * @param {Running} running
  * @returns {number}
  */
-function appliedWith({
-  matrix = true,
-  loudness = true,
-  fixedVolume = false,
-  low = "-60",
-  high = "-20",
-  at = "-40",
-  drag = null,
-  override = {},
-} = {}) {
+function appliedWith(running = {}) {
+  const { matrix, loudness, fixedVolume, directSdm, low, high, at, drag, override } = { ...AUDIBLE, ...running };
   config.value = {
     fields: [
       { name: "fixed_volume_enabled", value: fixedVolume },
       { name: "volume_fixed", value: false },
+      { name: "direct_sdm", value: directSdm },
       { name: "volume_min", value: "-60" },
       { name: "volume_max", value: "0" },
     ],
@@ -113,4 +120,8 @@ test("test_loudness_switched_off_takes_the_whole_percent_away", () => {
 
 test("test_a_pinned_volume_takes_the_whole_percent_away", () => {
   assert.equal(appliedWith() - appliedWith({ fixedVolume: true }), 50);
+});
+
+test("test_a_running_direct_sdm_takes_the_whole_percent_away", () => {
+  assert.equal(appliedWith() - appliedWith({ directSdm: true }), 50);
 });

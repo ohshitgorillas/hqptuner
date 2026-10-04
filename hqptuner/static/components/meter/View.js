@@ -23,7 +23,7 @@ import {
   meterScale,
   setMeterScale,
 } from "../../store/ui/prefs.js";
-import { sourceIsDsd } from "../SignalPath.js";
+import { sourceIsDsd } from "../../store/faceplate/path.js";
 import { ApodStrip } from "../ApodStrip.js";
 import { Dropdown, Segment } from "../controls/index.js";
 import { Levels } from "./Levels.js";

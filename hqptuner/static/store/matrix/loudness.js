@@ -5,7 +5,8 @@
 // loudness controls, and follows the volume the page shows, so it moves with a
 // dragged volume knob before the engine reports. It is 0 wherever loudness
 // cannot reach the output: a bypassed matrix engine (`<post_process>` nests
-// inside `<matrix>`, readme §1.11.2), loudness switched off, or a pinned volume.
+// inside `<matrix>`, readme §1.11.2), loudness switched off, a pinned volume, or a
+// running Direct SDM, which fixes the volume at -3 dBFS (manual §4.5).
 
 import { volumeShown } from "../signals.js";
 import { runningValue } from "../resolve.js";
@@ -17,14 +18,14 @@ import { percentApplied } from "../../model/gauges/loudness.js";
 /**
  * The whole percent of the maximum loudness shelving applied at the shown
  * volume, from the running loudness range; 0 while the matrix engine is
- * bypassed, loudness is off or the volume is pinned.
+ * bypassed, loudness is off, the volume is pinned or Direct SDM is running.
  *
  * @returns {number}
  */
 export function loudnessApplied() {
   if (!truthy(runningValue("matrix_enabled"))) return 0;
   if (!truthy(runningValue("loudness_enabled"))) return 0;
-  if (volumePinned(runningValue)) return 0;
+  if (volumePinned(runningValue) || truthy(runningValue("direct_sdm"))) return 0;
   const rangeLow = num(runningValue("loudness_range_low"), -60);
   const rangeHigh = num(runningValue("loudness_range_high"), -20);
   return percentApplied(shelfScale(num(volumeShown.value, rangeHigh), rangeLow, rangeHigh));

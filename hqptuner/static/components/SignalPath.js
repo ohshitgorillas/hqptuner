@@ -16,12 +16,11 @@
 // or a staged-but-unapplied edit must not move these chips).
 import { html } from "../lib/dom.js";
 import { engineStatus, engineState } from "../store/signals.js";
-import { runningValue, formFieldName } from "../store/resolve.js";
-import { schema } from "../store/schema.js";
+import { runningValue } from "../store/resolve.js";
 import { volumePinned } from "../store/schema/gray.js";
-import { optionsFor } from "../store/ui/options.js";
+import { sourceIsDsd, outputIsSdm } from "../store/faceplate/path.js";
+import { sourceLabel, outputLabel, configLabel } from "../store/faceplate/chain.js";
 import { truthy as on } from "../lib/coerce.js";
-import { hz } from "../lib/units.js";
 
 /**
  * @typedef {{
@@ -37,19 +36,6 @@ import { hz } from "../lib/units.js";
  */
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
-const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
-
-// The front panel shows the actual frequency, not a DSD multiplier: a DSD
-// bitstream is a 1-bit stream at this rate, so "24.576 MHz" reads truer than
-// "DSD512" (and sidesteps the 44.1k-vs-48k base ambiguity that mislabeled it).
-/**
- * @param {string | undefined} rate
- * @returns {string}
- */
-function fmtRate(rate) {
-  const n = Number(rate);
-  return n ? hz(n, 3) : "—";
-}
 
 // The placeholder every "nothing to report" path in this file already writes:
 // no source, no rate, no chain. Marked as its own state rather than left as
@@ -72,54 +58,6 @@ function Chip({ stage, label, value, hero }) {
   `;
 }
 
-// A /config dropdown reports the form's option VALUE ("2", "xfi"); the chip
-// needs the human label, so join through the same option list the control on the
-// DSP tab renders from rather than keeping a second copy of the enum here.
-/**
- * @param {string} key
- * @returns {string}
- */
-function configLabel(key) {
-  const raw = runningValue(key);
-  if (raw === undefined || raw === "") return "";
-  // FieldEntry, not the ambient SchemaField: the catalog spells three fields
-  // differently and does not overlap it (components/widgets/Field.js states which).
-  const entry = /** @type {Record<string, import("./widgets/Field.js").FieldEntry>} */ (schema)[key];
-  const hit = optionsFor(entry.optionsFrom || "", formFieldName(entry)).find(
-    (/** @type {OptionItem} */ o) => String(o.value) === String(raw),
-  );
-  return hit ? hit.label : String(raw);
-}
-
-// Source describes the incoming stream, so it only means anything while one
-// exists — a bare dash otherwise (not "N/A", not the engine's remembered rate).
-/**
- * @param {Metadata} md
- * @returns {string}
- */
-function sourceLabel(md) {
-  if (!md.samplerate) return "—";
-  return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
-}
-
-// The output chip reads like the source chip — rate and bit depth — and the
-// depth comes straight off the Status frame's `active_bits` (protocol.md), which
-// reports 1 on an SDM path and 24/32 on a PCM one. Falling back on the DSD floor
-// keeps the chip right when the field is absent, where the only depth derivable
-// without it is the 1 bit a DSD bitstream always carries.
-/**
- * @param {Status} st
- * @returns {string}
- */
-function outputLabel(st) {
-  const rate = st.active_rate;
-  const bits = Number(st.active_bits);
-  if (!Number(rate)) return "—"; // no rate, no chain — a bare depth reads as noise
-  if (bits) return `${fmtRate(rate)} / ${bits}bit`;
-  if (Number(rate) >= DSD_FLOOR) return `${fmtRate(rate)} / 1bit`;
-  return fmtRate(rate);
-}
-
 // Crossfeed and loudness share ONE post-process slot — both active collapses to
 // "DSP" rather than a chip each, which would crowd the panel.
 /**
@@ -135,16 +73,8 @@ function postProcessStage(cf, loud) {
 }
 
 // Which conversion chain is running is decided by the SOURCE domain and the
-// OUTPUT domain, not by the configured mode.
-//
-// Source domain: the Status metadata child carries an `sdm` flag, which is the
-// direct answer, but protocol.md only lists the attribute — nothing has verified
-// it on the wire against 6.0.4. The source rate is the independent check, since a
-// DSD bitstream reports its bitstream rate and that is always at or above DSD64.
-// Either one alone suffices, so the pair survives whichever turns out to be absent.
-/** Whether the source is a DSD bitstream, by its sdm flag or its rate. */
-export const sourceIsDsd = (/** @type {Metadata} */ md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
-const outputIsSdm = (/** @type {Status} */ st) => Number(st.active_rate) >= DSD_FLOOR;
+// OUTPUT domain, not by the configured mode (store/faceplate/path.js holds both
+// tests).
 
 // DirectSDM only means anything on the DSD→SDM path: it "disables all processing
 // when source is DSD content and output format is SDM to a DSD-device or file"
