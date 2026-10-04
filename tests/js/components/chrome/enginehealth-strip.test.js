@@ -5,15 +5,14 @@
 // The strip is a pure function of the apodizing history store, so it is driven
 // exactly as tests/js/store/presets/apodhistory.test.js drives it — a poll is a FRESH
 // object written to engineStatus carrying the daemon's own Status fields, and
-// the cadence a bin records is moved by writing the signals the app itself
-// writes (liveMode, activeTab, quickSystemUpdates) and read back through
-// store/ui/ui.js's fastPollMs. Nothing of HQPTuner's is stubbed (docs/testing.md
-// rule 4), and the markup is read as a browser would present it.
+// the width a bin records is the playback step the fixture moves each poll on.
+// Nothing of HQPTuner's is stubbed (docs/testing.md rule 4), and the markup is
+// read as a browser would present it.
 //
 // Hazards, inherited from that seam:
 //
 //   1. Module state persists for the life of the file: every case starts a
-//      fresh track of its own, sets the cadence it wants, and sets the window
+//      fresh track of its own, sets the poll step it wants, and sets the window
 //      it wants, so no case depends on what the one before it left behind.
 //   2. Writing the SAME object reference to engineStatus does not notify, so
 //      every simulated poll must be a fresh object.
@@ -36,8 +35,7 @@
 // mixing two adjacent stops. The field is continuous — EVERY visible bin draws
 // a column, a bin that counted nothing painting the floor rather than leaving a
 // hole — and what a column reads is a RATE, events per second over the interval
-// its bin observed, so the same music reads the same whichever cadence the page
-// is polling at.
+// its bin observed, so the same music reads the same however wide its bin is.
 //
 // What is contract, and what the cases below pin: the full height, the shape of
 // the fill, a column per bin at its own place in time, the monotonicity, the
@@ -66,41 +64,32 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { elements, classes, text } from "../../support/markup.js";
 import { renderWith } from "../../support/wheel.js";
-import { STOPPED, readCadences, setApodCounter, poll, append, feed } from "../../support/apodpolls.js";
+import { STOPPED, setPollStep, setApodCounter, poll, append, feed } from "../../support/apodpolls.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { EngineHealth } from "../../../../hqptuner/static/components/system/EngineHealth.js";
-import { liveMode, apodWindow, setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { apodWindow, setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { CELL_MS } from "../../../../hqptuner/static/lib/apodscale.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-// The two cadences the app itself produces, read rather than assumed
-// (tests/js/store/live/polling.test.js pins where each comes from).
-const { live: LIVE_CADENCE, base: CADENCE } = readCadences();
-
-// The width case needs one cadence to be exactly twice the other, and the
-// window-span cases read real millisecond sums. Guard rather than assert, so a
-// store change that moved either cadence fails loudly instead of quietly
-// passing on arithmetic that no longer means what it says.
-if (LIVE_CADENCE !== 1000 || CADENCE !== 2000) {
-  throw new Error(
-    `this suite needs the LIVE cadence at 1000ms and the default at 2000ms; got ${LIVE_CADENCE}/${CADENCE}`,
-  );
-}
+// The width of one bin at the default poll step: one grid cell, so a track of
+// N bins draws N columns.
+const STEP_MS = CELL_MS;
 
 // The rate the scale saturates at, in events per SECOND, and the count that
-// reaches it in one bin recorded at a given cadence. A case that wants a rate
-// asks for it in these terms rather than naming a per-bin count, so the same
-// case still means what it says at either cadence.
+// reaches it in one bin of a given width. A case that wants a rate asks for it
+// in these terms rather than naming a per-bin count, so the same case still
+// means what it says at any width.
 const SATURATES_AT = 30;
 
 /**
- * @param {number} cadenceMs
+ * @param {number} widthMs
  * @param {number} [perSecond]
  * @returns {number}
  */
-const inOneBin = (cadenceMs, perSecond = SATURATES_AT) => (perSecond * cadenceMs) / 1000;
+const inOneBin = (widthMs, perSecond = SATURATES_AT) => (perSecond * widthMs) / 1000;
 
 initApodHistory();
 
@@ -352,11 +341,11 @@ const inTimeOrder = (out) => [...bars(out)].sort((a, b) => attrNum(a, "x") - att
 /**
  * @param {number[]} deltas
  * @param {string} [window]
- * @param {boolean} [live]
+ * @param {number} [step] seconds of playback each poll observes
  */
-function shown(deltas, window = "30", live = false) {
+function shown(deltas, window = "30", step = CELL_MS / 1000) {
   setApodWindow(window);
-  liveMode.value = live;
+  setPollStep(step);
   feed(deltas);
 }
 
@@ -410,22 +399,36 @@ test("test_a_quiet_stretch_leaves_no_unpainted_slot_between_the_bars", () => {
 });
 
 test("test_a_bar_stands_at_its_own_place_in_time", () => {
-  // Five bins at one cadence: the oldest and the newest stand four intervals
+  // Five bins of one width: the oldest and the newest stand four intervals
   // apart, wherever the field begins. A renderer that packed the bins at some
   // width of its own choosing draws them closer together.
   shown([1, 0, 0, 0, 1]);
   const drawn = inTimeOrder(card());
   if (drawn.length !== 5) throw new Error(`expected the five bins to draw five bars, found ${drawn.length}`);
-  assert.equal(attrNum(drawn[4], "x") - attrNum(drawn[0], "x"), 4 * CADENCE);
+  assert.equal(attrNum(drawn[4], "x") - attrNum(drawn[0], "x"), 4 * STEP_MS);
 });
 
-// --- a bar is as wide as the interval it stands for ---------------------------------
+// --- a bar is one grid cell wide, whatever the bins under it --------------------------
 
-test("test_a_bar_covering_twice_the_interval_is_drawn_twice_as_wide", () => {
-  shown([5], "30", false); // one bin at the 2000ms cadence
-  const slow = attrNum(onlyBar(card()), "width");
-  shown([5], "30", true); // one bin at the 1000ms cadence
-  assert.equal(slow, 2 * attrNum(onlyBar(card()), "width"));
+test("test_a_bin_covering_two_grid_cells_draws_two_bars", () => {
+  shown([5], "30", (2 * CELL_MS) / 1000);
+  assert.equal(bars(card()).length, 2);
+});
+
+test("test_bins_of_uneven_width_draw_bars_one_grid_cell_apart", () => {
+  // the daemon's own steps: three seconds, then one, then two, then two
+  setApodWindow("30");
+  setPollStep(3);
+  feed([1]);
+  setPollStep(1);
+  append([1]);
+  setPollStep(2);
+  append([1, 1]);
+  const drawn = inTimeOrder(card());
+  assert.deepEqual(
+    drawn.slice(1).map((bar, i) => attrNum(bar, "x") - attrNum(drawn[i], "x")),
+    drawn.slice(1).map(() => CELL_MS),
+  );
 });
 
 test("test_the_newest_bar_ends_at_the_right_edge_of_the_chart", () => {
@@ -452,13 +455,13 @@ test("test_a_busy_bar_is_no_taller_than_a_quiet_one", () => {
 
 // --- a bar's colour is the rate it stands for --------------------------------------------
 
-// Counts fed at the default cadence, so every pair stays below the rate that
-// saturates (SATURATES_AT per second, inOneBin(CADENCE) events in one bin).
+// Counts fed at the default step, so every pair stays below the rate that
+// saturates (SATURATES_AT per second, inOneBin(STEP_MS) events in one bin).
 for (const [quiet, busy] of [
   [0, 1],
   [1, 2],
   [2, 20],
-  [20, inOneBin(CADENCE) - 1],
+  [20, inOneBin(STEP_MS) - 1],
 ]) {
   test(`test_a_busier_interval_is_drawn_hotter: ${quiet} then ${busy}`, () => {
     shown([quiet]);
@@ -478,35 +481,36 @@ test("test_a_bar_is_filled_by_mixing_two_adjacent_ramp_stops", () => {
   assert.equal(upper, lower + 1, `--spec-${lower} and --spec-${upper} are not adjacent stops of the ramp`);
 });
 
-test("test_the_same_rate_at_two_cadences_is_drawn_the_same", () => {
-  // The reading is events per SECOND, not per bin: twenty events in a 2000ms bin
-  // and ten in a 1000ms bin are the same music, so they are the same colour. A
-  // renderer scoring the raw count draws the live page half as hot.
+test("test_the_same_rate_at_two_widths_is_drawn_the_same", () => {
+  // The reading is events per SECOND, not per bin: forty events in a 4000ms bin
+  // and twenty in a 2000ms bin are the same music, so they are the same colour.
+  // A renderer scoring the raw count draws the wider bin twice as hot.
   const perSecond = 10;
-  shown([inOneBin(CADENCE, perSecond)], "30", false);
-  const slow = rampPosition(onlyBar(card()));
-  shown([inOneBin(LIVE_CADENCE, perSecond)], "30", true);
-  assert.equal(rampPosition(onlyBar(card())), slow);
+  shown([inOneBin(2000, perSecond)], "30", 2);
+  const narrow = rampPosition(onlyBar(card()));
+  shown([inOneBin(4000, perSecond)], "30", 4);
+  const drawn = inTimeOrder(card());
+  assert.equal(rampPosition(drawn[drawn.length - 1]), narrow);
 });
 
 test("test_a_rate_just_short_of_saturation_is_drawn_cooler_than_the_saturating_rate", () => {
   // The saturation POINT, from below: without this a renderer that flattened the
   // ramp well under thirty a second passes every other case in this section.
-  shown([inOneBin(CADENCE) - 1]);
+  shown([inOneBin(STEP_MS) - 1]);
   const under = rampPosition(onlyBar(card()));
-  shown([inOneBin(CADENCE)]);
+  shown([inOneBin(STEP_MS)]);
   assert.ok(rampPosition(onlyBar(card())) > under, "a rate just short of saturation must read cooler than saturation");
 });
 
 test("test_the_saturating_rate_draws_the_top_of_the_ramp", () => {
-  shown([inOneBin(CADENCE)]);
+  shown([inOneBin(STEP_MS)]);
   assert.equal(rampPosition(onlyBar(card())), 5);
 });
 
 test("test_a_rate_past_saturation_is_drawn_the_same_as_the_saturating_rate", () => {
-  shown([inOneBin(CADENCE)]);
+  shown([inOneBin(STEP_MS)]);
   const top = rampPosition(onlyBar(card()));
-  shown([inOneBin(CADENCE) * 8]);
+  shown([inOneBin(STEP_MS) * 8]);
   assert.equal(rampPosition(onlyBar(card())), top);
 });
 
@@ -517,7 +521,7 @@ test("test_a_rate_reads_the_same_beside_a_busier_interval_as_it_does_alone", () 
   // that saturates.
   shown([5]);
   const alone = rampPosition(onlyBar(card()));
-  shown([5, inOneBin(CADENCE)]);
+  shown([5, inOneBin(STEP_MS)]);
   assert.equal(rampPosition(inTimeOrder(card())[0]), alone);
 });
 
@@ -541,7 +545,7 @@ for (const seconds of [30, 60, 120, 300]) {
 test("test_a_history_longer_than_the_window_draws_only_the_bars_the_window_holds", () => {
   // Every interval counted, so a bar per bin the window admits and nothing else:
   // a chart drawing the whole history instead of the window's slice draws twenty.
-  const fits = Math.floor(30000 / CADENCE);
+  const fits = Math.floor(30000 / STEP_MS);
   shown(
     series(fits + 5, () => 1),
     "30",
@@ -549,12 +553,13 @@ test("test_a_history_longer_than_the_window_draws_only_the_bars_the_window_holds
   assert.equal(bars(card()).length, fits);
 });
 
-test("test_the_whole_track_window_spans_the_recorded_intervals_it_shows", () => {
-  // two bins at the 2000ms cadence, then one in LIVE at 1000ms
-  shown([1, 2], "all", false);
-  liveMode.value = true;
+test("test_the_whole_track_window_spans_the_whole_grid_cells_recorded", () => {
+  // two bins over two seconds each, then one over one second: the last second
+  // is not yet a whole cell, so the span is the first four
+  shown([1, 2], "all", 2);
+  setPollStep(1);
   append([3]);
-  assert.equal(spanMs(card()), 2 * CADENCE + LIVE_CADENCE);
+  assert.equal(spanMs(card()), 2 * CELL_MS);
 });
 
 // --- the window picker -------------------------------------------------------------------

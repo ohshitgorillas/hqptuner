@@ -208,6 +208,22 @@ async def test_a_96_khz_source_queues_fewer_frame_items_than_a_44_1_khz_one() ->
     assert await _frame_items(48000.0) < await _frame_items(22050.0)
 
 
+# --- line 3a: a frame item states the frame time it covers ------------------
+
+
+#: Nyquist, then the frame time one item covers: whole frames of 1024 samples, the count nearest 40 ms.
+COVERS = [
+    pytest.param(22050.0, 2 * 1024 / 44100 * 1000, id="44.1 kHz, two frames"),
+    pytest.param(48000.0, 4 * 1024 / 96000 * 1000, id="96 kHz, four frames"),
+]
+
+
+@pytest.mark.parametrize(("bandwidth", "ms"), COVERS)
+async def test_a_frame_item_states_the_frame_time_of_the_frames_it_covers(bandwidth: float, ms: float) -> None:
+    items = await _items([], then=_mono(LEVELS, bandwidth))
+    assert _first_frame(items).get("ms") == pytest.approx(ms, abs=1e-3)
+
+
 # --- line 4: a channel change restarts the stride ---------------------------
 
 

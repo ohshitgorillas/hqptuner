@@ -19,7 +19,8 @@ import { apodVisibleBins } from "../../store/apodhistory.js";
 import { meterGeometry } from "../../store/meter/feed.js";
 import { spectrogramCells } from "../../store/meter/spectrogram.js";
 import { apodWindow, meterRange, meterScale } from "../../store/ui/prefs.js";
-import { STOPS, windowSpan } from "../ApodStrip.js";
+import { windowSpan } from "../../lib/apodscale.js";
+import { STOPS } from "../ApodStrip.js";
 import { fmtHz } from "../plots.js";
 
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */

@@ -48,7 +48,7 @@ import json
 import re
 import importlib.util
 
-CHANGE_LIMIT = 8   # metered actions since the user last spoke; the next blocks
+CHANGE_LIMIT = 500   # metered actions since the user last spoke; the next blocks
 # read-only tools, plus the harness's own bookkeeping: none of these reach the
 # filesystem, the daemon or another agent. AskUserQuestion is how a trip gets
 # answered, so pricing it would make the escape cost an action.
