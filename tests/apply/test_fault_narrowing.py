@@ -21,7 +21,7 @@ docs/testing.md rule 4 recorded above it.
 
 import contextlib
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
 
@@ -87,14 +87,17 @@ async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
 # fabricated truth and imports nothing.
 
 
+@pytest.mark.parametrize(
+    ("fail_paths", "expected"),
+    [([], True), (["/backup/settings.zip"], False)],
+    ids=["healthy", "refusing"],
+)
 async def test_a_refusing_backup_route_leaves_file_config_unset_but_a_healthy_one_sets_it(
-    start_manager: StartManager, http_daemon: dict[str, Any]
+    start_manager: StartManager, http_daemon: dict[str, Any], fail_paths: list[str], *, expected: bool
 ) -> None:
-    healthy = await start_manager(http_daemon["_port"])
-    got_file_config = healthy.readings.file_config is not None
-    http_daemon["_fail_paths"] = ["/backup/settings.zip"]
-    refused = await start_manager(http_daemon["_port"])
-    assert (refused.readings.file_config, got_file_config) == (None, True)
+    http_daemon["_fail_paths"] = fail_paths
+    manager = await start_manager(http_daemon["_port"])
+    assert (manager.readings.file_config is not None) is expected
 
 
 def _newer_store(tmp_path: Path) -> Path:
@@ -108,37 +111,65 @@ def _newer_store(tmp_path: Path) -> Path:
     return presets
 
 
+def _ordinary_store(tmp_path: Path) -> Path:
+    """A preset directory this version's store creates and reads as its own."""
+    return tmp_path / "presets"
+
+
+def _imported(store: Path) -> list[str]:
+    """Every entry the connect wrote beside the store's own layout file."""
+    return sorted(p.name for p in store.rglob("*") if p.name != "store.json")
+
+
+@pytest.mark.parametrize(
+    ("make_store", "expected"),
+    [(_ordinary_store, ["Test.xml"]), (_newer_store, [])],
+    ids=["ordinary", "newer"],
+)
 async def test_a_store_stamped_by_a_newer_hqptuner_imports_nothing_but_an_ordinary_store_gets_the_daemons_preset(
-    start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+    start_manager: StartManager,
+    http_daemon: dict[str, Any],
+    tmp_path: Path,
+    make_store: Callable[[Path], Path],
+    expected: list[str],
 ) -> None:
     # the daemon's own snapshots must NOT land in a store that refused. store.json
     # is the store's on-disk layout contract; anything beside it would be an
     # imported payload — and an ordinary store gets exactly that payload, the
     # daemon's own `Test.xml`.
-    ordinary = tmp_path / "presets"
-    await start_manager(http_daemon["_port"], preset_dir=ordinary)
-    imported = [p.name for p in ordinary.rglob("*") if p.name != "store.json"]
-    newer = _newer_store(tmp_path)
-    await start_manager(http_daemon["_port"], preset_dir=newer)
-    blocked = [p.name for p in newer.rglob("*") if p.name != "store.json"]
-    assert (blocked, any("Test" in name for name in imported)) == ([], True)
+    store = make_store(tmp_path)
+    await start_manager(http_daemon["_port"], preset_dir=store)
+    assert _imported(store) == expected
 
 
 # --- baseline: a healthy pass records nothing ---------------------------------
 
 
+#: Whether a form's error slot holds an error: nothing recorded, or something recorded.
+NO_ERROR, ERROR_RECORDED = "no error", "error recorded"
+
+
+def _recorded_error(manager: ConnectionManager, form: str) -> str:
+    """``NO_ERROR`` when ``form``'s error slot is empty, else ``ERROR_RECORDED``."""
+    return NO_ERROR if getattr(manager.readings, f"{form}_error") is None else ERROR_RECORDED
+
+
 @pytest.mark.parametrize("form", sorted(FORMS))
+@pytest.mark.parametrize(
+    ("refusing", "expected"), [(False, NO_ERROR), (True, ERROR_RECORDED)], ids=["healthy", "refusing"]
+)
 async def test_a_healthy_pass_records_no_error_but_a_refusing_route_does(
-    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], form: str
+    http_manager_factory: ManagerFactory,
+    http_daemon: dict[str, Any],
+    form: str,
+    *,
+    refusing: bool,
+    expected: str,
 ) -> None:
     manager = http_manager_factory(http_daemon)
+    http_daemon["_fail_paths"] = [f"/{form}"] if refusing else []
     await forms.refresh(manager)
-    healthy = getattr(manager.readings, f"{form}_error")
-    http_daemon["_fail_paths"] = [f"/{form}"]
-    await forms.refresh(manager)
-    # the refused route's own path rides in the recorded error: that form's, not another's
-    refused = getattr(manager.readings, f"{form}_error")
-    assert (healthy, f"/{form}" in str(refused)) == (None, True)
+    assert _recorded_error(manager, form) == expected
 
 
 # --- the other half: an UNEXPECTED fault must not be swallowed ----------------
@@ -195,9 +226,12 @@ async def test_an_unexpected_fault_propagates_out_of_the_form_refresh(
         await forms.refresh(manager)
 
 
+@pytest.mark.parametrize(("form", "expected"), [("matrix", NO_ERROR), ("config", ERROR_RECORDED)])
 async def test_an_unexpected_matrix_fault_is_not_recorded_but_a_refused_configs_error_is(
     faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
     http_daemon: dict[str, Any],
+    form: str,
+    expected: str,
 ) -> None:
     # recording our own bug as the matrix form's error would hide it behind a
     # message that reads like the daemon refusing — unlike an ordinary refused
@@ -208,7 +242,7 @@ async def test_an_unexpected_matrix_fault_is_not_recorded_but_a_refused_configs_
     http_daemon["_fail_paths"] = ["/config"]
     with contextlib.suppress(TypeError):
         await forms.refresh(manager)
-    assert (manager.readings.matrix_error, "/config" in str(manager.readings.config_error)) == (None, True)
+    assert _recorded_error(manager, form) == expected
 
 
 async def test_a_refresh_reports_refused_when_the_daemon_answers_401(

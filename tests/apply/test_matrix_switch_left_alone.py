@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
+from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
@@ -45,9 +46,12 @@ def cfg(**overrides: object) -> bytes:
     return cfg_xml(state(**overrides))
 
 
-def switch_after(xml: bytes, edits: dict[str, str]) -> str | None:
-    """The matrix switch as a caller reads it back after staging ``edits``."""
-    return presetconf.read_config(presetconf.apply_edits(xml, edits)).get(MATRIX_SWITCH)
+def switch_after(xml: bytes, edits: dict[str, str]) -> str:
+    """The matrix switch as a caller reads it back after staging ``edits``.
+
+    Every caller hands in a ``cfg`` snapshot, which always renders the switch, so
+    an absent one is broken scaffolding and raises ``FixtureError``."""
+    return present(presetconf.read_config(presetconf.apply_edits(xml, edits)).get(MATRIX_SWITCH))
 
 
 # --- a plugin switched on leaves the carrier alone -----------------------------
@@ -108,23 +112,17 @@ def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix(
 
 
 @pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+@pytest.mark.parametrize("engaged", [False, True], ids=["bypassed", "engaged"])
 async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_matrix_switch_as_it_was(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str, *, engaged: bool
 ) -> None:
     # the switch is not merely left at some fixed value, it is left where the
     # daemon had it. A lane that ignored the key entirely could satisfy only
     # one side of this.
-    http_daemon["matrix_enabled"] = False
+    http_daemon["matrix_enabled"] = engaged
     http_daemon[plugin] = False
     await http_manager.applyops.apply({}, {plugin: "1"})
-    bypassed_stays_bypassed = http_daemon["matrix_enabled"]
-
-    http_daemon["matrix_enabled"] = True
-    http_daemon[plugin] = False
-    await http_manager.applyops.apply({}, {plugin: "1"})
-    engaged_stays_engaged = http_daemon["matrix_enabled"]
-
-    assert (bypassed_stays_bypassed, engaged_stays_engaged) == (False, True)
+    assert http_daemon["matrix_enabled"] is engaged
 
 
 @pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)

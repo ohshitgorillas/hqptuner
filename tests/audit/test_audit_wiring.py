@@ -127,19 +127,21 @@ def arm_autosave(client: TestClient, name: str = "Kept") -> None:
 # --- the log is off unless asked for -----------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("client_fixture", "expected"),
+    [("unlogged_client", []), ("audit_client", ["audit.jsonl"])],
+    ids=["unset", "configured"],
+)
 def test_an_unset_debug_log_writes_no_audit_file_but_a_configured_one_does(
-    unlogged_client: TestClient, audit_client: TestClient, tmp_path: Path
+    request: pytest.FixtureRequest, tmp_path: Path, client_fixture: str, expected: list[str]
 ) -> None:
     # a full stage-then-apply cycle leaves the app's own directories carrying
     # nothing but the artifacts it legitimately owns — checked by what is there
     # rather than by a name a log would have to be unlucky enough to use
-    stage_title(unlogged_client)
-    unlogged_client.post("/api/config/apply")
-    unlogged = stray_files(tmp_path)
-    stage_title(audit_client)
-    audit_client.post("/api/config/apply")
-    logged = stray_files(tmp_path)
-    assert (unlogged, logged) == ([], ["audit.jsonl"])
+    client: TestClient = request.getfixturevalue(client_fixture)
+    stage_title(client)
+    client.post("/api/config/apply")
+    assert stray_files(tmp_path) == expected
 
 
 # --- staging ------------------------------------------------------------------
@@ -211,16 +213,13 @@ def test_the_apply_record_names_the_preset_the_apply_switched_to(audit_client: T
 # not-applied without an exception — the soft failure the log has to explain.
 
 
+@pytest.mark.parametrize(("title", "expected"), [("Renamed", True), ("REJECT", False)], ids=["lands", "refused"])
 def test_an_apply_records_the_outcome_as_ok_when_it_lands_and_not_ok_when_refused(
-    audit_client: TestClient, audit_log: Path
+    audit_client: TestClient, audit_log: Path, title: str, *, expected: bool
 ) -> None:
-    stage_title(audit_client)
+    stage_title(audit_client, title)
     audit_client.post("/api/config/apply")
-    ok = last(audit_log, "apply")["ok"]
-    stage_title(audit_client, "REJECT")
-    audit_client.post("/api/config/apply")
-    refused = last(audit_log, "apply")["ok"]
-    assert (refused, ok) == (False, True)
+    assert last(audit_log, "apply")["ok"] is expected
 
 
 def test_a_refused_apply_still_records_the_staged_payload(audit_client: TestClient, audit_log: Path) -> None:
@@ -244,13 +243,13 @@ def test_the_profile_write_record_names_the_saved_profile(audit_client: TestClie
     assert last(audit_log, "profile.write")["name"] == "Crossfeed EQ"
 
 
-def test_a_profile_save_records_whether_it_replaced_an_existing_name(audit_client: TestClient, audit_log: Path) -> None:
+@pytest.mark.parametrize(("name", "expected"), [("Crossfeed EQ", True), ("Brand New", False)], ids=["same", "new"])
+def test_a_profile_save_records_whether_it_replaced_an_existing_name(
+    audit_client: TestClient, audit_log: Path, name: str, *, expected: bool
+) -> None:
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0)
-    apply_profile_save(audit_client, "Crossfeed EQ", ROW0, ROW1)
-    replaced = last(audit_log, "profile.write")["replaced"]
-    apply_profile_save(audit_client, "Brand New", ROW0)
-    not_replaced = last(audit_log, "profile.write")["replaced"]
-    assert (not_replaced, replaced) == (False, True)
+    apply_profile_save(audit_client, name, ROW0, ROW1)
+    assert last(audit_log, "profile.write")["replaced"] is expected
 
 
 def test_a_fanned_out_profile_write_names_the_stored_preset_it_landed_in(

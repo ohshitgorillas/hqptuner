@@ -43,16 +43,25 @@ def test_select_carries_every_option() -> None:
     assert {o["value"] for o in _FIELDS["backend"]["options"]} == {"alsa", "network", "combo"}
 
 
-def test_number_field_carries_min_max_constraints() -> None:
-    assert (_FIELDS["channels"]["min"], _FIELDS["channels"]["max"]) == (2, 32)
+def test_number_field_carries_min_constraint() -> None:
+    assert _FIELDS["channels"]["min"] == 2
+
+
+def test_number_field_carries_max_constraint() -> None:
+    assert _FIELDS["channels"]["max"] == 32
 
 
 def test_number_field_carries_step_constraint() -> None:
     assert _FIELDS["gain_comp"]["step"] == 0.1
 
 
-def test_a_checkbox_parses_checked_as_true_and_unchecked_as_false() -> None:
-    assert (_FIELDS["fixed_volume_enabled"]["value"], _FIELDS["volume_fixed"]["value"]) == (False, True)
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [("fixed_volume_enabled", False), ("volume_fixed", True)],
+    ids=["unchecked", "checked"],
+)
+def test_a_checkbox_parses_checked_as_true_and_unchecked_as_false(name: str, *, expected: bool) -> None:
+    assert _FIELDS[name]["value"] is expected
 
 
 def test_text_field_reports_current_value() -> None:

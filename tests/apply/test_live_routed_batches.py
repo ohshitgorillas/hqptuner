@@ -111,12 +111,34 @@ def _apply_staged(client: TestClient, fields: dict[str, str]) -> dict[str, Any]:
 # --- a batch of nothing but live-capable fields rides the Control API --------
 
 
+def _sent_during_apply(client: TestClient, log: CommandLog, fields: dict[str, str], command: str) -> list[str | None]:
+    """The ``value`` of every ``command`` the apply of ``fields`` put on the wire."""
+    before = len(log)
+    _apply_staged(client, fields)
+    return [attrs.get("value") for attrs in _sent(log[before:], command)]
+
+
+#: How a report's persistent lane reads: absent, applied, or present and not applied.
+NO_LANE, APPLIED, NOT_APPLIED = "no lane", "applied", "not applied"
+
+
+def _persistent_lane(report: dict[str, Any]) -> str:
+    """Which of ``NO_LANE``, ``APPLIED`` or ``NOT_APPLIED`` the report's persistent lane reads as."""
+    persistent = report["persistent"]
+    if persistent is None:
+        return NO_LANE
+    return APPLIED if persistent.get("applied") is True else NOT_APPLIED
+
+
+@pytest.mark.parametrize(
+    ("fields", "expected"),
+    [({"dither": "5"}, NO_LANE), ({"dither": "5", "title": "Renamed"}, APPLIED)],
+    ids=["pure_live", "beside_restart"],
+)
 def test_a_pure_live_dither_apply_reports_no_persistent_lane_but_a_restart_field_gets_one_applied(
-    client: TestClient,
+    client: TestClient, fields: dict[str, str], expected: str
 ) -> None:
-    pure_live = _apply_staged(client, {"dither": "5"})["persistent"]
-    beside_restart = _apply_staged(client, {"dither": "5", "title": "Renamed"})["persistent"]
-    assert (pure_live, beside_restart["applied"]) == (None, True)
+    assert _persistent_lane(_apply_staged(client, fields)) == expected
 
 
 def test_a_pure_live_dither_apply_never_restarts_the_daemon(
@@ -132,19 +154,19 @@ def test_a_pure_live_dither_apply_never_restarts_the_daemon(
 # --- one restart-required field defers the whole batch to the restore --------
 
 
+@pytest.mark.parametrize(
+    ("fields", "expected"),
+    [({"dither": "5"}, ["1"]), ({"dither": "5", "title": "Renamed"}, [])],
+    ids=["alone", "beside_restart"],
+)
 def test_a_dither_beside_a_restart_field_sends_no_setshaping_but_alone_it_does(
-    client: TestClient, control_log: CommandLog
+    client: TestClient, control_log: CommandLog, fields: dict[str, str], expected: list[str]
 ) -> None:
     # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
     # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
     # applied alone exactly one SetShaping goes out and it carries the index,
     # never the ID; sharing the batch with a restart field defers it entirely.
-    _apply_staged(client, {"dither": "5"})
-    alone = [attrs.get("value") for attrs in _sent(control_log, "SetShaping")]
-    before = len(control_log)
-    _apply_staged(client, {"dither": "5", "title": "Renamed"})
-    beside_restart = [attrs.get("value") for attrs in _sent(control_log[before:], "SetShaping")]
-    assert (beside_restart, alone) == ([], ["1"])
+    assert _sent_during_apply(client, control_log, fields, "SetShaping") == expected
 
 
 def test_a_dither_beside_a_restart_field_lands_exactly_one_restore(
@@ -180,15 +202,15 @@ def test_the_config_file_view_reports_the_restored_dither(client: TestClient) ->
 # --- the mode defers the same way ---------------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("fields", "expected"),
+    [({"mode": "sdm"}, ["2"]), ({"mode": "sdm", "title": "Renamed"}, [])],
+    ids=["alone", "beside_restart"],
+)
 def test_a_mode_beside_a_restart_field_sends_no_setmode_but_alone_it_does(
-    client: TestClient, control_log: CommandLog
+    client: TestClient, control_log: CommandLog, fields: dict[str, str], expected: list[str]
 ) -> None:
-    _apply_staged(client, {"mode": "sdm"})
-    alone = [attrs.get("value") for attrs in _sent(control_log, "SetMode")]
-    before = len(control_log)
-    _apply_staged(client, {"mode": "pcm", "title": "Renamed"})
-    beside_restart = [attrs.get("value") for attrs in _sent(control_log[before:], "SetMode")]
-    assert (beside_restart, alone) == ([], ["2"])
+    assert _sent_during_apply(client, control_log, fields, "SetMode") == expected
 
 
 def test_the_shared_restore_carries_the_new_mode(client: TestClient, pcm_file_daemon: dict[str, Any]) -> None:

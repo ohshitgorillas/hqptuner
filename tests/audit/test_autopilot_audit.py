@@ -160,24 +160,27 @@ def test_switching_auto_pilot_off_records_the_switch_as_the_source(
     assert first_after(audit_log, mark, "autopilot.set")["source"] == "switch"
 
 
+def previous_recorded_by_switch_off(client: TestClient, audit_log: Path, *, already_off: bool) -> object:
+    """Switch auto-pilot on, and off once more first when ``already_off``; then
+    switch it off and return the ``previous`` that switch-off recorded."""
+    switch_on(client)
+    if already_off:
+        client.post("/api/autopilot", json={"enabled": False})
+    mark = highest_seq(audit_log)
+    client.post("/api/autopilot", json={"enabled": False})
+    return first_after(audit_log, mark, "autopilot.set")["previous"]
+
+
+@pytest.mark.parametrize(("already_off", "expected"), [(False, True), (True, False)], ids=["was_on", "already_off"])
 def test_switching_off_records_the_previous_state_whether_it_was_on_or_already_off(
-    autopilot_client: TestClient, audit_log: Path
+    autopilot_client: TestClient, audit_log: Path, *, already_off: bool, expected: bool
 ) -> None:
     # what it was before, not only what it became: a record of the new state
     # alone cannot tell a real change from a switch that was already off. The
     # pairing case: an implementation that never reads the store and writes
     # `previous` as the negation of what was asked for answers True for both,
     # and only a switch-off against an already-off store tells them apart.
-    switch_on(autopilot_client)
-    mark = highest_seq(audit_log)
-    autopilot_client.post("/api/autopilot", json={"enabled": False})
-    was_on = first_after(audit_log, mark, "autopilot.set")["previous"]
-
-    mark = highest_seq(audit_log)
-    autopilot_client.post("/api/autopilot", json={"enabled": False})
-    was_already_off = first_after(audit_log, mark, "autopilot.set")["previous"]
-
-    assert (was_already_off, was_on) == (False, True)
+    assert previous_recorded_by_switch_off(autopilot_client, audit_log, already_off=already_off) is expected
 
 
 # --- a live write of the junk filter -----------------------------------------
@@ -191,14 +194,20 @@ def test_a_live_junk_filter_write_records_the_live_write_source(autopilot_client
     assert last(audit_log, "autopilot.set")["source"] == "live.write"
 
 
+def enabled_recorded_after_switch_on(client: TestClient, audit_log: Path, *, junk_write: bool) -> object:
+    """Switch auto-pilot on, then write the junk filter live when ``junk_write``;
+    return the ``enabled`` the newest ``autopilot.set`` record carries."""
+    switch_on(client)
+    if junk_write:
+        client.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
+    return last(audit_log, "autopilot.set")["enabled"]
+
+
+@pytest.mark.parametrize(("junk_write", "expected"), [(False, True), (True, False)], ids=["switch", "junk_write"])
 def test_a_live_junk_filter_write_records_autopilot_as_left_off_but_the_switch_as_asked(
-    autopilot_client: TestClient, audit_log: Path
+    autopilot_client: TestClient, audit_log: Path, *, junk_write: bool, expected: bool
 ) -> None:
-    switch_on(autopilot_client)
-    turned_on = last(audit_log, "autopilot.set")["enabled"]
-    autopilot_client.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
-    left_off = last(audit_log, "autopilot.set")["enabled"]
-    assert (left_off, turned_on) == (False, True)
+    assert enabled_recorded_after_switch_on(autopilot_client, audit_log, junk_write=junk_write) is expected
 
 
 def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(

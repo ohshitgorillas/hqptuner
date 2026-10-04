@@ -80,29 +80,32 @@ def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
 # --- the disabled instance --------------------------------------------------
 
 
-def test_disabled_log_writes_no_file_but_an_enabled_one_does(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def log_or_disabled(tmp_path: Path, *, enabled: bool) -> AuditLog:
+    """A log on ``log_path``, or the disabled instance given no path at all."""
+    return AuditLog(log_path(tmp_path) if enabled else None)
+
+
+@pytest.mark.parametrize("enabled", [False, True], ids=["disabled", "enabled"])
+def test_disabled_log_writes_no_file_but_an_enabled_one_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, enabled: bool
+) -> None:
     # cwd moved under tmp_path so a relative default path would land here too,
     # not only the path the enabled fixture names
     monkeypatch.chdir(tmp_path)
-    AuditLog(None).preset_write("alpha", "save", 10, "abc123", overwrote=False)
-    disabled_wrote = log_path(tmp_path).exists()
-    log_at(tmp_path).preset_write("alpha", "save", 10, "abc123", overwrote=False)
-    enabled_wrote = log_path(tmp_path).exists()
-    assert (disabled_wrote, enabled_wrote) == (False, True)
+    log_or_disabled(tmp_path, enabled=enabled).preset_write("alpha", "save", 10, "abc123", overwrote=False)
+    assert log_path(tmp_path).exists() is enabled
 
 
-def test_disabled_log_has_no_records_but_an_enabled_one_does(tmp_path: Path) -> None:
-    disabled = AuditLog(None)
-    disabled.stage(HTTP, LIVE, DROPPED)
-    enabled = log_at(tmp_path)
-    enabled.stage(HTTP, LIVE, DROPPED)
-    assert (disabled.records(), len(enabled.records())) == ([], 1)
+@pytest.mark.parametrize(("enabled", "expected"), [(False, 0), (True, 1)], ids=["disabled", "enabled"])
+def test_disabled_log_has_no_records_but_an_enabled_one_does(tmp_path: Path, *, enabled: bool, expected: int) -> None:
+    log = log_or_disabled(tmp_path, enabled=enabled)
+    log.stage(HTTP, LIVE, DROPPED)
+    assert len(log.records()) == expected
 
 
-def test_a_log_given_no_path_reports_disabled_and_a_path_reports_enabled(tmp_path: Path) -> None:
-    disabled = AuditLog(None).enabled
-    enabled = log_at(tmp_path).enabled
-    assert (disabled, enabled) == (False, True)
+@pytest.mark.parametrize("enabled", [False, True], ids=["no_path", "path"])
+def test_a_log_given_no_path_reports_disabled_and_a_path_reports_enabled(tmp_path: Path, *, enabled: bool) -> None:
+    assert log_or_disabled(tmp_path, enabled=enabled).enabled is enabled
 
 
 # --- the envelope -----------------------------------------------------------
@@ -175,13 +178,15 @@ def test_profile_write_records_whether_it_replaced_a_profile(tmp_path: Path, *, 
     assert log.records()[0].fields["replaced"] is replaced
 
 
-def test_profile_write_counts_rows_only_when_the_payload_is_a_list(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [(ROWS, len(json.loads(ROWS))), ("not json at all", 0)],
+    ids=["list", "not_json"],
+)
+def test_profile_write_counts_rows_only_when_the_payload_is_a_list(tmp_path: Path, payload: str, expected: int) -> None:
     log = log_at(tmp_path)
-    log.profile_write("living-room", ROWS, "matrix", replaced=False)
-    counted = log.records()[0].fields["row_count"]
-    log.profile_write("living-room", "not json at all", "matrix", replaced=False)
-    uncounted = log.records()[-1].fields["row_count"]
-    assert (uncounted, counted) == (0, len(json.loads(ROWS)))
+    log.profile_write("living-room", payload, "matrix", replaced=False)
+    assert log.records()[0].fields["row_count"] == expected
 
 
 def test_preset_write_records_its_trigger(tmp_path: Path) -> None:
