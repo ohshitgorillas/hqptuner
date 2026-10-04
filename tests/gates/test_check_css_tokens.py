@@ -33,17 +33,14 @@ def _load_gate_module() -> ModuleType:
 GATE = _load_gate_module()
 
 
-def faceplate_sheet(tmp_path: Path, css: str) -> Path:
-    """Write ``css`` to a stylesheet outside every v1 concern directory."""
-    path = tmp_path / "styles" / "region.css"
-    path.parent.mkdir(parents=True)
-    path.write_text(css, encoding="utf-8")
-    return path
+#: A directory outside every v1 concern directory, and one inside.
+FACEPLATE_DIR = "styles"
+V1_DIR = "static/css/features"
 
 
-def v1_sheet(tmp_path: Path, css: str) -> Path:
-    """Write ``css`` to a stylesheet inside a v1 concern directory."""
-    path = tmp_path / "static" / "css" / "features" / "region.css"
+def sheet(tmp_path: Path, directory: str, css: str) -> Path:
+    """Write ``css`` to ``region.css`` under ``directory``, relative to the test's root."""
+    path = tmp_path / directory / "region.css"
     path.parent.mkdir(parents=True)
     path.write_text(css, encoding="utf-8")
     return path
@@ -73,21 +70,19 @@ def test_a_faceplate_stylesheet_is_held_to_colour_line_height_family_and_motion_
     tmp_path: Path, css: str, complaints: int
 ) -> None:
     """Each declaration off a faceplate rule is one complaint, wherever it sits on its line."""
-    assert len(GATE.check_file(faceplate_sheet(tmp_path, css))) == complaints
+    assert len(GATE.check_file(sheet(tmp_path, FACEPLATE_DIR, css))) == complaints
 
 
 #: Literal sizes: off the v1 ladder three times over, legal on the faceplate.
 LITERAL_SIZES = ".a {\n  font-size: 13px;\n  padding: 4px 10px;\n  border-radius: 3px;\n}\n"
 
 
-def test_literal_sizes_are_legal_on_the_faceplate(tmp_path: Path) -> None:
-    """The faceplate is laid out in pixels at its design size, so a literal size is no complaint."""
-    assert GATE.check_file(faceplate_sheet(tmp_path, LITERAL_SIZES)) == []
-
-
-def test_literal_sizes_are_each_refused_in_a_v1_concern_directory(tmp_path: Path) -> None:
-    """The same three declarations in a v1 directory are three complaints."""
-    assert len(GATE.check_file(v1_sheet(tmp_path, LITERAL_SIZES))) == len(LITERAL_SIZES.splitlines()) - 2
+@pytest.mark.parametrize(("directory", "complaints"), [(FACEPLATE_DIR, 0), (V1_DIR, 3)])
+def test_literal_sizes_are_refused_in_a_v1_concern_directory_and_legal_on_the_faceplate(
+    tmp_path: Path, directory: str, complaints: int
+) -> None:
+    """The faceplate is laid out in pixels at its design size; the v1 ladder refuses each literal."""
+    assert len(GATE.check_file(sheet(tmp_path, directory, LITERAL_SIZES))) == complaints
 
 
 @pytest.mark.parametrize(
@@ -99,5 +94,5 @@ def test_literal_sizes_are_each_refused_in_a_v1_concern_directory(tmp_path: Path
 )
 def test_a_complaint_opens_with_the_line_its_declaration_starts_on(tmp_path: Path, css: str, line: int) -> None:
     """The reported line is the declaration's own, not its rule's."""
-    path = faceplate_sheet(tmp_path, css)
+    path = sheet(tmp_path, FACEPLATE_DIR, css)
     assert [problem.startswith(f"{path}:{line}:") for problem in GATE.check_file(path)] == [True]
