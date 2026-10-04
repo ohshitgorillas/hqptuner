@@ -91,9 +91,13 @@ def test_a_preset_name_carrying_a_path_separator_is_refused(http_client: TestCli
     assert http_client.get("/api/preset/sub/Kept").status_code == 422
 
 
-def test_profile_load_activates_the_stored_preset(http_client: TestClient) -> None:
+@pytest.mark.parametrize("loaded", ["Kept", "Other"])
+def test_profile_load_activates_the_stored_preset(http_client: TestClient, loaded: str) -> None:
+    http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
     http_client.post("/api/profile/save", json={"name": "Kept"})
-    assert http_client.post("/api/profile/load", json={"name": "Kept"}).json()["active"] is True
+    http_client.post("/api/profile/save", json={"name": "Other"})
+    http_client.post("/api/profile/load", json={"name": loaded})
+    assert http_client.get("/api/config").json()["data"]["active"] == loaded
 
 
 def test_loading_a_missing_preset_is_not_found(http_client: TestClient) -> None:
@@ -140,12 +144,6 @@ def test_failed_apply_skips_the_save(http_client: TestClient) -> None:
     assert "saved" not in resp.json()
 
 
-def test_apply_switches_to_the_previewed_preset(http_client: TestClient) -> None:
-    http_client.post("/api/profile/save", json={"name": "Kept"})
-    resp = http_client.post("/api/config/apply", json={"switch_to": "Kept"})
-    assert resp.json()["report"]["switched"]["active"] is True
-
-
 # --- applying "(no preset)": drop the bookmark, leave the daemon alone ---------
 #
 # HQPlayer runs one settings file whether a preset is active or not, and nobody
@@ -181,12 +179,6 @@ def _switch_report(client: TestClient, switch_to: str) -> dict[str, Any]:
 @pytest.mark.parametrize("switch_to", ["Kept", ""], ids=["a-preset", "no-preset"])
 def test_applying_a_switch_reports_the_preset_it_switched_to(http_client: TestClient, switch_to: str) -> None:
     assert _switch_report(http_client, switch_to)["name"] == switch_to
-
-
-def test_applying_no_preset_reports_the_switch_as_taken(http_client: TestClient) -> None:
-    # the report is what keeps the staging buffer: a switch that reads as not
-    # taken makes the apply a soft failure and the picker snaps back
-    assert _switch_report(http_client, "")["active"] is True
 
 
 def test_applying_no_preset_sends_no_restore_to_the_daemon(

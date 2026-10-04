@@ -27,6 +27,7 @@ from fake_http import state
 from hqptuner.conf import matrixprofiles, presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import fileconfig
+from hqptuner.presets.store.presets import PresetNotFoundError
 
 #: The live matrix's own row, at a gain no profile below carries.
 LIVE_ROW = '<pipeline channel="0" gain="-2" mixdown="0" process="" source="0"/>'
@@ -293,7 +294,7 @@ def unreadable(preset_dir: Path, name: str) -> None:
 def test_a_preset_that_cannot_be_read_does_not_report_ok(http_manager: ConnectionManager, tmp_path: Path) -> None:
     http_manager.presetops.store.save("Broken", preset_xml("850"))
     unreadable(tmp_path / "presets", "Broken")
-    assert http_manager.presetops.backfill_profiles()["Broken"] != "ok"
+    assert http_manager.presetops.backfill_profiles()["Broken"] == PresetNotFoundError.code
 
 
 def test_a_preset_that_cannot_be_read_does_not_block_a_healthy_one(

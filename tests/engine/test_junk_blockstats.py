@@ -6,7 +6,6 @@ from collections.abc import Sequence
 import pytest
 
 from hqptuner.engine.blockstats import BlockRecord, block_record
-from hqptuner.engine.metering import SpectralAggregate
 
 BINS = 1025
 FLOOR_DB = -200.0
@@ -38,25 +37,6 @@ def _two_band_rows(music_db: float) -> list[list[float]]:
     junk: Band = (24300.0, 30000.0, -40.0)
     music: Band = (15000.0, 18000.0, music_db)
     return [_frame(48000.0, [junk, music])]
-
-
-def _junk_frame() -> list[float]:
-    return _frame(48000.0, [(24300.0, 30000.0, -50.0)])
-
-
-def _silent_frame() -> list[float]:
-    return _frame(48000.0, [])
-
-
-#: What ``_latest_above`` reads where no block record stands: a behavior here (a silent block clears the
-#: reading), not a broken fixture, so it is a value of its own rather than None.
-NO_BLOCK = "no block record"
-
-
-def _latest_above(aggregate: SpectralAggregate) -> float | str:
-    """The closed block's level above the fold, or ``NO_BLOCK`` where no block record stands."""
-    record = aggregate.latest_block()
-    return NO_BLOCK if record is None else round(record.above_db, 1)
 
 
 def test_above_fold_level_follows_the_fold_carrying_the_loud_band() -> None:
@@ -92,27 +72,6 @@ def test_minimum_reads_a_bins_quietest_level() -> None:
 
 def test_p90_reads_a_bins_loud_level() -> None:
     assert _half_loud_half_quiet_record().p90[200] == pytest.approx(-20.0, abs=0.5)
-
-
-#: One added frame: the seconds it covers, and whether it is silent (a silent frame carries the silent spectrum).
-Step = tuple[float, bool]
-
-
-@pytest.mark.parametrize(
-    ("steps", "expected"),
-    [
-        ([(1.0, False)], -66.7),
-        ([(1.0, False), (1.0, True)], NO_BLOCK),
-        ([(0.5, False), (0.5, True)], -66.7),
-    ],
-    ids=["one loud second", "a loud second then a silent one", "half a loud second then half a silent one"],
-)
-def test_block_closes_at_one_second_of_coverage(steps: list[Step], expected: float | str) -> None:
-    aggregate = SpectralAggregate(BINS, 48000.0)
-    for seconds, silent in steps:
-        aggregate.add(_silent_frame() if silent else _junk_frame(), seconds, silent=silent)
-
-    assert _latest_above(aggregate) == expected
 
 
 def test_fold_the_grid_cannot_reach_carries_no_above_fold_level() -> None:

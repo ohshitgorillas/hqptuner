@@ -100,8 +100,6 @@ def apply_succeeded(report: ApplyReport) -> bool:
     """
     if any(isinstance(entry, LiveWriteFailed) for entry in report.live):
         return False
-    if report.switched is not None and not report.switched.active:
-        return False  # the preset switch never took — don't clear the preview
     return report.persistent is None or report.persistent.outcome is RestoreOutcome.APPLIED
 
 

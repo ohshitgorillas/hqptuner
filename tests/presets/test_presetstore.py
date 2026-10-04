@@ -150,6 +150,19 @@ def test_the_active_pointer_survives_a_new_store_once_set(
 
 
 @pytest.mark.parametrize(
+    ("stored", "active"),
+    [
+        pytest.param("alpha", "alpha", id="a-name"),
+        pytest.param("", None, id="empty"),
+    ],
+)
+def test_an_active_pointer_file_reads_as_the_name_it_holds(tmp_path: Path, stored: str, active: str | None) -> None:
+    store_at(tmp_path).save("alpha", PAYLOAD)
+    (tmp_path / "presets" / "active.json").write_text(json.dumps({"active": stored}))
+    assert PresetStore(tmp_path / "presets").active == active
+
+
+@pytest.mark.parametrize(
     ("deleted", "active"),
     [
         pytest.param("alpha", None, id="exact"),

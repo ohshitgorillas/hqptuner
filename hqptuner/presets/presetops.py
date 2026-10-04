@@ -81,7 +81,7 @@ class PresetAftermath:
     """What an applied restore did to the stored presets: the staged profile fan-out.
 
     Chain backfills run as part of the same restore but are not reported here. Maps a preset to "ok"
-    or the error that preset met; empty when nothing was targeted or the restore did not converge.
+    or the code of the error that preset met; empty when nothing was targeted or the restore did not converge.
     """
 
     fanout: dict[str, str]
@@ -106,6 +106,19 @@ async def after_restore(
     ops.clear_parked_filters()
     ops.backfill_profiles()
     return PresetAftermath(ops.fanout_profiles(http_fields))
+
+
+def _failure_code(exc: Exception) -> str:
+    """Return the stable code for one preset's fan-out or backfill failure.
+
+    The error's own code for an ``HQPTunerError``, ``invalid_input`` for an edit with no place in that preset's
+    XML, and ``store_unwritable`` for a read or write the filesystem refused.
+    """
+    if isinstance(exc, HQPTunerError):
+        return exc.code
+    if isinstance(exc, xmledit.GroundingError):
+        return "invalid_input"
+    return "store_unwritable"
 
 
 class PresetOps:
@@ -158,7 +171,7 @@ class PresetOps:
         stored preset XMLs — a pure file edit reusing the same element writers
         as the config edit, so every copy is byte-identical. The daemon is never
         touched: it sees a preset only when that preset is loaded. Returns
-        {preset: "ok" | error text}, empty when nothing was targeted; one bad
+        {preset: "ok" | error code}, empty when nothing was targeted; one bad
         target never blocks another. Delete runs before save per preset, the
         same rename ordering the config edit uses.
         """
@@ -182,7 +195,7 @@ class PresetOps:
                 self.store.save(preset, xml, trigger="fanout")
                 results[preset] = "ok"
             except (PresetError, xmledit.GroundingError, OSError) as exc:
-                results[preset] = str(exc)
+                results[preset] = _failure_code(exc)
         return results
 
     def backfill_profiles(self) -> dict[str, str]:
@@ -195,7 +208,7 @@ class PresetOps:
 
         Each preset is filled from ITS OWN ``<matrix>`` — a speaker preset must
         never inherit a headphone preset's chain. Returns {preset: "ok" | error
-        text}, carrying only the presets actually written; a preset that needed
+        code}, carrying only the presets actually written; a preset that needed
         no change is absent, and one bad preset never blocks another.
         """
         results: dict[str, str] = {}
@@ -207,7 +220,7 @@ class PresetOps:
                     self.store.save(preset, filled, trigger="backfill")
                     results[preset] = "ok"
             except (PresetError, xmledit.GroundingError, OSError) as exc:
-                results[preset] = str(exc)
+                results[preset] = _failure_code(exc)
         return results
 
     def preset_profiles(self) -> dict[str, list[str]]:

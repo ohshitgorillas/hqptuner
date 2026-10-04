@@ -26,7 +26,7 @@ from hqptuner.presets.presetops import BackupFailedError
 async def test_apply_with_switch_to_reports_the_loaded_preset(http_manager: ConnectionManager) -> None:
     await http_manager.presetops.save_preset("Base")
     report = await http_manager.applyops.apply({}, {}, switch_to="Base")
-    assert report.switched == presetlane.PresetActivation(name="Base", active=True)
+    assert report.switched == presetlane.PresetActivation(name="Base")
 
 
 async def test_apply_with_switch_to_restores_the_presets_config(

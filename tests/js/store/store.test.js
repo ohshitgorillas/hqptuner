@@ -292,10 +292,10 @@ test("test_several_failed_live_settings_are_listed", async () => {
   assert.deepEqual(verdict(lastApply).settings, ["a", "b"]);
 });
 
-test("test_a_live_failure_outranks_a_failed_switch_and_a_failed_save", async () => {
+test("test_a_live_failure_outranks_a_switch_and_a_failed_save", async () => {
   await trees();
   route({
-    apply: { live: [{ setting: "a", ok: false }], switched: { name: "N", active: false } },
+    apply: { live: [{ setting: "a", ok: false }], switched: { name: "N" } },
     saved: { ok: false },
   });
   await applyAll();
@@ -355,23 +355,9 @@ test("test_a_failed_apply_is_not_ok", async () => {
 
 // --- summarize: the switch --------------------------------------------------
 
-test("test_a_switch_that_did_not_take_is_reported_as_a_failed_switch", async () => {
-  await trees();
-  route({ apply: { switched: { name: "Night", active: false } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).code, "switch-failed");
-});
-
-test("test_a_failed_switch_names_the_preset_it_could_not_reach", async () => {
-  await trees();
-  route({ apply: { switched: { name: "Night", active: false } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).preset, "Night");
-});
-
 test("test_a_successful_switch_is_reported_as_switched", async () => {
   await trees();
-  route({ apply: { switched: { name: "Night", active: true } } });
+  route({ apply: { switched: { name: "Night" } } });
   await applyAll();
   assert.equal(verdict(lastApply).code, "switched");
 });
@@ -380,7 +366,7 @@ test("test_a_successful_switch_is_reported_as_switched", async () => {
 // empty name is a real switch and must not degrade the verdict.
 test("test_a_switch_to_the_nameless_preset_still_reads_as_switched", async () => {
   await trees();
-  route({ apply: { switched: { name: "", active: true } } });
+  route({ apply: { switched: { name: "" } } });
   await applyAll();
   assert.equal(verdict(lastApply).code, "switched");
 });
@@ -442,6 +428,25 @@ test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => 
   assert.equal(verdict(lastApply).code, "persist-refused");
 });
 
+/** @type {[string, Record<string, unknown>, string][]} */
+const CREDENTIAL_REFUSALS = [
+  [
+    "with_its_sentence",
+    { code: "no_credentials", error: "A fixture sentence about credentials." },
+    "persist-credentials",
+  ],
+  ["without_its_sentence", { code: "no_credentials" }, "persist-refused"],
+];
+
+for (const [id, refusal, expected] of CREDENTIAL_REFUSALS) {
+  test(`test_a_credential_refusal_${id}_reads_as_${expected}`, async () => {
+    await trees();
+    route({ apply: { persistent: { applied: false, ...refusal } } });
+    await applyAll();
+    assert.equal(verdict(lastApply).code, expected);
+  });
+}
+
 // --- summarize: change counts -----------------------------------------------
 
 test("test_an_apply_with_nothing_staged_counts_no_changes", async () => {
@@ -465,7 +470,7 @@ test("test_a_switch_and_edits_are_reported_together", async () => {
   await trees({ fields: [field("volume_max", "-3")] });
   route({ staged: { live: {}, http: { volume_max: "-6" } } });
   await edit("volume_max", "-6");
-  route({ apply: { switched: { name: "N", active: true } }, staged: { live: {}, http: { volume_max: "-6" } } });
+  route({ apply: { switched: { name: "N" } }, staged: { live: {}, http: { volume_max: "-6" } } });
   await applyAll();
   assert.deepEqual([verdict(lastApply).code, verdict(lastApply).changes], ["switched", 1]);
 });

@@ -28,7 +28,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
-from hqptuner.presets.store.presets import PresetStore
+from hqptuner.presets.store.presets import PresetNotFoundError, PresetStore
 
 if TYPE_CHECKING:
     from hqptuner.core.applyops import ApplyReport
@@ -133,7 +133,13 @@ async def test_fanout_to_a_missing_preset_still_applies(http_manager: Connection
 
 async def test_missing_fanout_target_maps_to_an_error(http_manager: ConnectionManager) -> None:
     report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
-    assert report.aftermath.fanout["Ghost"] not in ("", "ok")
+    assert report.aftermath.fanout["Ghost"] == PresetNotFoundError.code
+
+
+async def test_a_fanout_target_with_no_root_element_maps_to_invalid_input(http_manager: ConnectionManager) -> None:
+    http_manager.presetops.store.save("Rootless", b'<title value="Office desk"/>')
+    report = await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, presets=["Rootless"]))
+    assert report.aftermath.fanout["Rootless"] == "invalid_input"
 
 
 async def test_a_co_target_still_receives_the_profile_despite_a_missing_one(http_manager: ConnectionManager) -> None:

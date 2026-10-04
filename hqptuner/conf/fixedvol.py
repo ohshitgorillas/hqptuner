@@ -36,8 +36,11 @@ def find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
 
 
 def fixed_level_of(tag: bytes) -> str | None:
-    """Read the level off a ``<fixed>`` open tag — its ``volume`` attribute in dBFS, or None when it carries none."""
-    return get_attr(tag, "volume")
+    """Read the level off a ``<fixed>`` open tag — its ``volume`` attribute in dBFS, or None when it carries none.
+
+    An empty ``volume`` carries no level, so it reads as None too.
+    """
+    return get_attr(tag, "volume") or None
 
 
 def any_fixed_level(xml: bytes) -> str | None:

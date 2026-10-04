@@ -44,7 +44,6 @@
  *   A preset switch's outcome (presetlane.switch). The empty name is the
  *   picker's "(no preset)".
  * @property {string} name
- * @property {boolean} [active] whether the daemon reports it loaded afterwards
  *
  * @typedef {object} PersistentResult
  *   The config lane's outcome (http.restore).
@@ -196,12 +195,7 @@ function savedSummary(base, saved) {
 export function summarize(answer, count) {
   const { report } = answer;
   const sw = report.switched;
-  const failed =
-    liveFailure(report) ||
-    (sw && !sw.active
-      ? failure("switch-failed", `Switch to ${switchName(sw)} did not take`, { preset: sw.name })
-      : null) ||
-    persistentFailure(report.persistent);
+  const failed = liveFailure(report) || persistentFailure(report.persistent);
   if (failed) return failed;
 
   return savedSummary(success(sw, count), answer.saved);

@@ -79,10 +79,9 @@ class PresetListing:
 
 @dataclass(frozen=True)
 class PresetActivation:
-    """A preset load, unload or switch: the preset now active ("" for the unnamed default), and whether it took."""
+    """A preset load, unload or switch: the preset now active ("" for the unnamed default)."""
 
     name: str
-    active: bool
 
 
 @dataclass(frozen=True)
@@ -173,7 +172,7 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     voltrace.observe(mgr, "post_restart_file", voltrace.subset(mgr.readings.file_config), name=name)
     await mgr.refresh_http_forms()
     _restore_autopilot(mgr, name)
-    return PresetActivation(name, active=True)
+    return PresetActivation(name)
 
 
 def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> None:
@@ -247,7 +246,7 @@ def unload(mgr: ConnectionManager) -> PresetActivation:
     the same either way.
     """
     mgr.presetops.store.set_active(None)
-    return PresetActivation("", active=True)
+    return PresetActivation("")
 
 
 async def save(mgr: ConnectionManager, name: str) -> PresetSaveResult:

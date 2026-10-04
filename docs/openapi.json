@@ -2163,23 +2163,19 @@
         "type": "object"
       },
       "PresetActivation": {
-        "description": "A preset load, unload or switch: the preset now active (\"\" for the unnamed default), and whether it took.",
+        "description": "A preset load, unload or switch: the preset now active (\"\" for the unnamed default).",
         "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
           "name": {
             "title": "Name",
             "type": "string"
           }
         },
-        "required": ["name", "active"],
+        "required": ["name"],
         "title": "PresetActivation",
         "type": "object"
       },
       "PresetAftermath": {
-        "description": "What an applied restore did to the stored presets: the staged profile fan-out.\n\nChain backfills run as part of the same restore but are not reported here. Maps a preset to \"ok\"\nor the error that preset met; empty when nothing was targeted or the restore did not converge.",
+        "description": "What an applied restore did to the stored presets: the staged profile fan-out.\n\nChain backfills run as part of the same restore but are not reported here. Maps a preset to \"ok\"\nor the code of the error that preset met; empty when nothing was targeted or the restore did not converge.",
         "properties": {
           "fanout": {
             "additionalProperties": {

@@ -61,12 +61,12 @@ def _clean(stored: object) -> PresetStoreFile:
 
 
 def _clean_active(stored: object) -> ActiveFile:
-    """Return a read ``active.json``'s envelope, keeping ``active`` only when it is a name or ``None``."""
+    """Return a read ``active.json``'s envelope, keeping ``active`` only when it is a non-empty name or ``None``."""
     out: ActiveFile = {}
     if not isinstance(stored, dict):
         return out
     active = stored.get("active")
-    if active is None or isinstance(active, str):
+    if active is None or (isinstance(active, str) and active):
         out["active"] = active
     return out
 

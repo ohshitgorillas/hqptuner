@@ -120,14 +120,6 @@ class SpectralAggregate:
             self._block_min = None
             self._block_seconds = 0.0
 
-    def latest_block(self) -> blockstats.BlockRecord | None:
-        """Return the record of the block that closed most recently, or None while none has closed.
-
-        A block that closes carrying no frame is the outcome of that close, so a silent second clears the reading
-        rather than leaving the second before it in front of the rules.
-        """
-        return self._latest
-
     def window_min_db(self) -> list[float]:
         """Per-bin minimum (dB) over whatever coverage is in hand, empty while no frame has been folded at all.
 

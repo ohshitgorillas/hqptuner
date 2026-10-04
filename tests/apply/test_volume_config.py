@@ -13,6 +13,8 @@ stand in for the poll loop that normally fills it; it is the manager's public
 snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 """
 
+import pytest
+
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
@@ -130,6 +132,18 @@ def test_a_config_that_never_had_a_fixed_volume_reports_no_level() -> None:
 
 def test_a_parked_level_is_reported_though_the_feature_is_off() -> None:
     assert presetconf.read_config(_PARKED_XML)["fixed_volume"] == "-3"
+
+
+@pytest.mark.parametrize(
+    ("volume", "level"),
+    [
+        pytest.param(b"-6", "-6", id="a-level"),
+        pytest.param(b"", None, id="empty"),
+    ],
+)
+def test_a_live_fixed_element_reports_the_level_it_carries(volume: bytes, level: str | None) -> None:
+    xml = b'<hqplayerd><fixed volume="' + volume + b'"/><engine channels="2"/></hqplayerd>'
+    assert presetconf.read_config(xml).get("fixed_volume") == level
 
 
 async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -> None:
