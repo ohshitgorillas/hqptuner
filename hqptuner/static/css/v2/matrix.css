@@ -304,3 +304,16 @@ input.vfd.pq{height:36px;width:100%;text-align:left;font-size:13px}
 /* Speakers under Direct SDM (mock scenario): level boxes dead, distances live; v1's note under the rows. */
 .spleft.sdm .sprow .num:first-of-type input{color:var(--ink-4);cursor:not-allowed}
 .spsdm{margin:10px 0 0;font-size:12px;line-height:1.45;color:var(--ink-2);max-width:380px}
+
+/* v1's plot frame (components/plots.js PlotFrame), as the DSP pipelines drawer draws its response plot: the page
+   plot's glass, grid and zero line in the hairline inks, traces in the accent, handles as the .eq dots. */
+.plot{display:flex;flex-direction:column;gap:6px;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);padding:8px}
+.plot-svg{width:100%;height:auto;display:block}
+.plot-grid{stroke:var(--line-2);stroke-width:.5}
+.plot-zero{stroke:var(--line-2);stroke-width:.8}
+.plot-lbl,.plot-tlbl{font-family:var(--f-mono);font-size:10px;fill:var(--ink-2);line-height:var(--lh-text)}
+.plot-trace{fill:none;stroke:var(--acc);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.plot-trace.ghost{stroke:var(--ink-3);stroke-width:1.25;stroke-dasharray:4 3}
+.plot-trace.side{stroke:var(--ink-2);stroke-width:1.25}
+.plot-dot{fill:var(--glass);stroke:var(--acc);stroke-width:2;cursor:grab}
+.plot-dot.active{fill:var(--acc);cursor:grabbing}

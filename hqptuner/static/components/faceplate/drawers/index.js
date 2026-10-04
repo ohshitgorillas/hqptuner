@@ -6,6 +6,9 @@ import { registerDrawer } from "../../../store/faceplate/drawer.js";
 import { SOURCE_BLOCKS, SOURCE_DRAWER } from "./source-drawer.js";
 import { HF_DRAWER } from "./hf.js";
 import { DSD_DRAWER, RESAMPLING_DRAWER, SHAPING_DRAWER } from "./modes.js";
+import { CORRECTION_DRAWER, MATRIX_DRAWER } from "./matrix.js";
+import { PIPELINES_BLOCKS, PIPELINES_DRAWER } from "./pipelines-drawer.js";
+import { CROSSFEED_DRAWER, FAMILY_BLOCKS, LOUDNESS_DRAWER } from "./matrix-family.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../drawer/Rows.js").Blocks} Blocks */
@@ -16,7 +19,12 @@ const DRAWERS = {
   source: { schema: SOURCE_DRAWER, blocks: SOURCE_BLOCKS },
   hf: { schema: HF_DRAWER, blocks: {} },
   dsd: { schema: DSD_DRAWER, blocks: {} },
+  matrix: { schema: MATRIX_DRAWER, blocks: {} },
+  pipelines: { schema: PIPELINES_DRAWER, blocks: PIPELINES_BLOCKS },
+  crossfeed: { schema: CROSSFEED_DRAWER, blocks: FAMILY_BLOCKS },
+  loudness: { schema: LOUDNESS_DRAWER, blocks: FAMILY_BLOCKS },
   resampling: { schema: RESAMPLING_DRAWER, blocks: {} },
+  correction: { schema: CORRECTION_DRAWER, blocks: {} },
   shaping: { schema: SHAPING_DRAWER, blocks: {} },
 };
 
