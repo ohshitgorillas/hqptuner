@@ -10,6 +10,7 @@ import { CORRECTION_DRAWER, MATRIX_DRAWER } from "./matrix.js";
 import { PIPELINES_BLOCKS, PIPELINES_DRAWER } from "./pipelines-drawer.js";
 import { CROSSFEED_DRAWER, FAMILY_BLOCKS, LOUDNESS_DRAWER } from "./matrix-family.js";
 import { VOLUME_BLOCKS, VOLUME_DRAWER } from "./volume.js";
+import { SPEAKERS_BLOCKS, SPEAKERS_DRAWER } from "./speakers-drawer.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../drawer/Rows.js").Blocks} Blocks */
@@ -28,6 +29,7 @@ const DRAWERS = {
   correction: { schema: CORRECTION_DRAWER, blocks: {} },
   volume: { schema: VOLUME_DRAWER, blocks: VOLUME_BLOCKS },
   shaping: { schema: SHAPING_DRAWER, blocks: {} },
+  speakers: { schema: SPEAKERS_DRAWER, blocks: SPEAKERS_BLOCKS },
 };
 
 for (const d of Object.values(DRAWERS)) registerDrawer(d.schema);
