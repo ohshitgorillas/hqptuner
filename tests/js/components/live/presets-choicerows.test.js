@@ -8,28 +8,18 @@ import assert from "node:assert/strict";
 
 import { choiceRows } from "../../../../hqptuner/static/components/live/Presets.js";
 
+// The `autopilot` member is not a setting: rows come from `fields` alone.
 const withAdaptive = {
   chain: "pcm",
   fields: { adaptive_volume: { value: "1", name: "1" } },
   autopilot: false,
 };
 
-const autopilotOnly = { chain: "pcm", fields: {}, autopilot: false };
+const withDither = { chain: "pcm", fields: { dither: { value: "5", name: "NS5" } } };
 
 test("choiceRows lists a row for each setting the snapshot carries", () => {
   assert.deepEqual(
-    [choiceRows(withAdaptive).map((r) => r.value), choiceRows(autopilotOnly).map((r) => r.value)],
-    [["autopilot", "adaptive_volume"], ["autopilot"]],
-  );
-});
-
-// A snapshot taken with the advisor off carries no auto-pilot state (null), and
-// then there is no auto-pilot row to offer.
-const autopilotAbsent = { chain: "pcm", fields: { adaptive_volume: { value: "1", name: "1" } }, autopilot: null };
-
-test("choiceRows offers no auto-pilot row when the snapshot carries none", () => {
-  assert.deepEqual(
-    [choiceRows(withAdaptive).map((r) => r.value), choiceRows(autopilotAbsent).map((r) => r.value)],
-    [["autopilot", "adaptive_volume"], ["adaptive_volume"]],
+    [choiceRows(withAdaptive).map((r) => r.value), choiceRows(withDither).map((r) => r.value)],
+    [["adaptive_volume"], ["dither"]],
   );
 });

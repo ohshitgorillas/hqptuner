@@ -1,7 +1,7 @@
 """LivePresetStore's file handling through its public API (docs/testing.md).
 
 Characterization of behavior that already exists (docs/testing.md rule 8
-exemption): every case here describes the store as it stands, not a change.
+exemption), apart from the two cases under "records an older HQPTuner wrote".
 
 Live snapshots are HQPTuner's own state — a handful of enum ids applied through
 the LIVE lane, never written to hqplayerd's config (docs/architecture.md §5.3) —
@@ -239,6 +239,30 @@ def test_a_stamp_this_build_understands_is_read_rather_than_refused(
 def test_a_stamp_that_is_not_a_whole_number_is_ignored_rather_than_refused(tmp_path: Path, schema: object) -> None:
     seed_stamped(tmp_path, schema)
     assert store_at(tmp_path).read("alpha") == RECORD
+
+
+# --- records an older HQPTuner wrote -----------------------------------------
+
+#: A record as schema 3 stored it: the junk filter among the settings and the
+#: auto-pilot switch beside them. Neither is a snapshot setting any more.
+SCHEMA_3_RECORD = {
+    "chain": "pcm",
+    "fields": {"filter": "12", "junk_filter": "1"},
+    "names": {"filter": "poly-sinc-gauss-long", "junk_filter": "20k"},
+    "autopilot": True,
+}
+
+
+def test_a_schema_3_record_reads_without_its_junk_filter_or_auto_pilot(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps({"schema": 3, "presets": {"alpha": SCHEMA_3_RECORD}}))
+    expected = LiveRecord(chain="pcm", fields={"filter": "12"}, names={"filter": "poly-sinc-gauss-long"})
+    assert store_at(tmp_path).read("alpha") == expected
+
+
+def test_a_saved_record_is_stored_as_its_chain_fields_and_names_alone(tmp_path: Path) -> None:
+    path = tmp_path / "live-presets.json"
+    LivePresetStore(path).save("alpha", RECORD)
+    assert set(json.loads(path.read_text())["presets"]["alpha"]) == {"chain", "fields", "names"}
 
 
 # --- writing into a store a newer HQPTuner stamped ---------------------------

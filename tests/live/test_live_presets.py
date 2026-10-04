@@ -151,9 +151,9 @@ def test_applying_an_auto_preset_puts_the_engine_back_in_auto(chain_api: Callabl
 # A stale value refuses the WHOLE preset, so the record seeded for these carries
 # a perfectly good sibling beside the bad one: with only the stale field in it,
 # a lane that applied what it could and reported the rest would pass every one of
-# them. `junk_filter` "1" is a live setting the engine does offer, and the state
-# it would have landed in is readable straight back.
-_STALE = {"chain": "pcm", "fields": {"filter": "9999", "junk_filter": "1"}, "names": {}}
+# them. `adaptive_volume` "1" is a live setting the engine does offer, and the
+# state it would have landed in is readable straight back.
+_STALE = {"chain": "pcm", "fields": {"filter": "9999", "adaptive_volume": "1"}, "names": {}}
 
 
 def test_a_stored_id_the_engine_no_longer_offers_names_its_field(live_api: TestClient, tmp_path: Path) -> None:
@@ -174,7 +174,7 @@ def test_a_refused_preset_applies_none_of_its_good_settings(live_api: TestClient
     # on it describes.
     _seed_presets(tmp_path, {"schema": 1, "presets": {"Stale": _STALE}})
     live_api.post("/api/livepresets/Stale/apply")
-    assert live_api.get("/api/state").json()["data"]["filter_junk"] == "0"
+    assert live_api.get("/api/state").json()["data"]["adaptive"] == "0"
 
 
 def test_a_store_from_a_newer_hqptuner_is_refused(live_api: TestClient, tmp_path: Path) -> None:
@@ -214,10 +214,10 @@ def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: T
     # Presets saved before the LIVE rate control was removed still carry a
     # "rate" field. It is nobody's to apply anymore, and it must not take the
     # rest of the preset down with it: the other settings land as saved.
-    record = {"chain": "pcm", "fields": {"rate": "384000", "junk_filter": "1"}, "names": {}}
+    record = {"chain": "pcm", "fields": {"rate": "384000", "adaptive_volume": "1"}, "names": {}}
     _seed_presets(tmp_path, {"schema": 1, "presets": {"Legacy": record}})
     live_api.post("/api/livepresets/Legacy/apply")
-    assert live_api.get("/api/state").json()["data"]["filter_junk"] == "1"
+    assert live_api.get("/api/state").json()["data"]["adaptive"] == "1"
 
 
 def test_saving_a_preset_naming_a_setting_the_lane_lacks_is_refused_naming_it(
@@ -228,3 +228,47 @@ def test_saving_a_preset_naming_a_setting_the_lane_lacks_is_refused_naming_it(
     # so the save is refused and the response says which key was the problem.
     resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter", "rate"]})
     assert "rate" in resp.json()["detail"]["fields"]
+
+
+@pytest.mark.parametrize("field", ["junk_filter", "autopilot"])
+def test_saving_a_preset_naming_the_junk_filter_or_auto_pilot_is_refused(live_api: TestClient, field: str) -> None:
+    # The high-frequency filter follows the material, so no snapshot holds it or
+    # the switch that drives it.
+    resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter", field]})
+    assert resp.json().get("code") == "fields_unknown"
+
+
+def test_a_full_save_stores_every_live_setting_the_engine_reports_but_the_junk_filter(live_api: TestClient) -> None:
+    fields = live_api.put("/api/livepresets/Warm").json()["fields"]
+    assert set(fields) == {"mode", "filter1x", "filter", "dither", "adaptive_volume"}
+
+
+#: Each snapshot surface's response keys: the record, and the preview a save
+#: would store. Neither carries an auto-pilot member.
+SNAPSHOT_KEYS = [
+    pytest.param("PUT", "/api/livepresets/Warm", {"name", "chain", "fields", "names"}, id="save"),
+    pytest.param("GET", "/api/livepresets/snapshot", {"chain", "fields"}, id="preview"),
+]
+
+
+@pytest.mark.parametrize(("method", "path", "keys"), SNAPSHOT_KEYS)
+def test_a_snapshot_surface_answers_with_its_settings_alone(
+    live_api: TestClient, method: str, path: str, keys: set[str]
+) -> None:
+    assert set(live_api.request(method, path).json()) == keys
+
+
+#: The engine's junk filter before the apply, and the one a schema-3 record
+#: stored: the apply leaves the engine's where it was, whichever way they differ.
+JUNK_HELD = [pytest.param("0", "1", id="stored-on"), pytest.param("1", "0", id="stored-off")]
+
+
+@pytest.mark.parametrize(("engine", "stored"), JUNK_HELD)
+def test_applying_a_schema_3_record_leaves_the_engines_junk_filter_where_it_is(
+    live_api: TestClient, tmp_path: Path, engine: str, stored: str
+) -> None:
+    record = {"chain": "pcm", "fields": {"adaptive_volume": "1", "junk_filter": stored}, "names": {}}
+    _seed_presets(tmp_path, {"schema": 3, "presets": {"Legacy": record}})
+    live_api.post("/api/config/live", json={"fields": {"junk_filter": engine}})
+    live_api.post("/api/livepresets/Legacy/apply")
+    assert live_api.get("/api/state").json()["data"]["filter_junk"] == engine

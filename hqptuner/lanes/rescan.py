@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.live import chain, lane, routing
-from hqptuner.lanes.live.snapshot import live_snapshot
+from hqptuner.lanes.live.snapshot import live_state
 from hqptuner.lanes.writer import LiveWriteOk
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -50,9 +50,10 @@ WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
-    ``live_snapshot`` is the reader, the same one a live snapshot is taken with —
-    the chains' filters and shapers, output mode, adaptive volume, and the junk
-    filter, which exists ONLY on the engine and so is readable no other way.
+    ``live_state`` is the reader: the chains' filters and shapers, output mode,
+    adaptive volume, and the junk filter, which exists ONLY on the engine and so
+    is readable no other way. A saved live snapshot holds all of these but the
+    junk filter.
 
     Narrowed to what the live lane accepts (``routing.live_fields``): the rate
     limits are persistent config (``live.chain.RATE_LIMIT_FIELD``) and survive a
@@ -61,7 +62,7 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     Empty when auto-save is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
     empty when the engine cannot say which chain it has loaded, which
-    ``live_snapshot`` refuses with ``ChainUnknownError`` rather than report a
+    ``live_state`` refuses with ``ChainUnknownError`` rather than report a
     half-taken record.
     """
     if not mgr.presetops.store.autosave:
@@ -69,7 +70,7 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     if chain.active_chain(mgr) is None:
         return {}
     accepted = routing.live_fields()
-    return {field: item["value"] for field, item in live_snapshot(mgr).fields.items() if field in accepted}
+    return {field: item["value"] for field, item in live_state(mgr).fields.items() if field in accepted}
 
 
 def _setting_of(name: str) -> str:
@@ -134,7 +135,7 @@ def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
     pin outright and ``SetFilter`` reloads the engine — so re-asserting a setting
     the rescan did not disturb would cost the user something for no gain.
     """
-    after = live_snapshot(mgr).fields if chain.active_chain(mgr) is not None else {}
+    after = live_state(mgr).fields if chain.active_chain(mgr) is not None else {}
     return {field: value for field, value in fields.items() if (after.get(field) or {}).get("value") != value}
 
 

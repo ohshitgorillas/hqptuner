@@ -1,11 +1,10 @@
-"""Auto-pilot's four off-switches, and the acting loop, in the audit log.
+"""Auto-pilot's three off-switches, and the acting loop, in the audit log.
 
-Auto-pilot is one stored flag a background task acts on, and four different code
+Auto-pilot is one stored flag a background task acts on, and three different code
 paths can turn it off: the user's own switch, a hand write of the junk filter on
-the live lane, applying a live snapshot saved without it, and loading a config
-preset the store holds no flag for. A user who finds the switch off has no way to
-tell which of the four did it unless the log says so, which is what ``source``
-on the ``autopilot.set`` record is for.
+the live lane, and loading a config preset the store holds no flag for. A user
+who finds the switch off has no way to tell which of the three did it unless the
+log says so, which is what ``source`` on the ``autopilot.set`` record is for.
 
 Every case here drives the real REST route or the real ops entry point — never
 ``AuditLog``'s emitter methods, which would only assert the arguments the test
@@ -17,7 +16,6 @@ The route cases run on both lanes at once, because a live junk-filter write need
 the 4321 control daemon and a config-preset load needs the 8088 one.
 """
 
-import json
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -118,15 +116,6 @@ def switch_on(client: TestClient) -> None:
     client.post("/api/autopilot", json={"enabled": True})
 
 
-def strip_autopilot(tmp_path: Path, name: str) -> None:
-    """Drop the ``autopilot`` key from a stored live snapshot — what a record saved
-    by an HQPTuner that had no auto-pilot to record looks like."""
-    path = tmp_path / "live-presets.json"
-    store: dict[str, Any] = json.loads(path.read_text())
-    store["presets"][name].pop("autopilot", None)
-    path.write_text(json.dumps(store))
-
-
 def seed_config_preset(tmp_path: Path, name: str) -> None:
     """A stored config preset written straight into the preset store, so the
     auto-pilot store holds no flag for it — the pre-auto-pilot preset."""
@@ -150,7 +139,7 @@ def test_switching_auto_pilot_off_appends_an_autopilot_set_record(
 def test_switching_auto_pilot_off_records_the_switch_as_the_source(
     autopilot_client: TestClient, audit_log: Path
 ) -> None:
-    # the question the record exists to answer: which of the four paths did it.
+    # the question the record exists to answer: which of the three paths did it.
     # Read past the mark, never off the newest record: switching ON records its
     # own `switch` record, which would answer this case for a build where
     # switching off recorded nothing.
@@ -223,21 +212,6 @@ def test_a_live_write_that_is_not_the_junk_filter_records_no_autopilot_set(
     mark = highest_seq(audit_log)
     autopilot_client.post("/api/config/live", json={"fields": {"filter": "25"}})
     assert events_after_excluding_volume(audit_log, mark) == ["live.write"]
-
-
-# --- applying a live snapshot saved without auto-pilot -------------------------
-
-
-def test_applying_a_live_preset_carrying_no_auto_pilot_key_records_its_source(
-    autopilot_client: TestClient, audit_log: Path, tmp_path: Path
-) -> None:
-    # the switch record from switching on is already in the file, so the last
-    # autopilot.set is this source only if the apply wrote one of its own
-    switch_on(autopilot_client)
-    autopilot_client.put("/api/livepresets/Warm")
-    strip_autopilot(tmp_path, "Warm")
-    autopilot_client.post("/api/livepresets/Warm/apply")
-    assert last(audit_log, "autopilot.set")["source"] == "livepreset.apply"
 
 
 # --- loading a config preset the auto-pilot store never recorded -------------

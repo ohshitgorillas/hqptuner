@@ -80,7 +80,12 @@
             ]
           }
         },
-        "required": ["live", "persistent", "aftermath", "switched"],
+        "required": [
+          "live",
+          "persistent",
+          "aftermath",
+          "switched"
+        ],
         "title": "ApplyReport",
         "type": "object"
       },
@@ -330,7 +335,12 @@
             "type": "string"
           }
         },
-        "required": ["seq", "ts", "event", "fields"],
+        "required": [
+          "seq",
+          "ts",
+          "event",
+          "fields"
+        ],
         "title": "AuditRecord",
         "type": "object"
       },
@@ -345,7 +355,9 @@
             "type": "array"
           }
         },
-        "required": ["records"],
+        "required": [
+          "records"
+        ],
         "title": "AuditRecords",
         "type": "object"
       },
@@ -357,7 +369,9 @@
             "type": "boolean"
           }
         },
-        "required": ["enabled"],
+        "required": [
+          "enabled"
+        ],
         "title": "AutopilotBody",
         "type": "object"
       },
@@ -369,7 +383,9 @@
             "type": "boolean"
           }
         },
-        "required": ["enabled"],
+        "required": [
+          "enabled"
+        ],
         "title": "AutopilotReport",
         "type": "object"
       },
@@ -381,7 +397,9 @@
             "type": "boolean"
           }
         },
-        "required": ["enabled"],
+        "required": [
+          "enabled"
+        ],
         "title": "AutosaveBody",
         "type": "object"
       },
@@ -393,7 +411,9 @@
             "type": "boolean"
           }
         },
-        "required": ["autosave"],
+        "required": [
+          "autosave"
+        ],
         "title": "AutosaveState",
         "type": "object"
       },
@@ -412,7 +432,9 @@
             "title": "File"
           }
         },
-        "required": ["file"],
+        "required": [
+          "file"
+        ],
         "title": "Body_matrix_filter_api_matrix_filter_post",
         "type": "object"
       },
@@ -424,7 +446,9 @@
             "type": "string"
           }
         },
-        "required": ["cfgfile"],
+        "required": [
+          "cfgfile"
+        ],
         "title": "Body_restore_api_restore_post",
         "type": "object"
       },
@@ -467,7 +491,14 @@
             "$ref": "#/components/schemas/PresetChoice"
           }
         },
-        "required": ["fields", "profiles", "active", "autosave", "file", "device_caps"],
+        "required": [
+          "fields",
+          "profiles",
+          "active",
+          "autosave",
+          "file",
+          "device_caps"
+        ],
         "title": "ConfigView",
         "type": "object"
       },
@@ -542,7 +573,12 @@
             "type": "string"
           }
         },
-        "required": ["host", "username", "remember", "has_password"],
+        "required": [
+          "host",
+          "username",
+          "remember",
+          "has_password"
+        ],
         "title": "ConnectionReport",
         "type": "object"
       },
@@ -569,7 +605,13 @@
             "type": "string"
           }
         },
-        "required": ["host", "username", "remember", "has_password", "lane"],
+        "required": [
+          "host",
+          "username",
+          "remember",
+          "has_password",
+          "lane"
+        ],
         "title": "ConnectionWriteReport",
         "type": "object"
       },
@@ -611,7 +653,11 @@
             "type": "string"
           }
         },
-        "required": ["address", "name", "version"],
+        "required": [
+          "address",
+          "name",
+          "version"
+        ],
         "title": "Daemon",
         "type": "object"
       },
@@ -627,7 +673,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "text"],
+        "required": [
+          "name",
+          "text"
+        ],
         "title": "DescriptionBody",
         "type": "object"
       },
@@ -643,7 +692,10 @@
             "type": "string"
           }
         },
-        "required": ["text", "updated"],
+        "required": [
+          "text",
+          "updated"
+        ],
         "title": "DescriptionEntry",
         "type": "object"
       },
@@ -669,7 +721,11 @@
             "type": "array"
           }
         },
-        "required": ["device", "pcm_rates", "dsd_rates"],
+        "required": [
+          "device",
+          "pcm_rates",
+          "dsd_rates"
+        ],
         "title": "DeviceCaps",
         "type": "object"
       },
@@ -747,7 +803,11 @@
             "$ref": "#/components/schemas/EngineVerification"
           }
         },
-        "required": ["verified", "members", "backup_bytes"],
+        "required": [
+          "verified",
+          "members",
+          "backup_bytes"
+        ],
         "title": "EngineApplyResult",
         "type": "object"
       },
@@ -793,7 +853,10 @@
             "type": "object"
           }
         },
-        "required": ["engine", "active_config"],
+        "required": [
+          "engine",
+          "active_config"
+        ],
         "title": "EngineReading",
         "type": "object"
       },
@@ -812,7 +875,10 @@
             "type": "object"
           }
         },
-        "required": ["applied", "engine"],
+        "required": [
+          "applied",
+          "engine"
+        ],
         "title": "EngineVerification",
         "type": "object"
       },
@@ -854,7 +920,15 @@
             "type": "string"
           }
         },
-        "required": ["index", "name", "value", "arg", "description", "apodizing", "static"],
+        "required": [
+          "index",
+          "name",
+          "value",
+          "arg",
+          "description",
+          "apodizing",
+          "static"
+        ],
         "title": "EnumFilterItem",
         "type": "object"
       },
@@ -884,7 +958,12 @@
             "type": "string"
           }
         },
-        "required": ["index", "name", "value", "static"],
+        "required": [
+          "index",
+          "name",
+          "value",
+          "static"
+        ],
         "title": "EnumShaperItem",
         "type": "object"
       },
@@ -1433,7 +1512,12 @@
       },
       "FormsOutcome": {
         "description": "What a refresh did overall.\n\nThe individual forms report their own errors into `readings` and are not part of this answer: a daemon\nanswering /config while /matrix is unhappy is not a connection fault. Callers that only want the\nsnapshots filled ignore it. It is this pass's own verdict, which a refusal recorded in `readings`\ncannot give: that one cannot be told apart from one recorded a poll earlier.",
-        "enum": ["no_credentials", "refused", "ok", "no_answer"],
+        "enum": [
+          "no_credentials",
+          "refused",
+          "ok",
+          "no_answer"
+        ],
         "title": "FormsOutcome",
         "type": "string"
       },
@@ -1604,7 +1688,11 @@
             "type": "string"
           }
         },
-        "required": ["filter", "reason", "ceiling_khz"],
+        "required": [
+          "filter",
+          "reason",
+          "ceiling_khz"
+        ],
         "title": "JunkVerdict",
         "type": "object"
       },
@@ -1659,7 +1747,9 @@
             "type": "string"
           }
         },
-        "required": ["deleted"],
+        "required": [
+          "deleted"
+        ],
         "title": "LivePresetDeleted",
         "type": "object"
       },
@@ -1674,24 +1764,15 @@
             "type": "array"
           }
         },
-        "required": ["presets"],
+        "required": [
+          "presets"
+        ],
         "title": "LivePresetList",
         "type": "object"
       },
       "LiveSnapshotView": {
-        "description": "``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``, and auto-pilot.",
+        "description": "``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``.",
         "properties": {
-          "autopilot": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Autopilot"
-          },
           "chain": {
             "title": "Chain",
             "type": "string"
@@ -1707,7 +1788,10 @@
             "type": "object"
           }
         },
-        "required": ["chain", "fields", "autopilot"],
+        "required": [
+          "chain",
+          "fields"
+        ],
         "title": "LiveSnapshotView",
         "type": "object"
       },
@@ -1733,7 +1817,11 @@
             "type": "string"
           }
         },
-        "required": ["setting", "error", "code"],
+        "required": [
+          "setting",
+          "error",
+          "code"
+        ],
         "title": "LiveWriteFailed",
         "type": "object"
       },
@@ -1751,7 +1839,9 @@
             "type": "string"
           }
         },
-        "required": ["setting"],
+        "required": [
+          "setting"
+        ],
         "title": "LiveWriteOk",
         "type": "object"
       },
@@ -1781,7 +1871,11 @@
             "title": "Path"
           }
         },
-        "required": ["path", "enabled", "lines"],
+        "required": [
+          "path",
+          "enabled",
+          "lines"
+        ],
         "title": "LogTail",
         "type": "object"
       },
@@ -1797,7 +1891,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "mode"],
+        "required": [
+          "name",
+          "mode"
+        ],
         "title": "MatrixModeBody",
         "type": "object"
       },
@@ -1814,7 +1911,9 @@
             "type": "string"
           }
         },
-        "required": ["action"],
+        "required": [
+          "action"
+        ],
         "title": "MatrixProfileBody",
         "type": "object"
       },
@@ -1826,7 +1925,9 @@
             "type": "string"
           }
         },
-        "required": ["active"],
+        "required": [
+          "active"
+        ],
         "title": "MatrixProfileSwitch",
         "type": "object"
       },
@@ -1980,7 +2081,13 @@
             "type": "array"
           }
         },
-        "required": ["modes", "filters", "shapers", "rates", "junk_filters"],
+        "required": [
+          "modes",
+          "filters",
+          "shapers",
+          "rates",
+          "junk_filters"
+        ],
         "title": "MergedEnums",
         "type": "object"
       },
@@ -2003,24 +2110,16 @@
             "type": "string"
           }
         },
-        "required": ["index", "name"],
+        "required": [
+          "index",
+          "name"
+        ],
         "title": "ModeInfo",
         "type": "object"
       },
       "NamedLiveRecord": {
         "description": "One saved live snapshot as the routes answer with it: its name beside the record's own fields.",
         "properties": {
-          "autopilot": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Autopilot"
-          },
           "chain": {
             "title": "Chain",
             "type": "string"
@@ -2044,7 +2143,12 @@
             "type": "object"
           }
         },
-        "required": ["name", "chain", "fields", "names", "autopilot"],
+        "required": [
+          "name",
+          "chain",
+          "fields",
+          "names"
+        ],
         "title": "NamedLiveRecord",
         "type": "object"
       },
@@ -2055,7 +2159,9 @@
             "$ref": "#/components/schemas/Facets"
           }
         },
-        "required": ["facets"],
+        "required": [
+          "facets"
+        ],
         "title": "NarrowingAnswer",
         "type": "object"
       },
@@ -2066,7 +2172,9 @@
             "$ref": "#/components/schemas/FacetBody"
           }
         },
-        "required": ["facets"],
+        "required": [
+          "facets"
+        ],
         "title": "NarrowingBody",
         "type": "object"
       },
@@ -2091,7 +2199,10 @@
             "type": "object"
           }
         },
-        "required": ["live", "http"],
+        "required": [
+          "live",
+          "http"
+        ],
         "title": "PendingSnapshot",
         "type": "object"
       },
@@ -2158,7 +2269,11 @@
             "type": "object"
           }
         },
-        "required": ["entries", "families", "variants"],
+        "required": [
+          "entries",
+          "families",
+          "variants"
+        ],
         "title": "PlainNamesOverlay",
         "type": "object"
       },
@@ -2170,7 +2285,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "PresetActivation",
         "type": "object"
       },
@@ -2185,7 +2302,9 @@
             "type": "object"
           }
         },
-        "required": ["fanout"],
+        "required": [
+          "fanout"
+        ],
         "title": "PresetAftermath",
         "type": "object"
       },
@@ -2204,7 +2323,10 @@
             "type": "string"
           }
         },
-        "required": ["value", "options"],
+        "required": [
+          "value",
+          "options"
+        ],
         "title": "PresetChoice",
         "type": "object"
       },
@@ -2216,7 +2338,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "PresetDeleted",
         "type": "object"
       },
@@ -2232,7 +2356,10 @@
             "type": "string"
           }
         },
-        "required": ["value", "label"],
+        "required": [
+          "value",
+          "label"
+        ],
         "title": "PresetOption",
         "type": "object"
       },
@@ -2251,7 +2378,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "config"],
+        "required": [
+          "name",
+          "config"
+        ],
         "title": "PresetPreview",
         "type": "object"
       },
@@ -2326,7 +2456,14 @@
             "title": "Value"
           }
         },
-        "required": ["name", "type", "section", "label", "value", "options"],
+        "required": [
+          "name",
+          "type",
+          "section",
+          "label",
+          "value",
+          "options"
+        ],
         "title": "ProfileSelect",
         "type": "object"
       },
@@ -2352,7 +2489,9 @@
             "title": "Warning"
           }
         },
-        "required": ["restored"],
+        "required": [
+          "restored"
+        ],
         "title": "RescanAnswer",
         "type": "object"
       },
@@ -2364,7 +2503,9 @@
             "type": "integer"
           }
         },
-        "required": ["bytes"],
+        "required": [
+          "bytes"
+        ],
         "title": "RestoreAnswer",
         "type": "object"
       },
@@ -2393,7 +2534,10 @@
             "type": "integer"
           }
         },
-        "required": ["attempts", "active"],
+        "required": [
+          "attempts",
+          "active"
+        ],
         "title": "RestoreConverged",
         "type": "object"
       },
@@ -2409,7 +2553,10 @@
             "type": "string"
           }
         },
-        "required": ["error", "code"],
+        "required": [
+          "error",
+          "code"
+        ],
         "title": "RestoreDeclined",
         "type": "object"
       },
@@ -2447,7 +2594,10 @@
             "type": "object"
           }
         },
-        "required": ["diff", "unfixable"],
+        "required": [
+          "diff",
+          "unfixable"
+        ],
         "title": "RestoreUnavailable",
         "type": "object"
       },
@@ -2478,7 +2628,9 @@
             "type": "string"
           }
         },
-        "required": ["diff"],
+        "required": [
+          "diff"
+        ],
         "title": "RestoreUnconverged",
         "type": "object"
       },
@@ -2511,7 +2663,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "SaveTarget",
         "type": "object"
       },
@@ -2534,7 +2688,9 @@
             "title": "Warning"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "SavedPreset",
         "type": "object"
       },
@@ -2554,7 +2710,11 @@
             "type": "string"
           }
         },
-        "required": ["value", "label", "selected"],
+        "required": [
+          "value",
+          "label",
+          "selected"
+        ],
         "title": "SelectOption",
         "type": "object"
       },
@@ -2641,7 +2801,12 @@
             "type": "object"
           }
         },
-        "required": ["output", "dsp", "volume", "system"],
+        "required": [
+          "output",
+          "dsp",
+          "volume",
+          "system"
+        ],
         "title": "SettingsDb",
         "type": "object"
       },
@@ -2763,7 +2928,10 @@
             "type": "object"
           }
         },
-        "required": ["sdm_modulators", "pcm_dithers"],
+        "required": [
+          "sdm_modulators",
+          "pcm_dithers"
+        ],
         "title": "ShapersDb",
         "type": "object"
       },
@@ -2789,7 +2957,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2815,7 +2987,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2841,7 +3017,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2867,7 +3047,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2893,7 +3077,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2930,7 +3118,11 @@
             "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": [
+          "stale",
+          "loaded_at",
+          "data"
+        ],
         "title": "Snapshot",
         "type": "object"
       },
@@ -2952,7 +3144,10 @@
             ]
           }
         },
-        "required": ["applied", "speakers"],
+        "required": [
+          "applied",
+          "speakers"
+        ],
         "title": "SpeakerApplyResult",
         "type": "object"
       },
@@ -3013,7 +3208,10 @@
             "type": "boolean"
           }
         },
-        "required": ["enabled", "channels"],
+        "required": [
+          "enabled",
+          "channels"
+        ],
         "title": "SpeakersForm",
         "type": "object"
       },
@@ -3073,7 +3271,13 @@
             "$ref": "#/components/schemas/ShapersDb"
           }
         },
-        "required": ["filters", "shapers", "settings", "plain_names", "easy"],
+        "required": [
+          "filters",
+          "shapers",
+          "settings",
+          "plain_names",
+          "easy"
+        ],
         "title": "StaticDb",
         "type": "object"
       },
@@ -3131,7 +3335,15 @@
             "type": "object"
           }
         },
-        "required": ["status", "metadata", "junk", "bands", "autopilot", "metering", "advisor"],
+        "required": [
+          "status",
+          "metadata",
+          "junk",
+          "bands",
+          "autopilot",
+          "metering",
+          "advisor"
+        ],
         "title": "StatusReport",
         "type": "object"
       },
@@ -3156,7 +3368,10 @@
             "type": "array"
           }
         },
-        "required": ["rows", "post"],
+        "required": [
+          "rows",
+          "post"
+        ],
         "title": "StoredProfile",
         "type": "object"
       },
@@ -3182,7 +3397,10 @@
             "title": "Want"
           }
         },
-        "required": ["want", "available"],
+        "required": [
+          "want",
+          "available"
+        ],
         "title": "UnfixableDevice",
         "type": "object"
       },
@@ -3218,7 +3436,11 @@
             "type": "string"
           }
         },
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError",
         "type": "object"
       },
@@ -3230,7 +3452,9 @@
             "type": "string"
           }
         },
-        "required": ["level"],
+        "required": [
+          "level"
+        ],
         "title": "VolumeBody",
         "type": "object"
       },
@@ -3293,7 +3517,13 @@
             "title": "Volume"
           }
         },
-        "required": ["volume", "min", "max", "enabled", "adaptive"],
+        "required": [
+          "volume",
+          "min",
+          "max",
+          "enabled",
+          "adaptive"
+        ],
         "title": "VolumeReading",
         "type": "object"
       },
@@ -3312,7 +3542,9 @@
             "title": "Volume"
           }
         },
-        "required": ["volume"],
+        "required": [
+          "volume"
+        ],
         "title": "VolumeReport",
         "type": "object"
       },
@@ -3333,7 +3565,10 @@
             "$ref": "#/components/schemas/ApplyReport"
           }
         },
-        "required": ["report", "autosaved"],
+        "required": [
+          "report",
+          "autosaved"
+        ],
         "title": "WithAutosave",
         "type": "object"
       },
@@ -3354,7 +3589,10 @@
             "$ref": "#/components/schemas/EngineApplyResult"
           }
         },
-        "required": ["report", "autosaved"],
+        "required": [
+          "report",
+          "autosaved"
+        ],
         "title": "WithAutosave",
         "type": "object"
       },
@@ -3375,7 +3613,10 @@
             "$ref": "#/components/schemas/LiveApplyReport"
           }
         },
-        "required": ["report", "autosaved"],
+        "required": [
+          "report",
+          "autosaved"
+        ],
         "title": "WithAutosave",
         "type": "object"
       },
@@ -3396,7 +3637,10 @@
             "$ref": "#/components/schemas/SpeakerApplyResult"
           }
         },
-        "required": ["report", "autosaved"],
+        "required": [
+          "report",
+          "autosaved"
+        ],
         "title": "WithAutosave",
         "type": "object"
       },
@@ -3410,7 +3654,10 @@
             "$ref": "#/components/schemas/SavedPreset"
           }
         },
-        "required": ["report", "saved"],
+        "required": [
+          "report",
+          "saved"
+        ],
         "title": "WithSaved",
         "type": "object"
       }

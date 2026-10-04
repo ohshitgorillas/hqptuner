@@ -6,6 +6,10 @@ applying a preset is the same batch the LIVE view would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 
+A snapshot holds the routable settings and the DIRECT flags. The junk filter is
+read only by ``live_state``, the post-rescan replay's reader: it follows the
+material, so no saved snapshot holds it.
+
 ``routing`` turns form fields into setter args; this module reads the result
 back out.
 """
@@ -42,7 +46,7 @@ class ChainUnknownError(HQPTunerError):
 # Which enumeration-item attribute carries the value the LIVE lane takes back.
 # Filters and shapers translate ID<->index, so their stored value is the enum ID;
 # `junk_filter` is index-domain on both sides.
-_SNAPSHOT_VALUE = {"junk_filter": "index"}
+_STATE_VALUE = {"junk_filter": "index"}
 
 # Mode included. A single batch cannot carry it — `_mode_blocks_batch` refuses a
 # mode change beside anything else, because `SetMode` swaps the enumerations the
@@ -50,7 +54,11 @@ _SNAPSHOT_VALUE = {"junk_filter": "index"}
 # `lane.apply_preset` writes the mode, re-enumerates, then applies the rest
 # against the lists the switch produced. Leaving mode out made a preset unable to
 # say "run SDM like this", which is most of what a preset is for.
-_SNAPSHOT_FIELDS = (*ROUTABLE, *LIVE_ONLY)
+#: Every setting a saved snapshot can hold: the routable settings and the DIRECT flags.
+SNAPSHOT_FIELDS = (*ROUTABLE, *DIRECT)
+
+# The enumerated settings ``live_state`` reads: the routable ones and the junk filter.
+_STATE_FIELDS = (*ROUTABLE, *LIVE_ONLY)
 
 
 def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
@@ -68,7 +76,7 @@ def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | Non
 
 
 def _spec(field: str) -> LiveField:
-    """Return a snapshot field's routing spec, from whichever of the two tables carries it."""
+    """Return a state field's routing spec, from whichever of the two tables carries it."""
     return ROUTABLE.get(field) or LIVE_ONLY[field]
 
 
@@ -98,7 +106,7 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
         return None
     if field == "mode":
         return _mode_snapshot(mgr, index)
-    return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
+    return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _STATE_VALUE.get(field, "value"))
 
 
 def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
@@ -120,15 +128,24 @@ class LiveSnapshot:
     fields: dict[str, dict[str, str]]
 
 
-def live_snapshot(mgr: ConnectionManager) -> LiveSnapshot:
-    """Read the engine's live settings and the chain they were read on, in one pass.
+def live_state(mgr: ConnectionManager) -> LiveSnapshot:
+    """Read every live setting the engine reports, junk filter included, and the chain they were read on, in one pass.
 
     ``ChainUnknownError`` when ``active_chain`` cannot say which chain is loaded:
     the chain fields would be missing and the record would claim a chain it never
-    captured, so the snapshot is refused rather than half-taken.
+    captured, so the read is refused rather than half-taken.
     """
     chain = active_chain(mgr)
     if chain is None:
         raise ChainUnknownError
-    chained = {f: item for f in _SNAPSHOT_FIELDS if (item := _snapshot_field(mgr, f, chain)) is not None}
+    chained = {f: item for f in _STATE_FIELDS if (item := _snapshot_field(mgr, f, chain)) is not None}
     return LiveSnapshot(chain, {**chained, **_direct_snapshot(mgr)})
+
+
+def live_snapshot(mgr: ConnectionManager) -> LiveSnapshot:
+    """Read the settings a saved snapshot holds (``SNAPSHOT_FIELDS``) and the chain they were read on.
+
+    ``ChainUnknownError`` as ``live_state`` raises it.
+    """
+    state = live_state(mgr)
+    return LiveSnapshot(state.chain, {f: item for f, item in state.fields.items() if f in SNAPSHOT_FIELDS})

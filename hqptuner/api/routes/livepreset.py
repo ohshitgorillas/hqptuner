@@ -17,7 +17,6 @@ from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.live import lane, routing, snapshot
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.lanes.live.snapshot import ChainUnknownError
-from hqptuner.presets import presetlane
 from hqptuner.presets.store.live import (
     LiveFields,
     LivePresetError,
@@ -28,10 +27,6 @@ from hqptuner.presets.store.live import (
 )
 
 router = APIRouter(prefix="/api")
-
-# The one record key that is not a live-lane field: autopilot is HQPTuner's own
-# switch, selectable like the rest.
-AUTOPILOT = "autopilot"
 
 # Chain-scoped fields index the enumerations of one chain, so a preset carrying
 # any of them has to say which chain to be on — mode rides along unasked.
@@ -62,12 +57,11 @@ class NamedLiveRecord:
     chain: str
     fields: LiveFields
     names: dict[str, str]
-    autopilot: bool | None
 
     @classmethod
     def of(cls, name: str, record: LiveRecord) -> "NamedLiveRecord":
         """Name ``record``, copying its fields."""
-        return cls(name, record.chain, dict(record.fields), dict(record.names), record.autopilot)
+        return cls(name, record.chain, dict(record.fields), dict(record.names))
 
 
 @dataclass(frozen=True)
@@ -79,11 +73,10 @@ class LivePresetList:
 
 @dataclass(frozen=True)
 class LiveSnapshotView:
-    """``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``, and auto-pilot."""
+    """``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``."""
 
     chain: str
     fields: dict[str, dict[str, str]]
-    autopilot: bool | None
 
 
 @dataclass(frozen=True)
@@ -102,23 +95,11 @@ def _unreadable(exc: LivePresetSchemaError) -> ApiError:
     return refuse(exc)
 
 
-def _restore_autopilot(manager: ConnectionManager, record: LiveRecord) -> None:
-    """Put auto-pilot back to what this record carries, or leave it alone when the record omits it (null).
-
-    A record from before auto-pilot existed carries no such key and reads as off. A record that carries auto-pilot on
-    and a junk filter of its own applies both, and auto-pilot then releases that filter on its next tick unless the
-    playing track asks for it — which is what auto-pilot being on means.
-    """
-    if record.autopilot is None:
-        return
-    presetlane.switch_autopilot(manager, "livepreset.apply", enabled=record.autopilot is True)
-
-
 def _selected(wanted: list[str] | None) -> set[str] | None:
     """Return the keys a save keeps, mode forced beside any chain-scoped one; None = everything. Unknown key -> 422."""
     if wanted is None:
         return None
-    known = {*routing.live_fields(), AUTOPILOT}
+    known = set(snapshot.SNAPSHOT_FIELDS)
     unknown = [key for key in wanted if key not in known]
     if unknown:
         raise refuse(NotLiveSnapshotSettingsError(unknown=unknown))
@@ -126,11 +107,6 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     if keys & _CHAIN_SCOPED:
         keys.add("mode")
     return keys
-
-
-def _autopilot_now(manager: ConnectionManager) -> bool | None:
-    """Return auto-pilot's switch as a save would record it, or None while the advisor is off and it has no meaning."""
-    return manager.presetops.autopilot.enabled if manager.cfg.advisor_enabled else None
 
 
 def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
@@ -144,7 +120,6 @@ def _record(manager: ConnectionManager, keys: set[str] | None) -> LiveRecord:
         chain=taken.chain,
         fields={field: item["value"] for field, item in kept.items()},
         names={field: item["name"] for field, item in kept.items()},
-        autopilot=_autopilot_now(manager) if keys is None or AUTOPILOT in keys else None,
     )
 
 
@@ -158,7 +133,7 @@ def live_snapshot(manager: Mgr) -> LiveSnapshotView:
         taken = snapshot.live_snapshot(manager)
     except ChainUnknownError as exc:
         raise refuse(exc, exc.reasons) from exc
-    return LiveSnapshotView(taken.chain, taken.fields, _autopilot_now(manager))
+    return LiveSnapshotView(taken.chain, taken.fields)
 
 
 @router.get("/livepresets")
@@ -227,7 +202,6 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> WithAu
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
         raise refuse(exc) from exc
-    _restore_autopilot(manager, record)
     return await with_autosave(report, manager)
 
 

@@ -1,20 +1,17 @@
 """The junk-filter advisor and auto-pilot behind ``Config.advisor_enabled``.
 
 With the advisor off, auto-pilot is inert: its stored switch is not reported,
-the switch route writes nothing, a live snapshot save records no auto-pilot
-state, and the metering reader is never built. Each case runs the same wire
-traffic with the advisor on and off and reads one surface back, so the two
-readings differ on the flag alone.
+the switch route writes nothing, and the metering reader is never built. Each
+case runs the same wire traffic with the advisor on and off and reads one
+surface back, so the two readings differ on the flag alone.
 
 The auto-pilot store is seeded on before the app starts, because that is the
 state a user who switched it on carries into a build where the feature is off:
 what the file already holds must stay where it is and act on nothing.
 
-Everything is driven over the REST surface: ``GET /api/status``,
-``POST /api/autopilot`` and ``PUT /api/livepresets/{name}``. The store file is
-read back with a plain ``json.loads``; the one key pinned, ``enabled``, is wire
-contract. Not here: ``GET /api/livepresets/snapshot``, the save popover's
-preview, which reads the same value the save records and cannot fail on its own.
+Everything is driven over the REST surface: ``GET /api/status`` and
+``POST /api/autopilot``. The store file is read back with a plain
+``json.loads``; the one key pinned, ``enabled``, is wire contract.
 """
 
 from __future__ import annotations
@@ -105,13 +102,3 @@ def test_the_switch_route_writes_the_store_only_while_the_advisor_is_on(
 ) -> None:
     advisor_client(advisor=advisor).post("/api/autopilot", json={"enabled": False})
     assert stored_enabled(tmp_path) is stored
-
-
-@pytest.mark.parametrize(("advisor", "recorded"), [(True, True), (False, None)])
-def test_a_saved_live_preset_carries_auto_pilot_only_while_the_advisor_is_on(
-    *, advisor_client: AdvisorClient, advisor: bool, recorded: bool | None
-) -> None:
-    client = advisor_client(advisor=advisor)
-    client.put("/api/livepresets/Warm")
-    warm = next(p for p in client.get("/api/livepresets").json()["presets"] if p["name"] == "Warm")
-    assert warm.get("autopilot") is recorded

@@ -118,7 +118,7 @@ Five operations, all built on that one primitive (`presets/store/presets.py` plu
 
 A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the LIVE lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets.
 
-A record holds output **mode**, both chain filters, dither/modulator, junk filter and adaptive volume, each as value plus display name at save time; values apply and names only render, because engine-built enumerations shift under a stored preset. Auto-pilot's state sits beside them, outside `fields`, since it is not a live-lane field; the route applies it after the lane, and `autopilot: null` leaves the switch alone. A record may carry a subset of the settings: the `PUT` body names the kept keys, and any chain-scoped key forces `mode` in. Playback volume is excluded: restoring a level hands the listener a loudness jump they never asked for.
+A record holds output **mode**, both chain filters, dither/modulator and adaptive volume, each as value plus display name at save time; values apply and names only render, because engine-built enumerations shift under a stored preset. A record may carry a subset of the settings: the `PUT` body names the kept keys, and any chain-scoped key forces `mode` in. Playback volume is excluded: restoring a level hands the listener a loudness jump they never asked for. **The junk filter and its auto-pilot are never stored**: the filter follows the material, so a save naming `junk_filter` or `autopilot` is refused (`fields_unknown`) and an apply leaves both where they are. A record stored under schema 3 or earlier loses its `junk_filter` and its `autopilot` on read.
 
 Mode is included, which is why apply is `lane.apply_preset` rather than one batch (§4.4). **Applying a snapshot saved on the other chain is not a conflict to refuse**: switching is the request. A snapshot whose stored ID the running enumerations no longer offer refuses the whole snapshot, naming the field. A `rate` stored by older versions is ignored on apply.
 
@@ -268,7 +268,7 @@ Lane reports returned inside a 200 body carry the same vocabulary per item: a fa
 
 ## 9. Background tasks
 
-**The advisor, auto-pilot and the METER page are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the reader is never built, `presetlane.switch_autopilot` writes nothing, a live snapshot records no auto-pilot state, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders none of the three; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
+**The advisor, auto-pilot and the METER page are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the reader is never built, `presetlane.switch_autopilot` writes nothing, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders none of the three; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
 
 ### 9.1 Metering reader
 

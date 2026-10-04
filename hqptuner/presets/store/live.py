@@ -17,8 +17,7 @@ A record is::
 
     {"chain": "pcm",
      "fields": {"mode": "pcm", "filter": "40", "dither": "5", ...},
-     "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...},
-     "autopilot": false}
+     "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...}}
 
 ``fields`` is what the live lane takes, output mode included — a preset that could
 not say which mode to run could not put the engine back the way it was found. The
@@ -29,14 +28,13 @@ stored filter and shaper IDs index. ``names`` is display only:
 the enumerations are engine-built and can shift under a stored preset, so the
 card can still say what was saved even when an ID no longer resolves.
 
-``autopilot`` sits beside ``fields`` rather than in it because it is not a live-lane
-field and the lane would refuse it: the high-frequency filter's auto-pilot is
-HQPTuner's own switch, applied by the route after the lane has done its work. A
-record with no ``autopilot`` key reads as off.
+The high-frequency (junk) filter follows the material, so no record holds it or
+its auto-pilot switch. A record stored under schema 3 or earlier is read without
+either: ``junk_filter`` leaves ``fields`` and ``names``, and an ``autopilot`` key
+is not read. The next write stamps the file with the current schema.
 
 A record need not carry every setting: a save may name the ones it keeps, and an
-apply leaves the absent ones where the engine has them. ``autopilot: null`` is
-that same omission for the switch — applied, it moves nothing.
+apply leaves the absent ones where the engine has them.
 """
 
 from __future__ import annotations
@@ -57,7 +55,10 @@ if TYPE_CHECKING:
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
 # misread preset writes settings the user never chose. An unstamped file predates
 # the stamp and is adopted as the current schema on its next write.
-_SCHEMA = 3
+_SCHEMA = 4
+
+#: Record keys no snapshot holds, dropped from a stored record's ``fields`` and ``names`` on read.
+_DROPPED = frozenset({"junk_filter"})
 
 
 #: A live record's settings: each live setting's key to the value its setter sends.
@@ -70,7 +71,6 @@ class LiveRecordFile(TypedDict):
     chain: str
     fields: LiveFields
     names: dict[str, str]
-    autopilot: bool | None
 
 
 class LiveFile(TypedDict, total=False):
@@ -81,25 +81,25 @@ class LiveFile(TypedDict, total=False):
 
 
 def _strings(stored: object) -> dict[str, str]:
-    """Return the entries of a stored map whose key and value are both strings; an absent or non-map member is empty."""
+    """Return a stored map's string entries, less the ``_DROPPED`` keys; an absent or non-map member is empty."""
     if not isinstance(stored, dict):
         return {}
-    return {key: value for key, value in stored.items() if isinstance(key, str) and isinstance(value, str)}
+    return {
+        key: value
+        for key, value in stored.items()
+        if isinstance(key, str) and isinstance(value, str) and key not in _DROPPED
+    }
 
 
 def _clean_record(stored: dict[object, object]) -> LiveRecordFile:
     """Return one stored record with each member checked against the type ``LiveRecordFile`` names.
 
-    ``autopilot`` reads three ways, on purpose: the key entirely ABSENT reads as ``False``, auto-pilot off, an
-    explicit outcome; the key present but ``null`` (or any other non-bool value) reads as ``None``, an omission an
-    apply must leave alone; ``true``/``false`` read as themselves.
+    Any other member, ``autopilot`` among them, is not read.
     """
-    raw = stored.get("autopilot", False)
     return LiveRecordFile(
         chain=str(stored.get("chain", "")),
         fields=_strings(stored.get("fields")),
         names=_strings(stored.get("names")),
-        autopilot=raw if isinstance(raw, bool) else None,
     )
 
 
@@ -126,29 +126,24 @@ def _clean(stored: object) -> LiveFile:
 
 @dataclass(frozen=True)
 class LiveRecord:
-    """One live snapshot: the chain it was taken on, the settings it carries, their display names, and auto-pilot.
+    """One live snapshot: the chain it was taken on, the settings it carries, and their display names.
 
     A record need not carry every setting: a save may name the ones it keeps, and an apply leaves the absent ones
-    where the engine has them. ``autopilot`` of ``None`` is that same omission for the switch.
+    where the engine has them.
     """
 
     chain: str
     fields: LiveFields = field(default_factory=dict)
     names: dict[str, str] = field(default_factory=dict)
-    autopilot: bool | None = None
 
     @classmethod
     def from_json(cls, data: LiveRecordFile) -> LiveRecord:
         """Build from a stored record, already checked member by member (``_clean_record``)."""
-        return cls(
-            chain=data["chain"], fields=dict(data["fields"]), names=dict(data["names"]), autopilot=data["autopilot"]
-        )
+        return cls(chain=data["chain"], fields=dict(data["fields"]), names=dict(data["names"]))
 
     def to_json(self) -> LiveRecordFile:
         """Return the document form this store persists, and the shape the REST surface answers with."""
-        return LiveRecordFile(
-            chain=self.chain, fields=dict(self.fields), names=dict(self.names), autopilot=self.autopilot
-        )
+        return LiveRecordFile(chain=self.chain, fields=dict(self.fields), names=dict(self.names))
 
 
 class LivePresetError(HQPTunerError, ValueError):

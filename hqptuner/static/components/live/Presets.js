@@ -12,7 +12,6 @@
 // the presets lane speaks to /api/livepresets and to nothing on the page.
 import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { advisor } from "../../store/signals.js";
 import {
   livePresets,
   livePresetsBusy,
@@ -31,25 +30,22 @@ import { liveEditing, setLiveEditing } from "./Layout.js";
 import { Card } from "../common.js";
 
 /**
- * @typedef {{ name: string, chain: string, fields: Record<string, string>, names?: Record<string, string>,
- *   autopilot?: boolean | null }} LivePreset
+ * @typedef {{ name: string, chain: string, fields: Record<string, string>, names?: Record<string, string> }} LivePreset
  *   One saved live snapshot as /api/livepresets serves it. `fields` is the stored
- *   batch; `names` each field's display name; `autopilot` null when the preset
- *   does not carry the switch.
- * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }>, autopilot: boolean | null }} Snapshot
- *   What a save would store right now (/api/livepresets/snapshot); `autopilot`
- *   null while the advisor is not offered, and then no row is listed for it.
+ *   batch; `names` each field's display name.
+ * @typedef {{ chain: string, fields: Record<string, { value: string, name: string }> }} Snapshot
+ *   What a save would store right now (/api/livepresets/snapshot).
  * @typedef {import("../controls/Combobox.js").TipContent} TipContent
  */
 
 const PRESET_OWNER = "livepresets";
-const AUTOPILOT = "autopilot";
 const selectedPreset = signal("");
 
 // The popover rows and the picker tip share one label per setting key, in the
-// order the rows are listed. Not here: the HF filter, which follows the
-// material the way volume does and is no preset's to fix; and output mode,
-// which the backend stores beside any chain-scoped setting without asking.
+// order the rows are listed. Not here: the HF filter and its auto-pilot, since
+// the filter follows the material the way volume does and is no preset's to
+// fix; and output mode, which the backend stores beside any chain-scoped
+// setting without asking.
 /** @type {[string, string][]} */
 const LABELS = [
   ["filter1x", "1x filter"],
@@ -58,20 +54,19 @@ const LABELS = [
   ["oversampling", "Nx filter"],
   ["dither", "Dither"],
   ["modulator", "Modulator"],
-  [AUTOPILOT, "HF auto-pilot"],
   ["adaptive_volume", "Adaptive volume"],
 ];
 
-// A stored value in the words the LIVE page uses for it: the two switches as
-// the schema's ON/OFF; everything else carries its enumeration name.
+// A stored value in the words the LIVE page uses for it: the adaptive-volume
+// switch as the schema's ON/OFF; everything else carries its enumeration name.
 /**
  * @param {string} key
- * @param {string | boolean} value the stored value or its display name
+ * @param {string} value the stored value or its display name
  * @returns {string}
  */
 function shown(key, value) {
-  if (key === AUTOPILOT || key === "adaptive_volume") return value === true || value === "1" ? "ON" : "OFF";
-  return String(value);
+  if (key === "adaptive_volume") return value === "1" ? "ON" : "OFF";
+  return value;
 }
 
 // One checkbox row per setting the engine reports, all checked.
@@ -81,18 +76,13 @@ function shown(key, value) {
  * @returns {ChoiceOption[]}
  */
 export function choiceRows(snap) {
-  // Only rows that passed the filter below reach here, so an auto-pilot row's value is never null.
-  /** @param {string} key */
-  const detail = (key) => shown(key, key === AUTOPILOT ? snap.autopilot === true : snap.fields[key].name);
-  return LABELS.filter(([key]) => (key === AUTOPILOT ? snap.autopilot != null : key in snap.fields)).map(
-    ([key, label]) => ({
-      value: key,
-      label,
-      checked: true,
-      disabled: false,
-      detail: detail(key),
-    }),
-  );
+  return LABELS.filter(([key]) => key in snap.fields).map(([key, label]) => ({
+    value: key,
+    label,
+    checked: true,
+    disabled: false,
+    detail: shown(key, snap.fields[key].name),
+  }));
 }
 
 // Why the device cannot play a preset, "" when it can. A preset that stores no
@@ -132,11 +122,7 @@ function presetTips(presets) {
     tip.text = unplayable(record);
     const names = record.names || {};
     for (const [key, label] of LABELS) {
-      const value = key === AUTOPILOT ? record.autopilot : names[key] || record.fields[key];
-      // A record saved while auto-pilot was offered keeps its switch on disk; it is listed only while it is offered.
-      if (key === AUTOPILOT ? record.autopilot != null && advisor.value : key in record.fields) {
-        tip.rows.push([key, label, shown(key, /** @type {string | boolean} */ (value)), []]);
-      }
+      if (key in record.fields) tip.rows.push([key, label, shown(key, names[key] || record.fields[key]), []]);
     }
     return tip;
   };
