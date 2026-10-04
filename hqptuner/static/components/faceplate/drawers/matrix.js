@@ -1,7 +1,7 @@
 // The schemas of the Matrix engine and DAC correction drawers, members of the `matrix` family: both edit the matrix
 // profile, so a staged edit in either lights both drawers' apply groups. Matrix engine is Basic (an intro naming the
-// drawers the engine runs, printed plain, then the gate and Expand HF) and Advanced (the convolution engine and IIR to
-// FIR, each option's line under its row); DAC correction is its gate and the DAC model.
+// drawers the engine runs, each name the link to its drawer, then the gate and Expand HF) and Advanced (the
+// convolution engine and IIR to FIR, each option's line under its row); DAC correction is its gate and the DAC model.
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
@@ -25,13 +25,13 @@ export const MATRIX_DRAWER = {
         {
           intro: [
             "The matrix engine runs your matrix profile: ",
-            { label: "DSP pipelines" },
+            { label: "DSP pipelines", to: "pipelines" },
             ", ",
-            { label: "Crossfeed" },
+            { label: "Crossfeed", to: "crossfeed" },
             ", ",
-            { label: "Loudness" },
+            { label: "Loudness", to: "loudness" },
             " and ",
-            { label: "DAC correction" },
+            { label: "DAC correction", to: "correction" },
             ". Bypassing it stops them all; their settings are kept for when you engage it again.",
           ],
         },

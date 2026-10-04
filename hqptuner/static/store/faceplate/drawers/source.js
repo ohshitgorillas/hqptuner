@@ -23,6 +23,14 @@ const STEREO = 2;
 const MS_PER_S = 1000; // the time axis counts in milliseconds
 const MAX_EVENTS = 3; // the strip's hottest colour, model/gauges/meter-plot.js apodRamp
 
+/** The no-stream lines, by state, the drawer's and the page's (v1, components/meter/View.js). @type {Record<string, string>} */
+export const METER_NOTES = {
+  idle: "Start playback to see the meter.",
+  off: "No metering available.",
+  silent: "No metering available.",
+  matrix: "Engage the matrix engine to see DSD metering.",
+};
+
 /**
  * Which the block shows: `live` the meter; else the line for metering off, nothing playing, a feed gone quiet while
  * it plays, or a quiet DSD source with the matrix off.

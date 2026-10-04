@@ -2,7 +2,7 @@
 // an SDM out tab, since the engine keeps one chain per output mode whatever runs; a drawer opens on the mode running,
 // and the other mode's tab reads idle. Resampling's FFT length row shows on a tab while that tab's 1x or Nx filter is
 // FFT-family. Shaping's DAC type and DAC chip are browser-held fields, and its PCM tab notes the DAC bits the Output
-// drawer holds.
+// drawer holds, with the link there.
 
 import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
 import { ditherNote, runningMode } from "../../../store/faceplate/drawers/modes.js";
@@ -107,7 +107,7 @@ export const SHAPING_DRAWER = {
         },
       },
       { row: { key: "pcm_dither", sub: "Low-level noise treatment" } },
-      { note: () => `${ditherNote()} Output` },
+      { note: () => ({ text: ditherNote(), to: "output" }) },
     ],
     [
       {

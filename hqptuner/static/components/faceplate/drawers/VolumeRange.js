@@ -5,8 +5,7 @@
 // the bar is named once, beside its own glyph; a readout shows only while its mark is on the bar.
 //
 // Edits stage through the store (store/faceplate/drawers/volume.js), so they mark the tab through the drawer. The
-// block grays whole while Fixed volume is not Off. The `Loudness ›` line prints its text: its link to the Loudness
-// drawer is a later phase's.
+// block grays whole while Fixed volume is not Off. The loudness row's `Loudness ›` is the link to the Loudness drawer.
 
 import { html } from "../../../lib/dom.js";
 import { AXIS_MAX, AXIS_MIN } from "../../../lib/volume.js";
@@ -16,8 +15,10 @@ import { describe } from "../../../store/prose.js";
 import { RANGE_KEYS, volumeRangeNow } from "../../../store/faceplate/drawers/volume.js";
 import { RangeBar } from "./volume/Bar.js";
 import { RangeBox, Readout } from "./volume/marks.js";
+import { Xref, withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawers/volume.js").VolumeKey} VolumeKey */
 /** @typedef {import("../../../store/faceplate/drawers/volume.js").VolumeTrio} VolumeTrio */
 /** @typedef {import("../../../store/faceplate/drawers/volume.js").VolumeRangeView} VolumeRangeView */
@@ -56,9 +57,9 @@ const BOXES = [
 /**
  * The volume row: the boxes and the Playback readout over the gray reason, the settings' paragraphs beside.
  *
- * @param {{ view: VolumeRangeView }} props
+ * @param {{ view: VolumeRangeView, here: XrefHere }} props  here: where it is drawn
  */
-function VolumeRow({ view }) {
+function VolumeRow({ view, here }) {
   const { cur, gray, dirty, level } = view;
   return html`
     <div class="vrrow">
@@ -87,7 +88,7 @@ function VolumeRow({ view }) {
             hidden=${level === null}
           />
         </div>
-        ${gray ? html`<span class="gr">${gray}</span>` : null}
+        ${gray ? html`<span class="gr">${withXref(gray, here)}</span>` : null}
       </div>
       <${Manual} keys=${VOLUME_MAN} />
     </div>
@@ -95,8 +96,8 @@ function VolumeRow({ view }) {
 }
 
 /**
- * The loudness row: its bounds read-only, shown while loudness reaches the output, the `Loudness ›` line as its text,
- * the bounds' paragraphs beside.
+ * The loudness row: its bounds read-only, shown while loudness reaches the output, the link to the Loudness drawer, the
+ * bounds' paragraphs beside.
  *
  * @param {{ loud: VolumeRangeView["loud"] }} props
  */
@@ -105,7 +106,7 @@ const LoudnessRow = ({ loud }) => html`
     <div class="vrctl">
       <div class="fh">
         <b>Loudness bounds</b>
-        <span>Loudness<span aria-hidden="true"> ›</span></span>
+        <${Xref} to="loudness" />
       </div>
       <div class="vrboxes inl" hidden=${!loud}>
         <${Readout} glyph="lparen" label="Lower" text=${loud ? signed(loud.low) : ""} unit="dBFS" />
@@ -119,15 +120,15 @@ const LoudnessRow = ({ loud }) => html`
 /**
  * The Range block's body: the bar, the volume row and the loudness row.
  *
- * @param {{ schema: DrawerSchema }} _props  the drawer it is mounted in
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function VolumeRangeBody(_props) {
+export function VolumeRangeBody({ here }) {
   const view = volumeRangeNow();
   return html`
     <div class=${view.gray ? "vrange grayed-range" : "vrange"}>
       <div class="fh"><b>Range</b></div>
       <${RangeBar} view=${view} />
-      <${VolumeRow} view=${view} />
+      <${VolumeRow} view=${view} here=${here} />
       <${LoudnessRow} loud=${view.loud} />
     </div>
   `;

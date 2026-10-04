@@ -20,6 +20,7 @@ import { Bands } from "./loudness/Bands.js";
 import { RangeBar } from "./loudness/RangeBar.js";
 import { RespPlot } from "./loudness/RespPlot.js";
 
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawers/loudness.js").Side} Side */
 /** @typedef {import("./loudness/RespPlot.js").Handle} Handle */
 
@@ -68,12 +69,12 @@ function Plot({ grayed }) {
 /**
  * The Loudness drawer's block.
  *
- * @param {{ schema: import("../../../store/faceplate/drawer.js").DrawerSchema }} _props
+ * @param {{ schema: import("../../../store/faceplate/drawer.js").DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function LoudnessBody(_props) {
+export function LoudnessBody({ here }) {
   const why = loudnessGray();
   return html`
-    <${Bands} why=${why} />
+    <${Bands} why=${why} here=${here} />
     <div class="lbot">
       <${RangeBar} grayed=${!!why} />
       <${Plot} grayed=${!!why} />

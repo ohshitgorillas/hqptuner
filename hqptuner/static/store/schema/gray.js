@@ -71,6 +71,11 @@ export const atFixedMinusThree = (/** @type {(key: string) => string | number | 
 /** Grays the manual fixed-volume level while fixed volume is off or Auto headroom supersedes it. */
 export const levelGray = (/** @type {GrayCtx} */ ctx) =>
   fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
+/** The reason fixed volume or Optimal ISO gives for a bypassed volume control. */
+export const FIXED_VOLUME_REASON = "Fixed volume bypasses the volume control.";
+/** The reason volume min = max = 0 gives for a bypassed volume control. */
+export const ZERO_RANGE_REASON =
+  "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.";
 /**
  * The live volume control is bypassed in three documented cases (manual §4.2,
  * §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
@@ -80,14 +85,11 @@ export const levelGray = (/** @type {GrayCtx} */ ctx) =>
  * editing min or max, so graying them there would trap the user in it.
  */
 export const volumeRangeGray = (/** @type {GrayCtx} */ ctx) =>
-  directSdm(ctx) ||
-  (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "");
+  directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? FIXED_VOLUME_REASON : "");
 /** volumeRangeGray plus the third case, volume min = max = 0. */
 export const volumeBypassed = (/** @type {GrayCtx} */ ctx) =>
   volumeRangeGray(ctx) ||
-  (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
-    ? "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side."
-    : "");
+  (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0 ? ZERO_RANGE_REASON : "");
 /** Grays the log file path while logging is off. */
 export const logOff = (/** @type {GrayCtx} */ ctx) =>
   truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.";

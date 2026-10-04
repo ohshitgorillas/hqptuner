@@ -15,6 +15,7 @@ import { groupShown, rowLines, rowShown } from "../../../store/faceplate/drawer.
 import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
 import { field } from "./Field.js";
 import { choice } from "./Choice.js";
+import { Xref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").BodyItem} BodyItem */
@@ -22,7 +23,9 @@ import { choice } from "./Choice.js";
 /** @typedef {import("../../../store/faceplate/drawer.js").GroupItem} GroupItem */
 /** @typedef {import("../../../store/faceplate/drawer.js").BlockItem} BlockItem */
 /** @typedef {import("../../../store/faceplate/drawer.js").IntroPart} IntroPart */
-/** @typedef {Record<string, (props: { schema: DrawerSchema }) => unknown>} Blocks */
+/** @typedef {import("../../../store/faceplate/drawer.js").NoteLine} NoteLine */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
+/** @typedef {Record<string, (props: { schema: DrawerSchema, here: XrefHere }) => unknown>} Blocks */
 
 /**
  * Every option under the row with its line, the effective one current; tapping another stages it.
@@ -67,8 +70,9 @@ function pickedLine(spec, entry) {
  * One row; nothing for an unknown key or a row its `when` leaves out.
  *
  * @param {RowSpec} spec
+ * @param {XrefHere} here  the drawer and tab the row is drawn on
  */
-function row(spec) {
+function row(spec, here) {
   const entry = catalog[spec.key];
   if (!entry || !rowShown(spec)) return null;
   const { key } = spec;
@@ -78,7 +82,7 @@ function row(spec) {
   const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
   return html`
     <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined}>
-      <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(gray)}</div>
+      <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(gray, here)}</div>
       <div class="man"><p>${tooltip}</p></div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry)}
     </div>
@@ -98,22 +102,40 @@ const secHead = (text, cls) => html`<div class=${cls}><span class="t">${text}</s
  *
  * @param {DrawerSchema} schema
  * @param {GroupItem} g
+ * @param {XrefHere} here  the drawer and tab the group is drawn on
  */
-const group = (schema, g) => html`
+const group = (schema, g, here) => html`
   <div class="begrp" data-be=${g.group} hidden=${!groupShown(schema, g.group)}>
-    ${secHead(g.label, "dsec")} ${g.rows.map((r) => row(r))}
+    ${secHead(g.label, "dsec")} ${g.rows.map((r) => row(r, here))}
   </div>
 `;
 
 /**
- * An intro paragraph; a place's name in it prints plain.
+ * One part of an intro: its text, or a place's name as the link there, plain when it names no place.
+ *
+ * @param {IntroPart} p
+ */
+const introPart = (p) => {
+  if (typeof p === "string") return p;
+  return p.to ? html`<${Xref} to=${p.to} label=${p.label} />` : p.label;
+};
+
+/**
+ * An intro paragraph; a place's name in it is the link there.
  *
  * @param {string | IntroPart[]} intro
  */
 function introPara(intro) {
   const parts = typeof intro === "string" ? [intro] : intro;
-  return html`<p class="dintro">${parts.map((p) => (typeof p === "string" ? p : p.label))}</p>`;
+  return html`<p class="dintro">${parts.map(introPart)}</p>`;
 }
+
+/**
+ * A read-only note: what its function reads now, then the link to the place it names.
+ *
+ * @param {NoteLine} n
+ */
+const noteLine = (n) => (typeof n === "string" ? n : html`${n.text} <${Xref} to=${n.to} />`);
 
 /**
  * A block, the component the caller passed under its name mounted inside.
@@ -121,10 +143,13 @@ function introPara(intro) {
  * @param {DrawerSchema} schema
  * @param {BlockItem} it
  * @param {Blocks} blocks
+ * @param {XrefHere} here  the drawer and tab the block is drawn on
  */
-function block(schema, it, blocks) {
+function block(schema, it, blocks, here) {
   const Block = blocks[it.block];
-  return html`<div class="dblock" data-block=${it.block}>${Block ? html`<${Block} schema=${schema} />` : null}</div>`;
+  return html`<div class="dblock" data-block=${it.block}>
+    ${Block ? html`<${Block} schema=${schema} here=${here} />` : null}
+  </div>`;
 }
 
 /**
@@ -133,14 +158,16 @@ function block(schema, it, blocks) {
  * @param {DrawerSchema} schema
  * @param {BodyItem} it
  * @param {Blocks} blocks
+ * @param {string} tab  the tab the item sits on
  */
-export function item(schema, it, blocks) {
-  if ("row" in it) return row(it.row);
-  if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field);
-  if ("choice" in it) return choice(it.choice);
+export function item(schema, it, blocks, tab) {
+  const here = { drawer: schema.id, tab };
+  if ("row" in it) return row(it.row, here);
+  if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field, here);
+  if ("choice" in it) return choice(it.choice, here);
   if ("head" in it) return secHead(it.head, "msec");
-  if ("note" in it) return html`<p class="mnote">${it.note()}</p>`;
-  if ("group" in it) return group(schema, it);
+  if ("note" in it) return html`<p class="mnote">${noteLine(it.note())}</p>`;
+  if ("group" in it) return group(schema, it, here);
   if ("intro" in it) return introPara(it.intro);
-  return block(schema, it, blocks);
+  return block(schema, it, blocks, here);
 }

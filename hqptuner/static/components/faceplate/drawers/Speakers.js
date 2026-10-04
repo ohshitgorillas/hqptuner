@@ -11,6 +11,7 @@ import { minus } from "../../../model/shell/format.js";
 import { HEAD, placeSpeakers, planExtent } from "../../../model/gauges/speakers.js";
 import { loadSpeakers, speakers, speakersBusy, speakersError } from "../../../store/matrix/speakers.js";
 import {
+  DIRECT_SDM_NOTE as DIRECT_SDM,
   SETS,
   levelsDead,
   pickSpeakerSet,
@@ -18,7 +19,9 @@ import {
   setChannelLevel,
   speakerDraft,
 } from "../../../store/faceplate/drawers/speakers.js";
+import { withXref } from "../Xref.js";
 
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").DraftChannel} DraftChannel */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").BoxLimits} BoxLimits */
@@ -33,7 +36,6 @@ const SHORT = ["L", "R", "C", "Sub", "Lr", "Rr", "Ls", "Rs"];
 const NOSE = 5;
 
 // v1 copy (owner): components/speakers/Card.js.
-const DIRECT_SDM = "Direct SDM bypasses the volume control, so the level trims have no effect. Distances still apply.";
 const LOADING = "Loading speaker processing…";
 
 /**
@@ -168,9 +170,9 @@ function roomPlan(listed) {
  * The Speakers drawer's block: the set and the listed channels' boxes beside the room plan. It reads the daemon's
  * form the first time it is drawn, if nothing has yet.
  *
- * @param {{ schema: DrawerSchema }} _props
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function SpeakersBody(_props) {
+export function SpeakersBody({ here }) {
   useEffect(() => {
     if (speakers.value === null) loadSpeakers();
   }, []);
@@ -186,7 +188,7 @@ export function SpeakersBody(_props) {
       <div class=${dead ? "spleft sdm" : "spleft"}>
         ${setSelect(d.set, busy)}
         <div class="sprows">${listed.map((c) => channelRow(c, { dead, busy }))}</div>
-        ${dead ? html`<p class="spsdm">${DIRECT_SDM}</p>` : null}
+        ${dead ? html`<p class="spsdm">${withXref(DIRECT_SDM, here)}</p>` : null}
         ${
           err
             ? html`<p class="aline" data-sev="crit"><span class="ag" aria-hidden="true">⚠</span><span>${err}</span></p>`

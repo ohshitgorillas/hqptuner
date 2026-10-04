@@ -17,6 +17,7 @@ import { note, raws } from "./state.js";
 import { land, uploadStage } from "./Strip.js";
 import { delayEditor, fileDock, gainDock, iirEditor, riaaDock } from "./editors.js";
 import { lab, paras, tline } from "./parts.js";
+import { Xref } from "../../Xref.js";
 
 /** @typedef {import("../../../../model/shell/pipelines.js").Pipe} Pipe */
 /** @typedef {import("../../../../model/shell/pipelines.js").Stage} Stage */
@@ -177,7 +178,7 @@ function lockedParts(p, gr) {
 }
 
 /**
- * The dock of a stage a crossfeed block owns: read-only, its owner named at the right end.
+ * The dock of a stage a crossfeed block owns: read-only, its owner named at the right end as the link to Crossfeed.
  *
  * @param {Pipe} p
  * @param {Group} gr
@@ -185,7 +186,7 @@ function lockedParts(p, gr) {
  */
 function lockedDock(p, gr) {
   const gen = p.gen ?? "";
-  const right = html`<span class="xref">${BLOCK_NAME[gen] ?? gen}</span>`;
+  const right = html`<${Xref} to="crossfeed" label=${BLOCK_NAME[gen] ?? gen} />`;
   const parts = LOCKED_FIELDS.has(gr.kind) ? lockedParts(p, gr) : fileDock(p.stages[gr.idx[0]], null, false, "");
   return { ...parts, right };
 }

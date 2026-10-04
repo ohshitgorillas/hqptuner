@@ -36,6 +36,7 @@ export { showTab, shownTab } from "./drawer/tabs.js";
 /** @typedef {import("./drawer/grammar.js").GroupItem} GroupItem */
 /** @typedef {import("./drawer/grammar.js").BlockItem} BlockItem */
 /** @typedef {import("./drawer/grammar.js").IntroPart} IntroPart */
+/** @typedef {import("./drawer/grammar.js").NoteLine} NoteLine */
 /** @typedef {import("./drawer/grammar.js").BodyItem} BodyItem */
 /** @typedef {import("./drawer/grammar.js").DrawerTab} DrawerTab */
 /** @typedef {import("./drawer/grammar.js").OwnForm} OwnForm */

@@ -15,7 +15,9 @@ import { Seg } from "./loudness/parts.js";
 import { BauerControls, BauerCopy, BauerPlot } from "./crossfeed/Bauer.js";
 import { Geometry, StructuralControls, StructuralCopy } from "./crossfeed/Structural.js";
 import { LABEL, NAME } from "./crossfeed/copy.js";
+import { withXref } from "../Xref.js";
 
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawers/crossfeed.js").CrossfeedView} CrossfeedView */
 /** @typedef {import("../../../store/faceplate/drawers/crossfeed.js").FoldedLine} FoldedLine */
 /** @typedef {"bauer" | "structural"} Line */
@@ -73,9 +75,9 @@ function ImplLine({ line, view }) {
 /**
  * The Crossfeed drawer's block.
  *
- * @param {{ schema: import("../../../store/faceplate/drawer.js").DrawerSchema }} _props
+ * @param {{ schema: import("../../../store/faceplate/drawer.js").DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function CrossfeedBody(_props) {
+export function CrossfeedBody({ here }) {
   const view = crossfeedView();
   const { live } = view;
   const why = xfRefusal.value || view.gray;
@@ -89,7 +91,7 @@ export function CrossfeedBody(_props) {
         disabled=${!live.gate}
         onPick=${setGate}
       />
-      <span class="gr" hidden=${!why}>${why}</span>
+      <span class="gr" hidden=${!why}>${withXref(why, here)}</span>
     </div>
     <div class=${live.matrix ? "chlist xlist grayed" : "chlist xlist"} role="radiogroup" aria-label=${NAME.lines}>
       ${LINES.map((line) => html`<${ImplLine} line=${line} view=${view} />`)}

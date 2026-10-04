@@ -6,13 +6,15 @@ import { html } from "../../../lib/dom.js";
 import { grayLine, labelHead, segButtons } from "./controls.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").FieldSpec} FieldSpec */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 
 /**
  * One field.
  *
  * @param {FieldSpec} f
+ * @param {XrefHere} here  the drawer and tab the field is drawn on
  */
-export function field(f) {
+export function field(f, here) {
   const gray = f.gray?.() ?? "";
   const control = segButtons({
     options: f.options,
@@ -23,7 +25,7 @@ export function field(f) {
   });
   return html`
     <div class="drow" data-field=${f.id}>
-      <div class="ctl">${labelHead(f.label, f.sub)} ${control} ${grayLine(gray)}</div>
+      <div class="ctl">${labelHead(f.label, f.sub)} ${control} ${grayLine(gray, here)}</div>
       <div class="man">${f.man.map((p) => html`<p>${p}</p>`)}</div>
     </div>
   `;

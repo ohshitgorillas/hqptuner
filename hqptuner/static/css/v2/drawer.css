@@ -209,7 +209,7 @@
 .xref{align-self:flex-start;font-family:var(--f-eng);font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:4px;line-height:var(--lh-eng)}
 .xref[aria-disabled="true"]{cursor:not-allowed}
 /* Inline in a line of copy (gray reason, note, meter state; lib/xref.js): the line's own height, upright. */
-:is(.gr,.spsdm,.mnone p,.dintro) .xref{font-size:var(--fs-cl);font-style:normal;line-height:inherit;white-space:nowrap;text-underline-offset:3px}
+:is(.gr,.spsdm,.mnone p,.mnote,.dintro) .xref{font-size:var(--fs-cl);font-style:normal;line-height:inherit;white-space:nowrap;text-underline-offset:3px}
 .grayed-range .vrwell,.grayed-range .vrboxes{opacity:.4}
 .grayed-range .vrbar{cursor:not-allowed}
 

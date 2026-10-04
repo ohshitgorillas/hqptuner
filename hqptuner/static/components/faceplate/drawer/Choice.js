@@ -10,6 +10,7 @@ import { grayLine, keyControl, labelHead } from "./controls.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").ChoiceSpec} ChoiceSpec */
 /** @typedef {import("../../../store/faceplate/drawer.js").ChoiceLine} ChoiceLine */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 
 /**
  * A line's detail: its key's control, live only while the line is picked.
@@ -57,14 +58,15 @@ function line(c, l, on) {
  * One choice.
  *
  * @param {ChoiceSpec} c
+ * @param {XrefHere} here  the drawer and tab the choice is drawn on
  */
-export function choice(c) {
+export function choice(c, here) {
   const cur = String(c.value());
   const picked = c.lines.find((l) => String(l.v) === cur);
   const why = picked?.key ? grayReason(picked.key) : "";
   return html`
     <div class="drow" data-choice=${c.id}>
-      <div class="ctl">${labelHead(c.label)} ${grayLine(why)}</div>
+      <div class="ctl">${labelHead(c.label)} ${grayLine(why, here)}</div>
       <div class="man">${c.man.map((p) => html`<p>${p}</p>`)}</div>
       <div class="chlist" role="radiogroup" aria-label=${c.label}>
         ${c.lines.map((l) => line(c, l, l === picked))}

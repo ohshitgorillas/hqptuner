@@ -19,7 +19,9 @@ import { List } from "./List.js";
 import { Strip } from "./Strip.js";
 import { Dock } from "./Dock.js";
 import { PlotPanel } from "./Plot.js";
+import { withXref } from "../../Xref.js";
 
+/** @typedef {import("../../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("./state.js").Sel} Sel */
 /** @typedef {ReturnType<typeof pipelinesView>} View */
@@ -102,9 +104,9 @@ function inputSwitch(t) {
 /**
  * One output's tab body.
  *
- * @param {{ o: number }} props
+ * @param {{ o: number, here: XrefHere }} props  here: where it is drawn
  */
-function OutTab({ o }) {
+function OutTab({ o, here }) {
   const v = pipelinesView();
   const sel = selOf(o);
   const ov = outputView(v.pipes, v.nIn, o, {
@@ -125,7 +127,7 @@ function OutTab({ o }) {
       <span class=${classNames("cl", dim)}>In</span>
       <div class=${classNames("oin", dim)}>${inputSwitch(t)}</div>
       <span class="grow"></span>
-      ${t.off ? html`<span class="gr">${v.gray}</span>` : null}
+      ${t.off ? html`<span class="gr">${withXref(v.gray, here)}</span>` : null}
       <button
         type="button"
         class=${classNames("btn xs", dim)}
@@ -147,9 +149,9 @@ function OutTab({ o }) {
 /**
  * An output tab of the DSP pipelines drawer.
  *
- * @param {{ schema: DrawerSchema }} props
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function PipelinesOutput({ schema }) {
+export function PipelinesOutput({ schema, here }) {
   const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
   const [own, setOwn] = useState(/** @type {string | null} */ (null));
   useLayoutEffect(() => {
@@ -158,6 +160,6 @@ export function PipelinesOutput({ schema }) {
   });
   const shown = shownTab(schema);
   const o = outOf(own ?? shown);
-  const body = o !== null && (own === null || own === shown) ? html`<${OutTab} o=${o} />` : null;
+  const body = o !== null && (own === null || own === shown) ? html`<${OutTab} o=${o} here=${here} />` : null;
   return html`<div class="oout" ref=${ref} hidden=${!body}>${body}</div>`;
 }

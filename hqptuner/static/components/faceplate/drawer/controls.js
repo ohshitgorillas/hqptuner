@@ -1,14 +1,16 @@
 // The controls a drawer draws: segment buttons over an option list, and the control a catalog key's widget is drawn as.
 // A segment or a checkbox is segment buttons, a dropdown or a steps widget a select, a number, slidernum or knob widget
 // a number box, a text widget a text box; each writes through edit(). Also the label head and the gray reason line
-// every row-shaped item shares.
+// every row-shaped item shares, with the link to the place the reason names.
 
 import { html } from "../../../lib/dom.js";
 import { edit } from "../../../store/actions.js";
 import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
+import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").RowOption} RowOption */
 /** @typedef {{ currentTarget: { value: string } }} ChangeEv */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 
 /**
  * What a catalog key's control is drawn from.
@@ -65,11 +67,12 @@ export const labelHead = (label, sub, band) => html`
 `;
 
 /**
- * The gray reason line, or nothing while the control is live.
+ * The gray reason line, with the link to the place it names, or nothing while the control is live.
  *
  * @param {string} why
+ * @param {XrefHere} here  the drawer and tab the line is drawn on
  */
-export const grayLine = (why) => (why ? html`<span class="gr">${why}</span>` : null);
+export const grayLine = (why, here) => (why ? html`<span class="gr">${withXref(why, here)}</span>` : null);
 
 /** @param {KeyCtl} c */
 const segment = (c) =>

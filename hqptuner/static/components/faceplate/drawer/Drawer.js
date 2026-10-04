@@ -55,7 +55,7 @@ function panel(schema, tab, shown, blocks) {
       data-tab=${tab.id}
       hidden=${tab.id !== shown}
     >
-      ${tab.body.map((it) => item(schema, it, blocks))}
+      ${tab.body.map((it) => item(schema, it, blocks, tab.id))}
     </div>
   `;
 }

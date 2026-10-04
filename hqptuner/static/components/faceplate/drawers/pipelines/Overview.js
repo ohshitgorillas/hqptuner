@@ -16,7 +16,9 @@ import { focus, note, uploaded } from "./state.js";
 import { uploadFilter } from "./upload.js";
 import { ImportEq } from "./Import.js";
 import { FileKey } from "./parts.js";
+import { withXref } from "../../Xref.js";
 
+/** @typedef {import("../../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {ReturnType<typeof pipelinesView>} View */
 
@@ -114,9 +116,9 @@ async function onFiles(files) {
 /**
  * The Overview tab.
  *
- * @param {{ schema: DrawerSchema }} props
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
  */
-export function PipelinesOverview({ schema }) {
+export function PipelinesOverview({ schema, here }) {
   const v = pipelinesView();
   const off = !!v.gray;
   const dim = off ? "grayed" : undefined;
@@ -132,7 +134,7 @@ export function PipelinesOverview({ schema }) {
           ${v.nIn} in · <span class=${v.over ? "over" : undefined}>${v.over ? `${count} / ${MAXP} pipelines` : `${count} pipelines`}</span>
           · ${v.nOut} out
         </div>
-        ${off ? html`<span class="gr">${v.gray}</span>` : null}
+        ${off ? html`<span class="gr">${withXref(v.gray, here)}</span>` : null}
         <div class=${classNames("oacts", dim)}>
           <${ImportEq} off=${off} />
           <${FileKey} label="Upload convolution filters" accept=".wav" multiple=${true} off=${off} onFiles=${onFiles} />

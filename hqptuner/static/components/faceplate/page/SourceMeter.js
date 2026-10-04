@@ -6,19 +6,13 @@
 
 import { html } from "../../../lib/dom.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
+import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { PAGE_RANGES, setPageRange } from "../../../store/ui/faceplate.js";
+import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
 /** @typedef {import("../../../store/faceplate/page/meter.js").ChannelLevel} ChannelLevel */
-
-/** The no-stream lines, by state (v1, components/meter/View.js). @type {Record<string, string>} */
-const NOTES = {
-  idle: "Start playback to see the meter.",
-  off: "No metering available.",
-  silent: "No metering available.",
-  matrix: "Engage the matrix engine to see DSD metering.",
-};
 
 const SW = 600; // the spectrum's viewBox; the stylesheet stretches it over the plot
 const SH = 170;
@@ -213,7 +207,7 @@ export function SourceMeter() {
   if (view.state !== "live") {
     return html`
       <div class="pmeter" data-meter=${view.state}>
-        <div class="mnone"><p>${NOTES[view.state]}</p></div>
+        <div class="mnone"><p>${withXref(NOTES[view.state], null)}</p></div>
       </div>
     `;
   }

@@ -6,21 +6,15 @@
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { sourceMeter } from "../../../store/faceplate/drawers/source.js";
+import { METER_NOTES as NOTES, sourceMeter } from "../../../store/faceplate/drawers/source.js";
 import { FreqAxis, TimeAxis } from "./source/Axes.js";
 import { SpectrogramControls } from "./source/Controls.js";
 import { SPEC_SIZE, useMeterPaint } from "./source/paint.js";
+import { withXref } from "../Xref.js";
 
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawers/source.js").SourceMeterView} SourceMeterView */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-
-/** The no-stream lines, by state (v1, components/meter/View.js). @type {Record<string, string>} */
-const NOTES = {
-  idle: "Start playback to see the meter.",
-  off: "No metering available.",
-  silent: "No metering available.",
-  matrix: "Engage the matrix engine to see DSD metering.",
-};
 
 /**
  * The strip, the spectrogram and their two axes on one grid: gutter beside plot, strip above spectrogram above time.
@@ -60,12 +54,12 @@ function Plot({ view }) {
 /**
  * The Source drawer's meter, or the line saying why there is none.
  *
- * @param {{ schema: DrawerSchema }} _props  the drawer's schema; the meter reads none of it
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn, which the no-stream line reads
  */
-export function SourceMeter(_props) {
+export function SourceMeter({ here }) {
   const view = sourceMeter();
   if (view.state !== "live") {
-    return html`<div class="mnone" data-meter=${view.state}><p>${NOTES[view.state]}</p></div>`;
+    return html`<div class="mnone" data-meter=${view.state}><p>${withXref(NOTES[view.state], here)}</p></div>`;
   }
   return html`
     <div class="mblk" data-meter=${view.state}>

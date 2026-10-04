@@ -215,6 +215,10 @@ export function speakerDraft() {
 /** Whether the drawer holds an edit to apply. */
 export const staged = computed(() => speakerDraft().differs);
 
+/** The line the drawer prints while the level trims are dead (v1 copy, owner: components/speakers/Card.js). */
+export const DIRECT_SDM_NOTE =
+  "Direct SDM bypasses the volume control, so the level trims have no effect. Distances still apply.";
+
 /** Whether the level trims are dead: Direct SDM is running, bypassing the volume control the trims ride on. */
 export const levelsDead = () => truthy(runningValue("direct_sdm"));
 

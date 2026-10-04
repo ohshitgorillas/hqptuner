@@ -10,7 +10,9 @@ import { rowOptions, rowValue } from "../../../../store/faceplate/drawer.js";
 import { loudnessSide } from "../../../../store/ui/ui.js";
 import { PARAMS, bandKey, formBounds, showSide, sideDots } from "../../../../store/faceplate/drawers/loudness.js";
 import { ManPara, NumBox, Seg } from "./parts.js";
+import { withXref } from "../../Xref.js";
 
+/** @typedef {import("../../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../../store/faceplate/drawers/loudness.js").Side} Side */
 
 const SIDE_OPTIONS = [
@@ -62,9 +64,9 @@ function Row({ k, param, disabled }) {
 /**
  * The switch, the shown side's rows and their manual lines.
  *
- * @param {{ why: string }} props  why: the gray reason, '' while loudness can act
+ * @param {{ why: string, here: XrefHere }} props  why: the gray reason, '' while loudness can act; here: where it is drawn
  */
-export function Bands({ why }) {
+export function Bands({ why, here }) {
   const side = /** @type {Side} */ (loudnessSide.value === "high" ? "high" : "low");
   const keys = PARAMS.map((p) => bandKey(side, p));
   return html`
@@ -82,7 +84,7 @@ export function Bands({ why }) {
         ${keys.map((k, i) => html`<${Row} k=${k} param=${PARAMS[i]} disabled=${!!why} />`)}
       </div>
       <div class="lrc">
-        <span class="gr" hidden=${!why}>${why}</span>
+        <span class="gr" hidden=${!why}>${withXref(why, here)}</span>
         <div class="man lcopy">
           ${keys.map((k) => {
             const p = prose(k);

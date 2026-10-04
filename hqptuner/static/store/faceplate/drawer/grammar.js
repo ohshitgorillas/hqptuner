@@ -100,9 +100,16 @@
  */
 
 /**
- * A part of an intro: plain text, or a place's name, printed plain.
+ * A part of an intro: plain text, or a place's name, printed as the link to the place `to` names
+ * (store/faceplate/xref.js), plain without one.
  *
- * @typedef {string | { label: string }} IntroPart
+ * @typedef {string | { label: string, to?: string }} IntroPart
+ */
+
+/**
+ * What a note reads: its line, or its line and the place the line names, printed as the link there after it.
+ *
+ * @typedef {string | { text: string, to: string }} NoteLine
  */
 
 /**
@@ -113,7 +120,7 @@
  *   | { field: FieldSpec }
  *   | { choice: ChoiceSpec }
  *   | { head: string }
- *   | { note: () => string }
+ *   | { note: () => NoteLine }
  *   | GroupItem
  *   | { intro: string | IntroPart[] }
  *   | BlockItem} BodyItem
