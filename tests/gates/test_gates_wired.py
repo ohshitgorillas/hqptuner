@@ -140,16 +140,6 @@ def test_a_gate_absent_from_pre_commit_is_named_on_stdout(tmp_path: Path, capsys
     assert "check_unhooked.py" in capsys.readouterr().out
 
 
-def test_a_gate_absent_from_pre_commit_fails_the_gate(tmp_path: Path) -> None:
-    root = build_tree(
-        tmp_path,
-        ["check_unhooked.py"],
-        "check:\n" + make_line("check_unhooked.py"),
-        "repos:\n  - repo: local\n    hooks: []\n",
-    )
-    assert CHECK(root, {}) == 1
-
-
 def test_a_gate_only_on_a_commented_pre_commit_line_is_named_on_stdout(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -186,20 +176,21 @@ def test_an_exempt_gate_absent_from_pre_commit_is_not_named_on_stdout(
     assert "check_slow.py" not in capsys.readouterr().out
 
 
-def test_an_exempt_gate_absent_from_pre_commit_passes_the_gate(tmp_path: Path) -> None:
-    root_exempt = build_tree(
+@pytest.mark.parametrize(
+    ("gate", "exempt", "code"),
+    [("check_slow.py", {"check_slow.py": "too slow for a commit hook"}, 0), ("check_fast.py", {}, 1)],
+    ids=["exempt", "not exempt"],
+)
+def test_an_exempt_gate_absent_from_pre_commit_passes_the_gate(
+    tmp_path: Path, gate: str, exempt: dict[str, str], code: int
+) -> None:
+    root = build_tree(
         tmp_path,
-        ["check_slow.py"],
-        "check:\n" + make_line("check_slow.py"),
+        [gate],
+        "check:\n" + make_line(gate),
         "repos:\n  - repo: local\n    hooks: []\n",
     )
-    root_not_exempt = build_tree(
-        tmp_path / "other",
-        ["check_fast.py"],
-        "check:\n" + make_line("check_fast.py"),
-        "repos:\n  - repo: local\n    hooks: []\n",
-    )
-    assert (CHECK(root_exempt, {"check_slow.py": "too slow for a commit hook"}), CHECK(root_not_exempt, {})) == (0, 1)
+    assert CHECK(root, exempt) == code
 
 
 def test_an_exemption_naming_no_gate_file_is_named_on_stdout(
@@ -239,15 +230,21 @@ def test_a_tree_failing_both_checks_fails_the_gate(tmp_path: Path) -> None:
     assert CHECK(root, {}) == 1
 
 
-def test_a_fully_wired_tree_passes_the_gate(tmp_path: Path) -> None:
-    root_wired = wired_tree(tmp_path, ["check_one.py", "check_two.py"])
-    root_unwired = build_tree(
-        tmp_path / "other",
-        ["check_unhooked.py"],
-        "check:\n" + make_line("check_unhooked.py"),
-        "repos:\n  - repo: local\n    hooks: []\n",
-    )
-    assert (CHECK(root_wired, {}), CHECK(root_unwired, {})) == (0, 1)
+#: Two gates a case lays down, each named live in the Makefile.
+WIRED_PAIR = ["check_one.py", "check_two.py"]
+
+
+@pytest.mark.parametrize(
+    ("precommit", "code"),
+    [
+        ("repos:\n  - repo: local\n    hooks:\n" + "".join(hook_block(g) for g in WIRED_PAIR), 0),
+        ("repos:\n  - repo: local\n    hooks: []\n", 1),
+    ],
+    ids=["hooked", "unhooked"],
+)
+def test_a_fully_wired_tree_passes_the_gate(tmp_path: Path, precommit: str, code: int) -> None:
+    root = build_tree(tmp_path, WIRED_PAIR, "check:\n" + "".join(make_line(g) for g in WIRED_PAIR), precommit)
+    assert CHECK(root, {}) == code
 
 
 def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:

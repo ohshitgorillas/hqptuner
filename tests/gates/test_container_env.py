@@ -19,7 +19,7 @@ Seams are ``path_fields(config_source)``, ``pinned(dockerfile_source)``,
 """
 
 import importlib.util
-import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 
@@ -272,16 +272,16 @@ def test_a_hqptuner_name_continued_after_a_foreign_one_is_still_a_pin() -> None:
 # --- failures ---------------------------------------------------------------
 
 
-def test_a_config_whose_every_path_field_is_pinned_under_state_has_no_failures() -> None:
+@pytest.mark.parametrize(
+    ("pins", "count"),
+    [({"BACKUP_DIR": "/state/backups", "PRESET_DIR": "/state/presets"}, 0), ({"BACKUP_DIR": "/state/backups"}, 1)],
+    ids=["all pinned", "preset_dir unpinned"],
+)
+def test_a_config_whose_every_path_field_is_pinned_under_state_has_no_failures(
+    pins: dict[str, str], count: int
+) -> None:
     fields = {"backup_dir": "BACKUP_DIR", "preset_dir": "PRESET_DIR"}
-    pins_good = {"BACKUP_DIR": "/state/backups", "PRESET_DIR": "/state/presets"}
-    pins_bad = {"BACKUP_DIR": "/state/backups"}  # Missing PRESET_DIR
-    assert (len(FAILURES(fields, pins_good, {})), len(FAILURES(fields, pins_bad, {}))) == (0, 1)
-
-
-def test_a_path_field_with_no_pin_is_one_failure() -> None:
-    fields = {"backup_dir": "BACKUP_DIR", "preset_dir": "PRESET_DIR"}
-    assert len(FAILURES(fields, {"BACKUP_DIR": "/state/backups"}, {})) == 1
+    assert len(FAILURES(fields, pins, {})) == count
 
 
 def test_an_unpinned_path_field_is_named_in_its_failure() -> None:
@@ -322,11 +322,14 @@ def test_a_path_field_pinned_only_in_a_commented_line_still_fails() -> None:
     assert len(FAILURES(PATH_FIELDS(field_source("backup_dir", "Path", "BACKUP_DIR")), PINNED(dockerfile), {})) == 1
 
 
-def test_an_exempt_path_field_needs_no_pin() -> None:
+@pytest.mark.parametrize(
+    ("exempt", "count"),
+    [({"DATA_DIR": "ships read-only inside the wheel"}, 0), ({}, 1)],
+    ids=["exempt", "not exempt"],
+)
+def test_an_exempt_path_field_needs_no_pin(exempt: dict[str, str], count: int) -> None:
     """An exemption is the written-down reason a field is deliberately left to its default."""
-    exempt_result = FAILURES({"data_dir": "DATA_DIR"}, {}, {"DATA_DIR": "ships read-only inside the wheel"})
-    not_exempt_result = FAILURES({"data_dir": "DATA_DIR"}, {}, {})
-    assert (len(exempt_result), len(not_exempt_result)) == (0, 1)
+    assert len(FAILURES({"data_dir": "DATA_DIR"}, {}, exempt)) == count
 
 
 def test_an_exemption_naming_a_suffix_the_config_no_longer_has_is_one_failure() -> None:
@@ -392,18 +395,26 @@ def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(
     assert "preset_dir" in capsys.readouterr().out
 
 
-def test_main_exits_nonzero_once_a_path_field_is_neither_pinned_nor_exempt(tmp_path: Path) -> None:
+#: Every suffix ``CLEAN_DOCKERFILE`` pins under ``/state`` or the shipped table excuses.
+COVERED_SUFFIXES = [
+    *[name for name in PINNED(CLEAN_DOCKERFILE) if name not in SHIPPED_EXEMPT],
+    *sorted(SHIPPED_EXEMPT),
+]
+
+#: The covered suffixes plus one that is neither pinned nor excused.
+UNCOVERED_SUFFIXES = [*COVERED_SUFFIXES, suffix_none_of([*SHIPPED_EXEMPT, *PINNED(CLEAN_DOCKERFILE)])]
+
+
+@pytest.mark.parametrize(
+    ("suffixes", "shape"),
+    [(COVERED_SUFFIXES, "clean"), (UNCOVERED_SUFFIXES, "failing")],
+    ids=["covered", "one further field"],
+)
+def test_main_exits_nonzero_once_a_path_field_is_neither_pinned_nor_exempt(
+    tmp_path: Path, suffixes: list[str], shape: str
+) -> None:
     """A pair whose every path field is pinned under ``/state`` or excused passes; one further field does not."""
-    pins: list[str] = [name for name in PINNED(CLEAN_DOCKERFILE) if name not in SHIPPED_EXEMPT]
-    covered = [*pins, *sorted(SHIPPED_EXEMPT)]
-    uncovered = [*covered, suffix_none_of([*SHIPPED_EXEMPT, *PINNED(CLEAN_DOCKERFILE)])]
-    covered_root = tmp_path / "covered"
-    uncovered_root = tmp_path / "uncovered"
-    covered_root.mkdir()
-    uncovered_root.mkdir()
-    covered_code = MAIN(write_pair(covered_root, config_source_for(covered), CLEAN_DOCKERFILE))
-    uncovered_code = MAIN(write_pair(uncovered_root, config_source_for(uncovered), CLEAN_DOCKERFILE))
-    assert (exit_shape(covered_code), exit_shape(uncovered_code)) == ("clean", "failing")
+    assert exit_shape(MAIN(write_pair(tmp_path, config_source_for(suffixes), CLEAN_DOCKERFILE))) == shape
 
 
 def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -412,31 +423,35 @@ def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: 
     assert "preset_dir" not in capsys.readouterr().out
 
 
-def test_the_shipped_config_and_dockerfile_pass() -> None:
+def shipped_argv(_root: Path) -> list[str]:
+    """The argv naming this checkout's own ``config.py`` and ``Dockerfile``."""
+    return [str(REPO_ROOT / "hqptuner" / "config.py"), str(REPO_ROOT / "Dockerfile")]
+
+
+def unpinned_argv(root: Path) -> list[str]:
+    """The argv naming a pair laid down under ``root`` with one path field left unpinned."""
+    return write_pair(root, CONFIG_SOURCE, UNPINNED_DOCKERFILE)
+
+
+@pytest.mark.parametrize(("argv_for", "code"), [(shipped_argv, 0), (unpinned_argv, 1)], ids=["shipped", "unpinned"])
+def test_the_shipped_config_and_dockerfile_pass(
+    tmp_path: Path, argv_for: Callable[[Path], list[str]], code: int
+) -> None:
     """The point of the gate: this repo's own image wires every path field into /state."""
-    shipped_code = MAIN([str(REPO_ROOT / "hqptuner" / "config.py"), str(REPO_ROOT / "Dockerfile")])
-    # Pair that should fail: unpinned field
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        bad_code = MAIN(write_pair(tmp_path, CONFIG_SOURCE, UNPINNED_DOCKERFILE))
-    assert (shipped_code, bad_code) == (0, 1)
+    assert MAIN(argv_for(tmp_path)) == code
 
 
+@pytest.mark.parametrize(
+    ("argv", "code"), [([], 0), (["config.py", "Dockerfile"], 1)], ids=["empty argv", "decoy named"]
+)
 def test_an_empty_argv_checks_the_repos_own_config_and_dockerfile(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, argv: list[str], code: int
 ) -> None:
     """Run with no arguments, the way the Makefile runs it, the gate finds its own two files.
 
     The working directory holds a decoy pair that would fail, so a green result
     is only reachable by reading the checkout's own ``config.py`` and ``Dockerfile``.
     """
-    with tempfile.TemporaryDirectory() as tmp_dir2:
-        tmp_path2 = Path(tmp_dir2)
-        # Good: empty argv in repo directory reads repo's files
-        monkeypatch.chdir(REPO_ROOT)
-        good_code = MAIN([])
-        # Bad: decoy files in tmp_path
-        write_pair(tmp_path, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE)
-        monkeypatch.chdir(tmp_path)
-        bad_code = MAIN(write_pair(tmp_path2, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE))
-    assert (good_code, bad_code) == (0, 1)
+    write_pair(tmp_path, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE)
+    monkeypatch.chdir(tmp_path)
+    assert MAIN(argv) == code

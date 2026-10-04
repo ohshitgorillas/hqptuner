@@ -42,6 +42,10 @@ HEAD = "# Changelog\n\nNotable changes to HQPTuner.\n\n## [Unreleased]\n\n"
 #: One entry breaking no rule: bold lead, one paragraph, third person, plain register.
 CLEAN = "- **The thing works now.** It did not before, and the fix is in this release."
 
+#: An entry with no bold lead, worded so the gate's own noun for the problem
+#: appears nowhere in the fixture.
+NO_LEAD = "- The thing works now, and it did not before."
+
 
 def write_changelog(tmp_path: Path, section: str, released: str = "") -> Path:
     """Write a changelog whose ``[Unreleased]`` section body is ``section``."""
@@ -96,11 +100,9 @@ def body_of(path: Path) -> list[tuple[int, str]]:
 # --- a clean section --------------------------------------------------------
 
 
-def test_a_conformant_unreleased_section_passes_the_gate(tmp_path: Path) -> None:
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(CLEAN))),
-        CHECK(write_changelog(tmp_path, under_added(NO_LEAD))),
-    ) == (0, 1)
+@pytest.mark.parametrize(("entry", "code"), [(CLEAN, 0), (NO_LEAD, 1)], ids=["clean", "no lead"])
+def test_a_conformant_unreleased_section_passes_the_gate(tmp_path: Path, entry: str, code: int) -> None:
+    assert CHECK(write_changelog(tmp_path, under_added(entry))) == code
 
 
 # --- the word cap -----------------------------------------------------------
@@ -121,20 +123,16 @@ def test_an_over_long_bullet_is_reported_with_its_count_and_the_cap(
     assert expected in report(capsys.readouterr().out, path, bullet)
 
 
-def test_a_bullet_at_exactly_the_word_cap_passes_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("count", "code"), [(WORD_CAP, 0), (WORD_CAP + 1, 1)], ids=["at the cap", "one over"])
+def test_a_bullet_at_exactly_the_word_cap_passes_the_gate(tmp_path: Path, count: int, code: int) -> None:
     """The cap is inclusive: hitting it is reaching it, not exceeding it."""
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP)))),
-        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP + 1)))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(count)))) == code
 
 
-def test_an_em_dash_added_to_a_bullet_at_the_cap_does_not_push_it_over(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("count", "code"), [(WORD_CAP, 0), (WORD_CAP + 1, 1)], ids=["at the cap", "one over"])
+def test_an_em_dash_added_to_a_bullet_at_the_cap_does_not_push_it_over(tmp_path: Path, count: int, code: int) -> None:
     """Punctuation carrying no letter or digit is not a word, so it costs nothing."""
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP, middle="— ")))),
-        CHECK(write_changelog(tmp_path, under_added(sized_bullet(WORD_CAP + 1, middle="— ")))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(count, middle="— ")))) == code
 
 
 # --- word counting ----------------------------------------------------------
@@ -179,22 +177,16 @@ def test_a_bullet_running_to_a_second_paragraph_is_reported_as_such(
     assert "paragraph" in report(capsys.readouterr().out, path, CONTINUED).lower()
 
 
-def test_a_blank_line_between_two_bullets_does_not_make_the_second_a_continuation(tmp_path: Path) -> None:
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(CLEAN, CLEAN))),
-        CHECK(write_changelog(tmp_path, under_added(CONTINUED))),
-    ) == (0, 1)
+@pytest.mark.parametrize(
+    ("section", "code"), [(under_added(CLEAN, CLEAN), 0), (under_added(CONTINUED), 1)], ids=["two bullets", "continued"]
+)
+def test_a_blank_line_between_two_bullets_does_not_make_the_second_a_continuation(
+    tmp_path: Path, section: str, code: int
+) -> None:
+    assert CHECK(write_changelog(tmp_path, section)) == code
 
 
 # --- the bold lead ----------------------------------------------------------
-
-#: An entry with no bold lead, worded so the gate's own noun for the problem
-#: appears nowhere in the fixture.
-NO_LEAD = "- The thing works now, and it did not before."
-
-
-def test_a_bullet_without_a_bold_lead_fails_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(NO_LEAD))) == 1
 
 
 def test_a_bullet_without_a_bold_lead_is_reported_as_such(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -229,14 +221,14 @@ def test_a_bullet_in_second_person_is_reported_with_the_offending_word(
     assert word in report(capsys.readouterr().out, path, bullet).lower()
 
 
-def test_a_word_merely_containing_a_second_person_word_passes_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("bullet", "code"),
+    [("- **Lead.** The younger release did the same.", 0), ("- **Lead.** This is the one you asked for.", 1)],
+    ids=["younger", "you"],
+)
+def test_a_word_merely_containing_a_second_person_word_passes_the_gate(tmp_path: Path, bullet: str, code: int) -> None:
     """The match is word-bounded: ``younger`` is not ``you``."""
-    bullet_ok = "- **Lead.** The younger release did the same."
-    bullet_fail = "- **Lead.** This is the one you asked for."
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
-        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == code
 
 
 # --- marketing register -----------------------------------------------------
@@ -269,14 +261,14 @@ def test_a_bullet_in_marketing_register_is_reported_with_the_offending_word(
     assert word in report(capsys.readouterr().out, path, bullet).lower()
 
 
-def test_a_marketing_word_inside_a_longer_word_passes_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("bullet", "code"),
+    [("- **Lead.** The simplynoise generator is gone.", 0), ("- **Lead.** The knob simply moves now.", 1)],
+    ids=["simplynoise", "simply"],
+)
+def test_a_marketing_word_inside_a_longer_word_passes_the_gate(tmp_path: Path, bullet: str, code: int) -> None:
     """The match is word-bounded: ``simplynoise`` is not ``simply``."""
-    bullet_ok = "- **Lead.** The simplynoise generator is gone."
-    bullet_fail = "- **Lead.** The knob simply moves now."
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
-        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == code
 
 
 # --- narration by negation --------------------------------------------------
@@ -309,14 +301,14 @@ def test_a_bullet_narrating_by_negation_is_reported_with_the_offending_phrase(
     assert phrase in report(capsys.readouterr().out, path, bullet).lower()
 
 
-def test_a_negation_phrase_inside_a_longer_word_passes_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("bullet", "code"),
+    [("- **Lead.** The unaffectedness score is gone.", 0), ("- **Lead.** The dial is unaffected.", 1)],
+    ids=["unaffectedness", "unaffected"],
+)
+def test_a_negation_phrase_inside_a_longer_word_passes_the_gate(tmp_path: Path, bullet: str, code: int) -> None:
     """The match is word-bounded: ``unaffectedness`` is not ``unaffected``."""
-    bullet_ok = "- **Lead.** The unaffectedness score is gone."
-    bullet_fail = "- **Lead.** The dial is unaffected."
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(bullet_ok))),
-        CHECK(write_changelog(tmp_path, under_added(bullet_fail))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == code
 
 
 #: One marketing word and one negation phrase — two rules, one bullet.
@@ -400,20 +392,12 @@ def test_a_repeated_heading_report_leaves_the_sections_other_headings_alone(
     assert "Added" not in report(capsys.readouterr().out, path, CLEAN)
 
 
-def test_a_heading_of_an_unknown_kind_fails_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, UNKNOWN)) == 1
-
-
 def test_a_heading_of_an_unknown_kind_is_reported_with_its_kind(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     path = write_changelog(tmp_path, UNKNOWN_DEEP)
     CHECK(path)
     assert "Tweaked" in report(capsys.readouterr().out, path, CLEAN, "### Added")
-
-
-def test_headings_out_of_keep_a_changelog_order_fail_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, OUT_OF_ORDER)) == 1
 
 
 def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(
@@ -424,19 +408,23 @@ def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(
     assert "order" in report(capsys.readouterr().out, path, CLEAN).lower()
 
 
-@pytest.mark.parametrize("kind", KINDS)
-def test_an_accepted_heading_kind_passes_the_gate(tmp_path: Path, kind: str) -> None:
+@pytest.mark.parametrize(("kind", "code"), [*((kind, 0) for kind in KINDS), ("Unknown", 1)])
+def test_an_accepted_heading_kind_passes_the_gate(tmp_path: Path, kind: str, code: int) -> None:
     """All seven kinds are known; alone in a section, each is trivially in order."""
-    assert (
-        CHECK(write_changelog(tmp_path, f"### {kind}\n\n{CLEAN}\n")),
-        CHECK(write_changelog(tmp_path, f"### Unknown\n\n{CLEAN}\n")),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, f"### {kind}\n\n{CLEAN}\n")) == code
 
 
-def test_every_accepted_heading_kind_in_canonical_order_passes_the_gate(tmp_path: Path) -> None:
-    section_ok = "".join(f"### {kind}\n\n{CLEAN}\n\n" for kind in KINDS)
-    section_fail = OUT_OF_ORDER
-    assert (CHECK(write_changelog(tmp_path, section_ok)), CHECK(write_changelog(tmp_path, section_fail))) == (0, 1)
+#: Every accepted kind once, in Keep a Changelog order.
+CANONICAL = "".join(f"### {kind}\n\n{CLEAN}\n\n" for kind in KINDS)
+
+
+@pytest.mark.parametrize(
+    ("section", "code"), [(CANONICAL, 0), (OUT_OF_ORDER, 1)], ids=["canonical order", "out of order"]
+)
+def test_every_accepted_heading_kind_in_canonical_order_passes_the_gate(
+    tmp_path: Path, section: str, code: int
+) -> None:
+    assert CHECK(write_changelog(tmp_path, section)) == code
 
 
 # --- scope ------------------------------------------------------------------
@@ -445,12 +433,14 @@ def test_every_accepted_heading_kind_in_canonical_order_passes_the_gate(tmp_path
 HISTORY = "\n## [1.2.3] — 2026-01-01\n\n### Nonsense\n\n- you simply get seamless output.\n"
 
 
-def test_problems_in_a_released_section_pass_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("entry", "released", "code"),
+    [(CLEAN, HISTORY, 0), (NO_LEAD, "", 1)],
+    ids=["released problems", "unreleased problem"],
+)
+def test_problems_in_a_released_section_pass_the_gate(tmp_path: Path, entry: str, released: str, code: int) -> None:
     """Released sections are history: the scan stops at the next ``## `` heading."""
-    assert (
-        CHECK(write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)),
-        CHECK(write_changelog(tmp_path, under_added(NO_LEAD))),
-    ) == (0, 1)
+    assert CHECK(write_changelog(tmp_path, under_added(entry), released=released)) == code
 
 
 def test_a_released_sections_offending_words_are_not_named_on_stdout(
@@ -461,14 +451,15 @@ def test_a_released_sections_offending_words_are_not_named_on_stdout(
     assert "seamless" not in capsys.readouterr().out
 
 
-def test_a_changelog_with_no_unreleased_section_passes_the_gate(tmp_path: Path) -> None:
-    # Good case: no unreleased section
-    path_ok = tmp_path / "CHANGELOG.md"
-    path_ok.write_text("# Changelog\n\nNotable changes." + HISTORY, encoding="utf-8")
-    # Bad case: unreleased section with a problem
-    path_bad = tmp_path / "CHANGELOG2.md"
-    path_bad.write_text(HEAD + under_added(NO_LEAD), encoding="utf-8")
-    assert (CHECK(path_ok), CHECK(path_bad)) == (0, 1)
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [("# Changelog\n\nNotable changes." + HISTORY, 0), (HEAD + under_added(NO_LEAD), 1)],
+    ids=["no unreleased section", "unreleased problem"],
+)
+def test_a_changelog_with_no_unreleased_section_passes_the_gate(tmp_path: Path, text: str, code: int) -> None:
+    path = tmp_path / "CHANGELOG.md"
+    path.write_text(text, encoding="utf-8")
+    assert CHECK(path) == code
 
 
 # --- how a problem is printed -----------------------------------------------
@@ -506,14 +497,16 @@ def test_unreleased_gives_a_body_line_with_its_1_indexed_line_number(tmp_path: P
     assert (line_of(path, CLEAN), CLEAN) in [(number, text.strip()) for number, text in body_of(path)]
 
 
-def test_unreleased_stops_at_the_next_version_heading(tmp_path: Path) -> None:
-    path_good = write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)
-    bad_dir = tmp_path / "bad"
-    bad_dir.mkdir()
-    path_bad = write_changelog(bad_dir, under_added("- **Lead.** The knob simply moves and the rest is unchanged."))
-    good_has_seamless = bool([text for _, text in body_of(path_good) if "seamless" in text])
-    bad_has_seamless = bool([text for _, text in body_of(path_bad) if "simply" in text])
-    assert (good_has_seamless, bad_has_seamless) == (False, True)
+@pytest.mark.parametrize(
+    ("entry", "released", "needle", "present"),
+    [(CLEAN, HISTORY, "seamless", False), (HYPE_AND_NEGATION, "", "simply", True)],
+    ids=["released text", "unreleased text"],
+)
+def test_unreleased_stops_at_the_next_version_heading(
+    tmp_path: Path, entry: str, released: str, needle: str, *, present: bool
+) -> None:
+    path = write_changelog(tmp_path, under_added(entry), released=released)
+    assert (needle in "\n".join(text for _, text in body_of(path))) is present
 
 
 def test_entries_gives_one_tuple_per_bullet(tmp_path: Path) -> None:

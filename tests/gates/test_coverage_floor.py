@@ -108,32 +108,33 @@ def test_one_file_below_the_floor_fails_a_report_whose_other_files_pass(tmp_path
     assert CHECK(report, 90, {}) == 1
 
 
-def test_every_file_above_the_floor_passes_the_gate(tmp_path: Path) -> None:
-    report_ok = write_report(tmp_path, {"hqptuner/one.py": 97.0, "hqptuner/two.py": 100.0})
-    bad_dir = tmp_path / "bad"
-    bad_dir.mkdir()
-    report_bad = write_report(bad_dir, {"hqptuner/thin.py": 71.5})
-    assert (CHECK(report_ok, 90, {}), CHECK(report_bad, 90, {})) == (0, 1)
+@pytest.mark.parametrize(
+    ("percentages", "code"),
+    [({"hqptuner/one.py": 97.0, "hqptuner/two.py": 100.0}, 0), ({"hqptuner/thin.py": 71.5}, 1)],
+    ids=["all above", "one below"],
+)
+def test_every_file_above_the_floor_passes_the_gate(tmp_path: Path, percentages: dict[str, float], code: int) -> None:
+    assert CHECK(write_report(tmp_path, percentages), 90, {}) == code
 
 
-def test_a_file_exactly_at_the_floor_passes_the_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("percent", "code"), [(90.0, 0), (89.9, 1)], ids=["at the floor", "just below"])
+def test_a_file_exactly_at_the_floor_passes_the_gate(tmp_path: Path, percent: float, code: int) -> None:
     """The comparison is ``>=``: hitting the floor is reaching it, not missing it."""
-    report_at_floor = write_report(tmp_path, {"hqptuner/borderline.py": 90.0})
-    bad_dir = tmp_path / "bad"
-    bad_dir.mkdir()
-    report_below = write_report(bad_dir, {"hqptuner/borderline.py": 89.9})
-    assert (CHECK(report_at_floor, 90, {}), CHECK(report_below, 90, {})) == (0, 1)
+    assert CHECK(write_report(tmp_path, {"hqptuner/borderline.py": percent}), 90, {}) == code
 
 
-def test_an_exempt_file_below_the_floor_passes_the_gate(tmp_path: Path) -> None:
-    report_exempt = write_report(tmp_path, {"hqptuner/legacy.py": 12.0})
-    bad_dir = tmp_path / "bad"
-    bad_dir.mkdir()
-    report_not_exempt = write_report(bad_dir, {"hqptuner/other.py": 12.0})
-    assert (
-        CHECK(report_exempt, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"}),
-        CHECK(report_not_exempt, 90, {}),
-    ) == (0, 1)
+@pytest.mark.parametrize(
+    ("path", "exempt", "code"),
+    [
+        ("hqptuner/legacy.py", {"hqptuner/legacy.py": "vendored, covered by the JS suite"}, 0),
+        ("hqptuner/other.py", {}, 1),
+    ],
+    ids=["exempt", "not exempt"],
+)
+def test_an_exempt_file_below_the_floor_passes_the_gate(
+    tmp_path: Path, path: str, exempt: dict[str, str], code: int
+) -> None:
+    assert CHECK(write_report(tmp_path, {path: 12.0}), 90, exempt) == code
 
 
 def test_an_exempt_file_below_the_floor_is_not_named_on_stdout(

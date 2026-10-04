@@ -113,5 +113,10 @@ def test_a_plain_names_file_without_its_key_is_reported_by_filename_not_raised(t
 # --- main ----------------------------------------------------------------------
 
 
-def test_main_exits_nonzero_on_a_problem_and_zero_on_the_clean_fixture(tmp_path: Path) -> None:
-    assert (GATE.main([str(uncovered_modulator_copy(tmp_path))]), GATE.main([str(FIXTURE_DIR)])) == (1, 0)
+@pytest.mark.parametrize(("added", "code"), [([ABSENT_MODULATOR], 1), ([], 0)], ids=["uncovered modulator", "clean"])
+def test_main_exits_nonzero_on_a_problem_and_zero_on_the_clean_fixture(
+    tmp_path: Path, added: list[str], code: int
+) -> None:
+    copy = copy_fixture(tmp_path)
+    add_enum_names(copy, "shapers_sdm", added)
+    assert GATE.main([str(copy)]) == code

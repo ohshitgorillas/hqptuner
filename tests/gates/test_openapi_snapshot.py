@@ -19,6 +19,7 @@ and the module-level ``SNAPSHOT`` path.
 
 import importlib.util
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 
@@ -142,15 +143,51 @@ def test_compare_shows_a_changed_key_as_one_removed_and_one_added_line_carrying_
     assert changed_entries(GATE.compare(COMMITTED, CURRENT)) == CHANGED
 
 
+# --- check: the exit code ------------------------------------------------------
+
+
+def missing(_snapshot: Path) -> None:
+    """Leave ``snapshot`` unwritten, as a checkout that never committed one."""
+
+
+def matching(snapshot: Path) -> None:
+    """Lay ``snapshot`` down holding the current text."""
+    snapshot.write_text(CURRENT, encoding="utf-8")
+
+
+def differing(snapshot: Path) -> None:
+    """Lay ``snapshot`` down holding a text the current one differs from."""
+    snapshot.write_text(COMMITTED, encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("prepare", "write", "code"),
+    [
+        (missing, True, 0),
+        (missing, False, 1),
+        (matching, False, 0),
+        (matching, True, 0),
+        (differing, False, 1),
+        (differing, True, 0),
+    ],
+    ids=[
+        "missing, written",
+        "missing, not written",
+        "matching, not written",
+        "matching, written",
+        "differing, not written",
+        "differing, written",
+    ],
+)
+def test_check_fails_only_a_missing_or_differing_snapshot_it_was_not_told_to_write(
+    tmp_path: Path, prepare: Callable[[Path], None], code: int, *, write: bool
+) -> None:
+    snapshot = tmp_path / "openapi.json"
+    prepare(snapshot)
+    assert GATE.check(snapshot, CURRENT, write=write) == code
+
+
 # --- check: the comparing half -------------------------------------------------
-
-
-def test_a_snapshot_matching_the_current_text_passes(tmp_path: Path) -> None:
-    snapshot_match = tmp_path / "openapi.json"
-    snapshot_match.write_text(CURRENT, encoding="utf-8")
-    snapshot_diff = tmp_path / "other.json"
-    snapshot_diff.write_text(COMMITTED, encoding="utf-8")
-    assert (GATE.check(snapshot_match, CURRENT), GATE.check(snapshot_diff, CURRENT)) == (0, 1)
 
 
 def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -166,12 +203,6 @@ def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys
     snapshot.write_text(CURRENT, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
     assert ACCEPT_INSTRUCTION not in capsys.readouterr().out
-
-
-def test_a_snapshot_differing_from_the_current_text_fails(tmp_path: Path) -> None:
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(COMMITTED, encoding="utf-8")
-    assert GATE.check(snapshot, CURRENT) == 1
 
 
 def test_a_differing_snapshot_prints_the_diff(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -190,10 +221,6 @@ def test_a_differing_snapshot_tells_the_reader_how_to_accept_the_new_surface(
     assert ACCEPT_INSTRUCTION in capsys.readouterr().out
 
 
-def test_a_missing_snapshot_fails(tmp_path: Path) -> None:
-    assert GATE.check(tmp_path / "openapi.json", CURRENT) == 1
-
-
 def test_a_missing_snapshot_tells_the_reader_how_to_accept_the_new_surface(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -204,30 +231,10 @@ def test_a_missing_snapshot_tells_the_reader_how_to_accept_the_new_surface(
 # --- check: the writing half ---------------------------------------------------
 
 
-def test_writing_a_snapshot_that_does_not_exist_yet_passes(tmp_path: Path) -> None:
-    # New file should pass when written
-    missing = tmp_path / "openapi.json"
-    # Mismatched file should fail when not written
-    existing = tmp_path / "other.json"
-    existing.write_text(COMMITTED, encoding="utf-8")
-    assert (GATE.check(missing, CURRENT, write=True), GATE.check(existing, CURRENT, write=False)) == (0, 1)
-
-
 def test_writing_a_snapshot_that_does_not_exist_yet_leaves_the_current_text_on_disk(tmp_path: Path) -> None:
     snapshot = tmp_path / "openapi.json"
     GATE.check(snapshot, CURRENT, write=True)
     assert snapshot.read_text(encoding="utf-8") == CURRENT
-
-
-def test_writing_over_a_differing_snapshot_passes(tmp_path: Path) -> None:
-    snapshot_write = tmp_path / "openapi.json"
-    snapshot_write.write_text(COMMITTED, encoding="utf-8")
-    snapshot_no_write = tmp_path / "other.json"
-    snapshot_no_write.write_text(COMMITTED, encoding="utf-8")
-    assert (GATE.check(snapshot_write, CURRENT, write=True), GATE.check(snapshot_no_write, CURRENT, write=False)) == (
-        0,
-        1,
-    )
 
 
 def test_writing_over_a_differing_snapshot_leaves_exactly_the_current_text(tmp_path: Path) -> None:
@@ -236,14 +243,6 @@ def test_writing_over_a_differing_snapshot_leaves_exactly_the_current_text(tmp_p
     snapshot.write_text(COMMITTED, encoding="utf-8")
     GATE.check(snapshot, CURRENT, write=True)
     assert snapshot.read_text(encoding="utf-8") == CURRENT
-
-
-def test_writing_over_a_matching_snapshot_passes(tmp_path: Path) -> None:
-    snapshot_match = tmp_path / "openapi.json"
-    snapshot_match.write_text(CURRENT, encoding="utf-8")
-    snapshot_diff = tmp_path / "other.json"
-    snapshot_diff.write_text(COMMITTED, encoding="utf-8")
-    assert (GATE.check(snapshot_match, CURRENT, write=True), GATE.check(snapshot_diff, CURRENT, write=False)) == (0, 1)
 
 
 # --- main ----------------------------------------------------------------------
@@ -255,22 +254,18 @@ def test_the_write_flag_regenerates_the_committed_snapshot_from_the_live_surface
     assert snapshot.read_text(encoding="utf-8") == GATE.current_spec()
 
 
-def test_a_freshly_regenerated_snapshot_then_compares_clean(tmp_path: Path) -> None:
-    snapshot = tmp_path / "openapi.json"
+def regenerated(snapshot: Path) -> None:
+    """Lay ``snapshot`` down the way ``--write`` does, from the live surface."""
     GATE.main(["--write"], snapshot=snapshot)
-    # Good: compare after write should pass
-    after_write = GATE.main([], snapshot=snapshot)
-    # Bad: old snapshot should fail
-    old_snapshot = tmp_path / "old.json"
-    old_snapshot.write_text(COMMITTED, encoding="utf-8")
-    before_write = GATE.main([], snapshot=old_snapshot)
-    assert (after_write, before_write) == (0, 1)
 
 
-def test_a_committed_snapshot_that_no_longer_matches_the_surface_fails(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("prepare", "code"), [(regenerated, 0), (differing, 1)], ids=["regenerated", "stale"])
+def test_a_freshly_regenerated_snapshot_then_compares_clean(
+    tmp_path: Path, prepare: Callable[[Path], None], code: int
+) -> None:
     snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(COMMITTED, encoding="utf-8")
-    assert GATE.main([], snapshot=snapshot) == 1
+    prepare(snapshot)
+    assert GATE.main([], snapshot=snapshot) == code
 
 
 # --- the live surface ----------------------------------------------------------
