@@ -9,7 +9,7 @@
 // Not reachable here: where the tip lands beside its row's column, which measures the mounted plate. A browser run
 // closes it.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/lists-tip.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-lists/tip.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

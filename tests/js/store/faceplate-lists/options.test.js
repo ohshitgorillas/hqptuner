@@ -7,7 +7,7 @@
 // overlays into `metadata` (tests/js/support/listsfixture.js), stars through the favorites fake. Every name and
 // sentence asserted is the fixture's own.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/lists-options.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-lists/options.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";

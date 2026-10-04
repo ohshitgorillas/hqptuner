@@ -13,7 +13,7 @@
 // Not reachable here: each window sized once to its longest state and a popover parked under its window, both of
 // which measure the mounted plate. A browser run closes them.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/lists-console.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-lists/console.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";

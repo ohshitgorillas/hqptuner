@@ -12,7 +12,7 @@
 // Not reachable here: the sheet's height and the panel's parking at its picker, which measure the mounted plate, and
 // the tap outside a panel that closes it, a document listener. A browser run closes them.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/lists-option-list.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-lists/option-list.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";

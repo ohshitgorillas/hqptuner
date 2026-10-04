@@ -8,7 +8,7 @@
 // `engineStatus`, the /config form into `config`, the overlay bundle into `metadata`, the window into `viewport`, and
 // every pick goes out over a faked `globalThis.fetch` on POST /api/config/live.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/page-conversion.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/conversion.test.js
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";

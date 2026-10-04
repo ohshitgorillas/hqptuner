@@ -7,7 +7,7 @@
 // four reads the config refresh after it makes, and PUT /api/descriptions for a description. No store function is
 // stubbed. Profile names are the fixture's own wire data.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/page-profile.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/profile.test.js
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";

@@ -6,7 +6,7 @@
 // The wire is the seam: the enumerations, State, /config form and overlays of tests/js/support/listsfixture.js, and
 // the narrowing store's own PUT through the narrowing fake. Counts are numbers derived from the fixture's lists.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/lists-facets.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-lists/facets.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";

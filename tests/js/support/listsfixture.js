@@ -1,5 +1,5 @@
-// The wire the option-list suites drive (tests/js/store/faceplate/lists-*.test.js and
-// tests/js/components/faceplate/lists-*.test.js), and the reset every case runs.
+// The wire the option-list suites drive (tests/js/store/faceplate-lists/*.test.js and
+// tests/js/components/faceplate-lists/*.test.js), and the reset every case runs.
 //
 // One engine with the SDM chain loaded: its <GetFilters/> and <GetShapers/> enumerations into `enums`, its State
 // indices into `engineState`. The PCM chain is dormant, so its lists come off the daemon's /config form in `config`.

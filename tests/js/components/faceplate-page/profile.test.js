@@ -11,7 +11,7 @@
 // Not reachable here: the plot measuring its box, which runs in a layout effect server rendering never runs, so the
 // plot draws at its fallback size. A browser run closes that gap.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/page-profile.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/profile.test.js
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";

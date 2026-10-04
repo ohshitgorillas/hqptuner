@@ -12,7 +12,7 @@
 // fires no events. The copy's fit to the plate and its `see more` popover run in a layout effect against measured
 // boxes, which server rendering never runs; a browser hand-back closes that gap.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/page-conversion.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/conversion.test.js
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";

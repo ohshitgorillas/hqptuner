@@ -13,7 +13,7 @@
 // every position is another preset's id, and the flagships are those positions. The only words asserted are the
 // stand-ins this suite serves as metadata.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/page-presets.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/presets.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

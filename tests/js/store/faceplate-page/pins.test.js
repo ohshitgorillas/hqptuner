@@ -7,7 +7,7 @@
 // to `engineStatus`, and every pin goes out over the faked fetch (tests/js/support/wire/wire.js) on the real
 // POST /api/config/live path. A tier's position counts both families in rate order, 1x first, as the dial does.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/page-pins.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/pins.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

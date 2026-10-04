@@ -12,7 +12,7 @@
 //
 // Points and ticks are fractions of the plot: x across from 0 Hz, y down from full scale.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/page-meter.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/meter.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

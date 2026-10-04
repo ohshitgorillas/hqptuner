@@ -5,7 +5,7 @@
 //
 // The seam is the preference signals: v1's collapsed-group toggle and the faceplate's DAC type and chip setters.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/lists-folds.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-lists/folds.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

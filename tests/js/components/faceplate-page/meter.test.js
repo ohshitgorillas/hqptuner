@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/SourceMeter.js: the page's Source section body. With a
 // stream it draws the Range column, the spectrum and one level bar per channel, and at 13″ the readings table under
 // the bars; slim, the table and the heads give way. With none it draws the no-stream line in the meter's place. Which
-// state holds, where a level sits and the trace's points are the store's (tests/js/store/faceplate/page-meter.test.js);
+// state holds, where a level sits and the trace's points are the store's (tests/js/store/faceplate-page/meter.test.js);
 // this suite covers what the section draws from them.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
@@ -13,7 +13,7 @@
 // Not reachable here: the trace's path geometry against the plot's own box, which the store's points carry and the
 // stylesheet stretches; a browser run closes it.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/page-meter.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/meter.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

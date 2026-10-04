@@ -8,7 +8,7 @@
 // rate's family (`data-fam`), Auto by its `data-testid`. The engine's rate list goes into `enums`, the pin index into
 // `engineState`, and a pin goes out over the faked fetch on the real POST /api/config/live path.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/page-pins.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/pins.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

@@ -1,6 +1,6 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/FilterPresets.js: the Filter presets popover and the
 // button that opens it. What each row says is store/faceplate/page/presets.js's, pinned in
-// tests/js/store/faceplate/page-presets.test.js; this suite pins what the popover draws of those rows and what its
+// tests/js/store/faceplate-page/presets.test.js; this suite pins what the popover draws of those rows and what its
 // buttons do: a row per top-level preset, the lit one marked, a fold line per flagship or that flagship's nested rows
 // once it is open, and the pick, knob and fold buttons wired to the store.
 //
@@ -10,7 +10,7 @@
 //
 // Not reachable here: the panel's parking left of its button, which runs in a layout effect.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/page-presets.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/presets.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
