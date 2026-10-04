@@ -1,11 +1,22 @@
-// What the faceplate shows: the window it is fitted to, which body is on the plate, which stage's drawer is open and
-// which popover is open. One drawer and one popover at a time. The gear and the builders swap the whole body; the
-// header, the engine row and the bottom bar stay.
+// What the faceplate shows: the window it is fitted to, which body is on the plate, which stage's drawer is open, which
+// option list is open over the body and which popover is open. One drawer, one list and one popover at a time. The
+// gear and the builders swap the whole body; the header, the engine row and the bottom bar stay.
 
 import { signal, computed } from "@preact/signals";
 import { plateFit } from "../../model/shell/plate.js";
 
-/** @typedef {"chain" | "settings" | "snapshots" | "station"} Body */
+/** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
+
+/**
+ * An option list as a chain picker opens it: the catalog key whose list shows, the stage narrowing reads, the value
+ * running in that field, and what a pick does with the option value picked.
+ *
+ * @typedef {object} ListRequest
+ * @property {string} key
+ * @property {"1x" | "nx"} stage
+ * @property {string} value
+ * @property {(value: string) => unknown} pick
+ */
 
 /** The window's inner size, CSS px. The entry writes it at load and on every resize. */
 export const viewport = signal({ w: 1080, h: 810 });
@@ -22,6 +33,9 @@ export const openStage = signal(/** @type {string | null} */ (null));
 /** The open popover's id, or null. @type {{ value: string | null }} */
 export const openPopover = signal(/** @type {string | null} */ (null));
 
+/** The option list open over the body, or null. @type {{ value: ListRequest | null }} */
+export const openList = signal(/** @type {ListRequest | null} */ (null));
+
 /**
  * Swap the body: the one picked, or back to the chain when it already shows. The open drawer and popover close.
  *
@@ -30,6 +44,7 @@ export const openPopover = signal(/** @type {string | null} */ (null));
 export function showBody(name) {
   body.value = body.value === name ? "chain" : name;
   openStage.value = null;
+  openList.value = null;
   openPopover.value = null;
 }
 
@@ -40,6 +55,18 @@ export function showBody(name) {
  */
 export function toggleStage(id) {
   openStage.value = openStage.value === id ? null : id;
+  openList.value = null;
+  openPopover.value = null;
+}
+
+/**
+ * A chain picker's tap: its list opens over the body, refilled from any other picker's, or closes when it is the one
+ * already open. A popover over the list closes with it.
+ *
+ * @param {ListRequest} req
+ */
+export function openOptionList(req) {
+  openList.value = openList.value?.key === req.key ? null : req;
   openPopover.value = null;
 }
 
@@ -52,9 +79,10 @@ export function togglePopover(id) {
   openPopover.value = openPopover.value === id ? null : id;
 }
 
-/** Escape: the open popover closes; with none open, the open drawer does. */
+/** Escape: the open popover closes; with none open, the open list does; with neither, the open drawer does. */
 export function closeTop() {
   if (openPopover.value !== null) openPopover.value = null;
+  else if (openList.value !== null) openList.value = null;
   else openStage.value = null;
 }
 
