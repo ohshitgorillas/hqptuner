@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.15.4] — 2026-10-03
+
 ### Changed
 
 - **The modulator picker shows the DSD1024 modulators together under Multi-bit.** The group's caption reads "Multi-bit designs for the highest rates".
