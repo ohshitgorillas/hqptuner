@@ -7,6 +7,22 @@ import { popover } from "../../lib/shell/popover.js";
 
 const MIN_WIDTH = 330;
 
+/**
+ * @typedef {object} TreeStation  one station of the tree (data/stations.js STATIONS)
+ * @property {string} name
+ * @property {boolean} [active]  loaded now
+ * @property {boolean} [open]    its snapshots unfolded
+ * @property {{name: string, active?: boolean}[]} snapshots
+ */
+
+/**
+ * Mount the tree-select in `host`: a trigger naming the active station and snapshot, and the popover listing every
+ * station with its snapshots. refresh() repaints both from a new list.
+ *
+ * @param {HTMLElement} host
+ * @param {TreeStation[]} stations
+ * @returns {{refresh: (list: TreeStation[]) => void}}
+ */
 export function mountStationTree(host, stations) {
   const arrow = h("span.ar", { text: "▼" });
   const label = h("span.v");
@@ -28,11 +44,12 @@ export function mountStationTree(host, stations) {
 
   host.append(trigger, panel);
 
+  /** @param {TreeStation[]} list  one of them active */
   function refresh(list) {
-    const station = list.find((s) => s.active);
+    const station = /** @type {TreeStation} */ (list.find((s) => s.active));
     const snapshot = station?.snapshots.find((s) => s.active);
     label.replaceChildren(station.name + " ", h("span.sep", { text: "›" }), " " + (snapshot?.name ?? ""));
-    rows.replaceChildren(...list.flatMap(stationRows).filter(Boolean));
+    rows.replaceChildren(...list.flatMap(stationRows).filter((el) => el !== false));
   }
   refresh(stations);
 
@@ -50,6 +67,11 @@ export function mountStationTree(host, stations) {
   return { refresh };
 }
 
+/**
+ * A station's row, with its chevron, and the folded group of its snapshots (false when it has none).
+ *
+ * @param {TreeStation} st
+ */
 function stationRows(st) {
   const hasSnaps = st.snapshots.length > 0;
   const group =
@@ -69,7 +91,7 @@ function stationRows(st) {
     tabindex: hasSnaps ? null : -1,
     text: st.open ? "▾" : "▸",
   });
-  if (hasSnaps) {
+  if (group) {
     chev.addEventListener("click", () => {
       group.hidden = !group.hidden;
       chev.textContent = group.hidden ? "▸" : "▾";

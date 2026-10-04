@@ -31,14 +31,65 @@ import { stationTables } from "./station-builder/frame/tables.js";
 import { shellSpec } from "./station-builder/frame/shell.js";
 import { show } from "./station-builder/frame/page.js";
 
+/** @typedef {import('../../model/builders/station.js').Rec} Rec */
+/** @typedef {import('../../data/builders/station-builder.js').HwAnswers} HwRec  the machine's hardware answers */
+/** @typedef {import('../../lib/shell/clock.js').Clock} Clock */
+/** @typedef {import('./station-builder/frame/parts.js').Run} Run */
+/** @typedef {{ name: string, rec: Rec, hw: HwRec }} Edit  the station being edited */
+/** @typedef {{ setOn: (on: boolean, toChain?: boolean) => void }} Body  another body the builder turns off */
+/** @typedef {{ settings: Body, snapshot: () => Body | null | undefined, profiles: () => Body | null | undefined }} Others */
+/** @typedef {{ names: string[], loaded: string, renamed: { from: string, to: string } | null, restart: boolean }} Saved */
+
+/**
+ * @typedef {object} Opts  what the app hands the builder
+ * @property {(station: string) => string[]} profilesOf  the station's Matrix profiles
+ * @property {() => void} [onRescan]
+ * @property {(x: Saved) => void} [onSaved]
+ * @property {(station: string) => void} openProfiles
+ * @property {import('../../model/shell/flags.js').Flags} flags  the mock checks' outcomes
+ */
+
+/** @typedef {import('../../lib/builder/builder.js').Builder<Rec, Edit>} Shell */
+
+/**
+ * @typedef {object} StationState  the builder's state, shared by reference with every step
+ * @property {Opts} o
+ * @property {Opts['flags']} flags
+ * @property {Clock} clock
+ * @property {import('./station-builder/frame/tables.js').Tables} T  the borrowed tables
+ * @property {string[]} order  the stations, in list order
+ * @property {string} loaded  the station the engine runs
+ * @property {Record<string, Rec>} records
+ * @property {HwRec} hw  the machine's: one record, written to every station
+ * @property {boolean} naaSeen  mock: an NAA shows only after Refresh devices
+ * @property {Set<string>} hidden  listings a resolved pair left dead: hidden from every list (wizard §1.5)
+ * @property {Edit} e  the one being edited
+ * @property {Partial<Record<string, Run>>} runs  mock checks in flight or done, this edit: {ipv6, usb, rates}
+ * @property {boolean} bringUp  the Device step shows the NAA bring-up
+ * @property {boolean} pitch  the Volume step's pitch is open
+ * @property {string} at  the page showing
+ * @property {Shell} B
+ * @property {HTMLElement} page
+ * @property {HTMLElement} chainEl
+ * @property {ReturnType<Shell['buttons']>} acts
+ * @property {(id: string) => void} show
+ * @property {(fn: (rec: Rec, e: Edit) => void) => void} set  change the edited record and repaint what follows from it
+ */
+
 /**
  * The builder's state, shared by reference with every step: the stations, the machine's hardware, the edit and what it
  * has open, and the actions every step takes.
+ *
+ * @param {{ name: string, active?: boolean }[]} stations
+ * @param {Opts} o
+ * @param {Clock} clock
+ * @returns {StationState}
  */
 function stationState(stations, o, clock) {
   const order = stations.map((st) => st.name);
-  const records = Object.fromEntries(order.map((n) => [n, structuredClone(STB_RECORDS[n] ?? STB_SCRATCH)]));
-  return {
+  const known = /** @type {Partial<Record<string, Rec>>} */ (STB_RECORDS);
+  const records = Object.fromEntries(order.map((n) => [n, structuredClone(known[n] ?? STB_SCRATCH)]));
+  return /** @type {StationState} */ ({
     o,
     flags: o.flags,
     clock,
@@ -49,27 +100,22 @@ function stationState(stations, o, clock) {
     hw: structuredClone(STB_HW_REC), // the machine's: one record, written to every station
     naaSeen: !o.flags.naaNone, // mock: an NAA shows only after Refresh devices
     hidden: new Set(deadListings(Object.values(records))), // listings a resolved pair left dead: hidden from every list (wizard §1.5)
-    e: null, // the one being edited: {name, rec, hw}
     runs: {}, // mock checks in flight or done, this edit: {ipv6, usb, rates}
     bringUp: false,
     pitch: false,
     at: "overview",
-    B: null,
-    page: null,
-    chainEl: null,
-    acts: null,
-    show: null,
-    set: null,
-  };
+    // e, B, page, chainEl, acts, show and set are set as the builder mounts, before anything reads them.
+  });
 }
 
 /**
- * @param {object} el  {btn: header button, chain: #body, body: #stbody, rail, page, others: {settings, snapshot(), profiles()},
- *                     bus: lib/bus.js}
- * @param {{name: string, active?: boolean}[]} stations  in the tree's order
- * @param {object} o  {profilesOf(station) → names, onRescan(), onSaved({names, loaded, renamed, restart}), openProfiles(station),
- *                    flags: model/flags.js (the mock checks' outcomes)}
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * Mount the Station builder over its body.
+ *
+ * @param {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, rail: HTMLElement, page: HTMLElement,
+ *   others: Others, bus: { emit: (t: string) => void } }} el  btn: the header button, chain: #body, body: #stbody
+ * @param {{ name: string, active?: boolean }[]} stations  in the tree's order
+ * @param {Opts} o
+ * @param {Clock} [clock]
  */
 export function mountStationBuilder({ btn, chain, body, rail, page, others, bus }, stations, o, clock = PLATFORM) {
   const sb = stationState(stations, o, clock);
@@ -85,7 +131,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   sb.chainEl = chainPic("Signal chain: the station's part lit", (id) => ["volume", "output"].includes(id));
   B.pick.addEventListener("change", () => B.go({ st: ONE, name: B.pick.value }));
   sb.acts = B.buttons();
-  B.load(B.cur);
+  B.load(B.cur, undefined);
   show(sb, "overview");
   return B.start();
 }

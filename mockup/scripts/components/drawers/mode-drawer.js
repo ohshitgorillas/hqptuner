@@ -17,49 +17,148 @@ import { xref } from "../../lib/controls/xref.js";
 import { secHead, closeBtn, numBox } from "../../lib/controls/controls.js";
 import { isFft, MODE_TABS } from "../../data/stages/conversion.js";
 
-// The drawer's state `d`: spec, on, onApplied; vals (current) and base (applied); run (the running mode) and shown (the
-// tab on view); ctls id → [{ui, copy, list}]; rowsOf mode → [{node, r}]; dirty (modes holding staged edits); notes id →
-// text span; and its elements (tabs, panels, grp, drawer, setOpen).
+/** @typedef {import("../lists/vselect.js").CatalogOption} CatalogOption */
+/** @typedef {import("./drawer/state.js").Store} Store */
+/** @typedef {import("./drawer/apply.js").ApplyGroup} ApplyGroup */
+/** @typedef {import("./drawer/registry.js").SetOpen} SetOpen */
+/** @typedef {"pcm" | "sdm"} Mode */
 
-/** One row's control and the setter that moves it to a value, plus the picked option's line when its options carry one. */
-function control(d, r, m, id) {
+/** @typedef {{ type: string, aria: string, options: CatalogOption[], min?: number, max?: number, hint?: string }} FieldControl */
+
+/**
+ * One item of a mode tab as MODE_DRAWERS gives it: a setting row, or a section header carrying only `head`.
+ *
+ * @typedef {object} ModeRow
+ * @property {string} [head]
+ * @property {string} [id]
+ * @property {string} [label]
+ * @property {string} [sub]
+ * @property {string | (string | { text: string })[]} [man]
+ * @property {{ type: string, aria?: string | null, options?: CatalogOption[], min?: number, max?: number, hint?: string }} [control]
+ * @property {boolean} [restart]
+ * @property {boolean} [live]
+ * @property {string} [fft]
+ */
+
+/** @typedef {ModeRow & { id: string, label: string, man: NonNullable<ModeRow["man"]>, control: FieldControl }} ModeField */
+
+/** @type {(r: ModeRow) => r is ModeField}  a setting row: id, label, manual copy, a labelled control with options */
+const isField = (r) =>
+  r.id !== undefined &&
+  r.label !== undefined &&
+  r.man !== undefined &&
+  r.control?.options !== undefined &&
+  typeof r.control.aria === "string";
+
+/** @typedef {{ id: string, link: { to: string, label: string } }} ModeNote */
+
+/**
+ * A MODE_DRAWERS entry.
+ *
+ * @typedef {object} ModeSpec
+ * @property {string} id
+ * @property {string} title
+ * @property {string} aria
+ * @property {Record<Mode, ModeRow[]>} modes
+ * @property {Partial<Record<Mode, ModeNote[]>>} [notes]
+ */
+
+/** @typedef {{ el: HTMLElement, copy: HTMLElement | null, ui: (v: string) => void }} ModeCtl */
+
+/**
+ * The drawer's state `d`: spec, on, onApplied; vals (current) and base (applied); run (the running mode) and shown (the
+ * tab on view); ctls id → [{ui, copy, list}]; rowsOf mode → [{node, r}]; dirty (modes holding staged edits); notes id →
+ * text span; and its elements (tabs, panels, grp, drawer, setOpen).
+ *
+ * @typedef {object} ModeState
+ * @property {ModeSpec} spec
+ * @property {((id: string, v: string) => void) | undefined} on
+ * @property {((vals: Store) => void) | undefined} onApplied
+ * @property {Store} vals
+ * @property {Store} base
+ * @property {Mode} run
+ * @property {Mode} shown
+ * @property {Map<string, { ui: (v: string) => void, copy: HTMLElement | null, list: CatalogOption[] }[]>} ctls
+ * @property {Record<Mode, { node: HTMLElement, r: ModeField }[]>} rowsOf
+ * @property {Set<string | undefined>} dirty
+ * @property {Map<string, HTMLElement>} notes
+ * @property {HTMLElement[]} tabs
+ * @property {Record<Mode, HTMLElement>} panels
+ * @property {ApplyGroup} grp
+ * @property {HTMLElement} drawer
+ * @property {SetOpen} setOpen
+ */
+
+/**
+ * The api main.js and the conversion page call.
+ *
+ * @typedef {object} ModeApi
+ * @property {SetOpen} setOpen
+ * @property {(id: string) => boolean} has
+ * @property {(id: string, v: string) => void} set
+ * @property {(m: Mode) => void} setRunning
+ * @property {(m: Mode) => void} openAt
+ * @property {() => Store} values
+ * @property {(id: string, text: string) => void} note
+ */
+
+/** @type {Mode[]} */
+const MODES = ["pcm", "sdm"];
+
+/** @typedef {(d: ModeState, r: ModeField, m: Mode, id: string) => ModeCtl} CtlOf  builds row r's control on tab m */
+
+/** @type {CtlOf}  a select; its options' manual lines give it the picked option's line */
+function selectControl(d, r, m, id) {
   const c = r.control;
-  let el,
-    copy = null;
-  if (c.type === "select") {
-    el = vselect({ id, aria: c.aria, options: c.options, value: d.vals[r.id], onChange: (v) => pick(d, r, m, v) });
-    if (c.options.some((x) => x.man)) copy = h("p.optman", {}, optCopy(c.options, d.vals[r.id]));
-  } else if (c.type === "number") {
-    const { el: num, input } = numBox({ id, value: d.vals[r.id], min: c.min, max: c.max, aria: c.aria, hint: c.hint });
-    input.addEventListener("change", () => pick(d, r, m, input.value));
-    el = num;
-    el._ui = (v) => {
-      input.value = v;
-    };
-  } else {
-    el = seg({
-      aria: c.aria,
-      options: c.options,
-      value: d.vals[r.id],
-      attrs: { id },
-      onChange: (v) => pick(d, r, m, v),
-    });
-  }
-  const ui =
-    c.type === "select"
-      ? (v) => {
-          el.value = v;
-        }
-      : c.type === "number"
-        ? el._ui
-        : (v) => select(el, v);
-  return { el, copy, ui };
+  const el = vselect({ id, aria: c.aria, options: c.options, value: d.vals[r.id], onChange: (v) => pick(d, r, m, v) });
+  const copy = c.options.some((x) => x.man) ? h("p.optman", {}, optCopy(c.options, d.vals[r.id])) : null;
+  return {
+    el,
+    copy,
+    ui: (v) => {
+      el.value = v;
+    },
+  };
 }
 
+/** @type {CtlOf}  a number box; its setter rides on the element as `_ui` */
+function numberControl(d, r, m, id) {
+  const c = r.control;
+  /** @type {{ el: HTMLElement & { _ui?: (v: string) => void }, input: HTMLInputElement }} */
+  const { el, input } = numBox({ id, value: d.vals[r.id], min: c.min, max: c.max, aria: c.aria, hint: c.hint });
+  input.addEventListener("change", () => pick(d, r, m, input.value));
+  /** @param {string} v */
+  const ui = (v) => {
+    input.value = v;
+  };
+  el._ui = ui;
+  return { el, copy: null, ui };
+}
+
+/**
+ * One row's control and the setter that moves it to a value, plus the picked option's line when its options carry one.
+ *
+ * @type {CtlOf}
+ */
+function control(d, r, m, id) {
+  const c = r.control;
+  if (c.type === "select") return selectControl(d, r, m, id);
+  if (c.type === "number") return numberControl(d, r, m, id);
+  const el = seg({
+    aria: c.aria,
+    options: c.options,
+    value: d.vals[r.id],
+    attrs: { id },
+    onChange: (v) => pick(d, r, m, v),
+  });
+  return { el, copy: null, ui: (v) => select(el, v) };
+}
+
+/** @type {(d: ModeState, r: ModeField, m: Mode) => HTMLElement} */
 function row(d, r, m) {
   const { el, copy, ui } = control(d, r, m, `${d.spec.id}-${m}-${r.id}`);
   if (!d.ctls.has(r.id)) d.ctls.set(r.id, []);
-  d.ctls.get(r.id).push({ ui, copy, list: r.control.options });
+  d.ctls.get(r.id)?.push({ ui, copy, list: r.control.options });
   const node = h(
     "div.drow.cvrow",
     { data: { id: r.id } },
@@ -67,7 +166,7 @@ function row(d, r, m) {
     h(
       "div.man",
       {},
-      [].concat(r.man).map((t) => h("p", { text: t })),
+      [r.man].flat().map((t) => h("p", { text: typeof t === "string" ? t : t.text })),
     ),
     copy && h("div.optfull", {}, copy),
   );
@@ -75,6 +174,7 @@ function row(d, r, m) {
   return node;
 }
 
+/** @type {(d: ModeState, r: ModeField, m: Mode, v: string) => void} */
 function pick(d, r, m, v) {
   apply(d, r.id, v);
   if (r.restart) {
@@ -87,6 +187,7 @@ function pick(d, r, m, v) {
   }
 }
 
+/** @type {(d: ModeState, id: string, v: string) => void} */
 function apply(d, id, v) {
   d.vals[id] = v;
   for (const it of d.ctls.get(id) || []) {
@@ -96,32 +197,39 @@ function apply(d, id, v) {
   paintRows(d);
 }
 
+/** @param {ModeState} d */
 function discard(d) {
   for (const [id, v] of Object.entries(d.base)) if (d.vals[id] !== v) apply(d, id, v);
   d.dirty.clear();
   paintDirty(d);
 }
 
-/** FFT length: only while its mode picks an FFT-family filter. */
+/**
+ * FFT length: only while its mode picks an FFT-family filter.
+ *
+ * @param {ModeState} d
+ */
 function paintRows(d) {
-  for (const m of ["pcm", "sdm"])
+  for (const m of MODES)
     for (const { node, r } of d.rowsOf[m]) {
       if (r.fft) node.hidden = !(isFft(d.vals[m + "1x"]) || isFft(d.vals[m + "nx"]));
     }
 }
 
+/** @param {ModeState} d */
 function paint(d) {
   d.drawer.classList.toggle("idle", d.shown !== d.run);
   for (const b of d.tabs) {
     const m = b.dataset.tab;
     b.setAttribute("aria-selected", String(m === d.shown));
-    b.querySelector(".cst").textContent = m === d.run ? "" : "idle";
+    /** @type {HTMLElement} */ (b.querySelector(".cst")).textContent = m === d.run ? "" : "idle";
   }
-  for (const m of ["pcm", "sdm"]) d.panels[m].hidden = m !== d.shown;
+  for (const m of MODES) d.panels[m].hidden = m !== d.shown;
   paintRows(d);
   paintDirty(d);
 }
 
+/** @param {ModeState} d */
 function paintDirty(d) {
   for (const b of d.tabs) b.classList.toggle("dirty", d.dirty.has(b.dataset.tab));
   const restarts = d.rowsOf[d.shown].some(({ node, r }) => !node.hidden && r.restart);
@@ -129,25 +237,31 @@ function paintDirty(d) {
 }
 
 // Notes: a read-only line under the rows naming a value that lives elsewhere, with a link there (Shaping: DAC bits).
+/** @type {(d: ModeState, n: ModeNote) => HTMLElement} */
 const noteEl = (d, n) => {
   const t = h("span");
   d.notes.set(n.id, t);
   return h("p.mnote", {}, t, " ", xref(n.link.to, n.link.label));
 };
 
-/** The drawer: head (title, mode tabs, apply group, close) over one panel per mode, appended to `body`. */
+/**
+ * The drawer: head (title, mode tabs, apply group, close) over one panel per mode, appended to `body`.
+ *
+ * @param {ModeState} d
+ * @param {HTMLElement} body
+ */
 function build(d, body) {
   const { spec } = d;
-  d.panels = {};
-  for (const m of ["pcm", "sdm"]) {
+  d.panels = /** @type {Record<Mode, HTMLElement>} */ ({});
+  for (const m of MODES) {
     d.panels[m] = h(
       "div.dpanel.cvpanel",
       { role: "tabpanel", "aria-label": `${MODE_TABS[m].split(" ")[0]} ${spec.title}`, hidden: true },
-      spec.modes[m].map((r) => (r.head ? secHead("msec", r.head) : row(d, r, m))),
+      spec.modes[m].map((r) => (r.head ? secHead("msec", r.head) : isField(r) && row(d, r, m))),
       (spec.notes?.[m] || []).map((n) => noteEl(d, n)),
     );
   }
-  d.tabs = ["pcm", "sdm"].map((m) =>
+  d.tabs = MODES.map((m) =>
     h(
       "button",
       {
@@ -189,7 +303,12 @@ function build(d, body) {
   body.append(d.drawer);
 }
 
-/** Each rail stage toggles the drawer, opening it on the running mode. */
+/**
+ * Each rail stage toggles the drawer, opening it on the running mode.
+ *
+ * @param {ModeState} d
+ * @param {HTMLElement[]} stages
+ */
 function wireStages(d, stages) {
   for (const st of stages) {
     st.setAttribute("aria-controls", d.drawer.id);
@@ -204,6 +323,10 @@ function wireStages(d, stages) {
   }
 }
 
+/**
+ * @param {ModeState} d
+ * @returns {ModeApi}
+ */
 function modeApi(d) {
   return {
     setOpen: d.setOpen,
@@ -236,16 +359,21 @@ function modeApi(d) {
 }
 
 /**
+ * Mount a mode drawer into `body`, opened by its rail stages, starting from the conversion values; returns its api.
+ *
  * @param {HTMLElement} body
- * @param {HTMLButtonElement[]} stages  rail stages that open it
- * @param {object} spec                 MODE_DRAWERS entry
- * @param {object} values               CONV.values (initial)
- * @param {{running: string, on?: (id: string, v: string) => void, onApplied?: (vals: object) => void}} o
+ * @param {HTMLElement[]} stages  rail stages that open it
+ * @param {ModeSpec} spec        MODE_DRAWERS entry
+ * @param {{values: Store, running: Mode, on?: (id: string, v: string) => void, onApplied?: (vals: Store) => void}} o
+ *   values: CONV.values (initial)
+ * @returns {ModeApi}
  */
-export function mountModeDrawer(body, stages, spec, values, { running, on, onApplied }) {
+export function mountModeDrawer(body, stages, spec, { values, running, on, onApplied }) {
+  /** @type {Store} */
   const vals = {};
-  for (const m of ["pcm", "sdm"]) for (const r of spec.modes[m]) if (!r.head) vals[r.id] = values[r.id];
-  const d = {
+  for (const m of MODES) for (const r of spec.modes[m]) if (!r.head && isField(r)) vals[r.id] = values[r.id];
+  // build() and drawerOpener fill in the elements and setOpen before anything reads them.
+  const record = /** @type {unknown} */ ({
     spec,
     on,
     onApplied,
@@ -257,7 +385,8 @@ export function mountModeDrawer(body, stages, spec, values, { running, on, onApp
     rowsOf: { pcm: [], sdm: [] },
     dirty: new Set(),
     notes: new Map(),
-  };
+  });
+  const d = /** @type {ModeState} */ (record);
   build(d, body);
   wireStages(d, stages);
   d.setOpen = drawerOpener(d.drawer, stages, () => api);

@@ -8,6 +8,7 @@
 // DEVICES); `listings` holds every listing picked for the one device (two = a DDC's pair, resolved or not).
 
 import { DEVICES, RATE_TIERS } from "../stages/output.js";
+/** @import { StepContext } from "../../model/builders/station.js" */
 
 // ── Copy ────────────────────────────────────────────────────────────────────
 export const STB_COPY = {
@@ -24,6 +25,7 @@ export const STB_COPY = {
   next: "Next",
   review: "Review",
   skipped: "Skipped",
+  /** @type {(n: number, t: number) => string} */
   stepOf: (n, t) => `Step ${n} of ${t}`,
   newStation: "New station", // DRAFT (Profile builder's `New profile`)
   name: "station name", // DRAFT (v1 ProfileCard placeholder grammar)
@@ -36,7 +38,9 @@ export const STB_COPY = {
     saved: "Saved.",
   },
   noName: "Enter a name first", // v1 Ask.js
+  /** @param {string} n */
   overwrite: (n) => `Station "${n}" already exists. Overwrite it?`, // v1 Ask grammar (Snapshot builder's)
+  /** @param {string} n */
   remove: (n) => `Delete station "${n}"? This cannot be undone.`, // v1 Ask grammar
   combo:
     "While you can set up any number of endpoints/stations in this wizard, it only supports configurations that stream to one device at a time. If your target is multiple endpoints *at once* (HQPlayer's \"Combo\" backend), you'll need to configure that yourself.", // wizard §1
@@ -45,6 +49,8 @@ export const STB_COPY = {
 // ── The walk ────────────────────────────────────────────────────────────────
 // guide(x) = the step's question or lead (wizard copy where the wizard has one); skip(x) = why it doesn't apply ('' = it
 // does). x = {backend, listings, iface, gpu}.
+/** @typedef {{ id: string, title: string, guide: (x: StepContext) => string | null, skip?: (x: StepContext) => string }} StationStep */
+/** @type {StationStep[]} */
 export const STB_STEPS = [
   { id: "name", title: "Name", guide: () => 'Give this station a name, e.g., "living room speakers".' }, // wizard §1
   {
@@ -205,6 +211,7 @@ export const STB_USB = {
   go: "Disambiguate",
   run: "Please hang tight while HQPTuner finds the remaining device listing...",
   ok: "Got it! Saved. Plug the DAC back in and click Next.",
+  /** @param {string} why */
   fail: (why) =>
     `HQPTuner wasn't able to disambiguate which device is correct, since ${why}. You'll need to experiment later: load each device and try to play content back. The one that produces sound is (obviously) correct.`,
   why: { gone: "both devices disappeared", none: "neither device went down" },
@@ -301,21 +308,27 @@ export const STB_HW = {
   all: "Every station runs on this machine, so Save writes these to all of them.", // DRAFT
 };
 
+/** @typedef {{ gpu: boolean, ecores: boolean, gpus: string, hi: number, lo: number, same: boolean, power: string }} HwAnswers */
+/** @type {Record<string, string>} */
+const CUDA_BY_POWER = { none: "0", low: "convolution", high: "1" };
 /**
  * Wizard §4's table → the Settings hardware drawer's values (data/settings.js HARDWARE_DRAWER ids).
  * Mapping (flagged to the owner): `on` multicore = Enabled ('1'); E-core DSP on = DSP pool; two cards = Full offload,
  * resampling (DSP device) on the more powerful card, convolution on the less powerful one.
+ *
+ * @param {HwAnswers} hw  the Hardware step's answers
  */
 export function hwSettings(hw) {
   const ecores = hw.ecores ? "pool" : "default";
   const out = { multicore: "1", ecores, cuda: "0", cudadev: -1, cudacdev: -1 };
   if (!hw.gpu) return out;
   if (hw.gpus === "2") return { ...out, cuda: "1", cudadev: hw.same ? 0 : hw.hi, cudacdev: hw.same ? 1 : hw.lo };
-  return { ...out, cuda: { none: "0", low: "convolution", high: "1" }[hw.power] };
+  return { ...out, cuda: CUDA_BY_POWER[hw.power] };
 }
 
 // ── Mock records ────────────────────────────────────────────────────────────
 const NET = DEVICES.network.list;
+/** @type {(pcm: number, sdm: number) => { pcm: number, sdm: number }} */
 const lim = (pcm, sdm) => ({ pcm, sdm });
 /** Station defaults (Start from scratch / New station): IPv4 to start (wizard: IPv6 off until tested), nothing picked. */
 export const STB_SCRATCH = {
@@ -334,7 +347,8 @@ export const STB_SCRATCH = {
   volume: "",
   iso: "1",
 };
-export const STB_HW0 = { gpu: false, ecores: false, gpus: "1", hi: 0, lo: 1, same: false, power: "none" };
+/** @type {HwAnswers} */
+const STB_HW0 = { gpu: false, ecores: false, gpus: "1", hi: 0, lo: 1, same: false, power: "none" };
 
 export const STB_RECORDS = {
   // The loaded station: a Holo Red DDC (its two listings, resolved) into a Spring 3 over USB, HQPlayer volume.
@@ -382,4 +396,5 @@ export const STB_RECORDS = {
     iso: "1",
   },
 };
+/** @type {HwAnswers} */
 export const STB_HW_REC = { ...STB_HW0, gpu: true, power: "low", ecores: true };

@@ -7,8 +7,10 @@ import { seg } from "../controls/seg.js";
 import { popover } from "../../lib/shell/popover.js";
 
 /**
+ * First group on the strip: the scenario switch, one segment per scenario, `value` picked.
+ *
  * @param {HTMLElement} host   #scene strip
- * @param {object[]} scenes
+ * @param {{id: string, label: string}[]} scenes
  * @param {string} value
  * @param {(id: string) => void} onChange
  */
@@ -30,8 +32,10 @@ export function mountScenario(host, scenes, value, onChange) {
  * Second group on the same strip: which alerts to raise (data/alerts.js MOCK_ALERTS), a button reading how many are picked
  * that opens a checklist under it. `#alerts-<kind>,<kind>` in the URL opens with those picked.
  * @param {HTMLElement} host   #scene strip
+ * @param {{kind: string, label: string, when?: string}[]} items  the alerts on offer (data/alerts.js MOCK_ALERTS)
  * @param {string[]} kinds   the kinds to open picked (model/flags.js `alerts`)
  * @param {(kinds: Set<string>) => void} onChange
+ * @returns {Set<string>}
  */
 export function mountAlertPicker(host, items, kinds, onChange) {
   const picked = new Set(kinds);
@@ -48,8 +52,8 @@ export function mountAlertPicker(host, items, kinds, onChange) {
           type: "checkbox",
           checked: picked.has(i.kind),
           on: {
-            change: (e) => {
-              e.target.checked ? picked.add(i.kind) : picked.delete(i.kind);
+            change: (/** @type {Event} */ e) => {
+              /** @type {HTMLInputElement} */ (e.target).checked ? picked.add(i.kind) : picked.delete(i.kind);
               paint();
               onChange(new Set(picked));
             },
@@ -94,8 +98,9 @@ export function mountAlertPicker(host, items, kinds, onChange) {
 export function mountSizePicker(host, sizes, value, onChange) {
   const note = host.querySelector(".cnt:last-child");
   const pts = h("span.cnt.scpts");
+  /** @param {string} id  one of `sizes` */
   const paint = (id) => {
-    const z = sizes.find((x) => x.id === id);
+    const z = /** @type {(typeof sizes)[number]} */ (sizes.find((x) => x.id === id));
     pts.textContent = `${z.w}×${z.h} pt`;
     pts.title = z.model;
   };

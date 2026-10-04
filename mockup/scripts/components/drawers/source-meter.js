@@ -28,49 +28,73 @@ import { ROWS, spectrogramPainter, spectrogramView } from "./source-meter/spectr
 import { spectrumPainter, spectrumView } from "./source-meter/spectrum.js";
 
 /**
+ * METER from data/source.js, with the scene's rates and the mount's options spread over it.
+ *
+ * @typedef {object} MeterConfig
+ * @property {number} channels
+ * @property {number} nyquist          source Nyquist, Hz
+ * @property {number} [brick]          where the content ends, Hz
+ * @property {boolean} [dsdNoise]      DSD modulator noise above the content
+ * @property {number[]} floors         level floor options, dBFS
+ * @property {number} floor            dBFS
+ * @property {number[]} ranges         spectrum and spectrogram span options, dB
+ * @property {number} range            dB
+ * @property {number[]} pageRanges     the page's Range options, dB
+ * @property {number} pageRange        dB
+ * @property {string} channel          '0' | '1' | 'sum'
+ * @property {{ v: number | 'all', label: string }[]} windows  spectrogram time windows, s
+ * @property {number | 'all'} window   s
+ * @property {number} colsPerSec
+ * @property {number} trackElapsedSec
+ * @property {boolean} [compact]       the page's Source section rather than the drawer
+ */
+
+/**
+ * One mount's view state, shared by every painter and read at each paint.
+ *
+ * @typedef {object} MeterState
+ * @property {number} floor           dBFS
+ * @property {number} range           dB
+ * @property {string} channel         '0' | '1' | 'sum'
+ * @property {number | 'all'} window  s
+ */
+
+/**
+ * The handlers each view control applies its pick with.
+ *
+ * @typedef {object} MeterActions
+ * @property {(v: string) => void} specRange
+ * @property {(v: string) => void} floor
+ * @property {(v: string) => void} pageRange
+ * @property {(v: string) => void} gramRange
+ * @property {(v: string) => void} channel
+ * @property {(v: string) => void} window
+ */
+
+/**
+ * @typedef {object} MeterPainters
+ * @property {ReturnType<typeof spectrogramPainter>} gram
+ * @property {ReturnType<typeof spectrumPainter>} spectrum
+ * @property {ReturnType<typeof levelsPainter>} levels
+ */
+
+/**
+ * Mount the source meter into `host`: the drawer's spectrogram, or with `cfg.compact` the page's spectrum and levels.
+ *
  * @param {HTMLElement} host  empty block container inside a drawer panel
- * @param {object} cfg        METER from data/source.js
+ * @param {MeterConfig} cfg   METER from data/source.js
  * @param {import('../../lib/shell/clock.js').Clock} [clock]  frame stamps and scheduling
  */
 export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const compact = !!cfg.compact;
+  /** @type {MeterState} */
   const st = { floor: cfg.floor, range: cfg.range, channel: cfg.channel, window: cfg.window };
   if (compact) {
     st.range = cfg.pageRange;
     st.floor = -cfg.pageRange;
   }
-  const views = buildViews(cfg, st, compact, {
-    specRange: (v) => {
-      st.range = Number(v);
-      spectrum.axes();
-      spectrum.paint();
-      gram.paint();
-    },
-    floor: (v) => {
-      st.floor = Number(v);
-      levels.scale();
-    },
-    pageRange: (v) => {
-      st.range = Number(v);
-      st.floor = -st.range;
-      spectrum.axes();
-      spectrum.paint();
-      levels.scale();
-    },
-    gramRange: (v) => {
-      st.range = Number(v);
-      gram.paint();
-    },
-    channel: (v) => {
-      st.channel = v;
-      spectrum.reset();
-      gram.paint();
-    },
-    window: (v) => {
-      st.window = v === "all" ? "all" : Number(v);
-      gram.paint();
-    },
-  });
+  const act = meterActions(st, () => painters);
+  const views = buildViews(cfg, st, compact, act);
   // The drawer holds the spectrogram alone: spectrum and levels live on the page's Source section.
   const root = compact ? views.top : views.bottom.el;
   host.append(root);
@@ -78,8 +102,10 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const feed = mockFeed(cfg, ROWS);
   const src = mockHistory(cfg, feed);
   const gram = spectrogramPainter(views.bottom, st, cfg, src);
-  const spectrum = spectrumPainter(views.spectrum, st, cfg.nyquist, feed, src.latest);
+  const spectrum = spectrumPainter(views.spectrum, st, cfg.nyquist, { source: feed, latest: src.latest });
   const levels = levelsPainter(views.levels, st, src.latest);
+  /** @type {MeterPainters} */
+  const painters = { gram, spectrum, levels };
 
   function paintAll() {
     gram.ramp();
@@ -110,7 +136,56 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   });
 }
 
-/** Every block's DOM, the controls wired to `act`: the page's top row and the drawer's spectrogram. */
+/**
+ * The view controls' handlers: each writes its pick into `st` and repaints what reads it.
+ *
+ * @param {MeterState} st
+ * @param {() => MeterPainters} parts  the painters, built after the controls that call these
+ * @returns {MeterActions}
+ */
+function meterActions(st, parts) {
+  return {
+    specRange: (v) => {
+      st.range = Number(v);
+      parts().spectrum.axes();
+      parts().spectrum.paint();
+      parts().gram.paint();
+    },
+    floor: (v) => {
+      st.floor = Number(v);
+      parts().levels.scale();
+    },
+    pageRange: (v) => {
+      st.range = Number(v);
+      st.floor = -st.range;
+      parts().spectrum.axes();
+      parts().spectrum.paint();
+      parts().levels.scale();
+    },
+    gramRange: (v) => {
+      st.range = Number(v);
+      parts().gram.paint();
+    },
+    channel: (v) => {
+      st.channel = v;
+      parts().spectrum.reset();
+      parts().gram.paint();
+    },
+    window: (v) => {
+      st.window = v === "all" ? "all" : Number(v);
+      parts().gram.paint();
+    },
+  };
+}
+
+/**
+ * Every block's DOM, the controls wired to `act`: the page's top row and the drawer's spectrogram.
+ *
+ * @param {MeterConfig} cfg
+ * @param {MeterState} st
+ * @param {boolean} compact
+ * @param {MeterActions} act
+ */
 function buildViews(cfg, st, compact, act) {
   const spectrum = spectrumView(!compact && spectrumRange(cfg.ranges, st.range, act.specRange));
   const levels = levelsView(cfg.channels, !compact && floorCtl(cfg.floors, st.floor, act.floor));
@@ -120,23 +195,46 @@ function buildViews(cfg, st, compact, act) {
   return { spectrum, levels, top, bottom };
 }
 
-/** Whether the meter is on screen: the page section laid out, or the drawer open on the Meter panel. */
+/**
+ * Whether the meter is on screen: the page section laid out, or the drawer open on the Meter panel.
+ *
+ * @param {HTMLElement} host
+ * @param {boolean} compact
+ */
 function shownTest(host, compact) {
   return () => {
     if (compact) return document.visibilityState === "visible" && !!host.offsetParent;
     const dr = host.closest(".drawer"),
-      p = host.closest(".dpanel");
+      p = /** @type {HTMLElement | null} */ (host.closest(".dpanel"));
     return document.visibilityState === "visible" && dr && !dr.hasAttribute("data-closed") && p && !p.hidden;
   };
 }
 
 /**
+ * What the frame loop drives.
+ *
+ * @typedef {object} LoopHooks
+ * @property {number} perCol                                 spectrogram column period, s
+ * @property {() => unknown} shown                           the meter is on screen (truthy)
+ * @property {() => void} stop                               the instance stopped
+ * @property {(n: number, now: number) => void} columns      `n` new spectrogram columns at `now`, ms
+ * @property {(now: number, dt: number) => void} levels      one level frame at `now`, ms, `dt` s after the last
+ */
+
+/**
  * The frame loop: each frame owes `columns` its spectrogram columns while shown and steps `levels` while shown, until
  * `root` leaves `host` (remounted: the mock scenario changed the source), when the instance stops.
+ *
+ * @param {HTMLElement} host
+ * @param {Node} root
+ * @param {import('../../lib/shell/clock.js').Clock} clock
+ * @param {LoopHooks} o
  */
 function runLoop(host, root, clock, o) {
+  /** @type {import('../../model/gauges/meter.js').FrameLoop} */
   let loop = { prev: clock.now(), acc: 0 };
-  (function tick(now) {
+  /** @param {number} now  rAF stamp, ms */
+  function tick(now) {
     if (!host.contains(root)) {
       o.stop();
       return;
@@ -147,5 +245,6 @@ function runLoop(host, root, clock, o) {
     if (step.cols) o.columns(step.cols, now);
     if (vis) o.levels(now, step.dt);
     clock.requestAnimationFrame(tick);
-  })(loop.prev);
+  }
+  tick(loop.prev);
 }

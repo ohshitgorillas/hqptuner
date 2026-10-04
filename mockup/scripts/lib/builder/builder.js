@@ -23,39 +23,71 @@ export { swapBody, escapeLeaves } from "./swap.js";
 export { nameInput } from "./stations.js";
 
 /** @typedef {import('../../model/builders/builder.js').Ref} Ref */
+/**
+ * @template R
+ * @typedef {import('../../model/builders/builder.js').Book<R>} Book  station → name → record
+ */
 /** @typedef {'overview' | 'here' | null} View  where a repaint lands: the overview, the page showing, or the same view */
+
+/**
+ * The walk's own words.
+ *
+ * @typedef {object} WalkCopy
+ * @property {string} overview  the Overview entry's rail name
+ * @property {string} holds  the overview's holds heading
+ * @property {string} scratch  Start from scratch
+ * @property {string} change  the overview's way into the first step
+ * @property {string} back
+ * @property {string} next
+ * @property {string} review  Next on the last step
+ * @property {(n: number, t: number) => string} stepOf  step n of t
+ */
 
 /**
  * @typedef {object} Walk  a builder laid out as a walk: Overview, then one page per step
  * @property {HTMLElement} rail
  * @property {{ id: string, title: string }[]} steps
- * @property {object} copy  {overview, holds, scratch, change, back, next, review, stepOf(n, t)}
+ * @property {WalkCopy} copy
  * @property {(id: string) => string} skipOf  why a step doesn't apply ('' = it does)
  * @property {(id: string) => string} answer  a step's rail answer
  * @property {() => string} at  the page showing
  * @property {(id: string) => void} show
  * @property {string} newLabel  the New entry's rail name
  * @property {() => void} scratch  Start from scratch
- * @property {object} nameBox  the name box's attributes
+ * @property {import('../shell/dom.js').Attrs} nameBox  the name box's attributes
  * @property {(name: string) => void} setName
  */
 
 /**
+ * The shell's own words: the confirm lines, the refusal and, where the builder has a state line, its lines.
+ *
+ * @typedef {object} SpecCopy
+ * @property {(name: string) => string} remove
+ * @property {(name: string) => string} overwrite
+ * @property {string} noName
+ * @property {Record<import('../../model/builders/builder.js').Line, string>} [state]
+ */
+
+/**
+ * A builder's spec, over its record type `R` (what the book holds and Save writes) and its edit type `E` (what a
+ * record's edit is staged as, and what `take` hands to `record`).
+ *
+ * @template R, E
  * @typedef {object} Spec
  * @property {string} title  the page title
  * @property {string} closeLabel  the × button's label
  * @property {string} noun  the record picker's label
  * @property {string[]} stations  every station, in the tree's order
- * @property {import('../../model/builders/builder.js').Book<any>} book  station → name → record
+ * @property {Book<R>} book  station → name → record
  * @property {Ref} cur  the record opened on
- * @property {object} copy  {remove(name), overwrite(name), noName, state?: {restarts, dirty, live, saved}}
+ * @property {SpecCopy} copy
  * @property {() => string} name  the name typed
  * @property {() => string[]} to  the stations Save writes to
- * @property {() => any} [take]  the edit as Save is tapped, handed to `record` (else `record` reads the edit as it writes)
- * @property {(taken: any) => any} record  the record Save writes
+ * @property {() => E} [take]  the edit as Save is tapped, handed to `record` (else `record` reads the edit as it writes)
+ * @property {(taken: E | undefined) => R} record  the record Save writes
  * @property {() => boolean} dirty  the edit differs from its record
- * @property {(c: Ref, buf: any) => void} [load]  load a record's edit: its staged buffer, else its record
- * @property {() => any} [buffer]  the edit as a staged buffer
+ * @property {(c: Ref, buf: E | undefined) => void} [load]  load a record's edit: its staged buffer, else its record
+ * @property {() => E} [buffer]  the edit as a staged buffer
  * @property {(c: Ref) => boolean} [keeps]  a record Save leaves in its own station when unticked
  * @property {() => boolean} [ticked]  Save has somewhere to write (default: yes)
  * @property {() => boolean} [restarts]  saving restarts the engine
@@ -63,7 +95,7 @@ export { nameInput } from "./stations.js";
  * @property {(where: View) => void} view  repaint
  * @property {(c: Ref) => void} [went]  after switching to a record, before the repaint
  * @property {() => void} refuse  Save with no name: show why
- * @property {(o: { from: Ref, name: string, to: string[], rec: any }) => void} saved  after Save writes
+ * @property {(o: { from: Ref, name: string, to: string[], rec: R }) => void} saved  after Save writes
  * @property {(from: Ref) => void} removed  after Delete
  * @property {() => Ref} [land]  the record Delete lands on (default: the first left in its station)
  * @property {() => void} leave  turn the other bodies off as this one swaps in
@@ -74,13 +106,15 @@ export { nameInput } from "./stations.js";
  */
 
 /**
- * The shell over one builder's body.
+ * The shell's parts over its state: the state line and caption, the walk's step order and rail, the record picker, the
+ * swap, the page title with its ×, the repaints and the name box.
  *
- * @param {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} el
- * @param {Spec} spec
+ * @template R, E
+ * @param {import('./swap.js').Els} el
+ * @param {Spec<R, E>} spec
+ * @param {import('./record.js').Shell<R, E>} sh
  */
-export function mountBuilder(el, spec) {
-  const sh = shellState(spec);
+function partsOf(el, spec, sh) {
   const walk = spec.walk;
   const { stateLine, cap } = stateParts();
   const nav = walkNav(walk);
@@ -88,14 +122,35 @@ export function mountBuilder(el, spec) {
   const pick = h("select", { "aria-label": spec.noun });
   const setOn = setOnOf(el, sh, spec);
   const close = () => closeButton(spec, setOn);
-  const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) =>
-    pageTitle(close, text, n, mid);
+  /** @type {import('./walk.js').Title} */
+  const title = (text, n, mid = []) => pageTitle(close, text, n, mid);
   const paintStateNow = () => paintState(sh, spec, { stateLine, cap });
   const paintRailNow = () => paintRail(walk, spec, sh, railEls);
   const nameBox = walkNameBox(walk, sh, () => {
     paintStateNow();
     paintRailNow();
   });
+  return { walk, stateLine, cap, nav, railEls, pick, setOn, close, title, paintStateNow, paintRailNow, nameBox };
+}
+
+/**
+ * The shell mountBuilder hands a builder over record type `R` and edit type `E`.
+ *
+ * @template R, E
+ * @typedef {ReturnType<typeof mountBuilder<R, E>>} Builder
+ */
+
+/**
+ * The shell over one builder's body.
+ *
+ * @template R, E
+ * @param {import('./swap.js').Els} el
+ * @param {Spec<R, E>} spec
+ */
+export function mountBuilder(el, spec) {
+  const sh = shellState(spec);
+  const { walk, stateLine, cap, nav, railEls, pick, setOn, close, title, paintStateNow, paintRailNow, nameBox } =
+    partsOf(el, spec, sh);
 
   return {
     get cur() {
@@ -105,7 +160,7 @@ export function mountBuilder(el, spec) {
       return sh.book;
     },
     get staged() {
-      return /** @type {ReadonlyMap<string, any>} */ (sh.staged);
+      return /** @type {ReadonlyMap<string, E>} */ (sh.staged);
     },
     get ask() {
       return sh.ask;
@@ -118,9 +173,9 @@ export function mountBuilder(el, spec) {
     },
     K: keyOf,
     isDirty: (/** @type {Ref} */ c) => isDirty(sh, spec, c),
-    load: (/** @type {Ref} */ c, /** @type {any} */ over) => load(sh, spec, c, over),
+    load: (/** @type {Ref} */ c, /** @type {E | undefined} */ over = undefined) => load(sh, spec, c, over),
     stash: () => stash(sh, spec),
-    stage: (/** @type {any} */ buf) => stage(sh, buf),
+    stage: (/** @type {E | null} */ buf) => stage(sh, buf),
     go: (/** @type {Ref} */ c) => go(sh, spec, c),
     discard: () => discard(sh, spec),
     confirm: (/** @type {string} */ text, /** @type {() => void} */ onConfirm) => confirm(sh, spec, text, onConfirm),
@@ -151,24 +206,61 @@ export function mountBuilder(el, spec) {
   };
 }
 
+/** @typedef {import('../shell/dom.js').Kid} Kid */
 /**
- * The manual's paragraphs: strings, or {k, text} (a keyed paragraph). `inline` renders a paragraph's text.
+ * A manual paragraph: plain text, or a keyed paragraph whose text is plain or a `T`.
  *
- * @param {any} m
- * @param {(t: any) => any} [inline]
+ * @template [T=string]
+ * @typedef {string | { k?: string, text: string | T }} Para
  */
-export const paras = (m, inline = (t) => t) =>
-  (Array.isArray(m) ? m : [m])
-    .filter(Boolean)
-    .map((t) => manPara(typeof t === "string" ? { text: inline(t) } : { k: t.k, text: inline(t.text) }));
+/**
+ * The manual a row carries: one paragraph or several; empty or absent is none.
+ *
+ * @template [T=string]
+ * @typedef {Para<T> | readonly (Para<T> | null | undefined)[] | null | undefined} Man
+ */
+
+/**
+ * A paragraph that is there: not empty, not absent.
+ *
+ * @template T
+ * @param {Para<T> | null | undefined} t
+ * @returns {t is Para<T>}
+ */
+const present = (t) => Boolean(t);
+
+/**
+ * Whether the manual is several paragraphs.
+ *
+ * @template T
+ * @param {Man<T>} m
+ * @returns {m is readonly (Para<T> | null | undefined)[]}
+ */
+const several = (m) => Array.isArray(m);
+
+/**
+ * The manual's paragraphs: strings, or {k, text} (a keyed paragraph). `inline` renders a paragraph's text (default: as
+ * plain text).
+ *
+ * @template [T=string]
+ * @param {Man<T>} m
+ * @param {(t: string | T) => Kid} [inline]
+ */
+export const paras = (m, inline = (t) => String(t)) =>
+  (several(m) ? m : [m])
+    .filter(present)
+    .map((t) =>
+      manPara({ k: typeof t === "string" ? undefined : t.k, text: inline(typeof t === "string" ? t : t.text) }),
+    );
 
 /**
  * A drawer row: label and control on the left, the manual's paragraphs on the right.
  *
+ * @template [T=string]
  * @param {string} label
- * @param {any} ctl
- * @param {any} man
- * @param {{ cls?: string, extra?: any, inline?: (t: any) => any }} [o]
+ * @param {Kid} ctl
+ * @param {Man<T>} man
+ * @param {{ cls?: string, extra?: Kid, inline?: (t: string | T) => Kid }} [o]
  */
 export const drow = (label, ctl, man, { cls, extra, inline } = {}) =>
   h(

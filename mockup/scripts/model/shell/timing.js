@@ -32,12 +32,10 @@ export function holdRepeat(step, clock, delay, rate) {
  * `onVerdict` runs a tick after the last line.
  *
  * @param {string[]} lines
- * @param {number} tick  ms between printed lines
- * @param {(line: string) => void} onLine
- * @param {() => void} onVerdict
+ * @param {{ tick: number, onLine: (line: string) => void, onVerdict: () => void }} on  tick: ms between printed lines
  * @param {Clock} clock
  */
-export function checkSequence(lines, tick, onLine, onVerdict, clock) {
+export function checkSequence(lines, { tick, onLine, onVerdict }, clock) {
   lines.forEach((line, i) => clock.setTimeout(() => onLine(line), i * tick));
   clock.setTimeout(onVerdict, lines.length * tick);
 }

@@ -14,11 +14,28 @@ import { minus } from "../../model/shell/format.js";
 import { HEAD, placeSpeakers, planExtent } from "../../model/gauges/speakers.js";
 
 /**
+ * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx
+ * @typedef {{ name: string, short: string, level: number, distance: number }} SpeakerChannel  level dBFS, distance cm
+ * @typedef {{ id: string, label: string, channels: number[] }} SpeakerSet
+ * @typedef {{ level: HTMLElement, distance: HTMLElement }} ChannelCells  each channel's two number boxes
+ */
+
+/**
+ * SPEAKERS + SETS (data/speakers.js): the set on view, every channel, each channel's layout angle and the sets.
+ *
+ * @typedef {object} SpeakersConfig
+ * @property {string} set
+ * @property {SpeakerChannel[]} channels
+ * @property {number[]} layout  degrees clockwise from front
+ * @property {SpeakerSet[]} sets
+ */
+
+/**
  * Draws the set's speakers on the plan, the box fitted to them (v1), centred on the listener so left/right and
  * front/back stay true to each other.
  *
  * @param {SVGElement} svg
- * @param {object[]} ch   every channel: name, short, level, distance
+ * @param {SpeakerChannel[]} ch   every channel: name, short, level, distance
  * @param {number[]} channels   the set's channel indices
  * @param {number[]} layout   each channel's angle
  */
@@ -48,32 +65,24 @@ function drawPlan(svg, ch, channels, layout) {
   );
 }
 
+/** @param {HTMLElement} el  a number box's wrapper */
+const inputOf = (el) => /** @type {HTMLInputElement} */ (el.querySelector("input"));
+
 /**
- * @param {HTMLElement} host
- * @param {object} cfg   SPEAKERS + SETS
- * @param {{set:Function, init:Function, watch:Function}} ctx
- * @param {(set:object) => void} onSet   the set changed (rail value)
+ * Every channel's level and distance boxes, each staging its value, and the Discard that puts them back.
+ *
+ * @param {SpeakerChannel[]} ch  the drawer's channels, written in place
+ * @param {BlockCtx} ctx
+ * @param {() => void} plan     repaints the room plan
+ * @returns {ChannelCells[]}
  */
-export function mountSpeakers(host, cfg, ctx, onSet) {
-  const ch = cfg.channels.map((c) => ({ ...c }));
-  let set = cfg.sets.find((x) => x.id === cfg.set);
-  ch.forEach((c, i) => {
-    ctx.init(`spl${i}`, c.level);
-    ctx.init(`spd${i}`, c.distance);
-  });
-
-  const setSel = h(
-    "select.vfd.spset",
-    { "aria-label": "Speaker set" },
-    cfg.sets.map((x) => h("option", { value: x.id, text: x.label, selected: x.id === set.id })),
-  );
-  setSel.addEventListener("change", () => {
-    set = cfg.sets.find((x) => x.id === setSel.value);
-    rows();
-    plan();
-    onSet(set);
-  });
-
+function channelCells(ch, ctx, plan) {
+  /**
+   * @param {number} i
+   * @param {'level' | 'distance'} k
+   * @param {number} step
+   * @param {string} unit
+   */
   const num = (i, k, step, unit) => {
     const { el, input } = numBox({ step, value: ch[i][k], aria: `${ch[i].name} ${k}`, unit });
     input.addEventListener("change", () => {
@@ -89,11 +98,69 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
     ch.forEach((c, i) => {
       c.level = Number(b[`spl${i}`]);
       c.distance = Number(b[`spd${i}`]);
-      cells[i].level.querySelector("input").value = c.level;
-      cells[i].distance.querySelector("input").value = c.distance;
+      inputOf(cells[i].level).value = String(c.level);
+      inputOf(cells[i].distance).value = String(c.distance);
     });
     plan();
   });
+  return cells;
+}
+
+/**
+ * Direct SDM playing (mock scenario): the level trims do nothing, the delays still apply (v1 Card.js): the level column
+ * grays with v1's note under the rows (it links to DSD playback, where Direct SDM is set); distances stay live.
+ *
+ * @param {HTMLElement} host
+ * @param {HTMLElement} rowsHost
+ * @param {ChannelCells[]} cells
+ */
+function directSdm(host, rowsHost, cells) {
+  const sdmNote = h("p.spsdm", { hidden: true });
+  rowsHost.after(sdmNote);
+  /**
+   * @param {boolean} on
+   * @param {string} why
+   */
+  return function direct(on, why) {
+    sdmNote.hidden = !on;
+    sdmNote.replaceChildren(...(on ? withXref(why) : []));
+    for (const c of cells) inputOf(c.level).disabled = on;
+    /** @type {Element} */ (host.querySelector(".spleft")).classList.toggle("sdm", on);
+  };
+}
+
+/**
+ * Mount the speakers drawer body into `host`, staging each channel's level and distance through `ctx`.
+ *
+ * @param {HTMLElement} host
+ * @param {SpeakersConfig} cfg   SPEAKERS + SETS
+ * @param {BlockCtx} ctx
+ * @param {(set: SpeakerSet) => void} onSet   the set changed (rail value)
+ */
+export function mountSpeakers(host, cfg, ctx, onSet) {
+  const ch = cfg.channels.map((c) => ({ ...c }));
+  const findSet = (/** @type {string} */ id) => /** @type {SpeakerSet} */ (cfg.sets.find((x) => x.id === id));
+  let set = findSet(cfg.set);
+  ch.forEach((c, i) => {
+    ctx.init(`spl${i}`, c.level);
+    ctx.init(`spd${i}`, c.distance);
+  });
+
+  const setSel = /** @type {HTMLSelectElement} */ (
+    h(
+      "select.vfd.spset",
+      { "aria-label": "Speaker set" },
+      cfg.sets.map((x) => h("option", { value: x.id, text: x.label, selected: x.id === set.id })),
+    )
+  );
+  setSel.addEventListener("change", () => {
+    set = findSet(setSel.value);
+    rows();
+    plan();
+    onSet(set);
+  });
+
+  const cells = channelCells(ch, ctx, () => plan());
   const rowsHost = h("div.sprows");
   function rows() {
     rowsHost.replaceChildren(
@@ -117,16 +184,7 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
     drawPlan(svg, ch, set.channels, cfg.layout);
   }
 
-  // Direct SDM playing (mock scenario): the level trims do nothing, the delays still apply (v1 Card.js): the level column
-  // grays with v1's note under the rows (it links to DSD playback, where Direct SDM is set); distances stay live.
-  const sdmNote = h("p.spsdm", { hidden: true });
-  rowsHost.after(sdmNote);
-  function direct(on, why) {
-    sdmNote.hidden = !on;
-    sdmNote.replaceChildren(...(on ? withXref(why) : []));
-    for (const c of cells) c.level.querySelector("input").disabled = on;
-    host.querySelector(".spleft").classList.toggle("sdm", on);
-  }
+  const direct = directSdm(host, rowsHost, cells);
 
   rows();
   plan();

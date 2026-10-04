@@ -11,7 +11,8 @@
 import { h, s } from "../../lib/shell/dom.js";
 import { seg, select } from "../controls/seg.js";
 import { mountRespPlot } from "../controls/resp-plot.js";
-import { loudnessDb, shelfScale } from "../../lib/dsp/xdsp.js";
+import { loudnessDb } from "../../lib/dsp/xdsp.js";
+import { shelfScale } from "../../model/gauges/shelf.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { grayReason, manPara, numBox } from "../../lib/controls/controls.js";
 import { barMarks, bindBar, rangeBox, readout } from "../../lib/plots/range-bar.js";
@@ -30,22 +31,56 @@ const LABELS = new Map([
   [0, "0 dBFS"],
 ]);
 const MARKS = tickMarks(ticksEvery(AXIS.min, AXIS.max, 10), LABELS, []);
+/**
+ * @typedef {import('../../lib/dsp/xdsp.js').LoudnessBand} LoudnessBand
+ * @typedef {import('../../model/gauges/range-axis.js').BoundKey} Side
+ * @typedef {import('./drawer/state.js').BlockCtx} BlockCtx
+ * @typedef {import('./drawer/state.js').Store} Store
+ * @typedef {'freq' | 'steep' | 'level'} NumKey
+ * @typedef {'type' | NumKey} BandKey
+ * @typedef {{ el: HTMLElement, input: HTMLInputElement }} Box
+ * @typedef {{ type: HTMLElement } & Record<NumKey, Box>} SideCtl
+ */
+
+/**
+ * LOUDNESS (data/matrix.js): both bands, the bounds (dBFS), each side's type tokens, the manual copy and the Off reason.
+ *
+ * @typedef {{ low: LoudnessBand, high: LoudnessBand, rangeLow: number, rangeHigh: number, types: Record<Side, string[]>,
+ *   man: Record<Side, Record<BandKey, string>> & { rangeLow: string, rangeHigh: string }, off: string }} LoudnessConfig
+ */
+
+/**
+ * The body's state `L`: cfg, ctx; p (both bands), rng (the bounds), level (live playback volume), grayed; side (the
+ * band on view) and dirtySide; and its parts.
+ *
+ * @typedef {{ cfg: LoudnessConfig, ctx: BlockCtx, p: Record<Side, LoudnessBand>, rng: Record<Side, number>,
+ *   level: number, grayed: boolean, side: Side, dirtySide: Record<Side, boolean>, ctl: Record<Side, SideCtl>,
+ *   sideSeg: HTMLElement, rowsHost: HTMLElement, copyHost: HTMLElement, reason: ReturnType<typeof grayReason>,
+ *   bands: HTMLElement, svg: SVGSVGElement, boxes: Record<Side, Box>, levelOut: HTMLElement, plotHost: HTMLElement,
+ *   rp: ReturnType<typeof mountRespPlot>, bar: { key: string | null } }} Loudness
+ */
+
 // One side at a time (v1's own Bass | Treble switch): its four rows left, its four manual lines right. A side holding
 // staged edits keeps a dot on its switch button while hidden (v1: staged edits on the hidden side are never invisible).
+/** @type {[BandKey, string][]} */
 const ROWS = [
   ["type", "Type"],
   ["freq", "Frequency"],
   ["steep", "Steepness / Q"],
   ["level", "Level"],
 ];
+/** @type {Side[]} */
+const SIDES = ["low", "high"];
+/** @type {BandKey[]} */
+const KEYS = ["type", "freq", "steep", "level"];
+/** @type {NumKey[]} */
+const NUMS = ["freq", "steep", "level"];
 
+/** @param {Side} side  @param {BandKey} k */
 const id = (side, k) => `ld${side}${k}`;
 
-// The body's state `L`: cfg, ctx; p (both bands), rng (the bounds), level (live playback volume), grayed; side (the band
-// on view) and dirtySide; and its parts (ctl per side, sideSeg, rowsHost, copyHost, reason, bands, svg, boxes,
-// levelOut, plotHost, rp, bar).
-
 // ── Bands ─────────────────────────────────────────────────────────────
+/** @param {Loudness} L  @param {Side} sd */
 const typeSeg = (L, sd) =>
   seg({
     aria: `${sd === "low" ? "Bass" : "Treble"} type`,
@@ -58,7 +93,11 @@ const typeSeg = (L, sd) =>
       plot(L);
     },
   });
-function numIn(L, sd, k, step, min, max, unit) {
+/**
+ * @param {Loudness} L  @param {Side} sd  @param {NumKey} k
+ * @param {{ step: number, min: number, max: number, unit?: string }} r
+ */
+function numIn(L, sd, k, { step, min, max, unit }) {
   const box = numBox({ step, min, max, aria: `${sd === "low" ? "Bass" : "Treble"} ${k}`, unit });
   box.input.addEventListener("change", () => {
     L.p[sd][k] = Number(box.input.value);
@@ -68,17 +107,17 @@ function numIn(L, sd, k, step, min, max, unit) {
   return box;
 }
 
-/** Both sides' controls, the Bass | Treble switch and the two columns it fills. */
+/** One side's controls. @param {Loudness} L  @param {Side} sd  @returns {SideCtl} */
+const sideCtl = (L, sd) => ({
+  type: typeSeg(L, sd),
+  freq: numIn(L, sd, "freq", { step: 1, min: 20, max: 20000, unit: "Hz" }),
+  steep: numIn(L, sd, "steep", { step: 0.1, min: 0.1, max: 10 }),
+  level: numIn(L, sd, "level", { step: 0.1, min: -20, max: 20, unit: "dB" }),
+});
+
+/** Both sides' controls, the Bass | Treble switch and the two columns it fills. @param {Loudness} L */
 function buildBands(L) {
-  L.ctl = {};
-  for (const sd of ["low", "high"]) {
-    L.ctl[sd] = {
-      type: typeSeg(L, sd),
-      freq: numIn(L, sd, "freq", 1, 20, 20000, "Hz"),
-      steep: numIn(L, sd, "steep", 0.1, 0.1, 10),
-      level: numIn(L, sd, "level", 0.1, -20, 20, "dB"),
-    };
-  }
+  L.ctl = { low: sideCtl(L, "low"), high: sideCtl(L, "high") };
   L.sideSeg = seg({
     aria: "Band",
     cls: "lsw view",
@@ -87,7 +126,7 @@ function buildBands(L) {
       { v: "low", label: "Bass" },
       { v: "high", label: "Treble" },
     ],
-    onChange: (v) => showSide(L, v),
+    onChange: (v) => showSide(L, /** @type {Side} */ (v)),
   });
   L.rowsHost = h("div.lrows");
   L.copyHost = h("div.man.lcopy");
@@ -95,6 +134,7 @@ function buildBands(L) {
   L.reason = grayReason(false);
   L.bands = h("div.lbands", {}, h("div.lleft", {}, L.sideSeg, L.rowsHost), h("div.lrc", {}, L.reason.el, L.copyHost));
 }
+/** @param {Loudness} L  @param {Side} v */
 function showSide(L, v) {
   L.side = v;
   select(L.sideSeg, v);
@@ -106,10 +146,14 @@ function showSide(L, v) {
   L.copyHost.replaceChildren(...ROWS.map(([k, label]) => manPara({ k: label, text: L.cfg.man[v][k] })));
   paintSideDots(L);
 }
+/** @param {Loudness} L */
 function paintSideDots(L) {
-  for (const b of L.sideSeg.querySelectorAll("button"))
-    b.classList.toggle("dirty", L.dirtySide[b.dataset.v] && b.dataset.v !== L.side);
+  for (const b of L.sideSeg.querySelectorAll("button")) {
+    const sd = /** @type {Side} */ (b.dataset.v);
+    b.classList.toggle("dirty", L.dirtySide[sd] && sd !== L.side);
+  }
 }
+/** @param {Loudness} L  @param {Side} sd  @param {BandKey} k  @param {string | number} v */
 const stage = (L, sd, k, v) => {
   L.dirtySide[sd] = true;
   L.ctx.set(id(sd, k), v);
@@ -117,9 +161,19 @@ const stage = (L, sd, k, v) => {
 };
 
 // ── Range bar ─────────────────────────────────────────────────────────
-/** The bands, then the range bar with its boxes beside the plot's host, appended to `host`. */
+/**
+ * The bands, then the range bar with its boxes beside the plot's host, appended to `host`.
+ *
+ * @param {Loudness} L
+ * @param {HTMLElement} host
+ */
 function buildBody(L, host) {
-  L.svg = s("svg.vrbar.lrbar", { role: "img", "aria-label": "Loudness range" });
+  L.svg = /** @type {SVGSVGElement} */ (s("svg.vrbar.lrbar", { role: "img", "aria-label": "Loudness range" }));
+  /**
+   * @param {Side} k
+   * @param {string} label
+   * @param {import('../../lib/plots/range-bar.js').KeyGlyph} glyph
+   */
   const box = (k, label, glyph) => rangeBox(label, glyph, { min: AXIS.min, max: AXIS.max }, (v) => move(L, k, v));
   L.boxes = { low: box("low", "Lower", "lparen"), high: box("high", "Upper", "rparen") };
   L.levelOut = h("output.vfd.ro.live", { "aria-label": "Playback volume" });
@@ -133,7 +187,12 @@ function buildBody(L, host) {
         "div.lrange",
         {},
         // The needle is named on the head line, beside its glyph; the two bounds in the boxes under the bar.
-        h("div.fh.lrh", {}, h("b", { text: "Range" }), readout("needle", "Playback", L.levelOut, "dB", "lpb")),
+        h(
+          "div.fh.lrh",
+          {},
+          h("b", { text: "Range" }),
+          readout({ glyph: "needle", label: "Playback", out: L.levelOut, unit: "dB", cls: "lpb" }),
+        ),
         h("div.vrwell", {}, L.svg),
         // Each bound's box with its own manual line straight under it (copy beside its setting).
         h("div.lbound", {}, L.boxes.low.el, h("p.man", { text: L.cfg.man.rangeLow })),
@@ -144,6 +203,11 @@ function buildBody(L, host) {
   );
 }
 
+/**
+ * @param {Loudness} L
+ * @param {Side} k
+ * @param {number} d  dBFS
+ */
 function move(L, k, d) {
   const n = clampBounds(k, d, L.rng, AXIS);
   if (n !== L.rng[k]) {
@@ -154,22 +218,24 @@ function move(L, k, d) {
   plot(L);
 }
 
+/** @param {Loudness} L */
 function paintRange(L) {
   const { boxes, rng } = L;
-  boxes.low.input.value = rng.low;
-  boxes.high.input.value = rng.high;
-  boxes.low.input.max = rng.high;
-  boxes.high.input.min = rng.low;
+  boxes.low.input.value = String(rng.low);
+  boxes.high.input.value = String(rng.high);
+  boxes.low.input.max = String(rng.high);
+  boxes.high.input.min = String(rng.low);
   L.levelOut.textContent = signed(L.level, 1);
   draw(L);
 }
 
+/** @param {Loudness} L */
 function draw(L) {
   const { svg, rng } = L;
   const W = svg.clientWidth;
   if (!W) return;
   const m = barMarks(W, BAR);
-  const drag = L.bar.key;
+  const drag = /** @type {Side | null} */ (L.bar.key);
   paintSvg(svg, W, Y.H, [
     m.track(),
     m.span("lspan", rng.low, rng.high),
@@ -183,13 +249,20 @@ function draw(L) {
 }
 
 // ── Plot ──────────────────────────────────────────────────────────────
+/** @param {Loudness} L */
 function paintBands(L) {
-  for (const sd of ["low", "high"]) {
+  for (const sd of SIDES) {
     select(L.ctl[sd].type, L.p[sd].type);
-    for (const k of ["freq", "steep", "level"]) L.ctl[sd][k].input.value = L.p[sd][k];
+    for (const k of NUMS) L.ctl[sd][k].input.value = String(L.p[sd][k]);
   }
 }
-// Grabbing a dot points the switch at that dot's side (v1).
+/**
+ * Grabbing a dot points the switch at that dot's side (v1).
+ *
+ * @param {Loudness} L
+ * @param {Side} sd
+ * @returns {import('../controls/resp-plot.js').Handle}
+ */
 const handle = (L, sd) => ({
   f: L.p[sd].freq,
   db: L.p[sd].level,
@@ -210,6 +283,7 @@ const handle = (L, sd) => ({
     plot(L);
   },
 });
+/** @param {Loudness} L */
 function plot(L) {
   const { p } = L;
   const amt = shelfScale(L.level, L.rng.low, L.rng.high);
@@ -222,22 +296,41 @@ function plot(L) {
   );
 }
 
-/** The block's values moved: gray while bypassed or Off, with the reason said. */
+/**
+ * The block's values moved: gray while bypassed or Off, with the reason said.
+ *
+ * @param {Loudness} L
+ * @param {HTMLElement} host
+ * @param {Store} v
+ * @param {(vals: Store) => string} bypassed
+ */
 function watch(L, host, v, bypassed) {
   const why = bypassed(v) || (v.ldon === "0" ? L.cfg.off : "");
   L.grayed = !!why;
   // Controls, bar and plot gray; the copy and the reason stay legible (as in every drawer).
-  for (const el of [L.bands.querySelector(".lleft"), host.querySelector(".lrange"), L.plotHost])
+  const left = /** @type {Element} */ (L.bands.querySelector(".lleft"));
+  for (const el of [left, /** @type {Element} */ (host.querySelector(".lrange")), L.plotHost])
     el.classList.toggle("grayed", L.grayed);
-  for (const x of host.querySelectorAll("button,input")) x.disabled = L.grayed;
+  for (const x of host.querySelectorAll("button,input")) {
+    const field = /** @type {HTMLButtonElement | HTMLInputElement} */ (x);
+    field.disabled = L.grayed;
+  }
   L.reason.say(why);
   plot(L);
 }
 
-// Discard (mock): both bands and the bounds go back; the side dots clear.
+/**
+ * Discard (mock): both bands and the bounds go back; the side dots clear.
+ *
+ * @param {Loudness} L
+ * @param {Store} b
+ */
 function discard(L, b) {
-  for (const sd of ["low", "high"])
-    for (const k of ["type", "freq", "steep", "level"]) L.p[sd][k] = k === "type" ? b[id(sd, k)] : Number(b[id(sd, k)]);
+  for (const sd of SIDES)
+    for (const k of KEYS) {
+      if (k === "type") L.p[sd].type = b[id(sd, k)];
+      else L.p[sd][k] = Number(b[id(sd, k)]);
+    }
   L.rng.low = Number(b.ldrlow);
   L.rng.high = Number(b.ldrhigh);
   L.dirtySide.low = L.dirtySide.high = false;
@@ -248,13 +341,16 @@ function discard(L, b) {
 }
 
 /**
+ * Mount the loudness drawer body into `host`, staging through `ctx`.
+ *
  * @param {HTMLElement} host
- * @param {object} cfg       LOUDNESS (data/matrix.js)
- * @param {{set:Function, init:Function, watch:Function}} ctx
- * @param {{bypassed:(v:object)=>string, level:number, levelBus:EventTarget}} o
+ * @param {LoudnessConfig} cfg  LOUDNESS (data/matrix.js)
+ * @param {BlockCtx} ctx
+ * @param {{ bypassed: (vals: Store) => string, level: number, levelBus: EventTarget }} o
  */
 export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus }) {
-  const L = {
+  // The parts are assigned by buildBands, buildBody and below, before anything paints.
+  const L = /** @type {Loudness} */ ({
     cfg,
     ctx,
     p: { low: { ...cfg.low }, high: { ...cfg.high } },
@@ -263,9 +359,8 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     grayed: false,
     side: "low",
     dirtySide: { low: false, high: false },
-  };
-  for (const side of ["low", "high"])
-    for (const k of ["type", "freq", "steep", "level"]) ctx.init(id(side, k), L.p[side][k]);
+  });
+  for (const side of SIDES) for (const k of KEYS) ctx.init(id(side, k), L.p[side][k]);
   ctx.init("ldrlow", L.rng.low);
   ctx.init("ldrhigh", L.rng.high);
   buildBands(L);
@@ -277,13 +372,13 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     ...BAR,
     blocked: () => L.grayed,
     pick: (d) => pickBound(d, L.rng),
-    move: (k, d) => move(L, k, d),
+    move: (k, d) => move(L, /** @type {Side} */ (k), d),
     draw: () => draw(L),
   });
 
   ctx.watch((v) => watch(L, host, v, bypassed));
   levelBus.addEventListener("level", (e) => {
-    L.level = e.detail;
+    L.level = /** @type {CustomEvent<number>} */ (e).detail;
     paintRange(L);
     plot(L);
   });

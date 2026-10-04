@@ -48,6 +48,7 @@ export const SPEAKERS = {
   },
 };
 
+/** @type {import('./output.js').DrawerSchema} */
 export const SPEAKERS_DRAWER = {
   id: "speakers",
   title: "Speakers",

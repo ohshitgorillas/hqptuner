@@ -1,5 +1,5 @@
 // Behavioral suite for mockup/scripts/model/loudness.js: the whole percent of the maximum loudness shelving a shelf
-// scale (0 … 1, lib/xdsp.js shelfScale) applies.
+// scale (0 … 1, model/gauges/shelf.js shelfScale) applies.
 //
 // Run: node --test tests/js/mockup/loudness.test.js
 

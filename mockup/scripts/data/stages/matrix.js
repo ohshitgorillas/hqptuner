@@ -36,12 +36,18 @@ export const MATRIX_PLOT = {
 // station); loudness on at the form defaults; DAC correction off.
 
 export const MATRIX_BYPASS = "Matrix engine is bypassed. These settings have no effect."; // v1 gray.js
+/**
+ * The Matrix engine family's gray reason: the bypass line while Matrix processing is bypassed.
+ *
+ * @param {Record<string, unknown>} v  staged values by control id
+ * @returns {string}
+ */
 export const bypassed = (v) => (v.mxen === "0" ? MATRIX_BYPASS : "");
 
 // Matrix engine drawer intro: DRAFT (agent; the manual has no lead for the family). Names the drawers the matrix engine
 // runs, each a link there (`{to}` = main.js xrefGo id), and what the gate below does to them (main.js: bypassed, their
-// lamps go dark and their settings are kept). Owner 2026-10-01: never define the matrix engine by what it doesn't do.
-export const MX_INTRO = [
+// lamps go dark and their settings are kept). Owner ruling: never define the matrix engine by what it doesn't do.
+const MX_INTRO = [
   "The matrix engine runs your matrix profile: ",
   { to: "drawer-pipelines", label: "DSP pipelines" },
   ", ",
@@ -89,6 +95,13 @@ export const ENGAGE_BYPASS = [
   { v: "0", label: "Bypass" },
   { v: "1", label: "Engage" },
 ];
+/**
+ * @param {string} id
+ * @param {string} aria
+ * @param {string} value
+ * @param {{ v: string, label: string }[]} list
+ * @returns {import('./output.js').Control}
+ */
 const enumSeg = (id, aria, value, list) => ({
   type: "seg",
   id,
@@ -98,6 +111,7 @@ const enumSeg = (id, aria, value, list) => ({
   options: list.map((o) => ({ v: o.v, label: o.label })),
 });
 
+/** @type {import('./output.js').DrawerSchema} */
 export const MATRIX_DRAWER = {
   id: "matrix",
   family: "matrix",
@@ -150,6 +164,7 @@ export const MATRIX_DRAWER = {
 // ── DAC correction ──────────────────────────────────────────────────────────
 // Model list = the 6.0.4 form's post_correction_dac0 options (they follow the output device). Combo backend: one model
 // per sub-device (dac0, dac1 …): not drawn, the mock backend is ALSA.
+/** @type {import('./output.js').DrawerSchema} */
 export const CORRECTION_DRAWER = {
   id: "correction",
   family: "matrix",
@@ -278,6 +293,7 @@ export const LOUDNESS = {
   off: "Enable loudness to adjust.", // v1 gray.js loudnessOff
 };
 
+/** @type {import('./output.js').DrawerSchema} */
 export const LOUDNESS_DRAWER = {
   id: "loudness",
   family: "matrix",
@@ -309,6 +325,7 @@ export const LOUDNESS_DRAWER = {
   ],
 };
 
+/** @type {import('./output.js').DrawerSchema} */
 export const CROSSFEED_DRAWER = {
   id: "crossfeed",
   family: "matrix",

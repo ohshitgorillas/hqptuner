@@ -5,8 +5,13 @@ import { h } from "../shell/dom.js";
 import { closeBtn } from "../controls/controls.js";
 import { OVERVIEW, shownName, nextStep, prevStep } from "../../model/builders/builder.js";
 
-/** @typedef {import('./record.js').Shell} Shell */
-/** @typedef {(text: string, n?: any, mid?: any[]) => HTMLElement} Title */
+/**
+ * @template R, E
+ * @typedef {import('./record.js').Shell<R, E>} Shell
+ */
+/** @typedef {import('./builder.js').Walk} Walk */
+/** @typedef {import('../shell/dom.js').Kid} Kid */
+/** @typedef {(text: string, n?: Kid, mid?: Kid[]) => HTMLElement} Title */
 
 /**
  * The × that leaves the builder.
@@ -25,8 +30,8 @@ export function closeButton(spec, setOn) {
  *
  * @param {() => HTMLElement} close
  * @param {string} text
- * @param {any} n
- * @param {any[]} mid
+ * @param {Kid} n
+ * @param {Kid[]} mid
  */
 export const pageTitle = (close, text, n, mid) =>
   h("div.sh.btitle", {}, h("span.t", { text }), n, h("span.ln"), mid, close());
@@ -34,10 +39,10 @@ export const pageTitle = (close, text, n, mid) =>
 /**
  * The walk's step order: the step ids, and the step after or before one (skipping those that don't apply).
  *
- * @param {any} walk
+ * @param {Walk | undefined} walk
  */
 export function walkNav(walk) {
-  const ids = walk ? walk.steps.map((/** @type {{ id: string }} */ x) => x.id) : [];
+  const ids = walk ? walk.steps.map((x) => x.id) : [];
   const skipped = (/** @type {string} */ id) => !!walk?.skipOf(id);
   return {
     nextOf: (/** @type {number} */ i) => nextStep(ids, i, skipped),
@@ -46,14 +51,14 @@ export function walkNav(walk) {
 }
 
 /**
- * @param {any} walk
+ * @param {Walk} walk
  * @param {string} id
  * @param {string} name
  */
 const entry = (walk, id, name) =>
   h(
     "button.st",
-    { type: "button", data: { stage: id }, on: { click: () => walk?.show(id) } },
+    { type: "button", data: { stage: id }, on: { click: () => walk.show(id) } },
     h("span.n", { text: name }),
     h("span.v"),
   );
@@ -61,18 +66,16 @@ const entry = (walk, id, name) =>
 /**
  * The rail's entries (Overview, then one per step), put on the rail.
  *
- * @param {any} walk
+ * @param {Walk | undefined} walk
  * @returns {Map<string, HTMLElement>}
  */
 export function railOf(walk) {
+  /** @type {Map<string, HTMLElement>} */
   const railEls = new Map(
     walk
       ? [
           [OVERVIEW, entry(walk, OVERVIEW, walk.copy.overview)],
-          ...walk.steps.map(
-            (/** @type {{ id: string, title: string }} */ x) =>
-              /** @type {[string, HTMLElement]} */ ([x.id, entry(walk, x.id, x.title)]),
-          ),
+          ...walk.steps.map((x) => /** @type {[string, HTMLElement]} */ ([x.id, entry(walk, x.id, x.title)])),
         ]
       : [],
   );
@@ -83,9 +86,10 @@ export function railOf(walk) {
 /**
  * The rail: the page showing lit (Overview for a page off the walk), each step's answer, `Skipped` where it doesn't apply.
  *
- * @param {any} walk
- * @param {any} spec
- * @param {Shell} sh
+ * @template R, E
+ * @param {Walk | undefined} walk
+ * @param {{ name: () => string }} spec
+ * @param {Shell<R, E>} sh
  * @param {Map<string, HTMLElement>} railEls
  */
 export function paintRail(walk, spec, sh, railEls) {
@@ -103,14 +107,15 @@ export function paintRail(walk, spec, sh, railEls) {
 /**
  * A step's page: header (title, step n of t, ×), guide or skip line, rows, Back / Next.
  *
- * @param {any} walk
+ * @param {Walk | undefined} walk
  * @param {{ title: Title, nextOf: (i: number) => string, prevOf: (i: number) => string }} nav
  * @param {string} id
- * @param {{ tag?: string, attrs?: object, guide: (skip: string, st: any) => any, rows: (id: string) => any }} o
+ * @param {{ tag?: string, attrs?: import('../shell/dom.js').Attrs, guide: (skip: string, st: { id: string, title: string }) => Kid,
+ *   rows: (id: string) => Kid }} o
  */
 export function stepPage(walk, { title, nextOf, prevOf }, id, { tag = "div.pbstepp", attrs = {}, guide, rows }) {
   if (!walk) return null;
-  const i = walk.steps.findIndex((/** @type {{ id: string }} */ x) => x.id === id);
+  const i = walk.steps.findIndex((x) => x.id === id);
   const st = walk.steps[i];
   const skip = walk.skipOf(id);
   const last = nextOf(i) === OVERVIEW;
@@ -138,11 +143,11 @@ export function stepPage(walk, { title, nextOf, prevOf }, id, { tag = "div.pbste
  * The overview: intro and holds beside the signal chain, then which record (picker · Name · extras), its extras, the
  * confirm line, the state line and the ways on.
  *
- * @param {any} walk
+ * @param {Walk | undefined} walk
  * @param {{ title: string, noun: string }} spec
- * @param {{ title: Title, pick: HTMLElement, nameBox: any, stateLine: HTMLElement, cap: HTMLElement }} parts
- * @param {{ tags?: { ov?: string, save?: string, id?: string }, intro: any, holds: any[], chain: any, ids?: any[],
- *   mid?: any[], ask: any, acts: { del: any, discard: any, save: any }, after?: any }} o
+ * @param {{ title: Title, pick: HTMLElement, nameBox: Kid, stateLine: HTMLElement, cap: HTMLElement }} parts
+ * @param {{ tags?: { ov?: string, save?: string, id?: string }, intro: Kid, holds: Kid[], chain: Kid, ids?: Kid[],
+ *   mid?: Kid[], ask: Kid, acts: { del: Kid, discard: Kid, save: Kid }, after?: Kid }} o
  */
 export function overview(
   walk,

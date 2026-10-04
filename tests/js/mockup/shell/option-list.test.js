@@ -48,7 +48,7 @@ const facets = (over = {}) => ({
   phase: "",
   len: "",
   adaptive: false,
-  apod: "",
+  apod: null,
   up: false,
   ...over,
 });

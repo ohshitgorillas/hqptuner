@@ -8,6 +8,7 @@
 //   {row}          one setting row: control column | manual copy
 //   {block: name}  a non-setting instrument mounted from deps.blocks[name] (never marks the tab dirty)
 
+/** @type {import('./output.js').DrawerSchema} */
 export const SOURCE_DRAWER = {
   id: "source",
   title: "Source",
@@ -27,6 +28,7 @@ export const METER = {
   pageRanges: [60, 90, 120],
   pageRange: 90, // the page's one Range: spectrum span and level floor (−range), dB
   channel: "sum", // '0' | '1' | 'sum'
+  /** @type {{ v: number | "all", label: string }[]} */
   windows: [
     // spectrogram + apodizing strip time axis; 'all' = since track start
     { v: 30, label: "30 s" },

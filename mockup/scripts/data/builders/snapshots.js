@@ -13,6 +13,26 @@
 import { CHAIN_LISTS, FIELDS } from "../stages/conversion.js";
 import { STATION_PROFILES } from "./profiles.js";
 
+/**
+ * What a snapshot holds, by row id (SNAP_ROWS): a row left out is left where the engine has it on recall.
+ *
+ * @typedef {Record<string, string>} Snapshot
+ */
+
+/**
+ * One row a snapshot can hold. `label` and `list` follow the snapshot's chain where the row is a chain row.
+ *
+ * @typedef {object} SnapRow
+ * @property {string} id
+ * @property {string} [stage]
+ * @property {string | ((ch: import('../stages/conversion.js').Chain) => string)} label
+ * @property {string} kind  seg | select | list
+ * @property {import('../settings/common.js').Option[]} [options]
+ * @property {boolean} [chain]
+ * @property {boolean} [gate]
+ * @property {(ch: import('../stages/conversion.js').Chain) => import('../settings/common.js').Option[]} [list]
+ */
+
 const OFF_ON = [
   { v: "0", label: "Off" },
   { v: "1", label: "On" },
@@ -24,6 +44,8 @@ export const MATRIX_PROFILES = STATION_PROFILES("Speakers");
 /**
  * Rows in chain order. `chain`: the row's list follows the snapshot's mode (one chain per snapshot); `gate`: the row the
  * chain rows need (mode). kind: seg | select | list (the option list sheet, page grammar).
+ *
+ * @type {SnapRow[]}
  */
 export const SNAP_ROWS = [
   { id: "autopilot", stage: "HF filter", label: "HF filter auto-pilot", kind: "seg", options: OFF_ON },
@@ -70,13 +92,17 @@ export const SNAP_COPY = {
   select: "Select the settings to attach to the new snapshot.",
   lede: "Save the current settings to recall them in one click.",
   noName: "Enter a name first",
+  /** @param {string} n */
   overwrite: (n) => `Snapshot "${n}" already exists. Overwrite it?`,
+  /** @param {string} n */
   remove: (n) => `Delete snapshot "${n}"? This cannot be undone.`,
 };
 
 /**
  * Mock records per station (stations.js names). `fields` = what the snapshot holds (absent = left as is);
  * the chain rows are the mode's chain. Late night is what plays now.
+ *
+ * @type {Record<string, Record<string, Snapshot>>}
  */
 export const SNAPSHOTS = {
   Speakers: {

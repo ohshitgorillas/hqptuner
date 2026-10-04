@@ -4,9 +4,29 @@
 // mid-emit before its turn is skipped, and a subscriber that throws is reported without stopping the rest.
 
 /**
+ * The detail each of the page's events carries.
+ *
+ * @typedef {object} BusEvents
+ * @property {undefined} relayout  the page refits
+ * @property {string} optstyle  the option style: simplified | standard
+ * @property {{ p: string, stage: string }} sigpath  the path playing and the source's rate stage
+ * @property {import('../narrowing/dactype.js').DacType} dactype  both DAC-type prefs
+ * @property {boolean} pinallow  Allow pinned rates
+ * @property {string} vfill  the page's top section: auto | profile | spectrum
+ */
+
+/**
+ * The detail event `K` carries: the page's own events' from BusEvents, every other event's unknown.
+ *
+ * @template {string} K
+ * @typedef {K extends keyof BusEvents ? BusEvents[K] : unknown} Detail
+ */
+
+/**
  * @typedef {object} Bus
- * @property {(name: string, fn: (detail: any) => void) => () => void} on  subscribe; returns the unsubscribe
- * @property {(name: string, detail?: unknown) => void} emit  call every subscriber of `name` with `detail`
+ * @property {<K extends string>(name: K, fn: (detail: Detail<K>) => void) => () => void} on  subscribe; returns the
+ *   unsubscribe
+ * @property {<K extends string>(name: K, detail?: Detail<K>) => void} emit  call every subscriber of `name` with `detail`
  */
 
 /**
@@ -27,7 +47,8 @@ const platformReport = (err) => {
  * @returns {Bus}
  */
 export function createBus(report = platformReport) {
-  /** @type {Map<string, { fn: (detail: any) => void, live: boolean }[]>} */
+  /** Each event's subscribers; `fn` is a method so one map holds every event's detail type. */
+  /** @type {Map<string, { fn(detail: unknown): void, live: boolean }[]>} */
   const subs = new Map();
   return {
     on(name, fn) {

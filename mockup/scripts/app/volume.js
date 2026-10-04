@@ -1,17 +1,20 @@
 // Volume and loudness: the Loudness rail value that follows the live level, and the Volume drawer (Fixed volume, Range).
 
-import { $ } from "../lib/shell/dom.js";
 import { xrefGo } from "../lib/controls/xref.js";
-import { shelfScale } from "../lib/dsp/xdsp.js";
+import { shelfScale } from "../model/gauges/shelf.js";
 import { mountDrawer } from "../components/drawers/drawer.js";
 import { mountVolumeRange } from "../components/drawers/volume-range.js";
 import { VOLUME, VOLUME_DRAWER } from "../data/stages/volume.js";
 import { percentApplied } from "../model/gauges/loudness.js";
+import { el } from "./markup.js";
+
+/** @typedef {import("./state.js").App} App */
+/** @typedef {import("./state.js").Volume} Volume */
 
 /**
  * Wire the Loudness rail value and the Volume drawer; app.loudValue is set here.
  *
- * @param {object} app  the shared state (main.js)
+ * @param {App} app  the shared state (app/state.js)
  */
 export function wireVolume(app) {
   const { stages } = app;
@@ -21,22 +24,22 @@ export function wireVolume(app) {
   // the value reads what is applied, 0% (dependents follow the matrix bypass).
   const loud = app.volumeRange.loudness;
   app.loudValue = (v) => {
-    stages.get("loudness").querySelector(".v").textContent = app.loudEngaged
+    el(".v", stages.get("loudness")).textContent = app.loudEngaged
       ? `${percentApplied(loud.on ? shelfScale(v, loud.low, loud.high) : 0)}% applied`
       : "Off";
   };
   app.levelBus.addEventListener("level", (e) => {
-    app.level = e.detail;
+    app.level = /** @type {CustomEvent<number>} */ (e).detail;
     app.loudValue(app.level);
   });
   app.loudValue(VOLUME.value);
 
-  const volDrawer = mountDrawer($("#body"), stages.get("volume"), VOLUME_DRAWER, {
+  const volDrawer = mountDrawer(el("#body"), stages.get("volume"), VOLUME_DRAWER, {
     blocks: { range: (host, ctx) => mountVolumeRange(host, app.volumeRange, ctx, app.levelBus) },
     // Fixed volume is a restart row: the readouts and ± follow it on Apply.
     onApply: (v) => {
       app.fixedMode = v.vfixmode;
-      app.vol.setFixed(v.vfixmode, v.vlevel, v.viso);
+      /** @type {Volume} */ (app.vol).setFixed(v.vfixmode, v.vlevel, v.viso);
     },
     on: {
       vadapt: (v) => {

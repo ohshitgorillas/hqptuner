@@ -28,11 +28,20 @@ const H = 106;
 const X0 = 38; // x of the first tier
 const RULE_Y = 56;
 const INSET = 8; // a band's legend and rule stop this far inside its outer tiers' cells
+
+/** @typedef {import('../../model/gauges/output.js').DialScale} DialScale */
+/** @typedef {import('../../model/gauges/output.js').TierSpan} TierSpan */
+/** @typedef {import('../../model/builders/station.js').Tier & { name: string, f44: string, f48: string, unit: string }} DialTier */
+/** @typedef {{ id: 'pcm' | 'sdm', legend: string }} Band */
+/** @typedef {TierSpan & { cur: number, needle: SVGElement, marks: SVGElement[], el: HTMLElement }} BandState */
+
+/** @type {Band[]} */
 const BANDS = [
   { id: "pcm", legend: "PCM" },
   { id: "sdm", legend: "SDM (DSD)" },
 ];
 
+/** @type {Record<string, (c: number, st: TierSpan) => number>} */
 const KEYS = {
   ArrowLeft: (c) => c - 1,
   ArrowDown: (c) => c - 1,
@@ -42,7 +51,14 @@ const KEYS = {
   End: (c, st) => st.hi,
 };
 
-// One tier's printing: major tick, name, both exact rates, and the unavailable note.
+/**
+ * One tier's printing: major tick, name, both exact rates, and the unavailable note.
+ *
+ * @param {DialTier} t
+ * @param {number} i
+ * @param {number} x
+ * @returns {SVGElement}
+ */
 function printTier(t, i, x) {
   return s(
     "g",
@@ -55,7 +71,15 @@ function printTier(t, i, x) {
   );
 }
 
-// One band into its group: legend, rule, ticks, needle, printing. Returns the needle and the tier printings.
+/**
+ * One band into its group: legend, rule, ticks, needle, printing. Returns the needle and the tier printings.
+ *
+ * @param {SVGElement} g
+ * @param {Band} b
+ * @param {{ tiers: DialTier[], scale: DialScale }} dial
+ * @param {TierSpan} span
+ * @returns {{ needle: SVGElement, marks: SVGElement[] }}
+ */
 function drawBand(g, b, { tiers, scale }, span) {
   const { x1, x2 } = bandEdges(scale, span, INSET);
 
@@ -69,17 +93,26 @@ function drawBand(g, b, { tiers, scale }, span) {
     g.append(s("line.minor", { x1: x, y1: RULE_Y - 5, x2: x, y2: RULE_Y }));
 
   // Needle (behind the scale printing, like a real tuner glass)
+  /** @type {SVGElement} */
   const needle = s("g.ndl", {}, s("rect.needle", { x: -1.25, y: 26, width: 2.5, height: 64, rx: 1 }));
   g.append(needle);
 
   // Tier printing
+  /** @type {SVGElement[]} */
   const marks = [];
   for (let i = span.lo; i <= span.hi; i++) marks.push(printTier(tiers[i], i, scale.xs[i]));
   g.append(...marks);
   return { needle, marks };
 }
 
-// The band's slider: a transparent region over its half of the glass.
+/**
+ * The band's slider: a transparent region over its half of the glass.
+ *
+ * @param {Band} b
+ * @param {TierSpan} span
+ * @param {number} seam  x of the 32x|64x seam
+ * @returns {HTMLElement}
+ */
 function bandSlider(b, { lo, hi }, seam) {
   const left = b.id === "pcm" ? 0 : (seam / W) * 100;
   const width = b.id === "pcm" ? (seam / W) * 100 : 100 - (seam / W) * 100;
@@ -93,7 +126,14 @@ function bandSlider(b, { lo, hi }, seam) {
   });
 }
 
-// Pointer and keys on one band's slider; `move` sends its needle to a tier.
+/**
+ * Pointer and keys on one band's slider; `move` sends its needle to a tier.
+ *
+ * @param {HTMLElement} dial
+ * @param {BandState} st
+ * @param {(i: number) => void} move
+ * @param {(e: PointerEvent) => number} tierAt
+ */
 function wireBand(dial, st, move, tierAt) {
   let dragging = false;
   st.el.addEventListener("pointerdown", (e) => {
@@ -118,18 +158,29 @@ function wireBand(dial, st, move, tierAt) {
   });
 }
 
-// A band's needle, selected printing and slider value on tier `i`.
+/**
+ * A band's needle, selected printing and slider value on tier `i`.
+ *
+ * @param {BandState} st
+ * @param {number} i
+ * @param {DialTier} t
+ * @param {number} x
+ */
 function showTier(st, i, t, x) {
   st.needle.style.transform = `translateX(${x}px)`;
   st.marks.forEach((m) => m.classList.toggle("sel", Number(m.dataset.i) === i));
-  st.el.setAttribute("aria-valuenow", i);
+  st.el.setAttribute("aria-valuenow", String(i));
   st.el.setAttribute("aria-valuetext", t.name + (t.unavailable ? ", unavailable" : ""));
 }
 
 /**
- * @param {HTMLElement} dial  empty .dial
- * @param {{tiers:object[], limits:{pcm:number,sdm:number}, playing:number}} cfg
+ * Mount the dial: the glass with both bands, their needles on the two limits, the playing lamp, and one slider per band.
+ * Returns both limits as one value the drawer can read and put back.
+ *
+ * @param {HTMLElement & { _setPlaying?: (i: number | null) => void }} dial  empty .dial
+ * @param {{tiers: DialTier[], limits: {pcm: number, sdm: number}, playing: number}} cfg
  * @param {() => void} onChange
+ * @returns {{value: () => string, setValue: (v: string | number) => void}}
  */
 export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
   const scale = dialScale(tiers.length, W, X0);
@@ -156,6 +207,7 @@ export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
   );
 
   // Per band: legend, rule, ticks, needle, printing, then its slider.
+  /** @type {Record<string, BandState>} */
   const state = {};
   for (const b of BANDS) {
     const span = bandSpan(tiers, b.id);
@@ -168,14 +220,20 @@ export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
   }
 
   // Playing lamp (above the bands; the running rate is one tier, whichever band it is in)
+  /** @type {SVGElement} */
   const lamp = s("circle.playing", { cx: xs[playing], cy: 96, r: 3.5 });
   svg.append(lamp);
   // Mock scenario: the lamp moves to the tier playing now, and goes out when nothing plays (null).
   dial._setPlaying = (i) => {
     lamp.style.display = i == null ? "none" : "";
-    if (i != null) lamp.setAttribute("cx", xs[i]);
+    if (i != null) lamp.setAttribute("cx", String(xs[i]));
   };
 
+  /**
+   * @param {string} b  band id
+   * @param {number} target
+   * @param {boolean} fromUser
+   */
   function set(b, target, fromUser) {
     const st = state[b];
     const { i, moved } = moveNeedle(st, st.cur, target);
@@ -184,6 +242,7 @@ export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
     if (moved && fromUser) onChange();
   }
 
+  /** @param {PointerEvent} e */
   const tierAt = (e) => {
     const r = svg.getBoundingClientRect();
     return nearestTier(scale, ((e.clientX - r.left) / r.width) * W);

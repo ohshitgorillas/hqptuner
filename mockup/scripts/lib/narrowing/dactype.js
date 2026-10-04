@@ -6,9 +6,25 @@
 //              recommended", manual §4.6)
 // A tap on a folded header still opens it.
 
+/** @typedef {{ r2r: string, ess: string }} DacType  each pref's value: '1' = that DAC type, '0' = not */
+
+/** @type {DacType} */
 const st = { r2r: "0", ess: "0" };
+
+/**
+ * The DAC-type prefs as they stand, as a copy.
+ *
+ * @returns {DacType}
+ */
 export const dacType = () => ({ ...st });
-/** @param {import('../shell/bus.js').Bus} bus */
+
+/**
+ * Set one DAC-type pref; when it changes, the bus hears `dactype` with both prefs.
+ *
+ * @param {keyof DacType} k
+ * @param {string} v
+ * @param {import('../shell/bus.js').Bus} bus
+ */
 export function setDacType(k, v, bus) {
   if (st[k] === v) return;
   st[k] = v;

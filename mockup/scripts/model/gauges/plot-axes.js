@@ -3,7 +3,7 @@
 // plots (components/matrix-plot.js, components/resp-plot.js) draw what they get back and a test drives it from a table.
 
 export const GUTTER = 28; // left, for dB labels
-export const BAND = 16; // bottom, for frequency labels
+const BAND = 16; // bottom, for frequency labels
 export const PAD = 6; // top
 const RIGHT = 4; // right inset of the highest frequency
 
@@ -57,7 +57,7 @@ export const round1 = (v) => Math.round(v * 10) / 10;
  *
  * @type {LevelMap}
  */
-export const levelY = (lo, hi, plotH) => (d) => PAD + (plotH * (hi - d)) / (hi - lo);
+const levelY = (lo, hi, plotH) => (d) => PAD + (plotH * (hi - d)) / (hi - lo);
 
 /**
  * The same map for a scale symmetric about 0 dB (lo = −hi), drawn from the middle out.

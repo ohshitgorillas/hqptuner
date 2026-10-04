@@ -7,17 +7,134 @@ import { withXref, hasXref } from "../../../lib/controls/xref.js";
 import { editOf, regray, isStaged, applyPaint, restarts } from "../../../model/shell/drawer.js";
 import { family } from "./registry.js";
 
+/** @typedef {import("../../../model/shell/drawer.js").Values} Values */
+/** @typedef {import("../../../model/shell/drawer.js").Grayable} Grayable */
+/** @typedef {import("../../../model/shell/drawer.js").RowGray} RowGray */
+/** @typedef {import("./registry.js").Family} Family */
+/** @typedef {import("./registry.js").SetOpen} SetOpen */
+/** @typedef {import("./apply.js").ApplyGroup} ApplyGroup */
+/** @typedef {Parameters<typeof import("../../controls/rate-dial.js").mountRateDial>[1]} RateTiers */
+/** @typedef {{ list: string[], selected: number }} Devices */
+
+/** @typedef {Record<string, string>} Store  control id → value, as the controls hold it */
+/** @typedef {(v: string) => void} Setter  moves a control to a value without staging it */
+
+/**
+ * A control's element, with the setter that repaints it.
+ *
+ * @template {HTMLElement} [E=HTMLElement]
+ * @typedef {E & { _setValue?: Setter }} SettableEl
+ */
+
+/** @typedef {import("../../../data/stages/output.js").DrawerSchema} Schema */
+/** @typedef {import("../../../data/stages/output.js").Item} Item */
+/** @typedef {import("../../../data/stages/output.js").Row} Row */
+/** @typedef {import("../../../data/stages/output.js").Control} Control */
+/** @typedef {import("../../../data/settings/common.js").Option} Option */
+/** @typedef {Schema["tabs"][number]} Tab */
+
+/** @typedef {Control & { aria?: string }} Labelled  a control as the shared builders take it (null aria = no label) */
+/** @typedef {Labelled & { options: Option[] }} Listed  a control kind that lists options */
+
+/**
+ * A setting block's staging handle: seed a value, stage one, hear Discard, hear every value change.
+ *
+ * @typedef {object} BlockCtx
+ * @property {(id: string, v: unknown) => void} init
+ * @property {(id: string, v: unknown) => void} set
+ * @property {(fn: (base: Store) => void) => void} onDiscard
+ * @property {(fn: (vals: Store) => void) => void} watch
+ */
+
+/** @typedef {(host: HTMLElement, ctx: BlockCtx) => void} Block */
+
+/** @typedef {{ c: Control, r: { live?: boolean }, paintOpt: (v: unknown) => void }} Ctl  what a control builder gets */
+/** @typedef {Ctl & { el: HTMLElement }} Bound  a built control */
+/** @typedef {{ c: Control & Grayable, el: HTMLElement }} GrayCtl */
+
+/**
+ * A mounted drawer's api: what main.js, the family's other members and the Profile builder call.
+ *
+ * @typedef {object} DrawerApi
+ * @property {SetOpen} setOpen
+ * @property {(t: string) => void} showTab
+ * @property {(id: string, v: string) => void} set
+ * @property {() => void} regray
+ * @property {() => boolean} isOpen
+ * @property {() => boolean} hasDirty
+ * @property {() => void} applied
+ * @property {() => void} discarded
+ * @property {() => void} settle
+ * @property {() => void} remark
+ */
+
+/**
+ * The record of one mount.
+ *
+ * @typedef {object} Drawer
+ * @property {Schema} schema
+ * @property {Record<string, string>} groupNames
+ * @property {Record<string, Devices> | undefined} devices
+ * @property {RateTiers | undefined} rateTiers
+ * @property {Record<string, Block>} blocks
+ * @property {Record<string, (v: string) => void>} on
+ * @property {((vals: Store) => void) | undefined} onApply
+ * @property {string} prefix
+ * @property {((vals: Store) => void) | undefined} onValues
+ * @property {Family | null} fam
+ * @property {string | undefined} backend
+ * @property {Store} vals
+ * @property {Store} base
+ * @property {Map<string | undefined, Bound>} segs
+ * @property {Map<string, Bound & { set: Setter }>} ui
+ * @property {((base: Store) => void)[]} discards
+ * @property {Set<string>} blockIds
+ * @property {Map<string, HTMLElement>} blockEl
+ * @property {{ ctls: GrayCtl[], reason: HTMLElement }[]} grays
+ * @property {GrayCtl[] | null} rowGray
+ * @property {((vals: Store) => void)[]} watchers
+ * @property {HTMLElement[]} tabs
+ * @property {HTMLElement[]} panels
+ * @property {boolean} single
+ * @property {HTMLElement} title
+ * @property {HTMLElement} drawer
+ * @property {ApplyGroup} applyGrp
+ * @property {Tab} curTab
+ * @property {SetOpen} setOpen
+ * @property {DrawerApi} api
+ */
+
+/**
+ * The deps mountDrawer passes on to the record.
+ *
+ * @typedef {object} StateDeps
+ * @property {Record<string, string>} groupNames
+ * @property {Record<string, Devices> | undefined} devices
+ * @property {RateTiers | undefined} rateTiers
+ * @property {Record<string, Block>} blocks
+ * @property {Record<string, (v: string) => void>} on
+ * @property {((vals: Store) => void) | undefined} onApply
+ * @property {string} prefix
+ * @property {string | undefined} famName
+ * @property {((vals: Store) => void) | undefined} onValues
+ */
+
 /**
  * The drawer record D for one mount: its schema and deps, its value store (a family's shared one), and the maps the
  * controls register into. The DOM fields (tabs, panels, title, drawer, applyGrp, curTab, setOpen, api) fill in as
- * mountDrawer builds them.
+ * mountDrawer builds them, before anything reads them; the record is typed as the finished one.
+ *
+ * @param {Schema} schema
+ * @param {StateDeps} deps
+ * @returns {Drawer}
  */
 export function drawerState(
   schema,
   { groupNames, devices, rateTiers, blocks, on, onApply, prefix, famName, onValues },
 ) {
-  const fam = (famName ?? schema.family) ? family(famName ?? schema.family) : null;
-  return {
+  const famKey = famName ?? schema.family;
+  const fam = famKey ? family(famKey) : null;
+  const record = /** @type {unknown} */ ({
     schema,
     groupNames,
     devices,
@@ -48,33 +165,51 @@ export function drawerState(
     curTab: null,
     setOpen: null,
     api: null,
-  };
+  });
+  return /** @type {Drawer} */ (record);
 }
 
-/** One control changed (at = {el, c, r, paintOpt}): record it, stage it unless its row is live, then the hooks hear it. */
+/**
+ * One control changed (at = {el, c, r, paintOpt}): record it, stage it unless its row is live, then the hooks hear it.
+ *
+ * @param {Drawer} D
+ * @param {Bound} at
+ * @param {string} v
+ */
 export function changed(D, at, v) {
   const { el, c, r, paintOpt } = at;
-  const edit = editOf(c.id, v, r.live);
+  const id = String(c.id); // the key a missing id has always been stored under
+  const edit = editOf(id, v, r.live);
   Object.assign(D.vals, edit.vals);
   Object.assign(D.base, edit.base); // live rows apply at once: nothing to discard
   paintOpt(v);
   regrayDrawer(D);
   if (edit.dirty) markDirty(D, el);
   if (c.switchesBackend) setBackend(D, v);
-  D.on[c.id]?.(v);
+  D.on[id]?.(v);
 }
 
-/** Move a seg control from outside (mock cross-effects). Runs the same path as a tap. */
+/**
+ * Move a seg control from outside (mock cross-effects). Runs the same path as a tap.
+ *
+ * @param {Drawer} D
+ * @param {string | undefined} id
+ * @param {string} v
+ */
 export function setFrom(D, id, v) {
   const it = D.segs.get(id);
-  if (!it || it.el.querySelector("button.on")?.dataset.v === String(v)) return;
+  if (!it || /** @type {HTMLElement | null} */ (it.el.querySelector("button.on"))?.dataset.v === String(v)) return;
   select(it.el, v);
   changed(D, it, v);
 }
 
-/** Re-read every gray reason from the current values: disable those controls, print the row's reasons. A reason that
- *  names its fix elsewhere links there (lib/xref.js), once per drawer (the first row showing it); a second mount
- *  (Profile builder, `prefix`) never links: its targets are the chain's drawers, under another body. */
+/**
+ * Re-read every gray reason from the current values: disable those controls, print the row's reasons. A reason that
+ * names its fix elsewhere links there (lib/xref.js), once per drawer (the first row showing it); a second mount
+ * (Profile builder, `prefix`) never links: its targets are the chain's drawers, under another body.
+ *
+ * @param {Drawer} D
+ */
 export function regrayDrawer(D) {
   const rows = regray(
     D.grays.map((g) => g.ctls.map(({ c }) => c)),
@@ -87,45 +222,79 @@ export function regrayDrawer(D) {
   D.onValues?.(D.vals);
 }
 
-/** One row's gray state: each control on or off, then its reason lines (blank reason = gray with no line). */
+/**
+ * One row's gray state: each control on or off, then its reason lines (blank reason = gray with no line).
+ *
+ * @param {{ ctls: GrayCtl[], reason: HTMLElement }} g
+ * @param {RowGray} gray
+ */
 function paintGray(g, { off, reasons }) {
   g.ctls.forEach(({ el }, i) => {
     el.classList.toggle("grayed", off[i]);
-    for (const x of el.matches("select,input") ? [el] : el.querySelectorAll("button,input,select")) x.disabled = off[i];
+    const xs = /** @type {Iterable<HTMLInputElement>} */ (
+      el.matches("select,input") ? [el] : el.querySelectorAll("button,input,select")
+    );
+    for (const x of xs) x.disabled = off[i];
   });
   g.reason.replaceChildren(...reasons.flatMap((r, i) => [i ? " " : "", ...withXref(r.text, r.link)]));
   g.reason.hidden = !reasons.length;
 }
 
-/** The dirty dot on el's tab (a single-part stage: on the title), then the apply group repaints. */
+/**
+ * The dirty dot on el's tab (a single-part stage: on the title), then the apply group repaints.
+ *
+ * @param {Drawer} D
+ * @param {HTMLElement} el
+ */
 export function markDirty(D, el) {
-  const p = el.closest(".dpanel");
+  const p = /** @type {HTMLElement | null} */ (el.closest(".dpanel"));
   if (!p) return;
-  (D.single ? D.title : D.tabs.find((b) => b.dataset.tab === p.dataset.tab)).classList.add("dirty");
+  const dot = D.single ? D.title : D.tabs.find((b) => b.dataset.tab === p.dataset.tab);
+  /** @type {HTMLElement} */ (dot).classList.add("dirty");
   paintApply(D);
 }
 
-/** The apply group shows on a restart tab or with staged edits (any family member's); its buttons need staged edits. */
+/**
+ * The apply group shows on a restart tab or with staged edits (any family member's); its buttons need staged edits.
+ *
+ * @param {Drawer} D
+ */
 export function paintApply(D) {
   const staged = isStaged(D.drawer.querySelector(".dirty") !== null, D.fam ? D.fam.members : []);
   const { shown, live } = applyPaint(restarts(D.schema, D.curTab), staged);
   D.applyGrp.paint(shown, live);
 }
 
-/** Every dirty dot clears; the apply group repaints. */
+/**
+ * Every dirty dot clears; the apply group repaints.
+ *
+ * @param {Drawer} D
+ */
 export function clearDirty(D) {
   for (const el of D.drawer.querySelectorAll(".dirty")) el.classList.remove("dirty");
   paintApply(D);
 }
 
-/** The Backend segment decides which backend groups show; Combo shows all of them. */
+/**
+ * The Backend segment decides which backend groups show; Combo shows all of them.
+ *
+ * @param {Drawer} D
+ * @param {string} v
+ */
 export function setBackend(D, v) {
   D.backend = v;
   D.drawer.classList.toggle("combo", v === "combo");
-  for (const g of D.drawer.querySelectorAll(".begrp")) g.hidden = !groupVisible(D, g.dataset.be);
+  const groups = /** @type {NodeListOf<HTMLElement>} */ (D.drawer.querySelectorAll(".begrp"));
+  for (const g of groups) g.hidden = !groupVisible(D, g.dataset.be);
 }
 
-/** Does backend `be`'s group show under the current backend. */
+/**
+ * Does backend `be`'s group show under the current backend.
+ *
+ * @param {Drawer} D
+ * @param {string | undefined} be
+ * @returns {boolean}
+ */
 export function groupVisible(D, be) {
   return D.backend === "combo" || D.backend === be;
 }

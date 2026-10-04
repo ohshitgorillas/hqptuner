@@ -21,7 +21,7 @@ const MAN = {
 // Engine enumeration (GetJunkFilters), in index order, with the manual's copy for each option.
 const SLOW =
   "Slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hi-res recordings that are, for example, transfers from analog tape.";
-export const HF_OPTIONS = [
+const HF_OPTIONS = [
   { v: "none", man: "No filtering." },
   {
     v: "20k",
@@ -43,6 +43,7 @@ const OFF_ON = [
   { v: "1", label: "On" },
 ];
 
+/** @type {import('./output.js').DrawerSchema} */
 export const HF_DRAWER = {
   id: "hf",
   title: "HF filter",

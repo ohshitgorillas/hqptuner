@@ -101,9 +101,9 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # read it from here. The changelog gate is not scoped here: it reads CHANGELOG.md
 # from its own module constant. copy-before-after.md is a record of
 # owner-approved wording, so it takes no judge.
-md_skip = ["CHANGELOG.md", "docs/copy-before-after.md", "mockup/spec.md"]
+md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
 suffixes = [".py", ".js", ".css"]
-excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/", "mockup/"]
+excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
 cache_dir = ".claude/logs"
 
@@ -148,13 +148,12 @@ include = ["**/*.py"]
 mover = "rope"
 
 [tool.filepawl.javascript]
-# Named by tree so that mockup/ stays outside: it is reference material kept
-# as published.
 include = [
     "*.js",
     "eslint-rules/**/*.js",
     "hqptuner/**/*.js",
     "hqptuner/**/*.css",
+    "mockup/**/*.js",
     "scripts/**/*.js",
     "tests/**/*.js",
 ]

@@ -4,16 +4,35 @@
 //  - Escape closes the open popover; if none is open, Escape falls through to other handlers
 //    (the stage drawer listens for that).
 
+/**
+ * One popover's handle.
+ *
+ * @typedef {object} Popover
+ * @property {HTMLElement} trigger
+ * @property {HTMLElement} panel
+ * @property {HTMLElement[]} inside
+ * @property {boolean} isOpen
+ * @property {() => void} open
+ * @property {() => void} close
+ * @property {() => void} toggle
+ * @property {(node: Node | null) => boolean} contains  is the node in the trigger, the panel or an inside zone
+ */
+
+/** @type {Popover | null} */
 let current = null;
 
 /**
+ * Make `panel` the popover its trigger toggles; it starts closed.
+ *
  * @param {object} o
  * @param {HTMLElement} o.trigger   button that toggles it; gets aria-expanded
  * @param {HTMLElement} o.panel     the popover element; toggled with .hidden
  * @param {HTMLElement[]} [o.inside] extra elements whose clicks don't count as "outside"
  * @param {(open:boolean)=>void} [o.onToggle] runs after open/close (position, swap arrow glyphs…)
+ * @returns {Popover}
  */
 export function popover({ trigger, panel, inside = [], onToggle }) {
+  /** @type {Popover} */
   const p = {
     trigger,
     panel,
@@ -48,13 +67,15 @@ export function popover({ trigger, panel, inside = [], onToggle }) {
   return p;
 }
 
+/** Is any popover open? */
 export const anyOpen = () => current !== null;
 
 /** The document listeners: outside click and Escape close the open popover. main.js installs them once, first. */
 export function installPopovers() {
   document.addEventListener("click", (e) => {
     // A target that re-rendered away mid-click (e.g. a removed tag) was inside something we own.
-    if (current && e.target.isConnected && !current.contains(e.target)) current.close();
+    const t = /** @type {Node} */ (e.target); // a document click's target is always a node
+    if (current && t.isConnected && !current.contains(t)) current.close();
   });
 
   // Capture phase so it runs before bubble-phase Escape handlers (drawer) and can swallow the key.

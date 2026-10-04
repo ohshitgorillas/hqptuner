@@ -270,69 +270,73 @@ test("test_save_under_a_free_name_writes", () => {
 // ── Save, rename and move ──────────────────────────────────────────────────
 
 test("test_a_new_record_lands_in_every_ticked_station", () => {
-  const out = savedTo(book(), den(NEW), "Cosy", ["Den", "Shed"], { v: 7 }, false);
+  const out = savedTo(book(), den(NEW), { name: "Cosy", to: ["Den", "Shed"], rec: { v: 7 }, keep: false });
   assert.deepEqual(out.book.Shed.Cosy, { v: 7 });
 });
 
 test("test_a_new_record_goes_to_the_end_of_its_station", () => {
-  const out = savedTo(book(), den(NEW), "Cosy", ["Den"], { v: 7 }, false);
+  const out = savedTo(book(), den(NEW), { name: "Cosy", to: ["Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Flat", "Bright", "Cosy"]);
 });
 
 test("test_a_new_record_is_then_edited_in_its_first_ticked_station", () => {
-  const out = savedTo(book(), { st: "Den", name: NEW }, "Cosy", ["Loft", "Shed"], { v: 7 }, false);
+  const out = savedTo(
+    book(),
+    { st: "Den", name: NEW },
+    { name: "Cosy", to: ["Loft", "Shed"], rec: { v: 7 }, keep: false },
+  );
   assert.deepEqual(out.cur, { st: "Loft", name: "Cosy" });
 });
 
 test("test_a_rename_in_place_keeps_its_place_in_the_list", () => {
-  const out = savedTo(book(), den("Flat"), "Neutral", ["Den"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Neutral", to: ["Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Neutral", "Bright"]);
 });
 
 test("test_a_rename_in_place_writes_the_edit_under_the_new_name", () => {
-  const out = savedTo(book(), den("Flat"), "Neutral", ["Den"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Neutral", to: ["Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(out.book.Den.Neutral, { v: 7 });
 });
 
 test("test_a_rename_onto_a_sibling_replaces_the_sibling", () => {
-  const out = savedTo(book(), den("Flat"), "Bright", ["Den"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Bright", to: ["Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Bright"]);
 });
 
 test("test_an_edit_saved_under_its_own_name_keeps_its_place", () => {
-  const out = savedTo(book(), den("Warm"), "Warm", ["Den"], { v: 7 }, false);
+  const out = savedTo(book(), den("Warm"), { name: "Warm", to: ["Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Flat", "Bright"]);
 });
 
 test("test_unticking_its_own_station_moves_the_record_out", () => {
-  const out = savedTo(book(), den("Flat"), "Flat", ["Shed"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Flat", to: ["Shed"], rec: { v: 7 }, keep: false });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Bright"]);
 });
 
 test("test_a_record_that_stays_is_copied_not_moved", () => {
-  const out = savedTo(book(), den("Flat"), "Flat", ["Shed"], { v: 7 }, true);
+  const out = savedTo(book(), den("Flat"), { name: "Flat", to: ["Shed"], rec: { v: 7 }, keep: true });
   assert.deepEqual(Object.keys(out.book.Den), ["Warm", "Flat", "Bright"]);
 });
 
 test("test_a_moved_record_is_then_edited_where_it_went", () => {
-  const out = savedTo(book(), den("Flat"), "Flat", ["Loft", "Shed"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Flat", to: ["Loft", "Shed"], rec: { v: 7 }, keep: false });
   assert.deepEqual(out.cur, { st: "Loft", name: "Flat" });
 });
 
 test("test_a_record_kept_in_its_station_is_still_edited_there", () => {
-  const out = savedTo(book(), den("Flat"), "Flat", ["Loft", "Den"], { v: 7 }, false);
+  const out = savedTo(book(), den("Flat"), { name: "Flat", to: ["Loft", "Den"], rec: { v: 7 }, keep: false });
   assert.deepEqual(out.cur, { st: "Den", name: "Flat" });
 });
 
 test("test_saving_leaves_the_book_it_was_given_as_it_was", () => {
   const before = book();
-  savedTo(before, den("Flat"), "Neutral", ["Den", "Shed"], { v: 7 }, false);
+  savedTo(before, den("Flat"), { name: "Neutral", to: ["Den", "Shed"], rec: { v: 7 }, keep: false });
   assert.deepEqual(before, book());
 });
 
 test("test_a_saved_record_is_a_copy_of_the_edit", () => {
   const rec = { v: 7 };
-  const out = savedTo(book(), den(NEW), "Cosy", ["Shed"], rec, false);
+  const out = savedTo(book(), den(NEW), { name: "Cosy", to: ["Shed"], rec, keep: false });
   assert.notEqual(out.book.Shed.Cosy, rec);
 });
 

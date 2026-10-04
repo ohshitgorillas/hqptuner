@@ -40,14 +40,24 @@ export const CONV = {
   },
 };
 
+/** @typedef {'pcm' | 'sdm'} Chain  an output mode's chain */
+
 /**
  * The chain a mode runs, which the drawer opens on: SDM → SDM, PCM → PCM; Auto → the playing source's family, PCM when
  * nothing plays.
+ *
+ * @param {string} mode  'pcm' | 'sdm' | 'auto'
+ * @param {{ playing: boolean, family?: string }} source
+ * @returns {string}
  */
 export const runningChain = (mode, source) =>
   mode === "auto" ? (source.playing && source.family === "dsd" ? "sdm" : "pcm") : mode;
 
-/** Field metadata shared by drawer rows and page fields. */
+/**
+ * Field metadata shared by drawer rows and page fields.
+ *
+ * @type {Record<string, { label: string, sub: string, man: string }>}
+ */
 export const FIELDS = {
   "1x": { label: "1x filter", sub: "Sources up to 50 kHz", man: MAN.filter_1x },
   nx: { label: "Nx filter", sub: "Sources above 50 kHz", man: MAN.filter_nx },
@@ -62,10 +72,21 @@ export const CHAIN_LISTS = {
 
 export const CHAIN_NAMES = { pcm: "PCM", sdm: "SDM (DSD)" }; // the output Mode segment's own labels
 
+/**
+ * Whether a filter's engine name is FFT-family.
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
 export const isFft = (name) => /\bFFT\b/.test(String(name));
 
 // Row: {id, label, sub?, man, live?|restart?, control: {type: 'select'|'seg', options, aria}}. `fft: chain` = the FFT
 // length row, rendered only while that chain's 1x or Nx filter is FFT-family (one daemon field; each chain shows it).
+/**
+ * @param {Chain} ch
+ * @param {'1x' | 'nx'} k
+ * @returns {import('./output.js').Row}
+ */
 const filter = (ch, k) => ({
   id: ch + k,
   label: FIELDS[k].label,
@@ -74,6 +95,10 @@ const filter = (ch, k) => ({
   live: true,
   control: { type: "select", aria: `${CHAIN_NAMES[ch]} ${FIELDS[k].label}`, options: CHAIN_LISTS[ch].filters },
 });
+/**
+ * @param {Chain} ch
+ * @returns {import('./output.js').Row}
+ */
 const shaper = (ch) => ({
   id: ch + "sh",
   label: FIELDS[ch + "sh"].label,
@@ -82,6 +107,10 @@ const shaper = (ch) => ({
   live: true,
   control: { type: "select", aria: FIELDS[ch + "sh"].label, options: CHAIN_LISTS[ch].shapers },
 });
+/**
+ * @param {Chain} ch
+ * @returns {import('./output.js').Row}
+ */
 const fft = (ch) => ({
   id: "fft",
   fft: ch,
@@ -90,7 +119,11 @@ const fft = (ch) => ({
   restart: true,
   control: { type: "select", aria: "FFT filter length", options: CATALOG.fftSizes.map((v) => ({ v, label: v })) },
 });
-const dsdSel = (id, label, sub, man, options) => ({
+/**
+ * @param {{ id: string, label: string, sub: string, man: string, options: import('../settings/common.js').Option[] }} sel
+ * @returns {import('./output.js').Row}
+ */
+const dsdSel = ({ id, label, sub, man, options }) => ({
   id,
   label,
   sub,
@@ -130,8 +163,20 @@ export const MODE_DRAWERS = {
             ],
           },
         },
-        dsdSel("noise", "Noise filter", "Removes ultrasonic noise", MAN.pdm_filter, CATALOG.noiseFilters),
-        dsdSel("decim", "Decimation filter", "SDM → PCM conversion", MAN.pdm_conversion, CATALOG.decimation),
+        dsdSel({
+          id: "noise",
+          label: "Noise filter",
+          sub: "Removes ultrasonic noise",
+          man: MAN.pdm_filter,
+          options: CATALOG.noiseFilters,
+        }),
+        dsdSel({
+          id: "decim",
+          label: "Decimation filter",
+          sub: "SDM → PCM conversion",
+          man: MAN.pdm_conversion,
+          options: CATALOG.decimation,
+        }),
       ],
       sdm: [
         {
@@ -149,7 +194,13 @@ export const MODE_DRAWERS = {
             ],
           },
         },
-        dsdSel("integ", "Remodulator structure", "Integrator", MAN.sdm_integrator, CATALOG.integrators),
+        dsdSel({
+          id: "integ",
+          label: "Remodulator structure",
+          sub: "Integrator",
+          man: MAN.sdm_integrator,
+          options: CATALOG.integrators,
+        }),
       ],
     },
   },
@@ -167,7 +218,13 @@ export const MODE_DRAWERS = {
         filter("sdm", "nx"),
         fft("sdm"),
         { head: "DSD sources" },
-        dsdSel("sdmconv", "Rate conversion", "SDM → SDM conversion", MAN.sdm_conversion, CATALOG.sdmConversion),
+        dsdSel({
+          id: "sdmconv",
+          label: "Rate conversion",
+          sub: "SDM → SDM conversion",
+          man: MAN.sdm_conversion,
+          options: CATALOG.sdmConversion,
+        }),
       ],
     },
   },

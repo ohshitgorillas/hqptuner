@@ -5,10 +5,31 @@
 import { h } from "../shell/dom.js";
 import { withXref } from "./xref.js";
 
-/** Section header: its title, then a rule to the right edge. cls = 'sh' (Settings), 'dsec' (drawer), 'msec' (mode drawer). */
+/**
+ * One choice line's option.
+ *
+ * @typedef {object} ChoiceOption
+ * @property {unknown} v  the value it picks, compared as a string
+ * @property {string} label
+ * @property {string} [sub]
+ * @property {object} [control]  the detail control's spec, built by choiceLines' `detail`
+ * @property {string} [man]
+ */
+
+/**
+ * Section header: its title, then a rule to the right edge. cls = 'sh' (Settings), 'dsec' (drawer), 'msec' (mode drawer).
+ *
+ * @param {string} cls
+ * @param {string} text
+ */
 export const secHead = (cls, text) => h(`div.${cls}`, {}, h("span.t", { text }), h("span.ln"));
 
-/** Round × close button, the stage drawers' own. */
+/**
+ * Round × close button, the stage drawers' own.
+ *
+ * @param {import('../shell/dom.js').Listener} onClick
+ * @param {string} [label]
+ */
 export const closeBtn = (onClick, label = "Close") =>
   h("button.round.dx", { type: "button", "aria-label": label, text: "×", on: { click: onClick } });
 
@@ -42,6 +63,7 @@ export function sliderBox({ min, max, step, aria }) {
  */
 export function grayReason(link = true) {
   const el = h("span.gr", { hidden: true });
+  /** @param {string} why */
   const say = (why) => {
     if (link) el.replaceChildren(...withXref(why));
     else el.textContent = why;
@@ -50,49 +72,63 @@ export function grayReason(link = true) {
   return { el, say };
 }
 
-/** Manual paragraph: the sub-setting's label bolded ahead of its copy when k is given, else the copy alone. */
+/**
+ * Manual paragraph: the sub-setting's label bolded ahead of its copy when k is given, else the copy alone.
+ *
+ * @param {{ k?: string | null, text: import("../shell/dom.js").Kid }} para
+ */
 export const manPara = ({ k, text }) => h("p", {}, k && h("b", { text: k }), k && " — ", text);
 
 /**
+ * One radio line: the radio, the name (both pick it), the detail control when the option has one, the manual.
+ *
+ * @param {ChoiceOption} o
+ * @param {(control: object) => HTMLElement} detail
+ * @param {(v: unknown) => void} pick
+ */
+function choiceLine(o, detail, pick) {
+  const radio = h("button.radio", {
+    type: "button",
+    role: "radio",
+    aria: { checked: false, label: o.label },
+    on: { click: () => pick(o.v) },
+  });
+  const d = o.control && detail(o.control);
+  return {
+    o,
+    radio,
+    detail: d,
+    el: h(
+      "div.chline",
+      { data: { v: o.v } },
+      h(
+        "div.chl",
+        {},
+        radio,
+        h(
+          "span.chn",
+          { on: { click: () => pick(o.v) } },
+          h("b", { text: o.label }),
+          o.sub && h("span.s", { text: o.sub }),
+        ),
+        d,
+      ),
+      h("div.man", {}, o.man && h("p", { text: o.man })),
+    ),
+  };
+}
+
+/**
  * Vertical radio lines spanning the row; each line's detail control is live only while that line is picked.
- * @param {{id?: string, aria?: string, value: any, options: {v: any, label: string, sub?: string, control?: object, man?: string}[]}} c
+ * @param {{id?: string, aria?: string, value: unknown, options: ChoiceOption[]}} c
  * @param {(control: object) => HTMLElement} detail  builds an option's detail control
  * @param {(v: string) => void} onPick              hears a pick that moves the selection
- * @returns {HTMLElement} the radiogroup; its _setValue(v) moves the selection without onPick
+ * @returns {HTMLDivElement & { _setValue: (v: unknown) => void }} the radiogroup; its _setValue(v) moves the selection
+ *   without onPick
  */
 export function choiceLines(c, detail, onPick) {
   let cur = String(c.value);
-  const lines = c.options.map((o) => {
-    const radio = h("button.radio", {
-      type: "button",
-      role: "radio",
-      aria: { checked: false, label: o.label },
-      on: { click: () => pick(o.v) },
-    });
-    const d = o.control && detail(o.control);
-    return {
-      o,
-      radio,
-      detail: d,
-      el: h(
-        "div.chline",
-        { data: { v: o.v } },
-        h(
-          "div.chl",
-          {},
-          radio,
-          h(
-            "span.chn",
-            { on: { click: () => pick(o.v) } },
-            h("b", { text: o.label }),
-            o.sub && h("span.s", { text: o.sub }),
-          ),
-          d,
-        ),
-        h("div.man", {}, o.man && h("p", { text: o.man })),
-      ),
-    };
-  });
+  const lines = c.options.map((o) => choiceLine(o, detail, pick));
   const el = h(
     "div.chlist",
     { role: "radiogroup", "aria-label": c.aria, id: c.id },
@@ -105,10 +141,14 @@ export function choiceLines(c, detail, onPick) {
       l.radio.setAttribute("aria-checked", String(on));
       if (l.detail) {
         l.detail.classList.toggle("grayed", !on);
-        for (const x of l.detail.querySelectorAll("button,input")) x.disabled = !on;
+        const live = /** @type {NodeListOf<HTMLButtonElement | HTMLInputElement>} */ (
+          l.detail.querySelectorAll("button,input")
+        );
+        for (const x of live) x.disabled = !on;
       }
     }
   }
+  /** @param {unknown} v */
   function pick(v) {
     if (String(v) === cur) return;
     cur = String(v);
@@ -116,9 +156,11 @@ export function choiceLines(c, detail, onPick) {
     onPick(cur);
   }
   paint();
-  el._setValue = (v) => {
-    cur = String(v);
-    paint();
-  };
-  return el;
+  return Object.assign(el, {
+    /** @param {unknown} v */
+    _setValue: (v) => {
+      cur = String(v);
+      paint();
+    },
+  });
 }

@@ -25,6 +25,7 @@ import {
 /** @typedef {import("../../../../mockup/scripts/model/shell/app.js").Scene} Scene */
 /** @typedef {import("../../../../mockup/scripts/model/shell/app.js").RaiseNow} RaiseNow */
 /** @typedef {import("../../../../mockup/scripts/model/shell/app.js").SlotFace} SlotFace */
+/** @typedef {import("../../../../mockup/scripts/model/shell/app.js").ListOption} ListOption */
 /** @typedef {[number, number]} Seams */
 
 //: Speed seams [bad|warn, warn|ok] the gauge tests read.
@@ -64,8 +65,9 @@ const ALERT_COPY = {
   junk20k: (/** @type {number} */ _fold, /** @type {number} */ rate) => String(rate),
 };
 //: Running filters: one non-apodizing, one apodizing, one that says nothing.
+/** @type {Record<string, ListOption[]>} */
 const LISTS = {
-  pcmFilters: [{ v: "plain", f: { apod: null } }, { v: "apodic", f: { apod: true } }, { v: "bare" }],
+  pcmFilters: [{ v: "plain", f: { apod: null } }, { v: "apodic", f: { apod: "full" } }, { v: "bare" }],
   sdmFilters: [{ v: "plain", f: { apod: null } }],
 };
 const FIG = { speed: 0.9, clips: 7 };

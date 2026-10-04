@@ -34,10 +34,39 @@ import { drawerState, setFrom, regrayDrawer, paintApply } from "./drawer/state.j
 import { drawerApplyGroup, applied, discarded, settle, remark } from "./drawer/apply.js";
 import { tabStrip, tabPanels, drawerShell, prefixIds, showTab } from "./drawer/head.js";
 
-export { familyOf, loadValues, registerDrawer, closeOthers, wipe, drawerOpener } from "./drawer/registry.js";
+export { familyOf, loadValues, registerDrawer, closeOthers, drawerOpener } from "./drawer/registry.js";
 export { onApplied, applyGroup } from "./drawer/apply.js";
 
-/** The drawer's api: what main.js, the family's other members and the Profile builder call. */
+/** @typedef {import("./drawer/state.js").Drawer} Drawer */
+/** @typedef {import("./drawer/state.js").DrawerApi} DrawerApi */
+/** @typedef {import("./drawer/state.js").Schema} Schema */
+/** @typedef {import("./drawer/state.js").Store} Store */
+/** @typedef {import("./drawer/state.js").Devices} Devices */
+/** @typedef {import("./drawer/state.js").RateTiers} RateTiers */
+/** @typedef {import("./drawer/state.js").Block} Block */
+
+/**
+ * What a mount takes besides its body, stage and schema.
+ *
+ * @typedef {object} Deps
+ * @property {Record<string, string>} [groupNames]
+ * @property {Record<string, Devices>} [devices]
+ * @property {RateTiers} [rateTiers]
+ * @property {Record<string, Block>} [blocks]
+ * @property {Record<string, (v: string) => void>} [on]
+ * @property {(vals: Store) => void} [onApply]
+ * @property {string} [prefix]
+ * @property {string} [family]
+ * @property {Element} [head]
+ * @property {(vals: Store) => void} [onValues]
+ */
+
+/**
+ * The drawer's api: what main.js, the family's other members and the Profile builder call.
+ *
+ * @param {Drawer} D
+ * @returns {DrawerApi}
+ */
 function drawerApi(D) {
   return {
     setOpen: D.setOpen,
@@ -57,15 +86,18 @@ function drawerApi(D) {
 }
 
 /**
+ * Mount a stage drawer from its schema into `body`, toggled by its rail stage; returns the drawer's api.
+ *
  * @param {HTMLElement} body       .body grid the drawer overlays
- * @param {HTMLButtonElement} stage rail stage button that toggles it
- * @param {object} schema          drawer schema
- * @param {object} deps            {groupNames?, devices?, rateTiers?, blocks?: {name: (host) => void}, on?: {id: (v) => void},
+ * @param {HTMLElement} stage      rail stage button that toggles it
+ * @param {Schema} schema          drawer schema
+ * @param {Deps} deps              {groupNames?, devices?, rateTiers?, blocks?: {name: (host) => void}, on?: {id: (v) => void},
  *                                  }  (row.band: 'pcm'|'sdm' tags a family-only row; never grays by mode)
  *   A second mount of a schema (Profile builder) passes: prefix (every DOM id inside gets it, so the two copies never
  *   share an id; CSS keys on both), family (its own store instead of the schema's), head (an element for the head's
  *   top-right corner in place of the apply group: the builder's own Discard / Save), onValues(vals) (hears the family's
  *   values after every change, once the blocks have followed them).
+ * @returns {DrawerApi}
  */
 export function mountDrawer(
   body,

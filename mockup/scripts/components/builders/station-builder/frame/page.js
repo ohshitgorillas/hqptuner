@@ -16,6 +16,11 @@ import { dacStep } from "../steps/dac.js";
 import { volumeStep } from "../steps/volume.js";
 import { hardwareStep } from "../steps/hardware.js";
 
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../../../../data/builders/station-builder.js').StationStep} StationStep */
+/** @typedef {import('../../../../lib/shell/dom.js').Kid} Kid */
+
+/** @type {Record<string, (sb: StationState) => Kid[]>} */
 const STEP = {
   name: nameStep,
   backend: backendStep,
@@ -29,23 +34,43 @@ const STEP = {
   hardware: hardwareStep,
 };
 
-/** The guide line; a step whose guide is null (Rates over USB) prints its check there instead: the wizard's order. */
+/**
+ * The guide line; a step whose guide is null (Rates over USB) prints its check there instead: the wizard's order.
+ *
+ * @param {StationState} sb
+ * @param {string} id
+ * @param {string} skip  why the step doesn't apply ('' = it does)
+ * @param {{ id: string, title: string }} st  the step, one of STB_STEPS
+ */
 function guideOf(sb, id, skip, st) {
-  const g = skip || st.guide(stepContext(sb.e.rec, sb.e.hw));
+  const g = skip || /** @type {StationStep} */ (st).guide(stepContext(sb.e.rec, sb.e.hw));
   if (g == null) return sb.runs[id] ? h("div.stbguiderun", {}, lines(sb.runs[id])) : h("p.pbguide", { text: " " });
   return h("p.pbguide", { class: skip && "skip" }, rich(g));
 }
 
-/** A step's page (the shell's frame): the wizard's guide line, then its rows. */
+/**
+ * A step's page (the shell's frame): the wizard's guide line, then its rows.
+ *
+ * @param {StationState} sb
+ * @param {string} id
+ * @returns {HTMLElement}  the Station builder is a walk, so the shell lays its step pages out
+ */
 const stepPage = (sb, id) =>
-  sb.B.stepPage(id, {
-    tag: "div.pbstepp.stbstep",
-    attrs: { data: { step: id } },
-    guide: (skip, st) => guideOf(sb, id, skip, st),
-    rows: (x) => STEP[x](sb),
-  });
+  /** @type {HTMLElement} */ (
+    sb.B.stepPage(id, {
+      tag: "div.pbstepp.stbstep",
+      attrs: { data: { step: id } },
+      guide: (skip, st) => guideOf(sb, id, skip, st),
+      rows: (x) => STEP[x](sb),
+    })
+  );
 
-/** Show a page (an id outside the walk shows the overview); leaving a step closes what it had open. */
+/**
+ * Show a page (an id outside the walk shows the overview); leaving a step closes what it had open.
+ *
+ * @param {StationState} sb
+ * @param {string} id
+ */
 export function show(sb, id) {
   if (!sb.B.inWalk(id)) id = "overview";
   closeOthers(null);

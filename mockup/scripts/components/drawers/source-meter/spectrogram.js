@@ -2,27 +2,59 @@
 // from the --spec-* ramp tokens.
 
 import { h } from "../../../lib/shell/dom.js";
-import { apodRamp, freqTicks, rampLut, spectrogramIndex, timeTicks, windowSpan } from "../../../model/gauges/meter.js";
+import {
+  apodRamp,
+  freqTicks,
+  rampLut,
+  spectrogramIndex,
+  timeTicks,
+  windowSpan,
+} from "../../../model/gauges/meter-plot.js";
 import { minusText } from "../../../model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
 
-export const COLS = 600; // spectrogram canvas width, px
+const COLS = 600; // spectrogram canvas width, px
 export const ROWS = 320; // spectrogram canvas rows (frequency, top = Nyquist); stretched to the plot
 const RAMP = ["--spec-0", "--spec-1", "--spec-2", "--spec-3", "--spec-4", "--spec-5"];
 
 /**
+ * The spectrogram block's elements.
+ *
+ * @typedef {object} SpectrogramBlock
+ * @property {HTMLElement} el
+ * @property {HTMLCanvasElement} spec  the spectrogram
+ * @property {HTMLCanvasElement} apod  the apodizing strip
+ * @property {HTMLElement} gY          frequency axis
+ * @property {HTMLElement} tAxis       time axis
+ */
+
+/**
+ * The colours a paint writes, read from the tokens.
+ *
+ * @typedef {object} Colours
+ * @property {Uint8ClampedArray} lut  spectrogram ramp, [r, g, b] per index
+ * @property {number[]} glass         [r, g, b] behind the spectrogram
+ * @property {number[][]} apodLut     [r, g, b] per strip event
+ */
+
+/**
  * The spectrogram block: head with its title and `controls`, the strip, the spectrogram and their two axes.
  *
- * @param {HTMLElement[]} controls
+ * @param {Node[]} controls
+ * @returns {SpectrogramBlock}
  */
 export function spectrogramView(controls) {
-  const spec = h("canvas.spec", { width: COLS, height: ROWS, role: "img", "aria-label": "Spectrogram" });
-  const apod = h("canvas.apodstrip", {
-    width: COLS,
-    height: 1,
-    role: "img",
-    "aria-label": "Apodizing events over time",
-  });
+  const spec = /** @type {HTMLCanvasElement} */ (
+    h("canvas.spec", { width: COLS, height: ROWS, role: "img", "aria-label": "Spectrogram" })
+  );
+  const apod = /** @type {HTMLCanvasElement} */ (
+    h("canvas.apodstrip", {
+      width: COLS,
+      height: 1,
+      role: "img",
+      "aria-label": "Apodizing events over time",
+    })
+  );
   const gY = h("div.gut.gy", { "aria-hidden": "true" });
   const tAxis = h("div.xaxis", { "aria-hidden": "true" });
   const el = h(
@@ -34,6 +66,11 @@ export function spectrogramView(controls) {
   return { el, spec, apod, gY, tAxis };
 }
 
+/**
+ * @param {string} hex       a colour token's value
+ * @param {number[]} fallback  [r, g, b] when it is not a hex colour
+ * @returns {number[]}
+ */
 function rgb(hex, fallback) {
   const m = hex.trim().replace("#", "");
   if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(m)) return fallback;
@@ -47,7 +84,11 @@ function rgb(hex, fallback) {
   return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
 }
 
-/** Colours from tokens: the spectrogram ramp, the glass behind it and the strip's event colours. */
+/**
+ * Colours from tokens: the spectrogram ramp, the glass behind it and the strip's event colours.
+ *
+ * @returns {Colours}
+ */
 function readRamp() {
   const cs = getComputedStyle(document.documentElement);
   const lut = rampLut(RAMP.map((n, i) => rgb(cs.getPropertyValue(n), [i * 50, i * 40, i * 20])));
@@ -56,7 +97,14 @@ function readRamp() {
   return { lut, glass, apodLut: apodRamp(glass, bad) };
 }
 
-/** Write the colour indices into the spectrogram's and the strip's pixels. */
+/**
+ * Write the colour indices into the spectrogram's and the strip's pixels.
+ *
+ * @param {Uint8ClampedArray} d  spectrogram pixels
+ * @param {Uint8ClampedArray} a  strip pixels
+ * @param {import('../../../model/gauges/meter-plot.js').SpectrogramIndex} idx
+ * @param {Colours} colours
+ */
 function fillPixels(d, a, idx, colours) {
   const { lut, glass, apodLut } = colours;
   for (let p = 0; p < idx.colour.length; p++) {
@@ -84,9 +132,14 @@ function fillPixels(d, a, idx, colours) {
   }
 }
 
-/** The time axis under the window: absolute track position for 'all', seconds or minutes back to now otherwise. */
-function paintTimeAxis(tAxis, span, total, colsPerSec, all) {
-  const { inMin, ticks } = timeTicks(span, total, colsPerSec, all);
+/**
+ * The time axis under the window: absolute track position for 'all', seconds or minutes back to now otherwise.
+ *
+ * @param {HTMLElement} tAxis
+ * @param {ReturnType<typeof timeTicks>} tt
+ */
+function paintTimeAxis(tAxis, tt) {
+  const { inMin, ticks } = tt;
   edgeLabels(
     tAxis,
     "left",
@@ -98,16 +151,17 @@ function paintTimeAxis(tAxis, span, total, colsPerSec, all) {
  * The spectrogram's painter over `view` (its canvases already in the document): `ramp` reads the colour tokens, `axis`
  * paints the frequency labels, `paint` paints the window of `src`'s history and its time axis.
  *
- * @param {ReturnType<typeof spectrogramView>} view
- * @param {{ range: number, channel: string, window: number | 'all' }} st  view state, read at each paint
+ * @param {SpectrogramBlock} view
+ * @param {import('../source-meter.js').MeterState} st  view state, read at each paint
  * @param {{ nyquist: number, colsPerSec: number }} cfg
- * @param {{ hist: import('../../../model/gauges/meter.js').MockColumn[], firstIdx: number }} src
+ * @param {import('./mock.js').MockHistory} src
  */
 export function spectrogramPainter(view, st, cfg, src) {
-  const sctx = view.spec.getContext("2d");
-  const actx = view.apod.getContext("2d");
+  const sctx = /** @type {CanvasRenderingContext2D} */ (view.spec.getContext("2d"));
+  const actx = /** @type {CanvasRenderingContext2D} */ (view.apod.getContext("2d"));
   const img = sctx.createImageData(COLS, ROWS);
   const aimg = actx.createImageData(COLS, 1);
+  /** @type {Colours} set by `ramp`, which runs before the first paint */
   let colours;
   function paint() {
     const total = src.firstIdx + src.hist.length; // columns since track start
@@ -117,7 +171,7 @@ export function spectrogramPainter(view, st, cfg, src) {
     fillPixels(img.data, aimg.data, idx, colours);
     sctx.putImageData(img, 0, 0);
     actx.putImageData(aimg, 0, 0);
-    paintTimeAxis(view.tAxis, span, total, cfg.colsPerSec, st.window === "all");
+    paintTimeAxis(view.tAxis, timeTicks(span, total, cfg.colsPerSec, st.window === "all"));
   }
   return {
     paint,

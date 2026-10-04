@@ -17,8 +17,14 @@ import { barValueAt, barX, labelAnchor } from "../../model/gauges/range-axis.js"
  * @property {{ bar: number, barH: number, tick: number, label: number }} Y  row tops in px
  */
 
-/** Small key glyphs shared by the boxes and the bar, so each mark is named where it's typed. */
-export function keyGlyph(kind) {
+/** A key glyph's name. @typedef {'min' | 'max' | 'pin' | 'lparen' | 'rparen' | 'needle'} KeyGlyph */
+
+/**
+ * Small key glyphs shared by the boxes and the bar, so each mark is named where it's typed.
+ *
+ * @param {KeyGlyph} kind
+ */
+function keyGlyph(kind) {
   const shape = {
     min: s("path.brk", { d: "M9,2 H4 V16 H9" }),
     max: s("path.brk", { d: "M5,2 H10 V16 H5" }),
@@ -34,7 +40,7 @@ export function keyGlyph(kind) {
  * A typed bound: glyph, label, whole-dB number input, unit.
  *
  * @param {string} label
- * @param {string} glyph
+ * @param {KeyGlyph} glyph
  * @param {{ id?: string, min?: number, max?: number }} attrs
  * @param {(v: number) => void} onChange
  */
@@ -47,8 +53,12 @@ export function rangeBox(label, glyph, { id, min, max }, onChange) {
   };
 }
 
-/** A read-only mark: glyph, label, output, unit. */
-export function readout(glyph, label, out, unit, cls) {
+/**
+ * A read-only mark: glyph, label, output, unit.
+ *
+ * @param {{ glyph: KeyGlyph, label: string, out: Node, unit: string, cls?: string }} mark  cls: extra classes on the box
+ */
+export function readout({ glyph, label, out, unit, cls }) {
   return h(
     "div.vrbox",
     { class: cls },
@@ -72,6 +82,7 @@ export function barMarks(W, { axis, padX, Y }) {
   return {
     x,
     track: () => s("rect.trk", { x: padX - 3, y: by, width: W - 2 * padX + 6, height: bh, rx: 3 }),
+    /** @param {string} cls  @param {number} a  @param {number} b */
     span: (cls, a, b) => s("rect", { class: cls, x: x(a), y: by, width: Math.max(0, x(b) - x(a)), height: bh }),
     /** @param {import('../../model/gauges/range-axis.js').TickMark[]} marks  @param {string} minorCls */
     ticks: (marks, minorCls) =>
@@ -87,6 +98,7 @@ export function barMarks(W, { axis, padX, Y }) {
     /** @param {Map<number, string>} labels */
     labels: (labels) =>
       [...labels].map(([d, t]) => s("text.tl", { x: x(d), y: Y.label, "text-anchor": labelAnchor(d, axis), text: t })),
+    /** @param {number} v */
     needle: (v) =>
       s(
         "g.needle",
@@ -94,11 +106,13 @@ export function barMarks(W, { axis, padX, Y }) {
         s("line", { x1: x(v), x2: x(v), y1: by - 3, y2: by + bh + 3 }),
         s("circle", { cx: x(v), cy: by + bh + 7, r: 2.5 }),
       ),
+    /** @param {number} d  @param {number} dir  @param {string} cls */
     paren: (d, dir, cls) => {
       const xx = x(d),
         bow = 5 * dir;
       return s("path", { class: cls, d: `M${xx},${by - 7} Q${xx - bow},${by + bh / 2} ${xx},${by + bh + 7}` });
     },
+    /** @param {number} v */
     bubble: (v) => s("text.bub", { x: x(v), y: Y.label, "text-anchor": "middle", text: `${signed(v)} dBFS` }),
   };
 }
@@ -113,15 +127,18 @@ export function barMarks(W, { axis, padX, Y }) {
  * @returns {{ key: string | null }}  the handle being dragged, read by the bar's draw
  */
 export function bindBar(svg, { axis, padX, blocked, pick, move, draw, grab, drop }) {
+  /** @type {{ key: string | null }} */
   const st = { key: null };
+  /** @param {PointerEvent} e */
   const at = (e) => barValueAt(svg.clientWidth, axis, padX, (e.clientX - svg.getBoundingClientRect().left) / scale());
   svg.addEventListener("pointerdown", (e) => {
     if (blocked()) return;
     const v = at(e);
-    st.key = pick(v, (e.clientY - svg.getBoundingClientRect().top) / scale());
+    const key = pick(v, (e.clientY - svg.getBoundingClientRect().top) / scale());
+    st.key = key;
     svg.setPointerCapture(e.pointerId);
     grab?.();
-    move(st.key, v);
+    move(key, v);
   });
   svg.addEventListener("pointermove", (e) => {
     if (st.key) move(st.key, at(e));
@@ -133,6 +150,6 @@ export function bindBar(svg, { axis, padX, blocked, pick, move, draw, grab, drop
   };
   svg.addEventListener("pointerup", end);
   svg.addEventListener("pointercancel", end);
-  new globalThis.ResizeObserver(draw).observe(svg.parentElement);
+  new globalThis.ResizeObserver(draw).observe(/** @type {HTMLElement} */ (svg.parentElement)); // the bar's well
   return st;
 }

@@ -21,6 +21,29 @@ import { holdRepeat } from "../../model/shell/timing.js";
 import { percentOf } from "../../model/gauges/output.js";
 import { dbText, fixedPin, directPin, stepOff, volumeView, loudSpan } from "../../model/gauges/volume.js";
 
+/** @typedef {import('../../lib/shell/clock.js').Clock} Clock */
+/** @typedef {import('../../model/gauges/volume.js').Range} Range */
+/** @typedef {import('../../model/gauges/volume.js').Grid} Grid */
+/** @typedef {import('../../model/gauges/volume.js').Pin} Pin */
+/** @typedef {import('../../model/gauges/volume.js').DirectPin} DirectPin */
+/** @typedef {import('../../model/gauges/volume.js').VolumeView} VolumeView */
+/** @typedef {Grid & { value: number, scale: number[] }} VolumeCfg  the level, its range and step, the scale marks (dB) */
+/** @typedef {{ on: boolean, low: number, high: number }} Loud  loudness in effect, and its range bounds (dB) */
+/** @typedef {(level: number, txt: string, fixed: boolean) => void} LevelView  another home of the level */
+/**
+ * A volume home's level and its feeds: `bus` gets a 'level' event (detail = dB) on every change (Range bar needle).
+ *
+ * @typedef {{ cfg: VolumeCfg, bus?: EventTarget, loud?: Loud, clock?: Clock }} VolumeOpts
+ */
+/**
+ * @typedef {object} VolumeApi
+ * @property {(v: number) => void} set
+ * @property {(dir: number) => void} step
+ * @property {(mode: string, level: string | number, iso: string) => void} setFixed
+ * @property {(on: boolean, why: string) => void} setDirect
+ * @property {(fn: LevelView) => void} view
+ */
+
 const HOLD_DELAY = 400; // ms before a held ± starts repeating
 const HOLD_RATE = 70; // ms between repeats
 
@@ -28,7 +51,7 @@ const fmt = dbText;
 
 /**
  * The scale marks under a volume slider: each of `cfg.scale` at its place along the range, the top one in full.
- * @param {{min:number, max:number, scale:number[]}} cfg
+ * @param {Range & { scale: number[] }} cfg
  */
 const scaleMarks = ({ min, max, scale }) =>
   h(
@@ -43,49 +66,64 @@ const scaleMarks = ({ min, max, scale }) =>
   );
 
 /**
+ * Mount the engine-row volume: ± and the readout with its slider popover, all on one live level that the rail Volume
+ * value mirrors. Fixed volume and Direct SDM pin it.
+ *
  * @param {HTMLElement} plate
  * @param {{down:HTMLButtonElement, readout:HTMLButtonElement, up:HTMLButtonElement}} ctl  engine-row controls
  * @param {HTMLButtonElement} stage  rail Volume stage (its .v mirrors the level)
- * @param {{value:number,min:number,max:number,step:number,scale:number[]}} cfg
- * @param {EventTarget} [bus]  gets a 'level' event (detail = dB) on every change (Range bar needle)
- * @param {object} [loud]
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * @param {VolumeOpts} o
+ * @returns {VolumeApi}
  */
-export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud, clock = PLATFORM) {
+export function mountVolume(plate, { down, readout, up }, stage, { cfg, bus, loud, clock = PLATFORM }) {
   let value = cfg.value;
+  /** @type {Pin | null} */
   let fixedSet = null; // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
+  /** @type {DirectPin | null} */
   let direct = null; // Direct SDM playing: {level, level_txt, text, why}, over fixed
+  /** @type {VolumeView | null} */
   let shown = null; // what the last set() showed (model/volume.js volumeView): every change of the three above sets
   const { step } = cfg;
-  const { big, slider, pop } = volumePanel(plate, readout, cfg, bus, loud, (v) => set(v));
+  const { big, slider, pop } = volumePanel({ plate, readout, cfg, bus, loud }, (v) => set(v));
 
+  /** @type {LevelView[]} */
   const views = []; // other homes of the level (bottom bar): fn(value, txt, fixed)
+  /** @param {number} v */
   function set(v) {
     shown = volumeView(v, value, { fixed: fixedSet, direct }, cfg);
     value = shown.value;
     readout.title = shown.why;
     // The mode word (`Manual:` / `Auto:`) lives on the rail only; the windows show the level alone.
-    readout.querySelector(".v").textContent = shown.txt;
+    /** @type {Element} */ (readout.querySelector(".v")).textContent = shown.txt;
     readout.classList.toggle("fixed", shown.fixed);
     readout.disabled = shown.fixed; // nothing to slide: the popover stays shut
     big.textContent = shown.txt;
-    slider.value = shown.level;
+    slider.value = String(shown.level);
     slider.disabled = shown.fixed;
-    stage.querySelector(".v").textContent = shown.rail;
+    /** @type {Element} */ (stage.querySelector(".v")).textContent = shown.rail;
     down.disabled = shown.off.down;
     up.disabled = shown.off.up;
     for (const fn of views) fn(shown.level, shown.txt, shown.fixed);
     bus?.dispatchEvent(new CustomEvent("level", { detail: shown.level }));
   }
 
-  /** Fixed volume (Volume drawer → Fixed volume, applied): 'off' | 'manual' (level, dBFS) | 'auto' (iso '1' = −3, '2' = −6). */
+  /**
+   * Fixed volume (Volume drawer → Fixed volume, applied): 'off' | 'manual' (level, dBFS) | 'auto' (iso '1' = −3, '2' = −6).
+   * @param {string} mode
+   * @param {string | number} level
+   * @param {string} iso
+   */
   function setFixed(mode, level, iso) {
     if (pop.isOpen) pop.close();
     fixedSet = fixedPin(mode, level, iso);
     set(value);
   }
 
-  /** Direct SDM playing (mock scenario): volume bypassed, PCM volume pinned at −3 dBFS. why = v1's gray reason. */
+  /**
+   * Direct SDM playing (mock scenario): volume bypassed, PCM volume pinned at −3 dBFS. why = v1's gray reason.
+   * @param {boolean} on
+   * @param {string} why
+   */
   function setDirect(on, why) {
     if (on && pop.isOpen) pop.close();
     direct = directPin(on, why);
@@ -103,7 +141,9 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
     setDirect,
     view: (fn) => {
       views.push(fn);
-      fn(shown.level, shown.txt, shown.fixed);
+      // set() above has run, so a view always has a level to show.
+      const now = /** @type {VolumeView} */ (shown);
+      fn(now.level, now.txt, now.fixed);
     },
   };
 }
@@ -111,16 +151,13 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
 /**
  * The engine-row popover: heading with the big level, the slider over its loudness marks, the scale. Drops from the
  * readout; `onInput` gets each slider move (dB).
- * @param {HTMLElement} plate
- * @param {HTMLButtonElement} readout
- * @param {{value:number,min:number,max:number,step:number,scale:number[]}} cfg
- * @param {EventTarget} [bus]
- * @param {object} [loud]
+ * @param {{plate: HTMLElement, readout: HTMLButtonElement, cfg: VolumeCfg, bus?: EventTarget, loud?: Loud}} o
  * @param {(v:number) => void} onInput
  */
-function volumePanel(plate, readout, cfg, bus, loud, onInput) {
+function volumePanel({ plate, readout, cfg, bus, loud }, onInput) {
   const { min, max, step, value } = cfg;
   const big = h("span.v");
+  /** @type {HTMLInputElement} */
   const slider = h("input", {
     type: "range",
     min,
@@ -128,7 +165,7 @@ function volumePanel(plate, readout, cfg, bus, loud, onInput) {
     step,
     value,
     "aria-label": "Playback volume",
-    on: { input: (e) => onInput(Number(e.target.value)) },
+    on: { input: (/** @type {Event} */ e) => onInput(Number(/** @type {HTMLInputElement} */ (e.target).value)) },
   });
   const panel = h(
     "div.pop.vpop#vpop",
@@ -145,7 +182,7 @@ function volumePanel(plate, readout, cfg, bus, loud, onInput) {
     onToggle(open) {
       if (!open) return;
       // Drop from the readout, right edge flush with the whole − / readout / + group (= the page's right edge).
-      const group = readout.parentElement;
+      const group = /** @type {HTMLElement} */ (readout.parentElement);
       const r = toPlate(readout.getBoundingClientRect());
       const right = toPlate(group.getBoundingClientRect()).x + group.offsetWidth;
       panel.style.left = Math.round(Math.min(right, PLATE_W - 22) - panel.offsetWidth) + "px";
@@ -160,14 +197,22 @@ function volumePanel(plate, readout, cfg, bus, loud, onInput) {
  * Loudness bounds over a volume slider, in the Range bar's grammar: ( … ) at the bounds, a strip under the track between
  * them. Shown only while loudness is in effect (`loud.on`); follows the Loudness drawer's Apply ('loudness' on the bus).
  * Bounds outside the slider's range clamp to its ends.
+ * @param {Range} cfg
+ * @param {Loud} [loud]
+ * @param {EventTarget} [bus]
+ * @returns {HTMLElement}
  */
 function loudMarks(cfg, loud, bus) {
   const box = h("div.lmk", { "aria-hidden": "true" });
   if (!loud) return box;
+  /** @param {string} d */
   const paren = (d) => s("svg.lp", { viewBox: "0 0 10 18", width: 10, height: 18 }, s("path", { d }));
   const draw = () => {
     box.hidden = !loud.on;
-    if (!loud.on) return box.replaceChildren();
+    if (!loud.on) {
+      box.replaceChildren();
+      return;
+    }
     const { lo, hi, width } = loudSpan(loud.low, loud.high, cfg); // model/volume.js: clamped to the slider's ends
     box.title = "";
     box.replaceChildren(
@@ -185,7 +230,7 @@ function loudMarks(cfg, loud, bus) {
  * ± press: one step per click; holding repeats after HOLD_DELAY. A hold already stepped, so its trailing click is ignored.
  * @param {HTMLButtonElement} btn
  * @param {() => void} stepOnce
- * @param {import('../../lib/shell/clock.js').Clock} clock
+ * @param {Clock} clock
  */
 function hold(btn, stepOnce, clock) {
   const idle = () => false;
@@ -215,23 +260,23 @@ function hold(btn, stepOnce, clock) {
  * Bottom-bar volume (Visual settings → Bottom bar: Volume): engraved label, − , the full-width slider with the popover's
  * scale marks under it, the VFD readout, +. Same level, same live lane as the engine-row cluster it replaces.
  * @param {HTMLElement} host  .vbar
- * @param {{set:Function, step:Function, view:Function}} vol  mountVolume's api
- * @param {object} cfg  VOLUME
- * @param {EventTarget} [bus]
- * @param {object} [loud]
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * @param {VolumeApi} vol  mountVolume's api
+ * @param {VolumeOpts} o  cfg: VOLUME
  */
-export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
+export function mountVolumeBar(host, vol, { cfg, bus, loud, clock = PLATFORM }) {
   const { min, max, step } = cfg;
+  /** @type {HTMLButtonElement} */
   const down = h("button.round.vbtn", { type: "button", "aria-label": "Volume down", text: "−" });
+  /** @type {HTMLButtonElement} */
   const up = h("button.round.vbtn", { type: "button", "aria-label": "Volume up", text: "+" });
+  /** @type {HTMLInputElement} */
   const slider = h("input", {
     type: "range",
     min,
     max,
     step,
     "aria-label": "Playback volume",
-    on: { input: (e) => vol.set(Number(e.target.value)) },
+    on: { input: (/** @type {Event} */ e) => vol.set(Number(/** @type {HTMLInputElement} */ (e.target).value)) },
   });
   const rd = h("span.v");
   host.append(
@@ -244,7 +289,7 @@ export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   hold(down, () => vol.step(-1), clock);
   hold(up, () => vol.step(1), clock);
   vol.view((v, txt, fixed) => {
-    slider.value = v;
+    slider.value = String(v);
     rd.textContent = txt;
     const off = stepOff(v, fixed, cfg);
     slider.disabled = fixed;

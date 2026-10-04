@@ -101,7 +101,7 @@ const PRESET = /** @type {Known} */ ({ crossfeed: "preset", loudness: "preset" }
  * @param {{ at?: string, meta?: Meta, vals?: Vals, known?: Known, skip?: string }} o
  * @returns {string}
  */
-const shape = (o) => shapeOf(o.at ?? "crossfeed", o.meta ?? meta(), o.vals ?? vals(), o.known ?? PRESET, o.skip ?? "");
+const shape = (o) => shapeOf({ at: "crossfeed", meta: meta(), vals: vals(), known: PRESET, skip: "", ...o });
 
 //: A record book: two stations, the first holding two profiles.
 const BOOK = { den: { Rock: {}, Jazz: {} }, loft: { [DEFAULT]: {} } };

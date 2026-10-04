@@ -1,0 +1,86 @@
+export const DECIMATION_CATALOG = [
+  {
+    v: "traditional",
+    label: "Conventional · Recursive",
+    group: "Conventional",
+    man: "Traditional recursive conversion algorithm. Minimizes the amount of ringing by using slow roll-off filters.",
+  },
+  {
+    v: "single-steep",
+    label: "Conventional · Steep",
+    group: "Conventional",
+    man: "Single-pass conversion algorithm with steep roll-off.",
+  },
+  {
+    v: "single-short",
+    label: "Conventional · Balanced",
+    group: "Conventional",
+    man: "Single-pass conversion algorithm with normal roll-off. Optimized tradeoff between ringing and wide frequency response.",
+  },
+  {
+    v: "sinc-S",
+    label: "Sinc · Short",
+    group: "Pure sinc",
+    man: "Linear phase adaptive length sharp roll-off and high attenuation single-pass conversion algorithm.",
+  },
+  {
+    v: "sinc-M",
+    label: "Sinc · Constant length",
+    group: "Pure sinc",
+    man: "Linear phase million-tap sharp roll-off and high attenuation single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-lp",
+    label: "Poly-sinc · Linear",
+    group: "Polyphase sinc",
+    man: "Linear phase single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-mp",
+    label: "Poly-sinc · Minimum",
+    group: "Polyphase sinc",
+    man: "Minimum phase single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-short-lp",
+    label: "Poly-sinc · Short linear",
+    group: "Polyphase sinc",
+    man: "Linear phase slow roll-off single-pass conversion algorithm. Recommended.",
+  },
+  {
+    v: "poly-short-mp",
+    label: "Poly-sinc · Short minimum",
+    group: "Polyphase sinc",
+    man: "Minimum phase slow roll-off single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-xtr",
+    label: "Poly-sinc · Extreme",
+    group: "Polyphase sinc",
+    man: "Linear phase extreme roll-off and attenuation single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-xtr-short",
+    label: "Poly-sinc · Extreme · Short",
+    group: "Polyphase sinc",
+    man: "Linear phase extreme roll-off and attenuation single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-ext2",
+    label: "Poly-sinc · Extended v2",
+    group: "Polyphase sinc",
+    man: "Linear phase extended frequency response sharp roll-off and high attenuation single-pass conversion algorithm.",
+  },
+  {
+    v: "poly-gauss-long",
+    label: "Poly-sinc · Gauss · Long",
+    group: "Polyphase sinc",
+    man: "Linear phase Gaussian extremely high attenuation single-pass conversion algorithm. Optimal time-frequency response.",
+  },
+  {
+    v: "none",
+    label: "No decimation",
+    group: "Bypass",
+    man: "No decimation; intermediate output rate is equal to the source DSD rate.",
+  },
+];

@@ -15,6 +15,7 @@ const SPACE_TIP =
 const TRANSIENTS_TIP =
   "Choose 'Transients' for multi-track studio material, which often has an artificial sense of space but strong transient content. This is far from a hard rule, so experiment with both and find what sounds best to you.";
 
+/** @param {string} pick */
 const emphasis = (pick) => ({
   label: "Emphasis",
   options: [

@@ -20,29 +20,74 @@
 // The rail's and rows' decisions are model/snapshot.js; this file draws what they return.
 
 import { h } from "../../lib/shell/dom.js";
-import { seg } from "../controls/seg.js";
-import { vselect, optionStyle } from "../lists/vselect.js";
 import { mountBuilder, nameInput } from "../../lib/builder/builder.js";
 import { NEW, homeOf } from "../../model/builders/builder.js";
 import { SNAP_ROWS, SNAP_COPY } from "../../data/builders/snapshots.js";
-import { CHAIN_NAMES } from "../../data/stages/conversion.js";
-import { classNames } from "../../model/shell/format.js";
-import { pageButtons } from "../../lib/controls/pager.js";
-import { isChain, valOf, railPer, revealPage, railFolds, litEntry, snapRow } from "../../model/builders/snapshot.js";
+import { edit, dirtyOf, recordOf, change } from "./snapshot-builder/edit.js";
+import { paintRail } from "./snapshot-builder/rail.js";
+import { takeAll, rowEl } from "./snapshot-builder/rows.js";
+
+/** @typedef {import('../../data/builders/snapshots.js').Snapshot} Snapshot */
+/** @typedef {import('../../model/builders/snapshot.js').Edit} Edit */
+/** @typedef {import('../../lib/builder/builder.js').Spec<Snapshot, Edit>} Spec */
+/** @typedef {import('../../lib/builder/builder.js').Builder<Snapshot, Edit>} Builder */
+/** @typedef {Record<string, Record<string, Snapshot>>} Records  station → name → the fields it holds */
+/** @typedef {{ setOn: (on: boolean) => void }} Settings */
+/**
+ * The engine now.
+ *
+ * @typedef {object} Live
+ * @property {string} autopilot
+ * @property {string} adaptive
+ * @property {string} profile
+ * @property {string} mode
+ * @property {import('../../data/stages/conversion.js').Chain} run  the chain it runs
+ * @property {Record<string, string>} pcm  the PCM chain's rows
+ * @property {Record<string, string>} sdm  the SDM chain's rows
+ */
+/**
+ * The page's elements the builder lives in.
+ *
+ * @typedef {object} Els
+ * @property {HTMLElement} btn  the header's button
+ * @property {HTMLElement} chain  #body
+ * @property {HTMLElement} body  #bbody
+ * @property {HTMLElement} rail
+ * @property {HTMLElement} page
+ * @property {Settings} settings
+ * @property {import('../../lib/shell/bus.js').Bus} bus
+ */
+/**
+ * The Snapshot builder's state, shared by every file here. B.cur = {st, name}: the snapshot being edited (name NEW = New
+ * snapshot).
+ *
+ * @typedef {object} Snap
+ * @property {HTMLElement} rail
+ * @property {HTMLElement} page
+ * @property {() => Live} live
+ * @property {{ name: string, active?: boolean }[]} stations
+ * @property {string} home  the loaded station; New lands here
+ * @property {string | null} openSt  the station fold that is open
+ * @property {Map<string, number>} pageOf  station → its list's page
+ * @property {boolean} reveal  the next rail paint turns to the edited snapshot's page
+ * @property {(() => void) | null} stationPaint  the Stations menu's paint
+ * @property {Builder} B
+ * @property {ReturnType<Builder['buttons']>} acts  Delete / Discard / Save, on the title
+ */
 
 /**
- * @param {object} el     {btn: header button, chain: #body, body: #bbody, rail, page, settings: {setOn}, bus: lib/bus.js}
- * @param {{name: string, active?: boolean}[]} stations  in the tree's order
- * @param {object} records  station → name → fields (absent = not held)
- * @param {() => object} live  engine now: {autopilot, adaptive, profile, mode, run, pcm: {1x,nx,sh}, sdm: {...}}
+ * Mount the Snapshot builder on its body; it opens on the loaded station's first snapshot.
+ *
+ * @param {Els} el
+ * @param {{ name: string, active?: boolean }[]} stations  in the tree's order
+ * @param {Records} records  station → name → fields (absent = not held)
+ * @param {() => Live} live  engine now
  */
 export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, bus }, stations, records, live) {
   records = Object.fromEntries(stations.map((st) => [st.name, structuredClone(records[st.name] ?? {})]));
   const home = homeOf(stations); // the loaded station; New lands here
-  // The state the helpers below share. B.cur = {st, name}: the snapshot being edited (name NEW = New snapshot); it
-  // opens on the loaded station's first. openSt: the station fold that is open (the edited snapshot's; it opens on the
-  // loaded station's). pageOf: station → its list's page. reveal: next rail paint turns to the edited snapshot's page.
-  const S = {
+  // The state the helpers below share. B.cur opens on the loaded station's first. openSt opens on the loaded station's.
+  const S = /** @type {Snap} */ ({
     rail,
     page,
     live,
@@ -52,48 +97,10 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     pageOf: new Map(),
     reveal: false,
     stationPaint: null,
-    B: null,
-    acts: null,
-  };
-  const B = (S.B = mountBuilder(
-    { btn, chain, body, bus },
-    {
-      title: "Snapshot builder",
-      closeLabel: "Close Snapshot builder",
-      noun: "Snapshot", // the other builders' close
-      stations: stations.map((st) => st.name),
-      book: records,
-      cur: { st: home, name: Object.keys(records[home])[0] ?? NEW },
-      copy: { remove: (n) => SNAP_COPY.remove(n), overwrite: (n) => SNAP_COPY.overwrite(n), noName: SNAP_COPY.noName },
-      name: () => edit(S).name,
-      to: () => edit(S).stations,
-      take: () => edit(S),
-      record: (e) => recordOf(e),
-      dirty: () => dirtyOf(S, B.cur),
-      ticked: () => edit(S).stations.length > 0,
-      view: () => render(S),
-      went: (c) => {
-        if (c.name !== NEW) S.openSt = c.st;
-      },
-      refuse: () => {
-        render(S);
-        page.querySelector(".bhead input")?.focus();
-      },
-      saved: () => {
-        S.openSt = B.cur.st;
-        S.reveal = true;
-        render(S);
-      },
-      removed: () => render(S),
-      leave: () => settings.setOn(false),
-      opened: () => render(S),
-      painted: () => {
-        S.stationPaint?.();
-        paintRail(S);
-      },
-      toggles: true,
-    },
-  ));
+    B: /** @type {Builder | null} */ (null),
+    acts: /** @type {Snap['acts'] | null} */ (null),
+  });
+  const B = (S.B = mountBuilder({ btn, chain, body, bus }, specOf(S, records, settings)));
   S.acts = B.buttons("button.btn.sm.bsave"); // Delete / Discard / Save, on the title
 
   btn.setAttribute("aria-pressed", "false");
@@ -110,176 +117,65 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
   };
 }
 
-// ── Edit buffers ────────────────────────────────────────────────────────
-/** A record as an edit: every row has a value (the engine's where the record holds none); inc = what it holds. */
-function fromRecord(S, r) {
-  const L = S.live();
-  const mode = r?.mode ?? L.run;
-  const vals = {
-    autopilot: L.autopilot,
-    adaptive: L.adaptive,
-    profile: L.profile,
-    mode,
-    pcm: { ...L.pcm },
-    sdm: { ...L.sdm },
-  };
-  const inc = new Set();
-  if (!r) {
-    // New: what the engine runs now, everything attached (v1: every row checked)
-    for (const row of SNAP_ROWS) inc.add(row.id);
-    vals.mode = L.run;
-    return { name: "", stations: [S.home], inc, vals };
-  }
-  for (const [k, v] of Object.entries(r)) {
-    inc.add(k);
-    if (isChain(k)) vals[mode][k] = v;
-    else vals[k] = v;
-  }
-  return { name: S.B.cur.name, stations: [S.B.cur.st], inc, vals };
-}
-const saved = (S, c) => (c.name === NEW ? fromRecord(S, null) : fromRecord(S, S.B.book[c.st][c.name]));
-const edit = (S) => S.B.staged.get(S.B.K(S.B.cur)) ?? saved(S, S.B.cur);
-const key = (e) =>
-  JSON.stringify([
-    e.name,
-    [...e.stations].sort(),
-    [...held(e)].sort(),
-    ...[...held(e)].sort().map((id) => valOf(e, id)),
-  ]);
-/** What the snapshot would store: chain rows only with Mode (they index its chain). */
-const held = (e) => new Set([...e.inc].filter((id) => !isChain(id) || e.inc.has("mode")));
-const dirtyOf = (S, c) => S.B.staged.has(S.B.K(c));
-
-/** What the snapshot stores: the rows it holds, at the edit's values. */
-function recordOf(e) {
-  const r = {};
-  for (const id of SNAP_ROWS.map((x) => x.id)) if (held(e).has(id)) r[id] = valOf(e, id);
-  return r;
-}
-
-/** Change the edit; stage it while it differs from what is saved, drop it once it matches again. soft = no re-render
- *  (the name box: typing must not rebuild the page under the caret, or under a Save tap that blurs it). */
-function change(S, fn, soft) {
-  const { B } = S;
-  const e = structuredClone(edit(S));
-  e.inc = new Set(edit(S).inc);
-  fn(e);
-  B.stage(key(e) === key(saved(S, B.cur)) && (B.cur.name !== NEW || !e.name) ? null : e);
-  if (soft) {
-    B.paintState();
-    return;
-  }
-  B.refused = false;
-  render(S);
-}
-
-// ── Live values ─────────────────────────────────────────────────────────
-/** The live value in the words the snapshot's control uses: the same Option style as the pickers (Visual settings). */
-const labelOf = (row, e, v) => {
-  if (row.kind === "seg") return row.options.find((o) => o.v === v)?.label ?? (v === "auto" ? "Auto" : v);
-  if (row.kind === "list" && optionStyle() !== "standard")
-    return row.list(e.vals.mode).find((o) => o.v === v)?.label ?? v;
-  return v;
-};
-
-// ── Rail ────────────────────────────────────────────────────────────────
-/** Rail at the most lines that fit: the open station's page shrinks until nothing runs past the rail (no scroll). */
-function paintRail(S) {
-  // Measured on the fullest page (the first), so every page holds the same number of lines.
-  const per = railPer((n) => {
-    paintRailAt(S, n, true);
-    return { client: S.rail.clientHeight, scroll: S.rail.scrollHeight };
-  });
-  // After a save (or a station opened on its snapshot), its page is the one shown.
-  const { cur } = S.B;
-  if (S.reveal) {
-    const pg = revealPage(S.B.book, cur, per);
-    if (pg !== null) S.pageOf.set(cur.st, pg);
-  }
-  S.reveal = false;
-  paintRailAt(S, per);
-}
-function paintRailAt(S, per, first) {
-  const { B, home } = S;
-  const e = edit(S);
-  const nw = { st: home, name: NEW };
-  const folds = railFolds({
-    stations: S.stations.map((st) => st.name),
-    book: B.book,
-    open: S.openSt,
-    home,
-    staged: [...B.staged.keys()],
-    per,
-    pages: S.pageOf,
-    first,
-  });
-  S.rail.replaceChildren(
-    // Each station a fold, one open at a time; its snapshots under it. The loaded station's name amber.
-    ...folds.flatMap((f) => [
-      h(
-        "button.brh",
-        {
-          type: "button",
-          class: classNames(f.loaded && "cur", f.dirty && "dirty"),
-          aria: { expanded: f.open },
-          on: {
-            click: () => {
-              S.openSt = f.open ? null : f.name;
-              paintRail(S);
-            },
-          },
-        },
-        h("span.chv", { text: f.open ? "▾" : "▸" }),
-        h("span.sn", { text: f.name }),
-        h("span.ln"),
-        h("span.cnt", { text: String(f.count) }),
-      ),
-      ...f.items.map((name) => railEntry(S, e, { st: f.name, name })),
-      // A short last page keeps its full height (the pipelines list's fixed page), so nothing under it moves.
-      ...Array.from({ length: f.fill }, () => h("div.bfill")),
-      ...(f.open ? railPager(S, f.name, f.count, per) : []),
-    ]),
-    h(
-      "button.st.bst.bnew",
-      {
-        type: "button",
-        class: classNames(litEntry(nw, B.cur, e) && "open", dirtyOf(S, nw) && "dirty"),
-        on: { click: () => B.go(nw) },
-      },
-      h("span.n", {}, h("span.plus", { text: "+" }), "New snapshot"),
-    ),
-  );
-}
-/** One snapshot's line, lit with the edit (the same-named one in every other ticked station too: Save writes there). */
-function railEntry(S, e, c) {
-  const lit = litEntry(c, S.B.cur, e);
-  return h(
-    "button.st.bst",
-    {
-      type: "button",
-      class: classNames(lit && "open", dirtyOf(S, c) && "dirty"),
-      aria: { current: lit },
-      title: c.name,
-      on: { click: () => S.B.go(c) },
+/**
+ * The shell's spec: the records, the edit Save writes, and what follows each of the shell's acts.
+ *
+ * @param {Snap} S
+ * @param {Records} records
+ * @param {Settings} settings
+ * @returns {Spec}
+ */
+function specOf(S, records, settings) {
+  const { stations, home, page } = S;
+  return {
+    title: "Snapshot builder",
+    closeLabel: "Close Snapshot builder",
+    noun: "Snapshot", // the other builders' close
+    stations: stations.map((st) => st.name),
+    book: records,
+    cur: { st: home, name: Object.keys(records[home])[0] ?? NEW },
+    copy: {
+      remove: (/** @type {string} */ n) => SNAP_COPY.remove(n),
+      overwrite: (/** @type {string} */ n) => SNAP_COPY.overwrite(n),
+      noName: SNAP_COPY.noName,
     },
-    h("span.n", { text: c.name }),
-  );
-}
-function railPager(S, st, n, per) {
-  const kids = pageButtons({
-    n,
-    per,
-    page: S.pageOf.get(st) ?? 0,
-    go: (k) => {
-      S.pageOf.set(st, k);
+    name: () => edit(S).name,
+    to: () => edit(S).stations,
+    take: () => edit(S),
+    record: (e) => recordOf(e ?? edit(S)),
+    dirty: () => dirtyOf(S, S.B.cur),
+    ticked: () => edit(S).stations.length > 0,
+    view: () => render(S),
+    went: (c) => {
+      if (c.name !== NEW) S.openSt = c.st;
+    },
+    refuse: () => {
+      render(S);
+      /** @type {HTMLElement | null} */ (page.querySelector(".bhead input"))?.focus();
+    },
+    saved: () => {
+      S.openSt = S.B.cur.st;
+      S.reveal = true;
+      render(S);
+    },
+    removed: () => render(S),
+    leave: () => settings.setOn(false),
+    opened: () => render(S),
+    painted: () => {
+      S.stationPaint?.();
       paintRail(S);
     },
-  });
-  return kids.length ? [h("div.opg.bpg", {}, kids)] : [];
+    toggles: true,
+  };
 }
 
 // ── Page ────────────────────────────────────────────────────────────────
-function render(S) {
+/**
+ * Render the page for the snapshot being edited: title and actions, name and Stations, the rows, then the rail.
+ *
+ * @param {Snap} S
+ */
+export function render(S) {
   const { B, page, acts } = S;
   const e = edit(S);
   const isNew = B.cur.name === NEW;
@@ -344,6 +240,9 @@ function render(S) {
 
 /**
  * Stations window: the stations Save writes to (the shell's menu). Ticking stays open: several can be picked in one go.
+ *
+ * @param {Snap} S
+ * @returns {HTMLElement}
  */
 function stationPick(S) {
   const m = S.B.stationsMenu({
@@ -361,76 +260,4 @@ function stationPick(S) {
   });
   S.stationPaint = m.paint;
   return m.el;
-}
-
-function takeAll(x, L) {
-  if (x.inc.has("mode")) x.vals.mode = L.run;
-  for (const row of SNAP_ROWS) {
-    if (!x.inc.has(row.id) || row.id === "mode") continue;
-    if (isChain(row.id)) x.vals[x.vals.mode][row.id] = L[x.vals.mode][row.id];
-    else x.vals[row.id] = L[row.id];
-  }
-}
-
-function rowEl(S, row, e) {
-  const ch = e.vals.mode;
-  const d = snapRow(row, e, S.live());
-  const label = typeof row.label === "function" ? row.label(ch) : row.label;
-
-  const box = h("button.binc", {
-    type: "button",
-    role: "checkbox",
-    aria: { checked: d.on, label: `Attach ${label}` },
-    disabled: d.gated,
-    on: {
-      click: () =>
-        change(S, (x) => {
-          if (x.inc.has(row.id)) x.inc.delete(row.id);
-          else x.inc.add(row.id);
-        }),
-    },
-  });
-
-  let ctl;
-  const set = (nv) =>
-    change(S, (x) => {
-      if (isChain(row.id)) x.vals[x.vals.mode][row.id] = nv;
-      else x.vals[row.id] = nv;
-    });
-  if (row.kind === "seg") ctl = seg({ aria: label, options: row.options, value: d.value, onChange: set });
-  else if (row.kind === "select") ctl = vselect({ aria: label, options: row.options, value: d.value, onChange: set });
-  else
-    ctl = vselect({
-      id: `bd-${ch}${row.id}`,
-      aria: `${CHAIN_NAMES[ch]} ${label}`,
-      options: row.list(ch),
-      value: d.value,
-      onChange: set,
-    });
-  const ctlWrap = h("div.bval", { class: !d.on && "grayed" }, ctl);
-  if (!d.on) for (const b of ctlWrap.querySelectorAll("button,select")) b.disabled = true;
-
-  const take = h("button.round.btake", {
-    type: "button",
-    "aria-label": `${label}: use the live value`,
-    text: "←",
-    disabled: !d.take,
-    on: { click: () => set(row.id === "mode" ? S.live().run : d.live) },
-  });
-
-  const liveTxt = labelOf(row, e, d.live);
-  return h(
-    "div.brow",
-    { class: classNames(!row.stage && "cont", !d.on && "off"), data: { id: row.id } },
-    box,
-    h("div.bset", {}, row.stage && h("span.bst2", { text: row.stage }), h("span.bl", {}, h("b", { text: label }))),
-    ctlWrap,
-    take,
-    // Differences mark only on attached rows (an excluded row is left as is on recall, so it can't differ).
-    h(
-      "div.vfd.blive",
-      { class: d.differs && d.on && "diff", title: d.idle ? `${liveTxt} · idle` : liveTxt },
-      h("span.v", {}, h("span.bt", { text: liveTxt }), d.idle && h("span.bidle", { text: "· idle" })),
-    ),
-  );
 }

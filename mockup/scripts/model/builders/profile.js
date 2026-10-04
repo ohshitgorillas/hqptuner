@@ -3,9 +3,9 @@
 // step must be laid out again, and what the picker, the name box and Delete show. Each takes its tables as arguments,
 // returns a value and leaves its arguments as they were.
 
-import { shelfScale } from "../../lib/dsp/xdsp.js";
 import { bauerPreset, structuralPreset } from "../gauges/crossfeed.js";
 import { percentApplied } from "../gauges/loudness.js";
+import { shelfScale } from "../gauges/shelf.js";
 import { NEW, OVERVIEW, keyOf } from "./builder.js";
 
 /** The station's unnamed profile: the daemon's own name, kept and never deleted (v1). */
@@ -166,14 +166,11 @@ export function holdSkipped(id, skip, vals) {
 /**
  * What the step showing lays out: a change to any of these lays it out again.
  *
- * @param {string} at  the page showing
- * @param {Meta} meta
- * @param {Vals} vals
- * @param {Known} known
- * @param {string} skip  why the page showing is skipped
+ * @param {{ at: string, meta: Meta, vals: Vals, known: Known, skip: string }} page  at: the page showing; skip: why it
+ *   is skipped
  * @returns {string}
  */
-export function shapeOf(at, meta, vals, known, skip) {
+export function shapeOf({ at, meta, vals, known, skip }) {
   return [at, meta.listen, vals.xfmode, known.crossfeed, vals.ldon, known.loudness, skip].join("|");
 }
 

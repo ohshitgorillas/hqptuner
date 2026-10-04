@@ -5,6 +5,14 @@ import { h } from "../shell/dom.js";
 import { paging, stepPage } from "../../model/builders/pager.js";
 
 /**
+ * Whether a pager slot holds a node (the `count` slots are falsy without it).
+ *
+ * @param {HTMLElement | false | undefined} x
+ * @returns {x is HTMLElement}
+ */
+const isNode = (x) => Boolean(x);
+
+/**
  * The pager's nodes; none while the list fits one page. `count` adds the `Page` label ahead and the shown range after.
  * @param {{n: number, per: number, page: number, go: (k: number) => void, count?: boolean}} o  go hears the page picked
  * @returns {HTMLElement[]}
@@ -41,5 +49,5 @@ export function pageButtons({ n, per, page, go, count }) {
     count && h("span.opr", { text: `${p.start + 1}–${p.end} of ${n}` }),
   ]
     .flat()
-    .filter(Boolean);
+    .filter(isNode);
 }

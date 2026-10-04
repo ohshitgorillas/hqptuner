@@ -19,20 +19,36 @@ export const SIZES = [
   { id: "13", label: "13″", w: 1366, h: 1024, model: "iPad Air 13″", both: true, meter: "full" },
 ];
 export const SIZE0 = "10.2";
+/**
+ * The size with this id, else the first (10.2″).
+ *
+ * @param {string} id
+ */
 export const sizeOf = (id) => SIZES.find((z) => z.id === id) || SIZES[0];
 
 export let PLATE_W = SIZES[0].w;
 export let PLATE_H = SIZES[0].h;
-export let SIZE = SIZE0;
-export const SCENE_H = 40; // mock scenario strip above the plate (base.css --scene-h); not part of the app
+export let SIZE = SIZES[0].id;
+const SCENE_H = 40; // mock scenario strip above the plate (base.css --scene-h); not part of the app
 
+/** @type {HTMLElement | null} */
 let plate = null;
+/** @type {import('./bus.js').Bus | null} */
 let relay = null; // the shared bus (lib/bus.js): measurers re-measure on `relayout`
 let current = 1;
 
+/** The plate's current scale: screen px per plate px. */
 export const scale = () => current;
 
+/** The mounted plate; before mountPlate this throws, as reading through the empty slot always did. */
+function mounted() {
+  if (!plate) throw new TypeError("the plate is not mounted");
+  return plate;
+}
+
 /**
+ * Mount the plate: lay it out at `size` and refit it on every `relayout`.
+ *
  * @param {HTMLElement} el
  * @param {string} size   the display size to open on (`#size-<id>`, model/flags.js), else SIZE0
  * @param {import('./bus.js').Bus} bus
@@ -47,27 +63,36 @@ export function mountPlate(el, size, bus) {
 /**
  * Lay the plate out at another iPad size: the CSS geometry (--plate-w / --plate-h, data-size) and the numbers here move
  * together, then everything that measures re-measures (one relayout: rail wire, plots, page fit, popovers).
+ *
+ * @param {string} id
+ * @param {boolean} [quiet]  skip the relayout (mountPlate's first layout)
  */
 export function setSize(id, quiet = false) {
   const z = SIZES.find((x) => x.id === id) || SIZES[0];
   SIZE = z.id;
   PLATE_W = z.w;
   PLATE_H = z.h;
-  plate.style.setProperty("--plate-w", `${z.w}px`);
-  plate.style.setProperty("--plate-h", `${z.h}px`);
-  plate.dataset.size = z.id;
+  const el = mounted();
+  el.style.setProperty("--plate-w", `${z.w}px`);
+  el.style.setProperty("--plate-h", `${z.h}px`);
+  el.dataset.size = z.id;
   fit();
-  if (!quiet) relay.emit("relayout");
+  if (!quiet) relay?.emit("relayout");
 }
 
+/** Scale the plate to the window: down to fit, never up. */
 function fit() {
   current = Math.min(window.innerWidth / PLATE_W, (window.innerHeight - SCENE_H) / PLATE_H, 1);
-  plate.style.transform = `scale(${current})`;
+  mounted().style.transform = `scale(${current})`;
 }
 
-/** Screen rect → plate-space offset of its top-left corner. */
+/**
+ * Screen rect → plate-space offset of its top-left corner.
+ *
+ * @param {{ left: number, top: number }} rect
+ */
 export function toPlate(rect) {
-  const p = plate.getBoundingClientRect();
+  const p = mounted().getBoundingClientRect();
   return { x: (rect.left - p.left) / current, y: (rect.top - p.top) / current };
 }
 
@@ -81,7 +106,7 @@ export function toPlate(rect) {
  */
 export function placeBy(panel, trigger, { side, foot, at }) {
   const r = trigger.getBoundingClientRect(),
-    p = plate.getBoundingClientRect();
+    p = mounted().getBoundingClientRect();
   return clampToPlate({
     anchor: { left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
     panel: { w: panel.offsetWidth, h: panel.offsetHeight },
@@ -96,6 +121,9 @@ export function placeBy(panel, trigger, { side, foot, at }) {
 /**
  * Park a plate-level popover to the LEFT of its trigger, tops aligned, clamped inside the plate
  * (22px left padding, 14px bottom margin). Used by Filter presets.
+ *
+ * @param {HTMLElement} panel
+ * @param {Element} trigger
  */
 export function parkLeftOf(panel, trigger) {
   const { left, top } = placeBy(panel, trigger, { side: [22, null], foot: 14, at: { x: "before", y: "top", gap: 12 } });

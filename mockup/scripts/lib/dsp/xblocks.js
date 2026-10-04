@@ -12,16 +12,29 @@
 
 import { pathParams, bauerMS, BAUER_PRESETS, toDb, gainLin } from "./xdsp.js";
 
+/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../model/shell/pipelines.js').Stage} Stage */
+
+/** @param {number} v */
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
-/** @param {{0:object,1:object}} ear  the pair's pipelines (In L→Out L, In R→Out R) */
+/**
+ * Structural crossfeed: 16 rows (8 per ear present), each carrying that ear's EQ.
+ *
+ * @param {Record<number, Pipe | null | undefined>} ear  the pair's pipelines (In L→Out L, In R→Out R)
+ * @param {import('../../model/gauges/crossfeed.js').StructuralFields} prm
+ * @returns {Pipe[]}
+ */
 export function structuralRows(ear, { angle, circ, lambda }) {
   const a = circ / 100 / (2 * Math.PI);
   const { an, af, itd, w0 } = pathParams(angle, a);
+  /** @returns {Stage} */
   const lp1 = () => ({ kind: "iir", type: "lp1", f: Math.round(w0 / Math.PI), blk: true });
+  /** @returns {Stage} */
   const dl = () => ({ kind: "delay", t: +itd.toFixed(6), blk: true });
   const L = lambda;
   // [source is near?, extra stages, gain] — crossfeed-math §6.1 table, rows 1–8.
+  /** @type {[boolean, string[], number][]} */
   const ROWS = [
     [true, [], ((L + 1) * an) / 4 + (1 - L) / 2],
     [true, ["lp1"], ((L + 1) * (1 - an)) / 4],
@@ -32,6 +45,7 @@ export function structuralRows(ear, { angle, circ, lambda }) {
     [false, ["delay"], ((L + 1) * af) / 4],
     [false, ["lp1", "delay"], ((L + 1) * (1 - af)) / 4],
   ];
+  /** @type {Pipe[]} */
   const out = [];
   for (const o of [0, 1]) {
     const e = ear[o];
@@ -51,7 +65,13 @@ export function structuralRows(ear, { angle, circ, lambda }) {
   return out;
 }
 
-/** Bauer compensation: 8 M/S rows (v1 wire shape), comp on the M rows. */
+/**
+ * Bauer compensation: 8 M/S rows (v1 wire shape), comp on the M rows.
+ *
+ * @param {Record<number, Pipe | null | undefined>} ear  the pair's pipelines (In L→Out L, In R→Out R)
+ * @param {import('../../model/gauges/crossfeed.js').BauerFields} prm
+ * @returns {Pipe[]}
+ */
 export function compRows(ear, { preset, freq, level, comp }) {
   const [fc, feed] = preset === "custom" ? [freq, level] : BAUER_PRESETS[preset];
   const tilt = (-toDb(bauerMS(fc, feed, 20000).mid) * comp) / 100; // dB of treble the M path gets back
@@ -60,6 +80,7 @@ export function compRows(ear, { preset, freq, level, comp }) {
     { kind: "iir", type: "hshelf", f: Math.round(1.6 * fc), q: 0.66, g: +(tilt / 2).toFixed(2), blk: true },
   ];
   // [src offset, comp?, sign] per output, wire-shape rows 1–4 (out L) and 5–8 (out R).
+  /** @type {Record<number, [number, boolean, number][]>} */
   const SHAPE = {
     0: [
       [0, true, 1],
@@ -74,6 +95,7 @@ export function compRows(ear, { preset, freq, level, comp }) {
       [1, false, 1],
     ],
   };
+  /** @type {Pipe[]} */
   const out = [];
   for (const o of [0, 1]) {
     const e = ear[o];

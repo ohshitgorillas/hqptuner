@@ -4,7 +4,10 @@ import { anyOpen } from "../shell/popover.js";
 import { closeSheets, sheetOpen } from "../shell/sheet.js";
 import { closeOthers } from "../../components/drawers/drawer.js";
 
-/** @typedef {import('./record.js').Shell} Shell */
+/**
+ * @template R, E
+ * @typedef {import('./record.js').Shell<R, E>} Shell
+ */
 /** @typedef {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} Els */
 
 /**
@@ -56,8 +59,9 @@ export function escapeLeaves(body, onEscape) {
 /**
  * The builder's setOn: swap its body in or out; the confirm line clears as it opens.
  *
+ * @template R, E
  * @param {Els} el
- * @param {Shell} sh
+ * @param {Shell<R, E>} sh
  * @param {{ leave: () => void, opened: () => void }} spec
  */
 export const setOnOf =
@@ -76,9 +80,10 @@ export const setOnOf =
 /**
  * Arm the builder's button and Escape; the builder's public face.
  *
+ * @template R, E
  * @param {Els} el
- * @param {Shell} sh
- * @param {{ toggles?: boolean, view: (where: any) => void }} spec
+ * @param {Shell<R, E>} sh
+ * @param {{ toggles?: boolean, view: (where: import('./builder.js').View) => void }} spec
  * @param {(on: boolean, toChain?: boolean) => void} setOn
  */
 export function start({ btn, body }, sh, spec, setOn) {

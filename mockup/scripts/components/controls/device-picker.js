@@ -6,11 +6,17 @@ import { h } from "../../lib/shell/dom.js";
 import { popover } from "../../lib/shell/popover.js";
 import { deviceParts, groupDevices } from "../../model/gauges/output.js";
 
+/** @typedef {import('../../model/gauges/output.js').DeviceRow} DeviceRow */
+
 /**
+ * Mount the picker: a trigger showing the selected device, and its listbox of devices under their group headers.
+ * Returns the selection as a value the drawer can read and put back.
+ *
  * @param {HTMLElement} host   empty .devpick container
  * @param {{kind:string, aria:string}} cfg
  * @param {{list:string[], selected:number}} devices
  * @param {() => void} onChange
+ * @returns {{value: () => string, setValue: (v: string | number) => void}}
  */
 export function mountDevicePicker(host, { kind, aria }, devices, onChange) {
   let sel = devices.selected;
@@ -34,6 +40,16 @@ export function mountDevicePicker(host, { kind, aria }, devices, onChange) {
     },
   });
 
+  /** @param {number} i */
+  function pick(i) {
+    if (i !== sel) {
+      sel = i;
+      onChange();
+    }
+    paint();
+    pop.close();
+  }
+
   function paint() {
     const p = deviceParts(kind, devices.list[sel]);
     main.textContent = p.main;
@@ -42,32 +58,7 @@ export function mountDevicePicker(host, { kind, aria }, devices, onChange) {
     list.replaceChildren(
       ...groupDevices(kind, devices.list).flatMap(({ group, rows }) => [
         h("div.gh", {}, h("span", { text: group }), h("span.ln")),
-        ...rows.map((q) => {
-          const { i } = q;
-          const cur = i === sel;
-          return h(
-            "button.devrow",
-            {
-              type: "button",
-              class: cur && "cur",
-              role: "option",
-              aria: { selected: cur },
-              on: {
-                click: () => {
-                  if (i !== sel) {
-                    sel = i;
-                    onChange();
-                  }
-                  paint();
-                  pop.close();
-                },
-              },
-            },
-            h("span.lamp", { class: cur && "on" }),
-            h("span.m", { text: q.main }),
-            q.detail && h("span.d", { text: q.detail }),
-          );
-        }),
+        ...rows.map((q) => deviceRow(q, q.i === sel, () => pick(q.i))),
       ]),
     );
   }
@@ -80,4 +71,28 @@ export function mountDevicePicker(host, { kind, aria }, devices, onChange) {
       paint();
     },
   };
+}
+
+/**
+ * One device in the list: its lamp, name and detail; `cur` marks the selected one.
+ *
+ * @param {DeviceRow} q
+ * @param {boolean} cur
+ * @param {() => void} onPick
+ * @returns {HTMLButtonElement}
+ */
+function deviceRow(q, cur, onPick) {
+  return h(
+    "button.devrow",
+    {
+      type: "button",
+      class: cur && "cur",
+      role: "option",
+      aria: { selected: cur },
+      on: { click: onPick },
+    },
+    h("span.lamp", { class: cur && "on" }),
+    h("span.m", { text: q.main }),
+    q.detail && h("span.d", { text: q.detail }),
+  );
 }

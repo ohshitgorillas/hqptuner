@@ -9,10 +9,14 @@ import { LISTS } from "../../data/lists/option-lists.js";
 import { openPicker, optionStyle } from "../lists/vselect.js";
 import { optionOf } from "../../model/shell/options.js";
 
+/** @typedef {import('../../model/shell/option-list.js').Opt} Opt */
+
 /**
+ * The nameplate picker for one chain field: family › variant over the running option's name; a tap opens the whole list.
+ *
  * @param {object} o
  * @param {string} o.id        page id (`pg-sdm1x`): which chain, stage and field
- * @param {string} o.list      LISTS key: pcmFilters | sdmFilters | modulators | dithers
+ * @param {import('../lists/vselect.js').ListName} o.list  LISTS key: pcmFilters | sdmFilters | modulators | dithers
  * @param {'1x'|'nx'} o.stage  narrowing stage
  * @param {string} o.value     engine name running in this field
  * @param {string} o.aria
@@ -20,7 +24,9 @@ import { optionOf } from "../../model/shell/options.js";
  * @param {(v: string) => void} o.onChange
  */
 export function chainPick({ id, list, stage, value, aria, idle, onChange }) {
+  /** @type {readonly Pick<Opt, 'v' | 'fam' | 'var' | 'leaf'>[]} */
   const all = LISTS[list];
+  /** @type {Pick<Opt, 'v' | 'leaf' | 'fam'> & { var?: string | null }} */
   const opt = optionOf(all, value) ?? { v: value, leaf: value, fam: "" };
   const m = String(id).match(/(pcm|sdm)(1x|nx|sh)$/);
 

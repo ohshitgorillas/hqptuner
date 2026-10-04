@@ -44,6 +44,7 @@ export const VOLUME_REASON = {
   fixed: "Fixed volume bypasses the volume control.",
   zero: "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.",
 };
+/** @type {Record<'range' | 'bypassed', (v: Record<string, unknown>) => string>} */
 const GRAY = {
   range: (v) => (v.vfixmode !== "off" ? VOLUME_REASON.fixed : ""),
   bypassed: (v) => GRAY.range(v) || (Number(v.vmin) === 0 && Number(v.vmax) === 0 ? VOLUME_REASON.zero : ""),
@@ -53,7 +54,16 @@ const ON_OFF = [
   { v: "0", label: "Off" },
   { v: "1", label: "On" },
 ];
-const dbNum = (id, label, value, gray, unit = "dBFS") => ({
+/**
+ * A dBFS number control.
+ *
+ * @param {string} id
+ * @param {string | null} label
+ * @param {number} value
+ * @param {(v: Record<string, unknown>) => string} [gray]
+ * @returns {import('./output.js').Control}
+ */
+const dbNum = (id, label, value, gray) => ({
   type: "number",
   id,
   label,
@@ -61,11 +71,12 @@ const dbNum = (id, label, value, gray, unit = "dBFS") => ({
   min: -120,
   max: 20,
   step: 0.5,
-  unit,
+  unit: "dBFS",
   aria: label,
   gray,
 });
 
+/** @type {import('./output.js').DrawerSchema} */
 export const VOLUME_DRAWER = {
   id: "volume",
   title: "Volume",

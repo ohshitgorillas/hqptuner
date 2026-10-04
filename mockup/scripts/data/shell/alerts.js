@@ -16,21 +16,30 @@ const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 export const ALERT_COPY = {
   credentials:
     "Authentication rejected: username and password are bad. Open connection settings from the knob and try again.",
+  /** @param {number} sp */
   speedCrit: (sp) => `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}`,
+  /** @param {number} sp */
   speedWarn: (sp) => `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}`,
+  /** @param {number} n */
   clip: (n) => `Clipping ×${n} this track — reduce volume or gain.`,
+  /** @type {(n: number, filter: string) => string} */
   apod: (n, filter) =>
     `Apodizing events ×${n} this track, but ${filter} is non-apodizing — consider an apodizing filter.`,
+  /** @type {(name: string, rate: string) => string} */
   shaperSdm: (name, rate) =>
     `The current settings are invalid: modulator ${name} is incompatible with ${rate} output. HQPlayer cannot produce output.`,
+  /** @type {(name: string, rate: string, floor: string) => string} */
   shaperPcm: (name, rate, floor) =>
     `The current settings are suboptimal: ditherer ${name} is optimized for output rates >=${floor}, but the current rate is ${rate}.`,
   roonIdle:
     "Recommend setting Engine idle time (Settings → Timing) to 10 or longer; at default idle time, Roon inefficiently restarts the engine between tracks.",
+  /** @type {(foldKhz: number, rateKhz: number) => string} */
   junk20k: (foldKhz, rateKhz) =>
     `Junk above ${foldKhz.toFixed(1)} kHz in a ${rateKhz} kHz container, consistent with fake hi-res. Recommend engaging the 20k high-frequency filter.`,
+  /** @type {(khz: number, corner: string) => string} */
   junkSpur: (khz, corner) =>
     `Persistent tone at ${khz.toFixed(1)} kHz — recommend switching to a 'hires' resampling filter or engaging the ${corner} high-frequency filter.`,
+  /** @param {number} khz */
   junkRamp: (khz) =>
     `HF noise rising toward ${khz} kHz — consistent with excessive noise shaping (some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter.`,
 };
@@ -60,6 +69,12 @@ export const HOMES = {
 // Mock alert picker on the scenario strip (a viewing tool): which alerts to raise. Each fires only where v1's would:
 // engine health while playing; junk advice only on Nx PCM content (the HF filter can't be engaged at 1x rates); a shaper
 // conflict only in the family that will produce output.
+/**
+ * One alert the scenario strip can raise: its kind (a HOMES key), its picker label, and when it fires.
+ *
+ * @typedef {{ kind: string, label: string, when?: string }} MockAlert
+ */
+/** @type {MockAlert[]} */
 export const MOCK_ALERTS = [
   { kind: "credentials", label: "Credentials rejected" },
   { kind: "speed", label: "DSP speed", when: "playing" },

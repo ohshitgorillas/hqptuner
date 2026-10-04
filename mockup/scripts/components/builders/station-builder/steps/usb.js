@@ -8,7 +8,13 @@ import { listingState } from "../../../../model/builders/station.js";
 import { lines } from "../frame/parts.js";
 import { disambiguate } from "../frame/checks.js";
 
-/** The USB listings step's rows. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+
+/**
+ * The USB listings step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function usbStep(sb) {
   const x = sb.e.rec;
   const run = sb.runs.usb;

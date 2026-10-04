@@ -7,6 +7,9 @@
 import { PLATFORM } from "../../lib/shell/clock.js";
 import { revertAfter } from "../../model/shell/timing.js";
 
+/** @typedef {import('../../model/shell/flags.js').Flags['conn']} ConnState */
+
+/** @type {Record<ConnState, string>} */
 const STATES = {
   ok: "Connected",
   busy: "Applying…",
@@ -16,12 +19,17 @@ const STATES = {
 const HINT = "Open connection settings to set the HQPlayer Embedded server's IP address and authentication details.";
 
 /**
+ * Mount the knob's connection lamp on `state0`; set() moves it, applying() flashes busy and settles back to ok.
+ *
  * @param {HTMLButtonElement} btn
- * @param {'ok'|'busy'|'lost'} state0   the state to open on (model/flags.js `conn`)
+ * @param {ConnState} state0   the state to open on (model/flags.js `conn`)
  * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * @returns {{set: (s: ConnState) => void, applying: () => void}}
  */
 export function mountConn(btn, state0, clock = PLATFORM) {
+  /** @type {ConnState} */
   let state = "ok";
+  /** @param {ConnState} s */
   function set(s) {
     state = s;
     btn.dataset.state = s;

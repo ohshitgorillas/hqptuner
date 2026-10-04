@@ -30,21 +30,25 @@ const DYSLEXIC_FAMILY = "'Atkinson Hyperlegible',system-ui,sans-serif";
 const accentHex = (v, accents) => accents.find((x) => x.v === v)?.hex ?? v;
 
 /**
- * How a readout prints a value: the control's own option label (+ unit), the picked toggles, the number, the path, the
- * accent's name with its swatch color (null for every other control).
+ * A seg or select readout: the control's own option label (+ unit), else the value.
  *
  * @param {Control} c
  * @param {string} v
- * @param {readonly Accent[]} accents
  * @returns {Readout}
  */
-export function readoutOf(c, v, accents) {
-  const options = c.options ?? [];
-  if (c.type === "seg" || c.type === "select") {
-    const o = optionOf(options, v);
-    return { text: o ? o.label + (o.unit ? " " + o.unit : "") : v, swatch: null };
-  }
-  if (c.type === "toggles") {
+function optionReadout(c, v) {
+  const o = optionOf(c.options ?? [], v);
+  return { text: o ? o.label + (o.unit ? " " + o.unit : "") : v, swatch: null };
+}
+
+/** @typedef {(c: Control, v: string, accents: readonly Accent[]) => Readout} Printer  how one control type prints */
+
+/** @type {Record<string, Printer>} */
+const READOUT = {
+  seg: optionReadout,
+  select: optionReadout,
+  toggles(c, v) {
+    const options = c.options ?? [];
     // Each label's spaces become no-break spaces, so a label never wraps inside itself.
     const picked = v.split(",");
     const text = v
@@ -54,14 +58,26 @@ export function readoutOf(c, v, accents) {
           .join(" · ")
       : "None";
     return { text, swatch: null };
-  }
-  if (c.type === "slider") return { text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }; // v1's own word for 0
-  if (c.type === "number") return { text: minusText(v), swatch: null };
-  if (c.type === "accent") {
+  },
+  slider: (c, v) => ({ text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }), // v1's own word for 0
+  number: (c, v) => ({ text: minusText(v), swatch: null }),
+  accent(c, v, accents) {
     const o = accents.find((x) => x.v === v);
     return { text: o ? o.label : v, swatch: accentHex(v, accents) };
-  }
-  return { text: v, swatch: null };
+  },
+};
+
+/**
+ * How a readout prints a value: the control's own option label (+ unit), the picked toggles, the number, the path, the
+ * accent's name with its swatch color (null for every other control).
+ *
+ * @param {Control} c
+ * @param {string} v
+ * @param {readonly Accent[]} accents
+ * @returns {Readout}
+ */
+export function readoutOf(c, v, accents) {
+  return Object.hasOwn(READOUT, c.type) ? READOUT[c.type](c, v, accents) : { text: v, swatch: null };
 }
 
 /**

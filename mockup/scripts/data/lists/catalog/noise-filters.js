@@ -1,0 +1,80 @@
+export const NOISE_FILTER_CATALOG = [
+  {
+    v: "standard",
+    label: "Dedicated · Base",
+    group: "Dedicated",
+    man: "Standard noise filter will be applied. Recommended.",
+  },
+  {
+    v: "low",
+    label: "Dedicated · Low ƒc",
+    group: "Dedicated",
+    man: "Similar to standard, but has a lower corner frequency and results in an almost flat noise profile in the ultrasonic range. Recommended.",
+  },
+  {
+    v: "high-order",
+    label: "Dedicated · Modern sources",
+    group: "Dedicated",
+    man: "High-order noise filter designed for material created with high-order modulators. Recommended.",
+  },
+  {
+    v: "sac",
+    label: "Averaging · Sliding",
+    group: "Averaging",
+    man: "Sliding average converter.",
+  },
+  {
+    v: "wec",
+    label: "Averaging · Weighted",
+    group: "Averaging",
+    man: "Weighted element converter.",
+  },
+  {
+    v: "wec2",
+    label: "Averaging · Weighted, non-ringing linear",
+    group: "Averaging",
+    man: "Weighted element converter. Optimized to closely match DSD/SACD specification. Non-ringing linear phase. Recommended.",
+  },
+  {
+    v: "slow-lp",
+    label: "Roll-off ladder · Slow linear",
+    group: "Roll-off ladder",
+    man: "Slow roll-off linear phase filter.",
+  },
+  {
+    v: "slow-mp",
+    label: "Roll-off ladder · Slow minimum",
+    group: "Roll-off ladder",
+    man: "Slow roll-off minimum phase filter.",
+  },
+  {
+    v: "medium",
+    label: "Roll-off ladder · Medium",
+    group: "Roll-off ladder",
+    man: "Medium roll-off linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Recommended.",
+  },
+  {
+    v: "medium-high",
+    label: "Roll-off ladder · Medium, no conversion",
+    group: "Roll-off ladder",
+    man: 'Medium roll-off high-rate linear phase filter designed to be as gentle as possible while passing a minimal amount of out-of-band noise. Use this instead of "medium" when "none" is selected as PCM Conversion (Decimation filter). Recommended.',
+  },
+  {
+    v: "fast-lp",
+    label: "Roll-off ladder · Fast linear",
+    group: "Roll-off ladder",
+    man: "Fast roll-off linear phase filter.",
+  },
+  {
+    v: "fast-mp",
+    label: "Roll-off ladder · Fast minimum",
+    group: "Roll-off ladder",
+    man: "Fast roll-off minimum phase filter.",
+  },
+  {
+    v: "brickwall",
+    label: "Roll-off ladder · Brickwall",
+    group: "Roll-off ladder",
+    man: "Brickwall filter that doesn't pass any out-of-band noise. Very steep linear phase filter. Cut-off at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512 and 400 kHz for DSD1024.",
+  },
+];

@@ -164,9 +164,6 @@ export default [
       // only report the same files twice or, as it did, fail on a copy pinned to
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
-      // The v2 mockup is reference material published from elsewhere, read
-      // while building and never shipped or imported.
-      "mockup/**",
       "**/*.mjs",
     ],
   },
@@ -221,9 +218,24 @@ export default [
   {
     // Production JS: the served frontend, the eqstage node CLI and the local
     // eslint rules. tests/js is deliberately absent.
-    files: ["hqptuner/static/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
+    files: ["hqptuner/static/**/*.js", "mockup/scripts/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
     plugins: { jsdoc },
     rules: JSDOC_RULES,
+  },
+  {
+    // The v2 mockup: plain DOM code under the same rule set as the served
+    // frontend. The hand-rolled-card rule is absent because it names v1's card
+    // component, which the mockup does not have.
+    files: ["mockup/scripts/**/*.js"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
+    plugins: PLUGINS,
+    rules: RULES,
+  },
+  {
+    // mockup/scripts/model is what v2 lifts as it stands, so it reaches no
+    // module that touches the DOM.
+    files: ["mockup/scripts/model/**/*.js"],
+    rules: noUp(["**/lib/*.js", "**/lib/**/*.js", "**/app/*.js", ...ABOVE.components, "**/main.js"], LAYER_MSG),
   },
   // --- the layering contract ---------------------------------------------
   {

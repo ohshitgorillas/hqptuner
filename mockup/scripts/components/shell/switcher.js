@@ -2,13 +2,16 @@
 // arrow keys move between them); its ▾ end opens that slot's picker at any time: the target's list sheet (main.js).
 
 /**
+ * Wire the slots in `group`: a body tap or an arrow key makes a slot live, its ▾ reports a pick.
+ *
  * @param {HTMLElement} group  .slots radiogroup
  * @param {(slot: HTMLElement, target: string) => void} [onPick]  a slot's ▾ was tapped
  */
 export function mountSwitcher(group, onPick) {
-  const slots = [...group.querySelectorAll(".slot")];
-  const bodies = slots.map((s) => s.querySelector(".sbody"));
+  const slots = /** @type {HTMLElement[]} */ ([...group.querySelectorAll(".slot")]);
+  const bodies = slots.map((s) => /** @type {HTMLElement} */ (s.querySelector(".sbody")));
 
+  /** @param {number} i */
   function live(i) {
     slots.forEach((s, k) => {
       const on = k === i;
@@ -18,7 +21,7 @@ export function mountSwitcher(group, onPick) {
     });
   }
 
-  const target = document.getElementById("swtarget");
+  const target = /** @type {HTMLSelectElement} */ (document.getElementById("swtarget"));
   slots.forEach((s) => s.querySelector(".spick")?.addEventListener("click", () => onPick?.(s, target.value)));
 
   bodies.forEach((b, i) => {

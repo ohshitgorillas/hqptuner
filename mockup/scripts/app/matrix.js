@@ -2,7 +2,6 @@
 // Crossfeed, Loudness, DAC correction), the page's top section once the family is mounted, and the Speakers drawer that
 // follows the family in #body.
 
-import { $ } from "../lib/shell/dom.js";
 import { xrefGo } from "../lib/controls/xref.js";
 import { mountDrawer } from "../components/drawers/drawer.js";
 import { createPipelines } from "../components/drawers/pipelines.js";
@@ -24,44 +23,52 @@ import { MATRIX_PROFILES } from "../data/builders/snapshots.js";
 import { PROFILES } from "../data/builders/profiles.js";
 import { modeName } from "../model/gauges/crossfeed.js";
 import { profileRecords } from "../model/shell/app.js";
+import { el } from "./markup.js";
+
+/** @typedef {import("./state.js").App} App */
+/** @typedef {import("./state.js").Drawer} Drawer */
+/** @typedef {import("../components/drawers/drawer/state.js").Store} Store */
+/** @typedef {(id: string, on: boolean, value?: string) => void} RailSet  a rail stage's lamp and value, then the wire */
+
+// Dependents follow the matrix engine: with Matrix processing bypassed, its children (DSP pipelines,
+// Crossfeed, Loudness) and DAC correction are not in effect, so their lamps go dark (their own settings are kept and
+// relight on re-engage), and the page's Matrix engine section leaves (the page shows engaged stages only).
+/** @param {Store} v */
+const mxOn = (v) => v.mxen === "1";
 
 /**
- * Wire the Matrix profile select, the Matrix engine family and Speakers; app.mprof, app.fillProfiles, app.mxSection and
- * app.mxPick are set here, and app.fillReady turns on once the family is mounted.
+ * Matrix profile (page select): the station's profiles (mock). MatrixSetProfile is live. app.mprof and app.fillProfiles
+ * are set here.
  *
- * @param {object} app  the shared state (main.js)
+ * @param {App} app
  */
-export function wireMatrix(app) {
-  const { bus, stages, plate } = app;
-  const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = app.pipelines;
-  // Matrix profile (page select): the station's profiles (mock). MatrixSetProfile is live.
-  const mprof = $("#mprof");
+function wireProfileSelect(app) {
+  const mprof = /** @type {HTMLSelectElement} */ (el("#mprof"));
   app.mprof = mprof;
   app.fillProfiles = (names) => mprof.replaceChildren(...names.map((p) => new Option(p, p)));
   app.fillProfiles(MATRIX_PROFILES);
   mprof.addEventListener("change", () => {
     app.liveNow.profile = mprof.value;
-    stages.get("matrix").querySelector(".v").textContent = mprof.value;
+    el(".v", app.stages.get("matrix")).textContent = mprof.value;
     // The picked profile's description (mock: its record's; the drawers keep their values, data/profiles.js).
     const [rec] = profileRecords(PROFILES, mprof.value);
-    if (rec) $("#mdesc").value = rec.desc;
+    if (rec) /** @type {HTMLTextAreaElement} */ (el("#mdesc")).value = rec.desc;
     app.paintFill();
   });
+}
 
-  // ── Matrix engine family: Matrix engine, Crossfeed, Loudness, DAC correction (DSP pipelines not drawn yet) ──────────
-  // All four edit the matrix profile in focus: one value store, profile-wide staging, one Apply (drawer.js families).
-  // Nothing here is live, so the rail follows on Apply (mock): each member's onApply reads the family's values.
-  const railSet = (id, on, value) => {
-    app.lamp(stages.get(id), on, value);
-    bus.emit("relayout"); // rail wire redraws (an off parent's subtree loses its bus)
-  };
-  const mx = {};
-  // Dependents follow the matrix engine: with Matrix processing bypassed, its children (DSP pipelines,
-  // Crossfeed, Loudness) and DAC correction are not in effect, so their lamps go dark (their own settings are kept and
-  // relight on re-engage), and the page's Matrix engine section leaves (the page shows engaged stages only).
-  const mxOn = (v) => v.mxen === "1";
-  app.mxSection = $('.sec[aria-label="Matrix profile"]');
-  const mxDrawer = mountDrawer($("#body"), stages.get("matrix"), MATRIX_DRAWER, {
+/**
+ * Matrix engine, DSP pipelines and Crossfeed: the family's first three members.
+ *
+ * @param {App} app
+ * @param {RailSet} railSet
+ * @param {object} mx  what every family member's mount shares
+ * @returns {{ mxDrawer: Drawer, plDrawer: Drawer, xfDrawer: Drawer }}
+ */
+function mountMxPlXf(app, railSet, mx) {
+  const { stages, plate } = app;
+  const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = app.pipelines;
+  const mxDrawer = mountDrawer(el("#body"), stages.get("matrix"), MATRIX_DRAWER, {
     ...mx,
     onApply: (v) => {
       railSet("matrix", mxOn(v));
@@ -81,7 +88,7 @@ export function wireMatrix(app) {
     openCrossfeed: () => xfDrawer.setOpen(true),
     goTab: (id) => plDrawer.showTab(id),
   });
-  const plDrawer = mountDrawer($("#body"), stages.get("pipelines"), PIPELINES_DRAWER, {
+  const plDrawer = mountDrawer(el("#body"), stages.get("pipelines"), PIPELINES_DRAWER, {
     ...mx,
     blocks: Object.fromEntries([
       ["pl-overview", plCore.overview],
@@ -94,8 +101,8 @@ export function wireMatrix(app) {
     },
   });
   plDrawer.setOpen(false);
-  if (!FULL_FITS) $("#drawer-pipelines").classList.add("pl-short"); // short channel names keep their case (Sub, Lr)
-  const xfDrawer = mountDrawer($("#body"), stages.get("crossfeed"), CROSSFEED_DRAWER, {
+  if (!FULL_FITS) el("#drawer-pipelines").classList.add("pl-short"); // short channel names keep their case (Sub, Lr)
+  const xfDrawer = mountDrawer(el("#body"), stages.get("crossfeed"), CROSSFEED_DRAWER, {
     ...mx,
     blocks: { crossfeed: (host, ctx) => mountCrossfeed(host, CROSSFEED, ctx, bypassed) },
     onApply: (v) => {
@@ -105,8 +112,21 @@ export function wireMatrix(app) {
     },
   });
   xfDrawer.setOpen(false);
+  return { mxDrawer, plDrawer, xfDrawer };
+}
+
+/**
+ * Loudness and DAC correction: the family's last two members.
+ *
+ * @param {App} app
+ * @param {RailSet} railSet
+ * @param {object} mx  what every family member's mount shares
+ * @returns {{ loudDrawer: Drawer, dcDrawer: Drawer }}
+ */
+function mountLoudDc(app, railSet, mx) {
+  const { stages } = app;
   const loud = app.volumeRange.loudness;
-  const loudDrawer = mountDrawer($("#body"), stages.get("loudness"), LOUDNESS_DRAWER, {
+  const loudDrawer = mountDrawer(el("#body"), stages.get("loudness"), LOUDNESS_DRAWER, {
     ...mx,
     blocks: {
       loudness: (host, ctx) =>
@@ -123,7 +143,7 @@ export function wireMatrix(app) {
   });
   loudDrawer.setOpen(false);
   app.volumeRange.openLoudness = () => loudDrawer.setOpen(true); // Volume drawer's `Loudness ›` link
-  const dcDrawer = mountDrawer($("#body"), stages.get("correction"), CORRECTION_DRAWER, {
+  const dcDrawer = mountDrawer(el("#body"), stages.get("correction"), CORRECTION_DRAWER, {
     ...mx,
     onApply: (v) => {
       railSet("correction", v.dcen === "1" && mxOn(v), v.dcen === "1" ? v.dcdac || "[none]" : "Bypassed");
@@ -131,20 +151,22 @@ export function wireMatrix(app) {
     },
   });
   dcDrawer.setOpen(false);
-  // The page's top section reads the whole family: paint it once everything is mounted.
-  app.mxPick = app.mxSection.querySelector(".mstack > .inline"); // profile picker + Profile builder (moves to the header when folded)
-  app.fillReady = true;
-  app.paintFill();
+  return { loudDrawer, dcDrawer };
+}
 
-  // ── Speakers ─────────────────────────────────────────────────────────────────
-  // Speakers is not matrix processing: its own stage (before the Matrix engine), its own /speakers form and apply group.
-  const spkStage = stages.get("speakers");
-  const spkDrawer = mountDrawer($("#body"), spkStage, SPEAKERS_DRAWER, {
+/**
+ * Speakers is not matrix processing: its own stage (before the Matrix engine), its own /speakers form and apply group.
+ *
+ * @param {App} app
+ * @param {RailSet} railSet
+ */
+function wireSpeakers(app, railSet) {
+  const spkStage = app.stages.get("speakers");
+  const spkDrawer = mountDrawer(el("#body"), spkStage, SPEAKERS_DRAWER, {
     blocks: {
       speakers: (host, ctx) => {
         app.spk = mountSpeakers(host, { ...SPEAKERS, sets: SETS }, ctx, (set) => {
-          if (spkStage.querySelector(".lamp").classList.contains("on"))
-            spkStage.querySelector(".v").textContent = set.label;
+          if (el(".lamp", spkStage).classList.contains("on")) el(".v", spkStage).textContent = set.label;
           spkStage.dataset.set = set.label;
         });
       },
@@ -152,6 +174,37 @@ export function wireMatrix(app) {
     onApply: (v) => railSet("speakers", v.spken === "1", v.spken === "1" ? spkStage.dataset.set : "Bypassed"),
   });
   spkDrawer.setOpen(false);
+}
+
+/**
+ * Wire the Matrix profile select, the Matrix engine family and Speakers; app.mprof, app.fillProfiles, app.mxSection and
+ * app.mxPick are set here, and app.fillReady turns on once the family is mounted.
+ *
+ * @param {App} app  the shared state (app/state.js)
+ */
+export function wireMatrix(app) {
+  const { bus, stages } = app;
+  wireProfileSelect(app);
+
+  // ── Matrix engine family: Matrix engine, Crossfeed, Loudness, DAC correction (DSP pipelines not drawn yet) ──────────
+  // All four edit the matrix profile in focus: one value store, profile-wide staging, one Apply (drawer.js families).
+  // Nothing here is live, so the rail follows on Apply (mock): each member's onApply reads the family's values.
+  /** @type {RailSet} */
+  const railSet = (id, on, value) => {
+    app.lamp(stages.get(id), on, value);
+    bus.emit("relayout"); // rail wire redraws (an off parent's subtree loses its bus)
+  };
+  const mx = {};
+  app.mxSection = el('.sec[aria-label="Matrix profile"]');
+  const { mxDrawer, plDrawer, xfDrawer } = mountMxPlXf(app, railSet, mx);
+  const { loudDrawer, dcDrawer } = mountLoudDc(app, railSet, mx);
+  // The page's top section reads the whole family: paint it once everything is mounted.
+  app.mxPick = el(".mstack > .inline", app.mxSection); // profile picker + Profile builder (moves to the header when folded)
+  app.fillReady = true;
+  app.paintFill();
+
+  // ── Speakers ─────────────────────────────────────────────────────────────────
+  wireSpeakers(app, railSet);
 
   // ── Cross-references (data/xrefs.js): where each `Name ›` link lands. A link opens its drawer (one open at a time, as a
   // rail tap) on the tab or section that holds the fix.

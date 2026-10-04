@@ -5,20 +5,30 @@ import { closeOthers } from "../../components/drawers/drawer.js";
 import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from "../../model/builders/builder.js";
 
 /** @typedef {import('../../model/builders/builder.js').Ref} Ref */
+/**
+ * @template R, E
+ * @typedef {import('./builder.js').Spec<R, E>} Spec
+ */
 
 /**
- * @typedef {object} Shell  the shell's mutable state
- * @property {import('../../model/builders/builder.js').Book<any>} book
+ * The shell's mutable state, over the builder's record type `R` and edit type `E`.
+ *
+ * @template R, E
+ * @typedef {object} Shell
+ * @property {import('../../model/builders/builder.js').Book<R>} book
  * @property {Ref} cur  the record being edited
- * @property {Map<string, any>} staged
+ * @property {Map<string, E>} staged
  * @property {{ text: string, onConfirm: () => void } | null} ask  the confirm line's question
  * @property {boolean} refused  Save with no name
  * @property {{ discard: HTMLButtonElement, save?: HTMLButtonElement }[]} acts  the buttons that follow the state
  */
 
 /**
- * @param {{ book: any, cur: Ref }} spec
- * @returns {Shell}
+ * The shell's state on opening: the spec's book and record, nothing staged, asked or refused, no buttons yet.
+ *
+ * @template R, E
+ * @param {Pick<Spec<R, E>, 'book' | 'cur'>} spec
+ * @returns {Shell<R, E>}
  */
 export const shellState = (spec) => ({
   book: spec.book,
@@ -30,8 +40,11 @@ export const shellState = (spec) => ({
 });
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Whether record `c` carries an edit: the one being edited by the spec's own test, any other by its staged edit.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {Ref} c
  */
 export const isDirty = (sh, spec, c) => dirtyAt(keyOf(c), keyOf(sh.cur), sh.staged, spec.dirty());
@@ -39,10 +52,11 @@ export const isDirty = (sh, spec, c) => dirtyAt(keyOf(c), keyOf(sh.cur), sh.stag
 /**
  * Load a record's edit (`over`, else its staged edit, else the record); its staged edit is spent.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {Ref} c
- * @param {any} [over]
+ * @param {E} [over]
  */
 export function load(sh, spec, c, over) {
   if (!spec.load) return;
@@ -53,8 +67,9 @@ export function load(sh, spec, c, over) {
 /**
  * Stage the edit being left while it differs from its record.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 export function stash(sh, spec) {
   if (spec.load && spec.buffer) sh.staged = stashed(sh.staged, keyOf(sh.cur), spec.dirty() ? spec.buffer() : null);
@@ -63,16 +78,21 @@ export function stash(sh, spec) {
 /**
  * Stage `buf` as the edit of the record being edited (null: it matches the record again).
  *
- * @param {Shell} sh
- * @param {any} buf
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {E | null} buf
  */
 export function stage(sh, buf) {
   sh.staged = stashed(sh.staged, keyOf(sh.cur), buf);
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Switch to record `c`: the edit being left is staged, the confirm line and refusal clear, `c` loads, the overview
+ * repaints.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {Ref} c
  */
 export function go(sh, spec, c) {
@@ -87,8 +107,11 @@ export function go(sh, spec, c) {
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Drop the edit of the record being edited and load it back from its record; the same view repaints.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 export function discard(sh, spec) {
   sh.staged = stashed(sh.staged, keyOf(sh.cur), null);
@@ -101,8 +124,9 @@ export function discard(sh, spec) {
 /**
  * Put a question on the confirm line.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Pick<Spec<R, E>, 'view'>} spec
  * @param {string} text
  * @param {() => void} onConfirm
  */
@@ -115,14 +139,15 @@ export function confirm(sh, spec, text, onConfirm) {
 /**
  * Write the record Save planned.
  *
- * @param {Shell} sh
- * @param {any} spec
- * @param {{ taken: any, name: string, to: string[] }} o
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
+ * @param {{ taken: E | undefined, name: string, to: string[] }} o
  */
 function write(sh, spec, { taken, name, to }) {
   const from = sh.cur;
   const rec = spec.record(taken);
-  const out = savedTo(sh.book, sh.cur, name, to, rec, !!spec.keeps?.(sh.cur));
+  const out = savedTo(sh.book, sh.cur, { name, to, rec, keep: !!spec.keeps?.(sh.cur) });
   sh.book = out.book;
   sh.staged = stashed(sh.staged, keyOf(from), null);
   sh.cur = out.cur;
@@ -131,8 +156,11 @@ function write(sh, spec, { taken, name, to }) {
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Save: refuse with no name, do nothing with nowhere to write, ask before overwriting, else write.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 export function save(sh, spec) {
   const taken = spec.take?.();
@@ -151,8 +179,11 @@ export function save(sh, spec) {
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Delete the record being edited and its staged edit; the shell lands on the record the book picks.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 export function remove(sh, spec) {
   const from = sh.cur;

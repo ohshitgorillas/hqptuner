@@ -4,7 +4,12 @@
 import { h } from "../../../lib/shell/dom.js";
 import { classNames } from "../../../model/shell/format.js";
 
-/** A fraction of the axis as a CSS percentage. */
+/**
+ * A fraction of the axis as a CSS percentage.
+ *
+ * @param {number} f
+ * @returns {string}
+ */
 export const pct = (f) => (f * 100).toFixed(2) + "%";
 
 /**

@@ -13,6 +13,24 @@
 // the mock draws one plausible state: the matrix family runs as configured, decimated DSD plays through the Nx filter.
 
 // tier: where the source sits on the rate scale (RATE_TIERS index: 44.1k = 1x, 192k = 4x of 48k, DSD64 = 64x).
+/**
+ * One scenario: what is playing. A playing scene names its source family ('pcm' | 'dsd'), rate family ('f44' | 'f48'),
+ * filter stage ('1x' | 'nx'), rate tier, source readout, metered Nyquist and brickwall, in Hz.
+ *
+ * @typedef {object} Scene
+ * @property {string} id
+ * @property {string} label
+ * @property {boolean} playing
+ * @property {string} [family]
+ * @property {string} [fam]
+ * @property {string} [stage]
+ * @property {number} [tier]
+ * @property {string} [source]
+ * @property {number} [nyquist]
+ * @property {number} [brick]
+ */
+
+/** @type {Scene[]} */
 export const SCENES = [
   { id: "idle", label: "Not playing", playing: false },
   {
@@ -75,7 +93,13 @@ export const OUT = {
   direct: { tier: 6, rate: { f44: "2.822 MHz" }, name: "DSD64", bits: "1bit" },
 };
 
-/** The path a source takes through the engine, from the running chain and DSD playback (Direct SDM, as applied). */
+/**
+ * The path a source takes through the engine, from the running chain and DSD playback (Direct SDM, as applied).
+ *
+ * @param {Scene} scene
+ * @param {string} run  the running chain, 'pcm' | 'sdm'
+ * @param {boolean} direct
+ */
 export function pathOf(scene, run, direct) {
   if (!scene.playing) return "idle";
   if (scene.family === "pcm") return run === "sdm" ? "pcm-sdm" : "pcm-pcm";

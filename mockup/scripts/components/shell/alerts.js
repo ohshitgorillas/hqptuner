@@ -16,8 +16,18 @@ import { placeBy } from "../../lib/shell/plate.js";
 import { HOMES } from "../../data/shell/alerts.js";
 import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../model/shell/alerts.js";
 
+/** @typedef {import('../../model/shell/alerts.js').Sev} Sev */
+/** @typedef {import('../../model/shell/alerts.js').Alert} Alert */
+/** @typedef {import('../../model/shell/alerts.js').AlertPlan} AlertPlan */
+/** @typedef {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement}} Homes */
+
+/** @type {Record<Sev, string>} */
 const GLYPH = { crit: "⚠", warn: "⚠", advice: "♪" };
 
+/**
+ * @param {Alert} a
+ * @param {string} [tag]
+ */
 const line = (a, tag = "p") =>
   h(
     `${tag}.aline`,
@@ -26,13 +36,20 @@ const line = (a, tag = "p") =>
     h("span", { text: a.text }),
   );
 
-/** Worst severity wins on a shared home. */
-function mark(el, sev) {
-  if (!el) return;
+/**
+ * Worst severity wins on a shared home.
+ *
+ * @param {Element | null | undefined} home
+ * @param {Sev} sev
+ */
+function mark(home, sev) {
+  if (!home) return;
+  const el = /** @type {HTMLElement} */ (home);
   const next = worseBlink(el.dataset.alert, sev);
   if (next !== el.dataset.alert) el.dataset.alert = next;
 }
 
+/** @param {HTMLElement} plate */
 function clear(plate) {
   for (const el of plate.querySelectorAll("[data-alert]")) el.removeAttribute("data-alert");
   for (const el of plate.querySelectorAll(".dalert, .salert")) el.remove();
@@ -46,38 +63,74 @@ function clear(plate) {
 /**
  * Pin a plan (model/alerts.js alertPlan) on the plate: blink its homes, darken its dead stages, pin its lines.
  *
- * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement}} at
- * @param {import('../../model/shell/alerts.js').AlertPlan} plan
+ * @param {Homes} at
+ * @param {AlertPlan} plan
  */
-function pin({ plate, stages, srail }, plan) {
+function pin(at, plan) {
+  blinkHomes(at, plan);
+  pinDrawers(at.plate, plan);
+  pinSections(at.plate, plan);
+}
+
+/**
+ * Blink the plan's homes and darken its dead stages; a blinking gauge takes taps like a button.
+ *
+ * @param {Homes} at
+ * @param {AlertPlan} plan
+ */
+function blinkHomes({ plate, stages, srail }, plan) {
   for (const [id, b] of plan.blinks.stage) mark(stages.get(id), b);
   for (const [sel, b] of plan.blinks.el) mark(plate.querySelector(sel), b);
   for (const [id, b] of plan.blinks.set) mark(srail.querySelector(`.sst[data-stage="${id}"]`), b);
   for (const id of plan.dark) stages.get(id)?.classList.add("dead");
   if (plan.blinks.el.has(".gauge")) {
-    const g = plate.querySelector(".gauge");
+    const g = /** @type {HTMLElement} */ (plate.querySelector(".gauge"));
     g.setAttribute("role", "button");
     g.tabIndex = 0;
   }
-  // Drawer: the alert lines under the head; the fixing rows in the alert's colour.
+}
+
+/**
+ * Drawer: the alert lines under the head; the fixing rows in the alert's colour.
+ *
+ * @param {HTMLElement} plate
+ * @param {AlertPlan} plan
+ */
+function pinDrawers(plate, plan) {
   for (const [id, { alerts, rows }] of plan.drawers) {
     const d = plate.querySelector(`#drawer-${id}`);
     if (!d) continue;
-    d.querySelector(":scope > .dhead").after(
+    /** @type {Element} */ (d.querySelector(":scope > .dhead")).after(
       h(
         "div.dalert",
         { role: "status" },
         alerts.map((a) => line(a)),
       ),
     );
-    for (const { label, chain, sev } of rows) {
-      // chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).
-      const scope = chain ? `.dpanel[aria-label^="${chain === "sdm" ? "SDM" : "PCM"}"] ` : "";
-      for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`))
-        if (b.textContent === label) mark(b.closest(".drow"), sev);
-    }
+    for (const row of rows) lightRow(d, row);
   }
-  // Page: the section header carries the lines, beside the title (the hairline gives way).
+}
+
+/**
+ * Light the drawer rows labelled as the fixing row is, in the alert's colour.
+ *
+ * @param {Element} d  the drawer
+ * @param {import('../../model/shell/alerts.js').LitRow} row
+ */
+function lightRow(d, { label, chain, sev }) {
+  // chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).
+  const scope = chain ? `.dpanel[aria-label^="${chain === "sdm" ? "SDM" : "PCM"}"] ` : "";
+  for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`))
+    if (b.textContent === label) mark(b.closest(".drow"), sev);
+}
+
+/**
+ * Page: the section header carries the lines, beside the title (the hairline gives way).
+ *
+ * @param {HTMLElement} plate
+ * @param {AlertPlan} plan
+ */
+function pinSections(plate, plan) {
   for (const [name, as] of plan.sections) {
     const t = plate.querySelector(`#body > main.page > section[aria-label="${name}"] .sh .t`);
     if (!t) continue;
@@ -92,17 +145,25 @@ function pin({ plate, stages, srail }, plan) {
 }
 
 /**
- * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement, bus: import('../../lib/shell/bus.js').Bus}} o
+ * Mount the alert painter on the plate: set() raises a list of alerts on their homes, repaint() re-pins them after a
+ * home was rebuilt.
+ *
+ * @param {Homes & {bus: import('../../lib/shell/bus.js').Bus}} o
+ * @returns {{set: (next: Alert[]) => void, repaint: () => void}}
  */
 export function mountAlerts({ plate, stages, srail, bus }) {
+  /** @type {Alert[]} */
   let list = [];
 
   // Tap popovers for the header homes without a drawer (knob, gauge). The knob's own tap (connection settings) still
   // happens; with an alert up, the alert opens over it.
+  /** @type {Map<string, {panel: HTMLElement, pop: ReturnType<typeof popover>}>} */
   const notes = new Map(); // selector → {panel, pop}
+  /** @param {string} sel */
   function noteFor(sel) {
-    if (notes.has(sel)) return notes.get(sel);
-    const trigger = plate.querySelector(sel);
+    const had = notes.get(sel);
+    if (had) return had;
+    const trigger = /** @type {HTMLElement} */ (plate.querySelector(sel));
     const panel = h("div.pop.notepop.alnote", { role: "dialog", "aria-label": "Alert" });
     plate.append(panel);
     const pop = popover({
@@ -134,12 +195,11 @@ export function mountAlerts({ plate, stages, srail, bus }) {
   }
 
   // The gauge isn't a button: with an alert up it takes taps and Enter like one.
-  plate.querySelector(".gauge")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.currentTarget.dataset.alert) noteFor(".gauge").pop.open();
+  /** @type {HTMLElement | null} */ (plate.querySelector(".gauge"))?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && /** @type {HTMLElement} */ (e.currentTarget).dataset.alert) noteFor(".gauge").pop.open();
   });
 
   return {
-    /** @param {{kind: string, sev: 'crit'|'warn'|'advice', text: string}[]} next */
     set(next) {
       list = next;
       for (const { pop } of notes.values()) pop.close();

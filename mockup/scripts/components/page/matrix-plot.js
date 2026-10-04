@@ -7,7 +7,28 @@ import { paintSvg } from "../../lib/plots/gauge.js";
 import { mountPlotSvg, plotGrid, plotLabels } from "../../lib/plots/plot-frame.js";
 import { centredLevelY, levelGrid, plotGeometry, tracePath } from "../../model/gauges/plot-axes.js";
 
-/** Response in dB at f, from the data's bands + tilts (placeholder shape). */
+/** @typedef {{ from: number, dbPerOct: number }} Slope  a slope in dB per octave above `from` Hz */
+
+/**
+ * The plot's data (data/matrix.js MATRIX_PLOT): ± dB shown, the frequency span, the peaking bands [centre Hz, gain dB,
+ * width in octaves], the soft tilt and the top drop; `flat` draws a profile that changes nothing.
+ *
+ * @typedef {object} MatrixPlot
+ * @property {number} range
+ * @property {number} fMin
+ * @property {number} fMax
+ * @property {number[][]} bands
+ * @property {Slope} tilt
+ * @property {Slope} top
+ * @property {boolean} [flat]
+ */
+
+/**
+ * Response in dB at f, from the data's bands + tilts (placeholder shape).
+ *
+ * @param {number} f
+ * @param {MatrixPlot} cfg
+ */
 function response(f, { bands, tilt, top }) {
   let d = 0;
   for (const [fc, g, w] of bands) d += g * Math.exp(-0.5 * (Math.log2(f / fc) / w) ** 2);
@@ -18,8 +39,10 @@ function response(f, { bands, tilt, top }) {
 }
 
 /**
+ * The Matrix engine section's response plot, redrawn at its box's size.
+ *
  * @param {HTMLElement} host  .eq box; the SVG fills it
- * @param {object} cfg        MATRIX_PLOT
+ * @param {MatrixPlot} cfg    MATRIX_PLOT
  */
 export function mountMatrixPlot(host, cfg) {
   const svg = mountPlotSvg(host, "Matrix response", draw);

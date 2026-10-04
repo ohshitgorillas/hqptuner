@@ -7,6 +7,20 @@
 // Hideable from the rail (Visual settings): DSD Processing, Crossfeed, Loudness, DAC correction, Speakers.
 // Mock state: Speakers station, volume active at −12.5 dB, matrix on, crossfeed off (Speakers station), loudness on, HF off, DAC correction off, SDM output.
 
+/**
+ * One stage of the signal chain on the rail: level 0 a top stage, 1 a Matrix engine part; `on` lights its lamp;
+ * `drawer` is the id of the drawer it opens.
+ *
+ * @typedef {object} ChainStage
+ * @property {string} id
+ * @property {number} level
+ * @property {boolean} on
+ * @property {string} name
+ * @property {string} value
+ * @property {string} drawer
+ */
+
+/** @type {ChainStage[]} */
 export const CHAIN = [
   { id: "source", level: 0, on: true, name: "Source", value: "44.1 kHz / 16bit / 2ch", drawer: "source" },
   { id: "hf", level: 0, on: false, name: "HF filter", value: "Inactive", drawer: "hf" },

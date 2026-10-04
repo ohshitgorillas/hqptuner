@@ -2,17 +2,24 @@
 
 import { h } from "../../lib/shell/dom.js";
 
+/** @typedef {import('../../model/shell/settings.js').Option & { title?: string }} SegOption */
+
 /**
+ * A segmented switch: one button per option, the one matching `value` on; a click on another moves the selection and
+ * reports it.
+ *
  * @param {object} o
- * @param {{v:any,label:string,unit?:string,title?:string}[]} o.options   unit: printed after the label, case kept
- * @param {any} o.value           initially selected v (compared as strings)
+ * @param {SegOption[]} o.options   unit: printed after the label, case kept
+ * @param {string | number} [o.value]  initially selected v (compared as strings)
  * @param {string} [o.aria]       radiogroup label
  * @param {string} [o.tag]        element: 'div' (default) or 'span'
  * @param {string} [o.cls]        extra classes (e.g. 'mini')
- * @param {object} [o.attrs]      extra attributes for the group element
- * @param {(v:string, btn:HTMLButtonElement)=>void} [o.onChange]
+ * @param {Record<string, string>} [o.attrs]  extra attributes for the group element
+ * @param {(v: string, btn: HTMLButtonElement) => void} [o.onChange]
+ * @returns {HTMLElement}
  */
 export function seg({ options, value, aria, tag = "div", cls, attrs = {}, onChange }) {
+  /** @type {HTMLElement} */
   const group = h(
     `${tag}.seg`,
     { class: cls, role: "radiogroup", "aria-label": aria, ...attrs },
@@ -31,15 +38,22 @@ export function seg({ options, value, aria, tag = "div", cls, attrs = {}, onChan
     ),
   );
   group.addEventListener("click", (e) => {
-    const b = e.target.closest("button");
+    const b = /** @type {Element} */ (e.target).closest("button");
     if (!b || b.classList.contains("on")) return;
-    select(group, b.dataset.v);
-    onChange?.(b.dataset.v, b);
+    // Every button carries data-v (its option's v).
+    const v = /** @type {string} */ (b.dataset.v);
+    select(group, v);
+    onChange?.(v, b);
   });
   return group;
 }
 
-/** Move .on to the button whose data-v matches. */
+/**
+ * Move .on to the button whose data-v matches.
+ *
+ * @param {ParentNode} group
+ * @param {string | number} v
+ */
 export function select(group, v) {
   for (const b of group.querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === String(v));
 }

@@ -10,67 +10,100 @@
 // at 192 kHz (Nx runs), the filters and shaper on a DSD → SDM path (remodulation, or Direct: nothing). The section stays
 // (nothing hides). The rail names what runs in each slot: on DSD → SDM, Resampling = SDM → SDM
 // conversion and Shaping = the integrator …: a processed DSD path adds one conversion stage ahead of
-// Resampling (manual 6.1.0: one block of settings), see rail(). The DSD settings never reach the page (not live).
-// The path is reported out (hosts.onPath).
+// Resampling (manual 6.1.0: one block of settings), see rail() in conversion/rail.js. The DSD settings never reach the
+// page (not live). The path is reported out (hosts.onPath).
 
 import { h } from "../../lib/shell/dom.js";
-import { optCopy, fitCopy } from "../lists/vselect.js";
+import { optCopy } from "../lists/vselect.js";
 import { chainPick } from "./chain-pick.js";
-import { FIELDS, CHAIN_LISTS, CHAIN_NAMES, runningChain } from "../../data/stages/conversion.js";
-import { pathOf } from "../../data/shell/scenarios.js";
-import { subscribe } from "../../lib/state/narrow.js";
+import { FIELDS, CHAIN_NAMES } from "../../data/stages/conversion.js";
+import { subscribe } from "../../lib/narrowing/narrow.js";
 import { PLATFORM } from "../../lib/shell/clock.js";
-import { scale } from "../../lib/shell/plate.js";
-import {
-  FIT_PASSES,
-  bothRows,
-  fieldRuns,
-  fitStep,
-  openOn,
-  overrunOf,
-  overruns,
-  railValues,
-  sectionRows,
-} from "../../model/shell/conversion.js";
+import { bothRows, fieldRuns, openOn, sectionRows } from "../../model/shell/conversion.js";
+import { fit, listOf, path, playOf, rail, running, wraps } from "./conversion/rail.js";
+
+/** @typedef {import('../../data/shell/scenarios.js').Scene} Scene */
+/** @typedef {import('../../model/shell/conversion.js').Open} Open */
+/** @typedef {import('../lists/vselect.js').ListName} ListName */
+/** @typedef {{ label: string, sub: string, man: string }} Field */
+/** @typedef {{ tier: number | null, rate: string, rest: string, value: string }} OutReadout  the Output readouts */
+/** @typedef {{ set(id: string, v: string): void, setRunning(run: string): void }} DrawerLink  the stage drawer */
 
 /**
- * @typedef {object} ConvState  one mounted page's state, shared by the helpers below
- * @property {object} hosts
- * @property {Function} out
- * @property {object} scene
+ * The page's hosts: the section bodies, the rail's stage buttons, the bus, and who hears what runs.
+ *
+ * @typedef {object} ConvHosts
+ * @property {HTMLElement} rs   Resampling section body
+ * @property {HTMLElement} sh   Shaping section body
+ * @property {Map<string, HTMLElement>} stages  the rail's stage buttons by id
+ * @property {import('../../lib/shell/bus.js').Bus} bus
+ * @property {(o: { mode: string, run: string, tier: number | null, rate: string, rest: string }) => void} [onOut]
+ * @property {(run: string) => void} [onRun]
+ * @property {(path: string, run: string, scene: Scene) => void} [onPath]
+ * @property {import('../../lib/shell/clock.js').Clock} [clock]
+ */
+
+/**
+ * @typedef {object} ConvState  one mounted page's state, shared by the helpers here and in conversion/rail.js
+ * @property {ConvHosts} hosts
+ * @property {(run: string, path: string, scene: Scene) => OutReadout} out
+ * @property {Scene} scene
  * @property {Record<string, string>} vals
  * @property {string} mode
  * @property {boolean} direct     DSD playback as applied (Direct SDM)
  * @property {string} reported
- * @property {object | null} drawer
- * @property {import('../../model/shell/conversion.js').Open | null} open
+ * @property {DrawerLink | null} drawer
+ * @property {Open | null} open
  * @property {boolean} both
  * @property {{ host: HTMLElement, ch: string, k: string }[]} copies  the open fields' copy
  */
 
-const running = (st) => runningChain(st.mode, { playing: st.scene.playing, family: st.scene.family });
-const path = (st) => pathOf(st.scene, running(st), st.direct);
-/** What plays: the running chain, the scenario path, the filter stage the source rate selects. */
-const playOf = (st) => ({ run: running(st), path: path(st), stage: st.scene.stage });
+/** @type {Record<string, string>} */
+const NAMES = CHAIN_NAMES;
+
 // The page shows the running chain only. Auto ([source]) isn't offered; when the daemon reports it (set elsewhere) the
 // page still shows just the chain it runs now (the drawer holds both chains, as always).
+/** @param {ConvState} st */
 const chains = (st) => [running(st)];
-const tag = () => null;
+/** @param {string | null} _ch */
+const tag = (_ch) => null;
 // Idle: every field this track's path doesn't run.
+/**
+ * @param {ConvState} st
+ * @param {string} ch
+ * @param {string} k
+ */
 const idle = (st, ch, k) => !fieldRuns(playOf(st), ch, k);
+/**
+ * @param {ConvState} st
+ * @param {Field} f
+ * @param {string} ch
+ * @param {string} k
+ */
 const why = (st, f, ch, k) => (idle(st, ch, k) ? f.sub + " · idle" : f.sub);
-const listOf = (ch, k) => (k === "sh" ? CHAIN_LISTS[ch].shapers : CHAIN_LISTS[ch].filters);
+/**
+ * @param {string} ch
+ * @param {string} k
+ */
 const fieldOf = (ch, k) => (k === "sh" ? FIELDS[ch + "sh"] : FIELDS[k]);
 
-/** The page's picker: nameplate + knob + siblings (components/chain-pick.js). */
-function pick(st, id, ch, k, aria) {
+/**
+ * The page's picker: nameplate + knob + siblings (components/chain-pick.js).
+ *
+ * @param {ConvState} st
+ * @param {string} ch
+ * @param {string} k
+ * @param {string} aria
+ */
+function pick(st, ch, k, aria) {
+  const id = ch + k;
   return chainPick({
     id: "pg-" + id,
     aria,
     idle: idle(st, ch, k),
     value: st.vals[id],
     stage: k === "nx" ? "nx" : "1x",
-    list: k === "sh" ? (ch === "sdm" ? "modulators" : "dithers") : ch + "Filters",
+    list: k === "sh" ? (ch === "sdm" ? "modulators" : "dithers") : /** @type {ListName} */ (ch + "Filters"),
     onChange: (v) => {
       update(st, id, v);
       st.drawer?.set(id, v);
@@ -78,8 +111,12 @@ function pick(st, id, ch, k, aria) {
   });
 }
 
-/** One-line fold (▸): names a field or a chain, its value at the right; tapping it opens it. */
-function line(name, ch, whyText, value, onOpen) {
+/**
+ * One-line fold (▸): names a field or a chain, its value at the right; tapping it opens it.
+ *
+ * @param {{ name: string, ch: string | null, whyText: string, value: string, onOpen: () => void }} o
+ */
+function line({ name, ch, whyText, value, onOpen }) {
   return h(
     "button.fline",
     { type: "button", on: { click: onOpen } },
@@ -90,17 +127,28 @@ function line(name, ch, whyText, value, onOpen) {
   );
 }
 
-/** The open field: head + select (dim while idle). Its copy goes to the section's right column. */
+/**
+ * The open field: head + select (dim while idle). Its copy goes to the section's right column.
+ *
+ * @param {ConvState} st
+ * @param {string} ch
+ * @param {string} k
+ * @returns {HTMLElement[]}
+ */
 function field(st, ch, k) {
-  const f = fieldOf(ch, k),
-    id = ch + k;
+  const f = fieldOf(ch, k);
   // What narrowing leaves of the list reads in the nameplate (`4 of 21`), so the head carries no count.
   return [
     h("div.fh", {}, h("b", { text: f.label }), tag(ch), h("span.s", { text: why(st, f, ch, k) })),
-    pick(st, id, ch, k, f.label),
+    pick(st, ch, k, f.label),
   ];
 }
 
+/**
+ * @param {ConvState} st
+ * @param {string} ch
+ * @param {string} k
+ */
 function copyOf(st, ch, k) {
   const host = h("div.man", {}, optCopy(listOf(ch, k), st.vals[ch + k]));
   st.copies.push({ host, ch, k });
@@ -108,41 +156,26 @@ function copyOf(st, ch, k) {
 }
 
 /**
- * Keep every section on the plate: while the page's last section runs past its bottom, the tallest open copy gives up
- * the overrun (its prose cut short, `… see more` opens it whole). Matrix engine's plot is the stretch and has its
- * 150px floor, so in PCM a long option line is what would push Output off.
+ * Resampling: one field open (the open chain's other filter and every other chain folded), or both filters open.
+ *
+ * @param {ConvState} st
+ * @param {string[]} cs
+ * @param {Open} open
  */
-function fit(st) {
-  const page = st.hosts.rs.closest("main");
-  if (!page || !page.offsetParent) return;
-  const k = scale();
-  const overrun = () => {
-    const kids = [...page.children].filter((c) => c.offsetParent);
-    return overrunOf({
-      bottoms: kids.map((c) => c.getBoundingClientRect().bottom),
-      pageBottom: page.getBoundingClientRect().bottom,
-      scale: k,
-      padding: parseFloat(getComputedStyle(page).paddingBottom),
-    });
-  };
-  for (const c of st.copies) c.host.replaceChildren(...optCopy(listOf(c.ch, c.k), st.vals[c.ch + c.k]).filter(Boolean));
-  const measure = (c) => ({ height: c.host.offsetHeight, left: c.host.previousElementSibling.offsetHeight });
-  for (let i = 0; i < FIT_PASSES && overruns(overrun()); i++) {
-    const step = fitStep(st.copies.map(measure), overrun());
-    if (!step) break;
-    const c = st.copies[step.index];
-    fitCopy(c.host, listOf(c.ch, c.k), st.vals[c.ch + c.k], step.height);
-  }
-}
-
-/** Resampling: one field open (the open chain's other filter and every other chain folded), or both filters open. */
-function renderResampling(st, cs) {
-  const o = st.open.rs;
+function renderResampling(st, cs, open) {
+  const o = open.rs;
+  /** @param {string} ch */
   const chainLine = (ch) =>
-    line(CHAIN_NAMES[ch], null, ch === running(st) ? "" : "idle", st.vals[ch + "1x"], () => {
-      o.chain = ch;
-      o.field = "1x";
-      render(st);
+    line({
+      name: NAMES[ch],
+      ch: null,
+      whyText: ch === running(st) ? "" : "idle",
+      value: st.vals[ch + "1x"],
+      onOpen: () => {
+        o.chain = ch;
+        o.field = "1x";
+        render(st);
+      },
     });
   if (st.both) {
     // One row per filter (field | its copy).
@@ -161,9 +194,15 @@ function renderResampling(st, cs) {
         ? field(st, ch, k)
         : kind === "line"
           ? [
-              line(FIELDS[k].label, ch, why(st, FIELDS[k], ch, k), st.vals[ch + k], () => {
-                o.field = k;
-                render(st);
+              line({
+                name: FIELDS[k].label,
+                ch,
+                whyText: why(st, FIELDS[k], ch, k),
+                value: st.vals[ch + k],
+                onOpen: () => {
+                  o.field = k;
+                  render(st);
+                },
               }),
             ]
           : [chainLine(ch)],
@@ -172,85 +211,63 @@ function renderResampling(st, cs) {
   }
 }
 
-/** Shaping: the open chain's shaper open, every other chain's folded. */
-function renderShaping(st, cs) {
-  const sl = sectionRows(cs, { chain: st.open.sh, field: "sh" }, ["sh"]).flatMap(({ kind, ch }) =>
+/**
+ * Shaping: the open chain's shaper open, every other chain's folded.
+ *
+ * @param {ConvState} st
+ * @param {string[]} cs
+ * @param {Open} open
+ */
+function renderShaping(st, cs, open) {
+  const sl = sectionRows(cs, { chain: open.sh, field: "sh" }, ["sh"]).flatMap(({ kind, ch }) =>
     kind === "field"
       ? field(st, ch, "sh")
       : [
-          line(fieldOf(ch, "sh").label, ch, ch === running(st) ? "" : "idle", st.vals[ch + "sh"], () => {
-            st.open.sh = ch;
-            render(st);
+          line({
+            name: fieldOf(ch, "sh").label,
+            ch,
+            whyText: ch === running(st) ? "" : "idle",
+            value: st.vals[ch + "sh"],
+            onOpen: () => {
+              open.sh = ch;
+              render(st);
+            },
           }),
         ],
   );
-  st.hosts.sh.replaceChildren(h("div.two", {}, h("div.fld", {}, sl), copyOf(st, st.open.sh, "sh")));
+  st.hosts.sh.replaceChildren(h("div.two", {}, h("div.fld", {}, sl), copyOf(st, open.sh, "sh")));
 }
 
+/** @param {ConvState} st */
 function render(st) {
   st.copies.length = 0;
   const cs = chains(st);
   if (!st.open) st.open = openOn(playOf(st), cs[0]);
-  renderResampling(st, cs);
-  renderShaping(st, cs);
+  renderResampling(st, cs, st.open);
+  renderShaping(st, cs, st.open);
   rail(st);
   fit(st);
 }
 
-/** A stage name that wraps (the DSD conversion stage) puts its lamp on the first line; re-measured once fonts land. */
-function wraps(hosts) {
-  for (const id of ["dsd", "resampling", "shaping"]) {
-    const n = hosts.stages.get(id).querySelector(".n");
-    n.parentElement.classList.toggle("wrap", n.offsetHeight > 30);
-  }
-}
-
-function rail(st) {
-  const { hosts } = st;
-  const play = playOf(st),
-    { run, path: p } = play;
-  const r = railValues(play, st.direct, st.vals);
-  // DSD Processing: always on the rail (hideable); in this track's path only on a processed DSD source.
-  const dsd = hosts.stages.get("dsd");
-  dsd.classList.toggle("byp", !r.dsdInPath);
-  dsd.querySelector(".v").textContent = r.dsd;
-  // Direct: Resampling and Shaping aren't in the path, so they leave the chain while it plays.
-  let moved = false;
-  for (const id of ["resampling", "shaping"]) {
-    const stage = hosts.stages.get(id);
-    if (stage.hidden !== r.offChain) {
-      stage.hidden = r.offChain;
-      moved = true;
-    }
-  }
-  const rn = hosts.stages.get("resampling").querySelector(".n"),
-    name = r.rateConversion ? "Rate conversion" : "Resampling";
-  if (rn.textContent !== name) {
-    rn.textContent = name;
-    moved = true;
-  }
-  if (moved) hosts.bus.emit("relayout"); // rail wire redraws
-  hosts.stages.get("resampling").querySelector(".v").textContent = r.resampling;
-  hosts.stages.get("shaping").querySelector(".v").textContent = r.shaping;
-  wraps(hosts);
-  const o = st.out(run, p, st.scene);
-  hosts.onOut?.({ mode: st.mode, run, tier: o.tier, rate: o.rate, rest: o.rest }); // the page's Output tuner
-  hosts.onRun?.(run);
-  hosts.stages.get("output").querySelector(".v").textContent = o.value;
-  const key = `${st.scene.id}|${p}|${run}`;
-  if (key !== st.reported) {
-    st.reported = key;
-    hosts.onPath?.(p, run, st.scene);
-  }
-}
-
-/** A filter or shaper changed (drawer or page): the page re-renders (what is open stays open), then the rail. */
+/**
+ * A filter or shaper changed (drawer or page): the page re-renders (what is open stays open), then the rail.
+ *
+ * @param {ConvState} st
+ * @param {string} id
+ * @param {string} v
+ */
 function update(st, id, v) {
   st.vals[id] = v;
   render(st);
 }
 
-/** The scenario switch, or DSD playback applied (Direct): the path changes; the running chain may too (a daemon in Auto). */
+/**
+ * The scenario switch, or DSD playback applied (Direct): the path changes; the running chain may too (a daemon in Auto).
+ *
+ * @param {ConvState} st
+ * @param {Scene} sc
+ * @param {boolean} dir
+ */
 function setScene(st, sc, dir) {
   st.scene = sc;
   st.direct = dir;
@@ -259,6 +276,10 @@ function setScene(st, sc, dir) {
   render(st);
 }
 
+/**
+ * @param {ConvState} st
+ * @param {string} m
+ */
 function setMode(st, m) {
   if (m === st.mode) return;
   st.mode = m;
@@ -267,7 +288,11 @@ function setMode(st, m) {
   render(st);
 }
 
-/** What the engine runs now (Snapshot builder's Live column): mode, running chain, both chains' picks. */
+/**
+ * What the engine runs now (Snapshot builder's Live column): mode, running chain, both chains' picks.
+ *
+ * @param {ConvState} st
+ */
 function state(st) {
   const { vals } = st;
   return {
@@ -279,15 +304,15 @@ function state(st) {
 }
 
 /**
- * @param {object} hosts   {rs, sh: section body hosts; mode: Output Mode seg host; rate: Rate readout .v; stages: rail Map;
- *                          bus: the shared bus (lib/bus.js)}
- * @param {object} conv    CONV mock state
- * @param {(run:string, path:string, scene:object) => {rate:string, value:string}} out   Output readouts for what plays
- * @param {object} scene   the mock scenario playing (data/scenarios.js)
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
- * @returns {{update(id:string, v:string):void, setMode(m:string):void, bindDrawer(api):void}}
+ * The page's Resampling and Shaping sections and the rail values they drive, one state with the stage drawers.
+ *
+ * @param {ConvHosts} hosts   section bodies, the rail's stages, the bus, the listeners; `clock` defaults to the platform's
+ * @param {{ mode: string, values: Record<string, string> }} conv    CONV mock state
+ * @param {(run: string, path: string, scene: Scene) => OutReadout} out   Output readouts for what plays
+ * @param {Scene} scene   the mock scenario playing (data/scenarios.js)
  */
-export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
+export function mountConversion(hosts, conv, out, scene) {
+  const clock = hosts.clock ?? PLATFORM;
   const vals = { ...conv.values };
   /** @type {ConvState} */
   const st = {
@@ -321,17 +346,31 @@ export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
   subscribe(() => render(st)); // narrowing moved: the filters' sibling strips follow
   hosts.bus.on("optstyle", () => render(st)); // Option style: the nameplates' names (vselect.js setOptionStyle)
   return {
+    /**
+     * @param {string} id
+     * @param {string} v
+     */
     update: (id, v) => update(st, id, v),
+    /** @param {string} m */
     setMode: (m) => setMode(st, m),
+    /**
+     * @param {Scene} sc
+     * @param {boolean} [dir]
+     */
     setScene: (sc, dir = st.direct) => setScene(st, sc, dir),
     running: () => running(st),
     path: () => path(st),
     state: () => state(st),
+    /** @param {DrawerLink} api */
     bindDrawer: (api) => {
       st.drawer = api;
     },
     /** Matrix engine bypassed as applied: both filters open on the page. */
-    /** The display size holds both filters open (13″): the spare height goes to the idle filter, not the Matrix plot. */
+    /**
+     * The display size holds both filters open (13″): the spare height goes to the idle filter, not the Matrix plot.
+     *
+     * @param {boolean} on
+     */
     setRoom: (on) => {
       if (st.both !== on) {
         st.both = on;

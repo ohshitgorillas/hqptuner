@@ -7,43 +7,55 @@ import { DEVICES, RATE_TIERS } from "../../../../data/stages/output.js";
 import { STB_IPV6, STB_USB, STB_RATES } from "../../../../data/builders/station-builder.js";
 import { ipv6Verdict, usbVerdict, dsd48Verdict } from "../../../../model/builders/station.js";
 
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('./parts.js').Run} Run */
+
 const TICK = 700; // mock: one line of a check
+const LISTS = /** @type {Record<string, { list: string[] }>} */ (DEVICES);
 
 /**
  * Run a mock check: print each line a tick apart, then the verdict; repaint while its step shows. A check started for
  * another edit (the station switched) is dropped.
  *
- * @param {object} sb  the builder's state
+ * @param {StationState} sb  the builder's state
  * @param {{ key: string, steps: string[], verdict: () => [boolean, string, (() => void)?], restarts?: boolean }} c
  */
-export function runCheck(sb, { key, steps, verdict, restarts = true }) {
+function runCheck(sb, { key, steps, verdict, restarts = true }) {
+  /** @type {Run} */
   const run = { lines: [], done: false, ok: false };
   sb.runs[key] = run;
   const mine = sb.e;
   if (restarts) sb.o.onRescan?.(); // the IPv6 test restarts the daemon, a rescan stops it (wizard): the knob reads Applying…
   checkSequence(
     steps,
-    TICK,
-    (t) => {
-      if (sb.e !== mine) return;
-      run.lines.push(t);
-      if (sb.at === key) sb.show(sb.at);
-    },
-    () => {
-      if (sb.e !== mine) return;
-      const [ok, line, apply] = verdict();
-      run.lines.push(line);
-      run.done = true;
-      run.ok = ok;
-      apply?.();
-      sb.show(sb.at);
+    {
+      tick: TICK,
+      onLine: (t) => {
+        if (sb.e !== mine) return;
+        run.lines.push(t);
+        if (sb.at === key) sb.show(sb.at);
+      },
+      onVerdict: () => {
+        if (sb.e !== mine) return;
+        const [ok, line, apply] = verdict();
+        run.lines.push(line);
+        run.done = true;
+        run.ok = ok;
+        apply?.();
+        sb.show(sb.at);
+      },
     },
     sb.clock,
   );
   sb.show(sb.at);
 }
 
-/** The IPv6 check: `ask2` is the I-don't-know test (two lines), else the Yes answer's one. */
+/**
+ * The IPv6 check: `ask2` is the I-don't-know test (two lines), else the Yes answer's one.
+ *
+ * @param {StationState} sb
+ * @param {boolean} ask2
+ */
 export function testV6(sb, ask2) {
   const fail = sb.flags.ipv6Fail;
   const steps = ask2 ? STB_IPV6.unknown.steps : [STB_IPV6.yes.run];
@@ -64,7 +76,11 @@ export function testV6(sb, ask2) {
   });
 }
 
-/** The USB listings check: the listing that survives the DAC going down is locked in. */
+/**
+ * The USB listings check: the listing that survives the DAC going down is locked in.
+ *
+ * @param {StationState} sb
+ */
 export function disambiguate(sb) {
   const why = sb.flags.usbFail;
   const x = sb.e.rec;
@@ -72,7 +88,7 @@ export function disambiguate(sb) {
     key: "usb",
     steps: [STB_USB.run],
     verdict: () => {
-      const v = usbVerdict(why, x.listings, why ? [] : DEVICES[x.backend].list); // mock: the later listing answers
+      const v = usbVerdict(why, x.listings, why ? [] : LISTS[x.backend].list); // mock: the later listing answers
       return v.ok
         ? [
             true,
@@ -83,7 +99,7 @@ export function disambiguate(sb) {
           ]
         : [
             false,
-            STB_USB.fail(STB_USB.why[why]),
+            STB_USB.fail(STB_USB.why[/** @type {'gone' | 'none'} */ (why)]),
             () => {
               x.resolved = null;
             },
@@ -92,7 +108,11 @@ export function disambiguate(sb) {
   });
 }
 
-/** The 48k-family DSD check: the device announces the Output drawer's limits and native DSD. */
+/**
+ * The 48k-family DSD check: the device announces the Output drawer's limits and native DSD.
+ *
+ * @param {StationState} sb
+ */
 export function detect48(sb) {
   const no = sb.flags.dsd48No;
   runCheck(sb, {

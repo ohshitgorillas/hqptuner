@@ -5,15 +5,27 @@ import { minus } from "../../../../model/shell/format.js";
 import { deviceParts as parts } from "../../../../model/gauges/output.js";
 import { skipOf, summaryOf } from "../../../../model/builders/station.js";
 
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../../../../model/builders/station.js').Summary} Summary */
+/** @typedef {import('./tables.js').Tables} Tables */
+/** @typedef {import('./tables.js').RowOption} RowOption */
+
+/** @type {Record<string, string | undefined>} */
 const IFACE_SHORT = { usb: "USB / I2S", coax: "AES/EBU · coax", toslink: "Toslink" }; // DRAFT rail readouts
+/** @type {Record<string, string>} */
 const CUDA_SHORT = { 0: "No CUDA", convolution: "CUDA conv.", 1: "CUDA full" };
 
-/** Each step's answer from the station's summary; `T` holds the borrowed tables. */
+/**
+ * Each step's answer from the station's summary; `T` holds the borrowed tables.
+ *
+ * @type {Record<string, (s: Summary, T: Tables) => string>}
+ */
 const TEXT = {
   name: (s) => s.name || "—",
-  backend: (s) => ({ network: "NAA", alsa: "ALSA" })[s.backend],
+  backend: (s) => /** @type {Record<string, string>} */ ({ network: "NAA", alsa: "ALSA" })[s.backend],
   device: (s) => (s.device ? parts(s.backend, s.device).main : s.listings ? `${s.listings} listings` : "—"),
-  ipv6: (s, T) => (s.discovery != null ? T.DISCOVERY.find((x) => x.v === s.discovery).label : "—"),
+  ipv6: (s, T) =>
+    s.discovery != null ? /** @type {RowOption} */ (T.DISCOVERY.find((x) => x.v === s.discovery)).label : "—",
   usb: (s) => (s.resolved ? "Resolved" : "Unresolved"),
   iface: (s) => IFACE_SHORT[s.iface] ?? "—",
   rates: (s, T) =>
@@ -25,10 +37,21 @@ const TEXT = {
   hardware: (s) => [CUDA_SHORT[s.cuda], s.ecores && "E-cores"].filter(Boolean).join(" · "),
 };
 
-/** Why the step doesn't apply to the station being edited ('' = it does). */
+/**
+ * Why the step doesn't apply to the station being edited ('' = it does).
+ *
+ * @param {StationState} sb
+ * @param {string} id
+ */
 export const skipText = (sb, id) => skipOf(STB_STEPS, id, sb.e.rec, sb.e.hw);
 
-/** The step's answer for the station being edited. */
+/**
+ * The step's answer for the station being edited.
+ *
+ * @param {StationState} sb
+ * @param {string} id
+ * @returns {string}
+ */
 export function answerOf(sb, id) {
   if (skipText(sb, id)) return STB_COPY.skipped;
   return TEXT[id](summaryOf(sb.e.name, sb.e.rec, hwSettings(sb.e.hw)), sb.T);

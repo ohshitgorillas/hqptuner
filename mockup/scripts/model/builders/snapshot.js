@@ -7,6 +7,17 @@ import { NEW, keyOf } from "./builder.js";
 import { paging } from "./pager.js";
 
 /** @typedef {import('./builder.js').Ref} Ref */
+/** @typedef {import('../../data/stages/conversion.js').Chain} Chain */
+/**
+ * Per-row values: the chain rows under the chain `mode` names, each chain's kept apart; every other row's by its id.
+ *
+ * @typedef {{
+ *   mode: Chain,
+ *   pcm: Record<string, string>,
+ *   sdm: Record<string, string>,
+ *   [id: string]: string | Record<string, string>,
+ * }} Vals
+ */
 /**
  * A snapshot as edited: every row has a value; inc = the rows it holds.
  *
@@ -14,7 +25,20 @@ import { paging } from "./pager.js";
  * @property {string} name
  * @property {string[]} stations  the stations Save writes to
  * @property {Set<string>} inc
- * @property {Record<string, any>} vals  per-row values; the chain rows under vals[vals.mode]
+ * @property {Vals} vals  per-row values; the chain rows under vals[vals.mode]
+ */
+/**
+ * The engine now: the chain it runs, each chain's rows, and every other row's value, Output mode's included (`V`; the
+ * app's are strings).
+ *
+ * @template {string | number} [V=string]
+ * @typedef {{
+ *   mode: V,
+ *   run: Chain,
+ *   pcm: Record<string, string>,
+ *   sdm: Record<string, string>,
+ *   [id: string]: V | Chain | Record<string, string>,
+ * }} Engine
  */
 /**
  * One station's fold on the rail.
@@ -29,13 +53,14 @@ import { paging } from "./pager.js";
  * @property {number} fill     blank lines that keep a short last page full height
  */
 /**
- * One row of the page, derived.
+ * One row of the page, derived, against an engine whose row values are `V`.
  *
+ * @template {string | number} [V=string]
  * @typedef {object} RowView
  * @property {boolean} gated  a chain row whose snapshot leaves out Mode
  * @property {boolean} on     held and not gated
- * @property {any} value      the snapshot's value
- * @property {any} live       the engine's value
+ * @property {string} value   the snapshot's value
+ * @property {string | V} live  the engine's value
  * @property {boolean} idle   the engine's value is on a chain it is not running
  * @property {boolean} differs
  * @property {boolean} take   ← is live
@@ -56,9 +81,9 @@ export const isChain = (id) => CHAIN_IDS.includes(id);
  *
  * @param {Edit} e
  * @param {string} id
- * @returns {any}
+ * @returns {string}
  */
-export const valOf = (e, id) => (isChain(id) ? e.vals[e.vals.mode][id] : e.vals[id]);
+export const valOf = (e, id) => (isChain(id) ? e.vals[e.vals.mode][id] : /** @type {string} */ (e.vals[id]));
 
 /**
  * Lines a rail page holds: the most, from `most` down, whose measured content fits the rail; `least` when none above
@@ -139,24 +164,26 @@ export function litEntry(c, cur, e) {
 /**
  * The engine's value for a row: a chain row's from the snapshot's chain, idle when the engine runs the other.
  *
+ * @template {string | number} V
  * @param {Edit} e
  * @param {string} id
- * @param {Record<string, any>} L  the engine now
- * @returns {{ v: any, idle: boolean }}
+ * @param {Engine<V>} L  the engine now
+ * @returns {{ v: string | V, idle: boolean }}
  */
 function liveOf(e, id, L) {
   if (isChain(id)) return { v: L[e.vals.mode][id], idle: e.vals.mode !== L.run };
   if (id === "mode") return { v: L.mode, idle: false };
-  return { v: L[id], idle: false };
+  return { v: /** @type {V} */ (L[id]), idle: false };
 }
 
 /**
  * One row against the engine. Mode never differs from an engine on auto.
  *
+ * @template {string | number} V
  * @param {{ id: string }} row
  * @param {Edit} e
- * @param {Record<string, any>} L  the engine now
- * @returns {RowView}
+ * @param {Engine<V>} L  the engine now
+ * @returns {RowView<V>}
  */
 export function snapRow(row, e, L) {
   const gated = isChain(row.id) && !e.inc.has("mode");

@@ -16,17 +16,43 @@
 // crossfeed blocks follow the Crossfeed drawer's staged values; everything grays while the matrix engine is bypassed.
 //
 // The tabs live under pipelines/: state.js (shared state, crossfeed blocks), popovers.js, overview.js, output.js,
-// strip.js, dock.js, plot.js; their decisions in model/pipelines.js.
+// strip.js, dock.js (its editors in editors.js), plot.js; their decisions in model/pipelines.js.
 
 import { createState, importEq, paint, rebuild, want } from "./pipelines/state.js";
 import { mountPopovers } from "./pipelines/popovers.js";
 import { overview } from "./pipelines/overview.js";
 import { output } from "./pipelines/output.js";
 
+/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('./pipelines/state.js').Config} Config */
+/** @typedef {import('./pipelines/state.js').Deps} Deps */
+/** @typedef {import('./pipelines/state.js').Ctx} Ctx */
+/** @typedef {import('./pipelines/state.js').Values} Values */
+/** @typedef {Parameters<typeof importEq>[1]} Eq */
+/** @typedef {(host: HTMLElement, ctx: Ctx) => void} Mount  a drawer block: mount into `host`, stage through `ctx` */
+
 /**
- * @param {object} cfg  PIPELINES (data/pipelines.js)
- * @param {{bypassed:(v:object)=>string, plate:HTMLElement, openCrossfeed:()=>void, goTab:(id:string)=>void}} deps
- * @returns {{overview:Function, output:(o:number)=>Function, count:()=>number, list:()=>object[], sync:(v:object)=>void}}
+ * The drawer's face to its callers.
+ *
+ * @typedef {object} Pipelines
+ * @property {Mount} overview
+ * @property {(o: number) => Mount} output
+ * @property {() => number} count
+ * @property {() => [Pipe | null | undefined, Pipe | null | undefined]} ears
+ * @property {(eq: Eq, mirror: boolean) => void} importEq
+ * @property {() => Pipe[]} list
+ * @property {number} rate
+ * @property {number} outputs
+ * @property {(v: Values) => void} sync
+ */
+
+/**
+ * The DSP pipelines drawer over pipeline set `cfg`: its Overview and output tabs as drawer blocks, and what the chain
+ * and the Profile builder read and land on it.
+ *
+ * @param {Config} cfg  PIPELINES (data/stages/pipelines.js)
+ * @param {Deps} deps
+ * @returns {Pipelines}
  */
 export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) {
   const dr = createState(cfg, { bypassed, plate, openCrossfeed, goTab });

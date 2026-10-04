@@ -4,26 +4,62 @@
 import { rowsOf, rowOf } from "../../../../model/builders/schema.js";
 import { OUTPUT_DRAWER, RATE_TIERS } from "../../../../data/stages/output.js";
 import { VOLUME_DRAWER } from "../../../../data/stages/volume.js";
-import { HARDWARE_DRAWER } from "../../../../data/shell/settings.js";
+import { HARDWARE_DRAWER } from "../../../../data/settings/hardware.js";
+
+/** @typedef {{ v: string, label: string, man?: string }} RowOption  an option line a row's control offers */
+/** @typedef {{ id?: string, options?: RowOption[] }} RowControl */
+/** @typedef {{ label: string, man: string, control: RowControl }} ManRow  a drawer row whose manual copy is one paragraph */
+/** @typedef {{ label: string, man: { k: string, text: string }[] }} KeyedRow  a drawer row whose manual copy is keyed */
+/**
+ * @template R
+ * @typedef {import('../../../../model/builders/schema.js').Drawer<R>} Drawer
+ */
+/** @typedef {ReturnType<typeof stationTables>} Tables */
+
+const OUTPUT = /** @type {Drawer<ManRow>} */ (OUTPUT_DRAWER);
+const OUTPUT_KEYED = /** @type {Drawer<KeyedRow>} */ (OUTPUT_DRAWER);
+const VOLUME = /** @type {Drawer<ManRow>} */ (VOLUME_DRAWER);
+const HARDWARE = /** @type {Drawer<ManRow>} */ (HARDWARE_DRAWER);
+
+/**
+ * The row labelled `label` (inside `group` when one is named); every row the builder borrows is there.
+ *
+ * @template {{ label?: string }} R
+ * @param {Drawer<R>} drawer
+ * @param {string} label
+ * @param {string} [group]
+ * @returns {R}
+ */
+const rowIn = (drawer, label, group) => /** @type {R} */ (rowOf(drawer, label, group));
+
+/**
+ * The option line valued `v`; every line the builder borrows is there.
+ *
+ * @param {RowOption[]} options
+ * @param {string} v
+ * @returns {RowOption}
+ */
+const optionIn = (options, v) => /** @type {RowOption} */ (options.find((x) => x.v === v));
 
 /** Manual copy, option lines and rate tiers the steps read. */
 export function stationTables() {
   const MAN = {
-    netDevice: rowOf(OUTPUT_DRAWER, "Output device", "network").man,
-    alsaDevice: rowOf(OUTPUT_DRAWER, "Output device", "alsa").man,
-    discovery: rowOf(OUTPUT_DRAWER, "Discovery", "network").man,
-    rate: rowOf(OUTPUT_DRAWER, "Rate").man[0].text,
-    dsd: rowOf(OUTPUT_DRAWER, "DSD support", "network").man,
-    dsd48: rowOf(OUTPUT_DRAWER, "DSD rates", "network").man,
-    bits: rowOf(OUTPUT_DRAWER, "DAC bits", "network").man,
+    netDevice: rowIn(OUTPUT, "Output device", "network").man,
+    alsaDevice: rowIn(OUTPUT, "Output device", "alsa").man,
+    discovery: rowIn(OUTPUT, "Discovery", "network").man,
+    rate: rowIn(OUTPUT_KEYED, "Rate").man[0].text,
+    dsd: rowIn(OUTPUT, "DSD support", "network").man,
+    dsd48: rowIn(OUTPUT, "DSD rates", "network").man,
+    bits: rowIn(OUTPUT, "DAC bits", "network").man,
   };
-  const FIXED = rowOf(VOLUME_DRAWER, "Fixed volume").control.options; // Off / Manual / Auto lines: their manual copy
+  const FIXED = /** @type {RowOption[]} */ (rowIn(VOLUME, "Fixed volume").control.options); // Off / Manual / Auto lines: their manual copy
   const VMAN = {
-    off: FIXED.find((x) => x.v === "off").man,
-    iso: FIXED.find((x) => x.v === "auto").man,
-    gain: rowOf(VOLUME_DRAWER, "PCM gain compensation").man,
+    off: optionIn(FIXED, "off").man,
+    iso: optionIn(FIXED, "auto").man,
+    gain: rowIn(VOLUME, "PCM gain compensation").man,
   };
-  const HW = Object.fromEntries(rowsOf(HARDWARE_DRAWER).map((r) => [r.control.id ?? r.label, r]));
+  /** @type {Record<string, ManRow>} */
+  const HW = Object.fromEntries(rowsOf(HARDWARE).map((r) => [r.control.id ?? r.label, r]));
   const HWMAN = { cuda: HW.cuda.man, devs: HW["CUDA devices"].man, ecores: HW.ecores.man, multicore: HW.multicore.man };
   return {
     MAN,
@@ -31,8 +67,8 @@ export function stationTables() {
     HW,
     HWMAN,
     TIERS: RATE_TIERS.tiers,
-    DSD_OPTS: rowOf(OUTPUT_DRAWER, "DSD support", "network").control.options,
-    DSD48_OPTS: rowOf(OUTPUT_DRAWER, "DSD rates", "network").control.options,
-    DISCOVERY: rowOf(OUTPUT_DRAWER, "Discovery", "network").control.options,
+    DSD_OPTS: /** @type {RowOption[]} */ (rowIn(OUTPUT, "DSD support", "network").control.options),
+    DSD48_OPTS: /** @type {RowOption[]} */ (rowIn(OUTPUT, "DSD rates", "network").control.options),
+    DISCOVERY: /** @type {RowOption[]} */ (rowIn(OUTPUT, "Discovery", "network").control.options),
   };
 }

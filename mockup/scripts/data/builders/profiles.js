@@ -14,7 +14,26 @@ import { PEQ_TYPES, bandsToStages, replacePeq } from "../../model/gauges/eq.js";
 // (`Preset "x" already exists. Overwrite it?`, `Delete preset "x"? This cannot be undone.`) with `Profile`, as the
 // Snapshot builder took them with `Snapshot`.
 
-/** Scale every peak / shelf band's gain (f below `under` Hz only, when given) and set the pipelines' gain. */
+/**
+ * A matrix profile's mock record: the user's description, the listening it is for, `flat` = it changes nothing (the
+ * A/B reference), the Matrix engine family values it changes (by control id), and how it rewrites the pipeline set.
+ *
+ * @typedef {object} Profile
+ * @property {string} desc
+ * @property {string} [listen]
+ * @property {boolean} [flat]
+ * @property {Record<string, string>} [vals]
+ * @property {Rewrite} [pipes]
+ */
+
+/** @typedef {(pipes: import('../stages/pipelines.js').Pipeline[]) => import('../stages/pipelines.js').Pipeline[]} Rewrite  a profile's rewrite of the pipeline set */
+
+/**
+ * Scale every peak / shelf band's gain (f below `under` Hz only, when given) and set the pipelines' gain.
+ *
+ * @param {{ k?: number, under?: number, shift?: number, gain?: number }} how
+ * @returns {Rewrite}
+ */
 const reshape =
   ({ k = 1, under = Infinity, shift = 1, gain }) =>
   (pipes) =>
@@ -25,19 +44,25 @@ const reshape =
             ...p,
             gain: gain ?? p.gain,
             stages: p.stages.map((st) =>
-              st.kind === "iir" && PEQ_TYPES.has(st.type) && st.f < under
-                ? { ...st, f: Math.round(st.f * shift), g: +(st.g * k).toFixed(1) }
+              st.kind === "iir" && PEQ_TYPES.has(st.type ?? "") && st.f !== undefined && st.f < under
+                ? { ...st, f: Math.round(st.f * shift), g: +(Number(st.g) * k).toFixed(1) }
                 : st,
             ),
           },
     );
 
-/** An AutoEq hit (data/pipelines.js AUTOEQ) on the stereo pair: its bands replace the pair's peak / shelf stages. */
+/**
+ * An AutoEq hit (data/pipelines.js AUTOEQ) on the stereo pair: its bands replace the pair's peak / shelf stages.
+ *
+ * @param {{ bands: readonly import('../../model/gauges/eq.js').Band[], pre: number }} hit
+ * @returns {Rewrite}
+ */
 const autoeq = (hit) => (pipes) =>
   pipes.map((p) =>
     p.gen || p.src > 1 || p.src !== p.mix ? p : { ...p, ...replacePeq(p, bandsToStages(hit.bands), hit.pre) },
   );
 
+/** @type {Record<string, Record<string, Profile>>} */
 export const PROFILES = {
   Speakers: {
     "[Default]": {
@@ -91,11 +116,21 @@ export const PROFILES = {
   },
 };
 
-/** The page's Matrix profile select: the active station's profiles. */
+/**
+ * The page's Matrix profile select: the active station's profiles.
+ *
+ * @param {string} station
+ * @returns {string[]}
+ */
 export const STATION_PROFILES = (station) => Object.keys(PROFILES[station] ?? {});
 
-/** Loudness doesn't apply while Fixed volume is on (v1 gray.js loudnessGated: the volume reason + its own sentence). */
-export const loudnessGated = (fixed) =>
+/**
+ * Loudness doesn't apply while Fixed volume is on (v1 gray.js loudnessGated: the volume reason + its own sentence).
+ *
+ * @param {() => boolean} fixed
+ * @returns {string}
+ */
+const loudnessGated = (fixed) =>
   fixed()
     ? "Fixed volume bypasses the volume control. Volume-adaptive loudness cannot adapt — use a Matrix EQ for a volume-agnostic equivalent."
     : "";
@@ -103,7 +138,12 @@ export const loudnessGated = (fixed) =>
 export const AEQ_COPY = {
   title: "Headphone Auto EQ", // v1 card title
   credit: "profiles:", // v1 credit line: `profiles: AutoEq (MIT)`
+  /** @param {number} n */
   more: (n) => `…${n} more — refine the search`,
+  /**
+   * @param {number} n
+   * @param {number | null} pre
+   */
   bands: (n, pre) => `${n} band(s)${pre !== null ? ` · preamp ${pre} dB` : ""}`,
   load: "Load profile",
   clear: "Clear",
@@ -140,6 +180,10 @@ export const PB_COPY = {
   review: "Review",
   skipped: "Skipped",
   advanced: "Advanced settings", // owner's name
+  /**
+   * @param {number} n
+   * @param {number} t
+   */
   stepOf: (n, t) => `Step ${n} of ${t}`,
   state: {
     dirtyRun: "Unsaved changes. Saving restarts the engine and runs this profile.",
@@ -148,7 +192,17 @@ export const PB_COPY = {
     saved: "Saved.",
   },
 };
-/** The walk. guide(x) = what the step decides; skip(x) = why it doesn't apply here ('' = it does). */
+/**
+ * The walk. guide(x) = what the step decides; skip(x) = why it doesn't apply here ('' = it does). x: model/builders/
+ * profile.js StepContext.
+ *
+ * @type {{
+ *   id: string,
+ *   title: string,
+ *   guide: (x: import('../../model/builders/profile.js').StepContext) => string,
+ *   skip?: (x: import('../../model/builders/profile.js').StepContext) => string,
+ * }[]}
+ */
 export const PB_STEPS = [
   {
     id: "listen",
@@ -208,6 +262,8 @@ export const PROFILE_COPY = {
   name: "profile name", // v1 ProfileCard placeholder
   desc: "Room, mic, target, date — whatever the name can't hold.", // v1 ProfileCard placeholder
   descLabel: "Description", // v1 ProfileCard field label
+  /** @param {string} n */
   overwrite: (n) => `Profile "${n}" already exists. Overwrite it?`,
+  /** @param {string} n */
   remove: (n) => `Delete profile "${n}"? This cannot be undone.`,
 };

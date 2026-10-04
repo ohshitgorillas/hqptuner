@@ -11,13 +11,66 @@ import { bandsToStages } from "../../model/gauges/eq.js";
 
 // Channel names: slots 1–8 carry the daemon's channel order (readme §1.9; v1 short names, LFE shown as Sub), beyond that
 // numbers (label channels when you can, numbers beyond that).
-export const CH_SHORT = ["L", "R", "C", "Sub", "Lr", "Rr", "Ls", "Rs"];
-export const CH_NAME = ["Left", "Right", "Center", "Sub", "Left rear", "Right rear", "Left side", "Right side"];
+const CH_SHORT = ["L", "R", "C", "Sub", "Lr", "Rr", "Ls", "Rs"];
+const CH_NAME = ["Left", "Right", "Center", "Sub", "Left rear", "Right rear", "Left side", "Right side"];
+/**
+ * A channel's short name: the daemon's slot name, its number beyond the eighth.
+ *
+ * @param {number} i  wire channel, 0-based
+ * @returns {string}
+ */
 export const chShort = (i) => CH_SHORT[i] ?? String(i + 1);
+/**
+ * A channel's full name: the daemon's slot name, `Channel n` beyond the eighth.
+ *
+ * @param {number} i  wire channel, 0-based
+ * @returns {string}
+ */
 export const chName = (i) => CH_NAME[i] ?? `Channel ${i + 1}`;
 
+/**
+ * One stage of a pipeline's Process chain: its plugin kind, then its wire arguments (iir: type, f, g, q | s | bw;
+ * delay: t | d | s).
+ *
+ * @typedef {object} Stage
+ * @property {string} kind
+ * @property {string} [type]
+ * @property {number} [f]
+ * @property {number} [g]
+ * @property {number} [q]
+ * @property {number} [s]
+ * @property {number} [bw]
+ * @property {number} [t]
+ * @property {number} [d]
+ */
+
+/**
+ * One pipeline (virtual channel): source channel, gain in `unit` ('dB' | 'Lin'), mix channel, Process chain. `gen` names
+ * the crossfeed block a generated row belongs to, `ear` the side of the stereo pair whose EQ it carries.
+ *
+ * @typedef {object} Pipeline
+ * @property {number} src
+ * @property {number} mix
+ * @property {number} gain
+ * @property {string} unit
+ * @property {Stage[]} stages
+ * @property {string} [gen]
+ * @property {number} [ear]
+ */
+
+/**
+ * A mock pipeline set: the matrix's input and output channel counts, the source rate, the pipelines.
+ *
+ * @typedef {{ inputs: number, outputs: number, rate: number, pipes: Pipeline[] }} PipelineSet
+ */
+
+/**
+ * @param {import('../../model/gauges/eq.js').Band[]} bands
+ * @returns {Stage[]}
+ */
 const room = (bands) => [...bandsToStages(bands), { kind: "iir", type: "hshelf", f: 8000, g: -1.5, q: 0.7 }];
 
+/** @type {PipelineSet} */
 const STEREO = {
   inputs: 2,
   outputs: 2,
@@ -58,6 +111,7 @@ const STEREO = {
   ],
 };
 // 5.1 → stereo (manual §7's example shape): fronts straight, center and surrounds folded in at −3 dB, sub to both.
+/** @type {PipelineSet} */
 const MCH = {
   inputs: 6,
   outputs: 2,
@@ -76,6 +130,7 @@ const MCH = {
 // A stupid number of pipelines in two channels: room correction plus a hand-built early-reflection
 // field, 120 of the 128. Per side: the correction pipeline, 47 delayed taps on the same channel (decaying Lin gains,
 // some polarity-flipped, each low-passed a little more), 12 cross-channel taps.
+/** @type {PipelineSet} */
 const DENSE = (() => {
   const pipes = STEREO.pipes.map((p) => ({ ...p, stages: p.stages.map((x) => ({ ...x })) }));
   let seed = 7;
@@ -112,9 +167,11 @@ const DENSE = (() => {
 })();
 // 7.1 → 7.1 (`#71`): the 8-channel ceiling. Speaker alignment per channel (delay + trim, mains
 // high-passed at 80 Hz), bass management: every main also low-passed into the Sub, summed with the LFE.
+/** @type {PipelineSet} */
 const MCH8 = (() => {
   const trim = [0, 0, -1.5, 0, -2, -2, -1, -1],
     dist = [3.1, 3.1, 2.9, 3.4, 1.8, 1.8, 2.2, 2.2];
+  /** @type {Pipeline[]} */
   const pipes = [];
   for (let c = 0; c < 8; c++) {
     pipes.push({
@@ -182,6 +239,9 @@ export const KINDS = [
 ];
 
 // Import EQ popover (v1 Library.js lane): vendored AutoEq library, mock hits.
+/**
+ * @type {{ placeholder: string, mirror: string, hits: { name: string, src: string, pre: number, bands: import('../../model/gauges/eq.js').Band[] }[] }}
+ */
 export const AUTOEQ = {
   placeholder: "Search headphone model — e.g. HD 650…", // v1 Library.js
   mirror: "mirror to stereo pair", // v1 Tab.js
@@ -255,8 +315,10 @@ export function pipelineSet(flags) {
         0,
       ) <=
     470;
+  /** @param {number} o */
   const OUT_LABEL = (o) => (FULL_FITS ? `${chName(o)} Out` : chShort(o));
   // Tabs: Overview = the routing alone; then one tab per output channel, named like the grid's columns.
+  /** @type {import('./output.js').DrawerSchema} */
   const PIPELINES_DRAWER = {
     id: "pipelines",
     family: "matrix",

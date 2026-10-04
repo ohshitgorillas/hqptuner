@@ -60,7 +60,8 @@
  * @property {Record<string, { tier: number }>} out
  */
 
-/** @typedef {{ kind: string, sev: string, text: string }} Alert */
+/** @typedef {import('./alerts.js').Alert} Alert */
+/** @typedef {import('./alerts.js').Sev} Sev */
 
 /**
  * The alert lines, as data/alerts.js writes them.
@@ -88,7 +89,7 @@
  * @property {Scene} scene
  */
 
-/** @typedef {{ v: string, f?: { apod?: boolean | null } }} ListOption */
+/** @typedef {{ v: string, f?: { apod?: "full" | "half" | null } }} ListOption */
 /** @typedef {{ speed: number, clips: number }} MockFigures */
 
 /**
@@ -221,7 +222,7 @@ export function pathView(p, run, scene, { engine, zones, out }) {
 export function raisedAlerts({ p, run, st, picked, rf, scene }, { lists, copy, fig }) {
   const playing = p !== "idle";
   const rfApod = lists[run + "Filters"]?.find((o) => o.v === rf)?.f?.apod;
-  /** @type {[boolean, string, string, () => string][]} */
+  /** @type {[boolean, string, Sev, () => string][]} */
   const rules = [
     [true, "credentials", "crit", () => copy.credentials],
     [playing, "speed", "crit", () => copy.speedCrit(fig.speed)],

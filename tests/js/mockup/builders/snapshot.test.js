@@ -23,6 +23,8 @@ import {
 } from "../../../../mockup/scripts/model/builders/snapshot.js";
 
 /** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Edit} Edit */
+/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Engine} Engine */
+/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Chain} Chain */
 /** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Ref} Ref */
 
 //: The stations a tree lists, in tree order.
@@ -294,7 +296,7 @@ for (const row of LIT) {
  * An edit in `mode`, holding the ids in `inc`, its PCM and SDM chains set apart.
  *
  * @param {string[]} inc
- * @param {string} [mode]
+ * @param {Chain} [mode]
  * @returns {Edit}
  */
 const held = (inc, mode = "pcm") => ({
@@ -304,7 +306,11 @@ const held = (inc, mode = "pcm") => ({
   vals: { autopilot: "1", mode, pcm: { nx: "kept-pcm" }, sdm: { nx: "kept-sdm" } },
 });
 
-/** The engine: running PCM, every value its own. */
+/**
+ * The engine: running PCM, every value its own.
+ *
+ * @type {Engine}
+ */
 const ENGINE = { autopilot: "0", mode: "pcm", run: "pcm", pcm: { nx: "live-pcm" }, sdm: { nx: "live-sdm" } };
 
 test("test_nx_is_a_chain_row", () => {

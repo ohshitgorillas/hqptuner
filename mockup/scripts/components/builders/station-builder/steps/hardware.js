@@ -5,9 +5,20 @@ import { h } from "../../../../lib/shell/dom.js";
 import { seg } from "../../../controls/seg.js";
 import { STB_HW, hwSettings } from "../../../../data/builders/station-builder.js";
 import { hardwareView, optionLabel } from "../../../../model/builders/station.js";
-import { num, paras, rich, tip } from "../frame/parts.js";
+import { choiceHead, num, paras, rich, tip } from "../frame/parts.js";
 
-/** The GPU power line: three radio lines, no paragraphs. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../../station-builder.js').HwRec} HwRec */
+/** @typedef {import('../../../../model/builders/station.js').HardwareView} HardwareView */
+/** @typedef {(fn: (y: HwRec) => void) => void} SetHw  change the hardware answers and repaint the step */
+/** @typedef {import('../frame/tables.js').RowOption} RowOption */
+
+/**
+ * The GPU power line: three radio lines, no paragraphs.
+ *
+ * @param {HwRec} w
+ * @param {SetHw} setHw
+ */
 function powerLine(w, setHw) {
   return h(
     "div.stbpow",
@@ -22,27 +33,70 @@ function powerLine(w, setHw) {
           setHw((y) => {
             y.power = op.v;
           });
-        return h(
-          "div.chline",
-          { class: on && "cur" },
-          h(
-            "div.chl",
-            {},
-            h("button.radio", {
-              type: "button",
-              role: "radio",
-              aria: { checked: on, label: op.label },
-              on: { click: go2 },
-            }),
-            h("span.chn", { on: { click: go2 } }, h("b", { text: op.label })),
-          ),
-        );
+        return h("div.chline", { class: on && "cur" }, choiceHead(op.label, on, go2));
       }),
     ),
   );
 }
 
-/** The GPU questions: the wizard's two in the control column, the manual's CUDA paragraph beside them. */
+/**
+ * The two cards' indices and whether they are identical.
+ *
+ * @param {HwRec} w
+ * @param {SetHw} setHw
+ */
+function cardIndices(w, setHw) {
+  const box = { min: 0, max: 15, step: 1, unit: "" };
+  return h(
+    "div.cgrp.stbidx",
+    {},
+    h(
+      "label.ci",
+      {},
+      h("span.cl", { text: STB_HW.idx.hi }),
+      num(STB_HW.idx.hi, w.hi, box, (n) =>
+        setHw((y) => {
+          y.hi = n;
+        }),
+      ),
+    ),
+    h(
+      "label.ci",
+      {},
+      h("span.cl", { text: STB_HW.idx.lo }),
+      num(STB_HW.idx.lo, w.lo, box, (n) =>
+        setHw((y) => {
+          y.lo = n;
+        }),
+      ),
+    ),
+    h(
+      "label.stbcb",
+      {},
+      h("button.binc", {
+        type: "button",
+        role: "checkbox",
+        aria: { checked: w.same, label: STB_HW.idx.same },
+        on: {
+          click: () =>
+            setHw((y) => {
+              y.same = !y.same;
+            }),
+        },
+      }),
+      h("span", { text: STB_HW.idx.same }),
+    ),
+  );
+}
+
+/**
+ * The GPU questions: the wizard's two in the control column, the manual's CUDA paragraph beside them.
+ *
+ * @param {StationState} sb
+ * @param {HwRec} w
+ * @param {SetHw} setHw
+ * @param {HardwareView} v
+ */
 function gpuRow(sb, w, setHw, v) {
   const { HWMAN } = sb.T;
   const two = seg({
@@ -54,48 +108,7 @@ function gpuRow(sb, w, setHw, v) {
         y.gpus = g;
       }),
   });
-  const idx =
-    v.twoCards &&
-    h(
-      "div.cgrp.stbidx",
-      {},
-      h(
-        "label.ci",
-        {},
-        h("span.cl", { text: STB_HW.idx.hi }),
-        num(STB_HW.idx.hi, "", w.hi, { min: 0, max: 15, step: 1 }, (n) =>
-          setHw((y) => {
-            y.hi = n;
-          }),
-        ),
-      ),
-      h(
-        "label.ci",
-        {},
-        h("span.cl", { text: STB_HW.idx.lo }),
-        num(STB_HW.idx.lo, "", w.lo, { min: 0, max: 15, step: 1 }, (n) =>
-          setHw((y) => {
-            y.lo = n;
-          }),
-        ),
-      ),
-      h(
-        "label.stbcb",
-        {},
-        h("button.binc", {
-          type: "button",
-          role: "checkbox",
-          aria: { checked: w.same, label: STB_HW.idx.same },
-          on: {
-            click: () =>
-              setHw((y) => {
-                y.same = !y.same;
-              }),
-          },
-        }),
-        h("span", { text: STB_HW.idx.same }),
-      ),
-    );
+  const idx = v.twoCards && cardIndices(w, setHw);
   const power = v.power && powerLine(w, setHw);
   return h(
     "div.drow.stbq2",
@@ -105,11 +118,19 @@ function gpuRow(sb, w, setHw, v) {
   );
 }
 
-/** The result row: what Save writes to every station. */
+/**
+ * The result row: what Save writes to every station.
+ *
+ * @param {StationState} sb
+ * @param {HwRec} w
+ * @param {HardwareView} v
+ */
 function resultRow(sb, w, v) {
   const res = hwSettings(w);
-  const optLabel = (id, x) => optionLabel(sb.T.HW[id].control.options, x);
-  const ro = (label, x) => h("div.stbrr", {}, h("span", { text: label }), h("b", { text: x }));
+  const optLabel = (/** @type {string} */ id, /** @type {string} */ x) =>
+    optionLabel(/** @type {RowOption[]} */ (sb.T.HW[id].control.options), x);
+  const ro = (/** @type {string} */ label, /** @type {string} */ x) =>
+    h("div.stbrr", {}, h("span", { text: label }), h("b", { text: x }));
   return h(
     "div.drow.stbres",
     {},
@@ -131,15 +152,20 @@ function resultRow(sb, w, v) {
   );
 }
 
-/** The Hardware step's rows. */
+/**
+ * The Hardware step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function hardwareStep(sb) {
   const w = sb.e.hw;
   const v = hardwareView(w);
+  /** @type {SetHw} */
   const setHw = (fn) => {
     fn(w);
     sb.show("hardware");
   };
-  const box = (k, label) =>
+  const box = (/** @type {'gpu' | 'ecores'} */ k, /** @type {string} */ label) =>
     h(
       "label.stbcb",
       {},
@@ -167,7 +193,7 @@ export function hardwareStep(sb) {
         h(
           "div.stbcbs",
           {},
-          STB_HW.hasOpts.map((op) => box(op.v, op.label)),
+          STB_HW.hasOpts.map((op) => box(/** @type {'gpu' | 'ecores'} */ (op.v), op.label)),
         ),
       ),
       h("div.man", {}, paras(v.ecoresManual ? sb.T.HWMAN.ecores : "")),

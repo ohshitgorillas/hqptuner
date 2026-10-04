@@ -19,6 +19,8 @@ import { wireMatrix } from "./app/matrix.js";
 import { wireBuilders } from "./app/builders.js";
 import { wireAlerts } from "./app/alerts.js";
 
+/** @typedef {import("./app/state.js").App} App */
+
 // One bus for the components' announcements (lib/bus.js).
 const bus = createBus();
 // The mock's URL flags (model/flags.js), read once and passed down.
@@ -30,7 +32,8 @@ const flags = hashFlags(
 );
 
 // Everything the page changes as it runs. The data the page writes is copied in here and written here, never in data/.
-const app = {
+// The scripts/app/ modules set the rest of App (app/state.js) as they mount.
+const app = /** @type {App} */ ({
   bus,
   flags,
   pipelines: pipelineSet(flags),
@@ -63,7 +66,7 @@ const app = {
   treeStations: null, // the header tree's stations (Station builder saves and deletes)
   // Alerts raise only once their homes are mounted (app/alerts.js replaces this).
   raise: () => {},
-};
+});
 
 wireFrame(app);
 wireSwitcher(app);

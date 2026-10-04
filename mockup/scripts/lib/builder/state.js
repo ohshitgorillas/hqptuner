@@ -4,14 +4,24 @@ import { h } from "../shell/dom.js";
 import { NEW, stateOf } from "../../model/builders/builder.js";
 import { confirm, discard, remove, save } from "./record.js";
 
-/** @typedef {import('./record.js').Shell} Shell */
+/**
+ * @template R, E
+ * @typedef {import('./record.js').Shell<R, E>} Shell
+ */
+/**
+ * @template R, E
+ * @typedef {import('./builder.js').Spec<R, E>} Spec
+ */
 
 /** The state line and the caption beside it. */
 export const stateParts = () => ({ stateLine: h("div.pbstate", { role: "status" }), cap: h("span.pbcap") });
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * The state the line and buttons show for the record being edited.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {boolean} d  the edit is dirty
  */
 export const stateNow = (sh, spec, d) =>
@@ -24,7 +34,10 @@ export const stateNow = (sh, spec, d) =>
   });
 
 /**
- * @param {Shell} sh
+ * Enable or disable every Discard and Save as the state says.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
  * @param {{ discardOff: boolean, saveOff: boolean }} s
  */
 export function paintActs(sh, s) {
@@ -35,8 +48,11 @@ export function paintActs(sh, s) {
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * Paint the state: the buttons, and where the spec has state copy, the state line and the refusal caption.
+ *
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {{ stateLine: HTMLElement, cap: HTMLElement }} parts
  */
 export function paintState(sh, spec, { stateLine, cap }) {
@@ -52,8 +68,9 @@ export function paintState(sh, spec, { stateLine, cap }) {
 }
 
 /**
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 const discardEl = (sh, spec) =>
   /** @type {HTMLButtonElement} */ (
@@ -63,8 +80,9 @@ const discardEl = (sh, spec) =>
 /**
  * A Discard on its own (a drawer's head); it follows the state.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  */
 export function discardButton(sh, spec) {
   const el = discardEl(sh, spec);
@@ -75,8 +93,9 @@ export function discardButton(sh, spec) {
 /**
  * Delete / Discard / Save; Discard and Save follow the state.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Spec<R, E>} spec
  * @param {string} saveTag
  */
 export function buttons(sh, spec, saveTag) {
@@ -96,8 +115,9 @@ export function buttons(sh, spec, saveTag) {
 /**
  * The confirm line: the question asked, Confirm, Cancel.
  *
- * @param {Shell} sh
- * @param {any} spec
+ * @template R, E
+ * @param {Shell<R, E>} sh
+ * @param {Pick<Spec<R, E>, 'view'>} spec
  */
 export const askLine = (sh, spec) =>
   h(

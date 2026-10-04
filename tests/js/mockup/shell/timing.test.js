@@ -117,13 +117,7 @@ function checked(lines, t) {
   const { clock, advance } = fakeClock();
   /** @type {string[]} */
   const log = [];
-  checkSequence(
-    lines,
-    TICK,
-    (line) => log.push(line),
-    () => log.push("verdict"),
-    clock,
-  );
+  checkSequence(lines, { tick: TICK, onLine: (line) => log.push(line), onVerdict: () => log.push("verdict") }, clock);
   if (t != null) advance(t);
   return log;
 }

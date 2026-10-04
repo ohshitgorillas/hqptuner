@@ -7,8 +7,18 @@ import { STB_STEPS, STB_IPV6 } from "../../../../data/builders/station-builder.j
 import { choice, drow, lines } from "../frame/parts.js";
 import { testV6 } from "../frame/checks.js";
 
-/** The I-don't-know answer's rows: the lead, then Start / Skip, or the test's lines once it runs. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../frame/parts.js').Run} Run */
+/** @typedef {import('../../../../lib/shell/dom.js').Kid} Kid */
+
+/**
+ * The I-don't-know answer's rows: the lead, then Start / Skip, or the test's lines once it runs.
+ *
+ * @param {StationState} sb
+ * @param {Run | undefined} run
+ */
 function unknownRows(sb, run) {
+  /** @type {Kid[]} */
   const out = [
     h("div.stbnotes", {}, h("p", { text: STB_IPV6.unknown.lead }), !run && h("p", { text: STB_IPV6.unknown.ask })),
   ];
@@ -31,16 +41,18 @@ function unknownRows(sb, run) {
   return out;
 }
 
-/** The IPv6 step's rows. */
+/**
+ * The IPv6 step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function ipv6Step(sb) {
   const x = sb.e.rec;
   const run = sb.runs.ipv6;
+  /** @type {Kid[]} */
   const answerRows = [
-    choice(
-      "",
-      STB_IPV6.answers,
-      x.ipv6,
-      (v) => {
+    choice("", STB_IPV6.answers, x.ipv6, {
+      pick: (v) => {
         delete sb.runs.ipv6;
         sb.set((y) => {
           y.ipv6 = v;
@@ -48,8 +60,8 @@ export function ipv6Step(sb) {
         });
         if (v === "yes") testV6(sb, false);
       },
-      { fold: true },
-    ),
+      fold: true,
+    }),
   ];
   if (x.ipv6 === "yes") answerRows.push(lines(run));
   if (x.ipv6 === "unknown") answerRows.push(...unknownRows(sb, run));

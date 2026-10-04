@@ -6,19 +6,30 @@
 import { h } from "./dom.js";
 import { anyOpen } from "./popover.js";
 
+/**
+ * One bottom sheet. onOpen / onClose, when the owner sets them, run as it opens (laid out, before it shows) and after
+ * it closes.
+ *
+ * @typedef {{el: HTMLElement, head: HTMLElement, body: HTMLElement, open(): void, close(): void, isOpen: boolean,
+ *            onOpen?: () => void, onClose?: () => void}} Sheet
+ */
+
+/** @type {Sheet[]} */
 const stack = [];
 
 /**
+ * A closed bottom sheet appended to the plate: its head and body to fill, and open / close on the shared stack.
+ *
  * @param {HTMLElement} plate
  * @param {{id: string, aria: string, cls?: string}} o
- * @returns {{el: HTMLElement, head: HTMLElement, body: HTMLElement, open(): void, close(): void, isOpen: boolean,
- *            onOpen?: () => void, onClose?: () => void}}
+ * @returns {Sheet}
  */
 export function sheet(plate, { id, aria, cls }) {
   const head = h("div.shead");
   const body = h("div.sbody2");
   const el = h(`aside.sheet#${id}`, { class: cls, role: "dialog", "aria-label": aria, "data-closed": "" }, head, body);
   plate.append(el);
+  /** @type {Sheet} */
   const s = {
     el,
     head,
@@ -37,7 +48,7 @@ export function sheet(plate, { id, aria, cls }) {
       // gives way; the header and engine row stay in view. No scroll anywhere: a whole list, with
       // every family and variant description, fits this height.
       // Whichever body is showing (the Snapshot builder's swaps in for the chain's).
-      const b = plate.querySelector(".body:not([hidden])") ?? plate.querySelector("#body");
+      const b = /** @type {HTMLElement} */ (plate.querySelector(".body:not([hidden])") ?? plate.querySelector("#body"));
       el.style.top = `${b.offsetTop}px`;
       el.style.height = `${plate.clientHeight - b.offsetTop - 2}px`;
       s.onOpen?.();
@@ -61,6 +72,7 @@ export function closeSheets() {
   while (stack.length) stack[stack.length - 1].close();
 }
 
+/** Is any sheet open? */
 export const sheetOpen = () => stack.length > 0;
 
 /**
@@ -78,5 +90,3 @@ export function installSheets() {
     true,
   );
 }
-
-export { closeBtn } from "../controls/controls.js";

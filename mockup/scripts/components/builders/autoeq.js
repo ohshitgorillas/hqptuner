@@ -15,12 +15,47 @@ import { AEQ_COPY } from "../../data/builders/profiles.js";
 import { signed } from "../../model/shell/format.js";
 import { PEQ_TYPES, hitPipe, hitSummary, peqCount, shownHits } from "../../model/gauges/eq.js";
 
+/** @typedef {import('../../model/gauges/eq.js').Band} Band */
+/** @typedef {import('../../model/gauges/eq.js').Hit} Hit */
+/** @typedef {import('../controls/resp-plot.js').Trace} Trace */
+/** @typedef {import('../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {Pipe | null | undefined} Ear  one side of the stereo pair, when it has a pipeline */
+/** @typedef {Parameters<typeof pipeH>[0]} DbPipe  what the response reads */
+/** @typedef {{ bands?: readonly Band[], pre?: number | null, conv?: string }} EqLoad  an EQ (or a convolution file) to land */
+/**
+ * The DSP pipelines core the parts land on (drawers/pipelines.js createPipelines): importEq's `mirror` false = the first
+ * ear only; ears = the stereo pair's pipelines.
+ *
+ * @typedef {{ importEq(eq: EqLoad, mirror: boolean): void, ears(): Ear[], rate: number }} EqCore
+ */
+/**
+ * One mount's state, shared by the helpers below.
+ *
+ * @typedef {object} Aeq
+ * @property {EqCore} core
+ * @property {() => string} name  where the pair's EQ came from ('' = not landed here)
+ * @property {(name: string) => void} land  the EQ came from `name` (stages it)
+ * @property {Hit | null} sel  the picked hit (previewing)
+ * @property {HTMLInputElement} q  the search box
+ * @property {HTMLElement} hits
+ * @property {HTMLElement} selLine
+ * @property {HTMLElement} holds
+ * @property {ReturnType<typeof mountRespPlot>} rp
+ */
+
 const HITS = 3;
+/** @type {Record<string, string>} */
 const TYPE = { PK: "peak", PEQ: "peak", LS: "lshelf", LSC: "lshelf", HS: "hshelf", HSC: "hshelf" };
 
-/** ParametricEQ.txt (AutoEq / REW): `Preamp: -6.4 dB`, `Filter 1: ON PK Fc 105 Hz Gain 5.5 dB Q 0.71`. */
+/**
+ * ParametricEQ.txt (AutoEq / REW): `Preamp: -6.4 dB`, `Filter 1: ON PK Fc 105 Hz Gain 5.5 dB Q 0.71`.
+ *
+ * @param {string} text
+ * @returns {{ bands: Band[], pre: number | null }}
+ */
 function parseEq(text) {
   const pre = text.match(/Preamp:\s*(-?[\d.]+)\s*dB/i);
+  /** @type {Band[]} */
   const bands = [];
   for (const m of text.matchAll(
     /Filter\s*\d*:\s*ON\s+(\w+)\s+Fc\s+([\d.]+)\s*Hz\s+Gain\s+(-?[\d.]+)\s*dB(?:\s+Q\s+([\d.]+))?/gi,
@@ -31,16 +66,43 @@ function parseEq(text) {
   return { bands, pre: pre ? +pre[1] : null };
 }
 
-/** One side of the pair in the holds line: `L 9 bands −3.5 dB`, plus its convolution file. */
+/**
+ * One side of the pair in the holds line: `L 9 bands −3.5 dB`, plus its convolution file.
+ *
+ * @param {Ear} p
+ * @param {string} k
+ * @returns {string}
+ */
 const side = (p, k) => {
   if (!p) return "";
   const conv = p.stages.find((st) => st.kind === "conv");
-  return `${k} ${peqCount(p.stages)} bands${conv ? " + " + conv.file.split("/").pop() : ""} ${p.unit === "Lin" ? "Lin " + p.gain : signed(+p.gain, 1) + " dB"}`;
+  return `${k} ${peqCount(p.stages)} bands${conv ? " + " + /** @type {string} */ (conv.file).split("/").pop() : ""} ${p.unit === "Lin" ? "Lin " + p.gain : signed(+p.gain, 1) + " dB"}`;
 };
-const summary = (p) => p && p.stages.some((st) => (st.kind === "iir" && PEQ_TYPES.has(st.type)) || st.kind === "conv");
+/**
+ * The pipeline holds an EQ or a convolution file.
+ *
+ * @param {Ear} p
+ */
+const summary = (p) =>
+  p &&
+  p.stages.some((st) => (st.kind === "iir" && PEQ_TYPES.has(/** @type {string} */ (st.type))) || st.kind === "conv");
+/**
+ * The pipeline's response in dB, at f.
+ *
+ * @param {DbPipe} p
+ * @param {number} fs
+ * @returns {(f: number) => number}
+ */
 const db = (p, fs) => (f) => toDb(cplx.mag(pipeH(p, f, fs)));
 
-/** One hit in the list: `pick` toggles it. */
+/**
+ * One hit in the list: `pick` toggles it.
+ *
+ * @param {Hit} x
+ * @param {boolean} on
+ * @param {() => void} pick
+ * @returns {HTMLElement}
+ */
 const hitRow = (x, on, pick) =>
   h(
     "div.peqhit",
@@ -53,7 +115,14 @@ const hitRow = (x, on, pick) =>
     ),
   );
 
-/** The picked hit's selection strip. */
+/**
+ * The picked hit's selection strip.
+ *
+ * @param {Hit} x
+ * @param {() => void} clear
+ * @param {() => void} load
+ * @returns {HTMLElement[]}
+ */
 function selStrip(x, clear, load) {
   const { count, pre } = hitSummary(x);
   return [
@@ -64,27 +133,132 @@ function selStrip(x, clear, load) {
   ];
 }
 
-/** The plot's traces: the picked hit dashed, then the pair. */
+/**
+ * The plot's traces: the picked hit dashed, then the pair.
+ *
+ * @param {Hit | null} sel
+ * @param {Ear} l
+ * @param {Ear} r
+ * @param {number} fs
+ * @returns {Trace[]}
+ */
 const traces = (sel, l, r, fs) => [
-  ...(sel ? [{ cls: "ghost", label: AEQ_COPY.preview, fn: db(hitPipe(sel), fs) }] : []),
+  ...(sel ? [{ cls: "ghost", label: AEQ_COPY.preview, fn: db(/** @type {DbPipe} */ (hitPipe(sel)), fs) }] : []),
   ...(l ? [{ label: "L", fn: db(l, fs) }] : []),
   ...(r ? [{ cls: "side", label: "R", fn: db(r, fs) }] : []),
 ];
 
 /**
- * @param {{core: object, name: () => string, land: (name: string) => void}} o
+ * Land an EQ on the pair: the search clears and the EQ's source is staged.
+ *
+ * @param {Aeq} A
+ * @param {EqLoad} eq
+ * @param {boolean} both  onto both ears
+ * @param {string} from
+ */
+function put(A, eq, both, from) {
+  A.core.importEq(eq, both);
+  A.q.value = "";
+  A.sel = null;
+  A.land(from);
+}
+
+/**
+ * The files part: Load AutoEq / REW .txt, Upload convolution filters, mirror to stereo pair.
+ *
+ * @param {(eq: EqLoad, both: boolean, from: string) => void} land
+ * @returns {HTMLElement}
+ */
+function filesPart(land) {
+  const mirror = h("input", { type: "checkbox", checked: true });
+  const txt = h("input", { type: "file", accept: ".txt", hidden: true });
+  const wav = h("input", { type: "file", accept: ".wav", hidden: true });
+  txt.addEventListener("change", () => {
+    const f = /** @type {FileList} */ (txt.files)[0];
+    if (f)
+      f.text().then((t) => {
+        const eq = parseEq(t);
+        if (eq.bands.length) land({ bands: eq.bands, pre: eq.pre ?? 0 }, mirror.checked, f.name);
+      });
+    txt.value = ""; // the same file re-fires (v1)
+  });
+  wav.addEventListener("change", () => {
+    const f = /** @type {FileList} */ (wav.files)[0];
+    if (f) land({ conv: f.name }, mirror.checked, f.name);
+    wav.value = "";
+  });
+  return h(
+    "div.peqfiles",
+    {},
+    h(
+      "div.peqf",
+      {},
+      h("button.btn.xs", { type: "button", text: AEQ_COPY.file, on: { click: () => txt.click() } }),
+      txt,
+      h("button.btn.xs", { type: "button", text: AEQ_COPY.conv, on: { click: () => wav.click() } }),
+      wav,
+    ),
+    h("label.chk", {}, mirror, AUTOEQ.mirror),
+  );
+}
+
+/**
+ * Paint the hits, the picked hit's strip, what the pair holds and the plot.
+ *
+ * @param {Aeq} A
+ */
+function paint(A) {
+  const { shown, more } = shownHits(/** @type {readonly Hit[]} */ (AUTOEQ.hits), A.q.value, HITS); // hits only while searching
+  A.hits.hidden = !shown.length;
+  A.hits.replaceChildren(
+    ...shown.map((x) =>
+      hitRow(x, A.sel === x, () => {
+        A.sel = A.sel === x ? null : x;
+        paint(A);
+      }),
+    ),
+    ...(more ? [h("div.peqmore", { text: AEQ_COPY.more(more) })] : []),
+  );
+  const sel = A.sel;
+  A.selLine.hidden = !sel;
+  A.selLine.replaceChildren(
+    ...(sel
+      ? selStrip(
+          sel,
+          () => {
+            A.sel = null;
+            paint(A);
+          },
+          () => {
+            const x = /** @type {Hit} */ (A.sel); // the hit picked when Load is tapped
+            put(A, { bands: x.bands, pre: x.pre }, true, `${x.name} · ${x.src}`);
+          },
+        )
+      : []),
+  );
+  const [l, r] = A.core.ears();
+  A.holds.replaceChildren(
+    h("b", { text: A.name() || (summary(l) ? "" : "None") }),
+    h("span", { text: [side(l, "L"), side(r, "R")].filter(Boolean).join("   ") }),
+  );
+  A.rp.draw(traces(A.sel, l, r, A.core.rate));
+}
+
+/**
+ * Mount the EQ step's parts.
+ *
+ * @param {{ core: EqCore, name: () => string, land: (name: string) => void }} o
  *   core = createPipelines api (importEq, ears, rate); land(name) = the EQ came from `name` (stages it)
  */
 export function mountAutoEq({ core, name, land }) {
-  let sel = null; // the picked hit (previewing)
   const q = h("input.vfd.pq.peqq", {
     type: "search",
     placeholder: AUTOEQ.placeholder,
     "aria-label": "Search headphone model",
   });
   q.addEventListener("input", () => {
-    sel = null;
-    paint();
+    A.sel = null;
+    paint(A);
   });
   const hits = h("div.peqhits", { role: "listbox", "aria-label": "AutoEq profiles" });
   const selLine = h("div.peqsel");
@@ -102,91 +276,23 @@ export function mountAutoEq({ core, name, land }) {
     hits,
     selLine,
   );
-
-  const mirror = h("input", { type: "checkbox", checked: true });
-  const txt = h("input", { type: "file", accept: ".txt", hidden: true });
-  const wav = h("input", { type: "file", accept: ".wav", hidden: true });
-  txt.addEventListener("change", () => {
-    const f = txt.files[0];
-    if (f)
-      f.text().then((t) => {
-        const eq = parseEq(t);
-        if (eq.bands.length) put({ bands: eq.bands, pre: eq.pre ?? 0 }, mirror.checked, f.name);
-      });
-    txt.value = ""; // the same file re-fires (v1)
-  });
-  wav.addEventListener("change", () => {
-    const f = wav.files[0];
-    if (f) put({ conv: f.name }, mirror.checked, f.name);
-    wav.value = "";
-  });
-  const files = h(
-    "div.peqfiles",
-    {},
-    h(
-      "div.peqf",
-      {},
-      h("button.btn.xs", { type: "button", text: AEQ_COPY.file, on: { click: () => txt.click() } }),
-      txt,
-      h("button.btn.xs", { type: "button", text: AEQ_COPY.conv, on: { click: () => wav.click() } }),
-      wav,
-    ),
-    h("label.chk", {}, mirror, AUTOEQ.mirror),
-  );
-
+  const files = filesPart((eq, both, from) => put(A, eq, both, from));
   const holds = h("div.peqhold");
   const plot = h("div.eq.peqplot");
   const rp = mountRespPlot(plot, { lo: -21, hi: 9, step: 6, minor: 3, aria: "EQ response" });
+  /** @type {Aeq} */
+  const A = { core, name, land, sel: null, q, hits, selLine, holds, rp };
 
-  function put(eq, both, from) {
-    core.importEq(eq, both);
-    q.value = "";
-    sel = null;
-    land(from);
-  }
-
-  function paint() {
-    const { shown, more } = shownHits(AUTOEQ.hits, q.value, HITS); // hits only while searching
-    hits.hidden = !shown.length;
-    hits.replaceChildren(
-      ...shown.map((x) =>
-        hitRow(x, sel === x, () => {
-          sel = sel === x ? null : x;
-          paint();
-        }),
-      ),
-      ...(more ? [h("div.peqmore", { text: AEQ_COPY.more(more) })] : []),
-    );
-    selLine.hidden = !sel;
-    selLine.replaceChildren(
-      ...(sel
-        ? selStrip(
-            sel,
-            () => {
-              sel = null;
-              paint();
-            },
-            () => put({ bands: sel.bands, pre: sel.pre }, true, `${sel.name} · ${sel.src}`),
-          )
-        : []),
-    );
-    const [l, r] = core.ears();
-    holds.replaceChildren(
-      h("b", { text: name() || (summary(l) ? "" : "None") }),
-      h("span", { text: [side(l, "L"), side(r, "R")].filter(Boolean).join("   ") }),
-    );
-    rp.draw(traces(sel, l, r, core.rate));
-  }
   return {
     search,
     files,
     holds,
     plot,
-    paint,
+    paint: () => paint(A),
     reset: () => {
       q.value = "";
-      sel = null;
-      paint();
+      A.sel = null;
+      paint(A);
     },
     /** The pair's EQ in one line: where it came from, else its band count, else None (rail / overview). */
     answer: () =>

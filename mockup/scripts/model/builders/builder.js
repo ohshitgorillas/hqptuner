@@ -173,13 +173,11 @@ export function savePlan(book, cur, name, to) {
  * @template T
  * @param {Book<T>} book
  * @param {Ref} cur
- * @param {string} name
- * @param {string[]} to  non-empty
- * @param {T} rec
- * @param {boolean} keep  the record stays in its own station even when unticked
+ * @param {{ name: string, to: string[], rec: T, keep: boolean }} save  to: non-empty; keep: the record stays in its
+ *   own station even when unticked
  * @returns {{ book: Book<T>, cur: Ref }}
  */
-export function savedTo(book, cur, name, to, rec, keep) {
+export function savedTo(book, cur, { name, to, rec, keep }) {
   const own = cur.name !== NEW && to.includes(cur.st);
   /** @type {Book<T>} */
   const out = { ...book };

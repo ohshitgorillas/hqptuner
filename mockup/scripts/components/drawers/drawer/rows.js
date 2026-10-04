@@ -6,8 +6,21 @@ import { secHead, manPara } from "../../../lib/controls/controls.js";
 import { control } from "./controls.js";
 import { setFrom, markDirty, regrayDrawer, groupVisible } from "./state.js";
 
-/** One body item of a tab. */
-export function item(D, it) {
+/** @typedef {import("./state.js").Drawer} Drawer */
+/** @typedef {import("./state.js").Item} Item */
+/** @typedef {import("./state.js").Row} Row */
+/** @typedef {{ group: string, rows: Row[] }} BackendGroup */
+/** @typedef {{ row?: Row, intro?: (string | { to: string, label: string })[], block?: string }} ItemKeys */
+
+/**
+ * One body item of a tab, told apart by the key it carries.
+ *
+ * @param {Drawer} D
+ * @param {Item} bodyItem
+ * @returns {HTMLElement}
+ */
+export function item(D, bodyItem) {
+  const it = /** @type {ItemKeys} */ (bodyItem);
   if (it.row) return row(D, it.row);
   // Intro: a lead paragraph over the rows; {to, label} parts are links to other drawers (`Name ›`). A second mount
   // (Profile builder, `prefix`) prints the names plain: its targets are the chain's drawers, under another body.
@@ -18,12 +31,21 @@ export function item(D, it) {
       it.intro.map((x) => (typeof x === "string" ? x : D.prefix ? x.label : xref(x.to, x.label))),
     );
   if (it.block) return block(D, it.block);
-  return group(D, it);
+  return group(D, /** @type {BackendGroup} */ (bodyItem));
 }
 
-/** A {block} item mounts deps.blocks[name](host, ctx); a setting block stages through ctx. */
+/**
+ * A {block} item mounts deps.blocks[name](host, ctx); a setting block stages through ctx.
+ *
+ * @param {Drawer} D
+ * @param {string} name
+ */
 function block(D, name) {
   const el = h("div.dblock", { data: { block: name } });
+  /**
+   * @param {string} id
+   * @param {unknown} v
+   */
   const keep = (id, v) => {
     D.vals[id] = String(v);
     D.blockIds.add(id);
@@ -42,6 +64,10 @@ function block(D, name) {
   return el;
 }
 
+/**
+ * @param {Drawer} D
+ * @param {BackendGroup} grp
+ */
 function group(D, { group: be, rows }) {
   return h(
     "div.begrp",
@@ -51,7 +77,12 @@ function group(D, { group: be, rows }) {
   );
 }
 
-/** row.optMan: every option with its manual copy; tapping one selects it (same path as the control). */
+/**
+ * row.optMan: every option with its manual copy; tapping one selects it (same path as the control).
+ *
+ * @param {Drawer} D
+ * @param {Row} r
+ */
 function optList(D, r) {
   return (
     r.optMan &&
@@ -75,11 +106,16 @@ function optList(D, r) {
   );
 }
 
-/** The option list's painter: the selected option is lit and follows the selection. */
+/**
+ * The option list's painter: the selected option is lit and follows the selection.
+ *
+ * @param {HTMLElement | undefined} opt
+ * @returns {(v: unknown) => void}
+ */
 function optPainter(opt) {
   return (v) => {
     if (!opt) return;
-    for (const b of opt.children) {
+    for (const b of /** @type {HTMLCollectionOf<HTMLElement>} */ (opt.children)) {
       const cur = b.dataset.v === String(v);
       b.classList.toggle("cur", cur);
       b.setAttribute("aria-current", String(cur));
@@ -87,6 +123,10 @@ function optPainter(opt) {
   };
 }
 
+/**
+ * @param {Drawer} D
+ * @param {Row} r
+ */
 function row(D, r) {
   const opt = optList(D, r);
   const paintOpt = optPainter(opt);
@@ -108,7 +148,13 @@ function row(D, r) {
   );
 }
 
-/** The row's control column: label head, the control (unless it spans the row), gray reasons, action, advisory. */
+/**
+ * The row's control column: label head, the control (unless it spans the row), gray reasons, action, advisory.
+ *
+ * @param {Row & { advisory?: string }} r
+ * @param {HTMLElement | false} ctlEl
+ * @param {HTMLElement | null} reason
+ */
 function rowCtl(r, ctlEl, reason) {
   return h(
     "div.ctl",

@@ -17,10 +17,52 @@ import { strip } from "./strip.js";
 import { paintDock } from "./dock.js";
 import { plot } from "./plot.js";
 
-/** Mount output `o`'s tab into `host` and register it for repaints and focus from the Overview. */
+/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../model/shell/pipelines.js').Item} Item */
+/** @typedef {import('./state.js').Drawer} Drawer */
+/** @typedef {import('./state.js').Ctx} Ctx */
+/** @typedef {ReturnType<typeof outputView>} OutputView */
+
+/**
+ * One output tab's state: the input shown, the selected pipeline, chip and band, the list page, the plot scope, and the
+ * elements its paints reach.
+ *
+ * @typedef {object} Tab
+ * @property {Drawer} dr
+ * @property {number} o  the output
+ * @property {Ctx} ctx
+ * @property {number | null} src  the input shown
+ * @property {number} selPipe  the selected pipeline's position in the set (-1 = none)
+ * @property {number} page
+ * @property {number} selChip
+ * @property {number} selBand
+ * @property {string} scope  the plot scope asked for
+ * @property {HTMLElement} inHost
+ * @property {HTMLElement} pager
+ * @property {HTMLElement} reason
+ * @property {HTMLElement} rows
+ * @property {HTMLElement} editor
+ * @property {HTMLElement} dock
+ * @property {HTMLElement} scopeHost
+ * @property {HTMLElement} plotHost
+ * @property {HTMLElement} body
+ * @property {ReturnType<typeof mountRespPlot>} rp
+ * @property {() => void} repaint
+ * @property {() => void} replot
+ */
+
+/**
+ * Mount output `o`'s tab into `host` and register it for repaints and focus from the Overview.
+ *
+ * @param {Drawer} dr
+ * @param {number} o
+ * @param {HTMLElement} host
+ * @param {Ctx} ctx
+ */
 export function output(dr, o, host, ctx) {
   watch(dr, ctx);
-  const t = { dr, o, ctx, src: null, selPipe: -1, page: 0, selChip: 0, selBand: 0, scope: "auto" };
+  // Its elements and repaints land just below, before anything reads them.
+  const t = /** @type {Tab} */ ({ dr, o, ctx, src: null, selPipe: -1, page: 0, selChip: 0, selBand: 0, scope: "auto" });
   mountOutput(t, host);
   t.repaint = () => paintOut(t);
   t.replot = () => plot(t);
@@ -37,6 +79,12 @@ export function output(dr, o, host, ctx) {
   paintOut(t);
 }
 
+/**
+ * Build the tab's elements into `host`.
+ *
+ * @param {Tab} t
+ * @param {HTMLElement} host
+ */
 function mountOutput(t, host) {
   const { o } = t;
   t.inHost = h("div.oin");
@@ -60,6 +108,11 @@ function mountOutput(t, host) {
   t.rp = mountRespPlot(t.plotHost, { lo: -21, hi: 9, step: 6, minor: 3, aria: `Response into ${chName(o)}` });
 }
 
+/**
+ * `+ Pipeline`: a new pipeline on the input shown (0 dB, empty chain), selected, its page shown.
+ *
+ * @param {Tab} t
+ */
 function addPipeline(t) {
   const { dr, o, src } = t;
   if (src === null) return;
@@ -71,6 +124,13 @@ function addPipeline(t) {
   paint(dr);
 }
 
+/**
+ * Show input `s2` with `pipe` selected (its first pipeline when null), on its page.
+ *
+ * @param {Tab} t
+ * @param {number} s2
+ * @param {number | null} pipe
+ */
 function focus(t, s2, pipe) {
   t.src = s2;
   const here = at(t.dr, s2, t.o);
@@ -80,6 +140,11 @@ function focus(t, s2, pipe) {
   t.page = pageOf(listItems(here, t.dr.openBlocks), t.selPipe);
 }
 
+/**
+ * Paint the tab: input switch, list page and pager, strip, dock, plot, gray.
+ *
+ * @param {Tab} t
+ */
 function paintOut(t) {
   const { dr } = t;
   const v = outputView(dr.pipes, dr.nIn, t.o, { src: t.src, selPipe: t.selPipe, page: t.page, open: dr.openBlocks });
@@ -88,7 +153,7 @@ function paintOut(t) {
     t.selPipe = v.selPipe;
     t.selChip = 0;
   }
-  t.inHost.replaceChildren(...inputSwitch(t, v));
+  t.inHost.replaceChildren(.../** @type {HTMLElement[]} */ (inputSwitch(t, v))); // its falsy entries are filtered out
   // A fixed page of rows, numbered page buttons.
   t.page = v.paging.page;
   t.rows.replaceChildren(...v.items.slice(v.paging.start, v.paging.end).map((x) => listRow(t, x)));
@@ -112,7 +177,12 @@ function paintOut(t) {
   grayed(dr, t.body, t.reason);
 }
 
-/** Input switch: each input feeding this output, with its count; `+` adds one that doesn't yet. */
+/**
+ * Input switch: each input feeding this output, with its count; `+` adds one that doesn't yet.
+ *
+ * @param {Tab} t
+ * @param {OutputView} v
+ */
 function inputSwitch(t, v) {
   const { dr, o } = t;
   return [
@@ -136,10 +206,10 @@ function inputSwitch(t, v) {
         text: "+",
         "aria-label": "Add an input",
         on: {
-          click: (e) =>
+          click: (/** @type {MouseEvent} */ e) =>
             openMenu(
               dr,
-              e.currentTarget,
+              /** @type {HTMLElement} */ (e.currentTarget),
               v.others.map((i) => [
                 `In ${chShort(i)} — ${chName(i)}`,
                 () => {
@@ -157,27 +227,43 @@ function inputSwitch(t, v) {
   ].filter(Boolean);
 }
 
+/**
+ * One line of the list: a pipeline, or a crossfeed block's line.
+ *
+ * @param {Tab} t
+ * @param {Item} x
+ * @returns {HTMLElement}
+ */
 function listRow(t, x) {
   if (x.fold || x.head) return blockRow(t, x);
   const { dr } = t;
-  const p = x.p;
+  const p = /** @type {Pipe} */ (x.p);
+  const i = /** @type {number} */ (x.i); // a pipeline's line carries both
   return h(
     "div.plrow",
     {
-      class: classNames(x.i === t.selPipe && "sel", x.inBlock && "inblk"),
+      class: classNames(i === t.selPipe && "sel", x.inBlock && "inblk"),
       role: "option",
-      "aria-selected": String(x.i === t.selPipe),
-      on: { click: () => pick(t, x.i) },
+      "aria-selected": String(i === t.selPipe),
+      on: { click: () => pick(t, i) },
     },
-    h("span.ppn", { text: `#${x.i + 1}` }),
+    h("span.ppn", { text: `#${i + 1}` }),
     h("span.plc", { text: dr.raw.has(p) ? processSpec(p.stages) : rowText(p) }),
     h("span.plg", { text: chipText(p, { kind: "gain", idx: [] }) + (p.unit === "Lin" && p.gain < 0 ? " ø" : "") }),
   );
 }
 
+/**
+ * A crossfeed block's line: its twisty, its link to Crossfeed, its row count and summary; a tap elsewhere on it selects
+ * its first row.
+ *
+ * @param {Tab} t
+ * @param {Item} x
+ * @returns {HTMLElement}
+ */
 function blockRow(t, x) {
   const { dr } = t;
-  const kind = x.fold || x.head,
+  const kind = /** @type {string} */ (x.fold || x.head),
     open = !x.fold;
   const el = h(
     "div.plrow.plfold",
@@ -198,12 +284,18 @@ function blockRow(t, x) {
     xref(dr.toCrossfeed, BLOCK_NAME[kind]),
     h("span.pls", { text: `${x.n} rows · ${dr.block.sum || ""}` }),
   );
-  el.addEventListener("click", (e) => {
-    if (!e.target.closest("button,a")) pick(t, x.first);
+  el.addEventListener("click", (/** @type {MouseEvent} */ e) => {
+    if (!(/** @type {Element} */ (e.target).closest("button,a"))) pick(t, /** @type {number} */ (x.first));
   });
   return el;
 }
 
+/**
+ * Select pipeline `i`, its first chip and band.
+ *
+ * @param {Tab} t
+ * @param {number} i
+ */
 function pick(t, i) {
   t.selPipe = i;
   t.selChip = 0;

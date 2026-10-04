@@ -6,6 +6,11 @@ import { s } from "../shell/dom.js";
 import { signed } from "../../model/shell/format.js";
 import { GUTTER, PAD, round1 as r } from "../../model/gauges/plot-axes.js";
 
+/**
+ * A frequency axis label: kHz above 1 kHz (`10k`), Hz below.
+ *
+ * @param {number} f
+ */
 const hzLabel = (f) => (f >= 1000 ? f / 1000 + "k" : String(f));
 
 /**
@@ -31,7 +36,9 @@ export function mountPlotSvg(host, aria, draw) {
  * @param {import('../../model/gauges/plot-axes.js').LevelGrid} grid
  */
 export function plotGrid({ x, y, lo, hi, x0, x1, yb }, grid) {
+  /** @param {number} f */
   const vline = (f) => s("line", { x1: r(x(f)), y1: PAD, x2: r(x(f)), y2: yb });
+  /** @param {number} d */
   const hline = (d) => s("line", { x1: x0, y1: r(y(d)), x2: x1, y2: r(y(d)) });
   return [
     s("g.grid.minor", {}, [50, 200, 500, 2000, 5000].map(vline), grid.roomy && grid.minor.map(hline)),

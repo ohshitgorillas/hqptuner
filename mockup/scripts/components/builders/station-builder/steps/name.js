@@ -4,7 +4,13 @@ import { h } from "../../../../lib/shell/dom.js";
 import { STB_COPY, STB_TIPS } from "../../../../data/builders/station-builder.js";
 import { drow, tip } from "../frame/parts.js";
 
-/** The Name step's rows. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+
+/**
+ * The Name step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function nameStep(sb) {
   const { e, B } = sb;
   const box = h("input.vfd.stbnm", {

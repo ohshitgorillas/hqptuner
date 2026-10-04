@@ -26,7 +26,26 @@ const NW = 118,
 // Column centres: sources | DSD front end · HF | matrix | resampling | DAC correction ↓ Volume | shaping | Speakers ↓ Output.
 const X = [66, 214, 366, 518, 668, 816, 962];
 
-/** Nodes: id → {x, y, label, sub?, tag?, unv?, src?, rail?} (rail: the chain stage whose lamp says engaged). */
+/** @typedef {import('../../model/gauges/wire.js').MapNode} MapNode */
+/** @typedef {import('../../model/gauges/wire.js').MapEdge} MapEdge */
+/** @typedef {MapEdge & { el: SVGElement }} EdgeEl  an edge with the path that draws it */
+/** @typedef {{ p: string, stage: string }} PathState  the path playing and the source's rate stage */
+/**
+ * @typedef {object} SgNode
+ * @property {number} x
+ * @property {number} y
+ * @property {string} label
+ * @property {string} [sub]
+ * @property {string} [tag]
+ * @property {boolean} [unv]
+ * @property {boolean} [src]
+ * @property {string} [rail]
+ */
+
+/**
+ * Nodes: id → {x, y, label, sub?, tag?, unv?, src?, rail?} (rail: the chain stage whose lamp says engaged).
+ * @type {Record<string, SgNode>}
+ */
 const N = {
   p1: { x: X[0], y: 77, label: "PCM source", sub: "1x · ≤ 50 kHz", src: true },
   pn: { x: X[0], y: 187, label: "PCM source", sub: "Nx · > 50 kHz", src: true },
@@ -49,7 +68,10 @@ const N = {
   out: { x: X[6], y: 402, label: "Output", src: true },
 };
 
-/** Group frames: engraved title over a hairline box. */
+/**
+ * Group frames: engraved title over a hairline box.
+ * @type {{ label: string, ids: string[], sub?: string }[]}
+ */
 const GROUPS = [
   { label: "DSD Processing", ids: ["nf", "de", "rm"] },
   { label: "Matrix engine", ids: ["pl", "xf", "ld"] },
@@ -57,7 +79,10 @@ const GROUPS = [
   { label: "Shaping", ids: ["di", "mo"] },
 ];
 
-/** Edges: [from, to, label?]. Vertical ones (inside a group) join bottom → top. */
+/**
+ * Edges: [from, to, label?]. Vertical ones (inside a group) join bottom → top.
+ * @type {[string, string, (string | null)?, 'v'?][]}
+ */
 const E = [
   ["p1", "pl"],
   ["pn", "hf"],
@@ -83,8 +108,15 @@ const E = [
   ["sp", "out", null, "v"],
 ];
 
-/** What each path runs (main.js / data/scenarios.js path ids; stage = the source's 1x | nx). */
+/**
+ * What each path runs (main.js / data/scenarios.js path ids; stage = the source's 1x | nx).
+ *
+ * @param {string} p
+ * @param {string} stage
+ * @returns {string[]}
+ */
 function litOf(p, stage) {
+  /** @param {string} sh */
   const tail = (sh) => ["dc", "vo", sh, "sp", "out"];
   const mx = ["pl", "xf", "ld"];
   const src = stage === "nx" ? ["pn", "hf", "fn"] : ["p1", "f1"];
@@ -104,6 +136,7 @@ function litOf(p, stage) {
   }
 }
 
+/** @type {Record<string, string>} */
 export const PATH_NAME = {
   // DRAFT (agent): the Settings rail readout
   idle: "Not playing",
@@ -115,6 +148,7 @@ export const PATH_NAME = {
 };
 
 // DRAFT (agent): the drawer's key, one line per mark.
+/** @type {[string, string][]} */
 const KEY = [
   ["lit", "Playing now"],
   ["tag", "PCM or SDM: that output mode only"],
@@ -123,22 +157,27 @@ const KEY = [
   ["dash", "Position not confirmed (output rate, before Shaping)"],
 ];
 
-const L = (n) => n.x - NW / 2,
-  R = (n) => n.x + NW / 2,
-  T = (n) => n.y - NH / 2,
-  B = (n) => n.y + NH / 2;
-const box = (n) => ({ left: L(n), top: T(n), width: NW, height: NH });
+const L = (/** @type {SgNode} */ n) => n.x - NW / 2,
+  R = (/** @type {SgNode} */ n) => n.x + NW / 2,
+  T = (/** @type {SgNode} */ n) => n.y - NH / 2,
+  B = (/** @type {SgNode} */ n) => n.y + NH / 2;
+const box = (/** @type {SgNode} */ n) => ({ left: L(n), top: T(n), width: NW, height: NH });
 
 // Bypassed on the path: the matrix gate takes its parts and DAC correction with it (DAC correction needs the matrix).
 const MATRIX_PARTS = ["pl", "xf", "ld", "dc"];
+/** @type {MapNode[]} */
 const NODES = Object.entries(N).map(([id, n]) => ({ id, rail: n.rail }));
-const STAGES = ["matrix", ...NODES.map((n) => n.rail).filter(Boolean)];
+const STAGES = ["matrix", ...NODES.flatMap((n) => (n.rail ? [n.rail] : []))];
 
 /**
+ * Mount the map in the drawer block: zones, groups, edges and nodes, with the key under it. It lights the path playing
+ * on every `sigpath` and re-reads the gates on every `relayout`.
+ *
  * @param {HTMLElement} host  the drawer block
  * @param {import('../../lib/shell/bus.js').Bus} bus   repaints on `sigpath` (the path playing) and `relayout`
  */
 export function mountSignalPath(host, bus) {
+  /** @type {PathState} */
   let state = { p: "idle", stage: "1x" };
   const svg = s("svg.sgp", {
     viewBox: `0 0 ${W} ${H}`,
@@ -160,7 +199,10 @@ export function mountSignalPath(host, bus) {
   const edgeEls = drawEdges(svg);
   const nodeEls = drawNodes(svg);
 
-  /** An engaged stage, read off the chain rail (its lamp), so the map follows every Apply. HF filter: on = a filter picked. */
+  /**
+   * An engaged stage, read off the chain rail (its lamp), so the map follows every Apply. HF filter: on = a filter picked.
+   * @param {string} stage
+   */
   const engaged = (stage) => !!document.querySelector(`#rail [data-stage="${stage}"] .lamp.on`);
 
   function paint() {
@@ -179,7 +221,7 @@ export function mountSignalPath(host, bus) {
     edgeEls.forEach(({ el }, i) => el.classList.toggle("lit", m.edges[i]));
   }
 
-  bus.on("sigpath", (d) => {
+  bus.on("sigpath", (/** @type {PathState} */ d) => {
     state = d;
     paint();
   });
@@ -187,8 +229,12 @@ export function mountSignalPath(host, bus) {
   paint();
 }
 
-// Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
-// at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.
+/**
+ * Rate zones: everything before Resampling runs at the source rate (DSD: after decimation, 1/16 of it), everything after
+ * at the output rate. Resampling is the seam: it converts one to the other. Tinted bands under the map, seam dashed.
+ *
+ * @param {SVGElement} svg
+ */
 function drawZones(svg) {
   const seam = N.f1.x;
   svg.append(
@@ -200,18 +246,27 @@ function drawZones(svg) {
   );
 }
 
+/**
+ * Each group's frame and engraved title, and its subtitle where it has one.
+ *
+ * @param {SVGElement} svg
+ */
 function drawGroups(svg) {
   for (const g of GROUPS) {
     const { frame, title, sub } = groupFrame({ boxes: g.ids.map((id) => box(N[id])), sub: !!g.sub });
-    svg.append(
-      s("rect.sgg", { ...frame, rx: 5 }),
-      s("text.sggt", title, g.label.toUpperCase()),
-      g.sub && s("text.sggs", { ...sub, text: g.sub }),
-    );
+    svg.append(s("rect.sgg", { ...frame, rx: 5 }), s("text.sggt", title, g.label.toUpperCase()));
+    if (g.sub) svg.append(s("text.sggs", { ...sub, text: g.sub }));
   }
 }
 
+/**
+ * The Direct SDM bypass, then every edge of E; each comes back with the path that draws it, in that order.
+ *
+ * @param {SVGElement} svg
+ * @returns {EdgeEl[]}
+ */
 function drawEdges(svg) {
+  /** @type {EdgeEl[]} */
   const edgeEls = [];
   // Direct SDM: from the DSD source down under everything, then up into Speakers.
   // Down under everything, along the foot, up the right edge, into Speakers' right side (Output hangs under Speakers).
@@ -244,7 +299,14 @@ function drawEdges(svg) {
   return edgeEls;
 }
 
+/**
+ * Every node: its box, the hatch over it, its label, sub-label and output-mode tag.
+ *
+ * @param {SVGElement} svg
+ * @returns {Record<string, SVGElement>} each node's group, by id
+ */
 function drawNodes(svg) {
+  /** @type {Record<string, SVGElement>} */
   const nodeEls = {};
   for (const [id, n] of Object.entries(N)) {
     const g = s("g.sgn", { class: classNames(n.src && "src", n.unv && "unv") });

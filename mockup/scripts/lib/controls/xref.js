@@ -4,14 +4,25 @@
 import { h } from "../shell/dom.js";
 import { REASON_XREF } from "../../data/shell/xrefs.js";
 
+/** @type {Map<string, () => void>} */
 const GO = new Map();
 
-/** Where a link id goes (main.js: open a drawer, pick its tab or section). */
+/**
+ * Where a link id goes (main.js: open a drawer, pick its tab or section).
+ *
+ * @param {string} id
+ * @param {() => void} fn
+ */
 export function xrefGo(id, fn) {
   GO.set(id, fn);
 }
 
-/** One link: the place's name + ›. */
+/**
+ * One link: the place's name + ›.
+ *
+ * @param {string} to  the link id xrefGo registered
+ * @param {string} label
+ */
 export function xref(to, label) {
   return h(
     "a.xref",
@@ -29,11 +40,21 @@ export function xref(to, label) {
   );
 }
 
-/** A reason / note line's content: its text, then the link to where it's fixed when the data names one (and link). */
+/**
+ * A reason / note line's content: its text, then the link to where it's fixed when the data names one (and link).
+ *
+ * @param {string} text
+ * @param {boolean} [link]
+ * @returns {(string | HTMLAnchorElement)[]}
+ */
 export function withXref(text, link = true) {
   const x = link && REASON_XREF.get(text);
   return x ? [text, " ", xref(x.to, x.label)] : [text];
 }
 
-/** Does this text carry a link? */
+/**
+ * Does this text carry a link?
+ *
+ * @param {string} text
+ */
 export const hasXref = (text) => REASON_XREF.has(text);

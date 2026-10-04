@@ -12,7 +12,8 @@
  * @property {string} phase
  * @property {string} len
  * @property {boolean} adaptive
- * @property {string} apod
+ * @property {"full" | "half" | null} apod
+ * @property {boolean} [hires]
  * @property {boolean} up
  * @property {string | null} [ratio]
  * @property {string | null} [ratioPcm]
@@ -64,6 +65,53 @@ const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]; // v1 
 const MARGIN = 12;
 
 /**
+ * A ratio in the narrowing bar's words, else as given.
+ *
+ * @param {string} r
+ * @returns {string}
+ */
+const ratioName = (r) => RATIO[r] ?? r;
+
+/**
+ * The Length row's value: the length named, marked adaptive when it adapts (the adaptive label alone without a length).
+ *
+ * @param {Facets} f
+ * @param {Labels} facet
+ * @returns {string}
+ */
+function lengthText(f, facet) {
+  if (!f.adaptive) return facet.length[f.len];
+  return f.len ? `${facet.length[f.len]}, adaptive` : facet.length.adaptive;
+}
+
+/**
+ * The Ratio row's value: the one ratio, else the PCM and SDM ratios given ('' = none).
+ *
+ * @param {Facets} f
+ * @returns {string}
+ */
+function ratioText(f) {
+  if (f.ratio != null) return ratioName(f.ratio);
+  return [f.ratioPcm != null && `PCM ${ratioName(f.ratioPcm)}`, f.ratioSdm != null && `SDM ${ratioName(f.ratioSdm)}`]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/**
+ * The facet rows in order: each label, whether an option's facets have it, and its value.
+ *
+ * @type {[string, (f: Facets) => boolean, (f: Facets, facet: Labels) => string][]}
+ */
+const ROWS = [
+  ["Quality", (f) => f.q != null, (f) => `${f.q}/5`],
+  ["Genre", (f) => f.genre.length > 0, (f, facet) => f.genre.map((g) => facet.genre[g] ?? g).join(", ")],
+  ["Focus", (f) => f.focus.length > 0, (f, facet) => f.focus.map((g) => facet.focus[g] ?? g).join(", ")],
+  ["Phase", (f) => !!f.phase, (f, facet) => facet.phase[f.phase] ?? f.phase],
+  ["Length", (f) => !!(f.len || f.adaptive), lengthText],
+  ["Ratio", (f) => !!ratioText(f), ratioText],
+];
+
+/**
  * The tip's facet rows in the narrowing bar's words, [label, value]; an option without facets has its Generation row.
  *
  * @param {Opt} o
@@ -72,29 +120,8 @@ const MARGIN = 12;
  */
 export function tipRows(o, facet) {
   const f = o.f;
-  /** @type {[string, string][]} */
-  const rows = [];
   if (!f) return o.gen && ORD[o.gen] ? [["Generation", ORD[o.gen]]] : [];
-  if (f.q != null) rows.push(["Quality", `${f.q}/5`]);
-  if (f.genre.length) rows.push(["Genre", f.genre.map((g) => facet.genre[g] ?? g).join(", ")]);
-  if (f.focus.length) rows.push(["Focus", f.focus.map((g) => facet.focus[g] ?? g).join(", ")]);
-  if (f.phase) rows.push(["Phase", facet.phase[f.phase] ?? f.phase]);
-  if (f.len || f.adaptive)
-    rows.push([
-      "Length",
-      f.adaptive ? (f.len ? `${facet.length[f.len]}, adaptive` : facet.length.adaptive) : facet.length[f.len],
-    ]);
-  const ratio =
-    f.ratio != null
-      ? (RATIO[f.ratio] ?? f.ratio)
-      : [
-          f.ratioPcm != null && `PCM ${RATIO[f.ratioPcm] ?? f.ratioPcm}`,
-          f.ratioSdm != null && `SDM ${RATIO[f.ratioSdm] ?? f.ratioSdm}`,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-  if (ratio) rows.push(["Ratio", ratio]);
-  return rows;
+  return ROWS.filter(([, has]) => has(f)).map(([label, , value]) => [label, value(f, facet)]);
 }
 
 /**

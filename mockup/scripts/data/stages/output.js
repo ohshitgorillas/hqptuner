@@ -15,6 +15,70 @@
 //   device  {type, id, kind: 'network'|'alsa', aria}  → device-picker.js, list from DEVICES[kind]
 //   dial    {type, id, aria}                           → rate-dial.js, tiers from RATE_TIERS
 
+/**
+ * One control of a drawer row, by `type`: seg | choice | select | number | text | slider | device | dial | accent |
+ * toggles | group (its `items` side by side). `gray` reads the staged values by control id and returns why the control
+ * is grayed: '' = settable, ' ' = grayed without a line.
+ *
+ * @typedef {object} Control
+ * @property {string} type
+ * @property {string} [id]
+ * @property {string | null} [aria]
+ * @property {string | null} [label]
+ * @property {string | number} [value]
+ * @property {import('../settings/common.js').Option[]} [options]
+ * @property {string} [cls]
+ * @property {number} [min]
+ * @property {number} [max]
+ * @property {number} [step]
+ * @property {string} [unit]
+ * @property {string} [hint]
+ * @property {number} [maxlength]
+ * @property {string} [kind]
+ * @property {boolean} [switchesBackend]
+ * @property {{ v: number, manual: number, label: string, note: string }} [auto]
+ * @property {Control[]} [items]
+ * @property {(v: Record<string, unknown>) => string} [gray]
+ */
+
+/**
+ * One setting row: control column | manual copy. `man` is a paragraph, or several `{k?, text}` lines;
+ * `optMan` carries each option's own manual line; `band` tags a family-only row; `id` and `fft` name a mode drawer's row.
+ *
+ * @typedef {object} Row
+ * @property {string} label
+ * @property {string} [sub]
+ * @property {string | { k?: string, text: string }[]} man
+ * @property {Control} control
+ * @property {string} [id]
+ * @property {string} [fft]
+ * @property {boolean} [live]
+ * @property {boolean} [restart]
+ * @property {boolean} [full]
+ * @property {string} [band]
+ * @property {{ label: string, caption: string }} [action]
+ * @property {{ v: string, label?: string, man: string }[]} [optMan]
+ */
+
+/**
+ * One item of a tab body: a row, a backend's rows, a mounted instrument, an intro line with its links.
+ *
+ * @typedef {{ row: Row } | { group: string, rows: Row[] } | { block: string } | { intro: (string | { to: string, label: string })[] }} Item
+ */
+
+/**
+ * A stage or Settings drawer: its head (title, aria, the `↻ restart` flag, its apply family) and its tabs.
+ *
+ * @typedef {object} DrawerSchema
+ * @property {string} id
+ * @property {string} title
+ * @property {string} aria
+ * @property {boolean} restart
+ * @property {string} [family]
+ * @property {string} [backend]
+ * @property {{ id: string, label: string, restart?: boolean, body: Item[] }[]} tabs
+ */
+
 const MAN = {
   // Manual §4.2 "Default output mode", in full (it names [source], which HQPTuner doesn't offer, and says why).
   mode: "Selects default output mode. When set to “PCM”, all content is played as PCM output. When “SDM (DSD)” is selected, all content is played as SDM output. When “[source]” is selected, PCM content is played as PCM and DSD content is played as SDM. However, using “[source]” usually leads to sub-optimal result with either format since only very few DACs have separate true PCM (R2R) and SDM conversion sections inside. In most cases only either one of the options is optimal for the DAC.",
@@ -45,11 +109,20 @@ const RESCAN = {
 };
 const BUFFER_HINT = "−1 = minimum, 0 = default";
 
+/**
+ * @param {string} id
+ * @param {number} value
+ * @returns {Row}
+ */
 const bufferRow = (id, value) => ({
   label: "Buffer time",
   man: MAN.bufferTime,
   control: { type: "number", id, value, min: -1, max: 250, unit: "ms", hint: BUFFER_HINT, aria: "Buffer time" },
 });
+/**
+ * @param {string} value
+ * @returns {Row}
+ */
 const dsdSupportRow = (value) => ({
   label: "DSD support",
   band: "sdm",
@@ -64,6 +137,10 @@ const dsdSupportRow = (value) => ({
     ],
   },
 });
+/**
+ * @param {string} value
+ * @returns {Row}
+ */
 const dsdRatesRow = (value) => ({
   label: "DSD rates",
   band: "sdm",
@@ -78,6 +155,11 @@ const dsdRatesRow = (value) => ({
     ],
   },
 });
+/**
+ * @param {string} id
+ * @param {number} value
+ * @returns {Row}
+ */
 const dacBitsRow = (id, value) => ({
   label: "DAC bits",
   sub: "Noise-shaping target depth",
@@ -88,6 +170,7 @@ const dacBitsRow = (id, value) => ({
 
 export const BACKEND_NAMES = { network: "Network Audio", alsa: "ALSA" };
 
+/** @type {DrawerSchema} */
 export const OUTPUT_DRAWER = {
   id: "output",
   title: "Output",
@@ -153,7 +236,7 @@ export const OUTPUT_DRAWER = {
             },
           },
         },
-        // Channels: every backend, so outside the backend groups (moved here from Format: Format must fit without scrolling).
+        // Channels: every backend, so outside the backend groups, and not under Format, which must fit without scrolling.
         // The common layouts as one tap (owner's labels; channel counts are the daemon's: 2, 6, 8); Manual opens the
         // number (6.0.4 form: 2–32). Restart (http).
         {

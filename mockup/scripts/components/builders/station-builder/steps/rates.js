@@ -10,9 +10,20 @@ import { ratesPhase, rateView, dialLimits } from "../../../../model/builders/sta
 import { drow, paras } from "../frame/parts.js";
 import { detect48 } from "../frame/checks.js";
 
-/** What the hardware supports: PCM, SDM and 48kHz DSD readouts (and the transport caution over USB). */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../../../../model/builders/station.js').Rec} Rec */
+/** @typedef {import('../frame/tables.js').Tables['TIERS'][number]} Tier */
+/** @typedef {import('../../../../model/builders/station.js').RateView<Tier>} RateView */
+
+/**
+ * What the hardware supports: PCM, SDM and 48kHz DSD readouts (and the transport caution over USB).
+ *
+ * @param {StationState} sb
+ * @param {Rec} x
+ * @param {RateView} v
+ */
 function readouts(sb, x, v) {
-  const t = (i) => sb.T.TIERS[i];
+  const t = (/** @type {number} */ i) => sb.T.TIERS[i];
   return h(
     "div.stbsum",
     {},
@@ -35,7 +46,7 @@ function readouts(sb, x, v) {
         h("span.v", {
           text: v.noDsd
             ? STB_RATES.sdmNone
-            : `DSD${t(x.limits.sdm).name.slice(0, -1)} · ${x.dsd === "dop" ? "via DoP" : "Native"}`,
+            : `DSD${t(/** @type {number} */ (x.limits.sdm)).name.slice(0, -1)} · ${x.dsd === "dop" ? "via DoP" : "Native"}`,
         }),
       ),
       h("div.vfd.stbro", {}, h("span.l", { text: "48kHz DSD" }), h("span.v", { text: v.dsd48 ? "Yes" : "No" })),
@@ -44,9 +55,17 @@ function readouts(sb, x, v) {
   );
 }
 
-/** The rate dial, nothing playing; a move writes the limits. */
+/**
+ * The rate dial, nothing playing; a move writes the limits.
+ *
+ * @param {StationState} sb
+ * @param {RateView} v
+ */
 function dial(sb, v) {
-  const dialEl = h("div.dial", { role: "group", "aria-label": "Rate limits" });
+  // mountRateDial sets the lamp's control on the element as it mounts.
+  const dialEl = /** @type {HTMLDivElement & { _setPlaying: (i: number | null) => void }} */ (
+    h("div.dial", { role: "group", "aria-label": "Rate limits" })
+  );
   const rd = mountRateDial(dialEl, { tiers: v.tiers, limits: v.dial, playing: 0 }, () => {
     const limits = dialLimits(rd.value(), v.noDsd);
     sb.set((y) => {
@@ -57,7 +76,11 @@ function dial(sb, v) {
   return dialEl;
 }
 
-/** The Rates step's rows. */
+/**
+ * The Rates step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function ratesStep(sb) {
   const x = sb.e.rec;
   const phase = ratesPhase(x, sb.runs.rates);
@@ -90,7 +113,7 @@ export function ratesStep(sb) {
       }),
   });
   const gray = v.noDsd ? STB_RATES.sdmNoneWhy : "";
-  const g = (ctl) => h("div.stbg", { class: gray && "grayed" }, ctl);
+  const g = (/** @type {HTMLElement} */ ctl) => h("div.stbg", { class: gray && "grayed" }, ctl);
   return [
     sum,
     h(

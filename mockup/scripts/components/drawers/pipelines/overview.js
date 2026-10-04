@@ -8,14 +8,32 @@ import { MAXP, overviewSummary, pinState, range } from "../../../model/shell/pip
 import { grayed, paint, stage, watch } from "./state.js";
 import { openImport } from "./popovers.js";
 
-/** Mount the Overview into `host` and register it for repaints. */
+/** @typedef {import('./state.js').Drawer} Drawer */
+/** @typedef {import('./state.js').Ctx} Ctx */
+/** @typedef {import('./state.js').OutView} OutView */
+
+/**
+ * The Overview as it repaints: the drawer, its ctx, the grid and totals hosts, its body and its gray reason.
+ *
+ * @typedef {{ dr: Drawer, ctx: Ctx, gridHost: HTMLElement, totals: HTMLElement, body: HTMLElement, reason: HTMLElement }} Ov
+ */
+
+/**
+ * Mount the Overview into `host` and register it for repaints.
+ *
+ * @param {Drawer} dr
+ * @param {HTMLElement} host
+ * @param {Ctx} ctx
+ */
 export function overview(dr, host, ctx) {
   watch(dr, ctx);
   const gridHost = h("div.ogrid");
   const totals = h("div.ptot");
   const impBtn = h("button.btn.xs", { type: "button", text: "Import EQ…" });
   impBtn.addEventListener("click", () => openImport(dr, impBtn, () => dr.ear[0] || dr.ear[1], ctx));
-  const files = h("input", { type: "file", accept: ".wav", multiple: true, hidden: true });
+  const files = /** @type {HTMLInputElement} */ (
+    h("input", { type: "file", accept: ".wav", multiple: true, hidden: true })
+  );
   const upBtn = h("button.btn.xs", {
     type: "button",
     text: "Upload convolution filters",
@@ -23,7 +41,9 @@ export function overview(dr, host, ctx) {
   });
   const fileList = h("div.ofiles");
   files.addEventListener("change", () =>
-    fileList.replaceChildren(...[...files.files].map((f) => h("span.vfd.pfile", { text: f.name }))),
+    fileList.replaceChildren(
+      ...[.../** @type {FileList} */ (files.files)].map((f) => h("span.vfd.pfile", { text: f.name })),
+    ),
   );
   const reason = h("span.gr", { hidden: true });
   const body = h(
@@ -46,7 +66,14 @@ export function overview(dr, host, ctx) {
   paintOv(ov);
 }
 
-/** One pin: tap a lit one → that output's tab on that input; tap an empty one → a new pipeline there, same tab. */
+/**
+ * One pin: tap a lit one → that output's tab on that input; tap an empty one → a new pipeline there, same tab.
+ *
+ * @param {Ov} ov
+ * @param {number} src
+ * @param {number} mix
+ * @param {number} size  px
+ */
 function pin(ov, src, mix, size) {
   const { dr, ctx } = ov;
   const { on, n, gen, neg, label, fill } = pinState(dr.pipes, src, mix);
@@ -63,7 +90,8 @@ function pin(ov, src, mix, size) {
             dr.pipes.push({ src, mix, gain: 0, unit: "dB", stages: [] });
             stage(dr, ctx);
           }
-          dr.views.find((v) => v.out === mix)?.focus(src, on ? null : dr.pipes.length - 1);
+          const tab = /** @type {OutView | undefined} */ (dr.views.find((v) => v.out === mix));
+          tab?.focus(src, on ? null : dr.pipes.length - 1);
           paint(dr);
           dr.goTab(`out${mix}`);
         },
@@ -77,6 +105,11 @@ function pin(ov, src, mix, size) {
   );
 }
 
+/**
+ * Paint the Overview: the grid at its cell size, the totals, the gray.
+ *
+ * @param {Ov} ov
+ */
 function paintOv(ov) {
   const { dr, gridHost, totals } = ov;
   const { nIn, nOut, pipes } = dr;

@@ -5,7 +5,13 @@ import { h } from "../../../../lib/shell/dom.js";
 import { STB_DAC } from "../../../../data/builders/station-builder.js";
 import { drow, num } from "../frame/parts.js";
 
-/** The DAC bits · Gain step's rows. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+
+/**
+ * The DAC bits · Gain step's rows.
+ *
+ * @param {StationState} sb
+ */
 export function dacStep(sb) {
   const x = sb.e.rec;
   const native = x.limits.sdm != null && x.dsd === "native";
@@ -31,18 +37,12 @@ export function dacStep(sb) {
       ),
     ),
   );
-  const bits = num(
-    "DAC bits",
-    "",
-    x.bits,
-    { min: 0, max: 32, step: 1 },
-    (n) =>
-      sb.set((y) => {
-        y.bits = n;
-      }),
-    "0 = default",
+  const bits = num("DAC bits", x.bits, { min: 0, max: 32, step: 1, unit: "", hint: "0 = default" }, (n) =>
+    sb.set((y) => {
+      y.bits = n;
+    }),
   );
-  const gain = num("PCM gain compensation", "dB", x.gaincomp, { min: -6, max: 0, step: 0.5 }, (n) =>
+  const gain = num("PCM gain compensation", x.gaincomp, { min: -6, max: 0, step: 0.5, unit: "dB" }, (n) =>
     sb.set((y) => {
       y.gaincomp = n;
     }),

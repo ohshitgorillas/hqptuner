@@ -12,24 +12,26 @@ import assert from "node:assert/strict";
 
 import {
   MAXP,
-  bandGain,
   crosspoint,
-  delayFields,
-  dockState,
-  gainSwitch,
   groups,
-  iirFields,
   inputsOf,
   listItems,
-  lockedFields,
   outputView,
   overviewSummary,
   pageOf,
   pinState,
-  plotInputs,
-  retypeStage,
   stageAt,
 } from "../../../../mockup/scripts/model/shell/pipelines.js";
+import {
+  bandGain,
+  delayFields,
+  dockState,
+  gainSwitch,
+  iirFields,
+  lockedFields,
+  plotInputs,
+  retypeStage,
+} from "../../../../mockup/scripts/model/shell/pipelines-edit.js";
 import { near } from "../../support/near.js";
 
 /**

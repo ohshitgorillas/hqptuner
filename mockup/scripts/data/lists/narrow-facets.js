@@ -1,7 +1,7 @@
 // Narrow filters: facets that shrink the filter lists (list drawers, page and drawer pickers).
 // Copy is owner copy, verbatim, from v1: the hints closing the quality, focus, phase, length and rate-change popovers
 // (narrowbar/Facets.js), the apodizing and 1x-sources captions (settings.json dsp.apodizing tooltip, narrowbar/Stages.js),
-// the intro caption and the favorites title (narrowbar/Bar.js, Facets.js). Rendered as captions under each facet (v1:
+// the favorites title (narrowbar/Facets.js). Rendered as captions under each facet (v1:
 // captions while Setting descriptions is On). Counts are live: lib/narrow.js runs v1's matching over data/option-lists.js.
 //
 // Facet kinds:
@@ -14,10 +14,6 @@
 // hint: paragraphs; each is a string or [bold lead-in, rest]. `prefix: true` opens the first with **HQPTuner Hints:**.
 
 import { APOD_HINT } from "./option-lists.js";
-
-// v1 intro caption (owner copy). Not placed: its wording ("the dropdowns below") predates the list sheet.
-export const INTRO =
-  "Reduce the number of filters in the dropdowns below by selecting which features you're looking for. Dropdown counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing data are sourced directly from the HQPlayer manual.";
 
 // The facet bar along the list sheet's head in this order: quality, genre, focus, apodizing, length, phase, 1x sources, rate change, favorites. Each facet is a
 // window reading its state; tapping it opens its controls with its hint, verbatim.

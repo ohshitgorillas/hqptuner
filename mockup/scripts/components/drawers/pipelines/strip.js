@@ -9,14 +9,36 @@ import { NEW_STAGE, chipText, groups, stageAt } from "../../../model/shell/pipel
 import { paint, stage } from "./state.js";
 import { openMenu } from "./popovers.js";
 
-/** Select the chip (and band) a stage sits in. */
+/** @typedef {import('../../../model/shell/pipelines.js').Pipe} Pipe */
+/** @typedef {import('../../../model/shell/pipelines.js').Stage} Stage */
+/** @typedef {import('../../../model/shell/pipelines.js').Group} Group */
+/** @typedef {import('./state.js').Raw} Raw */
+/** @typedef {import('./output.js').Tab} Tab */
+
+/** A fresh stage of each kind, by kind (`+` and the dock's Stage picker). */
+export const FRESH = /** @type {Record<string, () => Stage>} */ (NEW_STAGE);
+
+/**
+ * Select the chip (and band) a stage sits in.
+ *
+ * @param {Tab} t
+ * @param {Pipe} p
+ * @param {number} si
+ */
 export function focusStage(t, p, si) {
   const f = stageAt(groups(p), si);
   t.selChip = Math.max(0, f.chip);
   t.selBand = f.band;
 }
 
-/** Pipeline `p` (#i+1) as its strip. */
+/**
+ * Pipeline `p` (#i+1) as its strip.
+ *
+ * @param {Tab} t
+ * @param {Pipe} p
+ * @param {number} i
+ * @returns {HTMLElement}
+ */
 export function strip(t, p, i) {
   const { dr } = t;
   const r = dr.raw.get(p);
@@ -57,21 +79,31 @@ export function strip(t, p, i) {
   );
 }
 
+/**
+ * The strip in Raw: its process string, editable unless a block owns the row, and the parse error.
+ *
+ * @param {Tab} t
+ * @param {Pipe} p
+ * @param {number} i
+ * @param {Raw} r
+ */
 function rawParts(t, p, i, r) {
   const { dr } = t;
-  const input = h("input.vfd.praw", {
-    type: "text",
-    value: r.text,
-    spellcheck: "false",
-    readonly: !!p.gen,
-    "aria-label": `Pipeline ${i + 1} process string`,
-  });
+  const input = /** @type {HTMLInputElement} */ (
+    h("input.vfd.praw", {
+      type: "text",
+      value: r.text,
+      spellcheck: "false",
+      readonly: !!p.gen,
+      "aria-label": `Pipeline ${i + 1} process string`,
+    })
+  );
   input.addEventListener("change", () => {
     const res = parseProcess(input.value);
     r.text = input.value;
     r.error = res.error;
     if (res.stages) {
-      p.stages = res.stages;
+      p.stages = /** @type {Stage[]} */ (res.stages);
       t.selChip = 0;
       t.selBand = 0;
       stage(dr, t.ctx);
@@ -81,6 +113,12 @@ function rawParts(t, p, i, r) {
   return [input, r.error && h("span.gr.prerr", { text: r.error })];
 }
 
+/**
+ * The strip's chips: one per stage group, `+` to add a stage, the gain last.
+ *
+ * @param {Tab} t
+ * @param {Pipe} p
+ */
 function chipParts(t, p) {
   const { dr } = t;
   const gs = groups(p);
@@ -95,14 +133,14 @@ function chipParts(t, p) {
           text: "+",
           "aria-label": "Add a stage",
           on: {
-            click: (e) =>
+            click: (/** @type {MouseEvent} */ e) =>
               openMenu(
                 dr,
-                e.currentTarget,
+                /** @type {HTMLElement} */ (e.currentTarget),
                 KINDS.map((k) => [
                   k.label,
                   () => {
-                    p.stages.push(NEW_STAGE[k.k]());
+                    p.stages.push(FRESH[k.k]());
                     focusStage(t, p, p.stages.length - 1);
                     stage(dr, t.ctx);
                     paint(dr);
@@ -117,6 +155,14 @@ function chipParts(t, p) {
   ];
 }
 
+/**
+ * One chip: a pick target, and its own × unless it is the gain or a block's.
+ *
+ * @param {Tab} t
+ * @param {Pipe} p
+ * @param {Group} gr
+ * @param {number} gi  its place in the strip
+ */
 function chip(t, p, gr, gi) {
   const { dr } = t;
   const locked = p.gen && (gr.kind === "gain" || !!p.stages[gr.idx[0]]?.blk);

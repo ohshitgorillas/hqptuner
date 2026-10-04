@@ -8,7 +8,15 @@ import { classNames } from "../../../../model/shell/format.js";
 import { deviceView } from "../../../../model/builders/station.js";
 import { rich, tip } from "../frame/parts.js";
 
-/** Pick or drop a listing; a changed pick unlocks the pair and forgets its check. */
+/** @typedef {import('../../station-builder.js').StationState} StationState */
+/** @typedef {import('../../../../model/builders/station.js').DeviceLine} DeviceLine */
+
+/**
+ * Pick or drop a listing; a changed pick unlocks the pair and forgets its check.
+ *
+ * @param {StationState} sb
+ * @param {string} str
+ */
 function toggle(sb, str) {
   sb.set((x) => {
     x.listings = x.listings.includes(str) ? x.listings.filter((l) => l !== str) : [...x.listings, str];
@@ -17,7 +25,12 @@ function toggle(sb, str) {
   delete sb.runs.usb;
 }
 
-/** One device line: its checkbox, its name and detail, and the locked-in tag. */
+/**
+ * One device line: its checkbox, its name and detail, and the locked-in tag.
+ *
+ * @param {StationState} sb
+ * @param {DeviceLine} p
+ */
 function deviceLine(sb, p) {
   const { str } = p;
   return h(
@@ -39,7 +52,13 @@ function deviceLine(sb, p) {
   );
 }
 
-/** The NAA bring-up: the three flavors, the firewall warning, Refresh devices and (with devices found) the way back. */
+/**
+ * The NAA bring-up: the three flavors, the firewall warning, Refresh devices and (with devices found) the way back.
+ *
+ * @param {StationState} sb
+ * @param {number} found  how many listings the list offers
+ * @param {HTMLElement} refresh  Refresh devices and its cost, lent to the bring-up's action row
+ */
 function bringUpView(sb, found, refresh) {
   const U = STB_DEVICE.bringUp;
   return [
@@ -85,19 +104,14 @@ function bringUpView(sb, found, refresh) {
   ];
 }
 
-/** The Device step's rows. */
-export function deviceStep(sb) {
-  const kind = sb.e.rec.backend;
-  const net = kind === "network";
-  const v = deviceView({
-    kind,
-    all: net ? DEVICES.network.list : DEVICES.alsa.list,
-    rec: sb.e.rec,
-    hidden: sb.hidden,
-    naaSeen: sb.naaSeen,
-    bringUp: sb.bringUp,
-  });
-  const refresh = h(
+/**
+ * Refresh devices (the mock's NAA shows from then on) and what it costs.
+ *
+ * @param {StationState} sb
+ * @returns {HTMLElement}
+ */
+function refreshRow(sb) {
+  return h(
     "div.stbact",
     {},
     h("button.btn.sm", {
@@ -113,6 +127,60 @@ export function deviceStep(sb) {
     }),
     h("span.stbcost", { text: STB_DEVICE.refreshCost }),
   );
+}
+
+/**
+ * The notes under the list: same-device and two-listing advice, the manual's paragraph, and (NAA) the bring-up link.
+ *
+ * @param {StationState} sb
+ * @param {boolean} net  the backend is NAA
+ */
+function deviceNotes(sb, net) {
+  return h(
+    "div.stbnotes",
+    {},
+    h("p", { text: STB_DEVICE.same }),
+    h("p", { text: STB_DEVICE.both }),
+    h("p.stbman", { text: net ? sb.T.MAN.netDevice : sb.T.MAN.alsaDevice }),
+    net &&
+      h(
+        "p",
+        {},
+        h(
+          "button.xref.stblink",
+          {
+            type: "button",
+            on: {
+              click: () => {
+                sb.bringUp = true;
+                sb.show("device");
+              },
+            },
+          },
+          STB_DEVICE.bringUpLink,
+          " ›",
+        ),
+      ),
+  );
+}
+
+/**
+ * The Device step's rows.
+ *
+ * @param {StationState} sb
+ */
+export function deviceStep(sb) {
+  const kind = sb.e.rec.backend;
+  const net = kind === "network";
+  const v = deviceView({
+    kind,
+    all: net ? DEVICES.network.list : DEVICES.alsa.list,
+    rec: sb.e.rec,
+    hidden: sb.hidden,
+    naaSeen: sb.naaSeen,
+    bringUp: sb.bringUp,
+  });
+  const refresh = refreshRow(sb);
   if (v.bringUp) return bringUpView(sb, v.found, refresh);
   const well = h(
     "div.stbdevs",
@@ -122,33 +190,5 @@ export function deviceStep(sb) {
       ...rows.map((p) => deviceLine(sb, p)),
     ]),
   );
-  return [
-    h("div.drow.drow-full.stbdrow", {}, well, refresh),
-    h(
-      "div.stbnotes",
-      {},
-      h("p", { text: STB_DEVICE.same }),
-      h("p", { text: STB_DEVICE.both }),
-      h("p.stbman", { text: net ? sb.T.MAN.netDevice : sb.T.MAN.alsaDevice }),
-      net &&
-        h(
-          "p",
-          {},
-          h(
-            "button.xref.stblink",
-            {
-              type: "button",
-              on: {
-                click: () => {
-                  sb.bringUp = true;
-                  sb.show("device");
-                },
-              },
-            },
-            STB_DEVICE.bringUpLink,
-            " ›",
-          ),
-        ),
-    ),
-  ];
+  return [h("div.drow.drow-full.stbdrow", {}, well, refresh), deviceNotes(sb, net)];
 }

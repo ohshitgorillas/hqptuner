@@ -15,16 +15,31 @@ import { scale } from "../../lib/shell/plate.js";
 import { classNames } from "../../model/shell/format.js";
 import { lampDots, wirePath } from "../../model/gauges/wire.js";
 
+/** @typedef {import('../../model/shell/flags.js').Flags['wire']} WireStyle */
 /**
+ * @typedef {object} ChainStage  one CHAIN entry
+ * @property {string} id
+ * @property {number} level   0 top stage; 1 and 2 indent under it
+ * @property {boolean} on     engaged
+ * @property {string} name
+ * @property {string} [value]
+ * @property {boolean} [hidden]
+ */
+
+/**
+ * Mount the rail: one stage button per CHAIN entry, and the wire joining their lamps, redrawn on every `relayout`.
+ *
  * @param {HTMLElement} rail  nav.rail containing svg.wire
- * @param {object[]} chain    CHAIN data
- * @param {'trunk'|'routed'} style   wire style (model/flags.js `wire`)
+ * @param {ChainStage[]} chain    CHAIN data
+ * @param {WireStyle} style   wire style (model/flags.js `wire`)
  * @param {import('../../lib/shell/bus.js').Bus} bus   the wire redraws on `relayout`
  * @returns {Map<string, HTMLButtonElement>} stage buttons by id
  */
 export function mountRail(rail, chain, style, bus) {
+  /** @type {Map<string, HTMLButtonElement>} */
   const stages = new Map();
   for (const st of chain) {
+    /** @type {HTMLButtonElement} */
     const btn = h(
       "button.st",
       {
@@ -41,7 +56,7 @@ export function mountRail(rail, chain, style, bus) {
     stages.set(st.id, btn);
   }
 
-  const svg = rail.querySelector(".wire");
+  const svg = /** @type {Element} */ (rail.querySelector(".wire"));
   const redraw = () => drawWire(rail, svg, style);
   redraw();
   bus.on("relayout", redraw);
@@ -50,21 +65,36 @@ export function mountRail(rail, chain, style, bus) {
   return stages;
 }
 
+/**
+ * The visible stages' lamps as wire dots, in rail px.
+ *
+ * @param {HTMLElement} rail
+ */
 function dots(rail) {
   const rr = rail.getBoundingClientRect();
   const k = scale();
-  const lamps = [...rail.querySelectorAll(".st:not([hidden]) > .lamp")].map((l) => ({
-    box: l.getBoundingClientRect(),
-    level: Number(l.parentElement.dataset.level),
-    on: l.classList.contains("on") && !l.parentElement.matches(".byp, .dead"), // byp: not in this track's path; dead: nothing reaches it
-  }));
+  const lamps = [...rail.querySelectorAll(".st:not([hidden]) > .lamp")].map((l) => {
+    const st = /** @type {HTMLElement} */ (l.parentElement);
+    return {
+      box: l.getBoundingClientRect(),
+      level: Number(st.dataset.level),
+      on: l.classList.contains("on") && !st.matches(".byp, .dead"), // byp: not in this track's path; dead: nothing reaches it
+    };
+  });
   return lampDots({ rail: rr, lamps, scale: k });
 }
 
+/**
+ * Size the wire's svg to the rail and draw its path through the lamps.
+ *
+ * @param {HTMLElement} rail
+ * @param {Element} svg
+ * @param {WireStyle} style
+ */
 function drawWire(rail, svg, style) {
   const pts = dots(rail);
   if (!pts.length) return;
-  svg.setAttribute("width", rail.offsetWidth);
-  svg.setAttribute("height", rail.offsetHeight);
-  svg.firstElementChild.setAttribute("d", wirePath(pts, style));
+  svg.setAttribute("width", String(rail.offsetWidth));
+  svg.setAttribute("height", String(rail.offsetHeight));
+  /** @type {Element} */ (svg.firstElementChild).setAttribute("d", wirePath(pts, style));
 }
