@@ -4,10 +4,10 @@ import { homeOf } from "../../../../../hqptuner/static/model/builders/builder.js
 import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from "../../../data/stages/matrix.js";
 
 /** @typedef {import('../../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
-/** @typedef {import('../../../model/builders/profile.js').Vals} Vals */
-/** @typedef {import('../../../model/builders/profile.js').Meta} Meta */
-/** @typedef {import('../../../model/builders/profile.js').Known} Known */
-/** @typedef {import('../../../model/builders/profile.js').Presets} Presets */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').Vals} Vals */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').Meta} Meta */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').Known} Known */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').Presets} Presets */
 /** @typedef {import('./values.js').Buffer} Buffer */
 /** @typedef {import('../../../lib/builder/builder.js').Builder<ProfileRecord, Buffer>} Builder */
 /** @typedef {ReturnType<typeof import('../autoeq.js').mountAutoEq>} AutoEq */

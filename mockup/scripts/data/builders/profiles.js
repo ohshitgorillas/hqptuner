@@ -199,8 +199,8 @@ export const PB_COPY = {
  * @type {{
  *   id: string,
  *   title: string,
- *   guide: (x: import('../../model/builders/profile.js').StepContext) => string,
- *   skip?: (x: import('../../model/builders/profile.js').StepContext) => string,
+ *   guide: (x: import('../../../../hqptuner/static/model/builders/profile.js').StepContext) => string,
+ *   skip?: (x: import('../../../../hqptuner/static/model/builders/profile.js').StepContext) => string,
  * }[]}
  */
 export const PB_STEPS = [

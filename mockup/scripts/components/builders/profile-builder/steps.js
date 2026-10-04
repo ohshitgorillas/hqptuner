@@ -10,7 +10,7 @@ import { set, ctx } from "./values.js";
 import { drow, choice, num, group } from "./parts.js";
 
 /** @typedef {import('./records.js').PB} PB */
-/** @typedef {import('../../../model/builders/profile.js').StructuralPreset} StructuralPreset */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').StructuralPreset} StructuralPreset */
 /** @typedef {(typeof import('../../../data/builders/profiles.js').PB_STEPS)[number]} PbStep  a step, with its guide */
 
 // Steps

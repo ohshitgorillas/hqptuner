@@ -1,4 +1,4 @@
-// Behavioral suite for mockup/scripts/model/profile.js: the decisions the Profile builder makes, each a value in and a
+// Behavioral suite for hqptuner/static/model/builders/profile.js: the decisions the Profile builder makes, each a value in and a
 // value out. Which steps a profile skips, the crossfeed preset and settings path its values land on, whether an edit
 // reads dirty, what the rail and the overview read for each part, when a step is laid out again, and what the
 // picker, the name box and Delete show.
@@ -6,7 +6,7 @@
 // Records, presets, defaults and step tables are tables this file writes; no shipped data supplies an input or an
 // expected value.
 //
-// Run: node --test tests/js/mockup/profile.test.js
+// Run: node --test tests/js/model/builders/profile.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -26,13 +26,13 @@ import {
   paintView,
   pickerOf,
   renderView,
-} from "../../../../mockup/scripts/model/builders/profile.js";
+} from "../../../../hqptuner/static/model/builders/profile.js";
 import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Vals} Vals */
-/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Meta} Meta */
-/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Known} Known */
-/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").StepContext} StepContext */
+/** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Vals} Vals */
+/** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Meta} Meta */
+/** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Known} Known */
+/** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").StepContext} StepContext */
 
 //: Steps whose skip rules echo what they read, so a test sees the context a step is handed.
 const STEPS = [

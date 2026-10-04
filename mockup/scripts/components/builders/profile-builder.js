@@ -25,7 +25,14 @@ import { h } from "../../lib/shell/dom.js";
 import { closeOthers } from "../drawers/drawer.js";
 import { select } from "../controls/seg.js";
 import { NEW } from "../../../../hqptuner/static/model/builders/builder.js";
-import { holdSkipped, shapeOf, needsLayout, paintView, pickerOf, renderView } from "../../model/builders/profile.js";
+import {
+  holdSkipped,
+  shapeOf,
+  needsLayout,
+  paintView,
+  pickerOf,
+  renderView,
+} from "../../../../hqptuner/static/model/builders/profile.js";
 import { CROSSFEED } from "../../data/stages/matrix.js";
 import { PB_COPY } from "../../data/builders/profiles.js";
 import { tablesOf } from "./profile-builder/records.js";

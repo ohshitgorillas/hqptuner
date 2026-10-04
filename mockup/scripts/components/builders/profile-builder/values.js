@@ -4,7 +4,13 @@ import { createPipelines } from "../../drawers/pipelines.js";
 import { holdRow } from "../../../lib/builder/builder.js";
 import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { modeName } from "../../../../../hqptuner/static/model/gauges/crossfeed.js";
-import { stepContext, skipOf, knownOf, isDirty, summaryOf } from "../../../model/builders/profile.js";
+import {
+  stepContext,
+  skipOf,
+  knownOf,
+  isDirty,
+  summaryOf,
+} from "../../../../../hqptuner/static/model/builders/profile.js";
 import { XF_MODES } from "../../../data/stages/matrix.js";
 import { PB_STEPS, LISTEN } from "../../../data/builders/profiles.js";
 import { show, paint } from "../profile-builder.js";
@@ -14,8 +20,8 @@ import { asProfile, listenOf } from "./records.js";
 /** @typedef {import('./records.js').Ref} Ref */
 /** @typedef {import('./records.js').Vals} Vals */
 /** @typedef {import('./records.js').Meta} Meta */
-/** @typedef {import('../../../model/builders/profile.js').Summary} Summary */
-/** @typedef {import('../../../model/builders/profile.js').StepContext} StepContext */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').Summary} Summary */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/profile.js').StepContext} StepContext */
 /** @typedef {{ meta: Meta, vals: Vals }} Buffer  an edit: what it holds, as staged or as saved */
 
 const FAM = "pbuild";
