@@ -10,9 +10,8 @@
 // Rows reuse the ear's EQ stage objects, so editing that EQ in any of its rows edits them all (v1's shared prefix).
 // The block's own stages carry `blk: true` (never grouped with the ear's EQ; set by Crossfeed, not edited here).
 
-import { pathParams, bauerMS, BAUER_PRESETS, toDb } from './xdsp.js';
+import { pathParams, bauerMS, BAUER_PRESETS, toDb, gainLin } from './xdsp.js';
 
-const lin = (p) => (p.unit === 'Lin' ? +p.gain : 10 ** (+p.gain / 20));
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** @param {{0:object,1:object}} ear  the pair's pipelines (In L→Out L, In R→Out R) */
@@ -38,7 +37,7 @@ export function structuralRows(ear, { angle, circ, lambda }) {
     const e = ear[o];
     if (!e) continue;
     for (const [near, extra, g] of ROWS) {
-      out.push({ src: near ? o : 1 - o, mix: o, unit: 'Lin', gain: r4(g * lin(e)), gen: 'structural', ear: o,
+      out.push({ src: near ? o : 1 - o, mix: o, unit: 'Lin', gain: r4(g * gainLin(e)), gen: 'structural', ear: o,
         stages: [...e.stages, ...extra.map((x) => (x === 'lp1' ? lp1() : dl()))] });
     }
   }
@@ -60,7 +59,7 @@ export function compRows(ear, { preset, freq, level, comp }) {
     const e = ear[o];
     if (!e) continue;
     for (const [src, c, sign] of SHAPE[o]) {
-      out.push({ src, mix: o, unit: 'Lin', gain: r4(0.5 * sign * lin(e)), gen: 'comp', ear: o,
+      out.push({ src, mix: o, unit: 'Lin', gain: r4(0.5 * sign * gainLin(e)), gen: 'comp', ear: o,
         stages: [...e.stages, ...(c ? shelves() : [])] });
     }
   }

@@ -22,8 +22,11 @@ import { mountRespPlot } from './resp-plot.js';
 import { BAUER_PRESETS, bauerMS, pathParams, toDb } from '../lib/xdsp.js';
 import { withXref } from '../lib/xref.js';
 import { minus, plusMinus } from '../model/format.js';
+import { bauerPreset, structuralPreset } from '../model/crossfeed.js';
+import { ENGAGE_BYPASS } from '../data/matrix.js';
 
 const OFF_REASON = 'Enable crossfeed to adjust.';   // v1 gray.js crossfeedOff
+const S_TOL = { angle: 0.05, lambda: 0.005 };        // a slider's Structural values still read as their preset
 
 /**
  * @param {HTMLElement} host
@@ -59,7 +62,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
   }
 
   const gateSeg = seg({ aria: 'Crossfeed', value: st.gate,
-    options: [{ v: '0', label: 'Bypass' }, { v: '1', label: 'Engage' }],   // default leftmost
+    options: ENGAGE_BYPASS,   // default leftmost
     onChange: (v) => { set('gate', v); paintAll(); } });
 
   // Bauer
@@ -131,8 +134,8 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
 
   // ── Paint ─────────────────────────────────────────────────────────────
   const bauerFc = () => (st.preset === 'custom' ? [st.freq, st.level] : BAUER_PRESETS[st.preset]);
-  const sMatch = () => cfg.sPresets.find((p) => Math.abs(p.angle - st.angle) < 0.05 && Math.abs(p.lambda - st.lambda) < 0.005);
-  const presetName = (v) => cfg.presets.find((p) => p.v === v).label;
+  const sMatch = () => structuralPreset(cfg.sPresets, st.angle, st.lambda, S_TOL);
+  const presetName = (v) => bauerPreset(cfg.presets, v).label;
 
   function paintPreset() {
     const m = sMatch();

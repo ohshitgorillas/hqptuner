@@ -15,6 +15,7 @@ import { loudnessDb, shelfScale } from '../lib/xdsp.js';
 import { paintSvg } from '../lib/gauge.js';
 import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
 import { signed } from '../model/format.js';
+import { percentApplied } from '../model/loudness.js';
 import { clampBounds, clampToAxis, pickBound, tickMarks, ticksEvery } from '../model/range-axis.js';
 
 const AXIS = { min: -120, max: 0 };
@@ -152,7 +153,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     const amt = shelfScale(level, rng.low, rng.high);
     rp.draw([
       { cls: 'ghost', label: 'max', fn: (f) => loudnessDb(p, f, 1) },
-      { label: `${Math.round(amt * 100)}% applied`, fn: (f) => loudnessDb(p, f, amt) },
+      { label: `${percentApplied(amt)}% applied`, fn: (f) => loudnessDb(p, f, amt) },
     ], [handle('low'), handle('high')]);
   }
 

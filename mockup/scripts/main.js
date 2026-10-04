@@ -43,7 +43,10 @@ import { OUTPUT_DRAWER, BACKEND_NAMES, DEVICES, RATE_TIERS } from './data/output
 import { SOURCE_DRAWER, METER } from './data/source.js';
 import { HF_DRAWER } from './data/hf.js';
 import { VOLUME, VOLUME_DRAWER, VOLUME_RANGE } from './data/volume.js';
-import { MATRIX_PLOT, MATRIX_DRAWER, CROSSFEED_DRAWER, LOUDNESS_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS, bypassed } from './data/matrix.js';
+import { MATRIX_PLOT, MATRIX_DRAWER, CROSSFEED_DRAWER, LOUDNESS_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS, XF_MODES, bypassed } from './data/matrix.js';
+import { modeName } from './model/crossfeed.js';
+import { percentApplied } from './model/loudness.js';
+import { shelfScale } from './lib/xdsp.js';
 import { mountCrossfeed } from './components/crossfeed.js';
 import { mountLoudness } from './components/loudness.js';
 import { CONV, MODE_DRAWERS } from './data/conversion.js';
@@ -260,12 +263,11 @@ mountVolumeBar($('#vbar'), vol, VOLUME, levelBus, VOLUME_RANGE.loudness);   // b
 // Loudness rail value: share of the maximum shelving applied at the live volume (v1 eqlab shelfScale): full at/below the
 // range's lower bound, none at/above its upper bound, linear between. Owner copy: `x% applied`.
 const loud = VOLUME_RANGE.loudness;
-const shelf = (v) => (loud.high <= loud.low ? (v <= loud.low ? 1 : 0) : Math.max(0, Math.min(1, (loud.high - v) / (loud.high - loud.low))));
 let level = VOLUME.value;
 // loud.on = loudness in effect (engaged AND the matrix engine running); loudEngaged = its own gate. Bypassed matrix:
 // the value reads what is applied, 0% (dependents follow the matrix bypass).
 let loudEngaged = loud.on;
-const loudValue = (v) => { stages.get('loudness').querySelector('.v').textContent = loudEngaged ? `${Math.round((loud.on ? shelf(v) : 0) * 100)}% applied` : 'Off'; };
+const loudValue = (v) => { stages.get('loudness').querySelector('.v').textContent = loudEngaged ? `${percentApplied(loud.on ? shelfScale(v, loud.low, loud.high) : 0)}% applied` : 'Off'; };
 levelBus.addEventListener('level', (e) => { level = e.detail; loudValue(level); });
 loudValue(VOLUME.value);
 
@@ -430,7 +432,7 @@ const xfDrawer = mountDrawer($('#body'), stages.get('crossfeed'), CROSSFEED_DRAW
   blocks: { crossfeed: (host, ctx) => mountCrossfeed(host, CROSSFEED, ctx, bypassed) },
   onApply: (v) => {
     const m = v.xfmode;
-    railSet('crossfeed', m !== 'off' && mxOn(v), { off: 'Off', bauer: 'Bauer', structural: 'Structural' }[m]);
+    railSet('crossfeed', m !== 'off' && mxOn(v), modeName(XF_MODES, m));
     paintFill();
   },
 });

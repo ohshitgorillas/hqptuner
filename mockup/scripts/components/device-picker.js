@@ -4,13 +4,7 @@
 
 import { h } from '../lib/dom.js';
 import { popover } from '../lib/popover.js';
-
-function parts(kind, str) {
-  const a = str.split(': ');
-  return kind === 'network'
-    ? { group: a[0], main: a[1] || a[0], detail: a.slice(2).join(': ') }
-    : { group: a[0], main: a.slice(1).join(': ') || a[0], detail: '' };
-}
+import { deviceParts, groupDevices } from '../model/output.js';
 
 /**
  * @param {HTMLElement} host   empty .devpick container
@@ -29,29 +23,25 @@ export function mountDevicePicker(host, { kind, aria }, devices, onChange) {
   const pop = popover({ trigger, panel: list, onToggle: (open) => { arrow.textContent = open ? '▲' : '▼'; } });
 
   function paint() {
-    const p = parts(kind, devices.list[sel]);
+    const p = deviceParts(kind, devices.list[sel]);
     main.textContent = p.main;
     sub.textContent = kind === 'network' ? p.group + (p.detail ? ' · ' + p.detail : '') : p.group;
 
-    let lastGroup = null;
-    list.replaceChildren(...devices.list.flatMap((str, i) => {
-      const q = parts(kind, str);
-      const out = [];
-      if (q.group !== lastGroup) {
-        lastGroup = q.group;
-        out.push(h('div.gh', {}, h('span', { text: q.group }), h('span.ln')));
-      }
-      const cur = i === sel;
-      out.push(h('button.devrow', {
-        type: 'button', class: cur && 'cur', role: 'option', aria: { selected: cur },
-        on: { click: () => { if (i !== sel) { sel = i; onChange(); } paint(); pop.close(); } },
-      },
-        h('span.lamp', { class: cur && 'on' }),
-        h('span.m', { text: q.main }),
-        q.detail && h('span.d', { text: q.detail }),
-      ));
-      return out;
-    }));
+    list.replaceChildren(...groupDevices(kind, devices.list).flatMap(({ group, rows }) => [
+      h('div.gh', {}, h('span', { text: group }), h('span.ln')),
+      ...rows.map((q) => {
+        const { i } = q;
+        const cur = i === sel;
+        return h('button.devrow', {
+          type: 'button', class: cur && 'cur', role: 'option', aria: { selected: cur },
+          on: { click: () => { if (i !== sel) { sel = i; onChange(); } paint(); pop.close(); } },
+        },
+          h('span.lamp', { class: cur && 'on' }),
+          h('span.m', { text: q.main }),
+          q.detail && h('span.d', { text: q.detail }),
+        );
+      }),
+    ]));
   }
   paint();
   // Discard (mock): the drawer reads the picked device and puts it back.

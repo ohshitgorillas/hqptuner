@@ -11,6 +11,7 @@
 
 import { h } from '../lib/dom.js';
 import { classNames } from '../model/format.js';
+import { tierIndex } from '../model/output.js';
 
 const FAMS = [['f44', '44.1k'], ['f48', '48k']];
 
@@ -32,7 +33,7 @@ export function mountOutputTuner(host, rt, { onPin, bus }) {
   function paint() {
     section.hidden = !allowed;
     if (!allowed) return;
-    const idx = rt.tiers.map((t, i) => (t.family === st.run ? i : -1)).filter((i) => i >= 0);
+    const idx = tierIndex(rt.tiers, st.run);
     const playing = st.src != null && st.tier != null;
     const playFam = pin ? pin.fam : st.fam;
     grid.style.gridTemplateColumns = `repeat(${idx.length}, 1fr)`;

@@ -8,6 +8,7 @@
 // layout. Descriptions are the user's own text (v1 profile descriptions), keyed by profile.
 //
 import { AUTOEQ } from './pipelines.js';
+import { PEQ_TYPES, bandsToStages, replacePeq } from '../model/eq.js';
 
 // Copy: v1 verbatim (ProfileCard placeholders, Ask.js `Enter a name first`); the confirm lines are v1's Ask grammar
 // (`Preset "x" already exists. Overwrite it?`, `Delete preset "x"? This cannot be undone.`) with `Profile`, as the
@@ -17,16 +18,13 @@ import { AUTOEQ } from './pipelines.js';
 const reshape = ({ k = 1, under = Infinity, shift = 1, gain }) => (pipes) => pipes.map((p) => (p.gen ? p : {
   ...p,
   gain: gain ?? p.gain,
-  stages: p.stages.map((st) => (st.kind === 'iir' && ['peak', 'lshelf', 'hshelf'].includes(st.type) && st.f < under
+  stages: p.stages.map((st) => (st.kind === 'iir' && PEQ_TYPES.has(st.type) && st.f < under
     ? { ...st, f: Math.round(st.f * shift), g: +(st.g * k).toFixed(1) } : st)),
 }));
 
 /** An AutoEq hit (data/pipelines.js AUTOEQ) on the stereo pair: its bands replace the pair's peak / shelf stages. */
-const autoeq = (hit) => (pipes) => pipes.map((p) => (p.gen || p.src > 1 || p.src !== p.mix ? p : {
-  ...p, gain: hit.pre, unit: 'dB',
-  stages: [...p.stages.filter((st) => !(st.kind === 'iir' && ['peak', 'lshelf', 'hshelf'].includes(st.type))),
-    ...hit.bands.map(([f, g, q, type = 'peak']) => ({ kind: 'iir', type, f, g, q }))],
-}));
+const autoeq = (hit) => (pipes) => pipes.map((p) => (p.gen || p.src > 1 || p.src !== p.mix ? p
+  : { ...p, ...replacePeq(p, bandsToStages(hit.bands), hit.pre) }));
 
 export const PROFILES = {
   Speakers: {

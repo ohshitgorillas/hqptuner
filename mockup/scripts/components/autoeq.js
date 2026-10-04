@@ -13,9 +13,9 @@ import { pipeH, cplx, toDb } from '../lib/xdsp.js';
 import { AUTOEQ } from '../data/pipelines.js';
 import { AEQ_COPY } from '../data/profiles.js';
 import { signed } from '../model/format.js';
+import { PEQ_TYPES, bandsToStages, searchHits } from '../model/eq.js';
 
 const HITS = 3;
-const PEQ = new Set(['peak', 'lshelf', 'hshelf']);
 const TYPE = { PK: 'peak', PEQ: 'peak', LS: 'lshelf', LSC: 'lshelf', HS: 'hshelf', HSC: 'hshelf' };
 
 /** ParametricEQ.txt (AutoEq / REW): `Preamp: -6.4 dB`, `Filter 1: ON PK Fc 105 Hz Gain 5.5 dB Q 0.71`. */
@@ -69,14 +69,13 @@ export function mountAutoEq({ core, name, land }) {
   }
   const side = (p, k) => {
     if (!p) return '';
-    const n = p.stages.filter((st) => st.kind === 'iir' && PEQ.has(st.type)).length;
+    const n = p.stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type)).length;
     const conv = p.stages.find((st) => st.kind === 'conv');
     return `${k} ${n} bands${conv ? ' + ' + conv.file.split('/').pop() : ''} ${p.unit === 'Lin' ? 'Lin ' + p.gain : signed(+p.gain, 1) + ' dB'}`;
   };
 
   function paint() {
-    const t = q.value.trim().toLowerCase();
-    const all = t ? AUTOEQ.hits.filter((x) => x.name.toLowerCase().includes(t)) : [];   // hits only while searching
+    const all = q.value.trim() ? searchHits(AUTOEQ.hits, q.value) : [];   // hits only while searching
     hits.hidden = !all.length;
     hits.replaceChildren(...all.slice(0, HITS).map((x) => h('div.peqhit', { role: 'option', class: sel === x && 'on', aria: { selected: sel === x } },
       h('button.peqpick', { type: 'button', on: { click: () => { sel = sel === x ? null : x; paint(); } } },
@@ -90,15 +89,15 @@ export function mountAutoEq({ core, name, land }) {
     holds.replaceChildren(h('b', { text: name() || (summary(l) ? '' : 'None') }), h('span', { text: [side(l, 'L'), side(r, 'R')].filter(Boolean).join('   ') }));
     const fs = core.rate, traces = [];
     if (sel) {
-      const p = { stages: sel.bands.map(([f, g, qq, type = 'peak']) => ({ kind: 'iir', type, f, g, q: qq })), gain: sel.pre, unit: 'dB' };
+      const p = { stages: bandsToStages(sel.bands), gain: sel.pre, unit: 'dB' };
       traces.push({ cls: 'ghost', label: AEQ_COPY.preview, fn: (f) => toDb(cplx.mag(pipeH(p, f, fs))) });
     }
     if (l) traces.push({ label: 'L', fn: (f) => toDb(cplx.mag(pipeH(l, f, fs))) });
     if (r) traces.push({ cls: 'side', label: 'R', fn: (f) => toDb(cplx.mag(pipeH(r, f, fs))) });
     rp.draw(traces);
   }
-  const summary = (p) => p && p.stages.some((st) => (st.kind === 'iir' && PEQ.has(st.type)) || st.kind === 'conv');
+  const summary = (p) => p && p.stages.some((st) => (st.kind === 'iir' && PEQ_TYPES.has(st.type)) || st.kind === 'conv');
   return { search, files, holds, plot, paint, reset: () => { q.value = ''; sel = null; paint(); },
     /** The pair's EQ in one line: where it came from, else its band count, else None (rail / overview). */
-    answer: () => name() || (() => { const l = core.ears()[0]; const n = l ? l.stages.filter((st) => st.kind === 'iir' && PEQ.has(st.type)).length : 0; return n ? `${n} bands` : 'None'; })() };
+    answer: () => name() || (() => { const l = core.ears()[0]; const n = l ? l.stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type)).length : 0; return n ? `${n} bands` : 'None'; })() };
 }

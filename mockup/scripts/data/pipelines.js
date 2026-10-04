@@ -7,6 +7,8 @@
 // (REW-style PEQ + headroom gain). `#mch` in the URL loads a 5.1 → stereo mixdown instead (the daemon's stock
 // `Mch-to-Stereo mixdown` profile shape), to show a fuller grid; `#dense` loads 120 pipelines in two channels, `#71` a 7.1 → 7.1 bass-managed layout (the 8-channel ceiling).
 
+import { bandsToStages } from '../model/eq.js';
+
 // Channel names: slots 1–8 carry the daemon's channel order (readme §1.9; v1 short names, LFE shown as Sub), beyond that
 // numbers (label channels when you can, numbers beyond that).
 export const CH_SHORT = ['L', 'R', 'C', 'Sub', 'Lr', 'Rr', 'Ls', 'Rs'];
@@ -14,8 +16,7 @@ export const CH_NAME = ['Left', 'Right', 'Center', 'Sub', 'Left rear', 'Right re
 export const chShort = (i) => CH_SHORT[i] ?? String(i + 1);
 export const chName = (i) => CH_NAME[i] ?? `Channel ${i + 1}`;
 
-const peak = (f, g, q) => ({ kind: 'iir', type: 'peak', f, g, q });
-const room = (bands) => [...bands.map(([f, g, q]) => peak(f, g, q)), { kind: 'iir', type: 'hshelf', f: 8000, g: -1.5, q: 0.7 }];
+const room = (bands) => [...bandsToStages(bands), { kind: 'iir', type: 'hshelf', f: 8000, g: -1.5, q: 0.7 }];
 
 const STEREO = {
   inputs: 2, outputs: 2, rate: 44100,

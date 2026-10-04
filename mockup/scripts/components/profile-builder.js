@@ -28,13 +28,14 @@ import { seg, select } from './seg.js';
 import { shelfScale, BAUER_PRESETS } from '../lib/xdsp.js';
 import { mountBuilder, paras, drow as row, chainPic, holdRow } from '../lib/builder.js';
 import { NEW, OVERVIEW, homeOf } from '../model/builder.js';
-import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from '../data/matrix.js';
+import { bauerPreset, modeName, structuralPreset } from '../model/crossfeed.js';
+import { percentApplied } from '../model/loudness.js';
+import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS, ENGAGE_BYPASS, XF_MODES } from '../data/matrix.js';
 import { PMAN } from '../data/pipelines.js';
 import { PROFILE_COPY, PB_STEPS, PB_COPY, LISTEN, XF_LINES, KNOWN, MATRIX_STAGES, OUTSIDE_STAGES } from '../data/profiles.js';
 
 const DEFAULT = '[Default]';
 const FAM = 'pbuild';
-const BYPASS_ENGAGE = [{ v: '0', label: 'Bypass' }, { v: '1', label: 'Engage' }];   // the gates' grammar, default leftmost
 const OFF_ON = [{ v: '0', label: 'Off' }, { v: '1', label: 'On' }];
 
 /**
@@ -160,13 +161,13 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   // ── Rail: the walk's answers ────────────────────────────────────────────
   const ctx = () => ({ listen: meta.listen, fixed: o.fixed(), models: MODELS.filter((m) => m.v).length });
   const skipOf = (id) => PB_STEPS.find((x) => x.id === id)?.skip?.(ctx()) || '';
-  const xfName = () => ({ off: 'Off', bauer: 'Bauer', structural: 'Structural' }[v.xfmode] ?? 'Off');
+  const xfName = () => modeName(XF_MODES, v.xfmode) ?? 'Off';
   const answer = {
     listen: () => LISTEN.find((x) => x.v === meta.listen)?.label,
     eq: () => eq.answer(),
     crossfeed: () => (v.xfmode === 'off' ? 'Off' : `${xfName()} · ${xfPreset()?.label ?? 'Custom'}`),
     correction: () => (v.dcen === '1' ? (v.dcdac || '[none]') : 'Bypassed'),
-    loudness: () => (v.ldon === '1' ? `${Math.round((o.fixed() ? 0 : shelfScale(o.level(), Number(v.ldrlow), Number(v.ldrhigh))) * 100)}% applied` : 'Off'),
+    loudness: () => (v.ldon === '1' ? `${percentApplied(o.fixed() ? 0 : shelfScale(o.level(), Number(v.ldrlow), Number(v.ldrhigh)))}% applied` : 'Off'),
   };
 
   // ── Page parts ──────────────────────────────────────────────────────────
@@ -225,7 +226,8 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   const xfSel = choice('Crossfeed', [{ v: 'off', label: 'Off', man: XF_LINES.off }, { v: 'bauer', label: 'Bauer', man: M.bauer }, { v: 'structural', label: 'Structural', man: XF_LINES.structural }],
     () => v.xfmode, (x) => set(x === 'off' ? { xfgate: 0, xfmode: 'off' } : { xfgate: 1, xfimpl: x, xfmode: x }));
   const xfKnown = choice('Settings', KNOWN.crossfeed, () => known.crossfeed, (x) => { known.crossfeed = x; paint(); });
-  const bPre = seg({ aria: 'Preset', options: CROSSFEED.presets.filter((p) => p.v !== 'custom'), value: 'default',
+  const bFixed = CROSSFEED.presets.filter((p) => p.v !== 'custom');   // the Bauer presets with fixed values
+  const bPre = seg({ aria: 'Preset', options: bFixed, value: 'default',
     onChange: (x) => set({ xfpreset: x, xffreq: BAUER_PRESETS[x][0], xflevel: BAUER_PRESETS[x][1] }) });
   const sPre = seg({ aria: 'Preset', options: CROSSFEED.sPresets.map((p) => ({ v: p.v, label: p.label })), value: 'standard',
     onChange: (x) => { const p = CROSSFEED.sPresets.find((q) => q.v === x); set({ xsangle: p.angle, xslambda: p.lambda }); } });
@@ -234,12 +236,12 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
     num('Crossfeed compensation', '%', 'xfcomp', { min: 0, max: 150, step: 1 }, M.comp)];
   const sNums = [num('Speaker angle', '°', 'xsangle', { min: 5, max: 60, step: 0.5 }, M.angle), num('Head circumference', 'cm', 'xscirc', { min: 41, max: 66, step: 0.25 }, M.circ),
     num('Center character', '%', 'xslambda', { min: 0, max: 150, step: 1 }, M.lambda, 100)];
-  const xfPreset = () => (v.xfmode === 'bauer' ? CROSSFEED.presets.find((p) => p.v === v.xfpreset && p.v !== 'custom')
-    : v.xfmode === 'structural' ? CROSSFEED.sPresets.find((p) => +p.angle === +v.xsangle && +p.lambda === +v.xslambda) : { label: '' });
-  const dcSeg = seg({ aria: 'DAC correction', options: BYPASS_ENGAGE, value: '0', onChange: (x) => set({ dcen: x }) });
+  const xfPreset = () => (v.xfmode === 'bauer' ? bauerPreset(bFixed, v.xfpreset)
+    : v.xfmode === 'structural' ? structuralPreset(CROSSFEED.sPresets, v.xsangle, v.xslambda) : { label: '' });
+  const dcSeg = seg({ aria: 'DAC correction', options: ENGAGE_BYPASS, value: '0', onChange: (x) => set({ dcen: x }) });
   const dcSel = h('select.vfd', { 'aria-label': 'DAC model' }, MODELS.map((m) => h('option', { value: m.v, text: m.label })));
   dcSel.addEventListener('change', () => set({ dcdac: dcSel.value }));
-  const ldSeg = seg({ aria: 'Loudness', options: BYPASS_ENGAGE, value: '0', onChange: (x) => set({ ldon: x }) });
+  const ldSeg = seg({ aria: 'Loudness', options: ENGAGE_BYPASS, value: '0', onChange: (x) => set({ ldon: x }) });
   const ldKnown = choice('Settings', KNOWN.loudness, () => known.loudness, (x) => { known.loudness = x; if (x === 'preset') set(LD); else paint(); });
   const ldNums = [num('Lower bound', 'dBFS', 'ldrlow', { min: -120, max: 0, step: 1 }, LM.rangeLow), num('Upper bound', 'dBFS', 'ldrhigh', { min: -120, max: 0, step: 1 }, LM.rangeHigh),
     num('Bass level', 'dB', 'ldlowlevel', { min: -20, max: 20, step: 0.1 }, LM.low.level), num('Treble level', 'dB', 'ldhighlevel', { min: -20, max: 20, step: 0.1 }, LM.high.level)];
@@ -296,7 +298,7 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
     eq.paint();
     xfSel.paint(v.xfmode !== 'off'); xfKnown.paint();
     select(bPre, v.xfpreset);
-    select(sPre, CROSSFEED.sPresets.find((p) => +p.angle === +v.xsangle && +p.lambda === +v.xslambda)?.v ?? '');
+    select(sPre, structuralPreset(CROSSFEED.sPresets, v.xsangle, v.xslambda)?.v ?? '');
     for (const n of [...bNums, ...sNums, ...ldNums]) n.paint();
     select(dcSeg, v.dcen); dcSel.value = v.dcdac; dcSel.disabled = v.dcen !== '1'; dcSel.classList.toggle('grayed', v.dcen !== '1');
     select(ldSeg, v.ldon); ldKnown.paint();

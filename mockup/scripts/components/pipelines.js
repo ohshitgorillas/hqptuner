@@ -25,9 +25,9 @@ import { processSpec, parseProcess } from '../lib/procspec.js';
 import { structuralRows, compRows } from '../lib/xblocks.js';
 import { chShort, chName, PMAN, IIR_TYPES, ARG_NAME, ARG_UNIT, DELAY_ARGS, DELAY_V, KINDS, AUTOEQ } from '../data/pipelines.js';
 import { classNames, minus, signed } from '../model/format.js';
+import { PEQ_TYPES, bandsToStages, replacePeq, searchHits } from '../model/eq.js';
 
 const PAGE = 6, MAXP = 128;
-const PEQ_TYPES = new Set(['peak', 'lshelf', 'hshelf']);
 const BLOCK_NAME = { structural: 'Structural Crossfeed', comp: 'Bauer Crossfeed compensation' };
 const fmtHz = (f) => (f >= 1000 ? `${+(f / 1000).toFixed(2)}k` : `${+f}`);
 const range = (n) => Array.from({ length: n }, (_, k) => k);
@@ -159,12 +159,11 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
     paintHits(); impPop.open(); q.focus();
   }
   function paintHits() {
-    const t = q.value.trim().toLowerCase();
-    hitsHost.replaceChildren(...AUTOEQ.hits.filter((x) => !t || x.name.toLowerCase().includes(t)).map((x) =>
+    hitsHost.replaceChildren(...searchHits(AUTOEQ.hits, q.value).map((x) =>
       h('button.pmrow', { type: 'button', on: { click: () => applyEq(x) } }, h('b', { text: x.name }), h('span', { text: x.src }))));
   }
   function applyEq(x) {
-    const eq = x.bands.map(([f, g, qq, type = 'peak']) => ({ kind: 'iir', type, f, g, q: qq }));
+    const eq = bandsToStages(x.bands);
     const cur = impFor.target();
     if (!cur) return;
     const p = cur.gen ? ear[cur.ear] : cur;   // a block row's EQ is its ear's
@@ -173,7 +172,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       const twin = cur.gen ? ear[1 - cur.ear] : pipes.find((o) => o !== p && o.src === (p.src ^ 1) && o.mix === (p.mix ^ 1));
       if (twin && p.src < 2 && p.mix < 2) target.push(twin);
     }
-    for (const t of target) { t.stages = [...t.stages.filter((st) => !(st.kind === 'iir' && PEQ_TYPES.has(st.type))), ...eq]; t.gain = x.pre; t.unit = 'dB'; }
+    for (const t of target) Object.assign(t, replacePeq(t, eq, x.pre));
     if (block.kind !== 'none') rebuild(block, true);
     impPop.close(); stage(impFor.ctx); paint();
   }
@@ -583,11 +582,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       if (mirror && twin) target.push(twin);
       for (const t of target) {
         if (conv) t.stages = [...t.stages.filter((st) => st.kind !== 'conv'), { kind: 'conv', file: conv }];
-        else {
-          const eq = bands.map(([f, g, qq, type = 'peak']) => ({ kind: 'iir', type, f, g, q: qq }));
-          t.stages = [...t.stages.filter((st) => !(st.kind === 'iir' && PEQ_TYPES.has(st.type))), ...eq];
-          t.gain = pre; t.unit = 'dB';
-        }
+        else Object.assign(t, replacePeq(t, bandsToStages(bands), pre));
       }
       if (block.kind !== 'none') rebuild(block, true);
       if (ctx0) stage(ctx0);

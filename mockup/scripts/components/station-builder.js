@@ -35,6 +35,7 @@ import {
   STB_HW, STB_SCRATCH, STB_RECORDS, STB_HW_REC, hwSettings,
 } from '../data/station-builder.js';
 import { classNames, minus } from '../model/format.js';
+import { deviceParts as parts, groupDevices } from '../model/output.js';
 
 const ONE = '';   // the book's one station key: a station builder's records are the stations themselves
 const TIERS = RATE_TIERS.tiers;
@@ -64,11 +65,6 @@ const DSD_OPTS = outRow('DSD support', 'network').control.options;
 const DSD48_OPTS = outRow('DSD rates', 'network').control.options;
 const DISCOVERY = outRow('Discovery', 'network').control.options;
 
-/** Device strings split as the Output drawer's picker does: network `host: card: interface`, ALSA `card: interface`. */
-const parts = (kind, str) => {
-  const a = str.split(': ');
-  return kind === 'network' ? { group: a[0], main: a[1] || a[0], detail: a.slice(2).join(': ') } : { group: a[0], main: a.slice(1).join(': ') || a[0], detail: '' };
-};
 /** Rich inline copy: strings, {a, href}, {code}, *emphasis* (the wizard's markdown). */
 const rich = (bits) => (Array.isArray(bits) ? bits : [bits]).flatMap((b) => (typeof b === 'string'
   ? b.split(/(\*[^*]+\*|`[^`]+`)/).filter(Boolean).map((t) => (t.startsWith('*') ? h('em', { text: t.slice(1, -1) }) : t.startsWith('`') ? h('code', { text: t.slice(1, -1) }) : t))
@@ -276,19 +272,18 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
         h('button.btn.sm', { type: 'button', text: STB_DEVICE.refresh, on: { click: () => { naaSeen = true; o.onRescan?.(); show('device'); } } }),
         h('span.stbcost', { text: STB_DEVICE.refreshCost }));
       if (net && (bringUp || !list.length)) return bringUpView(list.length, refresh);
-      let last = null;
-      const well = h('div.stbdevs', { role: 'group', 'aria-label': 'Output devices' }, list.flatMap((str) => {
-        const p = parts(kind(), str);
-        const on = r().listings.includes(str);
-        const out = [];
-        if (p.group !== last) { last = p.group; out.push(h('div.gh', {}, h('span', { text: p.group }), h('span.ln'))); }
-        const dead = r().resolved && on && r().resolved !== str;
-        out.push(h('div.stbdev', { class: classNames(on && 'on', dead && 'dead') },
-          h('button.binc', { type: 'button', role: 'checkbox', aria: { checked: on, label: p.main }, on: { click: () => toggle(str) } }),
-          h('button.stbdn', { type: 'button', on: { click: () => toggle(str) } }, h('span.m', { text: p.main }), p.detail && h('span.d', { text: p.detail })),
-          r().resolved === str && h('span.tag.stblock', { text: STB_USB.locked })));
-        return out;
-      }));
+      const well = h('div.stbdevs', { role: 'group', 'aria-label': 'Output devices' }, groupDevices(kind(), list).flatMap(({ group, rows }) => [
+        h('div.gh', {}, h('span', { text: group }), h('span.ln')),
+        ...rows.map((p) => {
+          const { str } = p;
+          const on = r().listings.includes(str);
+          const dead = r().resolved && on && r().resolved !== str;
+          return h('div.stbdev', { class: classNames(on && 'on', dead && 'dead') },
+            h('button.binc', { type: 'button', role: 'checkbox', aria: { checked: on, label: p.main }, on: { click: () => toggle(str) } }),
+            h('button.stbdn', { type: 'button', on: { click: () => toggle(str) } }, h('span.m', { text: p.main }), p.detail && h('span.d', { text: p.detail })),
+            r().resolved === str && h('span.tag.stblock', { text: STB_USB.locked }));
+        }),
+      ]));
       return [
         h('div.drow.drow-full.stbdrow', {}, well, refresh),
         h('div.stbnotes', {}, h('p', { text: STB_DEVICE.same }), h('p', { text: STB_DEVICE.both }),

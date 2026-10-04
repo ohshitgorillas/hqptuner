@@ -19,11 +19,19 @@ import { toPlate, PLATE_W } from '../lib/plate.js';
 import { PLATFORM } from '../lib/clock.js';
 import { holdRepeat } from '../model/timing.js';
 import { minus } from '../model/format.js';
+import { percentOf } from '../model/output.js';
 
 const HOLD_DELAY = 400;   // ms before a held ± starts repeating
 const HOLD_RATE = 70;     // ms between repeats
 
 const fmt = (v) => minus(v, 1) + ' dB';
+
+/**
+ * The scale marks under a volume slider: each of `cfg.scale` at its place along the range, the top one in full.
+ * @param {{min:number, max:number, scale:number[]}} cfg
+ */
+const scaleMarks = ({ min, max, scale }) => h('div.scale', { 'aria-hidden': 'true' },
+  scale.map((m) => h('span', { style: `left:${percentOf(m, min, max)}%`, text: m === max ? `${m} dB` : fmt(m).replace(/\.0 dB$/, '') })));
 
 /**
  * @param {HTMLElement} plate
@@ -39,7 +47,6 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
   let fixedSet = null;   // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
   let direct = null;  // Direct SDM playing: {level, level_txt, text}, over fixed
   const { min, max, step } = cfg;
-  const pct = (v) => ((v - min) / (max - min)) * 100;
 
   const big = h('span.v');
   const slider = h('input', {
@@ -49,9 +56,7 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
   const panel = h('div.pop.vpop#vpop', { role: 'dialog', 'aria-label': 'Playback volume' },
     h('div.vh', {}, h('span.eng', { text: 'Playback volume' }), big),
     h('div.vsl', {}, slider, loudMarks(cfg, loud, bus)),
-    h('div.scale', { 'aria-hidden': 'true' },
-      cfg.scale.map((m) => h('span', { style: `left:${pct(m)}%`, text: m === max ? `${m} dB` : fmt(m).replace(/\.0 dB$/, '') })),
-    ),
+    scaleMarks(cfg),
   );
   plate.append(panel);
 
@@ -126,7 +131,7 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
 function loudMarks(cfg, loud, bus) {
   const box = h('div.lmk', { 'aria-hidden': 'true' });
   if (!loud) return box;
-  const pct = (v) => Math.min(100, Math.max(0, ((v - cfg.min) / (cfg.max - cfg.min)) * 100));
+  const pct = (v) => Math.min(100, Math.max(0, percentOf(v, cfg.min, cfg.max)));
   const paren = (d) => s('svg.lp', { viewBox: '0 0 10 18', width: 10, height: 18 }, s('path', { d }));
   const draw = () => {
     box.hidden = !loud.on;
@@ -173,7 +178,6 @@ function hold(btn, stepOnce, clock) {
  */
 export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   const { min, max, step } = cfg;
-  const pct = (v) => ((v - min) / (max - min)) * 100;
   const down = h('button.round.vbtn', { type: 'button', 'aria-label': 'Volume down', text: '−' });
   const up = h('button.round.vbtn', { type: 'button', 'aria-label': 'Volume up', text: '+' });
   const slider = h('input', { type: 'range', min, max, step, 'aria-label': 'Playback volume', on: { input: (e) => vol.set(Number(e.target.value)) } });
@@ -181,8 +185,7 @@ export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   host.append(
     h('span.vbt', { text: 'Playback volume' }),   // the page's engraved section-title grammar, not a small legend
     down,
-    h('div.vbsl', {}, h('div.vsl', {}, slider, loudMarks(cfg, loud, bus)), h('div.scale', { 'aria-hidden': 'true' },
-      cfg.scale.map((m) => h('span', { style: `left:${pct(m)}%`, text: m === max ? `${m} dB` : fmt(m).replace(/\.0 dB$/, '') })))),
+    h('div.vbsl', {}, h('div.vsl', {}, slider, loudMarks(cfg, loud, bus)), scaleMarks(cfg)),
     up,
     h('div.vfd.vbrd', { role: 'status', 'aria-label': 'Playback volume' }, rd),
   );

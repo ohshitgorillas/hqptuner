@@ -12,6 +12,7 @@
 // Layers: hatch → seam → band legends → rule + minor ticks → needles → tier printing → playing lamp → band sliders.
 
 import { h, s } from '../lib/dom.js';
+import { tierIndex } from '../model/output.js';
 
 const W = 806;          // viewBox width = the Format row at the 1080 plate, so the printing is 1:1
 const H = 106;
@@ -35,7 +36,7 @@ export function mountRateDial(dial, { tiers, limits, playing }, onChange) {
   const add = (el, parent = svg) => (parent.append(el), el);
 
   const span = (b) => {
-    const idx = tiers.map((t, i) => (t.family === b ? i : -1)).filter((i) => i >= 0);
+    const idx = tierIndex(tiers, b);
     return { lo: idx[0], hi: idx[idx.length - 1] };
   };
   const seamX = (xs[span('pcm').hi] + xs[span('sdm').lo]) / 2;

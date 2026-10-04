@@ -128,6 +128,9 @@ export const CROSSFEED = {
   },
 };
 
+// What runs (xfmode), by name: the rail value and the Profile builder's Crossfeed answer.
+export const XF_MODES = [{ v: 'off', label: 'Off' }, { v: 'bauer', label: 'Bauer' }, { v: 'structural', label: 'Structural' }];
+
 // ── Loudness ────────────────────────────────────────────────────────────────
 // Form defaults (6.0.4 /matrix): bass lshelf 80 Hz, 0.5, +20 dB; treble hshelf 5000 Hz, 1.0, +10 dB; range −60 … −20.
 // The range bounds are also drawn, read-only, on the Volume drawer's Range bar (its `Loudness ›` link opens this drawer).
