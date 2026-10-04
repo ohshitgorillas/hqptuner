@@ -1,18 +1,19 @@
-// A stage drawer's head: its title (a drawer of one part) or its tab strip, then the apply group, then close. A staged
-// restart-lane edit puts a dot on its tab, or on the title of a drawer of one part. The apply group is Discard and a
-// split button: the body runs the apply mode in force, Apply or Apply & save; its ▾ key opens a menu that only switches
-// which, one choice for every drawer.
+// A stage drawer's head: its title (a drawer of one part) or its tab strip, then the apply group, then close. A tab
+// prints its status word after its label. A staged restart-lane edit puts a dot on its tab, or on the title of a drawer
+// of one part. The apply group is Discard and a split button: the body runs the apply mode in force, Apply or Apply &
+// save; its ▾ key opens a menu that only switches which, one choice for every drawer. A drawer with its own form runs
+// that form's apply and discard instead, whatever the mode.
 
 import { html } from "../../../lib/dom.js";
-import { discardAll } from "../../../store/actions.js";
 import { toggleStage } from "../../../store/faceplate/view.js";
 import {
   APPLY_MENU,
   APPLY_MODES,
+  applyDrawer,
   applyMode,
   canSave,
+  discardDrawer,
   pickApplyMode,
-  runApply,
   showTab,
 } from "../../../store/faceplate/drawer.js";
 import { Popover, triggerProps } from "../Popover.js";
@@ -60,7 +61,7 @@ const tabStrip = (schema, shown, dirty) => html`
           data-tab=${t.id}
           onClick=${() => showTab(schema.id, t.id)}
         >
-          ${t.label}
+          <span>${t.label}</span>${t.status ? html`<span class="cst">${t.status()}</span>` : null}
         </button>
       `,
     )}
@@ -90,20 +91,21 @@ const modeMenu = () => html`
 
 /**
  * Discard and the split button. The group shows on a restart tab or with staged edits; its buttons need staged edits,
- * and the body in Apply & save mode needs a loaded station too.
+ * and the body in Apply & save mode needs a loaded station too, unless it runs the drawer's own form.
  *
+ * @param {DrawerSchema} schema
  * @param {{ shown: boolean, live: boolean }} apply
  */
-function applyGroup({ shown, live }) {
+function applyGroup(schema, { shown, live }) {
   const mode = applyMode.value;
-  const bodyOff = !live || (mode === "save" && !canSave.value);
+  const bodyOff = !live || (!schema.own && mode === "save" && !canSave.value);
   return html`
     <div class="apply" data-testid="apply-group" hidden=${!shown}>
-      <button type="button" class="btn sm" data-testid="discard" disabled=${!live} onClick=${() => discardAll()}>
+      <button type="button" class="btn sm" data-testid="discard" disabled=${!live} onClick=${() => discardDrawer(schema)}>
         Discard
       </button>
       <div class="asplit">
-        <button type="button" class="btn sm aapply" data-testid="apply" disabled=${bodyOff} onClick=${() => runApply()}>
+        <button type="button" class="btn sm aapply" data-testid="apply" disabled=${bodyOff} onClick=${() => applyDrawer(schema)}>
           ${MODE_NAMES[mode]}
         </button>
         <button type="button" class="btn sm akey" ...${triggerProps(APPLY_MENU, "menu")}>▾</button>
@@ -128,7 +130,7 @@ export function Head({ schema, shown, head }) {
           : tabStrip(schema, shown, head.dirty)
       }
       <span class="grow"></span>
-      ${applyGroup(head.apply)}
+      ${applyGroup(schema, head.apply)}
       <button
         type="button"
         class="round dx"

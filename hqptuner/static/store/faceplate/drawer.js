@@ -1,44 +1,46 @@
 // The stage drawer's store half: what a drawer drawn from its schema decides over the v1 store. Which tabs carry a
 // dirty dot, whether the title carries it, whether the apply group shows and whether its buttons are live, which tab
-// is shown, which open question the drawer pins under its head, the options and value a row's control renders, and the
-// apply mode the head's split button runs. The DOM half is components/faceplate/drawer/.
+// is shown, which open question the drawer pins under its head, the options, value and option lines a row's control
+// renders, and the apply mode the head's split button runs. The DOM half is components/faceplate/drawer/; the schema
+// grammar is drawer/grammar.js.
 //
-// A drawer's rows name v1 catalog keys (store/schema.js). A row stages for a restart when its entry is http-lane and
-// the write path cannot route it live (`appliesLive`); that is the row that marks its tab. Members of one `family`
-// share their staged state: any member's staged edit lights every member's apply group.
+// A drawer's items name v1 catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
+// the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one makes its tab
+// a restart tab. Members of one `family` share their staged state: any member's staged edit lights every member's
+// apply group. A drawer with its own form (`own`) stands that form in for the staged set: its staged state dots every
+// tab, its apply group always shows, and Apply and Discard run the form.
 //
 // The apply mode is a browser-held preference, one choice for every drawer: `apply` applies the staged set, `save`
 // applies it and saves it into the loaded station.
 
-import { computed, signal } from "@preact/signals";
-import { applyPaint, isStaged, restarts } from "../../model/shell/drawer.js";
-import { truthy } from "../../lib/coerce.js";
+import { computed } from "@preact/signals";
+import { applyPaint, isStaged } from "../../model/shell/drawer.js";
 import { schema as catalog } from "../schema.js";
-import { activePreset, effective, formFieldName, isDirty } from "../resolve.js";
-import { applyAll } from "../actions.js";
+import { activePreset, isDirty } from "../resolve.js";
+import { applyAll, discardAll } from "../actions.js";
 import { question } from "../ask.js";
-import { enumOptions, optionsFor } from "../ui/options.js";
 import { enumPref } from "../ui/prefs.js";
 import { openPopover } from "./view.js";
+import { shownKeys, tabKeys } from "./drawer/grammar.js";
 
-/**
- * One body item of a tab: a row naming a catalog key, an intro paragraph, or a block the caller mounts by name.
- *
- * @typedef {{ row: { key: string } } | { intro: string } | { block: string }} BodyItem
- */
+export { groupShown, rowShown } from "./drawer/grammar.js";
+export { rowLines, rowOptions, rowValue } from "./drawer/rows.js";
+export { showTab, shownTab } from "./drawer/tabs.js";
 
-/** @typedef {{ id: string, label: string, body: BodyItem[] }} DrawerTab */
-
-/**
- * A stage drawer's schema.
- *
- * @typedef {object} DrawerSchema
- * @property {string} id
- * @property {string} title
- * @property {string} aria
- * @property {string} [family]
- * @property {DrawerTab[]} tabs
- */
+/** @typedef {import("./drawer/grammar.js").RowOption} RowOption */
+/** @typedef {import("./drawer/grammar.js").RowSpec} RowSpec */
+/** @typedef {import("./drawer/grammar.js").FieldOption} FieldOption */
+/** @typedef {import("./drawer/grammar.js").FieldSpec} FieldSpec */
+/** @typedef {import("./drawer/grammar.js").ChoiceLine} ChoiceLine */
+/** @typedef {import("./drawer/grammar.js").ChoiceSpec} ChoiceSpec */
+/** @typedef {import("./drawer/grammar.js").GroupItem} GroupItem */
+/** @typedef {import("./drawer/grammar.js").BlockItem} BlockItem */
+/** @typedef {import("./drawer/grammar.js").IntroPart} IntroPart */
+/** @typedef {import("./drawer/grammar.js").BodyItem} BodyItem */
+/** @typedef {import("./drawer/grammar.js").DrawerTab} DrawerTab */
+/** @typedef {import("./drawer/grammar.js").OwnForm} OwnForm */
+/** @typedef {import("./drawer/grammar.js").DrawerSchema} DrawerSchema */
+/** @typedef {import("./drawer/rows.js").OptionLine} OptionLine */
 
 /**
  * What a drawer's head shows: the tabs carrying a dirty dot, whether the title carries it, and the apply group's
@@ -49,8 +51,6 @@ import { openPopover } from "./view.js";
  * @property {boolean} titleDot
  * @property {{ shown: boolean, live: boolean }} apply
  */
-
-/** @typedef {{ value: string | number | undefined, label: string, disabled?: boolean }} RowOption */
 
 /**
  * The open question as store/ask.js publishes it; a warn carries the wording of its two answers.
@@ -95,6 +95,22 @@ export async function runApply() {
   return applyAll({ name: activePreset.value });
 }
 
+/**
+ * A drawer's split button: its own form's apply, else the apply mode's act.
+ *
+ * @param {DrawerSchema} drawer
+ * @returns {Promise<unknown>}
+ */
+export const applyDrawer = async (drawer) => (drawer.own ? drawer.own.apply() : runApply());
+
+/**
+ * A drawer's Discard: its own form's discard, else dropping the staged set.
+ *
+ * @param {DrawerSchema} drawer
+ * @returns {Promise<unknown>}
+ */
+export const discardDrawer = async (drawer) => (drawer.own ? drawer.own.discard() : discardAll());
+
 /** Registered drawers, by family, then by id. @type {Map<string, Map<string, DrawerSchema>>} */
 const families = new Map();
 
@@ -121,21 +137,16 @@ const restartLane = (key) => {
 };
 
 /**
- * The catalog keys a tab's rows name.
- *
- * @param {DrawerTab} tab
- * @returns {string[]}
- */
-const tabKeys = (tab) => tab.body.flatMap((it) => ("row" in it ? [it.row.key] : []));
-
-/**
- * The ids of the tabs holding a staged restart-lane row, in tab order.
+ * The ids of the dotted tabs, in tab order: those holding a staged restart key, or every tab while the drawer's own
+ * form holds edits.
  *
  * @param {DrawerSchema} drawer
  * @returns {string[]}
  */
-const dirtyTabs = (drawer) =>
-  drawer.tabs.filter((t) => tabKeys(t).some((k) => restartLane(k) && isDirty(k))).map((t) => t.id);
+function dirtyTabs(drawer) {
+  if (drawer.own) return drawer.own.staged() ? drawer.tabs.map((t) => t.id) : [];
+  return drawer.tabs.filter((t) => tabKeys(t).some((k) => restartLane(k) && isDirty(k))).map((t) => t.id);
+}
 
 /**
  * The other registered members of a drawer's family, as the staged test reads them.
@@ -152,15 +163,6 @@ function siblings(drawer) {
 }
 
 /**
- * A tab as the restart test reads it: each row flagged by its key's lane.
- *
- * @param {DrawerTab} tab
- */
-const restartView = (tab) => ({
-  body: tab.body.map((it) => ("row" in it ? { row: { restart: restartLane(it.row.key) } } : {})),
-});
-
-/**
  * What a drawer's head shows with `tabId` open.
  *
  * @param {DrawerSchema} drawer
@@ -170,43 +172,20 @@ const restartView = (tab) => ({
 export function drawerHead(drawer, tabId) {
   const dirty = dirtyTabs(drawer);
   const tab = drawer.tabs.find((t) => t.id === tabId) ?? drawer.tabs[0];
-  const staged = isStaged(dirty.length > 0, siblings(drawer));
+  const staged = drawer.own ? drawer.own.staged() : isStaged(dirty.length > 0, siblings(drawer));
+  const restart = !!drawer.own || shownKeys(drawer, tab).some(restartLane);
   return {
     dirty,
     titleDot: drawer.tabs.length === 1 && dirty.length > 0,
-    apply: applyPaint(restarts({}, restartView(tab)), staged),
+    apply: applyPaint(restart, staged),
   };
-}
-
-/** The tab last picked in each drawer, by drawer id. @type {{ value: Record<string, string> }} */
-const picked = signal(/** @type {Record<string, string>} */ ({}));
-
-/**
- * The tab a drawer shows: the one last picked in it, else its first.
- *
- * @param {DrawerSchema} drawer
- * @returns {string}
- */
-export function shownTab(drawer) {
-  const id = picked.value[drawer.id];
-  return drawer.tabs.some((t) => t.id === id) ? id : drawer.tabs[0].id;
-}
-
-/**
- * Pick a drawer's tab.
- *
- * @param {string} drawerId
- * @param {string} tabId
- */
-export function showTab(drawerId, tabId) {
-  picked.value = { ...picked.value, [drawerId]: tabId };
 }
 
 /** The owner of the questions an Apply asks (store/guards.js). */
 const APPLY_OWNER = "pending";
 
 /**
- * The open question this drawer pins under its head: one an Apply asked, or one a row of this drawer asked. Null when
+ * The open question this drawer pins under its head: one an Apply asked, or one a key of this drawer asked. Null when
  * none is open or it belongs elsewhere.
  *
  * @param {DrawerSchema} drawer
@@ -217,39 +196,4 @@ export function drawerQuestion(drawer) {
   if (!q) return null;
   const mine = q.owner === APPLY_OWNER || drawer.tabs.some((t) => tabKeys(t).includes(q.owner));
   return mine ? q : null;
-}
-
-/** A checkbox row's two choices, drawn as a segment. */
-const OFF_ON = [
-  { value: "0", label: "Off" },
-  { value: "1", label: "On" },
-];
-
-/**
- * The options a row's segment or select lists: a checkbox's two, the engine's enumeration, the daemon form's own
- * list, or the catalog's.
- *
- * @param {string} key
- * @returns {RowOption[]}
- */
-export function rowOptions(key) {
-  const e = catalog[key];
-  if (!e) return [];
-  if (e.widget === "checkbox") return OFF_ON;
-  if (e.optionsFrom === "enum") return enumOptions(e.enumKey || "");
-  if (e.optionsFrom) return optionsFor(e.optionsFrom, formFieldName(e));
-  return e.options ?? [];
-}
-
-/**
- * The value a row's control renders, as its options are written: a truth as "1" or "0", anything else as a string.
- *
- * @param {string} key
- * @returns {string}
- */
-export function rowValue(key) {
-  const e = catalog[key];
-  const v = effective(key);
-  if (e && (e.widget === "checkbox" || e.bool)) return truthy(v) ? "1" : "0";
-  return v === undefined ? "" : String(v);
 }

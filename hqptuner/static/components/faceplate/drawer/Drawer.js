@@ -1,6 +1,7 @@
 // A stage drawer drawn from its schema over the v1 store: the head, the open question pinned under it, then one panel
 // per tab. It is closed unless its stage is the open one (store/faceplate/view.js); closing never discards, so staged
-// edits stay put. The decisions are store/faceplate/drawer.js's.
+// edits stay put. It reads idle while its shown tab carries a status word, and combo while its backend shows every
+// group. The decisions are store/faceplate/drawer.js's.
 
 import { html } from "../../../lib/dom.js";
 import { answer, cancel } from "../../../store/ask.js";
@@ -60,6 +61,19 @@ function panel(schema, tab, shown, blocks) {
 }
 
 /**
+ * The drawer's classes: `idle` while its shown tab carries a status word, `combo` while its backend is `combo`.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} shown
+ */
+function drawerClass(schema, shown) {
+  const tab = schema.tabs.find((t) => t.id === shown);
+  const idle = !!tab?.status?.();
+  const combo = schema.group?.() === "combo";
+  return ["drawer", idle ? "idle" : "", combo ? "combo" : ""].filter(Boolean).join(" ");
+}
+
+/**
  * A stage drawer.
  *
  * @param {{ schema: DrawerSchema, blocks?: Blocks }} props  blocks: the components a `{ block }` item mounts, by name
@@ -69,7 +83,7 @@ export function Drawer({ schema, blocks = {} }) {
   const head = drawerHead(schema, shown);
   return html`
     <aside
-      class="drawer"
+      class=${drawerClass(schema, shown)}
       id=${`drawer-${schema.id}`}
       aria-label=${schema.aria}
       data-closed=${openStage.value === schema.id ? undefined : ""}
