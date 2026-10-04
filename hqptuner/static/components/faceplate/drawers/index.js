@@ -4,6 +4,7 @@
 
 import { registerDrawer } from "../../../store/faceplate/drawer.js";
 import { SOURCE_BLOCKS, SOURCE_DRAWER } from "./source-drawer.js";
+import { HF_DRAWER } from "./hf.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../drawer/Rows.js").Blocks} Blocks */
@@ -12,6 +13,7 @@ import { SOURCE_BLOCKS, SOURCE_DRAWER } from "./source-drawer.js";
 /** @type {Record<string, StageDrawer>} */
 const DRAWERS = {
   source: { schema: SOURCE_DRAWER, blocks: SOURCE_BLOCKS },
+  hf: { schema: HF_DRAWER, blocks: {} },
 };
 
 for (const d of Object.values(DRAWERS)) registerDrawer(d.schema);
