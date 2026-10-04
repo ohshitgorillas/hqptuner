@@ -42,11 +42,12 @@ function park(panel) {
 }
 
 /**
- * One step of a ± button, up (1) or down (−1).
+ * One step of a ± button, up (1) or down (−1), its write paced on `clock`.
  *
  * @param {number} dir
+ * @param {Clock} clock
  */
-const stepOnce = (dir) => writeVolume(volumeNow().value + dir * volumeGrid().step);
+const stepOnce = (dir, clock) => writeVolume(volumeNow().value + dir * volumeGrid().step, clock);
 
 /**
  * A ± button's press: one step per click; holding repeats after HOLD_DELAY, until release or the bound.
@@ -62,7 +63,7 @@ function useHold(dir, clock) {
     onPointerDown: () => {
       stop.current = holdRepeat(
         () => {
-          stepOnce(dir);
+          stepOnce(dir, clock);
           if (volumeNow().off[dir < 0 ? "down" : "up"]) end();
         },
         clock,
@@ -74,7 +75,7 @@ function useHold(dir, clock) {
     onPointerLeave: end,
     onPointerCancel: end,
     onClick: () => {
-      if (!stop.current()) stepOnce(dir);
+      if (!stop.current()) stepOnce(dir, clock);
       stop.current = idle;
     },
   };
@@ -83,7 +84,7 @@ function useHold(dir, clock) {
 /**
  * The engine-row volume: − / readout / +. The readout opens the slider popover.
  *
- * @param {{ clock?: Clock }} props  the clock a held ± repeats on
+ * @param {{ clock?: Clock }} props  the clock a held ± repeats and its writes pace on
  */
 export function Volume({ clock = PLATFORM }) {
   const v = volumeNow();
@@ -137,15 +138,19 @@ function LoudMarks() {
   `;
 }
 
-/** The slider popover: heading with the level, the slider over its loudness marks, the scale. A child of the plate. */
-export function VolumePopover() {
+/**
+ * The slider popover: heading with the level, the slider over its loudness marks, the scale. A child of the plate.
+ *
+ * @param {{ clock?: Clock }} props  the clock the slider's writes pace on
+ */
+export function VolumePopover({ clock = PLATFORM }) {
   const v = volumeNow();
   const { min, max, step } = volumeGrid();
   // A level that becomes pinned has nothing to slide: an open popover closes.
   useEffect(() => {
     if (v.fixed && openPopover.value === ID) togglePopover(ID);
   }, [v.fixed]);
-  const edit = userEdit(v.level, (/** @type {ControlEvent} */ e) => writeVolume(Number(e.target.value)));
+  const edit = userEdit(v.level, (/** @type {ControlEvent} */ e) => writeVolume(Number(e.target.value), clock));
   return html`
     <${Popover} id=${ID} cls="vpop" role="dialog" label="Playback volume" park=${park}>
       <div class="vh"><span class="eng">Playback volume</span><span class="v">${v.txt}</span></div>

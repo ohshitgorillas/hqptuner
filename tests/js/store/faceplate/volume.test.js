@@ -4,8 +4,9 @@
 //
 // The wire is the seam: each case writes the engine's reported level and VolumeRange into `volume` and `volumeRange`,
 // the daemon's /config and /matrix form fields (and the config file's values) into `config` and `matrixConfig`, and a
-// knob drag into `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set.
-// Every source signal is reset on every case.
+// knob drag into `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set,
+// and pace on a fake Clock that moves only when a case advances it, so nothing waits on the wall. Every source signal
+// is reset on every case.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/volume.test.js
 
@@ -20,8 +21,15 @@ import {
   volumeDrag,
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
-import { volumeNow, writeVolume, loudnessMarks } from "../../../../hqptuner/static/store/faceplate/volume.js";
+import {
+  volumeGrid,
+  volumeNow,
+  writeVolume,
+  loudnessMarks,
+} from "../../../../hqptuner/static/store/faceplate/volume.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+
+/** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 
 /**
  * @typedef {object} Running
@@ -57,6 +65,46 @@ const FREE = {
 
 /** The engine holding the control: it reports a range of its own, not the configured one. */
 const HELD = { enabled: "0", min: "-12", max: "0" };
+
+/** The running range collapsed to 0 / 0, which bypasses the volume control, the engine holding it. */
+const ZERO = { report: HELD, min: "0", max: "0" };
+
+/** A clock that moves only on `advance`: each timer a row with its deadline, run in deadline order. */
+function fakeClock() {
+  let now = 0;
+  let next = 0;
+  /** @type {Map<number, { fn: () => void, at: number }>} */
+  const rows = new Map();
+  const arm = (/** @type {() => void} */ fn, /** @type {number} */ ms) => {
+    next += 1;
+    rows.set(next, { fn, at: now + ms });
+    return next;
+  };
+  const drop = (/** @type {unknown} */ handle) => void rows.delete(Number(handle));
+  /** @type {Clock} */
+  const clock = {
+    setTimeout: arm,
+    clearTimeout: drop,
+    setInterval: arm,
+    clearInterval: drop,
+    requestAnimationFrame: (fn) => arm(() => fn(now), 16),
+    queueMicrotask: (fn) => void arm(fn, 0),
+    now: () => now,
+  };
+  /** @param {number} ms */
+  const advance = (ms) => {
+    const until = now + ms;
+    for (;;) {
+      const due = [...rows].filter(([, r]) => r.at <= until).sort((a, b) => a[1].at - b[1].at)[0];
+      if (!due) break;
+      rows.delete(due[0]);
+      now = due[1].at;
+      due[1].fn();
+    }
+    now = until;
+  };
+  return { clock, advance };
+}
 
 /** @param {Running} r */
 function run(r = {}) {
@@ -117,7 +165,7 @@ function volumeWire() {
 async function sent(r, request) {
   run(r);
   const w = volumeWire();
-  writeVolume(request);
+  writeVolume(request, fakeClock().clock);
   await quiesce(w);
   return w.posts.map((p) => /** @type {{ level: string }} */ (p).level);
 }
@@ -164,7 +212,17 @@ test("test_the_engines_range_stands_when_the_running_config_has_none", () => {
 });
 
 test("test_a_collapsed_running_range_draws_on_the_daemons_full_range", () => {
-  assert.equal(levelWith({ at: "-50", report: HELD, min: "0", max: "0" }), -50);
+  run({ at: "-50", ...ZERO });
+  assert.deepEqual([volumeGrid().min, volumeGrid().max], [-60, 0]);
+});
+
+test("test_a_collapsed_running_range_pins_the_level_at_0_db", () => {
+  assert.equal(levelWith({ at: "-50", ...ZERO }), 0);
+});
+
+test("test_a_collapsed_running_range_reads_as_fixed", () => {
+  const fixed = (/** @type {Running} */ r) => (run(r), volumeNow().fixed);
+  assert.deepEqual([fixed({ report: HELD }), fixed(ZERO)], [false, true]);
 });
 
 test("test_the_bottom_of_the_range_disables_the_step_down", () => {
@@ -223,7 +281,7 @@ test("test_a_write_past_the_top_sends_the_top", async () => {
 test("test_a_write_shows_its_level_before_the_engine_answers", async () => {
   run({});
   const w = volumeWire();
-  writeVolume(-20);
+  writeVolume(-20, fakeClock().clock);
   const level = volumeNow().level;
   await quiesce(w);
   assert.equal(level, -20);
@@ -237,6 +295,55 @@ test("test_a_write_while_the_level_is_pinned_is_not_sent", async () => {
 test("test_a_write_landing_on_the_shown_level_is_not_sent", async () => {
   const counts = [(await sent({}, -12.5)).length, (await sent({}, -13)).length];
   assert.deepEqual(counts, [0, 1]);
+});
+
+test("test_a_write_under_a_collapsed_running_range_is_not_sent", async () => {
+  const counts = [(await sent({ report: HELD }, -20)).length, (await sent(ZERO, -20)).length];
+  assert.deepEqual(counts, [1, 0]);
+});
+
+// --- the write's pace --------------------------------------------------------------------------------------------
+
+/**
+ * The levels sent for a run of writes from the free state, `advance` moving the clock between them where a step is a
+ * number of ms rather than a level.
+ *
+ * @param {({ level: number } | { ms: number })[]} steps
+ */
+async function paced(steps) {
+  run({});
+  const w = volumeWire();
+  const { clock, advance } = fakeClock();
+  for (const step of steps) {
+    if ("level" in step) writeVolume(step.level, clock);
+    else advance(step.ms);
+    await quiesce(w);
+  }
+  return w.posts.map((p) => /** @type {{ level: string }} */ (p).level);
+}
+
+test("test_writes_inside_100_ms_of_a_send_are_held", async () => {
+  assert.deepEqual(await paced([{ level: -20 }, { level: -21 }, { level: -22 }]), ["-20"]);
+});
+
+test("test_the_newest_held_write_is_sent_when_the_100_ms_pass", async () => {
+  const sends = await paced([{ level: -20 }, { level: -21 }, { level: -22 }, { ms: 100 }]);
+  assert.deepEqual(sends, ["-20", "-22"]);
+});
+
+test("test_a_write_after_a_quiet_window_is_sent_at_once", async () => {
+  const sends = await paced([{ level: -20 }, { level: -21 }, { level: -22 }, { ms: 100 }, { ms: 100 }, { level: -25 }]);
+  assert.deepEqual(sends, ["-20", "-22", "-25"]);
+});
+
+test("test_a_held_write_shows_its_level_while_the_first_is_answered", async () => {
+  run({});
+  const w = volumeWire();
+  const { clock } = fakeClock();
+  writeVolume(-20, clock);
+  writeVolume(-21, clock);
+  await quiesce(w);
+  assert.equal(volumeNow().level, -21);
 });
 
 // --- the loudness bounds -----------------------------------------------------------------------------------------
