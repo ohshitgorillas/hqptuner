@@ -266,6 +266,35 @@ def test_a_schema_3_record_reads_without_its_junk_filter_or_auto_pilot(tmp_path:
     assert store_at(tmp_path).read("", "alpha") == expected
 
 
+MATRIX_PROFILE_RECORD = {
+    "chain": "pcm",
+    "fields": {"filter": "12", "matrix_profile": "Room EQ"},
+    "names": {"filter": "poly-sinc-gauss-long", "matrix_profile": "Room EQ"},
+}
+
+
+def test_a_schema_5_record_reads_without_its_matrix_profile(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps({"schema": 5, "stations": {"": {"alpha": MATRIX_PROFILE_RECORD}}}))
+    expected = LiveRecord(chain="pcm", fields={"filter": "12"}, names={"filter": "poly-sinc-gauss-long"})
+    assert store_at(tmp_path).read("", "alpha") == expected
+
+
+def test_a_schema_6_record_reads_with_its_matrix_profile(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps({"schema": 6, "stations": {"": {"alpha": MATRIX_PROFILE_RECORD}}}))
+    expected = LiveRecord(
+        chain="pcm",
+        fields={"filter": "12", "matrix_profile": "Room EQ"},
+        names={"filter": "poly-sinc-gauss-long", "matrix_profile": "Room EQ"},
+    )
+    assert store_at(tmp_path).read("", "alpha") == expected
+
+
+def test_a_flat_schema_4_record_reads_without_its_matrix_profile(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps({"schema": 4, "presets": {"alpha": MATRIX_PROFILE_RECORD}}))
+    expected = LiveRecord(chain="pcm", fields={"filter": "12"}, names={"filter": "poly-sinc-gauss-long"})
+    assert store_at(tmp_path).read("", "alpha") == expected
+
+
 def test_a_saved_record_is_stored_as_its_chain_fields_and_names_alone(tmp_path: Path) -> None:
     path = tmp_path / "live-presets.json"
     LivePresetStore(path, stations=NO_STATIONS).save("alpha", RECORD, [""])

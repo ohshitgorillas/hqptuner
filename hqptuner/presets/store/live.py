@@ -14,7 +14,7 @@ schema stamp that refuses a store newer than this HQPTuner understands, and an
 unstamped file adopted on its next write.
 
 Snapshots belong to a station: a config preset, or ``""``, the unnamed default
-loaded while no preset is. The file is one book, ``{"schema": 5, "stations":
+loaded while no preset is. The file is one book, ``{"schema": 6, "stations":
 {station: {name: record}}}``, and the store learns which stations exist from the
 callable it is built with, so a save to a station the preset store does not name
 is refused. A file in the flat layout older builds wrote (``{"presets": {name:
@@ -40,7 +40,9 @@ card can still say what was saved even when an ID no longer resolves.
 The high-frequency (junk) filter follows the material, so no record holds it or
 its auto-pilot switch. A record stored under schema 3 or earlier is read without
 either: ``junk_filter`` leaves ``fields`` and ``names``, and an ``autopilot`` key
-is not read. The next write stamps the file with the current schema.
+is not read. The next write stamps the file with the current schema. A record stored
+under schema 5 or earlier reads without a ``matrix_profile``, since the matrix profile
+became a snapshot setting at schema 6.
 
 A record need not carry every setting: a save may name the ones it keeps, and an
 apply leaves the absent ones where the engine has them.
@@ -65,7 +67,10 @@ if TYPE_CHECKING:
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
 # misread preset writes settings the user never chose. An unstamped file predates
 # the stamp and is adopted as the current schema on its next write.
-_SCHEMA = 5
+_SCHEMA = 6
+
+#: The schema at which a record began to hold ``matrix_profile``; a record stamped earlier is read without it.
+_MATRIX_PROFILE_SCHEMA = 6
 
 #: The unnamed default station: the one loaded while no config preset is.
 DEFAULT_STATION = ""
@@ -109,24 +114,25 @@ def _strings(stored: object) -> dict[str, str]:
     }
 
 
-def _clean_record(stored: dict[object, object]) -> LiveRecordFile:
+def _clean_record(stored: dict[object, object], stamp: int | None) -> LiveRecordFile:
     """Return one stored record with each member checked against the type ``LiveRecordFile`` names.
 
     Any other member, ``autopilot`` among them, is not read.
     """
-    return LiveRecordFile(
-        chain=str(stored.get("chain", "")),
-        fields=_strings(stored.get("fields")),
-        names=_strings(stored.get("names")),
-    )
+    fields = _strings(stored.get("fields"))
+    labels = _strings(stored.get("names"))
+    if stamp is None or stamp < _MATRIX_PROFILE_SCHEMA:
+        fields.pop("matrix_profile", None)
+        labels.pop("matrix_profile", None)
+    return LiveRecordFile(chain=str(stored.get("chain", "")), fields=fields, names=labels)
 
 
-def _shelf(stored: object) -> LiveShelf:
+def _shelf(stored: object, stamp: int | None) -> LiveShelf:
     """Return a stored name-to-record map with each record checked; an entry that is not an object is dropped."""
     if not isinstance(stored, dict):
         return {}
     return {
-        name: _clean_record(record)
+        name: _clean_record(record, stamp)
         for name, record in stored.items()
         if isinstance(name, str) and isinstance(record, dict)
     }
@@ -141,18 +147,19 @@ def _clean(stored: object) -> LiveFile:
     if not isinstance(stored, dict):
         return out
     schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
+    stamp = schema if isinstance(schema, int) else None
+    if stamp is not None:
+        out["schema"] = stamp
     stations = stored.get("stations")
     if isinstance(stations, dict):
         out["stations"] = {
-            station: _shelf(shelf)
+            station: _shelf(shelf, stamp)
             for station, shelf in stations.items()
             if isinstance(station, str) and isinstance(shelf, dict)
         }
     presets = stored.get("presets")
     if isinstance(presets, dict):
-        out["presets"] = _shelf(presets)
+        out["presets"] = _shelf(presets, stamp)
     return out
 
 
