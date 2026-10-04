@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { hashFlags } from "../../../../mockup/scripts/model/flags.js";
+import { hashFlags } from "../../../../mockup/scripts/model/shell/flags.js";
 
 //: Display sizes, scenarios and alert kinds the fragment may name; anything else it names is ignored.
 const SIZES = [{ id: "10.2" }, { id: "11" }, { id: "13" }];

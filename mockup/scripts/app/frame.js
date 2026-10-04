@@ -2,25 +2,25 @@
 // header's connection knob and station tree, the plate's option-list sheets and filter presets, and the page's Matrix
 // response plot. Everything here mounts straight onto index.html's markup, ahead of the Setting Switcher and the drawers.
 
-import { $ } from "../lib/dom.js";
-import { installPopovers } from "../lib/popover.js";
-import { installSheets } from "../lib/sheet.js";
-import { mountPlate, setSize, sizeOf, SIZES, SIZE, SIZE0 } from "../lib/plate.js";
-import { mountRail } from "../components/rail.js";
-import { mountScenario, mountAlertPicker, mountSizePicker } from "../components/scenario.js";
-import { mountConn } from "../components/conn.js";
-import { onApplied } from "../components/drawer.js";
-import { mountStationTree } from "../components/station-tree.js";
-import { mountOptionList } from "../components/option-list.js";
-import { setListOpener } from "../components/vselect.js";
-import { mountFilterPresets } from "../components/filter-presets.js";
-import { mountMatrixPlot } from "../components/matrix-plot.js";
-import { CHAIN } from "../data/chain.js";
-import { SCENES } from "../data/scenarios.js";
-import { MOCK_ALERTS } from "../data/alerts.js";
-import { STATIONS } from "../data/stations.js";
-import { FIELDS, CHAIN_NAMES } from "../data/conversion.js";
-import { PRESETS } from "../data/presets.js";
+import { $ } from "../lib/shell/dom.js";
+import { installPopovers } from "../lib/shell/popover.js";
+import { installSheets } from "../lib/shell/sheet.js";
+import { mountPlate, setSize, sizeOf, SIZES, SIZE, SIZE0 } from "../lib/shell/plate.js";
+import { mountRail } from "../components/shell/rail.js";
+import { mountScenario, mountAlertPicker, mountSizePicker } from "../components/shell/scenario.js";
+import { mountConn } from "../components/shell/conn.js";
+import { onApplied } from "../components/drawers/drawer.js";
+import { mountStationTree } from "../components/shell/station-tree.js";
+import { mountOptionList } from "../components/lists/option-list.js";
+import { setListOpener } from "../components/lists/vselect.js";
+import { mountFilterPresets } from "../components/page/filter-presets.js";
+import { mountMatrixPlot } from "../components/page/matrix-plot.js";
+import { CHAIN } from "../data/stages/chain.js";
+import { SCENES } from "../data/shell/scenarios.js";
+import { MOCK_ALERTS } from "../data/shell/alerts.js";
+import { STATIONS } from "../data/builders/stations.js";
+import { FIELDS, CHAIN_NAMES } from "../data/stages/conversion.js";
+import { PRESETS } from "../data/lists/presets.js";
 
 /**
  * Mount the plate, its rail and the page furniture on index.html; app.plate, app.stages, app.lamp, app.picked, app.conn,

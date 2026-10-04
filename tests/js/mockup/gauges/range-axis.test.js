@@ -20,7 +20,7 @@ import {
   pickVolumeHandle,
   tickMarks,
   ticksEvery,
-} from "../../../../mockup/scripts/model/range-axis.js";
+} from "../../../../mockup/scripts/model/gauges/range-axis.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for values the float arithmetic may round in the last place.

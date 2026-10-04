@@ -9,13 +9,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clampToPlate } from "../../../../mockup/scripts/model/place.js";
+import { clampToPlate } from "../../../../mockup/scripts/model/shell/place.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/place.js").Rect} Rect */
-/** @typedef {import("../../../../mockup/scripts/model/place.js").Size} Size */
-/** @typedef {import("../../../../mockup/scripts/model/place.js").Place} Place */
-/** @typedef {import("../../../../mockup/scripts/model/place.js").Margin} Margin */
-/** @typedef {import("../../../../mockup/scripts/model/place.js").Side} Side */
+/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Rect} Rect */
+/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Size} Size */
+/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Place} Place */
+/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Margin} Margin */
+/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Side} Side */
 
 const PLATE = { w: 1000, h: 800 };
 const SIDE = 20;

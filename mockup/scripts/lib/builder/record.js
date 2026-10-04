@@ -1,14 +1,14 @@
 // The shell's record and staging: the record being edited, its staged edits, switching, discarding, the confirm line's
 // ask, and Save and Delete over the record book. Every function takes the shell's state (`sh`) and the builder's spec.
 
-import { closeOthers } from "../../components/drawer.js";
-import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from "../../model/builder.js";
+import { closeOthers } from "../../components/drawers/drawer.js";
+import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from "../../model/builders/builder.js";
 
-/** @typedef {import('../../model/builder.js').Ref} Ref */
+/** @typedef {import('../../model/builders/builder.js').Ref} Ref */
 
 /**
  * @typedef {object} Shell  the shell's mutable state
- * @property {import('../../model/builder.js').Book<any>} book
+ * @property {import('../../model/builders/builder.js').Book<any>} book
  * @property {Ref} cur  the record being edited
  * @property {Map<string, any>} staged
  * @property {{ text: string, onConfirm: () => void } | null} ask  the confirm line's question

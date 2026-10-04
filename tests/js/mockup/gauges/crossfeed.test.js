@@ -25,7 +25,7 @@ import {
   modeName,
   structuralPreset,
   structuralSummary,
-} from "../../../../mockup/scripts/model/crossfeed.js";
+} from "../../../../mockup/scripts/model/gauges/crossfeed.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for coordinates the float arithmetic may round in the last places.

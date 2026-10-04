@@ -28,11 +28,11 @@ import {
   savedTo,
   namesAfterSave,
   removedFrom,
-} from "../../../../mockup/scripts/model/builder.js";
+} from "../../../../mockup/scripts/model/builders/builder.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/builder.js").Ref} Ref */
+/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Ref} Ref */
 /** @typedef {{ v: number }} Rec */
-/** @typedef {import("../../../../mockup/scripts/model/builder.js").Book<Rec>} Book */
+/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Book<Rec>} Book */
 
 //: The stations a tree lists, in tree order.
 const TREE = ["Den", "Loft", "Shed"];

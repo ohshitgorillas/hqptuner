@@ -1,9 +1,9 @@
 // The shell's walk (Profile, Station): the rail, the step pages and the overview, and the page title with its × that
 // every page wears.
 
-import { h } from "../dom.js";
-import { closeBtn } from "../controls.js";
-import { OVERVIEW, shownName, nextStep, prevStep } from "../../model/builder.js";
+import { h } from "../shell/dom.js";
+import { closeBtn } from "../controls/controls.js";
+import { OVERVIEW, shownName, nextStep, prevStep } from "../../model/builders/builder.js";
 
 /** @typedef {import('./record.js').Shell} Shell */
 /** @typedef {(text: string, n?: any, mid?: any[]) => HTMLElement} Title */

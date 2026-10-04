@@ -1,10 +1,10 @@
 // Setting Switcher: a slot's ▾ opens its target's list on the running chain; the Output mode target borrows the two slots
 // as the PCM | SDM (DSD) switch; the Volume target gives the slots' place to the volume bar.
 
-import { $, h } from "../lib/dom.js";
-import { mountSwitcher } from "../components/switcher.js";
-import { FIELDS, CHAIN_NAMES, CATALOG } from "../data/conversion.js";
-import { switcherChange } from "../model/app.js";
+import { $, h } from "../lib/shell/dom.js";
+import { mountSwitcher } from "../components/shell/switcher.js";
+import { FIELDS, CHAIN_NAMES, CATALOG } from "../data/stages/conversion.js";
+import { switcherChange } from "../model/shell/app.js";
 
 // The targets (#swtarget) the switcher acts on itself.
 const TARGETS = { mode: "Output mode", volume: "Volume" };

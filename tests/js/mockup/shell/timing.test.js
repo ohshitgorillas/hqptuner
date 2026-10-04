@@ -9,9 +9,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { holdRepeat, checkSequence, revertAfter } from "../../../../mockup/scripts/model/timing.js";
+import { holdRepeat, checkSequence, revertAfter } from "../../../../mockup/scripts/model/shell/timing.js";
 
-/** @typedef {import("../../../../mockup/scripts/lib/clock.js").Clock} Clock */
+/** @typedef {import("../../../../mockup/scripts/lib/shell/clock.js").Clock} Clock */
 
 //: Hold delay and repeat rate for the hold tests, in the fake clock's ms.
 const DELAY = 100;

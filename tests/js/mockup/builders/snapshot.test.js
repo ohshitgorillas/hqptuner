@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { NEW, keyOf } from "../../../../mockup/scripts/model/builder.js";
+import { NEW, keyOf } from "../../../../mockup/scripts/model/builders/builder.js";
 import {
   isChain,
   valOf,
@@ -20,10 +20,10 @@ import {
   railFolds,
   litEntry,
   snapRow,
-} from "../../../../mockup/scripts/model/snapshot.js";
+} from "../../../../mockup/scripts/model/builders/snapshot.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/snapshot.js").Edit} Edit */
-/** @typedef {import("../../../../mockup/scripts/model/builder.js").Ref} Ref */
+/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Edit} Edit */
+/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Ref} Ref */
 
 //: The stations a tree lists, in tree order.
 const TREE = ["Den", "Loft", "Shed"];

@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { percentApplied } from "../../../../mockup/scripts/model/loudness.js";
+import { percentApplied } from "../../../../mockup/scripts/model/gauges/loudness.js";
 
 test("test_percent_applied_of_full_shelving_is_a_hundred", () => {
   assert.equal(percentApplied(1), 100);

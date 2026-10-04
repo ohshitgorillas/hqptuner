@@ -18,7 +18,7 @@ import {
   overruns,
   railValues,
   sectionRows,
-} from "../../../../mockup/scripts/model/conversion.js";
+} from "../../../../mockup/scripts/model/shell/conversion.js";
 
 //: Plays by name: the running chain, the scenario path, and the filter stage the source rate selects.
 const PLAY = {

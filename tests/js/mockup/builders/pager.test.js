@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { paging, stepPage } from "../../../../mockup/scripts/model/pager.js";
+import { paging, stepPage } from "../../../../mockup/scripts/model/builders/pager.js";
 
 /**
  * One list, the page asked for, and what one field of its paging owes.

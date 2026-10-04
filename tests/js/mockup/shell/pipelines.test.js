@@ -29,12 +29,12 @@ import {
   plotInputs,
   retypeStage,
   stageAt,
-} from "../../../../mockup/scripts/model/pipelines.js";
+} from "../../../../mockup/scripts/model/shell/pipelines.js";
 import { near } from "../../support/near.js";
 
 /**
- * @typedef {import("../../../../mockup/scripts/model/pipelines.js").Pipe} Pipe
- * @typedef {import("../../../../mockup/scripts/model/pipelines.js").Stage} Stage
+ * @typedef {import("../../../../mockup/scripts/model/shell/pipelines.js").Pipe} Pipe
+ * @typedef {import("../../../../mockup/scripts/model/shell/pipelines.js").Stage} Stage
  */
 
 /**

@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { rowsOf, rowOf } from "../../../../mockup/scripts/model/schema.js";
+import { rowsOf, rowOf } from "../../../../mockup/scripts/model/builders/schema.js";
 
 //: Rows the schemas below hold, each its own object so a lookup is checked by identity.
 const RATE = { label: "Rate" };

@@ -24,7 +24,7 @@ import {
   seamX,
   tierIndex,
   tunerColumns,
-} from "../../../../mockup/scripts/model/output.js";
+} from "../../../../mockup/scripts/model/gauges/output.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for values the float arithmetic may round in the last place.
@@ -62,7 +62,7 @@ const PLAYING_1 = { run: "sdm", tier: 1, src: 0, fam: "f48" };
 /**
  * `tier:family` for every rate the columns mark with `key`, in column order.
  *
- * @param {import("../../../../mockup/scripts/model/output.js").TunerColumn[]} cols
+ * @param {import("../../../../mockup/scripts/model/gauges/output.js").TunerColumn[]} cols
  * @param {"pinned" | "playing"} key
  * @returns {string[]}
  */

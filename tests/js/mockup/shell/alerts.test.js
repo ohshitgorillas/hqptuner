@@ -9,9 +9,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../mockup/scripts/model/alerts.js";
+import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../mockup/scripts/model/shell/alerts.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/alerts.js").Alert} Alert */
+/** @typedef {import("../../../../mockup/scripts/model/shell/alerts.js").Alert} Alert */
 
 //: Homes by alert kind: two on one stage, a bare header element, a header element with a settings category and a
 //: drawer row, two sharing a drawer, a page section, and a stage that darkens the two after it.

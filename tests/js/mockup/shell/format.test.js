@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { classNames, minus, minusText, plusMinus, signed } from "../../../../mockup/scripts/model/format.js";
+import { classNames, minus, minusText, plusMinus, signed } from "../../../../mockup/scripts/model/shell/format.js";
 
 //: The typographic minus every form prints in place of a hyphen.
 const MINUS = "−";

@@ -1,8 +1,8 @@
 // The shell's body swap and Escape: a builder's body in for the chain's and back out, its button and Escape armed.
 
-import { anyOpen } from "../popover.js";
-import { closeSheets, sheetOpen } from "../sheet.js";
-import { closeOthers } from "../../components/drawer.js";
+import { anyOpen } from "../shell/popover.js";
+import { closeSheets, sheetOpen } from "../shell/sheet.js";
+import { closeOthers } from "../../components/drawers/drawer.js";
 
 /** @typedef {import('./record.js').Shell} Shell */
 /** @typedef {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} Els */

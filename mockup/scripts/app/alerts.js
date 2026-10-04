@@ -1,12 +1,12 @@
 // Alerts: the mock alerts the scenario strip's picks raise, onto their homes. Their homes are every drawer and the Settings
 // body, so this runs last: the page reports the scenario it opened on, closes every drawer, then mounts the alerts.
 
-import { $ } from "../lib/dom.js";
-import { mountAlerts } from "../components/alerts.js";
-import { ALERT_COPY, MOCK_FIG } from "../data/alerts.js";
-import { LISTS } from "../data/option-lists.js";
-import { ENGINE } from "../data/scenarios.js";
-import { engineRow, raisedAlerts } from "../model/app.js";
+import { $ } from "../lib/shell/dom.js";
+import { mountAlerts } from "../components/shell/alerts.js";
+import { ALERT_COPY, MOCK_FIG } from "../data/shell/alerts.js";
+import { LISTS } from "../data/lists/option-lists.js";
+import { ENGINE } from "../data/shell/scenarios.js";
+import { engineRow, raisedAlerts } from "../model/shell/app.js";
 
 /**
  * Wire the alerts and open the page; app.raise and app.alerts are set here.

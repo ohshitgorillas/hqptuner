@@ -27,11 +27,11 @@ import {
   ipv6Verdict,
   usbVerdict,
   dsd48Verdict,
-} from "../../../../mockup/scripts/model/station.js";
+} from "../../../../mockup/scripts/model/builders/station.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/station.js").Rec} Rec */
-/** @typedef {import("../../../../mockup/scripts/model/station.js").Hw} Hw */
-/** @typedef {import("../../../../mockup/scripts/model/station.js").Iface} Iface */
+/** @typedef {import("../../../../mockup/scripts/model/builders/station.js").Rec} Rec */
+/** @typedef {import("../../../../mockup/scripts/model/builders/station.js").Hw} Hw */
+/** @typedef {import("../../../../mockup/scripts/model/builders/station.js").Iface} Iface */
 
 //: Network listings: one host's DDC pair (two listings for one DAC), then a second host's card.
 const NET = ["den: ddc: usb", "den: dac: i2s", "loft: hat: spdif"];

@@ -26,13 +26,13 @@ import {
   paintView,
   pickerOf,
   renderView,
-} from "../../../../mockup/scripts/model/profile.js";
-import { NEW, keyOf } from "../../../../mockup/scripts/model/builder.js";
+} from "../../../../mockup/scripts/model/builders/profile.js";
+import { NEW, keyOf } from "../../../../mockup/scripts/model/builders/builder.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/profile.js").Vals} Vals */
-/** @typedef {import("../../../../mockup/scripts/model/profile.js").Meta} Meta */
-/** @typedef {import("../../../../mockup/scripts/model/profile.js").Known} Known */
-/** @typedef {import("../../../../mockup/scripts/model/profile.js").StepContext} StepContext */
+/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Vals} Vals */
+/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Meta} Meta */
+/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Known} Known */
+/** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").StepContext} StepContext */
 
 //: Steps whose skip rules echo what they read, so a test sees the context a step is handed.
 const STEPS = [

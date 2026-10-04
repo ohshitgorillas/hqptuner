@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { subsetVersion } from "../../../../mockup/scripts/model/presets.js";
+import { subsetVersion } from "../../../../mockup/scripts/model/shell/presets.js";
 
 //: Two subsets under two flagship lanes: a switchable version priced in pips, one at a single pip, one priced in a word,
 //: and a fixed version with no non-correcting twin.

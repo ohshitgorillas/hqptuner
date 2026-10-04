@@ -14,7 +14,7 @@ import {
   stepOff,
   volumeView,
   loudSpan,
-} from "../../../../mockup/scripts/model/volume.js";
+} from "../../../../mockup/scripts/model/gauges/volume.js";
 
 //: The slider range the test writes: −40 … +10 dB in half-dB steps (neither end zero, so a zero answer is never right).
 const CFG = { min: -40, max: 10, step: 0.5 };

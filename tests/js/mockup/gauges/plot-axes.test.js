@@ -15,7 +15,7 @@ import {
   plotGeometry,
   pointAt,
   tracePath,
-} from "../../../../mockup/scripts/model/plot-axes.js";
+} from "../../../../mockup/scripts/model/gauges/plot-axes.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for maps the float arithmetic may round in the last place.

@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createBus } from "../../../../mockup/scripts/lib/bus.js";
+import { createBus } from "../../../../mockup/scripts/lib/shell/bus.js";
 
 /**
  * A bus whose listener failures land in `errors` instead of the platform's report.

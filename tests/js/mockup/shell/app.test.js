@@ -20,11 +20,11 @@ import {
   raisedAlerts,
   switcherChange,
   zone,
-} from "../../../../mockup/scripts/model/app.js";
+} from "../../../../mockup/scripts/model/shell/app.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/app.js").Scene} Scene */
-/** @typedef {import("../../../../mockup/scripts/model/app.js").RaiseNow} RaiseNow */
-/** @typedef {import("../../../../mockup/scripts/model/app.js").SlotFace} SlotFace */
+/** @typedef {import("../../../../mockup/scripts/model/shell/app.js").Scene} Scene */
+/** @typedef {import("../../../../mockup/scripts/model/shell/app.js").RaiseNow} RaiseNow */
+/** @typedef {import("../../../../mockup/scripts/model/shell/app.js").SlotFace} SlotFace */
 /** @typedef {[number, number]} Seams */
 
 //: Speed seams [bad|warn, warn|ok] the gauge tests read.

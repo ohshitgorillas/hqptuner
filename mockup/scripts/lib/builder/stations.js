@@ -1,8 +1,8 @@
 // The shell's name box and its stations menu (the stations Save writes to).
 
-import { h } from "../dom.js";
-import { popover } from "../popover.js";
-import { shownName, toggleStation, heldAt } from "../../model/builder.js";
+import { h } from "../shell/dom.js";
+import { popover } from "../shell/popover.js";
+import { shownName, toggleStation, heldAt } from "../../model/builders/builder.js";
 
 /** @typedef {import('./record.js').Shell} Shell */
 

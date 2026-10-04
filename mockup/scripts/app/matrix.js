@@ -2,13 +2,13 @@
 // Crossfeed, Loudness, DAC correction), the page's top section once the family is mounted, and the Speakers drawer that
 // follows the family in #body.
 
-import { $ } from "../lib/dom.js";
-import { xrefGo } from "../lib/xref.js";
-import { mountDrawer } from "../components/drawer.js";
-import { createPipelines } from "../components/pipelines.js";
-import { mountCrossfeed } from "../components/crossfeed.js";
-import { mountLoudness } from "../components/loudness.js";
-import { mountSpeakers } from "../components/speakers.js";
+import { $ } from "../lib/shell/dom.js";
+import { xrefGo } from "../lib/controls/xref.js";
+import { mountDrawer } from "../components/drawers/drawer.js";
+import { createPipelines } from "../components/drawers/pipelines.js";
+import { mountCrossfeed } from "../components/drawers/crossfeed.js";
+import { mountLoudness } from "../components/drawers/loudness.js";
+import { mountSpeakers } from "../components/drawers/speakers.js";
 import {
   MATRIX_DRAWER,
   CROSSFEED_DRAWER,
@@ -18,12 +18,12 @@ import {
   LOUDNESS,
   XF_MODES,
   bypassed,
-} from "../data/matrix.js";
-import { SPEAKERS, SPEAKERS_DRAWER, SETS } from "../data/speakers.js";
-import { MATRIX_PROFILES } from "../data/snapshots.js";
-import { PROFILES } from "../data/profiles.js";
-import { modeName } from "../model/crossfeed.js";
-import { profileRecords } from "../model/app.js";
+} from "../data/stages/matrix.js";
+import { SPEAKERS, SPEAKERS_DRAWER, SETS } from "../data/stages/speakers.js";
+import { MATRIX_PROFILES } from "../data/builders/snapshots.js";
+import { PROFILES } from "../data/builders/profiles.js";
+import { modeName } from "../model/gauges/crossfeed.js";
+import { profileRecords } from "../model/shell/app.js";
 
 /**
  * Wire the Matrix profile select, the Matrix engine family and Speakers; app.mprof, app.fillProfiles, app.mxSection and

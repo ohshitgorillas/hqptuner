@@ -1,15 +1,15 @@
 // Faceplate entry point: one bus, the mock's URL flags and one shared state object, then each concern (scripts/app/)
 // mounts its part onto the static markup in index.html, in mount order.
 
-import { createBus } from "./lib/bus.js";
-import { hashFlags } from "./model/flags.js";
-import { SIZES } from "./lib/plate.js";
-import { pipelineSet } from "./data/pipelines.js";
-import { SCENES, SCENE0 } from "./data/scenarios.js";
-import { MOCK_ALERTS } from "./data/alerts.js";
-import { CONV } from "./data/conversion.js";
-import { MATRIX_PLOT } from "./data/matrix.js";
-import { VOLUME, VOLUME_RANGE } from "./data/volume.js";
+import { createBus } from "./lib/shell/bus.js";
+import { hashFlags } from "./model/shell/flags.js";
+import { SIZES } from "./lib/shell/plate.js";
+import { pipelineSet } from "./data/stages/pipelines.js";
+import { SCENES, SCENE0 } from "./data/shell/scenarios.js";
+import { MOCK_ALERTS } from "./data/shell/alerts.js";
+import { CONV } from "./data/stages/conversion.js";
+import { MATRIX_PLOT } from "./data/stages/matrix.js";
+import { VOLUME, VOLUME_RANGE } from "./data/stages/volume.js";
 import { wireFrame } from "./app/frame.js";
 import { wireSwitcher } from "./app/switcher.js";
 import { wireEngine } from "./app/engine.js";

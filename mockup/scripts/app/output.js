@@ -1,18 +1,18 @@
 // Output and conversion: what the output carries, the page's rate tuner, the chain (Resampling · Shaping on the page and
 // the rail), the DSD Processing, Resampling and Shaping drawers, and the Output drawer.
 
-import { $ } from "../lib/dom.js";
-import { setChain } from "../lib/narrow.js";
-import { sizeOf, SIZE } from "../lib/plate.js";
-import { setDacType } from "../lib/dactype.js";
-import { xrefGo } from "../lib/xref.js";
-import { mountDrawer } from "../components/drawer.js";
-import { mountOutputTuner } from "../components/output-tuner.js";
-import { mountConversion } from "../components/conversion.js";
-import { mountModeDrawer } from "../components/mode-drawer.js";
-import { MODE_DRAWERS } from "../data/conversion.js";
-import { OUTPUT_DRAWER, BACKEND_NAMES, DEVICES, RATE_TIERS } from "../data/output.js";
-import { OUT } from "../data/scenarios.js";
+import { $ } from "../lib/shell/dom.js";
+import { setChain } from "../lib/state/narrow.js";
+import { sizeOf, SIZE } from "../lib/shell/plate.js";
+import { setDacType } from "../lib/state/dactype.js";
+import { xrefGo } from "../lib/controls/xref.js";
+import { mountDrawer } from "../components/drawers/drawer.js";
+import { mountOutputTuner } from "../components/page/output-tuner.js";
+import { mountConversion } from "../components/page/conversion.js";
+import { mountModeDrawer } from "../components/drawers/mode-drawer.js";
+import { MODE_DRAWERS } from "../data/stages/conversion.js";
+import { OUTPUT_DRAWER, BACKEND_NAMES, DEVICES, RATE_TIERS } from "../data/stages/output.js";
+import { OUT } from "../data/shell/scenarios.js";
 
 // PCM output bit depth = the Output drawer's DAC bits (the dithering level) for the active backend, as applied. Omitted at
 // 0 (auto-detect: the engine picks it) and on Combo (one value per sub-device).

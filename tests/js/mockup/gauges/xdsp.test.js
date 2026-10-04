@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { gainLin, loudnessDb, pipeH } from "../../../../mockup/scripts/lib/xdsp.js";
+import { gainLin, loudnessDb, pipeH } from "../../../../mockup/scripts/lib/dsp/xdsp.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for responses the float arithmetic may round in the last places.

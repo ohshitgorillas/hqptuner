@@ -1,16 +1,16 @@
 // Builders and settings: the bodies that swap in for the chain (Settings, the Snapshot, Profile and Station builders),
 // one body at a time.
 
-import { $ } from "../lib/dom.js";
-import { closeSheets } from "../lib/sheet.js";
-import { loadValues } from "../components/drawer.js";
-import { mountSettings } from "../components/settings.js";
-import { mountSnapshotBuilder } from "../components/snapshot-builder.js";
-import { mountProfileBuilder } from "../components/profile-builder.js";
-import { mountStationBuilder } from "../components/station-builder.js";
-import { SNAPSHOTS, MANY, MANY_STATIONS, LONG } from "../data/snapshots.js";
-import { PROFILES, STATION_PROFILES } from "../data/profiles.js";
-import { STATIONS } from "../data/stations.js";
+import { $ } from "../lib/shell/dom.js";
+import { closeSheets } from "../lib/shell/sheet.js";
+import { loadValues } from "../components/drawers/drawer.js";
+import { mountSettings } from "../components/settings/settings.js";
+import { mountSnapshotBuilder } from "../components/builders/snapshot-builder.js";
+import { mountProfileBuilder } from "../components/builders/profile-builder.js";
+import { mountStationBuilder } from "../components/builders/station-builder.js";
+import { SNAPSHOTS, MANY, MANY_STATIONS, LONG } from "../data/builders/snapshots.js";
+import { PROFILES, STATION_PROFILES } from "../data/builders/profiles.js";
+import { STATIONS } from "../data/builders/stations.js";
 
 /**
  * Wire Settings and the three builders; app.builder, app.profiles, app.stationB and app.treeStations are set here.

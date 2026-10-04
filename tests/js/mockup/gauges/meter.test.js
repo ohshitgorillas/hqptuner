@@ -29,7 +29,7 @@ import {
   stepSpectrum,
   timeTicks,
   windowSpan,
-} from "../../../../mockup/scripts/model/meter.js";
+} from "../../../../mockup/scripts/model/gauges/meter.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.

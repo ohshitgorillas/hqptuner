@@ -1,12 +1,12 @@
 // Volume and loudness: the Loudness rail value that follows the live level, and the Volume drawer (Fixed volume, Range).
 
-import { $ } from "../lib/dom.js";
-import { xrefGo } from "../lib/xref.js";
-import { shelfScale } from "../lib/xdsp.js";
-import { mountDrawer } from "../components/drawer.js";
-import { mountVolumeRange } from "../components/volume-range.js";
-import { VOLUME, VOLUME_DRAWER } from "../data/volume.js";
-import { percentApplied } from "../model/loudness.js";
+import { $ } from "../lib/shell/dom.js";
+import { xrefGo } from "../lib/controls/xref.js";
+import { shelfScale } from "../lib/dsp/xdsp.js";
+import { mountDrawer } from "../components/drawers/drawer.js";
+import { mountVolumeRange } from "../components/drawers/volume-range.js";
+import { VOLUME, VOLUME_DRAWER } from "../data/stages/volume.js";
+import { percentApplied } from "../model/gauges/loudness.js";
 
 /**
  * Wire the Loudness rail value and the Volume drawer; app.loudValue is set here.

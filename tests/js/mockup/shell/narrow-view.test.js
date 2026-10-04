@@ -14,7 +14,7 @@ import {
   narrowing,
   stateKeys,
   summary,
-} from "../../../../mockup/scripts/model/narrow-view.js";
+} from "../../../../mockup/scripts/model/shell/narrow-view.js";
 
 // ── Facet tables ──────────────────────────────────────────────────────────
 

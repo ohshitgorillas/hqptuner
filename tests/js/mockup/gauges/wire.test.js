@@ -10,13 +10,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { groupFrame, lampDots, pathLamps, wirePath } from "../../../../mockup/scripts/model/wire.js";
+import { groupFrame, lampDots, pathLamps, wirePath } from "../../../../mockup/scripts/model/gauges/wire.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/wire.js").Box} Box */
-/** @typedef {import("../../../../mockup/scripts/model/wire.js").Dot} Dot */
-/** @typedef {import("../../../../mockup/scripts/model/wire.js").Lamp} Lamp */
-/** @typedef {import("../../../../mockup/scripts/model/wire.js").MapEdge} MapEdge */
-/** @typedef {import("../../../../mockup/scripts/model/wire.js").MapNode} MapNode */
+/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Box} Box */
+/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Dot} Dot */
+/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Lamp} Lamp */
+/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").MapEdge} MapEdge */
+/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").MapNode} MapNode */
 
 // --- lamp dots ---------------------------------------------------------------------------------------------------
 

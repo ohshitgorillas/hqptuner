@@ -21,9 +21,9 @@ import {
   commit,
   restoreOf,
   blockRestore,
-} from "../../../../mockup/scripts/model/drawer.js";
+} from "../../../../mockup/scripts/model/shell/drawer.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/drawer.js").Values} Values */
+/** @typedef {import("../../../../mockup/scripts/model/shell/drawer.js").Values} Values */
 
 //: Gray reasons by the value of `mode`, the table every grayable control below reads.
 /** @type {Record<string, string>} */

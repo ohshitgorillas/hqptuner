@@ -2,18 +2,18 @@
 // meter in the Source drawer and in the page's top section, everything a playback path shows, and the HF filter drawer
 // (live: its rail lamp follows at once).
 
-import { $, h } from "../lib/dom.js";
-import { sizeOf, SIZE } from "../lib/plate.js";
-import { withXref } from "../lib/xref.js";
-import { mountDrawer } from "../components/drawer.js";
-import { mountSourceMeter } from "../components/source-meter.js";
-import { mountVolume, mountVolumeBar } from "../components/volume.js";
-import { SOURCE_DRAWER, METER } from "../data/source.js";
-import { HF_DRAWER } from "../data/hf.js";
-import { VOLUME } from "../data/volume.js";
-import { PROFILES } from "../data/profiles.js";
-import { ENGINE, ZONES, OUT, COPY } from "../data/scenarios.js";
-import { fillLayout, gaugeReading, noStream, pathView, profileRecords } from "../model/app.js";
+import { $, h } from "../lib/shell/dom.js";
+import { sizeOf, SIZE } from "../lib/shell/plate.js";
+import { withXref } from "../lib/controls/xref.js";
+import { mountDrawer } from "../components/drawers/drawer.js";
+import { mountSourceMeter } from "../components/drawers/source-meter.js";
+import { mountVolume, mountVolumeBar } from "../components/shell/volume.js";
+import { SOURCE_DRAWER, METER } from "../data/stages/source.js";
+import { HF_DRAWER } from "../data/stages/hf.js";
+import { VOLUME } from "../data/stages/volume.js";
+import { PROFILES } from "../data/builders/profiles.js";
+import { ENGINE, ZONES, OUT, COPY } from "../data/shell/scenarios.js";
+import { fillLayout, gaugeReading, noStream, pathView, profileRecords } from "../model/shell/app.js";
 
 // Not in a Direct path: Direct runs nothing but Speakers (Resampling and Shaping leave the chain on DSD → DSD).
 const BYPASS = ["hf", "volume", "matrix", "pipelines", "crossfeed", "loudness", "resampling", "shaping", "correction"];
