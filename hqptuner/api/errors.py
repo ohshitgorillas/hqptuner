@@ -43,6 +43,7 @@ STATUS: dict[str, int] = {
     "invalid_input": 422,
     "nothing_staged": 400,
     "fields_unknown": 422,
+    "stations_unknown": 422,
     "store_too_new": 409,
     "store_corrupt": 500,
     "archive_unreadable": 500,

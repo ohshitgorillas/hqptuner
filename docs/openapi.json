@@ -1754,7 +1754,7 @@
         "type": "object"
       },
       "LivePresetList": {
-        "description": "``GET /api/livepresets``: every saved live snapshot.",
+        "description": "``GET /api/livepresets``: the loaded station, its saved live snapshots, and every station's, by name.",
         "properties": {
           "presets": {
             "items": {
@@ -1762,12 +1762,56 @@
             },
             "title": "Presets",
             "type": "array"
+          },
+          "station": {
+            "title": "Station",
+            "type": "string"
+          },
+          "stations": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/LiveRecord"
+              },
+              "type": "object"
+            },
+            "title": "Stations",
+            "type": "object"
           }
         },
         "required": [
-          "presets"
+          "station",
+          "presets",
+          "stations"
         ],
         "title": "LivePresetList",
+        "type": "object"
+      },
+      "LiveRecord": {
+        "description": "One live snapshot: the chain it was taken on, the settings it carries, and their display names.\n\nA record need not carry every setting: a save may name the ones it keeps, and an apply leaves the absent ones\nwhere the engine has them.",
+        "properties": {
+          "chain": {
+            "title": "Chain",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "object"
+          }
+        },
+        "required": [
+          "chain"
+        ],
+        "title": "LiveRecord",
         "type": "object"
       },
       "LiveSnapshotView": {
@@ -2635,7 +2679,7 @@
         "type": "object"
       },
       "SaveBody": {
-        "description": "Which settings ``PUT /api/livepresets/{name}`` stores; None keeps everything the engine reports.",
+        "description": "Which settings ``PUT /api/livepresets/{name}`` stores, and under which stations.\n\n``fields`` of None keeps everything the engine reports; ``stations`` of None writes to the loaded station alone.",
         "properties": {
           "fields": {
             "anyOf": [
@@ -2650,6 +2694,21 @@
               }
             ],
             "title": "Fields"
+          },
+          "stations": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stations"
           }
         },
         "title": "SaveBody",
@@ -4360,7 +4419,7 @@
     },
     "/api/livepresets": {
       "get": {
-        "description": "Every saved live snapshot.\n\nFlat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it\nrather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
+        "description": "Return the loaded station, its saved live snapshots as ``presets``, and the whole book as ``stations``.\n\nNot judged against the engine: a preset carries its own output mode, so applying one taken on the other chain\nswitches the engine to it rather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
         "operationId": "live_presets_api_livepresets_get",
         "responses": {
           "200": {
@@ -4398,7 +4457,7 @@
     },
     "/api/livepresets/{name}": {
       "delete": {
-        "description": "Remove a saved live snapshot from the store, leaving the running engine untouched.\n\n404 when no preset is saved under the name.",
+        "description": "Remove a live snapshot from ``station``, the loaded one when absent, leaving the running engine untouched.\n\nAnother station's snapshot under the same name stays. 404 when ``station`` holds no preset under the name.",
         "operationId": "delete_live_preset_api_livepresets__name__delete",
         "parameters": [
           {
@@ -4408,6 +4467,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "station",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Station"
             }
           }
         ],
@@ -4436,7 +4511,7 @@
         "summary": "Delete Live Preset"
       },
       "put": {
-        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting.",
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\nA body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them\nwhere the engine has them. A body naming ``stations`` writes the one record under each; none named writes it\nunder the loaded station. 409 when the loaded chain is unknowable \u2014 the record would claim a chain it never\ncaptured. 422 when a named field is not a live snapshot setting, or a named station is not one the preset store\nholds.",
         "operationId": "save_live_preset_api_livepresets__name__put",
         "parameters": [
           {
@@ -4493,7 +4568,7 @@
     },
     "/api/livepresets/{name}/apply": {
       "post": {
-        "description": "Apply a saved preset, readback-verified.\n\nIts output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),\nso a preset taken on the other chain applies by switching to it.\n\nThe live lane's all-or-nothing 409 carries over unchanged: a stored ID the\nrunning enumerations no longer offer refuses the whole preset, naming the\nfield.",
+        "description": "Apply a preset saved under ``station``, the loaded one when absent, readback-verified.\n\nIts output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),\nso a preset taken on the other chain applies by switching to it.\n\nThe live lane's all-or-nothing 409 carries over unchanged: a stored ID the\nrunning enumerations no longer offer refuses the whole preset, naming the\nfield.",
         "operationId": "apply_live_preset_api_livepresets__name__apply_post",
         "parameters": [
           {
@@ -4503,6 +4578,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "station",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Station"
             }
           }
         ],

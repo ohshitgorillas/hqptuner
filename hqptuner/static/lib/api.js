@@ -103,6 +103,11 @@ async function upload(path, field, file) {
   return r.json();
 }
 
+// The `?station=` a live snapshot call names, or nothing for the loaded station.
+// `""`, the unnamed default, is a station too, so it is sent rather than dropped.
+/** @param {string | undefined} station */
+const stationQuery = (station) => (station === undefined ? "" : `?station=${encodeURIComponent(station)}`);
+
 export const api = {
   health: () => getJSON("/api/health"),
   engine: () => getJSON("/api/engine"),
@@ -123,16 +128,27 @@ export const api = {
   // the LIVE view's whole write path: applied on the spot, readback-verified,
   // never staged (store/live/write.js)
   live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
-  // Live snapshots — HQPTuner's own record, never the daemon's. A save takes no
-  // body: the backend snapshots the running engine itself, so the browser has
+  // Live snapshots — HQPTuner's own record, never the daemon's. A save sends no
+  // values: the backend snapshots the running engine itself, so the browser has
   // nothing to send that the daemon has not already reported.
   livePresets: () => getJSON("/api/livepresets"),
   liveSnapshot: () => getJSON("/api/livepresets/snapshot"),
   // `fields` names the settings the preset keeps; omitted, the backend keeps them all.
-  saveLivePreset: (/** @type {string} */ name, /** @type {string[] | undefined} */ fields) =>
-    send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields ? { fields } : undefined),
-  applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
-  deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
+  // `stations` names the stations it is saved under; omitted, the loaded one. The
+  // `station` an apply or delete names is the one whose snapshot it means;
+  // omitted, the loaded one.
+  saveLivePreset: (
+    /** @type {string} */ name,
+    /** @type {string[] | undefined} */ fields,
+    /** @type {string[] | undefined} */ stations,
+  ) => {
+    const body = { ...(fields ? { fields } : {}), ...(stations ? { stations } : {}) };
+    return send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields || stations ? body : undefined);
+  },
+  applyLivePreset: (/** @type {string} */ name, /** @type {string | undefined} */ station) =>
+    send(`/api/livepresets/${encodeURIComponent(name)}/apply${stationQuery(station)}`, "POST"),
+  deleteLivePreset: (/** @type {string} */ name, /** @type {string | undefined} */ station) =>
+    send(`/api/livepresets/${encodeURIComponent(name)}${stationQuery(station)}`, "DELETE"),
   // Where HQPTuner dials and who it says it is. The read never answers the
   // password, only whether one is held; the write saves before it verifies, so
   // its 200 says the record landed and nothing about what the daemon makes of it.

@@ -82,7 +82,7 @@ def store_at(tmp_path: Path) -> PresetStore:
 
 
 def live_store_at(tmp_path: Path) -> LivePresetStore:
-    return LivePresetStore(tmp_path / "live-presets.json")
+    return LivePresetStore(tmp_path / "live-presets.json", stations=list)
 
 
 # --- the two stores behind one save surface ------------------------------------
@@ -106,11 +106,11 @@ def config_store(tmp_path: Path, seeded: str | None = None) -> PresetStore:
 def live_store(tmp_path: Path, seeded: str | None = None) -> LivePresetStore:
     path = tmp_path / "live-presets.json"
     if seeded is not None:
-        LivePresetStore(path).save("seed", RECORD)
+        LivePresetStore(path, stations=list).save("seed", RECORD, [""])
         stamped = json.loads(path.read_text())
-        stamped["presets"] = {seeded: RECORD.to_json()}
+        stamped["stations"] = {"": {seeded: RECORD.to_json()}}
         path.write_text(json.dumps(stamped))
-    return LivePresetStore(path)
+    return LivePresetStore(path, stations=list)
 
 
 STORES = [
@@ -125,8 +125,8 @@ def save_outcome(store: PresetStore | LivePresetStore, name: str) -> list[str] |
         if isinstance(store, PresetStore):
             store.save(name, PAYLOAD)
             return store.names()
-        store.save(name, RECORD)
-        return list(store.all())
+        store.save(name, RECORD, [""])
+        return list(store.all(""))
     except (PresetError, LivePresetError) as exc:
         return exc.code
 
@@ -157,8 +157,8 @@ def test_a_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path: Pat
 @pytest.mark.parametrize("name", ACCEPTED_NAMES)
 def test_a_live_preset_saved_under_an_accepted_name_reads_back_under_it(tmp_path: Path, name: str) -> None:
     store = live_store_at(tmp_path)
-    store.save(name, RECORD)
-    assert store.read(name) == RECORD
+    store.save(name, RECORD, [""])
+    assert store.read("", name) == RECORD
 
 
 # --- Unicode normalization is not the store's business -----------------------
@@ -187,14 +187,14 @@ def test_a_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(
 
 def test_a_decomposed_live_preset_name_reads_back_still_decomposed(tmp_path: Path) -> None:
     store = live_store_at(tmp_path)
-    store.save(DECOMPOSED, RECORD)
-    assert list(store.all()) == [DECOMPOSED]
+    store.save(DECOMPOSED, RECORD, [""])
+    assert list(store.all("")) == [DECOMPOSED]
 
 
 def test_a_live_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(tmp_path: Path) -> None:
     store = live_store_at(tmp_path)
-    store.save(DECOMPOSED, RECORD)
-    assert PRECOMPOSED not in store.all()
+    store.save(DECOMPOSED, RECORD, [""])
+    assert PRECOMPOSED not in store.all("")
 
 
 # --- refusals ----------------------------------------------------------------

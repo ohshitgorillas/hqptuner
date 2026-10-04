@@ -118,6 +118,8 @@ Five operations, all built on that one primitive (`presets/store/presets.py` plu
 
 A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the LIVE lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets.
 
+**Snapshots belong to a station.** A station is a config preset, or `""`, the unnamed default loaded while none is. The file is one book, `{"schema": 5, "stations": {station: {name: record}}}`. `GET /api/livepresets` answers the loaded station, its snapshots as `presets`, and the whole book as `stations`, every station the preset store holds with `""` first. A `PUT` writes the one record under each station its body's `stations` names, the loaded one when it names none; a station the preset store does not hold refuses the whole save (`stations_unknown`). Apply and delete take `?station=`, the loaded one when absent. Deleting a config preset drops its station's snapshots. A file in the flat layout earlier schemas wrote reads with each record under every station and under `""`.
+
 A record holds output **mode**, both chain filters, dither/modulator and adaptive volume, each as value plus display name at save time; values apply and names only render, because engine-built enumerations shift under a stored preset. A record may carry a subset of the settings: the `PUT` body names the kept keys, and any chain-scoped key forces `mode` in. Playback volume is excluded: restoring a level hands the listener a loudness jump they never asked for. **The junk filter and its auto-pilot are never stored**: the filter follows the material, so a save naming `junk_filter` or `autopilot` is refused (`fields_unknown`) and an apply leaves both where they are. A record stored under schema 3 or earlier loses its `junk_filter` and its `autopilot` on read.
 
 Mode is included, which is why apply is `lane.apply_preset` rather than one batch (§4.4). **Applying a snapshot saved on the other chain is not a conflict to refuse**: switching is the request. A snapshot whose stored ID the running enumerations no longer offer refuses the whole snapshot, naming the field. A `rate` stored by older versions is ignored on apply.
@@ -252,6 +254,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `invalid_input` | 422 | a value a store or the config editor rejects |
 | `nothing_staged` | 400 | apply with nothing to apply |
 | `fields_unknown` | 422 | a field no lane accepts |
+| `stations_unknown` | 422 | a live snapshot save naming a station the preset store does not hold |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |

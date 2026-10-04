@@ -13,6 +13,15 @@ overhead). Layout matches ``store.presets``'s conventions: the same name regex, 
 schema stamp that refuses a store newer than this HQPTuner understands, and an
 unstamped file adopted on its next write.
 
+Snapshots belong to a station: a config preset, or ``""``, the unnamed default
+loaded while no preset is. The file is one book, ``{"schema": 5, "stations":
+{station: {name: record}}}``, and the store learns which stations exist from the
+callable it is built with, so a save to a station the preset store does not name
+is refused. A file in the flat layout older builds wrote (``{"presets": {name:
+record}}``) reads with each record under every station the callable names and
+under ``""``, so every snapshot a user could recall before is still there; the
+next write stores that expansion as the book.
+
 A record is::
 
     {"chain": "pcm",
@@ -49,13 +58,17 @@ from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
 # misread preset writes settings the user never chose. An unstamped file predates
 # the stamp and is adopted as the current schema on its next write.
-_SCHEMA = 4
+_SCHEMA = 5
+
+#: The unnamed default station: the one loaded while no config preset is.
+DEFAULT_STATION = ""
 
 #: Record keys no snapshot holds, dropped from a stored record's ``fields`` and ``names`` on read.
 _DROPPED = frozenset({"junk_filter"})
@@ -73,11 +86,16 @@ class LiveRecordFile(TypedDict):
     names: dict[str, str]
 
 
+#: One station's snapshots as the store persists them: name to record.
+LiveShelf = dict[str, LiveRecordFile]
+
+
 class LiveFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the preset map, each entry a ``LiveRecordFile``."""
+    """The on-disk envelope: a schema stamp beside the book, or beside the flat preset map older builds wrote."""
 
     schema: int
-    presets: dict[str, LiveRecordFile]
+    stations: dict[str, LiveShelf]
+    presets: LiveShelf
 
 
 def _strings(stored: object) -> dict[str, str]:
@@ -103,10 +121,21 @@ def _clean_record(stored: dict[object, object]) -> LiveRecordFile:
     )
 
 
+def _shelf(stored: object) -> LiveShelf:
+    """Return a stored name-to-record map with each record checked; an entry that is not an object is dropped."""
+    if not isinstance(stored, dict):
+        return {}
+    return {
+        name: _clean_record(record)
+        for name, record in stored.items()
+        if isinstance(name, str) and isinstance(record, dict)
+    }
+
+
 def _clean(stored: object) -> LiveFile:
     """Return a read document's envelope, keeping each member only when it has the type ``LiveFile`` names.
 
-    A ``presets`` entry that is not an object is dropped here rather than failing every read that reaches it.
+    An entry that is not an object is dropped here rather than failing every read that reaches it.
     """
     out: LiveFile = {}
     if not isinstance(stored, dict):
@@ -114,13 +143,16 @@ def _clean(stored: object) -> LiveFile:
     schema = stored.get("schema")
     if isinstance(schema, int):
         out["schema"] = schema
+    stations = stored.get("stations")
+    if isinstance(stations, dict):
+        out["stations"] = {
+            station: _shelf(shelf)
+            for station, shelf in stations.items()
+            if isinstance(station, str) and isinstance(shelf, dict)
+        }
     presets = stored.get("presets")
     if isinstance(presets, dict):
-        out["presets"] = {
-            name: _clean_record(record)
-            for name, record in presets.items()
-            if isinstance(name, str) and isinstance(record, dict)
-        }
+        out["presets"] = _shelf(presets)
     return out
 
 
@@ -202,6 +234,16 @@ class MixedScriptSnapshotNameError(LivePresetError):
         super().__init__(f"Invalid {label} name: {names.MIXED_SCRIPTS}")
 
 
+class UnknownStationsError(LivePresetError):
+    """A save named a station the preset store does not hold."""
+
+    code = "stations_unknown"
+
+    def __init__(self, *, unknown: list[str]) -> None:
+        """Render the wording naming each ``unknown`` station, in the order given."""
+        super().__init__(f"no such station: {', '.join(repr(station) for station in unknown)}")
+
+
 def canonical_name(name: str) -> str:
     """Return the key the store files ``name`` under, raising ``LivePresetError`` when it is not a snapshot name.
 
@@ -212,15 +254,23 @@ def canonical_name(name: str) -> str:
 
 
 class LivePresetStore:
-    """Live snapshots in one JSON file.
+    """Live snapshots in one JSON file, a book of stations each holding its own.
 
     The file (and its directory) is created lazily on the first write, so an install that never saves one reads as
     empty.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+    def __init__(self, path: Path, *, stations: Callable[[], Iterable[str]]) -> None:
+        """Bind the store to the JSON file at ``path`` and to ``stations``, the named stations, read on each call.
+
+        The file is not touched until the first write.
+        """
         self._path = path
+        self._stations = stations
+
+    def _known(self) -> list[str]:
+        """Return every station a snapshot may belong to: the default first, then each one ``stations`` names."""
+        return [DEFAULT_STATION, *(station for station in self._stations() if station != DEFAULT_STATION)]
 
     def _read_file(self) -> LiveFile:
         """Return the file as a dict, empty when absent.
@@ -234,45 +284,77 @@ class LivePresetStore:
 
         return _clean(read_stamped(self._path, store="live snapshot", schema=_SCHEMA, too_new=_too_new))
 
-    def _presets(self) -> dict[str, LiveRecordFile]:
-        """Return the on-disk record map, each entry checked into ``LiveRecordFile`` but not yet a ``LiveRecord``."""
-        return self._read_file().get("presets", {})
+    def _book(self) -> dict[str, LiveShelf]:
+        """Return the on-disk book, a flat file's map placed under every known station; records stay unconverted."""
+        stored = self._read_file()
+        if "stations" in stored:
+            return stored["stations"]
+        flat = stored.get("presets", {})
+        return {station: dict(flat) for station in self._known()} if flat else {}
 
-    def _write(self, presets: dict[str, LiveRecordFile]) -> None:
+    def _write(self, book: dict[str, LiveShelf]) -> None:
         """Rewrite the whole file, stamped.
 
         Guards the schema first: a store we cannot read is not one we should be writing into.
         """
         self._read_file()
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
+        self._path.write_text(json.dumps({"schema": _SCHEMA, "stations": book}, indent=2))
 
-    def all(self) -> dict[str, LiveRecord]:
-        """Every preset, name -> record, sorted by name."""
-        presets = self._presets()
-        return {name: LiveRecord.from_json(presets[name]) for name in sorted(presets, key=names.sort_key)}
+    @staticmethod
+    def _records(shelf: LiveShelf) -> dict[str, LiveRecord]:
+        """Return one station's records, name -> record, sorted by name."""
+        return {name: LiveRecord.from_json(shelf[name]) for name in sorted(shelf, key=names.sort_key)}
 
-    def read(self, name: str) -> LiveRecord:
-        """One preset's record. Raises ``LivePresetError`` if absent."""
-        record = self._presets().get(canonical_name(name))
+    def book(self) -> dict[str, dict[str, LiveRecord]]:
+        """Every known station's records, the default station first; a station holding none maps to an empty dict."""
+        stored = self._book()
+        return {station: self._records(stored.get(station, {})) for station in self._known()}
+
+    def all(self, station: str) -> dict[str, LiveRecord]:
+        """Every preset ``station`` holds, name -> record, sorted by name."""
+        return self._records(self._book().get(station, {}))
+
+    def read(self, station: str, name: str) -> LiveRecord:
+        """One preset's record from ``station``. Raises ``LivePresetError`` if absent."""
+        record = self._book().get(station, {}).get(canonical_name(name))
         if record is None:
             raise SnapshotNotFoundError(name=name)
         return LiveRecord.from_json(record)
 
-    def save(self, name: str, record: LiveRecord) -> None:
-        """Write (or overwrite) a preset. A name new to the store takes the stricter first-save rule."""
-        presets = self._presets()
-        key = canonical_name(name)
-        if key not in presets:
-            names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
-        presets[key] = record.to_json()
-        self._write(presets)
+    def save(self, name: str, record: LiveRecord, stations: Iterable[str]) -> None:
+        """Write (or overwrite) a preset under each of ``stations``, in one write.
 
-    def delete(self, name: str) -> None:
-        """Remove a preset. Raises ``LivePresetError`` if absent."""
-        presets = self._presets()
+        A name new to any of them takes the stricter first-save rule. A station the store does not know refuses the
+        whole save, so a record never lands under some of the stations it was meant for.
+        """
         key = canonical_name(name)
-        if key not in presets:
+        targets = list(dict.fromkeys(stations))
+        known = set(self._known())
+        unknown = [station for station in targets if station not in known]
+        if unknown:
+            raise UnknownStationsError(unknown=unknown)
+        book = self._book()
+        if any(key not in book.get(station, {}) for station in targets):
+            names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
+        for station in targets:
+            book.setdefault(station, {})[key] = record.to_json()
+        self._write(book)
+
+    def delete(self, station: str, name: str) -> None:
+        """Remove a preset from ``station``, leaving any other station's copy. Raises ``LivePresetError`` if absent."""
+        book = self._book()
+        shelf = book.get(station, {})
+        key = canonical_name(name)
+        if key not in shelf:
             raise SnapshotNotFoundError(name=name)
-        del presets[key]
-        self._write(presets)
+        del shelf[key]
+        self._write(book)
+
+    def forget(self, station: str) -> None:
+        """Drop every preset ``station`` holds, as its config preset goes. A station holding none writes nothing."""
+        book = self._book()
+        if station not in book:
+            return
+        del book[station]
+        self._write(book)

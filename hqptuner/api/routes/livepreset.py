@@ -1,14 +1,19 @@
 """Live-snapshot REST surface — the LIVE view's named setting combos.
 
 A self-contained feature surface mounted alongside ``app``. Nothing here touches the
-8088 lane, the pending store, or ``store.presets`` — a live snapshot is applied by
-the Phase-2 live lane and so can never restart the daemon.
+8088 lane or the pending store — a live snapshot is applied by the Phase-2 live
+lane and so can never restart the daemon. ``store.presets`` is read for one fact
+only: which station is loaded, its active preset or ``""`` when none is.
+
+Snapshots belong to a station. The list answers the loaded station's beside the
+whole book; a save writes to the stations its body names, the loaded one when it
+names none; apply and delete take ``?station=``, the loaded one when absent.
 """
 
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from hqptuner.api.deps import Mgr, WithAutosave, with_autosave
 from hqptuner.api.errors import ApiError, ErrorBody, refuse
@@ -18,6 +23,7 @@ from hqptuner.lanes.live import lane, routing, snapshot
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.lanes.live.snapshot import ChainUnknownError
 from hqptuner.presets.store.live import (
+    DEFAULT_STATION,
     LiveFields,
     LivePresetError,
     LivePresetSchemaError,
@@ -34,9 +40,13 @@ _CHAIN_SCOPED = frozenset(field for field, spec in routing.ROUTABLE.items() if s
 
 
 class SaveBody(BaseModel):
-    """Which settings ``PUT /api/livepresets/{name}`` stores; None keeps everything the engine reports."""
+    """Which settings ``PUT /api/livepresets/{name}`` stores, and under which stations.
+
+    ``fields`` of None keeps everything the engine reports; ``stations`` of None writes to the loaded station alone.
+    """
 
     fields: list[str] | None = None
+    stations: list[str] | None = Field(default=None, min_length=1)
 
 
 class NotLiveSnapshotSettingsError(ErrorBody):
@@ -66,9 +76,11 @@ class NamedLiveRecord:
 
 @dataclass(frozen=True)
 class LivePresetList:
-    """``GET /api/livepresets``: every saved live snapshot."""
+    """``GET /api/livepresets``: the loaded station, its saved live snapshots, and every station's, by name."""
 
+    station: str
     presets: list[NamedLiveRecord]
+    stations: dict[str, dict[str, LiveRecord]]
 
 
 @dataclass(frozen=True)
@@ -93,6 +105,11 @@ def _store(request: Request) -> LivePresetStore:
 
 def _unreadable(exc: LivePresetSchemaError) -> ApiError:
     return refuse(exc)
+
+
+def _loaded(manager: ConnectionManager) -> str:
+    """Return the loaded station: the active config preset, or the unnamed default when none is."""
+    return manager.presetops.store.active or DEFAULT_STATION
 
 
 def _selected(wanted: list[str] | None) -> set[str] | None:
@@ -137,17 +154,19 @@ def live_snapshot(manager: Mgr) -> LiveSnapshotView:
 
 
 @router.get("/livepresets")
-def live_presets(request: Request) -> LivePresetList:
-    """Every saved live snapshot.
+def live_presets(request: Request, manager: Mgr) -> LivePresetList:
+    """Return the loaded station, its saved live snapshots as ``presets``, and the whole book as ``stations``.
 
-    Flat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it
-    rather than conflicting with what is loaded — there is nothing here to gate on.
+    Not judged against the engine: a preset carries its own output mode, so applying one taken on the other chain
+    switches the engine to it rather than conflicting with what is loaded — there is nothing here to gate on.
     """
+    station = _loaded(manager)
     try:
-        presets = _store(request).all()
+        book = _store(request).book()
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
-    return LivePresetList([NamedLiveRecord.of(name, record) for name, record in presets.items()])
+    presets = [NamedLiveRecord.of(name, record) for name, record in book.get(station, {}).items()]
+    return LivePresetList(station, presets, book)
 
 
 @router.put("/livepresets/{name:path}")
@@ -155,8 +174,10 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     """Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.
 
     A body naming ``fields`` keeps only those settings; the rest are absent from the record and an apply leaves them
-    where the engine has them. 409 when the loaded chain is unknowable — the record would claim a chain it never
-    captured. 422 when a named field is not a live snapshot setting.
+    where the engine has them. A body naming ``stations`` writes the one record under each; none named writes it
+    under the loaded station. 409 when the loaded chain is unknowable — the record would claim a chain it never
+    captured. 422 when a named field is not a live snapshot setting, or a named station is not one the preset store
+    holds.
     """
     # Name first, engine second: a name the rule refuses is refused as one whatever
     # the engine is doing, rather than being answered by whatever the snapshot
@@ -166,8 +187,9 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     except LivePresetError as exc:
         raise refuse(exc) from exc
     record = _record(manager, _selected(None if body is None else body.fields))
+    stations = body.stations if body is not None and body.stations is not None else [_loaded(manager)]
     try:
-        _store(request).save(name, record)
+        _store(request).save(name, record, stations)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
@@ -176,8 +198,10 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
 
 
 @router.post("/livepresets/{name:path}/apply", response_model_exclude_none=True)
-async def apply_live_preset(name: str, request: Request, manager: Mgr) -> WithAutosave[LiveApplyReport]:
-    """Apply a saved preset, readback-verified.
+async def apply_live_preset(
+    name: str, request: Request, manager: Mgr, station: str | None = None
+) -> WithAutosave[LiveApplyReport]:
+    """Apply a preset saved under ``station``, the loaded one when absent, readback-verified.
 
     Its output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),
     so a preset taken on the other chain applies by switching to it.
@@ -187,7 +211,7 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> WithAu
     field.
     """
     try:
-        record = _store(request).read(name)
+        record = _store(request).read(_loaded(manager) if station is None else station, name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
@@ -206,14 +230,14 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> WithAu
 
 
 @router.delete("/livepresets/{name:path}")
-def delete_live_preset(name: str, request: Request) -> LivePresetDeleted:
-    """Remove a saved live snapshot from the store, leaving the running engine untouched.
+def delete_live_preset(name: str, request: Request, manager: Mgr, station: str | None = None) -> LivePresetDeleted:
+    """Remove a live snapshot from ``station``, the loaded one when absent, leaving the running engine untouched.
 
-    404 when no preset is saved under the name.
+    Another station's snapshot under the same name stays. 404 when ``station`` holds no preset under the name.
     """
     try:
         name = canonical_name(name)  # the response names the key the store held
-        _store(request).delete(name)
+        _store(request).delete(_loaded(manager) if station is None else station, name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:

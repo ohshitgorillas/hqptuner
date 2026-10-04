@@ -19,6 +19,7 @@ from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import FilterPark
+from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
@@ -140,6 +141,10 @@ class PresetOps:
         # (store.matrixmode). Here for the same reason auto-pilot's state is: it
         # is keyed by preset name, so a preset delete is what takes an entry out.
         self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
+        # The live snapshots (store.live), a book keyed by station, and a station
+        # is a preset: the book learns the stations from this store, and a preset
+        # delete is what takes a station's snapshots out.
+        self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
 

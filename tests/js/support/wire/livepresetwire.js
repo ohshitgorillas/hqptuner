@@ -10,10 +10,14 @@
 // device cannot reach is grayed (livepreset-narrow.test.js).
 //
 // The fake answers the real REST paths with the real shapes —
-// GET /api/livepresets -> {presets}, PUT /api/livepresets/{name} -> the record,
-// POST /api/livepresets/{name}/apply -> {report: {live, stored}}, DELETE -> {deleted} —
-// and it HOLDS the list the way the backend does, so "a save re-reads the list"
-// is observable as the list having moved. No store function is ever stubbed.
+// GET /api/livepresets -> {station, presets, stations}, PUT /api/livepresets/{name}
+// -> the record, POST /api/livepresets/{name}/apply -> {report: {live, stored}},
+// DELETE -> {deleted} — and it HOLDS the list the way the backend does, so "a save
+// re-reads the list" is observable as the list having moved. `presets` is the
+// loaded station's list; `others` holds every other station's, and the book
+// (`stations`) is both. A query string (`?station=`) is recorded with the call
+// and does not change which preset a path names. No store function is ever
+// stubbed.
 
 import { ok, bad } from "./wire.js";
 
@@ -25,10 +29,13 @@ import { ok, bad } from "./wire.js";
 /**
  * The fake's own state: the defaults `presetWire` starts from, plus whatever a
  * suite overrode. `report` is the report /apply answers with and `mirrored` the
- * engine state /api/state serves, both suite-supplied shapes.
+ * engine state /api/state serves, both suite-supplied shapes. `station` is the
+ * loaded station `presets` belongs to; `others` every other station's list.
  *
  * @typedef {{
  *   presets: PresetRecord[],
+ *   station: string,
+ *   others: Record<string, PresetRecord[]>,
  *   chain: string,
  *   listStatus: number,
  *   saveStatus: number,
@@ -43,7 +50,8 @@ import { ok, bad } from "./wire.js";
 
 /**
  * What the fake was handed and what it now holds: the calls in arrival order,
- * and the preset list the way the backend's store would have moved it.
+ * the loaded station and its preset list the way the backend's store would have
+ * moved it, and every other station's list.
  *
  * `inflight` holds the requests the fake has been handed and not yet answered,
  * the same member `stagingWire` keeps, so a suite can wait for this wire to go
@@ -51,7 +59,9 @@ import { ok, bad } from "./wire.js";
  *
  * @typedef {{
  *   calls: { path: string, method: string, body?: string }[],
+ *   station: string,
  *   presets: PresetRecord[],
+ *   others: Record<string, PresetRecord[]>,
  *   inflight: Set<Promise<FakeResponse>>,
  * }} PresetWire
  */
@@ -200,26 +210,54 @@ function ambient(path, c) {
 
 const ONE = /^\/api\/livepresets\/([^/]+)(\/apply)?$/;
 
+// The book as GET /api/livepresets serves it: station -> name -> record.
+/**
+ * @param {PresetWire} w
+ * @returns {Record<string, Record<string, { chain: string, fields: Record<string, string>, names: Record<string, string> }>>}
+ */
+function bookOf(w) {
+  /** @type {Record<string, PresetRecord[]>} */
+  const lists = { ...w.others, [w.station]: w.presets };
+  return Object.fromEntries(
+    Object.entries(lists).map(([station, list]) => [
+      station,
+      Object.fromEntries(list.map(({ name, ...record }) => [name, record])),
+    ]),
+  );
+}
+
 /**
  * @param {Partial<PresetWireState>} [cfg]
  * @returns {PresetWire}
  */
 export function presetWire(cfg = {}) {
   /** @type {PresetWireState} */
-  const c = { presets: [], chain: "pcm", listStatus: 200, saveStatus: 200, applyStatus: 200, ...cfg };
+  const c = {
+    presets: [],
+    station: "",
+    others: {},
+    chain: "pcm",
+    listStatus: 200,
+    saveStatus: 200,
+    applyStatus: 200,
+    ...cfg,
+  };
   c.report = cfg.report || { live: [], stored: {} };
   /** @type {PresetWire} */
-  const w = { calls: [], presets: [...c.presets], inflight: new Set() };
+  const w = { calls: [], station: c.station, presets: [...c.presets], others: { ...c.others }, inflight: new Set() };
   const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
-    if (path === "/api/livepresets") {
-      return c.listStatus === 200 ? ok({ presets: w.presets }) : bad(c.listStatus, c.listDetail);
+    const bare = path.split("?")[0];
+    if (bare === "/api/livepresets") {
+      return c.listStatus === 200
+        ? ok({ station: w.station, presets: w.presets, stations: bookOf(w) })
+        : bad(c.listStatus, c.listDetail);
     }
-    const one = ONE.exec(path);
+    const one = ONE.exec(bare);
     return one
       ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method })
-      : ambient(path, c);
+      : ambient(bare, c);
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);

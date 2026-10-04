@@ -34,7 +34,6 @@ from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
 from hqptuner.presets.store.jsonfile import StoreCorruptError
-from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.narrowing import NarrowingStore
 
 log = logging.getLogger(__name__)
@@ -72,13 +71,13 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     app.state.audit = manager.audit
     if manager.audit.enabled:
         app.include_router(audit_router(manager.audit))
-    app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.state.favorites = FavoriteStore(cfg.favorites_file)
     app.state.descriptions = DescriptionStore(cfg.description_file, now=manager.clock.now)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
+    app.state.live_presets = manager.presetops.live_presets
     # Both `/preset/{name:path}` routes are greedy so that an empty or
     # separator-bearing name reaches the store's name rule instead of falling
     # past every route to the router's own 404. Their registration order carries

@@ -9,19 +9,32 @@
 // HQPTuner's, the settings it carries are the engine's and are as temporary as
 // anything else on the LIVE page.
 //
+// Snapshots belong to a station: a config preset, or "" while none is loaded.
+// The list is the loaded station's, and the book beside it holds every
+// station's.
+//
 // The store is small and changes only when this card changes it, so it is not on
-// the poll: it is read when LIVE opens and re-read after each save or delete.
+// the poll: it is read when LIVE opens, re-read when the loaded station changes,
+// and re-read after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
+import { activePreset } from "../resolve.js";
 import { reportError } from "./state.js";
 import { remirrorLive } from "./write.js";
 import { liveMode } from "../ui/prefs.js";
 
-// Every saved preset, as /api/livepresets serves it: {name, chain, fields,
-// names, compatible}. Null until the first read — "not looked yet" and "none
+// The loaded station's saved presets, as /api/livepresets serves them: {name,
+// chain, fields, names}. Null until the first read — "not looked yet" and "none
 // saved" say different things on the card.
 export const livePresets = signal(null);
+// Every station's saved presets, station -> name -> {chain, fields, names}, the
+// loaded station's among them. Null until the first read.
+export const liveBook = signal(/** @type {Record<string, Record<string, unknown>> | null} */ (null));
+// The station the list was read for: the one an apply or a delete from the list
+// names. Null until the first read, and then a call names no station and the
+// backend takes the loaded one.
+export const livePresetStation = signal(/** @type {string | null} */ (null));
 // The preset with a call in flight (""=none), and the last failure. One error
 // for the whole card, latest wins — the same rule the LIVE controls follow,
 // because the card has one place to put it and the user has one thing in mind.
@@ -39,6 +52,8 @@ async function refreshLivePresets() {
   try {
     const body = await api.livePresets();
     livePresets.value = body.presets || [];
+    liveBook.value = body.stations || {};
+    livePresetStation.value = typeof body.station === "string" ? body.station : null;
   } catch (e) {
     livePresets.value = [];
     livePresetError.value = errText(e);
@@ -55,6 +70,9 @@ async function refreshLivePresets() {
  * @property {Record<string, string>} [names] each field's enum NAME, for display
  * @property {boolean} [compatible]
  */
+
+// The station an apply or a delete names: the list's, or none before the first read.
+const listed = () => (livePresetStation.value === null ? undefined : livePresetStation.value);
 
 const fieldsOf = (/** @type {string} */ name) => {
   const record = (livePresets.value || []).find((/** @type {LivePreset} */ p) => p.name === name);
@@ -98,7 +116,7 @@ export async function applyLivePreset(name) {
   const fields = fieldsOf(name);
   await run(
     name,
-    () => api.applyLivePreset(name),
+    () => api.applyLivePreset(name, listed()),
     async (/** @type {import("./state.js").LiveAnswer} */ answer) => {
       await remirrorLive(fields, answer.report);
       livePresetError.value = reportError(answer.report);
@@ -107,15 +125,16 @@ export async function applyLivePreset(name) {
 }
 
 // The backend snapshots the engine itself, so a save sends a name and, at
-// most, which settings to keep.
+// most, which settings to keep and which stations to keep them under.
 /**
  * Save the engine's current live settings under a name, then re-read the list.
  * @param {string} name
  * @param {string[]} [fields] the settings to keep; omitted keeps every one
+ * @param {string[]} [stations] the stations to save under; omitted saves under the loaded one
  * @returns {Promise<void>}
  */
-export async function saveLivePreset(name, fields) {
-  await run(name, () => api.saveLivePreset(name, fields), refreshLivePresets);
+export async function saveLivePreset(name, fields, stations) {
+  await run(name, () => api.saveLivePreset(name, fields, stations), refreshLivePresets);
 }
 
 /**
@@ -124,12 +143,15 @@ export async function saveLivePreset(name, fields) {
  * @returns {Promise<void>}
  */
 export async function deleteLivePreset(name) {
-  await run(name, () => api.deleteLivePreset(name), refreshLivePresets);
+  await run(name, () => api.deleteLivePreset(name, listed()), refreshLivePresets);
 }
 
-// Read the list when LIVE opens. Leaving with it read is fine — the card is not
-// rendered — and coming back re-reads, which is what picks up a preset saved in
-// another browser tab.
+// Read the list when LIVE opens, and again whenever the loaded station changes
+// while it is open. Leaving with it read is fine — the card is not rendered — and
+// coming back re-reads, which is what picks up a preset saved in another browser
+// tab.
 effect(() => {
-  if (liveMode.value) refreshLivePresets();
+  if (!liveMode.value) return;
+  void activePreset.value;
+  refreshLivePresets();
 });

@@ -30,6 +30,7 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.autopilot import AutopilotError
+from hqptuner.presets.store.live import LivePresetSchemaError
 from hqptuner.presets.store.matrixmode import MatrixModeSchemaError
 from hqptuner.presets.store.presets import canonical_name
 
@@ -346,16 +347,19 @@ async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
 
     Restore is additive and cannot remove a member.
 
-    Takes the preset's Matrix-tab mode with it, after the store delete has succeeded: a mode keyed to a preset that is
-    gone is read by nothing, and the next preset saved under the same name would otherwise inherit it.
+    Takes the preset's Matrix-tab mode and its station's live snapshots with it, after the store delete has
+    succeeded: an entry keyed to a preset that is gone is read by nothing, and the next preset saved under the same
+    name would otherwise inherit it.
     """
     name = canonical_name(name)  # the mirror was written under the trimmed name
     mgr.presetops.store.delete(name)
-    # A store stamped by a newer HQPTuner must not stop a preset delete: one orphaned mode entry is cheaper than
+    # A store stamped by a newer HQPTuner must not stop a preset delete: one orphaned entry is cheaper than
     # that. A corrupt store is a different matter: it refuses rather than reading empty, and that refusal
     # propagates here too.
     with contextlib.suppress(MatrixModeSchemaError):
         mgr.presetops.matrix_modes.forget(name)
+    with contextlib.suppress(LivePresetSchemaError):
+        mgr.presetops.live_presets.forget(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
         await mgr.require_http().post_profile("delete", profile=name)
     return PresetDeleted(name)
