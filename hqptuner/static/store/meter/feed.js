@@ -19,7 +19,7 @@ const QUIET_MS = 2000;
 
 /** @typedef {{ nyquist: number, channels: number, centres: number[] }} Geometry */
 /** @typedef {import("./levels.js").Ballistic} Ballistic */
-/** @typedef {{ channels: Array<{ peak: number, rms: number, bands: number[] }> }} Frame */
+/** @typedef {{ channels: Array<{ peak: number, rms: number, bands: number[] }>, ms: number }} Frame */
 
 export const meterGeometry = signal(/** @type {Geometry | null} */ (null));
 export const meterLevels = signal(/** @type {Ballistic[]} */ ([]));
@@ -53,7 +53,7 @@ export function openMeterFeed(now = () => Date.now()) {
     /** @type {Frame} */
     const frame = JSON.parse(e.data);
     meterLevels.value = settle(meterLevels.peek(), frame.channels);
-    addSpectrumFrame(meterGeometry.peek(), frame.channels);
+    addSpectrumFrame(meterGeometry.peek(), frame.channels, frame.ms);
   });
   source = es;
   let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;

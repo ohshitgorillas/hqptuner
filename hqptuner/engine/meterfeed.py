@@ -38,9 +38,10 @@ class GeometryData(TypedDict):
 
 
 class FrameData(TypedDict):
-    """A ``frame`` event's payload: one finished stride, per channel."""
+    """A ``frame`` event's payload: one finished stride, per channel, and the frame time it covers in milliseconds."""
 
     channels: list[ChannelLevels]
+    ms: float
 
 
 #: The two shapes ``MeterFeed`` ever queues, told apart by ``Event.name`` ("geometry" or "frame").
@@ -149,13 +150,13 @@ def _db(power: npt.NDArray[np.float64]) -> list[float]:
     return [round(float(v), 1) for v in levels]
 
 
-def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64]) -> Event:
-    """Return a finished stride as a ``frame`` event: the max-held peak, and the mean rms and band powers, in dB."""
+def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], ms: float) -> Event:
+    """Return a finished stride as a ``frame`` event: peak, rms and band powers in dB, and its frame time in ms."""
     channels: list[ChannelLevels] = [
         {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bands": _db(mean[ch, 1:])}
         for ch in range(len(peak))
     ]
-    data: FrameData = {"channels": channels}
+    data: FrameData = {"channels": channels, "ms": round(ms, 3)}
     return Event("frame", data)
 
 
@@ -206,8 +207,9 @@ class MeterFeed:
             peak, power = np.maximum(self._peak, peak), self._power + power
         self._peak, self._power = peak, power
         self._count += 1
-        if self._count >= stride(bins, float(header[5])):
-            self._send(_frame_event(peak, power / self._count))
+        xform_time = float(header[5])
+        if self._count >= stride(bins, xform_time):
+            self._send(_frame_event(peak, power / self._count, self._count * xform_time * 1000))
             self._restart()
 
     def _send(self, event: Event) -> None:

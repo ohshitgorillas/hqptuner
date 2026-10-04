@@ -1,6 +1,6 @@
 // The poll seam the apodizing-history suites are driven through, shared by the
-// store suite (tests/js/store/presets/apodhistory.test.js) and the strip's render suite
-// (tests/js/components/enginehealth-strip.test.js).
+// store suite (tests/js/store/presets/apodhistory.test.js) and the render suites
+// (tests/js/components/chrome/enginehealth-strip.test.js, apodlamp.test.js).
 //
 // A poll is a FRESH object written to engineStatus carrying the daemon's own
 // Status fields — state, track_serial, the monotonic apodizing counter `apod`,
@@ -17,41 +17,32 @@
 // one. Frames that DO repeat are asked for explicitly, through stall(), and
 // frames that run backwards through restartPosition() / restartCounter().
 //
-// The poll CADENCE is moved the way the app moves it — by writing the signals
-// the app itself writes (activeTab, quickSystemUpdates, liveMode) and reading
-// the result back through store/ui/ui.js's fastPollMs — never by asserting a
-// number. Nothing of HQPTuner's is stubbed (docs/testing.md rule 4).
+// A poll moves the daemon's `position` forward by one second unless a case sets
+// another step through setPollStep(): that step is the playback a bin observes,
+// and so the width the store records for it. Nothing of HQPTuner's is stubbed
+// (docs/testing.md rule 4).
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { engineStatus } from "../../../hqptuner/static/store/signals.js";
-import { activeTab, fastPollMs } from "../../../hqptuner/static/store/ui/ui.js";
-import { liveMode, quickSystemUpdates } from "../../../hqptuner/static/store/ui/prefs.js";
 
 const PLAYING = "2";
 export const STOPPED = "0";
 export const PAUSED = "1";
 
-/**
- * The two cadences the app itself produces: LIVE is shown with no opt-in of any
- * kind, and a page with no fast rule and no opt-in polls at the store's default.
- * Leaves the store off the fast lane.
- *
- * @returns {{ live: number, base: number }}
- */
-export function readCadences() {
-  activeTab.value = "output";
-  quickSystemUpdates.value = false;
-  liveMode.value = true;
-  const live = fastPollMs.value;
-  liveMode.value = false;
-  const base = fastPollMs.value;
-  return { live, base };
-}
-
 let serial = 0;
 let counter = 0; // the daemon's own monotonic apodizing counter
 let seconds = 0; // how far into the track the daemon says it is
+let step = 1; // seconds of playback one poll moves the position on
+
+/**
+ * How far each later poll moves the position, in seconds.
+ *
+ * @param {number} value
+ */
+export function setPollStep(value) {
+  step = value;
+}
 
 // The daemon formats `position` as seconds carrying seventeen decimal places
 // ("12.00000000000000000"). It is a string on the wire; a frame repeating it is
@@ -93,7 +84,7 @@ export function setApodCounter(value) {
  * @param {Record<string, unknown>} [fields]
  */
 export function poll(fields = {}) {
-  seconds += 1;
+  seconds += step;
   emit(fields);
 }
 

@@ -5,16 +5,14 @@
 // tracks identically. Engine Health draws it under its counters; the METER page
 // draws it above the spectrogram, on the same time axis.
 //
-// The x axis is milliseconds, not bin index. Bins are recorded at whatever poll
-// cadence was in force (store/apodhistory.js), so a run that spans a change of
-// cadence would draw its slower bins too narrow if each got an equal slot. A
-// viewBox measured in milliseconds sizes every bar by the interval it actually
-// observed, and right-aligning against the window's own width means a
-// half-filled window fills from the right rather than stretching three bins
-// across the card.
+// The x axis is milliseconds of playback, drawn as a fixed grid of equal cells
+// (gridColumns in lib/apodscale.js) rather than one bar per bin, since the
+// daemon's readings cover uneven stretches of playback. Right-aligning against
+// the window's own width means a half-filled window fills from the right rather
+// than stretching three cells across the card.
 import { html } from "../lib/dom.js";
-import { rateOf, intensity, SAT } from "../lib/apodscale.js";
-import { apodStripVisible, apodVisibleBins } from "../store/apodhistory.js";
+import { CELL_MS, intensity, SAT, gridColumns } from "../lib/apodscale.js";
+import { apodStripVisible, apodBins } from "../store/apodhistory.js";
 import { apodWindow, setApodWindow } from "../store/ui/prefs.js";
 import { Dropdown } from "./controls/index.js";
 
@@ -25,7 +23,7 @@ import { Dropdown } from "./controls/index.js";
 // --spec-0 is the floor an interval with no events lands on, and it is a painted
 // reading rather than an absence: a silent interval between two busy ones is
 // part of the field, and an unpainted one would read as a hole in a continuous
-// band wherever the counter and the poll clock alias.
+// band.
 export const STOPS = ["--spec-0", "--spec-1", "--spec-2", "--spec-3", "--spec-4", "--spec-5"];
 
 // Interpolated in oklab rather than sRGB: mixing two saturated hues down the
@@ -108,31 +106,16 @@ const WINDOW_OPTIONS = [
  * @typedef {{ x: number, w: number, fill: string }} Column
  */
 
-/**
- * How much time a run of bins covers, in milliseconds.
- * @param {{ ms: number, n: number }[]} bins
- * @returns {number}
- */
-const spanOf = (bins) => bins.reduce((sum, b) => sum + b.ms, 0);
-
-// Lay the visible bins out along the window, oldest first. EVERY bin is painted,
+// Lay the grid cells out along the window, oldest first. EVERY cell is painted,
 // including one that counted nothing: this is a field, not a bar chart, and a
 // quiet interval is a reading at the bottom of the scale rather than a hole in
-// the record. The daemon's counter and the page's poll clock alias, so a poll
-// lands on an unmoved counter now and then during continuous playback.
+// the record.
 /**
- * @param {{ ms: number, n: number }[]} bins
+ * @param {import("../lib/apodscale.js").GridColumn[]} cells
  * @param {number} span total window width, in milliseconds
  * @returns {Column[]}
  */
-function layout(bins, span) {
-  /** @type {{ x: number, ms: number, n: number }[]} */
-  const slots = [];
-  let x = span - spanOf(bins);
-  for (const b of bins) {
-    slots.push({ x, ms: b.ms, n: b.n });
-    x += b.ms;
-  }
+function layout(cells, span) {
   // A column runs to wherever the next column starts, plus enough to cover the
   // boundary outright. Exact tiling is not enough: two rects that
   // merely share an edge each cover part of the same device pixel, and the
@@ -142,21 +125,12 @@ function layout(bins, span) {
   // background survives. Every boundary gets it, since every slot is painted and
   // the field is meant to read as one surface.
   const bleed = span / 300;
-  return slots.map((s, i) => {
-    const next = slots[i + 1];
-    const right = next ? next.x + bleed : s.x + s.ms;
-    return { x: s.x, w: right - s.x, fill: fillFor(rateOf(s)) };
-  });
+  return cells.map((c, i) => ({
+    x: c.x,
+    w: CELL_MS + (i < cells.length - 1 ? bleed : 0),
+    fill: fillFor(c.rate),
+  }));
 }
-
-/**
- * The strip's window width in milliseconds: the chosen duration, or for the
- * whole-history window, whatever the visible bins cover.
- * @param {{ ms: number, n: number }[]} bins
- * @param {string} window
- * @returns {number}
- */
-export const windowSpan = (bins, window) => (window === "all" ? spanOf(bins) : Number(window) * 1000);
 
 // On Engine Health the strip draws nothing until the current track has logged
 // an event, and keeps drawing for the rest of playback once it has: what that
@@ -169,9 +143,8 @@ export const windowSpan = (bins, window) => (window === "all" ? spanOf(bins) : N
  */
 export const ApodStrip = ({ always = false }) => {
   if (!always && !apodStripVisible.value) return null;
-  const bins = apodVisibleBins.value;
   const window = apodWindow.value;
-  const span = windowSpan(bins, window);
+  const { span, columns } = gridColumns(apodBins.value, window === "all" ? null : Number(window) * 1000);
   return html`
     <div class="eh-strip">
       <div class="eh-strip-head">
@@ -183,7 +156,7 @@ export const ApodStrip = ({ always = false }) => {
       </div>
       <div class="eh-strip-trough">
         <svg viewBox=${`0 0 ${span} 100`} preserveAspectRatio="none" role="img" aria-label="Apodizing Events">
-          ${layout(bins, span).map(
+          ${layout(columns, span).map(
             (b) => html`<rect class="eh-bar" x=${b.x} y="0" width=${b.w} height="100" style="fill: ${b.fill}" />`,
           )}
         </svg>

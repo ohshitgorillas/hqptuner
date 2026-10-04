@@ -7,15 +7,14 @@
 // (store/ui/prefs.js apodLight). It is driven exactly as
 // tests/js/store/presets/apodhistory.test.js and tests/js/components/enginehealth-strip.test.js
 // drive the same history — a poll is a FRESH object written to engineStatus
-// carrying the daemon's own Status fields, and the cadence a bin records is
-// moved by writing the signals the app itself writes (liveMode, activeTab,
-// quickSystemUpdates) and read back through store/ui/ui.js's fastPollMs. Nothing
-// of HQPTuner's is stubbed (docs/testing.md rule 4).
+// carrying the daemon's own Status fields, and the width a bin records is the
+// playback step the fixture moves each poll on. Nothing of HQPTuner's is
+// stubbed (docs/testing.md rule 4).
 //
 // Hazards, inherited from that seam:
 //
 //   1. Module state persists for the life of the file: every case starts a
-//      fresh track of its own and sets the cadence and the preference it wants,
+//      fresh track of its own and sets the poll step and the preference it wants,
 //      so no case depends on what the one before it left behind.
 //   2. Writing the SAME object reference to engineStatus does not notify, so
 //      every simulated poll must be a fresh object.
@@ -52,38 +51,29 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { elements, attr } from "../../support/markup.js";
-import { readCadences, feed } from "../../support/apodpolls.js";
+import { setPollStep, feed } from "../../support/apodpolls.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { ApodLamp } from "../../../../hqptuner/static/components/widgets/ApodLamp.js";
-import { liveMode, apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { enums } from "../../../../hqptuner/static/store/signals.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-// The two cadences the app itself produces, read rather than assumed
-// (tests/js/store/live/polling.test.js pins where each comes from).
-const { live: LIVE_CADENCE, base: CADENCE } = readCadences();
-
-// The density case can only tell a RATE from a raw event count if the two
-// cadences differ. Guard rather than assert, so a store change that collapsed
-// them fails loudly instead of quietly passing on a comparison that no longer
-// means what it says.
-if (LIVE_CADENCE === CADENCE) {
-  throw new Error(`the LIVE and default cadences are both ${CADENCE}ms; this suite needs them to differ`);
-}
-
 // The density strip saturates at thirty events per second
 // (tests/js/components/enginehealth-strip.test.js); both rates below stay well
 // under it, so neither is pinned against a ceiling.
 /**
- * How many events land in one bin recorded at `cadenceMs` to make `perSecond`.
+ * How many events land in one bin `widthMs` wide to make `perSecond`.
  *
- * @param {number} cadenceMs
+ * @param {number} widthMs
  * @param {number} perSecond
  * @returns {number}
  */
-const inOneBin = (cadenceMs, perSecond) => (perSecond * cadenceMs) / 1000;
+const inOneBin = (widthMs, perSecond) => (perSecond * widthMs) / 1000;
+
+// The width of one bin at the default poll step.
+const STEP_MS = 1000;
 
 initApodHistory();
 
@@ -122,15 +112,15 @@ function brightness(out) {
 }
 
 /**
- * A fresh track whose recorded bins are exactly `deltas`, polled at the cadence
- * `live` selects, with the lamp switched on.
+ * A fresh track whose recorded bins are exactly `deltas`, each `step` seconds
+ * of playback wide, with the lamp switched on.
  *
  * @param {number[]} deltas
- * @param {boolean} [live]
+ * @param {number} [step]
  */
-function lit(deltas, live = false) {
+function lit(deltas, step = 1) {
   apodLight.value = "all";
-  liveMode.value = live;
+  setPollStep(step);
   feed(deltas);
 }
 
@@ -141,19 +131,16 @@ test("test_a_denser_interval_lights_the_lamp_brighter_than_a_sparser_one", () =>
   // count: ten events in a 1000ms bin is ten a second, twelve in a 2000ms bin
   // is six a second. So a lamp scoring the raw count draws the sparser interval
   // brighter, and a fixed-brightness flash draws them identically — the same
-  // music at the two poll cadences is what this case is about.
-  const dense = inOneBin(LIVE_CADENCE, 10);
-  const sparse = inOneBin(CADENCE, 6);
+  // music in bins of two widths is what this case is about.
+  const dense = inOneBin(1000, 10);
+  const sparse = inOneBin(2000, 6);
   if (dense >= sparse) {
     throw new Error(`this case needs the denser interval to count FEWER events; got ${dense} and ${sparse}`);
   }
-  lit([sparse], false);
+  lit([sparse], 2);
   const cooler = brightness(lamp());
-  lit([dense], true);
-  assert.ok(
-    brightness(lamp()) > cooler,
-    `${dense} events in ${LIVE_CADENCE}ms must light brighter than ${sparse} in ${CADENCE}ms`,
-  );
+  lit([dense], 1);
+  assert.ok(brightness(lamp()) > cooler, `${dense} events in 1000ms must light brighter than ${sparse} in 2000ms`);
 });
 
 // --- an interval that counted nothing is dark ------------------------------------
@@ -181,7 +168,7 @@ test("test_the_lamp_does_not_render_when_the_preference_is_off", () => {
 // across two rates that stand at different brightnesses, so a table keyed on
 // (preference, filter class) alone cannot satisfy any of them.
 //
-// Both rates are recorded at the default cadence and stay well under the strip's
+// Both rates are recorded at the default step and stay well under the strip's
 // thirty-per-second saturation, so neither arm of a comparison is pinned against
 // a ceiling that would flatten the two apart.
 
@@ -213,7 +200,7 @@ function enumerate() {
 /**
  * How bright the lamp stands for one bin of `perSecond` events, with `name` the
  * filter the daemon reports running and the preference at `mode`. A fresh track
- * each call, at the default cadence.
+ * each call, at the default step.
  *
  * @param {number} perSecond
  * @param {string} name
@@ -222,9 +209,9 @@ function enumerate() {
  */
 function standing(perSecond, name, mode) {
   enumerate();
-  liveMode.value = false;
+  setPollStep(1);
   apodLight.value = mode;
-  feed([inOneBin(CADENCE, perSecond)], { active_filter: name });
+  feed([inOneBin(STEP_MS, perSecond)], { active_filter: name });
   return brightness(lamp());
 }
 

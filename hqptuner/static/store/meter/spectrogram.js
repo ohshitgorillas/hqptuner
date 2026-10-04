@@ -1,146 +1,114 @@
-// The METER spectrogram's history: one column per apodizing-history bin
-// (store/apodhistory.js), so the spectrogram and the apodizing strip above it
-// share one time axis. A column holds the slices the feed delivered while its
-// bin was open, each slice the power average of SLICE_FRAMES feed frames, so
-// the spectrogram resolves time far finer than the poll that closes a column.
-// A track change clears the bins, and the columns with them; nothing else does.
+// The METER spectrogram's history: a run of slices, each the power average of
+// SLICE_FRAMES feed frames, laid along the time axis by the frame time the feed
+// says those frames cover. Playback time is what both the spectrogram and the
+// apodizing strip above it are drawn on, so neither the page's poll cadence nor
+// its clock has any say in where a slice lands. A track change clears the
+// apodizing history (store/apodhistory.js), and the slices with it; nothing
+// else does.
 //
 // A slice keeps every channel's bands and their power-average sum, so the
-// channel picker redraws the whole history. A column keeps the band centres and
+// channel picker redraws the whole history. A slice keeps the band centres and
 // Nyquist it was measured at, so a change of source rate mid-history leaves the
-// older columns drawn at their own frequencies.
+// older slices drawn at their own frequencies.
 import { signal, computed, effect } from "@preact/signals";
-import { apodBins, apodBinSeq, apodVisibleBins } from "../apodhistory.js";
-import { meterChannel } from "../ui/prefs.js";
+import { windowSpan } from "../../lib/apodscale.js";
+import { apodBins, apodVisibleBins } from "../apodhistory.js";
+import { apodWindow, meterChannel } from "../ui/prefs.js";
 
-// The apodizing history's own cap (MAX_BINS in store/apodhistory.js): past it
-// the oldest bins slide off, and the columns go with them.
-const MAX_COLUMNS = 3600;
-// Feed frames per slice: five 40 ms strides (STRIDE_MS in engine/meterfeed.py).
+// About two hours of slices, the reach of the apodizing history's own cap.
+const MAX_SLICES = 36000;
+// Feed frames per slice.
 const SLICE_FRAMES = 5;
 
 /** @typedef {import("./feed.js").Geometry} Geometry */
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
 /**
- * @typedef {{ channels: Float32Array[], sum: Float32Array }} Slice
- *   One slice's band levels in dB, per channel and summed across channels.
- * @typedef {{ centres: number[], nyquist: number, slices: Slice[] }} Column
- *   One closed bin's worth of slices, oldest first.
+ * @typedef {{ ms: number, centres: number[], nyquist: number, channels: Float32Array[], sum: Float32Array }} Slice
+ *   One slice: the frame time it covers, the band layout it was measured at,
+ *   and its band levels in dB, per channel and summed across channels.
  */
 
-const columns = signal(/** @type {Array<Column | null>} */ ([]));
+const slices = signal(/** @type {Slice[]} */ ([]));
 
 /** @type {Float64Array[] | null} */
 let power = null;
 let count = 0;
-/** @type {Slice[]} */
-let open = [];
+let frameMs = 0;
 /** @type {Geometry | null} */
 let held = null;
-let seen = 0;
 
 const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
 const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
 
-/** Close the slice being accumulated, where any frame reached it. */
+/** Drop the slice being accumulated. */
+function dropPartial() {
+  power = null;
+  count = 0;
+  frameMs = 0;
+}
+
+/** Close the slice being accumulated onto the history. */
 function closeSlice() {
-  if (!power || !count) return;
+  if (!power || !count || !held) return;
   const n = count;
   const sum = new Float64Array(power[0].length);
   power.forEach((ch) => ch.forEach((p, k) => (sum[k] += p)));
   const m = power.length;
-  open.push({
+  /** @type {Slice} */
+  const done = {
+    ms: frameMs,
+    centres: held.centres,
+    nyquist: held.nyquist,
     channels: power.map((ch) => Float32Array.from(ch, (p) => toDb(p / n))),
     sum: Float32Array.from(sum, (p) => toDb(p / (n * m))),
-  });
-  power = null;
-  count = 0;
-}
-
-/** Drop everything not yet in a closed column. */
-function dropOpen() {
-  power = null;
-  count = 0;
-  open = [];
+  };
+  const next = slices.peek().concat([done]);
+  slices.value = next.length > MAX_SLICES ? next.slice(next.length - MAX_SLICES) : next;
+  dropPartial();
 }
 
 /**
- * Fold one feed frame into the open slice. A frame whose layout differs from
- * the open column's starts the column again.
+ * Fold one feed frame into the slice being accumulated. A frame whose layout
+ * differs from the slice's starts the slice again.
  *
  * @param {Geometry | null} geo
  * @param {Array<{ bands: number[] }>} channels
+ * @param {number} ms the frame time the feed frame covers
  */
-export function addSpectrumFrame(geo, channels) {
+export function addSpectrumFrame(geo, channels, ms) {
   if (!geo || !channels.length) return;
   if (geo !== held) {
     held = geo;
-    dropOpen();
+    dropPartial();
   }
   const width = channels[0].bands.length;
   if (!power || power.length !== channels.length || power[0].length !== width) {
     power = channels.map(() => new Float64Array(width));
     count = 0;
+    frameMs = 0;
   }
   const acc = power;
   channels.forEach((ch, c) => ch.bands.forEach((db, k) => (acc[c][k] += toPower(db))));
   count++;
+  frameMs += ms;
   if (count >= SLICE_FRAMES) closeSlice();
-}
-
-/** The open column, closed: null where no frame reached it. @returns {Column | null} */
-function closeColumn() {
-  closeSlice();
-  const col = held && open.length ? { centres: held.centres, nyquist: held.nyquist, slices: open } : null;
-  open = [];
-  return col;
-}
-
-/**
- * The column list for the bin-clock span from `span.seen` to `span.seq`: the
- * prior columns, then the column just closed, then one empty column per bin
- * between the two that no frame could reach, kept to the newest `max`.
- *
- * @param {Array<Column | null>} prior
- * @param {Column | null} closed
- * @param {{ seen: number, seq: number }} span
- * @param {number} max
- * @returns {Array<Column | null>}
- */
-export function nextColumns(prior, closed, span, max) {
-  /** @type {Array<Column | null>} */
-  const added = [closed];
-  for (let i = span.seen + 1; i < span.seq; i++) added.push(null);
-  const next = prior.concat(added);
-  return next.length > max ? next.slice(next.length - max) : next;
 }
 
 /** @type {(() => void) | null} */
 let dispose = null;
 
 /**
- * Register the column clock once, and hand back its disposer. One column
- * closes per apodizing bin appended; an interval the feed sent nothing in is
- * an empty column, so the history either side of it stays on the strip's time
- * axis.
+ * Register the clearing rule once, and hand back its disposer: an empty
+ * apodizing history is a new track, and the slices go with it.
  *
  * @returns {() => void}
  */
 export function initSpectrogram() {
   if (dispose) return dispose;
-  seen = apodBinSeq.peek();
   const registered = effect(() => {
-    const seq = apodBinSeq.value;
-    if (!apodBins.value.length) {
-      if (columns.peek().length) columns.value = [];
-      dropOpen();
-      seen = seq;
-      return;
-    }
-    if (seq === seen) return;
-    const next = nextColumns(columns.peek(), closeColumn(), { seen, seq }, MAX_COLUMNS);
-    seen = seq;
-    columns.value = next;
+    if (apodBins.value.length) return;
+    if (slices.peek().length) slices.value = [];
+    dropPartial();
   });
   dispose = registered;
   return registered;
@@ -158,24 +126,25 @@ function levelsOf(slice, pick) {
 }
 
 /**
- * The columns the spectrogram draws, oldest first, each paired with the
- * apodizing bin it shares a slot with: the newest columns that the strip's
- * visible bins cover, right-aligned to them, in the picked channel.
+ * The cells the spectrogram draws, oldest first: the newest slices whose frame
+ * times fit `span`, walked back from the right edge, in the picked channel.
+ *
+ * @param {Slice[]} all
+ * @param {number} span window width in milliseconds
+ * @param {string} pick
+ * @returns {Cell[]}
  */
-export const spectrogramCells = computed(() => {
-  /** @type {Array<{ ms: number }>} */
-  const bins = apodVisibleBins.value;
-  /** @type {Array<Column | null>} */
-  const cols = columns.value;
-  /** @type {string} */
-  const pick = meterChannel.value;
-  const k = Math.min(bins.length, cols.length);
-  return cols.slice(cols.length - k).map((col, i) => {
-    const ms = bins[bins.length - k + i].ms;
-    /** @type {Cell} */
-    const cell = col
-      ? { ms, centres: col.centres, nyquist: col.nyquist, slices: col.slices.map((s) => levelsOf(s, pick)) }
-      : { ms, slices: [], centres: [], nyquist: 0 };
-    return cell;
-  });
-});
+export function visibleCells(all, span, pick) {
+  let used = 0;
+  let i = all.length;
+  while (i > 0 && used + all[i - 1].ms <= span) {
+    used += all[i - 1].ms;
+    i--;
+  }
+  return all.slice(i).map((s) => ({ ms: s.ms, centres: s.centres, nyquist: s.nyquist, slices: [levelsOf(s, pick)] }));
+}
+
+/** The cells the spectrogram draws across the strip's window. */
+export const spectrogramCells = computed(() =>
+  visibleCells(slices.value, windowSpan(apodVisibleBins.value, apodWindow.value), meterChannel.value),
+);
