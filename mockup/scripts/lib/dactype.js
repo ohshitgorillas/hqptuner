@@ -8,8 +8,9 @@
 
 const st = { r2r: '0', ess: '0' };
 export const dacType = () => ({ ...st });
-export function setDacType(k, v) {
+/** @param {import('./bus.js').Bus} bus */
+export function setDacType(k, v, bus) {
   if (st[k] === v) return;
   st[k] = v;
-  window.dispatchEvent(new CustomEvent('dactype', { detail: { ...st } }));
+  bus.emit('dactype', { ...st });
 }

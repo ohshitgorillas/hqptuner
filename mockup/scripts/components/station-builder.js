@@ -36,7 +36,6 @@ import {
 
 const NEW = '\u0000new';
 const TIERS = RATE_TIERS.tiers;
-const HASH = location.hash;
 const TICK = 700;   // mock: one line of a check
 
 // Manual copy, read from the drawers that own it (one home per setting; the builder borrows the paragraph).
@@ -77,17 +76,20 @@ const tip = (label, text) => h('p.stbtip', {}, h('b', { text: label }), ' ', ric
 const dbFmt = (v) => `${Number(v) < 0 ? '−' : ''}${Math.abs(Number(v))} dB`;
 
 /**
- * @param {object} el  {btn: header button, chain: #body, body: #stbody, rail, page, others: {settings, snapshot(), profiles()}}
+ * @param {object} el  {btn: header button, chain: #body, body: #stbody, rail, page, others: {settings, snapshot(), profiles()},
+ *                     bus: lib/bus.js}
  * @param {{name: string, active?: boolean}[]} stations  in the tree's order
- * @param {object} o  {profilesOf(station) → names, onRescan(), onSaved({names, loaded, renamed, restart}), openProfiles(station)}
+ * @param {object} o  {profilesOf(station) → names, onRescan(), onSaved({names, loaded, renamed, restart}), openProfiles(station),
+ *                    flags: model/flags.js (the mock checks' outcomes)}
  * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountStationBuilder({ btn, chain, body, rail, page, others }, stations, o, clock = PLATFORM) {
+export function mountStationBuilder({ btn, chain, body, rail, page, others, bus }, stations, o, clock = PLATFORM) {
+  const { flags } = o;
   let order = stations.map((st) => st.name);
   let loaded = stations.find((st) => st.active)?.name ?? order[0];
   const records = Object.fromEntries(order.map((n) => [n, structuredClone(STB_RECORDS[n] ?? STB_SCRATCH)]));
   let hw = structuredClone(STB_HW_REC);   // the machine's: one record, written to every station
-  let naaSeen = !HASH.includes('naa-none');   // mock: an NAA shows only after Refresh devices
+  let naaSeen = !flags.naaNone;   // mock: an NAA shows only after Refresh devices
   const hidden = new Set();   // listings a resolved pair left dead: hidden from every list (wizard §1.5)
   for (const r of Object.values(records)) for (const l of r.listings) if (r.resolved && l !== r.resolved) hidden.add(l);
 
@@ -477,14 +479,14 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others }, st
       found > 0 && h('button.btn.sm', { type: 'button', text: B.back, on: { click: () => { bringUp = false; show('device'); } } }))];
   }
   function testV6(ask2) {
-    const fail = HASH.includes('ipv6-fail');
+    const fail = flags.ipv6Fail;
     const steps = ask2 ? STB_IPV6.unknown.steps : [STB_IPV6.yes.run];
     check('ipv6', steps, () => [!fail,
       ask2 ? (fail ? STB_IPV6.unknown.fail : STB_IPV6.unknown.ok) : (fail ? STB_IPV6.yes.fail : STB_IPV6.yes.ok),
       () => { e.rec.v6 = fail ? 'v4' : 'v6'; }]);
   }
   function disambiguate() {
-    const why = HASH.match(/usb-fail-(gone|none)/)?.[1];
+    const why = flags.usbFail;
     const x = e.rec;
     check('usb', [STB_USB.run], () => {
       if (why) return [false, STB_USB.fail(STB_USB.why[why]), () => { x.resolved = null; }];
@@ -494,7 +496,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others }, st
     });
   }
   function detect48() {
-    const no = HASH.includes('dsd48-no');
+    const no = flags.dsd48No;
     // Mock: the device announces the Output drawer's limits (data/output.js RATE_TIERS) and native DSD.
     check('rates', [STB_RATES.check], () => [true, STB_RATES.ok, () => {
       Object.assign(e.rec, { detected: true, dsd48: no ? '44k' : '48k', dsd: 'native', limits: { ...RATE_TIERS.limits } });
@@ -569,7 +571,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others }, st
     if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
     btn.setAttribute('aria-pressed', String(on));
     if (on) { ask = null; show(at); }
-    window.dispatchEvent(new Event('resize'));
+    bus.emit('relayout');
   }
   btn.addEventListener('click', () => setOn(body.hidden));
   // Capture: an open popover or sheet hears Escape first; with nothing open it leaves the builder.

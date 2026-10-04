@@ -16,9 +16,9 @@ const FAMS = [['f44', '44.1k'], ['f48', '48k']];
 /**
  * @param {HTMLElement} host   #oglass, inside the page's Output section
  * @param {object} rt          RATE_TIERS
- * @param {{onPin: (pin: {tier: number, fam: 'f44'|'f48'} | null) => void}} o
+ * @param {{onPin: (pin: {tier: number, fam: 'f44'|'f48'} | null) => void, bus: import('../lib/bus.js').Bus}} o
  */
-export function mountOutputTuner(host, rt, { onPin }) {
+export function mountOutputTuner(host, rt, { onPin, bus }) {
   const section = host.closest('section');
   let st = { run: 'sdm', tier: null, src: null, fam: 'f44' };
   let allowed = false, pin = null;
@@ -66,7 +66,7 @@ export function mountOutputTuner(host, rt, { onPin }) {
       allowed = on;
       if (!on && pin) { pin = null; onPin(null); }
       paint();
-      window.dispatchEvent(new Event('resize'));   // the page refits around the section
+      bus.emit('relayout');   // the page refits around the section
     },
   };
 }

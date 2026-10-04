@@ -25,25 +25,26 @@ export let SIZE = SIZE0;
 export const SCENE_H = 40;   // mock scenario strip above the plate (base.css --scene-h); not part of the app
 
 let plate = null;
+let relay = null;   // the shared bus (lib/bus.js): measurers re-measure on `relayout`
 let current = 1;
 
 export const scale = () => current;
 
-/** @returns {string} the display size to open on (`#size-<id>`), else the default */
-export const sizeFromHash = () => {
-  const m = location.hash.match(/size-([\d.]+)/);
-  return m && SIZES.some((z) => z.id === m[1]) ? m[1] : SIZE0;
-};
-
-export function mountPlate(el, size = sizeFromHash()) {
+/**
+ * @param {HTMLElement} el
+ * @param {string} size   the display size to open on (`#size-<id>`, model/flags.js), else SIZE0
+ * @param {import('./bus.js').Bus} bus
+ */
+export function mountPlate(el, size, bus) {
   plate = el;
+  relay = bus;
   setSize(size, true);
-  window.addEventListener('resize', fit);
+  bus.on('relayout', fit);
 }
 
 /**
  * Lay the plate out at another iPad size: the CSS geometry (--plate-w / --plate-h, data-size) and the numbers here move
- * together, then everything that measures re-measures (one resize event: rail wire, plots, page fit, popovers).
+ * together, then everything that measures re-measures (one relayout: rail wire, plots, page fit, popovers).
  */
 export function setSize(id, quiet = false) {
   const z = SIZES.find((x) => x.id === id) || SIZES[0];
@@ -52,7 +53,7 @@ export function setSize(id, quiet = false) {
   plate.style.setProperty('--plate-h', `${z.h}px`);
   plate.dataset.size = z.id;
   fit();
-  if (!quiet) window.dispatchEvent(new Event('resize'));
+  if (!quiet) relay.emit('relayout');
 }
 
 function fit() {

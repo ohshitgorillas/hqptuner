@@ -107,10 +107,11 @@ dacFolds(dacType());
 
 /**
  * @param {HTMLElement} plate
+ * @param {import('../lib/bus.js').Bus} bus   folds follow `dactype`; the open list re-renders on `relayout`
  * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountOptionList(plate, clock = PLATFORM) {
-  window.addEventListener('dactype', (e) => { dacFolds(e.detail); render(); });
+export function mountOptionList(plate, bus, clock = PLATFORM) {
+  bus.on('dactype', (d) => { dacFolds(d); render(); });
   const sh = sheet(plate, { id: 'osheet', aria: 'Options', cls: 'osheet' });
   const t = h('span.t'), n = h('span.ocount');
   const bar = mountFacetBar(plate);
@@ -339,6 +340,6 @@ export function mountOptionList(plate, clock = PLATFORM) {
   }
 
   subscribe(() => render());
-  window.addEventListener('resize', () => clock.requestAnimationFrame(render));
+  bus.on('relayout', () => clock.requestAnimationFrame(render));
   return { open, close: () => sh.close(), sheet: sh };
 }

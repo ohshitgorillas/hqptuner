@@ -31,12 +31,12 @@ const CHAIN_IDS = ['1x', 'nx', 'sh'];
 const isChain = (id) => CHAIN_IDS.includes(id);
 
 /**
- * @param {object} el     {btn: header button, chain: #body, body: #bbody, rail, page, settings: {setOn}}
+ * @param {object} el     {btn: header button, chain: #body, body: #bbody, rail, page, settings: {setOn}, bus: lib/bus.js}
  * @param {{name: string, active?: boolean}[]} stations  in the tree's order
  * @param {object} records  station → name → fields (absent = not held)
  * @param {() => object} live  engine now: {autopilot, adaptive, profile, mode, run, pcm: {1x,nx,sh}, sdm: {...}}
  */
-export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings }, stations, records, live) {
+export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, bus }, stations, records, live) {
   records = Object.fromEntries(stations.map((st) => [st.name, structuredClone(records[st.name] ?? {})]));
   const home = stations.find((st) => st.active)?.name ?? stations[0].name;   // the loaded station; New lands here
   // cur = {st, name}: the snapshot being edited (name NEW = New snapshot). Opens on the loaded station's first.
@@ -336,11 +336,11 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings },
     if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
     btn.setAttribute('aria-pressed', String(on));
     if (on) { ask = null; render(); }
-    window.dispatchEvent(new Event('resize'));
+    bus.emit('relayout');
   }
   btn.setAttribute('aria-pressed', 'false');
   btn.addEventListener('click', () => setOn(body.hidden));
-  window.addEventListener('resize', () => { if (!body.hidden) paintRail(); });   // lines per page follow the rail's height
+  bus.on('relayout', () => { if (!body.hidden) paintRail(); });   // lines per page follow the rail's height
   // Capture: before the drawers' and sheets' own Escape handlers; one Escape leaves the builder only when nothing is open.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen()) return;

@@ -28,7 +28,7 @@ import { mountAutoEq } from './autoeq.js';
 import { seg, select } from './seg.js';
 import { shelfScale, BAUER_PRESETS } from '../lib/xdsp.js';
 import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from '../data/matrix.js';
-import { PIPELINES, PIPELINES_DRAWER, FULL_FITS, PMAN } from '../data/pipelines.js';
+import { PMAN } from '../data/pipelines.js';
 import { CHAIN } from '../data/chain.js';
 import { PROFILE_COPY, PB_STEPS, PB_COPY, LISTEN, XF_LINES, KNOWN, MATRIX_STAGES, OUTSIDE_STAGES } from '../data/profiles.js';
 
@@ -40,12 +40,14 @@ const OFF_ON = [{ v: '0', label: 'Off' }, { v: '1', label: 'On' }];
 const paras = (m) => (Array.isArray(m) ? m : [m]).filter(Boolean).map((t) => (typeof t === 'string' ? h('p', { text: t }) : h('p', {}, h('b', { text: t.k }), ' — ', t.text)));
 
 /**
- * @param {object} el  {btn: page button, chain: #body, body: #pbody, rail, page, plate, settings, snapshot}
+ * @param {object} el  {btn: page button, chain: #body, body: #pbody, rail, page, plate, settings, snapshot, bus: lib/bus.js}
  * @param {{name: string, active?: boolean}[]} stations  in the tree's order
  * @param {object} data  PROFILES (station → name → {desc, listen?, vals?, pipes?})
- * @param {object} o  {running(), level(), levelBus, fixed(), onSaved(touched, rec, name, run)}
+ * @param {object} o  {running(), level(), levelBus, fixed(), onSaved(touched, rec, name, run),
+ *                    pipelines: the page's pipeline set (data/pipelines.js pipelineSet), shared with the chain}
  */
-export function mountProfileBuilder({ btn, chain, body, rail, page, plate, settings, snapshot }, stations, data, o) {
+export function mountProfileBuilder({ btn, chain, body, rail, page, plate, settings, snapshot, bus }, stations, data, o) {
+  const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = o.pipelines;
   const home = stations.find((st) => st.active)?.name ?? stations[0].name;
   const applied = familyOf('matrix').base;   // the chain's applied matrix (what's loaded)
   const row0 = (drawer, id) => drawer.tabs.flatMap((t) => t.body).find((it) => it.row?.control.id === id).row;
@@ -435,7 +437,7 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
       if (cur.name === NEW && !staged.has(NEW) && !dirty()) load(cur);
       show('overview'); render();
     }
-    window.dispatchEvent(new Event('resize'));
+    bus.emit('relayout');
   }
   btn.addEventListener('click', () => setOn(true));
   // Capture: an open drawer, popover or sheet hears Escape first; with nothing open it leaves the builder.

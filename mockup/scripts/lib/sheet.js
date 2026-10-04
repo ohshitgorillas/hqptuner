@@ -57,12 +57,17 @@ export function closeSheets() { while (stack.length) stack[stack.length - 1].clo
 
 export const sheetOpen = () => stack.length > 0;
 
-// Escape closes the top sheet before any stage drawer hears it (capture; popovers, also capture, registered first, win).
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || anyOpen() || !stack.length) return;
-  e.stopImmediatePropagation();
-  stack[stack.length - 1].close();
-}, true);
+/**
+ * Escape closes the top sheet before any stage drawer hears it (capture; popovers, also capture, installed first, win).
+ * main.js installs it once, right after installPopovers.
+ */
+export function installSheets() {
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || anyOpen() || !stack.length) return;
+    e.stopImmediatePropagation();
+    stack[stack.length - 1].close();
+  }, true);
+}
 
 /** Round × close button, the stage drawers' own. */
 export const closeBtn = (onClick, label = 'Close') => h('button.round.dx', { type: 'button', 'aria-label': label, text: '×', on: { click: onClick } });

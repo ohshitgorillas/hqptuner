@@ -6,12 +6,6 @@ import { h } from '../lib/dom.js';
 import { seg } from './seg.js';
 import { popover } from '../lib/popover.js';
 
-/** @returns {string} the scenario id to open on */
-export const sceneFromHash = (scenes, fallback) => {
-  const m = location.hash.match(/scene-(\w+)/);
-  return m && scenes.some((s) => s.id === m[1]) ? m[1] : fallback;
-};
-
 /**
  * @param {HTMLElement} host   #scene strip
  * @param {object[]} scenes
@@ -30,11 +24,11 @@ export function mountScenario(host, scenes, value, onChange) {
  * Second group on the same strip: which alerts to raise (data/alerts.js MOCK_ALERTS), a button reading how many are picked
  * that opens a checklist under it. `#alerts-<kind>,<kind>` in the URL opens with those picked.
  * @param {HTMLElement} host   #scene strip
+ * @param {string[]} kinds   the kinds to open picked (model/flags.js `alerts`)
  * @param {(kinds: Set<string>) => void} onChange
  */
-export function mountAlertPicker(host, items, onChange) {
-  const m = location.hash.match(/alerts-([\w,]+)/);
-  const picked = new Set(m ? m[1].split(',').filter((k) => items.some((i) => i.kind === k)) : []);
+export function mountAlertPicker(host, items, kinds, onChange) {
+  const picked = new Set(kinds);
   const txt = h('span');
   const btn = h('button.btn.sm.scalerts', { type: 'button', aria: { haspopup: 'dialog' } }, txt, ' ▾');
   const panel = h('div.pop.scapop', { role: 'dialog', 'aria-label': 'Mock alerts' }, items.map((i) => h('label.chk', {},

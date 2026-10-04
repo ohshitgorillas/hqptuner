@@ -17,9 +17,10 @@ const HINT = "Open connection settings to set the HQPlayer Embedded server's IP 
 
 /**
  * @param {HTMLButtonElement} btn
+ * @param {'ok'|'busy'|'lost'} state0   the state to open on (model/flags.js `conn`)
  * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountConn(btn, clock = PLATFORM) {
+export function mountConn(btn, state0, clock = PLATFORM) {
   let state = 'ok';
   function set(s) {
     state = s;
@@ -27,8 +28,7 @@ export function mountConn(btn, clock = PLATFORM) {
     btn.setAttribute('aria-label', `${STATES[s]}. Connection settings`);
     btn.title = `${STATES[s]} — ${HINT}`;
   }
-  const hash = location.hash.match(/conn-(busy|lost)/);
-  set(hash ? hash[1] : 'ok');
+  set(state0);
   const settle = revertAfter(1200, () => set('ok'), clock);
   return {
     set,

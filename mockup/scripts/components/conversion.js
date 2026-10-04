@@ -22,7 +22,8 @@ import { subscribe } from '../lib/narrow.js';
 import { PLATFORM } from '../lib/clock.js';
 
 /**
- * @param {object} hosts   {rs, sh: section body hosts; mode: Output Mode seg host; rate: Rate readout .v; stages: rail Map}
+ * @param {object} hosts   {rs, sh: section body hosts; mode: Output Mode seg host; rate: Rate readout .v; stages: rail Map;
+ *                          bus: the shared bus (lib/bus.js)}
  * @param {object} conv    CONV mock state
  * @param {(run:string, path:string, scene:object) => {rate:string, value:string}} out   Output readouts for what plays
  * @param {object} scene   the mock scenario playing (data/scenarios.js)
@@ -150,7 +151,7 @@ export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
     fit();
   }
   // The page's height changes under it (Matrix engine section shown / hidden, bottom bar, resize): refit.
-  window.addEventListener('resize', () => clock.requestAnimationFrame(() => { fit(); wraps(); }));
+  hosts.bus.on('relayout', () => clock.requestAnimationFrame(() => { fit(); wraps(); }));
   /** A stage name that wraps (the DSD conversion stage) puts its lamp on the first line; re-measured once fonts land. */
   function wraps() {
     for (const id of ['dsd', 'resampling', 'shaping']) {
@@ -176,7 +177,7 @@ export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
     // DSD → SDM processed: nothing resamples; Resampling's slot carries `Rate conversion` (SDM → SDM).
     const rn = hosts.stages.get('resampling').querySelector('.n'), name = remod ? 'Rate conversion' : 'Resampling';
     if (rn.textContent !== name) { rn.textContent = name; moved = true; }
-    if (moved) window.dispatchEvent(new Event('resize'));   // rail wire redraws
+    if (moved) hosts.bus.emit('relayout');   // rail wire redraws
     hosts.stages.get('resampling').querySelector('.v').textContent = remod ? vals.sdmconv : vals[run + (runs(run, 'nx') || p === 'dsd-pcm' ? 'nx' : '1x')];
     hosts.stages.get('shaping').querySelector('.v').textContent = vals[run + 'sh'];
     wraps();
@@ -212,7 +213,7 @@ export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
 
   render();
   subscribe(() => render());   // narrowing moved: the filters' sibling strips follow
-  window.addEventListener('optstyle', () => render());   // Option style: the nameplates' names (vselect.js setOptionStyle)
+  hosts.bus.on('optstyle', () => render());   // Option style: the nameplates' names (vselect.js setOptionStyle)
   /** What the engine runs now (Snapshot builder's Live column): mode, running chain, both chains' picks. */
   const state = () => ({ mode, run: running(), pcm: { '1x': vals.pcm1x, nx: vals.pcmnx, sh: vals.pcmsh }, sdm: { '1x': vals.sdm1x, nx: vals.sdmnx, sh: vals.sdmsh } });
   return { update, setMode, setScene, running, path, state, bindDrawer: (api) => { drawer = api; },

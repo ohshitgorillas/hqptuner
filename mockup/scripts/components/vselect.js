@@ -20,10 +20,11 @@ import { toPlate, scale, PLATE_W, PLATE_H } from '../lib/plate.js';
 // names. One switch for every chain select, page and drawer, including those built later.
 let style = 'simplified';
 const optText = (plain, engine) => (style === 'standard' ? engine : plain);
-export function setOptionStyle(s) {
+/** @param {import('../lib/bus.js').Bus} bus */
+export function setOptionStyle(s, bus) {
   style = s;
   for (const o of document.querySelectorAll('select option[data-plain], button.vpick[data-plain]')) o.textContent = optText(o.dataset.plain, o.value);
-  window.dispatchEvent(new CustomEvent('optstyle', { detail: s }));   // the page's chain pickers re-render (conversion.js)
+  bus.emit('optstyle', s);   // the page's chain pickers re-render (conversion.js)
 }
 export const optionStyle = () => style;
 

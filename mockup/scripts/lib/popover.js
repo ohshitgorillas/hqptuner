@@ -42,15 +42,18 @@ export function popover({ trigger, panel, inside = [], onToggle }) {
 
 export const anyOpen = () => current !== null;
 
-document.addEventListener('click', (e) => {
-  // A target that re-rendered away mid-click (e.g. a removed tag) was inside something we own.
-  if (current && e.target.isConnected && !current.contains(e.target)) current.close();
-});
+/** The document listeners: outside click and Escape close the open popover. main.js installs them once, first. */
+export function installPopovers() {
+  document.addEventListener('click', (e) => {
+    // A target that re-rendered away mid-click (e.g. a removed tag) was inside something we own.
+    if (current && e.target.isConnected && !current.contains(e.target)) current.close();
+  });
 
-// Capture phase so it runs before bubble-phase Escape handlers (drawer) and can swallow the key.
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && current) {
-    e.stopImmediatePropagation();
-    current.close();
-  }
-}, true);
+  // Capture phase so it runs before bubble-phase Escape handlers (drawer) and can swallow the key.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && current) {
+      e.stopImmediatePropagation();
+      current.close();
+    }
+  }, true);
+}

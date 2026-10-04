@@ -1,18 +1,21 @@
 // Faceplate entry point: mount every component onto the static markup in index.html.
 
 import { $, h } from './lib/dom.js';
-import { mountPlate, setSize, sizeOf, SIZES, SIZE } from './lib/plate.js';
+import { createBus } from './lib/bus.js';
+import { hashFlags } from './model/flags.js';
+import { installPopovers } from './lib/popover.js';
+import { mountPlate, setSize, sizeOf, SIZES, SIZE, SIZE0 } from './lib/plate.js';
 import { mountRail } from './components/rail.js';
 import { mountSpeakers } from './components/speakers.js';
 import { createPipelines } from './components/pipelines.js';
-import { PIPELINES, PIPELINES_DRAWER, FULL_FITS } from './data/pipelines.js';
+import { pipelineSet } from './data/pipelines.js';
 import { SPEAKERS, SPEAKERS_DRAWER, SETS } from './data/speakers.js';
 import { mountStationTree } from './components/station-tree.js';
 import { mountFilterPresets } from './components/filter-presets.js';
 import { mountOptionList } from './components/option-list.js';
 import { setListOpener } from './components/vselect.js';
 import { setChain } from './lib/narrow.js';
-import { closeSheets } from './lib/sheet.js';
+import { closeSheets, installSheets } from './lib/sheet.js';
 import { FIELDS, CHAIN_NAMES, CATALOG } from './data/conversion.js';
 import { mountDrawer } from './components/drawer.js';
 import { mountSourceMeter } from './components/source-meter.js';
@@ -45,21 +48,32 @@ import { mountCrossfeed } from './components/crossfeed.js';
 import { mountLoudness } from './components/loudness.js';
 import { CONV, MODE_DRAWERS } from './data/conversion.js';
 import { SCENES, SCENE0, ENGINE, ZONES, OUT, COPY } from './data/scenarios.js';
-import { mountScenario, sceneFromHash, mountAlertPicker, mountSizePicker } from './components/scenario.js';
+import { mountScenario, mountAlertPicker, mountSizePicker } from './components/scenario.js';
 import { mountAlerts } from './components/alerts.js';
 import { ALERT_COPY, MOCK_ALERTS, MOCK_FIG } from './data/alerts.js';
 import { LISTS } from './data/option-lists.js';
 import { xrefGo, withXref } from './lib/xref.js';
 
-const plate = $('#plate');
-mountPlate(plate);
+// Document listeners, before any component adds its own: popovers first (their Escape wins), then sheets.
+installPopovers();
+installSheets();
+// One bus for the components' announcements (lib/bus.js). Anything that measures listens for `relayout`; the window's own
+// resize reaches it here and nowhere else.
+const bus = createBus();
+window.addEventListener('resize', () => bus.emit('relayout'));
+// The mock's URL flags (model/flags.js), read once and passed down.
+const flags = hashFlags(location.hash, SIZES, SCENES, MOCK_ALERTS.map((a) => a.kind));
+const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = pipelineSet(flags);
 
-const stages = mountRail($('#rail'), CHAIN);
+const plate = $('#plate');
+mountPlate(plate, flags.size ?? SIZE0, bus);
+
+const stages = mountRail($('#rail'), CHAIN, flags.wire, bus);
 
 // ── Mock scenario: what is playing (switch above the plate; data/scenarios.js) ──────────────────────────────────────
 // The scenario sets the source only. The path follows from the output mode, DSD playback (Direct SDM) and the matrix gate
 // as applied; conversion.js works it out and reports it (onPath), and everything that shows playback follows here.
-let scene = SCENES.find((s) => s.id === sceneFromHash(SCENES, SCENE0));
+let scene = SCENES.find((s) => s.id === (flags.scene ?? SCENE0));
 let mxApplied = true;      // Matrix processing as applied (DSD metering needs it, protocol.md §7)
 let spk = null;            // Speakers drawer block (Direct: level column grays)
 let meterHost = null;      // Source drawer's meter block
@@ -101,7 +115,7 @@ const pmSec = $('.sec.psrc'), pmHost = $('#pmeter');
 let fillPref = 'auto';
 let fillReady = false;     // the matrix family is mounted (paintFill reads it)
 let pmKey = '';            // what the page meter shows now (remounts only when it changes)
-window.addEventListener('vfill', (e) => { fillPref = e.detail; paintFill(); });
+bus.on('vfill', (d) => { fillPref = d; paintFill(); });
 function paintFill() {
   if (!fillReady) return;
   const profile = mxApplied && fillPref === 'profile';               // the Matrix section has the top
@@ -127,7 +141,7 @@ function paintFill() {
     if (show && why) pmHost.append(h('div.mnone', {}, h('p', {}, withXref(why))));
     else if (show) mountSourceMeter(pmHost, { ...METER, compact: true, nyquist: scene.nyquist, brick: scene.brick, dsdNoise: scene.family === 'dsd' });
   }
-  window.dispatchEvent(new Event('resize'));   // the page refits (conversion.js fit), the matrix plot redraws
+  bus.emit('relayout');   // the page refits (conversion.js fit), the matrix plot redraws
 }
 function onPath(p, run) {
   const e = ENGINE[p];
@@ -148,8 +162,8 @@ function onPath(p, run) {
   $('#drawer-output .dial')?._setPlaying(p === 'idle' ? null : direct ? OUT.direct.tier : OUT[run].tier);
   paintMeter();
   raise();
-  window.dispatchEvent(new CustomEvent('sigpath', { detail: { p, stage: scene.stage || '1x' } }));   // Settings → Signal path
-  window.dispatchEvent(new Event('resize'));   // rail wire redraws (taps follow the lamps)
+  bus.emit('sigpath', { p, stage: scene.stage || '1x' });   // Settings → Signal path
+  bus.emit('relayout');   // rail wire redraws (taps follow the lamps)
 }
 // PCM output bit depth = the Output drawer's DAC bits (the dithering level) for the active backend, as applied. Omitted at
 // 0 (auto-detect: the engine picks it) and on Combo (one value per sub-device).
@@ -174,7 +188,7 @@ mountScenario($('#scene'), SCENES, scene.id, (id) => { scene = SCENES.find((s) =
 // Mock alerts (picker beside Scenario; data/alerts.js). raise() turns the picks into alerts where v1's would fire, onto
 // their homes (components/alerts.js, mounted last); every path change re-raises.
 let alerts = null;
-let picked = mountAlertPicker($('#scene'), MOCK_ALERTS, (k) => { picked = k; raise(); });
+let picked = mountAlertPicker($('#scene'), MOCK_ALERTS, flags.alerts, (k) => { picked = k; raise(); });
 // Mock display size (third group on the strip): the plate re-lays out at that iPad's landscape points (lib/plate.js).
 // 13″ also opens both Resampling filters (the idle one too) rather than stretch the Matrix section (SIZES both).
 mountSizePicker($('#scene'), SIZES, SIZE, (id) => { conversion.setRoom(!!sizeOf(id).both); setSize(id); paintFill(); });
@@ -213,13 +227,13 @@ function raise() {
   alerts.set(A);
 }
 // Brand knob = connection lamp; every drawer Apply restarts the engine (mock: the knob reads Applying… for a moment).
-const conn = mountConn($('#conn'));
+const conn = mountConn($('#conn'), flags.conn);
 onApplied(() => conn.applying());
 const tree = mountStationTree($('#station-host'), STATIONS);
 // Option lists: every chain filter / dither / modulator picker (page, Resampling · Shaping drawer, Setting Switcher slots)
 // opens its whole list, narrowing built into its head: filters in a bottom sheet, modulators and dithers in a panel at the
 // picker (trigger).
-const lists = mountOptionList(plate);
+const lists = mountOptionList(plate, bus);
 setListOpener((o) => {
   const k = o.field.slice(3);
   const f = k === 'sh' ? FIELDS[o.chain + 'sh'] : FIELDS[k];
@@ -318,7 +332,7 @@ swSlots.forEach((s, i) => s.querySelector('.sbody').addEventListener('click', ()
 $('.switcher').append($('#vbar'));
 swSel.addEventListener('change', () => {
   plate.dataset.sw = swSel.value === 'Volume' ? 'volume' : '';
-  window.dispatchEvent(new Event('resize'));
+  bus.emit('relayout');
   const on = swSel.value === 'Output mode';
   if (on && !swStash) {
     swStash = swSlots.map((s) => ({ l: s.querySelector('.l').textContent, v: s.querySelector('.v').textContent, on: s.classList.contains('on') }));
@@ -340,18 +354,18 @@ swSel.addEventListener('change', () => {
 
 let outDrawer = null;   // Output drawer (its Output mode row follows the mode, whoever moved it)
 // Output: the rate picker (pins on the running band), only while Allow pinned rates is On. No mode control.
-const tuner = mountOutputTuner($('#oglass'), RATE_TIERS, { onPin: (pin) => { pinned = pin; conversion.refresh(); } });
+const tuner = mountOutputTuner($('#oglass'), RATE_TIERS, { onPin: (pin) => { pinned = pin; conversion.refresh(); }, bus });
 // Mock: `#mode-auto` = the daemon left in Auto ([source]) by another client; HQPTuner doesn't offer it, only reads it.
-if (location.hash.includes('mode-auto')) CONV.mode = 'auto';
+if (flags.modeAuto) CONV.mode = 'auto';
 const conversion = mountConversion(
-  { rs: $('#rs-body'), sh: $('#sh-body'), stages, onOut: (o) => { tuner.set({ run: o.run, tier: o.tier, src: scene.playing ? scene.tier : null, fam: scene.fam || 'f44' }); swLight(); outDrawer?.set('omode', o.mode); }, onRun: (run) => { setChain(run); raise(); }, onPath },
+  { rs: $('#rs-body'), sh: $('#sh-body'), stages, bus, onOut: (o) => { tuner.set({ run: o.run, tier: o.tier, src: scene.playing ? scene.tier : null, fam: scene.fam || 'f44' }); swLight(); outDrawer?.set('omode', o.mode); }, onRun: (run) => { setChain(run); raise(); }, onPath },
   CONV, outFor, scene,
 );
 conversion.setRoom(!!sizeOf(SIZE).both);   // opened on 13″ (#size-13): both filters open from the start
 // DSD Processing, Resampling, Shaping: one drawer per stage, PCM out | SDM out tabs (components/mode-drawer.js). Filters and
 // shapers are live with two homes (page + drawer); the rest stage. A facade lets the page and the mode switch reach all three.
 const modeDrawer = (k, onApplied) => mountModeDrawer($('#body'), MODE_DRAWERS[k].stages.map((id) => stages.get(id)), MODE_DRAWERS[k], CONV.values,
-  { running: conversion.running(), on: (id, v) => (DAC_PREF[id] ? setDacType(DAC_PREF[id], v) : conversion.update(id, v)), onApplied });
+  { running: conversion.running(), on: (id, v) => (DAC_PREF[id] ? setDacType(DAC_PREF[id], v, bus) : conversion.update(id, v)), onApplied });
 const DAC_PREF = { dacr2r: 'r2r', dacess: 'ess' };   // Shaping's DAC type rows: HQPTuner prefs that fold the shaper lists
 const dsdDrawer = modeDrawer('dsd', (v) => {   // restart: the rail value follows, DSD playback sets the path
   for (const id of ['integ', 'decim', 'noise', 'sgain']) conversion.update(id, v[id]);
@@ -378,7 +392,7 @@ outDrawer = mountDrawer($('#body'), stages.get('output'), OUTPUT_DRAWER, {
 outDrawer.setOpen(false);
 outDrawer.set('omode', conversion.state().mode);
 // Settings → Behavior → Allow pinned rates (settings.js effect).
-window.addEventListener('pinallow', (e) => { tuner.allow(e.detail); });
+bus.on('pinallow', (d) => { tuner.allow(d); });
 
 // ── Matrix engine family: Matrix engine, Crossfeed, Loudness, DAC correction (DSP pipelines not drawn yet) ──────────
 // All four edit the matrix profile in focus: one value store, profile-wide staging, one Apply (drawer.js families).
@@ -388,7 +402,7 @@ const railSet = (id, on, value) => {
   st.classList.toggle('off', !on);
   st.querySelector('.lamp').classList.toggle('on', on);
   if (value !== undefined) st.querySelector('.v').textContent = value;
-  window.dispatchEvent(new Event('resize'));   // rail wire redraws (an off parent's subtree loses its bus)
+  bus.emit('relayout');   // rail wire redraws (an off parent's subtree loses its bus)
 };
 const mx = {};
 // Dependents follow the matrix engine: with Matrix processing bypassed, its children (DSP pipelines,
@@ -475,19 +489,21 @@ $('#gear').addEventListener('click', closeSheets);   // the body swaps: no sheet
 // The gear from the Snapshot builder goes straight to Settings (one body at a time).
 let builder = null, profiles = null, stationB = null;
 $('#gear').addEventListener('click', () => { if (builder?.isOn()) builder.setOn(false, false); if (profiles?.isOn()) profiles.setOn(false, false); if (stationB?.isOn()) stationB.setOn(false, false); });
-const settings = mountSettings({ plate, gear: $('#gear'), chain: $('#body'), body: $('#sbody'), rail: $('#srail'), page: $('#spage') });
+const settings = mountSettings({ plate, gear: $('#gear'), chain: $('#body'), body: $('#sbody'), rail: $('#srail'), page: $('#spage') }, bus);
 
 // ── Snapshot builder (header button): swaps the body; the active station's snapshots. ─────────────────────────────
+const SNAPSHOT_SETS = { many: [MANY_STATIONS, MANY], long: [STATIONS, LONG], default: [STATIONS, SNAPSHOTS] };
 builder = mountSnapshotBuilder(
-  { btn: $('#sbbtn'), chain: $('#body'), body: $('#bbody'), rail: $('#brail'), page: $('#bpage'), settings },
-  ...(location.hash.includes('many') ? [MANY_STATIONS, MANY] : location.hash.includes('long') ? [STATIONS, LONG] : [STATIONS, SNAPSHOTS]), () => ({ ...liveNow, ...conversion.state() }));
+  { btn: $('#sbbtn'), chain: $('#body'), body: $('#bbody'), rail: $('#brail'), page: $('#bpage'), settings, bus },
+  ...SNAPSHOT_SETS[flags.snapshots], () => ({ ...liveNow, ...conversion.state() }));
 
 // ── Profile builder (Matrix engine section's button): swaps the body; the Matrix engine family on its own rail. ──────
 // Edits a copy; Save writes the profile and restarts the engine: the knob reads Applying….
 profiles = mountProfileBuilder(
-  { btn: $('#pbbtn'), chain: $('#body'), body: $('#pbody'), rail: $('#prail'), page: $('#ppage'), plate, settings, snapshot: () => builder },
+  { btn: $('#pbbtn'), chain: $('#body'), body: $('#pbody'), rail: $('#prail'), page: $('#ppage'), plate, settings, snapshot: () => builder, bus },
   STATIONS, PROFILES,
   { running: () => mprof.value, level: () => level, levelBus, fixed: () => fixedMode !== 'off',
+    pipelines: { PIPELINES, PIPELINES_DRAWER, FULL_FITS },
     onSaved: (touched, rec, name, run) => {
       conn.applying();
       // Saved to the loaded station: it runs now (the restart Save causes, then the switch). The chain's Matrix engine family
@@ -519,9 +535,10 @@ $('#sbbtn').addEventListener('click', () => { if (profiles.isOn()) profiles.setO
 let treeStations = STATIONS.map((st) => ({ ...st }));
 stationB = mountStationBuilder(
   { btn: $('#stbbtn'), chain: $('#body'), body: $('#stbody'), rail: $('#strail'), page: $('#stpage'),
-    others: { settings, snapshot: () => builder, profiles: () => profiles } },
+    others: { settings, snapshot: () => builder, profiles: () => profiles }, bus },
   STATIONS,
-  { profilesOf: (st) => STATION_PROFILES(st),
+  { flags,
+    profilesOf: (st) => STATION_PROFILES(st),
     onRescan: () => conn.applying(),
     openProfiles: () => profiles.setOn(true),
     onSaved: ({ names, loaded, renamed, restart }) => {
@@ -542,10 +559,10 @@ onPath(conversion.path(), conversion.running());
 // Opens on the page, every drawer closed.
 source.setOpen(false);
 // Anything measured at load (rail wire, page copy fit, narrowing tags) re-measures once the web fonts land: every measurer
-// listens for resize.
+// listens for relayout.
 // Alerts onto their homes: mounted after every drawer and the Settings body, which it pins lines into.
-alerts = mountAlerts({ plate, stages, srail: $('#srail') });
+alerts = mountAlerts({ plate, stages, srail: $('#srail'), bus });
 raise();
-const remeasure = () => window.dispatchEvent(new Event('resize'));
+const remeasure = () => bus.emit('relayout');
 document.fonts?.ready.then(remeasure);
 document.fonts?.addEventListener('loadingdone', remeasure);

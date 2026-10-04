@@ -19,9 +19,10 @@ import { SETTINGS_RAIL, READOUT_LABEL, ABOUT, LOG_TAIL, ACCENTS, HIDEABLE, MIRRO
 
 /**
  * @param {{gear: HTMLButtonElement, chain: HTMLElement, body: HTMLElement, rail: HTMLElement, page: HTMLElement}} el
+ * @param {import('../lib/bus.js').Bus} bus
  * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountSettings({ gear, chain, body, rail, page }, clock = PLATFORM) {
+export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PLATFORM) {
   const readouts = new Map();   // control id → {dd, fmt}
 
   // ── Rail ────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ export function mountSettings({ gear, chain, body, rail, page }, clock = PLATFOR
     // A live readout that isn't a setting (Signal path: the path playing now).
     if (cat.live) {
       const dd = h('dd', { text: PATH_NAME.idle });
-      window.addEventListener('sigpath', (e) => { dd.textContent = PATH_NAME[e.detail.p] ?? e.detail.p; });
+      bus.on('sigpath', (d) => { dd.textContent = PATH_NAME[d.p] ?? d.p; });
       rows.push(h('div', {}, h('dt', { text: cat.live }), dd));
     }
     const btn = h('button.st.sst', { type: 'button', data: { stage: cat.id } },
@@ -49,8 +50,8 @@ export function mountSettings({ gear, chain, body, rail, page }, clock = PLATFOR
     // One setting in two homes (Apply to all stations on both Hardware tabs): a change in one moves the other.
     const mirrors = [...ctls.keys()].filter((id) => MIRROR[id]).map((id) => [id, (v) => api.set(MIRROR[id], v)]);
     const api = mountDrawer(body, btn, cat.drawer, {
-      blocks: { logtail: (host) => logTail(host, clock), sigpath: mountSignalPath },
-      on: Object.fromEntries([...live.map((id) => [id, (v) => { show(id, v); effect(id, v); }]), ...mirrors]),
+      blocks: { logtail: (host) => logTail(host, clock), sigpath: (host) => mountSignalPath(host, bus) },
+      on: Object.fromEntries([...live.map((id) => [id, (v) => { show(id, v); effect(id, v, bus); }]), ...mirrors]),
       onApply: (v) => { for (const id of cat.show) show(id, v[id]); },
     });
     api.setOpen(false);
@@ -90,7 +91,7 @@ export function mountSettings({ gear, chain, body, rail, page }, clock = PLATFOR
     body.hidden = !on;
     gear.setAttribute('aria-pressed', String(on));
     gear.setAttribute('aria-label', on ? 'Close settings' : 'Settings');
-    window.dispatchEvent(new Event('resize'));   // chain rail wire re-measures on return
+    bus.emit('relayout');   // chain rail wire re-measures on return
   }
   gear.setAttribute('aria-pressed', 'false');
   gear.setAttribute('aria-label', 'Settings');
@@ -135,10 +136,10 @@ function fmtOf(c) {
 // Dyslexic font: --f-body swaps to Atkinson Hyperlegible (non-monospace text; engraved legends keep Saira).
 // Bottom bar: swaps the bottom bar (and the engine-row volume). Option style: every chain select's option text (Standard =
 // engine names, Simplified = plain titles). Setting / Option descriptions and the Apodizing indicator are not modelled.
-function effect(id, v) {
+function effect(id, v, bus) {
   const root = document.documentElement.style;
   // Allow pinned rates (Behavior): shows the page's Output section, the rate pins (main.js listens).
-  if (id === 'pinallow') window.dispatchEvent(new CustomEvent('pinallow', { detail: v === '1' }));
+  if (id === 'pinallow') bus.emit('pinallow', v === '1');
   if (id === 'vacc') {
     const hex = ACCENTS.find((x) => x.v === v)?.hex ?? v;
     root.setProperty('--acc', hex);
@@ -149,10 +150,10 @@ function effect(id, v) {
   // Bottom bar: the plate's data-bottom picks Setting Switcher | Volume | None (settings.css shows / hides; the body takes
   // whatever height is freed).
   // Top of page: the page's top section (main.js paintFill listens).
-  if (id === 'vfill') window.dispatchEvent(new CustomEvent('vfill', { detail: v }));
+  if (id === 'vfill') bus.emit('vfill', v);
   if (id === 'vbottom') {
     document.getElementById('plate').dataset.bottom = v;
-    window.dispatchEvent(new Event('resize'));   // rail wire, plots re-measure
+    bus.emit('relayout');   // rail wire, plots re-measure
   }
   // Hide Speakers: the chain rail drops its Speakers stage (its drawer closes if open); the wire re-routes past it.
   // Hide from signal chain: each listed stage leaves the chain rail (its drawer closes if open); the wire re-routes.
@@ -165,9 +166,9 @@ function effect(id, v) {
         st.hidden = hide.has(sid);
       }
     }
-    window.dispatchEvent(new Event('resize'));
+    bus.emit('relayout');
   }
-  if (id === 'vstyle') setOptionStyle(v);
+  if (id === 'vstyle') setOptionStyle(v, bus);
   if (id === 'vdys') {
     if (v === '1' && !document.getElementById('f-atkinson')) {
       document.head.append(h('link#f-atkinson', { rel: 'stylesheet',

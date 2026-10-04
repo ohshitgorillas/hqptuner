@@ -71,8 +71,7 @@ const MCH8 = (() => {
   }
   return { inputs: 8, outputs: 8, rate: 48000, pipes };
 })();
-const HASH = typeof location !== 'undefined' ? location.hash : '';
-export const PIPELINES = HASH.includes('71') ? MCH8 : HASH.includes('mch') ? MCH : HASH.includes('dense') ? DENSE : STEREO;
+const SETS = { mch8: MCH8, mch: MCH, dense: DENSE, stereo: STEREO };
 
 // ── Copy ────────────────────────────────────────────────────────────────────
 export const PMAN = {
@@ -131,14 +130,23 @@ export const AUTOEQ = {
   ],
 };
 
-// Output tab names spelled out (`Left Out | Right Out`) while they fit the drawer head (~470px of tabs), short beyond.
-export const FULL_FITS = 'Overview'.length * 7 + 22 + Array.from({ length: PIPELINES.outputs }, (_, o) => `${chName(o)} Out`.length * 7 + 22).reduce((a, b) => a + b, 0) <= 470;
-const OUT_LABEL = (o) => (FULL_FITS ? `${chName(o)} Out` : chShort(o));
-// Tabs: Overview = the routing alone; then one tab per output channel, named like the grid's columns.
-export const PIPELINES_DRAWER = {
-  id: 'pipelines', family: 'matrix', title: 'DSP pipelines', aria: 'DSP pipelines settings', restart: true,
-  tabs: [
-    { id: 'overview', label: 'Overview', body: [{ block: 'pl-overview' }] },
-    ...Array.from({ length: PIPELINES.outputs }, (_, o) => ({ id: `out${o}`, label: OUT_LABEL(o), body: [{ block: `pl-out${o}` }] })),
-  ],
-};
+/**
+ * The pipeline set the mock opens on (model/flags.js `pipelines`), with the drawer schema built for its outputs. Call once
+ * (main.js) and share the result: the chain and the Profile builder edit the same PIPELINES and mount the same schema.
+ * @param {import('../model/flags.js').Flags} flags
+ */
+export function pipelineSet(flags) {
+  const PIPELINES = SETS[flags.pipelines];
+  // Output tab names spelled out (`Left Out | Right Out`) while they fit the drawer head (~470px of tabs), short beyond.
+  const FULL_FITS = 'Overview'.length * 7 + 22 + Array.from({ length: PIPELINES.outputs }, (_, o) => `${chName(o)} Out`.length * 7 + 22).reduce((a, b) => a + b, 0) <= 470;
+  const OUT_LABEL = (o) => (FULL_FITS ? `${chName(o)} Out` : chShort(o));
+  // Tabs: Overview = the routing alone; then one tab per output channel, named like the grid's columns.
+  const PIPELINES_DRAWER = {
+    id: 'pipelines', family: 'matrix', title: 'DSP pipelines', aria: 'DSP pipelines settings', restart: true,
+    tabs: [
+      { id: 'overview', label: 'Overview', body: [{ block: 'pl-overview' }] },
+      ...Array.from({ length: PIPELINES.outputs }, (_, o) => ({ id: `out${o}`, label: OUT_LABEL(o), body: [{ block: `pl-out${o}` }] })),
+    ],
+  };
+  return { PIPELINES, PIPELINES_DRAWER, FULL_FITS };
+}

@@ -18,9 +18,11 @@ const CHAMFER = 5;
 /**
  * @param {HTMLElement} rail  nav.rail containing svg.wire
  * @param {object[]} chain    CHAIN data
+ * @param {'trunk'|'routed'} style   wire style (model/flags.js `wire`)
+ * @param {import('../lib/bus.js').Bus} bus   the wire redraws on `relayout`
  * @returns {Map<string, HTMLButtonElement>} stage buttons by id
  */
-export function mountRail(rail, chain) {
+export function mountRail(rail, chain, style, bus) {
   const stages = new Map();
   for (const st of chain) {
     const btn = h('button.st', {
@@ -38,10 +40,9 @@ export function mountRail(rail, chain) {
   }
 
   const svg = rail.querySelector('.wire');
-  const style = location.hash === '#routed' ? 'routed' : 'trunk';
   const redraw = () => drawWire(rail, svg, style);
   redraw();
-  window.addEventListener('resize', redraw);
+  bus.on('relayout', redraw);
   window.addEventListener('load', redraw);
   document.fonts?.ready.then(redraw);
   return stages;

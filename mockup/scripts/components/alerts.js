@@ -23,9 +23,9 @@ const line = (a, tag = 'p') => h(`${tag}.aline`, { data: { sev: a.sev } },
   h('span.ag', { 'aria-hidden': 'true', text: GLYPH[a.sev] }), h('span', { text: a.text }));
 
 /**
- * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement}} o
+ * @param {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement, bus: import('../lib/bus.js').Bus}} o
  */
-export function mountAlerts({ plate, stages, srail }) {
+export function mountAlerts({ plate, stages, srail, bus }) {
   let list = [];
 
   // Tap popovers for the header homes without a drawer (knob, gauge). The knob's own tap (connection settings) still
@@ -96,7 +96,7 @@ export function mountAlerts({ plate, stages, srail }) {
       if (!t) continue;
       t.after(h('div.salert', { role: 'status' }, as.map((a) => line(a))));
     }
-    window.dispatchEvent(new Event('resize'));   // rail wire: dark stages drop their taps; drawers refit
+    bus.emit('relayout');   // rail wire: dark stages drop their taps; drawers refit
   }
 
   // The gauge isn't a button: with an alert up it takes taps and Enter like one.
