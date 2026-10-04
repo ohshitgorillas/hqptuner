@@ -29,11 +29,11 @@ const K_METER_RANGE = "hqptuner.meterRange";
 // but warning per key would spam once per pref per session. One flag, one warn.
 let storageWarned = false;
 
-/**
+/** Warn once, for the whole page, that storage cannot be used.
  * @param {string} verb
  * @returns {void}
  */
-function warnStorage(verb) {
+export function warnStorage(verb) {
   if (storageWarned) return;
   storageWarned = true;
   if (typeof localStorage === "undefined") {
@@ -43,12 +43,12 @@ function warnStorage(verb) {
   }
 }
 
-/**
+/** A stored boolean, or `dflt` where nothing is stored.
  * @param {string} key
  * @param {boolean} dflt
  * @returns {boolean}
  */
-function loadBool(key, dflt) {
+export function loadBool(key, dflt) {
   try {
     const v = localStorage.getItem(key);
     return v == null ? dflt : v === "1";
@@ -58,12 +58,12 @@ function loadBool(key, dflt) {
   }
 }
 
-/**
+/** Store a boolean as "1" or "0".
  * @param {string} key
  * @param {boolean} on
  * @returns {void}
  */
-function persist(key, on) {
+export function persist(key, on) {
   try {
     localStorage.setItem(key, on ? "1" : "0");
   } catch {
@@ -210,7 +210,7 @@ function loadEnum(key, allowed, dflt) {
  * @param {string} dflt
  * @returns {[{ value: string }, (value: string) => void]}
  */
-function enumPref(key, allowed, dflt) {
+export function enumPref(key, allowed, dflt) {
   const sig = signal(loadEnum(key, allowed, dflt));
   /** @param {string} value */
   const set = (value) => {
