@@ -18,26 +18,24 @@
 // can't be deleted (v1). The builder opens on New profile from the running matrix (what's loaded: save it as it is).
 // Save writes, restarts and runs the profile when the loaded station is ticked; the builder stays on it.
 // Exit: ×, Escape with nothing open, the gear (Settings), or the Snapshot builder button.
+// The shell (switching, staging, Save / Delete, the rail, the overview's frame, the swap) is lib/builder.js.
 
 import { h, s } from '../lib/dom.js';
-import { anyOpen, popover } from '../lib/popover.js';
-import { closeSheets, sheetOpen } from '../lib/sheet.js';
 import { mountDrawer, closeOthers, familyOf } from './drawer.js';
 import { createPipelines } from './pipelines.js';
 import { mountAutoEq } from './autoeq.js';
 import { seg, select } from './seg.js';
 import { shelfScale, BAUER_PRESETS } from '../lib/xdsp.js';
+import { mountBuilder, paras, drow as row, chainPic, holdRow } from '../lib/builder.js';
+import { NEW, OVERVIEW, homeOf } from '../model/builder.js';
 import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from '../data/matrix.js';
 import { PMAN } from '../data/pipelines.js';
-import { CHAIN } from '../data/chain.js';
 import { PROFILE_COPY, PB_STEPS, PB_COPY, LISTEN, XF_LINES, KNOWN, MATRIX_STAGES, OUTSIDE_STAGES } from '../data/profiles.js';
 
-const NEW = '\u0000new';
 const DEFAULT = '[Default]';
 const FAM = 'pbuild';
 const BYPASS_ENGAGE = [{ v: '0', label: 'Bypass' }, { v: '1', label: 'Engage' }];   // the gates' grammar, default leftmost
 const OFF_ON = [{ v: '0', label: 'Off' }, { v: '1', label: 'On' }];
-const paras = (m) => (Array.isArray(m) ? m : [m]).filter(Boolean).map((t) => (typeof t === 'string' ? h('p', { text: t }) : h('p', {}, h('b', { text: t.k }), ' — ', t.text)));
 
 /**
  * @param {object} el  {btn: page button, chain: #body, body: #pbody, rail, page, plate, settings, snapshot, bus: lib/bus.js}
@@ -48,30 +46,13 @@ const paras = (m) => (Array.isArray(m) ? m : [m]).filter(Boolean).map((t) => (ty
  */
 export function mountProfileBuilder({ btn, chain, body, rail, page, plate, settings, snapshot, bus }, stations, data, o) {
   const { PIPELINES, PIPELINES_DRAWER, FULL_FITS } = o.pipelines;
-  const home = stations.find((st) => st.active)?.name ?? stations[0].name;
+  const home = homeOf(stations);
   const applied = familyOf('matrix').base;   // the chain's applied matrix (what's loaded)
   const row0 = (drawer, id) => drawer.tabs.flatMap((t) => t.body).find((it) => it.row?.control.id === id).row;
   const R = { engine: row0(MATRIX_DRAWER, 'mxengine'), expand: row0(MATRIX_DRAWER, 'mxexpand'), iir: row0(MATRIX_DRAWER, 'mxiir2fir'),
     dcen: row0(CORRECTION_DRAWER, 'dcen'), dcdac: row0(CORRECTION_DRAWER, 'dcdac') };
   const MODELS = R.dcdac.control.options;
   const M = CROSSFEED.man, LM = LOUDNESS.man;
-
-  // ── Values: one family store (the DSP pipelines drawer is its one drawer member) ─────
-  const acts = [];
-  let ready = false;
-  const plBtn = h('button.pbhold.pbpl', { type: 'button' });
-  const plCore = createPipelines(PIPELINES, { bypassed: () => '', plate, openCrossfeed: () => { pl.setOpen(false); show('crossfeed'); }, goTab: (id) => pl.showTab(id) });
-  const plDiscard = h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => discard() } });
-  acts.push({ discard: plDiscard });
-  const pl = mountDrawer(body, plBtn, PIPELINES_DRAWER, { prefix: 'pb-', family: FAM, head: h('div.apply.pbact', {}, plDiscard),
-    onValues: () => { if (ready) { paint(); paintState(); } },
-    blocks: Object.fromEntries([['pl-overview', plCore.overview], ...Array.from({ length: PIPELINES.outputs }, (_, k) => [`pl-out${k}`, plCore.output(k)])]) });
-  pl.setOpen(false);
-  if (!FULL_FITS) body.querySelector('#pb-drawer-pipelines').classList.add('pl-short');
-  const fam = familyOf(FAM);
-  const v = fam.vals;
-  /** Set values from the page: stages them (the pipelines member re-reads, so crossfeed blocks follow), repaints. */
-  const set = (patch) => { for (const [k, x] of Object.entries(patch)) v[k] = String(x); pl.regray(); };
 
   // ── Records (mock: this component's copy) ───────────────────────────────
   const asProfile = (x) => ({ eqname: '', ...x, mxen: '1' });   // a profile built here runs the matrix
@@ -95,47 +76,88 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
 
   // ── Edit state ──────────────────────────────────────────────────────────
   // Opens on what's loaded: New profile from the running matrix (save it as it is, or change it).
-  let cur = { st: home, name: NEW };
-  const K = (c) => (c.name === NEW ? NEW : c.st + '\u0001' + c.name);
-  const staged = new Map();   // K → {meta, vals}: a profile left with unsaved edits
   let meta;                   // {name, stations, desc, listen} of the one being edited (its values live in the store)
-  let ask = null, refused = false;
+  let known = { crossfeed: 'preset', loudness: 'preset' };   // "do you know your settings?" per step
+  let ready = false;
+  const B = mountBuilder({ btn, chain, body, bus }, {
+    title: 'Profile builder', closeLabel: 'Close Profile builder', noun: 'Profile',
+    stations: stations.map((st) => st.name), book: records, cur: { st: home, name: NEW },
+    copy: { remove: (n) => PROFILE_COPY.remove(n), overwrite: (n) => PROFILE_COPY.overwrite(n), noName: PROFILE_COPY.noName,
+      state: { restarts: PB_COPY.state.dirtyRun, dirty: PB_COPY.state.dirty, live: PB_COPY.state.running, saved: PB_COPY.state.saved } },
+    name: () => meta.name,
+    to: () => meta.stations,
+    record: () => ({ desc: meta.desc, listen: meta.listen, vals: { ...v } }),
+    dirty: () => dirty(),
+    load: (c, buf) => load(c, buf),
+    buffer: () => ({ meta: structuredClone(meta), vals: { ...v } }),
+    keeps: (c) => c.name === DEFAULT,   // the station's unnamed profile: unticking its station copies it out
+    ticked: () => meta.stations.length > 0,
+    restarts: () => meta.stations.includes(home),   // only the loaded station's profiles can run
+    live: () => B.cur.st === home && B.cur.name === o.running(),
+    view: (where) => { if (where) show(where === 'here' ? at : OVERVIEW); render(); },
+    refuse: () => { if (at !== 'overview') show('overview'); B.paintState(); nameBox.focus(); },
+    saved: ({ name, to, rec }) => {
+      B.load(B.cur);
+      show('overview'); render();
+      // Saving restarts the engine; with the loaded station written, the profile runs (main.js).
+      o.onSaved?.(to.map((st) => [st, Object.keys(B.book[st])]), rec, name, to.includes(home));
+      B.paintState();
+    },
+    removed: () => { B.load(B.cur); show('overview'); render(); o.onSaved?.([[B.cur.st, Object.keys(B.book[B.cur.st])]]); },
+    leave: () => { settings.setOn(false); snapshot()?.setOn(false, false); },
+    opened: () => {
+      // What's loaded may have moved since (a chain tweak): an untouched New profile follows it.
+      if (B.cur.name === NEW && !B.staged.has(NEW) && !dirty()) B.load(B.cur);
+      show('overview'); render();
+    },
+    painted: (d) => {
+      const opt0 = B.pick.selectedOptions[0];
+      if (opt0) opt0.textContent = (B.cur.name === NEW ? 'New profile' : B.cur.name) + (d ? ' •' : '');
+    },
+    walk: { rail, steps: PB_STEPS, copy: PB_COPY, skipOf: (id) => skipOf(id), answer: (id) => (skipOf(id) ? PB_COPY.skipped : answer[id]()),
+      at: () => at, show: (id) => show(id), newLabel: 'New profile',
+      scratch: () => { B.load(B.cur, { meta: structuredClone(meta), vals: scratch() }); show(PB_STEPS[0].id); render(); },
+      nameBox: { type: 'text', 'aria-label': 'Profile name', maxlength: 60, spellcheck: 'false', placeholder: PROFILE_COPY.name },
+      setName: (n) => { meta.name = n; } },
+  });
+  const { pick, nameBox } = B;
+
+  // ── Values: one family store (the DSP pipelines drawer is its one drawer member) ─────
+  const pl0 = holdRow('DSP pipelines', null, 'button.pbhold.pbpl');
+  const plBtn = pl0.el, plCount = pl0.a;
+  const plCore = createPipelines(PIPELINES, { bypassed: () => '', plate, openCrossfeed: () => { pl.setOpen(false); show('crossfeed'); }, goTab: (id) => pl.showTab(id) });
+  const pl = mountDrawer(body, plBtn, PIPELINES_DRAWER, { prefix: 'pb-', family: FAM, head: h('div.apply.pbact', {}, B.discardButton()),
+    onValues: () => { if (ready) { paint(); B.paintState(); } },
+    blocks: Object.fromEntries([['pl-overview', plCore.overview], ...Array.from({ length: PIPELINES.outputs }, (_, k) => [`pl-out${k}`, plCore.output(k)])]) });
+  pl.setOpen(false);
+  if (!FULL_FITS) body.querySelector('#pb-drawer-pipelines').classList.add('pl-short');
+  const fam = familyOf(FAM);
+  const v = fam.vals;
+  /** Set values from the page: stages them (the pipelines member re-reads, so crossfeed blocks follow), repaints. */
+  const set = (patch) => { for (const [k, x] of Object.entries(patch)) v[k] = String(x); pl.regray(); };
+
   const saved = (c) => (c.name === NEW
     ? { meta: { name: '', stations: [home], desc: '', listen: listenOf(applied) }, vals: asProfile(applied) }
-    : { meta: { name: c.name, stations: [c.st], desc: records[c.st][c.name].desc, listen: records[c.st][c.name].listen }, vals: records[c.st][c.name].vals });
+    : { meta: { name: c.name, stations: [c.st], desc: B.book[c.st][c.name].desc, listen: B.book[c.st][c.name].listen }, vals: B.book[c.st][c.name].vals });
   const sameVals = (a, b) => Object.keys(b).every((k) => !(k in a) || String(a[k]) === String(b[k]));
   const dirty = () => {
-    const s0 = saved(cur);
+    const s0 = saved(B.cur);
     return !sameVals(v, s0.vals) || meta.desc !== s0.meta.desc || meta.name !== s0.meta.name || meta.listen !== s0.meta.listen
       || [...meta.stations].sort().join('\u0001') !== [...s0.meta.stations].sort().join('\u0001');
   };
-  const isDirty = (c) => (K(c) === K(cur) ? dirty() : staged.has(K(c)));
-  let known = { crossfeed: 'preset', loudness: 'preset' };   // "do you know your settings?" per step
 
-  function load(c, over) {
-    const s0 = saved(c), buf = over ?? staged.get(K(c));
+  function load(c, buf) {
+    const s0 = saved(c);
     const to = buf ? buf.vals : s0.vals;
     Object.assign(v, to); Object.assign(fam.base, to);
     pl.discarded(); pl.settle();   // the pipelines block repaints from the values (crossfeed blocks rebuilt)
     if (buf) { Object.assign(fam.base, s0.vals); pl.remark(); }
     meta = structuredClone(buf?.meta ?? s0.meta);
-    staged.delete(K(c));
     known = { crossfeed: v.xfmode === 'off' || xfPreset() ? 'preset' : 'values', loudness: ldDefault() ? 'preset' : 'values' };
     if (ready) eq.reset();
   }
-  function stash() { if (dirty()) staged.set(K(cur), { meta: structuredClone(meta), vals: { ...v } }); else staged.delete(K(cur)); }
-  function go(c) {
-    if (K(c) === K(cur)) return;
-    stash(); closeOthers(null);
-    cur = c; ask = null; refused = false;
-    load(c); show('overview'); render();
-  }
-  function discard() { staged.delete(K(cur)); ask = null; refused = false; load(cur); show(at); render(); }
 
-  // ── Rail: the walk ──────────────────────────────────────────────────────
-  const entry = (id, name) => h('button.st', { type: 'button', data: { stage: id }, on: { click: () => show(id) } }, h('span.n', { text: name }), h('span.v'));
-  const railEls = new Map([['overview', entry('overview', PB_COPY.overview)], ...PB_STEPS.map((x) => [x.id, entry(x.id, x.title)])]);
-  rail.replaceChildren(...railEls.values());
+  // ── Rail: the walk's answers ────────────────────────────────────────────
   const ctx = () => ({ listen: meta.listen, fixed: o.fixed(), models: MODELS.filter((m) => m.v).length });
   const skipOf = (id) => PB_STEPS.find((x) => x.id === id)?.skip?.(ctx()) || '';
   const xfName = () => ({ off: 'Off', bauer: 'Bauer', structural: 'Structural' }[v.xfmode] ?? 'Off');
@@ -146,24 +168,15 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
     correction: () => (v.dcen === '1' ? (v.dcdac || '[none]') : 'Bypassed'),
     loudness: () => (v.ldon === '1' ? `${Math.round((o.fixed() ? 0 : shelfScale(o.level(), Number(v.ldrlow), Number(v.ldrhigh))) * 100)}% applied` : 'Off'),
   };
-  function paintRail() {
-    for (const [id, el] of railEls) {
-      el.classList.toggle('open', id === at || (id === 'overview' && at === 'advanced'));
-      el.setAttribute('aria-current', String(id === at));
-      el.querySelector('.v').textContent = id === 'overview' ? (meta.name || (cur.name === NEW ? 'New profile' : cur.name)) : (skipOf(id) ? PB_COPY.skipped : answer[id]());
-      el.classList.toggle('skip', id !== 'overview' && !!skipOf(id));
-    }
-  }
 
   // ── Page parts ──────────────────────────────────────────────────────────
-  const close = () => h('button.round.dx.pbx', { type: 'button', 'aria-label': 'Close Profile builder', text: '×', on: { click: () => setOn(false) } });
-  const drow = (label, ctl, man, extra) => h('div.drow', {}, h('div.ctl', {}, h('div.fh', {}, h('b', { text: label })), ctl), h('div.man', {}, paras(man)), extra);
+  const drow = (label, ctl, man, extra) => row(label, ctl, man, { extra });
   /** Choice lines (the Volume drawer's grammar): radio + name + its own paragraph. */
-  function choice(label, options, get, pick) {
+  function choice(label, options, get, pickOne) {
     const lines = options.map((op) => {
-      const radio = h('button.radio', { type: 'button', role: 'radio', aria: { label: op.label }, on: { click: () => pick(op.v) } });
+      const radio = h('button.radio', { type: 'button', role: 'radio', aria: { label: op.label }, on: { click: () => pickOne(op.v) } });
       const el = h('div.chline', { data: { v: op.v } },
-        h('div.chl', {}, radio, h('span.chn', { on: { click: () => pick(op.v) } }, h('b', { text: op.label }))),
+        h('div.chl', {}, radio, h('span.chn', { on: { click: () => pickOne(op.v) } }, h('b', { text: op.label }))),
         h('div.man', {}, paras(op.man)));
       return { op, el, radio };
     });
@@ -184,56 +197,28 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   const group = (label, nums) => drow(label, h('div.cgrp', {}, nums.map((n) => n.el)), nums.map((n) => ({ k: n.label, text: n.man })));
 
   // Overview
-  const chainPic = h('ol.pbchain', { 'aria-label': 'Signal chain: the matrix engine\'s part lit' },
-    CHAIN.map((st) => h('li', { class: [MATRIX_STAGES.includes(st.id) && 'mx', OUTSIDE_STAGES.includes(st.id) && 'out', st.level && 'sub'].filter(Boolean).join(' ') },
-      h('span.d'), h('span', { text: st.name }))));
-  const holdRows = ['eq', 'crossfeed', 'correction', 'loudness'].map((id) => {
-    const a = h('span.pa');
-    const el = h('button.pbhold', { type: 'button', on: { click: () => show(id) } }, h('b', { text: PB_STEPS.find((x) => x.id === id).title }), a, h('span.pgo', { 'aria-hidden': 'true', text: '›' }));
-    return { id, el, a };
-  });
-  const plCount = h('span.pa');
-  plBtn.append(h('b', { text: 'DSP pipelines' }), plCount, h('span.pgo', { 'aria-hidden': 'true', text: '›' }));
-  const pick = h('select', { 'aria-label': 'Profile' });
-  pick.addEventListener('change', () => { const [st, name] = pick.value === NEW ? [home, NEW] : pick.value.split('\u0001'); go({ st, name }); });
-  const nameBox = h('input.bnin', { type: 'text', 'aria-label': 'Profile name', maxlength: 60, spellcheck: 'false', placeholder: PROFILE_COPY.name });
-  nameBox.addEventListener('input', () => { meta.name = nameBox.value.trim(); refused = false; paintState(); paintRail(); });
-  nameBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameBox.blur(); });
-  const stTxt = h('span.v');
-  const stBtn = h('button.vfd.bstn', { type: 'button', aria: { haspopup: 'menu' } }, h('span.l', { text: 'Stations' }), stTxt);
-  const stMenu = h('div.pop.pmenu.amenu.bstmenu', { role: 'menu', 'aria-label': 'Stations' });
-  popover({ trigger: stBtn, panel: stMenu });
+  const holdRows = ['eq', 'crossfeed', 'correction', 'loudness'].map((id) => ({ id, ...holdRow(PB_STEPS.find((x) => x.id === id).title, () => show(id)) }));
+  pick.addEventListener('change', () => { const [st, name] = pick.value === NEW ? [home, NEW] : pick.value.split('\u0001'); B.go({ st, name }); });
+  /** Stations menu (Snapshot builder's): ✓ = Save writes there; a station already holding this name shows it. */
+  const stMenu = B.stationsMenu({ ticked: () => meta.stations, name: () => meta.name,
+    pick: (list) => { meta.stations = list; stMenu.paint(); B.paintState(); } });
   const desc = h('textarea', { 'aria-label': 'Profile description', spellcheck: 'false', maxlength: 500, placeholder: PROFILE_COPY.desc });
-  desc.addEventListener('input', () => { meta.desc = desc.value; paintState(); });
-  const stateLine = h('div.pbstate', { role: 'status' });
-  const cap = h('span.pbcap');
-  const del = h('button.btn.sm', { type: 'button', text: 'Delete', on: { click: () => confirm(PROFILE_COPY.remove(cur.name), remove) } });
-  const discardBtn = h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => discard() } });
-  const saveBtn = h('button.btn.sm.pbsave', { type: 'button', text: 'Save', on: { click: () => save() } });
-  acts.push({ discard: discardBtn, save: saveBtn });
+  desc.addEventListener('input', () => { meta.desc = desc.value; B.paintState(); });
+  const acts = B.buttons();
   const askHost = h('div.pbask');
-  const overview = h('div.pbov', {},
-    h('div.sh.btitle', {}, h('span.t', { text: 'Profile builder' }), h('span.ln'), close()),
-    h('div.pbovtop', {},
-      h('div.pbovl', {}, h('p.pbintro', { text: PB_COPY.intro }),
-        h('div.pbholds', {}, h('div.pbhh', { text: PB_COPY.holds }), holdRows.map((r) => r.el), plBtn)),
-      chainPic),
-    h('div.pbsavebox', {},
-      h('div.pbid', {},
-        h('label.vfd.pbpick', {}, h('span.l', { text: 'Profile' }), pick),
-        h('label.vfd.bname.pbname', {}, h('span.l', { text: 'Name' }), nameBox),
-        h('div.bstw', {}, stBtn, stMenu)),
-      h('label.desc.pbdesc', {}, desc, pencil()),
-      askHost,
-      h('div.pbfoot', {}, h('div.pbstw', {}, stateLine, cap), h('span.grow'),
-        h('button.btn.sm', { type: 'button', text: PB_COPY.scratch, on: { click: () => { load(cur, { meta: structuredClone(meta), vals: scratch() }); show(PB_STEPS[0].id); render(); } } }),
-        h('button.btn.sm', { type: 'button', text: PB_COPY.change, on: { click: () => show(PB_STEPS[0].id) } }),
-        del, discardBtn, saveBtn)),
-    h('button.pbadvlink', { type: 'button', on: { click: () => show('advanced') } }, PB_COPY.advanced, h('span', { 'aria-hidden': 'true', text: ' ›' })),
-  );
+  const overview = B.overview({
+    intro: h('p.pbintro', { text: PB_COPY.intro }),
+    holds: [holdRows.map((r) => r.el), plBtn],
+    chain: chainPic('Signal chain: the matrix engine\'s part lit', (id) => MATRIX_STAGES.includes(id), (id) => OUTSIDE_STAGES.includes(id)),
+    ids: [stMenu.el],
+    mid: [h('label.desc.pbdesc', {}, desc, pencil())],
+    ask: askHost,
+    acts,
+    after: h('button.pbadvlink', { type: 'button', on: { click: () => show('advanced') } }, PB_COPY.advanced, h('span', { 'aria-hidden': 'true', text: ' ›' })),
+  });
 
   // Steps
-  const listenSeg = seg({ aria: 'Listening', options: LISTEN, value: 'speakers', onChange: (x) => { meta.listen = x; paint(); paintState(); } });
+  const listenSeg = seg({ aria: 'Listening', options: LISTEN, value: 'speakers', onChange: (x) => { meta.listen = x; paint(); B.paintState(); } });
   const eq = mountAutoEq({ core: plCore, name: () => v.eqname, land: (from) => { v.eqname = from; pl.regray(); } });
   const eqRows = { auto: drow('Headphone Auto EQ', eq.search, PMAN.peqFile), files: drow('Correction files', eq.files, PMAN.conv) };
   const eqOut = h('div.pbeqout', {}, eq.holds, eq.plot);
@@ -270,22 +255,8 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   const iirSeg = seg({ aria: 'IIR to FIR', cls: 'enum', options: R.iir.optMan.map((x) => ({ v: x.v, label: x.label ?? x.v })), value: '0', onChange: (x) => set({ mxiir2fir: x }) });
   const engList = optList(R.engine, 'mxengine'), iirList = optList(R.iir, 'mxiir2fir');
 
-  const nextOf = (i) => { for (let k = i + 1; k < PB_STEPS.length; k++) if (!skipOf(PB_STEPS[k].id)) return PB_STEPS[k].id; return 'overview'; };
-  const prevOf = (i) => { for (let k = i - 1; k >= 0; k--) if (!skipOf(PB_STEPS[k].id)) return PB_STEPS[k].id; return 'overview'; };
-  /** A step's page: header (title, step n of t, ×), guidance or skip line, rows, Back / Next. */
-  function stepPage(id) {
-    const i = PB_STEPS.findIndex((x) => x.id === id);
-    const st = PB_STEPS[i];
-    const skip = skipOf(id);
-    const last = nextOf(i) === 'overview';
-    return h('div.pbstepp', {},
-      h('div.sh.btitle', {}, h('span.t', { text: st.title }), h('span.pbn', { text: PB_COPY.stepOf(i + 1, PB_STEPS.length) }), h('span.ln'), close()),
-      h('p.pbguide', { class: skip && 'skip', text: skip || st.guide(ctx()) }),
-      h('div.pbsrows', {}, skip ? [] : stepRows(id)),
-      h('div.pbnav', {}, h('span.grow'),
-        h('button.btn.sm', { type: 'button', text: PB_COPY.back, on: { click: () => show(prevOf(i)) } }),
-        h('button.btn.sm.pbnext', { type: 'button', text: last ? PB_COPY.review : PB_COPY.next, on: { click: () => show(nextOf(i)) } })));
-  }
+  /** A step's page (the shell's frame): the guidance or skip line, then its rows. */
+  const stepPage = (id) => B.stepPage(id, { guide: (skip, st) => h('p.pbguide', { class: skip && 'skip', text: skip || st.guide(ctx()) }), rows: stepRows });
   function stepRows(id) {
     if (id === 'listen') return [drow('Listening', listenSeg, '')];
     if (id === 'eq') return [meta.listen === 'headphones' && eqRows.auto, eqRows.files, eqOut].filter(Boolean);
@@ -303,19 +274,19 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
   let shape = '';   // what the showing step lays out: a change re-lays it out (choice made, path changed)
   const shapeNow = () => [at, meta.listen, v.xfmode, known.crossfeed, v.ldon, known.loudness, skipOf(at)].join('|');
   function show(id) {
-    if (!railEls.has(id) && id !== 'advanced') id = 'overview';
+    if (!B.inWalk(id) && id !== 'advanced') id = 'overview';
     closeOthers(null);
     at = id;
     let content;
     if (id === 'overview') content = overview;
     else if (id === 'advanced') content = h('div.pbstepp', {},
-      h('div.sh.btitle', {}, h('span.t', { text: PB_COPY.advanced }), h('span.ln'), close()),
+      B.title(PB_COPY.advanced),
       h('div.pbsrows', {}, drow('Engine', engSeg, R.engine.man, engList.el), drow('Expand HF', hfSeg, R.expand.man), drow('IIR to FIR', iirSeg, R.iir.man, iirList.el)),
       h('div.pbnav', {}, h('span.grow'), h('button.btn.sm', { type: 'button', text: PB_COPY.overview, on: { click: () => show('overview') } })));
     else content = stepPage(id);
     page.replaceChildren(content);
     shape = shapeNow();
-    if (ready) { paint(); paintState(); }
+    if (ready) { paint(); B.paintState(); }
   }
 
   // ── Paint ───────────────────────────────────────────────────────────────
@@ -332,126 +303,32 @@ export function mountProfileBuilder({ btn, chain, body, rail, page, plate, setti
     select(engSeg, v.mxengine); select(hfSeg, v.mxexpand); select(iirSeg, v.mxiir2fir); engList.paint(); iirList.paint();
     for (const r of holdRows) r.a.textContent = skipOf(r.id) && !(r.id === 'crossfeed' && v.xfmode !== 'off') ? PB_COPY.skipped : answer[r.id]();
     plCount.textContent = `${plCore.count()} active`;
-    paintRail();
+    B.paintRail();
   }
 
   function render() {
+    const { cur } = B;
     pick.replaceChildren(...stations.map((st) => h('optgroup', { label: st.name },
-      Object.keys(records[st.name]).map((n) => h('option', { value: st.name + '\u0001' + n, text: isDirty({ st: st.name, name: n }) ? `${n} •` : n })))),
-    h('option', { value: NEW, text: staged.has(NEW) || (cur.name === NEW && dirty()) ? 'New profile •' : 'New profile' }));
-    pick.value = K(cur) === NEW ? NEW : K(cur);
+      Object.keys(B.book[st.name]).map((n) => h('option', { value: st.name + '\u0001' + n, text: B.isDirty({ st: st.name, name: n }) ? `${n} •` : n })))),
+    h('option', { value: NEW, text: B.staged.has(NEW) || (cur.name === NEW && dirty()) ? 'New profile •' : 'New profile' }));
+    pick.value = B.K(cur);
     const isDef = cur.name === DEFAULT;
     nameBox.value = meta.name;
     nameBox.readOnly = isDef;   // the station's unnamed profile: the daemon's name, not one to change (v1)
     desc.value = meta.desc;
-    del.hidden = cur.name === NEW || isDef;
-    askHost.replaceChildren(...(ask ? [h('div.bask', { role: 'alert' },
-      h('span', { text: ask.text }),
-      h('button.btn.sm', { type: 'button', text: 'Confirm', on: { click: () => { const f = ask.onConfirm; ask = null; f(); } } }),
-      h('button.btn.sm', { type: 'button', text: 'Cancel', on: { click: () => { ask = null; render(); } } }))] : []));
-    paintStations();
+    acts.del.hidden = cur.name === NEW || isDef;
+    askHost.replaceChildren(...(B.ask ? [B.askLine()] : []));
+    stMenu.paint();
     paint();
-    paintState();
-  }
-
-  /** Stations menu (Snapshot builder's): ✓ = Save writes there; a station already holding this name shows it. */
-  function paintStations() {
-    stTxt.textContent = meta.stations.join(' · ') || '—';
-    stBtn.title = meta.stations.join(' · ');
-    const name = meta.name || (cur.name === NEW ? '' : cur.name);
-    stMenu.replaceChildren(...stations.map((st) => h('button.pmrow', { type: 'button', role: 'menuitemcheckbox',
-      aria: { checked: meta.stations.includes(st.name) },
-      on: { click: () => {
-        meta.stations = meta.stations.includes(st.name) ? meta.stations.filter((n) => n !== st.name)
-          : stations.map((s2) => s2.name).filter((n) => n === st.name || meta.stations.includes(n));
-        paintStations(); paintState();
-      } } },
-      h('b', { text: st.name }), name && records[st.name][name] && !(st.name === cur.st && name === cur.name) && h('span', { text: name }))));
-  }
-
-  function paintState() {
-    const d = dirty();
-    for (const a of acts) {
-      a.discard.disabled = !d;
-      if (a.save) a.save.disabled = (!d && cur.name !== NEW) || !meta.stations.length;
-    }
-    const runs = meta.stations.includes(home);   // only the loaded station's profiles can run
-    const isRunning = cur.st === home && cur.name === o.running();
-    stateLine.textContent = d || cur.name === NEW ? (runs ? PB_COPY.state.dirtyRun : PB_COPY.state.dirty) : isRunning ? PB_COPY.state.running : PB_COPY.state.saved;
-    stateLine.classList.toggle('dirty', d || cur.name === NEW);
-    cap.replaceChildren(refused ? h('span.bref', { text: PROFILE_COPY.noName }) : '');
-    const opt0 = pick.selectedOptions[0];
-    if (opt0) opt0.textContent = (cur.name === NEW ? 'New profile' : cur.name) + (d ? ' •' : '');
+    B.paintState();
   }
   o.levelBus.addEventListener('level', () => { if (ready && !body.hidden) paint(); });
 
-  // ── Save / delete (mock: this component's records) ──────────────────────
-  function confirm(text, onConfirm) { closeOthers(null); ask = { text, onConfirm }; show('overview'); render(); }
-  function save() {
-    const name = meta.name.trim();
-    if (!name) { closeOthers(null); refused = true; if (at !== 'overview') show('overview'); paintState(); nameBox.focus(); return; }
-    const to = meta.stations;
-    if (!to.length) return;
-    const own = cur.name !== NEW && to.includes(cur.st);
-    const clash = to.some((st) => records[st][name] && !(own && st === cur.st && name === cur.name));
-    const write = () => {
-      const rec = { desc: meta.desc, listen: meta.listen, vals: { ...v } };
-      if (cur.name !== NEW && !own && cur.name !== DEFAULT) delete records[cur.st][cur.name];   // unticked its own station: moved
-      for (const st of to) {
-        if (own && st === cur.st && name !== cur.name) {   // renamed in place: keeps its place in the list
-          const next = {};
-          for (const [k, x] of Object.entries(records[st])) if (k !== name) next[k === cur.name ? name : k] = k === cur.name ? rec : x;
-          records[st] = next;
-        } else records[st][name] = structuredClone(rec);
-      }
-      staged.delete(K(cur));
-      cur = { st: own ? cur.st : to[0], name };
-      load(cur);
-      show('overview'); render();
-      // Saving restarts the engine; with the loaded station written, the profile runs (main.js).
-      o.onSaved?.(to.map((st) => [st, Object.keys(records[st])]), rec, name, to.includes(home));
-      paintState();
-    };
-    if (clash) confirm(PROFILE_COPY.overwrite(name), write);
-    else write();
-  }
-  function remove() {
-    delete records[cur.st][cur.name];
-    staged.delete(K(cur));
-    cur = { st: cur.st, name: Object.keys(records[cur.st])[0] ?? NEW };
-    load(cur); show('overview'); render();
-    o.onSaved?.([[cur.st, Object.keys(records[cur.st])]]);
-  }
-
-  // ── Swap ────────────────────────────────────────────────────────────────
-  function setOn(on, toChain = true) {
-    closeOthers(null);
-    closeSheets();
-    if (on) { settings.setOn(false); snapshot()?.setOn(false, false); }
-    body.hidden = !on;
-    if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-    btn.setAttribute('aria-pressed', String(on));
-    if (on) {
-      ask = null;
-      // What's loaded may have moved since (a chain tweak): an untouched New profile follows it.
-      if (cur.name === NEW && !staged.has(NEW) && !dirty()) load(cur);
-      show('overview'); render();
-    }
-    bus.emit('relayout');
-  }
-  btn.addEventListener('click', () => setOn(true));
-  // Capture: an open drawer, popover or sheet hears Escape first; with nothing open it leaves the builder.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen() || body.querySelector('.drawer:not([data-closed])')) return;
-    if (ask) { ask = null; render(); return; }
-    setOn(false);
-  }, true);
-
-  load(cur);
+  B.load(B.cur);
   ready = true;
   show('overview');
   render();
-  return { setOn, isOn: () => !body.hidden };
+  return B.start();
 }
 
 /** The description's pencil (it marks the text as the user's to edit). */

@@ -16,17 +16,16 @@
 //         The chain rows follow the snapshot's Output mode (one chain per snapshot) and need it: Mode excluded grays them
 //         (their include state is kept and comes back with Mode, as the matrix bypass keeps its dependents' settings).
 // Exit: × on the title, the button again, Escape with nothing open, or the gear (straight to Settings).
+// The shell (switching, staging, Save / Delete, the stations menu, the swap) is lib/builder.js; every edit lives staged.
 
 import { h } from '../lib/dom.js';
-import { anyOpen, popover } from '../lib/popover.js';
-import { closeSheets, sheetOpen } from '../lib/sheet.js';
-import { closeOthers } from './drawer.js';
 import { seg } from './seg.js';
 import { vselect, optionStyle } from './vselect.js';
+import { mountBuilder, nameInput } from '../lib/builder.js';
+import { NEW, homeOf } from '../model/builder.js';
 import { SNAP_ROWS, SNAP_COPY } from '../data/snapshots.js';
 import { CHAIN_NAMES } from '../data/conversion.js';
 
-const NEW = '\u0000new';
 const CHAIN_IDS = ['1x', 'nx', 'sh'];
 const isChain = (id) => CHAIN_IDS.includes(id);
 
@@ -38,13 +37,34 @@ const isChain = (id) => CHAIN_IDS.includes(id);
  */
 export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, bus }, stations, records, live) {
   records = Object.fromEntries(stations.map((st) => [st.name, structuredClone(records[st.name] ?? {})]));
-  const home = stations.find((st) => st.active)?.name ?? stations[0].name;   // the loaded station; New lands here
-  // cur = {st, name}: the snapshot being edited (name NEW = New snapshot). Opens on the loaded station's first.
-  let cur = { st: home, name: Object.keys(records[home])[0] ?? NEW };
-  const K = (c) => (c.name === NEW ? NEW : c.st + '\u0001' + c.name);
-  const staged = new Map();   // K(cur) → edit buffer (only while it differs from what is saved)
-  let ask = null;             // {text, onConfirm}: v1's confirm line
-  let refused = false;        // Save with no name (v1 `Enter a name first`)
+  const home = homeOf(stations);   // the loaded station; New lands here
+  // B.cur = {st, name}: the snapshot being edited (name NEW = New snapshot). Opens on the loaded station's first.
+  let openSt = home;   // the station fold that is open (the edited snapshot's; it opens on the loaded station's)
+  const B = mountBuilder({ btn, chain, body, bus }, {
+    title: 'Snapshot builder', closeLabel: 'Close Snapshot builder', noun: 'Snapshot',   // the other builders' close
+    stations: stations.map((st) => st.name), book: records, cur: { st: home, name: Object.keys(records[home])[0] ?? NEW },
+    copy: { remove: (n) => SNAP_COPY.remove(n), overwrite: (n) => SNAP_COPY.overwrite(n), noName: SNAP_COPY.noName },
+    name: () => edit().name,
+    to: () => edit().stations,
+    take: () => edit(),
+    /** What the snapshot stores: the rows it holds, at the edit's values. */
+    record: (e) => {
+      const r = {};
+      for (const id of SNAP_ROWS.map((x) => x.id)) if (held(e).has(id)) r[id] = valOf(e, id);
+      return r;
+    },
+    dirty: () => dirtyOf(B.cur),
+    ticked: () => edit().stations.length > 0,
+    view: () => render(),
+    went: (c) => { if (c.name !== NEW) openSt = c.st; },
+    refuse: () => { render(); page.querySelector('.bhead input')?.focus(); },
+    saved: () => { openSt = B.cur.st; reveal = true; render(); },
+    removed: () => render(),
+    leave: () => settings.setOn(false),
+    opened: () => render(),
+    painted: () => { stationPaint?.(); paintRail(); },
+    toggles: true,
+  });
 
   // ── Edit buffers ────────────────────────────────────────────────────────
   /** A record as an edit: every row has a value (the engine's where the record holds none); inc = what it holds. */
@@ -62,15 +82,15 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
       inc.add(k);
       if (isChain(k)) vals[mode][k] = v; else vals[k] = v;
     }
-    return { name: cur.name, stations: [cur.st], inc, vals };
+    return { name: B.cur.name, stations: [B.cur.st], inc, vals };
   }
-  const saved = (c) => (c.name === NEW ? fromRecord(null) : fromRecord(records[c.st][c.name]));
-  const edit = () => staged.get(K(cur)) ?? saved(cur);
+  const saved = (c) => (c.name === NEW ? fromRecord(null) : fromRecord(B.book[c.st][c.name]));
+  const edit = () => B.staged.get(B.K(B.cur)) ?? saved(B.cur);
   const key = (e) => JSON.stringify([e.name, [...e.stations].sort(), [...held(e)].sort(), ...[...held(e)].sort().map((id) => valOf(e, id))]);
   /** What the snapshot would store: chain rows only with Mode (they index its chain). */
   const held = (e) => new Set([...e.inc].filter((id) => !isChain(id) || e.inc.has('mode')));
   const valOf = (e, id) => (isChain(id) ? e.vals[e.vals.mode][id] : e.vals[id]);
-  const dirtyOf = (c) => staged.has(K(c));
+  const dirtyOf = (c) => B.staged.has(B.K(c));
 
   /** Change the edit; stage it while it differs from what is saved, drop it once it matches again. soft = no re-render
    *  (the name box: typing must not rebuild the page under the caret, or under a Save tap that blurs it). */
@@ -78,19 +98,12 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     const e = structuredClone(edit());
     e.inc = new Set(edit().inc);
     fn(e);
-    if (key(e) === key(saved(cur)) && (cur.name !== NEW || !e.name)) staged.delete(K(cur)); else staged.set(K(cur), e);
-    if (soft) { paintState(); return; }
-    refused = false;
+    B.stage(key(e) === key(saved(B.cur)) && (B.cur.name !== NEW || !e.name) ? null : e);
+    if (soft) { B.paintState(); return; }
+    B.refused = false;
     render();
   }
-  let btns = {};   // this render's Discard / Save
-  function paintState() {
-    stationPaint?.();
-    const dirty = dirtyOf(cur);
-    btns.discard.disabled = !dirty;
-    btns.save.disabled = (!dirty && cur.name !== NEW) || !edit().stations.length;
-    paintRail();
-  }
+  const acts = B.buttons('button.btn.sm.bsave');   // Delete / Discard / Save, on the title
 
   // ── Live values ─────────────────────────────────────────────────────────
   function liveOf(e, id) {
@@ -113,19 +126,21 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     let per = 40;
     for (; per > 3; per--) { paintRailAt(per, true); if (!rail.clientHeight || rail.scrollHeight <= rail.clientHeight) break; }
     // After a save (or a station opened on its snapshot), its page is the one shown.
-    if (reveal && cur.name !== NEW) { const i = Object.keys(records[cur.st]).indexOf(cur.name); if (i >= 0) pageOf.set(cur.st, Math.floor(i / per)); }
+    const { cur } = B;
+    if (reveal && cur.name !== NEW) { const i = Object.keys(B.book[cur.st]).indexOf(cur.name); if (i >= 0) pageOf.set(cur.st, Math.floor(i / per)); }
     reveal = false;
     paintRailAt(per);
   }
   function paintRailAt(per, first) {
     const e = edit();
+    const { cur, book } = B;
     // The snapshot edited, plus the same-named snapshot in every other ticked station (Save writes there too): lit
     // together, as Resampling and Shaping light together for their one drawer.
-    const isCur = (c) => K(c) === K(cur) || (cur.name !== NEW && c.name === (e.name || cur.name) && e.stations.includes(c.st));
+    const isCur = (c) => B.K(c) === B.K(cur) || (cur.name !== NEW && c.name === (e.name || cur.name) && e.stations.includes(c.st));
     const entry = (st, name) => {
       const c = { st, name };
       return h('button.st.bst', { type: 'button', class: [isCur(c) && 'open', dirtyOf(c) && 'dirty'].filter(Boolean).join(' '),
-        aria: { current: isCur(c) }, title: name, on: { click: () => go(c) } },
+        aria: { current: isCur(c) }, title: name, on: { click: () => B.go(c) } },
         h('span.n', { text: name }));
     };
     const nw = { st: home, name: NEW };
@@ -148,55 +163,43 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     rail.replaceChildren(
       // Each station a fold, one open at a time; its snapshots under it. The loaded station's name amber.
       ...stations.flatMap((st) => {
-        const n = Object.keys(records[st.name]).length;
+        const n = Object.keys(book[st.name]).length;
         const isOpen = st.name === openSt;
-        const lit = [...staged.keys()].some((k) => k.startsWith(st.name + '\u0001'));   // holds unsaved edits
+        const lit = [...B.staged.keys()].some((k) => k.startsWith(st.name + '\u0001'));   // holds unsaved edits
         return [
           h('button.brh', { type: 'button', class: [st.name === home && 'cur', lit && 'dirty'].filter(Boolean).join(' '),
             aria: { expanded: isOpen }, on: { click: () => { openSt = isOpen ? null : st.name; paintRail(); } } },
             h('span.chv', { text: isOpen ? '▾' : '▸' }), h('span.sn', { text: st.name }), h('span.ln'), h('span.cnt', { text: String(n) })),
-          ...(isOpen ? pageItems(st.name, Object.keys(records[st.name])).map((name) => entry(st.name, name)) : []),
+          ...(isOpen ? pageItems(st.name, Object.keys(book[st.name])).map((name) => entry(st.name, name)) : []),
           // A short last page keeps its full height (the pipelines list's fixed page), so nothing under it moves.
-          ...(isOpen && n > per ? Array.from({ length: per - pageItems(st.name, Object.keys(records[st.name])).length }, () => h('div.bfill')) : []),
+          ...(isOpen && n > per ? Array.from({ length: per - pageItems(st.name, Object.keys(book[st.name])).length }, () => h('div.bfill')) : []),
           ...(isOpen ? pager(st.name, n) : []),
         ];
       }),
       h('button.st.bst.bnew', { type: 'button', class: [isCur(nw) && 'open', dirtyOf(nw) && 'dirty'].filter(Boolean).join(' '),
-        on: { click: () => go(nw) } }, h('span.n', {}, h('span.plus', { text: '+' }), 'New snapshot')),
+        on: { click: () => B.go(nw) } }, h('span.n', {}, h('span.plus', { text: '+' }), 'New snapshot')),
     );
   }
-  function go(c) { cur = c; if (c.name !== NEW) openSt = c.st; ask = null; refused = false; render(); }
-  let openSt = cur.st;   // the station fold that is open (the edited snapshot's)
   const pageOf = new Map();   // station → its list's page
   let reveal = false;          // next rail paint turns to the edited snapshot's page
 
   // ── Page ────────────────────────────────────────────────────────────────
   function render() {
     const e = edit();
-    const isNew = cur.name === NEW;
-    const dirty = dirtyOf(cur);
+    const isNew = B.cur.name === NEW;
 
-    const nameBox = h('input.bnin', { type: 'text', 'aria-label': 'Snapshot name', value: e.name, maxlength: 40, spellcheck: 'false' });
+    const nameBox = nameInput({ type: 'text', 'aria-label': 'Snapshot name', value: e.name, maxlength: 40, spellcheck: 'false' },
+      (name) => change((x) => { x.name = name; }, true));
     nameBox.value = e.name;
-    nameBox.addEventListener('input', () => change((x) => { x.name = nameBox.value.trim(); }, true));
     // Page title in the section header grammar (engraved + rule), carrying the snapshot's actions.
-    const title = h('div.sh.btitle', {}, h('span.t', { text: 'Snapshot builder' }), h('span.ln'),
-      !isNew && h('button.btn.sm', { type: 'button', text: 'Delete', on: { click: () => confirm(SNAP_COPY.remove(cur.name), remove) } }),
-      btns.discard = h('button.btn.sm', { type: 'button', text: 'Discard', disabled: !dirty, on: { click: () => { staged.delete(K(cur)); ask = null; refused = false; render(); } } }),
-      btns.save = h('button.btn.sm.bsave', { type: 'button', text: 'Save', disabled: (!dirty && !isNew) || !e.stations.length, on: { click: save } }),
-      h('button.round.dx.pbx', { type: 'button', 'aria-label': 'Close Snapshot builder', text: '×', on: { click: () => setOn(false) } }),   // the other builders' close
-    );
+    const title = B.title('Snapshot builder', null, [!isNew && acts.del, acts.discard, acts.save]);
+    B.paintActs();
     const head = h('div.bhead', {},
       h('label.vfd.bname', {}, h('span.l', { text: 'Name' }), nameBox),
-      stationPick(e),
+      stationPick(),
       h('div.bcap', {},
-        refused ? h('span.bref', { text: SNAP_COPY.noName }) : isNew ? SNAP_COPY.select : ''),
+        B.refused ? h('span.bref', { text: SNAP_COPY.noName }) : isNew ? SNAP_COPY.select : ''),
     );
-
-    const askLine = ask && h('div.bask', { role: 'alert' },
-      h('span', { text: ask.text }),
-      h('button.btn.sm', { type: 'button', text: 'Confirm', on: { click: () => { const f = ask.onConfirm; ask = null; f(); } } }),
-      h('button.btn.sm', { type: 'button', text: 'Cancel', on: { click: () => { ask = null; render(); } } }));
 
     const L = live();
     const cols = h('div.brow.bcols', {},
@@ -208,36 +211,18 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     );
 
     // The rows share the height left under the head (each row grows alike; nothing pools at the bottom).
-    page.replaceChildren(title, head, askLine || '', cols, h('div.brows', {}, SNAP_ROWS.map((row) => rowEl(row, e))));
-    page.querySelector('.bhead input')?.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.target.blur(); });
+    page.replaceChildren(title, head, (B.ask && B.askLine()) || '', cols, h('div.brows', {}, SNAP_ROWS.map((row) => rowEl(row, e))));
     paintRail();
   }
 
   /**
-   * Stations window: the stations Save writes to, picked from a menu of every station (✓ = ticked; the action menu's
-   * grammar). A station already holding a snapshot of this name shows it at the right (Save overwrites it, after asking).
-   * Ticking stays open: several can be picked in one go.
+   * Stations window: the stations Save writes to (the shell's menu). Ticking stays open: several can be picked in one go.
    */
-  function stationPick(e) {
-    const txt = h('span.v');
-    const trigger = h('button.vfd.bstn', { type: 'button', aria: { haspopup: 'menu' } }, h('span.l', { text: 'Stations' }), txt);
-    const menu = h('div.pop.pmenu.amenu.bstmenu', { role: 'menu', 'aria-label': 'Stations' });
-    const paint = () => {
-      const x = edit();
-      txt.textContent = x.stations.join(' · ') || '—';
-      trigger.title = x.stations.join(' · ');
-      const name = x.name || (cur.name === NEW ? '' : cur.name);
-      menu.replaceChildren(...stations.map((st) => h('button.pmrow', { type: 'button', role: 'menuitemcheckbox',
-        aria: { checked: x.stations.includes(st.name) },
-        on: { click: () => change((y) => {
-          y.stations = y.stations.includes(st.name) ? y.stations.filter((n) => n !== st.name) : stations.map((s2) => s2.name).filter((n) => n === st.name || y.stations.includes(n));
-        }, true) } },
-        h('b', { text: st.name }), name && records[st.name][name] && !(st.name === cur.st && name === cur.name) && h('span', { text: name }))));
-    };
-    stationPaint = paint;
-    paint();
-    popover({ trigger, panel: menu });
-    return h('div.bstw', {}, trigger, menu);
+  function stationPick() {
+    const m = B.stationsMenu({ ticked: () => edit().stations, name: () => edit().name, now: true,
+      pick: (list) => change((y) => { y.stations = list; }, true) });
+    stationPaint = m.paint;
+    return m.el;
   }
   let stationPaint = null;
 
@@ -288,67 +273,9 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     );
   }
 
-  // ── Save / delete (mock: the record store is this component's copy) ─────
-  function confirm(text, onConfirm) { ask = { text, onConfirm }; render(); }
-  function save() {
-    const e = edit();
-    const name = e.name.trim();
-    if (!name) { refused = true; render(); page.querySelector('.bhead input')?.focus(); return; }
-    const to = e.stations;
-    if (!to.length) return;
-    const own = cur.name !== NEW && to.includes(cur.st);   // its own station stays ticked: edited in place
-    // Overwrites ask first: any ticked station already holding this name, other than the snapshot itself.
-    const clash = to.some((st) => records[st][name] && !(own && st === cur.st && name === cur.name));
-    const write = () => {
-      const r = {};
-      for (const id of SNAP_ROWS.map((x) => x.id)) if (held(e).has(id)) r[id] = valOf(e, id);
-      if (cur.name !== NEW && !own) delete records[cur.st][cur.name];   // unticked its own station: moved
-      for (const st of to) {
-        if (own && st === cur.st && name !== cur.name) {   // renamed in place: keeps its place in the list
-          const next = {};
-          for (const [k, v] of Object.entries(records[st])) if (k !== name) next[k === cur.name ? name : k] = k === cur.name ? r : v;
-          records[st] = next;
-        } else records[st][name] = structuredClone(r);
-      }
-      staged.delete(K(cur));
-      cur = { st: own ? cur.st : to[0], name };
-      openSt = cur.st;
-      reveal = true;
-      staged.delete(K(cur));
-      render();
-    };
-    if (clash) confirm(SNAP_COPY.overwrite(name), write);
-    else write();
-  }
-  function remove() {
-    delete records[cur.st][cur.name];
-    staged.delete(K(cur));
-    cur = { st: cur.st, name: Object.keys(records[cur.st])[0] ?? NEW };
-    render();
-  }
-
-  // ── Swap ────────────────────────────────────────────────────────────────
-  function setOn(on, toChain = true) {
-    closeOthers(null);
-    closeSheets();
-    if (on) settings.setOn(false);
-    body.hidden = !on;
-    if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-    btn.setAttribute('aria-pressed', String(on));
-    if (on) { ask = null; render(); }
-    bus.emit('relayout');
-  }
   btn.setAttribute('aria-pressed', 'false');
-  btn.addEventListener('click', () => setOn(body.hidden));
+  const api = B.start();
   bus.on('relayout', () => { if (!body.hidden) paintRail(); });   // lines per page follow the rail's height
-  // Capture: before the drawers' and sheets' own Escape handlers; one Escape leaves the builder only when nothing is open.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen()) return;
-    if (ask) { ask = null; render(); return; }
-    setOn(false);
-  }, true);
-
   render();
-  return { setOn, isOn: () => !body.hidden, refresh: () => { if (!body.hidden) render(); } };
+  return { ...api, refresh: () => { if (!body.hidden) render(); } };
 }
-

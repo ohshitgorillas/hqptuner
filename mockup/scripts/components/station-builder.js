@@ -16,16 +16,17 @@
 // Exit: ×, Escape with nothing open, the gear (Settings), or another builder's button.
 // Mock outcomes: `#naa-none` (no NAA until Refresh devices), `#ipv6-fail`, `#usb-fail-gone` / `#usb-fail-none`,
 // `#dsd48-no` (the check finds no 48k-family DSD).
+// The shell (switching, staging, Save / Delete, the rail, the overview's frame, the swap) is lib/builder.js: one record
+// book holding every station under one key, with the station list's order kept beside it.
 
 import { h } from '../lib/dom.js';
 import { PLATFORM } from '../lib/clock.js';
 import { checkSequence } from '../model/timing.js';
-import { anyOpen } from '../lib/popover.js';
-import { closeSheets, sheetOpen } from '../lib/sheet.js';
 import { closeOthers } from './drawer.js';
 import { seg, select } from './seg.js';
 import { mountRateDial } from './rate-dial.js';
-import { CHAIN } from '../data/chain.js';
+import { mountBuilder, paras as parasOf, drow as row, chainPic, holdRow } from '../lib/builder.js';
+import { NEW, OVERVIEW, homeOf, namesAfterSave } from '../model/builder.js';
 import { OUTPUT_DRAWER, DEVICES, RATE_TIERS } from '../data/output.js';
 import { VOLUME_DRAWER } from '../data/volume.js';
 import { HARDWARE_DRAWER } from '../data/settings.js';
@@ -34,7 +35,7 @@ import {
   STB_HW, STB_SCRATCH, STB_RECORDS, STB_HW_REC, hwSettings,
 } from '../data/station-builder.js';
 
-const NEW = '\u0000new';
+const ONE = '';   // the book's one station key: a station builder's records are the stations themselves
 const TIERS = RATE_TIERS.tiers;
 const TICK = 700;   // mock: one line of a check
 
@@ -71,7 +72,7 @@ const parts = (kind, str) => {
 const rich = (bits) => (Array.isArray(bits) ? bits : [bits]).flatMap((b) => (typeof b === 'string'
   ? b.split(/(\*[^*]+\*|`[^`]+`)/).filter(Boolean).map((t) => (t.startsWith('*') ? h('em', { text: t.slice(1, -1) }) : t.startsWith('`') ? h('code', { text: t.slice(1, -1) }) : t))
   : b.a ? h('a', { href: b.href, target: '_blank', rel: 'noreferrer', text: b.a }) : h('code', { text: b.code })));
-const paras = (m) => (Array.isArray(m) ? m : [m]).filter(Boolean).map((t) => (typeof t === 'string' ? h('p', {}, rich(t)) : h('p', {}, h('b', { text: t.k }), ' — ', rich(t.text))));
+const paras = (m) => parasOf(m, rich);
 const tip = (label, text) => h('p.stbtip', {}, h('b', { text: label }), ' ', rich(text));
 const dbFmt = (v) => `${Number(v) < 0 ? '−' : ''}${Math.abs(Number(v))} dB`;
 
@@ -86,7 +87,7 @@ const dbFmt = (v) => `${Number(v) < 0 ? '−' : ''}${Math.abs(Number(v))} dB`;
 export function mountStationBuilder({ btn, chain, body, rail, page, others, bus }, stations, o, clock = PLATFORM) {
   const { flags } = o;
   let order = stations.map((st) => st.name);
-  let loaded = stations.find((st) => st.active)?.name ?? order[0];
+  let loaded = homeOf(stations);
   const records = Object.fromEntries(order.map((n) => [n, structuredClone(STB_RECORDS[n] ?? STB_SCRATCH)]));
   let hw = structuredClone(STB_HW_REC);   // the machine's: one record, written to every station
   let naaSeen = !flags.naaNone;   // mock: an NAA shows only after Refresh devices
@@ -94,22 +95,60 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   for (const r of Object.values(records)) for (const l of r.listings) if (r.resolved && l !== r.resolved) hidden.add(l);
 
   // ── Edit state ──────────────────────────────────────────────────────────
-  let cur = loaded;           // station name, or NEW
-  const staged = new Map();   // name → {name, rec, hw}: a station left with unsaved edits
   let e;                      // the one being edited: {name, rec, hw}
-  let ask = null, refused = false;
   let runs = {};              // mock checks in flight or done, this edit: {ipv6, usb, rates}
   let bringUp = false, pitch = false;
-  const saved = (n) => (n === NEW ? { name: '', rec: structuredClone(STB_SCRATCH), hw: structuredClone(hw) }
-    : { name: n, rec: structuredClone(records[n]), hw: structuredClone(hw) });
+  const B = mountBuilder({ btn, chain, body, bus }, {
+    title: 'Station builder', closeLabel: 'Close Station builder', noun: 'Station',
+    stations: [ONE], book: { [ONE]: records }, cur: { st: ONE, name: loaded },
+    copy: { remove: (n) => STB_COPY.remove(n), overwrite: (n) => STB_COPY.overwrite(n), noName: STB_COPY.noName,
+      state: { restarts: STB_COPY.state.dirtyLoaded, dirty: STB_COPY.state.dirty, live: STB_COPY.state.loaded, saved: STB_COPY.state.saved } },
+    name: () => e.name,
+    to: () => [ONE],
+    record: () => structuredClone(e.rec),
+    dirty: () => dirty(),
+    load: (c, buf) => { e = structuredClone(buf ?? saved(c)); runs = {}; bringUp = false; pitch = false; },
+    buffer: () => structuredClone(e),
+    restarts: () => B.cur.name === loaded || hwDirty(),
+    live: () => B.cur.name === loaded,
+    view: (where) => show(where === 'here' ? at : OVERVIEW),
+    refuse: () => { show('overview'); nameBox.focus(); },
+    saved: ({ from, name }) => {
+      const restart = from.name === loaded || hwDirty();
+      let renamed = null;
+      if (from.name !== NEW && name !== from.name) {   // renamed in place: keeps its place in the list
+        renamed = { from: from.name, to: name };
+        if (loaded === from.name) loaded = name;
+      }
+      order = namesAfterSave(order, from.name, name);
+      if (e.rec.resolved) for (const l of e.rec.listings) if (l !== e.rec.resolved) hidden.add(l);
+      hw = structuredClone(e.hw);                  // the machine's: written to every station
+      B.load(B.cur);
+      show('overview');
+      o.onSaved?.({ names: [...order], loaded, renamed, restart });
+    },
+    land: () => ({ st: ONE, name: loaded }),   // the loaded station stays (it can't be deleted)
+    removed: (from) => {
+      order = order.filter((n) => n !== from.name);
+      o.onSaved?.({ names: [...order], loaded, renamed: null, restart: false });
+      B.load(B.cur); show('overview');
+    },
+    leave: () => { others.settings.setOn(false); others.snapshot()?.setOn(false, false); others.profiles()?.setOn(false, false); },
+    opened: () => show(at),
+    toggles: true,
+    walk: { rail, steps: STB_STEPS, copy: STB_COPY, skipOf: (id) => skipOf(id), answer: (id) => ans(id), at: () => at, show: (id) => show(id),
+      newLabel: STB_COPY.newStation,
+      scratch: () => { e.rec = structuredClone(STB_SCRATCH); runs = {}; show(STB_STEPS[0].id); },
+      nameBox: { type: 'text', 'aria-label': 'Station name', maxlength: 40, spellcheck: 'false', placeholder: STB_COPY.name },
+      setName: (n) => { e.name = n; } },
+  });
+  const { pick, nameBox } = B;
+  const saved = (c) => (c.name === NEW ? { name: '', rec: structuredClone(STB_SCRATCH), hw: structuredClone(hw) }
+    : { name: c.name, rec: structuredClone(B.book[ONE][c.name]), hw: structuredClone(hw) });
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const hwDirty = () => !same(e.hw, hw);
-  const dirty = () => { const s0 = saved(cur); return e.name !== s0.name || !same(e.rec, s0.rec) || hwDirty(); };
-  const isDirty = (n) => (n === cur ? dirty() : staged.has(n));
-  function load(n) { e = structuredClone(staged.get(n) ?? saved(n)); staged.delete(n); runs = {}; bringUp = false; pitch = false; }
-  function stash() { if (dirty()) staged.set(cur, structuredClone(e)); else staged.delete(cur); }
-  function go(n) { if (n === cur) return; stash(); cur = n; ask = null; refused = false; load(n); show('overview'); }
-  function discard() { staged.delete(cur); ask = null; refused = false; load(cur); show(at); }
+  const dirty = () => { const s0 = saved(B.cur); return e.name !== s0.name || !same(e.rec, s0.rec) || hwDirty(); };
+  const isDirty = (n) => B.isDirty({ st: ONE, name: n });
   /** Change the edited record and repaint what follows from it. */
   const set = (fn) => { fn(e.rec, e); show(at); };
 
@@ -134,22 +173,8 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   };
   const ans = (id) => (skipOf(id) ? STB_COPY.skipped : answer[id]());
 
-  // ── Rail: the walk ──────────────────────────────────────────────────────
-  const entry = (id, name) => h('button.st', { type: 'button', data: { stage: id }, on: { click: () => show(id) } }, h('span.n', { text: name }), h('span.v'));
-  const railEls = new Map([['overview', entry('overview', STB_COPY.overview)], ...STB_STEPS.map((x) => [x.id, entry(x.id, x.title)])]);
-  rail.replaceChildren(...railEls.values());
-  function paintRail() {
-    for (const [id, el] of railEls) {
-      el.classList.toggle('open', id === at);
-      el.setAttribute('aria-current', String(id === at));
-      el.querySelector('.v').textContent = id === 'overview' ? (e.name || (cur === NEW ? STB_COPY.newStation : cur)) : ans(id);
-      el.classList.toggle('skip', id !== 'overview' && !!skipOf(id));
-    }
-  }
-
   // ── Shared parts ────────────────────────────────────────────────────────
-  const close = () => h('button.round.dx.pbx', { type: 'button', 'aria-label': 'Close Station builder', text: '×', on: { click: () => setOn(false) } });
-  const drow = (label, ctl, man, cls) => h('div.drow', { class: cls }, h('div.ctl', {}, label && h('div.fh', {}, h('b', { text: label })), ctl), h('div.man', {}, paras(man)));
+  const drow = (label, ctl, man, cls) => row(label, ctl, man, { cls, inline: rich });
   /** Choice lines (the drawers' grammar): radio + the answer's words + its own paragraph. */
   function choice(label, options, value, pick, { fold = false } = {}) {
     return h('div.drow.drow-full.pbchoice.stbch', {}, label && h('div.ctl', {}, h('div.fh', {}, h('b', { text: label }))),
@@ -187,70 +212,38 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   }
 
   // ── Overview ────────────────────────────────────────────────────────────
-  const chainPic = h('ol.pbchain', { 'aria-label': 'Signal chain: the station\'s part lit' },
-    CHAIN.map((st) => h('li', { class: [['volume', 'output'].includes(st.id) && 'mx', st.level && 'sub'].filter(Boolean).join(' ') },
-      h('span.d'), h('span', { text: st.name }))));
-  const pick = h('select', { 'aria-label': 'Station' });
-  pick.addEventListener('change', () => go(pick.value));
-  const nameBox = h('input.bnin', { type: 'text', 'aria-label': 'Station name', maxlength: 40, spellcheck: 'false', placeholder: STB_COPY.name });
-  nameBox.addEventListener('input', () => { e.name = nameBox.value.trim(); refused = false; paintState(); paintRail(); });
-  nameBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') nameBox.blur(); });
-  const stateLine = h('div.pbstate', { role: 'status' });
-  const cap = h('span.pbcap');
-  const del = h('button.btn.sm', { type: 'button', text: 'Delete', on: { click: () => confirm(STB_COPY.remove(cur), remove) } });
-  const discardBtn = h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => discard() } });
-  const saveBtn = h('button.btn.sm.pbsave', { type: 'button', text: 'Save', on: { click: () => save() } });
+  const chainEl = chainPic('Signal chain: the station\'s part lit', (id) => ['volume', 'output'].includes(id));
+  pick.addEventListener('change', () => B.go({ st: ONE, name: pick.value }));
+  const acts = B.buttons();
   const HOLDS = ['backend', 'device', 'ipv6', 'iface', 'rates', 'dac', 'volume', 'hardware'];
   function overview() {
-    const holds = HOLDS.map((id) => h('button.pbhold', { type: 'button', on: { click: () => show(id) } },
-      h('b', { text: STB_STEPS.find((x) => x.id === id).title }), h('span.pa', { text: ans(id) }), h('span.pgo', { 'aria-hidden': 'true', text: '›' })));
+    const cur = B.cur.name;
+    const holds = HOLDS.map((id) => {
+      const x = holdRow(STB_STEPS.find((y) => y.id === id).title, () => show(id));
+      x.a.textContent = ans(id);
+      return x.el;
+    });
     const nProf = cur === NEW ? 0 : o.profilesOf(cur).length;
-    const prof = h('button.pbhold.pbpl', { type: 'button', on: { click: () => { stash(); setOn(false, false); o.openProfiles(cur); } } },
-      h('b', { text: STB_COPY.profiles }), h('span.pa', { text: cur === NEW ? '—' : String(nProf) }), h('span.pgo', { 'aria-hidden': 'true', text: '›' }));
-    prof.disabled = cur === NEW;
-    return h('div.pbov.stbov', {},
-      h('div.sh.btitle', {}, h('span.t', { text: 'Station builder' }), h('span.ln'), close()),
-      h('div.pbovtop', {},
-        h('div.pbovl', {}, h('div.pbintro', {}, paras(STB_COPY.intro)),
-          h('div.pbholds', {}, h('div.pbhh', { text: STB_COPY.holds }), holds, prof)),
-        chainPic),
-      h('div.pbsavebox.stbsave', {},
-        h('div.pbid.stbid', {},
-          h('label.vfd.pbpick', {}, h('span.l', { text: 'Station' }), pick),
-          h('label.vfd.bname.pbname', {}, h('span.l', { text: 'Name' }), nameBox)),
-        ask && h('div.pbask', {}, h('div.bask', { role: 'alert' },
-          h('span', { text: ask.text }),
-          h('button.btn.sm', { type: 'button', text: 'Confirm', on: { click: () => { const f = ask.onConfirm; ask = null; f(); } } }),
-          h('button.btn.sm', { type: 'button', text: 'Cancel', on: { click: () => { ask = null; show('overview'); } } }))),
-        h('div.pbfoot', {}, h('div.pbstw', {}, stateLine, cap), h('span.grow'),
-          h('button.btn.sm', { type: 'button', text: STB_COPY.scratch, on: { click: () => { e.rec = structuredClone(STB_SCRATCH); runs = {}; show(STB_STEPS[0].id); } } }),
-          h('button.btn.sm', { type: 'button', text: STB_COPY.change, on: { click: () => show(STB_STEPS[0].id) } }),
-          del, discardBtn, saveBtn)));
+    const prof = holdRow(STB_COPY.profiles, () => { B.stash(); B.setOn(false, false); o.openProfiles(B.cur.name); }, 'button.pbhold.pbpl');
+    prof.a.textContent = cur === NEW ? '—' : String(nProf);
+    prof.el.disabled = cur === NEW;
+    return B.overview({ tags: { ov: 'div.pbov.stbov', save: 'div.pbsavebox.stbsave', id: 'div.pbid.stbid' },
+      intro: h('div.pbintro', {}, paras(STB_COPY.intro)), holds: [holds, prof.el], chain: chainEl,
+      ask: B.ask && h('div.pbask', {}, B.askLine()), acts });
   }
   function paintPick() {
     pick.replaceChildren(...order.map((n) => h('option', { value: n, text: `${n}${n === loaded ? ' (loaded)' : ''}${isDirty(n) ? ' •' : ''}` })),
       h('option', { value: NEW, text: STB_COPY.newStation + (isDirty(NEW) ? ' •' : '') }));
+    const cur = B.cur.name;
     pick.value = cur;
     nameBox.value = e.name;
-    del.hidden = cur === NEW || cur === loaded;   // the loaded station stays (load another first)
+    acts.del.hidden = cur === NEW || cur === loaded;   // the loaded station stays (load another first)
   }
 
   // ── Steps ───────────────────────────────────────────────────────────────
-  const nextOf = (i) => { for (let k = i + 1; k < STB_STEPS.length; k++) if (!skipOf(STB_STEPS[k].id)) return STB_STEPS[k].id; return 'overview'; };
-  const prevOf = (i) => { for (let k = i - 1; k >= 0; k--) if (!skipOf(STB_STEPS[k].id)) return STB_STEPS[k].id; return 'overview'; };
-  function stepPage(id) {
-    const i = STB_STEPS.findIndex((x) => x.id === id);
-    const st = STB_STEPS[i];
-    const skip = skipOf(id);
-    const last = nextOf(i) === 'overview';
-    return h('div.pbstepp.stbstep', { data: { step: id } },
-      h('div.sh.btitle', {}, h('span.t', { text: st.title }), h('span.pbn', { text: STB_COPY.stepOf(i + 1, STB_STEPS.length) }), h('span.ln'), close()),
-      guideOf(id, skip, st),
-      h('div.pbsrows', {}, skip ? [] : STEP[id]()),
-      h('div.pbnav', {}, h('span.grow'),
-        h('button.btn.sm', { type: 'button', text: STB_COPY.back, on: { click: () => show(prevOf(i)) } }),
-        h('button.btn.sm.pbnext', { type: 'button', text: last ? STB_COPY.review : STB_COPY.next, on: { click: () => show(nextOf(i)) } })));
-  }
+  /** A step's page (the shell's frame): the wizard's guide line, then its rows. */
+  const stepPage = (id) => B.stepPage(id, { tag: 'div.pbstepp.stbstep', attrs: { data: { step: id } },
+    guide: (skip, st) => guideOf(id, skip, st), rows: (x) => STEP[x]() });
 
   /** The guide line; a step whose guide is null (Rates over USB) prints its check there instead: the wizard's order. */
   function guideOf(id, skip, st) {
@@ -263,7 +256,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
     name() {
       const box = h('input.vfd.stbnm', { type: 'text', 'aria-label': 'Station name', value: e.name, maxlength: 40, spellcheck: 'false', placeholder: STB_COPY.name });
       box.value = e.name;
-      box.addEventListener('input', () => { e.name = box.value.trim(); refused = false; paintRail(); });
+      box.addEventListener('input', () => { e.name = box.value.trim(); B.refused = false; B.paintRail(); });
       const [a, link, b] = STB_TIPS.power;
       return [drow('Name', box, ''),
         h('div.stbnotes', {}, tip('HQPTuner Tips:', STB_TIPS.name),
@@ -317,7 +310,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
         answerRows.push(h('div.stbnotes', {}, h('p', { text: STB_IPV6.unknown.lead }), !run && h('p', { text: STB_IPV6.unknown.ask })));
         if (!run) answerRows.push(h('div.stbact', {},
           h('button.btn.sm', { type: 'button', text: STB_IPV6.unknown.start, on: { click: () => testV6(true) } }),
-          h('button.btn.sm', { type: 'button', text: STB_IPV6.unknown.skip, on: { click: () => { set((y) => { y.v6 = 'v4'; }); show(nextOf(STB_STEPS.findIndex((s2) => s2.id === 'ipv6'))); } } })));
+          h('button.btn.sm', { type: 'button', text: STB_IPV6.unknown.skip, on: { click: () => { set((y) => { y.v6 = 'v4'; }); show(B.nextOf(STB_STEPS.findIndex((s2) => s2.id === 'ipv6'))); } } })));
         else answerRows.push(lines(run));
       }
       const disc = seg({ aria: 'Discovery', options: DISCOVERY, value: x.v6, onChange: (v) => set((y) => { y.v6 = v; }) });
@@ -506,83 +499,18 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   // ── Show ────────────────────────────────────────────────────────────────
   let at = 'overview';
   function show(id) {
-    if (!railEls.has(id)) id = 'overview';
+    if (!B.inWalk(id)) id = 'overview';
     closeOthers(null);
     if (id !== 'device' && at === 'device') bringUp = false;
     if (id !== 'volume') pitch = false;
     at = id;
     if (id === 'overview') { page.replaceChildren(overview()); paintPick(); } else page.replaceChildren(stepPage(id));
-    paintRail();
-    paintState();
+    B.paintRail();
+    B.paintState();
   }
 
-  function paintState() {
-    const d = dirty();
-    discardBtn.disabled = !d;
-    saveBtn.disabled = !d && cur !== NEW;
-    const restarts = cur === loaded || hwDirty();
-    stateLine.textContent = d || cur === NEW ? (restarts ? STB_COPY.state.dirtyLoaded : STB_COPY.state.dirty) : cur === loaded ? STB_COPY.state.loaded : STB_COPY.state.saved;
-    stateLine.classList.toggle('dirty', d || cur === NEW);
-    cap.replaceChildren(refused ? h('span.bref', { text: STB_COPY.noName }) : '');
-  }
-
-  // ── Save / delete (mock: this component's records) ──────────────────────
-  function confirm(text, onConfirm) { closeOthers(null); ask = { text, onConfirm }; show('overview'); }
-  function save() {
-    const name = e.name.trim();
-    if (!name) { refused = true; show('overview'); nameBox.focus(); return; }
-    const clash = order.includes(name) && name !== cur;
-    const write = () => {
-      const restart = cur === loaded || hwDirty();
-      let renamed = null;
-      if (cur !== NEW && name !== cur) {           // renamed in place: keeps its place in the list
-        renamed = { from: cur, to: name };
-        order = order.filter((n) => n !== name).map((n) => (n === cur ? name : n));
-        delete records[cur];
-        if (loaded === cur) loaded = name;
-      } else if (cur === NEW && !order.includes(name)) order.push(name);
-      records[name] = structuredClone(e.rec);
-      if (e.rec.resolved) for (const l of e.rec.listings) if (l !== e.rec.resolved) hidden.add(l);
-      hw = structuredClone(e.hw);                  // the machine's: written to every station
-      staged.delete(cur);
-      cur = name;
-      load(cur);
-      show('overview');
-      o.onSaved?.({ names: [...order], loaded, renamed, restart });
-    };
-    if (clash) confirm(STB_COPY.overwrite(name), write);
-    else write();
-  }
-  function remove() {
-    delete records[cur];
-    staged.delete(cur);
-    order = order.filter((n) => n !== cur);
-    o.onSaved?.({ names: [...order], loaded, renamed: null, restart: false });
-    cur = loaded;
-    load(cur); show('overview');
-  }
-
-  // ── Swap ────────────────────────────────────────────────────────────────
-  function setOn(on, toChain = true) {
-    closeOthers(null);
-    closeSheets();
-    if (on) { others.settings.setOn(false); others.snapshot()?.setOn(false, false); others.profiles()?.setOn(false, false); }
-    body.hidden = !on;
-    if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-    btn.setAttribute('aria-pressed', String(on));
-    if (on) { ask = null; show(at); }
-    bus.emit('relayout');
-  }
-  btn.addEventListener('click', () => setOn(body.hidden));
-  // Capture: an open popover or sheet hears Escape first; with nothing open it leaves the builder.
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen()) return;
-    if (ask) { ask = null; show('overview'); return; }
-    setOn(false);
-  }, true);
-
-  load(cur);
+  B.load(B.cur);
   show('overview');
-  return { setOn, isOn: () => !body.hidden };
+  return B.start();
 }
 

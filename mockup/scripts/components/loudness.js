@@ -9,16 +9,18 @@
 // Everything stages through the drawer block context; grays while the matrix engine is bypassed or loudness is Off.
 
 import { h, s } from '../lib/dom.js';
-import { scale } from '../lib/plate.js';
 import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { loudnessDb, shelfScale } from '../lib/xdsp.js';
+import { paintSvg } from '../lib/gauge.js';
+import { barMarks, bindBar, fmtLevel, rangeBox, readout } from '../lib/range-bar.js';
+import { clampBounds, clampToAxis, pickBound, tickMarks, ticksEvery } from '../model/range-axis.js';
 
 const AXIS = { min: -120, max: 0 };
-const PADX = 14;
 const Y = { bar: 10, barH: 14, tick: 33, label: 54, H: 59 };
-const fmtDb = (d) => (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d);
-const fmtLevel = (v) => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(1);
+const BAR = { axis: AXIS, padX: 14, Y };
+const LABELS = new Map([[-120, '−120'], [-90, '−90'], [-60, '−60'], [-30, '−30'], [0, '0 dBFS']]);
+const MARKS = tickMarks(ticksEvery(AXIS.min, AXIS.max, 10), LABELS, []);
 
 /**
  * @param {HTMLElement} host
@@ -75,11 +77,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
 
   // ── Range bar ─────────────────────────────────────────────────────────
   const svg = s('svg.vrbar.lrbar', { role: 'img', 'aria-label': 'Loudness range' });
-  const box = (k, label, glyph) => {
-    const input = h('input.vfd', { type: 'number', step: 1, min: AXIS.min, max: AXIS.max, 'aria-label': label });
-    input.addEventListener('change', () => move(k, Number(input.value)));
-    return { input, el: h('label.vrbox', {}, keyGlyph(glyph), h('span.cl', { text: label }), input, h('span.u', { text: 'dBFS' })) };
-  };
+  const box = (k, label, glyph) => rangeBox(label, glyph, { min: AXIS.min, max: AXIS.max }, (v) => move(k, v));
   const boxes = { low: box('low', 'Lower', 'lparen'), high: box('high', 'Upper', 'rparen') };
   const levelOut = h('output.vfd.ro.live', { 'aria-label': 'Playback volume' });
   const plotHost = h('div.eq.lplot');
@@ -88,8 +86,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     h('div.lbot', {},
       h('div.lrange', {},
         // The needle is named on the head line, beside its glyph; the two bounds in the boxes under the bar.
-        h('div.fh.lrh', {}, h('b', { text: 'Range' }),
-          h('div.vrbox.lpb', {}, keyGlyph('needle'), h('span.cl', { text: 'Playback' }), levelOut, h('span.u', { text: 'dB' }))),
+        h('div.fh.lrh', {}, h('b', { text: 'Range' }), readout('needle', 'Playback', levelOut, 'dB', 'lpb')),
         h('div.vrwell', {}, svg),
         // Each bound's box with its own manual line straight under it (copy beside its setting).
         h('div.lbound', {}, boxes.low.el, h('p.man', { text: cfg.man.rangeLow })),
@@ -100,27 +97,11 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   );
   const rp = mountRespPlot(plotHost, { lo: -3, hi: 24, step: 6, minor: 3, aria: 'Loudness response' });
 
-  let drag = null;
-  const dbAt = (e) => {
-    const r = svg.getBoundingClientRect();
-    const x = (e.clientX - r.left) / scale();
-    return AXIS.min + (x - PADX) / (svg.clientWidth - 2 * PADX) * (AXIS.max - AXIS.min);
-  };
-  svg.addEventListener('pointerdown', (e) => {
-    if (grayed) return;
-    const d = dbAt(e);
-    drag = Math.abs(rng.low - d) <= Math.abs(rng.high - d) ? 'low' : 'high';
-    svg.setPointerCapture(e.pointerId);
-    move(drag, d);
-  });
-  svg.addEventListener('pointermove', (e) => { if (drag) move(drag, dbAt(e)); });
-  const end = () => { drag = null; draw(); };
-  svg.addEventListener('pointerup', end);
-  svg.addEventListener('pointercancel', end);
+  // Drag: the nearer bound.
+  const bar = bindBar(svg, { ...BAR, blocked: () => grayed, pick: (d) => pickBound(d, rng), move, draw });
 
   function move(k, d) {
-    let n = Math.round(Math.max(AXIS.min, Math.min(AXIS.max, d)));
-    n = k === 'low' ? Math.min(n, rng.high) : Math.max(n, rng.low);
+    const n = clampBounds(k, d, rng, AXIS);
     if (n !== rng[k]) { rng[k] = n; ctx.set(k === 'low' ? 'ldrlow' : 'ldrhigh', n); }
     paintRange();
     plot();
@@ -136,28 +117,17 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   function draw() {
     const W = svg.clientWidth;
     if (!W) return;
-    const x = (d) => Math.round((PADX + (W - 2 * PADX) * (d - AXIS.min) / (AXIS.max - AXIS.min)) * 2) / 2;
-    const by = Y.bar, bh = Y.barH;
-    const ticks = [];
-    for (let d = AXIS.min; d <= AXIS.max; d += 10) ticks.push(d);
-    const LABELS = new Map([[-120, '−120'], [-90, '−90'], [-60, '−60'], [-30, '−30'], [0, '0 dBFS']]);
-    const paren = (d, dir, k) => {
-      const xx = x(d), bow = 5 * dir;
-      return s('path', { class: `paren ${drag === k ? 'act' : ''}`, d: `M${xx},${by - 7} Q${xx - bow},${by + bh / 2} ${xx},${by + bh + 7}` });
-    };
-    const lv = Math.max(AXIS.min, Math.min(AXIS.max, level));
-    svg.setAttribute('viewBox', `0 0 ${W} ${Y.H}`);
-    svg.setAttribute('width', W);
-    svg.setAttribute('height', Y.H);
-    svg.replaceChildren(...[
-      s('rect.trk', { x: PADX - 3, y: by, width: W - 2 * PADX + 6, height: bh, rx: 3 }),
-      s('rect.lspan', { x: x(rng.low), y: by, width: Math.max(0, x(rng.high) - x(rng.low)), height: bh }),
-      ticks.map((d) => s('line', { class: `tk ${LABELS.has(d) ? 'major' : ''}`, x1: x(d), x2: x(d), y1: Y.tick, y2: Y.tick + (LABELS.has(d) ? 9 : 5) })),
-      [...LABELS].map(([d, t]) => s('text.tl', { x: x(d), y: Y.label, 'text-anchor': d === AXIS.min ? 'start' : d === AXIS.max ? 'end' : 'middle', text: t })),
-      s('g.needle', {}, s('line', { x1: x(lv), x2: x(lv), y1: by - 3, y2: by + bh + 3 }), s('circle', { cx: x(lv), cy: by + bh + 7, r: 2.5 })),
-      paren(rng.low, 1, 'low'), paren(rng.high, -1, 'high'),
-      drag && s('text.bub', { x: x(rng[drag]), y: Y.label, 'text-anchor': 'middle', text: `${fmtDb(rng[drag])} dBFS` }),
-    ].flat(2).filter(Boolean));
+    const m = barMarks(W, BAR);
+    const drag = bar.key;
+    paintSvg(svg, W, Y.H, [
+      m.track(),
+      m.span('lspan', rng.low, rng.high),
+      m.ticks(MARKS, ''),
+      m.labels(LABELS),
+      m.needle(clampToAxis(level, AXIS)),
+      m.paren(rng.low, 1, `paren ${drag === 'low' ? 'act' : ''}`), m.paren(rng.high, -1, `paren ${drag === 'high' ? 'act' : ''}`),
+      drag && m.bubble(rng[drag]),
+    ]);
   }
 
   // ── Plot ──────────────────────────────────────────────────────────────
@@ -202,20 +172,9 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
     dirtySide.low = dirtySide.high = false;
     paintSideDots(); paintBands(); paintRange(); plot();
   });
-  new ResizeObserver(draw).observe(svg.parentElement);
   showSide('low');
   paintBands();
   paintRange();
   plot();
   return { range: () => ({ ...rng }) };
-}
-
-/** Key glyphs, the Volume Range bar's (volume-range.js), so each mark is named beside its own shape. */
-function keyGlyph(kind) {
-  const shape = {
-    lparen: s('path.paren', { d: 'M9,1 Q3,9 9,17' }),
-    rparen: s('path.paren', { d: 'M5,1 Q11,9 5,17' }),
-    needle: [s('line.nl', { x1: 7, x2: 7, y1: 1, y2: 13 }), s('circle.nd', { cx: 7, cy: 15.5, r: 2 })],
-  }[kind];
-  return s('svg.vrkey', { viewBox: '0 0 14 18', width: 14, height: 18, 'aria-hidden': 'true' }, shape);
 }
