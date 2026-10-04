@@ -9,7 +9,7 @@ import { seg } from "../../controls/seg.js";
 import { mountRespPlot } from "../../controls/resp-plot.js";
 import { processSpec } from "../../../lib/dsp/procspec.js";
 import { chShort, chName } from "../../../data/stages/pipelines.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 import { PAGE, chipText, listItems, outputView, pageOf, rowText } from "../../../model/shell/pipelines.js";
 import { BLOCK_NAME, at, grayed, paint, stage, watch } from "./state.js";
 import { openMenu } from "./popovers.js";

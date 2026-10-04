@@ -1,4 +1,4 @@
-// The one place the mockup reaches the platform's clock. Anything that waits, repeats or animates takes a Clock
+// The one place the faceplate reaches the platform's clock. Anything that waits, repeats or animates takes a Clock
 // (default PLATFORM), so a test drives it with a fake and never waits on wall time.
 
 /**

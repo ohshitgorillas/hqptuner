@@ -1,8 +1,8 @@
-// Behavioral suite for mockup/scripts/model/volume.js: the playback level a request lands on (clamped to the range,
+// Behavioral suite for hqptuner/static/model/gauges/volume.js: the playback level a request lands on (clamped to the range,
 // snapped to the step), Fixed volume and Direct SDM pinning it with Direct SDM first, which ± buttons disable, and where
 // the loudness bounds sit along the slider.
 //
-// Run: node --test tests/js/mockup/volume.test.js
+// Run: node --test tests/js/model/gauges/volume.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +14,7 @@ import {
   stepOff,
   volumeView,
   loudSpan,
-} from "../../../../mockup/scripts/model/gauges/volume.js";
+} from "../../../../hqptuner/static/model/gauges/volume.js";
 
 //: The slider range the test writes: −40 … +10 dB in half-dB steps (neither end zero, so a zero answer is never right).
 const CFG = { min: -40, max: 10, step: 0.5 };

@@ -2,7 +2,7 @@
 // check) run as mock sequences that print the wizard's lines a tick apart, then the verdict, and repaint while their step
 // shows. Outcomes come from the mock flags (`#ipv6-fail`, `#usb-fail-gone` / `#usb-fail-none`, `#dsd48-no`).
 
-import { checkSequence } from "../../../../model/shell/timing.js";
+import { checkSequence } from "../../../../../../hqptuner/static/model/shell/timing.js";
 import { DEVICES, RATE_TIERS } from "../../../../data/stages/output.js";
 import { STB_IPV6, STB_USB, STB_RATES } from "../../../../data/builders/station-builder.js";
 import { ipv6Verdict, usbVerdict, dsd48Verdict } from "../../../../model/builders/station.js";

@@ -21,7 +21,7 @@ import {
   moveNeedle,
   nearestTier,
   seamX,
-} from "../../model/gauges/output.js";
+} from "../../../../hqptuner/static/model/gauges/output.js";
 
 const W = 806; // viewBox width = the Format row at the 1080 plate, so the printing is 1:1
 const H = 106;
@@ -29,8 +29,8 @@ const X0 = 38; // x of the first tier
 const RULE_Y = 56;
 const INSET = 8; // a band's legend and rule stop this far inside its outer tiers' cells
 
-/** @typedef {import('../../model/gauges/output.js').DialScale} DialScale */
-/** @typedef {import('../../model/gauges/output.js').TierSpan} TierSpan */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/output.js').DialScale} DialScale */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/output.js').TierSpan} TierSpan */
 /** @typedef {import('../../model/builders/station.js').Tier & { name: string, f44: string, f48: string, unit: string }} DialTier */
 /** @typedef {{ id: 'pcm' | 'sdm', legend: string }} Band */
 /** @typedef {TierSpan & { cur: number, needle: SVGElement, marks: SVGElement[], el: HTMLElement }} BandState */

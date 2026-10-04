@@ -4,12 +4,12 @@
 
 import { select } from "../../controls/seg.js";
 import { withXref, hasXref } from "../../../lib/controls/xref.js";
-import { editOf, regray, isStaged, applyPaint, restarts } from "../../../model/shell/drawer.js";
+import { editOf, regray, isStaged, applyPaint, restarts } from "../../../../../hqptuner/static/model/shell/drawer.js";
 import { family } from "./registry.js";
 
-/** @typedef {import("../../../model/shell/drawer.js").Values} Values */
-/** @typedef {import("../../../model/shell/drawer.js").Grayable} Grayable */
-/** @typedef {import("../../../model/shell/drawer.js").RowGray} RowGray */
+/** @typedef {import("../../../../../hqptuner/static/model/shell/drawer.js").Values} Values */
+/** @typedef {import("../../../../../hqptuner/static/model/shell/drawer.js").Grayable} Grayable */
+/** @typedef {import("../../../../../hqptuner/static/model/shell/drawer.js").RowGray} RowGray */
 /** @typedef {import("./registry.js").Family} Family */
 /** @typedef {import("./registry.js").SetOpen} SetOpen */
 /** @typedef {import("./apply.js").ApplyGroup} ApplyGroup */

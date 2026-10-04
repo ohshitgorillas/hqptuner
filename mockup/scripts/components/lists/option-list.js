@@ -24,7 +24,7 @@ import { closeBtn } from "../../lib/controls/controls.js";
 import { subscribe, kindOf } from "../../lib/narrowing/narrow.js";
 import { mountFacetBar } from "./narrow-filters.js";
 import { optionStyle } from "./vselect.js";
-import { PLATFORM } from "../../lib/shell/clock.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { PANEL, dacFolds, render } from "./option-list/columns.js";
 import { hideTip } from "./option-list/tip.js";
 
@@ -65,7 +65,7 @@ import { hideTip } from "./option-list/tip.js";
  *
  * @param {HTMLElement} plate
  * @param {import('../../lib/shell/bus.js').Bus} bus   folds follow `dactype`; the open list re-renders on `relayout`
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * @param {import('../../../../hqptuner/static/lib/clock.js').Clock} [clock]
  */
 export function mountOptionList(plate, bus, clock = PLATFORM) {
   const ui = chrome(plate);

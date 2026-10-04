@@ -2,8 +2,8 @@
 
 import { h } from "../../../../lib/shell/dom.js";
 import { STB_USB } from "../../../../data/builders/station-builder.js";
-import { classNames } from "../../../../model/shell/format.js";
-import { deviceParts as parts } from "../../../../model/gauges/output.js";
+import { classNames } from "../../../../../../hqptuner/static/model/shell/format.js";
+import { deviceParts as parts } from "../../../../../../hqptuner/static/model/gauges/output.js";
 import { listingState } from "../../../../model/builders/station.js";
 import { lines } from "../frame/parts.js";
 import { disambiguate } from "../frame/checks.js";

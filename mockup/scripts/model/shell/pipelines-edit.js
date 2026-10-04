@@ -2,7 +2,7 @@
 // dock's field values and whether they resolve against their tables, and the inputs the response plot draws.
 
 import { PEQ_TYPES } from "../gauges/eq.js";
-import { minus } from "./format.js";
+import { minus } from "../../../../hqptuner/static/model/shell/format.js";
 import { crosspoint, groups, inputsOf } from "./pipelines.js";
 
 /** @typedef {import('./pipelines.js').Stage} Stage */

@@ -5,7 +5,7 @@ import { shelfScale } from "../model/gauges/shelf.js";
 import { mountDrawer } from "../components/drawers/drawer.js";
 import { mountVolumeRange } from "../components/drawers/volume-range.js";
 import { VOLUME, VOLUME_DRAWER } from "../data/stages/volume.js";
-import { percentApplied } from "../model/gauges/loudness.js";
+import { percentApplied } from "../../../hqptuner/static/model/gauges/loudness.js";
 import { el } from "./markup.js";
 
 /** @typedef {import("./state.js").App} App */

@@ -19,7 +19,7 @@
 // the axis labels they share.
 
 import { h } from "../../lib/shell/dom.js";
-import { PLATFORM } from "../../lib/shell/clock.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { stepFrame } from "../../model/gauges/meter.js";
 import { floorCtl, pageRangeColumn, spectrogramControls, spectrumRange } from "./source-meter/controls.js";
 import { levelsPainter, levelsView } from "./source-meter/levels.js";
@@ -83,7 +83,7 @@ import { spectrumPainter, spectrumView } from "./source-meter/spectrum.js";
  *
  * @param {HTMLElement} host  empty block container inside a drawer panel
  * @param {MeterConfig} cfg   METER from data/source.js
- * @param {import('../../lib/shell/clock.js').Clock} [clock]  frame stamps and scheduling
+ * @param {import('../../../../hqptuner/static/lib/clock.js').Clock} [clock]  frame stamps and scheduling
  */
 export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const compact = !!cfg.compact;
@@ -227,7 +227,7 @@ function shownTest(host, compact) {
  *
  * @param {HTMLElement} host
  * @param {Node} root
- * @param {import('../../lib/shell/clock.js').Clock} clock
+ * @param {import('../../../../hqptuner/static/lib/clock.js').Clock} clock
  * @param {LoopHooks} o
  */
 function runLoop(host, root, clock, o) {

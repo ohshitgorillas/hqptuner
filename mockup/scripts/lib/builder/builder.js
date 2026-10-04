@@ -12,7 +12,7 @@ import { h } from "../shell/dom.js";
 import { manPara } from "../controls/controls.js";
 import { CHAIN } from "../../data/stages/chain.js";
 import { keyOf } from "../../model/builders/builder.js";
-import { classNames } from "../../model/shell/format.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
 import { shellState, isDirty, load, stash, stage, go, discard, confirm, save, remove } from "./record.js";
 import { stateParts, stateNow, paintActs, paintState, discardButton, buttons, askLine } from "./state.js";
 import { stationsMenu, walkNameBox } from "./stations.js";

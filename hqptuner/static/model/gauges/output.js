@@ -1,4 +1,4 @@
-// DOM-free output arithmetic for the mockup's components: which rate tiers make up a band, where tiers, bands and the
+// DOM-free output arithmetic for the faceplate's components: which rate tiers make up a band, where tiers, bands and the
 // seam sit on the rate dial and where its needles settle, which rates the output tuner marks, how an engine device string
 // splits, how a device list falls under its group headers, and where a value sits along a slider's range.
 

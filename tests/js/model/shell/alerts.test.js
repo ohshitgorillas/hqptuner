@@ -1,17 +1,17 @@
-// Behavioral suite for mockup/scripts/model/alerts.js: where raised alerts land, free of the DOM. Which homes blink and
+// Behavioral suite for hqptuner/static/model/shell/alerts.js: where raised alerts land, free of the DOM. Which homes blink and
 // in what colour, which drawers and page sections pin which alert lines, which drawer rows light, which stages go dark,
 // and which header homes open a popover and what it shows.
 //
 // Every home table and alert list is one this file writes.
 //
-// Run: node --test tests/js/mockup/alerts.test.js
+// Run: node --test tests/js/model/shell/alerts.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../mockup/scripts/model/shell/alerts.js";
+import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../hqptuner/static/model/shell/alerts.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/shell/alerts.js").Alert} Alert */
+/** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
 
 //: Homes by alert kind: two on one stage, a bare header element, a header element with a settings category and a
 //: drawer row, two sharing a drawer, a page section, and a stage that darkens the two after it.

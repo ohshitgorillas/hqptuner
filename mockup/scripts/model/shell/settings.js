@@ -1,7 +1,7 @@
 // Settings decisions, free of the DOM: how a settings-rail readout prints a control's value, and which visual effect a
 // live setting change causes, with the values it carries (components/settings.js acts on them).
 
-import { minusText } from "./format.js";
+import { minusText } from "../../../../hqptuner/static/model/shell/format.js";
 import { optionOf } from "./options.js";
 
 /**

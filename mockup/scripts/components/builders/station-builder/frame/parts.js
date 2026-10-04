@@ -4,7 +4,7 @@
 import { h } from "../../../../lib/shell/dom.js";
 import { paras as parasOf, drow as row } from "../../../../lib/builder/builder.js";
 import { numBox } from "../../../../lib/controls/controls.js";
-import { classNames } from "../../../../model/shell/format.js";
+import { classNames } from "../../../../../../hqptuner/static/model/shell/format.js";
 
 /** @typedef {string | { a?: string, href?: string, code?: string }} RichBit  a string, a link {a, href} or {code} */
 /** @typedef {RichBit | RichBit[]} Rich */

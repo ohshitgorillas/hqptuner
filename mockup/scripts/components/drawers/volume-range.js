@@ -19,7 +19,7 @@ import { h, s } from "../../lib/shell/dom.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { grayReason, manPara } from "../../lib/controls/controls.js";
 import { barMarks, bindBar, rangeBox, readout } from "../../lib/plots/range-bar.js";
-import { signed } from "../../model/shell/format.js";
+import { signed } from "../../../../hqptuner/static/model/shell/format.js";
 import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from "../../model/gauges/range-axis.js";
 
 const PADX = 16; // track inset, room for the end labels

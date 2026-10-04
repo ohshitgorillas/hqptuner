@@ -5,7 +5,7 @@
 
 import { h, s } from "../shell/dom.js";
 import { scale } from "../shell/plate.js";
-import { signed } from "../../model/shell/format.js";
+import { signed } from "../../../../hqptuner/static/model/shell/format.js";
 import { barValueAt, barX, labelAnchor } from "../../model/gauges/range-axis.js";
 
 /**

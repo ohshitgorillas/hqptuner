@@ -10,7 +10,7 @@ import {
   timeTicks,
   windowSpan,
 } from "../../../model/gauges/meter-plot.js";
-import { minusText } from "../../../model/shell/format.js";
+import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
 
 const COLS = 600; // spectrogram canvas width, px

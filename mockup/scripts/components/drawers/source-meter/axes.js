@@ -2,7 +2,7 @@
 // its time axis and the level scale.
 
 import { h } from "../../../lib/shell/dom.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 
 /**
  * A fraction of the axis as a CSS percentage.

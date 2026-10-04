@@ -14,11 +14,11 @@ import { h } from "../../lib/shell/dom.js";
 import { popover } from "../../lib/shell/popover.js";
 import { placeBy } from "../../lib/shell/plate.js";
 import { HOMES } from "../../data/shell/alerts.js";
-import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../model/shell/alerts.js";
+import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../hqptuner/static/model/shell/alerts.js";
 
-/** @typedef {import('../../model/shell/alerts.js').Sev} Sev */
-/** @typedef {import('../../model/shell/alerts.js').Alert} Alert */
-/** @typedef {import('../../model/shell/alerts.js').AlertPlan} AlertPlan */
+/** @typedef {import('../../../../hqptuner/static/model/shell/alerts.js').Sev} Sev */
+/** @typedef {import('../../../../hqptuner/static/model/shell/alerts.js').Alert} Alert */
+/** @typedef {import('../../../../hqptuner/static/model/shell/alerts.js').AlertPlan} AlertPlan */
 /** @typedef {{plate: HTMLElement, stages: Map<string, HTMLElement>, srail: HTMLElement}} Homes */
 
 /** @type {Record<Sev, string>} */
@@ -115,7 +115,7 @@ function pinDrawers(plate, plan) {
  * Light the drawer rows labelled as the fixing row is, in the alert's colour.
  *
  * @param {Element} d  the drawer
- * @param {import('../../model/shell/alerts.js').LitRow} row
+ * @param {import('../../../../hqptuner/static/model/shell/alerts.js').LitRow} row
  */
 function lightRow(d, { label, chain, sev }) {
   // chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).

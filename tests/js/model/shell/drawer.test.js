@@ -1,10 +1,10 @@
-// Behavioral suite for mockup/scripts/model/drawer.js: what a stage drawer decides, free of the DOM. Which rows are
+// Behavioral suite for hqptuner/static/model/shell/drawer.js: what a stage drawer decides, free of the DOM. Which rows are
 // staged against the applied values, which controls gray and which reason lines print and link, when the apply group
 // shows and is live, what Apply commits across a drawer family, and what Discard puts back.
 //
 // Every schema, value store and gray table is one this file writes.
 //
-// Run: node --test tests/js/mockup/drawer.test.js
+// Run: node --test tests/js/model/shell/drawer.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -21,9 +21,9 @@ import {
   commit,
   restoreOf,
   blockRestore,
-} from "../../../../mockup/scripts/model/shell/drawer.js";
+} from "../../../../hqptuner/static/model/shell/drawer.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/shell/drawer.js").Values} Values */
+/** @typedef {import("../../../../hqptuner/static/model/shell/drawer.js").Values} Values */
 
 //: Gray reasons by the value of `mode`, the table every grayable control below reads.
 /** @type {Record<string, string>} */

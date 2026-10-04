@@ -3,7 +3,7 @@
 
 import { h } from "../../../lib/shell/dom.js";
 import { levelTarget, stepLevel } from "../../../model/gauges/meter.js";
-import { minusText } from "../../../model/shell/format.js";
+import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, pct } from "./axes.js";
 import { chName } from "./controls.js";
 

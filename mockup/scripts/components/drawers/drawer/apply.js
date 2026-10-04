@@ -1,7 +1,13 @@
 // The apply bar: the head's Discard + Apply group, and what Apply, Discard, settle and remark do to a mounted drawer.
 
 import { h } from "../../../lib/shell/dom.js";
-import { applyTargets, commit, restoreOf, blockRestore, dirtyIds } from "../../../model/shell/drawer.js";
+import {
+  applyTargets,
+  commit,
+  restoreOf,
+  blockRestore,
+  dirtyIds,
+} from "../../../../../hqptuner/static/model/shell/drawer.js";
 import { regrayDrawer, clearDirty, markDirty, setBackend } from "./state.js";
 
 /** @typedef {import("./state.js").Drawer} Drawer */

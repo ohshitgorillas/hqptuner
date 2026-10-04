@@ -4,7 +4,7 @@
 import { h } from "../../../../lib/shell/dom.js";
 import { DEVICES } from "../../../../data/stages/output.js";
 import { STB_DEVICE, STB_USB } from "../../../../data/builders/station-builder.js";
-import { classNames } from "../../../../model/shell/format.js";
+import { classNames } from "../../../../../../hqptuner/static/model/shell/format.js";
 import { deviceView } from "../../../../model/builders/station.js";
 import { rich, tip } from "../frame/parts.js";
 

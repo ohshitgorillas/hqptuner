@@ -16,8 +16,8 @@ import { shelfScale } from "../../model/gauges/shelf.js";
 import { paintSvg } from "../../lib/plots/gauge.js";
 import { grayReason, manPara, numBox } from "../../lib/controls/controls.js";
 import { barMarks, bindBar, rangeBox, readout } from "../../lib/plots/range-bar.js";
-import { signed } from "../../model/shell/format.js";
-import { percentApplied } from "../../model/gauges/loudness.js";
+import { signed } from "../../../../hqptuner/static/model/shell/format.js";
+import { percentApplied } from "../../../../hqptuner/static/model/gauges/loudness.js";
 import { clampBounds, clampToAxis, pickBound, tickMarks, ticksEvery } from "../../model/gauges/range-axis.js";
 
 const AXIS = { min: -120, max: 0 };

@@ -12,7 +12,7 @@ import { mountRespPlot } from "../controls/resp-plot.js";
 import { pipeH, cplx, toDb } from "../../lib/dsp/xdsp.js";
 import { AUTOEQ } from "../../data/stages/pipelines.js";
 import { AEQ_COPY } from "../../data/builders/profiles.js";
-import { signed } from "../../model/shell/format.js";
+import { signed } from "../../../../hqptuner/static/model/shell/format.js";
 import { PEQ_TYPES, hitPipe, hitSummary, peqCount, shownHits } from "../../model/gauges/eq.js";
 
 /** @typedef {import('../../model/gauges/eq.js').Band} Band */

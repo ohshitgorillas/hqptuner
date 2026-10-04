@@ -21,7 +21,7 @@
 // Each step is its own module under station-builder/, the mock checks one more; the decisions they make are
 // model/station.js.
 
-import { PLATFORM } from "../../lib/shell/clock.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { mountBuilder, chainPic } from "../../lib/builder/builder.js";
 import { homeOf } from "../../model/builders/builder.js";
 import { deadListings } from "../../model/builders/station.js";
@@ -33,7 +33,7 @@ import { show } from "./station-builder/frame/page.js";
 
 /** @typedef {import('../../model/builders/station.js').Rec} Rec */
 /** @typedef {import('../../data/builders/station-builder.js').HwAnswers} HwRec  the machine's hardware answers */
-/** @typedef {import('../../lib/shell/clock.js').Clock} Clock */
+/** @typedef {import('../../../../hqptuner/static/lib/clock.js').Clock} Clock */
 /** @typedef {import('./station-builder/frame/parts.js').Run} Run */
 /** @typedef {{ name: string, rec: Rec, hw: HwRec }} Edit  the station being edited */
 /** @typedef {{ setOn: (on: boolean, toChain?: boolean) => void }} Body  another body the builder turns off */

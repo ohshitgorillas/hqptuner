@@ -21,7 +21,7 @@ import { seg, select } from "../controls/seg.js";
 import { mountRespPlot } from "../controls/resp-plot.js";
 import { BAUER_PRESETS } from "../../lib/dsp/xdsp.js";
 import { grayReason, manPara, numBox } from "../../lib/controls/controls.js";
-import { minus } from "../../model/shell/format.js";
+import { minus } from "../../../../hqptuner/static/model/shell/format.js";
 import { bauerSummary, crossfeedGray, structuralSummary } from "../../model/gauges/crossfeed.js";
 import { ENGAGE_BYPASS } from "../../data/stages/matrix.js";
 import { bauerControls, drawBauer } from "./crossfeed/bauer.js";

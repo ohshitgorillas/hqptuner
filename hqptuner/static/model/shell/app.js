@@ -1,5 +1,5 @@
-// Faceplate composition model: the decisions the page's wiring (scripts/app/) paints, free of the DOM. The engine row's
-// gauge and buffers, the page's top section, what a playback path shows, the mock alerts a pick raises and the
+// Faceplate composition model: the decisions the faceplate's wiring paints, free of the DOM. The
+// engine row's gauge and buffers, the page's top section, what a playback path shows, the mock alerts a pick raises and the
 // Setting Switcher's target change each come back as a value; the caller writes it into the page.
 
 /** Zone seams [bad|warn, warn|ok]. @typedef {[number, number]} Seams */

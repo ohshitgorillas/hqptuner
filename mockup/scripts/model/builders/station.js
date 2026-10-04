@@ -3,7 +3,7 @@
 // questions, and the verdict of each mock check. Each takes its tables as arguments, returns a value and leaves its
 // arguments as they were.
 
-import { groupDevices } from "../gauges/output.js";
+import { groupDevices } from "../../../../hqptuner/static/model/gauges/output.js";
 
 /** @typedef {{ pcm: number, sdm: number | null }} Limits  rate tier indices; sdm null = no DSD */
 
@@ -51,7 +51,7 @@ import { groupDevices } from "../gauges/output.js";
 
 /** @typedef {{ on: boolean, dead: boolean, locked: boolean }} ListingState */
 
-/** @typedef {import('../gauges/output.js').DeviceRow & ListingState} DeviceLine */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/output.js').DeviceRow & ListingState} DeviceLine */
 
 /** @typedef {{ group: string, rows: DeviceLine[] }} DeviceLineGroup */
 

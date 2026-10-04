@@ -4,9 +4,9 @@
 
 import { h } from "../../lib/shell/dom.js";
 import { popover } from "../../lib/shell/popover.js";
-import { deviceParts, groupDevices } from "../../model/gauges/output.js";
+import { deviceParts, groupDevices } from "../../../../hqptuner/static/model/gauges/output.js";
 
-/** @typedef {import('../../model/gauges/output.js').DeviceRow} DeviceRow */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/output.js').DeviceRow} DeviceRow */
 
 /**
  * Mount the picker: a trigger showing the selected device, and its listbox of devices under their group headers.

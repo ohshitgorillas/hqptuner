@@ -5,7 +5,7 @@ import { h, s } from "../../../lib/shell/dom.js";
 import { emptySpectrum, stepSpectrum } from "../../../model/gauges/meter.js";
 import { freqTicks, freqX, spectrumAxes, spectrumPoints } from "../../../model/gauges/meter-plot.js";
 import { binLevels } from "../../../model/gauges/meter-source.js";
-import { minusText } from "../../../model/shell/format.js";
+import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
 
 const BINS = 300; // spectrum points, 0..Nyquist

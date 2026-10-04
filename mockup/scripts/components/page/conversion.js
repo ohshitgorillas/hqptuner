@@ -18,7 +18,7 @@ import { optCopy } from "../lists/vselect.js";
 import { chainPick } from "./chain-pick.js";
 import { FIELDS, CHAIN_NAMES } from "../../data/stages/conversion.js";
 import { subscribe } from "../../lib/narrowing/narrow.js";
-import { PLATFORM } from "../../lib/shell/clock.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { bothRows, fieldRuns, openOn, sectionRows } from "../../model/shell/conversion.js";
 import { fit, listOf, path, playOf, rail, running, wraps } from "./conversion/rail.js";
 
@@ -40,7 +40,7 @@ import { fit, listOf, path, playOf, rail, running, wraps } from "./conversion/ra
  * @property {(o: { mode: string, run: string, tier: number | null, rate: string, rest: string }) => void} [onOut]
  * @property {(run: string) => void} [onRun]
  * @property {(path: string, run: string, scene: Scene) => void} [onPath]
- * @property {import('../../lib/shell/clock.js').Clock} [clock]
+ * @property {import('../../../../hqptuner/static/lib/clock.js').Clock} [clock]
  */
 
 /**

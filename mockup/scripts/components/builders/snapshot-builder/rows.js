@@ -3,7 +3,7 @@ import { seg } from "../../controls/seg.js";
 import { vselect, optionStyle } from "../../lists/vselect.js";
 import { SNAP_ROWS } from "../../../data/builders/snapshots.js";
 import { CHAIN_NAMES } from "../../../data/stages/conversion.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 import { isChain, snapRow } from "../../../model/builders/snapshot.js";
 import { change } from "./edit.js";
 

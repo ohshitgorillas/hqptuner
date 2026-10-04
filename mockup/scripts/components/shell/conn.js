@@ -4,8 +4,8 @@
 // button's name and tooltip line; tap = v1's way into connection settings (that panel is not drawn).
 // Mock: ok. `#conn-busy` / `#conn-lost` show the other states; every Apply flashes busy for 1.2 s (mock restart).
 
-import { PLATFORM } from "../../lib/shell/clock.js";
-import { revertAfter } from "../../model/shell/timing.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
+import { revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
 
 /** @typedef {import('../../model/shell/flags.js').Flags['conn']} ConnState */
 
@@ -23,7 +23,7 @@ const HINT = "Open connection settings to set the HQPlayer Embedded server's IP 
  *
  * @param {HTMLButtonElement} btn
  * @param {ConnState} state0   the state to open on (model/flags.js `conn`)
- * @param {import('../../lib/shell/clock.js').Clock} [clock]
+ * @param {import('../../../../hqptuner/static/lib/clock.js').Clock} [clock]
  * @returns {{set: (s: ConnState) => void, applying: () => void}}
  */
 export function mountConn(btn, state0, clock = PLATFORM) {

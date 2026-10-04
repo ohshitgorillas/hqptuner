@@ -4,7 +4,7 @@
 import { h } from "../../../lib/shell/dom.js";
 import { processSpec, parseProcess } from "../../../lib/dsp/procspec.js";
 import { KINDS } from "../../../data/stages/pipelines.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 import { NEW_STAGE, chipText, groups, stageAt } from "../../../model/shell/pipelines.js";
 import { paint, stage } from "./state.js";
 import { openMenu } from "./popovers.js";

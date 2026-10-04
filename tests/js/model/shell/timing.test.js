@@ -1,17 +1,17 @@
-// Behavioral suite for mockup/scripts/model/timing.js: a held button repeats on a fake clock, a mock check prints its
+// Behavioral suite for hqptuner/static/model/shell/timing.js: a held button repeats on a fake clock, a mock check prints its
 // lines and then its verdict in order, and a revert fires once per arming with a re-arm cancelling the pending one.
 //
 // The clock is faked at the Clock seam each unit takes. Time moves only when a test says so, so nothing here waits on
 // the wall.
 //
-// Run: node --test tests/js/mockup/timing.test.js
+// Run: node --test tests/js/model/shell/timing.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { holdRepeat, checkSequence, revertAfter } from "../../../../mockup/scripts/model/shell/timing.js";
+import { holdRepeat, checkSequence, revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
 
-/** @typedef {import("../../../../mockup/scripts/lib/shell/clock.js").Clock} Clock */
+/** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 
 //: Hold delay and repeat rate for the hold tests, in the fake clock's ms.
 const DELAY = 100;

@@ -10,8 +10,8 @@
 //            Pinned, the pin is what plays: accent and ringed. Nothing playing: no ring.
 
 import { h } from "../../lib/shell/dom.js";
-import { classNames } from "../../model/shell/format.js";
-import { tunerColumns } from "../../model/gauges/output.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
+import { tunerColumns } from "../../../../hqptuner/static/model/gauges/output.js";
 
 /** @typedef {'f44' | 'f48'} Fam  a rate family */
 /** @typedef {{ tier: number, fam: Fam }} Pin  a pinned rate: its tier and family */
@@ -42,7 +42,7 @@ const FAMS = [
  * One tier's column: its name, its two exact rates (each a pin, hatched where the device can't carry it) and its unit.
  *
  * @param {Tuner} t
- * @param {import('../../model/gauges/output.js').TunerColumn} c
+ * @param {import('../../../../hqptuner/static/model/gauges/output.js').TunerColumn} c
  */
 function column(t, { i, cells }) {
   const tier = t.rt.tiers[i];

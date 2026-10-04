@@ -1,6 +1,6 @@
 // Tiny DOM helpers. No framework: the mockup stays readable as plain markup + data.
 
-import { classNames } from "../../model/shell/format.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 

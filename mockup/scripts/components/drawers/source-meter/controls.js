@@ -3,7 +3,7 @@
 
 import { h } from "../../../lib/shell/dom.js";
 import { seg } from "../../controls/seg.js";
-import { minusText } from "../../../model/shell/format.js";
+import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 
 /**
  * @typedef {import('../source-meter.js').MeterConfig} MeterConfig

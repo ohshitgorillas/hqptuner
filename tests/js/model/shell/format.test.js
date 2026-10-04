@@ -1,13 +1,13 @@
-// Behavioral suite for mockup/scripts/model/format.js: the number forms the mockup prints (a value with its sign, a
+// Behavioral suite for hqptuner/static/model/shell/format.js: the number forms the faceplate prints (a value with its sign, a
 // negative with a typographic minus, a sign always shown, a typed value's hyphen made a minus), and a class list joined
 // from the names that apply.
 //
-// Run: node --test tests/js/mockup/format.test.js
+// Run: node --test tests/js/model/shell/format.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { classNames, minus, minusText, plusMinus, signed } from "../../../../mockup/scripts/model/shell/format.js";
+import { classNames, minus, minusText, plusMinus, signed } from "../../../../hqptuner/static/model/shell/format.js";
 
 //: The typographic minus every form prints in place of a hyphen.
 const MINUS = "−";

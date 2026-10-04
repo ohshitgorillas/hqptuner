@@ -1,21 +1,21 @@
-// Behavioral suite for mockup/scripts/model/place.js: where a plate-level popover lands against its anchor, and how the
+// Behavioral suite for hqptuner/static/model/shell/place.js: where a plate-level popover lands against its anchor, and how the
 // plate's side and foot margins pull it back inside.
 //
 // The plate is one the test writes: 1000 × 800 layout px, 20 px side margins, a 14 px foot. Anchors are screen px from
 // the plate's corner, so at scale 0.5 every anchor number doubles on the plate.
 //
-// Run: node --test tests/js/mockup/place.test.js
+// Run: node --test tests/js/model/shell/place.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clampToPlate } from "../../../../mockup/scripts/model/shell/place.js";
+import { clampToPlate } from "../../../../hqptuner/static/model/shell/place.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Rect} Rect */
-/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Size} Size */
-/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Place} Place */
-/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Margin} Margin */
-/** @typedef {import("../../../../mockup/scripts/model/shell/place.js").Side} Side */
+/** @typedef {import("../../../../hqptuner/static/model/shell/place.js").Rect} Rect */
+/** @typedef {import("../../../../hqptuner/static/model/shell/place.js").Size} Size */
+/** @typedef {import("../../../../hqptuner/static/model/shell/place.js").Place} Place */
+/** @typedef {import("../../../../hqptuner/static/model/shell/place.js").Margin} Margin */
+/** @typedef {import("../../../../hqptuner/static/model/shell/place.js").Side} Side */
 
 const PLATE = { w: 1000, h: 800 };
 const SIDE = 20;

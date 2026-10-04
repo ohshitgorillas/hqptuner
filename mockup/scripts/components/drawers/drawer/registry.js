@@ -1,9 +1,9 @@
 // Every stage drawer on the page: the one-open-at-a-time rule, the open/close wipe, Escape, and the drawer families.
 
 import { anyOpen } from "../../../lib/shell/popover.js";
-import { commit } from "../../../model/shell/drawer.js";
+import { commit } from "../../../../../hqptuner/static/model/shell/drawer.js";
 
-/** @typedef {import("../../../model/shell/drawer.js").Values} Values */
+/** @typedef {import("../../../../../hqptuner/static/model/shell/drawer.js").Values} Values */
 /** @typedef {import("./state.js").Store} Store */
 /** @typedef {import("./state.js").DrawerApi} DrawerApi */
 

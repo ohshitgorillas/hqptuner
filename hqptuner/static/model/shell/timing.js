@@ -1,7 +1,7 @@
-// DOM-free timing for the mockup's components: a held button's repeat, a mock check's paced lines, a temporary state
+// DOM-free timing for the faceplate's components: a held button's repeat, a mock check's paced lines, a temporary state
 // that reverts. Each takes the Clock it schedules on, so a test drives it with a fake.
 
-/** @typedef {import('../../lib/shell/clock.js').Clock} Clock */
+/** @typedef {import('../../lib/clock.js').Clock} Clock */
 
 /**
  * Hold to repeat: after `delay` ms, call `step` every `rate` ms until the returned stop is called.

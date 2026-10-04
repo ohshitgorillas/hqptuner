@@ -16,17 +16,24 @@
 import { h, s } from "../../lib/shell/dom.js";
 import { popover } from "../../lib/shell/popover.js";
 import { toPlate, PLATE_W } from "../../lib/shell/plate.js";
-import { PLATFORM } from "../../lib/shell/clock.js";
-import { holdRepeat } from "../../model/shell/timing.js";
-import { percentOf } from "../../model/gauges/output.js";
-import { dbText, fixedPin, directPin, stepOff, volumeView, loudSpan } from "../../model/gauges/volume.js";
+import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
+import { holdRepeat } from "../../../../hqptuner/static/model/shell/timing.js";
+import { percentOf } from "../../../../hqptuner/static/model/gauges/output.js";
+import {
+  dbText,
+  fixedPin,
+  directPin,
+  stepOff,
+  volumeView,
+  loudSpan,
+} from "../../../../hqptuner/static/model/gauges/volume.js";
 
-/** @typedef {import('../../lib/shell/clock.js').Clock} Clock */
-/** @typedef {import('../../model/gauges/volume.js').Range} Range */
-/** @typedef {import('../../model/gauges/volume.js').Grid} Grid */
-/** @typedef {import('../../model/gauges/volume.js').Pin} Pin */
-/** @typedef {import('../../model/gauges/volume.js').DirectPin} DirectPin */
-/** @typedef {import('../../model/gauges/volume.js').VolumeView} VolumeView */
+/** @typedef {import('../../../../hqptuner/static/lib/clock.js').Clock} Clock */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/volume.js').Range} Range */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/volume.js').Grid} Grid */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/volume.js').Pin} Pin */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/volume.js').DirectPin} DirectPin */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/volume.js').VolumeView} VolumeView */
 /** @typedef {Grid & { value: number, scale: number[] }} VolumeCfg  the level, its range and step, the scale marks (dB) */
 /** @typedef {{ on: boolean, low: number, high: number }} Loud  loudness in effect, and its range bounds (dB) */
 /** @typedef {(level: number, txt: string, fixed: boolean) => void} LevelView  another home of the level */

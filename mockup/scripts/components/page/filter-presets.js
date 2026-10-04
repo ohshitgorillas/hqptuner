@@ -11,7 +11,7 @@ import { popover } from "../../lib/shell/popover.js";
 import { parkLeftOf } from "../../lib/shell/plate.js";
 import { seg } from "../controls/seg.js";
 import { PRESET_COLUMNS, CORRECTION_LABELS, HIRES_TIP, LINEAGE } from "../../data/lists/presets.js";
-import { classNames } from "../../model/shell/format.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
 import { subsetVersion } from "../../model/shell/presets.js";
 
 /** @typedef {import('../../model/shell/presets.js').Cost} Cost */

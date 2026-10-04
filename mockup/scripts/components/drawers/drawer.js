@@ -28,7 +28,7 @@
 
 import { h } from "../../lib/shell/dom.js";
 import { closeBtn } from "../../lib/controls/controls.js";
-import { startValues } from "../../model/shell/drawer.js";
+import { startValues } from "../../../../hqptuner/static/model/shell/drawer.js";
 import { registerDrawer, drawerOpener } from "./drawer/registry.js";
 import { drawerState, setFrom, regrayDrawer, paintApply } from "./drawer/state.js";
 import { drawerApplyGroup, applied, discarded, settle, remark } from "./drawer/apply.js";

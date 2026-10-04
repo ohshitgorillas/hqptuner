@@ -14,7 +14,7 @@ import { deviceCtl, dialCtl } from "./pickers.js";
 /** @typedef {import("./state.js").Control} Control */
 /** @typedef {import("./state.js").Listed} Listed */
 /** @typedef {import("./state.js").Ctl} Ctl */
-/** @typedef {import("../../../model/shell/drawer.js").Grayable} Grayable */
+/** @typedef {import("../../../../../hqptuner/static/model/shell/drawer.js").Grayable} Grayable */
 /** @typedef {import("./state.js").SettableEl} SettableEl */
 /** @typedef {(D: Drawer, b: Ctl) => SettableEl} Builder */
 

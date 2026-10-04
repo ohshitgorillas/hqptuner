@@ -1,4 +1,4 @@
-// Text forms the mockup prints, free of the DOM: a number with its sign (the typographic minus, never a hyphen), and a
+// Text forms the faceplate prints, free of the DOM: a number with its sign (the typographic minus, never a hyphen), and a
 // class list built from the names that apply.
 
 const MINUS = "−";

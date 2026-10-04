@@ -3,7 +3,7 @@
 // the trace. Geometry from model/plot-axes.js; the SVG fills its box and redraws on resize.
 
 import { s } from "../shell/dom.js";
-import { signed } from "../../model/shell/format.js";
+import { signed } from "../../../../hqptuner/static/model/shell/format.js";
 import { GUTTER, PAD, round1 as r } from "../../model/gauges/plot-axes.js";
 
 /**

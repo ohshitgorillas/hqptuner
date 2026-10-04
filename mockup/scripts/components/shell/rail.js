@@ -12,8 +12,8 @@
 
 import { h } from "../../lib/shell/dom.js";
 import { scale } from "../../lib/shell/plate.js";
-import { classNames } from "../../model/shell/format.js";
-import { lampDots, wirePath } from "../../model/gauges/wire.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
+import { lampDots, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
 
 /** @typedef {import('../../model/shell/flags.js').Flags['wire']} WireStyle */
 /**

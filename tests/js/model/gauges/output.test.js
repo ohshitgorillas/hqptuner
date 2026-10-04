@@ -1,4 +1,4 @@
-// Behavioral suite for mockup/scripts/model/output.js: which tiers belong to a rate family, where each tier and band
+// Behavioral suite for hqptuner/static/model/gauges/output.js: which tiers belong to a rate family, where each tier and band
 // sits on the rate dial and which tier a pointer lands on, how a needle settles inside its band, which rates the output
 // tuner marks pinned and playing, how an engine device string splits into its group, main and detail parts, how a
 // device list falls under its group headers, and where a value sits along a range as a percentage.
@@ -6,7 +6,7 @@
 // Tiers, dial geometry and device lists are tables the test writes; no shipped data supplies an input or an expected
 // value.
 //
-// Run: node --test tests/js/mockup/output.test.js
+// Run: node --test tests/js/model/gauges/output.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ import {
   seamX,
   tierIndex,
   tunerColumns,
-} from "../../../../mockup/scripts/model/gauges/output.js";
+} from "../../../../hqptuner/static/model/gauges/output.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for values the float arithmetic may round in the last place.
@@ -62,7 +62,7 @@ const PLAYING_1 = { run: "sdm", tier: 1, src: 0, fam: "f48" };
 /**
  * `tier:family` for every rate the columns mark with `key`, in column order.
  *
- * @param {import("../../../../mockup/scripts/model/gauges/output.js").TunerColumn[]} cols
+ * @param {import("../../../../hqptuner/static/model/gauges/output.js").TunerColumn[]} cols
  * @param {"pinned" | "playing"} key
  * @returns {string[]}
  */

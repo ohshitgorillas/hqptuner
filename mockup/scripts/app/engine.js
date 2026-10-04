@@ -13,11 +13,17 @@ import { HF_DRAWER } from "../data/stages/hf.js";
 import { VOLUME } from "../data/stages/volume.js";
 import { PROFILES } from "../data/builders/profiles.js";
 import { ENGINE, ZONES, OUT, COPY } from "../data/shell/scenarios.js";
-import { fillLayout, gaugeReading, noStream, pathView, profileRecords } from "../model/shell/app.js";
+import {
+  fillLayout,
+  gaugeReading,
+  noStream,
+  pathView,
+  profileRecords,
+} from "../../../hqptuner/static/model/shell/app.js";
 import { el } from "./markup.js";
 
 /** @typedef {import("./state.js").App} App */
-/** @typedef {import("../model/shell/app.js").Seams} Seams */
+/** @typedef {import("../../../hqptuner/static/model/shell/app.js").Seams} Seams */
 /** @typedef {Element & { _setPlaying: (i: number | null) => void }} RateDial */
 
 // Not in a Direct path: Direct runs nothing but Speakers (Resampling and Shaping leave the chain on DSD → DSD).

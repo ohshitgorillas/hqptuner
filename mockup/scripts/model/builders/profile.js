@@ -4,7 +4,7 @@
 // returns a value and leaves its arguments as they were.
 
 import { bauerPreset, structuralPreset } from "../gauges/crossfeed.js";
-import { percentApplied } from "../gauges/loudness.js";
+import { percentApplied } from "../../../../hqptuner/static/model/gauges/loudness.js";
 import { shelfScale } from "../gauges/shelf.js";
 import { NEW, OVERVIEW, keyOf } from "./builder.js";
 

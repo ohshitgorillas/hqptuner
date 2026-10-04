@@ -1,8 +1,8 @@
 // The Station builder's answers: what the rail and the overview print for each step (`Skipped` where it doesn't apply).
 
 import { STB_COPY, STB_STEPS, hwSettings } from "../../../../data/builders/station-builder.js";
-import { minus } from "../../../../model/shell/format.js";
-import { deviceParts as parts } from "../../../../model/gauges/output.js";
+import { minus } from "../../../../../../hqptuner/static/model/shell/format.js";
+import { deviceParts as parts } from "../../../../../../hqptuner/static/model/gauges/output.js";
 import { skipOf, summaryOf } from "../../../../model/builders/station.js";
 
 /** @typedef {import('../../station-builder.js').StationState} StationState */

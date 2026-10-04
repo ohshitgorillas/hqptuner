@@ -1,6 +1,6 @@
 import { h } from "../../../lib/shell/dom.js";
 import { NEW } from "../../../model/builders/builder.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 import { pageButtons } from "../../../lib/controls/pager.js";
 import { railPer, revealPage, railFolds, litEntry } from "../../../model/builders/snapshot.js";
 import { edit, dirtyOf } from "./edit.js";

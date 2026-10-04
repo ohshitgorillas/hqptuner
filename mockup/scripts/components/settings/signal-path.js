@@ -15,8 +15,8 @@
 
 import { h, s } from "../../lib/shell/dom.js";
 import { hatchDefs } from "../../lib/controls/glyphs.js";
-import { classNames } from "../../model/shell/format.js";
-import { groupFrame, pathLamps } from "../../model/gauges/wire.js";
+import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
+import { groupFrame, pathLamps } from "../../../../hqptuner/static/model/gauges/wire.js";
 
 const W = 1040,
   H = 606;
@@ -26,8 +26,8 @@ const NW = 118,
 // Column centres: sources | DSD front end · HF | matrix | resampling | DAC correction ↓ Volume | shaping | Speakers ↓ Output.
 const X = [66, 214, 366, 518, 668, 816, 962];
 
-/** @typedef {import('../../model/gauges/wire.js').MapNode} MapNode */
-/** @typedef {import('../../model/gauges/wire.js').MapEdge} MapEdge */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/wire.js').MapNode} MapNode */
+/** @typedef {import('../../../../hqptuner/static/model/gauges/wire.js').MapEdge} MapEdge */
 /** @typedef {MapEdge & { el: SVGElement }} EdgeEl  an edge with the path that draws it */
 /** @typedef {{ p: string, stage: string }} PathState  the path playing and the source's rate stage */
 /**

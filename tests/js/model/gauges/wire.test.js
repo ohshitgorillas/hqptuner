@@ -1,22 +1,22 @@
-// Behavioral suite for mockup/scripts/model/wire.js: where the chain rail's lamp dots land from measured boxes, the
+// Behavioral suite for hqptuner/static/model/gauges/wire.js: where the chain rail's lamp dots land from measured boxes, the
 // path data of the wire joining them in both styles, the frame a signal-path group draws around its nodes, and which
 // signal-path nodes and edges read lit or bypassed.
 //
 // Every box is one the test writes, in screen px from the viewport corner; every dot, path and frame is worked out by
 // hand from those boxes. The wire's corners are 5 px chamfers.
 //
-// Run: node --test tests/js/mockup/wire.test.js
+// Run: node --test tests/js/model/gauges/wire.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { groupFrame, lampDots, pathLamps, wirePath } from "../../../../mockup/scripts/model/gauges/wire.js";
+import { groupFrame, lampDots, pathLamps, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Box} Box */
-/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Dot} Dot */
-/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").Lamp} Lamp */
-/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").MapEdge} MapEdge */
-/** @typedef {import("../../../../mockup/scripts/model/gauges/wire.js").MapNode} MapNode */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Box} Box */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Dot} Dot */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Lamp} Lamp */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").MapEdge} MapEdge */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").MapNode} MapNode */
 
 // --- lamp dots ---------------------------------------------------------------------------------------------------
 

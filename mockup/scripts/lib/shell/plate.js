@@ -5,7 +5,7 @@
 // Anything that measures the DOM (rail wire, popover parking) must divide screen px by scale().
 // PLATE_W / PLATE_H are live bindings: importers read the current size, never cache it.
 
-import { clampToPlate } from "../../model/shell/place.js";
+import { clampToPlate } from "../../../../hqptuner/static/model/shell/place.js";
 
 /**
  * iPad landscape viewports in points (Apple: 10.2" iPad 7th–9th gen; 11" iPad / iPad Air 11"; 13" iPad Air 13").
@@ -102,7 +102,7 @@ export function toPlate(rect) {
  *
  * @param {HTMLElement} panel
  * @param {Element} trigger
- * @param {{side: import('../../model/shell/place.js').Side, foot: import('../../model/shell/place.js').Margin, at: import('../../model/shell/place.js').Place}} how
+ * @param {{side: import('../../../../hqptuner/static/model/shell/place.js').Side, foot: import('../../../../hqptuner/static/model/shell/place.js').Margin, at: import('../../../../hqptuner/static/model/shell/place.js').Place}} how
  */
 export function placeBy(panel, trigger, { side, foot, at }) {
   const r = trigger.getBoundingClientRect(),
