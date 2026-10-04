@@ -3,13 +3,13 @@
 // step must be laid out again, and what the picker, the name box and Delete show. Each takes its tables as arguments,
 // returns a value and leaves its arguments as they were.
 
-import { shelfScale } from '../lib/xdsp.js';
-import { bauerPreset, structuralPreset } from './crossfeed.js';
-import { percentApplied } from './loudness.js';
-import { NEW, OVERVIEW, keyOf } from './builder.js';
+import { shelfScale } from "../lib/xdsp.js";
+import { bauerPreset, structuralPreset } from "./crossfeed.js";
+import { percentApplied } from "./loudness.js";
+import { NEW, OVERVIEW, keyOf } from "./builder.js";
 
 /** The station's unnamed profile: the daemon's own name, kept and never deleted (v1). */
-export const DEFAULT = '[Default]';
+export const DEFAULT = "[Default]";
 
 /** @typedef {Record<string, string | number>} Vals  a profile's values (the family's, so numbers may arrive as strings) */
 
@@ -62,7 +62,7 @@ export function stepContext(listen, fixed, models) {
  * @returns {string}
  */
 export function skipOf(steps, id, ctx) {
-  return steps.find((x) => x.id === id)?.skip?.(ctx) || '';
+  return steps.find((x) => x.id === id)?.skip?.(ctx) || "";
 }
 
 /**
@@ -74,9 +74,9 @@ export function skipOf(steps, id, ctx) {
  * @returns {{ label: string } | undefined}
  */
 export function crossfeedPreset(vals, presets) {
-  if (vals.xfmode === 'bauer') return bauerPreset(presets.bauer, String(vals.xfpreset));
-  if (vals.xfmode === 'structural') return structuralPreset(presets.structural, vals.xsangle, vals.xslambda);
-  return { label: '' };
+  if (vals.xfmode === "bauer") return bauerPreset(presets.bauer, String(vals.xfpreset));
+  if (vals.xfmode === "structural") return structuralPreset(presets.structural, vals.xsangle, vals.xslambda);
+  return { label: "" };
 }
 
 /**
@@ -101,8 +101,8 @@ export function atDefaults(vals, defaults) {
  */
 export function knownOf(vals, presets, loudness) {
   return {
-    crossfeed: vals.xfmode === 'off' || crossfeedPreset(vals, presets) ? 'preset' : 'values',
-    loudness: atDefaults(vals, loudness) ? 'preset' : 'values',
+    crossfeed: vals.xfmode === "off" || crossfeedPreset(vals, presets) ? "preset" : "values",
+    loudness: atDefaults(vals, loudness) ? "preset" : "values",
   };
 }
 
@@ -117,9 +117,14 @@ export function knownOf(vals, presets, loudness) {
  */
 export function isDirty(vals, meta, saved) {
   const valsMoved = Object.keys(saved.vals).some((k) => k in vals && String(vals[k]) !== String(saved.vals[k]));
-  const sorted = (/** @type {string[]} */ l) => [...l].sort().join('\u0001');
-  return valsMoved || meta.desc !== saved.meta.desc || meta.name !== saved.meta.name || meta.listen !== saved.meta.listen
-    || sorted(meta.stations) !== sorted(saved.meta.stations);
+  const sorted = (/** @type {string[]} */ l) => [...l].sort().join("\u0001");
+  return (
+    valsMoved ||
+    meta.desc !== saved.meta.desc ||
+    meta.name !== saved.meta.name ||
+    meta.listen !== saved.meta.listen ||
+    sorted(meta.stations) !== sorted(saved.meta.stations)
+  );
 }
 
 /**
@@ -136,9 +141,13 @@ export function summaryOf(meta, vals, presets, env) {
   const scale = env.fixed ? 0 : shelfScale(env.level, Number(vals.ldrlow), Number(vals.ldrhigh));
   return {
     listen: meta.listen,
-    crossfeed: { on: vals.xfmode !== 'off', mode: String(vals.xfmode), preset: crossfeedPreset(vals, presets)?.label ?? null },
-    correction: { on: vals.dcen === '1', model: String(vals.dcdac ?? '') },
-    loudness: { on: vals.ldon === '1', percent: percentApplied(scale) },
+    crossfeed: {
+      on: vals.xfmode !== "off",
+      mode: String(vals.xfmode),
+      preset: crossfeedPreset(vals, presets)?.label ?? null,
+    },
+    correction: { on: vals.dcen === "1", model: String(vals.dcdac ?? "") },
+    loudness: { on: vals.ldon === "1", percent: percentApplied(scale) },
   };
 }
 
@@ -151,7 +160,7 @@ export function summaryOf(meta, vals, presets, env) {
  * @returns {boolean}
  */
 export function holdSkipped(id, skip, vals) {
-  return !!skip && !(id === 'crossfeed' && vals.xfmode !== 'off');
+  return !!skip && !(id === "crossfeed" && vals.xfmode !== "off");
 }
 
 /**
@@ -165,7 +174,7 @@ export function holdSkipped(id, skip, vals) {
  * @returns {string}
  */
 export function shapeOf(at, meta, vals, known, skip) {
-  return [at, meta.listen, vals.xfmode, known.crossfeed, vals.ldon, known.loudness, skip].join('|');
+  return [at, meta.listen, vals.xfmode, known.crossfeed, vals.ldon, known.loudness, skip].join("|");
 }
 
 /**
@@ -178,7 +187,7 @@ export function shapeOf(at, meta, vals, known, skip) {
  * @returns {boolean}
  */
 export function needsLayout(at, was, now) {
-  return at !== OVERVIEW && at !== 'advanced' && now !== was;
+  return at !== OVERVIEW && at !== "advanced" && now !== was;
 }
 
 /**
@@ -190,7 +199,10 @@ export function needsLayout(at, was, now) {
  * @returns {PaintView}
  */
 export function paintView(vals, structural) {
-  return { structural: structuralPreset(structural, vals.xsangle, vals.xslambda)?.v ?? '', dacModel: vals.dcen === '1' };
+  return {
+    structural: structuralPreset(structural, vals.xsangle, vals.xslambda)?.v ?? "",
+    dacModel: vals.dcen === "1",
+  };
 }
 
 /**

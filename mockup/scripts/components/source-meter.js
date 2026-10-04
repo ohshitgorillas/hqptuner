@@ -18,14 +18,14 @@
 // The parts live under source-meter/: the mock source, the spectrum, the spectrogram, the level bars, the controls and
 // the axis labels they share.
 
-import { h } from '../lib/dom.js';
-import { PLATFORM } from '../lib/clock.js';
-import { stepFrame } from '../model/meter.js';
-import { floorCtl, pageRangeColumn, spectrogramControls, spectrumRange } from './source-meter/controls.js';
-import { levelsPainter, levelsView } from './source-meter/levels.js';
-import { mockFeed, mockHistory } from './source-meter/mock.js';
-import { ROWS, spectrogramPainter, spectrogramView } from './source-meter/spectrogram.js';
-import { spectrumPainter, spectrumView } from './source-meter/spectrum.js';
+import { h } from "../lib/dom.js";
+import { PLATFORM } from "../lib/clock.js";
+import { stepFrame } from "../model/meter.js";
+import { floorCtl, pageRangeColumn, spectrogramControls, spectrumRange } from "./source-meter/controls.js";
+import { levelsPainter, levelsView } from "./source-meter/levels.js";
+import { mockFeed, mockHistory } from "./source-meter/mock.js";
+import { ROWS, spectrogramPainter, spectrogramView } from "./source-meter/spectrogram.js";
+import { spectrumPainter, spectrumView } from "./source-meter/spectrum.js";
 
 /**
  * @param {HTMLElement} host  empty block container inside a drawer panel
@@ -35,14 +35,41 @@ import { spectrumPainter, spectrumView } from './source-meter/spectrum.js';
 export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const compact = !!cfg.compact;
   const st = { floor: cfg.floor, range: cfg.range, channel: cfg.channel, window: cfg.window };
-  if (compact) { st.range = cfg.pageRange; st.floor = -cfg.pageRange; }
+  if (compact) {
+    st.range = cfg.pageRange;
+    st.floor = -cfg.pageRange;
+  }
   const views = buildViews(cfg, st, compact, {
-    specRange: (v) => { st.range = Number(v); spectrum.axes(); spectrum.paint(); gram.paint(); },
-    floor: (v) => { st.floor = Number(v); levels.scale(); },
-    pageRange: (v) => { st.range = Number(v); st.floor = -st.range; spectrum.axes(); spectrum.paint(); levels.scale(); },
-    gramRange: (v) => { st.range = Number(v); gram.paint(); },
-    channel: (v) => { st.channel = v; spectrum.reset(); gram.paint(); },
-    window: (v) => { st.window = v === 'all' ? 'all' : Number(v); gram.paint(); },
+    specRange: (v) => {
+      st.range = Number(v);
+      spectrum.axes();
+      spectrum.paint();
+      gram.paint();
+    },
+    floor: (v) => {
+      st.floor = Number(v);
+      levels.scale();
+    },
+    pageRange: (v) => {
+      st.range = Number(v);
+      st.floor = -st.range;
+      spectrum.axes();
+      spectrum.paint();
+      levels.scale();
+    },
+    gramRange: (v) => {
+      st.range = Number(v);
+      gram.paint();
+    },
+    channel: (v) => {
+      st.channel = v;
+      spectrum.reset();
+      gram.paint();
+    },
+    window: (v) => {
+      st.window = v === "all" ? "all" : Number(v);
+      gram.paint();
+    },
   });
   // The drawer holds the spectrogram alone: spectrum and levels live on the page's Source section.
   const root = compact ? views.top : views.bottom.el;
@@ -63,13 +90,13 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
     if (!compact) gram.paint();
   }
   paintAll();
-  for (let k = 0; k < 40; k++) levels.step(k * 50, 0.05);   // settle ballistics so the resting frame is a reading
+  for (let k = 0; k < 40; k++) levels.step(k * 50, 0.05); // settle ballistics so the resting frame is a reading
   // Stylesheets can land after the module runs; repaint once the ramp tokens are certainly live. Registered only while
   // the page is still loading, dropped once it fires, and removed when this instance stops.
-  if (document.readyState !== 'complete') window.addEventListener('load', paintAll, { once: true });
-  const stop = () => window.removeEventListener('load', paintAll);
+  if (document.readyState !== "complete") window.addEventListener("load", paintAll, { once: true });
+  const stop = () => window.removeEventListener("load", paintAll);
 
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   runLoop(host, root, clock, {
     perCol: feed.perCol,
     shown: shownTest(host, compact),
@@ -88,7 +115,7 @@ function buildViews(cfg, st, compact, act) {
   const spectrum = spectrumView(!compact && spectrumRange(cfg.ranges, st.range, act.specRange));
   const levels = levelsView(cfg.channels, !compact && floorCtl(cfg.floors, st.floor, act.floor));
   const rangeCol = compact && pageRangeColumn(cfg.pageRanges, st.range, act.pageRange);
-  const top = h('div.mblk.mtop', {}, rangeCol, spectrum.el, levels.el);
+  const top = h("div.mblk.mtop", {}, rangeCol, spectrum.el, levels.el);
   const bottom = spectrogramView(spectrogramControls(cfg, st, act));
   return { spectrum, levels, top, bottom };
 }
@@ -96,9 +123,10 @@ function buildViews(cfg, st, compact, act) {
 /** Whether the meter is on screen: the page section laid out, or the drawer open on the Meter panel. */
 function shownTest(host, compact) {
   return () => {
-    if (compact) return document.visibilityState === 'visible' && !!host.offsetParent;
-    const dr = host.closest('.drawer'), p = host.closest('.dpanel');
-    return document.visibilityState === 'visible' && dr && !dr.hasAttribute('data-closed') && p && !p.hidden;
+    if (compact) return document.visibilityState === "visible" && !!host.offsetParent;
+    const dr = host.closest(".drawer"),
+      p = host.closest(".dpanel");
+    return document.visibilityState === "visible" && dr && !dr.hasAttribute("data-closed") && p && !p.hidden;
   };
 }
 
@@ -109,7 +137,10 @@ function shownTest(host, compact) {
 function runLoop(host, root, clock, o) {
   let loop = { prev: clock.now(), acc: 0 };
   (function tick(now) {
-    if (!host.contains(root)) { o.stop(); return; }
+    if (!host.contains(root)) {
+      o.stop();
+      return;
+    }
     const vis = !!o.shown();
     const step = stepFrame(loop, now, o.perCol, vis);
     loop = step;

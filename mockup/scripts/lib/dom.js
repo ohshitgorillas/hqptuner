@@ -1,8 +1,8 @@
 // Tiny DOM helpers. No framework: the mockup stays readable as plain markup + data.
 
-import { classNames } from '../model/format.js';
+import { classNames } from "../model/format.js";
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -36,7 +36,7 @@ export function grayBut(root, keep, on) {
   for (const c of root.children) {
     if (c === keep) continue;
     if (c.contains(keep)) grayBut(c, keep, on);
-    else c.classList.toggle('grayed', on);
+    else c.classList.toggle("grayed", on);
   }
 }
 
@@ -48,14 +48,15 @@ function build(create, tag, attrs, kids) {
   const el = create(name);
   if (id) el.id = id;
   const cls = classNames(...classes, attrs.class);
-  if (cls) el.setAttribute('class', cls);
+  if (cls) el.setAttribute("class", cls);
   for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') continue;
-    if (k === 'text') el.textContent = v;
-    else if (k === 'hidden') el.hidden = !!v;
-    else if (k === 'data') for (const [dk, dv] of Object.entries(v)) set(el, 'data-' + dk, dv);
-    else if (k === 'aria') for (const [ak, av] of Object.entries(v)) set(el, 'aria-' + ak, typeof av === 'boolean' ? String(av) : av);
-    else if (k === 'on') for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
+    if (k === "class") continue;
+    if (k === "text") el.textContent = v;
+    else if (k === "hidden") el.hidden = !!v;
+    else if (k === "data") for (const [dk, dv] of Object.entries(v)) set(el, "data-" + dk, dv);
+    else if (k === "aria")
+      for (const [ak, av] of Object.entries(v)) set(el, "aria-" + ak, typeof av === "boolean" ? String(av) : av);
+    else if (k === "on") for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
     else set(el, k, v);
   }
   append(el, kids);
@@ -64,12 +65,12 @@ function build(create, tag, attrs, kids) {
 
 function set(el, k, v) {
   if (v === false || v === null || v === undefined) return;
-  el.setAttribute(k, v === true ? '' : String(v));
+  el.setAttribute(k, v === true ? "" : String(v));
 }
 
 function append(el, kids) {
   for (const k of kids.flat(Infinity)) {
-    if (k === null || k === undefined || k === false || k === '') continue;
+    if (k === null || k === undefined || k === false || k === "") continue;
     el.append(k instanceof Node ? k : document.createTextNode(String(k)));
   }
 }

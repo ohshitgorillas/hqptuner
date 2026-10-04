@@ -18,10 +18,10 @@
 // The tabs live under pipelines/: state.js (shared state, crossfeed blocks), popovers.js, overview.js, output.js,
 // strip.js, dock.js, plot.js; their decisions in model/pipelines.js.
 
-import { createState, importEq, paint, rebuild, want } from './pipelines/state.js';
-import { mountPopovers } from './pipelines/popovers.js';
-import { overview } from './pipelines/overview.js';
-import { output } from './pipelines/output.js';
+import { createState, importEq, paint, rebuild, want } from "./pipelines/state.js";
+import { mountPopovers } from "./pipelines/popovers.js";
+import { overview } from "./pipelines/overview.js";
+import { output } from "./pipelines/output.js";
 
 /**
  * @param {object} cfg  PIPELINES (data/pipelines.js)
@@ -43,8 +43,13 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
      */
     importEq: (eq, mirror) => importEq(dr, eq, mirror),
     /** The pipeline set as it stands (crossfeed block rows included): the Profile builder's response plot. */
-    list: () => dr.pipes, rate: dr.fs, outputs: dr.nOut,
+    list: () => dr.pipes,
+    rate: dr.fs,
+    outputs: dr.nOut,
     /** Apply (mock): catch up with Crossfeed's values even if this drawer wasn't opened since they changed. */
-    sync: (v) => { rebuild(dr, want(v)); paint(dr); },
+    sync: (v) => {
+      rebuild(dr, want(v));
+      paint(dr);
+    },
   };
 }

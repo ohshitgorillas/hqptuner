@@ -1,21 +1,27 @@
 // The shell's state line, its confirm line and the action buttons (Delete / Discard / Save) that follow the state.
 
-import { h } from '../dom.js';
-import { NEW, stateOf } from '../../model/builder.js';
-import { confirm, discard, remove, save } from './record.js';
+import { h } from "../dom.js";
+import { NEW, stateOf } from "../../model/builder.js";
+import { confirm, discard, remove, save } from "./record.js";
 
 /** @typedef {import('./record.js').Shell} Shell */
 
 /** The state line and the caption beside it. */
-export const stateParts = () => ({ stateLine: h('div.pbstate', { role: 'status' }), cap: h('span.pbcap') });
+export const stateParts = () => ({ stateLine: h("div.pbstate", { role: "status" }), cap: h("span.pbcap") });
 
 /**
  * @param {Shell} sh
  * @param {any} spec
  * @param {boolean} d  the edit is dirty
  */
-export const stateNow = (sh, spec, d) => stateOf({ dirty: d, isNew: sh.cur.name === NEW, ticked: spec.ticked?.() ?? true,
-  restarts: !!spec.restarts?.(), live: !!spec.live?.() });
+export const stateNow = (sh, spec, d) =>
+  stateOf({
+    dirty: d,
+    isNew: sh.cur.name === NEW,
+    ticked: spec.ticked?.() ?? true,
+    restarts: !!spec.restarts?.(),
+    live: !!spec.live?.(),
+  });
 
 /**
  * @param {Shell} sh
@@ -39,8 +45,8 @@ export function paintState(sh, spec, { stateLine, cap }) {
   paintActs(sh, s);
   if (spec.copy.state) {
     stateLine.textContent = spec.copy.state[s.line];
-    stateLine.classList.toggle('dirty', s.pending);
-    cap.replaceChildren(sh.refused ? h('span.bref', { text: spec.copy.noName }) : '');
+    stateLine.classList.toggle("dirty", s.pending);
+    cap.replaceChildren(sh.refused ? h("span.bref", { text: spec.copy.noName }) : "");
   }
   spec.painted?.(d);
 }
@@ -49,7 +55,10 @@ export function paintState(sh, spec, { stateLine, cap }) {
  * @param {Shell} sh
  * @param {any} spec
  */
-const discardEl = (sh, spec) => /** @type {HTMLButtonElement} */ (h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => discard(sh, spec) } }));
+const discardEl = (sh, spec) =>
+  /** @type {HTMLButtonElement} */ (
+    h("button.btn.sm", { type: "button", text: "Discard", on: { click: () => discard(sh, spec) } })
+  );
 
 /**
  * A Discard on its own (a drawer's head); it follows the state.
@@ -71,9 +80,15 @@ export function discardButton(sh, spec) {
  * @param {string} saveTag
  */
 export function buttons(sh, spec, saveTag) {
-  const del = h('button.btn.sm', { type: 'button', text: 'Delete', on: { click: () => confirm(sh, spec, spec.copy.remove(sh.cur.name), () => remove(sh, spec)) } });
+  const del = h("button.btn.sm", {
+    type: "button",
+    text: "Delete",
+    on: { click: () => confirm(sh, spec, spec.copy.remove(sh.cur.name), () => remove(sh, spec)) },
+  });
   const discardBtn = discardEl(sh, spec);
-  const saveBtn = /** @type {HTMLButtonElement} */ (h(saveTag, { type: 'button', text: 'Save', on: { click: () => save(sh, spec) } }));
+  const saveBtn = /** @type {HTMLButtonElement} */ (
+    h(saveTag, { type: "button", text: "Save", on: { click: () => save(sh, spec) } })
+  );
   sh.acts.push({ discard: discardBtn, save: saveBtn });
   return { del, discard: discardBtn, save: saveBtn };
 }
@@ -84,7 +99,30 @@ export function buttons(sh, spec, saveTag) {
  * @param {Shell} sh
  * @param {any} spec
  */
-export const askLine = (sh, spec) => h('div.bask', { role: 'alert' },
-  h('span', { text: sh.ask?.text }),
-  h('button.btn.sm', { type: 'button', text: 'Confirm', on: { click: () => { const f = sh.ask?.onConfirm; sh.ask = null; f?.(); } } }),
-  h('button.btn.sm', { type: 'button', text: 'Cancel', on: { click: () => { sh.ask = null; spec.view(null); } } }));
+export const askLine = (sh, spec) =>
+  h(
+    "div.bask",
+    { role: "alert" },
+    h("span", { text: sh.ask?.text }),
+    h("button.btn.sm", {
+      type: "button",
+      text: "Confirm",
+      on: {
+        click: () => {
+          const f = sh.ask?.onConfirm;
+          sh.ask = null;
+          f?.();
+        },
+      },
+    }),
+    h("button.btn.sm", {
+      type: "button",
+      text: "Cancel",
+      on: {
+        click: () => {
+          sh.ask = null;
+          spec.view(null);
+        },
+      },
+    }),
+  );

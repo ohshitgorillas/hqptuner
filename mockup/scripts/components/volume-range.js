@@ -15,16 +15,16 @@
 // Edits stage (restore lane), so they mark the tab dirty through the drawer block context.
 // Grays whole while Fixed volume is not Off (gray reason from the data, re-read on every drawer change).
 
-import { h, s } from '../lib/dom.js';
-import { paintSvg } from '../lib/gauge.js';
-import { grayReason, manPara } from '../lib/controls.js';
-import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
-import { signed } from '../model/format.js';
-import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from '../model/range-axis.js';
+import { h, s } from "../lib/dom.js";
+import { paintSvg } from "../lib/gauge.js";
+import { grayReason, manPara } from "../lib/controls.js";
+import { barMarks, bindBar, rangeBox, readout } from "../lib/range-bar.js";
+import { signed } from "../model/format.js";
+import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from "../model/range-axis.js";
 
-const PADX = 16;                       // track inset, room for the end labels
+const PADX = 16; // track inset, room for the end labels
 const Y = { pin: 3, bar: 30, barH: 14, tick: 56, label: 80, H: 86 };
-const KEYS = ['min', 'startup', 'max'];
+const KEYS = ["min", "startup", "max"];
 
 /**
  * One mounted bar's state and parts: the config it was mounted with, the values, the live level, the gray, and the
@@ -59,35 +59,64 @@ const KEYS = ['min', 'startup', 'max'];
 export function mountVolumeRange(host, cfg, ctx, levelBus) {
   const { axis, loudness, ids } = cfg;
   /** @type {VR} */
-  const vr = { host, cfg, ctx, axis, loudness, ids, cur: { min: cfg.min, startup: cfg.startup, max: cfg.max }, level: cfg.level, grayed: false };
+  const vr = {
+    host,
+    cfg,
+    ctx,
+    axis,
+    loudness,
+    ids,
+    cur: { min: cfg.min, startup: cfg.startup, max: cfg.max },
+    level: cfg.level,
+    grayed: false,
+  };
   for (const k of KEYS) ctx.init(ids[k], vr.cur[k]);
 
-  vr.svg = s('svg.vrbar', { role: 'img', 'aria-label': 'Volume range' });
-  const well = h('div.vrwell', {}, vr.svg);
-  vr.boxes = { min: boxOf(vr, 'min', 'Min', 'min'), startup: boxOf(vr, 'startup', 'Startup', 'pin'), max: boxOf(vr, 'max', 'Max', 'max') };
+  vr.svg = s("svg.vrbar", { role: "img", "aria-label": "Volume range" });
+  const well = h("div.vrwell", {}, vr.svg);
+  vr.boxes = {
+    min: boxOf(vr, "min", "Min", "min"),
+    startup: boxOf(vr, "startup", "Startup", "pin"),
+    max: boxOf(vr, "max", "Max", "max"),
+  };
 
   // Every mark on the bar is named once, beside its own glyph: the volume marks in the box stack (Playback is a
   // live readout, not a box), the loudness bounds in their own row (read-only here; set in the Loudness drawer).
-  vr.levelOut = h('output.vfd.ro.live', { 'aria-label': 'Playback volume' });
-  vr.lowOut = bound(loudness.low); vr.highOut = bound(loudness.high);
+  vr.levelOut = h("output.vfd.ro.live", { "aria-label": "Playback volume" });
+  vr.lowOut = bound(loudness.low);
+  vr.highOut = bound(loudness.high);
 
   vr.reason = grayReason();
-  host.append(h('div.fh', {}, h('b', { text: cfg.label })), well, volumeRow(vr), loudnessRow(vr));
+  host.append(h("div.fh", {}, h("b", { text: cfg.label })), well, volumeRow(vr), loudnessRow(vr));
 
   // Drag: nearest handle; the pin row (above the bar) prefers Startup.
   vr.scale = barScale(axis);
   const svg = vr.svg;
-  vr.bar = bindBar(svg, { ...vr.scale.BAR, blocked: () => vr.grayed, pick: (db, yTop) => pickVolumeHandle(db, yTop, vr.cur, Y.bar - 2),
-    move: (k, db) => move(vr, k, db), draw: () => draw(vr), grab: () => svg.classList.add('drag'), drop: () => svg.classList.remove('drag') });
+  vr.bar = bindBar(svg, {
+    ...vr.scale.BAR,
+    blocked: () => vr.grayed,
+    pick: (db, yTop) => pickVolumeHandle(db, yTop, vr.cur, Y.bar - 2),
+    move: (k, db) => move(vr, k, db),
+    draw: () => draw(vr),
+    grab: () => svg.classList.add("drag"),
+    drop: () => svg.classList.remove("drag"),
+  });
 
   // Discard (mock): the bounds and startup go back.
-  ctx.onDiscard((b) => { for (const k of KEYS) vr.cur[k] = Number(b[ids[k]]); paint(vr); });
+  ctx.onDiscard((b) => {
+    for (const k of KEYS) vr.cur[k] = Number(b[ids[k]]);
+    paint(vr);
+  });
 
   ctx.watch((vals) => grayOut(vr, vals));
 
-  levelBus.addEventListener('level', (e) => { vr.level = e.detail; paintLevel(vr); draw(vr); });
+  levelBus.addEventListener("level", (e) => {
+    vr.level = e.detail;
+    paintLevel(vr);
+    draw(vr);
+  });
   // Loudness applied (Loudness drawer, mock Apply): the bounds and their visibility follow.
-  levelBus.addEventListener('loudness', () => loudnessApplied(vr));
+  levelBus.addEventListener("loudness", () => loudnessApplied(vr));
   paintLevel(vr);
   paint(vr);
 }
@@ -103,36 +132,73 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
 const boxOf = (vr, k, label, key) => rangeBox(label, key, { id: vr.ids[k] }, (v) => move(vr, k, v));
 
 /** A loudness bound's read-only box. */
-const bound = (v) => h('output.vfd.ro', { text: signed(v) });
+const bound = (v) => h("output.vfd.ro", { text: signed(v) });
 
 /**
  * The volume row: the boxes and the Playback readout over the gray reason, the manual beside.
  *
  * @param {VR} vr
  */
-const volumeRow = (vr) => h('div.vrrow', {},
-  h('div.vrctl', {},
-    h('div.vrboxes', {}, vr.boxes.min.el, vr.boxes.startup.el, vr.boxes.max.el, readout('needle', 'Playback', vr.levelOut, 'dB')),
-    vr.reason.el),
-  h('div.man', {}, vr.cfg.man.map(manPara)),
-);
+const volumeRow = (vr) =>
+  h(
+    "div.vrrow",
+    {},
+    h(
+      "div.vrctl",
+      {},
+      h(
+        "div.vrboxes",
+        {},
+        vr.boxes.min.el,
+        vr.boxes.startup.el,
+        vr.boxes.max.el,
+        readout("needle", "Playback", vr.levelOut, "dB"),
+      ),
+      vr.reason.el,
+    ),
+    h("div.man", {}, vr.cfg.man.map(manPara)),
+  );
 
 /**
  * Loudness: reference + (dead) link out to its own drawer, where the bounds are set.
  *
  * @param {VR} vr
  */
-const loudnessRow = (vr) => h('div.vrrow.vrloud', {},
-  h('div.vrctl', {},
-    h('div.fh', {}, h('b', { text: 'Loudness bounds' }),
-      h('a.xref', { href: '#', on: { click: (e) => { e.preventDefault(); vr.cfg.openLoudness?.(); } } },
-        'Loudness', h('span', { 'aria-hidden': 'true', text: ' ›' }))),
-    h('div.vrboxes.inl', { hidden: !vr.loudness.on },
-      readout('lparen', 'Lower', vr.lowOut, 'dBFS'),
-      readout('rparen', 'Upper', vr.highOut, 'dBFS')),
-  ),
-  h('div.man', {}, vr.loudness.man.map(manPara)),
-);
+const loudnessRow = (vr) =>
+  h(
+    "div.vrrow.vrloud",
+    {},
+    h(
+      "div.vrctl",
+      {},
+      h(
+        "div.fh",
+        {},
+        h("b", { text: "Loudness bounds" }),
+        h(
+          "a.xref",
+          {
+            href: "#",
+            on: {
+              click: (e) => {
+                e.preventDefault();
+                vr.cfg.openLoudness?.();
+              },
+            },
+          },
+          "Loudness",
+          h("span", { "aria-hidden": "true", text: " ›" }),
+        ),
+      ),
+      h(
+        "div.vrboxes.inl",
+        { hidden: !vr.loudness.on },
+        readout("lparen", "Lower", vr.lowOut, "dBFS"),
+        readout("rparen", "Upper", vr.highOut, "dBFS"),
+      ),
+    ),
+    h("div.man", {}, vr.loudness.man.map(manPara)),
+  );
 
 /**
  * The bar's geometry, its numbered ticks and its tick marks.
@@ -141,7 +207,15 @@ const loudnessRow = (vr) => h('div.vrrow.vrloud', {},
  */
 function barScale(axis) {
   const BAR = { axis, padX: PADX, Y };
-  const LABELS = new Map([[-120, '−120 dB'], [-90, '−90'], [-60, '−60'], [-30, '−30'], [-3, '−3'], [0, '0'], [axis.max, signed(axis.max)]]);
+  const LABELS = new Map([
+    [-120, "−120 dB"],
+    [-90, "−90"],
+    [-60, "−60"],
+    [-30, "−30"],
+    [-3, "−3"],
+    [0, "0"],
+    [axis.max, signed(axis.max)],
+  ]);
   const MARKS = tickMarks([...ticksEvery(axis.min, 0, 10), -3, axis.max], LABELS, [0, -3]);
   return { BAR, LABELS, MARKS };
 }
@@ -153,7 +227,10 @@ function barScale(axis) {
  */
 function move(vr, k, db) {
   const n = clampVolume(k, db, vr.cur, vr.axis);
-  if (n !== vr.cur[k]) { vr.cur[k] = n; vr.ctx.set(vr.ids[k], n); }
+  if (n !== vr.cur[k]) {
+    vr.cur[k] = n;
+    vr.ctx.set(vr.ids[k], n);
+  }
   paint(vr);
 }
 
@@ -161,9 +238,12 @@ function move(vr, k, db) {
 function paint(vr) {
   const { boxes, cur, axis } = vr;
   for (const k of KEYS) boxes[k].input.value = cur[k];
-  boxes.min.input.min = axis.min; boxes.min.input.max = Math.min(0, cur.startup);
-  boxes.startup.input.min = cur.min; boxes.startup.input.max = cur.max;
-  boxes.max.input.min = cur.startup; boxes.max.input.max = axis.max;
+  boxes.min.input.min = axis.min;
+  boxes.min.input.max = Math.min(0, cur.startup);
+  boxes.startup.input.min = cur.min;
+  boxes.startup.input.max = cur.max;
+  boxes.max.input.min = cur.startup;
+  boxes.max.input.max = axis.max;
   draw(vr);
 }
 
@@ -175,9 +255,13 @@ function paint(vr) {
  * @param {boolean} act  being dragged
  */
 function bracket(xx, dir, act) {
-  const by = Y.bar, bh = Y.barH, arm = 6 * dir;
-  return s('path', { class: `brk ${act ? 'act' : ''}`,
-    d: `M${xx + arm},${by - 5} H${xx} V${by + bh + 5} H${xx + arm}` });
+  const by = Y.bar,
+    bh = Y.barH,
+    arm = 6 * dir;
+  return s("path", {
+    class: `brk ${act ? "act" : ""}`,
+    d: `M${xx + arm},${by - 5} H${xx} V${by + bh + 5} H${xx + arm}`,
+  });
 }
 
 /**
@@ -186,8 +270,11 @@ function bracket(xx, dir, act) {
  * @param {number} px  its x
  * @param {boolean} act  being dragged
  */
-const pin = (px, act) => s('path', { class: `pin ${act ? 'act' : ''}`,
-  d: `M${px - 6},${Y.pin + 3} Q${px - 6},${Y.pin} ${px - 3},${Y.pin} H${px + 3} Q${px + 6},${Y.pin} ${px + 6},${Y.pin + 3} V${Y.pin + 14} L${px},${Y.pin + 21} L${px - 6},${Y.pin + 14} Z` });
+const pin = (px, act) =>
+  s("path", {
+    class: `pin ${act ? "act" : ""}`,
+    d: `M${px - 6},${Y.pin + 3} Q${px - 6},${Y.pin} ${px - 3},${Y.pin} H${px + 3} Q${px + 6},${Y.pin} ${px + 6},${Y.pin + 3} V${Y.pin + 14} L${px},${Y.pin + 21} L${px - 6},${Y.pin + 14} Z`,
+  });
 
 /**
  * The loudness strip inside the bar and its parentheses.
@@ -198,8 +285,14 @@ const pin = (px, act) => s('path', { class: `pin ${act ? 'act' : ''}`,
 const loudBand = (m, loudness) => {
   const { x } = m;
   return [
-    s('rect.lband', { x: x(loudness.low), y: Y.bar + Y.barH - 4, width: x(loudness.high) - x(loudness.low), height: 3 }),
-    m.paren(loudness.low, 1, 'paren'), m.paren(loudness.high, -1, 'paren'),
+    s("rect.lband", {
+      x: x(loudness.low),
+      y: Y.bar + Y.barH - 4,
+      width: x(loudness.high) - x(loudness.low),
+      height: 3,
+    }),
+    m.paren(loudness.low, 1, "paren"),
+    m.paren(loudness.high, -1, "paren"),
   ];
 };
 
@@ -214,13 +307,14 @@ function draw(vr) {
 
   paintSvg(svg, W, Y.H, [
     m.track(),
-    m.span('span', cur.min, cur.max),
+    m.span("span", cur.min, cur.max),
     loudness.on && loudBand(m, loudness),
-    m.ticks(scale.MARKS, 'minor'),
+    m.ticks(scale.MARKS, "minor"),
     m.labels(scale.LABELS),
     vr.level !== null && m.needle(vr.level),
-    bracket(x(cur.min), 1, drag === 'min'), bracket(x(cur.max), -1, drag === 'max'),
-    pin(x(cur.startup), drag === 'startup'),
+    bracket(x(cur.min), 1, drag === "min"),
+    bracket(x(cur.max), -1, drag === "max"),
+    pin(x(cur.startup), drag === "startup"),
     drag && m.bubble(cur[drag]),
   ]);
 }
@@ -234,13 +328,15 @@ function draw(vr) {
 function grayOut(vr, vals) {
   const why = vr.cfg.gray(vals);
   vr.grayed = !!why;
-  vr.host.classList.toggle('grayed-range', vr.grayed);
+  vr.host.classList.toggle("grayed-range", vr.grayed);
   for (const b of Object.values(vr.boxes)) b.input.disabled = vr.grayed;
   vr.reason.say(why);
 }
 
 /** @param {VR} vr */
-function paintLevel(vr) { vr.levelOut.textContent = vr.level === null ? '—' : signed(vr.level, 1); }
+function paintLevel(vr) {
+  vr.levelOut.textContent = vr.level === null ? "—" : signed(vr.level, 1);
+}
 
 /**
  * Loudness applied: the bounds and their visibility follow.
@@ -248,7 +344,8 @@ function paintLevel(vr) { vr.levelOut.textContent = vr.level === null ? '—' : 
  * @param {VR} vr
  */
 function loudnessApplied(vr) {
-  vr.lowOut.textContent = signed(vr.loudness.low); vr.highOut.textContent = signed(vr.loudness.high);
-  vr.host.querySelector('.vrloud .vrboxes').hidden = !vr.loudness.on;
+  vr.lowOut.textContent = signed(vr.loudness.low);
+  vr.highOut.textContent = signed(vr.loudness.high);
+  vr.host.querySelector(".vrloud .vrboxes").hidden = !vr.loudness.on;
   draw(vr);
 }

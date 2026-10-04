@@ -35,8 +35,8 @@ const RANK = { crit: 2, warn: 1, advice: 0 };
  * @returns {string}
  */
 export function worseBlink(cur, sev) {
-  if (cur && RANK[sev] <= RANK[cur === 'crit' ? 'crit' : 'warn']) return cur;
-  return sev === 'crit' ? 'crit' : 'warn';
+  if (cur && RANK[sev] <= RANK[cur === "crit" ? "crit" : "warn"]) return cur;
+  return sev === "crit" ? "crit" : "warn";
 }
 
 /**
@@ -73,7 +73,12 @@ function push(map, key, value) {
  */
 export function alertPlan(list, homes) {
   /** @type {AlertPlan} */
-  const plan = { blinks: { stage: new Map(), el: new Map(), set: new Map() }, drawers: new Map(), sections: new Map(), dark: [] };
+  const plan = {
+    blinks: { stage: new Map(), el: new Map(), set: new Map() },
+    drawers: new Map(),
+    sections: new Map(),
+    dark: [],
+  };
   /** @type {Map<string, Alert[]>} */
   const byDrawer = new Map();
   for (const a of list) {
@@ -87,7 +92,9 @@ export function alertPlan(list, homes) {
     for (const id of home.dark || []) if (!plan.dark.includes(id)) plan.dark.push(id);
   }
   for (const [id, alerts] of byDrawer) {
-    const rows = alerts.flatMap((a) => (a.rows || homes[a.kind].row || []).map((label) => ({ label, chain: a.chain, sev: a.sev })));
+    const rows = alerts.flatMap((a) =>
+      (a.rows || homes[a.kind].row || []).map((label) => ({ label, chain: a.chain, sev: a.sev })),
+    );
     plan.drawers.set(id, { alerts, rows });
   }
   return plan;

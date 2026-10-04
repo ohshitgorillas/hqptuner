@@ -22,26 +22,89 @@ const APOD = {
   kind: "seg",
   apod: true,
   rows: [
-    { key: "apod1x", stage: "1x", options: [{ v: "all", label: "a0" }, { v: "only", label: "a1" }, { v: "half", label: "a2" }] },
-    { key: "apodNx", stage: "nx", options: [{ v: "all", label: "b0" }, { v: "only", label: "b1" }, { v: "half", label: "b2" }] },
+    {
+      key: "apod1x",
+      stage: "1x",
+      options: [
+        { v: "all", label: "a0" },
+        { v: "only", label: "a1" },
+        { v: "half", label: "a2" },
+      ],
+    },
+    {
+      key: "apodNx",
+      stage: "nx",
+      options: [
+        { v: "all", label: "b0" },
+        { v: "only", label: "b1" },
+        { v: "half", label: "b2" },
+      ],
+    },
   ],
 };
-const LEVEL = { kind: "seg", rows: [{ key: "level", options: [{ v: 0, label: "l0" }, { v: 3, label: "l3" }, { v: 5, label: "l5" }] }] };
+const LEVEL = {
+  kind: "seg",
+  rows: [
+    {
+      key: "level",
+      options: [
+        { v: 0, label: "l0" },
+        { v: 3, label: "l3" },
+        { v: 5, label: "l5" },
+      ],
+    },
+  ],
+};
 const TWO_ROWS = {
   kind: "seg",
   rows: [
-    { key: "r1", options: [{ v: "x", label: "x0" }, { v: "y", label: "y1" }] },
-    { key: "r2", options: [{ v: "p", label: "p0" }, { v: "q", label: "q1" }] },
+    {
+      key: "r1",
+      options: [
+        { v: "x", label: "x0" },
+        { v: "y", label: "y1" },
+      ],
+    },
+    {
+      key: "r2",
+      options: [
+        { v: "p", label: "p0" },
+        { v: "q", label: "q1" },
+      ],
+    },
   ],
 };
-const SOURCES = { kind: "seg", rows: [{ key: "lossy", stage: "1x", options: [{ v: "both", label: "s0" }, { v: "lossy", label: "s1" }] }] };
+const SOURCES = {
+  kind: "seg",
+  rows: [
+    {
+      key: "lossy",
+      stage: "1x",
+      options: [
+        { v: "both", label: "s0" },
+        { v: "lossy", label: "s1" },
+      ],
+    },
+  ],
+};
 const MIXED = {
   kind: "chips",
   key: "mix",
   combine: true,
-  options: [{ v: "m1", label: "M one" }, { v: "m2", label: "M two" }, { v: "m3", label: "M three" }],
+  options: [
+    { v: "m1", label: "M one" },
+    { v: "m2", label: "M two" },
+    { v: "m3", label: "M three" },
+  ],
 };
-const PLAIN = { kind: "chips", key: "plain", options: [{ v: "p1", label: "P one" }, { v: "p2", label: "P two" }] };
+const PLAIN = {
+  kind: "chips",
+  key: "plain",
+  options: [
+    { v: "p1", label: "P one" },
+    { v: "p2", label: "P two" },
+  ],
+};
 const SWITCH = { kind: "toggle", key: "sw" };
 const BOXES = {
   kind: "checks",

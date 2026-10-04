@@ -8,21 +8,19 @@
 // Two edit modes. A builder with `load` keeps the edit it is on outside `staged` (its own store), stashing it when it
 // leaves and loading it back; one without (Snapshot) keeps every edit in `staged` itself.
 
-import { h } from './dom.js';
-import { manPara } from './controls.js';
-import { CHAIN } from '../data/chain.js';
-import { keyOf } from '../model/builder.js';
-import { classNames } from '../model/format.js';
-import { shellState, isDirty, load, stash, stage, go, discard, confirm, save, remove } from './builder/record.js';
-import {
-  stateParts, stateNow, paintActs, paintState, discardButton, buttons, askLine,
-} from './builder/state.js';
-import { stationsMenu, walkNameBox } from './builder/stations.js';
-import { closeButton, pageTitle, walkNav, railOf, paintRail, stepPage, overview } from './builder/walk.js';
-import { setOnOf, start } from './builder/swap.js';
+import { h } from "./dom.js";
+import { manPara } from "./controls.js";
+import { CHAIN } from "../data/chain.js";
+import { keyOf } from "../model/builder.js";
+import { classNames } from "../model/format.js";
+import { shellState, isDirty, load, stash, stage, go, discard, confirm, save, remove } from "./builder/record.js";
+import { stateParts, stateNow, paintActs, paintState, discardButton, buttons, askLine } from "./builder/state.js";
+import { stationsMenu, walkNameBox } from "./builder/stations.js";
+import { closeButton, pageTitle, walkNav, railOf, paintRail, stepPage, overview } from "./builder/walk.js";
+import { setOnOf, start } from "./builder/swap.js";
 
-export { swapBody, escapeLeaves } from './builder/swap.js';
-export { nameInput } from './builder/stations.js';
+export { swapBody, escapeLeaves } from "./builder/swap.js";
+export { nameInput } from "./builder/stations.js";
 
 /** @typedef {import('../model/builder.js').Ref} Ref */
 /** @typedef {'overview' | 'here' | null} View  where a repaint lands: the overview, the page showing, or the same view */
@@ -87,21 +85,37 @@ export function mountBuilder(el, spec) {
   const { stateLine, cap } = stateParts();
   const nav = walkNav(walk);
   const railEls = railOf(walk);
-  const pick = h('select', { 'aria-label': spec.noun });
+  const pick = h("select", { "aria-label": spec.noun });
   const setOn = setOnOf(el, sh, spec);
   const close = () => closeButton(spec, setOn);
-  const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) => pageTitle(close, text, n, mid);
+  const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) =>
+    pageTitle(close, text, n, mid);
   const paintStateNow = () => paintState(sh, spec, { stateLine, cap });
   const paintRailNow = () => paintRail(walk, spec, sh, railEls);
-  const nameBox = walkNameBox(walk, sh, () => { paintStateNow(); paintRailNow(); });
+  const nameBox = walkNameBox(walk, sh, () => {
+    paintStateNow();
+    paintRailNow();
+  });
 
   return {
-    get cur() { return sh.cur; },
-    get book() { return sh.book; },
-    get staged() { return /** @type {ReadonlyMap<string, any>} */ (sh.staged); },
-    get ask() { return sh.ask; },
-    get refused() { return sh.refused; },
-    set refused(v) { sh.refused = v; },
+    get cur() {
+      return sh.cur;
+    },
+    get book() {
+      return sh.book;
+    },
+    get staged() {
+      return /** @type {ReadonlyMap<string, any>} */ (sh.staged);
+    },
+    get ask() {
+      return sh.ask;
+    },
+    get refused() {
+      return sh.refused;
+    },
+    set refused(v) {
+      sh.refused = v;
+    },
     K: keyOf,
     isDirty: (/** @type {Ref} */ c) => isDirty(sh, spec, c),
     load: (/** @type {Ref} */ c, /** @type {any} */ over) => load(sh, spec, c, over),
@@ -115,17 +129,25 @@ export function mountBuilder(el, spec) {
     remove: () => remove(sh, spec),
     paintState: paintStateNow,
     paintActs: (s = stateNow(sh, spec, spec.dirty())) => paintActs(sh, s),
-    buttons: (saveTag = 'button.btn.sm.pbsave') => buttons(sh, spec, saveTag),
+    buttons: (saveTag = "button.btn.sm.pbsave") => buttons(sh, spec, saveTag),
     discardButton: () => discardButton(sh, spec),
     stationsMenu: (/** @type {Parameters<typeof stationsMenu>[2]} */ o) => stationsMenu(sh, spec, o),
-    title, close, setOn,
+    title,
+    close,
+    setOn,
     start: () => start(el, sh, spec, setOn),
-    pick, nameBox, stateLine, cap,
+    pick,
+    nameBox,
+    stateLine,
+    cap,
     paintRail: paintRailNow,
     inWalk: (/** @type {string} */ id) => railEls.has(id),
-    nextOf: nav.nextOf, prevOf: nav.prevOf,
-    stepPage: (/** @type {string} */ id, /** @type {Parameters<typeof stepPage>[3]} */ o) => stepPage(walk, { title, ...nav }, id, o),
-    overview: (/** @type {Parameters<typeof overview>[3]} */ o) => overview(walk, spec, { title, pick, nameBox, stateLine, cap }, o),
+    nextOf: nav.nextOf,
+    prevOf: nav.prevOf,
+    stepPage: (/** @type {string} */ id, /** @type {Parameters<typeof stepPage>[3]} */ o) =>
+      stepPage(walk, { title, ...nav }, id, o),
+    overview: (/** @type {Parameters<typeof overview>[3]} */ o) =>
+      overview(walk, spec, { title, pick, nameBox, stateLine, cap }, o),
   };
 }
 
@@ -135,8 +157,10 @@ export function mountBuilder(el, spec) {
  * @param {any} m
  * @param {(t: any) => any} [inline]
  */
-export const paras = (m, inline = (t) => t) => (Array.isArray(m) ? m : [m]).filter(Boolean)
-  .map((t) => manPara(typeof t === 'string' ? { text: inline(t) } : { k: t.k, text: inline(t.text) }));
+export const paras = (m, inline = (t) => t) =>
+  (Array.isArray(m) ? m : [m])
+    .filter(Boolean)
+    .map((t) => manPara(typeof t === "string" ? { text: inline(t) } : { k: t.k, text: inline(t.text) }));
 
 /**
  * A drawer row: label and control on the left, the manual's paragraphs on the right.
@@ -146,8 +170,14 @@ export const paras = (m, inline = (t) => t) => (Array.isArray(m) ? m : [m]).filt
  * @param {any} man
  * @param {{ cls?: string, extra?: any, inline?: (t: any) => any }} [o]
  */
-export const drow = (label, ctl, man, { cls, extra, inline } = {}) => h('div.drow', { class: cls },
-  h('div.ctl', {}, label && h('div.fh', {}, h('b', { text: label })), ctl), h('div.man', {}, paras(man, inline)), extra);
+export const drow = (label, ctl, man, { cls, extra, inline } = {}) =>
+  h(
+    "div.drow",
+    { class: cls },
+    h("div.ctl", {}, label && h("div.fh", {}, h("b", { text: label })), ctl),
+    h("div.man", {}, paras(man, inline)),
+    extra,
+  );
 
 /**
  * The signal chain with the builder's part lit.
@@ -156,9 +186,19 @@ export const drow = (label, ctl, man, { cls, extra, inline } = {}) => h('div.dro
  * @param {(id: string) => boolean} lit  a stage the builder sets
  * @param {(id: string) => boolean} [out]  a stage outside it the builder still touches
  */
-export const chainPic = (label, lit, out = () => false) => h('ol.pbchain', { 'aria-label': label },
-  CHAIN.map((st) => h('li', { class: classNames(lit(st.id) && 'mx', out(st.id) && 'out', st.level && 'sub') },
-    h('span.d'), h('span', { text: st.name }))));
+export const chainPic = (label, lit, out = () => false) =>
+  h(
+    "ol.pbchain",
+    { "aria-label": label },
+    CHAIN.map((st) =>
+      h(
+        "li",
+        { class: classNames(lit(st.id) && "mx", out(st.id) && "out", st.level && "sub") },
+        h("span.d"),
+        h("span", { text: st.name }),
+      ),
+    ),
+  );
 
 /**
  * One line of what a record holds: its title, its answer (`a`, painted by the builder), › to its step.
@@ -167,9 +207,14 @@ export const chainPic = (label, lit, out = () => false) => h('ol.pbchain', { 'ar
  * @param {(() => void) | null} onClick
  * @param {string} [tag]
  */
-export function holdRow(title, onClick, tag = 'button.pbhold') {
-  const a = h('span.pa');
-  const el = h(tag, onClick ? { type: 'button', on: { click: onClick } } : { type: 'button' },
-    h('b', { text: title }), a, h('span.pgo', { 'aria-hidden': 'true', text: '›' }));
+export function holdRow(title, onClick, tag = "button.pbhold") {
+  const a = h("span.pa");
+  const el = h(
+    tag,
+    onClick ? { type: "button", on: { click: onClick } } : { type: "button" },
+    h("b", { text: title }),
+    a,
+    h("span.pgo", { "aria-hidden": "true", text: "›" }),
+  );
   return { el, a };
 }

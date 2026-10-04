@@ -26,16 +26,16 @@
 // dirty dots), apply (the apply bar and its acts), head (tabs, panels, frame), rows (body items), controls and one
 // module per control kind. The decisions they execute are model/drawer.js's.
 
-import { h } from '../lib/dom.js';
-import { closeBtn } from '../lib/controls.js';
-import { startValues } from '../model/drawer.js';
-import { registerDrawer, drawerOpener } from './drawer/registry.js';
-import { drawerState, setFrom, regrayDrawer, paintApply } from './drawer/state.js';
-import { drawerApplyGroup, applied, discarded, settle, remark } from './drawer/apply.js';
-import { tabStrip, tabPanels, drawerShell, prefixIds, showTab } from './drawer/head.js';
+import { h } from "../lib/dom.js";
+import { closeBtn } from "../lib/controls.js";
+import { startValues } from "../model/drawer.js";
+import { registerDrawer, drawerOpener } from "./drawer/registry.js";
+import { drawerState, setFrom, regrayDrawer, paintApply } from "./drawer/state.js";
+import { drawerApplyGroup, applied, discarded, settle, remark } from "./drawer/apply.js";
+import { tabStrip, tabPanels, drawerShell, prefixIds, showTab } from "./drawer/head.js";
 
-export { familyOf, loadValues, registerDrawer, closeOthers, wipe, drawerOpener } from './drawer/registry.js';
-export { onApplied, applyGroup } from './drawer/apply.js';
+export { familyOf, loadValues, registerDrawer, closeOthers, wipe, drawerOpener } from "./drawer/registry.js";
+export { onApplied, applyGroup } from "./drawer/apply.js";
 
 /** The drawer's api: what main.js, the family's other members and the Profile builder call. */
 function drawerApi(D) {
@@ -44,8 +44,8 @@ function drawerApi(D) {
     showTab: (t) => showTab(D, t),
     set: (id, v) => setFrom(D, id, v),
     regray: () => regrayDrawer(D),
-    isOpen: () => !D.drawer.hasAttribute('data-closed'),
-    hasDirty: () => D.drawer.querySelector('.dirty') !== null,
+    isOpen: () => !D.drawer.hasAttribute("data-closed"),
+    hasDirty: () => D.drawer.querySelector(".dirty") !== null,
     /** Apply (mock): this member's staged values take effect (rail follows via onApply), dots clear. */
     applied: () => applied(D),
     /** Discard (mock): this member's staged values go back to the last applied ones; settle() then repaints. */
@@ -67,26 +67,39 @@ function drawerApi(D) {
  *   top-right corner in place of the apply group: the builder's own Discard / Save), onValues(vals) (hears the family's
  *   values after every change, once the blocks have followed them).
  */
-export function mountDrawer(body, stage, schema, { groupNames = {}, devices, rateTiers, blocks = {}, on = {}, onApply, prefix = '', family: famName, head, onValues }) {
+export function mountDrawer(
+  body,
+  stage,
+  schema,
+  { groupNames = {}, devices, rateTiers, blocks = {}, on = {}, onApply, prefix = "", family: famName, head, onValues },
+) {
   const D = drawerState(schema, { groupNames, devices, rateTiers, blocks, on, onApply, prefix, famName, onValues });
   D.tabs = tabStrip(D);
-  const close = closeBtn(() => D.setOpen(false), 'Close drawer');
+  const close = closeBtn(() => D.setOpen(false), "Close drawer");
   D.panels = tabPanels(D);
   D.single = D.tabs.length === 1;
   D.applyGrp = drawerApplyGroup(D);
   D.curTab = schema.tabs[0];
-  D.title = h('span.t', { text: schema.title });
+  D.title = h("span.t", { text: schema.title });
   D.drawer = drawerShell(D, head ?? D.applyGrp.el, close);
   if (prefix) prefixIds(D.drawer, prefix);
   body.append(D.drawer);
 
-  Object.assign(D.base, startValues(D.vals, D.base));   // start values (a family: each member adds its own)
+  Object.assign(D.base, startValues(D.vals, D.base)); // start values (a family: each member adds its own)
   regrayDrawer(D);
   paintApply(D);
 
-  stage.setAttribute('aria-controls', D.drawer.id);
-  stage.addEventListener('click', () => D.setOpen(D.drawer.hasAttribute('data-closed')));
-  D.setOpen = drawerOpener(D.drawer, [stage], () => D.api, () => { regrayDrawer(D); paintApply(D); });
+  stage.setAttribute("aria-controls", D.drawer.id);
+  stage.addEventListener("click", () => D.setOpen(D.drawer.hasAttribute("data-closed")));
+  D.setOpen = drawerOpener(
+    D.drawer,
+    [stage],
+    () => D.api,
+    () => {
+      regrayDrawer(D);
+      paintApply(D);
+    },
+  );
 
   D.api = drawerApi(D);
   registerDrawer(D.api);

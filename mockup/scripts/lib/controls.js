@@ -2,14 +2,15 @@
 // the gray reason line, manual paragraphs and the choice radio lines. Each returns plain DOM; the caller wires values
 // and staging.
 
-import { h } from './dom.js';
-import { withXref } from './xref.js';
+import { h } from "./dom.js";
+import { withXref } from "./xref.js";
 
 /** Section header: its title, then a rule to the right edge. cls = 'sh' (Settings), 'dsec' (drawer), 'msec' (mode drawer). */
-export const secHead = (cls, text) => h(`div.${cls}`, {}, h('span.t', { text }), h('span.ln'));
+export const secHead = (cls, text) => h(`div.${cls}`, {}, h("span.t", { text }), h("span.ln"));
 
 /** Round × close button, the stage drawers' own. */
-export const closeBtn = (onClick, label = 'Close') => h('button.round.dx', { type: 'button', 'aria-label': label, text: '×', on: { click: onClick } });
+export const closeBtn = (onClick, label = "Close") =>
+  h("button.round.dx", { type: "button", "aria-label": label, text: "×", on: { click: onClick } });
 
 /**
  * Number box in its unit wrapper: the input, then the unit and the hint when given.
@@ -17,8 +18,8 @@ export const closeBtn = (onClick, label = 'Close') => h('button.round.dx', { typ
  * @returns {{el: HTMLElement, input: HTMLInputElement}}
  */
 export function numBox({ id, value, min, max, step, aria, unit, hint }) {
-  const input = h('input.vfd', { type: 'number', id, value, min, max, step, 'aria-label': aria });
-  const el = h('div.num', {}, input, unit && h('span.u', { text: unit }), hint && h('span.h', { text: hint }));
+  const input = h("input.vfd", { type: "number", id, value, min, max, step, "aria-label": aria });
+  const el = h("div.num", {}, input, unit && h("span.u", { text: unit }), hint && h("span.h", { text: hint }));
   return { el, input };
 }
 
@@ -28,9 +29,9 @@ export function numBox({ id, value, min, max, step, aria, unit, hint }) {
  * @returns {{el: HTMLElement, range: HTMLInputElement, box: HTMLInputElement}}
  */
 export function sliderBox({ min, max, step, aria }) {
-  const range = h('input', { type: 'range', min, max, step, 'aria-label': aria });
-  const box = h('input.vfd', { type: 'number', min, max, step, 'aria-label': aria });
-  return { el: h('div.xsl.slx', {}, range, h('div.num', {}, box)), range, box };
+  const range = h("input", { type: "range", min, max, step, "aria-label": aria });
+  const box = h("input.vfd", { type: "number", min, max, step, "aria-label": aria });
+  return { el: h("div.xsl.slx", {}, range, h("div.num", {}, box)), range, box };
 }
 
 /**
@@ -40,7 +41,7 @@ export function sliderBox({ min, max, step, aria }) {
  * @returns {{el: HTMLElement, say: (why: string) => void}}
  */
 export function grayReason(link = true) {
-  const el = h('span.gr', { hidden: true });
+  const el = h("span.gr", { hidden: true });
   const say = (why) => {
     if (link) el.replaceChildren(...withXref(why));
     else el.textContent = why;
@@ -50,7 +51,7 @@ export function grayReason(link = true) {
 }
 
 /** Manual paragraph: the sub-setting's label bolded ahead of its copy when k is given, else the copy alone. */
-export const manPara = ({ k, text }) => h('p', {}, k && h('b', { text: k }), k && ' — ', text);
+export const manPara = ({ k, text }) => h("p", {}, k && h("b", { text: k }), k && " — ", text);
 
 /**
  * Vertical radio lines spanning the row; each line's detail control is live only while that line is picked.
@@ -62,28 +63,49 @@ export const manPara = ({ k, text }) => h('p', {}, k && h('b', { text: k }), k &
 export function choiceLines(c, detail, onPick) {
   let cur = String(c.value);
   const lines = c.options.map((o) => {
-    const radio = h('button.radio', { type: 'button', role: 'radio', aria: { checked: false, label: o.label },
-      on: { click: () => pick(o.v) } });
+    const radio = h("button.radio", {
+      type: "button",
+      role: "radio",
+      aria: { checked: false, label: o.label },
+      on: { click: () => pick(o.v) },
+    });
     const d = o.control && detail(o.control);
     return {
-      o, radio, detail: d,
-      el: h('div.chline', { data: { v: o.v } },
-        h('div.chl', {},
+      o,
+      radio,
+      detail: d,
+      el: h(
+        "div.chline",
+        { data: { v: o.v } },
+        h(
+          "div.chl",
+          {},
           radio,
-          h('span.chn', { on: { click: () => pick(o.v) } }, h('b', { text: o.label }), o.sub && h('span.s', { text: o.sub })),
-          d),
-        h('div.man', {}, o.man && h('p', { text: o.man }))),
+          h(
+            "span.chn",
+            { on: { click: () => pick(o.v) } },
+            h("b", { text: o.label }),
+            o.sub && h("span.s", { text: o.sub }),
+          ),
+          d,
+        ),
+        h("div.man", {}, o.man && h("p", { text: o.man })),
+      ),
     };
   });
-  const el = h('div.chlist', { role: 'radiogroup', 'aria-label': c.aria, id: c.id }, lines.map((l) => l.el));
+  const el = h(
+    "div.chlist",
+    { role: "radiogroup", "aria-label": c.aria, id: c.id },
+    lines.map((l) => l.el),
+  );
   function paint() {
     for (const l of lines) {
       const on = String(l.o.v) === cur;
-      l.el.classList.toggle('cur', on);
-      l.radio.setAttribute('aria-checked', String(on));
+      l.el.classList.toggle("cur", on);
+      l.radio.setAttribute("aria-checked", String(on));
       if (l.detail) {
-        l.detail.classList.toggle('grayed', !on);
-        for (const x of l.detail.querySelectorAll('button,input')) x.disabled = !on;
+        l.detail.classList.toggle("grayed", !on);
+        for (const x of l.detail.querySelectorAll("button,input")) x.disabled = !on;
       }
     }
   }
@@ -94,6 +116,9 @@ export function choiceLines(c, detail, onPick) {
     onPick(cur);
   }
   paint();
-  el._setValue = (v) => { cur = String(v); paint(); };
+  el._setValue = (v) => {
+    cur = String(v);
+    paint();
+  };
   return el;
 }

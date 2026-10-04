@@ -58,11 +58,21 @@ function routed(pts, d) {
   const c = CHAMFER;
   d.push(`M${pts[0].x},${pts[0].y}`);
   for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i];
-    if (Math.abs(a.x - b.x) < 1) { d.push(`L${b.x},${b.y}`); continue; }
+    const a = pts[i - 1],
+      b = pts[i];
+    if (Math.abs(a.x - b.x) < 1) {
+      d.push(`L${b.x},${b.y}`);
+      continue;
+    }
     const sx = b.x > a.x ? 1 : -1;
     const ym = sx > 0 ? b.y - 11 : Math.round((a.y + b.y) / 2) + 0.5;
-    d.push(`L${a.x},${ym - c}`, `L${a.x + sx * c},${ym}`, `L${b.x - sx * c},${ym}`, `L${b.x},${ym + c}`, `L${b.x},${b.y}`);
+    d.push(
+      `L${a.x},${ym - c}`,
+      `L${a.x + sx * c},${ym}`,
+      `L${b.x - sx * c},${ym}`,
+      `L${b.x},${ym + c}`,
+      `L${b.x},${b.y}`,
+    );
   }
 }
 
@@ -101,7 +111,8 @@ function trunk(pts, d) {
     const last = kids[kids.length - 1];
     const busContinues = parent.level === 0 && trunkEnd.y > last.y;
     for (const k of kids) {
-      if (k === last && !busContinues) d.push(`M${parent.x},${parent.y}`, `L${parent.x},${k.y - c}`, `L${parent.x + c},${k.y}`, `L${k.x},${k.y}`);
+      if (k === last && !busContinues)
+        d.push(`M${parent.x},${parent.y}`, `L${parent.x},${k.y - c}`, `L${parent.x + c},${k.y}`, `L${k.x},${k.y}`);
       else d.push(`M${parent.x},${k.y}`, `L${k.x},${k.y}`);
     }
   });
@@ -117,9 +128,9 @@ function trunk(pts, d) {
 export function wirePath(pts, style) {
   /** @type {string[]} */
   const d = [];
-  if (style === 'routed') routed(pts, d);
+  if (style === "routed") routed(pts, d);
   else trunk(pts, d);
-  return d.join(' ');
+  return d.join(" ");
 }
 
 /**
@@ -137,8 +148,10 @@ export function wirePath(pts, style) {
  * @returns {{frame: {x: number, y: number, width: number, height: number}, title: Point, sub: Point}}
  */
 export function groupFrame({ boxes, sub }) {
-  const x0 = Math.min(...boxes.map((b) => b.left)) - 9, x1 = Math.max(...boxes.map((b) => b.left + b.width)) + 9;
-  const y0 = Math.min(...boxes.map((b) => b.top)) - (sub ? 46 : 30), y1 = Math.max(...boxes.map((b) => b.top + b.height)) + 12;
+  const x0 = Math.min(...boxes.map((b) => b.left)) - 9,
+    x1 = Math.max(...boxes.map((b) => b.left + b.width)) + 9;
+  const y0 = Math.min(...boxes.map((b) => b.top)) - (sub ? 46 : 30),
+    y1 = Math.max(...boxes.map((b) => b.top + b.height)) + 12;
   return {
     frame: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
     title: { x: x0 + 9, y: y0 + 18 },
@@ -174,7 +187,8 @@ export function pathLamps({ lit, engaged, nodes, edges, matrix, direct }) {
   /** @type {Record<string, {lit: boolean, off: boolean}>} */
   const byId = {};
   for (const { id, rail } of nodes) {
-    const gated = (matrix.includes(id) && !engaged.has('matrix')) || (!!rail && rail !== 'matrix' && !engaged.has(rail));
+    const gated =
+      (matrix.includes(id) && !engaged.has("matrix")) || (!!rail && rail !== "matrix" && !engaged.has(rail));
     byId[id] = { lit: lit.has(id), off: lit.has(id) && gated };
   }
   return { nodes: byId, edges: edges.map((e) => (e.direct ? direct : lit.has(e.a) && lit.has(e.b))) };

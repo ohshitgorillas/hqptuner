@@ -18,9 +18,28 @@ const ACCENTS = [
 const HIDEABLE = [{ v: "spk" }, { v: "xf" }, { v: "eqz" }];
 
 //: Controls the test writes, one per readout form.
-const SEG = { type: "seg", options: [{ v: "a", label: "Alpha" }, { v: "b", label: "Beta", unit: "kHz" }] };
-const SELECT = { type: "select", options: [{ v: 1, label: "One" }, { v: 2, label: "Two" }] };
-const TOGGLES = { type: "toggles", options: [{ v: "p", label: "Pea" }, { v: "q", label: "Queue" }, { v: "r", label: "Two words" }] };
+const SEG = {
+  type: "seg",
+  options: [
+    { v: "a", label: "Alpha" },
+    { v: "b", label: "Beta", unit: "kHz" },
+  ],
+};
+const SELECT = {
+  type: "select",
+  options: [
+    { v: 1, label: "One" },
+    { v: 2, label: "Two" },
+  ],
+};
+const TOGGLES = {
+  type: "toggles",
+  options: [
+    { v: "p", label: "Pea" },
+    { v: "q", label: "Queue" },
+    { v: "r", label: "Two words" },
+  ],
+};
 const SLIDER = { type: "slider", auto: { v: 0 } };
 const NUMBER = { type: "number" };
 const ACCENT = { type: "accent", options: ACCENTS };
@@ -163,7 +182,10 @@ test("test_effect_of_hiding_answers_once_per_hideable_stage_and_ignores_unknown_
 });
 
 test("test_effect_of_the_dyslexic_font_on_swaps_the_body_family_from_off", () => {
-  assert.notEqual(familyOf(effectOf("vdys", "1", ACCENTS, HIDEABLE)), familyOf(effectOf("vdys", "0", ACCENTS, HIDEABLE)));
+  assert.notEqual(
+    familyOf(effectOf("vdys", "1", ACCENTS, HIDEABLE)),
+    familyOf(effectOf("vdys", "0", ACCENTS, HIDEABLE)),
+  );
 });
 
 test("test_effect_of_the_dyslexic_font_off_clears_the_body_family", () => {

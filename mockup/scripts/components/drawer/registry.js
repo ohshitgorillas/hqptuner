@@ -1,7 +1,7 @@
 // Every stage drawer on the page: the one-open-at-a-time rule, the open/close wipe, Escape, and the drawer families.
 
-import { anyOpen } from '../../lib/popover.js';
-import { commit } from '../../model/drawer.js';
+import { anyOpen } from "../../lib/popover.js";
+import { commit } from "../../model/drawer.js";
 
 const DRAWERS = [];
 // Drawer families: drawers that edit one shared object (the Matrix engine family edits the matrix profile in focus:
@@ -18,28 +18,41 @@ export const familyOf = (name) => family(name);
 /** Load a saved record's values into a family as applied: every member drops its staged edits and repaints on them. */
 export function loadValues(name, vals) {
   const fam = family(name);
-  Object.assign(fam.base, commit(vals, fam.base));   // in place: every member holds this store by reference
+  Object.assign(fam.base, commit(vals, fam.base)); // in place: every member holds this store by reference
   for (const d of fam.members) d.discarded();
-  for (const d of fam.members) { d.settle(); d.applied(); }
+  for (const d of fam.members) {
+    d.settle();
+    d.applied();
+  }
 }
 
 /** Bespoke drawers (Resampling · Shaping) join the one-open-at-a-time rule through these. api = {setOpen(open, snap)}. */
-export function registerDrawer(api) { DRAWERS.push(api); }
+export function registerDrawer(api) {
+  DRAWERS.push(api);
+}
 /** Close every other drawer at once, no wipe: only the drawer being opened animates (two wipes at
  * once compete). Settings' swap passes null (closes all). */
-export function closeOthers(api) { for (const d of DRAWERS) if (d !== api) d.setOpen(false, true); }
+export function closeOthers(api) {
+  for (const d of DRAWERS) if (d !== api) d.setOpen(false, true);
+}
 /** Toggle a drawer's closed state; snap = no wipe (it closes because another opens, or the body swaps). */
 export function wipe(el, closed, snap) {
-  if (closed === el.hasAttribute('data-closed')) return;
-  if (snap) el.classList.add('snap');
-  el.toggleAttribute('data-closed', closed);
-  if (snap) { void el.offsetWidth; el.classList.remove('snap'); }   // flush with no transition, then restore it
+  if (closed === el.hasAttribute("data-closed")) return;
+  if (snap) el.classList.add("snap");
+  el.toggleAttribute("data-closed", closed);
+  if (snap) {
+    void el.offsetWidth;
+    el.classList.remove("snap");
+  } // flush with no transition, then restore it
 }
 
 // Escape closes the stage drawers: one document listener for every drawer, each drawer's close in mount order.
 const escClosers = [];
 function closeOnEscape(close) {
-  if (!escClosers.length) document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !anyOpen()) for (const fn of escClosers) fn(); });
+  if (!escClosers.length)
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !anyOpen()) for (const fn of escClosers) fn();
+    });
   escClosers.push(close);
 }
 
@@ -50,11 +63,14 @@ function closeOnEscape(close) {
  */
 export function drawerOpener(drawer, stages, self, onOpen) {
   function setOpen(open, snap) {
-    if (open) { closeOthers(self()); onOpen?.(); }
+    if (open) {
+      closeOthers(self());
+      onOpen?.();
+    }
     wipe(drawer, !open, snap);
     for (const st of stages) {
-      st.classList.toggle('open', open && !st.hidden);
-      st.setAttribute('aria-expanded', String(open));
+      st.classList.toggle("open", open && !st.hidden);
+      st.setAttribute("aria-expanded", String(open));
     }
   }
   closeOnEscape(() => setOpen(false));

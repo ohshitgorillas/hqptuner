@@ -66,7 +66,8 @@ const PLAYING_1 = { run: "sdm", tier: 1, src: 0, fam: "f48" };
  * @param {"pinned" | "playing"} key
  * @returns {string[]}
  */
-const marked = (cols, key) => cols.flatMap((c) => c.cells.filter((cell) => cell[key]).map((cell) => `${c.i}:${cell.fam}`));
+const marked = (cols, key) =>
+  cols.flatMap((c) => c.cells.filter((cell) => cell[key]).map((cell) => `${c.i}:${cell.fam}`));
 
 // ── tierIndex ────────────────────────────────────────────────────────────
 
@@ -149,15 +150,24 @@ test("test_a_needle_clamped_back_onto_its_own_tier_has_not_moved", () => {
 // ── tunerColumns ─────────────────────────────────────────────────────────
 
 test("test_tuner_shows_one_column_per_tier_of_the_running_band", () => {
-  assert.deepEqual(tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.i), [1, 2, 3]);
+  assert.deepEqual(
+    tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.i),
+    [1, 2, 3],
+  );
 });
 
 test("test_tuner_column_carries_the_tier_s_unavailability", () => {
-  assert.deepEqual(tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.unavailable), [false, false, true]);
+  assert.deepEqual(
+    tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.unavailable),
+    [false, false, true],
+  );
 });
 
 test("test_tuner_cells_list_the_families_in_the_order_given", () => {
-  assert.deepEqual(tunerColumns(TUNER, PLAYING_1, null, FAMS)[0].cells.map((c) => c.fam), FAMS);
+  assert.deepEqual(
+    tunerColumns(TUNER, PLAYING_1, null, FAMS)[0].cells.map((c) => c.fam),
+    FAMS,
+  );
 });
 
 test("test_tuner_marks_only_the_pinned_rate_pinned", () => {
@@ -233,19 +243,31 @@ test("test_alsa_device_with_only_a_card_names_the_card", () => {
 // ── groupDevices ─────────────────────────────────────────────────────────
 
 test("test_network_devices_fall_under_one_header_per_host", () => {
-  assert.deepEqual(groupDevices("network", NET).map((g) => g.group), ["den", "attic"]);
+  assert.deepEqual(
+    groupDevices("network", NET).map((g) => g.group),
+    ["den", "attic"],
+  );
 });
 
 test("test_a_card_that_returns_after_another_gets_a_new_header", () => {
-  assert.deepEqual(groupDevices("alsa", ALSA).map((g) => g.group), ["card0", "card1", "card0"]);
+  assert.deepEqual(
+    groupDevices("alsa", ALSA).map((g) => g.group),
+    ["card0", "card1", "card0"],
+  );
 });
 
 test("test_a_group_holds_the_list_positions_of_its_devices", () => {
-  assert.deepEqual(groupDevices("alsa", ALSA)[0].rows.map((r) => r.i), [0, 1]);
+  assert.deepEqual(
+    groupDevices("alsa", ALSA)[0].rows.map((r) => r.i),
+    [0, 1],
+  );
 });
 
 test("test_a_returning_group_holds_its_own_list_position", () => {
-  assert.deepEqual(groupDevices("alsa", ALSA)[2].rows.map((r) => r.i), [3]);
+  assert.deepEqual(
+    groupDevices("alsa", ALSA)[2].rows.map((r) => r.i),
+    [3],
+  );
 });
 
 test("test_a_grouped_device_keeps_its_device_string", () => {

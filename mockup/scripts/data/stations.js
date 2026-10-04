@@ -3,9 +3,11 @@
 
 export const STATIONS = [
   {
-    name: 'Speakers', active: true, open: true,
-    snapshots: [{ name: 'Late night', active: true }, { name: 'Daytime' }, { name: 'Vinyl rips' }],
+    name: "Speakers",
+    active: true,
+    open: true,
+    snapshots: [{ name: "Late night", active: true }, { name: "Daytime" }, { name: "Vinyl rips" }],
   },
-  { name: 'Headphones', snapshots: [{ name: 'Desk' }, { name: 'Bed' }] },
-  { name: 'Office', snapshots: [] },
+  { name: "Headphones", snapshots: [{ name: "Desk" }, { name: "Bed" }] },
+  { name: "Office", snapshots: [] },
 ];

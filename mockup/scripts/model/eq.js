@@ -3,7 +3,7 @@
 // the mock profiles (data/profiles.js) share them.
 
 /** The iir stage types a parametric EQ is made of: the peak and the two shelves. */
-export const PEQ_TYPES = new Set(['peak', 'lshelf', 'hshelf']);
+export const PEQ_TYPES = new Set(["peak", "lshelf", "hshelf"]);
 
 /**
  * One band as AutoEq / REW give it: frequency in Hz, gain in dB, Q, and the iir type (peak when left out).
@@ -34,7 +34,7 @@ export const PEQ_TYPES = new Set(['peak', 'lshelf', 'hshelf']);
  * @param {readonly Band[]} bands
  * @returns {IirStage[]}
  */
-export const bandsToStages = (bands) => bands.map(([f, g, q, type = 'peak']) => ({ kind: 'iir', type, f, g, q }));
+export const bandsToStages = (bands) => bands.map(([f, g, q, type = "peak"]) => ({ kind: "iir", type, f, g, q }));
 
 /**
  * A pipeline's fields once an EQ lands on it: its peak and shelf stages dropped, the EQ's band stages appended after
@@ -50,8 +50,8 @@ export const bandsToStages = (bands) => bands.map(([f, g, q, type = 'peak']) => 
  */
 export const replacePeq = (p, bands, pre) => ({
   gain: pre,
-  unit: 'dB',
-  stages: [...p.stages.filter((st) => !(st.kind === 'iir' && PEQ_TYPES.has(st.type ?? ''))), ...bands],
+  unit: "dB",
+  stages: [...p.stages.filter((st) => !(st.kind === "iir" && PEQ_TYPES.has(st.type ?? ""))), ...bands],
 });
 
 /**
@@ -101,7 +101,7 @@ export const hitSummary = (hit) => ({ count: hit.bands.length, pre: hit.pre });
  * @param {Hit} hit
  * @returns {{ stages: IirStage[], gain: number | null, unit: 'dB' }}
  */
-export const hitPipe = (hit) => ({ stages: bandsToStages(hit.bands), gain: hit.pre, unit: 'dB' });
+export const hitPipe = (hit) => ({ stages: bandsToStages(hit.bands), gain: hit.pre, unit: "dB" });
 
 /**
  * How many peak and shelf stages a pipeline holds.
@@ -109,4 +109,4 @@ export const hitPipe = (hit) => ({ stages: bandsToStages(hit.bands), gain: hit.p
  * @param {readonly Stage[]} stages
  * @returns {number}
  */
-export const peqCount = (stages) => stages.filter((st) => st.kind === 'iir' && PEQ_TYPES.has(st.type ?? '')).length;
+export const peqCount = (stages) => stages.filter((st) => st.kind === "iir" && PEQ_TYPES.has(st.type ?? "")).length;

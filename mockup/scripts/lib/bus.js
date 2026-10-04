@@ -35,7 +35,10 @@ export function createBus(report = platformReport) {
       subs.set(name, [...(subs.get(name) ?? []), entry]);
       return () => {
         entry.live = false;
-        subs.set(name, (subs.get(name) ?? []).filter((x) => x !== entry));
+        subs.set(
+          name,
+          (subs.get(name) ?? []).filter((x) => x !== entry),
+        );
       };
     },
     emit(name, detail) {

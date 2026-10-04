@@ -1,17 +1,17 @@
 // Source meter level bars: per channel a vertical peak bar, RMS bar and held peak over a dBFS scale, and a table of
 // the held peak and RMS readings.
 
-import { h } from '../../lib/dom.js';
-import { levelTarget, stepLevel } from '../../model/meter.js';
-import { minusText } from '../../model/format.js';
-import { edgeLabels, pct } from './axes.js';
-import { chName } from './controls.js';
+import { h } from "../../lib/dom.js";
+import { levelTarget, stepLevel } from "../../model/meter.js";
+import { minusText } from "../../model/format.js";
+import { edgeLabels, pct } from "./axes.js";
+import { chName } from "./controls.js";
 
 const LEVEL_TICKS = {
-  '-48': [0, -6, -12, -24, -36, -48],
-  '-60': [0, -10, -20, -30, -40, -50, -60],
-  '-90': [0, -15, -30, -45, -60, -75, -90],
-  '-120': [0, -20, -40, -60, -80, -100, -120],
+  "-48": [0, -6, -12, -24, -36, -48],
+  "-60": [0, -10, -20, -30, -40, -50, -60],
+  "-90": [0, -15, -30, -45, -60, -75, -90],
+  "-120": [0, -20, -40, -60, -80, -100, -120],
 };
 
 /**
@@ -22,19 +22,34 @@ const LEVEL_TICKS = {
  * @param {HTMLElement | false} floorCtl
  */
 export function levelsView(nch, floorCtl) {
-  const lvScale = h('div.lvs', { 'aria-hidden': 'true' });
+  const lvScale = h("div.lvs", { "aria-hidden": "true" });
   const bars = Array.from({ length: nch }, (_, i) => {
-    const pk = h('i.pk'), rm = h('i.rm'), hd = h('i.hd');
-    return { pk, rm, hd, el: h('div.lvb', {}, h('div.trough', {}, pk, rm, hd), h('span.lvn', { text: chName(i) })) };
+    const pk = h("i.pk"),
+      rm = h("i.rm"),
+      hd = h("i.hd");
+    return { pk, rm, hd, el: h("div.lvb", {}, h("div.trough", {}, pk, rm, hd), h("span.lvn", { text: chName(i) })) };
   });
-  const cells = Array.from({ length: nch }, () => ({ peak: h('span.npk'), rms: h('span.nrm') }));
-  const el = h('div.lside', {},
-    h('div.mhead', {}, h('b.mt', { text: 'Levels' }), h('span.grow'), floorCtl),
-    h('div.lvwrap', {}, lvScale, bars.map((b) => b.el), h('div.lvtab', {},
-      h('span.u', { text: 'dBFS' }), Array.from({ length: nch }, (_, i) => h('span.lvh', { text: chName(i) })),
-      h('span.lvh.l', { text: 'Peak' }), cells.map((c) => c.peak),
-      h('span.lvh.l', { text: 'RMS' }), cells.map((c) => c.rms),
-    )),
+  const cells = Array.from({ length: nch }, () => ({ peak: h("span.npk"), rms: h("span.nrm") }));
+  const el = h(
+    "div.lside",
+    {},
+    h("div.mhead", {}, h("b.mt", { text: "Levels" }), h("span.grow"), floorCtl),
+    h(
+      "div.lvwrap",
+      {},
+      lvScale,
+      bars.map((b) => b.el),
+      h(
+        "div.lvtab",
+        {},
+        h("span.u", { text: "dBFS" }),
+        Array.from({ length: nch }, (_, i) => h("span.lvh", { text: chName(i) })),
+        h("span.lvh.l", { text: "Peak" }),
+        cells.map((c) => c.peak),
+        h("span.lvh.l", { text: "RMS" }),
+        cells.map((c) => c.rms),
+      ),
+    ),
   );
   return { el, lvScale, bars, cells };
 }
@@ -51,7 +66,11 @@ export function levelsPainter(view, st, latest) {
   const frac = (db) => Math.max(0, Math.min(1, (db - st.floor) / -st.floor));
   let lv = view.bars.map(() => ({ peak: -60, rms: -60, hold: -60, holdAt: 0 }));
   function scale() {
-    edgeLabels(view.lvScale, 'top', LEVEL_TICKS[String(st.floor)].map((d) => ({ at: 1 - frac(d), text: d === 0 ? '0 dBFS' : minusText(d) })));
+    edgeLabels(
+      view.lvScale,
+      "top",
+      LEVEL_TICKS[String(st.floor)].map((d) => ({ at: 1 - frac(d), text: d === 0 ? "0 dBFS" : minusText(d) })),
+    );
   }
   function step(now, dt) {
     const c = latest();

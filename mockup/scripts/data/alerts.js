@@ -11,20 +11,28 @@
 // Dropped: v1's failed preset pick/delete row (presetpick.js): it tells the user nothing they can act on.
 // sev: crit (--bad) | warn (--warn) | advice (not a fault; blinks amber like a warning, its line reads ink-2).
 
-const SLOW_DSP_TAIL = 'Use a lighter filter or a lower output rate.';
+const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 
 export const ALERT_COPY = {
-  credentials: 'Authentication rejected: username and password are bad. Open connection settings from the knob and try again.',
+  credentials:
+    "Authentication rejected: username and password are bad. Open connection settings from the knob and try again.",
   speedCrit: (sp) => `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}`,
   speedWarn: (sp) => `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}`,
   clip: (n) => `Clipping ×${n} this track — reduce volume or gain.`,
-  apod: (n, filter) => `Apodizing events ×${n} this track, but ${filter} is non-apodizing — consider an apodizing filter.`,
-  shaperSdm: (name, rate) => `The current settings are invalid: modulator ${name} is incompatible with ${rate} output. HQPlayer cannot produce output.`,
-  shaperPcm: (name, rate, floor) => `The current settings are suboptimal: ditherer ${name} is optimized for output rates >=${floor}, but the current rate is ${rate}.`,
-  roonIdle: 'Recommend setting Engine idle time (Settings → Timing) to 10 or longer; at default idle time, Roon inefficiently restarts the engine between tracks.',
-  junk20k: (foldKhz, rateKhz) => `Junk above ${foldKhz.toFixed(1)} kHz in a ${rateKhz} kHz container, consistent with fake hi-res. Recommend engaging the 20k high-frequency filter.`,
-  junkSpur: (khz, corner) => `Persistent tone at ${khz.toFixed(1)} kHz — recommend switching to a 'hires' resampling filter or engaging the ${corner} high-frequency filter.`,
-  junkRamp: (khz) => `HF noise rising toward ${khz} kHz — consistent with excessive noise shaping (some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter.`,
+  apod: (n, filter) =>
+    `Apodizing events ×${n} this track, but ${filter} is non-apodizing — consider an apodizing filter.`,
+  shaperSdm: (name, rate) =>
+    `The current settings are invalid: modulator ${name} is incompatible with ${rate} output. HQPlayer cannot produce output.`,
+  shaperPcm: (name, rate, floor) =>
+    `The current settings are suboptimal: ditherer ${name} is optimized for output rates >=${floor}, but the current rate is ${rate}.`,
+  roonIdle:
+    "Recommend setting Engine idle time (Settings → Timing) to 10 or longer; at default idle time, Roon inefficiently restarts the engine between tracks.",
+  junk20k: (foldKhz, rateKhz) =>
+    `Junk above ${foldKhz.toFixed(1)} kHz in a ${rateKhz} kHz container, consistent with fake hi-res. Recommend engaging the 20k high-frequency filter.`,
+  junkSpur: (khz, corner) =>
+    `Persistent tone at ${khz.toFixed(1)} kHz — recommend switching to a 'hires' resampling filter or engaging the ${corner} high-frequency filter.`,
+  junkRamp: (khz) =>
+    `HF noise rising toward ${khz} kHz — consistent with excessive noise shaping (some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter.`,
 };
 
 /**
@@ -39,28 +47,28 @@ export const ALERT_COPY = {
  * Several alerts on one home: the worst one sets the blink (crit over warn).
  */
 export const HOMES = {
-  credentials: { el: '#conn' },
-  speed: { el: '.gauge' },
-  clip: { stage: 'volume', drawer: 'volume' },
-  apod: { stage: 'resampling', section: 'Resampling' },
-  shaperSdm: { stage: 'shaping', section: 'Shaping', dark: ['speakers', 'output'] },
-  shaperPcm: { stage: 'shaping', section: 'Shaping' },
-  roon: { el: '#gear', set: 'timing', drawer: 'timing', row: ['Engine idle time'] },
-  junk: { stage: 'hf', drawer: 'hf', row: ['High-frequency filter'], section: 'HF filter' },
+  credentials: { el: "#conn" },
+  speed: { el: ".gauge" },
+  clip: { stage: "volume", drawer: "volume" },
+  apod: { stage: "resampling", section: "Resampling" },
+  shaperSdm: { stage: "shaping", section: "Shaping", dark: ["speakers", "output"] },
+  shaperPcm: { stage: "shaping", section: "Shaping" },
+  roon: { el: "#gear", set: "timing", drawer: "timing", row: ["Engine idle time"] },
+  junk: { stage: "hf", drawer: "hf", row: ["High-frequency filter"], section: "HF filter" },
 };
 
 // Mock alert picker on the scenario strip (a viewing tool): which alerts to raise. Each fires only where v1's would:
 // engine health while playing; junk advice only on Nx PCM content (the HF filter can't be engaged at 1x rates); a shaper
 // conflict only in the family that will produce output.
 export const MOCK_ALERTS = [
-  { kind: 'credentials', label: 'Credentials rejected' },
-  { kind: 'speed', label: 'DSP speed', when: 'playing' },
-  { kind: 'clip', label: 'Clipping', when: 'playing' },
-  { kind: 'apod', label: 'Apodizing', when: 'non-apod filter' },
-  { kind: 'shaperSdm', label: 'Modulator invalid', when: 'SDM chain' },
-  { kind: 'shaperPcm', label: 'Ditherer suboptimal', when: 'PCM chain' },
-  { kind: 'roon', label: 'Roon idle time', when: 'playing' },
-  { kind: 'junk', label: 'HF filter advice', when: 'Nx PCM' },
+  { kind: "credentials", label: "Credentials rejected" },
+  { kind: "speed", label: "DSP speed", when: "playing" },
+  { kind: "clip", label: "Clipping", when: "playing" },
+  { kind: "apod", label: "Apodizing", when: "non-apod filter" },
+  { kind: "shaperSdm", label: "Modulator invalid", when: "SDM chain" },
+  { kind: "shaperPcm", label: "Ditherer suboptimal", when: "PCM chain" },
+  { kind: "roon", label: "Roon idle time", when: "playing" },
+  { kind: "junk", label: "HF filter advice", when: "Nx PCM" },
 ];
 // Mock figures the raised alerts read (and the engine row then shows): a speed below 1× and a clip pile-up.
 export const MOCK_FIG = { speed: 0.97, clips: 14 };

@@ -137,9 +137,19 @@ const PIPES = [
     f: 1000,
     mag: 0.5,
   },
-  { name: "a_first_order_highpass_passes_nyquist", stages: [{ kind: "iir", type: "hp1", f: 1000 }], f: NYQUIST, mag: 1 },
+  {
+    name: "a_first_order_highpass_passes_nyquist",
+    stages: [{ kind: "iir", type: "hp1", f: 1000 }],
+    f: NYQUIST,
+    mag: 1,
+  },
   { name: "a_first_order_highpass_blocks_dc", stages: [{ kind: "iir", type: "hp1", f: 1000 }], f: 0, mag: 0 },
-  { name: "a_lowpass_passes_its_q_at_its_corner", stages: [{ kind: "iir", type: "lp", f: 2000, q: 2 }], f: 2000, mag: 2 },
+  {
+    name: "a_lowpass_passes_its_q_at_its_corner",
+    stages: [{ kind: "iir", type: "lp", f: 2000, q: 2 }],
+    f: 2000,
+    mag: 2,
+  },
   { name: "a_lowpass_blocks_nyquist", stages: [{ kind: "iir", type: "lp", f: 2000, q: 2 }], f: NYQUIST, mag: 0 },
   {
     name: "a_highpass_passes_its_q_at_its_corner",

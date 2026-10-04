@@ -47,13 +47,13 @@ export const FIT_PASSES = 4;
  * @returns {boolean}
  */
 export function fieldRuns(play, ch, k) {
-  if (ch !== play.run || play.path === 'idle') return false;
+  if (ch !== play.run || play.path === "idle") return false;
   const p = play.path;
-  if (p === 'direct') return false;
+  if (p === "direct") return false;
   // The modulator runs whatever the source (official config page: Output defaults); on DSD → SDM the
   // filters don't.
-  if (p === 'sdm-sdm') return k === 'sh';
-  return k === 'sh' || k === (p === 'dsd-pcm' ? 'nx' : play.stage);
+  if (p === "sdm-sdm") return k === "sh";
+  return k === "sh" || k === (p === "dsd-pcm" ? "nx" : play.stage);
 }
 
 /**
@@ -64,7 +64,7 @@ export function fieldRuns(play, ch, k) {
  * @returns {Open}
  */
 export function openOn(play, chain) {
-  return { rs: { chain, field: fieldRuns(play, chain, 'nx') ? 'nx' : '1x' }, sh: chain };
+  return { rs: { chain, field: fieldRuns(play, chain, "nx") ? "nx" : "1x" }, sh: chain };
 }
 
 /**
@@ -77,9 +77,11 @@ export function openOn(play, chain) {
  * @returns {Row[]}
  */
 export function sectionRows(chains, open, keys) {
-  return chains.flatMap((ch) => (ch === open.chain
-    ? keys.map((k) => /** @type {Row} */ ({ kind: k === open.field ? 'field' : 'line', ch, k }))
-    : [/** @type {Row} */ ({ kind: 'chain', ch, k: keys[0] })]));
+  return chains.flatMap((ch) =>
+    ch === open.chain
+      ? keys.map((k) => /** @type {Row} */ ({ kind: k === open.field ? "field" : "line", ch, k }))
+      : [/** @type {Row} */ ({ kind: "chain", ch, k: keys[0] })],
+  );
 }
 
 /**
@@ -90,7 +92,7 @@ export function sectionRows(chains, open, keys) {
  * @returns {{ fields: { ch: string, k: string }[], others: string[] }}
  */
 export function bothRows(chains, chain) {
-  return { fields: ['1x', 'nx'].map((k) => ({ ch: chain, k })), others: chains.filter((ch) => ch !== chain) };
+  return { fields: ["1x", "nx"].map((k) => ({ ch: chain, k })), others: chains.filter((ch) => ch !== chain) };
 }
 
 /**
@@ -105,14 +107,14 @@ export function bothRows(chains, chain) {
  */
 export function railValues(play, direct, vals) {
   const { run, path: p } = play;
-  const remod = p === 'sdm-sdm';
+  const remod = p === "sdm-sdm";
   return {
-    dsdInPath: ['dsd-pcm', 'sdm-sdm'].includes(p),
-    dsd: run === 'pcm' ? `${vals.noise} · ${vals.decim}` : direct ? 'Direct' : vals.integ,
-    offChain: p === 'direct',
+    dsdInPath: ["dsd-pcm", "sdm-sdm"].includes(p),
+    dsd: run === "pcm" ? `${vals.noise} · ${vals.decim}` : direct ? "Direct" : vals.integ,
+    offChain: p === "direct",
     rateConversion: remod,
-    resampling: remod ? vals.sdmconv : vals[run + (fieldRuns(play, run, 'nx') || p === 'dsd-pcm' ? 'nx' : '1x')],
-    shaping: vals[run + 'sh'],
+    resampling: remod ? vals.sdmconv : vals[run + (fieldRuns(play, run, "nx") || p === "dsd-pcm" ? "nx" : "1x")],
+    shaping: vals[run + "sh"],
   };
 }
 

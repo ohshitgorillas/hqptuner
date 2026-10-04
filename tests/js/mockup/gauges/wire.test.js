@@ -43,8 +43,20 @@ const lamp = (left, top) => ({ box: { left, top, width: 8, height: 8 }, level: 0
 
 /** @type {DotRow[]} */
 const DOTS = [
-  { name: "a_dot_sits_at_the_lamp_centre_across_the_rail_plus_half_a_pixel", lamp: lamp(110, 60), scale: 1, axis: "x", want: 14.5 },
-  { name: "a_dot_sits_at_the_lamp_centre_down_the_rail_plus_half_a_pixel", lamp: lamp(110, 60), scale: 1, axis: "y", want: 14.5 },
+  {
+    name: "a_dot_sits_at_the_lamp_centre_across_the_rail_plus_half_a_pixel",
+    lamp: lamp(110, 60),
+    scale: 1,
+    axis: "x",
+    want: 14.5,
+  },
+  {
+    name: "a_dot_sits_at_the_lamp_centre_down_the_rail_plus_half_a_pixel",
+    lamp: lamp(110, 60),
+    scale: 1,
+    axis: "y",
+    want: 14.5,
+  },
   { name: "a_dot_across_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "x", want: 28.5 },
   { name: "a_dot_down_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "y", want: 68.5 },
   { name: "a_lamp_centre_short_of_the_half_pixel_rounds_down", lamp: lamp(110.3, 60), scale: 1, axis: "x", want: 14.5 },
@@ -200,7 +212,10 @@ for (const row of FRAMES) {
 const NODES = [{ id: "src" }, { id: "mx" }, { id: "fx", rail: "fx" }, { id: "out" }];
 
 /** @type {MapEdge[]} */
-const EDGES = [{ a: "src", b: "mx" }, { a: "src", b: "out", direct: true }];
+const EDGES = [
+  { a: "src", b: "mx" },
+  { a: "src", b: "out", direct: true },
+];
 
 /**
  * One reading of the map: what the path runs, which stages are engaged, and the flag one node or edge owes.
@@ -218,15 +233,64 @@ const EDGES = [{ a: "src", b: "mx" }, { a: "src", b: "out", direct: true }];
 const LAMPS = [
   { name: "a_node_on_the_path_reads_lit", lit: ["src"], engaged: [], pick: (m) => m.nodes.src.lit, want: true },
   { name: "a_node_off_the_path_reads_unlit", lit: ["src"], engaged: [], pick: (m) => m.nodes.out.lit, want: false },
-  { name: "a_matrix_part_on_the_path_is_bypassed_with_the_matrix_disengaged", lit: ["mx"], engaged: [], pick: (m) => m.nodes.mx.off, want: true },
-  { name: "a_matrix_part_on_the_path_runs_with_the_matrix_engaged", lit: ["mx"], engaged: ["matrix"], pick: (m) => m.nodes.mx.off, want: false },
-  { name: "a_node_on_the_path_is_bypassed_with_its_own_stage_disengaged", lit: ["fx"], engaged: ["matrix"], pick: (m) => m.nodes.fx.off, want: true },
-  { name: "a_node_on_the_path_runs_with_its_own_stage_engaged", lit: ["fx"], engaged: ["fx"], pick: (m) => m.nodes.fx.off, want: false },
+  {
+    name: "a_matrix_part_on_the_path_is_bypassed_with_the_matrix_disengaged",
+    lit: ["mx"],
+    engaged: [],
+    pick: (m) => m.nodes.mx.off,
+    want: true,
+  },
+  {
+    name: "a_matrix_part_on_the_path_runs_with_the_matrix_engaged",
+    lit: ["mx"],
+    engaged: ["matrix"],
+    pick: (m) => m.nodes.mx.off,
+    want: false,
+  },
+  {
+    name: "a_node_on_the_path_is_bypassed_with_its_own_stage_disengaged",
+    lit: ["fx"],
+    engaged: ["matrix"],
+    pick: (m) => m.nodes.fx.off,
+    want: true,
+  },
+  {
+    name: "a_node_on_the_path_runs_with_its_own_stage_engaged",
+    lit: ["fx"],
+    engaged: ["fx"],
+    pick: (m) => m.nodes.fx.off,
+    want: false,
+  },
   { name: "a_node_off_the_path_is_never_bypassed", lit: [], engaged: [], pick: (m) => m.nodes.mx.off, want: false },
-  { name: "an_edge_with_both_ends_on_the_path_reads_lit", lit: ["src", "mx"], engaged: [], pick: (m) => m.edges[0], want: true },
-  { name: "an_edge_with_one_end_off_the_path_reads_unlit", lit: ["src"], engaged: [], pick: (m) => m.edges[0], want: false },
-  { name: "the_direct_edge_reads_lit_on_the_direct_path", lit: [], engaged: [], direct: true, pick: (m) => m.edges[1], want: true },
-  { name: "the_direct_edge_ignores_its_lit_ends_off_the_direct_path", lit: ["src", "out"], engaged: [], pick: (m) => m.edges[1], want: false },
+  {
+    name: "an_edge_with_both_ends_on_the_path_reads_lit",
+    lit: ["src", "mx"],
+    engaged: [],
+    pick: (m) => m.edges[0],
+    want: true,
+  },
+  {
+    name: "an_edge_with_one_end_off_the_path_reads_unlit",
+    lit: ["src"],
+    engaged: [],
+    pick: (m) => m.edges[0],
+    want: false,
+  },
+  {
+    name: "the_direct_edge_reads_lit_on_the_direct_path",
+    lit: [],
+    engaged: [],
+    direct: true,
+    pick: (m) => m.edges[1],
+    want: true,
+  },
+  {
+    name: "the_direct_edge_ignores_its_lit_ends_off_the_direct_path",
+    lit: ["src", "out"],
+    engaged: [],
+    pick: (m) => m.edges[1],
+    want: false,
+  },
 ];
 
 for (const row of LAMPS) {

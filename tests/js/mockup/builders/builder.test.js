@@ -40,7 +40,12 @@ const TREE = ["Den", "Loft", "Shed"];
 const STEPS = ["alpha", "bravo", "charlie", "delta"];
 
 /** A record book: Den holds three, Loft one, Shed none. */
-const book = () => /** @type {Book} */ ({ Den: { Warm: { v: 1 }, Flat: { v: 2 }, Bright: { v: 3 } }, Loft: { Warm: { v: 4 } }, Shed: {} });
+const book = () =>
+  /** @type {Book} */ ({
+    Den: { Warm: { v: 1 }, Flat: { v: 2 }, Bright: { v: 3 } },
+    Loft: { Warm: { v: 4 } },
+    Shed: {},
+  });
 
 /**
  * A skip predicate over a fixed set of step ids.

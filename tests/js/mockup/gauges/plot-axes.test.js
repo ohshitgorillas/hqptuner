@@ -51,7 +51,11 @@ function sampled(n) {
  * @param {string} d
  * @returns {number[][]}
  */
-const points = (d) => d.split(/[ML]/).filter((p) => p.trim()).map((p) => p.trim().split(" ").map(Number));
+const points = (d) =>
+  d
+    .split(/[ML]/)
+    .filter((p) => p.trim())
+    .map((p) => p.trim().split(" ").map(Number));
 
 // ── Frequency axis ───────────────────────────────────────────────────────
 
@@ -112,9 +116,10 @@ test("test_without_a_minor_step_every_line_is_a_major", () => {
 });
 
 test("test_fractional_steps_land_on_tenths", () => {
-  assert.deepEqual(levelGrid({ lo: -12.5, hi: 12.5, step: 5, minor: 2.5 }, 100, 12).minor, [
-    -12.5, -7.5, -2.5, 2.5, 7.5, 12.5,
-  ]);
+  assert.deepEqual(
+    levelGrid({ lo: -12.5, hi: 12.5, step: 5, minor: 2.5 }, 100, 12).minor,
+    [-12.5, -7.5, -2.5, 2.5, 7.5, 12.5],
+  );
 });
 
 test("test_zero_is_labelled_after_the_majors_when_inside_the_scale", () => {

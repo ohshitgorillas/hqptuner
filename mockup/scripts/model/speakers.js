@@ -5,7 +5,11 @@
 
 /** The listener's head radius on the plan: where a speaker at no distance sits. */
 export const HEAD = 13;
-const R_MAX = 122, DIST_FULL = 600, SUB_OUT = 1.35, SUB_MAX = 140, SUB = 3;
+const R_MAX = 122,
+  DIST_FULL = 600,
+  SUB_OUT = 1.35,
+  SUB_MAX = 140,
+  SUB = 3;
 
 /**
  * One speaker on the plan.
@@ -35,10 +39,12 @@ const radius = (i, d) => {
  * @param {readonly number[]} distances  each channel's distance, cm
  * @returns {Spot[]}
  */
-export const placeSpeakers = (channels, layout, distances) => channels.map((i) => {
-  const a = layout[i] * Math.PI / 180, r = radius(i, distances[i]);
-  return { i, deg: layout[i], x: r * Math.sin(a), y: -r * Math.cos(a), sub: i === SUB };
-});
+export const placeSpeakers = (channels, layout, distances) =>
+  channels.map((i) => {
+    const a = (layout[i] * Math.PI) / 180,
+      r = radius(i, distances[i]);
+    return { i, deg: layout[i], x: r * Math.sin(a), y: -r * Math.cos(a), sub: i === SUB };
+  });
 
 /**
  * Half the side of the square box, centred on the listener, that fits the head and every speaker with its labels.
@@ -46,4 +52,5 @@ export const placeSpeakers = (channels, layout, distances) => channels.map((i) =
  * @param {readonly Spot[]} spots
  * @returns {number}
  */
-export const planExtent = (spots) => Math.max(HEAD + 20, ...spots.map((p) => Math.max(Math.abs(p.x) + 26, Math.abs(p.y) + 40)));
+export const planExtent = (spots) =>
+  Math.max(HEAD + 20, ...spots.map((p) => Math.max(Math.abs(p.x) + 26, Math.abs(p.y) + 40)));

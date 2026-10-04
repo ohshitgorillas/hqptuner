@@ -90,7 +90,7 @@ export function bandSpan(tiers, family) {
  * @returns {number}
  */
 export function seamX(scale, tiers) {
-  return (scale.xs[bandSpan(tiers, 'pcm').hi] + scale.xs[bandSpan(tiers, 'sdm').lo]) / 2;
+  return (scale.xs[bandSpan(tiers, "pcm").hi] + scale.xs[bandSpan(tiers, "sdm").lo]) / 2;
 }
 
 /**
@@ -177,10 +177,10 @@ export function tunerColumns(tiers, now, pin, fams) {
  * @returns {DeviceParts}
  */
 export function deviceParts(kind, str) {
-  const a = str.split(': ');
-  return kind === 'network'
-    ? { group: a[0], main: a[1] || a[0], detail: a.slice(2).join(': ') }
-    : { group: a[0], main: a.slice(1).join(': ') || a[0], detail: '' };
+  const a = str.split(": ");
+  return kind === "network"
+    ? { group: a[0], main: a[1] || a[0], detail: a.slice(2).join(": ") }
+    : { group: a[0], main: a.slice(1).join(": ") || a[0], detail: "" };
 }
 
 /**

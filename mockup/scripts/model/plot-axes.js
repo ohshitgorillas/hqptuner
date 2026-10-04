@@ -2,10 +2,10 @@
 // frequency labels in a bottom band. Every function takes the box in px and the scale in Hz / dB as arguments, so the
 // plots (components/matrix-plot.js, components/resp-plot.js) draw what they get back and a test drives it from a table.
 
-export const GUTTER = 28;   // left, for dB labels
-export const BAND = 16;     // bottom, for frequency labels
-export const PAD = 6;       // top
-const RIGHT = 4;            // right inset of the highest frequency
+export const GUTTER = 28; // left, for dB labels
+export const BAND = 16; // bottom, for frequency labels
+export const PAD = 6; // top
+const RIGHT = 4; // right inset of the highest frequency
 
 /**
  * A plot's box in px and its scale.
@@ -57,14 +57,14 @@ export const round1 = (v) => Math.round(v * 10) / 10;
  *
  * @type {LevelMap}
  */
-export const levelY = (lo, hi, plotH) => (d) => PAD + plotH * (hi - d) / (hi - lo);
+export const levelY = (lo, hi, plotH) => (d) => PAD + (plotH * (hi - d)) / (hi - lo);
 
 /**
  * The same map for a scale symmetric about 0 dB (lo = −hi), drawn from the middle out.
  *
  * @type {LevelMap}
  */
-export const centredLevelY = (_lo, hi, plotH) => (d) => PAD + plotH / 2 - d * (plotH / 2) / hi;
+export const centredLevelY = (_lo, hi, plotH) => (d) => PAD + plotH / 2 - (d * (plotH / 2)) / hi;
 
 /**
  * A plot's maps and frame edges for its box.
@@ -78,7 +78,7 @@ export function plotGeometry(box, levelMap = levelY) {
   const decades = Math.log10(fMax / fMin);
   const plotH = H - PAD - BAND;
   /** @param {number} f */
-  const x = (f) => GUTTER + (W - GUTTER - RIGHT) * Math.log10(f / fMin) / decades;
+  const x = (f) => GUTTER + ((W - GUTTER - RIGHT) * Math.log10(f / fMin)) / decades;
   const y = levelMap(lo, hi, plotH);
   return { ...box, plotH, decades, x, y, x0: round1(x(fMin)), x1: round1(x(fMax)), yb: round1(y(lo)) };
 }
@@ -121,10 +121,10 @@ export function levelGrid({ lo, hi, step, minor }, plotH, minGap) {
  */
 export function tracePath(geo, n, fn) {
   const { fMin, decades, x, y } = geo;
-  let d = '';
+  let d = "";
   for (let i = 0; i <= n; i++) {
-    const f = fMin * 10 ** (decades * i / n);
-    d += (i ? ' L' : 'M') + round1(x(f)) + ' ' + round1(y(fn(f)));
+    const f = fMin * 10 ** ((decades * i) / n);
+    d += (i ? " L" : "M") + round1(x(f)) + " " + round1(y(fn(f)));
   }
   return d;
 }
@@ -139,7 +139,7 @@ export function tracePath(geo, n, fn) {
  */
 export function pointAt(geo, px, py) {
   const { W, fMin, fMax, decades, plotH, lo, hi } = geo;
-  const f = fMin * 10 ** (decades * (px - GUTTER) / (W - GUTTER - RIGHT));
-  const d = hi - (py - PAD) * (hi - lo) / plotH;
+  const f = fMin * 10 ** ((decades * (px - GUTTER)) / (W - GUTTER - RIGHT));
+  const d = hi - ((py - PAD) * (hi - lo)) / plotH;
   return [Math.round(Math.max(fMin, Math.min(fMax, f))), round1(d)];
 }

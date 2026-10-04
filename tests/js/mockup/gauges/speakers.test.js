@@ -63,11 +63,17 @@ test("test_head_is_the_radius_at_no_distance", () => {
 });
 
 test("test_place_speakers_keeps_the_set_order", () => {
-  assert.deepEqual(placeSpeakers(SET, LAYOUT, RING).map((p) => p.i), SET);
+  assert.deepEqual(
+    placeSpeakers(SET, LAYOUT, RING).map((p) => p.i),
+    SET,
+  );
 });
 
 test("test_place_speakers_turns_each_speaker_to_its_layout_angle", () => {
-  assert.deepEqual(placeSpeakers(SET, LAYOUT, RING).map((p) => p.deg), [-90, 0, 90]);
+  assert.deepEqual(
+    placeSpeakers(SET, LAYOUT, RING).map((p) => p.deg),
+    [-90, 0, 90],
+  );
 });
 
 test("test_a_front_speaker_sits_up_the_page", () => {
@@ -83,7 +89,10 @@ test("test_a_left_speaker_sits_left_of_the_listener", () => {
 });
 
 test("test_channel_three_is_the_sub", () => {
-  assert.deepEqual(placeSpeakers([0, 3], LAYOUT, RING).map((p) => p.sub), [false, true]);
+  assert.deepEqual(
+    placeSpeakers([0, 3], LAYOUT, RING).map((p) => p.sub),
+    [false, true],
+  );
 });
 
 test("test_plan_extent_fits_the_head_alone", () => {

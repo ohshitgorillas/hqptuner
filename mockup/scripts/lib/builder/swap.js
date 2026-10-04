@@ -1,8 +1,8 @@
 // The shell's body swap and Escape: a builder's body in for the chain's and back out, its button and Escape armed.
 
-import { anyOpen } from '../popover.js';
-import { closeSheets, sheetOpen } from '../sheet.js';
-import { closeOthers } from '../../components/drawer.js';
+import { anyOpen } from "../popover.js";
+import { closeSheets, sheetOpen } from "../sheet.js";
+import { closeOthers } from "../../components/drawer.js";
 
 /** @typedef {import('./record.js').Shell} Shell */
 /** @typedef {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} Els */
@@ -21,10 +21,11 @@ export function swapBody({ btn, chain, body, bus }, on, { toChain = true, leave,
   closeSheets();
   if (on) leave?.();
   body.hidden = !on;
-  if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-  btn.setAttribute('aria-pressed', String(on));
+  if (on) chain.hidden = true;
+  else if (toChain) chain.hidden = false;
+  btn.setAttribute("aria-pressed", String(on));
   if (on) opened?.();
-  bus.emit('relayout');
+  bus.emit("relayout");
 }
 
 /**
@@ -35,10 +36,21 @@ export function swapBody({ btn, chain, body, bus }, on, { toChain = true, leave,
  * @param {() => void} onEscape
  */
 export function escapeLeaves(body, onEscape) {
-  body.ownerDocument.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen() || body.querySelector('.drawer:not([data-closed])')) return;
-    onEscape();
-  }, true);
+  body.ownerDocument.addEventListener(
+    "keydown",
+    (e) => {
+      if (
+        e.key !== "Escape" ||
+        body.hidden ||
+        anyOpen() ||
+        sheetOpen() ||
+        body.querySelector(".drawer:not([data-closed])")
+      )
+        return;
+      onEscape();
+    },
+    true,
+  );
 }
 
 /**
@@ -48,9 +60,18 @@ export function escapeLeaves(body, onEscape) {
  * @param {Shell} sh
  * @param {{ leave: () => void, opened: () => void }} spec
  */
-export const setOnOf = (el, sh, spec) => (/** @type {boolean} */ on, toChain = true) => {
-  swapBody(el, on, { toChain, leave: () => spec.leave(), opened: () => { sh.ask = null; spec.opened(); } });
-};
+export const setOnOf =
+  (el, sh, spec) =>
+  (/** @type {boolean} */ on, toChain = true) => {
+    swapBody(el, on, {
+      toChain,
+      leave: () => spec.leave(),
+      opened: () => {
+        sh.ask = null;
+        spec.opened();
+      },
+    });
+  };
 
 /**
  * Arm the builder's button and Escape; the builder's public face.
@@ -61,9 +82,13 @@ export const setOnOf = (el, sh, spec) => (/** @type {boolean} */ on, toChain = t
  * @param {(on: boolean, toChain?: boolean) => void} setOn
  */
 export function start({ btn, body }, sh, spec, setOn) {
-  btn.addEventListener('click', () => setOn(spec.toggles ? body.hidden : true));
+  btn.addEventListener("click", () => setOn(spec.toggles ? body.hidden : true));
   escapeLeaves(body, () => {
-    if (sh.ask) { sh.ask = null; spec.view(null); return; }
+    if (sh.ask) {
+      sh.ask = null;
+      spec.view(null);
+      return;
+    }
     setOn(false);
   });
   return { setOn, isOn: () => !body.hidden };

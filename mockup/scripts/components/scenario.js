@@ -2,9 +2,9 @@
 // own strip above the plate, outside the faceplate, so it can't be read as part of the design. `#scene-<id>` in the URL
 // opens on that scenario (idle, pcm1x, pcmnx, dsd64). The Alerts group raises mock alerts (mountAlertPicker).
 
-import { h } from '../lib/dom.js';
-import { seg } from './seg.js';
-import { popover } from '../lib/popover.js';
+import { h } from "../lib/dom.js";
+import { seg } from "./seg.js";
+import { popover } from "../lib/popover.js";
 
 /**
  * @param {HTMLElement} host   #scene strip
@@ -14,9 +14,15 @@ import { popover } from '../lib/popover.js';
  */
 export function mountScenario(host, scenes, value, onChange) {
   host.append(
-    h('span.eng', { text: 'Scenario' }),
-    seg({ aria: 'Mock scenario: what is playing', cls: 'view', value, options: scenes.map((s) => ({ v: s.id, label: s.label })), onChange }),
-    h('span.cnt', { text: 'mockup only · not part of the app' }),
+    h("span.eng", { text: "Scenario" }),
+    seg({
+      aria: "Mock scenario: what is playing",
+      cls: "view",
+      value,
+      options: scenes.map((s) => ({ v: s.id, label: s.label })),
+      onChange,
+    }),
+    h("span.cnt", { text: "mockup only · not part of the app" }),
   );
 }
 
@@ -29,24 +35,50 @@ export function mountScenario(host, scenes, value, onChange) {
  */
 export function mountAlertPicker(host, items, kinds, onChange) {
   const picked = new Set(kinds);
-  const txt = h('span');
-  const btn = h('button.btn.sm.scalerts', { type: 'button', aria: { haspopup: 'dialog' } }, txt, ' ▾');
-  const panel = h('div.pop.scapop', { role: 'dialog', 'aria-label': 'Mock alerts' }, items.map((i) => h('label.chk', {},
-    h('input', { type: 'checkbox', checked: picked.has(i.kind),
-      on: { change: (e) => { e.target.checked ? picked.add(i.kind) : picked.delete(i.kind); paint(); onChange(new Set(picked)); } } }),
-    h('span', { text: i.label }), i.when && h('span.cnt', { text: i.when }))));
-  const paint = () => { txt.textContent = picked.size ? `${picked.size} raised` : 'None'; btn.classList.toggle('on', picked.size > 0); };
+  const txt = h("span");
+  const btn = h("button.btn.sm.scalerts", { type: "button", aria: { haspopup: "dialog" } }, txt, " ▾");
+  const panel = h(
+    "div.pop.scapop",
+    { role: "dialog", "aria-label": "Mock alerts" },
+    items.map((i) =>
+      h(
+        "label.chk",
+        {},
+        h("input", {
+          type: "checkbox",
+          checked: picked.has(i.kind),
+          on: {
+            change: (e) => {
+              e.target.checked ? picked.add(i.kind) : picked.delete(i.kind);
+              paint();
+              onChange(new Set(picked));
+            },
+          },
+        }),
+        h("span", { text: i.label }),
+        i.when && h("span.cnt", { text: i.when }),
+      ),
+    ),
+  );
+  const paint = () => {
+    txt.textContent = picked.size ? `${picked.size} raised` : "None";
+    btn.classList.toggle("on", picked.size > 0);
+  };
   paint();
-  const note = host.querySelector('.cnt:last-child');
-  host.insertBefore(h('span.eng', { text: 'Alerts' }), note);
+  const note = host.querySelector(".cnt:last-child");
+  host.insertBefore(h("span.eng", { text: "Alerts" }), note);
   host.insertBefore(btn, note);
   document.body.append(panel);
-  popover({ trigger: btn, panel, onToggle: (open) => {
-    if (!open) return;
-    const r = btn.getBoundingClientRect();
-    panel.style.left = `${r.left}px`;
-    panel.style.top = `${r.bottom + 6}px`;
-  } });
+  popover({
+    trigger: btn,
+    panel,
+    onToggle: (open) => {
+      if (!open) return;
+      const r = btn.getBoundingClientRect();
+      panel.style.left = `${r.left}px`;
+      panel.style.top = `${r.bottom + 6}px`;
+    },
+  });
   return new Set(picked);
 }
 
@@ -60,14 +92,25 @@ export function mountAlertPicker(host, items, kinds, onChange) {
  * @param {(id: string) => void} onChange
  */
 export function mountSizePicker(host, sizes, value, onChange) {
-  const note = host.querySelector('.cnt:last-child');
-  const pts = h('span.cnt.scpts');
-  const paint = (id) => { const z = sizes.find((x) => x.id === id); pts.textContent = `${z.w}×${z.h} pt`; pts.title = z.model; };
-  const el = seg({ aria: 'Mock display size (iPad, landscape)', cls: 'view', value,
+  const note = host.querySelector(".cnt:last-child");
+  const pts = h("span.cnt.scpts");
+  const paint = (id) => {
+    const z = sizes.find((x) => x.id === id);
+    pts.textContent = `${z.w}×${z.h} pt`;
+    pts.title = z.model;
+  };
+  const el = seg({
+    aria: "Mock display size (iPad, landscape)",
+    cls: "view",
+    value,
     options: sizes.map((z) => ({ v: z.id, label: z.label, title: `${z.model} · ${z.w}×${z.h} pt` })),
-    onChange: (id) => { paint(id); onChange(id); } });
+    onChange: (id) => {
+      paint(id);
+      onChange(id);
+    },
+  });
   paint(value);
-  host.insertBefore(h('span.eng', { text: 'Display' }), note);
+  host.insertBefore(h("span.eng", { text: "Display" }), note);
   host.insertBefore(el, note);
   host.insertBefore(pts, note);
 }

@@ -1,9 +1,9 @@
 // Source meter mock source: a deterministic music-like feed (model/meter.js mockColumn) and the column history since
 // track start, standing in for the 4322 metering stream (store/meter/feed.js) the real app reads.
 
-import { mockColumn } from '../../model/meter.js';
+import { mockColumn } from "../../model/meter.js";
 
-const MAX_HISTORY_S = 600;       // mock memory cap
+const MAX_HISTORY_S = 600; // mock memory cap
 
 /**
  * The feed one mount draws from: the column period, where the content ends, DSD modulator noise, and the frequency of
@@ -16,7 +16,7 @@ const MAX_HISTORY_S = 600;       // mock memory cap
 export function mockFeed(cfg, rows) {
   return {
     perCol: 1 / cfg.colsPerSec,
-    brick: cfg.brick ?? 19600,   // CD brick-wall; hi-res runs higher
+    brick: cfg.brick ?? 19600, // CD brick-wall; hi-res runs higher
     dsdNoise: cfg.dsdNoise,
     rowHz: Array.from({ length: rows }, (_, y) => cfg.nyquist * (1 - (y + 0.5) / rows)),
   };
@@ -40,7 +40,10 @@ export function mockHistory(cfg, feed) {
     firstIdx: 0,
     push() {
       hist.push(mockColumn(src.firstIdx + hist.length, feed));
-      if (hist.length > cap) { hist.shift(); src.firstIdx++; }
+      if (hist.length > cap) {
+        hist.shift();
+        src.firstIdx++;
+      }
     },
     latest: () => hist[hist.length - 1],
   };

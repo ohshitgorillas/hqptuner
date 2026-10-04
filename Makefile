@@ -44,7 +44,7 @@ lint:
 # exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "mockup/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx tsc -p tsconfig.node.json
 	npx knip

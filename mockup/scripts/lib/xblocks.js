@@ -10,7 +10,7 @@
 // Rows reuse the ear's EQ stage objects, so editing that EQ in any of its rows edits them all (v1's shared prefix).
 // The block's own stages carry `blk: true` (never grouped with the ear's EQ; set by Crossfeed, not edited here).
 
-import { pathParams, bauerMS, BAUER_PRESETS, toDb, gainLin } from './xdsp.js';
+import { pathParams, bauerMS, BAUER_PRESETS, toDb, gainLin } from "./xdsp.js";
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
@@ -18,27 +18,34 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 export function structuralRows(ear, { angle, circ, lambda }) {
   const a = circ / 100 / (2 * Math.PI);
   const { an, af, itd, w0 } = pathParams(angle, a);
-  const lp1 = () => ({ kind: 'iir', type: 'lp1', f: Math.round(w0 / Math.PI), blk: true });
-  const dl = () => ({ kind: 'delay', t: +itd.toFixed(6), blk: true });
+  const lp1 = () => ({ kind: "iir", type: "lp1", f: Math.round(w0 / Math.PI), blk: true });
+  const dl = () => ({ kind: "delay", t: +itd.toFixed(6), blk: true });
   const L = lambda;
   // [source is near?, extra stages, gain] — crossfeed-math §6.1 table, rows 1–8.
   const ROWS = [
-    [true, [], (L + 1) * an / 4 + (1 - L) / 2],
-    [true, ['lp1'], (L + 1) * (1 - an) / 4],
-    [true, ['delay'], (L - 1) * af / 4],
-    [true, ['lp1', 'delay'], (L - 1) * (1 - af) / 4],
-    [false, [], (L - 1) * an / 4 + (1 - L) / 2],
-    [false, ['lp1'], (L - 1) * (1 - an) / 4],
-    [false, ['delay'], (L + 1) * af / 4],
-    [false, ['lp1', 'delay'], (L + 1) * (1 - af) / 4],
+    [true, [], ((L + 1) * an) / 4 + (1 - L) / 2],
+    [true, ["lp1"], ((L + 1) * (1 - an)) / 4],
+    [true, ["delay"], ((L - 1) * af) / 4],
+    [true, ["lp1", "delay"], ((L - 1) * (1 - af)) / 4],
+    [false, [], ((L - 1) * an) / 4 + (1 - L) / 2],
+    [false, ["lp1"], ((L - 1) * (1 - an)) / 4],
+    [false, ["delay"], ((L + 1) * af) / 4],
+    [false, ["lp1", "delay"], ((L + 1) * (1 - af)) / 4],
   ];
   const out = [];
   for (const o of [0, 1]) {
     const e = ear[o];
     if (!e) continue;
     for (const [near, extra, g] of ROWS) {
-      out.push({ src: near ? o : 1 - o, mix: o, unit: 'Lin', gain: r4(g * gainLin(e)), gen: 'structural', ear: o,
-        stages: [...e.stages, ...extra.map((x) => (x === 'lp1' ? lp1() : dl()))] });
+      out.push({
+        src: near ? o : 1 - o,
+        mix: o,
+        unit: "Lin",
+        gain: r4(g * gainLin(e)),
+        gen: "structural",
+        ear: o,
+        stages: [...e.stages, ...extra.map((x) => (x === "lp1" ? lp1() : dl()))],
+      });
     }
   }
   return out;
@@ -46,21 +53,41 @@ export function structuralRows(ear, { angle, circ, lambda }) {
 
 /** Bauer compensation: 8 M/S rows (v1 wire shape), comp on the M rows. */
 export function compRows(ear, { preset, freq, level, comp }) {
-  const [fc, feed] = preset === 'custom' ? [freq, level] : BAUER_PRESETS[preset];
-  const tilt = -toDb(bauerMS(fc, feed, 20000).mid) * comp / 100;   // dB of treble the M path gets back
+  const [fc, feed] = preset === "custom" ? [freq, level] : BAUER_PRESETS[preset];
+  const tilt = (-toDb(bauerMS(fc, feed, 20000).mid) * comp) / 100; // dB of treble the M path gets back
   const shelves = () => [
-    { kind: 'iir', type: 'hshelf', f: Math.round(0.54 * fc), q: 0.58, g: +(tilt / 2).toFixed(2), blk: true },
-    { kind: 'iir', type: 'hshelf', f: Math.round(1.6 * fc), q: 0.66, g: +(tilt / 2).toFixed(2), blk: true },
+    { kind: "iir", type: "hshelf", f: Math.round(0.54 * fc), q: 0.58, g: +(tilt / 2).toFixed(2), blk: true },
+    { kind: "iir", type: "hshelf", f: Math.round(1.6 * fc), q: 0.66, g: +(tilt / 2).toFixed(2), blk: true },
   ];
   // [src offset, comp?, sign] per output, wire-shape rows 1–4 (out L) and 5–8 (out R).
-  const SHAPE = { 0: [[0, true, 1], [1, true, 1], [0, false, 1], [1, false, -1]], 1: [[0, true, 1], [1, true, 1], [0, false, -1], [1, false, 1]] };
+  const SHAPE = {
+    0: [
+      [0, true, 1],
+      [1, true, 1],
+      [0, false, 1],
+      [1, false, -1],
+    ],
+    1: [
+      [0, true, 1],
+      [1, true, 1],
+      [0, false, -1],
+      [1, false, 1],
+    ],
+  };
   const out = [];
   for (const o of [0, 1]) {
     const e = ear[o];
     if (!e) continue;
     for (const [src, c, sign] of SHAPE[o]) {
-      out.push({ src, mix: o, unit: 'Lin', gain: r4(0.5 * sign * gainLin(e)), gen: 'comp', ear: o,
-        stages: [...e.stages, ...(c ? shelves() : [])] });
+      out.push({
+        src,
+        mix: o,
+        unit: "Lin",
+        gain: r4(0.5 * sign * gainLin(e)),
+        gen: "comp",
+        ear: o,
+        stages: [...e.stages, ...(c ? shelves() : [])],
+      });
     }
   }
   return out;

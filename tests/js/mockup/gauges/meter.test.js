@@ -122,23 +122,53 @@ const column = ({ env = 0, kick = false }) => ({ idx: 7, env, kick });
 // ── Spectrum ─────────────────────────────────────────────────────────────
 
 test("test_a_jump_frame_shows_a_level_below_the_one_shown", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -10 }, { now: 100, level: -40, jump: true }]).disp, -40);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -10 },
+      { now: 100, level: -40, jump: true },
+    ]).disp,
+    -40,
+  );
 });
 
 test("test_a_rising_level_is_shown_at_once", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -40 }, { now: 100, level: -10 }]).disp, -10);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -40 },
+      { now: 100, level: -10 },
+    ]).disp,
+    -10,
+  );
 });
 
 test("test_a_falling_level_is_shown_falling_three_db_per_frame", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -10 }, { now: 100, level: -40 }]).disp, -13);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -10 },
+      { now: 100, level: -40 },
+    ]).disp,
+    -13,
+  );
 });
 
 test("test_a_falling_level_is_never_shown_below_the_new_level", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -10 }, { now: 100, level: -12 }]).disp, -12);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -10 },
+      { now: 100, level: -12 },
+    ]).disp,
+    -12,
+  );
 });
 
 test("test_the_spectrum_peak_is_stamped_when_the_shown_level_reaches_it", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -40 }, { now: 100, level: -10 }]).peakAt, 100);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -40 },
+      { now: 100, level: -10 },
+    ]).peakAt,
+    100,
+  );
 });
 
 test("test_the_spectrum_peak_holds_for_two_seconds", () => {
@@ -150,7 +180,13 @@ test("test_the_spectrum_peak_falls_one_db_per_frame_after_two_seconds", () => {
 });
 
 test("test_the_spectrum_peak_never_falls_below_the_shown_level", () => {
-  assert.equal(spectrumAfter([{ now: 0, level: -10 }, { now: 2100, level: -10.5 }]).peak, -10.5);
+  assert.equal(
+    spectrumAfter([
+      { now: 0, level: -10 },
+      { now: 2100, level: -10.5 },
+    ]).peak,
+    -10.5,
+  );
 });
 
 // ── Level target ─────────────────────────────────────────────────────────
@@ -357,11 +393,17 @@ for (const row of JITTER) {
 }
 
 test("test_a_kick_lands_every_fifth_column", () => {
-  assert.deepEqual(columnsWhere(0, 12, (c) => c.kick), [0, 5, 10]);
+  assert.deepEqual(
+    columnsWhere(0, 12, (c) => c.kick),
+    [0, 5, 10],
+  );
 });
 
 test("test_a_hat_lands_two_columns_before_each_kick", () => {
-  assert.deepEqual(columnsWhere(0, 12, (c) => c.hat), [3, 8]);
+  assert.deepEqual(
+    columnsWhere(0, 12, (c) => c.hat),
+    [3, 8],
+  );
 });
 
 test("test_the_chord_holds_for_two_point_four_seconds", () => {
@@ -577,11 +619,20 @@ test("test_a_timed_window_spans_its_seconds_of_columns", () => {
 const ticksOf = (spanS, totalS, all) => timeTicks(spanS * 10, totalS * 10, 10, all).ticks.map((t) => [t.at, t.value]);
 
 test("test_a_one_minute_window_ticks_every_15_seconds_back_to_its_left_edge", () => {
-  assert.deepEqual(ticksOf(60, 200, false), [[0, -60], [0.25, -45], [0.5, -30], [0.75, -15], [1, 0]]);
+  assert.deepEqual(ticksOf(60, 200, false), [
+    [0, -60],
+    [0.25, -45],
+    [0.5, -30],
+    [0.75, -15],
+    [1, 0],
+  ]);
 });
 
 test("test_a_thirty_second_window_ticks_every_10_seconds", () => {
-  assert.deepEqual(ticksOf(30, 200, false).map(([, v]) => v), [-30, -20, -10, 0]);
+  assert.deepEqual(
+    ticksOf(30, 200, false).map(([, v]) => v),
+    [-30, -20, -10, 0],
+  );
 });
 
 test("test_a_window_over_two_minutes_reads_in_minutes", () => {
@@ -593,19 +644,34 @@ test("test_a_two_minute_window_reads_in_seconds", () => {
 });
 
 test("test_a_five_minute_window_ticks_every_minute", () => {
-  assert.deepEqual(ticksOf(300, 400, false).map(([, v]) => v), [-5, -4, -3, -2, -1, 0]);
+  assert.deepEqual(
+    ticksOf(300, 400, false).map(([, v]) => v),
+    [-5, -4, -3, -2, -1, 0],
+  );
 });
 
 test("test_the_all_window_ticks_from_track_start_and_ends_on_the_track_position", () => {
-  assert.deepEqual(ticksOf(40, 40, true), [[0, 0], [0.25, 10], [0.5, 20], [0.75, 30], [1, 40]]);
+  assert.deepEqual(ticksOf(40, 40, true), [
+    [0, 0],
+    [0.25, 10],
+    [0.5, 20],
+    [0.75, 30],
+    [1, 40],
+  ]);
 });
 
 test("test_a_tick_crowding_the_right_edge_gives_way_to_the_end_label", () => {
-  assert.deepEqual(ticksOf(42, 42, true).map(([, v]) => v), [0, 10, 20, 30, 42]);
+  assert.deepEqual(
+    ticksOf(42, 42, true).map(([, v]) => v),
+    [0, 10, 20, 30, 42],
+  );
 });
 
 test("test_a_tick_clear_of_the_right_edge_stays", () => {
-  assert.deepEqual(ticksOf(44, 44, true).map(([, v]) => v), [0, 10, 20, 30, 40, 44]);
+  assert.deepEqual(
+    ticksOf(44, 44, true).map(([, v]) => v),
+    [0, 10, 20, 30, 40, 44],
+  );
 });
 
 // ── Colour ramp ──────────────────────────────────────────────────────────
@@ -630,11 +696,29 @@ test("test_the_ramp_blends_the_two_stops_either_side_of_an_index", () => {
 });
 
 test("test_the_ramp_spreads_its_stops_evenly", () => {
-  assert.deepEqual(Array.from(rampLut([[0, 0, 0], [30, 0, 0], [60, 0, 0], [255, 0, 0]]).subarray(510, 513)), [60, 0, 0]);
+  assert.deepEqual(
+    Array.from(
+      rampLut([
+        [0, 0, 0],
+        [30, 0, 0],
+        [60, 0, 0],
+        [255, 0, 0],
+      ]).subarray(510, 513),
+    ),
+    [60, 0, 0],
+  );
 });
 
 test("test_the_ramp_blends_each_channel_on_its_own", () => {
-  assert.deepEqual(Array.from(rampLut([[0, 100, 200], [200, 100, 0]]).subarray(51 * 3, 51 * 3 + 3)), [40, 100, 160]);
+  assert.deepEqual(
+    Array.from(
+      rampLut([
+        [0, 100, 200],
+        [200, 100, 0],
+      ]).subarray(51 * 3, 51 * 3 + 3),
+    ),
+    [40, 100, 160],
+  );
 });
 
 //: Glass and the bad colour, a grey step of 100 apart.

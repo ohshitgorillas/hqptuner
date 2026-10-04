@@ -5,7 +5,7 @@
 //   Structural = Brown & Duda head-shadow filter + Woodworth ITD (v1 docs/crossfeed-math.md §2, §3, §6.1).
 //   Loudness = RBJ cookbook biquads (the daemon's iir is RBJ, measured: matrix-spec "numeric oracle"), at 48 kHz like v1.
 
-const C = 343;   // m/s, the constant the Brown & Duda fit travels with (crossfeed-math §2)
+const C = 343; // m/s, the constant the Brown & Duda fit travels with (crossfeed-math §2)
 
 // Complex helpers: [re, im].
 /** @typedef {(a: number[], b: number[]) => number[]} CxOp */
@@ -16,7 +16,10 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 /** @type {CxOp} */
 const mul = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
 /** @type {CxOp} */
-const div = (a, b) => { const d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; };
+const div = (a, b) => {
+  const d = b[0] * b[0] + b[1] * b[1];
+  return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d];
+};
 /** @type {(a: number[], k: number) => number[]} */
 const sc = (a, k) => [a[0] * k, a[1] * k];
 /** @type {(a: number[]) => number} */
@@ -35,12 +38,14 @@ export const BAUER_PRESETS = { default: [700, 4.5], cmoy: [700, 6.0], jmeier: [6
  * @param {number} f
  */
 export function bauerMS(fc, feed, f) {
-  const GBlo = -5 * feed / 6 - 3, GBhi = feed / 6 - 3;
-  const Glo = 10 ** (GBlo / 20), Ghi = 1 - 10 ** (GBhi / 20);
+  const GBlo = (-5 * feed) / 6 - 3,
+    GBhi = feed / 6 - 3;
+  const Glo = 10 ** (GBlo / 20),
+    Ghi = 1 - 10 ** (GBhi / 20);
   const Fchi = fc * 2 ** ((GBlo - 20 * Math.log10(Ghi)) / 12);
   const norm = 1 / (1 - Ghi + Glo);
-  const lo = div([Glo, 0], [1, f / fc]);                        // cross path
-  const hi = sub([1, 0], div([Ghi, 0], [1, f / Fchi]));         // direct path: DC 1−Ghi, HF 1
+  const lo = div([Glo, 0], [1, f / fc]); // cross path
+  const hi = sub([1, 0], div([Ghi, 0], [1, f / Fchi])); // direct path: DC 1−Ghi, HF 1
   return { mid: mag(sc(add(hi, lo), norm)), side: mag(sc(sub(hi, lo), norm)) };
 }
 
@@ -52,13 +57,16 @@ export function bauerMS(fc, feed, f) {
  */
 export function pathParams(angle, a) {
   /** @param {number} th */
-  const alpha = (th) => 1.05 + 0.95 * Math.cos((th / 150) * Math.PI);   // eq. (5), α_min 0.1, θ_min 150°
+  const alpha = (th) => 1.05 + 0.95 * Math.cos((th / 150) * Math.PI); // eq. (5), α_min 0.1, θ_min 150°
   /** @param {number} d */
-  const rad = (d) => d * Math.PI / 180;
-  const thN = 90 - angle, thF = 90 + angle;
-  const dtN = -(a / C) * Math.cos(rad(thN));                             // eq. (2), 0 ≤ θ < 90°
-  const dtF = (a / C) * (rad(thF) - Math.PI / 2);                        // eq. (2), 90° ≤ θ < 180°
-  const an = alpha(thN), af = alpha(thF), w0 = C / a;
+  const rad = (d) => (d * Math.PI) / 180;
+  const thN = 90 - angle,
+    thF = 90 + angle;
+  const dtN = -(a / C) * Math.cos(rad(thN)); // eq. (2), 0 ≤ θ < 90°
+  const dtF = (a / C) * (rad(thF) - Math.PI / 2); // eq. (2), 90° ≤ θ < 180°
+  const an = alpha(thN),
+    af = alpha(thF),
+    w0 = C / a;
   // Head-shadow group delay T_g = (1 − α)/(2ω₀) (crossfeed-math §3): what supplies the low-frequency ITD excess.
   return { an, af, itd: dtF - dtN, w0, gdN: (1 - an) / (2 * w0), gdF: (1 - af) / (2 * w0) };
 }
@@ -74,8 +82,8 @@ export function pathParams(angle, a) {
 export function structuralMS(f, angle, a, lambda) {
   const p = pathParams(angle, a);
   const w = 2 * Math.PI * f;
-  const P = div([1, 0], [1, w / (2 * p.w0)]);                            // the lp1 (pole at µ = 2)
-  const D = [Math.cos(w * p.itd), -Math.sin(w * p.itd)];                 // far-ear delay
+  const P = div([1, 0], [1, w / (2 * p.w0)]); // the lp1 (pole at µ = 2)
+  const D = [Math.cos(w * p.itd), -Math.sin(w * p.itd)]; // far-ear delay
   const Hn = add([p.an, 0], sc(P, 1 - p.an));
   const Hf = mul(D, add([p.af, 0], sc(P, 1 - p.af)));
   const mid = add(sc(add(Hn, Hf), lambda / 2), [1 - lambda, 0]);
@@ -98,9 +106,9 @@ const FS = 48000;
  */
 function biquadDb(type, f0, g, k, f) {
   const c = Math.max(k, 0.05);
-  const st = type === 'peak' ? { type, bw: c } : type === 'peakq' ? { type: 'peak', q: c } : { type, s: c };
+  const st = type === "peak" ? { type, bw: c } : type === "peakq" ? { type: "peak", q: c } : { type, s: c };
   const [b, a] = iirCoef(st, FS, f0, g);
-  const [num, den] = numDen(b, a, 2 * Math.PI * f / FS);
+  const [num, den] = numDen(b, a, (2 * Math.PI * f) / FS);
   return toDb(mag(num) / mag(den));
 }
 
@@ -114,8 +122,10 @@ function biquadDb(type, f0, g, k, f) {
  * @param {number} amount
  */
 export function loudnessDb(p, f, amount) {
-  return biquadDb(p.low.type, p.low.freq, p.low.level * amount, p.low.steep, f)
-    + biquadDb(p.high.type, p.high.freq, p.high.level * amount, p.high.steep, f);
+  return (
+    biquadDb(p.low.type, p.low.freq, p.low.level * amount, p.low.steep, f) +
+    biquadDb(p.high.type, p.high.freq, p.high.level * amount, p.high.steep, f)
+  );
 }
 
 /**
@@ -165,7 +175,8 @@ export function shelfScale(v, low, high) {
  * @param {number} w
  */
 function numDen(b, a, w) {
-  const z1 = [Math.cos(w), -Math.sin(w)], z2 = [Math.cos(2 * w), -Math.sin(2 * w)];
+  const z1 = [Math.cos(w), -Math.sin(w)],
+    z2 = [Math.cos(2 * w), -Math.sin(2 * w)];
   const num = add(add([b[0], 0], sc(z1, b[1])), sc(z2, b[2] ?? 0));
   const den = add(add([a[0], 0], sc(z1, a[1])), sc(z2, a[2] ?? 0));
   return [num, den];
@@ -182,31 +193,75 @@ function numDen(b, a, w) {
  */
 function iirCoef(st, fs, f0, g) {
   const t = st.type;
-  if (t === 'biquad') return [[Number(st.b0), Number(st.b1), Number(st.b2)], [Number(st.a0), Number(st.a1), Number(st.a2)]];
-  const w0 = 2 * Math.PI * f0 / fs, cw = Math.cos(w0), sw = Math.sin(w0);
-  if (t === 'lp1' || t === 'hp1') {
+  if (t === "biquad")
+    return [
+      [Number(st.b0), Number(st.b1), Number(st.b2)],
+      [Number(st.a0), Number(st.a1), Number(st.a2)],
+    ];
+  const w0 = (2 * Math.PI * f0) / fs,
+    cw = Math.cos(w0),
+    sw = Math.sin(w0);
+  if (t === "lp1" || t === "hp1") {
     const K = Math.tan(w0 / 2);
-    return t === 'lp1' ? [[K / (K + 1), K / (K + 1)], [1, (K - 1) / (K + 1)]] : [[1 / (K + 1), -1 / (K + 1)], [1, (K - 1) / (K + 1)]];
+    return t === "lp1"
+      ? [
+          [K / (K + 1), K / (K + 1)],
+          [1, (K - 1) / (K + 1)],
+        ]
+      : [
+          [1 / (K + 1), -1 / (K + 1)],
+          [1, (K - 1) / (K + 1)],
+        ];
   }
   const A = 10 ** (g / 40);
   let al;
-  if (st.bw !== undefined) al = sw * Math.sinh(Math.LN2 / 2 * Math.max(+st.bw, 0.01) * w0 / sw);
-  else if (st.s !== undefined && (t === 'lshelf' || t === 'hshelf')) {
+  if (st.bw !== undefined) al = sw * Math.sinh(((Math.LN2 / 2) * Math.max(+st.bw, 0.01) * w0) / sw);
+  else if (st.s !== undefined && (t === "lshelf" || t === "hshelf")) {
     const S = Math.min(Math.max(+st.s, 0.05), 1);
-    al = sw / 2 * Math.sqrt((A + 1 / A) * (1 / S - 1) + 2);
+    al = (sw / 2) * Math.sqrt((A + 1 / A) * (1 / S - 1) + 2);
   } else al = sw / (2 * Math.max(+(st.q ?? st.s ?? 0.707), 0.05));
   const q2 = 2 * Math.sqrt(A) * al;
   switch (t) {
-    case 'lp': return [[(1 - cw) / 2, 1 - cw, (1 - cw) / 2], [1 + al, -2 * cw, 1 - al]];
-    case 'hp': return [[(1 + cw) / 2, -(1 + cw), (1 + cw) / 2], [1 + al, -2 * cw, 1 - al]];
-    case 'bp': return [[al, 0, -al], [1 + al, -2 * cw, 1 - al]];
-    case 'ap': return [[1 - al, -2 * cw, 1 + al], [1 + al, -2 * cw, 1 - al]];
-    case 'notch': return [[1, -2 * cw, 1], [1 + al, -2 * cw, 1 - al]];
-    case 'peak': return [[1 + al * A, -2 * cw, 1 - al * A], [1 + al / A, -2 * cw, 1 - al / A]];
-    case 'lshelf': return [[A * ((A + 1) - (A - 1) * cw + q2), 2 * A * ((A - 1) - (A + 1) * cw), A * ((A + 1) - (A - 1) * cw - q2)],
-      [(A + 1) + (A - 1) * cw + q2, -2 * ((A - 1) + (A + 1) * cw), (A + 1) + (A - 1) * cw - q2]];
-    case 'hshelf': return [[A * ((A + 1) + (A - 1) * cw + q2), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - q2)],
-      [(A + 1) - (A - 1) * cw + q2, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - q2]];
+    case "lp":
+      return [
+        [(1 - cw) / 2, 1 - cw, (1 - cw) / 2],
+        [1 + al, -2 * cw, 1 - al],
+      ];
+    case "hp":
+      return [
+        [(1 + cw) / 2, -(1 + cw), (1 + cw) / 2],
+        [1 + al, -2 * cw, 1 - al],
+      ];
+    case "bp":
+      return [
+        [al, 0, -al],
+        [1 + al, -2 * cw, 1 - al],
+      ];
+    case "ap":
+      return [
+        [1 - al, -2 * cw, 1 + al],
+        [1 + al, -2 * cw, 1 - al],
+      ];
+    case "notch":
+      return [
+        [1, -2 * cw, 1],
+        [1 + al, -2 * cw, 1 - al],
+      ];
+    case "peak":
+      return [
+        [1 + al * A, -2 * cw, 1 - al * A],
+        [1 + al / A, -2 * cw, 1 - al / A],
+      ];
+    case "lshelf":
+      return [
+        [A * (A + 1 - (A - 1) * cw + q2), 2 * A * (A - 1 - (A + 1) * cw), A * (A + 1 - (A - 1) * cw - q2)],
+        [A + 1 + (A - 1) * cw + q2, -2 * (A - 1 + (A + 1) * cw), A + 1 + (A - 1) * cw - q2],
+      ];
+    case "hshelf":
+      return [
+        [A * (A + 1 + (A - 1) * cw + q2), -2 * A * (A - 1 + (A + 1) * cw), A * (A + 1 + (A - 1) * cw - q2)],
+        [A + 1 - (A - 1) * cw + q2, 2 * (A - 1 - (A + 1) * cw), A + 1 - (A - 1) * cw - q2],
+      ];
   }
   return [[1], [1]];
 }
@@ -216,7 +271,7 @@ function iirCoef(st, fs, f0, g) {
  *
  * @param {{ unit?: string, gain: number | string }} p
  */
-export const gainLin = (p) => (p.unit === 'Lin' ? +p.gain : 10 ** (+p.gain / 20));
+export const gainLin = (p) => (p.unit === "Lin" ? +p.gain : 10 ** (+p.gain / 20));
 
 /**
  * Complex H(f) of one pipeline: its stages in order, then its gain. An iir stage's corner is its f (1 kHz when unset,
@@ -229,14 +284,21 @@ export const gainLin = (p) => (p.unit === 'Lin' ? +p.gain : 10 ** (+p.gain / 20)
  */
 export function pipeH(p, f, fs) {
   let H = [1, 0];
-  const w = 2 * Math.PI * f / fs;
+  const w = (2 * Math.PI * f) / fs;
   for (const st of p.stages) {
-    if (st.kind === 'iir') {
+    if (st.kind === "iir") {
       const [b, a] = iirCoef(st, fs, Math.min(Number(st.f) || 1000, fs * 0.499), Number(st.g) || 0);
       const [num, den] = numDen(b, a, w);
       H = mul(H, div(num, den));
-    } else if (st.kind === 'delay') {
-      const t = st.t !== undefined ? +st.t : st.s !== undefined ? +st.s / fs : st.d !== undefined ? +st.d / (Number(st.v) || 343.956) : 0;
+    } else if (st.kind === "delay") {
+      const t =
+        st.t !== undefined
+          ? +st.t
+          : st.s !== undefined
+            ? +st.s / fs
+            : st.d !== undefined
+              ? +st.d / (Number(st.v) || 343.956)
+              : 0;
       H = mul(H, [Math.cos(2 * Math.PI * f * t), -Math.sin(2 * Math.PI * f * t)]);
     }
   }

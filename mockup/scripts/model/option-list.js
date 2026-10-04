@@ -59,8 +59,8 @@
  */
 
 /** @type {Record<string, string>} */
-const RATIO = { integer: 'Integer', '2x': '2x', '1:1': '1:1', any: 'Any' };   // v1 facet-data.js RATIOS + "Any" (facettip.js)
-const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];       // v1 options.js GENERATION_ORDINALS
+const RATIO = { integer: "Integer", "2x": "2x", "1:1": "1:1", any: "Any" }; // v1 facet-data.js RATIOS + "Any" (facettip.js)
+const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]; // v1 options.js GENERATION_ORDINALS
 const MARGIN = 12;
 
 /**
@@ -74,15 +74,26 @@ export function tipRows(o, facet) {
   const f = o.f;
   /** @type {[string, string][]} */
   const rows = [];
-  if (!f) return o.gen && ORD[o.gen] ? [['Generation', ORD[o.gen]]] : [];
-  if (f.q != null) rows.push(['Quality', `${f.q}/5`]);
-  if (f.genre.length) rows.push(['Genre', f.genre.map((g) => facet.genre[g] ?? g).join(', ')]);
-  if (f.focus.length) rows.push(['Focus', f.focus.map((g) => facet.focus[g] ?? g).join(', ')]);
-  if (f.phase) rows.push(['Phase', facet.phase[f.phase] ?? f.phase]);
-  if (f.len || f.adaptive) rows.push(['Length', f.adaptive ? (f.len ? `${facet.length[f.len]}, adaptive` : facet.length.adaptive) : facet.length[f.len]]);
-  const ratio = f.ratio != null ? RATIO[f.ratio] ?? f.ratio
-    : [f.ratioPcm != null && `PCM ${RATIO[f.ratioPcm] ?? f.ratioPcm}`, f.ratioSdm != null && `SDM ${RATIO[f.ratioSdm] ?? f.ratioSdm}`].filter(Boolean).join(' · ');
-  if (ratio) rows.push(['Ratio', ratio]);
+  if (!f) return o.gen && ORD[o.gen] ? [["Generation", ORD[o.gen]]] : [];
+  if (f.q != null) rows.push(["Quality", `${f.q}/5`]);
+  if (f.genre.length) rows.push(["Genre", f.genre.map((g) => facet.genre[g] ?? g).join(", ")]);
+  if (f.focus.length) rows.push(["Focus", f.focus.map((g) => facet.focus[g] ?? g).join(", ")]);
+  if (f.phase) rows.push(["Phase", facet.phase[f.phase] ?? f.phase]);
+  if (f.len || f.adaptive)
+    rows.push([
+      "Length",
+      f.adaptive ? (f.len ? `${facet.length[f.len]}, adaptive` : facet.length.adaptive) : facet.length[f.len],
+    ]);
+  const ratio =
+    f.ratio != null
+      ? (RATIO[f.ratio] ?? f.ratio)
+      : [
+          f.ratioPcm != null && `PCM ${RATIO[f.ratioPcm] ?? f.ratioPcm}`,
+          f.ratioSdm != null && `SDM ${RATIO[f.ratioSdm] ?? f.ratioSdm}`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+  if (ratio) rows.push(["Ratio", ratio]);
   return rows;
 }
 
@@ -92,7 +103,13 @@ export function tipRows(o, facet) {
  * @param {Opt} o
  * @returns {string[]}
  */
-export const tipChips = (o) => (o.f ? [o.f.apod === 'half' ? 'Half apodizing' : o.f.apod === 'full' ? 'Apodizing' : '', o.f.up ? 'Upsample only' : ''].filter(Boolean) : []);
+export const tipChips = (o) =>
+  o.f
+    ? [
+        o.f.apod === "half" ? "Half apodizing" : o.f.apod === "full" ? "Apodizing" : "",
+        o.f.up ? "Upsample only" : "",
+      ].filter(Boolean)
+    : [];
 
 /**
  * What the tip says: the raw engine name while Simplified hides it (null in Standard), the manual prose (Standard's own
@@ -130,13 +147,18 @@ export function tipAt({ col, rowY, tip, plate }) {
  * @returns {{left: number, top: number}}
  */
 export function parkAt({ panel, trigger, plate }) {
-  let x = (plate.w - panel.w) / 2, y = (plate.h - panel.h) / 2;
+  let x = (plate.w - panel.w) / 2,
+    y = (plate.h - panel.h) / 2;
   if (trigger) {
     x = trigger.x;
-    const below = trigger.y + trigger.h + 6, above = trigger.y - panel.h - 6;
+    const below = trigger.y + trigger.h + 6,
+      above = trigger.y - panel.h - 6;
     y = below + panel.h <= plate.h - MARGIN ? below : above >= MARGIN ? above : plate.h - MARGIN - panel.h;
   }
-  return { left: Math.round(Math.max(MARGIN, Math.min(x, plate.w - MARGIN - panel.w))), top: Math.round(Math.max(MARGIN, y)) };
+  return {
+    left: Math.round(Math.max(MARGIN, Math.min(x, plate.w - MARGIN - panel.w))),
+    top: Math.round(Math.max(MARGIN, y)),
+  };
 }
 
 /**
@@ -151,7 +173,7 @@ export function groupTree(opts) {
   for (const o of opts) {
     let g = fams.get(o.fam);
     if (!g) fams.set(o.fam, (g = new Map()));
-    const v = o.var ?? '';
+    const v = o.var ?? "";
     let rows = g.get(v);
     if (!rows) g.set(v, (rows = []));
     rows.push(o);
@@ -177,10 +199,15 @@ export function columns(place, fams) {
       const fam = fs[0];
       const vs = fams.get(fam) ?? new Map();
       const halves = c.split.map((names) => names.filter((v) => vs.has(v)));
-      out.push({ kind: 'split', fam, halves, band: halves.every((half) => half.length > 0) });
+      out.push({ kind: "split", fam, halves, band: halves.every((half) => half.length > 0) });
       continue;
     }
-    out.push({ kind: 'stack', title: c.title, fams: fs, then: c.then && more.length > 0 ? { title: c.then.title, fams: more } : null });
+    out.push({
+      kind: "stack",
+      title: c.title,
+      fams: fs,
+      then: c.then && more.length > 0 ? { title: c.then.title, fams: more } : null,
+    });
   }
   return out;
 }
@@ -196,7 +223,10 @@ export function columns(place, fams) {
 export function flatColumns(opts, { total, cols, order }) {
   const per = Math.ceil(total / cols);
   /** @param {string} v */
-  const idx = (v) => { const i = order.indexOf(String(v)); return i < 0 ? Infinity : i; };
+  const idx = (v) => {
+    const i = order.indexOf(String(v));
+    return i < 0 ? Infinity : i;
+  };
   const list = [...opts].sort((a, b) => idx(a.v) - idx(b.v));
   const out = [];
   for (let i = 0; i < list.length; i += per) out.push(list.slice(i, i + per));

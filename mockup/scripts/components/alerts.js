@@ -10,16 +10,21 @@
 // set(list) repaints everything from scratch; list = [{kind, sev, text, chain?, rows?}] (chain: 'pcm' | 'sdm', whose rows it lights; rows: overrides the
 // home's fixing rows, e.g. the filter actually running).
 
-import { h } from '../lib/dom.js';
-import { popover } from '../lib/popover.js';
-import { placeBy } from '../lib/plate.js';
-import { HOMES } from '../data/alerts.js';
-import { alertPlan, alertsAt, noteHomes, worseBlink } from '../model/alerts.js';
+import { h } from "../lib/dom.js";
+import { popover } from "../lib/popover.js";
+import { placeBy } from "../lib/plate.js";
+import { HOMES } from "../data/alerts.js";
+import { alertPlan, alertsAt, noteHomes, worseBlink } from "../model/alerts.js";
 
-const GLYPH = { crit: '⚠', warn: '⚠', advice: '♪' };
+const GLYPH = { crit: "⚠", warn: "⚠", advice: "♪" };
 
-const line = (a, tag = 'p') => h(`${tag}.aline`, { data: { sev: a.sev } },
-  h('span.ag', { 'aria-hidden': 'true', text: GLYPH[a.sev] }), h('span', { text: a.text }));
+const line = (a, tag = "p") =>
+  h(
+    `${tag}.aline`,
+    { data: { sev: a.sev } },
+    h("span.ag", { "aria-hidden": "true", text: GLYPH[a.sev] }),
+    h("span", { text: a.text }),
+  );
 
 /** Worst severity wins on a shared home. */
 function mark(el, sev) {
@@ -29,10 +34,13 @@ function mark(el, sev) {
 }
 
 function clear(plate) {
-  for (const el of plate.querySelectorAll('[data-alert]')) el.removeAttribute('data-alert');
-  for (const el of plate.querySelectorAll('.dalert, .salert')) el.remove();
-  for (const el of plate.querySelectorAll('.st.dead')) el.classList.remove('dead');
-  for (const el of plate.querySelectorAll('.gauge[role="button"]')) { el.removeAttribute('role'); el.removeAttribute('tabindex'); }
+  for (const el of plate.querySelectorAll("[data-alert]")) el.removeAttribute("data-alert");
+  for (const el of plate.querySelectorAll(".dalert, .salert")) el.remove();
+  for (const el of plate.querySelectorAll(".st.dead")) el.classList.remove("dead");
+  for (const el of plate.querySelectorAll('.gauge[role="button"]')) {
+    el.removeAttribute("role");
+    el.removeAttribute("tabindex");
+  }
 }
 
 /**
@@ -45,24 +53,41 @@ function pin({ plate, stages, srail }, plan) {
   for (const [id, b] of plan.blinks.stage) mark(stages.get(id), b);
   for (const [sel, b] of plan.blinks.el) mark(plate.querySelector(sel), b);
   for (const [id, b] of plan.blinks.set) mark(srail.querySelector(`.sst[data-stage="${id}"]`), b);
-  for (const id of plan.dark) stages.get(id)?.classList.add('dead');
-  if (plan.blinks.el.has('.gauge')) { const g = plate.querySelector('.gauge'); g.setAttribute('role', 'button'); g.tabIndex = 0; }
+  for (const id of plan.dark) stages.get(id)?.classList.add("dead");
+  if (plan.blinks.el.has(".gauge")) {
+    const g = plate.querySelector(".gauge");
+    g.setAttribute("role", "button");
+    g.tabIndex = 0;
+  }
   // Drawer: the alert lines under the head; the fixing rows in the alert's colour.
   for (const [id, { alerts, rows }] of plan.drawers) {
     const d = plate.querySelector(`#drawer-${id}`);
     if (!d) continue;
-    d.querySelector(':scope > .dhead').after(h('div.dalert', { role: 'status' }, alerts.map((a) => line(a))));
+    d.querySelector(":scope > .dhead").after(
+      h(
+        "div.dalert",
+        { role: "status" },
+        alerts.map((a) => line(a)),
+      ),
+    );
     for (const { label, chain, sev } of rows) {
       // chain: a chain alert lights its own chain's rows only (the Resampling · Shaping drawer holds both chains).
-      const scope = chain ? `.dpanel[aria-label^="${chain === 'sdm' ? 'SDM' : 'PCM'}"] ` : '';
-      for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`)) if (b.textContent === label) mark(b.closest('.drow'), sev);
+      const scope = chain ? `.dpanel[aria-label^="${chain === "sdm" ? "SDM" : "PCM"}"] ` : "";
+      for (const b of d.querySelectorAll(`${scope}.drow .ctl > .fh > b`))
+        if (b.textContent === label) mark(b.closest(".drow"), sev);
     }
   }
   // Page: the section header carries the lines, beside the title (the hairline gives way).
   for (const [name, as] of plan.sections) {
     const t = plate.querySelector(`#body > main.page > section[aria-label="${name}"] .sh .t`);
     if (!t) continue;
-    t.after(h('div.salert', { role: 'status' }, as.map((a) => line(a))));
+    t.after(
+      h(
+        "div.salert",
+        { role: "status" },
+        as.map((a) => line(a)),
+      ),
+    );
   }
 }
 
@@ -74,21 +99,28 @@ export function mountAlerts({ plate, stages, srail, bus }) {
 
   // Tap popovers for the header homes without a drawer (knob, gauge). The knob's own tap (connection settings) still
   // happens; with an alert up, the alert opens over it.
-  const notes = new Map();   // selector → {panel, pop}
+  const notes = new Map(); // selector → {panel, pop}
   function noteFor(sel) {
     if (notes.has(sel)) return notes.get(sel);
     const trigger = plate.querySelector(sel);
-    const panel = h('div.pop.notepop.alnote', { role: 'dialog', 'aria-label': 'Alert' });
+    const panel = h("div.pop.notepop.alnote", { role: "dialog", "aria-label": "Alert" });
     plate.append(panel);
-    const pop = popover({ trigger, panel, onToggle: (open) => {
-      if (!open) return;
-      const mine = alertsAt(list, HOMES, sel);
-      if (!mine.length) { pop.close(); return; }
-      panel.replaceChildren(...mine.map((a) => line(a)));
-      const { left, top } = placeBy(panel, trigger, { side: 22, foot: 14, at: { x: 'start', y: 'below', gap: 8 } });
-      panel.style.left = `${left}px`;
-      panel.style.top = `${top}px`;
-    } });
+    const pop = popover({
+      trigger,
+      panel,
+      onToggle: (open) => {
+        if (!open) return;
+        const mine = alertsAt(list, HOMES, sel);
+        if (!mine.length) {
+          pop.close();
+          return;
+        }
+        panel.replaceChildren(...mine.map((a) => line(a)));
+        const { left, top } = placeBy(panel, trigger, { side: 22, foot: 14, at: { x: "start", y: "below", gap: 8 } });
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+      },
+    });
     const n = { panel, pop };
     notes.set(sel, n);
     return n;
@@ -98,12 +130,12 @@ export function mountAlerts({ plate, stages, srail, bus }) {
   function paint() {
     clear(plate);
     pin({ plate, stages, srail }, alertPlan(list, HOMES));
-    bus.emit('relayout');   // rail wire: dark stages drop their taps; drawers refit
+    bus.emit("relayout"); // rail wire: dark stages drop their taps; drawers refit
   }
 
   // The gauge isn't a button: with an alert up it takes taps and Enter like one.
-  plate.querySelector('.gauge')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.currentTarget.dataset.alert) noteFor('.gauge').pop.open();
+  plate.querySelector(".gauge")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.currentTarget.dataset.alert) noteFor(".gauge").pop.open();
   });
 
   return {

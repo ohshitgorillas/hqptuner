@@ -36,8 +36,8 @@
  * @returns {Summary | null}
  */
 function apodSummary(st, stage) {
-  const v = st[stage === 'nx' ? 'apodNx' : 'apod1x'];
-  return v === 'only' || v === 'half' ? { apod: v } : null;
+  const v = st[stage === "nx" ? "apodNx" : "apod1x"];
+  return v === "only" || v === "half" ? { apod: v } : null;
 }
 
 /**
@@ -49,7 +49,9 @@ function apodSummary(st, stage) {
  */
 function segSummary(rows, st) {
   const moved = rows.filter((r) => String(st[r.key]) !== String(r.options[0].v));
-  const labels = moved.map((r) => /** @type {Option} */ (r.options.find((o) => String(o.v) === String(st[r.key]))).label);
+  const labels = moved.map(
+    (r) => /** @type {Option} */ (r.options.find((o) => String(o.v) === String(st[r.key]))).label,
+  );
   return labels.length ? { labels } : null;
 }
 
@@ -64,8 +66,9 @@ function chipsSummary(f, st) {
   const key = String(f.key);
   const sel = /** @type {unknown[]} */ (st[key]);
   if (!sel.length) return null;
-  if (sel.length === 1) return { labels: [/** @type {Option} */ ((f.options ?? []).find((o) => o.v === sel[0])).label] };
-  return { picks: sel.length, mode: f.combine ? String(st[key + 'Mode']) : 'or' };
+  if (sel.length === 1)
+    return { labels: [/** @type {Option} */ ((f.options ?? []).find((o) => o.v === sel[0])).label] };
+  return { picks: sel.length, mode: f.combine ? String(st[key + "Mode"]) : "or" };
 }
 
 /**
@@ -91,10 +94,10 @@ function checksSummary(items, st) {
  */
 export function summary(f, st, stage) {
   if (f.apod) return apodSummary(st, stage);
-  if (f.kind === 'seg') return segSummary(f.rows ?? [], st);
-  if (f.kind === 'chips') return chipsSummary(f, st);
-  if (f.kind === 'toggle') return st[String(f.key)] ? { on: true } : null;
-  if (f.kind === 'checks') return checksSummary(f.items ?? [], st);
+  if (f.kind === "seg") return segSummary(f.rows ?? [], st);
+  if (f.kind === "chips") return chipsSummary(f, st);
+  if (f.kind === "toggle") return st[String(f.key)] ? { on: true } : null;
+  if (f.kind === "checks") return checksSummary(f.items ?? [], st);
   return null;
 }
 
@@ -105,7 +108,7 @@ export function summary(f, st, stage) {
  * @param {string} stage
  * @returns {boolean}
  */
-export const facetShown = (f, stage) => !(f.rows?.[0]?.key === 'lossy' && stage === 'nx');
+export const facetShown = (f, stage) => !(f.rows?.[0]?.key === "lossy" && stage === "nx");
 
 /**
  * Whether a chip reads picked: a toggle's state as is, a chips facet's when its value is among the picks.
@@ -117,7 +120,7 @@ export const facetShown = (f, stage) => !(f.rows?.[0]?.key === 'lossy' && stage 
  */
 export function chipPressed(st, key, v) {
   const sel = st[key];
-  return typeof sel === 'boolean' ? sel : /** @type {unknown[]} */ (sel).includes(v);
+  return typeof sel === "boolean" ? sel : /** @type {unknown[]} */ (sel).includes(v);
 }
 
 /**
@@ -127,7 +130,7 @@ export function chipPressed(st, key, v) {
  * @param {string | null} count
  * @returns {boolean}
  */
-export const deadChip = (pressed, count) => !pressed && ['0·0', '0'].includes(String(count));
+export const deadChip = (pressed, count) => !pressed && ["0·0", "0"].includes(String(count));
 
 /**
  * Whether any of the keys holds a value other than its default (pick lists compare by content).
@@ -148,8 +151,8 @@ export const narrowing = (keys, st, d) => keys.some((k) => JSON.stringify(st[k])
  */
 export function stateKeys(facets) {
   return facets.flatMap((f) => {
-    if (f.kind === 'seg') return (f.rows ?? []).map((r) => r.key);
-    if (f.kind === 'checks') return (f.items ?? []).map((i) => i.key);
-    return f.combine ? [String(f.key), f.key + 'Mode'] : [String(f.key)];
+    if (f.kind === "seg") return (f.rows ?? []).map((r) => r.key);
+    if (f.kind === "checks") return (f.items ?? []).map((i) => i.key);
+    return f.combine ? [String(f.key), f.key + "Mode"] : [String(f.key)];
   });
 }

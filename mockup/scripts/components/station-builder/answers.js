@@ -1,25 +1,28 @@
 // The Station builder's answers: what the rail and the overview print for each step (`Skipped` where it doesn't apply).
 
-import { STB_COPY, STB_STEPS, hwSettings } from '../../data/station-builder.js';
-import { minus } from '../../model/format.js';
-import { deviceParts as parts } from '../../model/output.js';
-import { skipOf, summaryOf } from '../../model/station.js';
+import { STB_COPY, STB_STEPS, hwSettings } from "../../data/station-builder.js";
+import { minus } from "../../model/format.js";
+import { deviceParts as parts } from "../../model/output.js";
+import { skipOf, summaryOf } from "../../model/station.js";
 
-const IFACE_SHORT = { usb: 'USB / I2S', coax: 'AES/EBU · coax', toslink: 'Toslink' };   // DRAFT rail readouts
-const CUDA_SHORT = { 0: 'No CUDA', convolution: 'CUDA conv.', 1: 'CUDA full' };
+const IFACE_SHORT = { usb: "USB / I2S", coax: "AES/EBU · coax", toslink: "Toslink" }; // DRAFT rail readouts
+const CUDA_SHORT = { 0: "No CUDA", convolution: "CUDA conv.", 1: "CUDA full" };
 
 /** Each step's answer from the station's summary; `T` holds the borrowed tables. */
 const TEXT = {
-  name: (s) => s.name || '—',
-  backend: (s) => ({ network: 'NAA', alsa: 'ALSA' }[s.backend]),
-  device: (s) => (s.device ? parts(s.backend, s.device).main : s.listings ? `${s.listings} listings` : '—'),
-  ipv6: (s, T) => (s.discovery != null ? T.DISCOVERY.find((x) => x.v === s.discovery).label : '—'),
-  usb: (s) => (s.resolved ? 'Resolved' : 'Unresolved'),
-  iface: (s) => IFACE_SHORT[s.iface] ?? '—',
-  rates: (s, T) => (s.limits ? `${T.TIERS[s.limits.pcm].name} · ${s.limits.sdm == null ? 'no DSD' : 'DSD' + T.TIERS[s.limits.sdm].name.slice(0, -1)}` : '—'),
-  dac: (s) => `${s.bits ? s.bits + ' bit' : 'Auto'} · ${minus(s.gain)} dB`,
-  volume: (s) => (s.volume === 'hqp' ? 'HQPlayer' : s.volume === 'other' ? `Fixed · ${minus(s.headroom)} dB` : '—'),
-  hardware: (s) => [CUDA_SHORT[s.cuda], s.ecores && 'E-cores'].filter(Boolean).join(' · '),
+  name: (s) => s.name || "—",
+  backend: (s) => ({ network: "NAA", alsa: "ALSA" })[s.backend],
+  device: (s) => (s.device ? parts(s.backend, s.device).main : s.listings ? `${s.listings} listings` : "—"),
+  ipv6: (s, T) => (s.discovery != null ? T.DISCOVERY.find((x) => x.v === s.discovery).label : "—"),
+  usb: (s) => (s.resolved ? "Resolved" : "Unresolved"),
+  iface: (s) => IFACE_SHORT[s.iface] ?? "—",
+  rates: (s, T) =>
+    s.limits
+      ? `${T.TIERS[s.limits.pcm].name} · ${s.limits.sdm == null ? "no DSD" : "DSD" + T.TIERS[s.limits.sdm].name.slice(0, -1)}`
+      : "—",
+  dac: (s) => `${s.bits ? s.bits + " bit" : "Auto"} · ${minus(s.gain)} dB`,
+  volume: (s) => (s.volume === "hqp" ? "HQPlayer" : s.volume === "other" ? `Fixed · ${minus(s.headroom)} dB` : "—"),
+  hardware: (s) => [CUDA_SHORT[s.cuda], s.ecores && "E-cores"].filter(Boolean).join(" · "),
 };
 
 /** Why the step doesn't apply to the station being edited ('' = it does). */

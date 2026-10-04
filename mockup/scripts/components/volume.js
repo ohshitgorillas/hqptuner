@@ -13,16 +13,16 @@
 // Loudness bounds: while loudness is in effect, both sliders mark its range with the Range bar's own
 // grammar (parentheses + a strip under the track). Nothing else is marked: no startup volume, no min / max.
 
-import { h, s } from '../lib/dom.js';
-import { popover } from '../lib/popover.js';
-import { toPlate, PLATE_W } from '../lib/plate.js';
-import { PLATFORM } from '../lib/clock.js';
-import { holdRepeat } from '../model/timing.js';
-import { percentOf } from '../model/output.js';
-import { dbText, fixedPin, directPin, stepOff, volumeView, loudSpan } from '../model/volume.js';
+import { h, s } from "../lib/dom.js";
+import { popover } from "../lib/popover.js";
+import { toPlate, PLATE_W } from "../lib/plate.js";
+import { PLATFORM } from "../lib/clock.js";
+import { holdRepeat } from "../model/timing.js";
+import { percentOf } from "../model/output.js";
+import { dbText, fixedPin, directPin, stepOff, volumeView, loudSpan } from "../model/volume.js";
 
-const HOLD_DELAY = 400;   // ms before a held ± starts repeating
-const HOLD_RATE = 70;     // ms between repeats
+const HOLD_DELAY = 400; // ms before a held ± starts repeating
+const HOLD_RATE = 70; // ms between repeats
 
 const fmt = dbText;
 
@@ -30,8 +30,17 @@ const fmt = dbText;
  * The scale marks under a volume slider: each of `cfg.scale` at its place along the range, the top one in full.
  * @param {{min:number, max:number, scale:number[]}} cfg
  */
-const scaleMarks = ({ min, max, scale }) => h('div.scale', { 'aria-hidden': 'true' },
-  scale.map((m) => h('span', { style: `left:${percentOf(m, min, max)}%`, text: m === max ? `${m} dB` : fmt(m).replace(/\.0 dB$/, '') })));
+const scaleMarks = ({ min, max, scale }) =>
+  h(
+    "div.scale",
+    { "aria-hidden": "true" },
+    scale.map((m) =>
+      h("span", {
+        style: `left:${percentOf(m, min, max)}%`,
+        text: m === max ? `${m} dB` : fmt(m).replace(/\.0 dB$/, ""),
+      }),
+    ),
+  );
 
 /**
  * @param {HTMLElement} plate
@@ -44,29 +53,29 @@ const scaleMarks = ({ min, max, scale }) => h('div.scale', { 'aria-hidden': 'tru
  */
 export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud, clock = PLATFORM) {
   let value = cfg.value;
-  let fixedSet = null;   // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
-  let direct = null;  // Direct SDM playing: {level, level_txt, text, why}, over fixed
-  let shown = null;   // what the last set() showed (model/volume.js volumeView): every change of the three above sets
+  let fixedSet = null; // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
+  let direct = null; // Direct SDM playing: {level, level_txt, text, why}, over fixed
+  let shown = null; // what the last set() showed (model/volume.js volumeView): every change of the three above sets
   const { step } = cfg;
   const { big, slider, pop } = volumePanel(plate, readout, cfg, bus, loud, (v) => set(v));
 
-  const views = [];   // other homes of the level (bottom bar): fn(value, txt, fixed)
+  const views = []; // other homes of the level (bottom bar): fn(value, txt, fixed)
   function set(v) {
     shown = volumeView(v, value, { fixed: fixedSet, direct }, cfg);
     value = shown.value;
     readout.title = shown.why;
     // The mode word (`Manual:` / `Auto:`) lives on the rail only; the windows show the level alone.
-    readout.querySelector('.v').textContent = shown.txt;
-    readout.classList.toggle('fixed', shown.fixed);
-    readout.disabled = shown.fixed;   // nothing to slide: the popover stays shut
+    readout.querySelector(".v").textContent = shown.txt;
+    readout.classList.toggle("fixed", shown.fixed);
+    readout.disabled = shown.fixed; // nothing to slide: the popover stays shut
     big.textContent = shown.txt;
     slider.value = shown.level;
     slider.disabled = shown.fixed;
-    stage.querySelector('.v').textContent = shown.rail;
+    stage.querySelector(".v").textContent = shown.rail;
     down.disabled = shown.off.down;
     up.disabled = shown.off.up;
     for (const fn of views) fn(shown.level, shown.txt, shown.fixed);
-    bus?.dispatchEvent(new CustomEvent('level', { detail: shown.level }));
+    bus?.dispatchEvent(new CustomEvent("level", { detail: shown.level }));
   }
 
   /** Fixed volume (Volume drawer → Fixed volume, applied): 'off' | 'manual' (level, dBFS) | 'auto' (iso '1' = −3, '2' = −6). */
@@ -92,7 +101,10 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
     step: (dir) => set(value + dir * step),
     setFixed,
     setDirect,
-    view: (fn) => { views.push(fn); fn(shown.level, shown.txt, shown.fixed); },
+    view: (fn) => {
+      views.push(fn);
+      fn(shown.level, shown.txt, shown.fixed);
+    },
   };
 }
 
@@ -108,28 +120,36 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
  */
 function volumePanel(plate, readout, cfg, bus, loud, onInput) {
   const { min, max, step, value } = cfg;
-  const big = h('span.v');
-  const slider = h('input', {
-    type: 'range', min, max, step, value, 'aria-label': 'Playback volume',
+  const big = h("span.v");
+  const slider = h("input", {
+    type: "range",
+    min,
+    max,
+    step,
+    value,
+    "aria-label": "Playback volume",
     on: { input: (e) => onInput(Number(e.target.value)) },
   });
-  const panel = h('div.pop.vpop#vpop', { role: 'dialog', 'aria-label': 'Playback volume' },
-    h('div.vh', {}, h('span.eng', { text: 'Playback volume' }), big),
-    h('div.vsl', {}, slider, loudMarks(cfg, loud, bus)),
+  const panel = h(
+    "div.pop.vpop#vpop",
+    { role: "dialog", "aria-label": "Playback volume" },
+    h("div.vh", {}, h("span.eng", { text: "Playback volume" }), big),
+    h("div.vsl", {}, slider, loudMarks(cfg, loud, bus)),
     scaleMarks(cfg),
   );
   plate.append(panel);
 
   const pop = popover({
-    trigger: readout, panel,
+    trigger: readout,
+    panel,
     onToggle(open) {
       if (!open) return;
       // Drop from the readout, right edge flush with the whole − / readout / + group (= the page's right edge).
       const group = readout.parentElement;
       const r = toPlate(readout.getBoundingClientRect());
       const right = toPlate(group.getBoundingClientRect()).x + group.offsetWidth;
-      panel.style.left = Math.round(Math.min(right, PLATE_W - 22) - panel.offsetWidth) + 'px';
-      panel.style.top = Math.round(r.y + readout.offsetHeight + 8) + 'px';
+      panel.style.left = Math.round(Math.min(right, PLATE_W - 22) - panel.offsetWidth) + "px";
+      panel.style.top = Math.round(r.y + readout.offsetHeight + 8) + "px";
       slider.focus();
     },
   });
@@ -142,21 +162,21 @@ function volumePanel(plate, readout, cfg, bus, loud, onInput) {
  * Bounds outside the slider's range clamp to its ends.
  */
 function loudMarks(cfg, loud, bus) {
-  const box = h('div.lmk', { 'aria-hidden': 'true' });
+  const box = h("div.lmk", { "aria-hidden": "true" });
   if (!loud) return box;
-  const paren = (d) => s('svg.lp', { viewBox: '0 0 10 18', width: 10, height: 18 }, s('path', { d }));
+  const paren = (d) => s("svg.lp", { viewBox: "0 0 10 18", width: 10, height: 18 }, s("path", { d }));
   const draw = () => {
     box.hidden = !loud.on;
     if (!loud.on) return box.replaceChildren();
-    const { lo, hi, width } = loudSpan(loud.low, loud.high, cfg);   // model/volume.js: clamped to the slider's ends
-    box.title = '';
+    const { lo, hi, width } = loudSpan(loud.low, loud.high, cfg); // model/volume.js: clamped to the slider's ends
+    box.title = "";
     box.replaceChildren(
-      h('span.lband', { style: `left:${lo}%;width:${width}%` }),
-      h('span.lpw', { style: `left:${lo}%` }, paren('M8,1 Q2,9 8,17')),
-      h('span.lpw.r', { style: `left:${hi}%` }, paren('M2,1 Q8,9 2,17')),
+      h("span.lband", { style: `left:${lo}%;width:${width}%` }),
+      h("span.lpw", { style: `left:${lo}%` }, paren("M8,1 Q2,9 8,17")),
+      h("span.lpw.r", { style: `left:${hi}%` }, paren("M2,1 Q8,9 2,17")),
     );
   };
-  bus?.addEventListener('loudness', draw);
+  bus?.addEventListener("loudness", draw);
   draw();
   return box;
 }
@@ -170,12 +190,25 @@ function loudMarks(cfg, loud, bus) {
 function hold(btn, stepOnce, clock) {
   const idle = () => false;
   let stop = idle;
-  const end = () => { stop(); };
-  btn.addEventListener('pointerdown', () => {
-    stop = holdRepeat(() => { stepOnce(); if (btn.disabled) end(); }, clock, HOLD_DELAY, HOLD_RATE);
+  const end = () => {
+    stop();
+  };
+  btn.addEventListener("pointerdown", () => {
+    stop = holdRepeat(
+      () => {
+        stepOnce();
+        if (btn.disabled) end();
+      },
+      clock,
+      HOLD_DELAY,
+      HOLD_RATE,
+    );
   });
-  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, end);
-  btn.addEventListener('click', () => { if (!stop()) stepOnce(); stop = idle; });
+  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) btn.addEventListener(ev, end);
+  btn.addEventListener("click", () => {
+    if (!stop()) stepOnce();
+    stop = idle;
+  });
 }
 
 /**
@@ -190,24 +223,33 @@ function hold(btn, stepOnce, clock) {
  */
 export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   const { min, max, step } = cfg;
-  const down = h('button.round.vbtn', { type: 'button', 'aria-label': 'Volume down', text: '−' });
-  const up = h('button.round.vbtn', { type: 'button', 'aria-label': 'Volume up', text: '+' });
-  const slider = h('input', { type: 'range', min, max, step, 'aria-label': 'Playback volume', on: { input: (e) => vol.set(Number(e.target.value)) } });
-  const rd = h('span.v');
+  const down = h("button.round.vbtn", { type: "button", "aria-label": "Volume down", text: "−" });
+  const up = h("button.round.vbtn", { type: "button", "aria-label": "Volume up", text: "+" });
+  const slider = h("input", {
+    type: "range",
+    min,
+    max,
+    step,
+    "aria-label": "Playback volume",
+    on: { input: (e) => vol.set(Number(e.target.value)) },
+  });
+  const rd = h("span.v");
   host.append(
-    h('span.vbt', { text: 'Playback volume' }),   // the page's engraved section-title grammar, not a small legend
+    h("span.vbt", { text: "Playback volume" }), // the page's engraved section-title grammar, not a small legend
     down,
-    h('div.vbsl', {}, h('div.vsl', {}, slider, loudMarks(cfg, loud, bus)), scaleMarks(cfg)),
+    h("div.vbsl", {}, h("div.vsl", {}, slider, loudMarks(cfg, loud, bus)), scaleMarks(cfg)),
     up,
-    h('div.vfd.vbrd', { role: 'status', 'aria-label': 'Playback volume' }, rd),
+    h("div.vfd.vbrd", { role: "status", "aria-label": "Playback volume" }, rd),
   );
   hold(down, () => vol.step(-1), clock);
   hold(up, () => vol.step(1), clock);
   vol.view((v, txt, fixed) => {
-    slider.value = v; rd.textContent = txt;
+    slider.value = v;
+    rd.textContent = txt;
     const off = stepOff(v, fixed, cfg);
-    slider.disabled = fixed; down.disabled = off.down; up.disabled = off.up;
-    host.classList.toggle('fixed', fixed);
+    slider.disabled = fixed;
+    down.disabled = off.down;
+    up.disabled = off.up;
+    host.classList.toggle("fixed", fixed);
   });
 }
-

@@ -59,7 +59,7 @@ export const structuralPreset = (presets, angle, lambda, tol) =>
  * @param {BauerCorners} corners
  * @returns {readonly [number, number]}
  */
-export const bauerCorner = (st, corners) => (st.preset === 'custom' ? [st.freq, st.level] : corners[st.preset]);
+export const bauerCorner = (st, corners) => (st.preset === "custom" ? [st.freq, st.level] : corners[st.preset]);
 
 /**
  * What the folded Bauer line summarizes: the picked preset's label (undefined on Custom), the installed corner and
@@ -116,7 +116,9 @@ export function bauerPlot(st, corners) {
  * @param {string} iir2fir
  */
 export function crossfeedGray(st, mxWhy, iir2fir) {
-  const matrix = !!mxWhy, off = st.gate === '0', custom = st.preset === 'custom';
+  const matrix = !!mxWhy,
+    off = st.gate === "0",
+    custom = st.preset === "custom";
   return {
     matrix,
     off,
@@ -125,12 +127,14 @@ export function crossfeedGray(st, mxWhy, iir2fir) {
     custom: !matrix && !off && custom,
     linesGrayed: off && !matrix,
     customGrayed: !custom,
-    conflict: st.impl === 'structural' && iir2fir === '2',
+    conflict: st.impl === "structural" && iir2fir === "2",
   };
 }
 
 // The top-down view's frame: listener low and facing up, the speakers on a fixed circle (angle is the variable).
-const CX = 200, CY = 140, R = 112;
+const CX = 200,
+  CY = 140,
+  R = 112;
 
 /**
  * The view point at `deg` (0 straight ahead, positive to the right) and radius `rr` from the head's centre.
@@ -139,7 +143,7 @@ const CX = 200, CY = 140, R = 112;
  * @param {number} rr
  * @returns {Point}
  */
-const at = (deg, rr) => [CX + rr * Math.sin(deg * Math.PI / 180), CY - rr * Math.cos(deg * Math.PI / 180)];
+const at = (deg, rr) => [CX + rr * Math.sin((deg * Math.PI) / 180), CY - rr * Math.cos((deg * Math.PI) / 180)];
 
 /**
  * A far path: from speaker `P` to the tangent point over the front of a head of radius `r`, then around it to `ear`.
@@ -150,10 +154,14 @@ const at = (deg, rr) => [CX + rr * Math.sin(deg * Math.PI / 180), CY - rr * Math
  * @param {0 | 1} sweep
  */
 function farPath(P, ear, r, sweep) {
-  const dx = P[0] - CX, dy = P[1] - CY, d = Math.hypot(dx, dy);
-  const phi = Math.atan2(dy, dx), al = Math.acos(r / d);
-  const via = [phi + al, phi - al].map((q) => /** @type {Point} */ ([CX + r * Math.cos(q), CY + r * Math.sin(q)]))
-    .sort((u, v) => u[1] - v[1])[0];   // the tangent point on the front (upper) side
+  const dx = P[0] - CX,
+    dy = P[1] - CY,
+    d = Math.hypot(dx, dy);
+  const phi = Math.atan2(dy, dx),
+    al = Math.acos(r / d);
+  const via = [phi + al, phi - al]
+    .map((q) => /** @type {Point} */ ([CX + r * Math.cos(q), CY + r * Math.sin(q)]))
+    .sort((u, v) => u[1] - v[1])[0]; // the tangent point on the front (upper) side
   return { from: P, via, to: ear, sweep };
 }
 
@@ -172,9 +180,19 @@ export function listeningGeometry(angle, circ) {
   /** @type {Point} */ const earL = [CX - r, CY];
   /** @type {Point} */ const earR = [CX + r, CY];
   const speakers = [-angle, angle].map((d) => ({ d, p: at(d, R) }));
-  const tick = (/** @type {number} */ d) => { const [x1, y1] = at(d, R - 16), [x2, y2] = at(d, R + 16); return { x1, y1, x2, y2 }; };
+  const tick = (/** @type {number} */ d) => {
+    const [x1, y1] = at(d, R - 16),
+      [x2, y2] = at(d, R + 16);
+    return { x1, y1, x2, y2 };
+  };
   return {
-    cx: CX, cy: CY, a, r, earL, earR, speakers,
+    cx: CX,
+    cy: CY,
+    a,
+    r,
+    earL,
+    earR,
+    speakers,
     axis: { x1: CX, y1: CY - r, x2: CX, y2: CY - R - 14 },
     ref: [-30, 30].map(tick),
     arc: { r: 40, from: /** @type {Point} */ ([CX, CY - 40]), to: at(angle, 40) },
@@ -195,5 +213,5 @@ export const geometryReadouts = (pp, lambda) => ({
   itd: Math.round(pp.itd * 1e6),
   itdLow: Math.round((pp.itd + pp.gdF - pp.gdN) * 1e6),
   far: 20 * Math.log10(pp.af),
-  center: 20 * Math.log10(lambda * (pp.an + pp.af) / 2 + (1 - lambda)),
+  center: 20 * Math.log10((lambda * (pp.an + pp.af)) / 2 + (1 - lambda)),
 });

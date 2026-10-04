@@ -3,7 +3,7 @@
 // questions, and the verdict of each mock check. Each takes its tables as arguments, returns a value and leaves its
 // arguments as they were.
 
-import { groupDevices } from './output.js';
+import { groupDevices } from "./output.js";
 
 /** @typedef {{ pcm: number, sdm: number | null }} Limits  rate tier indices; sdm null = no DSD */
 
@@ -112,7 +112,7 @@ export function stepContext(rec, hw) {
  * @returns {string}
  */
 export function skipOf(steps, id, rec, hw) {
-  return steps.find((x) => x.id === id)?.skip?.(stepContext(rec, hw)) || '';
+  return steps.find((x) => x.id === id)?.skip?.(stepContext(rec, hw)) || "";
 }
 
 /**
@@ -136,9 +136,9 @@ export function summaryOf(name, rec, settings) {
     bits: Number(rec.bits) || 0,
     gain: Number(rec.gaincomp),
     volume: rec.volume,
-    headroom: rec.iso === '2' ? -6 : -3,
+    headroom: rec.iso === "2" ? -6 : -3,
     cuda: settings.cuda,
-    ecores: settings.ecores === 'pool',
+    ecores: settings.ecores === "pool",
   };
 }
 
@@ -172,10 +172,13 @@ export function deadListings(recs) {
  * @returns {DeviceView}
  */
 export function deviceView({ kind, all, rec, hidden, naaSeen, bringUp }) {
-  const net = kind === 'network';
+  const net = kind === "network";
   const offered = all.filter((l) => !hidden.has(l) || rec.listings.includes(l));
   const list = net && !naaSeen ? [] : offered;
-  const groups = groupDevices(kind, list).map(({ group, rows }) => ({ group, rows: rows.map((p) => ({ ...p, ...listingState(rec, p.str) })) }));
+  const groups = groupDevices(kind, list).map(({ group, rows }) => ({
+    group,
+    rows: rows.map((p) => ({ ...p, ...listingState(rec, p.str) })),
+  }));
   return { bringUp: net && (bringUp || !list.length), found: list.length, groups };
 }
 
@@ -202,11 +205,11 @@ export function withConnection(rec, ifaces, v) {
  * @returns {RatesPhase}
  */
 export function ratesPhase(rec, run) {
-  if (!rec.iface) return 'unanswered';
-  const usb = rec.iface === 'usb';
-  if (usb && !rec.detected && !run) return 'detect';
-  if (usb && run && !run.done) return 'checking';
-  return 'ready';
+  if (!rec.iface) return "unanswered";
+  const usb = rec.iface === "usb";
+  if (usb && !rec.detected && !run) return "detect";
+  if (usb && run && !run.done) return "checking";
+  return "ready";
 }
 
 /**
@@ -222,14 +225,15 @@ export function ratesPhase(rec, run) {
 export function rateView(rec, ifaces, tiers) {
   const noDsd = rec.limits.sdm == null;
   const cap = ifaces.find((q) => q.v === rec.iface)?.fixed;
-  const over = (/** @type {Fixed} */ c, /** @type {T} */ t, /** @type {number} */ i) => (t.family === 'pcm' ? i > c.pcm : noDsd || i > Number(c.sdm));
+  const over = (/** @type {Fixed} */ c, /** @type {T} */ t, /** @type {number} */ i) =>
+    t.family === "pcm" ? i > c.pcm : noDsd || i > Number(c.sdm);
   const marked = tiers.map((t, i) => ({ ...t, unavailable: !!(t.unavailable || (cap && over(cap, t, i))) }));
-  const sdmLo = tiers.findIndex((t) => t.family === 'sdm');
+  const sdmLo = tiers.findIndex((t) => t.family === "sdm");
   return {
     noDsd,
     tiers: marked,
     dial: { pcm: rec.limits.pcm, sdm: rec.limits.sdm ?? sdmLo },
-    dsd48: !noDsd && rec.dsd48 === '48k',
+    dsd48: !noDsd && rec.dsd48 === "48k",
   };
 }
 
@@ -241,7 +245,7 @@ export function rateView(rec, ifaces, tiers) {
  * @returns {Limits}
  */
 export function dialLimits(value, noDsd) {
-  const [p, q] = value.split('|').map(Number);
+  const [p, q] = value.split("|").map(Number);
   return { pcm: p, sdm: noDsd ? null : q };
 }
 
@@ -253,7 +257,7 @@ export function dialLimits(value, noDsd) {
  */
 export function hardwareView(hw) {
   const gpu = !!hw.gpu;
-  return { gpu, twoCards: gpu && hw.gpus === '2', power: gpu && hw.gpus !== '2', ecoresManual: !!hw.ecores };
+  return { gpu, twoCards: gpu && hw.gpus === "2", power: gpu && hw.gpus !== "2", ecoresManual: !!hw.ecores };
 }
 
 /**
@@ -274,7 +278,7 @@ export function optionLabel(options, v) {
  * @returns {Ipv6Verdict}
  */
 export function ipv6Verdict(fail) {
-  return { ok: !fail, v6: fail ? 'v4' : 'v6' };
+  return { ok: !fail, v6: fail ? "v4" : "v6" };
 }
 
 /**
@@ -301,5 +305,5 @@ export function usbVerdict(why, listings, all) {
  * @returns {Rec}
  */
 export function dsd48Verdict(rec, found48, limits) {
-  return { ...rec, detected: true, dsd48: found48 ? '48k' : '44k', dsd: 'native', limits: { ...limits } };
+  return { ...rec, detected: true, dsd48: found48 ? "48k" : "44k", dsd: "native", limits: { ...limits } };
 }

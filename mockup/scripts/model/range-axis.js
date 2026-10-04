@@ -34,7 +34,7 @@ const TICK_LEN = { minor: 5, major: 9, strong: 13 };
  * @returns {(d: number) => number}
  */
 export function barX(W, axis, padX) {
-  return (d) => Math.round((padX + (W - 2 * padX) * (d - axis.min) / (axis.max - axis.min)) * 2) / 2;
+  return (d) => Math.round((padX + ((W - 2 * padX) * (d - axis.min)) / (axis.max - axis.min)) * 2) / 2;
 }
 
 /**
@@ -47,7 +47,7 @@ export function barX(W, axis, padX) {
  * @returns {number}
  */
 export function barValueAt(W, axis, padX, px) {
-  return axis.min + (px - padX) / (W - 2 * padX) * (axis.max - axis.min);
+  return axis.min + ((px - padX) / (W - 2 * padX)) * (axis.max - axis.min);
 }
 
 /**
@@ -76,7 +76,7 @@ export function ticksEvery(from, to, step) {
 export function tickMarks(ticks, labelled, strong) {
   return ticks.map((d) => {
     /** @type {TickMark['weight']} */
-    const weight = strong.includes(d) ? 'strong' : labelled.has(d) ? 'major' : 'minor';
+    const weight = strong.includes(d) ? "strong" : labelled.has(d) ? "major" : "minor";
     return { d, weight, len: TICK_LEN[weight] };
   });
 }
@@ -89,7 +89,7 @@ export function tickMarks(ticks, labelled, strong) {
  * @returns {'start' | 'end' | 'middle'}
  */
 export function labelAnchor(d, axis) {
-  return d === axis.min ? 'start' : d === axis.max ? 'end' : 'middle';
+  return d === axis.min ? "start" : d === axis.max ? "end" : "middle";
 }
 
 /**
@@ -100,7 +100,7 @@ export function labelAnchor(d, axis) {
  * @returns {BoundKey}
  */
 export function pickBound(v, pair) {
-  return Math.abs(pair.low - v) <= Math.abs(pair.high - v) ? 'low' : 'high';
+  return Math.abs(pair.low - v) <= Math.abs(pair.high - v) ? "low" : "high";
 }
 
 /**
@@ -114,9 +114,9 @@ export function pickBound(v, pair) {
  * @returns {VolumeKey}
  */
 export function pickVolumeHandle(v, yTop, cur, pinBelow) {
-  if (yTop < pinBelow) return 'startup';
+  if (yTop < pinBelow) return "startup";
   /** @type {VolumeKey[]} */
-  const keys = ['min', 'max', 'startup'];
+  const keys = ["min", "max", "startup"];
   return keys.reduce((a, b) => (Math.abs(cur[b] - v) < Math.abs(cur[a] - v) ? b : a));
 }
 
@@ -131,7 +131,7 @@ export function pickVolumeHandle(v, yTop, cur, pinBelow) {
  */
 export function clampBounds(k, v, pair, axis) {
   const n = Math.round(Math.max(axis.min, Math.min(axis.max, v)));
-  return k === 'low' ? Math.min(n, pair.high) : Math.max(n, pair.low);
+  return k === "low" ? Math.min(n, pair.high) : Math.max(n, pair.low);
 }
 
 /**
@@ -146,8 +146,8 @@ export function clampBounds(k, v, pair, axis) {
  */
 export function clampVolume(which, n, { min, startup, max }, axis) {
   n = Math.round(n);
-  if (which === 'min') return Math.max(axis.min, Math.min(n, 0, startup, max));
-  if (which === 'max') return Math.min(axis.max, Math.max(n, min, startup));
+  if (which === "min") return Math.max(axis.min, Math.min(n, 0, startup, max));
+  if (which === "max") return Math.min(axis.max, Math.max(n, min, startup));
   return Math.max(min, Math.min(n, max));
 }
 

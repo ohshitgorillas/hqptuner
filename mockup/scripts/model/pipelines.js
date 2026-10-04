@@ -2,9 +2,9 @@
 // the routing grid are lit and what they carry, the overview's and an output tab's summaries, the stage dock's field
 // values and whether they resolve against their tables, and the inputs the response plot draws.
 
-import { PEQ_TYPES } from './eq.js';
-import { minus, signed } from './format.js';
-import { paging } from './pager.js';
+import { PEQ_TYPES } from "./eq.js";
+import { minus, signed } from "./format.js";
+import { paging } from "./pager.js";
 
 /**
  * Any stage of a pipeline: its kind, then its wire arguments by name.
@@ -55,7 +55,7 @@ export const PAGE = 6;
 /** Pipelines the engine takes. */
 export const MAXP = 128;
 const SPEED = 343.956;
-const FILE_KINDS = new Set(['conv', 'riaa', 'peqfile']);
+const FILE_KINDS = new Set(["conv", "riaa", "peqfile"]);
 const BIQUAD = { b0: 1, b1: 0, b2: 0, a0: 1, a1: 0, a2: 0 };
 
 /**
@@ -92,7 +92,8 @@ export const crosspoint = (pipes, src, mix) =>
  * @param {number} o
  * @returns {number[]}
  */
-export const inputsOf = (pipes, o) => [...new Set(pipes.filter((p) => p.mix === o).map((p) => p.src))].sort((a, b) => a - b);
+export const inputsOf = (pipes, o) =>
+  [...new Set(pipes.filter((p) => p.mix === o).map((p) => p.src))].sort((a, b) => a - b);
 
 /**
  * One input's list: its pipelines, a folded block standing in for its rows, an unfolded one led by a header line.
@@ -128,13 +129,13 @@ export function groups(p) {
   /** @type {Group[]} */
   const g = [];
   p.stages.forEach((st, i) => {
-    const peq = st.kind === 'iir' && PEQ_TYPES.has(st.type) && !st.blk;
+    const peq = st.kind === "iir" && PEQ_TYPES.has(st.type) && !st.blk;
     const last = g[g.length - 1];
-    if (peq && last?.kind === 'peqrun') last.idx.push(i);
-    else g.push({ kind: peq ? 'peqrun' : st.kind, idx: [i] });
+    if (peq && last?.kind === "peqrun") last.idx.push(i);
+    else g.push({ kind: peq ? "peqrun" : st.kind, idx: [i] });
   });
-  for (const x of g) if (x.kind === 'peqrun') x.kind = x.idx.length > 1 ? 'peq' : 'iir';
-  g.push({ kind: 'gain', idx: [] });
+  for (const x of g) if (x.kind === "peqrun") x.kind = x.idx.length > 1 ? "peq" : "iir";
+  g.push({ kind: "gain", idx: [] });
   return g;
 }
 
@@ -144,7 +145,7 @@ export function groups(p) {
  * @param {Pipe} p
  * @returns {string}
  */
-const gainText = (p) => (p.unit === 'Lin' ? `Lin ${minus(+(+p.gain).toFixed(3))}` : `${signed(+p.gain, 1)} dB`);
+const gainText = (p) => (p.unit === "Lin" ? `Lin ${minus(+(+p.gain).toFixed(3))}` : `${signed(+p.gain, 1)} dB`);
 
 /**
  * A delay stage as its chip prints it, in the unit it is given in.
@@ -153,7 +154,11 @@ const gainText = (p) => (p.unit === 'Lin' ? `Lin ${minus(+(+p.gain).toFixed(3))}
  * @returns {string}
  */
 const delayText = (st) =>
-  st.t !== undefined ? `delay ${+(st.t * 1000).toFixed(2)} ms` : st.s !== undefined ? `delay ${st.s} samples` : `delay ${st.d} m`;
+  st.t !== undefined
+    ? `delay ${+(st.t * 1000).toFixed(2)} ms`
+    : st.s !== undefined
+      ? `delay ${st.s} samples`
+      : `delay ${st.d} m`;
 
 /**
  * A chip's text.
@@ -165,13 +170,18 @@ const delayText = (st) =>
 export function chipText(p, gr) {
   const st = p.stages[gr.idx[0]];
   switch (gr.kind) {
-    case 'peq': return `Parametric Equalizer · ${gr.idx.length} bands`;
-    case 'iir': return st.type === 'biquad' ? 'biquad' : `${st.type} ${fmtHz(st.f)} Hz`;
-    case 'delay': return delayText(st);
-    case 'riaa': return 'riaa';
-    case 'gain': return gainText(p);
+    case "peq":
+      return `Parametric Equalizer · ${gr.idx.length} bands`;
+    case "iir":
+      return st.type === "biquad" ? "biquad" : `${st.type} ${fmtHz(st.f)} Hz`;
+    case "delay":
+      return delayText(st);
+    case "riaa":
+      return "riaa";
+    case "gain":
+      return gainText(p);
   }
-  return st.file ? st.file.split('/').pop() : gr.kind;
+  return st.file ? st.file.split("/").pop() : gr.kind;
 }
 
 /**
@@ -180,14 +190,18 @@ export function chipText(p, gr) {
  * @param {Pipe} p
  * @returns {string}
  */
-export const rowText = (p) => groups(p).slice(0, -1).map((gr) => chipText(p, gr)).join(' · ') || '—';
+export const rowText = (p) =>
+  groups(p)
+    .slice(0, -1)
+    .map((gr) => chipText(p, gr))
+    .join(" · ") || "—";
 
 /** A fresh stage of each kind (`+` and the dock's Stage picker). */
 export const NEW_STAGE = {
-  iir: () => ({ kind: 'iir', type: 'peak', f: 1000, q: 1, g: 0 }),
-  delay: () => ({ kind: 'delay', t: 0.001 }),
-  riaa: () => ({ kind: 'riaa', subsonic: 1 }),
-  conv: () => ({ kind: 'conv', file: 'impulse.wav' }),
+  iir: () => ({ kind: "iir", type: "peak", f: 1000, q: 1, g: 0 }),
+  delay: () => ({ kind: "delay", t: 0.001 }),
+  riaa: () => ({ kind: "riaa", subsonic: 1 }),
+  conv: () => ({ kind: "conv", file: "impulse.wav" }),
 };
 
 /**
@@ -213,11 +227,19 @@ export function stageAt(gs, si) {
  */
 export function pinState(pipes, src, mix) {
   const here = crosspoint(pipes, src, mix);
-  const n = here.length, on = n > 0, first = here[0]?.[0];
+  const n = here.length,
+    on = n > 0,
+    first = here[0]?.[0];
   const gen = here.find(([p]) => p.gen)?.[0]?.gen;
-  const neg = here.some(([p]) => p.unit === 'Lin' && p.gain < 0);
-  const label = !on ? '' : n > 1 ? `×${n}` : first.unit === 'Lin' ? minus(+(+first.gain).toFixed(3)) : `${signed(+first.gain, 1)} dB`;
-  const fill = n > 1 ? Math.max(6, Math.round(100 * n / pipes.length)) : 0;
+  const neg = here.some(([p]) => p.unit === "Lin" && p.gain < 0);
+  const label = !on
+    ? ""
+    : n > 1
+      ? `×${n}`
+      : first.unit === "Lin"
+        ? minus(+(+first.gain).toFixed(3))
+        : `${signed(+first.gain, 1)} dB`;
+  const fill = n > 1 ? Math.max(6, Math.round((100 * n) / pipes.length)) : 0;
   return { on, n, gen, neg, label, fill };
 }
 
@@ -292,11 +314,11 @@ export function dockState(p, rawOn, chip, band) {
   const gs = groups(p);
   const c = Math.min(chip, gs.length - 1);
   const gr = gs[c];
-  const locked = !!(p.gen && (gr.kind === 'gain' || p.stages[gr.idx[0]]?.blk));
-  const banded = !locked && (gr.kind === 'peq' || gr.kind === 'iir');
+  const locked = !!(p.gen && (gr.kind === "gain" || p.stages[gr.idx[0]]?.blk));
+  const banded = !locked && (gr.kind === "peq" || gr.kind === "iir");
   const b = banded ? Math.min(band, gr.idx.length - 1) : band;
-  const si = gr.idx[gr.kind === 'peq' ? b : 0] ?? -1;
-  const picker = !p.gen && gr.kind !== 'gain' && gr.kind !== 'peq';
+  const si = gr.idx[gr.kind === "peq" ? b : 0] ?? -1;
+  const picker = !p.gen && gr.kind !== "gain" && gr.kind !== "peq";
   return { shown, chip: c, band: b, group: gr, locked, si, bands: gr.idx.length, picker };
 }
 
@@ -313,9 +335,9 @@ export function iirFields(st, types, fallback) {
   const found = types.find((x) => x.t === st.type);
   const def = found || fallback;
   const alt = def.alt.find((a) => st[a] !== undefined) || def.alt[0];
-  const list = def.t === 'biquad' ? def.args : [def.args[0], alt, ...def.args.slice(1)].filter(Boolean);
+  const list = def.t === "biquad" ? def.args : [def.args[0], alt, ...def.args.slice(1)].filter(Boolean);
   const args = list.map((arg) => ({ arg, value: st[arg], switchable: arg === alt && def.alt.length > 1 }));
-  const hint = def.alt.includes('bw') ? 'bw' : def.alt.includes('s') ? 's' : null;
+  const hint = def.alt.includes("bw") ? "bw" : def.alt.includes("s") ? "s" : null;
   return { def, known: !!found, alt, args, hint };
 }
 
@@ -330,7 +352,7 @@ export function iirFields(st, types, fallback) {
 export function delayFields(st, args, fallback) {
   const found = args.find((x) => st[x.a] !== undefined);
   const cur = found || fallback;
-  return { cur, known: !!found, value: st[cur.a], speed: cur.a === 'd' ? (st.v ?? SPEED) : null };
+  return { cur, known: !!found, value: st[cur.a], speed: cur.a === "d" ? (st.v ?? SPEED) : null };
 }
 
 /**
@@ -343,14 +365,17 @@ export function delayFields(st, args, fallback) {
  */
 export function lockedFields(p, gr, tables) {
   const st = p.stages[gr.idx[0]];
-  if (gr.kind === 'gain') return { kind: 'gain', value: minus(+p.gain), unit: p.unit, arg: null, def: null };
-  if (gr.kind === 'delay') {
+  if (gr.kind === "gain") return { kind: "gain", value: minus(+p.gain), unit: p.unit, arg: null, def: null };
+  if (gr.kind === "delay") {
     const a = /** @type {DelayArg} */ (tables.delays.find((x) => st[x.a] !== undefined));
-    return { kind: 'delay', value: `${a.a}=${st[a.a]}`, unit: a.unit, arg: a, def: null };
+    return { kind: "delay", value: `${a.a}=${st[a.a]}`, unit: a.unit, arg: a, def: null };
   }
   const def = /** @type {IirType} */ (tables.types.find((x) => x.t === st.type));
-  const value = Object.keys(st).filter((k) => !['kind', 'type', 'blk'].includes(k)).map((k) => `${k}=${st[k]}`).join(' ');
-  return { kind: 'iir', value, unit: '', arg: null, def };
+  const value = Object.keys(st)
+    .filter((k) => !["kind", "type", "blk"].includes(k))
+    .map((k) => `${k}=${st[k]}`)
+    .join(" ");
+  return { kind: "iir", value, unit: "", arg: null, def };
 }
 
 /**
@@ -361,7 +386,7 @@ export function lockedFields(p, gr, tables) {
  * @returns {number}
  */
 export const gainSwitch = (gain, unit) =>
-  unit === 'Lin' ? +(10 ** (gain / 20)).toFixed(4) : +(20 * Math.log10(Math.abs(gain) || 1e-6)).toFixed(2);
+  unit === "Lin" ? +(10 ** (gain / 20)).toFixed(4) : +(20 * Math.log10(Math.abs(gain) || 1e-6)).toFixed(2);
 
 /**
  * An iir stage's fields once retyped: the arguments both types take kept, a missing width, frequency or gain seeded,
@@ -375,12 +400,12 @@ export const gainSwitch = (gain, unit) =>
 export function retypeStage(st, v, types) {
   const nd = /** @type {IirType} */ (types.find((x) => x.t === v));
   /** @type {Stage} */
-  const keep = { kind: 'iir', type: v };
+  const keep = { kind: "iir", type: v };
   for (const a of [...nd.args, ...nd.alt]) if (st[a] !== undefined) keep[a] = st[a];
-  if (nd.alt.length && !nd.alt.some((a) => keep[a] !== undefined)) keep[nd.alt[0]] = nd.alt[0] === 's' ? 1 : 0.707;
-  if (nd.args.includes('f') && keep.f === undefined) keep.f = 1000;
-  if (nd.args.includes('g') && keep.g === undefined) keep.g = 0;
-  if (v === 'biquad') Object.assign(keep, BIQUAD);
+  if (nd.alt.length && !nd.alt.some((a) => keep[a] !== undefined)) keep[nd.alt[0]] = nd.alt[0] === "s" ? 1 : 0.707;
+  if (nd.args.includes("f") && keep.f === undefined) keep.f = 1000;
+  if (nd.args.includes("g") && keep.g === undefined) keep.g = 0;
+  if (v === "biquad") Object.assign(keep, BIQUAD);
   return keep;
 }
 
@@ -394,7 +419,15 @@ export function retypeStage(st, v, types) {
  * @returns {string}
  */
 const scopeOf = (scope, gen, multi) =>
-  scope === 'auto' ? (multi ? 'xp' : 'pipe') : scope === 'pipe' && gen ? 'xp' : scope === 'xp' && !multi ? 'pipe' : scope;
+  scope === "auto"
+    ? multi
+      ? "xp"
+      : "pipe"
+    : scope === "pipe" && gen
+      ? "xp"
+      : scope === "xp" && !multi
+        ? "pipe"
+        : scope;
 
 /**
  * A partial curve: a stage the plot cannot draw (convolution, RIAA, a PEQ file).
@@ -413,9 +446,14 @@ const partial = (q) => q.stages.some((st) => FILE_KINDS.has(st.kind));
  */
 function tracesOf(sc, { p, n, eqOf, xps, label }) {
   const xp = /** @type {{ src: number, members: Pipe[] }} */ (xps.find((x) => x.src === p.src));
-  if (sc === 'bus') return xps.map((x) => ({ cls: x.src === p.src ? '' : 'side', label: label(x), members: x.members }));
-  if (sc === 'xp') return [{ cls: 'ghost', label: p.gen ? 'EQ' : `#${n}`, members: [eqOf] }, { label: label(xp), members: xp.members }];
-  return [{ label: `#${n}` + (partial(p) ? ' (partial)' : ''), members: [p] }];
+  if (sc === "bus")
+    return xps.map((x) => ({ cls: x.src === p.src ? "" : "side", label: label(x), members: x.members }));
+  if (sc === "xp")
+    return [
+      { cls: "ghost", label: p.gen ? "EQ" : `#${n}`, members: [eqOf] },
+      { label: label(xp), members: xp.members },
+    ];
+  return [{ label: `#${n}` + (partial(p) ? " (partial)" : ""), members: [p] }];
 }
 
 /**
@@ -429,21 +467,28 @@ function tracesOf(sc, { p, n, eqOf, xps, label }) {
  */
 export function plotInputs(pipes, { o, selPipe, scope, ear }, names) {
   const p = pipes[selPipe];
-  if (!p) return { shown: false, sc: '', options: [], traces: [], eqOf: null, off: 0, bands: [] };
+  if (!p) return { shown: false, sc: "", options: [], traces: [], eqOf: null, off: 0, bands: [] };
   const xps = inputsOf(pipes, o).map((src) => ({ src, members: crosspoint(pipes, src, o).map(([q]) => q) }));
   const gen = !!p.gen;
   const multi = /** @type {{ members: Pipe[] }} */ (xps.find((x) => x.src === p.src)).members.length > 1;
   const sc = scopeOf(scope, gen, multi);
   const route = `${names.short(p.src)} → ${names.short(o)}`;
-  const options = [!gen && { v: 'pipe', label: `#${selPipe + 1}` }, multi && { v: 'xp', label: route }, { v: 'bus', label: `${names.long(o)} Out` }]
-    .filter((x) => !!x);
+  const options = [
+    !gen && { v: "pipe", label: `#${selPipe + 1}` },
+    multi && { v: "xp", label: route },
+    { v: "bus", label: `${names.long(o)} Out` },
+  ].filter((x) => !!x);
   const label = (/** @type {{ src: number, members: Pipe[] }} */ x) =>
-    `${names.short(x.src)} → ${names.short(o)}` + (x.members.some(partial) ? ' (partial)' : '');
+    `${names.short(x.src)} → ${names.short(o)}` + (x.members.some(partial) ? " (partial)" : "");
   const eqOf = /** @type {Pipe} */ (gen ? ear[/** @type {number} */ (p.ear)] : p);
   const traces = tracesOf(sc, { p, n: selPipe + 1, eqOf, xps, label });
-  const off = eqOf.unit === 'Lin' ? 20 * Math.log10(Math.abs(+eqOf.gain) || 1e-6) : +eqOf.gain;
-  const bands = sc === 'bus' ? [] : eqOf.stages.map((st, k) => ({ st, k, f: +st.f, db: +st.g + off }))
-    .filter(({ st }) => st.kind === 'iir' && PEQ_TYPES.has(st.type) && !st.blk);
+  const off = eqOf.unit === "Lin" ? 20 * Math.log10(Math.abs(+eqOf.gain) || 1e-6) : +eqOf.gain;
+  const bands =
+    sc === "bus"
+      ? []
+      : eqOf.stages
+          .map((st, k) => ({ st, k, f: +st.f, db: +st.g + off }))
+          .filter(({ st }) => st.kind === "iir" && PEQ_TYPES.has(st.type) && !st.blk);
   return { shown: true, sc, options, traces, eqOf, off, bands };
 }
 

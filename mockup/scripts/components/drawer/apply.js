@@ -1,8 +1,8 @@
 // The apply bar: the head's Discard + Apply group, and what Apply, Discard, settle and remark do to a mounted drawer.
 
-import { h } from '../../lib/dom.js';
-import { applyTargets, commit, restoreOf, blockRestore, dirtyIds } from '../../model/drawer.js';
-import { regrayDrawer, clearDirty, markDirty, setBackend } from './state.js';
+import { h } from "../../lib/dom.js";
+import { applyTargets, commit, restoreOf, blockRestore, dirtyIds } from "../../model/drawer.js";
+import { regrayDrawer, clearDirty, markDirty, setBackend } from "./state.js";
 
 /**
  * Head apply group, top right: Discard + Apply. Apply writes the staged edits into the station and restarts the
@@ -14,17 +14,28 @@ import { regrayDrawer, clearDirty, markDirty, setBackend } from './state.js';
  */
 const appliedFns = [];
 /** Hear every Apply from any drawer (main.js: the connection knob reads Applying… while the engine restarts). */
-export function onApplied(fn) { appliedFns.push(fn); }
+export function onApplied(fn) {
+  appliedFns.push(fn);
+}
 export function applyGroup(onApply, onDiscard) {
-  const discard = h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => onDiscard?.() } });
-  const apply = h('button.btn.sm.aapply', { type: 'button', text: 'Apply', on: { click: () => { onApply(); for (const fn of appliedFns) fn(); } } });
-  const el = h('div.apply', { hidden: true }, discard, apply);
+  const discard = h("button.btn.sm", { type: "button", text: "Discard", on: { click: () => onDiscard?.() } });
+  const apply = h("button.btn.sm.aapply", {
+    type: "button",
+    text: "Apply",
+    on: {
+      click: () => {
+        onApply();
+        for (const fn of appliedFns) fn();
+      },
+    },
+  });
+  const el = h("div.apply", { hidden: true }, discard, apply);
   return {
     el,
     paint(shown, staged) {
       el.hidden = !shown;
       discard.disabled = apply.disabled = !staged;
-      el.classList.toggle('staged', staged);
+      el.classList.toggle("staged", staged);
     },
   };
 }
@@ -32,9 +43,15 @@ export function applyGroup(onApply, onDiscard) {
 /** A stage drawer's apply group: Apply and Discard reach every family member (else the drawer alone). */
 export function drawerApplyGroup(D) {
   return applyGroup(
-    () => { for (const d of applyTargets(D.fam, D.api)) d.applied(); },
+    () => {
+      for (const d of applyTargets(D.fam, D.api)) d.applied();
+    },
     // Family: every member puts its values back first, then all repaint (a gray reason or block may read another's).
-    () => { const ms = applyTargets(D.fam, D.api); for (const d of ms) d.discarded(); for (const d of ms) d.settle(); },
+    () => {
+      const ms = applyTargets(D.fam, D.api);
+      for (const d of ms) d.discarded();
+      for (const d of ms) d.settle();
+    },
   );
 }
 
@@ -59,12 +76,15 @@ export function discarded(D) {
     if (c.switchesBackend) setBackend(D, back[id]);
     D.on[id]?.(back[id]);
   }
-  Object.assign(D.vals, blockRestore(D.blockIds, D.base));   // this member's block values (not another member's)
+  Object.assign(D.vals, blockRestore(D.blockIds, D.base)); // this member's block values (not another member's)
   for (const fn of D.discards) fn({ ...D.base });
 }
 
 /** After a Discard: every gray reason re-reads the values, the dots clear. */
-export function settle(D) { regrayDrawer(D); clearDirty(D); }
+export function settle(D) {
+  regrayDrawer(D);
+  clearDirty(D);
+}
 
 /** Dirty dots for every value that differs from the base (a staged buffer put back by the Profile builder). */
 export function remark(D) {

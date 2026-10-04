@@ -4,10 +4,10 @@
 //              under Option style Standard, as the lists). No marks. Tap = the whole list (sheet / panel), as before.
 // Idle (not in this track's path): the glass dims.
 
-import { h } from '../lib/dom.js';
-import { LISTS } from '../data/option-lists.js';
-import { openPicker, optionStyle } from './vselect.js';
-import { optionOf } from '../model/options.js';
+import { h } from "../lib/dom.js";
+import { LISTS } from "../data/option-lists.js";
+import { openPicker, optionStyle } from "./vselect.js";
+import { optionOf } from "../model/options.js";
 
 /**
  * @param {object} o
@@ -21,23 +21,43 @@ import { optionOf } from '../model/options.js';
  */
 export function chainPick({ id, list, stage, value, aria, idle, onChange }) {
   const all = LISTS[list];
-  const opt = optionOf(all, value) ?? { v: value, leaf: value, fam: '' };
+  const opt = optionOf(all, value) ?? { v: value, leaf: value, fam: "" };
   const m = String(id).match(/(pcm|sdm)(1x|nx|sh)$/);
 
-  const plate = h('button.vfd.cplate', { type: 'button', id, class: idle && 'dim', 'aria-label': `${aria}: ${opt.leaf}`, aria: { haspopup: 'dialog' } });
-  plate.value = String(value);   // the Snapshot builder and switcher read pickers by value
-  plate.addEventListener('click', () => openPicker({
-    trigger: plate, list, stage, chain: m?.[1], field: m ? m[1] + m[2] : '', value: String(value), onPick: (v) => onChange(v),
-  }));
+  const plate = h("button.vfd.cplate", {
+    type: "button",
+    id,
+    class: idle && "dim",
+    "aria-label": `${aria}: ${opt.leaf}`,
+    aria: { haspopup: "dialog" },
+  });
+  plate.value = String(value); // the Snapshot builder and switcher read pickers by value
+  plate.addEventListener("click", () =>
+    openPicker({
+      trigger: plate,
+      list,
+      stage,
+      chain: m?.[1],
+      field: m ? m[1] + m[2] : "",
+      value: String(value),
+      onPick: (v) => onChange(v),
+    }),
+  );
 
   function paint() {
-    const std = optionStyle() === 'standard';
+    const std = optionStyle() === "standard";
     plate.replaceChildren(
       // Family › variant at reading size: the name alone (`Extended compensation`) repeats across families.
-      h('span.cpf', {}, h('b.cpfam', { text: opt.fam }), opt.var && h('span.cpsep', { text: '›' }), opt.var && h('span.cpvar', { text: opt.var })),
-      h('span.cpl', { text: std ? String(opt.v) : opt.leaf }),
+      h(
+        "span.cpf",
+        {},
+        h("b.cpfam", { text: opt.fam }),
+        opt.var && h("span.cpsep", { text: "›" }),
+        opt.var && h("span.cpvar", { text: opt.var }),
+      ),
+      h("span.cpl", { text: std ? String(opt.v) : opt.leaf }),
     );
   }
   paint();
-  return h('div.cpk', {}, plate);
+  return h("div.cpk", {}, plate);
 }

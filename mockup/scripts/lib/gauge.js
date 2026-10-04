@@ -11,8 +11,8 @@
  * @param {any[]} kids
  */
 export function paintSvg(svg, W, H, kids) {
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('width', W);
-  svg.setAttribute('height', H);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
   svg.replaceChildren(...kids.flat(2).filter(Boolean));
 }

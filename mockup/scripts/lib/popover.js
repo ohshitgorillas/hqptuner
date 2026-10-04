@@ -15,28 +15,36 @@ let current = null;
  */
 export function popover({ trigger, panel, inside = [], onToggle }) {
   const p = {
-    trigger, panel, inside,
-    get isOpen() { return !panel.hidden; },
+    trigger,
+    panel,
+    inside,
+    get isOpen() {
+      return !panel.hidden;
+    },
     open() {
       if (current && current !== p) current.close();
       panel.hidden = false;
-      trigger.setAttribute('aria-expanded', 'true');
+      trigger.setAttribute("aria-expanded", "true");
       current = p;
       onToggle?.(true);
     },
     close() {
       if (panel.hidden) return;
       panel.hidden = true;
-      trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute("aria-expanded", "false");
       if (current === p) current = null;
       onToggle?.(false);
     },
-    toggle() { p.isOpen ? p.close() : p.open(); },
-    contains(node) { return [trigger, panel, ...inside].some((el) => el.contains(node)); },
+    toggle() {
+      p.isOpen ? p.close() : p.open();
+    },
+    contains(node) {
+      return [trigger, panel, ...inside].some((el) => el.contains(node));
+    },
   };
   panel.hidden = true;
-  trigger.setAttribute('aria-expanded', 'false');
-  trigger.addEventListener('click', () => p.toggle());
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.addEventListener("click", () => p.toggle());
   return p;
 }
 
@@ -44,16 +52,20 @@ export const anyOpen = () => current !== null;
 
 /** The document listeners: outside click and Escape close the open popover. main.js installs them once, first. */
 export function installPopovers() {
-  document.addEventListener('click', (e) => {
+  document.addEventListener("click", (e) => {
     // A target that re-rendered away mid-click (e.g. a removed tag) was inside something we own.
     if (current && e.target.isConnected && !current.contains(e.target)) current.close();
   });
 
   // Capture phase so it runs before bubble-phase Escape handlers (drawer) and can swallow the key.
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && current) {
-      e.stopImmediatePropagation();
-      current.close();
-    }
-  }, true);
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape" && current) {
+        e.stopImmediatePropagation();
+        current.close();
+      }
+    },
+    true,
+  );
 }

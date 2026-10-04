@@ -2,8 +2,8 @@
 // Fixed volume and Direct SDM pinning it (Direct SDM wins while it lasts), which ± buttons disable, what the windows and
 // the rail print, and where the loudness bounds sit along a slider (components/volume.js paints them).
 
-import { minus } from './format.js';
-import { percentOf } from './output.js';
+import { minus } from "./format.js";
+import { percentOf } from "./output.js";
 
 /**
  * @typedef {{ min: number, max: number }} Range
@@ -24,7 +24,7 @@ const DIRECT_LEVEL = -3;
  * @param {number} v
  * @returns {string}
  */
-export const dbText = (v) => minus(v, 1) + ' dB';
+export const dbText = (v) => minus(v, 1) + " dB";
 
 /**
  * The level a request lands on: the nearest step, inside the range.
@@ -45,8 +45,15 @@ export const snapLevel = (v, { min, max, step }) => Math.min(max, Math.max(min, 
  * @returns {Pin | null}
  */
 export function fixedPin(mode, level, iso) {
-  if (mode === 'manual') { const l = Number(level); return { level: l, level_txt: dbText(l), text: `Manual: ${dbText(l)}` }; }
-  if (mode === 'auto') { const l = iso === '2' ? -6 : -3, lt = dbText(l).replace('.0 dB', ' dB'); return { level: l, level_txt: lt, text: `Auto: ${lt}` }; }
+  if (mode === "manual") {
+    const l = Number(level);
+    return { level: l, level_txt: dbText(l), text: `Manual: ${dbText(l)}` };
+  }
+  if (mode === "auto") {
+    const l = iso === "2" ? -6 : -3,
+      lt = dbText(l).replace(".0 dB", " dB");
+    return { level: l, level_txt: lt, text: `Auto: ${lt}` };
+  }
   return null;
 }
 
@@ -58,9 +65,8 @@ export function fixedPin(mode, level, iso) {
  * @param {string} why
  * @returns {DirectPin | null}
  */
-export const directPin = (on, why) => (on
-  ? { level: DIRECT_LEVEL, level_txt: dbText(DIRECT_LEVEL), text: `Direct: ${dbText(DIRECT_LEVEL)}`, why }
-  : null);
+export const directPin = (on, why) =>
+  on ? { level: DIRECT_LEVEL, level_txt: dbText(DIRECT_LEVEL), text: `Direct: ${dbText(DIRECT_LEVEL)}`, why } : null;
 
 /**
  * Which ± buttons disable: both while the level is pinned, else the one whose bound the level sits on.
@@ -88,7 +94,15 @@ export function volumeView(v, value, { fixed, direct }, grid) {
   const kept = pin ? value : snapLevel(v, grid);
   const level = pin ? pin.level : kept;
   const txt = pin ? pin.level_txt : dbText(kept);
-  return { value: kept, level, txt, rail: pin ? pin.text : txt, fixed: !!pin, why: direct ? direct.why : '', off: stepOff(level, !!pin, grid) };
+  return {
+    value: kept,
+    level,
+    txt,
+    rail: pin ? pin.text : txt,
+    fixed: !!pin,
+    why: direct ? direct.why : "",
+    off: stepOff(level, !!pin, grid),
+  };
 }
 
 /**
@@ -102,6 +116,7 @@ export function volumeView(v, value, { fixed, direct }, grid) {
  */
 export function loudSpan(low, high, { min, max }) {
   const pct = (/** @type {number} */ v) => Math.min(100, Math.max(0, percentOf(v, min, max)));
-  const lo = pct(low), hi = pct(high);
+  const lo = pct(low),
+    hi = pct(high);
   return { lo, hi, width: hi - lo };
 }

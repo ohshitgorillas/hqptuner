@@ -48,12 +48,13 @@ const room = (m) => m ?? -Infinity;
  */
 export function clampToPlate({ anchor, panel, plate, scale, side, foot, at }) {
   const [l, r] = Array.isArray(side) ? side : [side, side];
-  const x = anchor.left / scale, y = anchor.top / scale;
-  const x0 = at.x === 'before' ? x - panel.w - at.gap : x;
+  const x = anchor.left / scale,
+    y = anchor.top / scale;
+  const x0 = at.x === "before" ? x - panel.w - at.gap : x;
   const left = Math.max(room(l), Math.min(x0, plate.w - room(r) - panel.w));
   const floor = plate.h - room(foot);
-  if (at.y === 'top') return { left, top: Math.min(y, floor - panel.h) };
+  if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) };
   const below = y + anchor.height / scale + at.gap;
-  if (at.y === 'below') return { left, top: Math.min(below, floor - panel.h) };
+  if (at.y === "below") return { left, top: Math.min(below, floor - panel.h) };
   return { left, top: below + panel.h > floor ? y - panel.h - at.gap : below };
 }

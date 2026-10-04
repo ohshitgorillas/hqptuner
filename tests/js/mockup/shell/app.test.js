@@ -46,7 +46,11 @@ const DSD = { id: "dsd64", playing: true, family: "dsd", source: "src-dsd" };
 
 //: Engine figures by path, buffer seams and the output tiers by chain.
 const ENGINE = { idle: null, "pcm-pcm": { speed: 3, in: 10, out: 60 }, direct: { speed: 9, in: 90, out: 30 } };
-const PATHS = { engine: ENGINE, zones: { buffer: /** @type {Seams} */ ([25, 50]) }, out: { pcm: { tier: 3 }, sdm: { tier: 9 }, direct: { tier: 6 } } };
+const PATHS = {
+  engine: ENGINE,
+  zones: { buffer: /** @type {Seams} */ ([25, 50]) },
+  out: { pcm: { tier: 3 }, sdm: { tier: 9 }, direct: { tier: 6 } },
+};
 
 //: Alert lines that hand back the one argument a test reads.
 const ALERT_COPY = {
@@ -76,7 +80,10 @@ const SHAPERS = { pcm: { sh: "pcm-shaper" }, sdm: { sh: "sdm-shaper" } };
  * @param {Partial<RaiseNow>} [over]
  */
 const raise = (picks, over = {}) =>
-  raisedAlerts({ p: "pcm-pcm", run: "pcm", st: SHAPERS, picked: new Set(picks), rf: "plain", scene: PCM, ...over }, RAISE);
+  raisedAlerts(
+    { p: "pcm-pcm", run: "pcm", st: SHAPERS, picked: new Set(picks), rf: "plain", scene: PCM, ...over },
+    RAISE,
+  );
 
 /**
  * The kinds of the alerts raise() returns, in order.
@@ -98,9 +105,15 @@ const needle = (v) => {
 
 //: The slot faces the Output mode target keeps: the second slot was live.
 /** @type {SlotFace[]} */
-const FACES = [{ l: "a", v: "x", on: false }, { l: "b", v: "y", on: true }];
+const FACES = [
+  { l: "a", v: "x", on: false },
+  { l: "b", v: "y", on: true },
+];
 /** @type {SlotFace[]} */
-const NONE_ON = [{ l: "a", v: "x", on: false }, { l: "b", v: "y", on: false }];
+const NONE_ON = [
+  { l: "a", v: "x", on: false },
+  { l: "b", v: "y", on: false },
+];
 const TARGETS = { mode: "mode-target", volume: "volume-target" };
 
 // ── zones ────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -164,7 +177,10 @@ test("test_pcm_with_the_matrix_engine_bypassed_runs_the_meter", () => {
 // ── profile records ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 //: Two stations sharing one profile name; only the first holds the flat one.
-const PROFILES = { first: { flat: { flat: true }, shared: { desc: "first-desc" } }, second: { shared: { desc: "second-desc" } } };
+const PROFILES = {
+  first: { flat: { flat: true }, shared: { desc: "first-desc" } },
+  second: { shared: { desc: "second-desc" } },
+};
 
 test("test_a_name_two_stations_hold_has_two_records", () => {
   assert.equal(profileRecords(PROFILES, "shared").length, 2);
@@ -231,15 +247,24 @@ test("test_idle_has_no_speed", () => {
 });
 
 test("test_the_buffers_read_input_then_output", () => {
-  assert.deepEqual(pathView("pcm-pcm", "pcm", PCM, PATHS).buffers.map((b) => b.v), [10, 60]);
+  assert.deepEqual(
+    pathView("pcm-pcm", "pcm", PCM, PATHS).buffers.map((b) => b.v),
+    [10, 60],
+  );
 });
 
 test("test_each_buffer_takes_its_own_zone", () => {
-  assert.deepEqual(pathView("pcm-pcm", "pcm", PCM, PATHS).buffers.map((b) => b.zone), ["bad", "ok"]);
+  assert.deepEqual(
+    pathView("pcm-pcm", "pcm", PCM, PATHS).buffers.map((b) => b.zone),
+    ["bad", "ok"],
+  );
 });
 
 test("test_idle_buffers_read_empty_with_no_zone", () => {
-  assert.deepEqual(pathView("idle", "pcm", IDLE, PATHS).buffers, [{ v: 0, zone: "" }, { v: 0, zone: "" }]);
+  assert.deepEqual(pathView("idle", "pcm", IDLE, PATHS).buffers, [
+    { v: 0, zone: "" },
+    { v: 0, zone: "" },
+  ]);
 });
 
 test("test_a_playing_scene_names_its_source_on_the_rail", () => {

@@ -6,11 +6,11 @@
 //              recommended", manual §4.6)
 // A tap on a folded header still opens it.
 
-const st = { r2r: '0', ess: '0' };
+const st = { r2r: "0", ess: "0" };
 export const dacType = () => ({ ...st });
 /** @param {import('./bus.js').Bus} bus */
 export function setDacType(k, v, bus) {
   if (st[k] === v) return;
   st[k] = v;
-  bus.emit('dactype', { ...st });
+  bus.emit("dactype", { ...st });
 }

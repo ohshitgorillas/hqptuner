@@ -21,15 +21,15 @@
 // Each step is its own module under station-builder/, the mock checks one more; the decisions they make are
 // model/station.js.
 
-import { PLATFORM } from '../lib/clock.js';
-import { mountBuilder, chainPic } from '../lib/builder.js';
-import { homeOf } from '../model/builder.js';
-import { deadListings } from '../model/station.js';
-import { STB_SCRATCH, STB_RECORDS, STB_HW_REC } from '../data/station-builder.js';
-import { ONE } from './station-builder/parts.js';
-import { stationTables } from './station-builder/tables.js';
-import { shellSpec } from './station-builder/shell.js';
-import { show } from './station-builder/page.js';
+import { PLATFORM } from "../lib/clock.js";
+import { mountBuilder, chainPic } from "../lib/builder.js";
+import { homeOf } from "../model/builder.js";
+import { deadListings } from "../model/station.js";
+import { STB_SCRATCH, STB_RECORDS, STB_HW_REC } from "../data/station-builder.js";
+import { ONE } from "./station-builder/parts.js";
+import { stationTables } from "./station-builder/tables.js";
+import { shellSpec } from "./station-builder/shell.js";
+import { show } from "./station-builder/page.js";
 
 /**
  * The builder's state, shared by reference with every step: the stations, the machine's hardware, the edit and what it
@@ -39,14 +39,27 @@ function stationState(stations, o, clock) {
   const order = stations.map((st) => st.name);
   const records = Object.fromEntries(order.map((n) => [n, structuredClone(STB_RECORDS[n] ?? STB_SCRATCH)]));
   return {
-    o, flags: o.flags, clock, T: stationTables(), order, loaded: homeOf(stations), records,
-    hw: structuredClone(STB_HW_REC),   // the machine's: one record, written to every station
-    naaSeen: !o.flags.naaNone,   // mock: an NAA shows only after Refresh devices
-    hidden: new Set(deadListings(Object.values(records))),   // listings a resolved pair left dead: hidden from every list (wizard §1.5)
-    e: null,       // the one being edited: {name, rec, hw}
-    runs: {},      // mock checks in flight or done, this edit: {ipv6, usb, rates}
-    bringUp: false, pitch: false, at: 'overview',
-    B: null, page: null, chainEl: null, acts: null, show: null, set: null,
+    o,
+    flags: o.flags,
+    clock,
+    T: stationTables(),
+    order,
+    loaded: homeOf(stations),
+    records,
+    hw: structuredClone(STB_HW_REC), // the machine's: one record, written to every station
+    naaSeen: !o.flags.naaNone, // mock: an NAA shows only after Refresh devices
+    hidden: new Set(deadListings(Object.values(records))), // listings a resolved pair left dead: hidden from every list (wizard §1.5)
+    e: null, // the one being edited: {name, rec, hw}
+    runs: {}, // mock checks in flight or done, this edit: {ipv6, usb, rates}
+    bringUp: false,
+    pitch: false,
+    at: "overview",
+    B: null,
+    page: null,
+    chainEl: null,
+    acts: null,
+    show: null,
+    set: null,
   };
 }
 
@@ -63,13 +76,16 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
   sb.page = page;
   sb.show = (id) => show(sb, id);
   /** Change the edited record and repaint what follows from it. */
-  sb.set = (fn) => { fn(sb.e.rec, sb.e); sb.show(sb.at); };
+  sb.set = (fn) => {
+    fn(sb.e.rec, sb.e);
+    sb.show(sb.at);
+  };
   const B = mountBuilder({ btn, chain, body, bus }, shellSpec(sb, { rail, others }));
   sb.B = B;
-  sb.chainEl = chainPic('Signal chain: the station\'s part lit', (id) => ['volume', 'output'].includes(id));
-  B.pick.addEventListener('change', () => B.go({ st: ONE, name: B.pick.value }));
+  sb.chainEl = chainPic("Signal chain: the station's part lit", (id) => ["volume", "output"].includes(id));
+  B.pick.addEventListener("change", () => B.go({ st: ONE, name: B.pick.value }));
   sb.acts = B.buttons();
   B.load(B.cur);
-  show(sb, 'overview');
+  show(sb, "overview");
   return B.start();
 }

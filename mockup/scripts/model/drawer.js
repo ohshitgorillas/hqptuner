@@ -143,4 +143,5 @@ export const restoreOf = (id, vals, base) => (vals[id] === base[id] || !(id in b
  * @param {Values} base
  * @returns {Values}
  */
-export const blockRestore = (ids, base) => Object.fromEntries([...ids].filter((id) => id in base).map((id) => [id, base[id]]));
+export const blockRestore = (ids, base) =>
+  Object.fromEntries([...ids].filter((id) => id in base).map((id) => [id, base[id]]));

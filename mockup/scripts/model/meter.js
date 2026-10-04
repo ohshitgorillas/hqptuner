@@ -2,25 +2,30 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
-const FLOOR_DB = -300;            // a spectrum bin with nothing shown yet
-const SPEC_FALL_DB = 3;           // shown spectrum fall per frame, ~30 dB/s at 10 Hz
-const SPEC_HOLD_MS = 2000;        // spectrum peak hold before it decays
-const SPEC_DECAY_DB = 1;          // spectrum peak decay per frame once released
-const PEAK_CEIL_DB = -0.6;        // highest peak the mock source reaches
-const PEAK_FALL_DBPS = 20;        // level peak fall, dB/s
-const RMS_TAU_S = 0.3;            // level RMS integration time
-const HOLD_MS = 1500;             // level hold before it decays
-const HOLD_DECAY_DBPS = 10;       // level hold decay once released, dB/s
-const MAX_DT_S = 0.1;             // longest step one frame may take
-const DSD_NOISE_HZ = 12000;       // where a DSD source's modulator noise starts to climb
-const NO_DATA = -1;               // spectrogram colour index for a pixel with no column under it
-const MAX_APOD = 3;               // apodizing events one strip pixel tells apart
-const RAMP_SIZE = 256;            // colour ramp entries
+const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
+const SPEC_FALL_DB = 3; // shown spectrum fall per frame, ~30 dB/s at 10 Hz
+const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
+const SPEC_DECAY_DB = 1; // spectrum peak decay per frame once released
+const PEAK_CEIL_DB = -0.6; // highest peak the mock source reaches
+const PEAK_FALL_DBPS = 20; // level peak fall, dB/s
+const RMS_TAU_S = 0.3; // level RMS integration time
+const HOLD_MS = 1500; // level hold before it decays
+const HOLD_DECAY_DBPS = 10; // level hold decay once released, dB/s
+const MAX_DT_S = 0.1; // longest step one frame may take
+const DSD_NOISE_HZ = 12000; // where a DSD source's modulator noise starts to climb
+const NO_DATA = -1; // spectrogram colour index for a pixel with no column under it
+const MAX_APOD = 3; // apodizing events one strip pixel tells apart
+const RAMP_SIZE = 256; // colour ramp entries
 /** @type {Record<number, number>} */
-const DB_STEP = { 60: 10, 90: 15, 120: 20, 200: 40, 300: 50 };   // spectrum dB grid step per range
-const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300];              // time-axis tick steps, at most five per span
+const DB_STEP = { 60: 10, 90: 15, 120: 20, 200: 40, 300: 50 }; // spectrum dB grid step per range
+const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
 //: The mock track's four chords (MIDI notes), 2.4 s each.
-const CHORDS = [[45, 57, 61, 64], [50, 57, 62, 66], [43, 55, 59, 62], [48, 55, 60, 64]];
+const CHORDS = [
+  [45, 57, 61, 64],
+  [50, 57, 62, 66],
+  [43, 55, 59, 62],
+  [48, 55, 60, 64],
+];
 
 /**
  * Shown spectrum, held peaks and the time each peak was last reached, one entry per bin. Float32 storage is part of
@@ -214,7 +219,10 @@ export function stepFrame(loop, now, perCol, shown) {
   if (!shown) return { prev: now, acc: loop.acc, dt, cols: 0 };
   let acc = loop.acc + dt;
   let cols = 0;
-  while (acc >= perCol) { acc -= perCol; cols++; }
+  while (acc >= perCol) {
+    acc -= perCol;
+    cols++;
+  }
   return { prev: now, acc, dt, cols };
 }
 
@@ -246,7 +254,9 @@ export function power(c, f, ch, src) {
       if (fk > brick * 0.97) break;
       const d = Math.log2(f / fk);
       if (d > 0.15 || d < -0.15) continue;
-      p += 10 ** ((-20 - 6.5 * Math.log2(k) + pan - (n === 0 ? 0 : 4) - c.dyn[n]) / 10) * Math.exp(-0.5 * (d / 0.035) ** 2);
+      p +=
+        10 ** ((-20 - 6.5 * Math.log2(k) + pan - (n === 0 ? 0 : 4) - c.dyn[n]) / 10) *
+        Math.exp(-0.5 * (d / 0.035) ** 2);
     }
   });
   if (c.kick && f < 180) p += 10 ** (-12 / 10) * Math.exp(-0.5 * (Math.log2(f / 60) / 0.6) ** 2);
@@ -304,7 +314,9 @@ export function mockColumn(idx, feed) {
   };
   for (let y = 0; y < rows; y++) {
     const [l, r] = [0, 1].map((ch) => power(c, feed.rowHz[y], ch, feed) * jitter(c, y, ch));
-    c.db[y] = dB(l); c.db[rows + y] = dB(r); c.db[2 * rows + y] = dB((l + r) / 2);
+    c.db[y] = dB(l);
+    c.db[rows + y] = dB(r);
+    c.db[2 * rows + y] = dB((l + r) / 2);
   }
   return c;
 }
@@ -320,7 +332,7 @@ export function mockColumn(idx, feed) {
  */
 export function binLevels(c, binHz, channel, src) {
   return Float64Array.from(binHz, (f, i) => {
-    const p = channel === 'sum' ? (power(c, f, 0, src) + power(c, f, 1, src)) / 2 : power(c, f, Number(channel), src);
+    const p = channel === "sum" ? (power(c, f, 0, src) + power(c, f, 1, src)) / 2 : power(c, f, Number(channel), src);
     return dB(p * jitter(c, i, 5));
   });
 }
@@ -403,7 +415,7 @@ export function freqTicks(nyq, at) {
  * @param {number} colsPerSec
  * @returns {number}
  */
-export const windowSpan = (window, total, colsPerSec) => (window === 'all' ? total : window * colsPerSec);
+export const windowSpan = (window, total, colsPerSec) => (window === "all" ? total : window * colsPerSec);
 
 /**
  * The held columns under pixel column `x`: those of its share of the span still in history.
@@ -456,7 +468,8 @@ export function spectrogramIndex(hist, firstIdx, view) {
     let ev = 0;
     for (const c of held) ev += c.apod;
     events[x] = Math.min(MAX_APOD, ev);
-    for (let y = 0; y < view.rows; y++) colour[y * view.cols + x] = held.length ? colourIndex(held, view.off + y, view.range) : NO_DATA;
+    for (let y = 0; y < view.rows; y++)
+      colour[y * view.cols + x] = held.length ? colourIndex(held, view.off + y, view.range) : NO_DATA;
   }
   return { colour, events };
 }
@@ -501,7 +514,8 @@ export function rampLut(stops) {
   const lut = new Uint8ClampedArray(RAMP_SIZE * 3);
   for (let i = 0; i < RAMP_SIZE; i++) {
     const pos = (i / (RAMP_SIZE - 1)) * (stops.length - 1);
-    const a = Math.min(stops.length - 2, Math.floor(pos)), t = pos - a;
+    const a = Math.min(stops.length - 2, Math.floor(pos)),
+      t = pos - a;
     for (let k = 0; k < 3; k++) lut[i * 3 + k] = stops[a][k] + (stops[a + 1][k] - stops[a][k]) * t;
   }
   return lut;

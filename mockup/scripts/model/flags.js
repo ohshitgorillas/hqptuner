@@ -35,16 +35,31 @@ export function hashFlags(hash, sizes, scenes, alertKinds) {
   return {
     size: known(hash.match(/size-([\d.]+)/)?.[1], sizes),
     scene: known(hash.match(/scene-(\w+)/)?.[1], scenes),
-    alerts: (hash.match(/alerts-([\w,]+)/)?.[1].split(',') ?? []).filter((k) => alertKinds.includes(k)),
-    conn: /** @type {'busy' | 'lost' | undefined} */ (hash.match(/conn-(busy|lost)/)?.[1]) ?? 'ok',
-    wire: hash === '#routed' ? 'routed' : 'trunk',
-    modeAuto: hash.includes('mode-auto'),
-    snapshots: firstOf(hash, [['many', 'many'], ['long', 'long']], 'default'),
-    pipelines: firstOf(hash, [['71', 'mch8'], ['mch', 'mch'], ['dense', 'dense']], 'stereo'),
-    naaNone: hash.includes('naa-none'),
-    ipv6Fail: hash.includes('ipv6-fail'),
+    alerts: (hash.match(/alerts-([\w,]+)/)?.[1].split(",") ?? []).filter((k) => alertKinds.includes(k)),
+    conn: /** @type {'busy' | 'lost' | undefined} */ (hash.match(/conn-(busy|lost)/)?.[1]) ?? "ok",
+    wire: hash === "#routed" ? "routed" : "trunk",
+    modeAuto: hash.includes("mode-auto"),
+    snapshots: firstOf(
+      hash,
+      [
+        ["many", "many"],
+        ["long", "long"],
+      ],
+      "default",
+    ),
+    pipelines: firstOf(
+      hash,
+      [
+        ["71", "mch8"],
+        ["mch", "mch"],
+        ["dense", "dense"],
+      ],
+      "stereo",
+    ),
+    naaNone: hash.includes("naa-none"),
+    ipv6Fail: hash.includes("ipv6-fail"),
     usbFail: /** @type {'gone' | 'none' | undefined} */ (hash.match(/usb-fail-(gone|none)/)?.[1]) ?? null,
-    dsd48No: hash.includes('dsd48-no'),
+    dsd48No: hash.includes("dsd48-no"),
   };
 }
 

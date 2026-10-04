@@ -4,9 +4,9 @@
 // returns the new state as a value and leaves its arguments as they were.
 
 /** The New entry's name: no typed name can equal it. */
-export const NEW = '\u0000new';
+export const NEW = "\u0000new";
 /** The page a walk returns to past its last step or before its first. */
-export const OVERVIEW = 'overview';
+export const OVERVIEW = "overview";
 
 /** @typedef {{ st: string, name: string }} Ref  a record: the station it is in and its name (NEW = not saved yet) */
 /**
@@ -34,7 +34,7 @@ export function homeOf(stations) {
  * @returns {string}
  */
 export function keyOf(ref) {
-  return ref.name === NEW ? NEW : ref.st + '\u0001' + ref.name;
+  return ref.name === NEW ? NEW : ref.st + "\u0001" + ref.name;
 }
 
 /**
@@ -45,7 +45,7 @@ export function keyOf(ref) {
  * @returns {string}
  */
 export function shownName(typed, cur) {
-  return typed || (cur.name === NEW ? '' : cur.name);
+  return typed || (cur.name === NEW ? "" : cur.name);
 }
 
 /**
@@ -69,7 +69,12 @@ export function nextStep(ids, i, skipped) {
  * @returns {string}
  */
 export function prevStep(ids, i, skipped) {
-  return ids.slice(0, Math.max(i, 0)).reverse().find((id) => !skipped(id)) ?? OVERVIEW;
+  return (
+    ids
+      .slice(0, Math.max(i, 0))
+      .reverse()
+      .find((id) => !skipped(id)) ?? OVERVIEW
+  );
 }
 
 /**
@@ -112,8 +117,8 @@ export function stashed(staged, key, buf) {
 export function stateOf({ dirty, isNew, ticked, restarts, live }) {
   const pending = dirty || isNew;
   /** @type {Line} */
-  let line = live ? 'live' : 'saved';
-  if (pending) line = restarts ? 'restarts' : 'dirty';
+  let line = live ? "live" : "saved";
+  if (pending) line = restarts ? "restarts" : "dirty";
   return { line, pending, discardOff: !dirty, saveOff: (!dirty && !isNew) || !ticked };
 }
 
@@ -155,9 +160,9 @@ export function heldAt(book, cur, name, st) {
  * @returns {Plan}
  */
 export function savePlan(book, cur, name, to) {
-  if (!name) return 'refuse';
-  if (!to.length) return 'idle';
-  return to.some((st) => heldAt(book, cur, name, st)) ? 'ask' : 'write';
+  if (!name) return "refuse";
+  if (!to.length) return "idle";
+  return to.some((st) => heldAt(book, cur, name, st)) ? "ask" : "write";
 }
 
 /**
@@ -182,7 +187,9 @@ export function savedTo(book, cur, name, to, rec, keep) {
   for (const st of to) {
     const list = out[st];
     if (own && st === cur.st && name !== cur.name) {
-      out[st] = Object.fromEntries(renamedIn(Object.keys(list), cur.name, name).map((k) => [k, k === name ? rec : list[k]]));
+      out[st] = Object.fromEntries(
+        renamedIn(Object.keys(list), cur.name, name).map((k) => [k, k === name ? rec : list[k]]),
+      );
     } else out[st] = { ...list, [name]: globalThis.structuredClone(rec) };
   }
   return { book: out, cur: { st: own ? cur.st : to[0], name } };

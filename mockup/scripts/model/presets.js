@@ -21,7 +21,7 @@ export function subsetVersion(rows, id, lane, on) {
   return {
     filter: c.fixed || (on ? c.on : c.off),
     cost: c.cost.pips && !c.fixed && !on ? { pips: Math.max(1, c.cost.pips - 1) } : c.cost,
-    correction: c.fixed || on ? 'full' : 'none',
+    correction: c.fixed || on ? "full" : "none",
     toggle: !c.fixed,
   };
 }

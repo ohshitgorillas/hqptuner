@@ -7,7 +7,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bandsToStages, hitPipe, hitSummary, peqCount, replacePeq, searchHits, shownHits } from "../../../../mockup/scripts/model/eq.js";
+import {
+  bandsToStages,
+  hitPipe,
+  hitSummary,
+  peqCount,
+  replacePeq,
+  searchHits,
+  shownHits,
+} from "../../../../mockup/scripts/model/eq.js";
 
 //: Two bands with distinct f, g and Q: the first typed, the second left to the default.
 /** @type {import("../../../../mockup/scripts/model/eq.js").Band[]} */
@@ -32,7 +40,12 @@ const PIPE = {
   mix: 0,
   gain: 0.5,
   unit: "Lin",
-  stages: [DELAY, { kind: "iir", type: "peak", f: 41, g: -8.5, q: 4.3 }, LP, { kind: "iir", type: "hshelf", f: 8000, g: -1.5, q: 0.7 }],
+  stages: [
+    DELAY,
+    { kind: "iir", type: "peak", f: 41, g: -8.5, q: 4.3 },
+    LP,
+    { kind: "iir", type: "hshelf", f: 8000, g: -1.5, q: 0.7 },
+  ],
 };
 
 //: The EQ landed on it: two new band stages and a preamp.
@@ -64,16 +77,25 @@ test("test_bands_to_stages_makes_an_untyped_band_a_peak", () => {
 });
 
 test("test_bands_to_stages_makes_iir_stages", () => {
-  assert.deepEqual(bandsToStages(BANDS).map((st) => st.kind), ["iir", "iir"]);
+  assert.deepEqual(
+    bandsToStages(BANDS).map((st) => st.kind),
+    ["iir", "iir"],
+  );
 });
 
 test("test_bands_to_stages_keeps_band_order", () => {
-  assert.deepEqual(bandsToStages(BANDS).map((st) => st.f), [105, 3000]);
+  assert.deepEqual(
+    bandsToStages(BANDS).map((st) => st.f),
+    [105, 3000],
+  );
 });
 
 test("test_replace_peq_leaves_only_the_new_bands_as_peak_and_shelf_stages", () => {
   const out = replacePeq(PIPE, NEW, PRE).stages.filter((st) => st.kind === "iir" && st.type !== "lp");
-  assert.deepEqual(out.map((st) => st.f), [200, 4000]);
+  assert.deepEqual(
+    out.map((st) => st.f),
+    [200, 4000],
+  );
 });
 
 test("test_replace_peq_keeps_other_stages_in_order_ahead_of_the_bands", () => {
@@ -146,7 +168,10 @@ test("test_hit_summary_carries_the_preamp", () => {
 });
 
 test("test_hit_pipe_makes_the_bands_its_stages", () => {
-  assert.deepEqual(hitPipe(PICK).stages.map((st) => st.f), [105, 3000]);
+  assert.deepEqual(
+    hitPipe(PICK).stages.map((st) => st.f),
+    [105, 3000],
+  );
 });
 
 test("test_hit_pipe_sets_the_gain_to_the_preamp", () => {

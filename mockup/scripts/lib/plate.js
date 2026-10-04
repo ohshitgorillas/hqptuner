@@ -5,7 +5,7 @@
 // Anything that measures the DOM (rail wire, popover parking) must divide screen px by scale().
 // PLATE_W / PLATE_H are live bindings: importers read the current size, never cache it.
 
-import { clampToPlate } from '../model/place.js';
+import { clampToPlate } from "../model/place.js";
 
 /**
  * iPad landscape viewports in points (Apple: 10.2" iPad 7th–9th gen; 11" iPad / iPad Air 11"; 13" iPad Air 13").
@@ -14,20 +14,20 @@ import { clampToPlate } from '../model/place.js';
  * heads, Range / Floor, the readout table) or 'slim' (the spectrum strip and two bars, nothing else: the room 10.2″ / 11″ leave).
  */
 export const SIZES = [
-  { id: '10.2', label: '10.2″', w: 1080, h: 810, model: 'iPad 10.2″', meter: 'slim' },
-  { id: '11', label: '11″', w: 1180, h: 820, model: 'iPad / iPad Air 11″', meter: 'slim' },
-  { id: '13', label: '13″', w: 1366, h: 1024, model: 'iPad Air 13″', both: true, meter: 'full' },
+  { id: "10.2", label: "10.2″", w: 1080, h: 810, model: "iPad 10.2″", meter: "slim" },
+  { id: "11", label: "11″", w: 1180, h: 820, model: "iPad / iPad Air 11″", meter: "slim" },
+  { id: "13", label: "13″", w: 1366, h: 1024, model: "iPad Air 13″", both: true, meter: "full" },
 ];
-export const SIZE0 = '10.2';
+export const SIZE0 = "10.2";
 export const sizeOf = (id) => SIZES.find((z) => z.id === id) || SIZES[0];
 
 export let PLATE_W = SIZES[0].w;
 export let PLATE_H = SIZES[0].h;
 export let SIZE = SIZE0;
-export const SCENE_H = 40;   // mock scenario strip above the plate (base.css --scene-h); not part of the app
+export const SCENE_H = 40; // mock scenario strip above the plate (base.css --scene-h); not part of the app
 
 let plate = null;
-let relay = null;   // the shared bus (lib/bus.js): measurers re-measure on `relayout`
+let relay = null; // the shared bus (lib/bus.js): measurers re-measure on `relayout`
 let current = 1;
 
 export const scale = () => current;
@@ -41,7 +41,7 @@ export function mountPlate(el, size, bus) {
   plate = el;
   relay = bus;
   setSize(size, true);
-  bus.on('relayout', fit);
+  bus.on("relayout", fit);
 }
 
 /**
@@ -50,12 +50,14 @@ export function mountPlate(el, size, bus) {
  */
 export function setSize(id, quiet = false) {
   const z = SIZES.find((x) => x.id === id) || SIZES[0];
-  SIZE = z.id; PLATE_W = z.w; PLATE_H = z.h;
-  plate.style.setProperty('--plate-w', `${z.w}px`);
-  plate.style.setProperty('--plate-h', `${z.h}px`);
+  SIZE = z.id;
+  PLATE_W = z.w;
+  PLATE_H = z.h;
+  plate.style.setProperty("--plate-w", `${z.w}px`);
+  plate.style.setProperty("--plate-h", `${z.h}px`);
   plate.dataset.size = z.id;
   fit();
-  if (!quiet) relay.emit('relayout');
+  if (!quiet) relay.emit("relayout");
 }
 
 function fit() {
@@ -78,12 +80,16 @@ export function toPlate(rect) {
  * @param {{side: import('../model/place.js').Side, foot: import('../model/place.js').Margin, at: import('../model/place.js').Place}} how
  */
 export function placeBy(panel, trigger, { side, foot, at }) {
-  const r = trigger.getBoundingClientRect(), p = plate.getBoundingClientRect();
+  const r = trigger.getBoundingClientRect(),
+    p = plate.getBoundingClientRect();
   return clampToPlate({
     anchor: { left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
     panel: { w: panel.offsetWidth, h: panel.offsetHeight },
     plate: { w: PLATE_W, h: PLATE_H },
-    scale: current, side, foot, at,
+    scale: current,
+    side,
+    foot,
+    at,
   });
 }
 
@@ -92,7 +98,7 @@ export function placeBy(panel, trigger, { side, foot, at }) {
  * (22px left padding, 14px bottom margin). Used by Filter presets.
  */
 export function parkLeftOf(panel, trigger) {
-  const { left, top } = placeBy(panel, trigger, { side: [22, null], foot: 14, at: { x: 'before', y: 'top', gap: 12 } });
-  panel.style.left = Math.round(left) + 'px';
-  panel.style.top = Math.round(top) + 'px';
+  const { left, top } = placeBy(panel, trigger, { side: [22, null], foot: 14, at: { x: "before", y: "top", gap: 12 } });
+  panel.style.left = Math.round(left) + "px";
+  panel.style.top = Math.round(top) + "px";
 }

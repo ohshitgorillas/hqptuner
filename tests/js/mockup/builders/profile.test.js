@@ -148,7 +148,10 @@ test("test_bauer_values_naming_no_fixed_preset_land_on_none", () => {
 });
 
 test("test_structural_values_land_on_the_preset_at_their_angle_and_center", () => {
-  assert.equal(crossfeedPreset(vals({ xfmode: "structural", xsangle: "45", xslambda: "0.5" }), PRESETS)?.label, "Ess two");
+  assert.equal(
+    crossfeedPreset(vals({ xfmode: "structural", xsangle: "45", xslambda: "0.5" }), PRESETS)?.label,
+    "Ess two",
+  );
 });
 
 test("test_structural_values_between_presets_land_on_none", () => {
@@ -237,7 +240,8 @@ test("test_changed_stations_are_dirty", () => {
  * @param {number} [level]
  * @param {boolean} [fixed]
  */
-const summary = (v, level = -40, fixed = false) => summaryOf(meta({ listen: "headphones" }), v, PRESETS, { level, fixed });
+const summary = (v, level = -40, fixed = false) =>
+  summaryOf(meta({ listen: "headphones" }), v, PRESETS, { level, fixed });
 
 test("test_summary_listening_is_the_answer", () => {
   assert.equal(summary(vals()).listen, "headphones");
@@ -380,11 +384,17 @@ test("test_dac_model_is_not_live_with_correction_bypassed", () => {
 // ── pickerOf ─────────────────────────────────────────────────────────────
 
 test("test_picker_groups_follow_the_station_order", () => {
-  assert.deepEqual(pickerOf(["loft", "den"], BOOK, dirtyIn).map((g) => g.st), ["loft", "den"]);
+  assert.deepEqual(
+    pickerOf(["loft", "den"], BOOK, dirtyIn).map((g) => g.st),
+    ["loft", "den"],
+  );
 });
 
 test("test_picker_options_follow_the_book_order", () => {
-  assert.deepEqual(pickerOf(["den"], BOOK, dirtyIn)[0].options.map((x) => x.name), ["Rock", "Jazz"]);
+  assert.deepEqual(
+    pickerOf(["den"], BOOK, dirtyIn)[0].options.map((x) => x.name),
+    ["Rock", "Jazz"],
+  );
 });
 
 test("test_picker_option_is_keyed_as_its_staged_edit", () => {
@@ -392,7 +402,10 @@ test("test_picker_option_is_keyed_as_its_staged_edit", () => {
 });
 
 test("test_picker_option_reads_dirty_where_its_edit_is", () => {
-  assert.deepEqual(pickerOf(["den"], BOOK, dirtyIn)[0].options.map((x) => x.dirty), [false, true]);
+  assert.deepEqual(
+    pickerOf(["den"], BOOK, dirtyIn)[0].options.map((x) => x.dirty),
+    [false, true],
+  );
 });
 
 // ── renderView ───────────────────────────────────────────────────────────

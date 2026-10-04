@@ -46,10 +46,12 @@ const ref = (st, name) => ({ st, name });
  * @param {{ client: number, base: number, line: number }} rail
  * @param {number[]} [seen]  each size measured, in order
  */
-const rail = ({ client, base, line }, seen = []) => (/** @type {number} */ per) => {
-  seen.push(per);
-  return { client, scroll: base + per * line };
-};
+const rail =
+  ({ client, base, line }, seen = []) =>
+  (/** @type {number} */ per) => {
+    seen.push(per);
+    return { client, scroll: base + per * line };
+  };
 
 /** @typedef {{ name: string, client: number, want: number }} PerRow */
 
@@ -109,14 +111,30 @@ for (const row of REVEAL) {
  * @param {Partial<{ open: string | null, home: string, staged: string[], per: number, pages: Map<string, number>, first: boolean }>} over
  */
 const folds = (over) =>
-  railFolds({ stations: TREE, book: BOOK, open: "Den", home: "Den", staged: [], per: 4, pages: new Map(), first: false, ...over });
+  railFolds({
+    stations: TREE,
+    book: BOOK,
+    open: "Den",
+    home: "Den",
+    staged: [],
+    per: 4,
+    pages: new Map(),
+    first: false,
+    ...over,
+  });
 
 test("test_only_the_open_station_has_its_fold_open", () => {
-  assert.deepEqual(folds({ open: "Loft" }).map((f) => f.open), [false, true, false]);
+  assert.deepEqual(
+    folds({ open: "Loft" }).map((f) => f.open),
+    [false, true, false],
+  );
 });
 
 test("test_with_no_station_open_every_fold_is_shut", () => {
-  assert.deepEqual(folds({ open: null }).map((f) => f.open), [false, false, false]);
+  assert.deepEqual(
+    folds({ open: null }).map((f) => f.open),
+    [false, false, false],
+  );
 });
 
 test("test_a_shut_fold_lists_no_snapshots", () => {
@@ -124,7 +142,10 @@ test("test_a_shut_fold_lists_no_snapshots", () => {
 });
 
 test("test_each_fold_counts_every_snapshot_its_station_holds", () => {
-  assert.deepEqual(folds({}).map((f) => f.count), [6, 2, 0]);
+  assert.deepEqual(
+    folds({}).map((f) => f.count),
+    [6, 2, 0],
+  );
 });
 
 test("test_the_open_fold_lists_the_page_asked_for", () => {
@@ -136,7 +157,12 @@ test("test_a_page_past_the_last_lists_the_last", () => {
 });
 
 test("test_a_measuring_pass_lists_the_first_page_whatever_was_asked", () => {
-  assert.deepEqual(folds({ first: true, pages: new Map([["Den", 1]]) })[0].items, ["Alpha", "Bravo", "Charlie", "Delta"]);
+  assert.deepEqual(folds({ first: true, pages: new Map([["Den", 1]]) })[0].items, [
+    "Alpha",
+    "Bravo",
+    "Charlie",
+    "Delta",
+  ]);
 });
 
 test("test_a_short_last_page_is_filled_to_a_full_page", () => {
@@ -156,15 +182,24 @@ test("test_a_shut_fold_takes_no_fill", () => {
 });
 
 test("test_only_the_home_station_reads_loaded", () => {
-  assert.deepEqual(folds({ home: "Shed" }).map((f) => f.loaded), [false, false, true]);
+  assert.deepEqual(
+    folds({ home: "Shed" }).map((f) => f.loaded),
+    [false, false, true],
+  );
 });
 
 test("test_a_station_holding_a_staged_edit_reads_dirty", () => {
-  assert.deepEqual(folds({ staged: [keyOf(ref("Loft", "Golf"))] }).map((f) => f.dirty), [false, true, false]);
+  assert.deepEqual(
+    folds({ staged: [keyOf(ref("Loft", "Golf"))] }).map((f) => f.dirty),
+    [false, true, false],
+  );
 });
 
 test("test_a_staged_new_snapshot_marks_no_station_dirty", () => {
-  assert.deepEqual(folds({ staged: [keyOf(ref("Den", NEW))] }).map((f) => f.dirty), [false, false, false]);
+  assert.deepEqual(
+    folds({ staged: [keyOf(ref("Den", NEW))] }).map((f) => f.dirty),
+    [false, false, false],
+  );
 });
 
 // ── Lit rail entries ───────────────────────────────────────────────────────
@@ -182,15 +217,69 @@ const edit = (name, stations) => ({ name, stations, inc: new Set(), vals: { mode
 
 /** @type {LitRow[]} */
 const LIT = [
-  { name: "the_snapshot_edited_is_lit", entry: ref("Den", "Alpha"), cur: ref("Den", "Alpha"), e: edit("Alpha", ["Den"]), want: true },
-  { name: "the_same_name_in_another_ticked_station_is_lit", entry: ref("Loft", "Alpha"), cur: ref("Den", "Alpha"), e: edit("Alpha", ["Den", "Loft"]), want: true },
-  { name: "the_same_name_in_an_unticked_station_is_dark", entry: ref("Loft", "Alpha"), cur: ref("Den", "Alpha"), e: edit("Alpha", ["Den"]), want: false },
-  { name: "a_rename_lights_the_typed_name_in_ticked_stations", entry: ref("Loft", "Golf"), cur: ref("Den", "Alpha"), e: edit("Golf", ["Den", "Loft"]), want: true },
-  { name: "an_unnamed_edit_lights_its_saved_name", entry: ref("Loft", "Alpha"), cur: ref("Den", "Alpha"), e: edit("", ["Den", "Loft"]), want: true },
-  { name: "another_snapshot_of_the_same_station_is_dark", entry: ref("Den", "Bravo"), cur: ref("Den", "Alpha"), e: edit("Alpha", ["Den"]), want: false },
-  { name: "a_new_snapshot_never_lights_a_saved_one_of_its_name", entry: ref("Den", "Alpha"), cur: ref("Den", NEW), e: edit("Alpha", ["Den"]), want: false },
-  { name: "the_new_entry_is_lit_while_new_is_edited", entry: ref("Shed", NEW), cur: ref("Den", NEW), e: edit("", ["Den"]), want: true },
-  { name: "the_new_entry_is_dark_while_a_saved_one_is_edited", entry: ref("Den", NEW), cur: ref("Den", "Alpha"), e: edit("Alpha", ["Den"]), want: false },
+  {
+    name: "the_snapshot_edited_is_lit",
+    entry: ref("Den", "Alpha"),
+    cur: ref("Den", "Alpha"),
+    e: edit("Alpha", ["Den"]),
+    want: true,
+  },
+  {
+    name: "the_same_name_in_another_ticked_station_is_lit",
+    entry: ref("Loft", "Alpha"),
+    cur: ref("Den", "Alpha"),
+    e: edit("Alpha", ["Den", "Loft"]),
+    want: true,
+  },
+  {
+    name: "the_same_name_in_an_unticked_station_is_dark",
+    entry: ref("Loft", "Alpha"),
+    cur: ref("Den", "Alpha"),
+    e: edit("Alpha", ["Den"]),
+    want: false,
+  },
+  {
+    name: "a_rename_lights_the_typed_name_in_ticked_stations",
+    entry: ref("Loft", "Golf"),
+    cur: ref("Den", "Alpha"),
+    e: edit("Golf", ["Den", "Loft"]),
+    want: true,
+  },
+  {
+    name: "an_unnamed_edit_lights_its_saved_name",
+    entry: ref("Loft", "Alpha"),
+    cur: ref("Den", "Alpha"),
+    e: edit("", ["Den", "Loft"]),
+    want: true,
+  },
+  {
+    name: "another_snapshot_of_the_same_station_is_dark",
+    entry: ref("Den", "Bravo"),
+    cur: ref("Den", "Alpha"),
+    e: edit("Alpha", ["Den"]),
+    want: false,
+  },
+  {
+    name: "a_new_snapshot_never_lights_a_saved_one_of_its_name",
+    entry: ref("Den", "Alpha"),
+    cur: ref("Den", NEW),
+    e: edit("Alpha", ["Den"]),
+    want: false,
+  },
+  {
+    name: "the_new_entry_is_lit_while_new_is_edited",
+    entry: ref("Shed", NEW),
+    cur: ref("Den", NEW),
+    e: edit("", ["Den"]),
+    want: true,
+  },
+  {
+    name: "the_new_entry_is_dark_while_a_saved_one_is_edited",
+    entry: ref("Den", NEW),
+    cur: ref("Den", "Alpha"),
+    e: edit("Alpha", ["Den"]),
+    want: false,
+  },
 ];
 
 for (const row of LIT) {

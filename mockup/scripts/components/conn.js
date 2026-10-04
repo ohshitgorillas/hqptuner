@@ -4,13 +4,13 @@
 // button's name and tooltip line; tap = v1's way into connection settings (that panel is not drawn).
 // Mock: ok. `#conn-busy` / `#conn-lost` show the other states; every Apply flashes busy for 1.2 s (mock restart).
 
-import { PLATFORM } from '../lib/clock.js';
-import { revertAfter } from '../model/timing.js';
+import { PLATFORM } from "../lib/clock.js";
+import { revertAfter } from "../model/timing.js";
 
 const STATES = {
-  ok: 'Connected',
-  busy: 'Applying…',
-  lost: 'Unreachable',
+  ok: "Connected",
+  busy: "Applying…",
+  lost: "Unreachable",
 };
 // v1 StatusPill title (owner copy).
 const HINT = "Open connection settings to set the HQPlayer Embedded server's IP address and authentication details.";
@@ -21,21 +21,21 @@ const HINT = "Open connection settings to set the HQPlayer Embedded server's IP 
  * @param {import('../lib/clock.js').Clock} [clock]
  */
 export function mountConn(btn, state0, clock = PLATFORM) {
-  let state = 'ok';
+  let state = "ok";
   function set(s) {
     state = s;
     btn.dataset.state = s;
-    btn.setAttribute('aria-label', `${STATES[s]}. Connection settings`);
+    btn.setAttribute("aria-label", `${STATES[s]}. Connection settings`);
     btn.title = `${STATES[s]} — ${HINT}`;
   }
   set(state0);
-  const settle = revertAfter(1200, () => set('ok'), clock);
+  const settle = revertAfter(1200, () => set("ok"), clock);
   return {
     set,
     /** An apply went out: the engine restarts under it (mock: 1.2 s), then back to what it was. */
     applying() {
-      if (state === 'lost') return;
-      set('busy');
+      if (state === "lost") return;
+      set("busy");
       settle();
     },
   };

@@ -115,7 +115,8 @@ const PAIR = rec({ listings: [NET[0], NET[1]], resolved: NET[1] });
  *
  * @param {Partial<{ kind: string, all: string[], rec: Rec, hidden: Set<string>, naaSeen: boolean, bringUp: boolean }>} over
  */
-const device = (over) => deviceView({ kind: "network", all: NET, rec: rec(), hidden: new Set(), naaSeen: true, bringUp: false, ...over });
+const device = (over) =>
+  deviceView({ kind: "network", all: NET, rec: rec(), hidden: new Set(), naaSeen: true, bringUp: false, ...over });
 
 // ── stepContext / skipOf ─────────────────────────────────────────────────
 
@@ -270,7 +271,10 @@ test("test_alsa_step_never_opens_the_bring_up", () => {
 });
 
 test("test_device_list_groups_under_each_host", () => {
-  assert.deepEqual(device({}).groups.map((g) => g.group), ["den", "loft"]);
+  assert.deepEqual(
+    device({}).groups.map((g) => g.group),
+    ["den", "loft"],
+  );
 });
 
 test("test_device_row_carries_its_listing_state", () => {
@@ -342,7 +346,10 @@ test("test_fixed_connection_caps_sdm_above_its_tier", () => {
 });
 
 test("test_connection_without_dsd_takes_the_whole_sdm_band", () => {
-  assert.equal(rateView(rec({ iface: "optical", limits: { pcm: 0, sdm: null } }), IFACES, TIERS).tiers[3].unavailable, true);
+  assert.equal(
+    rateView(rec({ iface: "optical", limits: { pcm: 0, sdm: null } }), IFACES, TIERS).tiers[3].unavailable,
+    true,
+  );
 });
 
 test("test_open_connection_leaves_every_pcm_tier", () => {
@@ -374,7 +381,10 @@ test("test_48k_dsd_reads_yes_when_found", () => {
 });
 
 test("test_48k_dsd_reads_no_without_dsd", () => {
-  assert.equal(rateView(rec({ iface: "usb", dsd48: "48k", limits: { pcm: 1, sdm: null } }), IFACES, TIERS).dsd48, false);
+  assert.equal(
+    rateView(rec({ iface: "usb", dsd48: "48k", limits: { pcm: 1, sdm: null } }), IFACES, TIERS).dsd48,
+    false,
+  );
 });
 
 // ── dialLimits ───────────────────────────────────────────────────────────

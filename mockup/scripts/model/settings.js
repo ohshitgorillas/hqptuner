@@ -1,8 +1,8 @@
 // Settings decisions, free of the DOM: how a settings-rail readout prints a control's value, and which visual effect a
 // live setting change causes, with the values it carries (components/settings.js acts on them).
 
-import { minusText } from './format.js';
-import { optionOf } from './options.js';
+import { minusText } from "./format.js";
+import { optionOf } from "./options.js";
 
 /**
  * @typedef {{ v: string | number, label: string, unit?: string }} Option
@@ -40,19 +40,24 @@ const accentHex = (v, accents) => accents.find((x) => x.v === v)?.hex ?? v;
  */
 export function readoutOf(c, v, accents) {
   const options = c.options ?? [];
-  if (c.type === 'seg' || c.type === 'select') {
+  if (c.type === "seg" || c.type === "select") {
     const o = optionOf(options, v);
-    return { text: o ? o.label + (o.unit ? ' ' + o.unit : '') : v, swatch: null };
+    return { text: o ? o.label + (o.unit ? " " + o.unit : "") : v, swatch: null };
   }
-  if (c.type === 'toggles') {
+  if (c.type === "toggles") {
     // Each label's spaces become no-break spaces, so a label never wraps inside itself.
-    const picked = v.split(',');
-    const text = v ? options.filter((o) => picked.includes(String(o.v))).map((o) => o.label.replace(/ /g, ' ')).join(' · ') : 'None';
+    const picked = v.split(",");
+    const text = v
+      ? options
+          .filter((o) => picked.includes(String(o.v)))
+          .map((o) => o.label.replace(/ /g, " "))
+          .join(" · ")
+      : "None";
     return { text, swatch: null };
   }
-  if (c.type === 'slider') return { text: c.auto && v === String(c.auto.v) ? 'Automatic' : v, swatch: null };   // v1's own word for 0
-  if (c.type === 'number') return { text: minusText(v), swatch: null };
-  if (c.type === 'accent') {
+  if (c.type === "slider") return { text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }; // v1's own word for 0
+  if (c.type === "number") return { text: minusText(v), swatch: null };
+  if (c.type === "accent") {
     const o = accents.find((x) => x.v === v);
     return { text: o ? o.label : v, swatch: accentHex(v, accents) };
   }
@@ -73,23 +78,26 @@ export function readoutOf(c, v, accents) {
  * @returns {Effect}
  */
 export function effectOf(id, v, accents, hideable) {
-  if (id === 'pinallow') return { kind: 'pinallow', on: v === '1' };
-  if (id === 'vacc') {
+  if (id === "pinallow") return { kind: "pinallow", on: v === "1" };
+  if (id === "vacc") {
     const hex = accentHex(v, accents);
-    return { kind: 'accent', tokens: {
-      '--acc': hex,
-      '--acc-dim': `color-mix(in srgb, ${hex} 47%, #000)`,
-      '--acc-lo': `color-mix(in srgb, ${hex} 16%, #0b0a08)`,
-      '--acc-rim': `color-mix(in srgb, ${hex} 55%, #fff)`,   // the lit rim / peak hold, pale of the accent
-    } };
+    return {
+      kind: "accent",
+      tokens: {
+        "--acc": hex,
+        "--acc-dim": `color-mix(in srgb, ${hex} 47%, #000)`,
+        "--acc-lo": `color-mix(in srgb, ${hex} 16%, #0b0a08)`,
+        "--acc-rim": `color-mix(in srgb, ${hex} 55%, #fff)`, // the lit rim / peak hold, pale of the accent
+      },
+    };
   }
-  if (id === 'vfill') return { kind: 'fill', value: v };
-  if (id === 'vbottom') return { kind: 'bottom', value: v };
-  if (id === 'vstyle') return { kind: 'style', value: v };
-  if (id === 'vhide') {
-    const hide = new Set(v.split(',').filter(Boolean));
-    return { kind: 'hide', stages: hideable.map(({ v: sid }) => ({ id: sid, hidden: hide.has(sid) })) };
+  if (id === "vfill") return { kind: "fill", value: v };
+  if (id === "vbottom") return { kind: "bottom", value: v };
+  if (id === "vstyle") return { kind: "style", value: v };
+  if (id === "vhide") {
+    const hide = new Set(v.split(",").filter(Boolean));
+    return { kind: "hide", stages: hideable.map(({ v: sid }) => ({ id: sid, hidden: hide.has(sid) })) };
   }
-  if (id === 'vdys') return { kind: 'font', family: v === '1' ? DYSLEXIC_FAMILY : null };
-  return { kind: 'none' };
+  if (id === "vdys") return { kind: "font", family: v === "1" ? DYSLEXIC_FAMILY : null };
+  return { kind: "none" };
 }

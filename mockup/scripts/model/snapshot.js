@@ -3,8 +3,8 @@
 // rail entries light with the edit, and each row's value, live value and whether the two differ. Each returns a value
 // and leaves its arguments as they were.
 
-import { NEW, keyOf } from './builder.js';
-import { paging } from './pager.js';
+import { NEW, keyOf } from "./builder.js";
+import { paging } from "./pager.js";
 
 /** @typedef {import('./builder.js').Ref} Ref */
 /**
@@ -41,7 +41,7 @@ import { paging } from './pager.js';
  * @property {boolean} take   ← is live
  */
 
-const CHAIN_IDS = ['1x', 'nx', 'sh'];
+const CHAIN_IDS = ["1x", "nx", "sh"];
 
 /**
  * A row whose value lives under the snapshot's Output mode.
@@ -109,12 +109,16 @@ export function railFolds({ stations, book, open, home, staged, per, pages, firs
   return stations.map((name) => {
     const names = Object.keys(book[name]);
     const isOpen = name === open;
-    const pg = paging(names.length, per, first ? 0 : pages.get(name) ?? 0);
+    const pg = paging(names.length, per, first ? 0 : (pages.get(name) ?? 0));
     const items = isOpen ? names.slice(pg.start, pg.end) : [];
     return {
-      name, count: names.length, open: isOpen, loaded: name === home,
-      dirty: staged.some((k) => k.startsWith(name + '\u0001')),
-      items, fill: isOpen && names.length > per ? per - items.length : 0,
+      name,
+      count: names.length,
+      open: isOpen,
+      loaded: name === home,
+      dirty: staged.some((k) => k.startsWith(name + "\u0001")),
+      items,
+      fill: isOpen && names.length > per ? per - items.length : 0,
     };
   });
 }
@@ -142,7 +146,7 @@ export function litEntry(c, cur, e) {
  */
 function liveOf(e, id, L) {
   if (isChain(id)) return { v: L[e.vals.mode][id], idle: e.vals.mode !== L.run };
-  if (id === 'mode') return { v: L.mode, idle: false };
+  if (id === "mode") return { v: L.mode, idle: false };
   return { v: L[id], idle: false };
 }
 
@@ -155,11 +159,11 @@ function liveOf(e, id, L) {
  * @returns {RowView}
  */
 export function snapRow(row, e, L) {
-  const gated = isChain(row.id) && !e.inc.has('mode');
+  const gated = isChain(row.id) && !e.inc.has("mode");
   const on = e.inc.has(row.id) && !gated;
   const value = valOf(e, row.id);
   const { v: live, idle } = liveOf(e, row.id, L);
-  const auto = row.id === 'mode' && live === 'auto';
+  const auto = row.id === "mode" && live === "auto";
   const differs = String(live) !== String(value) && !auto;
   return { gated, on, value, live, idle, differs, take: on && differs && !auto };
 }

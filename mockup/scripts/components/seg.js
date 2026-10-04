@@ -1,6 +1,6 @@
 // Segmented switch builder. Exactly one option is .on; clicking another moves it and calls onChange.
 
-import { h } from '../lib/dom.js';
+import { h } from "../lib/dom.js";
 
 /**
  * @param {object} o
@@ -12,15 +12,27 @@ import { h } from '../lib/dom.js';
  * @param {object} [o.attrs]      extra attributes for the group element
  * @param {(v:string, btn:HTMLButtonElement)=>void} [o.onChange]
  */
-export function seg({ options, value, aria, tag = 'div', cls, attrs = {}, onChange }) {
-  const group = h(`${tag}.seg`, { class: cls, role: 'radiogroup', 'aria-label': aria, ...attrs },
-    options.map((o) => h('button', {
-      type: 'button', title: o.title, class: String(o.v) === String(value) ? 'on' : null, data: { v: o.v },
-    }, o.label, o.unit && h('span.su', { text: ' ' + o.unit }))),
+export function seg({ options, value, aria, tag = "div", cls, attrs = {}, onChange }) {
+  const group = h(
+    `${tag}.seg`,
+    { class: cls, role: "radiogroup", "aria-label": aria, ...attrs },
+    options.map((o) =>
+      h(
+        "button",
+        {
+          type: "button",
+          title: o.title,
+          class: String(o.v) === String(value) ? "on" : null,
+          data: { v: o.v },
+        },
+        o.label,
+        o.unit && h("span.su", { text: " " + o.unit }),
+      ),
+    ),
   );
-  group.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b || b.classList.contains('on')) return;
+  group.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b || b.classList.contains("on")) return;
     select(group, b.dataset.v);
     onChange?.(b.dataset.v, b);
   });
@@ -29,5 +41,5 @@ export function seg({ options, value, aria, tag = 'div', cls, attrs = {}, onChan
 
 /** Move .on to the button whose data-v matches. */
 export function select(group, v) {
-  for (const b of group.querySelectorAll('button')) b.classList.toggle('on', b.dataset.v === String(v));
+  for (const b of group.querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === String(v));
 }

@@ -1,8 +1,8 @@
 // The shell's record and staging: the record being edited, its staged edits, switching, discarding, the confirm line's
 // ask, and Save and Delete over the record book. Every function takes the shell's state (`sh`) and the builder's spec.
 
-import { closeOthers } from '../../components/drawer.js';
-import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from '../../model/builder.js';
+import { closeOthers } from "../../components/drawer.js";
+import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from "../../model/builder.js";
 
 /** @typedef {import('../../model/builder.js').Ref} Ref */
 
@@ -20,7 +20,14 @@ import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } fro
  * @param {{ book: any, cur: Ref }} spec
  * @returns {Shell}
  */
-export const shellState = (spec) => ({ book: spec.book, cur: spec.cur, staged: new Map(), ask: null, refused: false, acts: [] });
+export const shellState = (spec) => ({
+  book: spec.book,
+  cur: spec.cur,
+  staged: new Map(),
+  ask: null,
+  refused: false,
+  acts: [],
+});
 
 /**
  * @param {Shell} sh
@@ -59,7 +66,9 @@ export function stash(sh, spec) {
  * @param {Shell} sh
  * @param {any} buf
  */
-export function stage(sh, buf) { sh.staged = stashed(sh.staged, keyOf(sh.cur), buf); }
+export function stage(sh, buf) {
+  sh.staged = stashed(sh.staged, keyOf(sh.cur), buf);
+}
 
 /**
  * @param {Shell} sh
@@ -67,8 +76,11 @@ export function stage(sh, buf) { sh.staged = stashed(sh.staged, keyOf(sh.cur), b
  * @param {Ref} c
  */
 export function go(sh, spec, c) {
-  stash(sh, spec); closeOthers(null);
-  sh.cur = c; sh.ask = null; sh.refused = false;
+  stash(sh, spec);
+  closeOthers(null);
+  sh.cur = c;
+  sh.ask = null;
+  sh.refused = false;
   load(sh, spec, c);
   spec.went?.(c);
   spec.view(OVERVIEW);
@@ -79,9 +91,11 @@ export function go(sh, spec, c) {
  * @param {any} spec
  */
 export function discard(sh, spec) {
-  sh.staged = stashed(sh.staged, keyOf(sh.cur), null); sh.ask = null; sh.refused = false;
+  sh.staged = stashed(sh.staged, keyOf(sh.cur), null);
+  sh.ask = null;
+  sh.refused = false;
   load(sh, spec, sh.cur);
-  spec.view('here');
+  spec.view("here");
 }
 
 /**
@@ -92,7 +106,11 @@ export function discard(sh, spec) {
  * @param {string} text
  * @param {() => void} onConfirm
  */
-export function confirm(sh, spec, text, onConfirm) { closeOthers(null); sh.ask = { text, onConfirm }; spec.view(OVERVIEW); }
+export function confirm(sh, spec, text, onConfirm) {
+  closeOthers(null);
+  sh.ask = { text, onConfirm };
+  spec.view(OVERVIEW);
+}
 
 /**
  * Write the record Save planned.
@@ -108,7 +126,7 @@ function write(sh, spec, { taken, name, to }) {
   sh.book = out.book;
   sh.staged = stashed(sh.staged, keyOf(from), null);
   sh.cur = out.cur;
-  if (!spec.load) sh.staged = stashed(sh.staged, keyOf(sh.cur), null);   // an edit kept in staged is the saved record now
+  if (!spec.load) sh.staged = stashed(sh.staged, keyOf(sh.cur), null); // an edit kept in staged is the saved record now
   spec.saved({ from, name, to, rec });
 }
 
@@ -121,9 +139,14 @@ export function save(sh, spec) {
   const name = spec.name().trim();
   const to = spec.to();
   const plan = savePlan(sh.book, sh.cur, name, to);
-  if (plan === 'refuse') { closeOthers(null); sh.refused = true; spec.refuse(); return; }
-  if (plan === 'idle') return;
-  if (plan === 'ask') confirm(sh, spec, spec.copy.overwrite(name), () => write(sh, spec, { taken, name, to }));
+  if (plan === "refuse") {
+    closeOthers(null);
+    sh.refused = true;
+    spec.refuse();
+    return;
+  }
+  if (plan === "idle") return;
+  if (plan === "ask") confirm(sh, spec, spec.copy.overwrite(name), () => write(sh, spec, { taken, name, to }));
   else write(sh, spec, { taken, name, to });
 }
 

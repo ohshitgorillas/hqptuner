@@ -18,7 +18,8 @@
  * @param {Drawer<R>} drawer
  * @returns {R[]}
  */
-export const rowsOf = (drawer) => drawer.tabs.flatMap((t) => t.body.flatMap((it) => (it.row ? [it.row] : (it.rows ?? []))));
+export const rowsOf = (drawer) =>
+  drawer.tabs.flatMap((t) => t.body.flatMap((it) => (it.row ? [it.row] : (it.rows ?? []))));
 
 /**
  * The first row labelled `label`: inside the rows of `group` when one is named, else among the rows outside every

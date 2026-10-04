@@ -68,11 +68,7 @@ const SET = [
 ];
 
 //: A crossfeed block's two rows into output 0, with one plain pipeline from the same input.
-const BLOCK = [
-  pipe(0, 0, { gen: "structural", ear: 0 }),
-  pipe(0, 0, { gen: "structural", ear: 1 }),
-  pipe(0, 0),
-];
+const BLOCK = [pipe(0, 0, { gen: "structural", ear: 0 }), pipe(0, 0, { gen: "structural", ear: 1 }), pipe(0, 0)];
 
 //: iir types: two with a width argument, one without, and a raw biquad.
 const TYPES = [
