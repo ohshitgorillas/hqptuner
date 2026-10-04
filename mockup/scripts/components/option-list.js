@@ -29,6 +29,7 @@ import { toPlate, PLATE_W, PLATE_H } from '../lib/plate.js';
 import { BAR } from '../data/narrow-facets.js';
 import { ENGINE_ORDER } from '../data/engine-order.js';
 import { dacType } from '../lib/dactype.js';
+import { PLATFORM } from '../lib/clock.js';
 
 
 /**
@@ -104,7 +105,11 @@ function dacFolds({ r2r, ess }) {
 }
 dacFolds(dacType());
 
-export function mountOptionList(plate) {
+/**
+ * @param {HTMLElement} plate
+ * @param {import('../lib/clock.js').Clock} [clock]
+ */
+export function mountOptionList(plate, clock = PLATFORM) {
   window.addEventListener('dactype', (e) => { dacFolds(e.detail); render(); });
   const sh = sheet(plate, { id: 'osheet', aria: 'Options', cls: 'osheet' });
   const t = h('span.t'), n = h('span.ocount');
@@ -334,6 +339,6 @@ export function mountOptionList(plate) {
   }
 
   subscribe(() => render());
-  window.addEventListener('resize', () => requestAnimationFrame(render));
+  window.addEventListener('resize', () => clock.requestAnimationFrame(render));
   return { open, close: () => sh.close(), sheet: sh };
 }

@@ -17,6 +17,8 @@
 
 import { h, s } from '../lib/dom.js';
 import { seg } from './seg.js';
+import { PLATFORM } from '../lib/clock.js';
+import { emptySpectrum, hash, levelTarget, stepFrame, stepLevel, stepSpectrum } from '../model/meter.js';
 
 const COLS = 600;                // spectrogram canvas width, px
 const ROWS = 320;                // spectrogram canvas rows (frequency, top = Nyquist); stretched to the plot
@@ -35,8 +37,9 @@ const RAMP = ['--spec-0', '--spec-1', '--spec-2', '--spec-3', '--spec-4', '--spe
 /**
  * @param {HTMLElement} host  empty block container inside a drawer panel
  * @param {object} cfg        METER from data/source.js
+ * @param {import('../lib/clock.js').Clock} [clock]  frame stamps and scheduling
  */
-export function mountSourceMeter(host, cfg) {
+export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const compact = !!cfg.compact;
   const st = { floor: cfg.floor, range: cfg.range, channel: cfg.channel, window: cfg.window };
   if (compact) { st.range = cfg.pageRange; st.floor = -cfg.pageRange; }
@@ -209,33 +212,28 @@ export function mountSourceMeter(host, cfg) {
   }
 
   // ── Spectrum painting ─────────────────────────────────────────────────
-  const disp = new Float32Array(BINS).fill(-300);
-  const peak = new Float32Array(BINS).fill(-300);
-  const peakAt = new Float32Array(BINS);
+  let sp = emptySpectrum(BINS);
   const xOf = (f) => (f / nyq) * SW;
   const yOf = (db) => Math.max(0, Math.min(SH, (-db / st.range) * SH));
 
-  function spectrumReset() { disp.fill(-300); peak.fill(-300); spectrumFrame(0, true); }
+  function spectrumReset() { sp = emptySpectrum(BINS); spectrumFrame(0, true); }
 
-  function spectrumFrame(now, jump) {
+  function spectrumFrame(now, jump = false) {
     const c = latest();
-    for (let i = 0; i < BINS; i++) {
-      const f = binHz[i];
+    const levels = Float64Array.from(binHz, (f, i) => {
       const p = st.channel === 'sum' ? (power(c, f, 0) + power(c, f, 1)) / 2 : power(c, f, Number(st.channel));
-      const v = dB(p * jitter(c, i, 5));
-      disp[i] = jump || v > disp[i] ? v : Math.max(v, disp[i] - 3);      // ~30 dB/s fall at 10 Hz
-      if (disp[i] >= peak[i]) { peak[i] = disp[i]; peakAt[i] = now; }
-      else if (now - peakAt[i] > 2000) peak[i] = Math.max(disp[i], peak[i] - 1);
-    }
+      return dB(p * jitter(c, i, 5));
+    });
+    sp = stepSpectrum(sp, levels, now, jump);
     paintSpectrum();
   }
 
   function paintSpectrum() {
     const pts = (arr) => Array.from(arr, (v, i) => `${(xOf(binHz[i])).toFixed(1)},${yOf(v).toFixed(1)}`).join(' L');
-    const line = 'M' + pts(disp);
+    const line = 'M' + pts(sp.disp);
     trace.setAttribute('d', line);
     area.setAttribute('d', `${line} L${SW},${SH} L0,${SH} Z`);
-    hold.setAttribute('d', 'M' + pts(peak));
+    hold.setAttribute('d', 'M' + pts(sp.peak));
   }
 
   function paintSpectrumAxes() {
@@ -259,7 +257,7 @@ export function mountSourceMeter(host, cfg) {
     const i = Math.round(fx * (BINS - 1));
     cross.setAttribute('x1', fx * SW); cross.setAttribute('x2', fx * SW); cross.setAttribute('visibility', 'visible');
     readout.hidden = false;
-    readout.textContent = `${(binHz[i] / 1000).toFixed(2)} kHz · ${minus(disp[i].toFixed(1))} dBFS`;
+    readout.textContent = `${(binHz[i] / 1000).toFixed(2)} kHz · ${minus(sp.disp[i].toFixed(1))} dBFS`;
   });
   svg.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); readout.hidden = true; });
 
@@ -343,20 +341,12 @@ export function mountSourceMeter(host, cfg) {
       text: d === 0 ? '0 dBFS' : minus(d),
     })));
   }
-  const lv = bars.map(() => ({ peak: -60, rms: -60, hold: -60, holdAt: 0 }));
-  function target(c, ch, now) {
-    const rms = -21 + c.env + (ch ? -1.3 : 0) + (hash(c.idx, 11 + ch) - 0.5) * 1.5;
-    const pk = rms + 8 + hash(c.idx * 3 + Math.floor(now / 60), 13 + ch) * 5 + (c.kick ? 3 : 0);
-    return { rms, peak: Math.min(-0.6, pk) };
-  }
+  let lv = bars.map(() => ({ peak: -60, rms: -60, hold: -60, holdAt: 0 }));
   function stepLevels(now, dt) {
     const c = latest();
+    lv = lv.map((v, ch) => stepLevel(v, levelTarget(c, ch, now), now, dt));
     bars.forEach((b, ch) => {
-      const v = lv[ch], t = target(c, ch, now);
-      v.peak = t.peak > v.peak ? t.peak : Math.max(t.peak, v.peak - 20 * dt);
-      v.rms += (t.rms - v.rms) * Math.min(1, dt / 0.3);
-      if (v.peak >= v.hold) { v.hold = v.peak; v.holdAt = now; }
-      else if (now - v.holdAt > 1500) v.hold = Math.max(v.peak, v.hold - 10 * dt);
+      const v = lv[ch];
       b.pk.style.height = pct(frac(v.peak));
       b.rm.style.height = pct(frac(v.rms));
       b.hd.style.bottom = pct(frac(v.hold));
@@ -385,22 +375,20 @@ export function mountSourceMeter(host, cfg) {
     const dr = host.closest('.drawer'), p = host.closest('.dpanel');
     return document.visibilityState === 'visible' && dr && !dr.hasAttribute('data-closed') && p && !p.hidden;
   };
-  let prev = performance.now(), acc = 0;
+  let loop = { prev: clock.now(), acc: 0 };
   (function tick(now) {
     if (!host.contains(root)) return;   // remounted (mock scenario changed the source): this instance stops
-    const dt = Math.max(0, Math.min(0.1, (now - prev) / 1000));   // a frame stamped before mount (rAF time ≤ now) must not run the ballistics backwards
-    prev = now;
-    if (shown()) {
-      acc += dt;
-      if (acc >= perCol) {
-        while (acc >= perCol) { acc -= perCol; push(); }
-        spectrumFrame(now);
-        if (!compact) paintSpectrogram();
-      }
-      stepLevels(now, dt);
+    const vis = !!shown();
+    const step = stepFrame(loop, now, perCol, vis);
+    loop = step;
+    if (step.cols) {
+      for (let k = 0; k < step.cols; k++) push();
+      spectrumFrame(now);
+      if (!compact) paintSpectrogram();
     }
-    requestAnimationFrame(tick);
-  })(prev);
+    if (vis) stepLevels(now, step.dt);
+    clock.requestAnimationFrame(tick);
+  })(loop.prev);
 }
 
 /** Control: engraved label, optional unit, then the control. */
@@ -418,11 +406,4 @@ function rgb(hex, fallback) {
   if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(m)) return fallback;
   const full = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
   return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
-}
-
-function hash(a, b) {
-  let x = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0;
-  x = Math.imul(x ^ (x >>> 13), 1274126177);
-  x ^= x >>> 16;
-  return (x >>> 0) / 4294967296;
 }

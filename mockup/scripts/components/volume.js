@@ -16,6 +16,8 @@
 import { h, s } from '../lib/dom.js';
 import { popover } from '../lib/popover.js';
 import { toPlate, PLATE_W } from '../lib/plate.js';
+import { PLATFORM } from '../lib/clock.js';
+import { holdRepeat } from '../model/timing.js';
 
 const HOLD_DELAY = 400;   // ms before a held ± starts repeating
 const HOLD_RATE = 70;     // ms between repeats
@@ -28,8 +30,10 @@ const fmt = (v) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + ' dB';
  * @param {HTMLButtonElement} stage  rail Volume stage (its .v mirrors the level)
  * @param {{value:number,min:number,max:number,step:number,scale:number[]}} cfg
  * @param {EventTarget} [bus]  gets a 'level' event (detail = dB) on every change (Range bar needle)
+ * @param {object} [loud]
+ * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud) {
+export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud, clock = PLATFORM) {
   let value = cfg.value;
   let fixedSet = null;   // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
   let direct = null;  // Direct SDM playing: {level, level_txt, text}, over fixed
@@ -100,8 +104,8 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud)
     set(value);
   }
 
-  hold(down, () => set(value - step));
-  hold(up, () => set(value + step));
+  hold(down, () => set(value - step), clock);
+  hold(up, () => set(value + step), clock);
 
   set(value);
   return {
@@ -139,19 +143,21 @@ function loudMarks(cfg, loud, bus) {
   return box;
 }
 
-/** ± press: one step per click; holding repeats after HOLD_DELAY. A hold already stepped, so its trailing click is ignored. */
-function hold(btn, stepOnce) {
-  let wait = 0, rep = 0, held = false;
-  const stop = () => { clearTimeout(wait); clearInterval(rep); };
+/**
+ * ± press: one step per click; holding repeats after HOLD_DELAY. A hold already stepped, so its trailing click is ignored.
+ * @param {HTMLButtonElement} btn
+ * @param {() => void} stepOnce
+ * @param {import('../lib/clock.js').Clock} clock
+ */
+function hold(btn, stepOnce, clock) {
+  const idle = () => false;
+  let stop = idle;
+  const end = () => { stop(); };
   btn.addEventListener('pointerdown', () => {
-    held = false;
-    wait = setTimeout(() => {
-      held = true;
-      rep = setInterval(() => { stepOnce(); if (btn.disabled) stop(); }, HOLD_RATE);
-    }, HOLD_DELAY);
+    stop = holdRepeat(() => { stepOnce(); if (btn.disabled) end(); }, clock, HOLD_DELAY, HOLD_RATE);
   });
-  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
-  btn.addEventListener('click', () => { if (!held) stepOnce(); held = false; });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, end);
+  btn.addEventListener('click', () => { if (!stop()) stepOnce(); stop = idle; });
 }
 
 /**
@@ -160,8 +166,11 @@ function hold(btn, stepOnce) {
  * @param {HTMLElement} host  .vbar
  * @param {{set:Function, step:Function, view:Function}} vol  mountVolume's api
  * @param {object} cfg  VOLUME
+ * @param {EventTarget} [bus]
+ * @param {object} [loud]
+ * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountVolumeBar(host, vol, cfg, bus, loud) {
+export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   const { min, max, step } = cfg;
   const pct = (v) => ((v - min) / (max - min)) * 100;
   const down = h('button.round.vbtn', { type: 'button', 'aria-label': 'Volume down', text: '−' });
@@ -176,8 +185,8 @@ export function mountVolumeBar(host, vol, cfg, bus, loud) {
     up,
     h('div.vfd.vbrd', { role: 'status', 'aria-label': 'Playback volume' }, rd),
   );
-  hold(down, () => vol.step(-1));
-  hold(up, () => vol.step(1));
+  hold(down, () => vol.step(-1), clock);
+  hold(up, () => vol.step(1), clock);
   vol.view((v, txt, fixed) => {
     slider.value = v; rd.textContent = txt;
     slider.disabled = fixed; down.disabled = fixed || v <= min; up.disabled = fixed || v >= max;

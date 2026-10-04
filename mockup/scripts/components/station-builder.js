@@ -18,6 +18,8 @@
 // `#dsd48-no` (the check finds no 48k-family DSD).
 
 import { h } from '../lib/dom.js';
+import { PLATFORM } from '../lib/clock.js';
+import { checkSequence } from '../model/timing.js';
 import { anyOpen } from '../lib/popover.js';
 import { closeSheets, sheetOpen } from '../lib/sheet.js';
 import { closeOthers } from './drawer.js';
@@ -78,8 +80,9 @@ const dbFmt = (v) => `${Number(v) < 0 ? '−' : ''}${Math.abs(Number(v))} dB`;
  * @param {object} el  {btn: header button, chain: #body, body: #stbody, rail, page, others: {settings, snapshot(), profiles()}}
  * @param {{name: string, active?: boolean}[]} stations  in the tree's order
  * @param {object} o  {profilesOf(station) → names, onRescan(), onSaved({names, loaded, renamed, restart}), openProfiles(station)}
+ * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountStationBuilder({ btn, chain, body, rail, page, others }, stations, o) {
+export function mountStationBuilder({ btn, chain, body, rail, page, others }, stations, o, clock = PLATFORM) {
   let order = stations.map((st) => st.name);
   let loaded = stations.find((st) => st.active)?.name ?? order[0];
   const records = Object.fromEntries(order.map((n) => [n, structuredClone(STB_RECORDS[n] ?? STB_SCRATCH)]));
@@ -171,14 +174,13 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others }, st
     runs[key] = run;
     const mine = e;
     if (restarts) o.onRescan?.();   // the IPv6 test restarts the daemon, a rescan stops it (wizard): the knob reads Applying…
-    steps.forEach((t, i) => setTimeout(() => { if (e !== mine) return; run.lines.push(t); if (at === key) show(at); }, i * TICK));
-    setTimeout(() => {
+    checkSequence(steps, TICK, (t) => { if (e !== mine) return; run.lines.push(t); if (at === key) show(at); }, () => {
       if (e !== mine) return;
       const [ok, line, apply] = verdict();
       run.lines.push(line); run.done = true; run.ok = ok;
       apply?.();
       show(at);
-    }, steps.length * TICK);
+    }, clock);
     show(at);
   }
 
@@ -350,7 +352,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others }, st
       const x = r();
       if (!x.iface) return [h('div.stbnotes', {}, h('p', { text: 'Answer Connection first.' }))];   // DRAFT
       const usb = x.iface === 'usb';
-      if (usb && !x.detected && !runs.rates) { queueMicrotask(detect48); return []; }
+      if (usb && !x.detected && !runs.rates) { clock.queueMicrotask(detect48); return []; }
       if (usb && runs.rates && !runs.rates.done) return [];
       const noDsd = x.limits.sdm == null;
       const cap = STB_IFACES.find((q) => q.v === x.iface).fixed;

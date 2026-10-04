@@ -19,15 +19,17 @@ import { chainPick } from './chain-pick.js';
 import { FIELDS, CHAIN_LISTS, CHAIN_NAMES, runningChain } from '../data/conversion.js';
 import { pathOf } from '../data/scenarios.js';
 import { subscribe } from '../lib/narrow.js';
+import { PLATFORM } from '../lib/clock.js';
 
 /**
  * @param {object} hosts   {rs, sh: section body hosts; mode: Output Mode seg host; rate: Rate readout .v; stages: rail Map}
  * @param {object} conv    CONV mock state
  * @param {(run:string, path:string, scene:object) => {rate:string, value:string}} out   Output readouts for what plays
  * @param {object} scene   the mock scenario playing (data/scenarios.js)
+ * @param {import('../lib/clock.js').Clock} [clock]
  * @returns {{update(id:string, v:string):void, setMode(m:string):void, bindDrawer(api):void}}
  */
-export function mountConversion(hosts, conv, out, scene) {
+export function mountConversion(hosts, conv, out, scene, clock = PLATFORM) {
   const vals = { ...conv.values };
   let mode = conv.mode;
   let direct = vals.dsdplay === '1';   // DSD playback as applied (Direct SDM)
@@ -148,7 +150,7 @@ export function mountConversion(hosts, conv, out, scene) {
     fit();
   }
   // The page's height changes under it (Matrix engine section shown / hidden, bottom bar, resize): refit.
-  window.addEventListener('resize', () => requestAnimationFrame(() => { fit(); wraps(); }));
+  window.addEventListener('resize', () => clock.requestAnimationFrame(() => { fit(); wraps(); }));
   /** A stage name that wraps (the DSD conversion stage) puts its lamp on the first line; re-measured once fonts land. */
   function wraps() {
     for (const id of ['dsd', 'resampling', 'shaping']) {

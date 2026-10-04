@@ -9,6 +9,8 @@
 // Readouts follow staged rows on Apply, live rows at once (the chain rail's rule).
 
 import { h } from '../lib/dom.js';
+import { PLATFORM } from '../lib/clock.js';
+import { revertAfter } from '../model/timing.js';
 import { anyOpen } from '../lib/popover.js';
 import { mountDrawer, closeOthers } from './drawer.js';
 import { setOptionStyle } from './vselect.js';
@@ -17,8 +19,9 @@ import { SETTINGS_RAIL, READOUT_LABEL, ABOUT, LOG_TAIL, ACCENTS, HIDEABLE, MIRRO
 
 /**
  * @param {{gear: HTMLButtonElement, chain: HTMLElement, body: HTMLElement, rail: HTMLElement, page: HTMLElement}} el
+ * @param {import('../lib/clock.js').Clock} [clock]
  */
-export function mountSettings({ gear, chain, body, rail, page }) {
+export function mountSettings({ gear, chain, body, rail, page }, clock = PLATFORM) {
   const readouts = new Map();   // control id → {dd, fmt}
 
   // ── Rail ────────────────────────────────────────────────────────────────
@@ -46,7 +49,7 @@ export function mountSettings({ gear, chain, body, rail, page }) {
     // One setting in two homes (Apply to all stations on both Hardware tabs): a change in one moves the other.
     const mirrors = [...ctls.keys()].filter((id) => MIRROR[id]).map((id) => [id, (v) => api.set(MIRROR[id], v)]);
     const api = mountDrawer(body, btn, cat.drawer, {
-      blocks: { logtail: logTail, sigpath: mountSignalPath },
+      blocks: { logtail: (host) => logTail(host, clock), sigpath: mountSignalPath },
       on: Object.fromEntries([...live.map((id) => [id, (v) => { show(id, v); effect(id, v); }]), ...mirrors]),
       onApply: (v) => { for (const id of cat.show) show(id, v[id]); },
     });
@@ -175,8 +178,12 @@ function effect(id, v) {
   }
 }
 
-/** Logging drawer: v1 LogTail, always shown — the last 50 lines + Copy; read-only, never stages. */
-function logTail(host) {
+/**
+ * Logging drawer: v1 LogTail, always shown — the last 50 lines + Copy; read-only, never stages.
+ * @param {HTMLElement} host
+ * @param {import('../lib/clock.js').Clock} clock
+ */
+function logTail(host, clock) {
   const copy = h('button.btn.xs', { type: 'button', text: 'Copy' });
   const pre = h('pre.logtail', { text: LOG_TAIL.mock.join('\n') });
   host.append(
@@ -185,6 +192,7 @@ function logTail(host) {
         h('div.act', {}, copy)),
       h('div.man', {}, h('p', { text: LOG_TAIL.man }))),
     pre);
-  copy.addEventListener('click', () => { copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1500); });
-  requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
+  const restore = revertAfter(1500, () => { copy.textContent = 'Copy'; }, clock);
+  copy.addEventListener('click', () => { copy.textContent = 'Copied'; restore(); });
+  clock.requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
 }
