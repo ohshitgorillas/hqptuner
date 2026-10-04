@@ -112,9 +112,9 @@ export const output = {
     lane: "http",
     field: "defaults_samplerate",
     // Grounds on `file`, which is the config XML overlaid with the engine's live
-    // settings (routing.live_overrides): a rate pinned in LIVE shows up here as
-    // its tier, so switching LIVE off leaves this control agreeing with it and
-    // Apply unlit — the same treatment the filter/shaper entries get below.
+    // settings (overrides.live_overrides) — the same treatment the filter/shaper
+    // entries get below. A pinned rate (store/live/pin.js) is not among them: it
+    // writes the fixed slot, not this limit, so this control never shows it.
     fileTruth: true,
     options: PCM_RATES,
     deviceGray: "pcm",

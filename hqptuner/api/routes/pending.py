@@ -13,7 +13,7 @@ from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.lanes.writer import LiveWriteFailed, known_live_settings
+from hqptuner.lanes.writer import LiveWriteFailed, stageable_live_settings
 
 router = APIRouter(prefix="/api")
 
@@ -117,10 +117,10 @@ class UnknownLiveSettingsError(ErrorBody):
 def stage(body: StageBody, request: Request) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a live key is not a known live setting — the daemon would have no setter to call for it. Nothing is
-    written to the daemon here; apply is a separate call.
+    422 when a live key is not a setting the buffer takes: no setter exists for it, or it is the pinned rate, which
+    only ``POST /api/config/live`` sends. Nothing is written to the daemon here; apply is a separate call.
     """
-    unknown = set(body.live) - set(known_live_settings())
+    unknown = set(body.live) - set(stageable_live_settings())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
     store = pending_store(request)

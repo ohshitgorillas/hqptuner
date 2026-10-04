@@ -212,8 +212,9 @@ def test_the_list_carries_a_live_preset_only_while_it_is_saved(
 
 def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: TestClient, tmp_path: Path) -> None:
     # Presets saved before the LIVE rate control was removed still carry a
-    # "rate" field. It is nobody's to apply anymore, and it must not take the
-    # rest of the preset down with it: the other settings land as saved.
+    # "rate" field. No snapshot holds a pinned rate, so it is not applied, and it
+    # must not take the rest of the preset down with it: the other settings land
+    # as saved.
     record = {"chain": "pcm", "fields": {"rate": "384000", "adaptive_volume": "1"}, "names": {}}
     _seed_presets(tmp_path, {"schema": 1, "presets": {"Legacy": record}})
     live_api.post("/api/livepresets/Legacy/apply")
@@ -223,7 +224,7 @@ def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: T
 def test_saving_a_preset_naming_a_setting_the_lane_lacks_is_refused_naming_it(
     live_api: TestClient,
 ) -> None:
-    # "rate" is no longer a live setting. Dropping it silently and saving the
+    # "rate" is not a snapshot setting. Dropping it silently and saving the
     # rest would leave the user believing the preset stores a rate it does not,
     # so the save is refused and the response says which key was the problem.
     resp = live_api.put("/api/livepresets/Warm", json={"fields": ["filter", "rate"]})

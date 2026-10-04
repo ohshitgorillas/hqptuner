@@ -28,6 +28,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.errors import HQPTunerError
+from hqptuner.lanes.live import rate
 from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain
 
 if TYPE_CHECKING:
@@ -219,8 +220,8 @@ def split_live(
 # --- LIVE lane: the LIVE view's immediate, unstaged writes --------------------
 # The LIVE view writes each control the moment it changes, so its batches resolve
 # against the running enumerations exactly like the apply lane's live half above
-# — plus two controls that lane never routes. `lanes/live/lane.py` applies what
-# this resolves.
+# — plus the controls that lane never routes: the junk filter, the DIRECT flags
+# and the pinned rate. `lanes/live/lane.py` applies what this resolves.
 
 
 class LiveRouteError(HQPTunerError):
@@ -241,12 +242,6 @@ class LiveRouteError(HQPTunerError):
 
 
 LIVE_ONLY: dict[str, LiveField] = {
-    # Deliberately NOT here: the output rate. `SetRate` writes the FIXED slot
-    # (`samplerate`/`bitrate`), and an exact rate there overrides automatic
-    # base-rate selection — 44.1k material then goes out at a 48k base and the
-    # engine refuses the filter. HQPTuner holds that slot at auto always; the
-    # rate limits are config fields (`chain.RATE_LIMIT_FIELD`) with no live
-    # route, so LIVE carries no rate control at all.
     # Junk (playback) filter. Already index-domain on both sides — the daemon's
     # /config form has no field for it, so the frontend has always carried the
     # list index (store/schema.js `junk_filter`) — which makes the translation a
@@ -259,8 +254,8 @@ _FILTER_FIELDS = tuple(field for field, spec in ROUTABLE.items() if spec.setting
 
 
 def live_fields() -> tuple[str, ...]:
-    """Every config-form field the LIVE lane accepts."""
-    return (*ROUTABLE, *LIVE_ONLY, *DIRECT)
+    """Every config-form field the LIVE lane accepts, the pinned rate (``lanes/live/rate``) among them."""
+    return (*ROUTABLE, *LIVE_ONLY, *DIRECT, rate.RATE)
 
 
 def _known_index(items: EnumItems, index: str) -> str | None:
@@ -317,6 +312,11 @@ def _route_live(
             else:
                 edits[field] = {"value": value}
             continue
+        if field == rate.RATE:
+            pin = rate.route(mgr, fields)
+            edits.update(pin.edits)
+            reasons.update(pin.reasons)
+            continue
         if _off_chain(field, chain):
             # No enumeration exists to resolve it against — GetFilters/GetShapers
             # answer for the loaded chain only — so it is held as the config-form
@@ -346,7 +346,7 @@ def resolve_live(
     A field for the chain the engine has not loaded is held rather than refused.
     LIVE shows both chains' cards at once, so editing the dormant one is an
     ordinary thing to do there; the edit is real and simply lands when that chain
-    does (``lane._reassert_chain``).
+    does (``lane._reassert_chain``). The pinned rate holds nothing (``rate.route``).
     """
     # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
     # list is mode-dependent too (manual §4.6), so a mode change invalidates every

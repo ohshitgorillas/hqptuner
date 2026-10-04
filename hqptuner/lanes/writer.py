@@ -12,7 +12,9 @@ Applies a staged change set to the live daemon:
 
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,
-shaper, junk filter, adaptive volume, volume. No idle gate — live
+shaper, the pinned rate, junk filter, adaptive volume, volume. The pinned rate
+(`SetRate`) is sent only by the LIVE lane, alone in its batch
+(`lanes/live/rate`), never from the pending buffer. No idle gate — live
 settings apply immediately even during playback: the engine reorients and audio
 pauses briefly before resuming. Nothing here restarts the daemon or drops the
 client; that is the http lane's `POST /restore`, above.
@@ -132,15 +134,21 @@ SETTINGS: dict[str, LiveSetting | Handler] = {
     "mode": LiveSetting("SetMode", "mode"),
     "filter": _apply_filter,
     "shaper": LiveSetting("SetShaping", "shaper"),
+    "rate": LiveSetting("SetRate", "rate"),
     "junk_filter": LiveSetting("SetJunkFilter", "filter_junk"),
     "adaptive_volume": LiveSetting("SetAdaptiveVolume", "adaptive"),
     "volume": _apply_volume,
 }
 
+# Settings the pending buffer refuses. The pinned rate reaches the engine through
+# the LIVE lane alone, which joins its Hz value to the running list and refuses it
+# beside anything else; a staged raw index would skip both.
+_UNSTAGED = frozenset({"rate"})
 
-def known_live_settings() -> tuple[str, ...]:
-    """Return the live-lane setting keys the write path understands, in apply order."""
-    return tuple(SETTINGS)
+
+def stageable_live_settings() -> tuple[str, ...]:
+    """Return the live-lane setting keys the pending buffer accepts, in apply order."""
+    return tuple(setting for setting in SETTINGS if setting not in _UNSTAGED)
 
 
 async def apply_live(

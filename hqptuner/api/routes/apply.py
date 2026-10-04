@@ -139,9 +139,9 @@ async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyRep
         report = await lane.apply_now(manager, fields)
     except routing.LiveRouteError as exc:
         # 409, not 422: every field is a real live control, and the lane declined
-        # to send its value — refused by the engine's current chain or lists, or
-        # outside a field's fixed 0/1 domain — so the reasons are per field and
-        # the batch applied nothing.
+        # to send its value — refused by the engine's current chain, mode or lists,
+        # outside a field's fixed 0/1 domain, or a pinned rate not sent alone — so
+        # the reasons are per field and the batch applied nothing.
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
         raise refuse(exc) from exc

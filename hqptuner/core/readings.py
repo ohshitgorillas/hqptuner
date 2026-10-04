@@ -36,7 +36,8 @@ class Readings:
     active_config: str | None = None
     enums: dict[str, list[dict[str, str]]] | None = None
     # What LIVE set that the engine cannot hold on to by itself — the dormant
-    # family's rate pin and the dormant chain's filters (`lanes/live/lane`).
+    # chain's filters and shaper (`lanes/live/lane`). Never a rate pin: a mode
+    # switch drops it and nothing puts it back (`lanes/live/rate`).
     live: lane.LiveMemory = field(default_factory=lane.LiveMemory)
     # The level of the most recent volume write HQPTuner issued, down either
     # path (voltrace.write) — the attribution every volume observation carries.

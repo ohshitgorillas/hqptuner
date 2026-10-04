@@ -356,8 +356,8 @@ async def mode_then_split(
     Without a re-enumeration between ``SetMode`` and the rest, a staged mode
     beside other routable fields sends the whole batch to the restore lane
     (``routing._mode_blocks_batch``) — one daemon restart, playback
-    interrupted. ``apply_now`` is that re-enumeration (plus the rate-pin and chain
-    re-asserts a verified mode write always needs), so the mode goes through it
+    interrupted. ``apply_now`` is that re-enumeration (plus the chain re-assert
+    a verified mode write always needs), so the mode goes through it
     alone and the remainder splits against the lists the switch produced. A mode
     the engine is already running is dropped rather than re-sent — ``SetMode``
     clears the rate pin even when it changes nothing (``mode_already_running``).

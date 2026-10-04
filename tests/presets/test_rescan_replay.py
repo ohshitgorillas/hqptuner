@@ -83,8 +83,8 @@ EVERY_SETTER = "SetMode SetFilter SetShaping SetRate SetAdaptiveVolume SetJunkFi
 SETTERS = frozenset(EVERY_SETTER.split())
 
 #: What putting ENGINE_HELD back sends, in order: the mode first, so the rest
-#: resolves against the chain it loads. The rate is a persistent limit the rescan
-#: leaves alone, and the matrix profile is never replayed.
+#: resolves against the chain it loads. The pinned rate is never replayed (no
+#: replay holds a pin, `lanes/live/rate`), and neither is the matrix profile.
 HELD_SETTERS = [
     ("SetMode", ENGINE_HELD["mode"]),
     ("SetFilter", ENGINE_HELD["filterNx"]),

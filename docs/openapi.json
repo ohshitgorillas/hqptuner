@@ -4067,7 +4067,7 @@
     },
     "/api/config/stage": {
       "post": {
-        "description": "Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.\n\n422 when a live key is not a known live setting \u2014 the daemon would have no setter to call for it. Nothing is\nwritten to the daemon here; apply is a separate call.",
+        "description": "Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.\n\n422 when a live key is not a setting the buffer takes: no setter exists for it, or it is the pinned rate, which\nonly ``POST /api/config/live`` sends. Nothing is written to the daemon here; apply is a separate call.",
         "operationId": "stage_api_config_stage_post",
         "requestBody": {
           "content": {

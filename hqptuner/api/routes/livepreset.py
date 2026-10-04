@@ -217,8 +217,8 @@ async def apply_live_preset(
     except LivePresetError as exc:
         raise refuse(exc) from exc
     fields = dict(record.fields)
-    # A preset record may carry a "rate" field. It has no live route, so it is
-    # dropped and the rest applies.
+    # A preset record may carry a "rate" field. No snapshot holds a pinned rate
+    # (`lanes/live/rate`), so it is dropped and the rest applies.
     fields.pop("rate", None)
     try:
         report = await lane.apply_preset(manager, fields) if fields else LiveApplyReport()

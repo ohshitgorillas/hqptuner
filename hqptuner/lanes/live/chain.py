@@ -16,11 +16,13 @@ EnumItems = list[dict[str, str]]
 # the two families outright — no rate in Hz is ambiguous between them.
 _SDM_FLOOR = 2822400
 
-# The two rate slots. `SetRate` writes the FIXED slot (`samplerate`/`bitrate`),
-# which HQPTuner holds at auto ("0") always: an exact rate there overrides automatic
-# base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses
-# the filter. The LIMIT slot holds the tier as its 48k member, and `auto_family` picks
-# the member matching the source per track (http.restore.FORCED_CONFIG forces the pair).
+# The two rate slots. `SetRate` writes the FIXED slot (`samplerate`/`bitrate`): an
+# exact rate there overrides automatic base-rate selection, so 44.1k material goes out
+# at a 48k base and the engine can refuse the filter. The config file holds that slot
+# at auto ("0") always, and LIVE sends a pin only when the user asks for one, exactly
+# as asked, until the next mode switch drops it (`lanes/live/rate`). The LIMIT slot
+# holds the tier as its 48k member, and `auto_family` picks the member matching the
+# source per track (http.restore.FORCED_CONFIG forces the pair).
 RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
 
 
@@ -37,8 +39,8 @@ def _chain_name(name: str) -> str | None:
     return SDM if upper.startswith(("SDM", "DSD")) else None
 
 
-def _chain_from_state(mgr: ConnectionManager) -> str | None:
-    """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto."""
+def configured_chain(mgr: ConnectionManager) -> str | None:
+    """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto or when State cannot say."""
     index = (mgr.readings.state or {}).get("mode")
     if index is None:
         return None
@@ -77,5 +79,5 @@ def active_chain(mgr: ConnectionManager) -> str | None:
     A rate choice is a different question and does not come here: it goes to the
     config LIMIT slot (``RATE_LIMIT_FIELD``), not to the loaded chain.
     """
-    chain = _chain_from_state(mgr)
+    chain = configured_chain(mgr)
     return chain if chain is not None else _chain_from_status(mgr)
