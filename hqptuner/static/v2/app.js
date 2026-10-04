@@ -1,8 +1,8 @@
 // The v2 entry, served at /v2/ beside the v1 shell: the faceplate's root, mounted where the page has a mount point.
 // Header and engine row stay; under them the chain body (rail, page, one drawer per rail stage over the page, each
 // drawn from its registered schema, the page's plate-level popovers, and the option list a chain picker opens over the
-// body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body, or the empty body any
-// other builder swaps in. Under the body, a hairline and the bottom bar. The faceplate theme is stamped on the
+// body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body, the Profile builder's
+// body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The faceplate theme is stamped on the
 // document root before the first render.
 import { render } from "preact";
 import { html } from "../lib/dom.js";
@@ -18,6 +18,7 @@ import { OptionList } from "../components/faceplate/lists/OptionList.js";
 import { ListTip } from "../components/faceplate/lists/Tip.js";
 import { SettingsBody } from "../components/faceplate/settings/SettingsBody.js";
 import { SnapshotBuilder } from "../components/faceplate/builders/SnapshotBuilder.js";
+import { ProfileBuilder } from "../components/faceplate/builders/ProfileBuilder.js";
 import { Switcher } from "../components/faceplate/bottom/Switcher.js";
 import { body } from "../store/faceplate/view.js";
 import { watchFaceplateTheme } from "../store/faceplate/settings/visual.js";
@@ -48,7 +49,8 @@ function ChainBody() {
 }
 
 /**
- * The body for a name: the chain, Settings, the Snapshot builder, or an empty body named for the builder.
+ * The body for a name: the chain, Settings, the Snapshot builder, the Profile builder, or an empty body named for the
+ * builder.
  *
  * @param {string} shown
  */
@@ -56,6 +58,7 @@ function shownBody(shown) {
   if (shown === "chain") return html`<${ChainBody} />`;
   if (shown === "settings") return html`<${SettingsBody} />`;
   if (shown === "snapshots") return html`<${SnapshotBuilder} />`;
+  if (shown === "profile") return html`<${ProfileBuilder} />`;
   return html`<div class="body" data-body=${shown}></div>`;
 }
 

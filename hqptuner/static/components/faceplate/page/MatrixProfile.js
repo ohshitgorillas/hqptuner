@@ -55,13 +55,13 @@ const sampled = (points) => (f) => {
 };
 
 /**
- * The running profile's response: its magnitude curves, each named once there are two or more, and the half-height of
- * the window that holds them, ±12 dB widened in 6 dB steps.
+ * A pipeline set's response: its magnitude curves, each named once there are two or more, and the half-height of the
+ * window that holds them, ±12 dB widened in 6 dB steps.
  *
+ * @param {PipelineRow[]} rows
  * @returns {{ traces: Trace[], range: number }}
  */
-function profilePlot() {
-  const rows = /** @type {PipelineRow[]} */ (pipelineBaseline.value);
+export function responsePlot(rows) {
   const bounds = { min: 0, max: 0 };
   const plotted = plottedRows(rows);
   const curves = plotted.length ? rowTraces(rows, plotted, bounds).traces : eqOverviewTrace(rows, bounds) || [];
@@ -145,7 +145,7 @@ function Well() {
 /** The section's body: the select line, a refused switch's sentence, the description well, and the response plot. */
 export function MatrixProfileBody() {
   const { error } = profileChoices();
-  const { traces, range } = profilePlot();
+  const { traces, range } = responsePlot(/** @type {PipelineRow[]} */ (pipelineBaseline.value));
   return html`
     <div class="stack mstack">
       <${ProfileLine} />

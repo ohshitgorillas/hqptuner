@@ -107,6 +107,26 @@ test("test_the_snapshot_builder_draws_its_rail_and_page_in_the_builder_body", ()
   );
 });
 
+test("test_the_profile_builder_draws_its_rail_and_page_in_the_builder_body", () => {
+  config.value = {
+    fields: [],
+    file: {},
+    profiles: { options: [{ value: "" }, { value: "Desk" }] },
+    active: "Desk",
+  };
+  showBody("profile");
+  const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "profile");
+  const inner = shown ? elements(shown.html) : [];
+  assert.deepEqual(
+    [
+      shown ? isDiv(shown, "body") : false,
+      inner.some((e) => e.name === "nav" && classes(e).includes("rail") && classes(e).includes("prail")),
+      inner.some((e) => e.name === "main" && classes(e).includes("page") && classes(e).includes("pbpage")),
+    ],
+    [true, true, true],
+  );
+});
+
 test("test_the_gear_reads_pressed_while_the_settings_body_shows", () => {
   body.value = "settings";
   const gear = frame().find((e) => e.name === "button" && attr(e, "data-testid") === "settings");
@@ -195,6 +215,7 @@ for (const shown of /** @type {import("../../../../hqptuner/static/store/facepla
   "chain",
   "settings",
   "snapshots",
+  "profile",
 ])) {
   test(`test_the_plate_ends_with_the_bottom_rule_then_the_switcher_under_the_${shown}_body`, () => {
     body.value = shown;
