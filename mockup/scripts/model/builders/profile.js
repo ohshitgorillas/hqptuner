@@ -6,7 +6,7 @@
 import { bauerPreset, structuralPreset } from "../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { percentApplied } from "../../../../hqptuner/static/model/gauges/loudness.js";
 import { shelfScale } from "../../../../hqptuner/static/model/gauges/shelf.js";
-import { NEW, OVERVIEW, keyOf } from "./builder.js";
+import { NEW, OVERVIEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 
 /** The station's unnamed profile: the daemon's own name, kept and never deleted (v1). */
 export const DEFAULT = "[Default]";

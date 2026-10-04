@@ -23,7 +23,7 @@
 
 import { PLATFORM } from "../../../../hqptuner/static/lib/clock.js";
 import { mountBuilder, chainPic } from "../../lib/builder/builder.js";
-import { homeOf } from "../../model/builders/builder.js";
+import { homeOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { deadListings } from "../../model/builders/station.js";
 import { STB_SCRATCH, STB_RECORDS, STB_HW_REC } from "../../data/builders/station-builder.js";
 import { ONE } from "./station-builder/frame/parts.js";

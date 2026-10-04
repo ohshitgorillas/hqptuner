@@ -1,9 +1,9 @@
 import { familyOf } from "../../drawers/drawer.js";
 import { rowOf } from "../../../model/builders/schema.js";
-import { homeOf } from "../../../model/builders/builder.js";
+import { homeOf } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { MATRIX_DRAWER, CORRECTION_DRAWER, CROSSFEED, LOUDNESS } from "../../../data/stages/matrix.js";
 
-/** @typedef {import('../../../model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
 /** @typedef {import('../../../model/builders/profile.js').Vals} Vals */
 /** @typedef {import('../../../model/builders/profile.js').Meta} Meta */
 /** @typedef {import('../../../model/builders/profile.js').Known} Known */

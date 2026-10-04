@@ -2,9 +2,17 @@
 // ask, and Save and Delete over the record book. Every function takes the shell's state (`sh`) and the builder's spec.
 
 import { closeOthers } from "../../components/drawers/drawer.js";
-import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } from "../../model/builders/builder.js";
+import {
+  OVERVIEW,
+  keyOf,
+  dirtyAt,
+  stashed,
+  savePlan,
+  savedTo,
+  removedFrom,
+} from "../../../../hqptuner/static/model/builders/builder.js";
 
-/** @typedef {import('../../model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
 /**
  * @template R, E
  * @typedef {import('./builder.js').Spec<R, E>} Spec
@@ -15,7 +23,7 @@ import { OVERVIEW, keyOf, dirtyAt, stashed, savePlan, savedTo, removedFrom } fro
  *
  * @template R, E
  * @typedef {object} Shell
- * @property {import('../../model/builders/builder.js').Book<R>} book
+ * @property {import('../../../../hqptuner/static/model/builders/builder.js').Book<R>} book
  * @property {Ref} cur  the record being edited
  * @property {Map<string, E>} staged
  * @property {{ text: string, onConfirm: () => void } | null} ask  the confirm line's question

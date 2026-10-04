@@ -1,4 +1,4 @@
-// Behavioral suite for mockup/scripts/model/builder.js: the decisions the three builders' shared shell makes, each a
+// Behavioral suite for hqptuner/static/model/builders/builder.js: the decisions the three builders' shared shell makes, each a
 // value in and a value out. Which station is home, how a record keys its staged edit, which step Next and Back land
 // on, whether a record reads dirty, what the state line and its buttons say, how the stations menu ticks, whether Save
 // refuses, asks or writes, and the record book after a save, a rename, a move and a remove.
@@ -6,7 +6,7 @@
 // Every record book is a table this file writes. The transitions return new values, so a test may also hold the input
 // and check it is left as it was.
 //
-// Run: node --test tests/js/mockup/builder.test.js
+// Run: node --test tests/js/model/builders/builder.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,11 +28,11 @@ import {
   savedTo,
   namesAfterSave,
   removedFrom,
-} from "../../../../mockup/scripts/model/builders/builder.js";
+} from "../../../../hqptuner/static/model/builders/builder.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Ref} Ref */
+/** @typedef {import("../../../../hqptuner/static/model/builders/builder.js").Ref} Ref */
 /** @typedef {{ v: number }} Rec */
-/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Book<Rec>} Book */
+/** @typedef {import("../../../../hqptuner/static/model/builders/builder.js").Book<Rec>} Book */
 
 //: The stations a tree lists, in tree order.
 const TREE = ["Den", "Loft", "Shed"];

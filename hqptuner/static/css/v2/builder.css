@@ -1,0 +1,92 @@
+/* Snapshot builder (header button): swaps the chain body for #bbody, as the gear does for Settings. Same grid as the chain
+   body (rail | hairline | page). components/snapshot-builder.js. */
+
+/* Header button while the builder is up: lit like the gear while Settings is up. */
+.btn.hb[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 8px color-mix(in srgb,var(--acc) 35%,transparent)}
+
+/* Rail: the active station's snapshots, then New snapshot. Rail stage grammar (engraved name, amber readout, left-hand
+   selection bar while it is the one edited); entries stack from the top (a handful, not a chain to fill the rail). */
+.brail{padding-top:8px;gap:2px}
+/* Station fold (the station tree's chevron): ▸ name — rule — count; one open at a time. */
+.brh{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
+  font-family:var(--f-eng);font-weight:600;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
+.brh .chv{width:10px;font-size:11px;letter-spacing:0}
+.brh .cnt{font-family:var(--f-mono);font-size:11px;letter-spacing:0;color:var(--ink-2);line-height:var(--lh-text)}
+.brh:hover .sn{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
+.brh.dirty .sn::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+.brh .ln{flex:1 1 0;height:1px;background:var(--line)}
+.brh.cur{color:var(--acc)}   /* the loaded station: amber lettering (no lamp) */
+.st.bst + .brh{margin-top:4px}
+.st.bst{grid-template-columns:minmax(0,1fr);gap:0;height:26px;padding:0 0 0 18px;flex:0 0 auto}
+.bfill{height:26px;flex-shrink:0}
+.st.bst .n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;padding-right:10px}
+.st.bst.dirty .n::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+.st.bnew{margin-top:6px;border-top:1px solid var(--line);height:auto;padding:12px 0 4px}
+/* The open station's pager (DSP pipelines list grammar): ‹ 1 2 › under its lines. */
+.bpg{padding:4px 0 6px 18px;height:34px;box-sizing:border-box}
+.st.bnew:not(.open) .n{color:var(--ink-2)}
+.st.bnew .plus{margin-right:6px}
+
+/* Page: head (name window, its line, Delete / Discard / Save), the confirm line when asked, then the rows. */
+.bpage{gap:0}
+/* Title: the section header grammar (engraved + rule), the snapshot's actions at its right (as Resampling's header carries
+   Filter presets). */
+.btitle{margin-bottom:12px}
+.btitle .btn.sm{flex-shrink:0}
+.bhead{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.bname{width:220px;height:48px;padding:5px 12px;flex-shrink:0}
+/* Stations: the stations Save writes to (VFD window; tap → a menu of every station, ✓ = ticked, the action menu's
+   grammar; a station already holding this name shows it at the right). */
+.bstw{position:relative;flex-shrink:0}
+button.vfd.bstn{width:230px;height:48px;padding:5px 30px 0 12px;justify-content:flex-start;text-align:left;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 17px) 60%,calc(100% - 12px) 60%;background-size:5px 5px;background-repeat:no-repeat;background-color:var(--glass)}
+.bstn .v{font-size:13px}
+.pop.bstmenu{left:0;top:54px;width:240px;z-index:6}
+.bstmenu .pmrow span{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:22px;font:500 15px var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
+.bnin:focus-visible{outline:none}
+.bname:focus-within{outline:2px solid var(--acc);outline-offset:2px}
+.bcap{flex:1 1 0;font-size:12.5px;color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.bref{color:var(--ink)}
+.bask{display:flex;align-items:center;gap:12px;margin:-4px 0 14px;padding:6px 6px 6px 12px;border-left:2px solid var(--acc);background:var(--acc-lo);font-size:13px;color:var(--ink);line-height:var(--lh-text)}
+.bask span{flex:1 1 auto}
+
+/* Rows: include | stage + setting | the snapshot's value | ← | live. One grid for every row and the column heads. */
+.brow{display:grid;grid-template-columns:22px 150px minmax(0,1fr) 34px minmax(0,1fr);gap:0 14px;align-items:center;padding:6px 0;border-top:1px solid var(--row-rule)}
+/* The rows share the height under the head: each grows alike (Nx, a continuation of Resampling, too). */
+.brows{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.brows > .brow{flex:1 1 0}
+.brow.cont{border-top-color:transparent;padding-top:0}
+.brows > .brow:last-child{border-bottom:1px solid var(--row-rule)}
+.brow.bcols{border-top:0;padding:0 0 6px}
+.bct{font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.bct.blh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* Include box: a recessed square, amber tick while the snapshot holds the setting. */
+.binc{width:22px;height:22px;padding:0;border-radius:4px;border:1px solid var(--shade);background:var(--glass);box-shadow:inset 0 1px 4px var(--shade);cursor:pointer;display:grid;place-items:center;color:var(--acc);font:700 14px/1 var(--f-body)}
+.binc[aria-checked="true"]{background:var(--acc-lo);border-color:var(--acc-dim)}
+.binc[aria-checked="true"]::after{content:"✓"}
+.binc:disabled{opacity:.4;cursor:not-allowed}
+
+.bset{display:flex;flex-direction:column;gap:1px;min-width:0}
+.bst2{font-family:var(--f-eng);font-weight:600;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.bl{display:flex;align-items:center;gap:8px;min-width:0}
+.bl b{font-weight:600;font-size:13px;color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}
+.brow.off .bl b{color:var(--ink-2)}
+
+.bval{min-width:0}
+.bval > .vpick,.bval > select.vfd{width:100%}
+/* Picker and live window: the whole name, wrapping to a second line rather than cut off (the Setting Switcher slots'
+   rule); both columns share the width alike, in the same Option style. */
+.bval > button.vfd.vpick{height:44px;line-height:16px;font-size:12px;white-space:normal;display:grid;align-items:center;padding:0 26px 0 12px;text-overflow:clip;background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%}
+
+/* ←: take this row's live value; live only where the two differ. */
+.round.btake{width:34px;height:34px;font:600 16px/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
+.round.btake:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
+
+/* Live: the engine's value now, a readout (rail readout grammar: engine names). Brighter, amber-edged where it differs. */
+.blive{height:44px;padding:0 12px;color:var(--ink-2)}
+.blive .v{font-size:12px;font-weight:500;display:flex;align-items:baseline;gap:6px;white-space:normal;line-height:16px}
+.blive .bt{min-width:0}
+.blive.diff{color:var(--ink);border-color:var(--acc-dim)}
+.bidle{flex-shrink:0;font-family:var(--f-body);font-size:11.5px;color:var(--ink-2)}

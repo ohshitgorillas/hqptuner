@@ -11,7 +11,7 @@
 import { h } from "../shell/dom.js";
 import { manPara } from "../controls/controls.js";
 import { CHAIN } from "../../data/stages/chain.js";
-import { keyOf } from "../../model/builders/builder.js";
+import { keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { classNames } from "../../../../hqptuner/static/model/shell/format.js";
 import { shellState, isDirty, load, stash, stage, go, discard, confirm, save, remove } from "./record.js";
 import { stateParts, stateNow, paintActs, paintState, discardButton, buttons, askLine } from "./state.js";
@@ -22,10 +22,10 @@ import { setOnOf, start } from "./swap.js";
 export { swapBody, escapeLeaves } from "./swap.js";
 export { nameInput } from "./stations.js";
 
-/** @typedef {import('../../model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
 /**
  * @template R
- * @typedef {import('../../model/builders/builder.js').Book<R>} Book  station → name → record
+ * @typedef {import('../../../../hqptuner/static/model/builders/builder.js').Book<R>} Book  station → name → record
  */
 /** @typedef {'overview' | 'here' | null} View  where a repaint lands: the overview, the page showing, or the same view */
 
@@ -65,7 +65,7 @@ export { nameInput } from "./stations.js";
  * @property {(name: string) => string} remove
  * @property {(name: string) => string} overwrite
  * @property {string} noName
- * @property {Record<import('../../model/builders/builder.js').Line, string>} [state]
+ * @property {Record<import('../../../../hqptuner/static/model/builders/builder.js').Line, string>} [state]
  */
 
 /**

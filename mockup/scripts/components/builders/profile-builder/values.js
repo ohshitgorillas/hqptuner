@@ -2,7 +2,7 @@ import { h } from "../../../lib/shell/dom.js";
 import { mountDrawer, familyOf } from "../../drawers/drawer.js";
 import { createPipelines } from "../../drawers/pipelines.js";
 import { holdRow } from "../../../lib/builder/builder.js";
-import { NEW } from "../../../model/builders/builder.js";
+import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { modeName } from "../../../../../hqptuner/static/model/gauges/crossfeed.js";
 import { stepContext, skipOf, knownOf, isDirty, summaryOf } from "../../../model/builders/profile.js";
 import { XF_MODES } from "../../../data/stages/matrix.js";

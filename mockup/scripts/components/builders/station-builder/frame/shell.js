@@ -1,7 +1,7 @@
 // The Station builder's spec for the shared shell (lib/builder.js): one record book holding every station under one key,
 // the edit it loads and stages, what Save and Delete leave behind, and the walk's rail.
 
-import { NEW, OVERVIEW, namesAfterSave } from "../../../../model/builders/builder.js";
+import { NEW, OVERVIEW, namesAfterSave } from "../../../../../../hqptuner/static/model/builders/builder.js";
 import { deadListings } from "../../../../model/builders/station.js";
 import { STB_COPY, STB_STEPS, STB_SCRATCH } from "../../../../data/builders/station-builder.js";
 import { ONE } from "./parts.js";
@@ -11,7 +11,7 @@ import { answerOf, skipText } from "./answers.js";
 /** @typedef {import('../../station-builder.js').Edit} Edit */
 /** @typedef {import('../../station-builder.js').Others} Others */
 /** @typedef {import('../../../../model/builders/station.js').Rec} Rec */
-/** @typedef {import('../../../../model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
 /** @typedef {import('../../../../lib/builder/builder.js').Spec<Rec, Edit>} Spec */
 /** @typedef {import('../../../../lib/builder/builder.js').Walk} Walk */
 

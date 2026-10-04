@@ -1,6 +1,6 @@
 import { h } from "../../../lib/shell/dom.js";
 import { chainPic, holdRow } from "../../../lib/builder/builder.js";
-import { NEW } from "../../../model/builders/builder.js";
+import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { PROFILE_COPY, PB_STEPS, PB_COPY, MATRIX_STAGES, OUTSIDE_STAGES } from "../../../data/builders/profiles.js";
 import { show } from "../profile-builder.js";
 import { pencil } from "./parts.js";

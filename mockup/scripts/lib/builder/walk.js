@@ -3,7 +3,7 @@
 
 import { h } from "../shell/dom.js";
 import { closeBtn } from "../controls/controls.js";
-import { OVERVIEW, shownName, nextStep, prevStep } from "../../model/builders/builder.js";
+import { OVERVIEW, shownName, nextStep, prevStep } from "../../../../hqptuner/static/model/builders/builder.js";
 
 /**
  * @template R, E

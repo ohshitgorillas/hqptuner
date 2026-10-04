@@ -1,12 +1,12 @@
-import { NEW } from "../../../model/builders/builder.js";
+import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { SNAP_ROWS } from "../../../data/builders/snapshots.js";
-import { isChain, valOf } from "../../../model/builders/snapshot.js";
+import { isChain, valOf } from "../../../../../hqptuner/static/model/builders/snapshot.js";
 import { render } from "../snapshot-builder.js";
 
 /** @typedef {import('../snapshot-builder.js').Snap} Snap */
 /** @typedef {import('../snapshot-builder.js').Snapshot} Snapshot */
-/** @typedef {import('../../../model/builders/builder.js').Ref} Ref */
-/** @typedef {import('../../../model/builders/snapshot.js').Edit} Edit */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/snapshot.js').Edit} Edit */
 /** @typedef {import('../../../data/stages/conversion.js').Chain} Chain */
 
 // ── Edit buffers ────────────────────────────────────────────────────────

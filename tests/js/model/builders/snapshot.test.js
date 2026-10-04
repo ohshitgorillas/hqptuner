@@ -1,4 +1,4 @@
-// Behavioral suite for mockup/scripts/model/snapshot.js: the decisions the Snapshot builder's rail and page make, each a
+// Behavioral suite for hqptuner/static/model/builders/snapshot.js: the decisions the Snapshot builder's rail and page make, each a
 // value in and a value out. How many lines a rail page holds from the heights measured at each size, which page turns
 // up after a save, which station folds are open and what each lists, which rail entries light with the edit, and each
 // row's value, live value and whether the two differ.
@@ -6,12 +6,12 @@
 // Record books, edits, engine states and measured heights are tables this file writes; no shipped data supplies an
 // input or an expected value.
 //
-// Run: node --test tests/js/mockup/snapshot.test.js
+// Run: node --test tests/js/model/builders/snapshot.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { NEW, keyOf } from "../../../../mockup/scripts/model/builders/builder.js";
+import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import {
   isChain,
   valOf,
@@ -20,12 +20,12 @@ import {
   railFolds,
   litEntry,
   snapRow,
-} from "../../../../mockup/scripts/model/builders/snapshot.js";
+} from "../../../../hqptuner/static/model/builders/snapshot.js";
 
-/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Edit} Edit */
-/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Engine} Engine */
-/** @typedef {import("../../../../mockup/scripts/model/builders/snapshot.js").Chain} Chain */
-/** @typedef {import("../../../../mockup/scripts/model/builders/builder.js").Ref} Ref */
+/** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Edit} Edit */
+/** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Engine} Engine */
+/** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Chain} Chain */
+/** @typedef {import("../../../../hqptuner/static/model/builders/builder.js").Ref} Ref */
 
 //: The stations a tree lists, in tree order.
 const TREE = ["Den", "Loft", "Shed"];

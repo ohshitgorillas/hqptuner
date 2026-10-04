@@ -1,7 +1,7 @@
 // The shell's state line, its confirm line and the action buttons (Delete / Discard / Save) that follow the state.
 
 import { h } from "../shell/dom.js";
-import { NEW, stateOf } from "../../model/builders/builder.js";
+import { NEW, stateOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { confirm, discard, remove, save } from "./record.js";
 
 /**

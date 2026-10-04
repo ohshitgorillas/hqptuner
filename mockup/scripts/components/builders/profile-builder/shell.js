@@ -1,5 +1,5 @@
 import { mountBuilder } from "../../../lib/builder/builder.js";
-import { NEW } from "../../../model/builders/builder.js";
+import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { DEFAULT } from "../../../model/builders/profile.js";
 import { PROFILE_COPY, PB_STEPS, PB_COPY } from "../../../data/builders/profiles.js";
 import { show, render } from "../profile-builder.js";

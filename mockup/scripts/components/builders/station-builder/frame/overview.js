@@ -3,7 +3,7 @@
 
 import { h } from "../../../../lib/shell/dom.js";
 import { holdRow } from "../../../../lib/builder/builder.js";
-import { NEW } from "../../../../model/builders/builder.js";
+import { NEW } from "../../../../../../hqptuner/static/model/builders/builder.js";
 import { STB_COPY, STB_STEPS } from "../../../../data/builders/station-builder.js";
 import { ONE, paras } from "./parts.js";
 import { answerOf } from "./answers.js";

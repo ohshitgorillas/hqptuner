@@ -21,14 +21,14 @@
 
 import { h } from "../../lib/shell/dom.js";
 import { mountBuilder, nameInput } from "../../lib/builder/builder.js";
-import { NEW, homeOf } from "../../model/builders/builder.js";
+import { NEW, homeOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { SNAP_ROWS, SNAP_COPY } from "../../data/builders/snapshots.js";
 import { edit, dirtyOf, recordOf, change } from "./snapshot-builder/edit.js";
 import { paintRail } from "./snapshot-builder/rail.js";
 import { takeAll, rowEl } from "./snapshot-builder/rows.js";
 
 /** @typedef {import('../../data/builders/snapshots.js').Snapshot} Snapshot */
-/** @typedef {import('../../model/builders/snapshot.js').Edit} Edit */
+/** @typedef {import('../../../../hqptuner/static/model/builders/snapshot.js').Edit} Edit */
 /** @typedef {import('../../lib/builder/builder.js').Spec<Snapshot, Edit>} Spec */
 /** @typedef {import('../../lib/builder/builder.js').Builder<Snapshot, Edit>} Builder */
 /** @typedef {Record<string, Record<string, Snapshot>>} Records  station → name → the fields it holds */

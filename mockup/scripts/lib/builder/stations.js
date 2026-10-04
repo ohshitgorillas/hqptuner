@@ -2,7 +2,7 @@
 
 import { h } from "../shell/dom.js";
 import { popover } from "../shell/popover.js";
-import { shownName, toggleStation, heldAt } from "../../model/builders/builder.js";
+import { shownName, toggleStation, heldAt } from "../../../../hqptuner/static/model/builders/builder.js";
 
 /**
  * @template R, E

@@ -1,13 +1,13 @@
 import { h } from "../../../lib/shell/dom.js";
-import { NEW } from "../../../model/builders/builder.js";
+import { NEW } from "../../../../../hqptuner/static/model/builders/builder.js";
 import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
 import { pageButtons } from "../../../lib/controls/pager.js";
-import { railPer, revealPage, railFolds, litEntry } from "../../../model/builders/snapshot.js";
+import { railPer, revealPage, railFolds, litEntry } from "../../../../../hqptuner/static/model/builders/snapshot.js";
 import { edit, dirtyOf } from "./edit.js";
 
 /** @typedef {import('../snapshot-builder.js').Snap} Snap */
-/** @typedef {import('../../../model/builders/builder.js').Ref} Ref */
-/** @typedef {import('../../../model/builders/snapshot.js').Edit} Edit */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/builder.js').Ref} Ref */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/snapshot.js').Edit} Edit */
 
 // ── Rail ────────────────────────────────────────────────────────────────
 /**

@@ -27,7 +27,7 @@ import {
   pickerOf,
   renderView,
 } from "../../../../mockup/scripts/model/builders/profile.js";
-import { NEW, keyOf } from "../../../../mockup/scripts/model/builders/builder.js";
+import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 
 /** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Vals} Vals */
 /** @typedef {import("../../../../mockup/scripts/model/builders/profile.js").Meta} Meta */

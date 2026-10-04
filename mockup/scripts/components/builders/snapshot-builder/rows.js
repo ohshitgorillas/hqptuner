@@ -4,14 +4,14 @@ import { vselect, optionStyle } from "../../lists/vselect.js";
 import { SNAP_ROWS } from "../../../data/builders/snapshots.js";
 import { CHAIN_NAMES } from "../../../data/stages/conversion.js";
 import { classNames } from "../../../../../hqptuner/static/model/shell/format.js";
-import { isChain, snapRow } from "../../../model/builders/snapshot.js";
+import { isChain, snapRow } from "../../../../../hqptuner/static/model/builders/snapshot.js";
 import { change } from "./edit.js";
 
 /** @typedef {import('../snapshot-builder.js').Snap} Snap */
 /** @typedef {import('../snapshot-builder.js').Live} Live */
-/** @typedef {import('../../../model/builders/snapshot.js').Edit} Edit */
-/** @typedef {import('../../../model/builders/snapshot.js').RowView} RowView */
-/** @typedef {import('../../../model/builders/snapshot.js').Engine} Engine */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/snapshot.js').Edit} Edit */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/snapshot.js').RowView} RowView */
+/** @typedef {import('../../../../../hqptuner/static/model/builders/snapshot.js').Engine} Engine */
 /** @typedef {import('../../../data/builders/snapshots.js').SnapRow} SnapRow */
 /** @typedef {import('../../../data/stages/conversion.js').Chain} Chain */
 /** @typedef {import('../../../data/settings/common.js').Option} Option */
