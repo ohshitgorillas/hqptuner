@@ -2,22 +2,27 @@
 // switching, discarding, the confirm line, Save and Delete over the record book, the state line and its buttons, the
 // stations menu, the body swap and Escape; and for a walk (Profile, Station) the rail, the step pages and the overview.
 // Every decision it makes lives in model/builder.js; this module executes them. A builder brings its own steps, records
-// and copy through the spec.
+// and copy through the spec. The parts live under builder/: record.js (record and staging), state.js (state line and
+// action buttons), stations.js (name box and stations menu), walk.js (rail and walk), swap.js (body swap and Escape).
 //
 // Two edit modes. A builder with `load` keeps the edit it is on outside `staged` (its own store), stashing it when it
 // leaves and loading it back; one without (Snapshot) keeps every edit in `staged` itself.
 
 import { h } from './dom.js';
-import { anyOpen, popover } from './popover.js';
-import { closeSheets, sheetOpen } from './sheet.js';
-import { closeOthers } from '../components/drawer.js';
-import { closeBtn, manPara } from './controls.js';
+import { manPara } from './controls.js';
 import { CHAIN } from '../data/chain.js';
-import {
-  NEW, OVERVIEW, keyOf, shownName, nextStep, prevStep, dirtyAt, stashed, stateOf, toggleStation, heldAt, savePlan,
-  savedTo, removedFrom,
-} from '../model/builder.js';
+import { keyOf } from '../model/builder.js';
 import { classNames } from '../model/format.js';
+import { shellState, isDirty, load, stash, stage, go, discard, confirm, save, remove } from './builder/record.js';
+import {
+  stateParts, stateNow, paintActs, paintState, discardButton, buttons, askLine,
+} from './builder/state.js';
+import { stationsMenu, walkNameBox } from './builder/stations.js';
+import { closeButton, pageTitle, walkNav, railOf, paintRail, stepPage, overview } from './builder/walk.js';
+import { setOnOf, start } from './builder/swap.js';
+
+export { swapBody, escapeLeaves } from './builder/swap.js';
+export { nameInput } from './builder/stations.js';
 
 /** @typedef {import('../model/builder.js').Ref} Ref */
 /** @typedef {'overview' | 'here' | null} View  where a repaint lands: the overview, the page showing, or the same view */
@@ -76,285 +81,52 @@ import { classNames } from '../model/format.js';
  * @param {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} el
  * @param {Spec} spec
  */
-export function mountBuilder({ btn, chain, body, bus }, spec) {
-  let book = spec.book;
-  let cur = spec.cur;
-  /** @type {Map<string, any>} */
-  let staged = new Map();
-  /** @type {{ text: string, onConfirm: () => void } | null} */
-  let ask = null;
-  let refused = false;   // Save with no name
-  /** @type {{ discard: HTMLButtonElement, save?: HTMLButtonElement }[]} */
-  const acts = [];
-
-  const K = keyOf;
-  const isDirty = (/** @type {Ref} */ c) => dirtyAt(K(c), K(cur), staged, spec.dirty());
-
-  // ── Edit state ──────────────────────────────────────────────────────────
-  /** Load a record's edit (`over`, else its staged edit, else the record); its staged edit is spent. */
-  function load(/** @type {Ref} */ c, /** @type {any} */ over) {
-    if (!spec.load) return;
-    spec.load(c, over ?? staged.get(K(c)));
-    staged = stashed(staged, K(c), null);
-  }
-  /** Stage the edit being left while it differs from its record. */
-  function stash() { if (spec.load && spec.buffer) staged = stashed(staged, K(cur), spec.dirty() ? spec.buffer() : null); }
-  /** Stage `buf` as the edit of the record being edited (null: it matches the record again). */
-  function stage(/** @type {any} */ buf) { staged = stashed(staged, K(cur), buf); }
-  function go(/** @type {Ref} */ c) {
-    stash(); closeOthers(null);
-    cur = c; ask = null; refused = false;
-    load(c);
-    spec.went?.(c);
-    spec.view(OVERVIEW);
-  }
-  function discard() { staged = stashed(staged, K(cur), null); ask = null; refused = false; load(cur); spec.view('here'); }
-
-  // ── Confirm line ────────────────────────────────────────────────────────
-  function confirm(/** @type {string} */ text, /** @type {() => void} */ onConfirm) { closeOthers(null); ask = { text, onConfirm }; spec.view(OVERVIEW); }
-  const askLine = () => h('div.bask', { role: 'alert' },
-    h('span', { text: ask?.text }),
-    h('button.btn.sm', { type: 'button', text: 'Confirm', on: { click: () => { const f = ask?.onConfirm; ask = null; f?.(); } } }),
-    h('button.btn.sm', { type: 'button', text: 'Cancel', on: { click: () => { ask = null; spec.view(null); } } }));
-
-  // ── State ───────────────────────────────────────────────────────────────
-  const stateLine = h('div.pbstate', { role: 'status' });
-  const cap = h('span.pbcap');
-  const stateNow = (/** @type {boolean} */ d) => stateOf({ dirty: d, isNew: cur.name === NEW, ticked: spec.ticked?.() ?? true,
-    restarts: !!spec.restarts?.(), live: !!spec.live?.() });
-  function paintActs(s = stateNow(spec.dirty())) {
-    for (const a of acts) {
-      a.discard.disabled = s.discardOff;
-      if (a.save) a.save.disabled = s.saveOff;
-    }
-  }
-  function paintState() {
-    const d = spec.dirty();
-    const s = stateNow(d);
-    paintActs(s);
-    if (spec.copy.state) {
-      stateLine.textContent = spec.copy.state[s.line];
-      stateLine.classList.toggle('dirty', s.pending);
-      cap.replaceChildren(refused ? h('span.bref', { text: spec.copy.noName }) : '');
-    }
-    spec.painted?.(d);
-  }
-  const discardEl = () => /** @type {HTMLButtonElement} */ (h('button.btn.sm', { type: 'button', text: 'Discard', on: { click: () => discard() } }));
-  /** A Discard on its own (a drawer's head); it follows the state. */
-  function discardButton() {
-    const el = discardEl();
-    acts.push({ discard: el });
-    return el;
-  }
-  /** Delete / Discard / Save; Discard and Save follow the state. */
-  function buttons(saveTag = 'button.btn.sm.pbsave') {
-    const del = h('button.btn.sm', { type: 'button', text: 'Delete', on: { click: () => confirm(spec.copy.remove(cur.name), remove) } });
-    const discardBtn = discardEl();
-    const saveBtn = /** @type {HTMLButtonElement} */ (h(saveTag, { type: 'button', text: 'Save', on: { click: () => save() } }));
-    acts.push({ discard: discardBtn, save: saveBtn });
-    return { del, discard: discardBtn, save: saveBtn };
-  }
-
-  // ── Save / delete ───────────────────────────────────────────────────────
-  function save() {
-    const taken = spec.take?.();
-    const name = spec.name().trim();
-    const to = spec.to();
-    const plan = savePlan(book, cur, name, to);
-    if (plan === 'refuse') { closeOthers(null); refused = true; spec.refuse(); return; }
-    if (plan === 'idle') return;
-    const write = () => {
-      const from = cur;
-      const rec = spec.record(taken);
-      const out = savedTo(book, cur, name, to, rec, !!spec.keeps?.(cur));
-      book = out.book;
-      staged = stashed(staged, K(from), null);
-      cur = out.cur;
-      if (!spec.load) staged = stashed(staged, K(cur), null);   // an edit kept in staged is the saved record now
-      spec.saved({ from, name, to, rec });
-    };
-    if (plan === 'ask') confirm(spec.copy.overwrite(name), write);
-    else write();
-  }
-  function remove() {
-    const from = cur;
-    const out = removedFrom(book, cur, spec.land?.());
-    book = out.book;
-    staged = stashed(staged, K(from), null);
-    cur = out.cur;
-    spec.removed(from);
-  }
-
-  // ── Stations menu ───────────────────────────────────────────────────────
-  /**
-   * The stations Save writes to, picked from a menu of every station (✓ = ticked). A station already holding a record
-   * of this name shows it at the right (Save overwrites it, after asking). Ticking stays open.
-   *
-   * @param {{ ticked: () => string[], pick: (list: string[]) => void, name: () => string, now?: boolean }} o
-   *   now: paint before the popover arms
-   */
-  function stationsMenu({ ticked, pick, name, now = false }) {
-    const txt = h('span.v');
-    const trigger = h('button.vfd.bstn', { type: 'button', aria: { haspopup: 'menu' } }, h('span.l', { text: 'Stations' }), txt);
-    const menu = h('div.pop.pmenu.amenu.bstmenu', { role: 'menu', 'aria-label': 'Stations' });
-    const paint = () => {
-      const list = ticked();
-      txt.textContent = list.join(' · ') || '—';
-      trigger.title = list.join(' · ');
-      const nm = shownName(name(), cur);
-      menu.replaceChildren(...spec.stations.map((st) => h('button.pmrow', { type: 'button', role: 'menuitemcheckbox',
-        aria: { checked: list.includes(st) },
-        on: { click: () => pick(toggleStation(spec.stations, ticked(), st)) } },
-        h('b', { text: st }), heldAt(book, cur, nm, st) && h('span', { text: nm }))));
-    };
-    if (now) paint();
-    popover({ trigger, panel: menu });
-    return { el: h('div.bstw', {}, trigger, menu), paint };
-  }
-
-  // ── Page parts ──────────────────────────────────────────────────────────
-  const close = () => {
-    const x = closeBtn(() => setOn(false), spec.closeLabel);
-    x.classList.add('pbx');
-    return x;
-  };
-  /** A page title in the section header grammar (engraved + rule), × at its end. */
-  const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) =>
-    h('div.sh.btitle', {}, h('span.t', { text }), n, h('span.ln'), mid, close());
-
-  // ── Walk: rail, steps, overview ─────────────────────────────────────────
+export function mountBuilder(el, spec) {
+  const sh = shellState(spec);
   const walk = spec.walk;
-  const ids = walk ? walk.steps.map((x) => x.id) : [];
-  const skipped = (/** @type {string} */ id) => !!walk?.skipOf(id);
-  const nextOf = (/** @type {number} */ i) => nextStep(ids, i, skipped);
-  const prevOf = (/** @type {number} */ i) => prevStep(ids, i, skipped);
-  const entry = (/** @type {string} */ id, /** @type {string} */ name) => h('button.st', { type: 'button', data: { stage: id }, on: { click: () => walk?.show(id) } },
-    h('span.n', { text: name }), h('span.v'));
-  /** @type {Map<string, HTMLElement>} */
-  const railEls = new Map(walk ? [[OVERVIEW, entry(OVERVIEW, walk.copy.overview)], ...walk.steps.map((x) => /** @type {[string, HTMLElement]} */ ([x.id, entry(x.id, x.title)]))] : []);
-  walk?.rail.replaceChildren(...railEls.values());
-  /** The rail: the page showing lit (Overview for a page off the walk), each step's answer, `Skipped` where it doesn't apply. */
-  function paintRail() {
-    if (!walk) return;
-    const at = walk.at();
-    for (const [id, el] of railEls) {
-      el.classList.toggle('open', id === at || (id === OVERVIEW && !railEls.has(at)));
-      el.setAttribute('aria-current', String(id === at));
-      /** @type {HTMLElement} */ (el.querySelector('.v')).textContent = id === OVERVIEW ? (shownName(spec.name(), cur) || walk.newLabel) : walk.answer(id);
-      el.classList.toggle('skip', id !== OVERVIEW && skipped(id));
-    }
-  }
+  const { stateLine, cap } = stateParts();
+  const nav = walkNav(walk);
+  const railEls = railOf(walk);
   const pick = h('select', { 'aria-label': spec.noun });
-  const nameBox = walk ? nameInput(walk.nameBox, (v) => { walk.setName(v); refused = false; paintState(); paintRail(); }) : null;
-
-  /**
-   * A step's page: header (title, step n of t, ×), guide or skip line, rows, Back / Next.
-   *
-   * @param {string} id
-   * @param {{ tag?: string, attrs?: object, guide: (skip: string, st: any) => any, rows: (id: string) => any }} o
-   */
-  function stepPage(id, { tag = 'div.pbstepp', attrs = {}, guide, rows }) {
-    if (!walk) return null;
-    const i = walk.steps.findIndex((x) => x.id === id);
-    const st = walk.steps[i];
-    const skip = walk.skipOf(id);
-    const last = nextOf(i) === OVERVIEW;
-    return h(tag, attrs,
-      title(st.title, h('span.pbn', { text: walk.copy.stepOf(i + 1, walk.steps.length) })),
-      guide(skip, st),
-      h('div.pbsrows', {}, skip ? [] : rows(id)),
-      h('div.pbnav', {}, h('span.grow'),
-        h('button.btn.sm', { type: 'button', text: walk.copy.back, on: { click: () => walk.show(prevOf(i)) } }),
-        h('button.btn.sm.pbnext', { type: 'button', text: last ? walk.copy.review : walk.copy.next, on: { click: () => walk.show(nextOf(i)) } })));
-  }
-
-  /**
-   * The overview: intro and holds beside the signal chain, then which record (picker · Name · extras), its extras, the
-   * confirm line, the state line and the ways on.
-   *
-   * @param {{ tags?: { ov?: string, save?: string, id?: string }, intro: any, holds: any[], chain: any, ids?: any[],
-   *   mid?: any[], ask: any, acts: { del: any, discard: any, save: any }, after?: any }} o
-   */
-  function overview({ tags = {}, intro, holds, chain: pic, ids: more = [], mid = [], ask: askEl, acts: a, after }) {
-    if (!walk) return null;
-    return h(tags.ov ?? 'div.pbov', {},
-      title(spec.title),
-      h('div.pbovtop', {},
-        h('div.pbovl', {}, intro, h('div.pbholds', {}, h('div.pbhh', { text: walk.copy.holds }), holds)),
-        pic),
-      h(tags.save ?? 'div.pbsavebox', {},
-        h(tags.id ?? 'div.pbid', {},
-          h('label.vfd.pbpick', {}, h('span.l', { text: spec.noun }), pick),
-          h('label.vfd.bname.pbname', {}, h('span.l', { text: 'Name' }), nameBox),
-          more),
-        mid,
-        askEl,
-        h('div.pbfoot', {}, h('div.pbstw', {}, stateLine, cap), h('span.grow'),
-          h('button.btn.sm', { type: 'button', text: walk.copy.scratch, on: { click: () => walk.scratch() } }),
-          h('button.btn.sm', { type: 'button', text: walk.copy.change, on: { click: () => walk.show(walk.steps[0].id) } }),
-          a.del, a.discard, a.save)),
-      after);
-  }
-
-  // ── Swap ────────────────────────────────────────────────────────────────
-  function setOn(/** @type {boolean} */ on, toChain = true) {
-    swapBody({ btn, chain, body, bus }, on, { toChain, leave: () => spec.leave(), opened: () => { ask = null; spec.opened(); } });
-  }
-  /** Arm the builder's button and Escape; the builder's public face. */
-  function start() {
-    btn.addEventListener('click', () => setOn(spec.toggles ? body.hidden : true));
-    escapeLeaves(body, () => {
-      if (ask) { ask = null; spec.view(null); return; }
-      setOn(false);
-    });
-    return { setOn, isOn: () => !body.hidden };
-  }
+  const setOn = setOnOf(el, sh, spec);
+  const close = () => closeButton(spec, setOn);
+  const title = (/** @type {string} */ text, /** @type {any} */ n, /** @type {any[]} */ mid = []) => pageTitle(close, text, n, mid);
+  const paintStateNow = () => paintState(sh, spec, { stateLine, cap });
+  const paintRailNow = () => paintRail(walk, spec, sh, railEls);
+  const nameBox = walkNameBox(walk, sh, () => { paintStateNow(); paintRailNow(); });
 
   return {
-    get cur() { return cur; },
-    get book() { return book; },
-    get staged() { return /** @type {ReadonlyMap<string, any>} */ (staged); },
-    get ask() { return ask; },
-    get refused() { return refused; },
-    set refused(v) { refused = v; },
-    K, isDirty, load, stash, stage, go, discard, confirm, askLine, save, remove,
-    paintState, paintActs, buttons, discardButton, stationsMenu, title, close, setOn, start,
-    pick, nameBox, stateLine, cap, paintRail, inWalk: (/** @type {string} */ id) => railEls.has(id), nextOf, prevOf, stepPage, overview,
+    get cur() { return sh.cur; },
+    get book() { return sh.book; },
+    get staged() { return /** @type {ReadonlyMap<string, any>} */ (sh.staged); },
+    get ask() { return sh.ask; },
+    get refused() { return sh.refused; },
+    set refused(v) { sh.refused = v; },
+    K: keyOf,
+    isDirty: (/** @type {Ref} */ c) => isDirty(sh, spec, c),
+    load: (/** @type {Ref} */ c, /** @type {any} */ over) => load(sh, spec, c, over),
+    stash: () => stash(sh, spec),
+    stage: (/** @type {any} */ buf) => stage(sh, buf),
+    go: (/** @type {Ref} */ c) => go(sh, spec, c),
+    discard: () => discard(sh, spec),
+    confirm: (/** @type {string} */ text, /** @type {() => void} */ onConfirm) => confirm(sh, spec, text, onConfirm),
+    askLine: () => askLine(sh, spec),
+    save: () => save(sh, spec),
+    remove: () => remove(sh, spec),
+    paintState: paintStateNow,
+    paintActs: (s = stateNow(sh, spec, spec.dirty())) => paintActs(sh, s),
+    buttons: (saveTag = 'button.btn.sm.pbsave') => buttons(sh, spec, saveTag),
+    discardButton: () => discardButton(sh, spec),
+    stationsMenu: (/** @type {Parameters<typeof stationsMenu>[2]} */ o) => stationsMenu(sh, spec, o),
+    title, close, setOn,
+    start: () => start(el, sh, spec, setOn),
+    pick, nameBox, stateLine, cap,
+    paintRail: paintRailNow,
+    inWalk: (/** @type {string} */ id) => railEls.has(id),
+    nextOf: nav.nextOf, prevOf: nav.prevOf,
+    stepPage: (/** @type {string} */ id, /** @type {Parameters<typeof stepPage>[3]} */ o) => stepPage(walk, { title, ...nav }, id, o),
+    overview: (/** @type {Parameters<typeof overview>[3]} */ o) => overview(walk, spec, { title, pick, nameBox, stateLine, cap }, o),
   };
-}
-
-/**
- * Swap a body in for the chain's, or back out: every drawer and sheet closes, the button reads pressed while it shows,
- * the rail wire re-measures. `leave` runs as it swaps in (the other bodies turn off), `opened` once it shows; with
- * `toChain` false, leaving keeps the chain hidden (another body takes over).
- *
- * @param {{ btn: HTMLElement, chain: HTMLElement, body: HTMLElement, bus: { emit: (t: string) => void } }} el
- * @param {boolean} on
- * @param {{ toChain?: boolean, leave?: () => void, opened?: () => void }} [o]
- */
-export function swapBody({ btn, chain, body, bus }, on, { toChain = true, leave, opened } = {}) {
-  closeOthers(null);
-  closeSheets();
-  if (on) leave?.();
-  body.hidden = !on;
-  if (on) chain.hidden = true; else if (toChain) chain.hidden = false;
-  btn.setAttribute('aria-pressed', String(on));
-  if (on) opened?.();
-  bus.emit('relayout');
-}
-
-/**
- * Escape while the body shows runs `onEscape`. Capture: an open drawer, popover or sheet hears Escape first, so one
- * Escape closes it or leaves the body, not both.
- *
- * @param {HTMLElement} body
- * @param {() => void} onEscape
- */
-export function escapeLeaves(body, onEscape) {
-  body.ownerDocument.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || body.hidden || anyOpen() || sheetOpen() || body.querySelector('.drawer:not([data-closed])')) return;
-    onEscape();
-  }, true);
 }
 
 /**
@@ -400,17 +172,4 @@ export function holdRow(title, onClick, tag = 'button.pbhold') {
   const el = h(tag, onClick ? { type: 'button', on: { click: onClick } } : { type: 'button' },
     h('b', { text: title }), a, h('span.pgo', { 'aria-hidden': 'true', text: '›' }));
   return { el, a };
-}
-
-/**
- * A record's name box: `onName` hears the trimmed name as it is typed; Enter leaves the box.
- *
- * @param {object} attrs
- * @param {(name: string) => void} onName
- */
-export function nameInput(attrs, onName) {
-  const box = /** @type {HTMLInputElement} */ (h('input.bnin', attrs));
-  box.addEventListener('input', () => onName(box.value.trim()));
-  box.addEventListener('keydown', (e) => { if (e.key === 'Enter') box.blur(); });
-  return box;
 }

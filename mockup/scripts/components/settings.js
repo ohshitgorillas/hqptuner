@@ -11,9 +11,8 @@
 import { h } from '../lib/dom.js';
 import { PLATFORM } from '../lib/clock.js';
 import { revertAfter } from '../model/timing.js';
-import { minusText } from '../model/format.js';
-import { optionOf } from '../model/options.js';
 import { rowsOf } from '../model/schema.js';
+import { readoutOf, effectOf } from '../model/settings.js';
 import { secHead, manPara } from '../lib/controls.js';
 import { swapBody, escapeLeaves } from '../lib/builder.js';
 import { mountDrawer } from './drawer.js';
@@ -66,10 +65,28 @@ export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PL
     if (ro) ro.dd.replaceChildren(...[].concat(ro.fmt(String(v))));
   }
 
-  // ── Page ────────────────────────────────────────────────────────────────
-  // A section's .two takes left | right pairs, one grid row each (Backup / restore | its line); `.span` cells take the row.
-  // About HQPlayer (renamed, its read-only line cut, expanded): the identity as a row of labelled VFD
-  // windows across the full width (the Rate / Volume window grammar), then Backup / restore | its line.
+  mountAbout(page);
+
+  // ── Swap ────────────────────────────────────────────────────────────────
+  function setOn(on) {
+    swapBody({ btn: gear, chain, body, bus }, on);
+    gear.setAttribute('aria-label', on ? 'Close settings' : 'Settings');
+  }
+  gear.setAttribute('aria-pressed', 'false');
+  gear.setAttribute('aria-label', 'Settings');
+  gear.addEventListener('click', () => setOn(body.hidden));
+  escapeLeaves(body, () => setOn(false));
+
+  return { setOn };
+}
+
+/**
+ * The page under the drawers. A section's .two takes left | right pairs, one grid row each (Backup / restore | its line);
+ * `.span` cells take the row. About HQPlayer (renamed, its read-only line cut, expanded): the identity as a row of
+ * labelled VFD windows across the full width (the Rate / Volume window grammar), then Backup / restore | its line.
+ * @param {HTMLElement} page
+ */
+function mountAbout(page) {
   const sec = (title, ...cells) => h('section.sec', { 'aria-label': title },
     secHead('sh', title),
     h('div.two.pairs', {}, cells));
@@ -87,18 +104,6 @@ export function mountSettings({ gear, chain, body, rail, page }, bus, clock = PL
       h('div.man.prose', {}, ABOUT.prose.map((p) => manPara({ text: [].concat(p).map((x) =>
         typeof x === 'string' ? x : h('a', { href: x.href, target: '_blank', rel: 'noopener noreferrer', text: x.a })) })))),
   );
-
-  // ── Swap ────────────────────────────────────────────────────────────────
-  function setOn(on) {
-    swapBody({ btn: gear, chain, body, bus }, on);
-    gear.setAttribute('aria-label', on ? 'Close settings' : 'Settings');
-  }
-  gear.setAttribute('aria-pressed', 'false');
-  gear.setAttribute('aria-label', 'Settings');
-  gear.addEventListener('click', () => setOn(body.hidden));
-  escapeLeaves(body, () => setOn(false));
-
-  return { setOn };
 }
 
 /** Control id → {c, r, label} across a schema (group items included). */
@@ -112,63 +117,51 @@ function controlsOf(schema) {
   return m;
 }
 
-/** How a readout prints a value: the control's own option label (+ unit), the number, the path, the accent's name. */
+/** How a readout prints a value (model/settings.js readoutOf): its text, after the accent's swatch where it has one. */
 function fmtOf(c) {
-  if (c.type === 'seg' || c.type === 'select') return (v) => { const o = optionOf(c.options, v); return o ? o.label + (o.unit ? ' ' + o.unit : '') : v; };
-  if (c.type === 'toggles') return (v) => (v ? c.options.filter((o) => v.split(',').includes(o.v)).map((o) => o.label.replace(/ /g, '\u00a0')).join(' · ') : 'None');
-  if (c.type === 'slider') return (v) => (c.auto && v === String(c.auto.v) ? 'Automatic' : v);   // v1's own word for 0
-  if (c.type === 'number') return (v) => minusText(v);
-  if (c.type === 'accent') return (v) => {
-    const o = ACCENTS.find((x) => x.v === v);
-    return [h('i.sw', { style: `--sw:${o ? o.hex : v}` }), o ? o.label : v];
+  return (v) => {
+    const r = readoutOf(c, v, ACCENTS);
+    return r.swatch === null ? r.text : [h('i.sw', { style: `--sw:${r.swatch}` }), r.text];
   };
-  return (v) => v;
 }
 
 // ── Visual settings that the mock acts on ──────────────────────────────────
-// Accent color: the accent tokens follow the pick (dim and low derived from it, as the amber set is).
-// Dyslexic font: --f-body swaps to Atkinson Hyperlegible (non-monospace text; engraved legends keep Saira).
+// model/settings.js effectOf decides which effect a change causes and its values; this acts on it.
 // Bottom bar: swaps the bottom bar (and the engine-row volume). Option style: every chain select's option text (Standard =
 // engine names, Simplified = plain titles). Setting / Option descriptions and the Apodizing indicator are not modelled.
 function effect(id, v, bus) {
   const root = document.documentElement.style;
+  const fx = effectOf(id, v, ACCENTS, HIDEABLE);
   // Allow pinned rates (Behavior): shows the page's Output section, the rate pins (main.js listens).
-  if (id === 'pinallow') bus.emit('pinallow', v === '1');
-  if (id === 'vacc') {
-    const hex = ACCENTS.find((x) => x.v === v)?.hex ?? v;
-    root.setProperty('--acc', hex);
-    root.setProperty('--acc-dim', `color-mix(in srgb, ${hex} 47%, #000)`);
-    root.setProperty('--acc-lo', `color-mix(in srgb, ${hex} 16%, #0b0a08)`);
-    root.setProperty('--acc-rim', `color-mix(in srgb, ${hex} 55%, #fff)`);   // the lit rim / peak hold, pale of the accent
-  }
+  if (fx.kind === 'pinallow') bus.emit('pinallow', fx.on);
+  if (fx.kind === 'accent') for (const [name, val] of Object.entries(fx.tokens)) root.setProperty(name, val);
   // Bottom bar: the plate's data-bottom picks Setting Switcher | Volume | None (settings.css shows / hides; the body takes
   // whatever height is freed).
   // Top of page: the page's top section (main.js paintFill listens).
-  if (id === 'vfill') bus.emit('vfill', v);
-  if (id === 'vbottom') {
-    document.getElementById('plate').dataset.bottom = v;
+  if (fx.kind === 'fill') bus.emit('vfill', fx.value);
+  if (fx.kind === 'bottom') {
+    document.getElementById('plate').dataset.bottom = fx.value;
     bus.emit('relayout');   // rail wire, plots re-measure
   }
-  // Hide Speakers: the chain rail drops its Speakers stage (its drawer closes if open); the wire re-routes past it.
   // Hide from signal chain: each listed stage leaves the chain rail (its drawer closes if open); the wire re-routes.
-  if (id === 'vhide') {
-    const hide = new Set(v.split(',').filter(Boolean));
-    for (const { v: sid } of HIDEABLE) {
+  if (fx.kind === 'hide') {
+    for (const { id: sid, hidden } of fx.stages) {
       // The chain rail, and the Profile builder's rail (the same stages, the profile's own chain).
       for (const st of document.querySelectorAll(`:is(#rail, #prail) [data-stage="${sid}"]`)) {
-        if (hide.has(sid) && st.classList.contains('open')) st.click();
-        st.hidden = hide.has(sid);
+        if (hidden && st.classList.contains('open')) st.click();
+        st.hidden = hidden;
       }
     }
     bus.emit('relayout');
   }
-  if (id === 'vstyle') setOptionStyle(v, bus);
-  if (id === 'vdys') {
-    if (v === '1' && !document.getElementById('f-atkinson')) {
+  if (fx.kind === 'style') setOptionStyle(fx.value, bus);
+  // Dyslexic font: the body family swaps (the font's stylesheet loads once, on first use).
+  if (fx.kind === 'font') {
+    if (fx.family && !document.getElementById('f-atkinson')) {
       document.head.append(h('link#f-atkinson', { rel: 'stylesheet',
         href: 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap' }));
     }
-    if (v === '1') root.setProperty('--f-body', "'Atkinson Hyperlegible',system-ui,sans-serif");
+    if (fx.family) root.setProperty('--f-body', fx.family);
     else root.removeProperty('--f-body');
   }
 }

@@ -37,13 +37,15 @@ export const setListOpener = (fn) => { openList = fn; };
 /** Open a chain list from any trigger (the page's chain pickers, components/chain-pick.js). */
 export const openPicker = (o) => openList?.(o);
 
+const labelOf = (options, v) => optionOf(options, v)?.label ?? String(v);
+/** The picker's face: the plain title kept for the style switch, the title the style prints. */
+const showPick = (el, options, cur) => { el.dataset.plain = labelOf(options, cur); el.textContent = optText(labelOf(options, cur), cur); };
+
 function picker({ options, value, aria, id, cls, onChange, list }) {
-  const label = (v) => optionOf(options, v)?.label ?? String(v);
   const el = h('button.vfd.vpick', { type: 'button', id, class: cls, 'aria-label': aria, aria: { haspopup: 'dialog' } });
   let cur = String(value);
-  const paint = () => { el.value = cur; el.dataset.plain = label(cur); el.textContent = optText(label(cur), cur); };
-  Object.defineProperty(el, 'value', { get: () => cur, set: (v) => { cur = String(v); el.dataset.plain = label(cur); el.textContent = optText(label(cur), cur); }, configurable: true });
-  paint();
+  Object.defineProperty(el, 'value', { get: () => cur, set: (v) => { cur = String(v); showPick(el, options, cur); }, configurable: true });
+  el.value = cur; showPick(el, options, cur);
   // Which chain, stage and field: from the id (page `pg-sdm1x`, drawer `cv-sdm-sdm1x`).
   const m = String(id).match(/(pcm|sdm)(1x|nx|sh)$/);
   el.addEventListener('click', () => openList?.({
@@ -52,6 +54,9 @@ function picker({ options, value, aria, id, cls, onChange, list }) {
   }));
   return el;
 }
+
+/** One option of a native select, selected when it is `value`. */
+const optionEl = (o, value) => h('option', { value: o.v, text: optText(o.label, String(o.v)), data: { plain: o.label }, selected: String(o.v) === String(value) });
 
 export function vselect({ options, value, aria, id, cls, onChange }) {
   if (LIST_OF.has(options)) return picker({ options, value, aria, id, cls, onChange, list: LIST_OF.get(options) });
@@ -62,10 +67,9 @@ export function vselect({ options, value, aria, id, cls, onChange }) {
     if (!groups.has(o.group)) groups.set(o.group, []);
     groups.get(o.group).push(o);
   }
-  const opt = (o) => h('option', { value: o.v, text: optText(o.label, String(o.v)), data: { plain: o.label }, selected: String(o.v) === String(value) });
   const el = h('select.vfd', { id, class: cls, 'aria-label': aria },
-    loose.map(opt),
-    [...groups].map(([g, list]) => h('optgroup', { label: g }, list.map(opt))),
+    loose.map((o) => optionEl(o, value)),
+    [...groups].map(([g, list]) => h('optgroup', { label: g }, list.map((o) => optionEl(o, value)))),
   );
   el.value = String(value);
   if (onChange) el.addEventListener('change', () => onChange(el.value));
@@ -102,12 +106,16 @@ export function fitCopy(host, options, v, maxH) {
   host.replaceChildren(...optCopy(options, v).filter(Boolean));
   if (host.offsetHeight <= maxH) return;
   const o = optionOf(options, v);
-  const words = [o?.man || '', o?.twoStage ? TWO_STAGE : ''].join(' ').trim().split(/\s+/);
-  const more = () => seeMore(String(v), [o?.man, o?.twoStage && TWO_STAGE].filter(Boolean));
-  const at = (n) => host.replaceChildren(h('code', { text: String(v) }), n ? ' — ' + words.slice(0, n).join(' ') + ' ' : ' ', more());
-  let lo = 0, hi = words.length;
-  while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); at(mid); if (host.offsetHeight <= maxH) lo = mid; else hi = mid - 1; }
-  at(lo);
+  const fit = { v, o, words: [o?.man || '', o?.twoStage ? TWO_STAGE : ''].join(' ').trim().split(/\s+/) };
+  let lo = 0, hi = fit.words.length;
+  while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); fitAt(host, fit, mid); if (host.offsetHeight <= maxH) lo = mid; else hi = mid - 1; }
+  fitAt(host, fit, lo);
+}
+
+/** The option line cut to its first `n` words of prose, then `… see more` opening the whole of it. */
+function fitAt(host, { v, o, words }, n) {
+  host.replaceChildren(h('code', { text: String(v) }), n ? ' — ' + words.slice(0, n).join(' ') + ' ' : ' ',
+    seeMore(String(v), [o?.man, o?.twoStage && TWO_STAGE].filter(Boolean)));
 }
 
 /** Any button that opens `paras` in a note popover under it (built on first tap; popover() toggles after). */

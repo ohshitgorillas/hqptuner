@@ -18,13 +18,13 @@ import { popover } from '../lib/popover.js';
 import { toPlate, PLATE_W } from '../lib/plate.js';
 import { PLATFORM } from '../lib/clock.js';
 import { holdRepeat } from '../model/timing.js';
-import { minus } from '../model/format.js';
 import { percentOf } from '../model/output.js';
+import { dbText, fixedPin, directPin, stepOff, volumeView, loudSpan } from '../model/volume.js';
 
 const HOLD_DELAY = 400;   // ms before a held ± starts repeating
 const HOLD_RATE = 70;     // ms between repeats
 
-const fmt = (v) => minus(v, 1) + ' dB';
+const fmt = dbText;
 
 /**
  * The scale marks under a volume slider: each of `cfg.scale` at its place along the range, the top one in full.
@@ -45,13 +45,73 @@ const scaleMarks = ({ min, max, scale }) => h('div.scale', { 'aria-hidden': 'tru
 export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud, clock = PLATFORM) {
   let value = cfg.value;
   let fixedSet = null;   // Fixed volume as applied: null = adjustable; else {level, level_txt, text}
-  let direct = null;  // Direct SDM playing: {level, level_txt, text}, over fixed
-  const { min, max, step } = cfg;
+  let direct = null;  // Direct SDM playing: {level, level_txt, text, why}, over fixed
+  let shown = null;   // what the last set() showed (model/volume.js volumeView): every change of the three above sets
+  const { step } = cfg;
+  const { big, slider, pop } = volumePanel(plate, readout, cfg, bus, loud, (v) => set(v));
 
+  const views = [];   // other homes of the level (bottom bar): fn(value, txt, fixed)
+  function set(v) {
+    shown = volumeView(v, value, { fixed: fixedSet, direct }, cfg);
+    value = shown.value;
+    readout.title = shown.why;
+    // The mode word (`Manual:` / `Auto:`) lives on the rail only; the windows show the level alone.
+    readout.querySelector('.v').textContent = shown.txt;
+    readout.classList.toggle('fixed', shown.fixed);
+    readout.disabled = shown.fixed;   // nothing to slide: the popover stays shut
+    big.textContent = shown.txt;
+    slider.value = shown.level;
+    slider.disabled = shown.fixed;
+    stage.querySelector('.v').textContent = shown.rail;
+    down.disabled = shown.off.down;
+    up.disabled = shown.off.up;
+    for (const fn of views) fn(shown.level, shown.txt, shown.fixed);
+    bus?.dispatchEvent(new CustomEvent('level', { detail: shown.level }));
+  }
+
+  /** Fixed volume (Volume drawer → Fixed volume, applied): 'off' | 'manual' (level, dBFS) | 'auto' (iso '1' = −3, '2' = −6). */
+  function setFixed(mode, level, iso) {
+    if (pop.isOpen) pop.close();
+    fixedSet = fixedPin(mode, level, iso);
+    set(value);
+  }
+
+  /** Direct SDM playing (mock scenario): volume bypassed, PCM volume pinned at −3 dBFS. why = v1's gray reason. */
+  function setDirect(on, why) {
+    if (on && pop.isOpen) pop.close();
+    direct = directPin(on, why);
+    set(value);
+  }
+
+  hold(down, () => set(value - step), clock);
+  hold(up, () => set(value + step), clock);
+
+  set(value);
+  return {
+    set: (v) => set(v),
+    step: (dir) => set(value + dir * step),
+    setFixed,
+    setDirect,
+    view: (fn) => { views.push(fn); fn(shown.level, shown.txt, shown.fixed); },
+  };
+}
+
+/**
+ * The engine-row popover: heading with the big level, the slider over its loudness marks, the scale. Drops from the
+ * readout; `onInput` gets each slider move (dB).
+ * @param {HTMLElement} plate
+ * @param {HTMLButtonElement} readout
+ * @param {{value:number,min:number,max:number,step:number,scale:number[]}} cfg
+ * @param {EventTarget} [bus]
+ * @param {object} [loud]
+ * @param {(v:number) => void} onInput
+ */
+function volumePanel(plate, readout, cfg, bus, loud, onInput) {
+  const { min, max, step, value } = cfg;
   const big = h('span.v');
   const slider = h('input', {
     type: 'range', min, max, step, value, 'aria-label': 'Playback volume',
-    on: { input: (e) => set(Number(e.target.value)) },
+    on: { input: (e) => onInput(Number(e.target.value)) },
   });
   const panel = h('div.pop.vpop#vpop', { role: 'dialog', 'aria-label': 'Playback volume' },
     h('div.vh', {}, h('span.eng', { text: 'Playback volume' }), big),
@@ -73,54 +133,7 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
       slider.focus();
     },
   });
-
-  const views = [];   // other homes of the level (bottom bar): fn(value, txt, fixed)
-  function set(v) {
-    const fixed = direct || fixedSet;
-    readout.title = direct ? direct.why : '';
-    if (!fixed) value = Math.min(max, Math.max(min, Math.round(v / step) * step));
-    // The mode word (`Manual:` / `Auto:`) lives on the rail only; the windows show the level alone.
-    const txt = fixed ? fixed.level_txt : fmt(value);
-    readout.querySelector('.v').textContent = txt;
-    readout.classList.toggle('fixed', !!fixed);
-    readout.disabled = !!fixed;   // nothing to slide: the popover stays shut
-    big.textContent = txt;
-    slider.value = fixed ? fixed.level : value;
-    slider.disabled = !!fixed;
-    stage.querySelector('.v').textContent = fixed ? fixed.text : txt;
-    down.disabled = !!fixed || value <= min;
-    up.disabled = !!fixed || value >= max;
-    for (const fn of views) fn(fixed ? fixed.level : value, txt, !!fixed);
-    bus?.dispatchEvent(new CustomEvent('level', { detail: fixed ? fixed.level : value }));
-  }
-
-  /** Fixed volume (Volume drawer → Fixed volume, applied): 'off' | 'manual' (level, dBFS) | 'auto' (iso '1' = −3, '2' = −6). */
-  function setFixed(mode, level, iso) {
-    if (pop.isOpen) pop.close();
-    if (mode === 'manual') { const l = Number(level); fixedSet = { level: l, level_txt: fmt(l), text: `Manual: ${fmt(l)}` }; }
-    else if (mode === 'auto') { const l = iso === '2' ? -6 : -3, lt = fmt(l).replace('.0 dB', ' dB'); fixedSet = { level: l, level_txt: lt, text: `Auto: ${lt}` }; }
-    else fixedSet = null;
-    set(value);
-  }
-
-  /** Direct SDM playing (mock scenario): volume bypassed, PCM volume pinned at −3 dBFS. why = v1's gray reason. */
-  function setDirect(on, why) {
-    if (on && pop.isOpen) pop.close();
-    direct = on ? { level: -3, level_txt: fmt(-3), text: `Direct: ${fmt(-3)}`, why } : null;
-    set(value);
-  }
-
-  hold(down, () => set(value - step), clock);
-  hold(up, () => set(value + step), clock);
-
-  set(value);
-  return {
-    set: (v) => set(v),
-    step: (dir) => set(value + dir * step),
-    setFixed,
-    setDirect,
-    view: (fn) => { views.push(fn); const fixed = direct || fixedSet; fn(fixed ? fixed.level : value, fixed ? fixed.level_txt : fmt(value), !!fixed); },
-  };
+  return { big, slider, pop };
 }
 
 /**
@@ -131,15 +144,14 @@ export function mountVolume(plate, { down, readout, up }, stage, cfg, bus, loud,
 function loudMarks(cfg, loud, bus) {
   const box = h('div.lmk', { 'aria-hidden': 'true' });
   if (!loud) return box;
-  const pct = (v) => Math.min(100, Math.max(0, percentOf(v, cfg.min, cfg.max)));
   const paren = (d) => s('svg.lp', { viewBox: '0 0 10 18', width: 10, height: 18 }, s('path', { d }));
   const draw = () => {
     box.hidden = !loud.on;
     if (!loud.on) return box.replaceChildren();
-    const lo = pct(loud.low), hi = pct(loud.high);
+    const { lo, hi, width } = loudSpan(loud.low, loud.high, cfg);   // model/volume.js: clamped to the slider's ends
     box.title = '';
     box.replaceChildren(
-      h('span.lband', { style: `left:${lo}%;width:${hi - lo}%` }),
+      h('span.lband', { style: `left:${lo}%;width:${width}%` }),
       h('span.lpw', { style: `left:${lo}%` }, paren('M8,1 Q2,9 8,17')),
       h('span.lpw.r', { style: `left:${hi}%` }, paren('M2,1 Q8,9 2,17')),
     );
@@ -193,7 +205,8 @@ export function mountVolumeBar(host, vol, cfg, bus, loud, clock = PLATFORM) {
   hold(up, () => vol.step(1), clock);
   vol.view((v, txt, fixed) => {
     slider.value = v; rd.textContent = txt;
-    slider.disabled = fixed; down.disabled = fixed || v <= min; up.disabled = fixed || v >= max;
+    const off = stepOff(v, fixed, cfg);
+    slider.disabled = fixed; down.disabled = off.down; up.disabled = off.up;
     host.classList.toggle('fixed', fixed);
   });
 }
