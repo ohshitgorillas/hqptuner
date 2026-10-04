@@ -40,6 +40,9 @@ export const livePresetStation = signal(/** @type {string | null} */ (null));
 // because the card has one place to put it and the user has one thing in mind.
 export const livePresetsBusy = signal("");
 export const livePresetError = signal("");
+// Whether something outside LIVE shows the book (the faceplate's station tree),
+// which reads it the same way LIVE does.
+export const bookWanted = signal(false);
 
 // Nothing here judges a preset against the chain the engine has loaded. A preset
 // carries its own output mode, so one taken on the other chain applies by
@@ -151,7 +154,7 @@ export async function deleteLivePreset(name) {
 // coming back re-reads, which is what picks up a preset saved in another browser
 // tab.
 effect(() => {
-  if (!liveMode.value) return;
+  if (!liveMode.value && !bookWanted.value) return;
   void activePreset.value;
   refreshLivePresets();
 });

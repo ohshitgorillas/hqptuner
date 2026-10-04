@@ -217,17 +217,17 @@ export async function previewPreset(name) {
   pendingPreset.value = name;
 }
 
-// What the header's picker calls. Outside LIVE a pick previews and waits for
-// Apply; LIVE has no Apply, so there the pick IS the commit. Whatever else is
-// staged rides along — the staged set lives on the server and every apply drains
-// it, so a switch-only apply does not exist. Nothing pending means the pick was
-// the active preset, and an apply with no switch and nothing staged is a 400.
-/** Preview a preset, and in LIVE mode commit the switch immediately. */
-export async function pickPreset(/** @type {string} */ name) {
+// The v1 picker previews outside LIVE and waits for Apply; LIVE has no Apply, so there a pick loads. Whatever else
+// is staged rides along with a load: the staged set lives on the server and every apply drains it. Nothing pending
+// means the name was the active preset, and an apply with no switch and nothing staged is a 400.
+/** Preview a preset and commit the switch to it at once. */
+export async function loadPreset(/** @type {string} */ name) {
   await previewPreset(name);
-  if (!liveMode.value || pendingPreset.value === null) return;
-  await commitApply();
+  if (pendingPreset.value !== null) await commitApply();
 }
+
+/** Preview a preset, and in LIVE mode commit the switch immediately. */
+export const pickPreset = (/** @type {string} */ name) => (liveMode.value ? loadPreset(name) : previewPreset(name));
 
 // Kept exported with no current caller: it is the symmetric half of the exported
 // previewPreset, and a preview API that can start but not clear is a trap.
