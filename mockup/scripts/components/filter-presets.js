@@ -11,6 +11,7 @@ import { popover } from '../lib/popover.js';
 import { parkLeftOf } from '../lib/plate.js';
 import { seg } from './seg.js';
 import { PRESET_COLUMNS, CORRECTION_LABELS, HIRES_TIP, LINEAGE } from '../data/presets.js';
+import { classNames } from '../model/format.js';
 
 export function mountFilterPresets(plate, trigger, presets) {
   const by = Object.fromEntries(presets.map((p) => [p.id, p]));
@@ -49,7 +50,7 @@ export function mountFilterPresets(plate, trigger, presets) {
 
   function presetRow(p) {
     const flag = LINEAGE.lanes.includes(p.id);
-    return h('div.frow', { class: [isCur(p.id) && 'cur', flag && open === p.id && 'opened'].filter(Boolean).join(' '), data: { preset: p.id } },
+    return h('div.frow', { class: classNames(isCur(p.id) && 'cur', flag && open === p.id && 'opened'), data: { preset: p.id } },
       h('button.pick', { type: 'button', on: { click: () => pick(p.id) } },
         h('span.lamp', { class: isCur(p.id) && 'on' }),
         h('span.em', { 'aria-hidden': 'true', text: p.emoji }),
@@ -72,7 +73,7 @@ export function mountFilterPresets(plate, trigger, presets) {
     const cst = c.cost.pips && !c.fixed && !on ? { pips: Math.max(1, c.cost.pips - 1) } : c.cost;
     const k = p.knobs[0];
     const first = p.id === subs[0];
-    return h('div.frow.sub', { class: [isCur(p.id, lane) && 'cur', first && 'first'].filter(Boolean).join(' '), data: { preset: p.id, lane } },
+    return h('div.frow.sub', { class: classNames(isCur(p.id, lane) && 'cur', first && 'first'), data: { preset: p.id, lane } },
       h('button.pick', { type: 'button', on: { click: () => pick(p.id, lane) } },
         h('span.lamp', { class: isCur(p.id, lane) && 'on' }),
         h('span.em', { 'aria-hidden': 'true', text: p.emoji }),

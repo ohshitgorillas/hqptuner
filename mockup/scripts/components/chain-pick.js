@@ -7,6 +7,7 @@
 import { h } from '../lib/dom.js';
 import { LISTS } from '../data/option-lists.js';
 import { openPicker, optionStyle } from './vselect.js';
+import { optionOf } from '../model/options.js';
 
 /**
  * @param {object} o
@@ -20,7 +21,7 @@ import { openPicker, optionStyle } from './vselect.js';
  */
 export function chainPick({ id, list, stage, value, aria, idle, onChange }) {
   const all = LISTS[list];
-  const opt = all.find((x) => String(x.v) === String(value)) ?? { v: value, leaf: value, fam: '' };
+  const opt = optionOf(all, value) ?? { v: value, leaf: value, fam: '' };
   const m = String(id).match(/(pcm|sdm)(1x|nx|sh)$/);
 
   const plate = h('button.vfd.cplate', { type: 'button', id, class: idle && 'dim', 'aria-label': `${aria}: ${opt.leaf}`, aria: { haspopup: 'dialog' } });

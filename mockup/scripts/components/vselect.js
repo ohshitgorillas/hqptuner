@@ -6,6 +6,7 @@ import { h } from '../lib/dom.js';
 import { TWO_STAGE, CATALOG } from '../data/conversion-catalog.js';
 import { popover } from '../lib/popover.js';
 import { toPlate, scale, PLATE_W, PLATE_H } from '../lib/plate.js';
+import { optionOf } from '../model/options.js';
 
 /**
  * @param {object} o
@@ -37,7 +38,7 @@ export const setListOpener = (fn) => { openList = fn; };
 export const openPicker = (o) => openList?.(o);
 
 function picker({ options, value, aria, id, cls, onChange, list }) {
-  const label = (v) => options.find((o) => String(o.v) === String(v))?.label ?? String(v);
+  const label = (v) => optionOf(options, v)?.label ?? String(v);
   const el = h('button.vfd.vpick', { type: 'button', id, class: cls, 'aria-label': aria, aria: { haspopup: 'dialog' } });
   let cur = String(value);
   const paint = () => { el.value = cur; el.dataset.plain = label(cur); el.textContent = optText(label(cur), cur); };
@@ -77,7 +78,7 @@ export function vselect({ options, value, aria, id, cls, onChange }) {
  * never reflows (standard popover rules: one open, outside tap / Escape closes).
  */
 export function optCopy(options, v) {
-  const o = options.find((x) => String(x.v) === String(v));
+  const o = optionOf(options, v);
   const out = [h('code', { text: String(v) }), o?.man ? ' — ' + o.man : ''];
   if (o?.twoStage) {
     const cut = TWO_STAGE.indexOf(':') + 1;
@@ -100,7 +101,7 @@ export function seeMore(label, paras) {
 export function fitCopy(host, options, v, maxH) {
   host.replaceChildren(...optCopy(options, v).filter(Boolean));
   if (host.offsetHeight <= maxH) return;
-  const o = options.find((x) => String(x.v) === String(v));
+  const o = optionOf(options, v);
   const words = [o?.man || '', o?.twoStage ? TWO_STAGE : ''].join(' ').trim().split(/\s+/);
   const more = () => seeMore(String(v), [o?.man, o?.twoStage && TWO_STAGE].filter(Boolean));
   const at = (n) => host.replaceChildren(h('code', { text: String(v) }), n ? ' — ' + words.slice(0, n).join(' ') + ' ' : ' ', more());

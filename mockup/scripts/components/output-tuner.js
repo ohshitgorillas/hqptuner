@@ -10,6 +10,7 @@
 //            Pinned, the pin is what plays: accent and ringed. Nothing playing: no ring.
 
 import { h } from '../lib/dom.js';
+import { classNames } from '../model/format.js';
 
 const FAMS = [['f44', '44.1k'], ['f48', '48k']];
 
@@ -43,7 +44,7 @@ export function mountOutputTuner(host, rt, { onPin, bus }) {
         if (t.unavailable) { pair.append(h('span.otp.otno', { text: t[f] })); continue; }
         const on = pin?.tier === i && pin.fam === f;
         const play = playing && st.tier === i && playFam === f;
-        pair.append(h('button.otp', { type: 'button', class: [on && 'otpinned', play && 'otplay'].filter(Boolean).join(' '),
+        pair.append(h('button.otp', { type: 'button', class: classNames(on && 'otpinned', play && 'otplay'),
           aria: { pressed: on, label: `Pin ${t[f]} ${t.unit}${play ? ', playing' : ''}` },
           on: { click: () => { pin = { tier: i, fam: f }; onPin({ ...pin }); paint(); } } }, t[f]));
       }

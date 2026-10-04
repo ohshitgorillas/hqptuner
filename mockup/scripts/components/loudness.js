@@ -13,7 +13,8 @@ import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { loudnessDb, shelfScale } from '../lib/xdsp.js';
 import { paintSvg } from '../lib/gauge.js';
-import { barMarks, bindBar, fmtLevel, rangeBox, readout } from '../lib/range-bar.js';
+import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
+import { signed } from '../model/format.js';
 import { clampBounds, clampToAxis, pickBound, tickMarks, ticksEvery } from '../model/range-axis.js';
 
 const AXIS = { min: -120, max: 0 };
@@ -110,7 +111,7 @@ export function mountLoudness(host, cfg, ctx, { bypassed, level: lvl0, levelBus 
   function paintRange() {
     boxes.low.input.value = rng.low; boxes.high.input.value = rng.high;
     boxes.low.input.max = rng.high; boxes.high.input.min = rng.low;
-    levelOut.textContent = fmtLevel(level);
+    levelOut.textContent = signed(level, 1);
     draw();
   }
 

@@ -1,8 +1,5 @@
-// What every SVG gauge shares (the response plots, lib/plot-frame.js; the range bars, lib/range-bar.js): the signed dB
-// number form and the 1:1 paint at the box's size.
-
-/** A whole dB value with its sign: +6, −6, 0. */
-export const signedDb = (d) => (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d);
+// What every SVG gauge shares (the response plots, lib/plot-frame.js; the range bars, lib/range-bar.js): the 1:1 paint
+// at the box's size. Their signed dB numbers are model/format.js signed.
 
 /**
  * Size the SVG 1:1 to W × H and replace its children with `kids`, flattened two deep and falsy skipped (native

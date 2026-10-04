@@ -34,6 +34,7 @@ import {
   STB_COPY, STB_STEPS, STB_TIPS, STB_BACKENDS, STB_DEVICE, STB_IPV6, STB_USB, STB_IFACES, STB_RATES, STB_DAC, STB_VOLUME,
   STB_HW, STB_SCRATCH, STB_RECORDS, STB_HW_REC, hwSettings,
 } from '../data/station-builder.js';
+import { classNames, minus } from '../model/format.js';
 
 const ONE = '';   // the book's one station key: a station builder's records are the stations themselves
 const TIERS = RATE_TIERS.tiers;
@@ -74,7 +75,6 @@ const rich = (bits) => (Array.isArray(bits) ? bits : [bits]).flatMap((b) => (typ
   : b.a ? h('a', { href: b.href, target: '_blank', rel: 'noreferrer', text: b.a }) : h('code', { text: b.code })));
 const paras = (m) => parasOf(m, rich);
 const tip = (label, text) => h('p.stbtip', {}, h('b', { text: label }), ' ', rich(text));
-const dbFmt = (v) => `${Number(v) < 0 ? '−' : ''}${Math.abs(Number(v))} dB`;
 
 /**
  * @param {object} el  {btn: header button, chain: #body, body: #stbody, rail, page, others: {settings, snapshot(), profiles()},
@@ -167,7 +167,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
     usb: () => (r().resolved ? 'Resolved' : 'Unresolved'),
     iface: () => IFACE_SHORT[r().iface] ?? '—',
     rates: () => (r().iface ? `${TIERS[r().limits.pcm].name} · ${r().limits.sdm == null ? 'no DSD' : 'DSD' + TIERS[r().limits.sdm].name.slice(0, -1)}` : '—'),
-    dac: () => `${Number(r().bits) ? r().bits + ' bit' : 'Auto'} · ${dbFmt(r().gaincomp)}`,
+    dac: () => `${Number(r().bits) ? r().bits + ' bit' : 'Auto'} · ${minus(Number(r().gaincomp))} dB`,
     volume: () => (r().volume === 'hqp' ? 'HQPlayer' : r().volume === 'other' ? `Fixed · ${r().iso === '2' ? '−6' : '−3'} dB` : '—'),
     hardware: () => { const x = hwSettings(e.hw); return [{ 0: 'No CUDA', convolution: 'CUDA conv.', 1: 'CUDA full' }[x.cuda], x.ecores === 'pool' && 'E-cores'].filter(Boolean).join(' · '); },
   };
@@ -181,7 +181,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
       h('div.chlist', { role: 'radiogroup', 'aria-label': label || 'Answer' }, options.map((op) => {
         const on = op.v === value;
         const go2 = () => pick(op.v);
-        return h('div.chline', { class: [on && 'cur', fold && value && !on && 'fold'].filter(Boolean).join(' '), data: { v: op.v } },
+        return h('div.chline', { class: classNames(on && 'cur', fold && value && !on && 'fold'), data: { v: op.v } },
           h('div.chl', {}, h('button.radio', { type: 'button', role: 'radio', aria: { checked: on, label: op.label }, on: { click: go2 } }),
             h('span.chn', { on: { click: go2 } }, h('b', { text: op.label }))),
           h('div.man', {}, paras(op.man)));
@@ -283,7 +283,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
         const out = [];
         if (p.group !== last) { last = p.group; out.push(h('div.gh', {}, h('span', { text: p.group }), h('span.ln'))); }
         const dead = r().resolved && on && r().resolved !== str;
-        out.push(h('div.stbdev', { class: [on && 'on', dead && 'dead'].filter(Boolean).join(' ') },
+        out.push(h('div.stbdev', { class: classNames(on && 'on', dead && 'dead') },
           h('button.binc', { type: 'button', role: 'checkbox', aria: { checked: on, label: p.main }, on: { click: () => toggle(str) } }),
           h('button.stbdn', { type: 'button', on: { click: () => toggle(str) } }, h('span.m', { text: p.main }), p.detail && h('span.d', { text: p.detail })),
           r().resolved === str && h('span.tag.stblock', { text: STB_USB.locked })));
@@ -323,7 +323,7 @@ export function mountStationBuilder({ btn, chain, body, rail, page, others, bus 
       const pair = h('div.stbdevs.stbpair', {}, x.listings.map((str) => {
         const p = parts(kind(), str);
         const dead = x.resolved && x.resolved !== str;
-        return h('div.stbdev', { class: [x.resolved === str && 'on', dead && 'dead'].filter(Boolean).join(' ') },
+        return h('div.stbdev', { class: classNames(x.resolved === str && 'on', dead && 'dead') },
           h('span.stbdn', {}, h('span.m', { text: p.main }), h('span.d', { text: p.group + (p.detail ? ' · ' + p.detail : '') })),
           x.resolved === str && h('span.tag.stblock', { text: STB_USB.locked }));
       }));

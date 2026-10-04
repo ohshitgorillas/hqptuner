@@ -12,11 +12,11 @@ import { mountRespPlot } from './resp-plot.js';
 import { pipeH, cplx, toDb } from '../lib/xdsp.js';
 import { AUTOEQ } from '../data/pipelines.js';
 import { AEQ_COPY } from '../data/profiles.js';
+import { signed } from '../model/format.js';
 
 const HITS = 3;
 const PEQ = new Set(['peak', 'lshelf', 'hshelf']);
 const TYPE = { PK: 'peak', PEQ: 'peak', LS: 'lshelf', LSC: 'lshelf', HS: 'hshelf', HSC: 'hshelf' };
-const fmt = (v) => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(1);
 
 /** ParametricEQ.txt (AutoEq / REW): `Preamp: -6.4 dB`, `Filter 1: ON PK Fc 105 Hz Gain 5.5 dB Q 0.71`. */
 function parseEq(text) {
@@ -71,7 +71,7 @@ export function mountAutoEq({ core, name, land }) {
     if (!p) return '';
     const n = p.stages.filter((st) => st.kind === 'iir' && PEQ.has(st.type)).length;
     const conv = p.stages.find((st) => st.kind === 'conv');
-    return `${k} ${n} bands${conv ? ' + ' + conv.file.split('/').pop() : ''} ${p.unit === 'Lin' ? 'Lin ' + p.gain : fmt(+p.gain) + ' dB'}`;
+    return `${k} ${n} bands${conv ? ' + ' + conv.file.split('/').pop() : ''} ${p.unit === 'Lin' ? 'Lin ' + p.gain : signed(+p.gain, 1) + ' dB'}`;
   };
 
   function paint() {

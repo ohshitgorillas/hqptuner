@@ -19,6 +19,7 @@ import { h, s } from '../lib/dom.js';
 import { seg } from './seg.js';
 import { PLATFORM } from '../lib/clock.js';
 import { emptySpectrum, hash, levelTarget, stepFrame, stepLevel, stepSpectrum } from '../model/meter.js';
+import { classNames, minusText } from '../model/format.js';
 
 const COLS = 600;                // spectrogram canvas width, px
 const ROWS = 320;                // spectrogram canvas rows (frequency, top = Nyquist); stretched to the plot
@@ -85,7 +86,7 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
     h('div.mhead', {},
       h('b.mt', { text: 'Levels' }),
       h('span.grow'),
-      !compact && ctl('Floor', 'dBFS', seg({ aria: 'Floor, dBFS', cls: 'view', value: st.floor, options: cfg.floors.map((v) => ({ v, label: minus(v) })),
+      !compact && ctl('Floor', 'dBFS', seg({ aria: 'Floor, dBFS', cls: 'view', value: st.floor, options: cfg.floors.map((v) => ({ v, label: minusText(v) })),
         onChange: (v) => { st.floor = Number(v); paintLvScale(); } })),
     ),
     h('div.lvwrap', {}, lvScale, bars.map((b) => b.el), h('div.lvtab', {},
@@ -244,8 +245,8 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
       ...khzTicks().slice(1).map((f) => s('line', { x1: xOf(f), x2: xOf(f), y1: 0, y2: SH })),
     );
     sY.replaceChildren(...dbs.map((d, i) => h('span', {
-      style: `top:${pct(yOf(d) / SH)}`, class: [i === 0 && 'first', i === dbs.length - 1 && 'last'].filter(Boolean).join(' '),
-      text: d === 0 ? '0 dBFS' : minus(d),
+      style: `top:${pct(yOf(d) / SH)}`, class: classNames(i === 0 && 'first', i === dbs.length - 1 && 'last'),
+      text: d === 0 ? '0 dBFS' : minusText(d),
     })));
     sX.replaceChildren(...freqLabels((f) => xOf(f) / SW, 'x'));
   }
@@ -257,7 +258,7 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
     const i = Math.round(fx * (BINS - 1));
     cross.setAttribute('x1', fx * SW); cross.setAttribute('x2', fx * SW); cross.setAttribute('visibility', 'visible');
     readout.hidden = false;
-    readout.textContent = `${(binHz[i] / 1000).toFixed(2)} kHz · ${minus(sp.disp[i].toFixed(1))} dBFS`;
+    readout.textContent = `${(binHz[i] / 1000).toFixed(2)} kHz · ${minusText(sp.disp[i].toFixed(1))} dBFS`;
   });
   svg.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); readout.hidden = true; });
 
@@ -298,7 +299,7 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
     const all = st.window === 'all';
     const step = [5, 10, 15, 30, 60, 120, 300].find((v) => spanS / v <= 5) || 600;
     const inMin = spanS > 120;
-    const fmt = (sec) => (inMin ? `${minus(+(sec / 60).toFixed(1))} min` : `${minus(Math.round(sec))} s`);
+    const fmt = (sec) => (inMin ? `${minusText(+(sec / 60).toFixed(1))} min` : `${minusText(Math.round(sec))} s`);
     const labels = [];
     if (all) {
       // Absolute track position, track start at the left edge.
@@ -310,7 +311,7 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
       labels.push([1, fmt(0)]);
     }
     tAxis.replaceChildren(...labels.map(([f, txt], i) => h('span', {
-      style: `left:${pct(f)}`, class: [i === 0 && 'first', i === labels.length - 1 && 'last'].filter(Boolean).join(' '), text: txt,
+      style: `left:${pct(f)}`, class: classNames(i === 0 && 'first', i === labels.length - 1 && 'last'), text: txt,
     })));
   }
 
@@ -337,8 +338,8 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
   const frac = (db) => Math.max(0, Math.min(1, (db - st.floor) / -st.floor));
   function paintLvScale() {
     lvScale.replaceChildren(...LEVEL_TICKS[String(st.floor)].map((d, i, a) => h('span', {
-      style: `top:${pct(1 - frac(d))}`, class: [i === 0 && 'first', i === a.length - 1 && 'last'].filter(Boolean).join(' '),
-      text: d === 0 ? '0 dBFS' : minus(d),
+      style: `top:${pct(1 - frac(d))}`, class: classNames(i === 0 && 'first', i === a.length - 1 && 'last'),
+      text: d === 0 ? '0 dBFS' : minusText(d),
     })));
   }
   let lv = bars.map(() => ({ peak: -60, rms: -60, hold: -60, holdAt: 0 }));
@@ -350,8 +351,8 @@ export function mountSourceMeter(host, cfg, clock = PLATFORM) {
       b.pk.style.height = pct(frac(v.peak));
       b.rm.style.height = pct(frac(v.rms));
       b.hd.style.bottom = pct(frac(v.hold));
-      cells[ch].peak.textContent = minus(v.hold.toFixed(1));
-      cells[ch].rms.textContent = minus(v.rms.toFixed(1));
+      cells[ch].peak.textContent = minusText(v.hold.toFixed(1));
+      cells[ch].rms.textContent = minusText(v.rms.toFixed(1));
     });
   }
 
@@ -399,7 +400,6 @@ function ctl(label, unit, control) {
 const chName = (i) => ['L', 'R'][i] ?? String(i + 1);
 const dB = (p) => 10 * Math.log10(p);
 const pct = (f) => (f * 100).toFixed(2) + '%';
-const minus = (v) => String(v).replace('-', '−');
 
 function rgb(hex, fallback) {
   const m = hex.trim().replace('#', '');

@@ -8,9 +8,9 @@
 
 import { h, s } from '../lib/dom.js';
 import { withXref } from '../lib/xref.js';
+import { minus } from '../model/format.js';
 
 const CX = 0, CY = 0, HEAD = 13, R_MAX = 122, DIST_FULL = 600, SUB_OUT = 1.35, SUB_MAX = 140;
-const fmt1 = (v) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
 
 /**
  * @param {HTMLElement} host
@@ -73,7 +73,7 @@ export function mountSpeakers(host, cfg, ctx, onSet) {
           p.i === 3 ? s('rect', { x: -9, y: -9, width: 18, height: 18, rx: 2 })
             : [s('rect', { x: -10, y: -8, width: 20, height: 16, rx: 2 }), s('circle.drv', { cx: 0, cy: 3.5, r: 3 })]),
         s('text.sl', { x: p.x, y: p.y + 22, 'text-anchor': 'middle', text: p.c.short }),
-        s('text.sv', { x: p.x, y: p.y + 33, 'text-anchor': 'middle', text: fmt1(p.c.level) }))),
+        s('text.sv', { x: p.x, y: p.y + 33, 'text-anchor': 'middle', text: minus(p.c.level, 1) }))),
     ].flat(2).filter(Boolean));
   }
 

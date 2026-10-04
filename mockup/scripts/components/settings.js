@@ -11,6 +11,8 @@
 import { h } from '../lib/dom.js';
 import { PLATFORM } from '../lib/clock.js';
 import { revertAfter } from '../model/timing.js';
+import { minusText } from '../model/format.js';
+import { optionOf } from '../model/options.js';
 import { anyOpen } from '../lib/popover.js';
 import { mountDrawer, closeOthers } from './drawer.js';
 import { setOptionStyle } from './vselect.js';
@@ -120,10 +122,10 @@ function controlsOf(schema) {
 
 /** How a readout prints a value: the control's own option label (+ unit), the number, the path, the accent's name. */
 function fmtOf(c) {
-  if (c.type === 'seg' || c.type === 'select') return (v) => { const o = c.options.find((x) => String(x.v) === v); return o ? o.label + (o.unit ? ' ' + o.unit : '') : v; };
+  if (c.type === 'seg' || c.type === 'select') return (v) => { const o = optionOf(c.options, v); return o ? o.label + (o.unit ? ' ' + o.unit : '') : v; };
   if (c.type === 'toggles') return (v) => (v ? c.options.filter((o) => v.split(',').includes(o.v)).map((o) => o.label.replace(/ /g, '\u00a0')).join(' · ') : 'None');
   if (c.type === 'slider') return (v) => (c.auto && v === String(c.auto.v) ? 'Automatic' : v);   // v1's own word for 0
-  if (c.type === 'number') return (v) => v.replace('-', '−');
+  if (c.type === 'number') return (v) => minusText(v);
   if (c.type === 'accent') return (v) => {
     const o = ACCENTS.find((x) => x.v === v);
     return [h('i.sw', { style: `--sw:${o ? o.hex : v}` }), o ? o.label : v];

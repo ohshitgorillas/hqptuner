@@ -24,12 +24,11 @@ import { pipeH, cplx, toDb } from '../lib/xdsp.js';
 import { processSpec, parseProcess } from '../lib/procspec.js';
 import { structuralRows, compRows } from '../lib/xblocks.js';
 import { chShort, chName, PMAN, IIR_TYPES, ARG_NAME, ARG_UNIT, DELAY_ARGS, DELAY_V, KINDS, AUTOEQ } from '../data/pipelines.js';
+import { classNames, minus, signed } from '../model/format.js';
 
 const PAGE = 6, MAXP = 128;
 const PEQ_TYPES = new Set(['peak', 'lshelf', 'hshelf']);
 const BLOCK_NAME = { structural: 'Structural Crossfeed', comp: 'Bauer Crossfeed compensation' };
-const mi = (v) => (v < 0 ? '−' : '') + Math.abs(v);
-const fmtG = (v, dp = 1) => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(dp);
 const fmtHz = (f) => (f >= 1000 ? `${+(f / 1000).toFixed(2)}k` : `${+f}`);
 const range = (n) => Array.from({ length: n }, (_, k) => k);
 const xref = (go, label) => h('a.xref', { href: '#', on: { click: (e) => { e.preventDefault(); go(); } } }, label, h('span', { 'aria-hidden': 'true', text: ' ›' }));
@@ -54,7 +53,7 @@ function chipText(p, gr) {
     case 'iir': return st.type === 'biquad' ? 'biquad' : `${st.type} ${fmtHz(st.f)} Hz`;
     case 'delay': return st.t !== undefined ? `delay ${+(st.t * 1000).toFixed(2)} ms` : st.s !== undefined ? `delay ${st.s} samples` : `delay ${st.d} m`;
     case 'riaa': return 'riaa';
-    case 'gain': return p.unit === 'Lin' ? `Lin ${mi(+(+p.gain).toFixed(3))}` : `${fmtG(+p.gain)} dB`;
+    case 'gain': return p.unit === 'Lin' ? `Lin ${minus(+(+p.gain).toFixed(3))}` : `${signed(+p.gain, 1)} dB`;
   }
   return st.file ? st.file.split('/').pop() : gr.kind;
 }
@@ -203,9 +202,9 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       const on = here.length > 0, first = here[0]?.[0];
       const gen = here.find(([p]) => p.gen)?.[0]?.gen;
       const neg = here.some(([p]) => p.unit === 'Lin' && p.gain < 0);
-      const label = !on ? '' : here.length > 1 ? `×${here.length}` : first.unit === 'Lin' ? mi(+(+first.gain).toFixed(3)) : `${fmtG(+first.gain)} dB`;
+      const label = !on ? '' : here.length > 1 ? `×${here.length}` : first.unit === 'Lin' ? minus(+(+first.gain).toFixed(3)) : `${signed(+first.gain, 1)} dB`;
       return h('button.pin.opin', {
-        type: 'button', class: [on && 'on', gen && 'gen'].filter(Boolean).join(' '), style: `width:${size}px;height:${size}px`,
+        type: 'button', class: classNames(on && 'on', gen && 'gen'), style: `width:${size}px;height:${size}px`,
         'aria-label': `${chName(src)} to ${chName(mix)}${on ? `, ${here.length} pipeline${here.length > 1 ? 's' : ''}` : ', empty'}`,
         on: { click: () => {
           if (!on) { pipes.push({ src, mix, gain: 0, unit: 'dB', stages: [] }); stage(ctx); }
@@ -332,7 +331,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
         return el;
       }
       const p = x.p;
-      return h('div.plrow', { class: [x.i === selPipe && 'sel', x.inBlock && 'inblk'].filter(Boolean).join(' '), role: 'option',
+      return h('div.plrow', { class: classNames(x.i === selPipe && 'sel', x.inBlock && 'inblk'), role: 'option',
         'aria-selected': String(x.i === selPipe), on: { click: () => pick(x.i) } },
         h('span.ppn', { text: `#${x.i + 1}` }),
         h('span.plc', { text: raw.has(p) ? processSpec(p.stages) : rowText(p) }),
@@ -372,7 +371,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
     }
     function chip(p, gr, gi) {
       const locked = p.gen && (gr.kind === 'gain' || !!p.stages[gr.idx[0]]?.blk);
-      const cls = [`k-${gr.kind}`, gi === selChip && 'sel', locked && 'lock'].filter(Boolean).join(' ');
+      const cls = classNames(`k-${gr.kind}`, gi === selChip && 'sel', locked && 'lock');
       const pick = () => { selChip = gi; selBand = 0; paintOut(); };
       if (p.gen || gr.kind === 'gain') return h('button.chip', { type: 'button', class: cls, on: { click: pick } }, chipText(p, gr));
       // Every removable pill carries its own ×: the one place a stage is removed.
@@ -477,7 +476,7 @@ export function createPipelines(cfg, { bypassed, plate, openCrossfeed, goTab }) 
       const st = p.stages[gr.idx[0]];
       const right = xref(openCrossfeed, BLOCK_NAME[p.gen]);
       const ro = (txt) => h('span.vfd.pfile.pro', { text: txt });
-      if (gr.kind === 'gain') return { right, values: [h('div.pfield', {}, lab('Gain'), ro(mi(+p.gain)), h('span.u.pu', { text: p.unit }))], copy: paras(PMAN.gain) };
+      if (gr.kind === 'gain') return { right, values: [h('div.pfield', {}, lab('Gain'), ro(minus(+p.gain)), h('span.u.pu', { text: p.unit }))], copy: paras(PMAN.gain) };
       if (gr.kind === 'delay') {
         const a = DELAY_ARGS.find((x) => st[x.a] !== undefined);
         return { right, values: [h('div.pfield', {}, lab('Delay'), ro(`${a.a}=${st[a.a]}`), h('span.u.pu', { text: a.unit }))], copy: [tline(a.a, a.d), ...paras(PMAN.delay)] };

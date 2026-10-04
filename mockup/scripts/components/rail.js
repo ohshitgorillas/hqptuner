@@ -12,6 +12,7 @@
 
 import { h } from '../lib/dom.js';
 import { scale } from '../lib/plate.js';
+import { classNames } from '../model/format.js';
 
 const CHAMFER = 5;
 
@@ -27,7 +28,7 @@ export function mountRail(rail, chain, style, bus) {
   for (const st of chain) {
     const btn = h('button.st', {
       type: 'button',
-      class: [st.level >= 1 && 'sub', st.level === 2 && 'sub2', !st.on && 'off'].filter(Boolean).join(' '),
+      class: classNames(st.level >= 1 && 'sub', st.level === 2 && 'sub2', !st.on && 'off'),
       data: { stage: st.id, level: st.level },
     },
       h('span.lamp', { class: st.on && 'on' }),

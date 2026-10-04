@@ -3,7 +3,7 @@
 // the trace. Geometry from model/plot-axes.js; the SVG fills its box and redraws on resize.
 
 import { s } from './dom.js';
-import { signedDb } from './gauge.js';
+import { signed } from '../model/format.js';
 import { GUTTER, PAD, round1 as r } from '../model/plot-axes.js';
 
 const hzLabel = (f) => (f >= 1000 ? f / 1000 + 'k' : String(f));
@@ -48,7 +48,7 @@ export function plotGrid({ x, y, lo, hi, x0, x1, yb }, grid) {
  */
 export function plotLabels({ x, y, H, x0, x1 }, grid) {
   return s('g.lbl', {},
-    grid.labels.map((d) => s('text', { x: GUTTER - 5, y: r(y(d) + 3), 'text-anchor': 'end', text: signedDb(d) })),
+    grid.labels.map((d) => s('text', { x: GUTTER - 5, y: r(y(d) + 3), 'text-anchor': 'end', text: signed(d) })),
     s('text', { x: GUTTER - 5, y: H - 4, 'text-anchor': 'end', text: 'dB' }),
     s('text', { x: x0, y: H - 4, text: '20 Hz' }),
     [100, 1000, 10000].map((f) => s('text', { x: r(x(f)), y: H - 4, 'text-anchor': 'middle', text: hzLabel(f) })),

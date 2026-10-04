@@ -1,5 +1,7 @@
 // Tiny DOM helpers. No framework: the mockup stays readable as plain markup + data.
 
+import { classNames } from '../model/format.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -45,7 +47,7 @@ function build(create, tag, attrs, kids) {
   const classes = [...tag.matchAll(/\.([^.#]+)/g)].map((m) => m[1]);
   const el = create(name);
   if (id) el.id = id;
-  const cls = [...classes, attrs.class].filter(Boolean).join(' ');
+  const cls = classNames(...classes, attrs.class);
   if (cls) el.setAttribute('class', cls);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') continue;

@@ -5,7 +5,7 @@
 
 import { h, s } from './dom.js';
 import { scale } from './plate.js';
-import { signedDb } from './gauge.js';
+import { signed } from '../model/format.js';
 import { barValueAt, barX, labelAnchor } from '../model/range-axis.js';
 
 /**
@@ -16,9 +16,6 @@ import { barValueAt, barX, labelAnchor } from '../model/range-axis.js';
  * @property {number} padX   track inset, room for the end labels
  * @property {{ bar: number, barH: number, tick: number, label: number }} Y  row tops in px
  */
-
-/** Playback volume, engine-row style: signed, one decimal. */
-export const fmtLevel = (v) => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(1);
 
 /** Small key glyphs shared by the boxes and the bar, so each mark is named where it's typed. */
 export function keyGlyph(kind) {
@@ -77,7 +74,7 @@ export function barMarks(W, { axis, padX, Y }) {
       const xx = x(d), bow = 5 * dir;
       return s('path', { class: cls, d: `M${xx},${by - 7} Q${xx - bow},${by + bh / 2} ${xx},${by + bh + 7}` });
     },
-    bubble: (v) => s('text.bub', { x: x(v), y: Y.label, 'text-anchor': 'middle', text: `${signedDb(v)} dBFS` }),
+    bubble: (v) => s('text.bub', { x: x(v), y: Y.label, 'text-anchor': 'middle', text: `${signed(v)} dBFS` }),
   };
 }
 

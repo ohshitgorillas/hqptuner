@@ -25,6 +25,7 @@ import { mountBuilder, nameInput } from '../lib/builder.js';
 import { NEW, homeOf } from '../model/builder.js';
 import { SNAP_ROWS, SNAP_COPY } from '../data/snapshots.js';
 import { CHAIN_NAMES } from '../data/conversion.js';
+import { classNames } from '../model/format.js';
 
 const CHAIN_IDS = ['1x', 'nx', 'sh'];
 const isChain = (id) => CHAIN_IDS.includes(id);
@@ -139,7 +140,7 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
     const isCur = (c) => B.K(c) === B.K(cur) || (cur.name !== NEW && c.name === (e.name || cur.name) && e.stations.includes(c.st));
     const entry = (st, name) => {
       const c = { st, name };
-      return h('button.st.bst', { type: 'button', class: [isCur(c) && 'open', dirtyOf(c) && 'dirty'].filter(Boolean).join(' '),
+      return h('button.st.bst', { type: 'button', class: classNames(isCur(c) && 'open', dirtyOf(c) && 'dirty'),
         aria: { current: isCur(c) }, title: name, on: { click: () => B.go(c) } },
         h('span.n', { text: name }));
     };
@@ -167,7 +168,7 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
         const isOpen = st.name === openSt;
         const lit = [...B.staged.keys()].some((k) => k.startsWith(st.name + '\u0001'));   // holds unsaved edits
         return [
-          h('button.brh', { type: 'button', class: [st.name === home && 'cur', lit && 'dirty'].filter(Boolean).join(' '),
+          h('button.brh', { type: 'button', class: classNames(st.name === home && 'cur', lit && 'dirty'),
             aria: { expanded: isOpen }, on: { click: () => { openSt = isOpen ? null : st.name; paintRail(); } } },
             h('span.chv', { text: isOpen ? '▾' : '▸' }), h('span.sn', { text: st.name }), h('span.ln'), h('span.cnt', { text: String(n) })),
           ...(isOpen ? pageItems(st.name, Object.keys(book[st.name])).map((name) => entry(st.name, name)) : []),
@@ -176,7 +177,7 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
           ...(isOpen ? pager(st.name, n) : []),
         ];
       }),
-      h('button.st.bst.bnew', { type: 'button', class: [isCur(nw) && 'open', dirtyOf(nw) && 'dirty'].filter(Boolean).join(' '),
+      h('button.st.bst.bnew', { type: 'button', class: classNames(isCur(nw) && 'open', dirtyOf(nw) && 'dirty'),
         on: { click: () => B.go(nw) } }, h('span.n', {}, h('span.plus', { text: '+' }), 'New snapshot')),
     );
   }
@@ -260,7 +261,7 @@ export function mountSnapshotBuilder({ btn, chain, body, rail, page, settings, b
       on: { click: () => set(row.id === 'mode' ? live().run : lv.v) } });
 
     const liveTxt = labelOf(row, e, lv.v);
-    return h('div.brow', { class: [!row.stage && 'cont', !on && 'off'].filter(Boolean).join(' '), data: { id: row.id } },
+    return h('div.brow', { class: classNames(!row.stage && 'cont', !on && 'off'), data: { id: row.id } },
       box,
       h('div.bset', {},
         row.stage && h('span.bst2', { text: row.stage }),

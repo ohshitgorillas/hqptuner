@@ -17,8 +17,9 @@
 
 import { h, s } from '../lib/dom.js';
 import { withXref } from '../lib/xref.js';
-import { paintSvg, signedDb as fmtDb } from '../lib/gauge.js';
-import { barMarks, bindBar, fmtLevel, rangeBox, readout } from '../lib/range-bar.js';
+import { paintSvg } from '../lib/gauge.js';
+import { barMarks, bindBar, rangeBox, readout } from '../lib/range-bar.js';
+import { signed } from '../model/format.js';
 import { clampVolume, pickVolumeHandle, tickMarks, ticksEvery } from '../model/range-axis.js';
 
 const PADX = 16;                       // track inset, room for the end labels
@@ -46,7 +47,7 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
   // Every mark on the bar is named once, beside its own glyph: the volume marks in the box stack (Playback is a
   // live readout, not a box), the loudness bounds in their own row (read-only here; set in the Loudness drawer).
   const levelOut = h('output.vfd.ro.live', { 'aria-label': 'Playback volume' });
-  const bound = (v) => h('output.vfd.ro', { text: fmtDb(v) });
+  const bound = (v) => h('output.vfd.ro', { text: signed(v) });
   const lowOut = bound(loudness.low), highOut = bound(loudness.high);
 
   const reason = h('span.gr', { hidden: true });
@@ -75,7 +76,7 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
 
   // Drag: nearest handle; the pin row (above the bar) prefers Startup.
   const BAR = { axis, padX: PADX, Y };
-  const LABELS = new Map([[-120, '−120 dB'], [-90, '−90'], [-60, '−60'], [-30, '−30'], [-3, '−3'], [0, '0'], [axis.max, fmtDb(axis.max)]]);
+  const LABELS = new Map([[-120, '−120 dB'], [-90, '−90'], [-60, '−60'], [-30, '−30'], [-3, '−3'], [0, '0'], [axis.max, signed(axis.max)]]);
   const MARKS = tickMarks([...ticksEvery(axis.min, 0, 10), -3, axis.max], LABELS, [0, -3]);
   const bar = bindBar(svg, { ...BAR, blocked: () => grayed, pick: (db, yTop) => pickVolumeHandle(db, yTop, cur, Y.bar - 2),
     move, draw, grab: () => svg.classList.add('drag'), drop: () => svg.classList.remove('drag') });
@@ -138,11 +139,11 @@ export function mountVolumeRange(host, cfg, ctx, levelBus) {
     reason.hidden = !why;
   });
 
-  const paintLevel = () => { levelOut.textContent = level === null ? '—' : fmtLevel(level); };
+  const paintLevel = () => { levelOut.textContent = level === null ? '—' : signed(level, 1); };
   levelBus.addEventListener('level', (e) => { level = e.detail; paintLevel(); draw(); });
   // Loudness applied (Loudness drawer, mock Apply): the bounds and their visibility follow.
   levelBus.addEventListener('loudness', () => {
-    lowOut.textContent = fmtDb(loudness.low); highOut.textContent = fmtDb(loudness.high);
+    lowOut.textContent = signed(loudness.low); highOut.textContent = signed(loudness.high);
     host.querySelector('.vrloud .vrboxes').hidden = !loudness.on;
     draw();
   });

@@ -21,8 +21,8 @@ import { seg, select } from './seg.js';
 import { mountRespPlot } from './resp-plot.js';
 import { BAUER_PRESETS, bauerMS, pathParams, toDb } from '../lib/xdsp.js';
 import { withXref } from '../lib/xref.js';
+import { minus, plusMinus } from '../model/format.js';
 
-const fmt = (v, d = 1) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
 const OFF_REASON = 'Enable crossfeed to adjust.';   // v1 gray.js crossfeedOff
 
 /**
@@ -154,8 +154,8 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
     }
     // Folded summaries: what the line would install (engine names / numbers, no new words).
     const [fc, fd] = bauerFc();
-    lines[0].sum.textContent = `${presetName(st.preset)} · ${fc} Hz · ${fmt(fd)} dB · ${Math.round(st.comp)}%`;
-    lines[1].sum.textContent = `${sMatch()?.label || 'Custom'} · ${fmt(st.angle)}° · ${fmt(st.circ, 2)} cm · ${Math.round(st.lambda * 100)}%`;
+    lines[0].sum.textContent = `${presetName(st.preset)} · ${fc} Hz · ${minus(fd, 1)} dB · ${Math.round(st.comp)}%`;
+    lines[1].sum.textContent = `${sMatch()?.label || 'Custom'} · ${minus(st.angle, 1)}° · ${minus(st.circ, 2)} cm · ${Math.round(st.lambda * 100)}%`;
     select(presetSeg, st.preset);
     freq.input.value = st.freq; level.input.value = st.level;
     comp.paint(); angle.paint(); circ.paint(); lambda.paint();
@@ -187,7 +187,7 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
     if (bauer) {
       const [fc, feed] = bauerFc();
       const k = st.comp / 100;
-      tilt.textContent = `crossfeed dulls the center by ${fmt(-toDb(bauerMS(fc, feed, 20000).mid))} dB`;   // v1 Comp.js readout
+      tilt.textContent = `crossfeed dulls the center by ${minus(-toDb(bauerMS(fc, feed, 20000).mid), 1)} dB`;   // v1 Comp.js readout
       rp.draw([
         k > 0 && { cls: 'ghost', label: 'center, uncorrected', fn: (f) => toDb(bauerMS(fc, feed, f).mid) },
         { label: k > 0 ? `center, corrected ${Math.round(st.comp)}%` : 'center, uncorrected', fn: (f) => (1 - k) * toDb(bauerMS(fc, feed, f).mid) },
@@ -222,14 +222,14 @@ export function mountCrossfeed(host, cfg, ctx, bypassed) {
     const pp = pathParams(st.angle, a / 100);
     RO.itd.v.textContent = `${Math.round(pp.itd * 1e6)} µs`;
     RO.itd.sub.textContent = ` · ${Math.round((pp.itd + pp.gdF - pp.gdN) * 1e6)} µs at low frequencies`;
-    RO.far.v.textContent = `${fmt(20 * Math.log10(pp.af))} dB`;
+    RO.far.v.textContent = `${minus(20 * Math.log10(pp.af), 1)} dB`;
     const cs = 20 * Math.log10(st.lambda * (pp.an + pp.af) / 2 + (1 - st.lambda));
-    RO.center.v.textContent = `${cs >= 0 ? '+' : '−'}${Math.abs(cs).toFixed(2)} dB`;
+    RO.center.v.textContent = `${plusMinus(cs, 2)} dB`;
     diagram.replaceChildren(...[
       s('line.axis', { x1: CX, y1: CY - r, x2: CX, y2: CY - R - 14 }),
       ref,
       s('path.arc', { d: `M${CX},${CY - 40} A40,40 0 0 1 ${at(st.angle, 40).map((v) => v.toFixed(1)).join(',')}` }),
-      s('text.ang', { x: ax, y: ay, 'text-anchor': 'middle', text: `${fmt(st.angle)}°` }),
+      s('text.ang', { x: ax, y: ay, 'text-anchor': 'middle', text: `${minus(st.angle, 1)}°` }),
       // Far paths first (dashed, under), then near paths (solid).
       s('path.far', { d: farPath(spk[0].p, earR, 1) }),
       s('path.far', { d: farPath(spk[1].p, earL, 0) }),

@@ -14,6 +14,7 @@
 // every `relayout` (railSet emits one), so the map follows Apply without its own wiring.
 
 import { h, s } from '../lib/dom.js';
+import { classNames } from '../model/format.js';
 
 const W = 1040, H = 606;
 const ZONE_Y = 22;   // the rate zones' labels
@@ -146,7 +147,7 @@ export function mountSignalPath(host, bus) {
   }
 
   for (const [id, n] of Object.entries(N)) {
-    const g = s('g.sgn', { class: [n.src && 'src', n.unv && 'unv'].filter(Boolean).join(' ') });
+    const g = s('g.sgn', { class: classNames(n.src && 'src', n.unv && 'unv') });
     g.append(s('rect', { x: L(n), y: T(n), width: NW, height: NH, rx: n.src ? NH / 2 : 4 }));
     g.append(s('rect.hx', { x: L(n), y: T(n), width: NW, height: NH, rx: 4 }));
     const ty = n.sub ? n.y - 3 : n.y + 6;

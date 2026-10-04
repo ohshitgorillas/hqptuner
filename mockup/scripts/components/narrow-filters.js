@@ -9,6 +9,7 @@ import { toPlate, PLATE_W } from '../lib/plate.js';
 import { seg, select } from './seg.js';
 import { BAR, MOD_BAR, DITHER_BAR } from '../data/narrow-facets.js';
 import { apodMark } from '../lib/apod.js';
+import { optionOf } from '../model/options.js';
 import { defaults, state, change, reset, subscribe, preview, count, chainList } from '../lib/narrow.js';
 
 /** Hint paragraphs: strings or [bold lead-in, rest]; `prefix` opens the first with "HQPTuner Hints:". */
@@ -26,7 +27,7 @@ function stateText(f, st, stage) {
     const v = st[stage === 'nx' ? 'apodNx' : 'apod1x'];
     return v === 'only' ? [apodMark('full'), ' only'] : v === 'half' ? [apodMark('full'), ' + ', apodMark('half')] : '';
   }
-  if (f.kind === 'seg') return f.rows.map((r) => (String(st[r.key]) === String(r.options[0].v) ? '' : r.options.find((o) => String(o.v) === String(st[r.key])).label)).filter(Boolean).join(' · ');
+  if (f.kind === 'seg') return f.rows.map((r) => (String(st[r.key]) === String(r.options[0].v) ? '' : optionOf(r.options, st[r.key]).label)).filter(Boolean).join(' · ');
   if (f.kind === 'chips') {
     const sel = st[f.key];
     if (!sel.length) return '';

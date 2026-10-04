@@ -16,6 +16,7 @@ import {
   NEW, OVERVIEW, keyOf, shownName, nextStep, prevStep, dirtyAt, stashed, stateOf, toggleStation, heldAt, savePlan,
   savedTo, removedFrom,
 } from '../model/builder.js';
+import { classNames } from '../model/format.js';
 
 /** @typedef {import('../model/builder.js').Ref} Ref */
 /** @typedef {'overview' | 'here' | null} View  where a repaint lands: the overview, the page showing, or the same view */
@@ -354,7 +355,7 @@ export const drow = (label, ctl, man, { cls, extra, inline } = {}) => h('div.dro
  * @param {(id: string) => boolean} [out]  a stage outside it the builder still touches
  */
 export const chainPic = (label, lit, out = () => false) => h('ol.pbchain', { 'aria-label': label },
-  CHAIN.map((st) => h('li', { class: [lit(st.id) && 'mx', out(st.id) && 'out', st.level && 'sub'].filter(Boolean).join(' ') },
+  CHAIN.map((st) => h('li', { class: classNames(lit(st.id) && 'mx', out(st.id) && 'out', st.level && 'sub') },
     h('span.d'), h('span', { text: st.name }))));
 
 /**

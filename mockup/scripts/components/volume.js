@@ -18,11 +18,12 @@ import { popover } from '../lib/popover.js';
 import { toPlate, PLATE_W } from '../lib/plate.js';
 import { PLATFORM } from '../lib/clock.js';
 import { holdRepeat } from '../model/timing.js';
+import { minus } from '../model/format.js';
 
 const HOLD_DELAY = 400;   // ms before a held ± starts repeating
 const HOLD_RATE = 70;     // ms between repeats
 
-const fmt = (v) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + ' dB';
+const fmt = (v) => minus(v, 1) + ' dB';
 
 /**
  * @param {HTMLElement} plate
