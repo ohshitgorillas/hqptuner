@@ -28,7 +28,7 @@ from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.frames import parse_frame
 from hqptuner.lanes.live.lane import mode_then_split, reassert_chain, remember_routed
 from hqptuner.lanes.live.snapshot import ChainUnknownError, live_snapshot
-from hqptuner.lanes.rescan import ReplayOutcome, replay
+from hqptuner.lanes.rescan import ReplayOutcome, ReplayResult, replay
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteOutcome
 
 #: A snapshot holding two stored profiles, each with a body of its own.
@@ -102,17 +102,22 @@ def test_matrix_body_span_selects_the_body_and_refuses_a_bodyless_element(
     assert _body_or_error(locate, xml) == expected
 
 
-def _found_body(xml: bytes) -> bytes | None:
-    """The bytes the found span selects from ``xml``, or None where no body was found."""
+#: What ``_found_body`` answers where the locator found no body: a ``str``, so no
+#: bytes the span could select from a snapshot can ever equal it.
+NO_BODY = "no body found"
+
+
+def _found_body(xml: bytes) -> bytes | str:
+    """The bytes the found span selects from ``xml``, or ``NO_BODY`` where no body was found."""
     span = find_matrix_body_span(xml)
-    return None if span is None else xml[span[0] : span[1]]
+    return NO_BODY if span is None else xml[span[0] : span[1]]
 
 
 @pytest.mark.parametrize(
-    ("xml", "body"), [(b"<matrix><a/></matrix>", b"<a/>"), (b"<matrix/>", None)], ids=["body", "self-closing"]
+    ("xml", "body"), [(b"<matrix><a/></matrix>", b"<a/>"), (b"<matrix/>", NO_BODY)], ids=["body", "self-closing"]
 )
 def test_find_matrix_body_span_locates_the_body_and_answers_absent_without_raising(
-    xml: bytes, body: bytes | None
+    xml: bytes, body: bytes | str
 ) -> None:
     assert _found_body(xml) == body
 
@@ -143,38 +148,60 @@ async def _loaded(manager: ConnectionManager) -> dict[str, Any]:
     raise FixtureError(reason="the manager never loaded the fake engine")
 
 
-async def test_a_replay_with_no_daemon_restores_nothing_and_says_the_engine_is_gone(
+async def test_a_replay_with_no_daemon_says_the_engine_is_gone(dead_manager: ConnectionManager) -> None:
+    assert (await replay(dead_manager, dict(DITHER_NS9))).outcome is ReplayOutcome.UNREACHABLE
+
+
+async def _replayed(live_manager: LiveManager, overrides: dict[str, str], fields: dict[str, str]) -> ReplayResult:
+    """Replay ``fields`` onto a loaded manager whose fake daemon carries ``overrides``."""
+    manager, _log, _state = await live_manager(**overrides)
+    await _loaded(manager)
+    return await replay(manager, dict(fields))
+
+
+async def test_a_replay_of_fields_the_engine_already_holds_warns_of_nothing(live_manager: LiveManager) -> None:
+    assert (await _replayed(live_manager, {}, {"dither": "0"})).outcome is ReplayOutcome.NOTHING_TO_RESTORE
+
+
+async def test_a_replay_the_daemon_refuses_warns_of_the_loss(live_manager: LiveManager) -> None:
+    assert (await _replayed(live_manager, {"_error": "SetShaping"}, DITHER_NS9)).outcome is ReplayOutcome.WRITE_FAILED
+
+
+async def test_a_replay_whose_readback_disagrees_warns_of_the_loss(live_manager: LiveManager) -> None:
+    assert (await _replayed(live_manager, {"_deaf": "SetShaping"}, DITHER_NS9)).outcome is ReplayOutcome.WRITE_FAILED
+
+
+async def _replayed_on(
+    live_manager: LiveManager, dead_manager: ConnectionManager, overrides: dict[str, str] | None, fields: dict[str, str]
+) -> ReplayResult:
+    """Replay ``fields`` onto a loaded manager whose fake daemon carries ``overrides``, or, where
+    ``overrides`` is None, onto the manager with no daemon behind it."""
+    if overrides is None:
+        return await replay(dead_manager, dict(fields))
+    return await _replayed(live_manager, overrides, fields)
+
+
+#: What a replay reports restored: the field whose setter verified, and nothing
+#: where the daemon is gone, or the engine already held it, refused it, or read
+#: back something else.
+RESTORED_FIELDS = [
+    pytest.param({}, DITHER_NS9, DITHER_NS9, id="verified"),
+    pytest.param(None, DITHER_NS9, {}, id="no-daemon"),
+    pytest.param({}, {"dither": "0"}, {}, id="already-held"),
+    pytest.param({"_error": "SetShaping"}, DITHER_NS9, {}, id="refused"),
+    pytest.param({"_deaf": "SetShaping"}, DITHER_NS9, {}, id="readback-disagrees"),
+]
+
+
+@pytest.mark.parametrize(("overrides", "fields", "restored"), RESTORED_FIELDS)
+async def test_a_replay_reports_restored_only_the_fields_whose_setter_verified(
+    live_manager: LiveManager,
     dead_manager: ConnectionManager,
+    overrides: dict[str, str] | None,
+    fields: dict[str, str],
+    restored: dict[str, str],
 ) -> None:
-    result = await replay(dead_manager, dict(DITHER_NS9))
-    assert (result.restored, result.outcome) == ({}, ReplayOutcome.UNREACHABLE)
-
-
-async def test_a_replay_of_fields_the_engine_already_holds_restores_nothing_and_warns_of_nothing(
-    live_manager: LiveManager,
-) -> None:
-    manager, _log, _state = await live_manager()
-    await _loaded(manager)
-    result = await replay(manager, {"dither": "0"})
-    assert (result.restored, result.outcome) == ({}, ReplayOutcome.NOTHING_TO_RESTORE)
-
-
-async def test_a_replay_the_daemon_refuses_restores_nothing_and_warns_of_the_loss(
-    live_manager: LiveManager,
-) -> None:
-    manager, _log, _state = await live_manager(_error="SetShaping")
-    await _loaded(manager)
-    result = await replay(manager, dict(DITHER_NS9))
-    assert (result.restored, result.outcome) == ({}, ReplayOutcome.WRITE_FAILED)
-
-
-async def test_a_replay_whose_readback_disagrees_restores_nothing_and_warns_of_the_loss(
-    live_manager: LiveManager,
-) -> None:
-    manager, _log, _state = await live_manager(_deaf="SetShaping")
-    await _loaded(manager)
-    result = await replay(manager, dict(DITHER_NS9))
-    assert (result.restored, result.outcome) == ({}, ReplayOutcome.WRITE_FAILED)
+    assert (await _replayed_on(live_manager, dead_manager, overrides, fields)).restored == restored
 
 
 # --- the live lane's restore tail and chain memory ----------------------------
@@ -220,23 +247,45 @@ async def manager_and_client(
     await manager.aclose()
 
 
-@pytest.mark.parametrize(
-    ("remembered", "expected"),
-    [
-        pytest.param("5", ([("shaper", LiveWriteOutcome.OK)], {"dither": "5"}), id="value-on-the-list"),
-        pytest.param("999", ([], {}), id="value-off-the-list-is-dropped"),
-    ],
-)
-async def test_reasserting_a_chain_sends_a_listed_value_and_forgets_an_unlisted_one(
-    manager_and_client: tuple[ConnectionManager, ControlClient],
-    remembered: str,
-    expected: tuple[list[tuple[str, LiveWriteOutcome]], dict[str, str]],
-) -> None:
+async def _reasserted(
+    manager_and_client: tuple[ConnectionManager, ControlClient], remembered: str
+) -> list[tuple[str, LiveWriteOutcome]]:
+    """Reassert a PCM chain remembering ``dither`` at ``remembered``; each setter sent, with its outcome."""
     manager, client = manager_and_client
     await _loaded(manager)
     manager.readings.live.chain["pcm"] = {"dither": remembered}
-    report = await reassert_chain(manager, client)
-    assert ([(r.setting, r.outcome) for r in report], manager.readings.live.chain["pcm"]) == expected
+    return [(r.setting, r.outcome) for r in await reassert_chain(manager, client)]
+
+
+@pytest.mark.parametrize(
+    ("remembered", "sent"),
+    [
+        pytest.param("5", [("shaper", LiveWriteOutcome.OK)], id="value-on-the-list"),
+        pytest.param("999", [], id="value-off-the-list"),
+    ],
+)
+async def test_reasserting_a_chain_sends_a_listed_value_and_not_an_unlisted_one(
+    manager_and_client: tuple[ConnectionManager, ControlClient],
+    remembered: str,
+    sent: list[tuple[str, LiveWriteOutcome]],
+) -> None:
+    assert await _reasserted(manager_and_client, remembered) == sent
+
+
+@pytest.mark.parametrize(
+    ("remembered", "kept"),
+    [
+        pytest.param("5", {"dither": "5"}, id="value-on-the-list"),
+        pytest.param("999", {}, id="value-off-the-list-is-dropped"),
+    ],
+)
+async def test_reasserting_a_chain_keeps_a_listed_value_and_forgets_an_unlisted_one(
+    manager_and_client: tuple[ConnectionManager, ControlClient],
+    remembered: str,
+    kept: dict[str, str],
+) -> None:
+    await _reasserted(manager_and_client, remembered)
+    assert manager_and_client[0].readings.live.chain["pcm"] == kept
 
 
 def _readings(
@@ -334,23 +383,22 @@ async def split_reply_client() -> AsyncIterator[ControlClient]:
 
 
 async def test_a_reply_cut_mid_tag_is_read_to_its_end_before_parsing(split_reply_client: ControlClient) -> None:
-    el = await split_reply_client.request("<State/>")
-    assert (el.tag, el.attrib) == ("State", {"result": "OK"})
+    assert (await split_reply_client.request("<State/>")).attrib == {"result": "OK"}
 
 
-def _tag_attrib(el: ET.Element | None) -> tuple[str, dict[str, str]]:
-    """The root's tag and attributes, or an empty pair where nothing parsed."""
-    return (el.tag, dict(el.attrib)) if el is not None else ("", {})
+def _attrib(el: ET.Element | None) -> dict[str, str]:
+    """The root's attributes, or none where nothing parsed."""
+    return dict(el.attrib) if el is not None else {}
 
 
 def test_parse_frame_recovers_the_root_from_a_complete_frame_with_unparseable_children() -> None:
     body = '<Status result="OK"><metadata artist="Foo "Bar""/></Status>'
-    assert _tag_attrib(parse_frame(body)) == ("Status", {"result": "OK"})
+    assert _attrib(parse_frame(body)) == {"result": "OK"}
 
 
 def test_parse_frame_recovers_the_root_from_a_frame_with_an_unescaped_ampersand_attribute() -> None:
     body = '<Status result="Rock & Roll"/>'
-    assert _tag_attrib(parse_frame(body)) == ("Status", {"result": "Rock & Roll"})
+    assert _attrib(parse_frame(body)) == {"result": "Rock & Roll"}
 
 
 def test_parse_frame_raises_control_error_on_a_frame_carrying_an_entity_declaration() -> None:

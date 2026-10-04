@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from conftest import ManagerFactory, minimal_wave
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -71,16 +72,25 @@ def test_parametric_eq_txt_is_accepted(manager: ConnectionManager) -> None:
     assert manager.presetops.park_filter("autoeq.txt", b"Preamp: -6.4 dB")["name"] == "autoeq.txt"
 
 
-async def test_a_successful_apply_clears_the_parking_area_and_a_failed_one_keeps_it(
-    manager: ConnectionManager, http_client: TestClient
+def _apply_pipelines(client: TestClient, pipelines: str, code: str | None) -> None:
+    """Stage and apply that pipeline value through the REST surface, which shares the park on disk;
+    refuse to go on unless the apply answered ``code`` (None: not refused)."""
+    client.post("/api/config/stage", json={"http": {"matrix_pipelines": pipelines}})
+    got = client.post("/api/config/apply").json().get("code")
+    if got != code:
+        raise FixtureError(reason=f"the apply was meant to answer code {code!r}, got {got!r}")
+
+
+APPLY_OUTCOMES = [
+    pytest.param(ROWS, None, [], id="accepted-clears"),
+    pytest.param("not json", "invalid_input", ["data/probe.wav"], id="refused-keeps"),
+]
+
+
+@pytest.mark.parametrize(("pipelines", "code", "expected"), APPLY_OUTCOMES)
+def test_an_apply_clears_the_parking_area_only_when_it_succeeds(
+    manager: ConnectionManager, http_client: TestClient, pipelines: str, code: str | None, expected: list[str]
 ) -> None:
     manager.presetops.park_filter("probe.wav", minimal_wave())
-    await manager.applyops.apply({}, {"matrix_pipelines": ROWS})
-    cleared = manager.presetops.parked_filter_members()
-
-    manager.presetops.park_filter("probe.wav", minimal_wave())
-    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": "not json"}})
-    resp = http_client.post("/api/config/apply")
-    kept = list(manager.presetops.parked_filter_members())
-
-    assert (cleared, resp.json()["code"], kept) == ({}, "invalid_input", ["data/probe.wav"])
+    _apply_pipelines(http_client, pipelines, code)
+    assert list(manager.presetops.parked_filter_members()) == expected

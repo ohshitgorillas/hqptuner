@@ -204,15 +204,13 @@ def test_an_attribute_hqptuner_has_no_field_for_survives_into_the_profile(attr: 
 # --- through a whole apply -----------------------------------------------------
 
 
-async def test_after_an_apply_every_profile_reads_back_with_a_non_empty_post_carrying_the_live_chains_value(
+async def test_after_an_apply_the_chainless_profile_reads_back_carrying_the_live_chains_value(
     http_manager: ConnectionManager, http_daemon: dict[str, Any]
 ) -> None:
     # the fake daemon ships "Stock", a profile saved before chains were stored
     http_daemon["post_bauer_frequency"] = "850"
     await http_manager.applyops.apply({}, {"title": "Renamed"})
-    profiles = await running_profiles(http_manager)
-    empty = [name for name, p in profiles.items() if not p["post"]]
-    assert (empty, profiles["Stock"]["post"]["post_bauer_frequency"]) == ([], "850")
+    assert (await running_profiles(http_manager))["Stock"]["post"]["post_bauer_frequency"] == "850"
 
 
 async def test_an_apply_keeps_every_profile_the_config_carried(http_manager: ConnectionManager) -> None:

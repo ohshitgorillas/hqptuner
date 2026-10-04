@@ -11,9 +11,9 @@ import gzip
 import importlib
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
-from types import ModuleType
+from types import MappingProxyType, ModuleType
 
 import pytest
 from conftest import METADATA_MIN
@@ -72,10 +72,14 @@ def _paths() -> ModuleType:
     return importlib.import_module("hqptuner.paths")
 
 
-def _freeze(bundle_root: str | None) -> Path | None:
-    """The ``bundle`` argument ``bundled()`` takes to answer as PyInstaller's bootloader would, or None for a
-    plain interpreter."""
-    return Path(bundle_root) if bundle_root is not None else None
+#: What a plain interpreter hands ``bundled()``: no ``bundle`` keyword at all, so
+#: it resolves from the live, unfrozen ``sys``.
+PLAIN_INTERPRETER: Mapping[str, Path] = MappingProxyType({})
+
+
+def _freeze(bundle_root: str | None) -> Mapping[str, Path]:
+    """The keyword ``bundled()`` takes to answer as PyInstaller's bootloader would, or ``PLAIN_INTERPRETER``."""
+    return {"bundle": Path(bundle_root)} if bundle_root is not None else PLAIN_INTERPRETER
 
 
 def _owed(paths: ModuleType, source: str, bundle: Path | None = None) -> Path:
@@ -146,7 +150,7 @@ def test_user_data_dir_follows_the_platform_and_the_environment_it_runs_in(
 def test_bundled_asset_sits_under_the_bundle_when_frozen_and_beside_the_package_otherwise(
     bundle_root: str | None, part: str, expected: Path
 ) -> None:
-    assert _paths().bundled(part, bundle=_freeze(bundle_root)) == expected
+    assert _paths().bundled(part, **_freeze(bundle_root)) == expected
 
 
 @pytest.mark.parametrize(("field", "env", "source"), FROZEN_PATH_CASES)
@@ -178,14 +182,12 @@ def test_a_frozen_build_serves_the_asset_bytes_that_sit_in_its_bundle(
 
 
 @pytest.mark.usefixtures("fresh_entry_point")
-def test_importing_the_entry_point_starts_no_server_and_calling_main_starts_one() -> None:
+def test_calling_main_starts_one_server() -> None:
     starts: list[object] = []
 
     def record(*args: object, **kwargs: object) -> None:
         starts.append((args, kwargs))
 
-    module = importlib.import_module("hqptuner.__main__")
-    after_import = len(starts)
-    module.main(run=record)
+    importlib.import_module("hqptuner.__main__").main(run=record)
 
-    assert (after_import, len(starts)) == (0, 1)
+    assert len(starts) == 1

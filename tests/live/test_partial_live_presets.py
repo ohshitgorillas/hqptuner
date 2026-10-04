@@ -9,22 +9,23 @@ routes, every conclusion read back off the engine's own State or the switch's
 own route (docs/testing.md — `result="OK"` is not proof a setter applied).
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
+#: A preset saved with autopilot on, then applied after the switch was turned
+#: off: one that left the switch out leaves it off, one that holds it restores it.
+AUTOPILOT_RECORDS = [
+    pytest.param(["filter"], False, id="saved-without-autopilot"),
+    pytest.param(["filter", "autopilot"], True, id="saved-with-autopilot"),
+]
 
-def test_a_preset_saved_without_autopilot_leaves_the_switch_where_it_is_and_a_preset_saved_with_it_restores_it(
-    live_api: TestClient,
+
+@pytest.mark.parametrize(("fields", "enabled"), AUTOPILOT_RECORDS)
+def test_a_preset_restores_the_autopilot_switch_only_when_saved_with_it(
+    live_api: TestClient, fields: list[str], *, enabled: bool
 ) -> None:
     live_api.post("/api/autopilot", json={"enabled": True})
-    live_api.put("/api/livepresets/Warm", json={"fields": ["filter"]})
+    live_api.put("/api/livepresets/Warm", json={"fields": fields})
     live_api.post("/api/autopilot", json={"enabled": False})
     live_api.post("/api/livepresets/Warm/apply")
-    without_it = live_api.get("/api/autopilot").json()["enabled"]
-
-    live_api.post("/api/autopilot", json={"enabled": True})
-    live_api.put("/api/livepresets/Cold", json={"fields": ["filter", "autopilot"]})
-    live_api.post("/api/autopilot", json={"enabled": False})
-    live_api.post("/api/livepresets/Cold/apply")
-    with_it = live_api.get("/api/autopilot").json()["enabled"]
-
-    assert (without_it, with_it) == (False, True)
+    assert live_api.get("/api/autopilot").json()["enabled"] is enabled

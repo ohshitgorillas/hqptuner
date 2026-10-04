@@ -16,8 +16,10 @@ XML attribute strings HQPTuner's own config reader yields for a plugin field
 
 import json
 import re
+from collections.abc import Callable
 from typing import Any
 
+import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
 
@@ -96,18 +98,77 @@ def test_a_profile_written_from_a_matrix_with_no_chain_stores_the_profile() -> N
     assert "Night" in profiles_of(matrixprofiles.write_profile(NO_CHAIN, save_value("Night", ROW0)))
 
 
-def test_a_profile_with_no_chain_carries_an_empty_post_and_one_with_a_chain_carries_it() -> None:
-    empty = post_of(matrixprofiles.write_profile(NO_CHAIN, save_value("Night", ROW0)), "Night")
-    chained = cfg(post_bauer_frequency="850")
-    with_chain = post_of(matrixprofiles.write_profile(chained, save_value("Night", ROW0)), "Night")
-    assert (empty, with_chain["post_bauer_frequency"]) == ({}, "850")
+#: The post fields the fake's rendered chain supplies, sorted: its correction
+#: stage (enabled, dac0), its bauer stage (enabled, frequency, preset, level) and
+#: its loudness stage (enabled and its ten band attributes).
+FIXTURE_CHAIN_FIELDS = [
+    "post_bauer_enabled",
+    "post_bauer_frequency",
+    "post_bauer_level",
+    "post_bauer_preset",
+    "post_correction_dac0",
+    "post_correction_enabled",
+    "post_loudness_enabled",
+    "post_loudness_highfreq",
+    "post_loudness_highlevel",
+    "post_loudness_highsteep",
+    "post_loudness_hightype",
+    "post_loudness_lowfreq",
+    "post_loudness_lowlevel",
+    "post_loudness_lowsteep",
+    "post_loudness_lowtype",
+    "post_loudness_rangehigh",
+    "post_loudness_rangelow",
+]
+
+#: A live chain with bauer at 850, a frequency the fake's default (700) is not.
+BAUER_850 = cfg(post_bauer_frequency="850")
+
+#: A live chain with loudness switched on, which the fake's default is not.
+LOUDNESS_ON = cfg(post_loudness_enabled=True)
 
 
-def test_a_profile_with_no_matrix_carries_an_empty_post_and_one_with_a_switch_carries_it() -> None:
-    empty = post_of(matrixprofiles.write_profile(BARE, save_value("Night", ROW0)), "Night")
-    switched = cfg(post_loudness_enabled=True)
-    with_switch = post_of(matrixprofiles.write_profile(switched, save_value("Night", ROW0)), "Night")
-    assert (empty, with_switch["post_loudness_enabled"]) == ({}, "1")
+def written_post(snapshot: bytes) -> dict[str, str]:
+    """The post settings of a "Night" profile written over ``snapshot``."""
+    return post_of(matrixprofiles.write_profile(snapshot, save_value("Night", ROW0)), "Night")
+
+
+#: The post fields a written profile carries: none from a matrix with no chain,
+#: every field of the live chain from a matrix that has one.
+CHAIN_CAPTURE = [
+    pytest.param(NO_CHAIN, [], id="no-chain"),
+    pytest.param(BAUER_850, FIXTURE_CHAIN_FIELDS, id="live-chain"),
+]
+
+
+@pytest.mark.parametrize(("snapshot", "expected"), CHAIN_CAPTURE)
+def test_a_written_profile_carries_the_fields_of_the_chain_it_was_saved_from(
+    snapshot: bytes, expected: list[str]
+) -> None:
+    assert sorted(written_post(snapshot)) == expected
+
+
+def test_a_written_profile_carries_the_live_chains_plugin_value() -> None:
+    assert written_post(BAUER_850)["post_bauer_frequency"] == "850"
+
+
+#: The post fields a written profile carries: none from a config with no matrix,
+#: every field of the live chain from a matrix whose switch is on.
+SWITCH_CAPTURE = [
+    pytest.param(BARE, [], id="no-matrix"),
+    pytest.param(LOUDNESS_ON, FIXTURE_CHAIN_FIELDS, id="switched-on"),
+]
+
+
+@pytest.mark.parametrize(("snapshot", "expected"), SWITCH_CAPTURE)
+def test_a_written_profile_carries_the_fields_of_the_matrix_it_was_saved_from(
+    snapshot: bytes, expected: list[str]
+) -> None:
+    assert sorted(written_post(snapshot)) == expected
+
+
+def test_a_written_profile_carries_a_switch_that_was_on_as_on() -> None:
+    assert written_post(LOUDNESS_ON)["post_loudness_enabled"] == "1"
 
 
 # --- writing: the rows are the payload's, not the live matrix's ---------------
@@ -176,14 +237,34 @@ def test_each_profile_reads_back_with_its_own_rows() -> None:
     assert rows_of(twice, "Day")[0]["source"] == "1"
 
 
-def test_a_profile_saved_before_chains_were_stored_reads_back_empty_until_resaved_with_one() -> None:
-    # "Stock" ships in the fake's config as a profile element with rows and no
-    # <post_process> — nothing migrates it, and reading it is not an error
-    empty = profiles_of(cfg_xml(state()))["Stock"]["post"]
-    snapshot = cfg_xml(state(post_bauer_frequency="850"))
-    written = matrixprofiles.write_profile(snapshot, save_value("Stock", ROW0))
-    with_chain = post_of(written, "Stock")
-    assert (empty, with_chain["post_bauer_frequency"]) == ({}, "850")
+def stock_as_shipped() -> bytes:
+    """The fake's config as shipped: "Stock" is a profile element with rows and no
+    ``<post_process>``, saved before chains were stored."""
+    return cfg_xml(state())
+
+
+def stock_resaved_with_a_chain() -> bytes:
+    """The same "Stock" saved again over a live chain with bauer at 850."""
+    return matrixprofiles.write_profile(cfg_xml(state(post_bauer_frequency="850")), save_value("Stock", ROW0))
+
+
+#: Nothing migrates a chainless profile, and reading it is not an error: it
+#: reads back with no post fields until it is resaved over a chain.
+LEGACY_READBACK = [
+    pytest.param(stock_as_shipped, [], id="as-shipped"),
+    pytest.param(stock_resaved_with_a_chain, FIXTURE_CHAIN_FIELDS, id="resaved"),
+]
+
+
+@pytest.mark.parametrize(("snapshot", "expected"), LEGACY_READBACK)
+def test_a_profile_saved_before_chains_were_stored_reads_back_a_chain_only_once_resaved_with_one(
+    snapshot: Callable[[], bytes], expected: list[str]
+) -> None:
+    assert sorted(post_of(snapshot(), "Stock")) == expected
+
+
+def test_a_profile_saved_before_chains_were_stored_reads_back_the_chains_value_once_resaved() -> None:
+    assert post_of(stock_resaved_with_a_chain(), "Stock")["post_bauer_frequency"] == "850"
 
 
 def test_post_settings_read_back_under_hqptuners_own_form_field_names() -> None:

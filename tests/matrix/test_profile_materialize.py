@@ -222,14 +222,17 @@ def test_deleting_the_active_profile_adopts_none_of_its_chain() -> None:
     assert live_state(applied)["post_bauer_frequency"] == "850"
 
 
-def test_deleting_the_active_profile_removes_the_element_and_an_ordinary_apply_leaves_it_alone() -> None:
-    snapshot = cfg()
-    deleted = presetconf.apply_edits(snapshot, {"matrix_profile_delete": DELETE_NIGHT}, profile="Night")
-    kept = presetconf.apply_edits(snapshot, {"post_bauer_frequency": "555"}, profile="Night")
-    assert (stored_element(deleted, "Night"), stored_element(kept, "Night") == stored_element(snapshot, "Night")) == (
-        b"",
-        True,
-    )
+#: What an apply under the active profile leaves of its stored element: a delete
+#: removes it, an ordinary edit leaves it byte-identical to the snapshot's.
+STORED_AFTER_APPLY = [
+    pytest.param({"matrix_profile_delete": DELETE_NIGHT}, b"", id="delete-removes"),
+    pytest.param({"post_bauer_frequency": "555"}, stored_element(cfg(), "Night"), id="ordinary-keeps"),
+]
+
+
+@pytest.mark.parametrize(("edits", "expected"), STORED_AFTER_APPLY)
+def test_only_deleting_the_active_profile_removes_its_stored_element(edits: dict[str, str], expected: bytes) -> None:
+    assert stored_element(presetconf.apply_edits(cfg(), edits, profile="Night"), "Night") == expected
 
 
 # --- a profile the config does not carry: loud, never a silent fallback -------

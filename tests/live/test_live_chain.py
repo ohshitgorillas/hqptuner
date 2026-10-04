@@ -139,15 +139,20 @@ def test_an_edit_to_the_loaded_chain_is_reported_as_applied(chain_api: Callable[
     assert resp.json()["report"]["live"] == [{"setting": "filter", "ok": True}]
 
 
-def test_an_edit_to_the_loaded_chain_holds_nothing_while_a_dormant_edit_is_held(
-    chain_api: Callable[..., TestClient],
+#: With the PCM chain loaded, an edit to it holds nothing and one to the dormant
+#: SDM chain is held.
+HELD_BY_CHAIN = [
+    pytest.param({"filter": "40"}, {}, id="loaded-chain"),
+    pytest.param({"oversampling1x": "38"}, {"oversampling1x": "38"}, id="dormant-chain"),
+]
+
+
+@pytest.mark.parametrize(("fields", "held"), HELD_BY_CHAIN)
+def test_an_edit_is_held_only_when_it_targets_the_dormant_chain(
+    chain_api: Callable[..., TestClient], fields: dict[str, str], held: dict[str, str]
 ) -> None:
-    loaded = chain_api(mode="1")
-    loaded_resp = loaded.post("/api/config/live", json={"fields": {"filter": "40"}})
-    dormant = chain_api(mode="1")
-    dormant_resp = dormant.post("/api/config/live", json={"fields": {"oversampling1x": "38"}})
-    loaded_stored, dormant_stored = loaded_resp.json()["report"]["stored"], dormant_resp.json()["report"]["stored"]
-    assert (loaded_stored, dormant_stored) == ({}, {"oversampling1x": "38"})
+    client = chain_api(mode="1")
+    assert client.post("/api/config/live", json={"fields": fields}).json()["report"]["stored"] == held
 
 
 # --- what is still refused ----------------------------------------------------

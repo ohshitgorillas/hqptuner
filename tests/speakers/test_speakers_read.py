@@ -27,8 +27,15 @@ def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> Spea
     return parse_speakers_form(_FORM.format(body))
 
 
-def test_the_switch_parses_disabled_as_false_and_checked_as_true() -> None:
-    assert (_PARSED["enabled"], _speakers(enabled=" checked")["enabled"]) == (False, True)
+SWITCH_CASES = [
+    pytest.param(_PARSED, False, id="fixture-unchecked"),
+    pytest.param(_speakers(enabled=" checked"), True, id="checked"),
+]
+
+
+@pytest.mark.parametrize(("form", "expected"), SWITCH_CASES)
+def test_the_switch_parses_as_whether_the_box_is_checked(form: SpeakersForm, *, expected: bool) -> None:
+    assert form["enabled"] is expected
 
 
 @pytest.mark.parametrize("index,name", [(0, "Left"), (2, "Center"), (3, "LFE")])

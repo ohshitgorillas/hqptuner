@@ -267,10 +267,17 @@ def test_a_presets_key_that_is_not_a_list_of_names_is_refused(entry: Callable[[s
     assert refusal_code(lambda: entry(json.dumps(save_payload(presets=presets)))) == "targets-bad-list"
 
 
-def test_a_save_payload_without_a_presets_key_names_no_targets_and_one_with_it_names_them() -> None:
-    without = matrixprofiles.save_targets(json.dumps(save_payload()))
-    with_targets = matrixprofiles.save_targets(json.dumps(save_payload(presets=["Office", "Den"])))
-    assert (without, with_targets) == ([], ["Office", "Den"])
+SAVE_TARGETS = [
+    pytest.param({}, [], id="no-presets-key"),
+    pytest.param({"presets": ["Office", "Den"]}, ["Office", "Den"], id="presets-key"),
+]
+
+
+@pytest.mark.parametrize(("overrides", "expected"), SAVE_TARGETS)
+def test_a_save_payload_names_the_targets_its_presets_key_lists(
+    overrides: dict[str, object], expected: list[str]
+) -> None:
+    assert matrixprofiles.save_targets(json.dumps(save_payload(**overrides))) == expected
 
 
 def test_parse_save_returns_the_fanout_targets_from_the_payload() -> None:
@@ -303,10 +310,17 @@ def test_a_targeted_delete_payload_yields_its_profile_name() -> None:
     assert matrixpayload.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[0] == "Stock"
 
 
-def test_a_delete_payload_without_a_presets_key_names_no_targets_and_one_with_it_names_them() -> None:
-    without = matrixpayload.parse_delete(json.dumps({"name": "Stock"}))[1]
-    with_targets = matrixpayload.parse_delete(json.dumps({"name": "Stock", "presets": ["Office"]}))[1]
-    assert (without, with_targets) == ([], ["Office"])
+DELETE_TARGETS = [
+    pytest.param({"name": "Stock"}, [], id="no-presets-key"),
+    pytest.param({"name": "Stock", "presets": ["Office"]}, ["Office"], id="presets-key"),
+]
+
+
+@pytest.mark.parametrize(("value", "expected"), DELETE_TARGETS)
+def test_a_delete_payload_names_the_targets_its_presets_key_lists(
+    value: dict[str, object], expected: list[str]
+) -> None:
+    assert matrixpayload.parse_delete(json.dumps(value))[1] == expected
 
 
 def test_a_delete_value_that_is_not_json_is_refused() -> None:

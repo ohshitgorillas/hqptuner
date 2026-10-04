@@ -188,13 +188,26 @@ def test_an_invalid_live_preset_name_is_refused(live_api: TestClient) -> None:
     assert live_api.put("/api/livepresets/.hidden").status_code == 422
 
 
-def test_a_deleted_live_preset_is_gone_from_the_list_and_a_saved_one_is_in_it(live_api: TestClient) -> None:
-    live_api.put("/api/livepresets/Warm")
-    live_api.delete("/api/livepresets/Warm")
-    deleted = live_api.get("/api/livepresets").json()["presets"]
-    live_api.put("/api/livepresets/Warm")
-    saved = [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]]
-    assert (deleted, saved) == ([], ["Warm"])
+def _send(client: TestClient, methods: list[str]) -> None:
+    """Send each method, in order, to the "Warm" live preset's route."""
+    for method in methods:
+        client.request(method, "/api/livepresets/Warm")
+
+
+#: A preset saved then deleted is gone from the list; one saved again after the
+#: delete is back in it.
+LISTED_AFTER = [
+    pytest.param(["PUT", "DELETE"], [], id="deleted"),
+    pytest.param(["PUT", "DELETE", "PUT"], ["Warm"], id="saved-again"),
+]
+
+
+@pytest.mark.parametrize(("methods", "names"), LISTED_AFTER)
+def test_the_list_carries_a_live_preset_only_while_it_is_saved(
+    live_api: TestClient, methods: list[str], names: list[str]
+) -> None:
+    _send(live_api, methods)
+    assert [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]] == names
 
 
 def test_a_stored_rate_is_ignored_and_the_rest_of_the_preset_applies(live_api: TestClient, tmp_path: Path) -> None:

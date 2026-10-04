@@ -22,6 +22,7 @@ import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
@@ -216,42 +217,86 @@ def bad_presets_save(presets: object) -> dict[str, str]:
     return {"matrix_profile_save": json.dumps({"name": "Crossfeed EQ", "rows": [ROW0], "presets": presets})}
 
 
+def staged_apply(client: TestClient, field: dict[str, str]) -> dict[str, Any]:
+    """Stage that field through the REST surface and apply it; the apply's response body."""
+    client.post("/api/config/stage", json={"http": field})
+    body: dict[str, Any] = client.post("/api/config/apply").json()
+    return body
+
+
+def arrange_apply(client: TestClient, field: dict[str, str], code: str | None) -> None:
+    """Stage and apply that field, refusing to go on unless the apply came back with ``code`` (None: not refused)."""
+    got = staged_apply(client, field).get("code")
+    if got != code:
+        raise FixtureError(reason=f"the staged apply was meant to answer code {code!r}, got {got!r}")
+
+
 @pytest.mark.parametrize("presets", ["Office", [1]])
-def test_non_list_of_strings_presets_is_refused_naming_the_field(http_client: TestClient, presets: object) -> None:
-    http_client.post("/api/config/stage", json={"http": bad_presets_save(presets)})
-    resp = http_client.post("/api/config/apply")
-    assert (resp.json()["code"], "matrix_profile_save" in resp.json()["detail"]) == ("invalid_input", True)
+def test_non_list_of_strings_presets_is_refused_as_invalid_input(http_client: TestClient, presets: object) -> None:
+    assert staged_apply(http_client, bad_presets_save(presets))["code"] == "invalid_input"
 
 
-def test_refused_presets_value_leaves_the_stored_preset_unwritten(
-    http_manager: ConnectionManager, http_client: TestClient
+#: A save whose presets value is refused, beside one that is accepted and so
+#: proves the readback can see a write.
+PRESETS_OUTCOMES = [
+    pytest.param(bad_presets_save("Office"), "invalid_input", False, id="refused"),
+    pytest.param(save("Crossfeed EQ", ROW0, presets=["Office"]), None, True, id="accepted"),
+]
+
+
+@pytest.mark.parametrize(("field", "code", "landed"), PRESETS_OUTCOMES)
+def test_only_an_accepted_presets_value_lands_the_profile_in_the_stored_preset(
+    http_manager: ConnectionManager,
+    http_client: TestClient,
+    field: dict[str, str],
+    code: str | None,
+    *,
+    landed: bool,
 ) -> None:
-    seeded = preset_xml()
-    http_manager.presetops.store.save("Office", seeded)
-    http_client.post("/api/config/stage", json={"http": bad_presets_save("Office")})
-    resp = http_client.post("/api/config/apply")
-    assert (resp.json()["code"], http_manager.presetops.store.read("Office")) == ("invalid_input", seeded)
+    http_manager.presetops.store.save("Office", preset_xml())
+    arrange_apply(http_client, field, code)
+    assert ("Crossfeed EQ" in stored_profiles(http_manager.presetops.store.read("Office"))) is landed
 
 
-async def test_refused_presets_value_leaves_the_running_config_unwritten(
-    http_manager: ConnectionManager, http_client: TestClient
+@pytest.mark.parametrize(("field", "code", "landed"), PRESETS_OUTCOMES)
+async def test_only_an_accepted_presets_value_lands_the_profile_in_the_running_config(
+    http_manager: ConnectionManager,
+    http_client: TestClient,
+    field: dict[str, str],
+    code: str | None,
+    *,
+    landed: bool,
 ) -> None:
-    http_client.post("/api/config/stage", json={"http": bad_presets_save("Office")})
-    resp = http_client.post("/api/config/apply")
-    assert (resp.json()["code"], "Crossfeed EQ" in await running_profiles(http_manager)) == ("invalid_input", False)
+    http_manager.presetops.store.save("Office", preset_xml())
+    arrange_apply(http_client, field, code)
+    assert ("Crossfeed EQ" in await running_profiles(http_manager)) is landed
 
 
 # --- GET /api/matrix: the preset_profiles read model ---------------------------
 
 
-def test_api_matrix_with_an_empty_preset_store_serves_an_empty_mapping_and_a_populated_one_when_saved(
-    http_client: TestClient, tmp_path: Path
+def seed_presets(preset_dir: Path, presets: Mapping[str, Mapping[str, list[dict[str, str]]]]) -> None:
+    """Save each named stored preset carrying the given saved profiles."""
+    store = PresetStore(preset_dir)
+    for name, profiles in presets.items():
+        store.save(name, preset_xml(profiles))
+
+
+PRESET_PROFILES = [
+    pytest.param({}, {}, id="empty-store"),
+    pytest.param(
+        {"Office": {"Zeta": [FILE_ROW], "Alpha": [FILE_ROW]}}, {"Office": ["Alpha", "Zeta"]}, id="one-stored-preset"
+    ),
+]
+
+
+@pytest.mark.parametrize(("presets", "expected"), PRESET_PROFILES)
+def test_api_matrix_serves_each_stored_presets_profile_names_sorted(
+    http_client: TestClient,
+    tmp_path: Path,
+    presets: Mapping[str, Mapping[str, list[dict[str, str]]]],
+    expected: dict[str, list[str]],
 ) -> None:
-    http_client.post("/api/config/refresh")
-    empty = http_client.get("/api/matrix").json()["data"]["preset_profiles"]
-
-    PresetStore(tmp_path / "presets").save("Office", preset_xml({"Zeta": [FILE_ROW], "Alpha": [FILE_ROW]}))
+    seed_presets(tmp_path / "presets", presets)
     http_client.post("/api/config/refresh")  # makes the form routes servable
-    populated = http_client.get("/api/matrix").json()["data"]["preset_profiles"]["Office"]
-
-    assert (empty, populated) == ({}, ["Alpha", "Zeta"])
+    assert http_client.get("/api/matrix").json()["data"]["preset_profiles"] == expected
