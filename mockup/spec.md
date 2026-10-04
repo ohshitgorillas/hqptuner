@@ -203,8 +203,6 @@ Current state only. Mockup: https://claude.ai/artifact/TDCf3zE1nWfFgKFvui58G7. C
 - **UPnP:** freewheel.
 - **Logging:** enable, path, live log tail.
 - **Behavior** (live):
-  - Live / Stage (copy pending).
-  - Auto-save.
   - Allow pinned rates (owner copy). Shows the page's Output section, the rate pins.
 - **Signal path** (read-only; rail readout `Playing`: the path playing now): every path HQPlayer can take on one map, the one playing lit in ink (running state, never the accent). Source rate | output rate as tinted zones, the seam through Resampling. PCM / SDM band tags on mode-only stages, `PCM · SDM` on the filters (both modes, a list each). Hatched = bypassed on the path; dashed = position unconfirmed (DAC correction, Volume). Direct SDM runs under the map into Speakers. Copy DRAFT. Sources: manual §2.8, §2.15, §5, §7.2; Jussi (DAC correction at the output rate, needs the matrix; DSD → PCM convolution after decimation).
 - **Visual settings** (live), tabs Display | Layout.
@@ -231,7 +229,7 @@ Current state only. Mockup: https://claude.ai/artifact/TDCf3zE1nWfFgKFvui58G7. C
   - Skipped steps say why. Values rows lay out two per line.
 
 ## Station builder
-- The setup wizard's station walk (repo `docs/wizard/wizard.md` §1–§1.6, §4), one station at a time, in the Profile builder's grammar. Edits a copy; Save writes the station. Saving the loaded station, or new Hardware answers, restarts the engine.
+- The setup wizard's station walk (repo `docs/wizard/wizard.md` §1–§1.7, §4), one station at a time, in the Profile builder's grammar. Edits a copy; Save writes the station. Saving the loaded station, or new Hardware answers, restarts the engine.
 - Wizard copy verbatim, `preset` renamed `station`. Agent copy is marked DRAFT in `data/station-builder.js`.
 - **Rail:** Overview + steps with their answers (`Skipped` where a step doesn't apply); tap to jump, nothing forces the order.
 - **Overview:**
