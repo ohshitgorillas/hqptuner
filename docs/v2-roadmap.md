@@ -18,7 +18,7 @@ The target is `mockup/spec.md`, with `mockup/` as its visual reference. Where th
 - Port `mockup/styles/tokens.css` into `hqptuner/static/css/base/tokens.css`. The default accent becomes amber.
 - Self-host Saira Extra Condensed, IBM Plex Sans and IBM Plex Mono under `hqptuner/static/fonts/`.
 - Renumber `docs/wizard/wizard.md`: it carries two sections numbered 1.5 and two numbered 4, and the spec cites it by number.
-- Correct the spec's Behavior list: it names Live / Stage and Auto-save, which `mockup/scripts/data/settings.js` no longer has.
+- Correct the spec's Behavior list: it names Live / Stage and Auto-save, which `mockup/scripts/data/settings/behavior.js` no longer has.
 
 ## Phase 1: backend and store deltas
 
@@ -97,7 +97,7 @@ Each phase waits on these before it ships.
 | 3 | The DAC type and DAC chip effect lines, the Matrix engine intro and the `Dithers to` line, all marked DRAFT. The order of Volume against DAC correction. |
 | 4 | Modulator panel: every family at once, or family tabs. Whether an engaged matrix that does nothing alters a processed DSD path. |
 | 6 | Signal path copy, Top of page copy, Bottom bar copy, all marked DRAFT. |
-| 9 | The lines marked DRAFT in `mockup/scripts/data/station-builder.js`. |
+| 9 | The lines marked DRAFT in `mockup/scripts/data/builders/station-builder.js`. |
 | Any | Renaming Resampling to Rate conversion. Whether Auto output mode is offered. The buffer zone seams. |
 
 The mockup leaves these undrawn: the connection settings panel, the Combo backend's DAC model per sub-device, and tips on touch. Selection in the station tree is unwired.
