@@ -67,6 +67,8 @@ NOT covered here, and deliberately so:
   can be driven into without contorting the stack, so no case claims it.
 """
 
+from collections.abc import Callable
+
 import pytest
 from narrow import FixtureError
 from playwright.sync_api import Locator, Page, expect
@@ -190,14 +192,6 @@ def wait_for_every_setting(page: Page, want: str, timeout_ms: int = SETTLE_MS) -
     )
 
 
-def wait_for_a_status_message(page: Page, timeout_ms: int = SETTLE_MS) -> None:
-    """Wait until the card's status line has something to say."""
-    page.wait_for_function(
-        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() !== ''; }}",
-        timeout=timeout_ms,
-    )
-
-
 def wait_for_status_to_change_from(page: Page, previous: str, timeout_ms: int = SETTLE_MS) -> None:
     """Wait until the status line reads something other than empty or `previous` — a round trip concluding."""
     page.wait_for_function(
@@ -208,14 +202,6 @@ def wait_for_status_to_change_from(page: Page, previous: str, timeout_ms: int = 
         "  return text !== '' && text !== previous;"
         "}",
         arg=previous,
-        timeout=timeout_ms,
-    )
-
-
-def wait_for_status_to_clear(page: Page, timeout_ms: int = SETTLE_MS) -> None:
-    """Wait until the status line has gone quiet again."""
-    page.wait_for_function(
-        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() === ''; }}",
         timeout=timeout_ms,
     )
 
@@ -346,6 +332,14 @@ def apply_classes(page: Page) -> list[str]:
     return [str(token) for token in page.locator(APPLY).evaluate("el => [...el.classList]")]
 
 
+def wait_for_status_to_clear(page: Page, timeout_ms: int = SETTLE_MS) -> None:
+    """Wait until the status line has gone quiet again."""
+    page.wait_for_function(
+        f"() => {{ const el = document.querySelector({STATUS!r}); return !!el && el.textContent.trim() === ''; }}",
+        timeout=timeout_ms,
+    )
+
+
 def status_text(page: Page) -> str:
     """What the card's status line reads. The element is always rendered, and
     reads empty when the card has nothing to say."""
@@ -368,17 +362,6 @@ def saw_outcome(page: Page, outcome: str, timeout_ms: int = SETTLE_MS) -> bool:
     except PlaywrightTimeout:
         return False
     return True
-
-
-def apply_and_wait_for_a_message(page: Page) -> None:
-    """Click apply and poll until the card has SOMETHING to say about it.
-
-    Which message is the owner's copy and is neither selected on nor asserted
-    (docs/testing.md rule 9); that a message is there at all is the precondition
-    the stale-message case needs.
-    """
-    page.locator(APPLY).click()
-    wait_for_a_status_message(page, timeout_ms=APPLY_MS)
 
 
 def apply_and_wait_for_the_value_to_land(page: Page, stack: Stack, want: str) -> None:
@@ -486,26 +469,24 @@ def test_applying_sends_the_changed_setting_to_the_daemon(page: Page, stack: Sta
 
 
 def test_applying_leaves_the_card_reading_clean(page: Page, stack: Stack) -> None:
-    """A SUCCESSFUL apply re-snapshots, so what was just applied is no longer a change.
+    """Once the applied value has landed at the daemon, the apply button is no longer marked.
 
-    Not vacuous, and not satisfied by a card that clears the marking on click:
-    the card is provably marked on the way in (the sweep above pins that), and
-    what is waited for is the applied value ARRIVING at the daemon and the round
-    trip then finishing — so an apply that failed, or never sent anything, fails
-    here rather than passing on a dropped marking.
+    The arrange step refuses unless the edit marked the button first, so a card
+    that never marked it cannot pass.
     """
     loaded_card(page, stack)
     before = stack.http_state[CUDA_DEV_ATTR]
     try:
         want = set_number_setting(page, CUDA_DEV)
         flush_frames(page)
-        marked_before = DIRTY in apply_classes(page)
+        if DIRTY not in apply_classes(page):
+            raise FixtureError(reason="the edit never marked the apply button, so there is no marking to clear")
         apply_and_wait_for_it_to_conclude(page, stack, want)
         flush_frames(page)
-        marked_after = DIRTY in apply_classes(page)
+        after = apply_classes(page)
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
-    assert (marked_before, marked_after) == (True, False)
+    assert DIRTY not in after
 
 
 # --- the status message -------------------------------------------------------
@@ -585,14 +566,17 @@ def test_a_confirmed_apply_carries_the_ok_outcome(page: Page, stack: Stack) -> N
     assert confirmed is True
 
 
-def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack) -> None:
+@pytest.mark.parametrize(
+    "waited", [pytest.param(True, id="polled-until-quiet"), pytest.param(False, id="read-at-once")]
+)
+def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack, *, waited: bool) -> None:
     """A confirmed apply's message goes away on its own, with no further interaction.
 
     Nothing is clicked, typed or navigated between the message landing and the
-    reading: the only thing that happens in between is the poll asking whether it
-    has gone yet. Not vacuous on a card that never spoke — the case above pins
-    that a confirmed apply puts an `ok` message up, and this one waits for that
-    same message before it starts asking.
+    reading: in the polled case the only thing in between is the poll asking
+    whether it has gone yet, and the read-at-once case shows the message was up
+    to begin with. The arrange step refuses unless the `ok` message is up, so
+    neither case can pass on a card that never spoke.
     """
     loaded_card(page, stack)
     before = stack.http_state[CUDA_DEV_ATTR]
@@ -600,12 +584,14 @@ def test_a_confirmed_applys_message_clears_itself(page: Page, stack: Stack) -> N
         want = set_number_setting(page, CUDA_DEV)
         flush_frames(page)
         apply_and_wait_for_the_value_to_land(page, stack, want)
-        present = saw_outcome(page, OK, timeout_ms=APPLY_MS)
-        wait_for_status_to_clear(page, timeout_ms=CLEAR_MS)
+        if not saw_outcome(page, OK, timeout_ms=APPLY_MS):
+            raise FixtureError(reason="the confirmed apply never showed ok on the status line")
+        if waited:
+            wait_for_status_to_clear(page, timeout_ms=CLEAR_MS)
         left = status_text(page)
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
-    assert (present, left) == (True, "")
+    assert bool(left) is not waited
 
 
 def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> None:
@@ -633,44 +619,57 @@ def test_a_refused_apply_carries_the_err_outcome(page: Page, stack: Stack) -> No
 # --- neither button is ever disabled ------------------------------------------
 
 
-def test_the_apply_button_is_enabled_while_the_card_is_dirty(page: Page, stack: Stack) -> None:
-    """User actions always proceed: a change is applicable whatever the engine is doing — and applying it lands.
+def a_clean_card(page: Page, stack: Stack) -> None:
+    """The card as loaded, with nothing moved."""
+    loaded_card(page, stack)
+
+
+def a_dirty_card(page: Page, stack: Stack) -> None:
+    """The card as loaded, with the CUDA device box moved away from what the daemon reported."""
+    loaded_card(page, stack)
+    change_setting(page, CUDA_DEV, NUMBER)
+
+
+CARD_STATES = [
+    pytest.param(a_clean_card, id="clean"),
+    pytest.param(a_dirty_card, id="dirty"),
+]
+
+
+@pytest.mark.parametrize("button", [pytest.param(APPLY, id="apply"), pytest.param(REVERT, id="revert")])
+@pytest.mark.parametrize("card", CARD_STATES)
+def test_a_card_button_is_enabled_whether_or_not_anything_changed(
+    page: Page, stack: Stack, card: Callable[[Page, Stack], None], button: str
+) -> None:
+    """User actions always proceed: neither apply nor revert is disabled, with something to change or with nothing."""
+    card(page, stack)
+    assert page.locator(button).is_enabled() is True
+
+
+def device_box_value(page: Page) -> str:
+    """What the CUDA device number box holds right now, in the form the daemon stores it."""
+    return control(page, CUDA_DEV).locator("input[type='number']").input_value()
+
+
+@pytest.mark.parametrize("card", CARD_STATES)
+def test_applying_leaves_the_device_box_holding_what_was_applied(
+    page: Page, stack: Stack, card: Callable[[Page, Stack], None]
+) -> None:
+    """An apply keeps what the box held at the click: an untouched value is not clobbered, an edited one not reverted.
 
     The fake's engine attribute is put back afterwards, so the session-scoped
     stack does not carry this edit into later modules.
     """
-    loaded_card(page, stack)
+    card(page, stack)
     before = stack.http_state[CUDA_DEV_ATTR]
+    at_click = device_box_value(page)
     try:
-        want = set_number_setting(page, CUDA_DEV)
+        apply_and_wait_for_it_to_conclude(page, stack, at_click)
         flush_frames(page)
-        enabled = page.locator(APPLY).is_enabled()
-        apply_and_wait_for_the_value_to_land(page, stack, want)
-        landed = stack.http_state[CUDA_DEV_ATTR]
+        after = device_box_value(page)
     finally:
         stack.http_state[CUDA_DEV_ATTR] = before
-    assert (enabled, landed) == (True, want)
-
-
-def test_the_revert_button_is_enabled_while_the_card_is_dirty(page: Page, stack: Stack) -> None:
-    """Having something to revert does not disable revert either — and the enabled button reverts it."""
-    loaded_card(page, stack)
-    original = change_setting(page, CUDA_DEV, NUMBER)
-    revert = page.locator(REVERT)
-    enabled = revert.is_enabled()
-    revert.click()
-    wait_for_signature(page, CUDA_DEV, original)
-    assert (enabled, signature(page, CUDA_DEV)) == (True, original)
-
-
-def test_the_revert_button_is_enabled_on_a_clean_card(page: Page, stack: Stack) -> None:
-    """Nothing disables revert or apply, not even having nothing to change — and the enabled apply still runs."""
-    loaded_card(page, stack)
-    unchanged = signature(page, CUDA_DEV)
-    revert_enabled = page.locator(REVERT).is_enabled()
-    apply_enabled = page.locator(APPLY).is_enabled()
-    apply_and_wait_for_a_message(page)
-    assert (revert_enabled, apply_enabled, signature(page, CUDA_DEV)) == (True, True, unchanged)
+    assert after == at_click
 
 
 # --- a receipt that went stale while its round trip was still out -------------
@@ -748,24 +747,29 @@ def outcome_tokens(page: Page) -> list[str]:
     return [str(token) for token in classes if token in OUTCOMES]
 
 
-def test_an_apply_edited_mid_flight_ends_saying_nothing_while_an_undisturbed_one_reads_ok(
-    page: Page, stack: Stack
+@pytest.mark.parametrize(
+    ("mid_flight", "tokens"),
+    [
+        pytest.param(CUDA_CDEV, [], id="edited-mid-flight"),
+        pytest.param(None, [OK], id="undisturbed"),
+    ],
+)
+def test_an_apply_ends_saying_nothing_only_when_a_setting_moved_mid_flight(
+    page: Page, stack: Stack, mid_flight: str | None, tokens: list[str]
 ) -> None:
     """A receipt describes what was sent, so an edit made while it was out makes it stale and it goes unsaid.
 
-    Two applies in sequence on one loaded card that already had a setting moved,
-    told apart by one thing only: whether a setting moved while the round trip
-    was out. The first is interrupted by a second setting being changed and must
-    end its round trip with the status line carrying no outcome at all; the
-    second, with nothing moved during it, must end reading `ok`. Read as one
-    pair, so a card that speaks its receipt on resolve regardless of what moved
-    since fails on the first member, and a card that has stopped speaking
-    receipts at all fails on the second.
+    One apply on a loaded card that already had a setting moved, the two cases
+    told apart by one thing only: whether a second setting moved while the
+    round trip was out. Interrupted, it must end with the status line carrying
+    no outcome at all; undisturbed, it must end reading `ok`. A card that speaks
+    its receipt on resolve regardless of what moved since fails the first case,
+    and a card that has stopped speaking receipts at all fails the second.
 
     The stale window (`_lag`) is what makes "during the round trip" a state
-    rather than a race: it lengthens the first apply's verify so the mid-flight
-    edit lands inside it. It is put back, along with both engine attributes this
-    case moves, before the session-scoped stack carries any of it onward.
+    rather than a race: it lengthens the apply's verify so the mid-flight edit
+    lands inside it. It is put back, along with both engine attributes this
+    case can move, before the session-scoped stack carries any of it onward.
     """
     watch_engine_applies(page)
     loaded_card(page, stack)
@@ -776,16 +780,12 @@ def test_an_apply_edited_mid_flight_ends_saying_nothing_while_an_undisturbed_one
         stack.http_state["_lag"] = STALE_READS
         page.locator(APPLY).click()
         saw_outcome(page, BUSY)
-        change_setting(page, CUDA_CDEV, NUMBER)
+        if mid_flight is not None:
+            change_setting(page, mid_flight, NUMBER)
         wait_for_concluded_applies(page, 1, timeout_ms=APPLY_MS)
         flush_frames(page)
-        interrupted = outcome_tokens(page)
-        stack.http_state["_lag"] = 0
-        page.locator(APPLY).click()
-        wait_for_concluded_applies(page, 2, timeout_ms=APPLY_MS)
-        flush_frames(page)
-        undisturbed = outcome_tokens(page)
+        said = outcome_tokens(page)
     finally:
         stack.http_state["_lag"] = lag_was
         stack.http_state.update(engine_was)
-    assert (interrupted, undisturbed) == ([], [OK])
+    assert said == tokens

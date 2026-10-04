@@ -43,6 +43,9 @@ the same thing to a browser, which clamps, and pinning the difference would be
 pinning the implementation.
 """
 
+from collections.abc import Callable
+
+import pytest
 from playwright.sync_api import Locator, Page
 
 from e2e.support.stack import Stack
@@ -295,39 +298,34 @@ def test_a_tail_left_at_the_bottom_follows_new_lines_down(page: Page, stack: Sta
     assert bottom_gap(page) <= SLACK
 
 
-def test_a_tail_scrolled_to_the_top_stays_at_the_top_across_a_poll(page: Page, stack: Stack) -> None:
-    """Reading the oldest lines in the window is not interrupted by a poll.
+def scroll_to_top(page: Page) -> float:
+    """Put the pane at the very top and report where it landed."""
+    return scroll_to(page, 0)
 
-    Paired against a pane parked away from the top (`test_a_tail_scrolled_to_the_middle_does_not_move_across_a_poll`'s
-    own case, reproduced here): a component that just never touches `scrollTop` would also leave a
-    pane at 0 across a poll, so the absent (0) case alone cannot tell "correctly held at the top" from
-    "scroll is never adjusted at all". The present (non-zero, parked) case rules that reading out.
+
+@pytest.mark.parametrize(
+    ("park", "opened", "polled"),
+    [
+        pytest.param(scroll_to_top, "TAG04", "TAG05", id="top"),
+        pytest.param(scroll_to_middle, "TAG06", "TAG07", id="middle"),
+    ],
+)
+def test_a_tail_parked_away_from_the_bottom_does_not_move_across_a_poll(
+    page: Page, stack: Stack, park: Callable[[Page], float], opened: str, polled: str
+) -> None:
+    """A pane the user has parked, at the oldest lines or mid-way, stays exactly where they parked it.
+
+    The top case alone cannot tell "held at the top" from "scroll is never
+    adjusted at all", since both leave a pane at 0; the middle case, parked at a
+    non-zero offset, is what rules the second reading out.
     """
-    open_tail_with(page, stack, "TAG04", WINDOW)
+    open_tail_with(page, stack, opened, WINDOW)
     wait_for_overflow(page)
     # Let the open-time pin land BEFORE scrolling away, or it lands afterwards and
     # fails this case for a reason that is not the behavior under test.
     wait_for_scroll_past(page, 0)
-    scroll_to(page, 0)
-    poll_with(page, stack, "TAG05", WINDOW)
-    flush_frames(page)
-    at_top = scroll_top(page)
-
-    parked = scroll_to_middle(page)
-    poll_with(page, stack, "TAG16", WINDOW)
-    flush_frames(page)
-    at_middle = scroll_top(page)
-
-    assert (at_top, at_middle) == (0, parked)
-
-
-def test_a_tail_scrolled_to_the_middle_does_not_move_across_a_poll(page: Page, stack: Stack) -> None:
-    """A pane the user has parked mid-way stays exactly where they parked it."""
-    open_tail_with(page, stack, "TAG06", WINDOW)
-    wait_for_overflow(page)
-    wait_for_scroll_past(page, 0)  # the open-time pin, before the user moves the pane
-    parked = scroll_to_middle(page)
-    poll_with(page, stack, "TAG07", WINDOW)
+    parked = park(page)
+    poll_with(page, stack, polled, WINDOW)
     flush_frames(page)
     assert scroll_top(page) == parked
 
