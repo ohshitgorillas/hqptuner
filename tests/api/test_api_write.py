@@ -6,7 +6,9 @@ http lane to the faithful fake 8088 daemon for the applies that need one."""
 
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 
 
 def test_stage_rejects_unknown_live_setting(api_client: TestClient) -> None:
@@ -14,12 +16,22 @@ def test_stage_rejects_unknown_live_setting(api_client: TestClient) -> None:
     assert resp.status_code == 422
 
 
-def test_discard_clears_the_pending_buffer_but_a_stage_still_fills_it(api_client: TestClient) -> None:
+#: The request sent after one live edit is staged, and the live buffer it leaves:
+#: a read leaves the stage alone, a discard and a later drop each empty it.
+FOLLOW_UPS = [
+    pytest.param("GET", "/api/config/pending", None, {"shaper": {"value": "5"}}, id="staged"),
+    pytest.param("DELETE", "/api/config/pending", None, {}, id="discarded"),
+    pytest.param("POST", "/api/config/stage", {"drop": {"live": {"shaper": ["value"]}}}, {}, id="dropped"),
+]
+
+
+@pytest.mark.parametrize(("method", "path", "body", "expected"), FOLLOW_UPS)
+def test_a_discard_or_a_later_drop_empties_the_pending_buffer_a_stage_filled(
+    api_client: TestClient, method: str, path: str, body: dict[str, Any] | None, expected: dict[str, Any]
+) -> None:
     api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    staged = api_client.get("/api/config/pending").json()["live"]
-    api_client.delete("/api/config/pending")
-    discarded = api_client.get("/api/config/pending").json()["live"]
-    assert (discarded, staged) == ({}, {"shaper": {"value": "5"}})
+    api_client.request(method, path, json=body)
+    assert api_client.get("/api/config/pending").json()["live"] == expected
 
 
 def test_apply_with_nothing_staged_is_rejected(api_client: TestClient) -> None:
@@ -42,12 +54,17 @@ def test_soft_failed_http_apply_preserves_staging(http_client: TestClient) -> No
     assert http_client.get("/api/config/pending").json()["http"]["title"] == "REJECT"
 
 
-def test_successful_http_apply_clears_staging_that_was_present_before_it(http_client: TestClient) -> None:
+@pytest.mark.parametrize(
+    ("apply", "expected"),
+    [pytest.param(True, {}, id="applied"), pytest.param(False, {"title": "Renamed"}, id="staged")],
+)
+def test_successful_http_apply_clears_staging_that_was_present_before_it(
+    http_client: TestClient, expected: dict[str, Any], *, apply: bool
+) -> None:
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    staged = http_client.get("/api/config/pending").json()["http"]
-    http_client.post("/api/config/apply")
-    cleared = http_client.get("/api/config/pending").json()["http"]
-    assert (cleared, staged) == ({}, {"title": "Renamed"})
+    if apply:
+        http_client.post("/api/config/apply")
+    assert http_client.get("/api/config/pending").json()["http"] == expected
 
 
 # --- unstaging: the stage body's optional `drop` member ------------------------
@@ -140,14 +157,6 @@ def test_a_stage_call_carrying_only_a_drop_still_unstages(api_client: TestClient
     assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
 
 
-def test_pending_reflects_a_drop_made_by_an_earlier_stage_call(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    staged = api_client.get("/api/config/pending").json()["live"]
-    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    dropped = api_client.get("/api/config/pending").json()["live"]
-    assert (dropped, staged) == ({}, {"shaper": {"value": "5"}})
-
-
 def test_a_stage_call_without_a_drop_member_still_merges(api_client: TestClient) -> None:
     api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
     api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
@@ -164,15 +173,34 @@ def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
     assert api_client.post("/api/profile/bogus", json={"name": "x"}).status_code == 404
 
 
+def _load_without_a_name(client: TestClient) -> Response:
+    resp: Response = client.post("/api/profile/load", json={"name": ""})
+    return resp
+
+
 def test_profile_action_requires_a_name(api_client: TestClient) -> None:
     # the empty name is refused by the shared name rule, so it carries that rule's code
-    resp = api_client.post("/api/profile/load", json={"name": ""})
-    assert (resp.status_code, resp.json()["code"]) == (422, "name_invalid")
+    assert _load_without_a_name(api_client).json()["code"] == "name_invalid"
+
+
+def test_a_profile_action_without_a_name_is_a_client_error(api_client: TestClient) -> None:
+    assert _load_without_a_name(api_client).status_code // 100 == 4
+
+
+def _save_with_the_daemon_down(client: TestClient, daemon: dict[str, Any]) -> Response:
+    daemon["_down"] = True
+    resp: Response = client.post("/api/profile/save", json={"name": "Kept"})
+    return resp
 
 
 def test_profile_save_when_the_daemon_goes_down_answers_the_same_as_load(
     http_client: TestClient, http_daemon: dict[str, Any]
 ) -> None:
-    http_daemon["_down"] = True
-    resp = http_client.post("/api/profile/save", json={"name": "Kept"})
-    assert (resp.status_code, resp.json()["code"]) == (502, "daemon_read_failed")
+    # load's answer is pinned at exactly 502 (test_api_config_ops)
+    assert _save_with_the_daemon_down(http_client, http_daemon).status_code == 502
+
+
+def test_profile_save_when_the_daemon_goes_down_names_the_failed_read_by_code(
+    http_client: TestClient, http_daemon: dict[str, Any]
+) -> None:
+    assert _save_with_the_daemon_down(http_client, http_daemon).json()["code"] == "daemon_read_failed"

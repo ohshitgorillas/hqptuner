@@ -8,24 +8,34 @@ State readback."""
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 
 # spec: tests/specs/live-direct-validate.txt, line 1
 
+#: Each value posted, the status the post answers, and the flag State reads back.
+#: Forwarding the string unvalidated answers 200 and reads back "1.5"; parsing it
+#: as a number lets "01" and "1.5" through as "1". Only the literal flag domain
+#: answers this table.
+ADAPTIVE_VALUES = [
+    ("1", 200, "1"),
+    ("1.5", 409, "0"),
+    ("true", 409, "0"),
+    ("", 409, "0"),
+    ("01", 409, "0"),
+]
 
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("1", (200, "1")),
-        ("1.5", (409, "0")),
-        ("true", (409, "0")),
-        ("", (409, "0")),
-        ("01", (409, "0")),
-    ],
-)
-def test_adaptive_volume_takes_only_a_flag_literal(live_api: TestClient, value: str, expected: tuple[int, str]) -> None:
-    # Forwarding the string unvalidated answers 200 and reads back "1.5"; parsing
-    # it as a number lets "01" and "1.5" through as "1". Only the literal flag
-    # domain answers this table.
-    resp = live_api.post("/api/config/live", json={"fields": {"adaptive_volume": value}})
-    adaptive = live_api.get("/api/state").json()["data"]["adaptive"]
-    assert (resp.status_code, adaptive) == expected
+
+def _post_adaptive(client: TestClient, value: str) -> Response:
+    resp: Response = client.post("/api/config/live", json={"fields": {"adaptive_volume": value}})
+    return resp
+
+
+@pytest.mark.parametrize(("value", "status"), [(value, status) for value, status, _ in ADAPTIVE_VALUES])
+def test_adaptive_volume_takes_only_a_flag_literal(live_api: TestClient, value: str, status: int) -> None:
+    assert _post_adaptive(live_api, value).status_code == status
+
+
+@pytest.mark.parametrize(("value", "flag"), [(value, flag) for value, _, flag in ADAPTIVE_VALUES])
+def test_adaptive_volume_reaches_the_engine_only_as_a_flag_literal(live_api: TestClient, value: str, flag: str) -> None:
+    _post_adaptive(live_api, value)
+    assert live_api.get("/api/state").json()["data"]["adaptive"] == flag

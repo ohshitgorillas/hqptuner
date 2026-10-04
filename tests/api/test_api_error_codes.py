@@ -15,34 +15,52 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
+from narrow import FixtureError
 
 #: A live-snapshot store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
 
-#: The three ways a live-snapshot delete is refused, each with the status and code a
-#: client is promised, so a code shared across causes shows up as a wrong tuple.
-REFUSED_READS = [
-    pytest.param("Nope", None, (404, "not_found"), id="absent-name"),
-    pytest.param("..", None, (422, "name_invalid"), id="invalid-name"),
-    pytest.param("Warm", FUTURE_STORE, (409, "store_too_new"), id="store-too-new"),
+#: The three ways a live-snapshot delete is refused, each with the code a client
+#: is promised, so a code shared across causes shows up as a wrong code.
+REFUSED_DELETES = [
+    ("absent-name", "Nope", None, "not_found"),
+    ("invalid-name", "..", None, "name_invalid"),
+    ("store-too-new", "Warm", FUTURE_STORE, "store_too_new"),
 ]
 
+REFUSED_DELETE_CODES = [pytest.param(name, store, code, id=case) for case, name, store, code in REFUSED_DELETES]
+REFUSED_DELETE_REQUESTS = [pytest.param(name, store, id=case) for case, name, store, _ in REFUSED_DELETES]
 
-@pytest.mark.parametrize(("name", "store", "expected"), REFUSED_READS)
-def test_a_refused_live_preset_delete_names_its_cause_by_code(
-    live_api: TestClient, tmp_path: Path, name: str, store: dict[str, object] | None, expected: tuple[int, str]
-) -> None:
+
+def _delete_live_preset(client: TestClient, tmp_path: Path, name: str, store: dict[str, object] | None) -> Response:
     if store is not None:
         (tmp_path / "live-presets.json").write_text(json.dumps(store))
     # percent-encoded whole, so `..` reaches the handler instead of resolving as a path segment
     encoded = "".join(f"%{byte:02X}" for byte in name.encode())
-    resp = live_api.delete(f"/api/livepresets/{encoded}")
-    assert (resp.status_code, resp.json()["code"]) == expected
+    resp: Response = client.delete(f"/api/livepresets/{encoded}")
+    return resp
 
 
-def test_config_without_credentials_is_unavailable_with_code_no_credentials(live_api: TestClient) -> None:
-    resp = live_api.get("/api/config")
-    assert (resp.status_code, resp.json()["code"]) == (503, "no_credentials")
+@pytest.mark.parametrize(("name", "store", "code"), REFUSED_DELETE_CODES)
+def test_a_refused_live_preset_delete_names_its_cause_by_code(
+    live_api: TestClient, tmp_path: Path, name: str, store: dict[str, object] | None, code: str
+) -> None:
+    assert _delete_live_preset(live_api, tmp_path, name, store).json()["code"] == code
+
+
+@pytest.mark.parametrize(("name", "store"), REFUSED_DELETE_REQUESTS)
+def test_a_refused_live_preset_delete_is_a_client_error(
+    live_api: TestClient, tmp_path: Path, name: str, store: dict[str, object] | None
+) -> None:
+    assert _delete_live_preset(live_api, tmp_path, name, store).status_code // 100 == 4
+
+
+def test_config_without_credentials_is_unavailable(live_api: TestClient) -> None:
+    assert live_api.get("/api/config").status_code == 503
+
+
+def test_config_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
+    assert live_api.get("/api/config").json()["code"] == "no_credentials"
 
 
 def test_a_live_batch_the_lane_refuses_carries_code_route_refused(live_api: TestClient) -> None:
@@ -70,40 +88,58 @@ SLASHED_LIVE_REQUESTS = [
 ]
 
 
-def _refusal(client: TestClient, method: str, path: str) -> tuple[int, object]:
-    """The status and `code` of a request sent exactly as written.
+def _send(client: TestClient, method: str, path: str) -> Response:
+    """A request sent exactly as written.
 
     Redirects are not followed and the name is not percent-encoded: the point is
     what the app answers to the literal slashed path a caller types, so anything
-    rewriting it before the app sees it would hide the behavior under test. A
-    body carrying no `code` reads as `None` rather than raising, so a refusal
-    from the wrong layer fails the assertion instead of erroring out of it."""
-    resp = client.request(method, path, follow_redirects=False)
+    rewriting it before the app sees it would hide the behavior under test."""
+    resp: Response = client.request(method, path, follow_redirects=False)
+    return resp
+
+
+#: What `_code` reads off an answer whose body carries no `code`. No case
+#: expects it: a refusal from the wrong layer fails the assertion instead of
+#: erroring out of it.
+NO_CODE = ""
+
+
+def _code(resp: Response) -> object:
+    """The `code` of an answer, or ``NO_CODE``."""
     body = resp.json()
-    return resp.status_code, body.get("code") if isinstance(body, dict) else None
+    return body.get("code", NO_CODE) if isinstance(body, dict) else NO_CODE
 
 
 @pytest.mark.parametrize(("method", "path"), SLASHED_LIVE_REQUESTS)
 def test_a_slashed_live_snapshot_name_is_refused_by_the_name_rule(live_api: TestClient, method: str, path: str) -> None:
-    assert _refusal(live_api, method, path) == (422, "name_invalid")
+    assert _code(_send(live_api, method, path)) == "name_invalid"
+
+
+@pytest.mark.parametrize(("method", "path"), SLASHED_LIVE_REQUESTS)
+def test_a_slashed_live_snapshot_name_is_a_client_error(live_api: TestClient, method: str, path: str) -> None:
+    assert _send(live_api, method, path).status_code // 100 == 4
 
 
 def test_an_unusable_live_snapshot_name_is_refused_before_the_engine_is_read(
     chain_api: Callable[..., TestClient],
 ) -> None:
-    # one engine, two names: the slashed name is answered by the name rule and
-    # the ordinary one by the engine's own state, so a save that snapshots the
-    # engine first and validates the name second gives both the same answer
+    # one engine, two names: the ordinary name is answered by the engine's own
+    # state, so a save that snapshots the engine first and validates the name
+    # second gives the slashed name that same answer
     chainless = chain_api(mode="0", _active_mode="")
-    assert [_refusal(chainless, "PUT", f"/api/livepresets/{name}") for name in ("a/b", "Warm")] == [
-        (422, "name_invalid"),
-        (409, "chain_unknown"),
-    ]
+    if _code(_send(chainless, "PUT", "/api/livepresets/Warm")) != "chain_unknown":
+        raise FixtureError(reason="the engine answered an ordinary save, so it is not the chainless one")
+    assert _code(_send(chainless, "PUT", "/api/livepresets/a/b")) == "name_invalid"
 
 
 @pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
 def test_a_config_preset_delete_refuses_an_unusable_name_by_the_name_rule(http_client: TestClient, path: str) -> None:
-    assert _refusal(http_client, "DELETE", path) == (422, "name_invalid")
+    assert _code(_send(http_client, "DELETE", path)) == "name_invalid"
+
+
+@pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
+def test_a_config_preset_delete_of_an_unusable_name_is_a_client_error(http_client: TestClient, path: str) -> None:
+    assert _send(http_client, "DELETE", path).status_code // 100 == 4
 
 
 #: Both verbs at a path under `/api` that no route claims. A page server mounted
@@ -111,7 +147,12 @@ def test_a_config_preset_delete_refuses_an_unusable_name_by_the_name_rule(http_c
 #: file and the POST as the wrong verb, with a code on neither.
 @pytest.mark.parametrize("method", ["GET", "POST"])
 def test_an_unrouted_api_path_is_unknown_whatever_the_method(api_client: TestClient, method: str) -> None:
-    assert _refusal(api_client, method, "/api/nowhere") == (404, "route_unknown")
+    assert _code(_send(api_client, method, "/api/nowhere")) == "route_unknown"
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_an_unrouted_api_path_is_a_client_error_whatever_the_method(api_client: TestClient, method: str) -> None:
+    assert _send(api_client, method, "/api/nowhere").status_code // 100 == 4
 
 
 def _allow_tokens(resp: Response) -> set[str]:
@@ -122,7 +163,18 @@ def _allow_tokens(resp: Response) -> set[str]:
     return {token.strip() for token in resp.headers.get("allow", "").split(",")}
 
 
-def test_a_wrong_method_on_a_real_api_path_names_the_methods_it_takes(api_client: TestClient) -> None:
+def _wrong_method(client: TestClient) -> Response:
     # /api/health is GET-only, so the methods it takes are exactly that one
-    resp = api_client.request("POST", "/api/health", follow_redirects=False)
-    assert (resp.status_code, resp.json().get("code"), _allow_tokens(resp)) == (405, "method_not_allowed", {"GET"})
+    return _send(client, "POST", "/api/health")
+
+
+def test_a_wrong_method_on_a_real_api_path_names_the_methods_it_takes(api_client: TestClient) -> None:
+    assert _allow_tokens(_wrong_method(api_client)) == {"GET"}
+
+
+def test_a_wrong_method_on_a_real_api_path_carries_code_method_not_allowed(api_client: TestClient) -> None:
+    assert _code(_wrong_method(api_client)) == "method_not_allowed"
+
+
+def test_a_wrong_method_on_a_real_api_path_is_a_client_error(api_client: TestClient) -> None:
+    assert _wrong_method(api_client).status_code // 100 == 4

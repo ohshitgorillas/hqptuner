@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -103,22 +104,43 @@ def test_the_posted_password_survives_a_restart_only_when_remember_asked_it_to(
 
 def test_posted_credentials_open_the_config_route_with_no_restart(app_factory: AppFactory) -> None:
     client = app_factory()
-    before = client.get("/api/config").status_code
+    if client.get("/api/config").status_code != 503:
+        raise FixtureError(reason="the config route was open before any credentials were posted")
     post_connection(client, password="p", remember=True)
-    assert (before, client.get("/api/config").status_code) == (503, 200)
+    assert client.get("/api/config").status_code == 200
 
 
-@pytest.mark.parametrize(("configured", "started_holds"), [("", False), ("password", False), ("p", True)])
-def test_the_connection_view_reports_whether_a_password_is_held_and_never_the_password(
-    app_factory: AppFactory, configured: str, *, started_holds: bool
-) -> None:
+#: The password the install starts with, the password then posted (`None` for
+#: no post), and whether the connection view then reports a password held.
+CONNECTION_VIEWS = [
+    ("started-empty", "", None, False),
+    ("started-stock", "password", None, False),
+    ("started-held", "p", None, True),
+    ("cleared-from-empty", "", "", False),
+    ("cleared-from-stock", "password", "", False),
+    ("cleared-from-held", "p", "", False),
+]
+HELD_VIEWS = [pytest.param(configured, posted, holds, id=case) for case, configured, posted, holds in CONNECTION_VIEWS]
+VIEWS = [pytest.param(configured, posted, id=case) for case, configured, posted, _ in CONNECTION_VIEWS]
+
+
+def _connection_view(app_factory: AppFactory, configured: str, posted: str | None) -> dict[str, Any]:
     client = app_factory(hqp_username="u", hqp_password=configured)
-    started = client.get("/api/connection").json()
-    post_connection(client, password="", remember=False)
-    cleared = client.get("/api/connection").json()
-    assert [sorted(started), started["has_password"], sorted(cleared), cleared["has_password"]] == [
-        CONNECTION_KEYS,
-        started_holds,
-        CONNECTION_KEYS,
-        False,
-    ]
+    if posted is not None:
+        post_connection(client, password=posted, remember=False)
+    view: dict[str, Any] = client.get("/api/connection").json()
+    return view
+
+
+@pytest.mark.parametrize(("configured", "posted", "holds"), HELD_VIEWS)
+def test_the_connection_view_reports_whether_a_password_is_held(
+    app_factory: AppFactory, configured: str, posted: str | None, *, holds: bool
+) -> None:
+    assert _connection_view(app_factory, configured, posted)["has_password"] is holds
+
+
+@pytest.mark.parametrize(("configured", "posted"), VIEWS)
+def test_the_connection_view_never_carries_the_password(
+    app_factory: AppFactory, configured: str, posted: str | None
+) -> None:
+    assert sorted(_connection_view(app_factory, configured, posted)) == CONNECTION_KEYS

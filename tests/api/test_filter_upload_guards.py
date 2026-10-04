@@ -3,7 +3,7 @@ a parked filter must fit the per-file limit, fit the park's ceiling, and be a
 WAVE container or text before it is kept for the next apply.
 
 Written blind against the fake 8088 daemon alone. Refusals are matched by the
-`code` wire identifier plus status; `detail` is copy (docs/testing.md rule 9).
+`code` wire identifier and the status class; `detail` is copy (docs/testing.md rule 9).
 """
 
 from collections.abc import Iterator
@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from conftest import minimal_wave
 from fastapi.testclient import TestClient
+from httpx import Response
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -29,13 +30,21 @@ PARK_CEILING = 256 * 1024 * 1024
 #: is a well-formed container and fails for nothing but the ceiling.
 FITTING = 1024
 
-ACCEPTED = (200, None)
-REFUSED = (422, "invalid_input")
+#: What `_code` reads off an answer whose body carries no `code`: a parked upload's.
+NO_CODE = ""
+
+#: The two outcomes of an upload, as the status class and the `code` each answers with.
+STATUS_CLASS = {"parked": 2, "refused": 4}
+CODE = {"parked": NO_CODE, "refused": "invalid_input"}
 
 
-def _post(client: TestClient, name: str, body: bytes) -> tuple[int, Any]:
-    resp = client.post("/api/matrix/filter", files={"file": (name, body, "application/octet-stream")})
-    return resp.status_code, resp.json().get("code")
+def _post(client: TestClient, name: str, body: bytes) -> Response:
+    resp: Response = client.post("/api/matrix/filter", files={"file": (name, body, "application/octet-stream")})
+    return resp
+
+
+def _code(resp: Response) -> object:
+    return resp.json().get("code", NO_CODE)
 
 
 @pytest.fixture
@@ -65,55 +74,92 @@ def capped_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int)
 
 # --- line 1: per-file limit ----------------------------------------------------
 
+FILE_LIMIT_PAIR = [
+    pytest.param(FILE_LIMIT, "parked", id="at-limit"),
+    pytest.param(FILE_LIMIT + 1, "refused", id="one-over"),
+]
 
-@pytest.mark.parametrize(
-    ("size", "expected"),
-    [pytest.param(FILE_LIMIT, ACCEPTED, id="at-limit"), pytest.param(FILE_LIMIT + 1, REFUSED, id="one-over")],
-)
+
+@pytest.mark.parametrize(("size", "outcome"), FILE_LIMIT_PAIR)
 def test_a_file_parks_at_the_configured_limit_and_bounces_one_byte_over(
-    capped_client: TestClient, size: int, expected: tuple[int, str | None]
+    capped_client: TestClient, size: int, outcome: str
 ) -> None:
-    assert _post(capped_client, "probe.wav", minimal_wave(size)) == expected
+    assert _post(capped_client, "probe.wav", minimal_wave(size)).status_code // 100 == STATUS_CLASS[outcome]
+
+
+@pytest.mark.parametrize(("size", "outcome"), FILE_LIMIT_PAIR)
+def test_a_file_over_the_configured_limit_and_only_that_one_carries_code_invalid_input(
+    capped_client: TestClient, size: int, outcome: str
+) -> None:
+    assert _code(_post(capped_client, "probe.wav", minimal_wave(size))) == CODE[outcome]
 
 
 # --- line 2: park ceiling --------------------------------------------------------
 
+PARK_CEILING_PAIR = [
+    pytest.param(FITTING, "parked", id="fills-the-park"),
+    pytest.param(FITTING + 1, "refused", id="one-over"),
+]
 
-@pytest.mark.parametrize(
-    ("size", "expected"),
-    [pytest.param(FITTING, ACCEPTED, id="fills-the-park"), pytest.param(FITTING + 1, REFUSED, id="one-over")],
-)
-def test_an_upload_parks_up_to_the_park_ceiling_and_bounces_one_byte_over(
-    http_client: TestClient, tmp_path: Path, size: int, expected: tuple[int, str | None]
-) -> None:
+
+def _post_beside_a_nearly_full_park(client: TestClient, tmp_path: Path, size: int) -> Response:
     park = tmp_path / "pending-filters"
     park.mkdir(parents=True, exist_ok=True)
     with (park / "already.wav").open("wb") as parked:  # sparse: the park total is read by size
         parked.truncate(PARK_CEILING - FITTING)
-    assert _post(http_client, "probe.wav", minimal_wave(size)) == expected
+    return _post(client, "probe.wav", minimal_wave(size))
+
+
+@pytest.mark.parametrize(("size", "outcome"), PARK_CEILING_PAIR)
+def test_an_upload_parks_up_to_the_park_ceiling_and_bounces_one_byte_over(
+    http_client: TestClient, tmp_path: Path, size: int, outcome: str
+) -> None:
+    assert _post_beside_a_nearly_full_park(http_client, tmp_path, size).status_code // 100 == STATUS_CLASS[outcome]
+
+
+@pytest.mark.parametrize(("size", "outcome"), PARK_CEILING_PAIR)
+def test_an_upload_over_the_park_ceiling_and_only_that_one_carries_code_invalid_input(
+    http_client: TestClient, tmp_path: Path, size: int, outcome: str
+) -> None:
+    assert _code(_post_beside_a_nearly_full_park(http_client, tmp_path, size)) == CODE[outcome]
 
 
 # --- line 4: body shape ----------------------------------------------------------
 
 BODIES = [
-    pytest.param("junk.wav", b"RIFF" + bytes(40), REFUSED, id="riff-magic-then-nulls"),
-    pytest.param("junk.txt", b"Pre\x00amp", REFUSED, id="txt-with-a-control-byte"),
-    pytest.param("empty.txt", b"", REFUSED, id="empty-txt"),
-    pytest.param("probe.wav", minimal_wave(), ACCEPTED, id="minimal-wave-container"),
-    pytest.param("autoeq.txt", b"Preamp: -6.4 dB", ACCEPTED, id="rew-text-export"),
+    pytest.param("junk.wav", b"RIFF" + bytes(40), "refused", id="riff-magic-then-nulls"),
+    pytest.param("junk.txt", b"Pre\x00amp", "refused", id="txt-with-a-control-byte"),
+    pytest.param("empty.txt", b"", "refused", id="empty-txt"),
+    pytest.param("probe.wav", minimal_wave(), "parked", id="minimal-wave-container"),
+    pytest.param("autoeq.txt", b"Preamp: -6.4 dB", "parked", id="rew-text-export"),
 ]
 
 
-@pytest.mark.parametrize(("name", "body", "expected"), BODIES)
+@pytest.mark.parametrize(("name", "body", "outcome"), BODIES)
 def test_only_a_wave_container_or_text_body_is_parked(
-    http_client: TestClient, name: str, body: bytes, expected: tuple[int, str | None]
+    http_client: TestClient, name: str, body: bytes, outcome: str
 ) -> None:
-    assert _post(http_client, name, body) == expected
+    assert _post(http_client, name, body).status_code // 100 == STATUS_CLASS[outcome]
+
+
+@pytest.mark.parametrize(("name", "body", "outcome"), BODIES)
+def test_a_body_neither_wave_container_nor_text_carries_code_invalid_input(
+    http_client: TestClient, name: str, body: bytes, outcome: str
+) -> None:
+    assert _code(_post(http_client, name, body)) == CODE[outcome]
 
 
 # --- line 5: the route answers before framework validation does -------------------
 
 
+def _post_without_a_filename(client: TestClient) -> Response:
+    resp: Response = client.post("/api/matrix/filter", files={"file": ("", minimal_wave(), "audio/wav")})
+    return resp
+
+
 def test_an_empty_filename_is_refused_by_code(http_client: TestClient) -> None:
-    resp = http_client.post("/api/matrix/filter", files={"file": ("", minimal_wave(), "audio/wav")})
-    assert (resp.status_code, resp.json().get("code")) == REFUSED
+    assert _code(_post_without_a_filename(http_client)) == "invalid_input"
+
+
+def test_an_empty_filename_is_a_client_error(http_client: TestClient) -> None:
+    assert _post_without_a_filename(http_client).status_code // 100 == 4

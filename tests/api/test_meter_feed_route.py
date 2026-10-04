@@ -60,6 +60,14 @@ READ_CEILING = 10.0
 
 PATH = "/api/meter/feed"
 
+#: The (event name, data) a read answers when the response ended before it
+#: dispatched an event. No case expects it: its empty name and its data naming
+#: no channels fail every comparison a case makes rather than raising out of one.
+NO_EVENT: tuple[str, str] = ("", "{}")
+
+#: The channel count read off an event whose data names none.
+NO_CHANNELS = 0
+
 
 def _frame(channels: int) -> bytes:
     reals = [FLOOR_REAL] * BINS
@@ -70,10 +78,11 @@ def _frame(channels: int) -> bytes:
     return header + channel * channels
 
 
-def _first_complete_event(text: str) -> tuple[str, str] | None:
+def _first_complete_event(text: str) -> tuple[str, str]:
     """The (event name, data) of the first dispatched server-sent event in
     ``text``, per the event-stream format: blocks end at a blank line, and a
-    block with no data field dispatches nothing."""
+    block with no data field dispatches nothing. ``NO_EVENT`` itself, compared
+    by identity, where ``text`` dispatches none yet."""
     blocks = text.replace("\r\n", "\n").replace("\r", "\n").split("\n\n")
     for block in blocks[:-1]:
         name = "message"
@@ -87,11 +96,11 @@ def _first_complete_event(text: str) -> tuple[str, str] | None:
                 data.append(value)
         if data:
             return name, "\n".join(data)
-    return None
+    return NO_EVENT
 
 
-async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, str] | None:
-    """GET the feed, read until its first event, hang up; ``None`` where the
+async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, str]:
+    """GET the feed, read until its first event, hang up; ``NO_EVENT`` where the
     response ends without one."""
     sent: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     hung_up = asyncio.Event()
@@ -125,9 +134,9 @@ async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, s
     }
     task = asyncio.ensure_future(app(scope, receive, send))
     body = ""
-    event = None
+    event = NO_EVENT
     try:
-        while event is None:
+        while event is NO_EVENT:
             message = await asyncio.wait_for(sent.get(), timeout=READ_CEILING)
             if message["type"] != "http.response.body":
                 continue
@@ -143,15 +152,20 @@ async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, s
     return event
 
 
-def _first_event(client: TestClient) -> tuple[str, Any] | None:
+def _first_event(client: TestClient) -> tuple[str, str]:
     portal = client.portal
     if portal is None:
         raise FixtureError(reason="the client is not running its app")
-    event = portal.call(_read_first_event, client.app, dict(getattr(client, "app_state", {})))
-    if event is None:
-        return None
-    name, data = event
-    return name, json.loads(data).get("channels")
+    event: tuple[str, str] = portal.call(_read_first_event, client.app, dict(getattr(client, "app_state", {})))
+    return event
+
+
+def _first_event_name(client: TestClient) -> str:
+    return _first_event(client)[0]
+
+
+def _first_event_channels(client: TestClient) -> object:
+    return json.loads(_first_event(client)[1]).get("channels", NO_CHANNELS)
 
 
 @pytest.fixture
@@ -193,7 +207,12 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
 
 
 @pytest.mark.parametrize("channels", [1, 2], ids=["mono", "stereo"])
-def test_the_feed_opens_with_the_geometry_of_the_streams_channel_count(
+def test_the_feed_opens_with_a_geometry_event(feed_api: Callable[[int], TestClient], channels: int) -> None:
+    assert _first_event_name(feed_api(channels)) == "geometry"
+
+
+@pytest.mark.parametrize("channels", [1, 2], ids=["mono", "stereo"])
+def test_the_feeds_first_event_carries_the_streams_channel_count(
     feed_api: Callable[[int], TestClient], channels: int
 ) -> None:
-    assert _first_event(feed_api(channels)) == ("geometry", channels)
+    assert _first_event_channels(feed_api(channels)) == channels

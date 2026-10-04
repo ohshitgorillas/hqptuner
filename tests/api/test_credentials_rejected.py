@@ -22,6 +22,7 @@ import pytest
 from apps import advance_app, app_manager, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
+from httpx import Response
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -133,48 +134,63 @@ def _require_recorded_refusal(client: TestClient) -> None:
         raise FixtureError(reason="the lane never recorded the refusal, so the recorded case never set itself up")
 
 
-def _credentials_ok(client: TestClient) -> bool | None:
+#: What `_credentials_ok` reads where health reports no verdict yet: nothing on
+#: the 8088 lane has been answered, so the credentials are neither accepted nor refused.
+UNREAD = "unread"
+
+
+def _credentials_ok(client: TestClient) -> bool | str:
     value: bool | None = client.get("/api/health").json().get("credentials_ok")
-    return value
+    return UNREAD if value is None else value
 
 
+#: The daemon's answers in the order one app meets them, each settled before
+#: the next, and the verdict reported once the last has landed.
+VERDICTS = [
+    pytest.param([], UNREAD, id="unread"),
+    pytest.param([("_down", False)], True, id="accepted"),
+    pytest.param([("_down", False), ("_refuse_auth", True)], False, id="refused"),
+]
+
+
+@pytest.mark.parametrize(("changes", "verdict"), VERDICTS)
 def test_health_credentials_ok_reports_unknown_then_accepted_then_refused(
-    credential_client: CredClient,
+    credential_client: CredClient, changes: list[tuple[str, bool]], *, verdict: bool | str
 ) -> None:
-    # Three verdicts against one app: nothing read yet, a read that succeeded,
-    # a read the daemon answered 403. The control lane carries no
+    # Three verdicts along one app's history: nothing read yet, a read that
+    # succeeded, a read the daemon answered 403. The control lane carries no
     # authentication and is up the whole way through, so a report sourced from
     # reachability cannot tell the last two apart.
     client, state = credential_client(_down=True)
     _connected(client)
     _settle(client, state)
-    unread = _credentials_ok(client)
-    state["_down"] = False
-    _settle(client, state)
-    accepted = _credentials_ok(client)
-    state["_refuse_auth"] = True
-    _settle(client, state)
-    refused = _credentials_ok(client)
-    assert (unread, accepted, refused) == (None, True, False)
+    for key, value in changes:
+        state[key] = value
+        _settle(client, state)
+    assert _credentials_ok(client) == verdict
 
 
-def test_an_accepted_credential_flips_to_refused_and_the_refusal_outlives_the_daemon_going_down(
-    credential_client: CredClient,
+@pytest.mark.parametrize(
+    ("refuse_first", "verdict"),
+    [pytest.param(False, True, id="accepted"), pytest.param(True, False, id="refused")],
+)
+def test_a_recorded_credential_verdict_outlives_the_daemon_going_down(
+    credential_client: CredClient, *, refuse_first: bool, verdict: bool
 ) -> None:
     # A restore restarts the daemon, so the lane answers 503 on every path for a
-    # window after every write. That is not a credential verdict: the refusal
+    # window after every write. That is not a credential verdict: the verdict
     # already recorded must survive it rather than being cleared by the poll
     # that could not ask.
     client, state = credential_client()
     _connected(client)
     _settle(client, state)
-    accepted = _credentials_ok(client)
-    state["_refuse_auth"] = True
+    if _credentials_ok(client) is not True:
+        raise FixtureError(reason="the lane never accepted the credentials it started with")
+    state["_refuse_auth"] = refuse_first
     _settle(client, state)
     state["_down"] = True
     _settle(client, state)
-    survives_the_outage = _credentials_ok(client)
-    assert (survives_the_outage, accepted) == (False, True)
+    assert _credentials_ok(client) is verdict
 
 
 @pytest.mark.parametrize(("case", "fetches"), [("recorded", 0), ("unrecorded", 1)])
@@ -212,18 +228,32 @@ def test_a_persistent_apply_fetches_the_archive_once_at_most_when_credentials_ar
     assert state["_backup_reads"] - before == fetches
 
 
-def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
-    credential_client: CredClient,
-) -> None:
-    # A refusal met mid-pass (nothing on the lane has recorded it yet, so the
-    # apply's own fetch is what meets it) is a failed request: the route lets
-    # `refuse(exc)` answer with the cause's code, and `store.clear()` — which
-    # would drop the staged edit — runs only after a successful apply, never
-    # reached here.
+def _apply_refused_mid_pass(credential_client: CredClient) -> tuple[TestClient, Response]:
+    """The app and its apply's answer, where the daemon starts refusing the
+    credentials after the edit is staged and before the apply runs.
+
+    Nothing on the lane has recorded the refusal yet, so the apply's own fetch
+    is what meets it."""
     client, state = credential_client(poll_interval=30.0)
     _loaded(client)
     client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     state["_refuse_auth"] = True
-    resp = client.post("/api/config/apply")
-    pending = client.get("/api/config/pending").json()
-    assert (resp.json()["code"], pending["http"]["title"]) == ("no_credentials", "Renamed")
+    return client, client.post("/api/config/apply")
+
+
+def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
+    credential_client: CredClient,
+) -> None:
+    # `store.clear()`, which would drop the staged edit, runs only after a
+    # successful apply, never reached here.
+    client, _ = _apply_refused_mid_pass(credential_client)
+    assert client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
+
+
+def test_a_persistent_apply_refused_for_credentials_answers_code_no_credentials(
+    credential_client: CredClient,
+) -> None:
+    # a refusal met mid-pass is a failed request: the route lets `refuse(exc)`
+    # answer with the cause's code
+    _, resp = _apply_refused_mid_pass(credential_client)
+    assert resp.json()["code"] == "no_credentials"

@@ -65,18 +65,24 @@ def test_state_serves_the_daemons_state_snapshot(live_api: TestClient) -> None:
     assert live_api.get("/api/state").json()["data"]["state"] == "0"
 
 
-def test_state_is_stale_only_once_the_manager_stops_being_reachable(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("lane_down", "stale"),
+    [pytest.param(False, False, id="reachable"), pytest.param(True, True, id="unreachable")],
+)
+def test_state_is_stale_only_once_the_manager_stops_being_reachable(
+    tmp_path: Path, *, lane_down: bool, stale: bool
+) -> None:
     control_state = dict(fake_control.DEFAULTS)
     daemon = spawn_threaded_daemon(state=control_state)
     app = live_app(next(daemon), tmp_path)
     client = next(app)
-    reachable = client.get("/api/state").json()["stale"]
-    fake_control.take_lane_down(control_state)
+    if lane_down:
+        fake_control.take_lane_down(control_state)
     advance_app(client, app_manager(client).cfg.poll_interval)
-    unreachable = client.get("/api/state").json()["stale"]
+    reported = client.get("/api/state").json()["stale"]
     next(app, None)
     next(daemon, None)
-    assert (reachable, unreachable) == (False, True)
+    assert reported is stale
 
 
 # --- which chain's controls are live-adjustable -------------------------------
@@ -99,16 +105,19 @@ def test_a_configured_sdm_mode_is_the_live_chain(chain_api: Callable[..., TestCl
     assert chain_api(mode="2").get("/api/state").json()["data"]["active_chain"] == "sdm"
 
 
+@pytest.mark.parametrize(
+    ("active_mode", "chain"),
+    [pytest.param("", None, id="unanswered"), pytest.param("SDM (DSD)", "sdm", id="answered")],
+)
 def test_an_unanswerable_chain_is_reported_as_unknown_but_resolves_once_the_engine_answers(
-    chain_api: Callable[..., TestClient],
+    chain_api: Callable[..., TestClient], active_mode: str, chain: str | None
 ) -> None:
     # [source] follows the source, so the configured mode cannot say which chain
     # is loaded and Status's active mode is the only lane that can. Neither lane
     # can answer before playback starts — null, never a guess: a wrong chain
     # offers filters that would resolve against the other chain's enum IDs.
-    answered = chain_api(mode="0", _active_mode="SDM (DSD)").get("/api/state").json()["data"]["active_chain"]
-    unanswered = chain_api(mode="0", _active_mode="").get("/api/state").json()["data"]["active_chain"]
-    assert (unanswered, answered) == (None, "sdm")
+    client = chain_api(mode="0", _active_mode=active_mode)
+    assert client.get("/api/state").json()["data"]["active_chain"] == chain
 
 
 def test_status_serves_the_engines_active_mode(live_api: TestClient) -> None:

@@ -8,8 +8,10 @@ import io
 import zipfile
 from typing import Any
 
+import pytest
 from conftest import minimal_wave
 from fastapi.testclient import TestClient
+from narrow import FixtureError
 
 # --- backup / restore ---------------------------------------------------------
 
@@ -152,22 +154,39 @@ def test_apply_switches_to_the_previewed_preset(http_client: TestClient) -> None
 # else: no restore, no restart, no backup fetch.
 
 
-def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestClient) -> None:
+def _active(client: TestClient) -> str:
+    active: str = client.get("/api/config").json()["data"]["active"]
+    return active
+
+
+@pytest.mark.parametrize("switch_to", ["Kept", ""], ids=["a-preset", "no-preset"])
+def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestClient, switch_to: str) -> None:
     http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
     http_client.post("/api/profile/save", json={"name": "Kept"})
-    http_client.post("/api/config/apply", json={"switch_to": "Kept"})
-    with_switch = http_client.get("/api/config").json()["data"]["active"]
-    http_client.post("/api/config/apply", json={"switch_to": ""})
-    without_switch = http_client.get("/api/config").json()["data"]["active"]
-    assert (without_switch, with_switch) == ("", "Kept")
+    http_client.post("/api/profile/save", json={"name": "Other"})
+    if _active(http_client) != "Other":
+        raise FixtureError(reason="saving Other did not make it the active preset to switch away from")
+    http_client.post("/api/config/apply", json={"switch_to": switch_to})
+    assert _active(http_client) == switch_to
+
+
+def _switch_report(client: TestClient, switch_to: str) -> dict[str, Any]:
+    client.post("/api/profile/save", json={"name": "Kept"})
+    switched: dict[str, Any] = client.post("/api/config/apply", json={"switch_to": switch_to}).json()["report"][
+        "switched"
+    ]
+    return switched
+
+
+@pytest.mark.parametrize("switch_to", ["Kept", ""], ids=["a-preset", "no-preset"])
+def test_applying_a_switch_reports_the_preset_it_switched_to(http_client: TestClient, switch_to: str) -> None:
+    assert _switch_report(http_client, switch_to)["name"] == switch_to
 
 
 def test_applying_no_preset_reports_the_switch_as_taken(http_client: TestClient) -> None:
     # the report is what keeps the staging buffer: a switch that reads as not
     # taken makes the apply a soft failure and the picker snaps back
-    http_client.post("/api/profile/save", json={"name": "Kept"})
-    switched = http_client.post("/api/config/apply", json={"switch_to": ""}).json()["report"]["switched"]
-    assert (switched["name"], switched["active"]) == ("", True)
+    assert _switch_report(http_client, "")["active"] is True
 
 
 def test_applying_no_preset_sends_no_restore_to_the_daemon(

@@ -68,28 +68,21 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
         next(daemon, None)
 
 
-def test_release_is_empty_when_the_about_page_is_unreachable_but_the_version_when_it_answers(
-    dual_client: Callable[..., TestClient],
-) -> None:
-    working = dual_client()
-    wait_for_api(working, lambda c: c.get("/api/health").json().get("release", "") != "")
-    present = working.get("/api/health").json()["release"]
-    broken = dual_client(_fail_paths=["/about"])
-    _settle(broken)
-    empty = broken.get("/api/health").json()["release"]
-    assert (empty, present) == ("", "6.0.2")
+#: The 8088 daemon's state overrides and the release /api/health then reports.
+ABOUT_PAGES = [
+    pytest.param({}, "6.0.2", id="answers"),
+    pytest.param({"_fail_paths": ["/about"]}, "", id="unreachable"),
+    pytest.param({"_about_body": "<html><body><h1>About</h1></body></html>"}, "", id="versionless"),
+]
 
 
-def test_release_is_empty_when_the_about_page_carries_no_version_but_the_version_when_it_does(
-    dual_client: Callable[..., TestClient],
+@pytest.mark.parametrize(("overrides", "release"), ABOUT_PAGES)
+def test_release_is_the_about_pages_version_and_empty_when_it_cannot_be_read_or_carries_none(
+    dual_client: Callable[..., TestClient], overrides: dict[str, object], release: str
 ) -> None:
-    working = dual_client()
-    wait_for_api(working, lambda c: c.get("/api/health").json().get("release", "") != "")
-    present = working.get("/api/health").json()["release"]
-    versionless = dual_client(_about_body="<html><body><h1>About</h1></body></html>")
-    _settle(versionless)
-    empty = versionless.get("/api/health").json()["release"]
-    assert (empty, present) == ("", "6.0.2")
+    client = dual_client(**overrides)
+    _settle(client)
+    assert client.get("/api/health").json()["release"] == release
 
 
 def test_daemon_still_reachable_when_the_about_page_is_unreachable(dual_client: Callable[..., TestClient]) -> None:

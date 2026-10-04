@@ -123,14 +123,16 @@ def test_saving_with_the_engines_chain_unknown_details_the_chain_field_alone(
     assert set(chainless_api.put("/api/livepresets/Warm").json()["detail"]) == {"chain"}
 
 
+@pytest.mark.parametrize(
+    ("app", "stored"),
+    [pytest.param("chainless_api", [], id="chain-unknown"), pytest.param("live_api", ["Warm"], id="chain-known")],
+)
 def test_saving_stores_nothing_with_the_chain_unknown_but_the_preset_once_it_is_known(
-    chainless_api: TestClient, live_api: TestClient
+    request: pytest.FixtureRequest, app: str, stored: list[str]
 ) -> None:
-    chainless_api.put("/api/livepresets/Warm")
-    unknown_chain = [p["name"] for p in chainless_api.get("/api/livepresets").json()["presets"]]
-    live_api.put("/api/livepresets/Warm")
-    known_chain = [p["name"] for p in live_api.get("/api/livepresets").json()["presets"]]
-    assert (unknown_chain, known_chain) == ([], ["Warm"])
+    client: TestClient = request.getfixturevalue(app)
+    client.put("/api/livepresets/Warm")
+    assert [p["name"] for p in client.get("/api/livepresets").json()["presets"]] == stored
 
 
 def test_saving_into_a_store_this_build_cannot_read_is_a_conflict(unreadable_api: TestClient) -> None:
