@@ -31,6 +31,10 @@ STAGE="build/dmg"
 # key in HQPTUNER_NOTARY_KEY, HQPTUNER_NOTARY_KEY_ID and HQPTUNER_NOTARY_ISSUER.
 # Without an identity the app is ad-hoc signed and the dmg is not signed.
 IDENTITY="${HQPTUNER_CODESIGN_IDENTITY:-}"
+# One status request every 30 seconds, for at most five hours.
+NOTARY_POLL_SECONDS=30
+NOTARY_MAX_POLLS=600
+json_field() { "$PYTHON" -c 'import json, sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$1"; }
 NOTARY=()
 if [ -n "$IDENTITY" ]; then
   if [ -n "${HQPTUNER_NOTARY_PROFILE:-}" ]; then
@@ -56,8 +60,28 @@ hdiutil create -volname HQPTuner -srcfolder "$STAGE" -fs APFS -format UDZO -ov "
 say "[3/4] sign and notarize"
 if [ -n "$IDENTITY" ]; then
   codesign --sign "$IDENTITY" --timestamp "$DMG"
-  xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait
-  xcrun stapler staple "$DMG" || die "no notarization ticket for $DMG; xcrun notarytool log has the reason."
+  SUBMISSION=$(xcrun notarytool submit "$DMG" "${NOTARY[@]}" --output-format json | json_field id)
+  [ -n "$SUBMISSION" ] || die "the notary service returned no submission id."
+  echo "  submission $SUBMISSION"
+  # The notary service can hold a submission for longer than a connection to
+  # it lasts, so the status is polled and a failed poll is not a verdict.
+  STATUS="In Progress"
+  POLLS=0
+  FAILED=0
+  while [ "$STATUS" = "In Progress" ]; do
+    POLLS=$((POLLS + 1))
+    [ "$POLLS" -le "$NOTARY_MAX_POLLS" ] || die "notary submission $SUBMISSION is still in progress after $NOTARY_MAX_POLLS polls."
+    sleep "$NOTARY_POLL_SECONDS"
+    if STATUS=$(xcrun notarytool info "$SUBMISSION" "${NOTARY[@]}" --output-format json | json_field status); then
+      FAILED=0
+    else
+      FAILED=$((FAILED + 1))
+      [ "$FAILED" -lt 10 ] || die "10 status requests in a row failed for notary submission $SUBMISSION."
+      STATUS="In Progress"
+    fi
+  done
+  [ "$STATUS" = Accepted ] || die "notary submission $SUBMISSION is '$STATUS'; xcrun notarytool log $SUBMISSION has the reason."
+  xcrun stapler staple "$DMG"
 else
   echo "  skipped: HQPTUNER_CODESIGN_IDENTITY is not set."
 fi
