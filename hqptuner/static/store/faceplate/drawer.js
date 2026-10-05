@@ -150,6 +150,15 @@ function dirtyTabs(drawer) {
 }
 
 /**
+ * Whether a drawer holds a staged edit of either lane: its own form's, else any key of any of its tabs.
+ *
+ * @param {DrawerSchema} drawer
+ * @returns {boolean}
+ */
+const holdsStaged = (drawer) =>
+  drawer.own ? drawer.own.staged() : drawer.tabs.some((t) => tabKeys(t).some((k) => isDirty(k)));
+
+/**
  * The other registered members of a drawer's family, as the staged test reads them.
  *
  * @param {DrawerSchema} drawer
@@ -158,9 +167,7 @@ function dirtyTabs(drawer) {
 function siblings(drawer) {
   const members = drawer.family ? families.get(drawer.family) : undefined;
   if (!members) return [];
-  return [...members.values()]
-    .filter((m) => m.id !== drawer.id)
-    .map((m) => ({ hasDirty: () => dirtyTabs(m).length > 0 }));
+  return [...members.values()].filter((m) => m.id !== drawer.id).map((m) => ({ hasDirty: () => holdsStaged(m) }));
 }
 
 /**
@@ -173,7 +180,7 @@ function siblings(drawer) {
 export function drawerHead(drawer, tabId) {
   const dirty = dirtyTabs(drawer);
   const tab = drawer.tabs.find((t) => t.id === tabId) ?? drawer.tabs[0];
-  const staged = drawer.own ? drawer.own.staged() : isStaged(dirty.length > 0, siblings(drawer));
+  const staged = drawer.own ? drawer.own.staged() : isStaged(holdsStaged(drawer), siblings(drawer));
   const restart = !!drawer.own || shownKeys(drawer, tab).some(restartLane);
   return {
     dirty,

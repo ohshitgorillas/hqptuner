@@ -142,6 +142,19 @@ test("test_a_family_members_staged_edit_lights_the_apply_group_of_its_siblings_o
   assert.deepEqual(lit, [true, false]);
 });
 
+test("test_a_staged_live_lane_edit_makes_the_apply_buttons_live", async () => {
+  await edit("adaptive_volume", "1");
+  assert.equal(drawerHead(twoTabs("d7"), "live").apply.live, true);
+});
+
+test("test_a_family_members_staged_live_lane_edit_lights_the_apply_group_of_its_sibling", async () => {
+  const sibling = oneTab("f3-a", "volume_max", "f3");
+  registerDrawer(sibling);
+  registerDrawer(oneTab("f3-b", "adaptive_volume", "f3"));
+  await edit("adaptive_volume", "1");
+  assert.equal(drawerHead(sibling, "only").apply.live, true);
+});
+
 test("test_a_drawer_shows_the_tab_last_picked", () => {
   showTab("d7", "live");
   assert.equal(shownTab(twoTabs("d7")), "live");
