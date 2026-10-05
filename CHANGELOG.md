@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.17.0] — 2026-10-05
+
 ### Added
 
 - **ASIO and WASAPI outputs.** With HQPlayer Embedded on Windows, the Output tab shows its ASIO and WASAPI backends in place of ALSA.
