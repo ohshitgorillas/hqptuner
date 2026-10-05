@@ -2,6 +2,8 @@
 
 A polished and enhanced configuration interface for HQPlayer Embedded.
 
+[Discord](https://discord.gg/9ncNefPXnV)
+
 ![The Output tab during DSD512 playback](docs/images/hqptuner-output-green.png)
 
 *The Output tab, upsampling a CD-quality file to DSD512 using the poly-sinc-ext2-long filter. The filter list is shown expanded in Simplified mode, converting the list of confusing filter shorthand into plain English. The list has also been narrowed to only show apodizing filters rated 3/5 or greater quality.*
