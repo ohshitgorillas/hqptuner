@@ -17,12 +17,13 @@ VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
 # is frozen with, and an x86_64 Python runs under Rosetta in an arm64 shell.
 MACHINE=$("$PYTHON" -c 'import platform; print(platform.machine())')
 case "$MACHINE" in
-  arm64|x86_64) ;;
+  arm64) MAC=apple-silicon ;;
+  x86_64) MAC=intel ;;
   *) die "unsupported architecture '$MACHINE'." ;;
 esac
 
 APP="dist/HQPTuner.app"
-DMG="dist/HQPTuner-${VERSION}-${MACHINE}.dmg"
+DMG="dist/HQPTuner-${VERSION}-${MAC}.dmg"
 STAGE="build/dmg"
 
 # A Developer ID identity in HQPTUNER_CODESIGN_IDENTITY signs the app, through

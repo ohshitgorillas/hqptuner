@@ -7,6 +7,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Added
 
 - **ASIO and WASAPI outputs.** With HQPlayer Embedded on Windows, the Output tab shows its ASIO and WASAPI backends in place of ALSA.
+- **macOS app.** Each release now carries two dmgs for Apple macOS devices: one for Apple silicon and one for Intel.
 
 ## [1.16.0] — 2026-10-04
 

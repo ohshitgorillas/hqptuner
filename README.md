@@ -92,7 +92,7 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 * A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
-* Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR Python v3.12+ (developed on v3.14)
+* Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR Python v3.12+
 
 ## Install & run
 
@@ -178,6 +178,16 @@ Presets, backups and settings are kept in `/var/lib/hqptuner`, and removing the 
 
 The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL 8, or anything later.
 
+### macOS app
+
+Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries two dmgs: `HQPTuner-X.Y.Z-apple-silicon.dmg` for Apple silicon Macs and `HQPTuner-X.Y.Z-intel.dmg` for Intel Macs. Both need macOS 15 or later. Open the one for your Mac and drag HQPTuner into Applications.
+
+Launching HQPTuner puts an icon in the menu bar and opens the UI in your default browser, at `http://127.0.0.1:8090`. It is reachable from that Mac only. macOS asks once whether HQPTuner may find devices on your local network; choose Allow, since that is how it reaches HQPlayer. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
+
+The menu bar icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
+
+To update, quit HQPTuner and drag the newer app into Applications. Presets, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
+
 ### From a clone (no Docker)
 
 Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
@@ -226,7 +236,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Status
 
-**Stable.** Backend and frontend are feature-complete. Docker images and Linux deb and rpm packages ship for amd64 and arm64.
+**Stable.** Backend and frontend are feature-complete. Docker images and Linux deb and rpm packages ship for amd64 and arm64, and a macOS app ships for Apple silicon and Intel Macs.
 
 Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` for contribution guidelines.
 
