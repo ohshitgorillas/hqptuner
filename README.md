@@ -224,7 +224,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Status
 
-**Stable.** Currently at v1.0.0. Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4, and Docker images ship for amd64 and arm64 on the `:latest` tag.
+**Stable.** Backend and frontend are feature-complete. Docker images and Linux deb and rpm packages ship for amd64 and arm64.
 
 Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` for contribution guidelines.
 
