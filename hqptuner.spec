@@ -1,5 +1,6 @@
 # PyInstaller build of the frozen bundle: pyinstaller hqptuner.spec, which
-# scripts/package-linux.sh runs before packing the deb and the rpm.
+# scripts/package-linux.sh runs before packing the deb and the rpm, and
+# scripts/package-macos.sh before packing the dmg.
 #
 # One-folder, so the assets land beside the executable rather than in a temp
 # directory that goes away at exit. The bundle destinations are "static" and
@@ -15,6 +16,8 @@
 # than at build.
 
 import sys
+import tomllib
+from pathlib import Path
 
 a = Analysis(
     ["hqptuner/__main__.py"],
@@ -62,7 +65,8 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
+    # A macOS launch has no terminal behind it: the app lives in the menu bar.
+    console=sys.platform != "darwin",
 )
 
 coll = COLLECT(
@@ -73,3 +77,26 @@ coll = COLLECT(
     upx=False,
     name="HQPTuner",
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="HQPTuner.app",
+        # Not an icns: PyInstaller converts it with Pillow, which a macOS
+        # install already carries for the tray.
+        icon=str(Path(SPECPATH, "packaging/desktop/icon.png")),
+        bundle_identifier="net.ohshitgorillas.hqptuner",
+        version=tomllib.loads(Path(SPECPATH, "pyproject.toml").read_text())["project"]["version"],
+        info_plist={
+            # Menu bar only, no Dock icon.
+            "LSUIElement": True,
+            # A frozen bundle supports the macOS it was built on and later, and
+            # .github/workflows/release.yml builds on macOS 15.
+            "LSMinimumSystemVersion": "15.0",
+            # The text of the system's local network alert, which the daemon
+            # connection and discovery both raise on a launch from Finder.
+            "NSLocalNetworkUsageDescription": (
+                "HQPTuner connects to and controls HQPlayer Embedded over the local network."
+            ),
+        },
+    )

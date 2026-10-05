@@ -7,6 +7,7 @@ on:
     paths:
       - "packaging/**"
       - scripts/package-linux.sh
+      - scripts/package-macos.sh
       - hqptuner.spec
       - pyproject.toml
       - .github/workflows/release.yml
@@ -162,6 +163,68 @@ jobs:
 
       - if: always()
         run: docker rm -f alma
+
+  # PyInstaller does not cross-compile, so each architecture freezes on its own
+  # runner. The dmgs are ad-hoc signed and stay workflow artifacts: publish
+  # attaches nothing unsigned.
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$RUNNER_TEMP/uv" sh
+          echo "$RUNNER_TEMP/uv" >> "$GITHUB_PATH"
+      - run: uv venv --python 3.14 .venv
+      - run: uv pip install . pyinstaller
+
+      - run: scripts/package-macos.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # Each dmg runs on the macOS it was built on and on every newer one a runner
+  # offers. The xcode-27 image is the one that runs macOS 27.
+  smoke-macos:
+    needs: build-macos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-26
+            arch: arm64
+          - runner: xcode-27
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-26-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist
+
+      - run: bash packaging/macos/smoke.sh dist/*.dmg
 
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
