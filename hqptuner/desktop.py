@@ -14,13 +14,16 @@ import enum
 import importlib
 import ipaddress
 import logging
+import os
 import re
 import socket
+import sys
 import threading
 import webbrowser
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Protocol, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, TextIO, cast
 from urllib.parse import urlsplit
 
 import httpx
@@ -121,6 +124,20 @@ def shell_for(platform: str) -> Shell:
     macOS (``darwin``) and Windows (``win32``) get the desktop shell; every other platform serves headless.
     """
     return Shell.DESKTOP if platform in {"darwin", "win32"} else Shell.SERVER
+
+
+def _null() -> TextIO:
+    """Open a stream that discards what is written to it."""
+    return Path(os.devnull).open("w", encoding="utf-8")
+
+
+def stdio(stdout: TextIO | None, stderr: TextIO | None, sink: Callable[[], TextIO] = _null) -> tuple[TextIO, TextIO]:
+    """Return the two standard streams, each missing one replaced by a stream ``sink`` opens.
+
+    A Windows build with no console starts with both set to ``None``, and uvicorn's log setup calls a method on
+    each.
+    """
+    return (sink() if stdout is None else stdout, sink() if stderr is None else stderr)
 
 
 def ui_url(host: str, port: int) -> str:
@@ -273,15 +290,16 @@ def _refuse(url: str) -> int:
 def launch(platform: str, main: Callable[..., None], parts: Parts | None = None) -> int:
     """Run the launch ``platform`` calls for and return the process exit status.
 
-    The headless shell calls ``main()`` and returns 0. The desktop shell asks the configured listen port who
-    holds it first: nobody, and it calls ``main(run=...)`` with ``serve`` as the runner; HQPTuner, and it opens
-    the browser on that instance without starting a server; a stranger, and it logs the conflict and returns 1.
-    A holder that never answers the probe as HTTP is a stranger too: the conflict is logged and the process ends
-    with status 1.
+    The headless shell calls ``main()`` and returns 0. The desktop shell first gives the process a standard output
+    and error stream where it has none, then asks the configured listen port who holds it: nobody, and it calls
+    ``main(run=...)`` with ``serve`` as the runner; HQPTuner, and it opens the browser on that instance without
+    starting a server; a stranger, and it logs the conflict and returns 1. A holder that never answers the probe
+    as HTTP is a stranger too: the conflict is logged and the process ends with status 1.
     """
     if shell_for(platform) is Shell.SERVER:
         main()
         return 0
+    sys.stdout, sys.stderr = stdio(sys.stdout, sys.stderr)
     parts = parts or Parts()
     cfg = Config()
     url = ui_url(cfg.listen_host, cfg.listen_port)

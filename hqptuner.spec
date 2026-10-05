@@ -1,6 +1,7 @@
 # PyInstaller build of the frozen bundle: pyinstaller hqptuner.spec, which
-# scripts/package-linux.sh runs before packing the deb and the rpm, and
-# scripts/package-macos.sh before packing the dmg.
+# scripts/package-linux.sh runs before packing the deb and the rpm,
+# scripts/package-macos.sh before packing the dmg, and
+# scripts/package-windows.sh before packing the installer.
 #
 # One-folder, so the assets land beside the executable rather than in a temp
 # directory that goes away at exit. The bundle destinations are "static" and
@@ -65,8 +66,12 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    # A macOS launch has no terminal behind it: the app lives in the menu bar.
-    console=sys.platform != "darwin",
+    # A macOS or Windows launch has no terminal behind it: the app lives in the
+    # menu bar or the tray.
+    console=sys.platform == "linux",
+    # Not an ico: PyInstaller converts it with Pillow, which a Windows install
+    # already carries for the tray. The macOS icon is set on the bundle below.
+    icon=str(Path(SPECPATH, "packaging/desktop/icon.png")) if sys.platform == "win32" else None,
 )
 
 coll = COLLECT(

@@ -8,6 +8,7 @@ on:
       - "packaging/**"
       - scripts/package-linux.sh
       - scripts/package-macos.sh
+      - scripts/package-windows.sh
       - hqptuner.spec
       - pyproject.toml
       - .github/workflows/release.yml
@@ -225,6 +226,104 @@ jobs:
           path: dist
 
       - run: bash packaging/macos/smoke.sh dist/*.dmg
+
+  # Each architecture freezes on its own runner, with a Python of that
+  # architecture named outright: uv may otherwise pick an x64 one on Arm64.
+  build-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+            python: cpython-3.14-windows-x86_64-none
+          - runner: windows-11-arm
+            arch: arm64
+            python: cpython-3.14-windows-aarch64-none
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install uv
+        shell: pwsh
+        run: |
+          $env:UV_INSTALL_DIR = "$env:RUNNER_TEMP\uv"
+          irm https://astral.sh/uv/install.ps1 | iex
+          "$env:RUNNER_TEMP\uv" >> $env:GITHUB_PATH
+      - run: uv venv --python ${{ matrix.python }} .venv
+      - run: uv pip install . pyinstaller
+
+      - run: scripts/package-windows.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-bundle-${{ matrix.arch }}
+          path: dist/windows
+          if-no-files-found: error
+
+  # One installer carries both bundles. It is unsigned and stays a workflow
+  # artifact: publish attaches nothing unsigned.
+  package-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: windows-bundle-*
+          path: dist/windows
+          merge-multiple: true
+
+      - run: scripts/package-windows.sh installer
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: dist/*-setup.exe
+          if-no-files-found: error
+
+  # The installer picks the bundle of the machine it runs on, so each runner
+  # exercises its own. The x64 bundle also runs on Arm64, under emulation.
+  smoke-windows:
+    needs: package-windows
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            artifact: windows-installer
+            target: dist/*-setup.exe
+            arch: x64
+          - runner: windows-11-arm
+            artifact: windows-installer
+            target: dist/*-setup.exe
+            arch: arm64
+          - runner: windows-11-arm
+            artifact: windows-bundle-x64
+            target: dist/x64/HQPTuner
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+
+      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }}
 
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:

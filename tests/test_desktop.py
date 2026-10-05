@@ -7,6 +7,7 @@ hands it and appends what was asked of it to one shared log, so a test reads the
 from __future__ import annotations
 
 import inspect
+import io
 import ipaddress
 import socket
 from dataclasses import dataclass, field, replace
@@ -303,6 +304,28 @@ def test_serve_opens_the_browser_on_the_address_it_serves() -> None:
     rig = Rig()
     serve_on(rig)
     assert addresses(rig.browsed) == [(HOST, PORT)]
+
+
+# --- stdio ------------------------------------------------------------------------------------------------------
+
+KEPT = io.StringIO()
+SINK = io.StringIO()
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "pair"),
+    [(None, KEPT, (SINK, KEPT)), (KEPT, None, (KEPT, SINK))],
+    ids=["stdout", "stderr"],
+)
+def test_stdio_puts_the_sink_in_place_of_a_missing_stream(
+    stdout: io.StringIO | None, stderr: io.StringIO | None, pair: tuple[io.StringIO, io.StringIO]
+) -> None:
+    assert desktop.stdio(stdout, stderr, sink=lambda: SINK) == pair
+
+
+def test_stdio_opens_a_sink_that_takes_a_write_when_none_is_given() -> None:
+    with desktop.stdio(None, KEPT)[0] as sink:
+        assert sink.write("x") == 1
 
 
 # --- launch -----------------------------------------------------------------------------------------------------
