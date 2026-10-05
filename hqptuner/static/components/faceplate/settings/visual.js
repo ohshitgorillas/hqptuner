@@ -1,6 +1,7 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages. Display holds the description, option-style, apodizing-indicator and font
-// switches, then the accent block; Layout the top-of-page and bottom-bar picks, then the block hiding chain stages.
+// that writes at once and never stages. Display holds the description, option-style and apodizing-indicator switches,
+// the spectrum delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks, then the
+// block hiding chain stages.
 
 import {
   apodLight,
@@ -12,6 +13,7 @@ import {
   setShowDescriptions,
   showDescriptions,
 } from "../../../store/ui/prefs.js";
+import { spectrumDelay } from "../../../store/meter/delay.js";
 import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
 import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "../../../store/ui/faceplate.js";
 
@@ -137,6 +139,7 @@ export const VISUAL_DRAWER = {
             set: setApodLight,
           },
         },
+        { block: "delay" },
         {
           field: {
             id: "vdys",
@@ -186,6 +189,12 @@ export const VISUAL_READOUTS = [
   { id: "vopt", label: "Option descriptions", control: { type: "seg", options: ON_OFF }, value: optValue },
   { id: "vstyle", label: "Option style", control: { type: "seg", options: STYLES }, value: styleValue },
   { id: "vapod", label: "Apodizing indicator", control: { type: "seg", options: APOD }, value: apodValue },
+  {
+    id: "vdelay",
+    label: "Spectrum delay",
+    control: { type: "number", unit: "s" },
+    value: () => String(spectrumDelay.value),
+  },
   { id: "vdys", label: "Dyslexic font", control: { type: "seg", options: OFF_ON }, value: dysValue },
   { id: "vacc", label: "Accent color", control: { type: "accent" }, value: () => accentHex.value || accent.value },
   { id: "vfill", label: "Top of page", control: { type: "seg", options: FILLS }, value: fillValue },

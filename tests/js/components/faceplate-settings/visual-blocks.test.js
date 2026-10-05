@@ -1,5 +1,6 @@
-// Rendered suite for hqptuner/static/components/faceplate/settings/VisualBlocks.js, the Visual settings drawer's two
-// blocks: the accent picker (swatches and the custom hex box) and the Hide from signal chain toggles.
+// Rendered suite for hqptuner/static/components/faceplate/settings/VisualBlocks.js, the Visual settings drawer's
+// blocks: the accent picker (swatches and the custom hex box), the spectrum delay box, and the Hide from signal chain
+// toggles.
 //
 // Renders through preact-render-to-string; a tap or a change is fired through the vnode seam
 // (tests/js/support/vnodeseam.js), since server rendering fires no events. The theme and faceplate stores write
@@ -14,10 +15,15 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { AccentBlock, HideBlock } from "../../../../hqptuner/static/components/faceplate/settings/VisualBlocks.js";
+import {
+  AccentBlock,
+  DelayBlock,
+  HideBlock,
+} from "../../../../hqptuner/static/components/faceplate/settings/VisualBlocks.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { spectrumDelay } from "../../../../hqptuner/static/store/meter/delay.js";
 import { dropStorage, useStorage } from "../../support/storage.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements } from "../../support/markup.js";
@@ -39,6 +45,7 @@ beforeEach(() => {
   accentHex.value = "";
   hiddenStages.value = [];
   openStage.value = null;
+  spectrumDelay.value = 0.25;
 });
 
 afterEach(() => {
@@ -126,4 +133,9 @@ test("test_a_hidden_stage_lights_its_toggle", () => {
     .filter((e) => e.name === "button" && classes(e).includes("on") && attr(e, "aria-pressed") === "true")
     .map((e) => attr(e, "data-v"));
   assert.deepEqual(lit, ["speakers"]);
+});
+
+test("test_a_delay_change_writes_the_spectrum_delay_in_seconds", () => {
+  fire(DelayBlock, (type) => type === "input", "onChange", { target: { value: "0.5" } });
+  assert.equal(spectrumDelay.value, 0.5);
 });

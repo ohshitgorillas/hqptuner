@@ -8,8 +8,8 @@
 // runs no effects; the render compares its container against the document tests/js/support/domseam.js installs. Effects after paint are run through preact's `options.requestAnimationFrame` seam, which the test
 // flushes by hand once the render returns, so no frame timer runs. The canvases are fakes whose 2D context records
 // each `putImageData` (its x and the image's width) and each `drawImage` (whether it draws the canvas onto itself,
-// and how far it moves the pixels). Frames reach the history at the wire, through the EventSource fake and
-// `openMeterFeed`, on a clock that never moves.
+// and how far it moves the pixels). Frames arrive at the wire, through the EventSource fake and `openMeterFeed`, on a
+// clock that never moves, and each is handed to the history as the meter loop hands its frames out.
 //
 // The window is 60 s unless a case says otherwise, so one of the spectrogram's columns is 50 ms of frame time; at
 // 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colours are paint.js's fallbacks; no case
@@ -24,7 +24,12 @@ import { h, options, render } from "preact";
 
 import { SPEC_SIZE, useMeterPaint } from "../../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import {
+  closeMeterFeed,
+  openMeterFeed,
+  takeMeterFrames,
+  toSpectrogram,
+} from "../../../../hqptuner/static/store/meter/feed.js";
 import { setApodWindow, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -107,6 +112,7 @@ function mount(spec, strip) {
  */
 function frame(ms) {
   lastStream()?.emit("frame", { channels: [{ peak: -3.1, rms: -9.4, bins: BINS }], ms });
+  toSpectrogram(takeMeterFrames());
 }
 
 /**

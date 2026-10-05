@@ -7,7 +7,7 @@ import { optionOf } from "./options.js";
 /**
  * @typedef {{ v: string | number, label: string, unit?: string }} Option
  * @typedef {{ v: string, label: string, hex: string }} Accent
- * @typedef {{ type: string, options?: readonly Option[], auto?: { v: string | number } }} Control
+ * @typedef {{ type: string, options?: readonly Option[], auto?: { v: string | number }, unit?: string }} Control
  * @typedef {{ text: string, swatch: string | null }} Readout
  * @typedef {{ kind: 'none' }
  *   | { kind: 'pinallow', on: boolean }
@@ -60,7 +60,7 @@ const READOUT = {
     return { text, swatch: null };
   },
   slider: (c, v) => ({ text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }), // v1's own word for 0
-  number: (c, v) => ({ text: minusText(v), swatch: null }),
+  number: (c, v) => ({ text: minusText(v) + (c.unit ? " " + c.unit : ""), swatch: null }),
   accent(c, v, accents) {
     const o = accents.find((x) => x.v === v);
     return { text: o ? o.label : v, swatch: accentHex(v, accents) };
@@ -68,8 +68,8 @@ const READOUT = {
 };
 
 /**
- * How a readout prints a value: the control's own option label (+ unit), the picked toggles, the number, the path, the
- * accent's name with its swatch color (null for every other control).
+ * How a readout prints a value: the control's own option label (+ unit), the picked toggles, the number (+ unit), the
+ * path, the accent's name with its swatch color (null for every other control).
  *
  * @param {Control} c
  * @param {string} v

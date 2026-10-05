@@ -2,8 +2,11 @@
 // on every page while metering is available (initMeterFeed), so the
 // spectrogram's history runs unbroken whichever page is up. A `geometry` event
 // describes the frames that follow it; each `frame` event is decoded once,
-// queued for the meter loop (loop.js), which folds whatever arrived between two
-// animation frames, and added to the spectrogram's history.
+// stamped with that geometry and queued for the meter loop (loop.js), which
+// paces the frames out to the meters and the spectrogram's history. A frame the
+// loop never takes still reaches the history: the oldest frames past
+// MAX_PENDING_MS of frame time (a hidden page runs no animation frames), and
+// every frame queued when playback stops.
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
@@ -18,9 +21,9 @@ import { addSpectrumFrame } from "./spectrogram.js";
 const FEED = "/api/meter/feed";
 const PLAYING = 2;
 const QUIET_MS = 2000;
-// Frames the queue holds for a loop that has not drained it, oldest dropped: a
-// hidden page runs no animation frames.
-const MAX_PENDING = 32;
+// Frame time the queue holds for a loop that has not drained it, ms: the longest
+// delay the loop paces at, and a second past it.
+const MAX_PENDING_MS = 6000;
 
 /** @typedef {{ nyquist: number, channels: number, bins: number }} Geometry */
 /** @typedef {import("../../model/gauges/meter.js").MeterFrame} MeterFrame */
@@ -48,7 +51,25 @@ const playing = () => Number(((engineStatus.value || {}).status || {}).state) ==
 const decode = (wire) => ({
   channels: wire.channels.map((ch) => ({ peak: ch.peak, rms: ch.rms, bins: decodeBins(ch.bins) })),
   ms: wire.ms,
+  geo: meterGeometry.peek(),
 });
+
+/**
+ * Hand each of `frames` to the spectrogram's history, oldest first, under the geometry it arrived with.
+ *
+ * @param {MeterFrame[]} frames
+ */
+export function toSpectrogram(frames) {
+  frames.forEach((f) => addSpectrumFrame(f.geo ?? null, f.channels, f.ms));
+}
+
+/** Move the oldest frames past MAX_PENDING_MS of frame time to the spectrogram. */
+function trim() {
+  let total = pending.reduce((sum, f) => sum + f.ms, 0);
+  let n = 0;
+  while (total > MAX_PENDING_MS) total -= pending[n++].ms;
+  if (n) toSpectrogram(pending.splice(0, n));
+}
 
 /**
  * Open the feed, dropping any feed and frames already held.
@@ -67,17 +88,15 @@ export function openMeterFeed(now = () => performance.now()) {
   });
   es.addEventListener("frame", (e) => {
     since = clock();
-    const frame = decode(JSON.parse(e.data));
-    pending.push(frame);
-    if (pending.length > MAX_PENDING) pending.splice(0, pending.length - MAX_PENDING);
-    addSpectrumFrame(meterGeometry.peek(), frame.channels, frame.ms);
+    pending.push(decode(JSON.parse(e.data)));
+    trim();
   });
   source = es;
   let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
   unwatch = effect(() => {
     const on = playing();
     if (on && !was) since = clock();
-    if (!on) pending = [];
+    if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
   });
 }

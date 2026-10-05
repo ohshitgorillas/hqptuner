@@ -1,7 +1,8 @@
-// The Visual settings drawer's two blocks. Accent color: the swatches pick a preset and the hex box beside them holds
+// The Visual settings drawer's three blocks. Spectrum delay: a box taking the delay in seconds, written at once.
+// Accent color: the swatches pick a preset and the hex box beside them holds
 // that preset's value or any custom #rrggbb, which overrides the preset until a swatch is picked again. Hide from signal
 // chain: one toggle per hideable stage, lit while hidden; hiding the stage whose drawer is open closes that drawer.
-// Both write the browser-held preferences at once and stage nothing.
+// All three write the browser-held preferences at once and stage nothing.
 
 import { html } from "../../../lib/dom.js";
 import { accent, accentHex, applyAccent, applyAccentHex } from "../../../store/ui/theme.js";
@@ -9,6 +10,7 @@ import { ACCENTS } from "../../../store/faceplate/settings/visual.js";
 import { hiddenStages, setStageHidden } from "../../../store/ui/faceplate.js";
 import { openStage } from "../../../store/faceplate/view.js";
 import { labelHead } from "../drawer/controls.js";
+import { setSpectrumDelay, spectrumDelay } from "../../../store/meter/delay.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -16,6 +18,7 @@ import { labelHead } from "../drawer/controls.js";
 /** @typedef {{ target: { value: string } }} ChangeEv */
 
 const MAN = {
+  delay: "Adjust the spectrum's visualization delay to better align it with the music.",
   accent: "Set the accent color of HQPTuner.",
   hideSpk: "Hide the stages you don't use from the signal chain. Speakers is primarily for surround sound setups.",
 };
@@ -27,6 +30,35 @@ const HIDEABLE = [
   { v: "loudness", label: "Loudness" },
   { v: "correction", label: "DAC correction" },
 ];
+
+/**
+ * The spectrum delay row: the delay in seconds, typed; what the box holds is written as the user leaves it.
+ *
+ * @param {BlockProps} _props
+ */
+export function DelayBlock(_props) {
+  return html`
+    <div class="drow" data-field="vdelay">
+      <div class="ctl">
+        ${labelHead("Spectrum delay")}
+        <div class="num">
+          <input
+            type="number"
+            class="vfd"
+            min="0"
+            max="5"
+            step="0.01"
+            aria-label="Spectrum delay, seconds"
+            value=${spectrumDelay.value}
+            onChange=${(/** @type {ChangeEv} */ e) => setSpectrumDelay(e.target.value)}
+          />
+          <span class="u">s</span>
+        </div>
+      </div>
+      <div class="man"><p>${MAN.delay}</p></div>
+    </div>
+  `;
+}
 
 /**
  * The accent row: a swatch per preset, the picked one pressed while no custom hex is set, and the custom hex box.
@@ -116,4 +148,4 @@ export function HideBlock(_props) {
 }
 
 /** The components the Visual drawer's block items mount, by name. */
-export const VISUAL_BLOCKS = { accent: AccentBlock, hide: HideBlock };
+export const VISUAL_BLOCKS = { delay: DelayBlock, accent: AccentBlock, hide: HideBlock };

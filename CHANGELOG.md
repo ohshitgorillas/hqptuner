@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Spectrum delay** makes it possible to sync the spectrum and meters to playback.
+
 ### Fixed
 
 - **The apodizing strip and the spectrogram keep true time.** The time axis matches playback, the strip draws equal two-second blocks, and event colors read the same however often the page refreshes.

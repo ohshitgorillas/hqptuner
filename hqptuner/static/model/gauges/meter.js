@@ -152,9 +152,10 @@ export function frameDt(prev, now) {
 
 /**
  * One feed frame, or several folded into one: per channel its peak and RMS in dBFS and its transform bins in dBFS,
- * DC first, and the frame time it covers.
+ * DC first, the frame time it covers, and the feed geometry it arrived under.
  *
- * @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number }} MeterFrame
+ * @typedef {{ nyquist: number, channels: number, bins: number }} FrameGeometry
+ * @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number, geo?: FrameGeometry | null }} MeterFrame
  */
 
 const toPower = (/** @type {number} */ db) => 10 ** (db / 10);

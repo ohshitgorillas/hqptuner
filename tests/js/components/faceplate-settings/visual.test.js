@@ -166,8 +166,8 @@ function railRow(id) {
 /** The hidden-stages readout's control, or one printing the bare value without it. */
 const hideControl = () => VISUAL_READOUTS.find((r) => r.id === "vhide")?.control ?? { type: "none" };
 
-test("test_the_display_tab_draws_its_fields_then_the_accent_block_in_order", () => {
-  assert.deepEqual(bodyOf("display"), ["vdesc", "vopt", "vstyle", "vapod", "vdys", "accent"]);
+test("test_the_display_tab_draws_its_fields_and_blocks_in_order", () => {
+  assert.deepEqual(bodyOf("display"), ["vdesc", "vopt", "vstyle", "vapod", "delay", "vdys", "accent"]);
 });
 
 test("test_the_layout_tab_draws_its_fields_then_the_hide_block_in_order", () => {
@@ -214,6 +214,11 @@ for (const [id, set] of Object.entries(LIT)) {
     assert.equal(railRow(id)?.text, litLabel(id));
   });
 }
+
+test("test_the_spectrum_delay_readout_follows_the_apodizing_indicator_readout", () => {
+  const ids = VISUAL_READOUTS.map((r) => r.id);
+  assert.equal(ids.indexOf("vdelay"), ids.indexOf("vapod") + 1);
+});
 
 test("test_the_hidden_readout_offers_every_hideable_stage", () => {
   assert.deepEqual(

@@ -42,6 +42,7 @@ const TOGGLES = {
 };
 const SLIDER = { type: "slider", auto: { v: 0 } };
 const NUMBER = { type: "number" };
+const SECONDS = { type: "number", unit: "s" };
 const ACCENT = { type: "accent", options: ACCENTS };
 const TEXT = { type: "text" };
 
@@ -117,6 +118,10 @@ test("test_readout_of_a_slider_off_its_automatic_value_prints_the_number", () =>
 // The expected text leads with the typographic minus (U+2212), not a hyphen.
 test("test_readout_of_a_negative_number_prints_a_typographic_minus", () => {
   assert.equal(readoutOf(NUMBER, "-3", ACCENTS).text, "−3");
+});
+
+test("test_readout_of_a_number_with_a_unit_carries_the_unit", () => {
+  assert.equal(readoutOf(SECONDS, "0.25", ACCENTS).text, "0.25 s");
 });
 
 test("test_readout_of_a_known_accent_carries_its_swatch_color", () => {
