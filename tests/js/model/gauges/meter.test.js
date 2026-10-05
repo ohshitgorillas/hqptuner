@@ -1,6 +1,6 @@
 // Behavioral suite for the mockup's meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
-// bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, where a level sits on a
-// bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
+// bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
+// easing the trace toward them, where a level sits on a bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
 // spectrogram columns.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
@@ -13,10 +13,12 @@ import assert from "node:assert/strict";
 
 import {
   decodeBins,
+  easeTrace,
   emptySpectrum,
   foldFrames,
   fraction,
   pickBins,
+  smoothColumns,
   stepFrame,
   stepLevel,
   stepSpectrum,
@@ -151,6 +153,9 @@ const TWO_CHANNELS = { channels: [channel(-1, -10, [-10, -40]), channel(-2, -20,
 //: Nine bins at -120 dBFS, but for a tone at bin 2 of the four bins in [0, 0.5) of Nyquist.
 const TONE = [-120, -120, -6, -120, -120, -120, -120, -120, -120];
 
+//: Nine trace columns at -100 dBFS, but for column 4 at -10.
+const LONE = Float32Array.of(-100, -100, -100, -100, -10, -100, -100, -100, -100);
+
 // ── Bin bytes ────────────────────────────────────────────────────────────
 
 test("test_each_bin_byte_decodes_to_half_a_db_below_full_scale_per_step_in_bin_order", () => {
@@ -228,6 +233,18 @@ test("test_the_bin_at_nyquist_belongs_to_the_last_column", () => {
 
 test("test_a_column_holding_no_bin_takes_the_bin_nearest_its_centre", () => {
   assert.deepEqual(Array.from(traceColumns([-10, -20, -30], 5)), [-10, -20, -20, -20, -30]);
+});
+
+// ── Smoothing and easing the trace ───────────────────────────────────────
+
+test("test_a_lone_loud_column_spreads_its_power_two_columns_either_side_at_weights_3_2_1_over_9", () => {
+  assert.ok(
+    ...nearEach(smoothColumns(LONE), [-100, -100, -19.542, -16.532, -14.771, -16.532, -19.542, -100, -100], DB_EPS),
+  );
+});
+
+test("test_a_20_db_rise_eases_8_5_db_in_one_thirtieth_of_a_second", () => {
+  assert.ok(...near(easeTrace(Float32Array.of(-30), Float32Array.of(-10), 1 / 30)[0], -21.475, DB_EPS));
 });
 
 // ── Where a level sits on a bar ──────────────────────────────────────────

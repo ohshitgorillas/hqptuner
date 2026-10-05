@@ -12,6 +12,8 @@ const RMS_TAU_S = 0.3; // level RMS integration time
 const HOLD_MS = 1500; // level hold before it decays
 const HOLD_DECAY_DBPS = 10; // level hold decay once released, dB/s
 const MAX_DT_S = 0.1; // longest step one frame may take
+const SMOOTH_COLS = 2; // trace columns averaged either side of each, across frequency
+const SMOOTH_TAU_MS = 60; // trace easing time constant, in dB
 
 /**
  * Shown spectrum, held peaks and the time each peak was last reached, one entry per bin. Float32 storage is part of
@@ -243,6 +245,47 @@ export function traceColumns(bins, cols) {
     if (out[c] === -Infinity) out[c] = bins[Math.round(((c + 0.5) / cols) * last)];
   }
   return out;
+}
+
+/**
+ * Columns smoothed across frequency: each the power average of itself and SMOOTH_COLS neighbours either side, weighted
+ * 3-2-1 outward, over the neighbours that exist.
+ *
+ * @param {ArrayLike<number>} cols  dBFS
+ * @returns {Float32Array}
+ */
+export function smoothColumns(cols) {
+  const n = cols.length;
+  const power = Float64Array.from(cols, toPower);
+  const out = new Float32Array(n);
+  for (let c = 0; c < n; c++) {
+    let sum = 0;
+    let weight = 0;
+    for (let j = -SMOOTH_COLS; j <= SMOOTH_COLS; j++) {
+      const k = c + j;
+      if (k < 0 || k >= n) continue;
+      const w = SMOOTH_COLS + 1 - Math.abs(j);
+      sum += w * power[k];
+      weight += w;
+    }
+    out[c] = toDb(sum / weight);
+  }
+  return out;
+}
+
+/**
+ * The trace `dt` seconds on from `prev` toward `next`, each column closing the same share of its gap in dB, so it
+ * rises and falls alike; without a `prev` of the same length the trace lands on `next`.
+ *
+ * @param {ArrayLike<number> | null} prev  dBFS
+ * @param {ArrayLike<number>} next  dBFS
+ * @param {number} dt  s
+ * @returns {Float32Array}
+ */
+export function easeTrace(prev, next, dt) {
+  if (!prev || prev.length !== next.length) return Float32Array.from(next);
+  const share = 1 - Math.exp((-dt * 1000) / SMOOTH_TAU_MS);
+  return Float32Array.from(next, (v, i) => prev[i] + (v - prev[i]) * share);
 }
 
 /**

@@ -1,8 +1,8 @@
 // The meters' animation loop: thirty times a second it takes the feed frames that arrived since its last step
 // (store/meter/feed.js) into its own queue and paces them out on their frame time, the spectrum delay behind
 // (model/gauges/pace.js), since the daemon sends them in clumps. Each step folds the frames handed out, steps the level
-// bars toward them on the real time elapsed, shows the spectrum as that reading has it while its held peaks hold and
-// decay, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
+// bars toward them on the real time elapsed, eases the spectrum toward that reading smoothed across frequency while its
+// held peaks hold and decay, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
 //
 // The loop runs on the Clock it is started with (lib/clock.js). Playback stopping, or the feed's geometry changing,
 // sends the frames still queued to the spectrogram and empties the scene, so a restart never falls from the last
@@ -11,10 +11,12 @@
 import { batch } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import {
+  easeTrace,
   emptySpectrum,
   foldFrames,
   frameDt,
   pickBins,
+  smoothColumns,
   stepLevel,
   stepSpectrum,
   traceColumns,
@@ -111,6 +113,22 @@ function handOut(ms) {
 }
 
 /**
+ * The spectrum one step moves to from `held` toward `t`, smoothed across frequency; the trace eases toward each reading,
+ * alike up and down, and the held peaks hold what it shows.
+ *
+ * @param {SpectrumHold | null} held
+ * @param {MeterFrame} t
+ * @param {{ now: number, dt: number }} at  ms, s
+ * @returns {SpectrumHold}
+ */
+function traceStep(held, t, at) {
+  const cols = smoothColumns(traceOf(t));
+  const was = held && held.disp.length === cols.length ? held : null;
+  const shown = easeTrace(was && was.disp, cols, at.dt);
+  return stepSpectrum(was || emptySpectrum(cols.length), shown, at, true);
+}
+
+/**
  * The scene one step stamped `now` moves to, `ms` after the last.
  *
  * @param {number} now  ms
@@ -137,11 +155,7 @@ function advance(now, ms) {
     const t = { peak: ch.peak, rms: ch.rms };
     return was ? stepLevel(was, t, now, dt) : { peak: t.peak, rms: t.rms, hold: t.peak, holdAt: now };
   });
-  const cols = traceOf(target);
-  const held = prev.spectrum && prev.spectrum.disp.length === cols.length ? prev.spectrum : emptySpectrum(cols.length);
-  // The trace lands on each reading outright; only the held peaks keep a memory.
-  const spectrum = stepSpectrum(held, cols, { now, dt }, true);
-  return { levels, spectrum };
+  return { levels, spectrum: traceStep(prev.spectrum, target, { now, dt }) };
 }
 
 /**

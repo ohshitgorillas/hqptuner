@@ -5,7 +5,8 @@
 // Feed frames arrive through openMeterFeed() on the EventSource fake (tests/js/support/eventsource.js), as the
 // payloads /api/meter/feed sends. Animation frames arrive through a fake Clock whose requestAnimationFrame queues and
 // whose frame() moves time one frame, 16.7 ms unless told otherwise, and runs what was queued for it; its timers never
-// fire. Two 16.7 ms frames make one step. The loop starts once for the whole file on that clock. Each case runs at no
+// fire. Two 16.7 ms frames make one step, 33.4 ms long; a case that states its numbers at 30 fps steps on single
+// frames exactly 1/30 s apart instead. The loop starts once for the whole file on that clock. Each case runs at no
 // spectrum delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and runs one frame a whole
 // step long, so the reset lands on a step before the case sends anything. The spectrogram is read through
 // spectrogramEnd, the frame time its fine slices have closed on.
@@ -68,6 +69,9 @@ const step = () => {
   frame();
   return frame();
 };
+
+/** Run one animation frame exactly one step, 1/30 s, after the last, so the scene steps at dt = 1/30 s. */
+const stepAt30 = () => frame(STEP_MS);
 
 /**
  * Every bin of one channel at byte `byte`, encoded as the feed sends it: dB = -byte * 0.5.
@@ -141,12 +145,39 @@ test("test_three_feed_frames_handed_out_at_one_step_show_their_loudest_peak", ()
   assert.equal(scenes.at(-1)?.levels[0]?.peak, -6);
 });
 
-test("test_the_trace_shows_a_40_db_drop_on_the_next_step", () => {
+test("test_the_trace_eases_17_db_into_a_40_db_drop_on_the_next_step", () => {
   send({ peak: -10, rms: -20, byte: 20 });
   step();
   send({ peak: -10, rms: -20, byte: 100 });
   step();
-  assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.disp ?? [])], [-50]);
+  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -27.075, 0.005));
+});
+
+test("test_a_step_after_a_reading_rises_20_db_eases_the_trace_8_5_db", () => {
+  send({ peak: -10, rms: -20, byte: 60 });
+  stepAt30();
+  send({ peak: -10, rms: -20, byte: 20 });
+  stepAt30();
+  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -21.475, 0.005));
+});
+
+test("test_a_steady_reading_after_a_20_db_drop_leaves_the_trace_0_23_db_short_after_8_steps", () => {
+  send({ peak: -10, rms: -20, byte: 20 });
+  stepAt30();
+  send({ peak: -10, rms: -20, byte: 60 });
+  for (let k = 0; k < 8; k++) stepAt30();
+  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -29.765, 0.005));
+});
+
+test("test_the_first_reading_after_playback_restarts_lands_outright", () => {
+  send({ peak: -10, rms: -20, byte: 60 });
+  step();
+  engineStatus.value = { ...STOPPED };
+  step();
+  engineStatus.value = { ...PLAYING };
+  send({ peak: -10, rms: -20, byte: 20 });
+  step();
+  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -10, 0.005));
 });
 
 test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () => {
@@ -161,7 +192,7 @@ test("test_a_clump_of_ten_frames_at_a_0_1_s_delay_gives_a_different_trace_at_eac
   setSpectrumDelay(0.1);
   for (const byte of [20, 20, 20, 40, 40, 40, 60, 60, 60, 80]) send({ peak: -10, rms: -20, byte, ms: 10.667 });
   for (let k = 0; k < 6; k++) frame();
-  assert.deepEqual(scenes.map(traceDb), [-10, -20, -30]);
+  assert.deepEqual(scenes.map(traceDb), [-10, -14, -21]);
 });
 
 test("test_a_painter_runs_once_per_step_until_it_is_unregistered", () => {
@@ -198,5 +229,5 @@ test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () =
   for (let k = 0; k < 2; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
   engineStatus.value = { ...STOPPED };
   step();
-  assert.equal(spectrogramEnd.value - start, 200);
+  assert.ok(...near(spectrogramEnd.value - start, 200, 1e-9));
 });
