@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.16.0] — 2026-10-04
+
 ### Added
 
 - **Linux packages.** Each release carries a deb and an rpm for amd64 and arm64. Installing one runs HQPTuner as a system service that starts at boot and keeps its presets, backups and settings in `/var/lib/hqptuner`.
