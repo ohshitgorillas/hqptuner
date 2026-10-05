@@ -14,6 +14,8 @@
 # them, so a static analyzer sees no edge and the binary fails at launch rather
 # than at build.
 
+import sys
+
 a = Analysis(
     ["hqptuner/__main__.py"],
     pathex=[],
@@ -29,6 +31,7 @@ a = Analysis(
         ("hqptuner/data/shapers.json", "data"),
         ("hqptuner/data/settings.json", "data"),
         ("hqptuner/data/easy-presets.json", "data"),
+        ("hqptuner/data/tray.png", "data"),
         ("hqptuner/data/*-plain-names.json", "data"),
     ],
     hiddenimports=[
@@ -36,6 +39,9 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
+        # hqptuner/desktop.py loads the tray backend by name, and only macOS and
+        # Windows installs carry it.
+        *(["pystray", "PIL.Image"] if sys.platform != "linux" else []),
     ],
     hookspath=[],
     hooksconfig={},
