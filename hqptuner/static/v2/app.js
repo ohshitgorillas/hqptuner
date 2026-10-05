@@ -29,6 +29,8 @@ import { startPolling } from "../store/sync.js";
 import { initFavicon } from "../store/ui/favicon.js";
 import { initHealth } from "../store/health.js";
 import { initApodHistory } from "../store/apodhistory.js";
+import { initSpectrogram } from "../store/meter/spectrogram.js";
+import { initMeterFeed } from "../store/meter/feed.js";
 import { bookWanted } from "../store/live/presets.js";
 import { loadSpeakers } from "../store/matrix/speakers.js";
 import { initSetup, pageHost } from "../store/setup.js";
@@ -87,6 +89,8 @@ if (root) {
   initFavicon();
   initHealth();
   initApodHistory();
+  initSpectrogram();
+  initMeterFeed();
   bookWanted.value = true;
   loadSpeakers();
   initSetup();

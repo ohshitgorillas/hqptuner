@@ -9,9 +9,7 @@ import { initHealth } from "./store/health.js";
 import { initSetup, pageHost } from "./store/setup.js";
 import { initApodHistory } from "./store/apodhistory.js";
 import { initSpectrogram } from "./store/meter/spectrogram.js";
-import { openMeterFeed, closeMeterFeed } from "./store/meter/feed.js";
-import { metering } from "./store/actions.js";
-import { effect } from "@preact/signals";
+import { initMeterFeed } from "./store/meter/feed.js";
 
 initTheme();
 initFavicon();
@@ -23,6 +21,6 @@ initSetup();
 pageHost.value = location.hostname;
 initApodHistory();
 initSpectrogram();
-effect(() => (metering.value ? openMeterFeed() : closeMeterFeed()));
+initMeterFeed();
 startPolling();
 render(html`<${App} />`, document.getElementById("app"));

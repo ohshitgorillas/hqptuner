@@ -1,15 +1,17 @@
-// The METER page's connection to /api/meter/feed (api/routes/meter.py), held
-// open on every page while metering is available, so the spectrogram's history
-// runs unbroken whichever page is up. A `geometry` event describes the frames
-// that follow it; each `frame` event moves the displayed levels one step
+// The meters' connection to /api/meter/feed (api/routes/meter.py), held open
+// on every page while metering is available (initMeterFeed), so the
+// spectrogram's history runs unbroken whichever page is up. A `geometry` event
+// describes the frames that follow it; each `frame` event moves the displayed levels one step
 // (levels.js) and adds its bands to the spectrogram's history. The levels park
 // when playback stops, so a restart never falls from the last track's reading.
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
-// latest. The clock is the one openMeterFeed() is handed.
+// latest. The clock is the one openMeterFeed() is handed: a monotonic one, since
+// it measures an interval and nothing else.
 import { signal, effect } from "@preact/signals";
 import { engineStatus } from "../signals.js";
+import { metering } from "../actions.js";
 import { settle } from "./levels.js";
 import { addSpectrumFrame } from "./spectrogram.js";
 
@@ -28,7 +30,7 @@ export const meterLevels = signal(/** @type {Ballistic[]} */ ([]));
 let source = null;
 /** @type {(() => void) | null} */
 let unwatch = null;
-let clock = () => Date.now();
+let clock = () => performance.now();
 let since = 0;
 
 const playing = () => Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
@@ -38,7 +40,7 @@ const playing = () => Number(((engineStatus.value || {}).status || {}).state) ==
  *
  * @param {() => number} [now]
  */
-export function openMeterFeed(now = () => Date.now()) {
+export function openMeterFeed(now = () => performance.now()) {
   closeMeterFeed();
   clock = now;
   since = now();
@@ -71,6 +73,23 @@ export function closeMeterFeed() {
   source = null;
   if (unwatch) unwatch();
   unwatch = null;
+}
+
+/** @type {(() => void) | null} */
+let dispose = null;
+
+/**
+ * Register once the effect that holds the feed open while metering runs and
+ * closed while it is off, and hand back its disposer.
+ *
+ * @param {() => number} [now]
+ * @returns {() => void}
+ */
+export function initMeterFeed(now = () => performance.now()) {
+  if (dispose) return dispose;
+  const registered = effect(() => (metering.value ? openMeterFeed(now) : closeMeterFeed()));
+  dispose = registered;
+  return registered;
 }
 
 /** Whether the engine plays and the open feed has sent nothing for too long. @returns {boolean} */

@@ -14,7 +14,7 @@ import asyncio
 import contextlib
 import json
 import struct
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import fake_metering
 import pytest
@@ -29,7 +29,7 @@ from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, MutableMapping
+    from collections.abc import Iterator, MutableMapping
     from pathlib import Path
 
     from starlette.types import ASGIApp
@@ -67,6 +67,18 @@ NO_EVENT: tuple[str, str] = ("", "{}")
 
 #: The channel count read off an event whose data names none.
 NO_CHANNELS = 0
+
+STEREO = 2
+
+#: What the feed answers while metering is off.
+NO_CONTENT = 204
+
+
+class FeedApi(Protocol):
+    """Builds an app reading a 4322 stream of ``channels``-channel frames, on
+    the config flags given."""
+
+    def __call__(self, channels: int, *, advisor_enabled: bool = True, metering_enabled: bool = True) -> TestClient: ...
 
 
 def _frame(channels: int) -> bytes:
@@ -169,13 +181,13 @@ def _first_event_channels(client: TestClient) -> object:
 
 
 @pytest.fixture
-def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
+def feed_api(tmp_path: Path) -> Iterator[FeedApi]:
     """Apps reading a 4322 stream of ``channels``-channel frames, torn down in
     step: the clients first, so each app's reader hangs up, then the fakes."""
     closing = contextlib.ExitStack()
     fakes: list[Iterator[int]] = []
 
-    def build(channels: int) -> TestClient:
+    def build(channels: int, *, advisor_enabled: bool = True, metering_enabled: bool = True) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING})
         stream = fake_metering.spawn(_frame(channels), frames=FRAMES)
         fakes.extend([daemon, stream])
@@ -183,7 +195,7 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
             hqp_host="127.0.0.1",
             hqp_control_port=next(daemon),
             hqp_metering_port=next(stream),
-            metering_enabled=True,
+            metering_enabled=metering_enabled,
             hqp_username="",
             hqp_password="",
             data_dir=METADATA_MIN,
@@ -191,7 +203,7 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
-            advisor_enabled=True,
+            advisor_enabled=advisor_enabled,
         )
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
         # connected, then one idle recheck of the reader's, which is when it
@@ -207,12 +219,18 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
 
 
 @pytest.mark.parametrize("channels", [1, 2], ids=["mono", "stereo"])
-def test_the_feed_opens_with_a_geometry_event(feed_api: Callable[[int], TestClient], channels: int) -> None:
+def test_the_feed_opens_with_a_geometry_event(feed_api: FeedApi, channels: int) -> None:
     assert _first_event_name(feed_api(channels)) == "geometry"
 
 
 @pytest.mark.parametrize("channels", [1, 2], ids=["mono", "stereo"])
-def test_the_feeds_first_event_carries_the_streams_channel_count(
-    feed_api: Callable[[int], TestClient], channels: int
-) -> None:
+def test_the_feeds_first_event_carries_the_streams_channel_count(feed_api: FeedApi, channels: int) -> None:
     assert _first_event_channels(feed_api(channels)) == channels
+
+
+def test_the_feed_opens_with_a_geometry_event_with_the_advisor_off(feed_api: FeedApi) -> None:
+    assert _first_event_name(feed_api(STEREO, advisor_enabled=False)) == "geometry"
+
+
+def test_the_feed_answers_no_content_with_metering_off(feed_api: FeedApi) -> None:
+    assert feed_api(STEREO, metering_enabled=False).get(PATH).status_code == NO_CONTENT
