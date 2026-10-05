@@ -90,7 +90,7 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 * A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
-* Either Docker with Compose v2 OR Python v3.12+ (developed on v3.14)
+* Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR Python v3.12+ (developed on v3.14)
 
 ## Install & run
 
@@ -155,6 +155,26 @@ The same images are mirrored to `ghcr.io/ohshitgorillas/hqptuner` with identical
 To try a beta build, point the image at `ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose pull && docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
 
 **Docker Pro Tip:** Use [Watchtower](https://watchtower.nickfedor.com/) for automated updates of HQPTuner and your other containers.
+
+### Linux package (deb or rpm)
+
+Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries a deb and an rpm for amd64 and arm64. Download the one for your system, then install it:
+
+```sh
+# Debian, Ubuntu
+sudo apt install ./hqptuner_X.Y.Z_amd64.deb
+
+# Fedora, RHEL, AlmaLinux
+sudo dnf install ./hqptuner-X.Y.Z-1.x86_64.rpm
+```
+
+HQPTuner starts right away, and again at every boot. Open `http://yourserverIP:8090` in your favorite browser.
+
+To update, install the newer package the same way. To set anything from the configuration reference below, run `sudo systemctl edit hqptuner` and add an `Environment=` line under `[Service]`.
+
+Presets, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
+
+The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL 8, or anything later.
 
 ### From a clone (no Docker)
 

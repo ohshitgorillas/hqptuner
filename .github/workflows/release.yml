@@ -3,6 +3,7 @@ name: release
 on:
   push:
     branches: [dev]
+    tags: ["v*"]
     paths:
       - "packaging/**"
       - scripts/package-linux.sh
@@ -14,6 +15,12 @@ permissions:
   contents: read
 
 jobs:
+  # A red tree must not publish a release, so tags are gated on the same
+  # `make check` as the image. Pushes to dev skip it.
+  check:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/check.yml
+
   # glibc 2.28 is the floor the packages promise, so the bundle is frozen on
   # AlmaLinux 8 and runs on anything newer.
   build:
@@ -155,3 +162,36 @@ jobs:
 
       - if: always()
         run: docker rm -f alma
+
+  # The release notes are that version's CHANGELOG.md section, verbatim.
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, build, smoke, lifecycle-deb, lifecycle-rpm]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: linux-*
+          path: dist
+          merge-multiple: true
+
+      - name: Extract release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v h="## [$version]" '
+            index($0, "## [") == 1 { if (found) exit; if (index($0, h) == 1) { found = 1; next } }
+            found
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "No CHANGELOG.md section for $version" >&2
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md dist/*.deb dist/*.rpm
