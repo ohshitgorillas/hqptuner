@@ -1,4 +1,5 @@
-# PyInstaller build of the desktop binary: pyinstaller hqptuner.spec
+# PyInstaller build of the frozen bundle: pyinstaller hqptuner.spec, which
+# scripts/package-linux.sh runs before packing the deb and the rpm.
 #
 # One-folder, so the assets land beside the executable rather than in a temp
 # directory that goes away at exit. The bundle destinations are "static" and
