@@ -114,13 +114,20 @@ test("test_three_feed_frames_between_two_animation_frames_show_their_loudest_pea
   assert.equal(scenes.at(-1)?.levels[0]?.peak, -6);
 });
 
-test("test_an_animation_frame_with_no_new_feed_frame_keeps_the_trace_falling_to_the_last_target", () => {
+test("test_the_trace_shows_a_40_db_drop_on_the_next_animation_frame", () => {
   send({ peak: -10, rms: -20, byte: 20 });
   frame();
-  send({ peak: -10, rms: -20, byte: 22 });
+  send({ peak: -10, rms: -20, byte: 100 });
   frame();
+  assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.disp ?? [])], [-50]);
+});
+
+test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () => {
+  send({ peak: -10, rms: -20, byte: 20 });
   frame();
-  assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.disp ?? [])], [-11]);
+  send({ peak: -10, rms: -20, byte: 100 });
+  frame();
+  assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.peak ?? [])], [-10]);
 });
 
 test("test_a_painter_runs_once_per_animation_frame_until_it_is_unregistered", () => {

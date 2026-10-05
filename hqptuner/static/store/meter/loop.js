@@ -1,7 +1,7 @@
 // The meters' animation loop: once per animation frame it folds the feed frames that arrived since the last one
-// (store/meter/feed.js), steps the level bars and the spectrum toward them on the real time elapsed, and hands the
-// result to every registered painter. Between feed frames the bars keep integrating and the spectrum keeps falling
-// toward the last reading, so the meters move at the display's rate whatever rate the daemon serves.
+// (store/meter/feed.js), steps the level bars toward them on the real time elapsed, shows the spectrum as the newest
+// reading has it while its held peaks hold and decay, and hands the result to every registered painter. Between feed
+// frames the bars keep integrating, so the meters move at the display's rate whatever rate the daemon serves.
 //
 // The loop runs on the Clock it is started with (lib/clock.js). Playback stopping, or the feed's geometry changing,
 // empties the scene, so a restart never falls from the last track's reading.
@@ -101,10 +101,9 @@ function advance(now, dt) {
     return was ? stepLevel(was, t, now, dt) : { peak: t.peak, rms: t.rms, hold: t.peak, holdAt: now };
   });
   const cols = traceOf(target);
-  const spectrum =
-    prev.spectrum && prev.spectrum.disp.length === cols.length
-      ? stepSpectrum(prev.spectrum, cols, { now, dt }, false)
-      : stepSpectrum(emptySpectrum(cols.length), cols, { now, dt }, true);
+  const held = prev.spectrum && prev.spectrum.disp.length === cols.length ? prev.spectrum : emptySpectrum(cols.length);
+  // The trace lands on each reading outright; only the held peaks keep a memory.
+  const spectrum = stepSpectrum(held, cols, { now, dt }, true);
   return { levels, spectrum };
 }
 
