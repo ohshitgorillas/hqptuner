@@ -1,5 +1,5 @@
-// The spectrogram's history: a run of slices, each the power average of the
-// feed frames that cover SLICE_MS of playback, laid along the time axis by the
+// The spectrogram's histories: runs of slices, each the power average of the
+// feed frames that cover its slice time of playback, laid along the time axis by the
 // frame time the feed says those frames cover. Playback time is what both the
 // spectrogram and the apodizing strip above it are drawn on, so neither the
 // page's poll cadence nor its clock has any say in where a slice lands. A track
@@ -17,10 +17,14 @@ import { pickBins, traceColumns } from "../../model/gauges/meter.js";
 import { apodBins, apodVisibleBins } from "../apodhistory.js";
 import { apodWindow, meterChannel } from "../ui/prefs.js";
 
-// About two hours of slices, the reach of the apodizing history's own cap.
-const MAX_SLICES = 36000;
-// Playback a slice covers before it closes, ms.
+// The fine history: a slice per FINE_MS of playback, as fine as the 30 s window's
+// pixel columns, kept for FINE_SPAN_MS, the widest window but All.
+const FINE_MS = 25;
+const FINE_SPAN_MS = 300000;
+// The coarse history: a slice per SLICE_MS, about two hours of slices, the reach
+// of the apodizing history's own cap; All draws it once it outgrows the fine one.
 const SLICE_MS = 200;
+const MAX_SLICES = 36000;
 // Rows a slice keeps from 0 Hz to its Nyquist.
 const ROWS = 480;
 const ROW_STEP_DB = 0.5;
@@ -34,24 +38,58 @@ const ROW_MAX = 255;
  *   One slice: the frame time it covers, the Nyquist it was measured at, and
  *   its rows per channel and summed across channels.
  */
+/**
+ * @typedef {object} History
+ *   One history and the slice it is accumulating. Its slices are kept in a
+ *   plain array, mutated in place; `version` says when it changed.
+ * @property {number} sliceMs  frame time a slice covers before it closes
+ * @property {(h: History) => void} trim  drop what the history no longer keeps
+ * @property {Slice[]} list  oldest first
+ * @property {number} held  frame time of the slices in `list`
+ * @property {number} end  frame time of every slice closed since the last clear
+ * @property {Float64Array[] | null} power  the slice in hand, power per bin per channel
+ * @property {number} count  frames in the slice in hand
+ * @property {number} frameMs  frame time of the slice in hand
+ */
 
-const slices = signal(/** @type {Slice[]} */ ([]));
+/**
+ * @param {number} sliceMs
+ * @param {(h: History) => void} trim
+ * @returns {History}
+ */
+const history = (sliceMs, trim) => ({ sliceMs, trim, list: [], held: 0, end: 0, power: null, count: 0, frameMs: 0 });
 
-/** @type {Float64Array[] | null} */
-let power = null;
-let count = 0;
-let frameMs = 0;
+/** @param {History} h */
+const dropFront = (h) => {
+  const gone = /** @type {Slice} */ (h.list.shift());
+  h.held -= gone.ms;
+};
+
+const fine = history(FINE_MS, (h) => {
+  while (h.held > FINE_SPAN_MS) dropFront(h);
+});
+const coarse = history(SLICE_MS, (h) => {
+  while (h.list.length > MAX_SLICES) dropFront(h);
+});
+const HISTORIES = [fine, coarse];
+
+// Bumps on every close and clear, so what reads the histories reads them again.
+const version = signal(0);
 /** @type {Geometry | null} */
-let held = null;
+let geoHeld = null;
 
 const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
 const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
 
-/** Drop the slice being accumulated. */
-function dropPartial() {
-  power = null;
-  count = 0;
-  frameMs = 0;
+/**
+ * Drop a history's slice in hand.
+ *
+ * @param {History} h
+ */
+function dropPartial(h) {
+  h.power = null;
+  h.count = 0;
+  h.frameMs = 0;
 }
 
 /**
@@ -65,30 +103,60 @@ function rowsOf(bins) {
   return Uint8Array.from(cols, (db) => Math.min(ROW_MAX, Math.max(0, Math.round(-db / ROW_STEP_DB))));
 }
 
-/** Close the slice being accumulated onto the history. */
-function closeSlice() {
-  if (!power || !count || !held) return;
-  const n = count;
+/**
+ * Close a history's slice in hand onto it.
+ *
+ * @param {History} h
+ * @param {Geometry} geo
+ */
+function closeSlice(h, geo) {
+  if (!h.power || !h.count) return;
+  const n = h.count;
   /** @type {MeterFrame} */
   const mean = {
-    channels: power.map((ch) => ({ peak: 0, rms: 0, bins: Float32Array.from(ch, (p) => toDb(p / n)) })),
-    ms: frameMs,
+    channels: h.power.map((ch) => ({ peak: 0, rms: 0, bins: Float32Array.from(ch, (p) => toDb(p / n)) })),
+    ms: h.frameMs,
   };
-  /** @type {Slice} */
-  const done = {
-    ms: frameMs,
-    nyquist: held.nyquist,
+  h.list.push({
+    ms: h.frameMs,
+    nyquist: geo.nyquist,
     channels: mean.channels.map((ch) => rowsOf(ch.bins)),
     sum: rowsOf(pickBins(mean, "sum")),
-  };
-  const next = slices.peek().concat([done]);
-  slices.value = next.length > MAX_SLICES ? next.slice(next.length - MAX_SLICES) : next;
-  dropPartial();
+  });
+  h.held += h.frameMs;
+  h.end += h.frameMs;
+  h.trim(h);
+  dropPartial(h);
 }
 
 /**
- * Fold one decoded feed frame into the slice being accumulated. A frame whose
- * layout differs from the slice's starts the slice again.
+ * Fold one frame into a history's slice in hand, closing it once it covers the history's slice time.
+ *
+ * @param {History} h
+ * @param {Geometry} geo
+ * @param {MeterFrame["channels"]} channels
+ * @param {number} ms
+ * @returns {boolean} whether a slice closed
+ */
+function addTo(h, geo, channels, ms) {
+  const width = channels[0].bins.length;
+  if (!h.power || h.power.length !== channels.length || h.power[0].length !== width) {
+    h.power = channels.map(() => new Float64Array(width));
+    h.count = 0;
+    h.frameMs = 0;
+  }
+  const acc = h.power;
+  channels.forEach((ch, c) => ch.bins.forEach((db, k) => (acc[c][k] += toPower(db))));
+  h.count++;
+  h.frameMs += ms;
+  if (h.frameMs < h.sliceMs) return false;
+  closeSlice(h, geo);
+  return true;
+}
+
+/**
+ * Fold one decoded feed frame into both histories. A frame whose layout differs
+ * from the slices' in hand starts them again.
  *
  * @param {Geometry | null} geo
  * @param {MeterFrame["channels"]} channels
@@ -96,21 +164,23 @@ function closeSlice() {
  */
 export function addSpectrumFrame(geo, channels, ms) {
   if (!geo || !channels.length) return;
-  if (geo !== held) {
-    held = geo;
-    dropPartial();
+  if (geo !== geoHeld) {
+    geoHeld = geo;
+    HISTORIES.forEach(dropPartial);
   }
-  const width = channels[0].bins.length;
-  if (!power || power.length !== channels.length || power[0].length !== width) {
-    power = channels.map(() => new Float64Array(width));
-    count = 0;
-    frameMs = 0;
+  const closed = HISTORIES.map((h) => addTo(h, geo, channels, ms));
+  if (closed.some(Boolean)) version.value = version.peek() + 1;
+}
+
+/** Empty both histories and their slices in hand. */
+function clearHistories() {
+  for (const h of HISTORIES) {
+    h.list = [];
+    h.held = 0;
+    h.end = 0;
+    dropPartial(h);
   }
-  const acc = power;
-  channels.forEach((ch, c) => ch.bins.forEach((db, k) => (acc[c][k] += toPower(db))));
-  count++;
-  frameMs += ms;
-  if (frameMs >= SLICE_MS) closeSlice();
+  version.value = version.peek() + 1;
 }
 
 /** @type {(() => void) | null} */
@@ -126,8 +196,7 @@ export function initSpectrogram() {
   if (dispose) return dispose;
   const registered = effect(() => {
     if (apodBins.value.length) return;
-    if (slices.peek().length) slices.value = [];
-    dropPartial();
+    clearHistories();
   });
   dispose = registered;
   return registered;
@@ -163,7 +232,21 @@ export function visibleCells(all, span, pick) {
   return all.slice(i).map((s) => ({ ms: s.ms, nyquist: s.nyquist, slices: [levelsOf(s, pick)] }));
 }
 
+const span = computed(() => windowSpan(apodVisibleBins.value, apodWindow.value));
+
+/** Which history the window draws: the fine one while it reaches across the window's span. */
+export const spectrogramTier = computed(() => (span.value <= FINE_SPAN_MS ? "fine" : "coarse"));
+
+const drawn = () => (spectrogramTier.value === "fine" ? fine : coarse);
+
 /** The cells the spectrogram draws across the strip's window. */
-export const spectrogramCells = computed(() =>
-  visibleCells(slices.value, windowSpan(apodVisibleBins.value, apodWindow.value), meterChannel.value),
-);
+export const spectrogramCells = computed(() => {
+  version.value;
+  return visibleCells(drawn().list, span.value, meterChannel.value);
+});
+
+/** Frame time, ms, of every slice closed into the drawn history since it last cleared. */
+export const spectrogramEnd = computed(() => {
+  version.value;
+  return drawn().end;
+});

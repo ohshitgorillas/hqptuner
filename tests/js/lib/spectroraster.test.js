@@ -5,8 +5,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 
-import { rampFrom, rasterize } from "../../../hqptuner/static/lib/spectroraster.js";
+import { W, rampFrom, rasterize, scrollPlan } from "../../../hqptuner/static/lib/spectroraster.js";
 
 // Floor a dark blue, top a warm yellow: apart from each other and from black,
 // with a steep last segment so a neighbouring step reads as a different colour.
@@ -167,4 +168,116 @@ test("test_an_interval_with_no_frame_stays_unpainted_and_its_neighbours_do_not_b
     { ms: 2000, nyquist: NYQUIST, slices: [flat(200)] },
   ];
   assert.deepEqual(stepsAcross(rasterize(STEPS, view(cells)), [299, 300, 599, 600], 240), [255, null, null, 55]);
+});
+
+/**
+ * Pixel columns `from` to the right edge of a raster, as a raster of their own.
+ *
+ * @param {{ width: number, height: number, data: Uint8ClampedArray }} raster
+ * @param {number} from
+ */
+function columnsFrom({ width, height, data }, from) {
+  const out = new Uint8ClampedArray((width - from) * height * 4);
+  for (let y = 0; y < height; y++) {
+    out.set(data.subarray((y * width + from) * 4, (y + 1) * width * 4), y * (width - from) * 4);
+  }
+  return { width: width - from, height, data: out };
+}
+
+/**
+ * A raster's size and a digest of its bytes. A failed deepEqual renders both
+ * sides element by element, which for two whole rasters exhausts memory.
+ *
+ * @param {{ width: number, height: number, data: Uint8ClampedArray }} raster
+ */
+const fingerprint = ({ width, height, data }) => ({
+  width,
+  height,
+  sha1: createHash("sha1").update(data).digest("hex"),
+});
+
+// An unpainted second, then five slices of 180 columns whose rows differ from
+// one another and from slice to slice, so every column is its own.
+const BANDED = view([
+  { ms: 1000, nyquist: NYQUIST, slices: [] },
+  { ms: 3000, nyquist: NYQUIST, slices: [0, 1, 2, 3, 4].map((k) => slice((r) => (r + 40 * k) % 256)) },
+]);
+
+// Column 700 lies left of its slice's centre, so it blends toward a slice that
+// ends before it.
+for (const from of [1, 700, W - 1]) {
+  test(`test_a_raster_from_column_${from}_is_the_full_rasters_columns_from_there_to_the_right_edge`, () => {
+    assert.deepEqual(
+      fingerprint(rasterize(STEPS, BANDED, from)),
+      fingerprint(columnsFrom(rasterize(STEPS, BANDED), from)),
+    );
+  });
+}
+
+const FULL = { full: true, shift: 0, from: 0, carry: 0 };
+
+// A span of W ms makes one column a millisecond, so frame times and carries in
+// binary fractions give exact column counts.
+const MS_PER_COLUMN_SPAN = W;
+
+test("test_a_first_plan_repaints_in_full", () => {
+  assert.deepEqual(scrollPlan(null, { key: "a", end: 5000, span: SPAN }), FULL);
+});
+
+test("test_a_changed_key_repaints_in_full", () => {
+  const plan = scrollPlan({ key: "a", end: 4000, carry: 0 }, { key: "b", end: 4200, span: SPAN });
+  assert.deepEqual(plan, FULL);
+});
+
+test("test_an_end_that_went_backwards_repaints_in_full", () => {
+  const plan = scrollPlan({ key: "a", end: 4000, carry: 0 }, { key: "a", end: 3800, span: SPAN });
+  assert.deepEqual(plan, FULL);
+});
+
+test("test_a_shift_of_the_whole_width_repaints_in_full", () => {
+  const plan = scrollPlan({ key: "a", end: 1000, carry: 0 }, { key: "a", end: 1000 + W, span: MS_PER_COLUMN_SPAN });
+  assert.deepEqual(plan, FULL);
+});
+
+test("test_a_carry_that_brings_the_shift_to_the_whole_width_repaints_in_full", () => {
+  const plan = scrollPlan({ key: "a", end: 1000, carry: 0.5 }, { key: "a", end: 999.5 + W, span: MS_PER_COLUMN_SPAN });
+  assert.deepEqual(plan, FULL);
+});
+
+test("test_a_shift_one_column_short_of_the_width_scrolls_and_repaints_from_the_left_edge", () => {
+  const plan = scrollPlan({ key: "a", end: 1000, carry: 0 }, { key: "a", end: 999 + W, span: MS_PER_COLUMN_SPAN });
+  assert.deepEqual(plan, { full: false, shift: W - 1, from: 0, carry: 0 });
+});
+
+// 200 ms is a twentieth of a four-second span and a fortieth of an eight-second
+// one: 60 and 30 of 1200 columns.
+for (const [span, columns] of [
+  [4000, 60],
+  [8000, 30],
+]) {
+  test(`test_200_ms_of_new_frames_in_a_${span}_ms_span_scrolls_${columns}_columns`, () => {
+    assert.equal(scrollPlan({ key: "a", end: 4000, carry: 0 }, { key: "a", end: 4200, span }).shift, columns);
+  });
+}
+
+// 60 new columns are 1140 to 1199; the repaint starts one before them, at the
+// seam they blend across.
+test("test_a_scroll_repaints_from_the_column_before_the_new_ones", () => {
+  assert.equal(scrollPlan({ key: "a", end: 4000, carry: 0 }, { key: "a", end: 4200, span: SPAN }).from, 1139);
+});
+
+test("test_a_fraction_of_a_column_is_carried_without_a_shift", () => {
+  const plan = scrollPlan({ key: "a", end: 1000, carry: 0 }, { key: "a", end: 1000.5, span: MS_PER_COLUMN_SPAN });
+  assert.deepEqual(plan, { full: false, shift: 0, from: W - 1, carry: 0.5 });
+});
+
+// Half a column carried, then three quarters more: one whole column, a quarter
+// carried on.
+test("test_a_carried_fraction_shifts_once_it_makes_a_whole_column", () => {
+  const first = scrollPlan({ key: "a", end: 1000, carry: 0 }, { key: "a", end: 1000.5, span: MS_PER_COLUMN_SPAN });
+  const plan = scrollPlan(
+    { key: "a", end: 1000.5, carry: first.carry },
+    { key: "a", end: 1001.25, span: MS_PER_COLUMN_SPAN },
+  );
+  assert.deepEqual(plan, { full: false, shift: 1, from: W - 2, carry: 0.25 });
 });

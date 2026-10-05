@@ -1,10 +1,12 @@
 // Suite for store/meter/spectrogram.js: slices built from decoded feed bins as 480 rows of bytes per channel and
-// summed, closed once the frames folded into each cover 200 ms of frame time, laid along the time axis by that frame
-// time, and cleared by a track change and a geometry change.
+// summed, closed into a fine history once the frames folded into each cover 25 ms of frame time and into a coarse one
+// once they cover 200 ms, laid along the time axis by that frame time, and cleared by a track change and a geometry
+// change. A window spanning at most 300 s draws the fine history, a wider one the coarse.
 //
 // Frames reach the store through addSpectrumFrame with the decoded channel shape; a track change through the poll
-// seam (tests/js/support/apodpolls.js), which empties the apodizing history and the slices with it. Slicing runs on the
-// frame time each frame carries, so no case waits on a clock.
+// seam (tests/js/support/apodpolls.js), which empties the apodizing history and the slices with it. Each case starts
+// with 301 s of playback in the apodizing history, so the whole-history window spans past 300 s and draws the coarse
+// history. Slicing runs on the frame time each frame carries, so no case waits on a clock.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/spectrogram.test.js
 
@@ -15,18 +17,25 @@ import {
   addSpectrumFrame,
   initSpectrogram,
   spectrogramCells,
+  spectrogramEnd,
+  spectrogramTier,
   visibleCells,
 } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { setApodWindow, setMeterChannel } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { useStorage } from "../../support/storage.js";
-import { newTrack } from "../../support/apodpolls.js";
+import { newTrack, poll, setPollStep } from "../../support/apodpolls.js";
 
 const ROWS = 480;
 const NYQUIST = 24000;
 const BINS = 1025;
 const GEO = { nyquist: NYQUIST, channels: 2, bins: BINS };
+const GEO_96K = { nyquist: 48000, channels: 2, bins: BINS };
 const SILENT = -120;
+
+// A window of exactly 300 s, and the whole-history window over the 301 s each case starts with.
+const FINE = "300";
+const COARSE = "all";
 
 /**
  * Every bin at `db`.
@@ -81,6 +90,34 @@ function rows(pick) {
 const widths = () => spectrogramCells.value.map((/** @type {{ ms: number }} */ c) => Math.round(c.ms * 10) / 10);
 
 /**
+ * The frame time each slice drawn under `window` covers, to 0.1 ms, oldest first.
+ *
+ * @param {string} window
+ */
+function widthsAt(window) {
+  setApodWindow(window);
+  return widths();
+}
+
+/** How many slices are drawn and the frame time they cover together. */
+function drawn() {
+  /** @type {number[]} */
+  const all = widths();
+  return { count: all.length, ms: all.reduce((sum, ms) => sum + ms, 0) };
+}
+
+// A two-bin mono geometry, for the cases that close thousands of slices.
+const TINY = { nyquist: NYQUIST, channels: 1, bins: 2 };
+
+/**
+ * `count` frames of `ms` frame time each in the two-bin mono geometry.
+ *
+ * @param {number} count
+ * @param {number} ms
+ */
+const feedTiny = (count, ms) => feed(count, ms, [channel(new Float32Array(2).fill(-30))], TINY);
+
+/**
  * The loudest row of a slice and its byte.
  *
  * @param {ArrayLike<number>} bytes
@@ -93,11 +130,13 @@ function loudest(bytes) {
 
 beforeEach(() => {
   useStorage();
-  setApodWindow("30");
+  setApodWindow(COARSE);
   setMeterChannel("sum");
+  setPollStep(301);
   initApodHistory();
   initSpectrogram();
   newTrack();
+  poll();
 });
 
 // --- the slice's rows ----------------------------------------------------------------------------------------------
@@ -153,6 +192,61 @@ for (const { name, count, ms, closed } of PACES) {
   });
 }
 
+test("test_one_second_of_frames_at_sixty_a_second_closes_33_4_ms_fine_slices_and_200_4_ms_coarse_slices", () => {
+  feed(60, 16.7, [channel(flat(-30)), channel(flat(-30))]);
+  assert.deepEqual([widthsAt(FINE), widthsAt(COARSE)], [Array(30).fill(33.4), Array(5).fill(200.4)]);
+});
+
+test("test_a_fine_history_past_300_s_still_draws_its_newest_300_s", () => {
+  setApodWindow(FINE);
+  feedTiny(1610, 187.5);
+  assert.deepEqual(drawn(), { count: 1600, ms: 300000 });
+});
+
+// --- the tier drawn ------------------------------------------------------------------------------------------------
+
+const TIERS = [
+  { name: "a_window_of_exactly_300_s", window: FINE, tier: "fine" },
+  { name: "a_window_spanning_301_s", window: COARSE, tier: "coarse" },
+];
+
+for (const { name, window, tier } of TIERS) {
+  test(`test_${name}_draws_the_${tier}_tier`, () => {
+    setApodWindow(window);
+    assert.equal(spectrogramTier.value, tier);
+  });
+}
+
+// --- the end -------------------------------------------------------------------------------------------------------
+
+const ENDS = [
+  { tier: "fine", window: FINE, end: 450 },
+  { tier: "coarse", window: COARSE, end: 300 },
+];
+
+for (const { tier, window, end } of ENDS) {
+  test(`test_the_end_under_the_${tier}_tier_is_the_frame_time_of_its_closed_slices`, () => {
+    feed(3, 150, [channel(flat(-30)), channel(flat(-30))]);
+    setApodWindow(window);
+    assert.equal(spectrogramEnd.value, end);
+  });
+}
+
+test("test_the_end_keeps_counting_the_fine_slices_dropped_off_the_front", () => {
+  setApodWindow(FINE);
+  feedTiny(1610, 187.5);
+  assert.equal(spectrogramEnd.value, 301875);
+});
+
+test("test_a_track_change_brings_the_end_back_to_0_before_it_grows_again", () => {
+  const level = [channel(flat(-30)), channel(flat(-30))];
+  setApodWindow(FINE);
+  feed(3, 150, level);
+  newTrack();
+  feed(1, 150, level);
+  assert.equal(spectrogramEnd.value, 150);
+});
+
 // --- clearing ------------------------------------------------------------------------------------------------------
 
 test("test_a_track_change_clears_the_slices_and_the_slice_in_hand", () => {
@@ -160,6 +254,7 @@ test("test_a_track_change_clears_the_slices_and_the_slice_in_hand", () => {
   feed(2, 120, level);
   feed(3, 60, level);
   newTrack();
+  poll();
   feed(4, 50, level);
   assert.deepEqual(widths(), [200]);
 });
@@ -170,6 +265,14 @@ test("test_a_geometry_change_clears_the_slice_in_hand_and_keeps_the_closed_slice
   feed(3, 60, level);
   feed(4, 50, level, { nyquist: 48000, channels: 2, bins: BINS });
   assert.deepEqual(widths(), [240, 200]);
+});
+
+test("test_a_geometry_change_drops_the_fine_and_the_coarse_slice_in_hand", () => {
+  const level = [channel(flat(-30)), channel(flat(-30))];
+  feed(1, 20, level);
+  feed(1, 190, level, GEO_96K);
+  feed(1, 15, level, GEO_96K);
+  assert.deepEqual([widthsAt(FINE), widthsAt(COARSE)], [[190], [205]]);
 });
 
 // --- the cells drawn -----------------------------------------------------------------------------------------------

@@ -174,38 +174,72 @@ function neighbour(slices, i, t) {
 }
 
 /**
- * The spectrogram's pixels for one view, RGBA row by row from the top; a pixel
- * no slice covers stays transparent black.
+ * The spectrogram's pixels for one view from pixel column `from` to the right
+ * edge, RGBA row by row from the top; a pixel no slice covers stays transparent
+ * black. Column x of the result is column `from + x` of the whole view.
  *
  * @param {Triple[]} ramp floor first, as `rampFrom` returns it
  * @param {{ cells: Cell[], span: number, range: number, top: number }} view
+ * @param {number} [from]
  * @returns {{ width: number, height: number, data: Uint8ClampedArray }}
  */
-export function rasterize(ramp, { cells, span, range, top }) {
-  const data = new Uint8ClampedArray(W * H * 4);
+export function rasterize(ramp, { cells, span, range, top }, from = 0) {
+  const width = W - from;
+  const data = new Uint8ClampedArray(width * H * 4);
   const slices = layoutSlices(cells, span, rowFreqs(top));
+  /** @param {number} db */
+  const color = (db) => ramp[rampIndex(db, range)];
   let i = 0;
-  for (let x = 0; x < W; x++) {
+  for (let x = from; x < W; x++) {
     const t = ((x + 0.5) / W) * span;
     while (i < slices.length - 1 && t >= slices[i].end) i++;
     const s = slices[i];
-    if (s && t >= s.start) paintColumn(data, x, { s, ...neighbour(slices, i, t) }, (db) => ramp[rampIndex(db, range)]);
+    if (s && t >= s.start) paintColumn({ data, width }, x - from, { s, ...neighbour(slices, i, t) }, color);
   }
-  return { width: W, height: H, data };
+  return { width, height: H, data };
+}
+
+/**
+ * @typedef {{ full: boolean, shift: number, from: number, carry: number }} ScrollPlan
+ *   How to bring a painted view up to date: repaint it whole, or move its
+ *   pixels `shift` columns left and repaint from column `from`; `carry` is the
+ *   fraction of a column the move still owes.
+ */
+
+/** @type {ScrollPlan} */
+const FULL = { full: true, shift: 0, from: 0, carry: 0 };
+
+/**
+ * What a view painted at `prev` needs to show `next`: the whole raster again
+ * when anything but the history's end moved (the key names it), or when the
+ * history cleared or moved a whole width; else the columns the new playback
+ * pushes in from the right, and the seam column before them.
+ *
+ * @param {{ key: string, end: number, carry: number } | null} prev  end, ms
+ * @param {{ key: string, end: number, span: number }} next  end and span, ms
+ * @returns {ScrollPlan}
+ */
+export function scrollPlan(prev, next) {
+  if (!prev || prev.key !== next.key || next.end < prev.end) return FULL;
+  const px = ((next.end - prev.end) * W) / next.span + prev.carry;
+  const shift = Math.floor(px);
+  if (shift >= W) return FULL;
+  return { full: false, shift, from: Math.max(0, W - shift - 1), carry: px - shift };
 }
 
 /** A level's step on the ramp, from the range's floor to full scale. @param {number} db @param {number} range */
 const rampIndex = (db, range) => Math.round(Math.min(1, Math.max(0, (db + range) / range)) * (STEPS - 1));
 
 /**
- * Paint one pixel column from a slice, blended toward its neighbour.
+ * Paint one pixel column x of an image from a slice blended toward its
+ * neighbour.
  *
- * @param {Uint8ClampedArray} data
+ * @param {{ data: Uint8ClampedArray, width: number }} img
  * @param {number} x
  * @param {{ s: Span, other: Span | null, w: number }} blend
  * @param {(db: number) => Triple} color
  */
-function paintColumn(data, x, { s, other, w }, color) {
+function paintColumn({ data, width }, x, { s, other, w }, color) {
   const { levels, rows } = s;
   if (!levels || !rows) return;
   const toward = other ? other.levels : null;
@@ -214,7 +248,7 @@ function paintColumn(data, x, { s, other, w }, color) {
     if (pos < 0) continue;
     const here = levelAt(levels, pos);
     const [r, g, b] = color(toward ? here + (levelAt(toward, pos) - here) * w : here);
-    const p = (y * W + x) * 4;
+    const p = (y * width + x) * 4;
     data[p] = r;
     data[p + 1] = g;
     data[p + 2] = b;

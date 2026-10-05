@@ -1,17 +1,20 @@
-// The Source meter's two canvases, painted outside preact's render: a signals effect repaints the spectrogram and the
-// apodizing strip whenever the history, the channel, the range, the window or the source's geometry change. Colours
+// The Source meter's two canvases, painted outside preact's render, each by a signals effect of its own. The
+// spectrogram scrolls: a slice closing moves the painted pixels left by the columns its playback covers and paints only
+// those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of channel, range, window, tier or
+// the source's geometry repaints it whole. The apodizing strip repaints when its events or the window change. Colours
 // come from the stylesheet's tokens, read once on mount: the spectrogram's --spec-* ramp, the glass where no slice
 // lies, and the strip's events from the glass toward --bad.
 
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
-import { H, W, rasterize } from "../../../../lib/spectroraster.js";
+import { H, W, rasterize, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp, rampLut } from "../../../../model/gauges/meter-plot.js";
 import { apodVisibleBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
-import { spectrogramCells } from "../../../../store/meter/spectrogram.js";
+import { spectrogramCells, spectrogramEnd, spectrogramTier } from "../../../../store/meter/spectrogram.js";
 
 /** @typedef {[number, number, number]} Triple */
+/** @typedef {import("../../../../lib/spectroraster.js").Cell} Cell */
 /** @typedef {{ ramp: Triple[], glass: number[], strip: number[][] }} Colours */
 /** @typedef {{ current: HTMLCanvasElement | null }} CanvasRef */
 
@@ -68,22 +71,34 @@ function put(data, p, c) {
 }
 
 /**
- * Paint the spectrogram: the visible slices on the linear axis to the source Nyquist, glass where none lies.
+ * Paint the spectrogram from pixel column `from` to the right edge: the visible slices on the linear axis to the
+ * source Nyquist, glass where none lies.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Colours} colours
- * @param {{ span: number, range: number, nyquist: number }} view
+ * @param {{ span: number, range: number, nyquist: number, cells: Cell[] }} view
+ * @param {number} from
  */
-function paintSpectrogram(canvas, colours, view) {
+function paintSpectrogram(canvas, colours, view, from) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const { span, range, nyquist } = view;
-  const raster = { cells: spectrogramCells.value, span, range, top: nyquist };
-  const { width, height, data } = rasterize(colours.ramp, raster);
+  const { span, range, nyquist, cells } = view;
+  const { width, height, data } = rasterize(colours.ramp, { cells, span, range, top: nyquist }, from);
   for (let p = 0; p < width * height; p++) if (data[p * 4 + 3] === 0) put(data, p, colours.glass);
   const img = ctx.createImageData(width, height);
   img.data.set(data);
-  ctx.putImageData(img, 0, 0);
+  ctx.putImageData(img, from, 0);
+}
+
+/**
+ * Move the spectrogram's painted pixels `shift` columns left.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {number} shift
+ */
+function scrollLeft(canvas, shift) {
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.drawImage(canvas, shift, 0, W - shift, H, 0, 0, W - shift, H);
 }
 
 /**
@@ -114,10 +129,26 @@ export function useMeterPaint(spec, strip) {
     const a = strip.current;
     if (!s || !a) return undefined;
     const colours = readColours(s);
-    return effect(() => {
+    /** @type {{ key: string, end: number, carry: number } | null} */
+    let painted = null;
+    const spectrogram = effect(() => {
       const view = sourceMeter();
-      paintSpectrogram(s, colours, view);
-      paintStrip(a, colours, view.span);
+      const cells = spectrogramCells.value;
+      const end = spectrogramEnd.value;
+      const key = [view.span, view.range, view.nyquist, view.channel, spectrogramTier.value].join(" ");
+      const plan = scrollPlan(painted, { key, end, span: view.span });
+      painted = { key, end, carry: plan.carry };
+      if (plan.full) {
+        paintSpectrogram(s, colours, { ...view, cells }, 0);
+      } else if (plan.shift) {
+        scrollLeft(s, plan.shift);
+        paintSpectrogram(s, colours, { ...view, cells }, plan.from);
+      }
     });
+    const stripe = effect(() => paintStrip(a, colours, sourceMeter().span));
+    return () => {
+      spectrogram();
+      stripe();
+    };
   }, []);
 }
