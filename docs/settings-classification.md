@@ -18,7 +18,7 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 | Control | Lane | Evidence / notes |
 |---|---|---|
 | Output mode (PCM/SDM) | live | `SetMode` verified: index domain (0=[source], 1=PCM, 2=SDM); immediate; reset rate to auto, swap enumeration lists. HTTP field `mode` (`auto`/`pcm`/`sdm`) also set it persistently |
-| Backend (ALSA/Network) | http | field `backend` (`alsa`/`network`/`combo`) |
+| Backend (ALSA/Network) | http | field `backend` (`alsa`/`network`/`combo`). Windows daemon: `asio` and `wasapi` in place of `alsa` |
 | Rate | http | `defaults_samplerate` / `defaults_bitrate`, always the tier's 48k member. **`SetRate` is never sent**: it writes the FIXED slot (`samplerate`/`bitrate`) and an exact rate there overrides automatic base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses the filter (measured on 6.0.4: pin 24576000 under a 44.1 kHz source held 24576000; clearing it gave 22579200) |
 | Auto rate family | http | `auto_family`, forced on with the fixed slots at 0 (`FORCED_CONFIG`); what picks the tier member matching the source, per track |
 | Output device | http | **per-backend**: `alsa_device` / `net_device` (select) |
@@ -32,6 +32,8 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 | UPnP freewheel | http | field `upnp_freewheel` (checkbox); input-side, backend-independent |
 | Quick pause | http | field `quick_pause` (checkbox) → `<engine quick_pause>` |
 | Short buffer | http | field `short_buffer` (select 0/1/2 = Normal/Short/Minimum) → `<engine short_buffer>` |
+
+**Windows daemon local backends.** A Windows hqplayerd has ASIO and WASAPI where a Linux one has ALSA. Each carries the six ALSA-section fields under its own prefix: `asio_device` / `asio_offset` / `asio_bits` / `asio_period` / `asio_dop` / `asio_anydsd`, and the same six as `wasapi_*`. HQPTuner writes them to an `<asio>` or `<wasapi>` element under `<engine>` with the `<alsa>` attribute names. Basis: field names and default config in the 6.0.2 Windows installer (`hqplayerd.exe`, `hqplayerd.xml`); the `<wasapi>` element, the `any_dsd` attribute on both and the `backend` values are not yet confirmed against a running Windows daemon. HQPTuner shows a local backend's section when the daemon's form carries its device field, and offers the backends the form's `backend` select lists.
 
 **Transport params per-backend, not mode-gated.** Embedded `/config` form scope device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), independent values — architecture §7.1/§7.7 "DAC bits grays in SDM / DoP grays in PCM" annotations describe *desktop* app, not this form. HQPTuner surface these in collapsible ALSA / Network sections keyed on `backend` (Combo show both), not via mode-graying.
 

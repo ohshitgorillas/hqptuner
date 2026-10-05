@@ -16,11 +16,14 @@ import { effective } from "../resolve.js";
 import { edit } from "../actions.js";
 import { schema } from "../schema.js";
 import { TWIN_44K, DSD_RATES } from "../schema/options.js";
+import { fieldOf } from "../ui/backends.js";
 import { truthy } from "../../lib/coerce.js";
 
-// The form field naming the device each backend drives. Combo drives both at
-// once and is deliberately absent: the log announces one device, so which one's
-// limits apply is unknown and combo narrows nothing.
+// The form field naming the device each backend drives comes from
+// store/ui/backends.js, and so does its DoP switch, a per-backend setting like the
+// device. Combo drives several devices at once and owns no field: the log
+// announces one device, so which one's limits apply is unknown and combo narrows
+// nothing.
 /**
  * @typedef {object} DeviceCaps
  *   One output device's announcement, as engine/devicecaps.py serves it under
@@ -35,12 +38,6 @@ import { truthy } from "../../lib/coerce.js";
  *   rate tables as well as OptionItem lists from the option stores.
  * @property {string | number | undefined} value
  */
-
-/** @type {Record<string, string>} */
-const DEVICE_FIELD = { network: "net_device", alsa: "alsa_device" };
-// DoP is a per-backend switch, on the same map for the same reason.
-/** @type {Record<string, string>} */
-const DOP_FIELD = { network: "net_dop", alsa: "alsa_dop" };
 
 // DoP carries DSD inside an ordinary PCM stream, one DSD bit per carrier bit at
 // 16 carrier bits per sample (DoP v1.1) — so a DSD rate needs a PCM carrier a
@@ -64,13 +61,13 @@ const members = (/** @type {string | number | undefined} */ tier) => {
 const deviceCaps = computed(() => {
   const caps = (config.value && config.value.device_caps) || null;
   if (!caps) return null;
-  const field = DEVICE_FIELD[backend()];
+  const field = fieldOf(backend(), "device");
   if (!field) return null;
   return String(effective(field) || "") === caps.device ? caps : null;
 });
 
 const dopOn = () => {
-  const field = DOP_FIELD[backend()];
+  const field = fieldOf(backend(), "dop");
   return !!field && truthy(effective(field));
 };
 

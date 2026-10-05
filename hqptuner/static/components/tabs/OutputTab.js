@@ -10,6 +10,7 @@ import { BypassNote } from "../matrix/BypassNote.js";
 import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/ui/options.js";
+import { BACKEND_LABELS, fieldOf, localBackends } from "../../store/ui/backends.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { EasyCard } from "../easy/EasyCard.js";
 import { easyMode } from "../../store/easy/easyview.js";
@@ -20,16 +21,19 @@ import { truthy } from "../../lib/coerce.js";
 import { PreProcessCard, PcmChainCard, SdmChainCard } from "./ConversionCards.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
-// runs both). Collapse is purely visual — every field still POSTs (the daemon
-// rejects a partial form), so a hidden backend's config is never dropped. The
-// user can also toggle manually; `override` (null = follow the backend) wins.
+// runs them together). Collapse is purely visual — every field still POSTs (the
+// daemon rejects a partial form), so a hidden backend's config is never dropped.
+// The user can also toggle manually; `override` (null = follow the backend) wins.
 // `backend` is a string-valued control on every lane, so its effective value is
 // a string wherever it is set at all.
 const backend = () => /** @type {string} */ (effective("backend"));
-const alsaOpen = computed(() => ["alsa", "combo"].includes(backend()));
-const netOpen = computed(() => ["network", "combo"].includes(backend()));
-const alsaOverride = signal(null);
-const netOverride = signal(null);
+/** @param {string} name the section's own backend */
+const disclosure = (name) => ({
+  open: computed(() => [name, "combo"].includes(backend())),
+  override: signal(null),
+});
+// One per backend that can own a section, whether or not this daemon has it.
+const SECTIONS = Object.fromEntries(["alsa", "asio", "wasapi", "network"].map((name) => [name, disclosure(name)]));
 
 // DAC correction applies in every mode and on every backend, so there is no
 // automatic disclosure for it to follow: it stands open until the user folds it.
@@ -60,33 +64,37 @@ function deviceMissing(key) {
 // display names.
 function DeviceAlert() {
   const b = backend();
-  /** @type {[string, string][]} wire value, display name */
-  const bad = [];
-  if (["alsa", "combo"].includes(b) && deviceMissing("alsa_device")) bad.push(["alsa", "ALSA"]);
-  if (["network", "combo"].includes(b) && deviceMissing("net_device")) bad.push(["network", "Network"]);
+  const bad = [...localBackends(), "network"].filter(
+    (name) => [name, "combo"].includes(b) && deviceMissing(fieldOf(name, "device")),
+  );
   if (!bad.length) return null;
-  const names = bad.map(([, n]) => n).join(" and ");
-  return html`<div class="device-alert" data-backends=${bad.map(([v]) => v).join(" ")}>
+  const names = bad.map((name) => BACKEND_LABELS[name]).join(" and ");
+  return html`<div class="device-alert" data-backends=${bad.join(" ")}>
     ⚠ No output device for the ${names} backend — the loaded preset's endpoint isn't present. Power the
     device on, then Rescan devices.
   </div>`;
 }
 
-// The two backend sections, each revealing itself when its backend is selected.
-const AlsaCard =
-  () => html`<${Card} id="alsa-backend" title="ALSA Backend" collapse=${collapseFrom(alsaOpen, alsaOverride)}>
-  <div class="pack">
-    <${Field} k="alsa_device" />
-    <${Field} k="alsa_offset" />
-    <${Field} k="alsa_bits" />
-    <${Field} k="alsa_period" />
-    <${Field} k="alsa_dop" />
-    <${Field} k="alsa_anydsd" />
-  </div>
-<//>`;
+// The backend sections, each revealing itself when its backend is selected. A
+// daemon's local backends (ALSA, or ASIO and WASAPI) share one layout.
+/** @param {{ name: string }} props the local backend's wire value */
+const LocalCard = ({ name }) => {
+  const { open, override } = SECTIONS[name];
+  return html`<${Card}
+    id="${name}-backend"
+    title="${BACKEND_LABELS[name]} Backend"
+    collapse=${collapseFrom(open, override)}
+  >
+    <div class="pack">
+      ${["device", "offset", "bits", "period", "dop", "anydsd"].map(
+        (setting) => html`<${Field} key=${setting} k=${fieldOf(name, setting)} />`,
+      )}
+    </div>
+  <//>`;
+};
 
 const NetCard =
-  () => html`<${Card} id="network-backend" title="Network Backend" collapse=${collapseFrom(netOpen, netOverride)}>
+  () => html`<${Card} id="network-backend" title="Network Backend" collapse=${collapseFrom(SECTIONS.network.open, SECTIONS.network.override)}>
   <div class="pack">
     <${Field} k="net_device" />
     <${Field} k="net_bits" />
@@ -115,7 +123,7 @@ const FilterCards = () => {
 };
 
 // Mode / Backend / Rate lead the tab as the three master switches.
-/** Output tab: backend, mode and rate switches, the conversion cards, DAC correction, and the ALSA and network cards. */
+/** Output tab: backend, mode and rate switches, the conversion cards, DAC correction, and the backend cards. */
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
   return html`<${Section}>
@@ -150,7 +158,7 @@ export const Output = () => {
         </div>
       </div>
     <//>
-    <${AlsaCard} />
+    ${localBackends().map((name) => html`<${LocalCard} key=${name} name=${name} />`)}
     <${NetCard} />
   <//>`;
 };

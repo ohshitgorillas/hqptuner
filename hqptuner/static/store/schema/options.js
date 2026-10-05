@@ -52,13 +52,6 @@ export const TIER = Object.entries(TWIN_44K).reduce(
   /** @type {Record<string, string>} */ ({}),
 );
 
-// Backend http-field values are stable strings (not volatile enum indices), so
-// the segment order + labels are fixed here — ALSA / Network / Combo.
-export const BACKENDS = [
-  { value: "alsa", label: "ALSA" },
-  { value: "network", label: "Network" },
-  { value: "combo", label: "Combo" },
-];
 // Optimal ISO fuses an enable and a headroom level into one attribute, so it is
 // one three-way control rather than a checkbox plus a level (HQPlayer Desktop
 // renders the same thing as a tri-state checkbox, which reads as ambiguous).

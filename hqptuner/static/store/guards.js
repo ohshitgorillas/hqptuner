@@ -12,10 +12,14 @@ import { atFixedMinusThree } from "./schema/gray.js";
 import { truthy } from "../lib/coerce.js";
 import { effective, runningValue } from "./resolve.js";
 import { askWarn } from "./ask.js";
+import { fieldOf } from "./ui/backends.js";
 
 // A warning whose two answers are a plain yes/no about a documented consequence,
 // as opposed to the buffer warnings' "are you sure you know better" (ask.js).
 const YES_NO = { confirm: "Yes", decline: "No" };
+
+// Every backend's own buffer-time control.
+const PERIOD_KEYS = new Set(["alsa", "asio", "wasapi", "network"].map((backend) => fieldOf(backend, "period")));
 
 // Minimum-buffer values break real setups — per Signalyst's own guidance, the
 // minimum device buffer time mostly yields packet-underflow drop-outs or no
@@ -31,7 +35,7 @@ const YES_NO = { confirm: "Yes", decline: "No" };
  */
 function bufferHazard(key, value) {
   if (key === "short_buffer" && String(value) === "2") return "minimum short buffer";
-  if ((key === "alsa_period" || key === "net_period") && Number(value) < 0) return "minimum buffer time";
+  if (PERIOD_KEYS.has(key) && Number(value) < 0) return "minimum buffer time";
   return "";
 }
 

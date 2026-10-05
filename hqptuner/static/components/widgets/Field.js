@@ -12,6 +12,7 @@ import { edit, setLive, autosave } from "../../store/actions.js";
 import { refreshDevices } from "../../store/sync.js";
 import { describe, selectedLabel } from "../../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate, stripRateSuffix } from "../../store/ui/options.js";
+import { backendOptions } from "../../store/ui/backends.js";
 import { grayRatesByDevice, grayModesByDevice } from "../../store/narrow/devicecaps.js";
 import { narrowOptions, narrowCount, favOnlyModulators } from "../../store/narrow/match.js";
 import { decorateOptions, plainClosedLabel } from "../../store/plainnames.js";
@@ -142,6 +143,7 @@ function fieldClasses(entry, key, label) {
  */
 function rawOptions(entry) {
   if (entry.optionsFrom === "enum") return enumOptions(entry.enumKey || "");
+  if (entry.optionsFrom === "backends") return backendOptions();
   if (entry.optionsFrom) return optionsFor(entry.optionsFrom, formFieldName(entry));
   return entry.options;
 }

@@ -21,6 +21,7 @@ import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, favoriteModulators, nFavOnly } from "./favorites.js";
 import { effective } from "../resolve.js";
+import { fieldOf } from "../ui/backends.js";
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
 // mode-split ratio (mqa/mp3) to test; null for non-chain callers.
@@ -178,10 +179,8 @@ function dsd441Only(key) {
  * callers ask about it in different modes.
  */
 export const dsd44kOnly = computed(() => {
-  const backend = effective("backend");
-  if (backend === "alsa") return dsd441Only("alsa_anydsd");
-  if (backend === "network") return dsd441Only("net_anydsd");
-  return false;
+  const field = fieldOf(String(effective("backend") || ""), "anydsd");
+  return !!field && dsd441Only(field);
 });
 
 export const rateAutoHide = computed(() => effective("output_mode") === "sdm" && dsd44kOnly.value);

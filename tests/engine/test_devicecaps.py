@@ -213,6 +213,18 @@ def test_selected_device_is_none_with_no_form_loaded_and_the_alsa_device_for_als
 @pytest.mark.parametrize(
     ("config_form", "expected"),
     [
+        (form(backend="asio", asio_device="ASIO Driver A", wasapi_device="Speakers B"), "ASIO Driver A"),
+        (form(backend="wasapi", asio_device="ASIO Driver A", wasapi_device="Speakers B"), "Speakers B"),
+    ],
+    ids=["asio", "wasapi"],
+)
+def test_selected_device_is_the_windows_local_backends_own_device(config_form: ConfigForm, expected: str) -> None:
+    assert devicecaps.selected_device(config_form) == expected
+
+
+@pytest.mark.parametrize(
+    ("config_form", "expected"),
+    [
         (form(backend="network", net_device=""), None),
         (form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), SELECTED),
     ],
