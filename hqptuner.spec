@@ -16,9 +16,18 @@
 # them, so a static analyzer sees no edge and the binary fails at launch rather
 # than at build.
 
+import os
 import sys
 import tomllib
 from pathlib import Path
+
+# A Developer ID identity signs the macOS bundle and turns on the hardened
+# runtime, which the entitlements then apply to. Without one the bundle is
+# ad-hoc signed and carries no entitlements.
+codesign_identity = os.environ.get("HQPTUNER_CODESIGN_IDENTITY") or None
+entitlements_file = (
+    str(Path(SPECPATH, "packaging/macos/entitlements.plist")) if codesign_identity else None
+)
 
 a = Analysis(
     ["hqptuner/__main__.py"],
@@ -72,6 +81,8 @@ exe = EXE(
     # Not an ico: PyInstaller converts it with Pillow, which a Windows install
     # already carries for the tray. The macOS icon is set on the bundle below.
     icon=str(Path(SPECPATH, "packaging/desktop/icon.png")) if sys.platform == "win32" else None,
+    codesign_identity=codesign_identity,
+    entitlements_file=entitlements_file,
 )
 
 coll = COLLECT(

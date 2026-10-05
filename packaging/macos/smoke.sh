@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Mount a built dmg, copy the app out, run it once, then stop it.
-# usage: packaging/macos/smoke.sh <package.dmg>
+# Mount a built dmg, copy the app out, run it once, then stop it. With
+# --notarized, Gatekeeper must also accept the dmg.
+# usage: packaging/macos/smoke.sh <package.dmg> [--notarized]
 set -euo pipefail
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
-[ $# -eq 1 ] || die "usage: smoke.sh <package.dmg>"
+USAGE="usage: smoke.sh <package.dmg> [--notarized]"
+[ $# -eq 1 ] || [ $# -eq 2 ] || die "$USAGE"
+[ "${2:---notarized}" = --notarized ] || die "$USAGE"
 [ -f "$1" ] || die "step 1: package not found: $1"
 DMG=$1
+NOTARIZED=${2:-}
 BASE_URL="http://127.0.0.1:8090"
 PID=""
 WORK=$(mktemp -d)
@@ -24,7 +28,11 @@ trap cleanup EXIT
 
 status() { curl -s -o /dev/null --max-time 2 -w '%{http_code}' "$1" || true; }
 
-# ---- 1. mount, copy the app out, unmount ------------------------------------
+# ---- 1. Gatekeeper, then mount, copy the app out, unmount -------------------
+if [ -n "$NOTARIZED" ]; then
+  spctl --assess --type open --context context:primary-signature -v "$DMG" || die "step 1: Gatekeeper rejects the dmg"
+  xcrun stapler validate "$DMG" || die "step 1: no notarization ticket stapled to the dmg"
+fi
 mkdir "$MOUNT"
 hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" || die "step 1: hdiutil attach failed"
 [ -L "$MOUNT/Applications" ] || die "step 1: no Applications link in the dmg"

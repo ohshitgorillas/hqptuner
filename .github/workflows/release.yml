@@ -166,8 +166,8 @@ jobs:
         run: docker rm -f alma
 
   # PyInstaller does not cross-compile, so each architecture freezes on its own
-  # runner. The dmgs are ad-hoc signed and stay workflow artifacts: publish
-  # attaches nothing unsigned.
+  # runner. The dmgs are signed with the Developer ID certificate and notarized.
+  # They stay workflow artifacts: publish does not attach them.
   build-macos:
     strategy:
       fail-fast: false
@@ -190,7 +190,42 @@ jobs:
       - run: uv venv --python 3.14 .venv
       - run: uv pip install . pyinstaller
 
+      # The certificate goes into a keychain of its own, and codesign takes the
+      # identity by the hash read back from it.
+      - name: Import the signing certificate and the notary key
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -hex 24)
+          echo -n "$MACOS_CERT_P12_BASE64" | base64 --decode -o "$RUNNER_TEMP/certificate.p12"
+          echo -n "$NOTARY_KEY_P8_BASE64" | base64 --decode -o "$RUNNER_TEMP/notary.p8"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychain -d user -s "$keychain"
+          identity=$(security find-identity -v -p codesigning "$keychain" | grep -o -m1 '[0-9A-F]\{40\}' || true)
+          if [ -z "$identity" ]; then
+            echo "No valid signing identity in the imported certificate" >&2
+            exit 1
+          fi
+          echo "HQPTUNER_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "HQPTUNER_NOTARY_KEY=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+
       - run: scripts/package-macos.sh
+        env:
+          HQPTUNER_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          HQPTUNER_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+
+      - name: Remove the signing certificate and the notary key
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/notary.p8"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -225,7 +260,7 @@ jobs:
           name: macos-${{ matrix.arch }}
           path: dist
 
-      - run: bash packaging/macos/smoke.sh dist/*.dmg
+      - run: bash packaging/macos/smoke.sh dist/*.dmg --notarized
 
   # Each architecture freezes on its own runner, with a Python of that
   # architecture named outright: uv may otherwise pick an x64 one on Arm64.
