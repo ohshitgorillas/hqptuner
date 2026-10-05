@@ -47,8 +47,25 @@ if [ -n "$IDENTITY" ]; then
   fi
 fi
 
+# Apple's timestamp service drops a request now and then, and a signing that
+# gets no timestamp fails. That one failure is tried again; any other is final.
+TIMESTAMP_ERROR="A timestamp was expected but was not found"
+SIGN_ATTEMPTS=3
+SIGN_RETRY_SECONDS=20
+SIGN_LOG="build/signing.log"
+with_timestamp_retry() {
+  local attempt=1
+  until "$@" 2>&1 | tee "$SIGN_LOG"; do
+    grep -q "$TIMESTAMP_ERROR" "$SIGN_LOG" || return 1
+    [ "$attempt" -lt "$SIGN_ATTEMPTS" ] || die "the timestamp service failed $attempt signings in a row."
+    attempt=$((attempt + 1))
+    sleep "$SIGN_RETRY_SECONDS"
+  done
+}
+
 say "[1/4] PyInstaller"
-"$PYTHON" -m PyInstaller --noconfirm --distpath dist --workpath build/pyinstaller hqptuner.spec
+mkdir -p build
+with_timestamp_retry "$PYTHON" -m PyInstaller --noconfirm --distpath dist --workpath build/pyinstaller hqptuner.spec || die "PyInstaller failed."
 [ -d "$APP" ] || die "PyInstaller did not write $APP."
 
 say "[2/4] hdiutil"
@@ -60,7 +77,7 @@ hdiutil create -volname HQPTuner -srcfolder "$STAGE" -fs APFS -format UDZO -ov "
 
 say "[3/4] sign and notarize"
 if [ -n "$IDENTITY" ]; then
-  codesign --sign "$IDENTITY" --timestamp "$DMG"
+  with_timestamp_retry codesign --sign "$IDENTITY" --timestamp "$DMG" || die "codesign failed on $DMG."
   SUBMISSION=$(xcrun notarytool submit "$DMG" "${NOTARY[@]}" --output-format json | json_field id)
   [ -n "$SUBMISSION" ] || die "the notary service returned no submission id."
   echo "  submission $SUBMISSION"
