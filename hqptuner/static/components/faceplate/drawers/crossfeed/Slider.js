@@ -1,7 +1,7 @@
 // The Crossfeed block's slider and number box over one value (v1 SliderNumber, the mockup's .xsl grammar): a drag
 // streams, the release or a typed number commits, held to the slider's range.
 
-import { html, userEdit, wheelGuard } from "../../../../lib/dom.js";
+import { html, userEdit, wheelGuard, TypedInput } from "../../../../lib/dom.js";
 
 /** @typedef {import("../../../../lib/dom.js").ControlEvent} ControlEvent */
 
@@ -31,7 +31,7 @@ export function Slider({ label, sub, min, max, step, unit, dp, value, disabled, 
         onChange=${rangeOn((v) => onCommit(held(v)))}
       />
       <div class="num">
-        <input
+        <${TypedInput}
           type="number"
           class="vfd"
           min=${min}

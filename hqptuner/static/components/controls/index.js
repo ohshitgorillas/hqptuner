@@ -2,8 +2,7 @@
 // onChange and renders — no store knowledge. The Field binder wires them to the
 // three-tree store by control key. Reusable and independently testable.
 
-import { useRef, useEffect } from "preact/hooks";
-import { html, wheelGuard, userEdit } from "../../lib/dom.js";
+import { html, wheelGuard, userEdit, useSyncWhenIdle } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
 
 /**
@@ -111,24 +110,6 @@ export function Dropdown({ value, options, disabled, onChange }) {
       )}
     </select>
   `;
-}
-
-// Typed inputs are UNCONTROLLED while focused. `onChange` is the native change
-// event (commit on blur), so a half-typed value lives only in the DOM until then
-// — and the 2 s poll re-renders constantly. A controlled `value=` would reset the
-// field mid-edit (typing "-1" snapped straight back to "0"). So sync from the
-// store by ref, and only when the user isn't in the field. Same rule the live
-// volume slider follows.
-/**
- * @param {CtrlValue} value
- */
-function useSyncWhenIdle(value) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el && document.activeElement !== el) el.value = s(value);
-  });
-  return ref;
 }
 
 /**

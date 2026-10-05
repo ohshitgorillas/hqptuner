@@ -4,7 +4,7 @@
 // chain: one toggle per hideable stage, lit while hidden; hiding the stage whose drawer is open closes that drawer.
 // All three write the browser-held preferences at once and stage nothing.
 
-import { html } from "../../../lib/dom.js";
+import { html, TypedInput } from "../../../lib/dom.js";
 import { accent, accentHex, applyAccent, applyAccentHex } from "../../../store/ui/theme.js";
 import { ACCENTS } from "../../../store/faceplate/settings/visual.js";
 import { hiddenStages, setStageHidden } from "../../../store/ui/faceplate.js";
@@ -42,7 +42,7 @@ export function DelayBlock(_props) {
       <div class="ctl">
         ${labelHead("Spectrum delay")}
         <div class="num">
-          <input
+          <${TypedInput}
             type="number"
             class="vfd"
             min="0"
@@ -87,7 +87,7 @@ export function AccentBlock(_props) {
               ></button>
             `,
           )}
-          <input
+          <${TypedInput}
             type="text"
             class="vfd hex"
             maxlength="7"

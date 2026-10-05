@@ -6,7 +6,7 @@
 // held by store/faceplate/drawers/speakers.js, which decides everything drawn here.
 
 import { useEffect } from "preact/hooks";
-import { html } from "../../../lib/dom.js";
+import { html, TypedInput } from "../../../lib/dom.js";
 import { minus } from "../../../model/shell/format.js";
 import { HEAD, placeSpeakers, planExtent } from "../../../model/gauges/speakers.js";
 import { loadSpeakers, speakers, speakersBusy, speakersError } from "../../../store/matrix/speakers.js";
@@ -46,7 +46,7 @@ const LOADING = "Loading speaker processing…";
 function numBox({ value, limits, unit, aria, disabled, set }) {
   return html`
     <div class="num">
-      <input
+      <${TypedInput}
         type="number"
         class="vfd"
         aria-label=${aria}

@@ -1,6 +1,7 @@
 // Shared htm+preact binding. One `html` tagged template for every component.
 // htm binds to preact's hyperscript `h`; no JSX, no build step.
 import { h } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 import htm from "htm";
 
 export const html = htm.bind(h);
@@ -133,4 +134,33 @@ export function userEdit(canonical, fn) {
     if (armed && e.type === "change") armedOn = null;
     fn(e);
   };
+}
+
+// Typed inputs are UNCONTROLLED while focused. `onChange` is the native change
+// event (commit on blur), so a half-typed value lives only in the DOM until then
+// — and the status and config polls re-render constantly. A controlled `value=`
+// would reset the field mid-edit. So sync from the store by ref, and only when
+// the user isn't in the field.
+/**
+ * A ref for a typed input: after every render it shows `value`, unless the user is in the field.
+ * @param {string | number | boolean | null | undefined} value
+ * @returns {{ current: HTMLInputElement | null }}
+ */
+export function useSyncWhenIdle(value) {
+  const ref = useRef(/** @type {HTMLInputElement | null} */ (null));
+  useEffect(() => {
+    const el = ref.current;
+    if (el && document.activeElement !== el) el.value = value == null ? "" : String(value);
+  });
+  return ref;
+}
+
+/**
+ * An `<input>` that shows `value` without ever overwriting what the user is typing: the first paint carries it as the
+ * default, and every later render syncs it only while the field is not focused. Every other prop passes through.
+ * @param {{ value: string | number | boolean | null | undefined } & Record<string, unknown>} props
+ */
+export function TypedInput({ value, ...rest }) {
+  const ref = useSyncWhenIdle(value);
+  return html`<input ref=${ref} defaultValue=${value == null ? "" : String(value)} ...${rest} />`;
 }

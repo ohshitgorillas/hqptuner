@@ -3,7 +3,7 @@
 // a number box, a text widget a text box; each writes through edit(). Also the label head and the gray reason line
 // every row-shaped item shares, with the link to the place the reason names.
 
-import { html } from "../../../lib/dom.js";
+import { html, TypedInput } from "../../../lib/dom.js";
 import { edit } from "../../../store/actions.js";
 import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
 import { withXref } from "../Xref.js";
@@ -117,7 +117,7 @@ function select({ key, label, off, options }) {
 function number({ key, entry, label, off, hint }) {
   return html`
     <div class="num">
-      <input
+      <${TypedInput}
         type="number"
         class=${off ? "vfd grayed" : "vfd"}
         aria-label=${label}
@@ -140,7 +140,7 @@ function number({ key, entry, label, off, hint }) {
  * @param {KeyCtl} c
  */
 const textBox = ({ key, label, off }) => html`
-  <input
+  <${TypedInput}
     type="text"
     class=${off ? "vfd txt grayed" : "vfd txt"}
     spellcheck="false"

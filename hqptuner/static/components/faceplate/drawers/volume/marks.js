@@ -2,7 +2,7 @@
 // parentheses, the playback needle), each repeated small beside the box or readout that names it, the typed boxes
 // that move a handle, and the read-only readouts.
 
-import { html } from "../../../../lib/dom.js";
+import { html, TypedInput } from "../../../../lib/dom.js";
 import { moveVolumeHandle } from "../../../../store/faceplate/drawers/volume.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/volume.js").VolumeKey} VolumeKey */
@@ -43,7 +43,7 @@ export function RangeBox({ k, setting, glyph, label, value, min, max, dirty, dis
     <label class="vrbox">
       <${Glyph} kind=${glyph} />
       <span class="cl">${label}</span>
-      <input
+      <${TypedInput}
         type="number"
         class="vfd"
         data-k=${setting}

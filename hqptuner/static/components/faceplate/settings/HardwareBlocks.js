@@ -3,7 +3,7 @@
 // convolution device boxes, both grayed while CUDA offload is off and the DSP box alone under convolution-only. Copy
 // verbatim from the mockup's hardware drawer (mockup/scripts/data/settings/hardware.js).
 
-import { html } from "../../../lib/dom.js";
+import { html, TypedInput } from "../../../lib/dom.js";
 import { hardwareDraft, setHardware } from "../../../store/faceplate/settings/hardware.js";
 import { grayLine, labelHead } from "../drawer/controls.js";
 import { Slider } from "../drawers/crossfeed/Slider.js";
@@ -78,7 +78,7 @@ function DeviceBox({ k, sub, aria, off, hint }) {
     <label class="ci">
       <span class="cl">${sub}</span>
       <div class="num">
-        <input
+        <${TypedInput}
           type="number"
           class=${off ? "vfd grayed" : "vfd"}
           data-k=${k}

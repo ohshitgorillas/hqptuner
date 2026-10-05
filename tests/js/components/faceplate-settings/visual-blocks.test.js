@@ -8,10 +8,17 @@
 // reset before it. Controls are found by option value (`data-v`), roles and element names; the hexes come from the theme
 // store, never restated.
 //
+// What a typed box holds lives in the DOM, which server rendering never builds, so the delay box's typing case mounts
+// the block through preact's own client render on a fake document: elements carry the members preact's diff touches,
+// and an element's `value` reads back as a string, as a browser's does. Effects after paint run through preact's
+// `options.requestAnimationFrame` seam, flushed by hand once each render returns, so no frame timer runs. Focus is
+// `document.activeElement`.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/visual-blocks.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { options, render as mount } from "preact";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
@@ -138,4 +145,143 @@ test("test_a_hidden_stage_lights_its_toggle", () => {
 test("test_a_delay_change_writes_the_spectrum_delay_in_seconds", () => {
   fire(DelayBlock, (type) => type === "input", "onChange", { target: { value: "0.5" } });
   assert.equal(spectrumDelay.value, 0.5);
+});
+
+/** A node of the fake document: the tree members preact's diff walks. */
+class Node {
+  /** @param {number} nodeType */
+  constructor(nodeType) {
+    this.nodeType = nodeType;
+    /** @type {Element | null} */
+    this.parentNode = null;
+  }
+
+  get nextSibling() {
+    const kin = this.parentNode ? this.parentNode.childNodes : [];
+    return kin[kin.indexOf(this) + 1] ?? null;
+  }
+}
+
+/** A text node. */
+class Text extends Node {
+  /** @param {string} data */
+  constructor(data) {
+    super(3);
+    this.data = data;
+  }
+}
+
+/** An element, whose `value` reads back as a string. */
+class Element extends Node {
+  /** @param {string} localName */
+  constructor(localName) {
+    super(1);
+    this.localName = localName;
+    /** @type {Node[]} */
+    this.childNodes = [];
+    /** @type {{ name: string, value: string }[]} */
+    this.attributes = [];
+    this.style = { cssText: "", setProperty: () => undefined };
+    this.typed = "";
+  }
+
+  get firstChild() {
+    return this.childNodes[0] ?? null;
+  }
+
+  get value() {
+    return this.typed;
+  }
+
+  set value(v) {
+    this.typed = v == null ? "" : String(v);
+  }
+
+  /**
+   * @param {Node} node
+   * @param {Node | null} before
+   */
+  insertBefore(node, before) {
+    if (node.parentNode) node.parentNode.removeChild(node);
+    const at = before ? this.childNodes.indexOf(before) : -1;
+    this.childNodes.splice(at < 0 ? this.childNodes.length : at, 0, node);
+    node.parentNode = this;
+    return node;
+  }
+
+  /** @param {Node} node */
+  removeChild(node) {
+    this.childNodes.splice(this.childNodes.indexOf(node), 1);
+    node.parentNode = null;
+    return node;
+  }
+
+  setAttribute() {}
+
+  removeAttribute() {}
+
+  addEventListener() {}
+
+  removeEventListener() {}
+}
+
+/**
+ * The first element named `name` under `node`.
+ *
+ * @param {Node} node
+ * @param {string} name
+ * @returns {Element | null}
+ */
+function first(node, name) {
+  if (!(node instanceof Element)) return null;
+  if (node.localName === name) return node;
+  for (const child of node.childNodes) {
+    const hit = first(child, name);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * The delay box's value as mounted, and again after the user focuses it, types `typed` and a render brings `next`.
+ *
+ * @param {string} typed
+ * @param {number} next
+ * @returns {string[]}
+ */
+function typedAcross(typed, next) {
+  const page = {
+    .../** @type {object} */ (env.document),
+    /** @type {Element | null} */ activeElement: null,
+    createElementNS: (/** @type {string} */ _ns, /** @type {string} */ name) => new Element(name),
+    createTextNode: (/** @type {string} */ data) => new Text(data),
+  };
+  env.document = page;
+  const root = new Element("div");
+  const paint = () => {
+    /** @type {Array<() => void>} */
+    const after = [];
+    const frame = options.requestAnimationFrame;
+    options.requestAnimationFrame = (/** @type {() => void} */ flush) => after.push(flush);
+    try {
+      mount(tree(DelayBlock), /** @type {ParentNode} */ (/** @type {unknown} */ (root)));
+    } finally {
+      options.requestAnimationFrame = frame;
+    }
+    after.forEach((flush) => flush());
+  };
+  paint();
+  const box = first(root, "input");
+  const shown = box ? box.value : "";
+  page.activeElement = box;
+  if (box) box.value = typed;
+  spectrumDelay.value = next;
+  paint();
+  const kept = box ? box.value : "";
+  mount(null, /** @type {ParentNode} */ (/** @type {unknown} */ (root)));
+  return [shown, kept];
+}
+
+test("test_a_focused_delay_box_keeps_what_was_typed_when_the_delay_changes", () => {
+  assert.deepEqual(typedAcross("0.7", 1), ["0.25", "0.7"]);
 });

@@ -8,12 +8,23 @@
 // carrying exactly the surface a wheel event exposes to the handler. Both
 // globals are restored after every test.
 //
+// The same file holds the other half of what a typed box promises the user,
+// lib/dom.js useSyncWhenIdle: a box the user is typing in keeps what they typed
+// when a render brings a new value, and a box they are not in shows the new
+// value. The hook is mounted through preact's own client render, since server
+// rendering runs no effects; its host binds the returned ref to a plain box
+// carrying the one member the hook writes, as preact binds an element's `ref`.
+// Effects after paint run through preact's `options.requestAnimationFrame`
+// seam, flushed by hand once each render returns, so no frame timer runs.
+// Focus is `document.activeElement`, the environment seam the hook reads.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/wheelguard.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { h, options, render } from "preact";
 
-import { wheelGuard } from "../../../hqptuner/static/lib/dom.js";
+import { useSyncWhenIdle, wheelGuard } from "../../../hqptuner/static/lib/dom.js";
 
 /**
  * The globals the guard reads, viewed as optional members: under `node --test`
@@ -76,7 +87,12 @@ function setup({ focused, deltaY = 120, deltaMode = 0 }) {
   return { target, event: asWheelEvent(event), scrolls };
 }
 
+/** @type {{ firstChild: null, childNodes: never[] } | null} */
+let host = null;
+
 afterEach(() => {
+  if (host) render(null, host);
+  host = null;
   delete env.document;
   delete env.window;
 });
@@ -135,4 +151,63 @@ test("test_a_focused_control_is_not_blurred", () => {
   const { target, event } = setup({ focused: true });
   wheelGuard(event);
   assert.equal(target.blurred, false);
+});
+
+// --- a typed box syncs from the store only while the user is not in it ----------
+
+/**
+ * A typed box as the hook reads one: the member it writes.
+ *
+ * @typedef {{ value: string }} Box
+ */
+
+/**
+ * The hook's host: binds the returned ref to `box`, as preact binds an element's `ref`.
+ *
+ * @param {{ value: string | number | null, box: Box }} props
+ */
+function Synced({ value, box }) {
+  /** @type {{ current: unknown }} */ (/** @type {unknown} */ (useSyncWhenIdle(value))).current = box;
+  return null;
+}
+
+/**
+ * Render the host with `value` over `box`, then run the effects the browser runs after the paint.
+ *
+ * @param {unknown} value
+ * @param {Box} box
+ */
+function paint(value, box) {
+  host = host || { firstChild: null, childNodes: [] };
+  /** @type {Array<() => void>} */
+  const effects = [];
+  const raf = options.requestAnimationFrame;
+  options.requestAnimationFrame = (/** @type {() => void} */ run) => effects.push(run);
+  try {
+    render(h(Synced, { value, box }), host);
+  } finally {
+    options.requestAnimationFrame = raf;
+  }
+  for (const run of effects) run();
+}
+
+test("test_a_focused_box_keeps_its_typed_text_across_a_render_bringing_a_new_value", () => {
+  /** @type {Box} */
+  const box = { value: "" };
+  env.document = { activeElement: null };
+  paint(5, box);
+  const shown = box.value;
+  env.document = { activeElement: box };
+  box.value = "-1";
+  paint(7, box);
+  assert.deepEqual([shown, box.value], ["5", "-1"]);
+});
+
+test("test_an_unfocused_box_shows_the_new_value_after_a_render", () => {
+  /** @type {Box} */
+  const box = { value: "" };
+  env.document = { activeElement: null };
+  paint(5, box);
+  paint(7, box);
+  assert.equal(box.value, "7");
 });

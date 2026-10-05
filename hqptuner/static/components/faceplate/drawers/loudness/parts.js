@@ -3,7 +3,7 @@
 // names are the drawer stylesheet's (css/v2/drawer.css, matrix.css).
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { html, wheelGuard } from "../../../../lib/dom.js";
+import { html, wheelGuard, TypedInput } from "../../../../lib/dom.js";
 import { classNames } from "../../../../model/shell/format.js";
 
 /** @typedef {{ value: string | number | undefined, label: string }} SegOption */
@@ -46,7 +46,7 @@ export function Seg({ options, value, aria, cls, disabled, dots = {}, onPick }) 
 export function NumBox({ k, value, aria, unit, min, max, step, disabled, onSet }) {
   return html`
     <div class="num">
-      <input
+      <${TypedInput}
         type="number"
         class="vfd"
         data-k=${k}

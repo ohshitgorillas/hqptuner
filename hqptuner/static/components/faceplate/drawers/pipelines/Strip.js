@@ -4,7 +4,7 @@
 // read-only. A convolution stage is added by uploading its file. The decisions are model/shell/pipelines.js's.
 
 import { useRef } from "preact/hooks";
-import { html } from "../../../../lib/dom.js";
+import { html, TypedInput } from "../../../../lib/dom.js";
 import { classNames } from "../../../../model/shell/format.js";
 import { NEW_STAGE, chipText, groups, stageAt } from "../../../../model/shell/pipelines.js";
 import { effectivePipelines } from "../../../../store/resolve.js";
@@ -74,7 +74,7 @@ function rawParts(t, p, i, r) {
     if (!error) t.put({ chip: 0, band: 0 });
   };
   return html`
-    <input
+    <${TypedInput}
       class="vfd praw"
       type="text"
       value=${r.text}
